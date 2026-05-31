@@ -1480,6 +1480,20 @@ async function publishPlanning() {
     alert('Erreur : ' + e.message);
   }
 }
+async function archiveYear() {
+  if (!confirm(`Archiver l'année ${YEAR} ?\n\nCela va pousser stats_${YEAR}.json et indispos_${YEAR}.json sur GitHub.\nLes onglets GSheet ne seront PAS supprimés (à faire manuellement en fin d'année).`)) return;
+  try {
+    const params = new URLSearchParams({payload: JSON.stringify({
+      action: 'archiveYear', code: ADMIN_CODE, year: YEAR
+    })});
+    const res = await fetch(API_URL + '?' + params.toString());
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    alert(`✅ Archivage ${YEAR} terminé !\n\n${data.message || ''}`);
+  } catch(e) {
+    alert('Erreur : ' + e.message);
+  }
+}
 async function buildYearSelect() {
   const thisYear = new Date().getFullYear();
   const yearsToCheck = [];
