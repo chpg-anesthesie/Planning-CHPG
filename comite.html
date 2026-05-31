@@ -460,6 +460,9 @@ body {
     <button class="btn-secondary" onclick="initYear()" style="font-size:11px;padding:5px 10px">
       ➕ Init <span class="year-label-next"></span>
     </button>
+    <button class="btn-secondary" onclick="archiveYear()" style="font-size:11px;padding:5px 10px">
+      📦 Archiver <span class="year-label"></span>
+    </button>
     <button class="btn-primary" onclick="publishPlanning()" style="font-size:11px;padding:5px 10px">
       🚀 Publier <span class="year-label"></span>
     </button>
@@ -1477,17 +1480,29 @@ async function publishPlanning() {
     alert('Erreur : ' + e.message);
   }
 }
-function buildYearSelect() {
+async function buildYearSelect() {
+  const thisYear = new Date().getFullYear();
+  const yearsToCheck = [];
+  for (let y = 2026; y <= thisYear + 1; y++) yearsToCheck.push(y);
+ 
+  const availableYears = [];
+  await Promise.all(yearsToCheck.map(async y => {
+    try {
+      const res = await fetch(`./planning_${y}.json`, { method: 'HEAD' });
+      if (res.ok) availableYears.push(y);
+    } catch(e) {}
+  }));
+  availableYears.sort((a, b) => a - b);
+ 
   const sel = document.getElementById('yearSelect');
   sel.innerHTML = '';
-  const currentYear = new Date().getFullYear();
-  for (let y = 2026; y <= currentYear + 2; y++) {
+  availableYears.forEach(y => {
     const opt = document.createElement('option');
     opt.value = y;
     opt.textContent = y;
     if (y === YEAR) opt.selected = true;
     sel.appendChild(opt);
-  }
+  });
 }
   // ── VALIDATION VACANCES ───────────────────────────────────────────────
 async function loadVacValidation() {
