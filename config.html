@@ -572,6 +572,14 @@ body {
         <div class="maint-desc">Checklist guidée : création compte, affectations, groupe vacances, envoi code d'accès.</div>
         <button class="btn-secondary" onclick="showFiche('recrue')" style="align-self:flex-start">Ouvrir la fiche</button>
       </div>
+      <div class="maint-action">
+        <div class="maint-title">📦 Archiver l'année <span id="archiveYearLabel">—</span></div>
+        <div class="maint-desc">
+          Pousse <code>stats_N.json</code> et <code>indispos_N.json</code> sur GitHub.<br>
+          Les onglets GSheet ne sont <strong>pas</strong> supprimés automatiquement — à faire manuellement en janvier N+1 après vérification.
+        </div>
+        <button class="btn-danger" onclick="archiveCurrentYear()" style="align-self:flex-start">📦 Archiver</button>
+      </div>
     </div>
 
     <div class="card">
@@ -703,6 +711,8 @@ async function authenticate() {
       ADMIN_CODE = code;
       YEAR = data.year || 2027;
       document.getElementById('yearLabel').textContent = YEAR;
+      const archLabel = document.getElementById('archiveYearLabel');
+      if (archLabel) archLabel.textContent = YEAR;
       document.getElementById('authOverlay').style.display = 'none';
       loadEquipe();
     } else {
@@ -1190,7 +1200,16 @@ async function publishPlanning() {
     toast('Erreur : ' + e.message, 'error');
   }
 }
-
+async function archiveCurrentYear() {
+  if (!confirm(`Archiver l'année ${YEAR} ?\n\nCela va pousser stats_${YEAR}.json et indispos_${YEAR}.json sur GitHub.\nLes onglets GSheet ne seront PAS supprimés.`)) return;
+  try {
+    const data = await api({action: 'archiveYear', year: YEAR});
+    if (!data.success) throw new Error(data.error);
+    toast(`✅ Archivage ${YEAR} terminé`, 'success');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
 async function loadLogs() {
   try {
     const data = await api({action: 'getLogs'});
