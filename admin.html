@@ -752,7 +752,10 @@ async function loadPlanningData() {
     DATA = await res.json();
     const today = todayStr();
     const weeks = getAllWeeks();
-    const idx = weeks.findIndex(w => w.days.some(d=>d&&d.date===today));
+    const idx = weeks.findIndex(w => {
+  const days = getWeekDays(w.weekNum);
+  return days.some(d => d && d.date === today);
+});
     currentWeekIdx = idx>=0 ? idx : 0;
     renderWeek();
     buildCalMonthSelect();
@@ -764,7 +767,10 @@ async function loadPlanningData() {
         DATA = await res.json();
         const today = todayStr();
         const weeks = getAllWeeks();
-        const idx = weeks.findIndex(w => w.days.some(d=>d&&d.date===today));
+        const idx = weeks.findIndex(w => {
+  const days = getWeekDays(w.weekNum);
+  return days.some(d => d && d.date === today);
+});
         currentWeekIdx = idx>=0 ? idx : 0;
         renderWeek();
         buildCalMonthSelect();
