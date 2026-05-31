@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Administration · Planning CHPG Monaco</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+<style>
+:root {
+  --red: #CE1126;
+  --red-2: #A50E1F;
+  --red-soft: #FFF1F2;
+  --ink: #0D1117;
+  --ink-2: #21262D;
+  --ink-3: #57606A;
+  --ink-4: #8B949E;
+  --line: #D0D7DE;
+  --line-light: #F6F8FA;
+  --bg: #F0F2F5;
+  --white: #FFFFFF;
+  --green: #1A7F37;
+  --green-soft: #DAFBE1;
+  --blue: #0969DA;
+  --blue-soft: #DDF4FF;
+  --orange: #BC4C00;
+  --orange-soft: #FFF8F0;
+  --purple: #6E40C9;
+  --purple-soft: #F5F0FF;
+  --radius: 14px;
+  --mono: 'DM Mono', monospace;
+  --serif: 'Playfair Display', serif;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.06);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── AUTH ── */
+.auth-overlay {
+  position: fixed; inset: 0;
+  background: linear-gradient(135deg, var(--ink) 0%, #1a0508 100%);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.auth-box {
+  background: var(--white); border-radius: 20px;
+  padding: 48px 40px; width: 380px; text-align: center;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp .4s cubic-bezier(.16,1,.3,1);
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.auth-flag {
+  display: flex; width: 40px; height: 40px; border-radius: 10px;
+  overflow: hidden; margin: 0 auto 20px;
+  box-shadow: 0 4px 12px rgba(206,17,38,.3);
+}
+.auth-flag-top { flex: 1; background: var(--red); }
+.auth-flag-bot { flex: 1; background: var(--white); border-top: 1px solid var(--line); }
+.auth-title { font-family: var(--serif); font-size: 24px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.auth-sub { font-size: 12px; color: var(--ink-4); margin-bottom: 32px; }
+.auth-input {
+  width: 100%; border: 2px solid var(--line); border-radius: 12px;
+  padding: 14px 16px; font-size: 16px; font-family: var(--mono);
+  text-align: center; text-transform: uppercase; letter-spacing: .14em;
+  outline: none; margin-bottom: 12px; transition: border-color .15s;
+  background: var(--line-light);
+}
+.auth-input:focus { border-color: var(--red); background: var(--white); }
+.auth-btn {
+  width: 100%; background: var(--red); color: white; border: none;
+  border-radius: 12px; padding: 14px; font-size: 14px; font-weight: 700;
+  font-family: 'DM Sans', sans-serif; cursor: pointer;
+  transition: background .15s, transform .1s;
+}
+.auth-btn:hover { background: var(--red-2); }
+.auth-btn:active { transform: scale(.98); }
+.auth-error { font-size: 12px; color: var(--red); margin-top: 10px; display: none; }
+
+/* ── HEADER ── */
+.header {
+  background: var(--ink);
+  padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 56px;
+  position: sticky; top: 0; z-index: 200;
+}
+.header-brand { display: flex; align-items: center; gap: 14px; }
+.header-flag {
+  display: flex; width: 24px; height: 24px; border-radius: 5px;
+  overflow: hidden; box-shadow: 0 1px 4px rgba(255,255,255,.15);
+}
+.flag-top { flex: 1; background: var(--red); }
+.flag-bot { flex: 1; background: var(--white); }
+.header-title { font-family: var(--serif); font-size: 16px; font-weight: 700; color: var(--white); letter-spacing: -.01em; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.header-year {
+  background: rgba(255,255,255,.1); color: var(--white);
+  border: 1px solid rgba(255,255,255,.15); border-radius: 8px;
+  padding: 5px 12px; font-size: 13px; font-weight: 700;
+  font-family: var(--mono); letter-spacing: .04em;
+}
+.header-link {
+  font-size: 11px; color: rgba(255,255,255,.4); text-decoration: none;
+  transition: color .15s;
+}
+.header-link:hover { color: rgba(255,255,255,.8); }
+
+/* ── STATUS BAR ── */
+.status-bar {
+  background: var(--white); border-bottom: 1px solid var(--line);
+  padding: 0 32px; display: flex; align-items: center; gap: 24px;
+  height: 40px; overflow-x: auto;
+}
+.status-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.green { background: var(--green); }
+.status-dot.orange { background: #F59E0B; }
+.status-dot.red { background: var(--red); }
+.status-label { font-size: 11px; color: var(--ink-4); }
+.status-value { font-size: 11px; font-weight: 600; color: var(--ink-2); font-family: var(--mono); }
+.status-sep { width: 1px; height: 16px; background: var(--line); flex-shrink: 0; }
+
+/* ── MAIN LAYOUT ── */
+.main {
+  padding: 24px 32px;
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  grid-template-rows: auto auto 1fr;
+  gap: 20px;
+  max-width: 1400px;
+}
+
+/* ── SECTION TITRE ── */
+.section-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--ink-4); margin-bottom: 10px;
+}
+
+/* ── ACTION CARDS ── */
+.actions-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+}
+.action-card {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 20px;
+  cursor: pointer; transition: all .2s;
+  box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 12px;
+  position: relative; overflow: hidden;
+}
+.action-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.action-card.red::before { background: var(--red); }
+.action-card.blue::before { background: var(--blue); }
+.action-card.green::before { background: var(--green); }
+.action-card.purple::before { background: var(--purple); }
+.action-card.orange::before { background: var(--orange); }
+
+.action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: transparent;
+}
+.action-card.red:hover { border-color: var(--red); }
+.action-card.blue:hover { border-color: var(--blue); }
+.action-card.green:hover { border-color: var(--green); }
+.action-card.purple:hover { border-color: var(--purple); }
+.action-card.orange:hover { border-color: var(--orange); }
+
+.action-icon {
+  width: 42px; height: 42px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.action-icon.red { background: var(--red-soft); }
+.action-icon.blue { background: var(--blue-soft); }
+.action-icon.green { background: var(--green-soft); }
+.action-icon.purple { background: var(--purple-soft); }
+.action-icon.orange { background: var(--orange-soft); }
+
+.action-label { font-size: 14px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.action-desc { font-size: 11px; color: var(--ink-4); line-height: 1.4; }
+.action-badge {
+  display: inline-flex; align-items: center; padding: 2px 8px;
+  border-radius: 20px; font-size: 10px; font-weight: 700; font-family: var(--mono);
+  align-self: flex-start;
+}
+.action-badge.red { background: var(--red-soft); color: var(--red); }
+.action-badge.blue { background: var(--blue-soft); color: var(--blue); }
+.action-badge.green { background: var(--green-soft); color: var(--green); }
+.action-badge.orange { background: var(--orange-soft); color: var(--orange); }
+
+/* ── PLANNING SEMAINE ── */
+.week-card {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  grid-column: 1; overflow: hidden;
+}
+.week-header {
+  padding: 14px 20px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--line-light);
+}
+.week-nav { display: flex; align-items: center; gap: 8px; }
+.week-nav-btn {
+  width: 28px; height: 28px; border: 1px solid var(--line);
+  background: var(--white); border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; transition: all .15s;
+}
+.week-nav-btn:hover { border-color: var(--red); color: var(--red); }
+.week-label { font-size: 13px; font-weight: 700; color: var(--ink); min-width: 160px; text-align: center; }
+.week-export-btn {
+  background: var(--red); color: white; border: none; border-radius: 8px;
+  padding: 6px 14px; font-size: 11px; font-weight: 700;
+  font-family: 'DM Sans', sans-serif; cursor: pointer;
+  display: flex; align-items: center; gap: 5px; transition: opacity .15s;
+}
+.week-export-btn:hover { opacity: .88; }
+
+.week-grid {
+  display: grid; grid-template-columns: 100px repeat(7, 1fr);
+  font-size: 11px;
+}
+.wg-header-empty {
+  background: var(--line-light); border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line); padding: 8px;
+}
+.wg-day-header {
+  padding: 8px 4px; text-align: center;
+  border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  background: var(--line-light);
+}
+.wg-day-header.weekend { background: #F0F2F5; }
+.wg-day-header.today { background: #FFF0F1; }
+.wg-day-name { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-4); }
+.wg-day-num { font-size: 16px; font-weight: 700; color: var(--ink); line-height: 1.1; margin-top: 1px; }
+.wg-day-header.today .wg-day-num { color: var(--red); }
+.wg-day-header.weekend .wg-day-num { color: var(--ink-4); }
+.wg-day-jf { font-size: 8px; color: var(--orange); font-weight: 700; }
+
+.wg-sector-label {
+  padding: 6px 10px; background: var(--line-light);
+  border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  font-size: 10px; font-weight: 700; color: var(--ink-3);
+  display: flex; align-items: center;
+}
+.wg-cell {
+  padding: 4px 3px; border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line); vertical-align: top;
+}
+.wg-cell.weekend { background: #F8F9FA; }
+.wg-cell.today { background: #FFF8F8; }
+.wg-cell-inner { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; padding: 2px; }
+
+.chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; font-family: var(--mono);
+  padding: 2px 5px; border-radius: 4px;
+  background: var(--line-light); color: var(--ink-3);
+  cursor: pointer; transition: all .1s;
+}
+.chip:hover { background: var(--red-soft); color: var(--red); transform: scale(1.05); }
+.chip.guard { background: #EFF6FF; color: #1D4ED8; }
+.chip.h18 { background: var(--green-soft); color: var(--green); }
+.chip.rg { background: var(--purple-soft); color: var(--purple); }
+
+/* ── SIDEBAR ── */
+.sidebar { display: flex; flex-direction: column; gap: 16px; grid-row: 1 / 4; }
+
+/* Overrides à venir */
+.sidebar-card {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+}
+.sidebar-header {
+  padding: 12px 16px; background: var(--line-light);
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sidebar-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-4); }
+.sidebar-body { padding: 12px; }
+
+.override-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 8px; margin-bottom: 4px;
+  background: var(--line-light); transition: background .15s;
+}
+.override-item:last-child { margin-bottom: 0; }
+.override-date { font-family: var(--mono); font-size: 10px; color: var(--ink-4); width: 38px; flex-shrink: 0; }
+.override-doc { font-size: 11px; font-weight: 700; color: var(--ink); flex: 1; }
+.override-val { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+.override-del {
+  width: 20px; height: 20px; border: none; background: none;
+  cursor: pointer; color: var(--ink-4); font-size: 14px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s; flex-shrink: 0;
+}
+.override-del:hover { background: var(--red-soft); color: var(--red); }
+
+/* Workflow annuel */
+.workflow-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--line-light);
+}
+.workflow-item:last-child { border-bottom: none; }
+.workflow-num {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; font-family: var(--mono);
+  margin-top: 1px;
+}
+.workflow-num.done { background: var(--green-soft); color: var(--green); }
+.workflow-num.current { background: var(--red); color: white; }
+.workflow-num.todo { background: var(--line-light); color: var(--ink-4); }
+.workflow-label { font-size: 12px; font-weight: 600; color: var(--ink-2); line-height: 1.3; }
+.workflow-sub { font-size: 10px; color: var(--ink-4); margin-top: 1px; }
+.workflow-btn {
+  margin-left: auto; flex-shrink: 0;
+  background: var(--red-soft); color: var(--red);
+  border: none; border-radius: 6px; padding: 3px 8px;
+  font-size: 10px; font-weight: 700; font-family: 'DM Sans', sans-serif;
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.workflow-btn:hover { background: var(--red); color: white; }
+
+/* ── PANNEAU LATÉRAL MODIFICATION ── */
+.panel-overlay {
+  position: fixed; inset: 0; background: rgba(13,17,23,.5);
+  z-index: 400; display: none; align-items: flex-end;
+  justify-content: flex-end;
+}
+.panel-overlay.open { display: flex; }
+.panel {
+  background: var(--white); width: 420px; height: 100vh;
+  box-shadow: var(--shadow-lg); display: flex; flex-direction: column;
+  animation: slideInRight .3s cubic-bezier(.16,1,.3,1);
+}
+@keyframes slideInRight {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+.panel-header {
+  padding: 20px 24px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--line-light);
+}
+.panel-title { font-size: 15px; font-weight: 700; color: var(--ink); }
+.panel-close {
+  width: 32px; height: 32px; border: 1px solid var(--line);
+  background: var(--white); border-radius: 8px; cursor: pointer;
+  font-size: 16px; display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.panel-close:hover { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+.panel-body { flex: 1; padding: 20px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+.panel-footer { padding: 16px 24px; border-top: 1px solid var(--line); }
+
+.form-field { display: flex; flex-direction: column; gap: 5px; }
+.form-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-4); }
+.form-select, .form-input {
+  border: 1.5px solid var(--line); border-radius: 8px;
+  padding: 9px 11px; font-size: 13px; font-family: 'DM Sans', sans-serif;
+  color: var(--ink); background: var(--white); outline: none;
+  transition: border-color .15s; cursor: pointer; width: 100%;
+}
+.form-select:focus, .form-input:focus { border-color: var(--red); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.btn-full {
+  width: 100%; background: var(--red); color: white; border: none;
+  border-radius: 10px; padding: 13px; font-size: 14px; font-weight: 700;
+  font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all .15s;
+}
+.btn-full:hover { background: var(--red-2); }
+.btn-full:disabled { opacity: .5; cursor: not-allowed; }
+
+.result-box {
+  padding: 12px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  display: none;
+}
+.result-box.ok { background: var(--green-soft); color: var(--green); }
+.result-box.err { background: var(--red-soft); color: var(--red); }
+
+/* ── MODAL WORKFLOW ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(13,17,23,.5);
+  z-index: 500; display: none; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--white); border-radius: 16px; padding: 28px;
+  width: 480px; max-width: 90vw; max-height: 80vh; overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp .3s cubic-bezier(.16,1,.3,1);
+}
+.modal-title {
+  font-size: 16px; font-weight: 700; margin-bottom: 20px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-close {
+  width: 30px; height: 30px; border: 1px solid var(--line);
+  background: var(--line-light); border-radius: 7px; cursor: pointer;
+  font-size: 14px; display: flex; align-items: center; justify-content: center;
+}
+
+/* ── SPINNER ── */
+.spinner {
+  width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3);
+  border-top-color: white; border-radius: 50%;
+  animation: spin .8s linear infinite; display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--ink); color: white; padding: 12px 24px;
+  border-radius: 10px; font-size: 13px; font-weight: 600;
+  z-index: 600; opacity: 0; transition: all .3s cubic-bezier(.16,1,.3,1);
+  white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.toast.success { background: var(--green); }
+.toast.error { background: var(--red); }
+
+/* ── AVANCÉ LINK ── */
+.advanced-bar {
+  grid-column: 1 / -1;
+  padding: 16px 0; text-align: center; border-top: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center; gap: 20px;
+}
+.advanced-link {
+  font-size: 11px; color: var(--ink-4); text-decoration: none; transition: color .15s;
+}
+.advanced-link:hover { color: var(--ink-2); }
+
+@media (max-width: 1000px) {
+  .main { grid-template-columns: 1fr; padding: 16px; }
+  .sidebar { grid-row: auto; }
+  .panel { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-box">
+    <div class="auth-flag">
+      <div class="auth-flag-top"></div>
+      <div class="auth-flag-bot"></div>
+    </div>
+    <div class="auth-title">Espace Admin</div>
+    <div class="auth-sub">Planning CHPG Monaco · Anesthésie-Réanimation</div>
+    <input class="auth-input" id="authInput" type="password" placeholder="CODE ADMIN" autocomplete="off"/>
+    <button class="auth-btn" onclick="authenticate()">Accéder →</button>
+    <div class="auth-error" id="authError">Code incorrect.</div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-brand">
+    <div class="header-flag"><div class="flag-top"></div><div class="flag-bot"></div></div>
+    <div class="header-title">Planning CHPG Monaco</div>
+  </div>
+  <div class="header-right">
+    <div class="header-year" id="headerYear">—</div>
+    <a href="./index.html" class="header-link">← Voir le planning</a>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <div class="status-item">
+    <div class="status-dot green" id="dotStatus"></div>
+    <span class="status-label">Système</span>
+    <span class="status-value" id="statusSys">—</span>
+  </div>
+  <div class="status-sep"></div>
+  <div class="status-item">
+    <span class="status-label">MARs actifs</span>
+    <span class="status-value" id="statusMars">—</span>
+  </div>
+  <div class="status-sep"></div>
+  <div class="status-item">
+    <span class="status-label">Overrides à venir</span>
+    <span class="status-value" id="statusOverrides">—</span>
+  </div>
+  <div class="status-sep"></div>
+  <div class="status-item">
+    <span class="status-label">Semaine</span>
+    <span class="status-value" id="statusWeek">—</span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- COL GAUCHE -->
+  <div style="display:flex;flex-direction:column;gap:20px">
+
+    <!-- Actions rapides -->
+    <div>
+      <div class="section-title">Actions rapides</div>
+      <div class="actions-grid">
+
+        <div class="action-card blue" onclick="openPanel('secteur')">
+          <div class="action-icon blue">🔄</div>
+          <div>
+            <div class="action-label">Changer de secteur</div>
+            <div class="action-desc">Modifier l'affectation ponctuelle d'un MAR pour une journée (libéral, remplacement…)</div>
+          </div>
+          <span class="action-badge blue">Quotidien</span>
+        </div>
+
+        <div class="action-card red" onclick="openPanel('garde')">
+          <div class="action-icon red">🔁</div>
+          <div>
+            <div class="action-label">Modifier une garde</div>
+            <div class="action-desc">Échange, don, garde exceptionnelle — republication automatique</div>
+          </div>
+          <span class="action-badge red">Fréquent</span>
+        </div>
+
+        <div class="action-card green" onclick="exportWeekExcel()">
+          <div class="action-icon green">📊</div>
+          <div>
+            <div class="action-label">Exporter le planning</div>
+            <div class="action-desc">Télécharger le planning hebdomadaire en Excel pour l'envoyer à l'équipe</div>
+          </div>
+          <span class="action-badge green">Hebdomadaire</span>
+        </div>
+
+        <div class="action-card orange" onclick="openWorkflowModal()">
+          <div class="action-icon orange">📅</div>
+          <div>
+            <div class="action-label">Workflow annuel</div>
+            <div class="action-desc">Initialiser N+1, générer les gardes, basculer l'année, archiver…</div>
+          </div>
+          <span class="action-badge orange">Annuel</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Planning semaine -->
+    <div class="week-card">
+      <div class="week-header">
+        <div class="week-nav">
+          <button class="week-nav-btn" onclick="prevWeek()">←</button>
+          <div class="week-label" id="weekLabel">Chargement…</div>
+          <button class="week-nav-btn" onclick="nextWeek()">→</button>
+        </div>
+        <button class="week-export-btn" onclick="exportWeekExcel()">
+          ↓ Excel
+        </button>
+      </div>
+      <div style="overflow-x:auto">
+        <div class="week-grid" id="weekGrid">
+          <div style="padding:40px;text-align:center;color:var(--ink-4);grid-column:1/-1">Chargement du planning…</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- Overrides à venir -->
+    <div class="sidebar-card">
+      <div class="sidebar-header">
+        <span class="sidebar-title">Modifications à venir</span>
+        <button onclick="loadOverrides()" style="font-size:10px;background:none;border:none;color:var(--ink-4);cursor:pointer">↻</button>
+      </div>
+      <div class="sidebar-body" id="overridesBody">
+        <div style="text-align:center;color:var(--ink-4);padding:20px;font-size:12px">Chargement…</div>
+      </div>
+    </div>
+
+    <!-- Workflow annuel -->
+    <div class="sidebar-card">
+      <div class="sidebar-header">
+        <span class="sidebar-title">Workflow annuel</span>
+        <span id="workflowYear" style="font-size:10px;font-family:var(--mono);color:var(--ink-4)">—</span>
+      </div>
+      <div class="sidebar-body" id="workflowBody">
+        <div style="text-align:center;color:var(--ink-4);padding:20px;font-size:12px">Chargement…</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ADVANCED BAR -->
+  <div class="advanced-bar">
+    <a href="./comite.html" class="advanced-link">🔬 Diagnostic & Gardes avancé</a>
+    <span style="color:var(--line)">|</span>
+    <a href="./config.html" class="advanced-link">⚙️ Configuration système</a>
+    <span style="color:var(--line)">|</span>
+    <a href="./indispos.html" class="advanced-link">📅 Saisie indispos (MARs)</a>
+  </div>
+
+</div>
+
+<!-- PANNEAU MODIFICATION -->
+<div class="panel-overlay" id="panelOverlay" onclick="closePanel(event)">
+  <div class="panel" id="panel">
+    <div class="panel-header">
+      <div class="panel-title" id="panelTitle">Modification</div>
+      <button class="panel-close" onclick="closePanel()">✕</button>
+    </div>
+    <div class="panel-body" id="panelBody"></div>
+    <div class="panel-footer">
+      <button class="btn-full" id="panelSubmit" onclick="submitPanel()">Appliquer</button>
+      <div class="result-box" id="panelResult"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL WORKFLOW -->
+<div class="modal-overlay" id="workflowModal" onclick="closeWorkflowModal(event)">
+  <div class="modal">
+    <div class="modal-title">
+      <span>📅 Workflow annuel <span id="wfYear">—</span></span>
+      <button class="modal-close" onclick="closeWorkflowModal()">✕</button>
+    </div>
+    <div id="workflowModalBody"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
+
+let ADMIN_CODE = '';
+let YEAR = 2026;
+let DATA = null;       // planning JSON
+let currentWeekIdx = 0;
+let currentMonthIdx = 0;
+let marsData = [];
+let panelType = '';
+
+// ── AUTH ──────────────────────────────────────────────────────────────
+document.getElementById('authInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') authenticate();
+});
+
+async function authenticate() {
+  const code = document.getElementById('authInput').value.trim().toUpperCase();
+  try {
+    const params = new URLSearchParams({payload: JSON.stringify({action:'login', code})});
+    const res = await fetch(API_URL + '?' + params);
+    const data = await res.json();
+    if (data.success && data.role === 'admin') {
+      ADMIN_CODE = code;
+      YEAR = data.year || 2026;
+      document.getElementById('authOverlay').style.display = 'none';
+      document.getElementById('headerYear').textContent = YEAR;
+      document.getElementById('workflowYear').textContent = YEAR;
+      document.getElementById('wfYear').textContent = YEAR;
+      await initDashboard();
+    } else {
+      document.getElementById('authError').style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('authError').style.display = 'block';
+  }
+}
+
+// ── API ────────────────────────────────────────────────────────────────
+async function api(payload) {
+  payload.code = ADMIN_CODE;
+  const params = new URLSearchParams({payload: JSON.stringify(payload)});
+  const res = await fetch(API_URL + '?' + params);
+  return res.json();
+}
+
+// ── TOAST ──────────────────────────────────────────────────────────────
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => el.className = 'toast', 3000);
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────
+async function initDashboard() {
+  // Charger en parallèle
+  await Promise.all([
+    loadPlanningData(),
+    loadStatusBar(),
+    loadOverrides(),
+    loadWorkflow(),
+  ]);
+}
+
+// ── PLANNING DATA ──────────────────────────────────────────────────────
+async function loadPlanningData() {
+  try {
+    DATA = await fetch(`./planning_${YEAR}.json?` + Date.now()).then(r => r.json());
+    // Positionner sur la semaine courante
+    const today = todayStr();
+    const weeks = getAllWeeks();
+    const idx = weeks.findIndex(w => w.days.some(d => d && d.date === today));
+    currentWeekIdx = idx >= 0 ? idx : 0;
+    renderWeek();
+  } catch(e) {
+    document.getElementById('weekGrid').innerHTML = `<div style="padding:30px;text-align:center;color:var(--red);grid-column:1/-1">Erreur de chargement du planning</div>`;
+  }
+}
+
+// ── STATUS BAR ─────────────────────────────────────────────────────────
+async function loadStatusBar() {
+  try {
+    const [medData, ovData] = await Promise.all([
+      api({action:'getMedecins'}),
+      api({action:'getOverrides'}),
+    ]);
+    if (medData.success) {
+      const actifs = medData.medecins.filter(m => m.actif).length;
+      marsData = medData.medecins;
+      document.getElementById('statusMars').textContent = actifs;
+    }
+    if (ovData.success) {
+      document.getElementById('statusOverrides').textContent = ovData.upcoming;
+      const dotEl = document.getElementById('dotStatus');
+      if (ovData.upcoming > 5) dotEl.className = 'status-dot orange';
+    }
+    document.getElementById('statusSys').textContent = 'OK';
+  } catch(e) {
+    document.getElementById('statusSys').textContent = 'Erreur';
+    document.getElementById('dotStatus').className = 'status-dot red';
+  }
+}
+
+// ── OVERRIDES ──────────────────────────────────────────────────────────
+async function loadOverrides() {
+  try {
+    const data = await api({action: 'getOverrides'});
+    if (!data.success) throw new Error(data.error);
+    const futures = data.overrides.filter(o => o.isFuture).slice(0, 8);
+    const body = document.getElementById('overridesBody');
+    if (!futures.length) {
+      body.innerHTML = `<div style="text-align:center;color:var(--ink-4);padding:16px;font-size:12px">Aucune modification à venir</div>`;
+      return;
+    }
+    body.innerHTML = futures.map(o => `
+      <div class="override-item">
+        <span class="override-date">${o.date.slice(5)}</span>
+        <span class="override-doc">${o.doctorId}</span>
+        <span class="override-val">${o.morning||''}${o.afternoon && o.afternoon !== o.morning ? '/'+o.afternoon : ''}</span>
+        <button class="override-del" onclick="cancelOverride(${o.rowIndex},'${o.date}','${o.doctorId}')" title="Annuler">×</button>
+      </div>
+    `).join('');
+    document.getElementById('statusOverrides').textContent = data.upcoming;
+  } catch(e) {
+    document.getElementById('overridesBody').innerHTML = `<div style="color:var(--red);padding:12px;font-size:12px">Erreur de chargement</div>`;
+  }
+}
+
+async function cancelOverride(rowIndex, date, doctorId) {
+  if (!confirm(`Annuler la modification du ${date} pour ${doctorId} ?`)) return;
+  try {
+    const data = await api({action:'deleteOverride', rowIndex});
+    if (!data.success) throw new Error(data.error);
+    toast('✅ Modification annulée — planning republié', 'success');
+    loadOverrides();
+    loadPlanningData();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
+
+// ── WORKFLOW ANNUEL ────────────────────────────────────────────────────
+const WORKFLOW_STEPS = [
+  { label: 'Initialiser INDISPOS N+1',       sub: 'Crée l\'onglet pour la nouvelle année',     action: 'initYear'      },
+  { label: 'Configurer périodes vacances',    sub: 'Dates + seuils dans config.html',           action: null, link: 'config.html#vacances' },
+  { label: 'Vérifier groupes A/B/C',         sub: 'Rotation priorités vacances',               action: null, link: 'config.html#vacances' },
+  { label: 'Basculer ANNEE_ACTIVE → N+1',    sub: 'Les MARs pourront saisir leurs indispos',   action: 'setActiveYear'  },
+  { label: 'Envoyer codes aux MARs',         sub: 'Par email depuis config.html',               action: 'sendCodes'     },
+  { label: 'Valider demandes vacances',       sub: 'Vérifier les conflits',                     action: null, link: 'comite.html#vacances' },
+  { label: 'Générer les gardes N+1',         sub: 'Algorithme équité depuis indispos',          action: 'generateGardes'},
+  { label: 'Saisir affectations secteurs',   sub: 'Par MAR et par mois dans config.html',       action: null, link: 'config.html#affectations' },
+  { label: 'Publier le planning N+1',        sub: 'Push JSON sur GitHub Pages',                action: 'publishPlanning'},
+  { label: 'Archiver l\'année N',            sub: 'Sauvegarder stats + indispos sur GitHub',   action: 'archiveYear'   },
+];
+
+function loadWorkflow() {
+  // Déterminer l'étape courante (simpliste — basée sur le mois)
+  const month = new Date().getMonth() + 1;
+  const currentStep = month >= 10 ? 0 : month >= 1 && month <= 3 ? 6 : 4;
+
+  const body = document.getElementById('workflowBody');
+  body.innerHTML = WORKFLOW_STEPS.map((step, i) => {
+    const state = i < currentStep ? 'done' : i === currentStep ? 'current' : 'todo';
+    const numLabel = state === 'done' ? '✓' : i + 1;
+    return `
+      <div class="workflow-item">
+        <div class="workflow-num ${state}">${numLabel}</div>
+        <div style="flex:1;min-width:0">
+          <div class="workflow-label">${step.label}</div>
+          <div class="workflow-sub">${step.sub}</div>
+        </div>
+        ${state === 'current' && step.action ? `<button class="workflow-btn" onclick="runWorkflowStep(${i})">Lancer</button>` : ''}
+        ${step.link ? `<a href="./${step.link}" style="font-size:10px;color:var(--ink-4);margin-left:4px">→</a>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+async function runWorkflowStep(stepIdx) {
+  const step = WORKFLOW_STEPS[stepIdx];
+  if (!step.action) return;
+
+  if (!confirm(`Lancer : ${step.label} ?`)) return;
+
+  try {
+    let payload = {action: step.action};
+    if (step.action === 'initYear') payload.year = YEAR + 1;
+    if (step.action === 'setActiveYear') payload.year = YEAR + 1;
+    if (step.action === 'archiveYear') payload.year = YEAR;
+
+    const data = await api(payload);
+    if (!data.success) throw new Error(data.error);
+    toast(`✅ ${step.label} — terminé`, 'success');
+    if (step.action === 'setActiveYear') {
+      YEAR = YEAR + 1;
+      document.getElementById('headerYear').textContent = YEAR;
+    }
+    loadWorkflow();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
+
+function openWorkflowModal() {
+  document.getElementById('wfYear').textContent = YEAR;
+  const body = document.getElementById('workflowModalBody');
+  const month = new Date().getMonth() + 1;
+  const currentStep = month >= 10 ? 0 : month >= 1 && month <= 3 ? 6 : 4;
+
+  body.innerHTML = WORKFLOW_STEPS.map((step, i) => {
+    const state = i < currentStep ? 'done' : i === currentStep ? 'current' : 'todo';
+    const numLabel = state === 'done' ? '✓' : i + 1;
+    return `
+      <div class="workflow-item" style="padding:10px 0">
+        <div class="workflow-num ${state}">${numLabel}</div>
+        <div style="flex:1">
+          <div class="workflow-label">${step.label}</div>
+          <div class="workflow-sub">${step.sub}</div>
+        </div>
+        ${step.action ? `<button class="workflow-btn" onclick="runWorkflowStep(${i});closeWorkflowModal()">Lancer</button>` : ''}
+        ${step.link ? `<a href="./${step.link}" class="workflow-btn" style="text-decoration:none">Ouvrir →</a>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('workflowModal').classList.add('open');
+}
+
+function closeWorkflowModal(e) {
+  if (e && e.target !== document.getElementById('workflowModal')) return;
+  document.getElementById('workflowModal').classList.remove('open');
+}
+
+// ── PLANNING SEMAINE ───────────────────────────────────────────────────
+const SECTORS_DISPLAY = ['G/RG','18h','VIS','REA','ORT','ORL','END','CI','RI','MAT','CS'];
+const SECTOR_LABEL = {
+  'G/RG':'Gardes','18h':'18h','VIS':'Viscéral','REA':'Réa',
+  'ORT':'Ortho','ORL':'ORL','END':'Endo','CI':'Cardio','RI':'Radio','MAT':'Maternité','CS':'Consult.'
+};
+const DAYS_FR = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
+const ABSENT = new Set(['RG','A','CP','F','R','I','E']);
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function isoWeek(dateStr) {
+  const dt = new Date(dateStr);
+  const tmp = new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate()));
+  tmp.setUTCDate(tmp.getUTCDate()+4-(tmp.getUTCDay()||7));
+  const ys = new Date(Date.UTC(tmp.getUTCFullYear(),0,1));
+  return Math.ceil((((tmp-ys)/86400000)+1)/7);
+}
+
+function getAllWeeks() {
+  if (!DATA) return [];
+  const weeks = [];
+  const seen = new Set();
+  DATA.months.forEach(month => {
+    month.days.forEach(day => {
+      const wn = isoWeek(day.date);
+      const key = `${day.year || month.year}-${wn}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        weeks.push({weekNum: wn, monthId: month.id, year: day.year || month.year});
+      }
+    });
+  });
+  return weeks;
+}
+
+function getWeekDays(weekNum, year) {
+  if (!DATA) return Array(7).fill(null);
+  const out = Array(7).fill(null);
+  DATA.months.forEach(month => {
+    month.days.forEach((day, dayIdx) => {
+      if (isoWeek(day.date) !== weekNum) return;
+      const dt = new Date(day.date);
+      let dow = dt.getDay(); if (dow === 0) dow = 6; else dow--;
+      out[dow] = {...day, dayIdx, month};
+    });
+  });
+  return out;
+}
+
+function renderWeek() {
+  if (!DATA) return;
+  const weeks = getAllWeeks();
+  if (!weeks.length) return;
+  const wk = weeks[currentWeekIdx];
+  if (!wk) return;
+  const daySlots = getWeekDays(wk.weekNum, wk.year);
+  const today = todayStr();
+
+  // Mettre à jour statut
+  const first = daySlots.find(d => d);
+  const last = [...daySlots].reverse().find(d => d);
+  if (first && last) {
+    const fmt = ds => new Date(ds).toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit'});
+    document.getElementById('weekLabel').textContent = `S${wk.weekNum} · ${fmt(first.date)} – ${fmt(last.date)}`;
+    document.getElementById('statusWeek').textContent = `S${wk.weekNum}`;
+  }
+
+  // Construire la grille
+  const smap = {};
+  SECTORS_DISPLAY.forEach(s => { smap[s] = Array(7).fill(null).map(() => []); });
+
+  daySlots.forEach((slot, dow) => {
+    if (!slot) return;
+    slot.month.doctors.forEach(doc => {
+      const entry = doc.days[slot.dayIdx] || {};
+      const st = entry.status || '';
+      const isWe = slot.isWeekend || slot.isFerie;
+
+      if (st === 'G' || st === 'G2') smap['G/RG'][dow].push({init: doc.initials, st, docId: doc.id, date: slot.date});
+      if (st === 'RG') smap['G/RG'][dow].push({init: doc.initials, st:'rg', docId: doc.id, date: slot.date});
+      if (st === '18') smap['18h'][dow].push({init: doc.initials, st:'h18', docId: doc.id, date: slot.date});
+      if (ABSENT.has(st)) return;
+
+      const sectors = ['VIS','REA','ORT','ORL','END','CI','RI','MAT'];
+      const am = entry.morning || '';
+      const amKey = am.startsWith('CS-') ? 'CS' : am;
+      if (sectors.includes(amKey)) smap[amKey][dow].push({init: doc.initials, st:'', docId: doc.id, date: slot.date});
+      if (amKey === 'CS') smap['CS'][dow].push({init: doc.initials, st:'', docId: doc.id, date: slot.date});
+    });
+  });
+
+  const activeSectors = SECTORS_DISPLAY.filter(s =>
+    smap[s].some(col => col.length > 0)
+  );
+
+  let html = '';
+
+  // Headers
+  html += `<div class="wg-header-empty"></div>`;
+  daySlots.forEach((slot, i) => {
+    const isWe = slot ? (slot.isWeekend || slot.isFerie) : true;
+    const isTd = slot ? slot.date === today : false;
+    const cls = ['wg-day-header', isWe ? 'weekend' : '', isTd ? 'today' : ''].filter(Boolean).join(' ');
+    if (!slot) { html += `<div class="${cls}"></div>`; return; }
+    html += `<div class="${cls}">
+      <div class="wg-day-name">${DAYS_FR[i]}</div>
+      <div class="wg-day-num">${slot.day}</div>
+      ${slot.isFerie ? '<div class="wg-day-jf">JF</div>' : ''}
+    </div>`;
+  });
+
+  // Secteurs
+  activeSectors.forEach(sector => {
+    html += `<div class="wg-sector-label">${SECTOR_LABEL[sector] || sector}</div>`;
+    daySlots.forEach((slot, dow) => {
+      const isWe = slot ? (slot.isWeekend || slot.isFerie) : true;
+      const isTd = slot ? slot.date === today : false;
+      const cls = ['wg-cell', isWe ? 'weekend' : '', isTd ? 'today' : ''].filter(Boolean).join(' ');
+      html += `<div class="${cls}"><div class="wg-cell-inner">`;
+      if (slot) {
+        smap[sector][dow].forEach(p => {
+          const chipCls = p.st === 'guard' || p.st === 'G' || p.st === 'G2' ? 'chip guard' :
+                          p.st === 'h18' ? 'chip h18' : p.st === 'rg' ? 'chip rg' : 'chip';
+          html += `<span class="${chipCls}" onclick="openPanelForDoc('${p.docId}','${slot ? slot.date : ''}')" title="${p.docId}">${p.init}</span>`;
+        });
+        if (!smap[sector][dow].length) html += `<span style="color:var(--line);font-size:10px">—</span>`;
+      }
+      html += `</div></div>`;
+    });
+  });
+
+  document.getElementById('weekGrid').innerHTML = html;
+}
+
+function prevWeek() {
+  if (currentWeekIdx > 0) { currentWeekIdx--; renderWeek(); }
+}
+function nextWeek() {
+  const weeks = getAllWeeks();
+  if (currentWeekIdx < weeks.length - 1) { currentWeekIdx++; renderWeek(); }
+}
+
+// ── PANNEAU MODIFICATION ───────────────────────────────────────────────
+function openPanel(type, prefillDocId = '', prefillDate = '') {
+  panelType = type;
+  const titles = {
+    secteur: '🔄 Changer de secteur',
+    garde:   '🔁 Modifier une garde',
+  };
+  document.getElementById('panelTitle').textContent = titles[type] || 'Modification';
+  document.getElementById('panelResult').style.display = 'none';
+  document.getElementById('panelResult').className = 'result-box';
+
+  const marOpts = marsData.filter(m => m.actif)
+    .map(m => `<option value="${m.id}"${m.id === prefillDocId ? ' selected' : ''}>${m.id}</option>`).join('');
+
+  const SECTEURS = ['VIS','END','ORL','REA','ORT','CI','RI','MAT','DVI'];
+  const sectOpts = SECTEURS.map(s => `<option value="${s}">${s}</option>`).join('');
+
+  let body = '';
+
+  if (type === 'secteur') {
+    body = `
+      <div class="form-field">
+        <label class="form-label">Date</label>
+        <input class="form-input" type="date" id="pDate" value="${prefillDate}"/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Médecin</label>
+        <select class="form-select" id="pDoctor"><option value="">— Choisir —</option>${marOpts}</select>
+      </div>
+      <div class="form-grid">
+        <div class="form-field">
+          <label class="form-label">Matin</label>
+          <select class="form-select" id="pValueAM"><option value="">—</option>${sectOpts}</select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Après-midi</label>
+          <select class="form-select" id="pValuePM"><option value="">—</option>${sectOpts}</select>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--ink-4);line-height:1.5;padding:10px;background:var(--line-light);border-radius:8px">
+        💡 Laisser vide pour ne pas modifier la demi-journée. Le planning est republié automatiquement.
+      </div>
+    `;
+  }
+
+  if (type === 'garde') {
+    body = `
+      <div class="form-field">
+        <label class="form-label">Type de modification</label>
+        <select class="form-select" id="pModType" onchange="updateGardeForm()">
+          <option value="">— Choisir —</option>
+          <option value="echangeGarde">Échange de garde</option>
+          <option value="donGarde">Don de garde</option>
+          <option value="gardeExceptionnelle">Garde exceptionnelle</option>
+        </select>
+      </div>
+      <div id="gardeFormExtra"></div>
+    `;
+  }
+
+  document.getElementById('panelBody').innerHTML = body;
+  document.getElementById('panelOverlay').classList.add('open');
+}
+
+function updateGardeForm() {
+  const type = document.getElementById('pModType')?.value;
+  const marOpts = marsData.filter(m => m.actif)
+    .map(m => `<option value="${m.id}">${m.id}</option>`).join('');
+  let extra = '';
+
+  if (type === 'echangeGarde' || type === 'donGarde') {
+    extra = `
+      <div class="form-field">
+        <label class="form-label">Date de la garde</label>
+        <input class="form-input" type="date" id="pDate"/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">${type === 'donGarde' ? 'Médecin qui donne' : 'Médecin A'}</label>
+        <select class="form-select" id="pDoctor"><option value="">— Choisir —</option>${marOpts}</select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">${type === 'donGarde' ? 'Médecin qui reçoit' : 'Médecin B'}</label>
+        <select class="form-select" id="pDoctor2"><option value="">— Choisir —</option>${marOpts}</select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Date du RG (si différente du lendemain)</label>
+        <input class="form-input" type="date" id="pDate2"/>
+      </div>
+    `;
+  }
+
+  if (type === 'gardeExceptionnelle') {
+    extra = `
+      <div class="form-field">
+        <label class="form-label">Date</label>
+        <input class="form-input" type="date" id="pDate"/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Médecin</label>
+        <select class="form-select" id="pDoctor"><option value="">— Choisir —</option>${marOpts}</select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Type de garde</label>
+        <select class="form-select" id="pValue">
+          <option value="G">G — Garde REA</option>
+          <option value="G2">G2 — Garde MAT</option>
+        </select>
+      </div>
+    `;
+  }
+
+  document.getElementById('gardeFormExtra').innerHTML = extra;
+}
+
+function openPanelForDoc(docId, date) {
+  openPanel('secteur', docId, date);
+}
+
+function closePanel(e) {
+  if (e && e.target !== document.getElementById('panelOverlay')) return;
+  document.getElementById('panelOverlay').classList.remove('open');
+}
+
+async function submitPanel() {
+  const btn = document.getElementById('panelSubmit');
+  const result = document.getElementById('panelResult');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Application…';
+  result.style.display = 'none';
+
+  try {
+    const date    = document.getElementById('pDate')?.value;
+    const doctor  = document.getElementById('pDoctor')?.value;
+    const doctor2 = document.getElementById('pDoctor2')?.value;
+    const date2   = document.getElementById('pDate2')?.value || null;
+
+    let mod = {};
+
+    if (panelType === 'secteur') {
+      const am = document.getElementById('pValueAM')?.value;
+      const pm = document.getElementById('pValuePM')?.value;
+      if (!date || !doctor) throw new Error('Date et médecin obligatoires');
+      mod = { type: 'secteur', date, doctorId: doctor, value: am, valuePM: pm };
+    }
+
+    if (panelType === 'garde') {
+      const modType = document.getElementById('pModType')?.value;
+      const value   = document.getElementById('pValue')?.value;
+      if (!modType || !date || !doctor) throw new Error('Veuillez remplir tous les champs');
+      mod = { type: modType, date, doctorId: doctor, doctorId2: doctor2, value, date2 };
+    }
+
+    const data = await api({action: 'applyModification', modification: mod});
+    if (!data.success) throw new Error(data.error);
+
+    result.textContent = '✅ Modification appliquée — planning republié automatiquement.';
+    result.className = 'result-box ok';
+    result.style.display = 'block';
+
+    // Rafraîchir
+    setTimeout(() => {
+      loadPlanningData();
+      loadOverrides();
+      document.getElementById('panelOverlay').classList.remove('open');
+    }, 1500);
+
+  } catch(e) {
+    result.textContent = '❌ ' + e.message;
+    result.className = 'result-box err';
+    result.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Appliquer';
+  }
+}
+
+// ── EXPORT EXCEL ───────────────────────────────────────────────────────
+async function exportWeekExcel() {
+  if (!DATA) { toast('Planning non chargé', 'error'); return; }
+  if (typeof ExcelJS === 'undefined') { toast('ExcelJS non disponible', 'error'); return; }
+
+  const weeks = getAllWeeks();
+  const wk = weeks[currentWeekIdx];
+  if (!wk) return;
+
+  const daySlots = getWeekDays(wk.weekNum, wk.year);
+  const month = DATA.months.find(m => m.id === wk.monthId) || DATA.months[0];
+
+  // Reprendre la logique d'export d'index.html
+  const DOCTORS_INFO = [
+    ['PR PRUNET','BP','81409'],['DR ALBOUY','SA','85019'],['DR ARMANDO','GA','81867'],
+    ['DR BONNET','LB','81322'],['DR BOUREGBA','MB','81859'],['DR CATINEAU','JC','81268'],
+    ['DR FROHLICH','AFR','82616'],['DR FERRIERO','AF','82565'],['DR GHIGLIONE','SG','81809'],
+    ['DR GUERIN','JPG','82022'],['DR LEVASSEUR','LUL','82558'],['DR LEY','LL','82132'],
+    ['DR MENADE','RM','81378'],['DR OPPRECHT','NO','82188'],['DR PARTOUCHE','NP','81806'],
+    ['DR ROUSSEAU','GR','81860'],['DR SUPLY','CS','82578'],['DR SEVERAC','MS','82401'],
+    ['DR SULTAN','WS','81348'],['DR TRAN','DT','83783'],['DR ZAMARON','FZ','82481'],
+    ['DR WIDEHEM','RW','82101'],['DR SALA','NS','81397'],
+  ];
+  const SPECIAL_DECT = [
+    ['Garde réa','83636'],['Garde bloc/mater','82103'],
+    ['Secrétariat Tamaris','81380'],['Secrétariat réa','89819'],
+  ];
+  const SECTOR_COLORS_XL = {VIS:'DDEEFF',REA:'E8E0F0',ORT:'F3AA7D',DVI:'F3AA7D',ORL:'FFFFC9',END:'FFFFFF',CI:'E7E6E6',RI:'E7E6E6',MAT:'FFA7A9',CS:'D9EAD3'};
+  const SECTOR_LABELS_XL = {VIS:'VISCÉRAL',REA:'RÉANIMATION',ORT:'ORTHOPÉDIE',DVI:'POSE DVI',ORL:'ORL / OPHTALMO',END:'ENDOSCOPIES',CI:'CARDIO / RADIO INTER.',RI:'RADIO INTER.',MAT:'MATERNITÉ',CS:'CONSULTATIONS'};
+  const SECTORS_XL = ['VIS','REA','ORT','DVI','ORL','END','CI','RI','MAT','CS'];
+  const DAYS_FR_XL = ['LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI','DIMANCHE'];
+  const C = {red:'CE1126',redDark:'9A0D1C',greyHd:'D9D9D9',greyLt:'F2F2F2',we:'EFEFEF',white:'FFFFFF',ink:'000000',muted:'595959',guard:'FFE0E0',guardFg:'B91C1C',h18:'FFF2CC',h18Fg:'B45309',rg:'E2EFDA',rgFg:'166534',abs:'F2F2F2',absFg:'595959',dark:'1A1A2E'};
+  const ABSENT_STATUSES = new Set(['RG','CP','A','F','R']);
+
+  const smap = {};
+  SECTORS_XL.forEach(s => { smap[s] = Array(7).fill(null).map(() => ({am:[],pm:[]})); });
+  const guards = Array(7).fill(null).map(() => []);
+  const h18arr = Array(7).fill('');
+  const sorties = Array(7).fill(null).map(() => []);
+  const absents = Array(7).fill(null).map(() => []);
+
+  month.doctors.forEach(doc => {
+    daySlots.forEach((slot, dow) => {
+      if (!slot) return;
+      const entry = doc.days[slot.dayIdx] || {};
+      const st = entry.status || '';
+      const am = entry.morning || '';
+      const pm = entry.afternoon || '';
+      if (st === 'G' || st === 'G2') guards[dow].push(doc.initials);
+      if (st === '18') h18arr[dow] = doc.initials;
+      if (st === 'RG') sorties[dow].push(doc.initials);
+      if (['A','CP','F','R','I','E'].includes(st)) absents[dow].push(doc.initials);
+      if (ABSENT_STATUSES.has(st)) return;
+      const amKey = am.startsWith('CS-') ? 'CS' : am;
+      const pmKey = pm.startsWith('CS-') ? 'CS' : pm;
+      const amSub = am.includes('-') ? am.split('-')[1] : '';
+      const pmSub = pm.includes('-') ? pm.split('-')[1] : '';
+      if (amKey && smap[amKey]) smap[amKey][dow].am.push({init:doc.initials,sub:amSub,status:st});
+      if (pmKey && smap[pmKey]) smap[pmKey][dow].pm.push({init:doc.initials,sub:pmSub,status:st});
+      const cs = entry.cs || '';
+      if (cs && smap['CS']) { const csSub = cs.includes('-') ? cs.split('-')[1] : ''; smap['CS'][dow].am.push({init:doc.initials,sub:csSub,status:st}); }
+      const cs2 = entry.cs2 || ''; if (cs2 && smap[cs2]) smap[cs2][dow].am.push({init:doc.initials,sub:'',status:st});
+      const cs3 = entry.cs3 || ''; if (cs3 && smap[cs3]) smap[cs3][dow].pm.push({init:doc.initials,sub:'',status:st});
+    });
+  });
+
+  const colStart = dow => dow < 5 ? 2 + dow * 4 : 22 + (dow - 5) * 2;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet(`Semaine ${wk.weekNum}`, {pageSetup:{orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1}});
+  ws.views = [{showGridLines:false}];
+  ws.getColumn(1).width = 20;
+  for (let dow = 0; dow < 5; dow++) { const cs = colStart(dow); for (let ci = 0; ci < 4; ci++) ws.getColumn(cs+ci).width = 6.5; }
+  for (let dow = 5; dow < 7; dow++) { const cs = colStart(dow); ws.getColumn(cs).width = 6.5; ws.getColumn(cs+1).width = 6.5; }
+  ws.getColumn(26).width = 2; ws.getColumn(27).width = 20; ws.getColumn(28).width = 8; ws.getColumn(29).width = 9;
+
+  const thin = {style:'thin',color:{argb:'FFCCCCCC'}};
+  const thick = {style:'medium',color:{argb:'FF888888'}};
+  const bAll = {top:thin,bottom:thin,left:thin,right:thin};
+  const bThick = {top:thin,bottom:thin,left:thick,right:thin};
+  const fill = hex => ({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+hex}});
+  const font = (bold,sz,hex) => ({name:'Arial',bold,size:sz,color:{argb:'FF'+hex}});
+  const align = (h,v,wrap) => ({horizontal:h,vertical:v,wrapText:!!wrap});
+  function setCell(ws,r,c,val,f,fi,al,bo) { const cell=ws.getCell(r,c); if(val!==undefined)cell.value=val; if(f)cell.font=f; if(fi)cell.fill=fi; if(al)cell.alignment=al; if(bo)cell.border=bo; return cell; }
+  function merge(ws,r1,c1,r2,c2) { ws.mergeCells(r1,c1,r2,c2); }
+
+  let row = 1;
+  const firstSlot = daySlots.find(s => s);
+  const lastSlot = [...daySlots].reverse().find(s => s);
+  const fmtD = ds => new Date(ds).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const title = `PLANNING ANESTHÉSISTES — Semaine ${wk.weekNum} — ${fmtD(firstSlot.date)} au ${fmtD(lastSlot.date)}`;
+  merge(ws,row,1,row,25); setCell(ws,row,1,title,font(true,13,'FFFFFF'),fill(C.red),align('center','middle')); ws.getRow(row).height=26; row++;
+  merge(ws,row,1,row,25); setCell(ws,row,1,"CHPG Monaco · Service d'Anesthésie-Réanimation",font(false,9,'FFFFFF'),fill(C.redDark),align('center','middle')); ws.getRow(row).height=14; row++;
+  ws.getRow(row).height=5; row++;
+
+  ws.getRow(row).height=18;
+  setCell(ws,row,1,'SECTEUR',font(true,9,C.muted),fill(C.greyHd),align('center','middle'),bAll);
+  for (let dow=0;dow<7;dow++) { const cs=colStart(dow);const isWe=dow>=5;const n=isWe?2:4; merge(ws,row,cs,row,cs+n-1); setCell(ws,row,cs,DAYS_FR_XL[dow],font(true,10,isWe?C.muted:C.ink),fill(isWe?C.we:C.greyHd),align('center','middle'),bAll); }
+  row++;
+  ws.getRow(row).height=14;
+  setCell(ws,row,1,'',null,fill(C.greyHd),null,bAll);
+  for (let dow=0;dow<7;dow++) { const cs=colStart(dow);const isWe=dow>=5;const n=isWe?2:4; merge(ws,row,cs,row,cs+n-1); const slot=daySlots[dow]; const dt=slot?new Date(slot.date):null; const dateStr=dt?dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}):''; setCell(ws,row,cs,dateStr,font(false,9,isWe?C.muted:C.ink),fill(isWe?C.we:C.greyHd),align('center','middle'),bAll); }
+  row++;
+  ws.getRow(row).height=16;
+  setCell(ws,row,1,'',null,fill(C.greyHd),null,bAll);
+  for (let dow=0;dow<7;dow++) { const cs=colStart(dow);const isWe=dow>=5; if(isWe){merge(ws,row,cs,row,cs+1);setCell(ws,row,cs,'GARDE 24H',font(true,7,'AAAAAA'),fill(C.we),align('center','middle'),bAll);}else{merge(ws,row,cs,row,cs+1);setCell(ws,row,cs,'AM',font(true,8,'FFFFFF'),fill(C.red),align('center','middle'),bAll);merge(ws,row,cs+2,row,cs+3);setCell(ws,row,cs+2,'PM',font(true,8,'FFFFFF'),fill('374151'),align('center','middle'),bAll);} }
+  row++;
+
+  const active = SECTORS_XL.filter(s => smap[s].some(d => d.am.length || d.pm.length));
+  const getCsBg = (n,def) => n.sub ? SECTOR_COLORS_XL[n.sub]||def : def;
+  active.forEach(sec => {
+    const secBg = SECTOR_COLORS_XL[sec]||'FFFFFF';
+    let maxRows = 1;
+    for (let dow=0;dow<7;dow++) { const am=smap[sec][dow].am.slice(0,4);const pm=smap[sec][dow].pm.slice(0,4); if(dow<5)maxRows=Math.max(maxRows,Math.max(am.length?Math.ceil(am.length/2):1,pm.length?Math.ceil(pm.length/2):1));else maxRows=Math.max(maxRows,am.length?Math.ceil(am.length/2):1); }
+    for (let ro=0;ro<maxRows;ro++) ws.getRow(row+ro).height=16;
+    if (maxRows>1) merge(ws,row,1,row+maxRows-1,1);
+    setCell(ws,row,1,SECTOR_LABELS_XL[sec]||sec,font(true,9,C.ink),fill(secBg),align('left','middle'),bThick);
+    for (let dow=0;dow<7;dow++) {
+      const cs=colStart(dow);const isWe=dow>=5;const bg=isWe?C.we:secBg;
+      if(isWe){const names=smap[sec][dow].am;merge(ws,row,cs,row+maxRows-1,cs+1);setCell(ws,row,cs,names[0]?names[0].init:'—',font(!!names[0],10,names[0]?C.ink:C.muted),fill(bg),align('center','middle'),bAll);}
+      else {
+        const amN=smap[sec][dow].am.slice(0,4);const pmN=smap[sec][dow].pm.slice(0,4);
+        const amP=[];for(let i=0;i<amN.length;i+=2)amP.push(amN.slice(i,i+2));
+        const pmP=[];for(let i=0;i<pmN.length;i+=2)pmP.push(pmN.slice(i,i+2));
+        if(!amP.length)amP.push([]);if(!pmP.length)pmP.push([]);
+        for(let pi=0;pi<maxRows;pi++){
+          const ap=amP[pi]||[];for(let ni=0;ni<2;ni++){const n=ap[ni];const cbg=n?getCsBg(n,bg):bg;setCell(ws,row+pi,cs+ni,n?n.init:'',font(!!n,9,C.ink),fill(cbg),align('center','middle'),bAll);}
+          const pp=pmP[pi]||[];for(let ni=0;ni<2;ni++){const n=pp[ni];const cbg=n?getCsBg(n,bg):bg;setCell(ws,row+pi,cs+2+ni,n?n.init:'',font(!!n,9,C.ink),fill(cbg),align('center','middle'),bAll);}
+        }
+      }
+    }
+    row += maxRows;
+  });
+
+  ws.getRow(row).height=6; merge(ws,row,1,row,25); ws.getCell(row,1).fill=fill(C.greyLt); row++;
+  merge(ws,row,1,row,25); setCell(ws,row,1,'GARDES & FONCTIONS',font(true,9,C.muted),fill(C.greyHd),align('left','middle')); ws.getRow(row).height=14; row++;
+
+  function gardeRow(label,vals,bgV,fgV) {
+    ws.getRow(row).height=20;
+    setCell(ws,row,1,label,font(true,9,C.ink),fill(C.greyLt),align('left','middle'),bAll);
+    for(let dow=0;dow<7;dow++){const cs=colStart(dow);const isWe=dow>=5;const n=isWe?2:4;merge(ws,row,cs,row,cs+n-1);const v=vals[dow]||'';setCell(ws,row,cs,v||'—',font(!!v,9,v?fgV:C.muted),fill(isWe&&!v?C.we:v?bgV:'FFFFFF'),align('center','middle',true),bAll);}
+  }
+  gardeRow('Garde 24h',guards.map(g=>g.join(' / ')),C.guard,C.guardFg); row++;
+  gardeRow('8h – 18h',h18arr,C.h18,C.h18Fg); row++;
+  gardeRow('Sortie de garde',sorties.map(s=>s.join(' / ')),C.rg,C.rgFg); row++;
+  const maxAbsLines = Math.max(...absents.map(a=>Math.ceil(a.length/4)||1));
+  for(let li=0;li<maxAbsLines;li++){
+    ws.getRow(row).height=18;
+    setCell(ws,row,1,li===0?'Absences / CP / F':'',font(true,9,C.ink),fill(C.greyLt),align('left','middle'),bAll);
+    for(let dow=0;dow<7;dow++){const cs=colStart(dow);const isWe=dow>=5;const n=isWe?2:4;merge(ws,row,cs,row,cs+n-1);const slice=absents[dow].slice(li*4,(li+1)*4);const v=slice.join('  ·  ');setCell(ws,row,cs,v||'',font(!!v,9,v?C.absFg:C.muted),fill(isWe&&!v?C.we:v?C.abs:'FFFFFF'),align('center','middle'),bAll);}
+    row++;
+  }
+
+  merge(ws,row,1,row,25); setCell(ws,row,1,`Généré le ${new Date().toLocaleDateString('fr-FR')}  ·  CHPG Monaco · Anesthésie-Réanimation  ·  Confidentiel`,font(false,7,'999999'),fill(C.dark),align('center','middle')); ws.getRow(row).height=12;
+
+  merge(ws,1,27,1,29); setCell(ws,1,27,'ANESTHÉSISTES & N° DECT',font(true,10,'FFFFFF'),fill(C.red),align('center','middle',true));
+  ws.getRow(2).height=8; for(let c=27;c<=29;c++) ws.getCell(2,c).fill=fill(C.red);
+  ws.getRow(3).height=18;
+  for(const [col,lbl,h] of [[27,'NOM','left'],[28,'INIT.','center'],[29,'DECT','center']]){setCell(ws,3,col,lbl,font(true,9,'FFFFFF'),fill('374151'),align(h,'middle'),bAll);}
+  let r2=4;
+  for(const [name,init,dect] of DOCTORS_INFO){ws.getRow(r2).height=13;setCell(ws,r2,27,name,font(false,9,C.ink),null,align('left','middle'),bAll);setCell(ws,r2,28,init,font(false,9,C.ink),null,align('center','middle'),bAll);setCell(ws,r2,29,dect,font(false,9,C.ink),null,align('center','middle'),bAll);r2++;}
+  ws.getRow(r2).height=6; r2++;
+  for(const [lbl,dect] of SPECIAL_DECT){ws.getRow(r2).height=13;merge(ws,r2,27,r2,28);setCell(ws,r2,27,lbl,font(true,8,C.muted),fill(C.greyLt),align('left','middle'),bAll);setCell(ws,r2,29,dect,font(false,8,C.ink),null,align('center','middle'),bAll);r2++;}
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `Planning_S${wk.weekNum}_CHPG.xlsx`; a.click();
+  URL.revokeObjectURL(url);
+  toast('✅ Export Excel téléchargé', 'success');
+}
+</script>
+</body>
+</html>
