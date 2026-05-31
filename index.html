@@ -63,6 +63,22 @@ body {
 .header-sub { font-size: 11px; color: var(--ink-4); margin-top: 1px; }
 .header-right { display: flex; align-items: center; gap: 8px; }
 
+/* ── SÉLECTEURS ── */
+.year-select {
+  border: 1.5px solid var(--red); border-radius: 8px; padding: 6px 10px;
+  font-size: 13px; font-weight: 700; font-family: 'DM Sans', sans-serif;
+  color: var(--red); background: var(--white); outline: none; cursor: pointer;
+  transition: border-color .15s, background .15s;
+  min-width: 82px;
+}
+.year-select:focus { background: var(--red-soft); }
+.month-select {
+  border: 1.5px solid var(--line); border-radius: 8px; padding: 6px 10px;
+  font-size: 13px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+  color: var(--ink); background: var(--white); outline: none; cursor: pointer; transition: border-color .15s;
+}
+.month-select:focus { border-color: var(--red); }
+
 /* ── VIEW TOGGLE ── */
 .view-toggle-main {
   background: var(--white);
@@ -97,12 +113,6 @@ body {
   flex-wrap: wrap;
 }
 .nav-label { font-size: 11px; font-weight: 600; color: var(--ink-4); text-transform: uppercase; letter-spacing: .06em; }
-.month-select {
-  border: 1.5px solid var(--line); border-radius: 8px; padding: 6px 10px;
-  font-size: 13px; font-weight: 600; font-family: 'DM Sans', sans-serif;
-  color: var(--ink); background: var(--white); outline: none; cursor: pointer; transition: border-color .15s;
-}
-.month-select:focus { border-color: var(--red); }
 .week-pills { display: flex; gap: 4px; flex-wrap: wrap; }
 .week-pill {
   border: 1.5px solid var(--line); background: var(--white); border-radius: 8px;
@@ -292,6 +302,7 @@ body {
     </div>
   </div>
   <div class="header-right">
+    <select id="yearSelect" class="year-select"></select>
     <select id="monthSelect" class="month-select"></select>
   </div>
 </div>
@@ -387,6 +398,8 @@ let DATA = null;
 let currentMonthId = null;
 let currentWeekIdx = 0;
 let currentMainView = 'planning';
+let currentYear = null;
+let activeYear = null; // année active depuis l'API (sélectionnée par défaut)
 
 // ── UTILS ──────────────────────────────────────────────────────────────
 function esc(s){ return String(s||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
@@ -453,37 +466,115 @@ function weekDaysFull(weekInfo){
 
 // ── INIT ───────────────────────────────────────────────────────────────
 async function init(){
-  try{
-    let activeYear = 2026;
+  // 1. Récupérer l'année active depuis l'API
+  activeYear = new Date().getFullYear();
+  try {
+    const params = new URLSearchParams({payload: JSON.stringify({action:'getActiveYear'})});
+    const yearRes = await fetch(API_URL + '?' + params.toString());
+    const yearData = await yearRes.json();
+    if(yearData.success && yearData.year) activeYear = yearData.year;
+  } catch(e){}
+
+  // 2. Détecter toutes les années disponibles sur GitHub (2026 → année courante + 1)
+  //    On tente un HEAD sur chaque planning_XXXX.json — si le fichier existe → on l'affiche
+  const thisYear = new Date().getFullYear();
+  const yearsToCheck = [];
+  for(let y = 2026; y <= thisYear + 1; y++) yearsToCheck.push(y);
+
+  const availableYears = [];
+  await Promise.all(yearsToCheck.map(async y => {
     try {
-      const params = new URLSearchParams({payload: JSON.stringify({action:'getActiveYear'})});
-      const yearRes = await fetch(API_URL + '?' + params.toString());
-      const yearData = await yearRes.json();
-      if(yearData.success && yearData.year) activeYear = yearData.year;
+      const res = await fetch(`./planning_${y}.json`, { method: 'HEAD' });
+      if(res.ok) availableYears.push(y);
     } catch(e){}
-    DATA = await fetch(`./planning_${activeYear}.json?` + Date.now()).then(r=>r.json());
-  } catch(e){
-    document.body.innerHTML=`<div style="padding:40px;font-family:sans-serif;color:#CE1126"><h2>Erreur de chargement</h2><pre>${esc(e.message)}</pre></div>`;
+  }));
+  availableYears.sort((a, b) => a - b);
+
+  if(!availableYears.length) {
+    document.body.innerHTML = `<div style="padding:40px;font-family:sans-serif;color:#CE1126"><h2>Aucun fichier planning trouvé</h2></div>`;
     return;
   }
-  const now=new Date();
-  const found=DATA.months.find(m=>m.year===now.getFullYear()&&m.month===now.getMonth()+1);
-  currentMonthId=found?found.id:DATA.months[0].id;
+
+  // 3. Sélectionner l'année par défaut : active si disponible, sinon la plus récente
+  currentYear = availableYears.includes(activeYear) ? activeYear : availableYears[availableYears.length - 1];
+
+  // 4. Construire le sélecteur d'année
+  buildYearSelect(availableYears);
+
+  // 5. Charger le planning de l'année sélectionnée
+  await loadYear(currentYear);
+
+  document.getElementById('exportBtn').onclick = exportExcel;
+  document.getElementById('btnPlanning').onclick = () => setMainView('planning');
+  document.getElementById('btnMedecins').onclick = () => setMainView('medecins');
+}
+
+// ── SÉLECTEUR D'ANNÉE ──────────────────────────────────────────────────
+function buildYearSelect(availableYears) {
+  const sel = document.getElementById('yearSelect');
+  sel.innerHTML = '';
+  availableYears.forEach(y => {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y;
+    if(y === currentYear) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  sel.onchange = async () => {
+    currentYear = parseInt(sel.value);
+    await loadYear(currentYear);
+    if(currentMainView === 'medecins') renderMedecins();
+  };
+}
+
+// ── CHARGER UNE ANNÉE ──────────────────────────────────────────────────
+async function loadYear(year) {
+  try {
+    DATA = await fetch(`./planning_${year}.json?` + Date.now()).then(r => r.json());
+  } catch(e) {
+    document.body.innerHTML = `<div style="padding:40px;font-family:sans-serif;color:#CE1126"><h2>Erreur de chargement ${year}</h2><pre>${esc(e.message)}</pre></div>`;
+    return;
+  }
+
+  // Aller au mois actuel si disponible dans cette année, sinon premier mois
+  const now = new Date();
+  const found = DATA.months.find(m => m.year === now.getFullYear() && m.month === now.getMonth() + 1);
+  currentMonthId = found ? found.id : DATA.months[0].id;
+  currentWeekIdx = 0;
+  window._weekInitialized = false;
+
   buildMonthSelect();
   buildWeekNav();
-  document.getElementById('exportBtn').onclick=exportExcel;
-  document.getElementById('btnPlanning').onclick=()=>setMainView('planning');
-  document.getElementById('btnMedecins').onclick=()=>setMainView('medecins');
   render();
 }
 
 function goToToday(){
-  const now=new Date();
-  const found=DATA.months.find(m=>m.year===now.getFullYear()&&m.month===now.getMonth()+1);
+  // Basculer sur l'année active si on est sur une année archivée
+  const now = new Date();
+  const todayYear = now.getFullYear();
+  if(currentYear !== todayYear) {
+    const sel = document.getElementById('yearSelect');
+    // Chercher si l'année courante est dans le sélecteur
+    const opt = [...sel.options].find(o => parseInt(o.value) === todayYear);
+    if(opt) {
+      sel.value = todayYear;
+      currentYear = todayYear;
+      loadYear(todayYear).then(() => {
+        _goToTodayInCurrentData();
+      });
+      return;
+    }
+  }
+  _goToTodayInCurrentData();
+}
+
+function _goToTodayInCurrentData(){
+  const now = new Date();
+  const found = DATA.months.find(m => m.year === now.getFullYear() && m.month === now.getMonth() + 1);
   if(!found) return;
-  currentMonthId=found.id;
-  currentWeekIdx=0;
-  window._weekInitialized=false;
+  currentMonthId = found.id;
+  currentWeekIdx = 0;
+  window._weekInitialized = false;
   buildMonthSelect();
   buildWeekNav();
   render();
