@@ -870,7 +870,7 @@ async function authenticate() {
       ADMIN_CODE = code;
       authenticated = true;
       document.getElementById('authOverlay').style.display = 'none';
-      loadActiveYear();
+      loadActiveYear(data);
     } else {
       document.getElementById('authError').style.display = 'block';
     }
@@ -878,26 +878,12 @@ async function authenticate() {
     document.getElementById('authError').style.display = 'block';
   }
 }
-async function loadActiveYear() {
-  try {
-    const params = new URLSearchParams({payload: JSON.stringify({
-      action: 'login', code: ADMIN_CODE
-    })});
-    const res = await fetch(API_URL + '?' + params.toString());
-    const data = await res.json();
-    if (data.success && data.year) {
-      YEAR = data.year;
-      buildYearSelect();
-      
-      // Mettre à jour les titres
-document.querySelectorAll('.year-label').forEach(el => el.textContent = YEAR);
-document.querySelectorAll('.year-label-next').forEach(el => el.textContent = YEAR + 1);
-document.querySelectorAll('.year-btn').forEach(btn => {
-  btn.classList.toggle('active', parseInt(btn.dataset.year) === YEAR);
-});
-    }
-  } catch(e) {
-    console.log('Année par défaut : 2026');
+function loadActiveYear(data) {
+  if (data.year) {
+    YEAR = data.year;
+    buildYearSelect();
+    document.querySelectorAll('.year-label').forEach(el => el.textContent = YEAR);
+    document.querySelectorAll('.year-label-next').forEach(el => el.textContent = YEAR + 1);
   }
 }
 // ── TABS ──────────────────────────────────────────────────────────────
