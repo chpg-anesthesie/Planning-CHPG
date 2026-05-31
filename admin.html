@@ -753,31 +753,14 @@ async function loadPlanningData() {
     const today = todayStr();
     const weeks = getAllWeeks();
     const idx = weeks.findIndex(w => {
-  const days = getWeekDays(w.weekNum);
-  return days.some(d => d && d.date === today);
-});
+      const days = getWeekDays(w.weekNum);
+      return days.some(d => d && d.date === today);
+    });
     currentWeekIdx = idx>=0 ? idx : 0;
     renderWeek();
     buildCalMonthSelect();
   } catch(e) {
-    // Retry une fois après 1 seconde
-    setTimeout(async () => {
-      try {
-        const res = await fetch(`./planning_${YEAR}.json?`+Date.now());
-        DATA = await res.json();
-        const today = todayStr();
-        const weeks = getAllWeeks();
-        const idx = weeks.findIndex(w => {
-  const days = getWeekDays(w.weekNum);
-  return days.some(d => d && d.date === today);
-});
-        currentWeekIdx = idx>=0 ? idx : 0;
-        renderWeek();
-        buildCalMonthSelect();
-      } catch(e2) {
-        document.getElementById('weekGrid').innerHTML='<div style="padding:30px;text-align:center;color:var(--red);grid-column:1/-1">Erreur de chargement — vérifiez la connexion</div>';
-      }
-    }, 1000);
+    document.getElementById('weekGrid').innerHTML='<div style="padding:30px;text-align:center;color:var(--red);grid-column:1/-1">Erreur de chargement — vérifiez la connexion</div>';
   }
 }
 
@@ -822,22 +805,22 @@ function renderWeek() {
   }
 
   const smap={}; SECTORS_DISPLAY.forEach(s=>{smap[s]=Array(7).fill(null).map(()=>({am:[],pm:[]}));});
-daySlots.forEach((slot,dow)=>{
-  if (!slot) return;
-  slot.month.doctors.forEach(doc=>{
-    const entry=doc.days[slot.dayIdx]||{}; const st=entry.status||'';
-    if(st==='G'||st==='G2') smap['G/RG'][dow].am.push({init:doc.initials,st:'guard',docId:doc.id,date:slot.date});
-    if(st==='18') smap['18h'][dow].am.push({init:doc.initials,st:'h18',docId:doc.id,date:slot.date});
-    if(ABSENT.has(st)) return;
-    const am=entry.morning||''; const amKey=am.startsWith('CS-')?'CS':am;
-    const pm=entry.afternoon||''; const pmKey=pm.startsWith('CS-')?'CS':pm;
-    if(amKey&&smap[amKey]) smap[amKey][dow].am.push({init:doc.initials,st:'',docId:doc.id,date:slot.date});
-    if(pmKey&&smap[pmKey]&&pmKey!==amKey) smap[pmKey][dow].pm.push({init:doc.initials,st:'',docId:doc.id,date:slot.date});
-    const cs=entry.cs||''; if(cs&&smap['CS']) smap['CS'][dow].pm.push({init:doc.initials,st:'',docId:doc.id,date:slot.date});
+  daySlots.forEach((slot,dow)=>{
+    if (!slot) return;
+    slot.month.doctors.forEach(doc=>{
+      const entry=doc.days[slot.dayIdx]||{}; const st=entry.status||'';
+      if(st==='G'||st==='G2') smap['G/RG'][dow].am.push({init:doc.initials,st:'guard',docId:doc.id,date:slot.date});
+      if(st==='18') smap['18h'][dow].am.push({init:doc.initials,st:'h18',docId:doc.id,date:slot.date});
+      if(ABSENT.has(st)) return;
+      const am=entry.morning||''; const amKey=am.startsWith('CS-')?'CS':am;
+      const pm=entry.afternoon||''; const pmKey=pm.startsWith('CS-')?'CS':pm;
+      if(amKey&&smap[amKey]) smap[amKey][dow].am.push({init:doc.initials,st:'',docId:doc.id,date:slot.date});
+      if(pmKey&&smap[pmKey]&&pmKey!==amKey) smap[pmKey][dow].pm.push({init:doc.initials,st:'',docId:doc.id,date:slot.date});
+      const cs=entry.cs||''; if(cs&&smap['CS']) smap['CS'][dow].pm.push({init:doc.initials,st:'',docId:doc.id,date:slot.date});
+    });
   });
-});
 
-  const activeSectors=SECTORS_DISPLAY.filter(s=>smap[s].some(col=>col.length>0));
+  const activeSectors=SECTORS_DISPLAY.filter(s=>smap[s].some(col=>col.am.length>0||col.pm.length>0));
   let html='';
   html+='<div class="wg-header-empty"></div>';
   daySlots.forEach((slot,i)=>{
@@ -854,32 +837,35 @@ daySlots.forEach((slot,dow)=>{
       const isTd=slot?slot.date===today:false;
       const cls=['wg-cell',isWe?'weekend':'',isTd?'today':''].filter(Boolean).join(' ');
       html+=`<div class="${cls}">`;
-if(slot){
-  const amList=smap[sector][dow].am;
-  const pmList=smap[sector][dow].pm;
-  const hasAm=amList.length>0; const hasPm=pmList.length>0;
-  if(!hasAm&&!hasPm){
-    html+=`<div class="wg-cell-inner"><span style="color:var(--line);font-size:10px">—</span></div>`;
-  } else {
-    const makeChips=(arr,label)=>{
-      if(!arr.length) return '';
-      const chips=arr.map(p=>{
-        const chipCls=p.st==='guard'?'chip guard':p.st==='h18'?'chip h18':'chip';
-        return `<span class="${chipCls}" onclick="openPanelForDoc('${p.docId}','${slot.date}')" title="${p.docId}">${p.init}</span>`;
-      }).join('');
-      return `<div style="display:flex;align-items:center;gap:2px;padding:1px 3px">
-        <span style="font-size:8px;font-weight:700;color:var(--ink-4);width:14px;flex-shrink:0">${label}</span>
-        <div style="display:flex;flex-wrap:wrap;gap:1px">${chips}</div>
-      </div>`;
-    };
-    html+=makeChips(amList,'AM');
-    if(hasPm) html+=`<div style="height:1px;background:var(--line-light);margin:1px 3px"></div>`;
-    html+=makeChips(pmList,'PM');
-  }
-} else {
-  html+=`<div class="wg-cell-inner"></div>`;
-}
-html+=`</div>`;
+      if(slot){
+        const amList=smap[sector][dow].am;
+        const pmList=smap[sector][dow].pm;
+        if(!amList.length&&!pmList.length){
+          html+=`<div class="wg-cell-inner"><span style="color:var(--line);font-size:10px">—</span></div>`;
+        } else {
+          if(amList.length){
+            html+=`<div style="display:flex;align-items:center;gap:2px;padding:2px 3px">`;
+            html+=`<span style="font-size:8px;font-weight:700;color:var(--ink-4);width:14px;flex-shrink:0">AM</span>`;
+            html+=`<div style="display:flex;flex-wrap:wrap;gap:1px">`;
+            amList.forEach(p=>{
+              const chipCls=p.st==='guard'?'chip guard':p.st==='h18'?'chip h18':'chip';
+              html+=`<span class="${chipCls}" onclick="openPanelForDoc('${p.docId}','${slot.date}')" title="${p.docId}">${p.init}</span>`;
+            });
+            html+=`</div></div>`;
+          }
+          if(pmList.length){
+            if(amList.length) html+=`<div style="height:1px;background:var(--line-light);margin:0 3px"></div>`;
+            html+=`<div style="display:flex;align-items:center;gap:2px;padding:2px 3px">`;
+            html+=`<span style="font-size:8px;font-weight:700;color:var(--ink-4);width:14px;flex-shrink:0">PM</span>`;
+            html+=`<div style="display:flex;flex-wrap:wrap;gap:1px">`;
+            pmList.forEach(p=>{
+              html+=`<span class="chip" onclick="openPanelForDoc('${p.docId}','${slot.date}')" title="${p.docId}">${p.init}</span>`;
+            });
+            html+=`</div></div>`;
+          }
+        }
+      }
+      html+=`</div>`;
     });
   });
   document.getElementById('weekGrid').innerHTML=html;
