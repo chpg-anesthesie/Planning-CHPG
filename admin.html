@@ -747,14 +747,32 @@ function isoWeek(dateStr) { const dt=new Date(dateStr); const tmp=new Date(Date.
 
 async function loadPlanningData() {
   try {
-    DATA = await fetch(`./planning_${YEAR}.json?`+Date.now()).then(r=>r.json());
+    const res = await fetch(`./planning_${YEAR}.json?`+Date.now());
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    DATA = await res.json();
     const today = todayStr();
     const weeks = getAllWeeks();
     const idx = weeks.findIndex(w => w.days.some(d=>d&&d.date===today));
     currentWeekIdx = idx>=0 ? idx : 0;
     renderWeek();
     buildCalMonthSelect();
-  } catch(e) { document.getElementById('weekGrid').innerHTML='<div style="padding:30px;text-align:center;color:var(--red);grid-column:1/-1">Erreur de chargement</div>'; }
+  } catch(e) {
+    // Retry une fois après 1 seconde
+    setTimeout(async () => {
+      try {
+        const res = await fetch(`./planning_${YEAR}.json?`+Date.now());
+        DATA = await res.json();
+        const today = todayStr();
+        const weeks = getAllWeeks();
+        const idx = weeks.findIndex(w => w.days.some(d=>d&&d.date===today));
+        currentWeekIdx = idx>=0 ? idx : 0;
+        renderWeek();
+        buildCalMonthSelect();
+      } catch(e2) {
+        document.getElementById('weekGrid').innerHTML='<div style="padding:30px;text-align:center;color:var(--red);grid-column:1/-1">Erreur de chargement — vérifiez la connexion</div>';
+      }
+    }, 1000);
+  }
 }
 
 function getAllWeeks() {
@@ -803,7 +821,6 @@ function renderWeek() {
     slot.month.doctors.forEach(doc=>{
       const entry=doc.days[slot.dayIdx]||{}; const st=entry.status||'';
       if(st==='G'||st==='G2') smap['G/RG'][dow].push({init:doc.initials,st:'guard',docId:doc.id,date:slot.date});
-      if(st==='RG') smap['G/RG'][dow].push({init:doc.initials,st:'rg',docId:doc.id,date:slot.date});
       if(st==='18') smap['18h'][dow].push({init:doc.initials,st:'h18',docId:doc.id,date:slot.date});
       if(ABSENT.has(st)) return;
       const am=entry.morning||''; const amKey=am.startsWith('CS-')?'CS':am;
