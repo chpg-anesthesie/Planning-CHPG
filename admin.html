@@ -803,6 +803,28 @@ const STATUS_CFG = {G:{l:'G',c:'lbl-g'},G2:{l:'G2',c:'lbl-g2'},RG:{l:'RG',c:'lbl
 // ── AUTH ──────────────────────────────────────────────────────────────
 document.getElementById('authInput').addEventListener('keydown', e => { if(e.key==='Enter') authenticate(); });
 
+// Auto-login depuis sessionStorage si code déjà saisi
+(async function tryAutoLogin() {
+  const saved = sessionStorage.getItem('adminCode');
+  if (!saved) return;
+  try {
+    const res = await fetch(API_URL + '?' + new URLSearchParams({payload: JSON.stringify({action:'login', code: saved})}));
+    const data = await res.json();
+    if (data.success && data.role === 'admin') {
+      ADMIN_CODE = saved; YEAR = data.year || 2026;
+      document.getElementById('authOverlay').style.display = 'none';
+      document.getElementById('headerYear').textContent = YEAR;
+      document.getElementById('workflowYearLabel').textContent = YEAR;
+      document.getElementById('wfYear').textContent = YEAR;
+      document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR; });
+      document.getElementById('affYear').textContent = YEAR;
+      await initDashboard();
+    } else {
+      sessionStorage.removeItem('adminCode');
+    }
+  } catch(e) { sessionStorage.removeItem('adminCode'); }
+})();
+
 async function authenticate() {
   const code = document.getElementById('authInput').value.trim().toUpperCase();
   try {
@@ -810,6 +832,7 @@ async function authenticate() {
     const data = await res.json();
     if (data.success && data.role === 'admin') {
       ADMIN_CODE = code; YEAR = data.year || 2026;
+      sessionStorage.setItem('adminCode', code);
       document.getElementById('authOverlay').style.display = 'none';
       document.getElementById('headerYear').textContent = YEAR;
       document.getElementById('workflowYearLabel').textContent = YEAR;
