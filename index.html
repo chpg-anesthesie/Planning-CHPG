@@ -1057,7 +1057,7 @@ function renderMedecins(){
   // Construire stats par doc pour le mois courant
   const docStats = {};
   month.doctors.forEach((doc,di)=>{
-    const counts={G:0,'18':0,RG:0,A:0,CP:0,F:0,R:0,presents:0};
+    const counts={G:0,G2:0,'18':0,RG:0,A:0,CP:0,F:0,R:0,presents:0};
     const sectorCounts={};
     month.days.forEach((day,i)=>{
       const entry=doc.days[i]||{};
@@ -1105,7 +1105,7 @@ function renderMedecins(){
       </div>
       <div class="med-sector-badge" style="background:${sc.bg};color:${sc.fg}">${s.sector}</div>
       <div class="med-stats">
-        ${s.counts.G?`<div class="med-stat"><span style="color:#1D4ED8">●</span><span class="med-stat-val">${s.counts.G}</span> garde${s.counts.G>1?'s':''}</div>`:''}
+        ${(s.counts.G+s.counts.G2)?`<div class="med-stat"><span style="color:#1D4ED8">●</span><span class="med-stat-val">${s.counts.G+s.counts.G2}</span> garde${(s.counts.G+s.counts.G2)>1?'s':''}</div>`:''}
         ${s.counts['18']?`<div class="med-stat"><span style="color:#166534">●</span><span class="med-stat-val">${s.counts['18']}</span> 18h</div>`:''}
         ${s.counts.RG?`<div class="med-stat"><span style="color:#6D28D9">●</span><span class="med-stat-val">${s.counts.RG}</span> RG</div>`:''}
         ${absTotal?`<div class="med-stat"><span style="color:var(--ink-4)">●</span><span class="med-stat-val">${absTotal}</span> abs.</div>`:''}
@@ -1166,7 +1166,7 @@ function renderDocPanel(){
   document.getElementById('dpMeta').innerHTML=`<span style="background:${sc.bg};color:${sc.fg};padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700;font-family:var(--mono)">${sector}</span>`;
 
   // Stats mois
-  const counts={G:0,'18':0,RG:0,A:0,CP:0,F:0,R:0,presents:0};
+  const counts={G:0,G2:0,'18':0,RG:0,A:0,CP:0,F:0,R:0,presents:0};
   month.days.forEach((day,i)=>{
     const entry=doc.days[i]||{};
     const st=entry.status||'';
@@ -1271,7 +1271,7 @@ function renderDocPanel(){
   document.getElementById('dpBody').innerHTML=`
     <div class="doc-stats-row">
       <div class="doc-stat-card">
-        <div class="doc-stat-num" style="color:#1D4ED8">${counts.G||'0'}</div>
+        <div class="doc-stat-num" style="color:#1D4ED8">${(counts.G+counts.G2)||'0'}</div>
         <div class="doc-stat-lbl">Gardes</div>
       </div>
       <div class="doc-stat-card">
