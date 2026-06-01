@@ -362,6 +362,15 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
   .panel { width:100%; }
 }
 </style>
+<script>
+// Masquer l'overlay immédiatement si un code est en sessionStorage
+if (sessionStorage.getItem('adminCode')) {
+  document.addEventListener('DOMContentLoaded', () => {
+    const overlay = document.getElementById('authOverlay');
+    if (overlay) overlay.style.display = 'none';
+  });
+}
+</script>
 </head>
 <body>
 
