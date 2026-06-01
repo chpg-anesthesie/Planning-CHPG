@@ -552,7 +552,9 @@ function getWeeksInMonth(month){
       if(d.getMonth()+1===month.month&&d.getFullYear()===month.year) daysInThisMonth++;
       else daysInOtherMonths++;
     }
-    if(daysInThisMonth<=daysInOtherMonths) return;
+    // Exception : dernier mois du planning (janvier N+1, < 7 jours) — on affiche quand même
+    const isLastMonth = DATA && month === DATA.months[DATA.months.length - 1];
+    if(!isLastMonth && daysInThisMonth<=daysInOtherMonths) return;
     const days=[];
     for(let i=0;i<7;i++){
       const d=new Date(monday); d.setDate(monday.getDate()+i);
