@@ -650,6 +650,8 @@ function buildYearSelect(availableYears) {
 }
 
 // ── CHARGER UNE ANNÉE ──────────────────────────────────────────────────
+let AFFECTATIONS_DATA = {}; // {docId: {1:'VIS', 2:'REA', ...}}
+
 async function loadYear(year) {
   try {
     DATA = await fetch(`./planning_${year}.json?` + Date.now()).then(r => r.json());
@@ -657,6 +659,15 @@ async function loadYear(year) {
     document.body.innerHTML = `<div style="padding:40px;font-family:sans-serif;color:#CE1126"><h2>Erreur de chargement ${year}</h2><pre>${esc(e.message)}</pre></div>`;
     return;
   }
+
+  // Charger les affectations sectorielles (source de vérité pour la vue Médecins)
+  try {
+    const affRes = await fetch(`./affectations_${year}.json?` + Date.now());
+    if (affRes.ok) {
+      const affJson = await affRes.json();
+      AFFECTATIONS_DATA = affJson.affectations || {};
+    }
+  } catch(e) { AFFECTATIONS_DATA = {}; }
 
   // Aller au mois actuel si disponible dans cette année, sinon premier mois
   const now = new Date();
@@ -946,7 +957,10 @@ function renderMedecins(){
       const s=entry.morning&&!entry.morning.startsWith('CS-')?entry.morning:null;
       if(s) sectorCounts[s]=(sectorCounts[s]||0)+1;
     });
-    const sector=Object.entries(sectorCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'VOLANT';
+    // Secteur depuis affectations JSON (source de vérité), fallback mode statistique
+    const monthNum = month.month;
+    const affSector = AFFECTATIONS_DATA[doc.id]?.[monthNum] || AFFECTATIONS_DATA[doc.id]?.[String(monthNum)];
+    const sector = affSector || Object.entries(sectorCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'VOLANT';
     const color=AVATAR_COLORS[di%AVATAR_COLORS.length];
     docStats[doc.id]={counts,sector,color,initials:doc.initials,id:doc.id,idx:di};
   });
@@ -1023,13 +1037,19 @@ function renderDocPanel(){
   document.getElementById('dpName').textContent=name;
   document.getElementById('dpNavLabel').textContent=month.label||`${MONTH_NAMES_FR[month.month-1]} ${month.year}`;
 
-  // Secteur principal ce mois
-  const sectorCounts={};
-  doc.days.forEach(entry=>{
-    const s=entry.morning&&!entry.morning.startsWith('CS-')?entry.morning:null;
-    if(s) sectorCounts[s]=(sectorCounts[s]||0)+1;
-  });
-  const sector=Object.entries(sectorCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'VOLANT';
+  // Secteur principal ce mois — depuis affectations JSON, fallback statistique
+  const affSectorPanel = AFFECTATIONS_DATA[currentDocId]?.[month.month] || AFFECTATIONS_DATA[currentDocId]?.[String(month.month)];
+  let sector;
+  if (affSectorPanel) {
+    sector = affSectorPanel;
+  } else {
+    const sectorCounts={};
+    doc.days.forEach(entry=>{
+      const s=entry.morning&&!entry.morning.startsWith('CS-')?entry.morning:null;
+      if(s) sectorCounts[s]=(sectorCounts[s]||0)+1;
+    });
+    sector=Object.entries(sectorCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'VOLANT';
+  }
   const sc=SECTOR_COLORS[sector]||SECTOR_COLORS.VOLANT;
   document.getElementById('dpMeta').innerHTML=`<span style="background:${sc.bg};color:${sc.fg};padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700;font-family:var(--mono)">${sector}</span>`;
 
