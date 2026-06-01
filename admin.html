@@ -893,6 +893,8 @@ function showTab(name) {
 
 // ── INIT ───────────────────────────────────────────────────────────────
 async function initDashboard() {
+  // Petit délai pour s'assurer que le DOM est prêt et YEAR bien défini
+  await new Promise(r => setTimeout(r, 50));
   await Promise.all([loadPlanningData(), loadStatusBar(), loadOverrides(), loadWorkflow()]);
 }
 
@@ -911,23 +913,33 @@ function todayStr() { const d=new Date(); return `${d.getFullYear()}-${String(d.
 function isoWeek(dateStr) { const dt=new Date(dateStr); const tmp=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate())); tmp.setUTCDate(tmp.getUTCDate()+4-(tmp.getUTCDay()||7)); const ys=new Date(Date.UTC(tmp.getUTCFullYear(),0,1)); return Math.ceil((((tmp-ys)/86400000)+1)/7); }
 
 async function loadPlanningData() {
+  const grid = document.getElementById('weekGrid');
+  grid.innerHTML = '<div style="padding:30px;text-align:center;color:var(--ink-4);grid-column:1/-1"><div class="spinner" style="margin:0 auto 8px"></div>Chargement du planning…</div>';
   try {
-    const res = await fetch(`./planning_${YEAR}.json?`+Date.now());
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    // Retry jusqu'à 3 fois si erreur réseau
+    let res, attempts = 0;
+    while (attempts < 3) {
+      try {
+        res = await fetch(`./planning_${YEAR}.json?` + Date.now());
+        if (res.ok) break;
+      } catch(e) {}
+      attempts++;
+      if (attempts < 3) await new Promise(r => setTimeout(r, 1000));
+    }
+    if (!res || !res.ok) throw new Error('Fichier planning introuvable');
     DATA = await res.json();
     const today = todayStr();
     const weeks = getAllWeeks();
-    const idx = weeks.findIndex(w => {
-      // Chercher si aujourd'hui appartient à cette semaine ISO
-      return DATA.months.some(month =>
+    const idx = weeks.findIndex(w =>
+      DATA.months.some(month =>
         month.days.some(day => day.date === today && isoWeek(day.date) === w.weekNum)
-      );
-    });
-    currentWeekIdx = idx>=0 ? idx : 0;
+      )
+    );
+    currentWeekIdx = idx >= 0 ? idx : 0;
     renderWeek();
     buildCalMonthSelect();
   } catch(e) {
-    document.getElementById('weekGrid').innerHTML='<div style="padding:30px;text-align:center;color:var(--red);grid-column:1/-1">Erreur de chargement — vérifiez la connexion</div>';
+    grid.innerHTML = '<div style="padding:30px;text-align:center;color:var(--red);grid-column:1/-1">⚠️ Impossible de charger le planning ' + YEAR + '<br><span style="font-size:11px;color:var(--ink-4)">Vérifiez votre connexion ou <a href="#" onclick="loadPlanningData();return false" style="color:var(--red)">réessayez</a></span></div>';
   }
 }
 
