@@ -419,7 +419,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <!-- NAV TABS -->
 <div class="nav-tabs">
   <button class="nav-tab active" onclick="showTab('accueil')" id="tab-accueil">🏠 Accueil</button>
-  <button class="nav-tab" onclick="showTab('affectations')" id="tab-affectations">📋 Affectations</button>
+  <button class="nav-tab" onclick="showTab('affectations')" id="tab-affectations">📋 Affectations <span id="affPendingDot" style="display:none;width:6px;height:6px;background:#F59E0B;border-radius:50%;display:inline-block;margin-left:4px;vertical-align:middle"></span></button>
   <button class="nav-tab" onclick="showTab('gardes')" id="tab-gardes">📊 Équité</button>
   <button class="nav-tab" onclick="showTab('indispos')" id="tab-indispos">👥 Indispos</button>
   <button class="nav-tab" onclick="showTab('vacances')" id="tab-vacances">🏖️ Vacances</button>
@@ -433,35 +433,35 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
   <div class="tab-panel active" id="panel-accueil">
     <!-- Action Cards -->
     <div class="actions-grid">
-      <div class="action-card blue" onclick="openPanel('secteur')">
+      <div class="action-card blue" onclick="openPanel('secteur')" title="Modifier le secteur AM ou PM d'un MAR pour une journée précise">
         <div class="action-icon blue">🔄</div>
         <div>
           <div class="action-label">Changer de secteur</div>
-          <div class="action-desc">Affectation ponctuelle d'un MAR pour une journée</div>
+          <div class="action-desc">Modifier le secteur AM/PM d'un MAR pour une date précise sans toucher au GSheet</div>
         </div>
         <span class="action-badge blue">Quotidien</span>
       </div>
-      <div class="action-card red" onclick="openPanel('garde')">
+      <div class="action-card red" onclick="openPanel('garde')" title="Échange de garde entre deux MARs, don de garde, ou garde exceptionnelle">
         <div class="action-icon red">🔁</div>
         <div>
           <div class="action-label">Modifier une garde</div>
-          <div class="action-desc">Échange, don, garde exceptionnelle</div>
+          <div class="action-desc">Échangez deux gardes, transférez une garde ou ajoutez une garde exceptionnelle</div>
         </div>
         <span class="action-badge red">Fréquent</span>
       </div>
-      <div class="action-card green" onclick="exportWeekExcel()">
+      <div class="action-card green" onclick="exportWeekExcel()" title="Télécharge le planning de la semaine affichée au format Excel">
         <div class="action-icon green">📊</div>
         <div>
           <div class="action-label">Exporter le planning</div>
-          <div class="action-desc">Planning hebdomadaire Excel pour l'équipe</div>
+          <div class="action-desc">Export Excel de la semaine affichée — à envoyer à l'équipe chaque lundi</div>
         </div>
         <span class="action-badge green">Hebdomadaire</span>
       </div>
-      <div class="action-card orange" onclick="openWorkflowModal()">
+      <div class="action-card orange" onclick="openWorkflowModal()" title="Guide les 10 étapes du workflow annuel : indispos, gardes, affectations, publication">
         <div class="action-icon orange">📅</div>
         <div>
           <div class="action-label">Workflow annuel</div>
-          <div class="action-desc">10 étapes de gestion de l'année</div>
+          <div class="action-desc">Guide pas à pas : de l'ouverture des indispos à la publication du planning annuel</div>
         </div>
         <span class="action-badge orange">Annuel</span>
       </div>
@@ -524,11 +524,11 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <div>
         <div style="font-size:16px;font-weight:700">Affectations sectorielles <span id="affYear">—</span></div>
-        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Secteur par MAR et par mois — cliquer une cellule pour modifier</div>
+        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Cliquez une cellule pour changer le secteur · La sauvegarde republie le planning automatiquement</div>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="loadAffectations()">↻ Recharger</button>
-        <button class="btn-primary" onclick="saveAllAffectations()" id="btnSaveAff">💾 Enregistrer tout</button>
+        <button class="btn-primary" onclick="saveAllAffectations()" id="btnSaveAff" title="Sauvegarde les affectations dans le GSheet et republie le planning automatiquement">💾 Enregistrer tout</button>
       </div>
     </div>
 
@@ -562,7 +562,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <div>
         <div style="font-size:16px;font-weight:700">Équité des gardes <span id="gardesYear">—</span></div>
-        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Statistiques d'équité et génération du planning</div>
+        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Vérifiez l'équilibre des gardes entre MARs · Le bouton Générer est désactivé si l'année est figée</div>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="loadStats()">↻ Stats actuelles</button>
@@ -593,7 +593,12 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 
     <div id="gardesLoading" style="display:none" class="loading"><div class="spinner"></div> Génération en cours (30-60s)…</div>
     <div id="gardesEmpty" style="padding:40px;text-align:center;color:var(--ink-4)">
-      Cliquez "Stats actuelles" pour afficher les statistiques ou "Générer les gardes" pour créer un nouveau planning.
+      <div style="font-size:32px;margin-bottom:12px">📊</div>
+      <div style="font-size:14px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Statistiques d'équité</div>
+      <div style="font-size:12px;max-width:400px;margin:0 auto;line-height:1.6">
+        Consultez la répartition des gardes entre MARs.<br>
+        Cliquez <strong>↻ Stats actuelles</strong> pour charger les données.
+      </div>
     </div>
   </div>
 
@@ -602,9 +607,9 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <div>
         <div style="font-size:16px;font-weight:700">Indisponibilités <span id="indisposYear">—</span></div>
-        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">État des saisies par MAR et semaines de tension</div>
+        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Visualisez qui a saisi ses indispos · Les cases rouges = MARs sans saisie</div>
       </div>
-      <button class="btn-primary" onclick="loadIndispos()">↻ Actualiser</button>
+      <button class="btn-primary" onclick="loadIndispos()" title="Charge l'état des saisies depuis le GSheet">↻ Actualiser</button>
     </div>
     <div id="indisposLoading" class="loading"><div class="spinner"></div> Chargement…</div>
     <div id="indisposContent" style="display:none">
@@ -636,7 +641,14 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
         </div>
       </div>
     </div>
-    <div id="indisposEmpty" style="padding:40px;text-align:center;color:var(--ink-4)">Cliquez "Actualiser" pour charger les indisponibilités.</div>
+    <div id="indisposEmpty" style="padding:40px;text-align:center;color:var(--ink-4)">
+  <div style="font-size:32px;margin-bottom:12px">👥</div>
+  <div style="font-size:14px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Suivi des saisies</div>
+  <div style="font-size:12px;max-width:400px;margin:0 auto;line-height:1.6">
+    Visualisez qui a saisi ses indispos et les semaines de tension.<br>
+    Cliquez <strong>↻ Actualiser</strong> pour charger les données.
+  </div>
+</div>
   </div>
 
   <!-- ── VACANCES ── -->
@@ -646,11 +658,19 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
         <div style="font-size:16px;font-weight:700">Validation vacances <span id="vacancesYear">—</span></div>
         <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Statut des souhaits par période et par MAR</div>
       </div>
-      <button class="btn-primary" onclick="loadVacances()">↻ Actualiser</button>
+      <button class="btn-primary" onclick="loadVacances()" title="Calcule le statut des demandes de congés selon les groupes A/B/C et les seuils">↻ Actualiser</button>
     </div>
     <div id="vacLoading" class="loading"><div class="spinner"></div> Chargement…</div>
     <div id="vacContent" style="display:none"></div>
-    <div id="vacEmpty" style="padding:40px;text-align:center;color:var(--ink-4)">Cliquez "Actualiser" pour charger les données.</div>
+    <div id="vacEmpty" style="padding:40px;text-align:center;color:var(--ink-4)">
+  <div style="font-size:32px;margin-bottom:12px">🏖️</div>
+  <div style="font-size:14px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Validation des vacances</div>
+  <div style="font-size:12px;max-width:400px;margin:0 auto;line-height:1.6">
+    Vérifiez les demandes de congés par période et par MAR.<br>
+    Statuts : <strong style="color:var(--green)">Validé</strong> · <strong style="color:var(--orange)">Partiel</strong> · <strong style="color:var(--red)">Refusé</strong><br>
+    Cliquez <strong>↻ Actualiser</strong> pour charger les données.
+  </div>
+</div>
   </div>
 
   <!-- ── DIAGNOSTIC ── -->
@@ -660,7 +680,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
         <div style="font-size:16px;font-weight:700">Diagnostic planning <span id="diagYear">—</span></div>
         <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Vérification des règles métier sur les 12 mois</div>
       </div>
-      <button class="btn-primary" onclick="runDiagnostic()" id="btnDiag">↻ Lancer le diagnostic</button>
+      <button class="btn-primary" onclick="runDiagnostic()" id="btnDiag" title="Analyse les 12 mois du planning et liste toutes les violations de règles métier">↻ Lancer le diagnostic</button>
     </div>
     <div id="diagLoading" style="display:none" class="loading"><div class="spinner"></div> Analyse en cours…</div>
     <div id="diagResults" style="display:none">
@@ -690,7 +710,15 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
         </div>
       </div>
     </div>
-    <div id="diagEmpty" style="padding:40px;text-align:center;color:var(--ink-4)">Cliquez "Lancer le diagnostic" pour analyser le planning.</div>
+    <div id="diagEmpty" style="padding:40px;text-align:center;color:var(--ink-4)">
+  <div style="font-size:32px;margin-bottom:12px">🔬</div>
+  <div style="font-size:14px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Diagnostic des règles métier</div>
+  <div style="font-size:12px;max-width:400px;margin:0 auto;line-height:1.6">
+    Vérifie que chaque jour respecte les besoins en effectif par secteur.<br>
+    Analyse les 12 mois et liste les violations par secteur.<br>
+    Cliquez <strong>↻ Lancer le diagnostic</strong> pour analyser.
+  </div>
+</div>
   </div>
 
 </div><!-- /main -->
@@ -768,7 +796,8 @@ const ABSENT = new Set(['RG','A','CP','F','R','I','E']);
 const SECTORS_DISPLAY = ['G/RG','18h','VIS','REA','ORT','ORL','END','CI','RI','MAT','CS'];
 const SECTOR_LABEL = {'G/RG':'Gardes','18h':'18h','VIS':'Viscéral','REA':'Réa','ORT':'Ortho','ORL':'ORL','END':'Endo','CI':'Cardio','RI':'Radio','MAT':'Maternité','CS':'Consult.'};
 const DAYS_FR = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
-const INITIALS_MAP = {ALBOUY:'SA',ARMANDO:'GA',ARMAND:'CA',BONNET:'LB',BOUREGBA:'MB',CATINEAU:'JC',FROHLICH:'AFR',FERRIERO:'AF',GHIGLIONE:'SG',GUERIN:'JPG',LEVASSEUR:'LUL',LEY:'LL',MENADE:'RM',OPPRECHT:'NO',PARTOUCHE:'NP',ROUSSEAU:'GR',SALA:'NS',SEVERAC:'MS',SULTAN:'WS',SUPLY:'CS',WIDEHEM:'RW',ZAMARON:'FZ',TRAN:'DT',PRUNET:'BP'};
+// INITIALS_MAP construit dynamiquement depuis marsData (chargé via API)
+function getInitials(id) { const m = marsData.find(x => x.id === id); return m ? m.initiales : id; }
 const STATUS_CFG = {G:{l:'G',c:'lbl-g'},G2:{l:'G2',c:'lbl-g2'},RG:{l:'RG',c:'lbl-rg'},'18':{l:'18h',c:'lbl-18'},R:{l:'R',c:'lbl-r'},A:{l:'A',c:'lbl-a'},CP:{l:'CP',c:'lbl-a'},F:{l:'F',c:'lbl-a'}};
 
 // ── AUTH ──────────────────────────────────────────────────────────────
@@ -986,7 +1015,7 @@ async function loadOverrides() {
     const futures=data.overrides.filter(o=>o.isFuture).slice(0,8);
     const body=document.getElementById('overridesBody');
     document.getElementById('statusOverrides').textContent=data.upcoming;
-    if(!futures.length){body.innerHTML='<div style="text-align:center;color:var(--ink-4);padding:16px;font-size:12px">Aucune modification à venir</div>';return;}
+    if(!futures.length){body.innerHTML='<div style="text-align:center;color:var(--green);padding:16px;font-size:12px">✅ Aucune modification en attente</div>';return;}
     body.innerHTML=futures.map(o=>`
       <div class="override-item">
         <span class="override-date">${o.date.slice(5)}</span>
@@ -1156,7 +1185,7 @@ async function submitPanel(){
     }
     const data=await api({action:'applyModification',modification:mod});
     if(!data.success) throw new Error(data.error);
-    result.textContent='✅ Modification appliquée — planning republié.';
+    result.textContent='✅ Modification appliquée — planning republié automatiquement.';
     result.className='result-box ok'; result.style.display='block';
     setTimeout(()=>{loadPlanningData();loadOverrides();closePanel();},1500);
   }catch(e){
@@ -1228,7 +1257,7 @@ function renderCalendrier(){
     const dayName=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][dow];
     const dayData=gardesData[dateStr]||{};
     const groups={};
-    Object.entries(dayData).forEach(([id,status])=>{if(!groups[status])groups[status]=[];groups[status].push(INITIALS_MAP[id]||id);});
+    Object.entries(dayData).forEach(([id,status])=>{if(!groups[status])groups[status]=[];groups[status].push(getInitials(id));});
     let entries='';
     ORDER.forEach(status=>{
       const names=groups[status];
@@ -1273,7 +1302,7 @@ async function generateGardes(){
     const data=await api({action:'generateGardes'});
     if(!data.success) throw new Error(data.error);
     renderStats(data.stats);
-    toast('✅ Gardes générées avec succès','success');
+    toast('✅ Gardes générées — vérifiez l\'équité ci-dessous','success');
     loadCalendrier();
   }catch(e){toast('Erreur : '+e.message,'error');document.getElementById('gardesEmpty').style.display='block';}
   finally{document.getElementById('gardesLoading').style.display='none';btn.disabled=false;btn.innerHTML='⚡ Générer les gardes';}
@@ -1551,6 +1580,7 @@ function renderAffectations() {
   });
 
   document.getElementById('affPendingMsg').style.display = 'none';
+  document.getElementById('affPendingDot').style.display = 'none';
 }
 
 function openSecteurModalAff(marId, month, cell) {
@@ -1571,6 +1601,7 @@ function applySecteurAff() {
   cell.textContent = newSecteur === 'VOLANT' ? 'VOL' : newSecteur;
   affPending = true;
   document.getElementById('affPendingMsg').style.display = 'block';
+  document.getElementById('affPendingDot').style.display = 'inline-block';
   document.getElementById('modalSecteurAff').classList.remove('open');
 }
 
@@ -1582,7 +1613,7 @@ async function saveAllAffectations() {
     if (!data.success) throw new Error(data.error);
     affPending = false;
     document.getElementById('affPendingMsg').style.display = 'none';
-    toast('✅ Affectations enregistrées — planning republié', 'success');
+    toast('✅ Affectations enregistrées — planning republié dans ~30s', 'success');
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
   } finally {
