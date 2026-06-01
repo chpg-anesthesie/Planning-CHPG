@@ -981,8 +981,8 @@ function renderMedecins(){
       <div class="med-stats">
         ${s.counts.G?`<div class="med-stat"><span style="color:#1D4ED8">●</span><span class="med-stat-val">${s.counts.G}</span> garde${s.counts.G>1?'s':''}</div>`:''}
         ${s.counts['18']?`<div class="med-stat"><span style="color:#166534">●</span><span class="med-stat-val">${s.counts['18']}</span> 18h</div>`:''}
-        ${absTotal?`<div class="med-stat"><span style="color:var(--ink-4)">●</span><span class="med-stat-val">${absTotal}</span> absent</div>`:''}
-        ${!s.counts.G&&!s.counts['18']&&!absTotal?`<div class="med-stat" style="color:var(--ink-4)">Présent ce mois</div>`:''}
+        ${s.counts.RG?`<div class="med-stat"><span style="color:#6D28D9">●</span><span class="med-stat-val">${s.counts.RG}</span> RG</div>`:''}
+        ${absTotal?`<div class="med-stat"><span style="color:var(--ink-4)">●</span><span class="med-stat-val">${absTotal}</span> abs.</div>`:''}
       </div>
     </div>`;
   });
