@@ -380,7 +380,6 @@ body {
 <!-- NAV -->
 <div class="nav-tabs">
   <button class="nav-tab active" onclick="showTab('equipe')" id="tab-equipe">👥 Équipe</button>
-  <button class="nav-tab" onclick="showTab('affectations')" id="tab-affectations">📋 Affectations</button>
   <button class="nav-tab" onclick="showTab('vacances')" id="tab-vacances">🏖️ Vacances</button>
   <button class="nav-tab" onclick="showTab('parametres')" id="tab-parametres">⚙️ Paramètres</button>
   <button class="nav-tab" onclick="showTab('maintenance')" id="tab-maintenance">🔧 Maintenance</button>
@@ -420,44 +419,6 @@ body {
   </div>
 
   <!-- ── AFFECTATIONS ── -->
-  <div class="tab-panel" id="panel-affectations">
-    <div class="page-header">
-      <div>
-        <div class="section-title">Affectations sectorielles</div>
-        <div class="section-sub">Secteur par MAR et par mois — cliquer une cellule pour modifier</div>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-secondary" onclick="loadAffectations()">↻ Recharger</button>
-        <button class="btn-primary" onclick="saveAllAffectations()" id="btnSaveAff">💾 Enregistrer tout</button>
-      </div>
-    </div>
-
-    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
-      <span class="badge badge-blue">VIS</span>
-      <span class="badge badge-green">END</span>
-      <span class="badge badge-purple">ORL</span>
-      <span class="badge badge-red">REA</span>
-      <span class="badge badge-orange">ORT</span>
-      <span style="background:#ECFDF5;color:#065F46" class="badge">CI</span>
-      <span style="background:#FDF2F8;color:#9D174D" class="badge">MAT</span>
-      <span style="background:#FFFBEB;color:#92400E" class="badge">RI</span>
-      <span class="badge badge-grey">VOLANT</span>
-    </div>
-
-    <div id="affLoading" class="loading"><div class="spinner"></div> Chargement...</div>
-    <div id="affContent" style="display:none">
-      <div class="card">
-        <div class="card-body" style="padding:12px">
-          <div class="aff-wrap">
-            <div class="aff-grid" id="affGrid"></div>
-          </div>
-        </div>
-      </div>
-      <div id="affPendingMsg" style="display:none;padding:10px 14px;background:var(--orange-soft);border:1px solid #FED7AA;border-radius:8px;font-size:12px;color:var(--orange);font-weight:600">
-        ⚠️ Modifications non sauvegardées — cliquez "Enregistrer tout"
-      </div>
-    </div>
-  </div>
 
   <!-- ── VACANCES ── -->
   <div class="tab-panel" id="panel-vacances">
@@ -730,7 +691,6 @@ function showTab(name) {
   document.getElementById('panel-' + name).classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'equipe' && document.getElementById('equipeContent').style.display === 'none') loadEquipe();
-  if (name === 'affectations' && document.getElementById('affContent').style.display === 'none') loadAffectations();
   if (name === 'vacances' && document.getElementById('vacContent').style.display === 'none') loadVacances();
   if (name === 'parametres' && document.getElementById('paramsContent').style.display === 'none') loadParametres();
 }
