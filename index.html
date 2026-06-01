@@ -730,7 +730,10 @@ function setMainView(v){
 function buildMonthSelect(){
   const sel=document.getElementById('monthSelect');
   sel.innerHTML='';
-  DATA.months.forEach(m=>{
+  DATA.months.forEach((m, idx)=>{
+    // Masquer le dernier mois s'il a moins de 7 jours (janvier N+1 — déjà visible dans déc.)
+    const isLast = idx === DATA.months.length - 1;
+    if(isLast && m.days.length < 7) return;
     const opt=document.createElement('option');
     opt.value=m.id; opt.textContent=m.label;
     if(m.id===currentMonthId) opt.selected=true;
