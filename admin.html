@@ -918,8 +918,10 @@ async function loadPlanningData() {
     const today = todayStr();
     const weeks = getAllWeeks();
     const idx = weeks.findIndex(w => {
-      const days = getWeekDays(w.weekNum);
-      return days.some(d => d && d.date === today);
+      // Chercher si aujourd'hui appartient à cette semaine ISO
+      return DATA.months.some(month =>
+        month.days.some(day => day.date === today && isoWeek(day.date) === w.weekNum)
+      );
     });
     currentWeekIdx = idx>=0 ? idx : 0;
     renderWeek();
