@@ -361,6 +361,118 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
   .status-bar { padding:0 16px; }
   .panel { width:100%; }
 }
+
+/* ── WIZARD ── */
+.wizard-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,.7);
+  backdrop-filter: blur(6px); z-index: 300;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.wizard-overlay.open { opacity: 1; pointer-events: all; }
+.wizard-box {
+  background: var(--white); border-radius: 20px;
+  width: min(680px, 96vw); max-height: 90vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 32px 80px rgba(0,0,0,.18);
+  animation: wizardIn .3s cubic-bezier(.16,1,.3,1);
+}
+@keyframes wizardIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+.wizard-header { padding:24px 28px 0; border-bottom:1px solid var(--line); flex-shrink:0; }
+.wizard-title-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.wizard-title { font-size:18px; font-weight:700; color:var(--ink); }
+.wizard-close {
+  width:32px; height:32px; border:none; background:var(--line-light);
+  border-radius:8px; cursor:pointer; font-size:16px; color:var(--ink-3);
+  display:flex; align-items:center; justify-content:center; transition:background .15s;
+}
+.wizard-close:hover { background:var(--red-soft); color:var(--red); }
+.wizard-steps { display:flex; align-items:center; padding-bottom:0; overflow:hidden; }
+.wizard-step {
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  flex:1; padding-bottom:16px; position:relative;
+}
+.wizard-step::after {
+  content:''; position:absolute; top:14px; left:calc(50% + 18px);
+  right:calc(-50% + 18px); height:2px; background:var(--line);
+}
+.wizard-step:last-child::after { display:none; }
+.wizard-step.done::after { background:var(--green); }
+.wizard-step-dot {
+  width:28px; height:28px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; font-family:var(--mono);
+  background:var(--line-light); color:var(--ink-4); border:2px solid var(--line);
+  transition:all .2s; z-index:1;
+}
+.wizard-step.active .wizard-step-dot { background:var(--red); color:white; border-color:var(--red); }
+.wizard-step.done .wizard-step-dot { background:var(--green); color:white; border-color:var(--green); }
+.wizard-step-label { font-size:10px; font-weight:600; color:var(--ink-4); text-align:center; letter-spacing:.04em; }
+.wizard-step.active .wizard-step-label { color:var(--red); }
+.wizard-step.done .wizard-step-label { color:var(--green); }
+.wizard-body { flex:1; overflow-y:auto; padding:24px 28px; }
+.wizard-footer {
+  padding:16px 28px; border-top:1px solid var(--line);
+  display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
+}
+.wizard-back {
+  padding:9px 18px; border:1.5px solid var(--line); background:var(--white);
+  border-radius:9px; font-size:13px; font-weight:600; color:var(--ink-3);
+  cursor:pointer; transition:all .15s;
+}
+.wizard-back:hover { border-color:var(--ink-3); color:var(--ink); }
+.wizard-next {
+  padding:9px 22px; background:var(--red); color:white;
+  border:none; border-radius:9px; font-size:13px; font-weight:600;
+  cursor:pointer; transition:opacity .15s; display:flex; align-items:center; gap:6px;
+}
+.wizard-next:hover { opacity:.88; }
+.wizard-next:disabled { opacity:.4; cursor:not-allowed; }
+.wizard-warning {
+  background:#FFF7ED; border:1px solid #FED7AA; border-radius:10px;
+  padding:12px 14px; font-size:12px; color:#92400E; line-height:1.5; margin-bottom:16px;
+}
+.wizard-section-title { font-size:13px; font-weight:700; color:var(--ink-2); margin-bottom:10px; }
+.wiz-mar-list { display:flex; flex-direction:column; gap:6px; }
+.wiz-mar-row {
+  display:flex; align-items:center; gap:10px; padding:8px 12px;
+  border:1px solid var(--line); border-radius:9px;
+}
+.wiz-mar-init {
+  width:34px; height:34px; border-radius:8px; background:var(--line-light);
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; color:var(--ink-2); font-family:var(--mono); flex-shrink:0;
+}
+.wiz-mar-name { font-size:13px; font-weight:600; color:var(--ink); flex:1; }
+.wiz-mar-meta { font-size:11px; color:var(--ink-4); }
+.wiz-ok { color:var(--green); font-size:11px; font-weight:700; }
+.wiz-warn { color:var(--orange); font-size:11px; font-weight:700; }
+.wiz-periodes { width:100%; border-collapse:collapse; font-size:12px; }
+.wiz-periodes th {
+  background:var(--line-light); padding:8px 10px; text-align:left;
+  font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--ink-4); border-bottom:1px solid var(--line);
+}
+.wiz-periodes td { padding:8px 6px; border-bottom:1px solid var(--line-light); }
+.wiz-periodes input {
+  border:1px solid var(--line); border-radius:6px; padding:4px 6px;
+  font-size:11px; font-family:var(--mono); color:var(--ink); width:100%;
+}
+.wiz-periodes input:focus { outline:none; border-color:var(--red); }
+.wiz-recap { display:flex; flex-direction:column; gap:8px; }
+.wiz-recap-item {
+  display:flex; align-items:flex-start; gap:10px; padding:10px 12px;
+  border-radius:9px; background:var(--line-light); font-size:12px; line-height:1.5;
+}
+.wiz-progress { display:flex; flex-direction:column; gap:10px; }
+.wiz-progress-item {
+  display:flex; align-items:center; gap:10px; padding:10px 14px;
+  border:1px solid var(--line); border-radius:9px; font-size:13px; color:var(--ink-3);
+  transition:all .2s;
+}
+.wiz-progress-item.running { border-color:var(--red); color:var(--ink); background:var(--red-soft); }
+.wiz-progress-item.done { border-color:var(--green); color:var(--green); background:var(--green-soft); }
+.wiz-progress-item.error { border-color:var(--red); color:var(--red); }
 </style>
 <script>
 // Masquer l'overlay immédiatement si un code est en sessionStorage
@@ -828,6 +940,10 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
       document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR; });
       document.getElementById('affYear').textContent = YEAR;
       await initDashboard();
+      // Ouvrir le wizard si appelé depuis dashboard
+      if (new URLSearchParams(window.location.search).get('wizard') === '1') {
+        setTimeout(openWizard, 600);
+      }
     } else {
       sessionStorage.removeItem('adminCode');
     }
@@ -1127,22 +1243,7 @@ async function runWorkflowStep(i){
   }catch(e){toast('Erreur : '+e.message,'error');}
 }
 
-function openWorkflowModal(){
-  document.getElementById('wfYear').textContent=YEAR;
-  const month=new Date().getMonth()+1;
-  const currentStep=month>=10?0:month>=1&&month<=3?6:4;
-  document.getElementById('workflowModalBody').innerHTML=WORKFLOW_STEPS.map((step,i)=>{
-    const state=i<currentStep?'done':i===currentStep?'current':'todo';
-    const numLabel=state==='done'?'✓':i+1;
-    return `<div class="workflow-item" style="padding:10px 0">
-      <div class="workflow-num ${state}">${numLabel}</div>
-      <div style="flex:1"><div class="workflow-label">${step.label}</div><div class="workflow-sub">${step.sub}</div></div>
-      ${step.action?`<button class="workflow-btn" onclick="runWorkflowStep(${i});closeModal('workflowModal')">Lancer</button>`:''}
-      ${step.link&&!step.action?`<a href="./${step.link}" class="workflow-btn" style="text-decoration:none">Ouvrir →</a>`:''}
-    </div>`;
-  }).join('');
-  document.getElementById('workflowModal').classList.add('open');
-}
+function openWorkflowModal(){ openWizard(); }
 
 // ── PANNEAU ────────────────────────────────────────────────────────────
 function openPanel(type, prefillDocId='', prefillDate=''){
@@ -1761,6 +1862,317 @@ async function exportWeekExcel(){
   a.href=url;a.download=`Planning_S${wk.weekNum}_CHPG.xlsx`;a.click();URL.revokeObjectURL(url);
   toast('✅ Export Excel téléchargé','success');
 }
+
+// ── WIZARD DÉMARRER ANNÉE N+1 ──────────────────────────────────────────
+let wizCurrentStep = 0;
+let wizMarsData = [];
+let wizPeriodes = [];
+let wizGroupes = {A:[], B:[], C:[]};
+
+// Périodes zone B pré-remplies par année
+const PERIODES_DEFAUT = {
+  2027: [
+    {label:'Hiver',     debut:'2027-02-20', fin:'2027-03-07',  seuil:8},
+    {label:'Printemps', debut:'2027-04-17', fin:'2027-05-03',  seuil:8},
+    {label:'Été',       debut:'2027-07-03', fin:'2027-08-31',  seuil:12},
+    {label:'Toussaint', debut:'2027-10-23', fin:'2027-11-08',  seuil:8},
+    {label:'Noël',      debut:'2027-12-18', fin:'2028-01-05',  seuil:8},
+  ],
+  2028: [
+    {label:'Hiver',     debut:'2028-02-19', fin:'2028-03-06',  seuil:8},
+    {label:'Printemps', debut:'2028-04-15', fin:'2028-05-01',  seuil:8},
+    {label:'Été',       debut:'2028-07-01', fin:'2028-08-31',  seuil:12},
+    {label:'Toussaint', debut:'2028-10-21', fin:'2028-11-06',  seuil:8},
+    {label:'Noël',      debut:'2028-12-22', fin:'2029-01-06',  seuil:8},
+  ],
+};
+
+function openWizard() {
+  const nextYear = YEAR + 1;
+  document.getElementById('wizNextYear').textContent = nextYear;
+  wizCurrentStep = 0;
+  wizPeriodes = PERIODES_DEFAUT[nextYear] || PERIODES_DEFAUT[2027].map(p => ({...p}));
+  wizMarsData = [...marsData];
+
+  // Avertissement si trop tôt
+  const month = new Date().getMonth() + 1;
+  if (month < 9) {
+    if (!confirm(`Vous êtes en ${new Date().toLocaleString('fr-FR',{month:'long'})} ${YEAR}.
+Le workflow de démarrage est habituellement lancé en octobre.
+
+Continuer quand même ?`)) return;
+  }
+
+  renderWizStep();
+  document.getElementById('wizardOverlay').classList.add('open');
+}
+
+function closeWizard() {
+  document.getElementById('wizardOverlay').classList.remove('open');
+}
+
+function updateWizNav() {
+  // Progress dots
+  for (let i = 0; i < 4; i++) {
+    const step = document.getElementById('wizStep' + i);
+    const dot = document.getElementById('wizDot' + i);
+    step.className = 'wizard-step' + (i === wizCurrentStep ? ' active' : i < wizCurrentStep ? ' done' : '');
+    dot.textContent = i < wizCurrentStep ? '✓' : (i + 1);
+  }
+  // Buttons
+  document.getElementById('wizBackBtn').style.visibility = wizCurrentStep === 0 ? 'hidden' : 'visible';
+  const nextBtn = document.getElementById('wizNextBtn');
+  if (wizCurrentStep === 3) {
+    nextBtn.textContent = '🚀 Lancer';
+    nextBtn.style.background = '#166534';
+  } else {
+    nextBtn.innerHTML = 'Suivant →';
+    nextBtn.style.background = '';
+  }
+}
+
+function wizPrev() {
+  if (wizCurrentStep > 0) { wizCurrentStep--; renderWizStep(); }
+}
+
+function wizNext() {
+  if (wizCurrentStep < 3) {
+    // Sauvegarder les données de l'étape courante avant de passer
+    if (wizCurrentStep === 1) collectPeriodes();
+    if (wizCurrentStep === 2) collectGroupes();
+    wizCurrentStep++;
+    renderWizStep();
+  } else {
+    launchWizard();
+  }
+}
+
+function renderWizStep() {
+  updateWizNav();
+  const nextYear = YEAR + 1;
+  let html = '';
+
+  if (wizCurrentStep === 0) {
+    // ÉTAPE 1 — Équipe
+    const noEmail = wizMarsData.filter(m => m.actif && !m.email);
+    if (noEmail.length) {
+      html += `<div class="wizard-warning">⚠️ ${noEmail.length} MAR(s) sans email : ${noEmail.map(m=>m.initiales).join(', ')} — ils ne recevront pas leur code d'accès.</div>`;
+    }
+    html += `<div class="wizard-section-title">MARs actifs pour ${nextYear}</div>`;
+    html += `<div class="wiz-mar-list">`;
+    wizMarsData.filter(m => m.actif).forEach(m => {
+      const emailOk = m.email ? `<span class="wiz-ok">✓ ${m.email}</span>` : `<span class="wiz-warn">⚠️ Email manquant</span>`;
+      html += `<div class="wiz-mar-row">
+        <div class="wiz-mar-init">${m.initiales}</div>
+        <div class="wiz-mar-name">${m.nom}</div>
+        <div class="wiz-mar-meta">${m.quotite||100}% · ${emailOk}</div>
+      </div>`;
+    });
+    html += `</div>`;
+    const inactifs = wizMarsData.filter(m => !m.actif);
+    if (inactifs.length) {
+      html += `<div style="margin-top:12px;font-size:11px;color:var(--ink-4)">Inactifs (exclus) : ${inactifs.map(m=>m.initiales).join(', ')}</div>`;
+    }
+    html += `<div style="margin-top:14px;font-size:12px;color:var(--ink-3)">Pour modifier un MAR, fermez ce wizard et allez dans <strong>config.html → Équipe</strong>.</div>`;
+
+  } else if (wizCurrentStep === 1) {
+    // ÉTAPE 2 — Périodes vacances
+    html += `<div class="wizard-section-title">Périodes de vacances scolaires ${nextYear} — Zone B</div>`;
+    html += `<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">Ces périodes définissent les fenêtres de congés MARs et bloquent le placement des récupérations (R).</div>`;
+    html += `<table class="wiz-periodes"><thead><tr><th>Période</th><th>Début</th><th>Fin</th><th>Seuil présence</th></tr></thead><tbody>`;
+    wizPeriodes.forEach((p, i) => {
+      html += `<tr>
+        <td style="font-weight:600;color:var(--ink-2)">${p.label}</td>
+        <td><input type="date" id="wizP${i}D" value="${p.debut}"/></td>
+        <td><input type="date" id="wizP${i}F" value="${p.fin}"/></td>
+        <td><input type="number" id="wizP${i}S" value="${p.seuil}" min="1" max="22" style="width:60px"/></td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+
+  } else if (wizCurrentStep === 2) {
+    // ÉTAPE 3 — Groupes A/B/C
+    const offset = (nextYear - 2026) % 3;
+    const priorityLabels = ['Priorité 1', 'Priorité 2', 'Priorité 3'];
+    html += `<div class="wizard-section-title">Groupes de rotation vacances ${nextYear}</div>`;
+    html += `<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">La rotation est automatique — priorité décalée chaque année. Vérifiez uniquement si un MAR a changé de groupe.</div>`;
+    ['A','B','C'].forEach((grp, gi) => {
+      const prio = priorityLabels[(gi + offset) % 3];
+      const members = wizMarsData.filter(m => m.actif && m.groupe === grp);
+      html += `<div style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="font-size:12px;font-weight:700;background:var(--red);color:white;padding:2px 8px;border-radius:20px">Groupe ${grp}</span>
+          <span style="font-size:11px;color:var(--ink-4)">${prio} en ${nextYear}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${members.length ? members.map(m=>`<span style="padding:4px 10px;background:var(--line-light);border-radius:20px;font-size:12px;font-weight:600">${m.initiales}</span>`).join('') : '<span style="font-size:12px;color:var(--ink-4)">—</span>'}
+        </div>
+      </div>`;
+    });
+    html += `<div style="margin-top:8px;font-size:12px;color:var(--ink-3)">Pour changer un MAR de groupe, fermez ce wizard et allez dans <strong>config.html → Vacances</strong>.</div>`;
+
+  } else if (wizCurrentStep === 3) {
+    // ÉTAPE 4 — Récapitulatif + Lancement
+    const nextYear = YEAR + 1;
+    const actifs = wizMarsData.filter(m => m.actif);
+    const avecEmail = actifs.filter(m => m.email);
+    const sansEmail = actifs.filter(m => !m.email);
+    html += `<div class="wiz-recap">
+      <div class="wiz-recap-item">
+        <span>✅</span>
+        <div><strong>${actifs.length} MARs actifs</strong> — ${avecEmail.length} avec email${sansEmail.length ? `, ${sansEmail.length} sans email (${sansEmail.map(m=>m.initiales).join(', ')})` : ''}</div>
+      </div>
+      <div class="wiz-recap-item">
+        <span>✅</span>
+        <div><strong>${wizPeriodes.length} périodes de vacances</strong> configurées pour ${nextYear}</div>
+      </div>
+      <div class="wiz-recap-item">
+        <span>✅</span>
+        <div><strong>Groupes A/B/C</strong> vérifiés — rotation automatique appliquée</div>
+      </div>
+    </div>
+    <div style="margin:16px 0;padding:14px;background:var(--line-light);border-radius:10px;font-size:12px;color:var(--ink-3);line-height:1.7">
+      <strong style="color:var(--ink);display:block;margin-bottom:6px">Actions qui vont être exécutées :</strong>
+      → Sauvegarde des périodes de vacances dans PERIODES_VAC<br>
+      → Création de l'onglet INDISPOS_${nextYear}<br>
+      → Archivage OVERRIDES → OVERRIDES_${YEAR}<br>
+      → Basculement ANNEE_ACTIVE → ${nextYear}<br>
+      → Envoi des codes d'accès à ${avecEmail.length} MAR(s) par email
+    </div>
+    <div style="padding:10px 12px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:9px;font-size:12px;color:#92400E">
+      ⚠️ Ces actions sont irréversibles. Vérifiez que tout est correct avant de lancer.
+    </div>`;
+  }
+
+  document.getElementById('wizBody').innerHTML = html;
+}
+
+function collectPeriodes() {
+  wizPeriodes = wizPeriodes.map((p, i) => ({
+    label: p.label,
+    debut: document.getElementById('wizP'+i+'D')?.value || p.debut,
+    fin:   document.getElementById('wizP'+i+'F')?.value || p.fin,
+    seuil: parseInt(document.getElementById('wizP'+i+'S')?.value) || p.seuil,
+  }));
+}
+
+function collectGroupes() {
+  // Groupes sont read-only dans le wizard pour l'instant — modifiables dans config.html
+}
+
+async function launchWizard() {
+  const nextYear = YEAR + 1;
+  const nextBtn = document.getElementById('wizNextBtn');
+  nextBtn.disabled = true;
+
+  // Afficher la progression
+  document.getElementById('wizBody').innerHTML = `
+    <div class="wiz-progress">
+      <div class="wiz-progress-item" id="wiz-p1">⏳ Sauvegarde des périodes de vacances...</div>
+      <div class="wiz-progress-item" id="wiz-p2" style="opacity:.4">○ Création de INDISPOS_${nextYear}...</div>
+      <div class="wiz-progress-item" id="wiz-p3" style="opacity:.4">○ Basculement ANNEE_ACTIVE → ${nextYear}...</div>
+      <div class="wiz-progress-item" id="wiz-p4" style="opacity:.4">○ Envoi des codes d'accès...</div>
+    </div>`;
+  document.getElementById('wizBackBtn').style.visibility = 'hidden';
+
+  const steps = [
+    {id:'wiz-p1', label:'Périodes sauvegardées', action: () => api({action:'savePeriodes', periodes: wizPeriodes})},
+    {id:'wiz-p2', label:'INDISPOS créé',         action: () => api({action:'initYear', year: nextYear})},
+    {id:'wiz-p3', label:'Année basculée',        action: () => api({action:'setActiveYear', year: nextYear})},
+    {id:'wiz-p4', label:'Codes envoyés',         action: () => api({action:'sendCodes'})},
+  ];
+
+  let allOk = true;
+  for (const step of steps) {
+    const el = document.getElementById(step.id);
+    el.classList.add('running');
+    el.style.opacity = '1';
+    try {
+      const res = await step.action();
+      if (!res || !res.success) throw new Error(res?.error || 'Erreur');
+      el.classList.remove('running');
+      el.classList.add('done');
+      el.textContent = '✓ ' + step.label;
+    } catch(e) {
+      el.classList.remove('running');
+      el.classList.add('error');
+      el.textContent = '✕ Erreur : ' + e.message;
+      allOk = false;
+      break;
+    }
+    // Activer l'étape suivante visuellement
+    const next = document.getElementById(steps[steps.indexOf(step)+1]?.id);
+    if (next) { next.style.opacity = '1'; next.textContent = next.textContent.replace('○','⏳'); }
+  }
+
+  // Résultat final
+  const actifs = wizMarsData.filter(m => m.actif);
+  const avecEmail = actifs.filter(m => m.email);
+  const sansEmail = actifs.filter(m => !m.email);
+
+  if (allOk) {
+    YEAR = YEAR + 1; // Mettre à jour l'année locale
+    document.getElementById('headerYear').textContent = YEAR;
+    setTimeout(() => {
+      document.getElementById('wizBody').innerHTML = `
+        <div style="text-align:center;padding:20px 0">
+          <div style="font-size:48px;margin-bottom:12px">🎉</div>
+          <div style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px">Année ${YEAR} initialisée !</div>
+          <div style="font-size:13px;color:var(--ink-3);line-height:1.6;max-width:360px;margin:0 auto">
+            INDISPOS_${YEAR} créé · ANNEE_ACTIVE → ${YEAR}<br>
+            ${avecEmail.length} code(s) envoyés par email
+            ${sansEmail.length ? `<br><span style="color:var(--orange)">⚠️ ${sansEmail.length} MAR(s) sans email : ${sansEmail.map(m=>m.initiales).join(', ')}</span>` : ''}
+          </div>
+          <div style="margin-top:20px;font-size:12px;color:var(--ink-4)">Prochaine étape : les MARs saisissent leurs indispos<br>sur indispos.html d'ici fin décembre ${YEAR-1}.</div>
+          <button class="wizard-next" style="margin:20px auto 0;display:inline-flex" onclick="closeWizard();showTab('indispos')">Voir l'état des saisies →</button>
+        </div>`;
+      document.getElementById('wizNextBtn').style.display = 'none';
+      document.getElementById('wizBackBtn').style.display = 'none';
+    }, 500);
+  } else {
+    const backBtn = document.getElementById('wizBackBtn');
+    backBtn.style.visibility = 'visible';
+    backBtn.textContent = '← Réessayer';
+    backBtn.onclick = () => { wizCurrentStep = 3; renderWizStep(); };
+    nextBtn.disabled = false;
+    nextBtn.textContent = 'Réessayer';
+  }
+}
 </script>
+
+<!-- WIZARD DÉMARRER ANNÉE N+1 -->
+<div class="wizard-overlay" id="wizardOverlay">
+  <div class="wizard-box">
+    <div class="wizard-header">
+      <div class="wizard-title-row">
+        <div class="wizard-title">🗓️ Démarrer l'année <span id="wizNextYear">2027</span></div>
+        <button class="wizard-close" onclick="closeWizard()">✕</button>
+      </div>
+      <div class="wizard-steps">
+        <div class="wizard-step active" id="wizStep0">
+          <div class="wizard-step-dot" id="wizDot0">1</div>
+          <div class="wizard-step-label">Équipe</div>
+        </div>
+        <div class="wizard-step" id="wizStep1">
+          <div class="wizard-step-dot" id="wizDot1">2</div>
+          <div class="wizard-step-label">Vacances</div>
+        </div>
+        <div class="wizard-step" id="wizStep2">
+          <div class="wizard-step-dot" id="wizDot2">3</div>
+          <div class="wizard-step-label">Groupes</div>
+        </div>
+        <div class="wizard-step" id="wizStep3">
+          <div class="wizard-step-dot" id="wizDot3">4</div>
+          <div class="wizard-step-label">Lancer</div>
+        </div>
+      </div>
+    </div>
+    <div class="wizard-body" id="wizBody"></div>
+    <div class="wizard-footer">
+      <button class="wizard-back" id="wizBackBtn" onclick="wizPrev()">← Retour</button>
+      <button class="wizard-next" id="wizNextBtn" onclick="wizNext()">Suivant →</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
