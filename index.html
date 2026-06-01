@@ -248,34 +248,143 @@ body {
 .name-tag.absent { background: #F9FAFB; color: #6B7280; border: 1px solid #E5E7EB; }
 
 /* ── VUE MÉDECINS ── */
-.bilan-section-title {
-  padding: 12px 24px 6px; font-size: 12px; font-weight: 700;
-  color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em;
+.med-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  padding: 20px 32px;
 }
-.bilan-table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--white); font-size: 12px; }
-.bilan-table th {
-  background: var(--line-light); font-size: 10px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: .06em; color: var(--ink-4);
-  padding: 8px 10px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line);
-  text-align: center; white-space: nowrap;
+.med-card {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px; cursor: pointer;
+  transition: all .18s; box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  display: flex; flex-direction: column; gap: 10px;
+  position: relative; overflow: hidden;
 }
-.bilan-table th.col-name { text-align: left; min-width: 160px; }
-.bilan-table th.col-sector { min-width: 100px; }
-.bilan-table td {
-  padding: 7px 10px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line);
-  text-align: center; color: var(--ink-2); font-weight: 500; white-space: nowrap;
+.med-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.1); border-color: var(--red); }
+.med-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--red); opacity: 0; transition: opacity .18s;
 }
-.bilan-table td.col-name {
-  text-align: left; font-weight: 700; color: var(--ink);
-  position: sticky; left: 0; background: var(--white); z-index: 2;
+.med-card:hover::before { opacity: 1; }
+.med-card-top { display: flex; align-items: center; gap: 10px; }
+.med-avatar {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; font-family: var(--mono);
+  flex-shrink: 0;
 }
-.bilan-table td.col-sector { font-size: 11px; font-weight: 700; }
-.bilan-table tr:last-child td { border-bottom: none; }
-.bilan-table td:last-child, .bilan-table th:last-child { border-right: none; }
-.bilan-table td.val-zero { color: var(--ink-4); }
-.bilan-table td.val-g { color: #1D4ED8; font-weight: 700; }
-.bilan-table td.val-18 { color: #166534; font-weight: 700; }
-.bilan-table td.val-absent { color: var(--ink-3); }
+.med-name { font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.med-role { font-size: 10px; color: var(--ink-4); margin-top: 1px; }
+.med-sector-badge {
+  display: inline-flex; align-items: center; padding: 3px 8px;
+  border-radius: 6px; font-size: 11px; font-weight: 700;
+  font-family: var(--mono); align-self: flex-start;
+}
+.med-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.med-stat {
+  display: flex; align-items: center; gap: 3px;
+  font-size: 11px; font-weight: 600; color: var(--ink-3);
+}
+.med-stat-val { font-weight: 700; color: var(--ink-2); }
+.med-inactive { opacity: .45; }
+
+/* ── FICHE MÉDECIN ── */
+.doc-panel-overlay {
+  position: fixed; inset: 0; background: rgba(13,17,23,.45);
+  z-index: 400; display: none; align-items: flex-end; justify-content: flex-end;
+}
+.doc-panel-overlay.open { display: flex; }
+.doc-panel {
+  background: var(--white); width: 480px; height: 100vh;
+  box-shadow: -8px 0 32px rgba(0,0,0,.12);
+  display: flex; flex-direction: column;
+  animation: slideInRight .25s cubic-bezier(.16,1,.3,1);
+}
+@keyframes slideInRight { from{transform:translateX(40px);opacity:0;} to{transform:translateX(0);opacity:1;} }
+.doc-panel-header {
+  padding: 20px 20px 16px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 14px; flex-shrink: 0;
+}
+.doc-panel-avatar {
+  width: 48px; height: 48px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; font-family: var(--mono); flex-shrink: 0;
+}
+.doc-panel-name { font-size: 16px; font-weight: 700; color: var(--ink); }
+.doc-panel-meta { font-size: 12px; color: var(--ink-4); margin-top: 2px; }
+.doc-panel-close {
+  margin-left: auto; width: 32px; height: 32px; border: 1px solid var(--line);
+  background: var(--line-light); border-radius: 8px; cursor: pointer;
+  font-size: 16px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all .15s;
+}
+.doc-panel-close:hover { background: var(--red); border-color: var(--red); color: white; }
+.doc-panel-nav {
+  padding: 10px 20px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.doc-nav-btn {
+  width: 28px; height: 28px; border: 1px solid var(--line); background: var(--white);
+  border-radius: 6px; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; font-size: 12px; transition: all .15s;
+}
+.doc-nav-btn:hover { border-color: var(--red); color: var(--red); }
+.doc-nav-label { font-size: 13px; font-weight: 700; color: var(--ink); flex: 1; text-align: center; }
+.doc-panel-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+/* Stats résumé */
+.doc-stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+.doc-stat-card {
+  background: var(--line-light); border-radius: 10px; padding: 10px 8px; text-align: center;
+}
+.doc-stat-num { font-size: 20px; font-weight: 700; line-height: 1; }
+.doc-stat-lbl { font-size: 10px; color: var(--ink-4); margin-top: 3px; }
+
+/* Mini calendrier */
+.doc-cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
+}
+.doc-cal-hdr {
+  text-align: center; font-size: 9px; font-weight: 700; color: var(--ink-4);
+  padding: 4px 0; text-transform: uppercase;
+}
+.doc-cal-day {
+  border-radius: 6px; padding: 4px 2px; text-align: center;
+  font-size: 11px; font-weight: 600; min-height: 42px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  border: 1px solid transparent;
+}
+.doc-cal-day.empty { background: transparent; }
+.doc-cal-day.we { background: var(--line-light); color: var(--ink-4); }
+.doc-cal-day.today { border-color: var(--red) !important; }
+.doc-cal-day-num { font-size: 11px; font-weight: 700; line-height: 1; }
+.doc-cal-tag {
+  font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
+  font-family: var(--mono); white-space: nowrap; max-width: 36px;
+  overflow: hidden; text-overflow: ellipsis;
+}
+/* Couleurs statuts */
+.dc-G    { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
+.dc-G2   { background: #FFF1F2; color: var(--red); border-color: #FECDD3; }
+.dc-18   { background: #F0FDF4; color: #166534; border-color: #BBF7D0; }
+.dc-RG   { background: #F5F3FF; color: #6D28D9; border-color: #DDD6FE; }
+.dc-A,.dc-CP,.dc-F { background: var(--line-light); color: var(--ink-3); }
+.dc-R    { background: #F0FDF4; color: #166534; }
+.dc-work { background: var(--white); color: var(--ink-2); border-color: var(--line); }
+
+/* Annuel */
+.doc-annual { margin-top: 16px; }
+.doc-annual-title { font-size: 11px; font-weight: 700; color: var(--ink-4); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+.doc-annual-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.doc-annual-month {
+  background: var(--line-light); border-radius: 8px; padding: 8px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px;
+}
+.doc-annual-month-name { font-weight: 600; color: var(--ink-2); }
+.doc-annual-month-stats { display: flex; gap: 6px; }
+.doc-annual-stat { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; }
 
 /* ── RESPONSIVE ── */
 @media (max-width: 900px) {
@@ -334,14 +443,27 @@ body {
 </div>
 
 <!-- MÉDECINS VIEW -->
-<div id="medecinsView" style="display:none;padding:20px 32px">
-  <div style="background:var(--white);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.05);margin-bottom:20px">
-    <div style="padding:10px 16px;background:var(--line-light);border-bottom:1px solid var(--line);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-4)">Bilan mensuel</div>
-    <div style="overflow-x:auto"><table id="bilanMensuel"></table></div>
-  </div>
-  <div style="background:var(--white);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.05)">
-    <div style="padding:10px 16px;background:var(--line-light);border-bottom:1px solid var(--line);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-4)">Bilan annuel</div>
-    <div style="overflow-x:auto"><table id="bilanAnnuel"></table></div>
+<div id="medecinsView" style="display:none">
+  <div class="med-grid" id="medGrid"></div>
+</div>
+
+<!-- FICHE MÉDECIN PANEL -->
+<div class="doc-panel-overlay" id="docPanelOverlay" onclick="closeDocPanel(event)">
+  <div class="doc-panel" id="docPanel">
+    <div class="doc-panel-header">
+      <div class="doc-panel-avatar" id="dpAvatar"></div>
+      <div>
+        <div class="doc-panel-name" id="dpName"></div>
+        <div class="doc-panel-meta" id="dpMeta"></div>
+      </div>
+      <button class="doc-panel-close" onclick="document.getElementById('docPanelOverlay').classList.remove('open')">✕</button>
+    </div>
+    <div class="doc-panel-nav">
+      <button class="doc-nav-btn" onclick="docNavMonth(-1)">←</button>
+      <div class="doc-nav-label" id="dpNavLabel"></div>
+      <button class="doc-nav-btn" onclick="docNavMonth(1)">→</button>
+    </div>
+    <div class="doc-panel-body" id="dpBody"></div>
   </div>
 </div>
 
@@ -784,92 +906,261 @@ function renderBottom(month,daySlots,week){
 }
 
 // ── VUE MÉDECINS ───────────────────────────────────────────────────────
-function renderMedecins(){
-  renderBilanMensuel();
-  renderBilanAnnuel();
-}
 
-function renderBilanMensuel(){
-  const month=DATA.months.find(m=>m.id===currentMonthId);
-  let html=`<thead><tr>
-    <th class="col-name">Médecin</th><th class="col-sector">Secteur</th>
-    <th title="Gardes 24h">G</th><th title="Journées 8h-18h">18h</th>
-    <th title="Repos de garde">RG</th><th title="Absence">A</th>
-    <th title="Congés payés">CP</th><th title="Formation">F</th>
-    <th title="Récup samedi">R</th><th title="Jours travaillés">Présents</th>
-  </tr></thead><tbody>`;
-  month.doctors.forEach(doc=>{
-    const counts={G:0,'18':0,RG:0,A:0,CP:0,F:0,R:0};
-    let presents=0;
+// Palette couleurs avatars
+const AVATAR_COLORS = [
+  {bg:'#EFF6FF',fg:'#1D4ED8'},{bg:'#F0FDF4',fg:'#166534'},
+  {bg:'#FDF4FF',fg:'#7E22CE'},{bg:'#FFF7ED',fg:'#C2410C'},
+  {bg:'#FFF1F2',fg:'#BE123C'},{bg:'#ECFDF5',fg:'#065F46'},
+  {bg:'#FFFBEB',fg:'#92400E'},{bg:'#EEF2FF',fg:'#3730A3'},
+];
+const SECTOR_COLORS = {
+  VIS:{bg:'#EFF6FF',fg:'#1D4ED8'},REA:{bg:'#FFF1F2',fg:'#BE123C'},
+  ORT:{bg:'#FFF7ED',fg:'#C2410C'},ORL:{bg:'#FDF4FF',fg:'#7E22CE'},
+  END:{bg:'#F0FDF4',fg:'#166534'},CI:{bg:'#ECFDF5',fg:'#065F46'},
+  RI:{bg:'#FFFBEB',fg:'#92400E'},MAT:{bg:'#FDF2F8',fg:'#9D174D'},
+  CS:{bg:'#F0FDF4',fg:'#166534'},VOLANT:{bg:'#F1F5F9',fg:'#64748B'},
+};
+const MONTH_NAMES_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const DAYS_SHORT_FR=['L','M','M','J','V','S','D'];
+
+let currentDocId = null;
+let docPanelMonthIdx = 0; // index dans DATA.months
+
+function renderMedecins(){
+  const month = DATA.months.find(m=>m.id===currentMonthId);
+  const grid = document.getElementById('medGrid');
+
+  // Construire stats par doc pour le mois courant
+  const docStats = {};
+  month.doctors.forEach((doc,di)=>{
+    const counts={G:0,'18':0,RG:0,A:0,CP:0,F:0,R:0,presents:0};
+    const sectorCounts={};
     month.days.forEach((day,i)=>{
       const entry=doc.days[i]||{};
       const st=entry.status||'';
       if(counts[st]!==undefined) counts[st]++;
       const isWe=isWeekend(day.weekday);
-      if(isWe){ if(st==='G') presents++; }
-      else { if(!['RG','A','CP','F','R'].includes(st)) presents++; }
-    });
-    const sectorCounts={};
-    doc.days.forEach(entry=>{
+      if(isWe){if(st==='G')counts.presents++;}
+      else{if(!['RG','A','CP','F','R'].includes(st))counts.presents++;}
       const s=entry.morning&&!entry.morning.startsWith('CS-')?entry.morning:null;
       if(s) sectorCounts[s]=(sectorCounts[s]||0)+1;
     });
     const sector=Object.entries(sectorCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'VOLANT';
-    const name=(doc.id==='PRUNET'?'PR ':'DR ')+doc.id.charAt(0)+doc.id.slice(1).toLowerCase();
-    html+=`<tr>
-      <td class="col-name">${esc(name)}</td>
-      <td class="col-sector">${esc(sector)}</td>
-      <td class="${counts.G?'val-g':'val-zero'}">${counts.G||'—'}</td>
-      <td class="${counts['18']?'val-18':'val-zero'}">${counts['18']||'—'}</td>
-      <td class="${counts.RG?'val-absent':'val-zero'}">${counts.RG||'—'}</td>
-      <td class="${counts.A?'val-absent':'val-zero'}">${counts.A||'—'}</td>
-      <td class="${counts.CP?'val-absent':'val-zero'}">${counts.CP||'—'}</td>
-      <td class="${counts.F?'val-absent':'val-zero'}">${counts.F||'—'}</td>
-      <td class="${counts.R?'val-absent':'val-zero'}">${counts.R||'—'}</td>
-      <td><strong>${presents}</strong></td>
-    </tr>`;
+    const color=AVATAR_COLORS[di%AVATAR_COLORS.length];
+    docStats[doc.id]={counts,sector,color,initials:doc.initials,id:doc.id,idx:di};
   });
-  html+='</tbody>';
-  document.getElementById('bilanMensuel').className='bilan-table';
-  document.getElementById('bilanMensuel').innerHTML=html;
-}
 
-function renderBilanAnnuel(){
-  const totals={};
-  DATA.months.forEach(month=>{
-    month.doctors.forEach(doc=>{
-      if(!totals[doc.id]) totals[doc.id]={G:0,'18':0,RG:0,A:0,CP:0,F:0,R:0,presents:0,initials:doc.initials};
-      month.days.forEach((day,i)=>{
-        const entry=doc.days[i]||{};
-        const st=entry.status||'';
-        if(totals[doc.id][st]!==undefined) totals[doc.id][st]++;
-        const isWe=isWeekend(day.weekday);
-        if(isWe){ if(st==='G') totals[doc.id].presents++; }
-        else { if(!['RG','A','CP','F','R'].includes(st)) totals[doc.id].presents++; }
+  // Construire stats annuelles (gardes totales)
+  const annualG={};
+  DATA.months.forEach(m=>{
+    m.doctors.forEach(doc=>{
+      if(!annualG[doc.id]) annualG[doc.id]=0;
+      m.days.forEach((day,i)=>{
+        const st=(doc.days[i]||{}).status||'';
+        if(st==='G'||st==='G2') annualG[doc.id]++;
       });
     });
   });
-  let html=`<thead><tr>
-    <th class="col-name">Médecin</th>
-    <th>G</th><th>18h</th><th>RG</th><th>A</th><th>CP</th><th>F</th><th>R</th><th>Présents</th>
-  </tr></thead><tbody>`;
-  Object.entries(totals).forEach(([id,counts])=>{
-    const name=(id==='PRUNET'?'PR ':'DR ')+id.charAt(0)+id.slice(1).toLowerCase();
-    html+=`<tr>
-      <td class="col-name">${esc(name)}</td>
-      <td class="${counts.G?'val-g':'val-zero'}">${counts.G||'—'}</td>
-      <td class="${counts['18']?'val-18':'val-zero'}">${counts['18']||'—'}</td>
-      <td class="${counts.RG?'val-absent':'val-zero'}">${counts.RG||'—'}</td>
-      <td class="${counts.A?'val-absent':'val-zero'}">${counts.A||'—'}</td>
-      <td class="${counts.CP?'val-absent':'val-zero'}">${counts.CP||'—'}</td>
-      <td class="${counts.F?'val-absent':'val-zero'}">${counts.F||'—'}</td>
-      <td class="${counts.R?'val-absent':'val-zero'}">${counts.R||'—'}</td>
-      <td><strong>${counts.presents}</strong></td>
-    </tr>`;
+
+  let html='';
+  month.doctors.forEach((doc)=>{
+    const s=docStats[doc.id];
+    const sc=SECTOR_COLORS[s.sector]||SECTOR_COLORS.VOLANT;
+    const absTotal=s.counts.A+s.counts.CP+s.counts.F;
+    const name=(doc.id==='PRUNET'?'PR ':'DR ')+doc.id.charAt(0)+doc.id.slice(1).toLowerCase();
+    html+=`<div class="med-card" onclick="openDocPanel('${doc.id}')">
+      <div class="med-card-top">
+        <div class="med-avatar" style="background:${s.color.bg};color:${s.color.fg}">${s.initials}</div>
+        <div>
+          <div class="med-name">${esc(name)}</div>
+          <div class="med-role">Anesthésiste-réanimateur</div>
+        </div>
+      </div>
+      <div class="med-sector-badge" style="background:${sc.bg};color:${sc.fg}">${s.sector}</div>
+      <div class="med-stats">
+        ${s.counts.G?`<div class="med-stat"><span style="color:#1D4ED8">●</span><span class="med-stat-val">${s.counts.G}</span> garde${s.counts.G>1?'s':''}</div>`:''}
+        ${s.counts['18']?`<div class="med-stat"><span style="color:#166534">●</span><span class="med-stat-val">${s.counts['18']}</span> 18h</div>`:''}
+        ${absTotal?`<div class="med-stat"><span style="color:var(--ink-4)">●</span><span class="med-stat-val">${absTotal}</span> absent</div>`:''}
+        ${!s.counts.G&&!s.counts['18']&&!absTotal?`<div class="med-stat" style="color:var(--ink-4)">Présent ce mois</div>`:''}
+      </div>
+    </div>`;
   });
-  html+='</tbody>';
-  document.getElementById('bilanAnnuel').className='bilan-table';
-  document.getElementById('bilanAnnuel').innerHTML=html;
+  grid.innerHTML=html;
+}
+
+function openDocPanel(docId){
+  currentDocId=docId;
+  // Trouver l'index du mois courant dans DATA.months
+  docPanelMonthIdx=DATA.months.findIndex(m=>m.id===currentMonthId);
+  if(docPanelMonthIdx<0) docPanelMonthIdx=0;
+  renderDocPanel();
+  document.getElementById('docPanelOverlay').classList.add('open');
+}
+
+function closeDocPanel(e){
+  if(e.target===document.getElementById('docPanelOverlay'))
+    document.getElementById('docPanelOverlay').classList.remove('open');
+}
+
+function docNavMonth(dir){
+  docPanelMonthIdx=Math.max(0,Math.min(DATA.months.length-1,docPanelMonthIdx+dir));
+  renderDocPanel();
+}
+
+function renderDocPanel(){
+  if(!currentDocId||!DATA) return;
+  const month=DATA.months[docPanelMonthIdx];
+  const doc=month.doctors.find(d=>d.id===currentDocId);
+  if(!doc) return;
+
+  // Header
+  const di=month.doctors.findIndex(d=>d.id===currentDocId);
+  const color=AVATAR_COLORS[di%AVATAR_COLORS.length];
+  const name=(currentDocId==='PRUNET'?'PR ':'DR ')+currentDocId.charAt(0)+currentDocId.slice(1).toLowerCase();
+  const av=document.getElementById('dpAvatar');
+  av.textContent=doc.initials; av.style.background=color.bg; av.style.color=color.fg;
+  document.getElementById('dpName').textContent=name;
+  document.getElementById('dpNavLabel').textContent=month.label||`${MONTH_NAMES_FR[month.month-1]} ${month.year}`;
+
+  // Secteur principal ce mois
+  const sectorCounts={};
+  doc.days.forEach(entry=>{
+    const s=entry.morning&&!entry.morning.startsWith('CS-')?entry.morning:null;
+    if(s) sectorCounts[s]=(sectorCounts[s]||0)+1;
+  });
+  const sector=Object.entries(sectorCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'VOLANT';
+  const sc=SECTOR_COLORS[sector]||SECTOR_COLORS.VOLANT;
+  document.getElementById('dpMeta').innerHTML=`<span style="background:${sc.bg};color:${sc.fg};padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700;font-family:var(--mono)">${sector}</span>`;
+
+  // Stats mois
+  const counts={G:0,'18':0,RG:0,A:0,CP:0,F:0,R:0,presents:0};
+  month.days.forEach((day,i)=>{
+    const entry=doc.days[i]||{};
+    const st=entry.status||'';
+    if(counts[st]!==undefined) counts[st]++;
+    const isWe=isWeekend(day.weekday);
+    if(isWe){if(st==='G')counts.presents++;}
+    else{if(!['RG','A','CP','F','R'].includes(st))counts.presents++;}
+  });
+  const absTotal=counts.A+counts.CP+counts.F;
+
+  // Stats annuelles
+  let annualG=0,annualPresents=0;
+  DATA.months.forEach(m=>{
+    const d=m.doctors.find(x=>x.id===currentDocId);
+    if(!d) return;
+    m.days.forEach((day,i)=>{
+      const st=(d.days[i]||{}).status||'';
+      if(st==='G'||st==='G2') annualG++;
+      const isWe=isWeekend(day.weekday);
+      if(isWe){if(st==='G')annualPresents++;}
+      else{if(!['RG','A','CP','F','R'].includes(st))annualPresents++;}
+    });
+  });
+
+  // Calendrier mini
+  const today=todayStr();
+  const y=month.year, m2=month.month;
+  const firstDay=new Date(y,m2-1,1);
+  const daysInMonth=new Date(y,m2,0).getDate();
+  let startDow=firstDay.getDay(); if(startDow===0)startDow=7;
+
+  let calHtml='';
+  DAYS_SHORT_FR.forEach(d=>{ calHtml+=`<div class="doc-cal-hdr">${d}</div>`; });
+  for(let i=1;i<startDow;i++) calHtml+=`<div class="doc-cal-day empty"></div>`;
+
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr=`${y}-${String(m2).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayData=month.days.find(md=>md.date===dateStr);
+    const isWe=dayData?isWeekend(dayData.weekday):[0,6].includes(new Date(dateStr).getDay());
+    const isToday=dateStr===today;
+    const entry=dayData?doc.days[month.days.indexOf(dayData)]||{}:{};
+    const st=entry.status||'';
+    const morning=entry.morning||'';
+    const afternoon=entry.afternoon||'';
+
+    // Déterminer classe et tags
+    let cls='doc-cal-day';
+    if(isWe) cls+=' we';
+    if(isToday) cls+=' today';
+    let stClass='';
+    let tags=[];
+
+    if(st==='G'||st==='G2'){ stClass=`dc-${st}`; tags.push(`<div class="doc-cal-tag" style="background:#EFF6FF;color:#1D4ED8">${st}</div>`); }
+    else if(st==='18'){ stClass='dc-18'; tags.push(`<div class="doc-cal-tag" style="background:#F0FDF4;color:#166534">18h</div>`); }
+    else if(st==='RG'){ stClass='dc-RG'; tags.push(`<div class="doc-cal-tag" style="background:#F5F3FF;color:#6D28D9">RG</div>`); }
+    else if(['A','CP','F'].includes(st)){ stClass=`dc-${st}`; tags.push(`<div class="doc-cal-tag" style="background:var(--line-light);color:var(--ink-3)">${st}</div>`); }
+    else if(st==='R'){ stClass='dc-R'; tags.push(`<div class="doc-cal-tag" style="background:#F0FDF4;color:#166534">R</div>`); }
+    else if(morning&&!isWe){
+      stClass='dc-work';
+      const mKey=morning.startsWith('CS-')?'CS':morning;
+      const pm=afternoon&&afternoon!==morning?(afternoon.startsWith('CS-')?'CS':afternoon):'';
+      const sc2=SECTOR_COLORS[mKey]||{bg:'#F1F5F9',fg:'#64748B'};
+      tags.push(`<div class="doc-cal-tag" style="background:${sc2.bg};color:${sc2.fg}">${mKey}</div>`);
+      if(pm&&pm!==mKey){
+        const sc3=SECTOR_COLORS[pm]||{bg:'#F1F5F9',fg:'#64748B'};
+        tags.push(`<div class="doc-cal-tag" style="background:${sc3.bg};color:${sc3.fg}">${pm}</div>`);
+      }
+    }
+
+    calHtml+=`<div class="${cls} ${stClass}">
+      <div class="doc-cal-day-num">${d}</div>
+      ${tags.join('')}
+    </div>`;
+  }
+
+  // Bilan annuel par mois
+  let annualHtml='';
+  DATA.months.forEach((mo,mi)=>{
+    const d2=mo.doctors.find(x=>x.id===currentDocId);
+    if(!d2) return;
+    const mc={G:0,'18':0,A:0,CP:0,F:0,RG:0,presents:0};
+    mo.days.forEach((day,i)=>{
+      const st2=(d2.days[i]||{}).status||'';
+      if(mc[st2]!==undefined) mc[st2]++;
+      const isWe2=isWeekend(day.weekday);
+      if(isWe2){if(st2==='G')mc.presents++;}
+      else{if(!['RG','A','CP','F','R'].includes(st2))mc.presents++;}
+    });
+    const abs2=mc.A+mc.CP+mc.F;
+    const isCurrentPanel=mi===docPanelMonthIdx;
+    annualHtml+=`<div class="doc-annual-month" style="${isCurrentPanel?'background:#FFF1F2;border:1px solid #FECDD3':''}">
+      <span class="doc-annual-month-name">${mo.label||MONTH_NAMES_FR[mo.month-1]}</span>
+      <div class="doc-annual-month-stats">
+        ${mc.G?`<span class="doc-annual-stat" style="background:#EFF6FF;color:#1D4ED8">${mc.G}G</span>`:''}
+        ${mc['18']?`<span class="doc-annual-stat" style="background:#F0FDF4;color:#166534">${mc['18']}h</span>`:''}
+        ${abs2?`<span class="doc-annual-stat" style="background:var(--line-light);color:var(--ink-3)">${abs2}A</span>`:''}
+        ${!mc.G&&!mc['18']&&!abs2?`<span style="font-size:10px;color:var(--ink-4)">${mc.presents}j</span>`:''}
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('dpBody').innerHTML=`
+    <div class="doc-stats-row">
+      <div class="doc-stat-card">
+        <div class="doc-stat-num" style="color:#1D4ED8">${counts.G||'0'}</div>
+        <div class="doc-stat-lbl">Gardes</div>
+      </div>
+      <div class="doc-stat-card">
+        <div class="doc-stat-num" style="color:#166534">${counts['18']||'0'}</div>
+        <div class="doc-stat-lbl">18h</div>
+      </div>
+      <div class="doc-stat-card">
+        <div class="doc-stat-num">${absTotal||'0'}</div>
+        <div class="doc-stat-lbl">Absences</div>
+      </div>
+      <div class="doc-stat-card">
+        <div class="doc-stat-num" style="color:var(--red)">${annualG}</div>
+        <div class="doc-stat-lbl">G/an</div>
+      </div>
+    </div>
+    <div class="doc-cal-grid">${calHtml}</div>
+    <div class="doc-annual">
+      <div class="doc-annual-title">Récapitulatif annuel</div>
+      <div class="doc-annual-grid">${annualHtml}</div>
+    </div>
+  `;
 }
 
 // ── EXPORT EXCEL ───────────────────────────────────────────────────────
