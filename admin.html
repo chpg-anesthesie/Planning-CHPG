@@ -812,7 +812,20 @@ function showTab(name) {
   document.getElementById('panel-'+name).classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
   if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations();
-  if (name==='gardes') loadStats();
+  if (name==='gardes') {
+    loadStats();
+    // Désactiver génération gardes si année déjà figée (2026)
+    const btnGen = document.getElementById('btnGenerate');
+    if (YEAR <= 2026) {
+      btnGen.disabled = true;
+      btnGen.title = 'GARDES_2026 est figé — génération désactivée';
+      btnGen.innerHTML = '🔒 Gardes figées (' + YEAR + ')';
+    } else {
+      btnGen.disabled = false;
+      btnGen.title = '';
+      btnGen.innerHTML = '⚡ Générer les gardes';
+    }
+  }
   if (name==='indispos') loadIndispos();
   if (name==='vacances') loadVacances();
 }
@@ -1249,6 +1262,7 @@ async function loadStats(){
 }
 
 async function generateGardes(){
+  if(YEAR <= 2026){ toast('GARDES_2026 est figé — génération désactivée', 'error'); return; }
   if(!confirm('Lancer la génération des gardes ?\nOpération : 30-60 secondes.')) return;
   const btn=document.getElementById('btnGenerate');
   btn.disabled=true; btn.innerHTML='<div class="spinner-sm"></div> Génération…';
