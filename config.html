@@ -662,6 +662,29 @@ document.getElementById('authInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') authenticate();
 });
 
+// Auto-login depuis sessionStorage si code déjà saisi
+(async function tryAutoLogin() {
+  const saved = sessionStorage.getItem('adminCode');
+  if (!saved) return;
+  try {
+    const params = new URLSearchParams({payload: JSON.stringify({action:'login', code: saved})});
+    const res = await fetch(API_URL + '?' + params);
+    const data = await res.json();
+    if (data.success && data.role === 'admin') {
+      ADMIN_CODE = saved;
+      YEAR = data.year || 2027;
+      sessionStorage.setItem('adminCode', saved);
+      document.getElementById('yearLabel').textContent = YEAR;
+      const archLabel = document.getElementById('archiveYearLabel');
+      if (archLabel) archLabel.textContent = YEAR;
+      document.getElementById('authOverlay').style.display = 'none';
+      loadEquipe();
+    } else {
+      sessionStorage.removeItem('adminCode');
+    }
+  } catch(e) { sessionStorage.removeItem('adminCode'); }
+})();
+
 async function authenticate() {
   const code = document.getElementById('authInput').value.trim().toUpperCase();
   try {
@@ -671,6 +694,7 @@ async function authenticate() {
     if (data.success && data.role === 'admin') {
       ADMIN_CODE = code;
       YEAR = data.year || 2027;
+      sessionStorage.setItem('adminCode', code);
       document.getElementById('yearLabel').textContent = YEAR;
       const archLabel = document.getElementById('archiveYearLabel');
       if (archLabel) archLabel.textContent = YEAR;
