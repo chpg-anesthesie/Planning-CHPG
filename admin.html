@@ -293,6 +293,39 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .detail-panel { display:none; }
 .detail-panel.open { display:block; }
 
+/* ── AFFECTATIONS ── */
+.aff-grid {
+  display: grid;
+  grid-template-columns: 150px repeat(12, 1fr);
+  gap: 3px; font-size: 11px; min-width: 900px;
+}
+.aff-header {
+  background: var(--red); color: white; font-weight: 700;
+  padding: 6px 4px; text-align: center; font-size: 10px; border-radius: 4px;
+}
+.aff-header.name { text-align: left; padding-left: 8px; }
+.aff-name {
+  font-size: 11px; font-weight: 600; padding: 6px 8px;
+  background: var(--line-light); border-radius: 4px;
+  display: flex; align-items: center;
+}
+.aff-cell {
+  border: 1.5px solid var(--line); border-radius: 4px;
+  padding: 5px 2px; text-align: center; font-family: var(--mono);
+  font-size: 10px; font-weight: 600; cursor: pointer;
+  transition: all .1s; background: white;
+}
+.aff-cell:hover { border-color: var(--red); background: var(--red-soft); }
+.aff-cell.VIS { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
+.aff-cell.END { background: #F0FDF4; color: #166534; border-color: #BBF7D0; }
+.aff-cell.ORL { background: #FDF4FF; color: #7E22CE; border-color: #E9D5FF; }
+.aff-cell.REA { background: #FFF1F2; color: #BE123C; border-color: #FECDD3; }
+.aff-cell.ORT { background: #FFF7ED; color: #C2410C; border-color: #FED7AA; }
+.aff-cell.CI  { background: #ECFDF5; color: #065F46; border-color: #A7F3D0; }
+.aff-cell.MAT { background: #FDF2F8; color: #9D174D; border-color: #FBCFE8; }
+.aff-cell.RI  { background: #FFFBEB; color: #92400E; border-color: #FDE68A; }
+.aff-cell.VOLANT { background: var(--line-light); color: var(--ink-4); }
+
 /* ── ADVANCED ── */
 .advanced-bar { padding:20px 0 4px; text-align:center; border-top:1px solid var(--line); display:flex; align-items:center; justify-content:center; gap:20px; }
 .advanced-link { font-size:11px; color:var(--ink-4); text-decoration:none; transition:color .15s; }
@@ -370,7 +403,8 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <!-- NAV TABS -->
 <div class="nav-tabs">
   <button class="nav-tab active" onclick="showTab('accueil')" id="tab-accueil">🏠 Accueil</button>
-  <button class="nav-tab" onclick="showTab('gardes')" id="tab-gardes">📅 Gardes</button>
+  <button class="nav-tab" onclick="showTab('affectations')" id="tab-affectations">📋 Affectations</button>
+  <button class="nav-tab" onclick="showTab('gardes')" id="tab-gardes">📊 Équité</button>
   <button class="nav-tab" onclick="showTab('indispos')" id="tab-indispos">👥 Indispos</button>
   <button class="nav-tab" onclick="showTab('vacances')" id="tab-vacances">🏖️ Vacances</button>
   <button class="nav-tab" onclick="showTab('diagnostic')" id="tab-diagnostic">🔬 Diagnostic</button>
@@ -469,11 +503,50 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
   </div>
 
   <!-- ── GARDES ── -->
+  <!-- ── AFFECTATIONS ── -->
+  <div class="tab-panel" id="panel-affectations">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div>
+        <div style="font-size:16px;font-weight:700">Affectations sectorielles <span id="affYear">—</span></div>
+        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Secteur par MAR et par mois — cliquer une cellule pour modifier</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary" onclick="loadAffectations()">↻ Recharger</button>
+        <button class="btn-primary" onclick="saveAllAffectations()" id="btnSaveAff">💾 Enregistrer tout</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+      <span class="badge badge-blue">VIS</span>
+      <span class="badge badge-green">END</span>
+      <span class="badge badge-purple">ORL</span>
+      <span class="badge badge-red">REA</span>
+      <span class="badge badge-orange">ORT</span>
+      <span style="background:#ECFDF5;color:#065F46" class="badge">CI</span>
+      <span style="background:#FDF2F8;color:#9D174D" class="badge">MAT</span>
+      <span style="background:#FFFBEB;color:#92400E" class="badge">RI</span>
+      <span class="badge badge-grey">VOLANT</span>
+    </div>
+
+    <div id="affLoading" class="loading"><div class="spinner"></div> Chargement…</div>
+    <div id="affContent" style="display:none">
+      <div class="card">
+        <div class="card-body" style="padding:12px;overflow-x:auto">
+          <div class="aff-grid" id="affGrid"></div>
+        </div>
+      </div>
+      <div id="affPendingMsg" style="display:none;padding:10px 14px;background:var(--orange-soft);border:1px solid #FED7AA;border-radius:8px;font-size:12px;color:var(--orange);font-weight:600;margin-top:12px">
+        ⚠️ Modifications non sauvegardées — cliquez "Enregistrer tout"
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ÉQUITÉ GARDES ── -->
   <div class="tab-panel" id="panel-gardes">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <div>
-        <div style="font-size:16px;font-weight:700">Planning de gardes <span id="gardesYear">—</span></div>
-        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Calendrier mensuel et statistiques d'équité</div>
+        <div style="font-size:16px;font-weight:700">Équité des gardes <span id="gardesYear">—</span></div>
+        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Statistiques d'équité et génération du planning</div>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="loadStats()">↻ Stats actuelles</button>
@@ -481,35 +554,6 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
       </div>
     </div>
 
-    <!-- Calendrier -->
-    <div class="card" style="margin-bottom:20px">
-      <div class="card-header">
-        <span class="card-title">Calendrier mensuel</span>
-        <div class="cal-nav" style="margin:0">
-          <button class="week-nav-btn" onclick="prevCalMonth()">←</button>
-          <select id="calMonthSelect" onchange="renderCalendrier()" style="border:1.5px solid var(--line);border-radius:8px;padding:4px 8px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;outline:none;background:white;cursor:pointer;"></select>
-          <button class="week-nav-btn" onclick="nextCalMonth()">→</button>
-        </div>
-      </div>
-      <div class="card-body">
-        <div id="calLoading" class="loading"><div class="spinner"></div> Chargement…</div>
-        <div id="calContent" style="display:none">
-          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-            <span class="badge badge-blue">G REA</span>
-            <span class="badge badge-red">G2 MAT</span>
-            <span class="badge badge-purple">RG</span>
-            <span style="background:var(--orange-soft);color:var(--orange)" class="badge">18h</span>
-            <span class="badge badge-green">Récup R</span>
-            <span class="badge badge-grey">Absent</span>
-          </div>
-          <div class="cal-grid-wrap" id="calDayNames"></div>
-          <div class="cal-grid-wrap" id="calGrid"></div>
-        </div>
-        <div id="calEmpty" style="display:none;text-align:center;color:var(--ink-4);padding:30px">Aucune donnée disponible.</div>
-      </div>
-    </div>
-
-    <!-- Stats -->
     <div class="card" id="statsCard" style="display:none">
       <div class="card-header">
         <span class="card-title">Statistiques d'équité</span>
@@ -661,6 +705,35 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
   </div>
 </div>
 
+
+<!-- MODAL SÉLECTION SECTEUR AFFECTATIONS -->
+<div class="modal-overlay" id="modalSecteurAff" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="width:320px">
+    <div class="modal-title">
+      <span id="modalSecteurAffTitle">Modifier secteur</span>
+      <button class="modal-close" onclick="document.getElementById('modalSecteurAff').classList.remove('open')">✕</button>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-4);display:block;margin-bottom:6px">Secteur</label>
+      <select class="form-select" id="secteurAffSelect">
+        <option value="VIS">VIS — Viscéral</option>
+        <option value="END">END — Endoscopies</option>
+        <option value="ORL">ORL</option>
+        <option value="REA">REA — Réanimation</option>
+        <option value="ORT">ORT — Orthopédie</option>
+        <option value="CI">CI — Cardio/Interv.</option>
+        <option value="RI">RI — Radio/Interv.</option>
+        <option value="MAT">MAT — Maternité</option>
+        <option value="VOLANT">VOLANT</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-secondary" onclick="document.getElementById('modalSecteurAff').classList.remove('open')">Annuler</button>
+      <button class="btn-primary" onclick="applySecteurAff()">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -697,6 +770,7 @@ async function authenticate() {
       document.getElementById('workflowYearLabel').textContent = YEAR;
       document.getElementById('wfYear').textContent = YEAR;
       document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR; });
+      document.getElementById('affYear').textContent = YEAR;
       await initDashboard();
     } else { document.getElementById('authError').style.display = 'block'; }
   } catch(e) { document.getElementById('authError').style.display = 'block'; }
@@ -721,7 +795,8 @@ function showTab(name) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
-  if (name==='gardes' && !gardesData) loadCalendrier();
+  if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations();
+  if (name==='gardes') loadStats();
   if (name==='indispos') loadIndispos();
   if (name==='vacances') loadVacances();
 }
@@ -1384,6 +1459,106 @@ function showDetail(month){
 }
 
 function closeDetail(){document.getElementById('diagDetail').classList.remove('open');}
+
+
+// ── AFFECTATIONS ──────────────────────────────────────────────────────
+let affData = {};
+let affPending = false;
+let currentAffCell = null;
+
+const MOIS_COURTS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+const SECTEURS_AFF = ['VIS','END','ORL','REA','ORT','CI','RI','MAT','VOLANT'];
+
+async function loadAffectations() {
+  document.getElementById('affLoading').style.display = 'flex';
+  document.getElementById('affContent').style.display = 'none';
+  try {
+    const data = await api({action: 'getAffectations'});
+    if (!data.success) throw new Error(data.error);
+    affData = data.affectations;
+    affPending = false;
+    renderAffectations();
+  } catch(e) {
+    toast('Erreur affectations : ' + e.message, 'error');
+  } finally {
+    document.getElementById('affLoading').style.display = 'none';
+    document.getElementById('affContent').style.display = 'block';
+  }
+}
+
+function renderAffectations() {
+  const grid = document.getElementById('affGrid');
+  grid.innerHTML = '';
+
+  // Header
+  const hName = document.createElement('div');
+  hName.className = 'aff-header name'; hName.textContent = 'MAR';
+  grid.appendChild(hName);
+  for (let m = 1; m <= 12; m++) {
+    const h = document.createElement('div');
+    h.className = 'aff-header'; h.textContent = MOIS_COURTS[m-1];
+    grid.appendChild(h);
+  }
+
+  // Lignes MARs actifs
+  const actifs = marsData.filter(m => m.actif);
+  actifs.forEach(mar => {
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'aff-name';
+    nameDiv.textContent = mar.id;
+    grid.appendChild(nameDiv);
+
+    for (let m = 1; m <= 12; m++) {
+      const secteur = (affData[mar.id] && affData[mar.id][m]) || 'VOLANT';
+      const cell = document.createElement('div');
+      cell.className = 'aff-cell ' + (secteur === 'VOLANT' ? 'VOLANT' : secteur);
+      cell.textContent = secteur === 'VOLANT' ? 'VOL' : secteur;
+      cell.dataset.mar = mar.id;
+      cell.dataset.month = m;
+      cell.onclick = () => openSecteurModalAff(mar.id, m, cell);
+      grid.appendChild(cell);
+    }
+  });
+
+  document.getElementById('affPendingMsg').style.display = 'none';
+}
+
+function openSecteurModalAff(marId, month, cell) {
+  currentAffCell = {marId, month, cell};
+  const secteur = (affData[marId] && affData[marId][month]) || 'VOLANT';
+  document.getElementById('modalSecteurAffTitle').textContent = `${marId} · ${MOIS_COURTS[month-1]}`;
+  document.getElementById('secteurAffSelect').value = secteur;
+  document.getElementById('modalSecteurAff').classList.add('open');
+}
+
+function applySecteurAff() {
+  if (!currentAffCell) return;
+  const {marId, month, cell} = currentAffCell;
+  const newSecteur = document.getElementById('secteurAffSelect').value;
+  if (!affData[marId]) affData[marId] = {};
+  affData[marId][month] = newSecteur;
+  cell.className = 'aff-cell ' + (newSecteur === 'VOLANT' ? 'VOLANT' : newSecteur);
+  cell.textContent = newSecteur === 'VOLANT' ? 'VOL' : newSecteur;
+  affPending = true;
+  document.getElementById('affPendingMsg').style.display = 'block';
+  document.getElementById('modalSecteurAff').classList.remove('open');
+}
+
+async function saveAllAffectations() {
+  const btn = document.getElementById('btnSaveAff');
+  btn.disabled = true; btn.textContent = '⏳ Enregistrement...';
+  try {
+    const data = await api({action: 'saveAffectations', affectations: affData});
+    if (!data.success) throw new Error(data.error);
+    affPending = false;
+    document.getElementById('affPendingMsg').style.display = 'none';
+    toast('✅ Affectations enregistrées — planning republié', 'success');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Enregistrer tout';
+  }
+}
 
 // ── EXPORT EXCEL ───────────────────────────────────────────────────────
 async function exportWeekExcel(){
