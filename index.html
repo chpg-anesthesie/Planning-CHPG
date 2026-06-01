@@ -386,6 +386,120 @@ body {
 .doc-annual-month-stats { display: flex; gap: 6px; }
 .doc-annual-stat { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; }
 
+
+/* ── MOBILE VUE JOUR (< 768px) ── */
+@media (max-width: 768px) {
+  /* Header compact */
+  .header { padding: 0 12px; height: 52px; }
+  .header-sub { display: none; }
+  .header-title { font-size: 13px; }
+  .header-flag { width: 22px; height: 22px; }
+  .year-select { font-size: 12px; padding: 5px 8px; min-width: 68px; }
+  .month-select { font-size: 12px; padding: 5px 8px; max-width: 110px; }
+
+  /* Masquer vue desktop planning */
+  .view-toggle-main { display: none; }
+  .week-nav { display: none; }
+  #planningView { display: none !important; }
+  #medecinsView.mobile-hidden { display: none !important; }
+
+  /* Vue jour mobile */
+  .mobile-view { display: flex; flex-direction: column; min-height: calc(100vh - 52px); }
+  .mobile-day-nav {
+    background: var(--white); border-bottom: 1px solid var(--line);
+    padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 52px; z-index: 50;
+  }
+  .mobile-nav-btn {
+    width: 36px; height: 36px; border: 1.5px solid var(--line); background: var(--white);
+    border-radius: 8px; font-size: 16px; display: flex; align-items: center;
+    justify-content: center; cursor: pointer; transition: all .15s; flex-shrink: 0;
+  }
+  .mobile-nav-btn:active { background: var(--red-soft); border-color: var(--red); }
+  .mobile-day-info { text-align: center; flex: 1; }
+  .mobile-day-name { font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--ink-4); }
+  .mobile-day-date { font-size: 22px; font-weight: 700; color: var(--ink); line-height: 1.1; }
+  .mobile-day-date.today { color: var(--red); }
+  .mobile-day-jf { font-size: 10px; color: var(--amber); font-weight: 700; }
+
+  /* Contenu jour */
+  .mobile-day-content { padding: 12px 16px 80px; display: flex; flex-direction: column; gap: 8px; }
+
+  /* Carte secteur */
+  .mobile-sector-card {
+    background: var(--white); border: 1px solid var(--line); border-radius: 12px;
+    overflow: hidden;
+  }
+  .mobile-sector-header {
+    padding: 8px 12px; background: var(--line-light);
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mobile-sector-name { font-size: 12px; font-weight: 700; color: var(--ink-2); }
+  .mobile-sector-body { padding: 8px 12px; display: flex; gap: 8px; }
+  .mobile-slot { flex: 1; }
+  .mobile-slot-label {
+    font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--ink-4); margin-bottom: 4px;
+  }
+  .mobile-slot-names { display: flex; flex-wrap: wrap; gap: 4px; }
+  .mobile-chip {
+    font-size: 12px; font-weight: 700; font-family: var(--mono);
+    padding: 4px 8px; border-radius: 6px; background: var(--line-light); color: var(--ink-2);
+  }
+  .mobile-chip.guard { background: #EFF6FF; color: #1D4ED8; }
+  .mobile-chip.h18 { background: #F0FDF4; color: #166534; }
+  .mobile-chip.dash { color: var(--ink-4); font-size: 11px; }
+
+  /* Section gardes */
+  .mobile-gardes-section {
+    background: var(--white); border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  }
+  .mobile-gardes-title {
+    padding: 8px 12px; background: var(--line-light); border-bottom: 1px solid var(--line);
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--ink-4);
+  }
+  .mobile-garde-row {
+    padding: 8px 12px; border-bottom: 1px solid var(--line-light);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mobile-garde-row:last-child { border-bottom: none; }
+  .mobile-garde-label { font-size: 11px; color: var(--ink-4); width: 110px; flex-shrink: 0; }
+  .mobile-garde-names { display: flex; flex-wrap: wrap; gap: 4px; }
+  .mobile-garde-name {
+    font-size: 12px; font-weight: 700; font-family: var(--mono);
+    padding: 3px 8px; border-radius: 6px;
+  }
+  .mobile-garde-name.guard { background: #EFF6FF; color: #1D4ED8; }
+  .mobile-garde-name.h18 { background: #F0FDF4; color: #166534; }
+  .mobile-garde-name.rg { background: #F5F3FF; color: #6D28D9; }
+  .mobile-garde-name.absent { background: var(--line-light); color: var(--ink-4); }
+
+  /* Bottom nav mobile */
+  .mobile-bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--white); border-top: 1px solid var(--line);
+    padding: 8px 16px 20px; display: flex; gap: 8px;
+    box-shadow: 0 -4px 16px rgba(0,0,0,.06);
+  }
+  .mobile-bottom-btn {
+    flex: 1; padding: 10px; border: 1.5px solid var(--line); background: var(--white);
+    border-radius: 10px; font-size: 12px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+    color: var(--ink-3); cursor: pointer; transition: all .15s; text-align: center;
+  }
+  .mobile-bottom-btn.active { background: var(--red); border-color: var(--red); color: white; }
+  .mobile-bottom-btn:active { opacity: .8; }
+
+  /* Masquer desktop */
+  .mobile-view { display: flex; }
+}
+
+@media (min-width: 769px) {
+  .mobile-view { display: none !important; }
+  .mobile-bottom-nav { display: none !important; }
+}
 /* ── RESPONSIVE ── */
 @media (max-width: 900px) {
   .header { padding: 0 16px; }
@@ -681,6 +795,9 @@ async function loadYear(year) {
   buildMonthSelect();
   buildWeekNav();
   render();
+  // Init mobile après chargement
+  checkMobile();
+  if (isMobile) { buildMobileDayList(); renderMobileDay(); }
 }
 
 function goToToday(){
@@ -746,6 +863,7 @@ function buildMonthSelect(){
     buildWeekNav();
     render();
     if(currentMainView==='medecins') renderMedecins();
+    if(isMobile){buildMobileDayList();renderMobileDay();}
   };
 }
 
@@ -1357,6 +1475,186 @@ async function exportExcel(){
 }
 
 init();
+
+// ── MOBILE ────────────────────────────────────────────────────────────
+let isMobile = window.innerWidth <= 768;
+let currentDayIdx = 0;
+let mobilePlanningView = 'planning';
+let allDaysFlat = [];
+
+const DAYS_FR_FULL = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const MONTHS_FR_FULL = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+function checkMobile() {
+  isMobile = window.innerWidth <= 768;
+  document.getElementById('mobileView').style.display = isMobile ? 'flex' : 'none';
+  document.getElementById('mobileBottomNav').style.display = isMobile ? 'flex' : 'none';
+}
+window.addEventListener('resize', checkMobile);
+
+function mobileSetView(v) {
+  mobilePlanningView = v;
+  document.getElementById('mbtnPlanning').classList.toggle('active', v==='planning');
+  document.getElementById('mbtnMedecins').classList.toggle('active', v==='medecins');
+  const content = document.getElementById('mobileDayContent');
+  const medView = document.getElementById('medecinsView');
+  if (v === 'planning') {
+    content.style.display = '';
+    medView.style.display = 'none';
+    renderMobileDay();
+  } else {
+    content.style.display = 'none';
+    medView.style.display = 'block';
+    renderMedecins();
+  }
+}
+
+function buildMobileDayList() {
+  if (!DATA) return;
+  const month = DATA.months.find(m => m.id === currentMonthId);
+  if (!month) return;
+  allDaysFlat = month.days.map((day, idx) => ({...day, dayIdx: idx, month}));
+  const today = todayStr();
+  const todayIdx = allDaysFlat.findIndex(d => d.date === today);
+  currentDayIdx = todayIdx >= 0 ? todayIdx : 0;
+}
+
+function mobilePrevDay() {
+  if (currentDayIdx > 0) { currentDayIdx--; renderMobileDay(); return; }
+  const sel = document.getElementById('monthSelect');
+  if (sel.selectedIndex > 0) {
+    sel.selectedIndex--;
+    currentMonthId = sel.value;
+    window._weekInitialized = false;
+    buildWeekNav();
+    buildMobileDayList();
+    currentDayIdx = allDaysFlat.length - 1;
+    renderMobileDay();
+    if (!isMobile) render();
+  }
+}
+
+function mobileNextDay() {
+  if (currentDayIdx < allDaysFlat.length - 1) { currentDayIdx++; renderMobileDay(); return; }
+  const sel = document.getElementById('monthSelect');
+  if (sel.selectedIndex < sel.options.length - 1) {
+    sel.selectedIndex++;
+    currentMonthId = sel.value;
+    window._weekInitialized = false;
+    buildWeekNav();
+    buildMobileDayList();
+    currentDayIdx = 0;
+    renderMobileDay();
+    if (!isMobile) render();
+  }
+}
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, {passive:true});
+document.addEventListener('touchend', e => {
+  if (!isMobile || mobilePlanningView !== 'planning') return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 50) { if (dx < 0) mobileNextDay(); else mobilePrevDay(); }
+}, {passive:true});
+
+function renderMobileDay() {
+  if (!DATA || !allDaysFlat.length) return;
+  const dayData = allDaysFlat[currentDayIdx];
+  if (!dayData) return;
+  const month = dayData.month;
+  const today = todayStr();
+  const dt = new Date(dayData.date);
+  const isToday = dayData.date === today;
+
+  document.getElementById('mobileDayName').textContent = DAYS_FR_FULL[dt.getDay()];
+  const dateEl = document.getElementById('mobileDayDate');
+  dateEl.textContent = dayData.day + ' ' + MONTHS_FR_FULL[dt.getMonth()];
+  dateEl.className = 'mobile-day-date' + (isToday ? ' today' : '');
+  document.getElementById('mobileDayJF').textContent = dayData.isFerie ? 'Jour férié' : '';
+
+  const dayIdx = dayData.dayIdx;
+  const smap = {};
+  SECTORS_DEF.forEach(s => { smap[s.code] = {am:[], pm:[]}; });
+  const guards = [], h18arr = [], rg = [], absents = [];
+
+  month.doctors.forEach(doc => {
+    const entry = doc.days[dayIdx] || {};
+    const st = entry.status || '';
+    if (st==='G'||st==='G2') guards.push(doc.initials);
+    if (st==='18') h18arr.push(doc.initials);
+    if (st==='RG') rg.push(doc.initials);
+    if (['A','CP','F','R'].includes(st)) absents.push(doc.initials);
+    if (ABSENT_STATUSES.has(st)) return;
+    const mKey = entry.morning && entry.morning.startsWith('CS-') ? 'CS' : entry.morning;
+    const pKey = entry.afternoon && entry.afternoon.startsWith('CS-') ? 'CS' : entry.afternoon;
+    if (mKey && smap[mKey]) smap[mKey].am.push(doc.initials);
+    if (pKey && smap[pKey]) smap[pKey].pm.push(doc.initials);
+    if (entry.cs && smap['CS']) smap['CS'].am.push(doc.initials);
+  });
+
+  const chip = (init, cls='') => `<span class="mobile-chip ${cls}">${init}</span>`;
+  const dash = () => '<span class="mobile-chip dash">—</span>';
+  let html = '';
+
+  const isWE = dayData.isWeekend || dayData.isFerie;
+  if (!isWE) {
+    const activeSectors = SECTORS_DEF.filter(s => smap[s.code].am.length || smap[s.code].pm.length);
+    activeSectors.forEach(s => {
+      const am = smap[s.code].am;
+      const pm = smap[s.code].pm;
+      html += `<div class="mobile-sector-card">
+        <div class="mobile-sector-header"><span class="mobile-sector-name">${s.label}</span></div>
+        <div class="mobile-sector-body">
+          <div class="mobile-slot">
+            <div class="mobile-slot-label">Matin</div>
+            <div class="mobile-slot-names">${am.length ? am.map(i=>chip(i)).join('') : dash()}</div>
+          </div>
+          <div class="mobile-slot">
+            <div class="mobile-slot-label">Après-midi</div>
+            <div class="mobile-slot-names">${pm.length ? pm.map(i=>chip(i)).join('') : dash()}</div>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  html += `<div class="mobile-gardes-section"><div class="mobile-gardes-title">Gardes &amp; fonctions</div>`;
+  if (guards.length) html += `<div class="mobile-garde-row"><div class="mobile-garde-label">Garde 24h</div><div class="mobile-garde-names">${guards.map(i=>chip(i,'guard')).join('')}</div></div>`;
+  if (h18arr.length) html += `<div class="mobile-garde-row"><div class="mobile-garde-label">8h – 18h</div><div class="mobile-garde-names">${h18arr.map(i=>chip(i,'h18')).join('')}</div></div>`;
+  if (rg.length) html += `<div class="mobile-garde-row"><div class="mobile-garde-label">Sortie de garde</div><div class="mobile-garde-names">${rg.map(i=>`<span class="mobile-garde-name rg">${i}</span>`).join('')}</div></div>`;
+  if (absents.length) html += `<div class="mobile-garde-row"><div class="mobile-garde-label">Absents</div><div class="mobile-garde-names">${absents.map(i=>`<span class="mobile-garde-name absent">${i}</span>`).join('')}</div></div>`;
+  if (!guards.length && !h18arr.length && !rg.length && !absents.length) html += `<div class="mobile-garde-row"><div style="color:var(--ink-4);font-size:12px;padding:4px 0">—</div></div>`;
+  html += `</div>`;
+
+  document.getElementById('mobileDayContent').innerHTML = html;
+}
+
+// Hooks
+const _origRender = render;
+render = function() { _origRender(); if(isMobile){buildMobileDayList();renderMobileDay();} };
+
 </script>
+
+<!-- MOBILE VUE JOUR -->
+<div class="mobile-view" id="mobileView" style="display:none">
+  <div class="mobile-day-nav">
+    <button class="mobile-nav-btn" onclick="mobilePrevDay()">←</button>
+    <div class="mobile-day-info">
+      <div class="mobile-day-name" id="mobileDayName"></div>
+      <div class="mobile-day-date" id="mobileDayDate"></div>
+      <div class="mobile-day-jf" id="mobileDayJF"></div>
+    </div>
+    <button class="mobile-nav-btn" onclick="mobileNextDay()">→</button>
+  </div>
+  <div class="mobile-day-content" id="mobileDayContent"></div>
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
+<div class="mobile-bottom-nav" id="mobileBottomNav" style="display:none">
+  <button class="mobile-bottom-btn active" id="mbtnPlanning" onclick="mobileSetView('planning')">📋 Planning</button>
+  <button class="mobile-bottom-btn" id="mbtnMedecins" onclick="mobileSetView('medecins')">👥 Médecins</button>
+  <button class="mobile-bottom-btn" id="mbtnToday" onclick="goToToday()">📍 Aujourd'hui</button>
+</div>
+
 </body>
 </html>
