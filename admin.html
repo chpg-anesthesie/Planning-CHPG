@@ -5,20 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Administration · Planning CHPG Monaco</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
 <style>
 :root {
-  --red: #CE1126; --red-2: #A50E1F; --red-soft: #FFF1F2;
-  --ink: #0D1117; --ink-2: #21262D; --ink-3: #57606A; --ink-4: #8B949E;
-  --line: #D0D7DE; --line-light: #F6F8FA; --bg: #F0F2F5; --white: #FFFFFF;
-  --green: #1A7F37; --green-soft: #DAFBE1;
-  --blue: #0969DA; --blue-soft: #DDF4FF;
-  --orange: #BC4C00; --orange-soft: #FFF8F0;
-  --purple: #6E40C9; --purple-soft: #F5F0FF;
-  --radius: 14px; --mono: 'DM Mono', monospace; --serif: 'Playfair Display', serif;
-  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.06);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06);
+  --red: #CE1126;
+  --red-soft: #F8E8EB;
+  --ink: #0F172A;
+  --ink-2: #334155;
+  --ink-3: #64748B;
+  --ink-4: #94A3B8;
+  --line: #E2E8F0;
+  --line-light: #F1F5F9;
+  --bg: #F8FAFC;
+  --white: #FFFFFF;
+  --green: #166534;
+  --green-soft: #F0FDF4;
+  --orange: #C2410C;
+  --orange-soft: #FFF7ED;
+  --blue: #1D4ED8;
+  --blue-soft: #EFF6FF;
+  --purple: #7E22CE;
+  --purple-soft: #FDF4FF;
+  --radius: 12px;
+  --mono: 'DM Mono', monospace;
+  --shadow: 0 1px 3px rgba(0,0,0,.04);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; font-size: 13px; -webkit-font-smoothing: antialiased; }
@@ -30,7 +42,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .auth-flag { display:flex; width:40px; height:40px; border-radius:10px; overflow:hidden; margin:0 auto 20px; box-shadow:0 4px 12px rgba(206,17,38,.3); }
 .auth-flag-top { flex:1; background:var(--red); }
 .auth-flag-bot { flex:1; background:var(--white); border-top:1px solid var(--line); }
-.auth-title { font-family:var(--serif); font-size:24px; font-weight:700; margin-bottom:4px; }
+.auth-title { font-size:22px; font-weight:700; margin-bottom:4px; }
 .auth-sub { font-size:12px; color:var(--ink-4); margin-bottom:32px; }
 .auth-input { width:100%; border:2px solid var(--line); border-radius:12px; padding:14px 16px; font-size:16px; font-family:var(--mono); text-align:center; text-transform:uppercase; letter-spacing:.14em; outline:none; margin-bottom:12px; transition:border-color .15s; background:var(--line-light); }
 .auth-input:focus { border-color:var(--red); background:var(--white); }
@@ -39,16 +51,17 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .auth-error { font-size:12px; color:var(--red); margin-top:10px; display:none; }
 
 /* ── HEADER ── */
-.header { background:var(--ink); padding:0 32px; display:flex; align-items:center; justify-content:space-between; height:56px; position:sticky; top:0; z-index:200; }
-.header-brand { display:flex; align-items:center; gap:14px; }
-.header-flag { display:flex; width:24px; height:24px; border-radius:5px; overflow:hidden; }
+.header { background:var(--white); border-bottom:1px solid var(--line); padding:0 32px; display:flex; align-items:center; justify-content:space-between; height:60px; position:sticky; top:0; z-index:200; }
+.header-brand { display:flex; align-items:center; gap:12px; }
+.header-flag { display:flex; width:26px; height:26px; border-radius:5px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.15); }
 .flag-top { flex:1; background:var(--red); }
-.flag-bot { flex:1; background:var(--white); }
-.header-title { font-family:var(--serif); font-size:16px; font-weight:700; color:var(--white); }
+.flag-bot { flex:1; background:var(--white); border-top:1px solid var(--line); }
+.header-title { font-size:14px; font-weight:700; color:var(--ink); }
+.header-sub { font-size:11px; color:var(--ink-4); }
 .header-right { display:flex; align-items:center; gap:10px; }
-.header-year { background:rgba(255,255,255,.1); color:var(--white); border:1px solid rgba(255,255,255,.15); border-radius:8px; padding:5px 12px; font-size:13px; font-weight:700; font-family:var(--mono); }
-.header-link { font-size:11px; color:rgba(255,255,255,.4); text-decoration:none; transition:color .15s; }
-.header-link:hover { color:rgba(255,255,255,.8); }
+.header-year { background:var(--line-light); color:var(--ink-2); border:1px solid var(--line); border-radius:8px; padding:5px 12px; font-size:13px; font-weight:700; font-family:var(--mono); }
+.header-link { font-size:12px; color:var(--ink-3); text-decoration:none; transition:color .15s; }
+.header-link:hover { color:var(--ink); }
 
 /* ── STATUS BAR ── */
 .status-bar { background:var(--white); border-bottom:1px solid var(--line); padding:0 32px; display:flex; align-items:center; gap:24px; height:40px; overflow-x:auto; }
@@ -62,7 +75,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .status-sep { width:1px; height:16px; background:var(--line); flex-shrink:0; }
 
 /* ── NAV TABS ── */
-.nav-tabs { background:var(--white); border-bottom:1px solid var(--line); padding:0 32px; display:flex; gap:0; position:sticky; top:56px; z-index:100; }
+.nav-tabs { background:var(--white); border-bottom:1px solid var(--line); padding:0 32px; display:flex; gap:0; position:sticky; top:60px; z-index:100; }
 .nav-tab { padding:13px 18px; font-size:13px; font-weight:600; color:var(--ink-3); cursor:pointer; border-bottom:2px solid transparent; transition:all .15s; background:none; border-top:none; border-left:none; border-right:none; font-family:'DM Sans',sans-serif; display:flex; align-items:center; gap:6px; white-space:nowrap; }
 .nav-tab:hover { color:var(--ink); }
 .nav-tab.active { color:var(--red); border-bottom-color:var(--red); }
@@ -368,11 +381,14 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <div class="header">
   <div class="header-brand">
     <div class="header-flag"><div class="flag-top"></div><div class="flag-bot"></div></div>
-    <div class="header-title">Planning CHPG Monaco</div>
+    <div>
+      <div class="header-title">Planning CHPG Monaco</div>
+      <div class="header-sub">Administration · Année <span id="headerYear">—</span></div>
+    </div>
   </div>
   <div class="header-right">
-    <div class="header-year" id="headerYear">—</div>
     <a href="./index.html" class="header-link">← Voir le planning</a>
+    <a href="./config.html" class="header-link">⚙️ Config</a>
   </div>
 </div>
 
