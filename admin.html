@@ -177,6 +177,15 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .override-del { width:20px; height:20px; border:none; background:none; cursor:pointer; color:var(--ink-4); font-size:14px; border-radius:4px; display:flex; align-items:center; justify-content:center; transition:all .15s; flex-shrink:0; }
 .override-del:hover { background:var(--red-soft); color:var(--red); }
 .workflow-item { display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:1px solid var(--line-light); }
+.cycle-item { display:flex; align-items:flex-start; gap:8px; padding:7px 0; border-bottom:1px solid var(--line); }
+.cycle-item:last-child { border-bottom:none; }
+.cycle-icon { font-size:14px; flex-shrink:0; margin-top:1px; }
+.cycle-label { font-size:12px; font-weight:600; color:var(--ink); }
+.cycle-label.done { color:var(--ink-3); text-decoration:line-through; }
+.cycle-sub { font-size:11px; color:var(--ink-4); margin-top:1px; line-height:1.3; }
+.cycle-done { color:#16a34a; }
+.cycle-warn { color:#d97706; }
+.cycle-todo { color:var(--line); }
 .workflow-item:last-child { border-bottom:none; }
 .workflow-num { width:22px; height:22px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; font-family:var(--mono); margin-top:1px; }
 .workflow-num.done { background:var(--green-soft); color:var(--green); }
@@ -671,10 +680,10 @@ if (sessionStorage.getItem('adminCode')) {
         </div>
         <div class="sidebar-card">
           <div class="sidebar-header">
-            <span class="sidebar-title">Workflow annuel</span>
-            <span id="workflowYearLabel" style="font-size:10px;font-family:var(--mono);color:var(--ink-4)">—</span>
+            <span class="sidebar-title">État du cycle</span>
+            <button onclick="loadCycleStatus()" style="font-size:10px;background:none;border:none;color:var(--ink-4);cursor:pointer">↻</button>
           </div>
-          <div class="sidebar-body" id="workflowBody">
+          <div class="sidebar-body" id="cycleStatusBody">
             <div class="loading"><div class="spinner"></div></div>
           </div>
         </div>
@@ -1067,7 +1076,7 @@ function showTab(name) {
 async function initDashboard() {
   // Petit délai pour s'assurer que le DOM est prêt et YEAR bien défini
   await new Promise(r => setTimeout(r, 50));
-  await Promise.all([loadPlanningData(), loadStatusBar(), loadOverrides(), loadWorkflow()]);
+  await Promise.all([loadPlanningData(), loadStatusBar(), loadOverrides(), loadCycleStatus()]);
 }
 
 // ── STATUS ─────────────────────────────────────────────────────────────
@@ -1259,52 +1268,63 @@ async function cancelOverride(rowIndex,date,doctorId){
 }
 
 // ── WORKFLOW ───────────────────────────────────────────────────────────
-const WORKFLOW_STEPS=[
-  {label:'Initialiser INDISPOS N+1',sub:'Crée l\'onglet pour la nouvelle année',action:'initYear'},
-  {label:'Configurer périodes vacances',sub:'Dates + seuils dans config.html',action:null,link:'config.html'},
-  {label:'Vérifier groupes A/B/C',sub:'Rotation priorités vacances',action:null,link:'config.html'},
-  {label:'Basculer ANNEE_ACTIVE → N+1',sub:'Avant que les MARs saisissent',action:'setActiveYear'},
-  {label:'Envoyer codes aux MARs',sub:'Par email depuis config.html',action:null,link:'config.html'},
-  {label:'Valider demandes vacances',sub:'Vérifier les conflits',action:'checkVac'},
-  {label:'Générer les gardes N+1',sub:'Algorithme équité depuis indispos',action:'generateGardes'},
-  {label:'Saisir affectations secteurs',sub:'Par MAR et par mois dans config.html',action:null,link:'config.html'},
-  {label:'Publier le planning N+1',sub:'Push JSON sur GitHub Pages',action:'publishPlanning'},
-  {label:'Archiver l\'année N',sub:'Sauvegarder stats + indispos sur GitHub',action:'archiveYear'},
-];
-
-function loadWorkflow(){
-  const month=new Date().getMonth()+1;
-  const currentStep=month>=10?0:month>=1&&month<=3?6:4;
-  document.getElementById('workflowBody').innerHTML=WORKFLOW_STEPS.map((step,i)=>{
-    const state=i<currentStep?'done':i===currentStep?'current':'todo';
-    const numLabel=state==='done'?'✓':i+1;
-    return `<div class="workflow-item">
-      <div class="workflow-num ${state}">${numLabel}</div>
-      <div style="flex:1;min-width:0"><div class="workflow-label">${step.label}</div><div class="workflow-sub">${step.sub}</div></div>
-      ${state==='current'&&step.action?`<button class="workflow-btn" onclick="runWorkflowStep(${i})">Lancer</button>`:''}
-      ${step.link&&!step.action?`<a href="./${step.link}" style="font-size:10px;color:var(--ink-4);margin-left:4px;text-decoration:none">→</a>`:''}
-    </div>`;
-  }).join('');
-  document.getElementById('workflowYearLabel').textContent=YEAR;
-}
-
-async function runWorkflowStep(i){
-  const step=WORKFLOW_STEPS[i];
-  if(!step.action) return;
-  if(!confirm(`Lancer : ${step.label} ?`)) return;
-  try{
-    let payload={action:step.action};
-    if(step.action==='initYear') payload.year=YEAR+1;
-    if(step.action==='setActiveYear') payload.year=YEAR+1;
-    if(step.action==='archiveYear') payload.year=YEAR;
-    if(step.action==='checkVac'){showTab('vacances');loadVacances();return;}
-    if(step.action==='generateGardes'){showTab('gardes');generateGardes();return;}
-    const data=await api(payload);
-    if(!data.success) throw new Error(data.error);
-    toast(`✅ ${step.label} — terminé`,'success');
-    if(step.action==='setActiveYear'){YEAR=YEAR+1;document.getElementById('headerYear').textContent=YEAR;}
-    loadWorkflow();
-  }catch(e){toast('Erreur : '+e.message,'error');}
+async function loadCycleStatus() {
+  const body = document.getElementById('cycleStatusBody');
+  if (!body) return;
+  body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const data = await fetch(API_URL + '?' + new URLSearchParams({
+      payload: JSON.stringify({action: 'getStatus'})
+    })).then(r => r.json());
+    if (!data.success) throw new Error(data.error);
+    const s = data.status;
+    const ny = s.nextYear;
+    const nbActifs = (marsData||[]).filter(m=>m.actif).length || '—';
+    const items = [
+      {
+        done: s.indisposN1Exists,
+        label: 'INDISPOS_' + ny + ' initialisé',
+        sub: s.indisposN1Exists ? 'Onglet créé' : 'À faire — Wizard Étape 1',
+        actionKey: s.indisposN1Exists ? null : 'openWizard()',
+      },
+      {
+        done: s.indisposN1Complete,
+        warn: s.indisposN1Exists && !s.indisposN1Complete,
+        label: 'Indispos ' + ny,
+        sub: s.indisposN1Complete
+          ? 'Tous les MARs ont saisi'
+          : s.indisposN1Exists
+            ? s.marsManquants + ' MAR(s) en attente sur ' + nbActifs
+            : 'En attente de l\'initialisation',
+      },
+      {
+        done: s.gardesN1Generated,
+        label: 'Gardes ' + ny + ' générées',
+        sub: s.gardesN1Generated ? 'Planning généré et publié' : 'À faire — Wizard Étape 2',
+        actionKey: (!s.gardesN1Generated && s.indisposN1Complete) ? 'openWizardGardes()' : null,
+      },
+      {
+        done: s.gardesNClosed,
+        label: 'Clôture ' + s.year,
+        sub: s.gardesNClosed ? 'Archivage effectué' : 'À faire en fin d\'année — Wizard Étape 3',
+        actionKey: (!s.gardesNClosed && s.gardesN1Generated) ? 'openWizardCloture()' : null,
+      },
+    ];
+    body.innerHTML = items.map(item => {
+      const icon = item.done ? '✅' : item.warn ? '⚠️' : '○';
+      const cls = item.done ? 'cycle-done' : item.warn ? 'cycle-warn' : 'cycle-todo';
+      return '<div class="cycle-item">'
+        + '<span class="cycle-icon ' + cls + '">' + icon + '</span>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div class="cycle-label ' + (item.done ? 'done' : '') + '">' + item.label + '</div>'
+        + '<div class="cycle-sub">' + item.sub + '</div>'
+        + '</div>'
+        + (item.actionKey ? '<button class="workflow-btn" onclick="' + item.actionKey + '">→</button>' : '')
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    if (body) body.innerHTML = '<div style="font-size:11px;color:var(--ink-4);padding:8px">Impossible de charger l\'état</div>';
+  }
 }
 
 function openWorkflowModal(){ openWizard(); }
