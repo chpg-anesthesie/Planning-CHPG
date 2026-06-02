@@ -119,6 +119,11 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .action-label { font-size:14px; font-weight:700; color:var(--ink); line-height:1.2; }
 .action-desc { font-size:11px; color:var(--ink-4); line-height:1.4; }
 .action-badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:700; font-family:var(--mono); align-self:flex-start; }
+.annual-ops-section { background:var(--bg); border:1px solid var(--line); border-radius:var(--radius); padding:16px 20px 20px; margin-bottom:20px; }
+.annual-ops-header { display:flex; align-items:baseline; gap:10px; margin-bottom:14px; }
+.annual-ops-title { font-size:13px; font-weight:700; color:var(--ink); }
+.annual-ops-sub { font-size:11px; color:var(--ink-4); }
+.annual-ops-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
 .action-badge.red { background:var(--red-soft); color:var(--red); }
 .action-badge.blue { background:var(--blue-soft); color:var(--blue); }
 .action-badge.green { background:var(--green-soft); color:var(--green); }
@@ -560,6 +565,7 @@ if (sessionStorage.getItem('adminCode')) {
   <!-- ── ACCUEIL ── -->
   <div class="tab-panel active" id="panel-accueil">
     <!-- Action Cards -->
+    <!-- Actions quotidiennes -->
     <div class="actions-grid">
       <div class="action-card blue" onclick="openPanel('secteur')" title="Modifier le secteur AM ou PM d'un MAR pour une journée précise">
         <div class="action-icon blue">🔄</div>
@@ -585,29 +591,39 @@ if (sessionStorage.getItem('adminCode')) {
         </div>
         <span class="action-badge green">Hebdomadaire</span>
       </div>
-      <div class="action-card orange" onclick="openWorkflowModal()" title="Guide les 10 étapes du workflow annuel : indispos, gardes, affectations, publication">
-        <div class="action-icon orange">📅</div>
-        <div>
-          <div class="action-label">Workflow annuel</div>
-          <div class="action-desc">Guide pas à pas : de l'ouverture des indispos à la publication du planning annuel</div>
-        </div>
-        <span class="action-badge orange">Annuel</span>
+    </div>
+
+    <!-- Opérations annuelles -->
+    <div class="annual-ops-section">
+      <div class="annual-ops-header">
+        <span class="annual-ops-title">🗓️ Opérations annuelles</span>
+        <span class="annual-ops-sub">Wizards guidés — à utiliser une fois par an</span>
       </div>
-      <div class="action-card purple" onclick="openWizardGardes()" title="Wizard guidé : vérification indispos, vacances, génération et publication">
-        <div class="action-icon purple">⚡</div>
-        <div>
-          <div class="action-label">Générer les gardes</div>
-          <div class="action-desc">Wizard guidé : vérification indispos → vacances → génération → publication</div>
+      <div class="annual-ops-grid">
+        <div class="action-card orange" onclick="openWizard()" title="Wizard guidé : initialiser l'année N+1, configurer les vacances, envoyer les codes aux MARs">
+          <div class="action-icon orange">🚀</div>
+          <div>
+            <div class="action-label" id="labelDemarrer">Démarrer l'année N+1</div>
+            <div class="action-desc" id="descDemarrer">Initialiser INDISPOS N+1, configurer les vacances et envoyer les codes d'accès aux MARs</div>
+          </div>
+          <span class="action-badge orange">Octobre</span>
         </div>
-        <span class="action-badge purple">Annuel</span>
-      </div>
-      <div class="action-card teal" onclick="openWizardCloture()" title="Wizard guidé : vérification planning, stats équité, archivage">
-        <div class="action-icon teal">📦</div>
-        <div>
-          <div class="action-label">Clôturer l'année</div>
-          <div class="action-desc">Wizard guidé : vérification planning complet → récap équité → archivage sur GitHub</div>
+        <div class="action-card purple" onclick="openWizardGardes()" title="Wizard guidé : vérification indispos, vacances, génération et publication">
+          <div class="action-icon purple">⚡</div>
+          <div>
+            <div class="action-label">Générer les gardes</div>
+            <div class="action-desc">Vérifier les indispos et les vacances, générer et publier le planning N+1</div>
+          </div>
+          <span class="action-badge purple">Septembre</span>
         </div>
-        <span class="action-badge teal">Annuel</span>
+        <div class="action-card teal" onclick="openWizardCloture()" title="Wizard guidé : vérification planning, stats équité, archivage">
+          <div class="action-icon teal">📦</div>
+          <div>
+            <div class="action-label">Clôturer l'année</div>
+            <div class="action-desc">Vérifier le planning complet, récapituler l'équité et archiver sur GitHub</div>
+          </div>
+          <span class="action-badge teal">Décembre</span>
+        </div>
       </div>
     </div>
 
@@ -958,6 +974,12 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
       ADMIN_CODE = saved; YEAR = data.year || 2026;
       document.getElementById('authOverlay').style.display = 'none';
       document.getElementById('headerYear').textContent = YEAR;
+    // Mettre à jour les labels des wizards annuels avec l'année réelle
+    const ny = YEAR + 1;
+    const el = document.getElementById('labelDemarrer');
+    if (el) el.textContent = 'Démarrer ' + ny;
+    const desc = document.getElementById('descDemarrer');
+    if (desc) desc.textContent = 'Initialiser INDISPOS ' + ny + ', configurer les vacances et envoyer les codes d\'accès aux MARs';
       document.getElementById('workflowYearLabel').textContent = YEAR;
       document.getElementById('wfYear').textContent = YEAR;
       document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR; });
