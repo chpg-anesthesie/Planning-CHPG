@@ -1068,6 +1068,7 @@ async function loadPlanningData() {
     }
     if (!res || !res.ok) throw new Error('Fichier planning introuvable');
     DATA = await res.json();
+    if (!DATA || !DATA.months) throw new Error('Structure JSON invalide');
     const today = todayStr();
     const weeks = getAllWeeks();
     const idx = weeks.findIndex(w =>
@@ -1076,9 +1077,16 @@ async function loadPlanningData() {
       )
     );
     currentWeekIdx = idx >= 0 ? idx : 0;
-    renderWeek();
-    buildCalMonthSelect();
+    try {
+      renderWeek();
+      buildCalMonthSelect();
+    } catch(renderErr) {
+      console.error('renderWeek error:', renderErr);
+      // Ne pas afficher l'erreur réseau si le JSON a bien chargé
+      grid.innerHTML = '<div style="padding:30px;text-align:center;color:var(--orange);grid-column:1/-1">⚠️ Erreur d\'affichage — ' + renderErr.message + '</div>';
+    }
   } catch(e) {
+    console.error('loadPlanningData error:', e);
     grid.innerHTML = '<div style="padding:30px;text-align:center;color:var(--red);grid-column:1/-1">⚠️ Impossible de charger le planning ' + YEAR + '<br><span style="font-size:11px;color:var(--ink-4)">Vérifiez votre connexion ou <a href="#" onclick="loadPlanningData();return false" style="color:var(--red)">réessayez</a></span></div>';
   }
 }
