@@ -99,6 +99,9 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .action-card.blue::before { background:var(--blue); }
 .action-card.green::before { background:var(--green); }
 .action-card.orange::before { background:var(--orange); }
+.action-card.purple::before { background:#7c3aed; }
+.action-icon.purple { background:#ede9fe; color:#7c3aed; }
+.action-badge.purple { background:#ede9fe; color:#7c3aed; }
 .action-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-lg); }
 .action-card.red:hover { border-color:var(--red); }
 .action-card.blue:hover { border-color:var(--blue); }
@@ -585,6 +588,14 @@ if (sessionStorage.getItem('adminCode')) {
           <div class="action-desc">Guide pas à pas : de l'ouverture des indispos à la publication du planning annuel</div>
         </div>
         <span class="action-badge orange">Annuel</span>
+      </div>
+      <div class="action-card purple" onclick="openWizardGardes()" title="Wizard guidé : vérification indispos, vacances, génération et publication">
+        <div class="action-icon purple">⚡</div>
+        <div>
+          <div class="action-label">Générer les gardes</div>
+          <div class="action-desc">Wizard guidé : vérification indispos → vacances → génération → publication</div>
+        </div>
+        <span class="action-badge purple">Annuel</span>
       </div>
     </div>
 
@@ -2138,7 +2149,205 @@ async function launchWizard() {
     nextBtn.textContent = 'Réessayer';
   }
 }
+
+// ── WIZARD GÉNÉRER LES GARDES ────────────────────────────────────────────
+let wizGCurrentStep = 0;
+let wizGIndisposData = null;
+let wizGVacData = null;
+
+async function openWizardGardes() {
+  wizGCurrentStep = 0;
+  wizGIndisposData = null;
+  wizGVacData = null;
+  document.getElementById('wizGardesYear').textContent = YEAR;
+  if (YEAR <= 2026) {
+    toast('GARDES_2026 est figé — génération désactivée pour 2026', 'error');
+    return;
+  }
+  await renderWizGStep();
+  document.getElementById('wizardGardesOverlay').classList.add('open');
+}
+
+function closeWizardGardes() {
+  document.getElementById('wizardGardesOverlay').classList.remove('open');
+}
+
+async function wizGPrev() {
+  if (wizGCurrentStep > 0) { wizGCurrentStep--; await renderWizGStep(); }
+}
+
+async function wizGNext() {
+  if (wizGCurrentStep < 2) {
+    wizGCurrentStep++;
+    await renderWizGStep();
+  } else {
+    await launchWizardGardes();
+  }
+}
+
+function updateWizGNav() {
+  document.getElementById('wizGBackBtn').style.visibility = wizGCurrentStep === 0 ? 'hidden' : 'visible';
+  const nextBtn = document.getElementById('wizGNextBtn');
+  nextBtn.textContent = wizGCurrentStep === 2 ? '⚡ Générer les gardes' : 'Suivant →';
+  for (let i = 0; i < 3; i++) {
+    const dot = document.getElementById('wizGDot' + i);
+    const step = document.getElementById('wizGStep' + i);
+    dot.className = 'wizard-step-dot' + (i < wizGCurrentStep ? ' done' : i === wizGCurrentStep ? ' active' : '');
+    step.className = 'wizard-step' + (i === wizGCurrentStep ? ' active' : '');
+  }
+}
+
+async function renderWizGStep() {
+  updateWizGNav();
+  const body = document.getElementById('wizGBody');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement…</div>';
+
+  if (wizGCurrentStep === 0) {
+    if (!wizGIndisposData) {
+      try {
+        const data = await api({action: 'getAllIndispos'});
+        if (!data.success) throw new Error(data.error);
+        wizGIndisposData = data.data || {};
+      } catch(e) {
+        body.innerHTML = '<div class="wizard-warning">❌ Impossible de charger les indispos : ' + e.message + '</div>';
+        return;
+      }
+    }
+    const actifs = (marsData || []).filter(m => m.actif);
+    const sansIndispo = actifs.filter(m => {
+      const ind = wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || [];
+      return !ind || ind.length === 0;
+    });
+    let html = '<div class="wizard-section-title">Indisponibilités ' + YEAR + ' — récapitulatif</div>';
+    if (sansIndispo.length) {
+      html += '<div class="wizard-warning">⚠️ ' + sansIndispo.length + ' MAR(s) sans indispos : <strong>' + sansIndispo.map(m => m.initiales).join(', ') + '</strong><br><small>La génération est possible mais ces MARs seront disponibles toute l\'année.</small></div>';
+    }
+    html += '<div class="wiz-mar-list">';
+    actifs.forEach(m => {
+      const ind = wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || [];
+      const count = Array.isArray(ind) ? ind.length : Object.keys(ind).length;
+      const cls = count === 0 ? 'wiz-warn' : 'wiz-ok';
+      html += '<div class="wiz-mar-row"><div class="wiz-mar-init">' + m.initiales + '</div><div class="wiz-mar-name">' + m.nom + '</div><div class="wiz-mar-meta"><span class="' + cls + '">' + (count === 0 ? '⚠️ Aucune indispo' : '✓ ' + count + ' jour(s)') + '</span></div></div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+
+  } else if (wizGCurrentStep === 1) {
+    if (!wizGVacData) {
+      try {
+        const data = await api({action: 'getVacValidation'});
+        if (!data.success) throw new Error(data.error);
+        wizGVacData = data.data || [];
+      } catch(e) {
+        body.innerHTML = '<div class="wizard-warning">❌ Impossible de charger les vacances : ' + e.message + '</div>';
+        return;
+      }
+    }
+    let html = '<div class="wizard-section-title">Périodes de vacances ' + YEAR + ' — validation</div>';
+    html += '<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">Vérifiez que les seuils de présence sont respectés avant de lancer.</div>';
+    if (!wizGVacData.length) {
+      html += '<div class="wizard-warning">⚠️ Aucune période configurée. Vérifiez config.html → Vacances.</div>';
+    } else {
+      html += '<table class="wiz-periodes"><thead><tr><th>Période</th><th>Dates</th><th>Seuil</th><th>Statut</th></tr></thead><tbody>';
+      wizGVacData.forEach(p => {
+        const icon = p.statut === 'VALIDE' ? '✅' : p.statut === 'PARTIEL' ? '⚠️' : '❌';
+        html += '<tr><td style="font-weight:600">' + (p.label||p.periode||'—') + '</td><td style="font-size:11px;color:var(--ink-3)">' + (p.debut||'—') + ' → ' + (p.fin||'—') + '</td><td>' + (p.seuil||'—') + '</td><td>' + icon + ' ' + (p.statut||'—') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '<div style="margin-top:14px;font-size:12px;color:var(--ink-3)">Pour modifier, fermez et allez dans <strong>config.html → Vacances</strong>.</div>';
+    body.innerHTML = html;
+
+  } else if (wizGCurrentStep === 2) {
+    const actifs = (marsData || []).filter(m => m.actif);
+    const sansIndispo = actifs.filter(m => {
+      const ind = wizGIndisposData ? (wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || []) : [];
+      return !ind || ind.length === 0;
+    });
+    let html = '<div class="wizard-section-title">Prêt à générer les gardes ' + YEAR + '</div>';
+    html += '<div style="background:var(--bg);border-radius:12px;padding:16px;margin:12px 0">';
+    html += '<div style="margin-bottom:8px;font-size:13px"><strong>' + actifs.length + '</strong> MARs actifs inclus</div>';
+    if (sansIndispo.length) {
+      html += '<div style="font-size:12px;color:var(--orange)">⚠️ ' + sansIndispo.length + ' MAR(s) sans indispos : ' + sansIndispo.map(m => m.initiales).join(', ') + '</div>';
+    }
+    html += '</div>';
+    html += '<div style="font-size:12px;color:var(--ink-3);margin-top:8px">La génération prend 30–60 secondes. Le planning sera publié automatiquement.</div>';
+    body.innerHTML = html;
+  }
+}
+
+async function launchWizardGardes() {
+  const nextBtn = document.getElementById('wizGNextBtn');
+  nextBtn.disabled = true;
+  document.getElementById('wizGBackBtn').style.visibility = 'hidden';
+  document.getElementById('wizGBody').innerHTML = '<div class="wiz-progress"><div class="wiz-progress-item" id="wizg-p1">⏳ Génération des gardes ' + YEAR + '…</div><div class="wiz-progress-item" id="wizg-p2" style="opacity:.4">○ Publication sur GitHub Pages…</div></div>';
+
+  const steps = [
+    {id:'wizg-p1', label:'Gardes générées',  action: () => api({action:'generateGardes'})},
+    {id:'wizg-p2', label:'Planning publié',  action: () => api({action:'publishPlanning'})},
+  ];
+
+  let allOk = true;
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    const el = document.getElementById(step.id);
+    el.classList.add('running'); el.style.opacity = '1';
+    try {
+      const res = await step.action();
+      if (!res || !res.success) throw new Error(res?.error || 'Erreur');
+      el.classList.remove('running'); el.classList.add('done');
+      el.textContent = '✓ ' + step.label;
+    } catch(e) {
+      el.classList.remove('running'); el.classList.add('error');
+      el.textContent = '✕ Erreur : ' + e.message;
+      allOk = false; break;
+    }
+    const next = document.getElementById(steps[i+1]?.id);
+    if (next) { next.style.opacity = '1'; next.textContent = next.textContent.replace('○','⏳'); }
+  }
+
+  if (allOk) {
+    setTimeout(() => {
+      document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Gardes ' + YEAR + ' générées !</div><div style="font-size:13px;color:var(--ink-3)">Le planning est publié sur GitHub Pages.<br>Vérifiez l\'équité dans l\'onglet Équité.</div><button class=\"btn-primary\" style=\"margin-top:20px\" onclick=\"closeWizardGardes();showTab(\'gardes\')\">Voir l\'équité →</button></div>';
+      nextBtn.style.display = 'none';
+    }, 600);
+  } else {
+    nextBtn.disabled = false;
+    nextBtn.textContent = 'Réessayer';
+  }
+}
 </script>
+
+<!-- WIZARD GÉNÉRER LES GARDES -->
+<div class="wizard-overlay" id="wizardGardesOverlay">
+  <div class="wizard-box">
+    <div class="wizard-header">
+      <div class="wizard-title-row">
+        <div class="wizard-title">⚡ Générer les gardes <span id="wizGardesYear">2027</span></div>
+        <button class="wizard-close" onclick="closeWizardGardes()">✕</button>
+      </div>
+      <div class="wizard-steps">
+        <div class="wizard-step active" id="wizGStep0">
+          <div class="wizard-step-dot" id="wizGDot0">1</div>
+          <div class="wizard-step-label">Indispos</div>
+        </div>
+        <div class="wizard-step" id="wizGStep1">
+          <div class="wizard-step-dot" id="wizGDot1">2</div>
+          <div class="wizard-step-label">Vacances</div>
+        </div>
+        <div class="wizard-step" id="wizGStep2">
+          <div class="wizard-step-dot" id="wizGDot2">3</div>
+          <div class="wizard-step-label">Lancer</div>
+        </div>
+      </div>
+    </div>
+    <div class="wizard-body" id="wizGBody"></div>
+    <div class="wizard-footer">
+      <button class="wizard-back" id="wizGBackBtn" onclick="wizGPrev()">← Retour</button>
+      <button class="wizard-next" id="wizGNextBtn" onclick="wizGNext()">Suivant →</button>
+    </div>
+  </div>
+</div>
 
 <!-- WIZARD DÉMARRER ANNÉE N+1 -->
 <div class="wizard-overlay" id="wizardOverlay">
