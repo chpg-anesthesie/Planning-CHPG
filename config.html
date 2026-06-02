@@ -1306,10 +1306,11 @@ async function openWizardDepart() {
   document.getElementById('wizDNextBtn').disabled = false;
   document.getElementById('wizDNextBtn').style.display = '';
   document.getElementById('wizDNextBtn').textContent = 'Suivant →';
-  if (!marData || !marData.length) {
-    try { const d = await api({action:'getMedecins'}); if(d.success) { marData = d.medecins; } } catch(e) {}
-  }
-  wizDMarsData = (marData || []).filter(m => m.actif);
+  // Charger la liste des MARs depuis l'API (marData n'existe pas dans config.html)
+  try {
+    const d = await api({action:'getMedecins'});
+    if (d.success) wizDMarsData = d.medecins.filter(m => m.actif);
+  } catch(e) { wizDMarsData = []; }
   await renderWizDStep();
   document.getElementById('wizardDepartOverlay').classList.add('open');
 }
@@ -1356,10 +1357,16 @@ async function renderWizDStep() {
     try {
       const planning = await fetch('./planning_' + YEAR + '.json?' + Date.now()).then(r => r.json());
       const today = new Date().toISOString().slice(0,10);
-      Object.values(planning).forEach(week => {
-        if (!week || typeof week !== 'object') return;
-        Object.entries(week).forEach(([date, day]) => {
-          if (date >= today && day && (day.G === mar.initiales || day.G2 === mar.initiales)) gardesFutures++;
+      // Structure réelle : {months: [{days: [...], doctors: [...]}]}
+      (planning.months || []).forEach(month => {
+        (month.doctors || []).forEach(doc => {
+          if (doc.initials !== mar.initiales) return;
+          (doc.days || []).forEach((entry, dayIdx) => {
+            const date = month.days[dayIdx]?.date;
+            if (!date || date < today) return;
+            const st = entry?.status || '';
+            if (st === 'G' || st === 'G2') gardesFutures++;
+          });
         });
       });
     } catch(e) {}
