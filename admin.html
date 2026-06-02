@@ -952,9 +952,10 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
       document.getElementById('affYear').textContent = YEAR;
       await initDashboard();
       // Ouvrir le wizard si appelé depuis dashboard
-      if (new URLSearchParams(window.location.search).get('wizard') === '1') {
-        setTimeout(openWizard, 600);
-      }
+      const wizParam = new URLSearchParams(window.location.search).get('wizard');
+      if (wizParam === '1')      setTimeout(openWizard, 600);
+      if (wizParam === 'gardes') setTimeout(openWizardGardes, 600);
+      if (wizParam === 'cloture') { /* wizard clôture à venir */ }
     } else {
       sessionStorage.removeItem('adminCode');
     }
@@ -2218,16 +2219,21 @@ async function renderWizGStep() {
       const ind = wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || [];
       return !ind || ind.length === 0;
     });
+    const blocked = sansIndispo.length > 0;
+    // Bloquer ou débloquer le bouton Suivant
+    document.getElementById('wizGNextBtn').disabled = blocked;
     let html = '<div class="wizard-section-title">Indisponibilités ' + YEAR + ' — récapitulatif</div>';
-    if (sansIndispo.length) {
-      html += '<div class="wizard-warning">⚠️ ' + sansIndispo.length + ' MAR(s) sans indispos : <strong>' + sansIndispo.map(m => m.initiales).join(', ') + '</strong><br><small>La génération est possible mais ces MARs seront disponibles toute l\'année.</small></div>';
+    if (blocked) {
+      html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">❌ <strong>' + sansIndispo.length + ' MAR(s) n\'ont pas encore saisi leurs indispos</strong> : ' + sansIndispo.map(m => m.initiales).join(', ') + '<br><small>La génération est impossible tant que tout le monde n\'a pas rempli. Relancez les MARs concernés.</small></div>';
+    } else {
+      html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534">✅ Tous les MARs ont saisi leurs indispos — vous pouvez continuer.</div>';
     }
     html += '<div class="wiz-mar-list">';
     actifs.forEach(m => {
       const ind = wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || [];
       const count = Array.isArray(ind) ? ind.length : Object.keys(ind).length;
       const cls = count === 0 ? 'wiz-warn' : 'wiz-ok';
-      html += '<div class="wiz-mar-row"><div class="wiz-mar-init">' + m.initiales + '</div><div class="wiz-mar-name">' + m.nom + '</div><div class="wiz-mar-meta"><span class="' + cls + '">' + (count === 0 ? '⚠️ Aucune indispo' : '✓ ' + count + ' jour(s)') + '</span></div></div>';
+      html += '<div class="wiz-mar-row"><div class="wiz-mar-init">' + m.initiales + '</div><div class="wiz-mar-name">' + m.nom + '</div><div class="wiz-mar-meta"><span class="' + cls + '">' + (count === 0 ? '❌ Pas encore saisi' : '✓ ' + count + ' jour(s)') + '</span></div></div>';
     });
     html += '</div>';
     body.innerHTML = html;
