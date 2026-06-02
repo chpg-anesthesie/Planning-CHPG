@@ -468,7 +468,7 @@ if (sessionStorage.getItem('adminCode')) {
             <thead><tr>
               <th>ID</th><th>Nom</th><th>Init.</th>
               <th>Quotité</th><th>% Gardes</th>
-              <th>Email</th><th>Statut</th><th>Actions</th>
+              <th>Email</th><th>DECT</th><th>Statut</th><th>Actions</th>
             </tr></thead>
             <tbody id="equipeBody"></tbody>
           </table>
@@ -477,7 +477,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
 
-  <!-- ── AFFECTATIONS ── -->
+  
 
   <!-- ── VACANCES ── -->
   <div class="tab-panel" id="panel-vacances">
@@ -648,9 +648,15 @@ if (sessionStorage.getItem('adminCode')) {
         <input class="form-input" id="marPctGardes" type="number" value="100" min="0" max="200"/>
       </div>
     </div>
-    <div class="form-field" style="margin-bottom:12px">
-      <label class="form-label">Email</label>
-      <input class="form-input" id="marEmail" type="email" placeholder="prenom.nom@chpg.mc"/>
+    <div class="form-grid" style="margin-bottom:12px">
+      <div class="form-field">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="marEmail" type="email" placeholder="prenom.nom@chpg.mc"/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">DECT</label>
+        <input class="form-input" id="marDect" type="text" placeholder="ex. 1234" style="font-family:var(--mono)" maxlength="6"/>
+      </div>
     </div>
     <div class="form-field" style="margin-bottom:16px">
       <label class="form-label">Statut</label>
@@ -887,6 +893,7 @@ async function saveMAR() {
       quotite:   Number(document.getElementById('marQuotite').value),
       pctGardes: Number(document.getElementById('marPctGardes').value),
       email:     document.getElementById('marEmail').value.trim(),
+      dect:      document.getElementById('marDect').value.trim(),
       actif:     document.getElementById('marActif').value === 'true',
       codeAcces: document.getElementById('marCodeAcces').value,
     };
