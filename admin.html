@@ -999,7 +999,7 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
     if (el) el.textContent = 'Démarrer ' + ny;
     const desc = document.getElementById('descDemarrer');
     if (desc) desc.textContent = 'Initialiser INDISPOS ' + ny + ', configurer les vacances et envoyer les codes d\'accès aux MARs';
-      document.getElementById('workflowYearLabel').textContent = YEAR;
+      // workflowYearLabel supprimé (remplacé par widget État du cycle)
       document.getElementById('wfYear').textContent = YEAR;
       document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR; });
       document.getElementById('affYear').textContent = YEAR;
@@ -1025,7 +1025,6 @@ async function authenticate() {
       sessionStorage.setItem('adminCode', code);
       document.getElementById('authOverlay').style.display = 'none';
       document.getElementById('headerYear').textContent = YEAR;
-      document.getElementById('workflowYearLabel').textContent = YEAR;
       document.getElementById('wfYear').textContent = YEAR;
       document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR; });
       document.getElementById('affYear').textContent = YEAR;
