@@ -1575,12 +1575,22 @@ async function launchWizardRecrue() {
     + '<div class="wiz-progress-item" id="wizr-p5" style="opacity:.4">○ Publication du planning…</div>'
     + '</div>';
 
-  const newMAR = {...wizRData, id: wizRData.initiales.toLowerCase() + '_' + Date.now()};
+  // Générer un ID propre depuis les initiales + timestamp
+  // Générer un code accès automatique si non renseigné
+  if (!wizRData.codeAcces) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    wizRData.codeAcces = Array.from({length:8}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+  }
+  const newMAR = {
+    ...wizRData,
+    id: wizRData.initiales.toUpperCase().replace(/[^A-Z]/g,'') + '_' + Date.now(),
+    actif: true,
+  };
   const steps = [
     {id:'wizr-p1', label:'MAR créé',              action: () => api({action:'saveMedecin', medecin:newMAR})},
-    {id:'wizr-p2', label:'Affectations sauvées',  action: () => api({action:'saveAffectations', medecin:newMAR.id, affectations:wizRAffectations})},
-    {id:'wizr-p3', label:'Groupe sauvegardé',     action: () => api({action:'saveGroupes', medecin:newMAR.id, groupe:wizRGroupe})},
-    ...(wizRData.email ? [{id:'wizr-p4', label:'Code envoyé', action: () => api({action:'sendCodes', medecin:newMAR.id})}] : []),
+    {id:'wizr-p2', label:'Affectations sauvées',  action: () => api({action:'saveAffectationsMar', medecin:newMAR.id, affectations:wizRAffectations})},
+    {id:'wizr-p3', label:'Groupe sauvegardé',     action: () => api({action:'addMedecinToGroupe', medecin:newMAR.id, groupe:wizRGroupe})},
+    ...(wizRData.email ? [{id:'wizr-p4', label:'Code envoyé', action: () => api({action:'sendCodesMar', medecin:newMAR.id})}] : []),
     {id:'wizr-p5', label:'Planning republié',     action: () => api({action:'publishPlanning'})},
   ];
 
