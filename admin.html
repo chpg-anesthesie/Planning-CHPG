@@ -1381,6 +1381,7 @@ function closeModalOutside(e,id){if(e.target===document.getElementById(id))close
 function buildCalMonthSelect(){
   if(!DATA) return;
   const sel=document.getElementById('calMonthSelect');
+  if(!sel) return;
   sel.innerHTML='';
   DATA.months.forEach((m,i)=>{
     const opt=document.createElement('option');
