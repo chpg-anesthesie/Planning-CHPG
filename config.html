@@ -343,6 +343,56 @@ body {
 .page-header {
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
 }
+
+/* ── WIZARDS ── */
+.wizard-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,.7);
+  backdrop-filter: blur(6px); z-index: 300;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.wizard-overlay.open { opacity: 1; pointer-events: all; }
+.wizard-box {
+  background: var(--white); border-radius: 20px;
+  width: min(640px, 96vw); max-height: 90vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 32px 80px rgba(0,0,0,.18);
+  animation: wizIn .3s cubic-bezier(.16,1,.3,1);
+}
+@keyframes wizIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+.wizard-header { padding: 24px 28px 0; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.wizard-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.wizard-title { font-size: 17px; font-weight: 700; color: var(--ink); }
+.wizard-close { width: 32px; height: 32px; border: none; background: #f1f5f9; border-radius: 8px; cursor: pointer; font-size: 16px; color: var(--ink-3); }
+.wizard-close:hover { background: #fee2e2; color: var(--red); }
+.wizard-steps { display: flex; padding-bottom: 0; }
+.wizard-step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; padding-bottom: 16px; position: relative; }
+.wizard-step::after { content: ''; position: absolute; top: 14px; left: 50%; width: 100%; height: 2px; background: var(--line); z-index: 0; }
+.wizard-step:last-child::after { display: none; }
+.wizard-step-dot { width: 28px; height: 28px; border-radius: 50%; background: #f1f5f9; color: var(--ink-3); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; transition: all .2s; }
+.wizard-step-dot.active { background: var(--red); color: white; }
+.wizard-step-dot.done { background: var(--green, #16a34a); color: white; }
+.wizard-step-label { font-size: 11px; color: var(--ink-3); font-weight: 500; }
+.wizard-step.active .wizard-step-label { color: var(--red); font-weight: 700; }
+.wizard-body { padding: 24px 28px; overflow-y: auto; flex: 1; }
+.wizard-footer { padding: 16px 28px 24px; display: flex; justify-content: space-between; border-top: 1px solid var(--line); flex-shrink: 0; }
+.wizard-back { background: none; border: 1px solid var(--line); border-radius: 10px; padding: 10px 20px; cursor: pointer; font-size: 13px; color: var(--ink-3); font-family: 'DM Sans', sans-serif; }
+.wizard-next { background: var(--red); color: white; border: none; border-radius: 10px; padding: 10px 24px; cursor: pointer; font-size: 13px; font-weight: 600; font-family: 'DM Sans', sans-serif; }
+.wizard-next:disabled { opacity: .4; cursor: not-allowed; }
+.wizard-section-title { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 14px; }
+.wizard-warning { padding: 12px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 12px; background: #fef3c7; border-left: 3px solid #f59e0b; color: #92400e; }
+.wiz-mar-list { display: flex; flex-direction: column; gap: 6px; }
+.wiz-mar-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f8fafc; border-radius: 8px; }
+.wiz-mar-init { width: 36px; height: 36px; border-radius: 8px; background: var(--red-soft); color: var(--red); font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.wiz-mar-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--ink); }
+.wiz-mar-meta { font-size: 11px; color: var(--ink-3); }
+.wiz-ok { color: #16a34a; }
+.wiz-warn { color: #d97706; }
+.wiz-progress { display: flex; flex-direction: column; gap: 10px; }
+.wiz-progress-item { padding: 12px 14px; border-radius: 10px; background: #f8fafc; font-size: 13px; color: var(--ink-3); transition: all .3s; }
+.wiz-progress-item.running { background: #eff6ff; color: #1d4ed8; }
+.wiz-progress-item.done { background: #dcfce7; color: #166534; }
+.wiz-progress-item.error { background: #fee2e2; color: #991b1b; }
 </style>
 <script>
 // Masquer l'overlay immédiatement si un code est en sessionStorage
@@ -533,14 +583,14 @@ if (sessionStorage.getItem('adminCode')) {
         <button class="btn-primary" onclick="publishPlanning()" style="align-self:flex-start">Publier maintenant</button>
       </div>
       <div class="maint-action">
-        <div class="maint-title">📋 Départ d'un MAR</div>
-        <div class="maint-desc">Checklist guidée : désactivation, redistribution des gardes restantes, archivage.</div>
-        <button class="btn-secondary" onclick="showFiche('depart')" style="align-self:flex-start">Ouvrir la fiche</button>
+        <div class="maint-title">🚪 Départ d'un MAR</div>
+        <div class="maint-desc">Wizard guidé : sélection MAR → vérification gardes restantes → désactivation → republication.</div>
+        <button class="btn-primary" onclick="openWizardDepart()" style="align-self:flex-start">Lancer le wizard</button>
       </div>
       <div class="maint-action">
-        <div class="maint-title">📋 Nouvelle recrue</div>
-        <div class="maint-desc">Checklist guidée : création compte, affectations, groupe vacances, envoi code d'accès.</div>
-        <button class="btn-secondary" onclick="showFiche('recrue')" style="align-self:flex-start">Ouvrir la fiche</button>
+        <div class="maint-title">👋 Accueillir un MAR</div>
+        <div class="maint-desc">Wizard guidé : création fiche → affectations sectorielles → groupe vacances → envoi code.</div>
+        <button class="btn-primary" onclick="openWizardRecrue()" style="align-self:flex-start">Lancer le wizard</button>
       </div>
       <div class="maint-action">
         <div class="maint-title">📦 Archiver l'année <span id="archiveYearLabel">—</span></div>
@@ -1247,6 +1297,313 @@ const FICHES = {
   }
 };
 
+
+// ── WIZARD DÉPART D'UN MAR ────────────────────────────────────────────────
+let wizDStep = 0, wizDMarId = null, wizDMarsData = [];
+
+async function openWizardDepart() {
+  wizDStep = 0; wizDMarId = null;
+  document.getElementById('wizDNextBtn').disabled = false;
+  document.getElementById('wizDNextBtn').style.display = '';
+  document.getElementById('wizDNextBtn').textContent = 'Suivant →';
+  if (!marData || !marData.length) {
+    try { const d = await api({action:'getMedecins'}); if(d.success) { marData = d.medecins; } } catch(e) {}
+  }
+  wizDMarsData = (marData || []).filter(m => m.actif);
+  await renderWizDStep();
+  document.getElementById('wizardDepartOverlay').classList.add('open');
+}
+function closeWizardDepart() { document.getElementById('wizardDepartOverlay').classList.remove('open'); }
+
+async function wizDPrev() { if (wizDStep > 0) { wizDStep--; await renderWizDStep(); } }
+async function wizDNext() {
+  if (wizDStep === 0 && !wizDMarId) { toast('Sélectionnez un MAR', 'error'); return; }
+  if (wizDStep < 3) { wizDStep++; await renderWizDStep(); }
+  else { await launchWizardDepart(); }
+}
+
+function updateWizDNav() {
+  document.getElementById('wizDBackBtn').style.visibility = wizDStep === 0 ? 'hidden' : 'visible';
+  const nb = document.getElementById('wizDNextBtn');
+  nb.textContent = wizDStep === 3 ? '🚪 Désactiver le MAR' : 'Suivant →';
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('wizDDot'+i).className = 'wizard-step-dot' + (i<wizDStep?' done':i===wizDStep?' active':'');
+    document.getElementById('wizDStep'+i).className = 'wizard-step' + (i===wizDStep?' active':'');
+  }
+}
+
+async function renderWizDStep() {
+  updateWizDNav();
+  const body = document.getElementById('wizDBody');
+
+  if (wizDStep === 0) {
+    let html = '<div class="wizard-section-title">Quel MAR part ?</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+    wizDMarsData.forEach(m => {
+      const sel = wizDMarId === m.id ? 'background:#fee2e2;border-color:var(--red);' : '';
+      html += '<div style="padding:12px 14px;border:2px solid var(--line);border-radius:10px;cursor:pointer;' + sel + '" onclick="wizDSelectMAR(\''+m.id+'\')">'
+        + '<span style="font-weight:700">' + m.nom + '</span>'
+        + '<span style="font-size:12px;color:var(--ink-3);margin-left:8px">' + m.initiales + ' · ' + (m.quotite||100) + '%</span>'
+        + '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+
+  } else if (wizDStep === 1) {
+    const mar = wizDMarsData.find(m => m.id === wizDMarId);
+    body.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement planning…</div>';
+    let gardesFutures = 0;
+    try {
+      const planning = await fetch('./planning_' + YEAR + '.json?' + Date.now()).then(r => r.json());
+      const today = new Date().toISOString().slice(0,10);
+      Object.values(planning).forEach(week => {
+        if (!week || typeof week !== 'object') return;
+        Object.entries(week).forEach(([date, day]) => {
+          if (date >= today && day && (day.G === mar.initiales || day.G2 === mar.initiales)) gardesFutures++;
+        });
+      });
+    } catch(e) {}
+    let html = '<div class="wizard-section-title">Vérification — ' + (mar?.nom||'') + '</div>';
+    if (gardesFutures > 0) {
+      html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">⚠️ <strong>' + gardesFutures + ' garde(s) future(s)</strong> attribuée(s) à ce MAR.<br><small>Redistribuez-les manuellement depuis admin.html → Modifier une garde avant de désactiver.</small></div>';
+    } else {
+      html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid #16a34a;color:#166534">✅ Aucune garde future détectée pour ce MAR.</div>';
+    }
+    html += '<div style="font-size:12px;color:var(--ink-3);margin-top:12px">Vérifiez également ses affectations sectorielles — elles resteront en GSheet mais n\'auront plus d\'effet une fois le MAR désactivé.</div>';
+    body.innerHTML = html;
+
+  } else if (wizDStep === 2) {
+    const mar = wizDMarsData.find(m => m.id === wizDMarId);
+    let html = '<div class="wizard-section-title">Confirmer la désactivation</div>';
+    html += '<div style="background:#f8fafc;border-radius:12px;padding:16px;margin:12px 0">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:4px">' + (mar?.nom||'') + ' (' + (mar?.initiales||'') + ')</div>';
+    html += '<div style="font-size:12px;color:var(--ink-3)">Le MAR sera passé à ACTIF = N dans l\'onglet MEDECINS.<br>Il n\'apparaîtra plus dans les générations futures.</div>';
+    html += '</div>';
+    html += '<div class="wizard-warning" style="background:#fef3c7;border-left:3px solid #f59e0b;color:#92400e">⚠️ Cette action est réversible depuis config.html → Équipe (réactiver le MAR).</div>';
+    body.innerHTML = html;
+
+  } else if (wizDStep === 3) {
+    const mar = wizDMarsData.find(m => m.id === wizDMarId);
+    let html = '<div class="wizard-section-title">Prêt à désactiver</div>';
+    html += '<div style="font-size:13px;margin-bottom:16px">Le planning sera republié automatiquement après désactivation.</div>';
+    html += '<div class="wiz-mar-row"><div class="wiz-mar-init">' + (mar?.initiales||'') + '</div><div class="wiz-mar-name">' + (mar?.nom||'') + '</div><div class="wiz-mar-meta"><span style="color:var(--red)">→ ACTIF = N</span></div></div>';
+    body.innerHTML = html;
+  }
+}
+
+function wizDSelectMAR(id) {
+  wizDMarId = id;
+  renderWizDStep();
+}
+
+async function launchWizardDepart() {
+  const nb = document.getElementById('wizDNextBtn');
+  nb.disabled = true;
+  document.getElementById('wizDBackBtn').style.visibility = 'hidden';
+  const mar = wizDMarsData.find(m => m.id === wizDMarId);
+  document.getElementById('wizDBody').innerHTML = '<div class="wiz-progress">'
+    + '<div class="wiz-progress-item" id="wizd-p1">⏳ Désactivation de ' + (mar?.nom||'') + '…</div>'
+    + '<div class="wiz-progress-item" id="wizd-p2" style="opacity:.4">○ Publication du planning…</div>'
+    + '</div>';
+
+  const steps = [
+    {id:'wizd-p1', label:'MAR désactivé',    action: () => api({action:'saveMedecin', medecin:{...mar, actif:false}})},
+    {id:'wizd-p2', label:'Planning republié', action: () => api({action:'publishPlanning'})},
+  ];
+
+  let allOk = true;
+  for (let i = 0; i < steps.length; i++) {
+    const el = document.getElementById(steps[i].id);
+    el.classList.add('running'); el.style.opacity = '1';
+    try {
+      const res = await steps[i].action();
+      if (!res || !res.success) throw new Error(res?.error || 'Erreur');
+      el.classList.remove('running'); el.classList.add('done');
+      el.textContent = '✓ ' + steps[i].label;
+    } catch(e) {
+      el.classList.remove('running'); el.classList.add('error');
+      el.textContent = '✕ ' + e.message;
+      allOk = false; break;
+    }
+    const next = document.getElementById(steps[i+1]?.id);
+    if (next) { next.style.opacity='1'; next.textContent=next.textContent.replace('○','⏳'); }
+  }
+
+  if (allOk) {
+    if (marData) { const m = marData.find(x => x.id === wizDMarId); if(m) m.actif = false; }
+    setTimeout(() => {
+      document.getElementById('wizDBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">' + (mar?.nom||'') + ' désactivé</div><div style="font-size:13px;color:var(--ink-3)">Le planning a été republié.<br>Pensez à redistribuer ses gardes restantes si nécessaire.</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardDepart();loadEquipe()">Voir l\'équipe</button></div>';
+      nb.style.display = 'none';
+    }, 600);
+  } else { nb.disabled = false; nb.textContent = 'Réessayer'; }
+}
+
+// ── WIZARD ACCUEILLIR UN MAR ──────────────────────────────────────────────
+let wizRStep = 0;
+let wizRData = {nom:'', initiales:'', quotite:100, pctGardes:100, email:'', codeAcces:'', actif:true};
+let wizRAffectations = {};
+let wizRGroupe = 'A';
+const WIZ_SECTEURS = ['MAT','AMB','REA','VOLANT'];
+const WIZ_MOIS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+async function openWizardRecrue() {
+  wizRStep = 0;
+  wizRData = {nom:'', initiales:'', quotite:100, pctGardes:100, email:'', codeAcces:'', actif:true};
+  wizRAffectations = {};
+  WIZ_MOIS.forEach((_,i) => wizRAffectations[i+1] = 'VOLANT');
+  wizRGroupe = 'A';
+  document.getElementById('wizRNextBtn').disabled = false;
+  document.getElementById('wizRNextBtn').style.display = '';
+  renderWizRStep();
+  document.getElementById('wizardRecrueOverlay').classList.add('open');
+}
+function closeWizardRecrue() { document.getElementById('wizardRecrueOverlay').classList.remove('open'); }
+
+async function wizRPrev() { if (wizRStep > 0) { collectWizRStep(); wizRStep--; renderWizRStep(); } }
+async function wizRNext() {
+  collectWizRStep();
+  if (wizRStep === 0 && (!wizRData.nom || !wizRData.initiales)) { toast('Nom et initiales requis', 'error'); return; }
+  if (wizRStep < 3) { wizRStep++; renderWizRStep(); }
+  else { await launchWizardRecrue(); }
+}
+
+function collectWizRStep() {
+  if (wizRStep === 0) {
+    wizRData.nom        = document.getElementById('wizRNom')?.value || wizRData.nom;
+    wizRData.initiales  = document.getElementById('wizRInit')?.value?.toUpperCase() || wizRData.initiales;
+    wizRData.quotite    = parseInt(document.getElementById('wizRQuotite')?.value) || wizRData.quotite;
+    wizRData.pctGardes  = parseInt(document.getElementById('wizRPct')?.value) || wizRData.pctGardes;
+    wizRData.email      = document.getElementById('wizREmail')?.value || wizRData.email;
+    wizRData.codeAcces  = document.getElementById('wizRCode')?.value?.toUpperCase() || wizRData.codeAcces;
+  } else if (wizRStep === 1) {
+    WIZ_MOIS.forEach((_,i) => {
+      const el = document.getElementById('wizRAff'+(i+1));
+      if (el) wizRAffectations[i+1] = el.value;
+    });
+  } else if (wizRStep === 2) {
+    const el = document.getElementById('wizRGroupeSelect');
+    if (el) wizRGroupe = el.value;
+  }
+}
+
+function updateWizRNav() {
+  document.getElementById('wizRBackBtn').style.visibility = wizRStep === 0 ? 'hidden' : 'visible';
+  const nb = document.getElementById('wizRNextBtn');
+  nb.textContent = wizRStep === 3 ? '👋 Créer le MAR' : 'Suivant →';
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('wizRDot'+i).className = 'wizard-step-dot' + (i<wizRStep?' done':i===wizRStep?' active':'');
+    document.getElementById('wizRStep'+i).className = 'wizard-step' + (i===wizRStep?' active':'');
+  }
+}
+
+function renderWizRStep() {
+  updateWizRNav();
+  const body = document.getElementById('wizRBody');
+
+  if (wizRStep === 0) {
+    body.innerHTML = '<div class="wizard-section-title">Identité du nouveau MAR</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+      + '<div style="grid-column:1/-1"><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Nom complet</label><input id="wizRNom" value="' + wizRData.nom + '" placeholder="ex. DR MARTIN" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Initiales</label><input id="wizRInit" value="' + wizRData.initiales + '" placeholder="ex. LM" maxlength="3" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px;text-transform:uppercase"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Quotité (%)</label><input id="wizRQuotite" type="number" value="' + wizRData.quotite + '" min="10" max="100" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">% Gardes</label><input id="wizRPct" type="number" value="' + wizRData.pctGardes + '" min="0" max="100" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Email</label><input id="wizREmail" type="email" value="' + wizRData.email + '" placeholder="prenom.nom@chpg.mc" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Code accès</label><input id="wizRCode" value="' + wizRData.codeAcces + '" placeholder="ex. MARTIN2027" maxlength="12" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px;text-transform:uppercase"></div>'
+      + '</div>';
+
+  } else if (wizRStep === 1) {
+    let html = '<div class="wizard-section-title">Affectations sectorielles ' + YEAR + '</div>';
+    html += '<div style="font-size:12px;color:var(--ink-3);margin-bottom:12px">Secteur par défaut : VOLANT. Modifiez si nécessaire.</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+    WIZ_MOIS.forEach((m, i) => {
+      html += '<div><label style="font-size:11px;font-weight:600;color:var(--ink-3)">' + m + '</label>'
+        + '<select id="wizRAff'+(i+1)+'" style="width:100%;margin-top:2px;padding:7px;border:1px solid var(--line);border-radius:6px;font-size:12px">'
+        + WIZ_SECTEURS.map(s => '<option value="'+s+'"'+(wizRAffectations[i+1]===s?' selected':'')+'>'+s+'</option>').join('')
+        + '</select></div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+
+  } else if (wizRStep === 2) {
+    const rotations = {A:'Priorité 1 en 2027', B:'Priorité 2 en 2027', C:'Priorité 3 en 2027'};
+    let html = '<div class="wizard-section-title">Groupe vacances</div>';
+    html += '<div style="font-size:12px;color:var(--ink-3);margin-bottom:14px">Les groupes A/B/C définissent la priorité de choix des congés par rotation annuelle.</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+    ['A','B','C'].forEach(g => {
+      const sel = wizRGroupe === g ? 'border-color:var(--red);background:#fff5f5;' : '';
+      html += '<div style="padding:12px 14px;border:2px solid var(--line);border-radius:10px;cursor:pointer;'+sel+'" onclick="wizRSelectGroupe(\''+g+'\')">'
+        + '<span style="font-weight:700">Groupe '+g+'</span>'
+        + '<span style="font-size:12px;color:var(--ink-3);margin-left:8px">'+rotations[g]+'</span>'
+        + '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+
+  } else if (wizRStep === 3) {
+    let html = '<div class="wizard-section-title">Récapitulatif</div>';
+    html += '<div style="background:#f8fafc;border-radius:12px;padding:16px;margin:12px 0;font-size:13px;display:flex;flex-direction:column;gap:6px">';
+    html += '<div><strong>Nom :</strong> ' + wizRData.nom + '</div>';
+    html += '<div><strong>Initiales :</strong> ' + wizRData.initiales + '</div>';
+    html += '<div><strong>Quotité :</strong> ' + wizRData.quotite + '% · Gardes : ' + wizRData.pctGardes + '%</div>';
+    html += '<div><strong>Email :</strong> ' + (wizRData.email||'—') + '</div>';
+    html += '<div><strong>Code accès :</strong> ' + (wizRData.codeAcces||'—') + '</div>';
+    html += '<div><strong>Groupe vacances :</strong> ' + wizRGroupe + '</div>';
+    html += '</div>';
+    if (!wizRData.email) html += '<div class="wizard-warning">⚠️ Pas d\'email — le code d\'accès ne sera pas envoyé automatiquement.</div>';
+    body.innerHTML = html;
+  }
+}
+
+function wizRSelectGroupe(g) { wizRGroupe = g; renderWizRStep(); }
+
+async function launchWizardRecrue() {
+  const nb = document.getElementById('wizRNextBtn');
+  nb.disabled = true;
+  document.getElementById('wizRBackBtn').style.visibility = 'hidden';
+  document.getElementById('wizRBody').innerHTML = '<div class="wiz-progress">'
+    + '<div class="wiz-progress-item" id="wizr-p1">⏳ Création du MAR…</div>'
+    + '<div class="wiz-progress-item" id="wizr-p2" style="opacity:.4">○ Sauvegarde affectations…</div>'
+    + '<div class="wiz-progress-item" id="wizr-p3" style="opacity:.4">○ Sauvegarde groupe vacances…</div>'
+    + (wizRData.email ? '<div class="wiz-progress-item" id="wizr-p4" style="opacity:.4">○ Envoi code d\'accès…</div>' : '')
+    + '<div class="wiz-progress-item" id="wizr-p5" style="opacity:.4">○ Publication du planning…</div>'
+    + '</div>';
+
+  const newMAR = {...wizRData, id: wizRData.initiales.toLowerCase() + '_' + Date.now()};
+  const steps = [
+    {id:'wizr-p1', label:'MAR créé',              action: () => api({action:'saveMedecin', medecin:newMAR})},
+    {id:'wizr-p2', label:'Affectations sauvées',  action: () => api({action:'saveAffectations', medecin:newMAR.id, affectations:wizRAffectations})},
+    {id:'wizr-p3', label:'Groupe sauvegardé',     action: () => api({action:'saveGroupes', medecin:newMAR.id, groupe:wizRGroupe})},
+    ...(wizRData.email ? [{id:'wizr-p4', label:'Code envoyé', action: () => api({action:'sendCodes', medecin:newMAR.id})}] : []),
+    {id:'wizr-p5', label:'Planning republié',     action: () => api({action:'publishPlanning'})},
+  ];
+
+  let allOk = true;
+  for (let i = 0; i < steps.length; i++) {
+    const el = document.getElementById(steps[i].id);
+    if (!el) continue;
+    el.classList.add('running'); el.style.opacity = '1';
+    try {
+      const res = await steps[i].action();
+      if (!res || !res.success) throw new Error(res?.error || 'Erreur');
+      el.classList.remove('running'); el.classList.add('done');
+      el.textContent = '✓ ' + steps[i].label;
+    } catch(e) {
+      el.classList.remove('running'); el.classList.add('error');
+      el.textContent = '✕ ' + e.message;
+      allOk = false; break;
+    }
+    const next = document.getElementById(steps[i+1]?.id);
+    if (next) { next.style.opacity='1'; next.textContent=next.textContent.replace('○','⏳'); }
+  }
+
+  if (allOk) {
+    setTimeout(() => {
+      document.getElementById('wizRBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">' + wizRData.nom + ' ajouté !</div><div style="font-size:13px;color:var(--ink-3)">Le MAR est actif et le planning republié.</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardRecrue();loadEquipe();showTab(\'equipe\')">Voir l\'équipe</button></div>';
+      nb.style.display = 'none';
+    }, 600);
+  } else { nb.disabled = false; nb.textContent = 'Réessayer'; }
+}
+
 function showFiche(type) {
   const fiche = FICHES[type];
   if (!fiche) return;
@@ -1259,5 +1616,51 @@ function showFiche(type) {
   document.getElementById('modalFiche').classList.add('open');
 }
 </script>
+
+<!-- WIZARD DÉPART D'UN MAR -->
+<div class="wizard-overlay" id="wizardDepartOverlay">
+  <div class="wizard-box">
+    <div class="wizard-header">
+      <div class="wizard-title-row">
+        <div class="wizard-title">🚪 Départ d'un MAR</div>
+        <button class="wizard-close" onclick="closeWizardDepart()">✕</button>
+      </div>
+      <div class="wizard-steps">
+        <div class="wizard-step active" id="wizDStep0"><div class="wizard-step-dot" id="wizDDot0">1</div><div class="wizard-step-label">Sélection</div></div>
+        <div class="wizard-step" id="wizDStep1"><div class="wizard-step-dot" id="wizDDot1">2</div><div class="wizard-step-label">Vérification</div></div>
+        <div class="wizard-step" id="wizDStep2"><div class="wizard-step-dot" id="wizDDot2">3</div><div class="wizard-step-label">Confirmation</div></div>
+        <div class="wizard-step" id="wizDStep3"><div class="wizard-step-dot" id="wizDDot3">4</div><div class="wizard-step-label">Désactiver</div></div>
+      </div>
+    </div>
+    <div class="wizard-body" id="wizDBody"></div>
+    <div class="wizard-footer">
+      <button class="wizard-back" id="wizDBackBtn" onclick="wizDPrev()">← Retour</button>
+      <button class="wizard-next" id="wizDNextBtn" onclick="wizDNext()">Suivant →</button>
+    </div>
+  </div>
+</div>
+
+<!-- WIZARD ACCUEILLIR UN MAR -->
+<div class="wizard-overlay" id="wizardRecrueOverlay">
+  <div class="wizard-box">
+    <div class="wizard-header">
+      <div class="wizard-title-row">
+        <div class="wizard-title">👋 Accueillir un MAR</div>
+        <button class="wizard-close" onclick="closeWizardRecrue()">✕</button>
+      </div>
+      <div class="wizard-steps">
+        <div class="wizard-step active" id="wizRStep0"><div class="wizard-step-dot" id="wizRDot0">1</div><div class="wizard-step-label">Identité</div></div>
+        <div class="wizard-step" id="wizRStep1"><div class="wizard-step-dot" id="wizRDot1">2</div><div class="wizard-step-label">Affectations</div></div>
+        <div class="wizard-step" id="wizRStep2"><div class="wizard-step-dot" id="wizRDot2">3</div><div class="wizard-step-label">Vacances</div></div>
+        <div class="wizard-step" id="wizRStep3"><div class="wizard-step-dot" id="wizRDot3">4</div><div class="wizard-step-label">Lancer</div></div>
+      </div>
+    </div>
+    <div class="wizard-body" id="wizRBody"></div>
+    <div class="wizard-footer">
+      <button class="wizard-back" id="wizRBackBtn" onclick="wizRPrev()">← Retour</button>
+      <button class="wizard-next" id="wizRNextBtn" onclick="wizRNext()">Suivant →</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
