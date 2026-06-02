@@ -1072,7 +1072,7 @@ async function loadPlanningData() {
     const weeks = getAllWeeks();
     const idx = weeks.findIndex(w =>
       DATA.months.some(month =>
-        month.days.some(day => day.date === today && isoWeek(day.date) === w.weekNum)
+        month.days.some(day => day.date === today && isoWeek(day.date) === w.weekNum && (day.year||month.year) === w.year)
       )
     );
     currentWeekIdx = idx >= 0 ? idx : 0;
