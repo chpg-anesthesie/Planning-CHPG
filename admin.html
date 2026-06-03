@@ -2344,13 +2344,14 @@ async function launchWizard() {
       document.getElementById('wizBody').innerHTML = `
         <div style="text-align:center;padding:20px 0">
           <div style="font-size:48px;margin-bottom:12px">🎉</div>
-          <div style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px">Année ${YEAR} initialisée !</div>
+          <div style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px">Année ${YEAR+1} initialisée !</div>
           <div style="font-size:13px;color:var(--ink-3);line-height:1.6;max-width:360px;margin:0 auto">
-            INDISPOS_${YEAR} créé · ANNEE_ACTIVE → ${YEAR}<br>
+            INDISPOS_${YEAR+1} créé · INDISPOS_ACTIVE → ${YEAR+1}<br>
+            ANNEE_ACTIVE reste sur ${YEAR}<br>
             ${avecEmail.length} code(s) envoyés par email
             ${sansEmail.length ? `<br><span style="color:var(--orange)">⚠️ ${sansEmail.length} MAR(s) sans email : ${sansEmail.map(m=>m.initiales).join(', ')}</span>` : ''}
           </div>
-          <div style="margin-top:20px;font-size:12px;color:var(--ink-4)">Prochaine étape : les MARs saisissent leurs indispos<br>sur indispos.html d'ici fin décembre ${YEAR-1}.</div>
+          <div style="margin-top:20px;font-size:12px;color:var(--ink-4)">Prochaine étape : les MARs saisissent leurs indispos<br>sur indispos.html d'ici novembre ${YEAR}.</div>
           <button class="wizard-next" style="margin:20px auto 0;display:inline-flex" onclick="closeWizard();showTab('indispos')">Voir l'état des saisies →</button>
         </div>`;
       document.getElementById('wizNextBtn').style.display = 'none';
