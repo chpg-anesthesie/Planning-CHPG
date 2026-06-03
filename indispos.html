@@ -517,6 +517,9 @@ async function doLogin() {
       currentUser = res;
       YEAR = res.indisposYear || res.year || YEAR;
       displayYear = YEAR;
+      // Démarrer sur le premier mois de l'année planning
+      const pjLogin = premierJourAnneePlanning(YEAR);
+      currentMonth = pjLogin.getMonth();
       currentCode = code;
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
@@ -877,12 +880,18 @@ function prevMonth() {
   renderMonth();
 }
 function nextMonth() {
-  if (currentMonth < 11) {
-    currentMonth++;
-  } else if (displayYear === YEAR) {
-    currentMonth = 0;
-    displayYear = YEAR + 1;
-  }
+  // Calculer la limite : dernier mois de l'année planning
+  // L'année planning se termine le dernier jour avant le premier lundi de janvier YEAR+1
+  // Ce dernier jour peut être en décembre YEAR ou janvier YEAR+1
+  const finPlanning = premierJourAnneePlanning(YEAR + 1);
+  const maxYear = finPlanning.getFullYear();
+  const maxMonth = finPlanning.getMonth(); // mois du dernier jour (0-indexed)
+  // Le dernier mois navigable = mois de la fin de l'année planning
+  const nextY = currentMonth === 11 ? displayYear + 1 : displayYear;
+  const nextM = currentMonth === 11 ? 0 : currentMonth + 1;
+  if (nextY > maxYear || (nextY === maxYear && nextM > maxMonth)) return;
+  currentMonth = nextM;
+  displayYear = nextY;
   renderMonth();
 }
 
