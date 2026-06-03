@@ -2155,9 +2155,15 @@ function renderWizStep() {
     html += `</div>`;
     const inactifs = wizMarsData.filter(m => !m.actif);
     if (inactifs.length) {
-      html += `<div style="margin-top:12px;font-size:11px;color:var(--ink-4)">Inactifs (exclus) : ${inactifs.map(m=>m.initiales).join(', ')}</div>`;
+      html += `<div style="margin-top:12px;padding:10px 14px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:10px;font-size:12px;color:#92400E">
+        <strong>⚠️ ${inactifs.length} MAR(s) inactif(s) non inclus dans le planning 2027 :</strong>
+        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">
+          ${inactifs.map(m=>`<span style="padding:2px 8px;background:#FDE68A;border-radius:12px;font-weight:700">${m.initiales} — ${m.nom}</span>`).join('')}
+        </div>
+        <div style="margin-top:6px">S'ils doivent participer au planning ${nextYear}, activez-les dans <strong>config.html → Équipe</strong> avant de continuer.</div>
+      </div>`;
     }
-    html += `<div style="margin-top:14px;font-size:12px;color:var(--ink-3)">Pour modifier un MAR, fermez ce wizard et allez dans <strong>config.html → Équipe</strong>.</div>`;
+    html += `<div style="margin-top:12px;font-size:12px;color:var(--ink-3)">Pour modifier un MAR, fermez ce wizard et allez dans <strong>config.html → Équipe</strong>.</div>`;
 
   } else if (wizCurrentStep === 1) {
     // ÉTAPE 2 — Périodes vacances
@@ -2196,7 +2202,7 @@ function renderWizStep() {
       html += `<div style="flex:1;min-width:140px;border:1px solid var(--line);border-radius:10px;padding:10px">
         <div style="font-size:11px;font-weight:700;color:white;background:${GRP_COLORS[grp]};padding:2px 8px;border-radius:20px;display:inline-block;margin-bottom:6px">Groupe ${grp}</div>
         <div style="display:flex;flex-wrap:wrap;gap:3px">
-          ${shifted.length ? shifted.map((m,i)=>`<span style="padding:3px 7px;background:var(--line-light);border-radius:14px;font-size:11px;font-weight:600;${i===0?'outline:2px solid '+GRP_COLORS[grp]+';outline-offset:1px':''}" title="${i===0?'Premier dans ce groupe en '+nextYear:''}">${m.initiales}</span>`).join('') : '<span style="font-size:11px;color:var(--ink-4)">—</span>'}
+          ${shifted.length ? shifted.map((m,i)=>`<span style="display:inline-flex;flex-direction:column;align-items:center;padding:3px 7px;background:var(--line-light);border-radius:14px;font-size:11px;font-weight:600;${i===0?'outline:2px solid '+GRP_COLORS[grp]+';outline-offset:1px':''}" title="Rang ${i+1} dans le groupe ${grp} pour ${nextYear}"><span style="font-size:9px;color:var(--ink-4);font-weight:400;line-height:1">${i+1}</span>${m.initiales}</span>`).join('') : '<span style="font-size:11px;color:var(--ink-4)">—</span>'}
         </div>
       </div>`;
     });
