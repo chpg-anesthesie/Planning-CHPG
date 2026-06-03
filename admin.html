@@ -655,7 +655,7 @@ if (sessionStorage.getItem('adminCode')) {
           </div>
           <div>
             <div class="action-label">Clôturer l'année</div>
-            <div class="action-desc">En fin d'année — vérifier le planning, récapituler l'équité et archiver</div>
+            <div class="action-desc">En fin d\'année — vérifier le planning, récapituler l'équité et archiver</div>
           </div>
           <span class="action-badge teal">Étape 3</span>
         </div>
@@ -2607,7 +2607,7 @@ async function renderWizCStep() {
       } catch(e) { body.innerHTML = '<div class="wizard-warning">\u274c Stats : ' + e.message + '</div>'; return; }
     }
     let html = '<div class="wizard-section-title">Récapitulatif équité ' + YEAR + '</div>';
-    html += '<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">' + 'Comparaison initial vs réel. Vérifiez avant archivage.' + '</div>';
+    html += '<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">Comparaison initial (génération) vs réel (fin d\'année). Vérifiez avant d\'archiver.</div>';
     if (!wizCStatsData.length) {
       html += '<div class="wizard-warning">⚠️ Aucune statistique disponible.</div>';
     } else {
