@@ -426,7 +426,7 @@ body {
     <div class="legend-item erase" data-tool="ERASE" onclick="selectTool('ERASE')">✕ Effacer</div>
   </div>
   <div class="tool-hint" id="toolHint">Outil actif : <strong>Vacances</strong> — Touchez un jour pour l'appliquer</div>
-<div id="vacBanner" style="display:none;padding:8px 16px;font-size:12px;font-weight:600;border-bottom:1px solid var(--line);background:#FFF7ED;color:#C2410C;"></div>
+
 
   <!-- Stats annuelles -->
   <div class="stats-bar" id="statsBar"></div>
@@ -647,59 +647,7 @@ async function loadVacConfig() {
     console.log('VacConfig non disponible');
   }
 }
-function updateVacBanner() {
-  if (!vacConfig) return;
-  const banner = document.getElementById('vacBanner');
-  const msgs = [];
-
-  // Distinguer vrais conflits (MAR a posé ET est en surnombre)
-  // vs jours saturés informatifs (seuil atteint mais MAR n'a pas posé)
-  let totalVraisConflits = 0;
-  let totalSatures = 0;
-
-  vacConfig.periodes.forEach(p => {
-    if (!p.joursBloqués || p.joursBloqués.length === 0) return;
-    // Vrai conflit = jour bloqué ET le MAR a posé une VAC/FORM dessus
-    const vraisConflits = p.joursBloqués.filter(date =>
-      indispos[date] === 'VAC' || indispos[date] === 'FORM'
-    );
-    // Saturés informatifs = jour bloqué mais MAR n'a rien posé
-    const satures = p.joursBloqués.filter(date =>
-      !indispos[date] || (indispos[date] !== 'VAC' && indispos[date] !== 'FORM')
-    );
-    if (vraisConflits.length > 0) {
-      totalVraisConflits += vraisConflits.length;
-      msgs.push(`🔴 ${p.nom} · ${vraisConflits.length} jour(s) en conflit — déplacez vos vacances`);
-    }
-    if (satures.length > 0) {
-      totalSatures += satures.length;
-      msgs.push(`⚠️ ${p.nom} · ${satures.length} jour(s) déjà saturé(s) — évitez ces dates`);
-    }
-  });
-
-  // Périodes saturées globalement (sans joursBloqués)
-  vacConfig.periodes.forEach(p => {
-    if (!p.joursBloqués || p.joursBloqués.length === 0) {
-      if (p.tousBloqués) msgs.push(`🚫 ${p.nom} · Période complète`);
-      else if (p.bloque) msgs.push(`⚠️ ${p.nom} · Certains jours saturés`);
-    }
-  });
-
-  if (msgs.length) {
-    banner.style.display = 'block';
-    const hasVraisConflits = totalVraisConflits > 0;
-    banner.style.background = hasVraisConflits ? '#FEF2F2' : '#FFFBEB';
-    banner.style.color = hasVraisConflits ? '#B91C1C' : '#92400E';
-    const prefix = hasVraisConflits
-      ? `<strong>🔴 ${totalVraisConflits} jour(s) en conflit réel — déplacez vos vacances</strong><br>`
-      : totalSatures > 0
-        ? `<strong>⚠️ ${totalSatures} jour(s) saturé(s) — ces dates sont déjà prises</strong><br>`
-        : '';
-    banner.innerHTML = prefix + msgs.join(' &nbsp;·&nbsp; ');
-  } else {
-    banner.style.display = 'none';
-  }
-}
+function updateVacBanner() { /* supprimé — le comité gère les conflits */ }
 async function saveIndispos() {
   const btn = document.getElementById('saveBtn');
   btn.textContent = '⏳ Sauvegarde...';
@@ -772,18 +720,12 @@ if (vacConfig) {
     if (isPast || isAvantPremierJour) cls += ' past';
     if (status) cls += ' ' + status.toLowerCase();
     // Distinguer vrai conflit (MAR a posé) vs saturé informatif (MAR n'a pas posé)
-    if (isBlocked && !status) {
-      const myVal = indispos[date];
-      if (myVal === 'VAC' || myVal === 'FORM') cls += ' conflit'; // rouge-orange
-      else cls += ' sature'; // orange pâle informatif
-    }
+    // Pas d'indicateur visuel saturé/conflit côté MAR — géré par le comité
 
     const badge = status
   ? `<div class="cal-day-badge ${status.toLowerCase()}-badge">${STATUS_LABELS[status]?.slice(0,3) || status}</div>`
   : '';
-const lockIcon = isBlocked && !status
-  ? `<div style="font-size:10px;position:absolute;top:2px;right:3px;opacity:0.5">🔒</div>`
-  : '';
+const lockIcon = '';
 const ferieIcon = isJourFerie
   ? `<div style="font-size:8px;position:absolute;top:2px;left:3px;color:#C2410C;font-weight:700">JF</div>`
   : '';
@@ -850,15 +792,7 @@ function applyTool(date) {
           return;
         }
       }
-      // Vérifier période saturée — avertir mais ne pas bloquer (le rang détermine la priorité)
-      if (currentTool === 'VAC') {
-        const periode = vacConfig.periodes.find(p => date >= p.debut && date <= p.fin);
-        if (periode && periode.joursBloqués && periode.joursBloqués.includes(date)) {
-          // Avertissement seulement — le MAR peut quand même poser
-          showToast(`⚠️ ${periode.nom} · Ce jour est déjà saturé — votre demande sera en conflit`);
-          // On continue (pas de return) — le MAR pose quand même
-        }
-      }
+      // Pas de blocage ni avertissement — le comité gère les conflits
     }
   }
 
