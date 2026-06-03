@@ -2433,11 +2433,12 @@ async function launchWizardGardes() {
   const nextBtn = document.getElementById('wizGNextBtn');
   nextBtn.disabled = true;
   document.getElementById('wizGBackBtn').style.visibility = 'hidden';
-  document.getElementById('wizGBody').innerHTML = '<div class="wiz-progress"><div class="wiz-progress-item" id="wizg-p1">⏳ Génération des gardes ' + YEAR + '…</div><div class="wiz-progress-item" id="wizg-p2" style="opacity:.4">○ Publication sur GitHub Pages…</div></div>';
+  document.getElementById('wizGBody').innerHTML = '<div class="wiz-progress"><div class="wiz-progress-item" id="wizg-p1">⏳ Génération des gardes ' + YEAR + '…</div><div class="wiz-progress-item" id="wizg-p2" style="opacity:.4">○ Publication sur GitHub Pages…</div><div class="wiz-progress-item" id="wizg-p3" style="opacity:.4">○ Envoi récapitulatifs aux MARs…</div></div>';
 
   const steps = [
     {id:'wizg-p1', label:'Gardes générées',  action: () => api({action:'generateGardes'})},
     {id:'wizg-p2', label:'Planning publié',  action: () => api({action:'publishPlanning'})},
+    {id:'wizg-p3', label:'Récapitulatifs envoyés', action: () => api({action:'envoyerRecapIndispos', year: YEAR})},
   ];
 
   let allOk = true;
@@ -2449,11 +2450,14 @@ async function launchWizardGardes() {
       const res = await step.action();
       if (!res || !res.success) throw new Error(res?.error || 'Erreur');
       el.classList.remove('running'); el.classList.add('done');
-      el.textContent = '✓ ' + step.label;
+      const extra = step.id === 'wizg-p3' && res.sent !== undefined ? ` (${res.sent} envoyé(s)${res.skipped ? ', ' + res.skipped + ' sans email' : ''})` : '';
+      el.textContent = '✓ ' + step.label + extra;
     } catch(e) {
       el.classList.remove('running'); el.classList.add('error');
       el.textContent = '✕ Erreur : ' + e.message;
-      allOk = false; break;
+      // Étape 3 non bloquante — on continue quand même
+      if (step.id === 'wizg-p3') { allOk = true; }
+      else { allOk = false; break; }
     }
     const next = document.getElementById(steps[i+1]?.id);
     if (next) { next.style.opacity = '1'; next.textContent = next.textContent.replace('○','⏳'); }
@@ -2461,7 +2465,7 @@ async function launchWizardGardes() {
 
   if (allOk) {
     setTimeout(() => {
-      document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Gardes ' + YEAR + ' générées !</div><div style="font-size:13px;color:var(--ink-3)">Le planning est publié sur GitHub Pages.<br>Vérifiez l\'équité dans l\'onglet Équité.</div><button class=\"btn-primary\" style=\"margin-top:20px\" onclick=\"closeWizardGardes();showTab(\'gardes\')\">Voir l\'équité →</button></div>';
+      document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Gardes ' + YEAR + ' générées !</div><div style="font-size:13px;color:var(--ink-3)">Le planning est publié et les MARs ont été notifiés.<br>Vérifiez l\'équité dans l\'onglet Équité.</div><button class=\"btn-primary\" style=\"margin-top:20px\" onclick=\"closeWizardGardes();showTab(\'gardes\')\">Voir l\'équité →</button></div>';
       nextBtn.style.display = 'none';
     }, 600);
   } else {
@@ -2695,4 +2699,5 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
