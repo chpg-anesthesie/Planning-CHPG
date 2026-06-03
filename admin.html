@@ -2607,7 +2607,7 @@ async function renderWizCStep() {
       } catch(e) { body.innerHTML = '<div class="wizard-warning">\u274c Stats : ' + e.message + '</div>'; return; }
     }
     let html = '<div class="wizard-section-title">Récapitulatif équité ' + YEAR + '</div>';
-    html += `<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">Comparaison initial (génération) vs réel (fin d'année). Vérifiez avant d'archiver.</div>`;
+    html += '<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">' + 'Comparaison initial vs réel. Vérifiez avant archivage.' + '</div>';
     if (!wizCStatsData.length) {
       html += '<div class="wizard-warning">⚠️ Aucune statistique disponible.</div>';
     } else {
