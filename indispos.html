@@ -850,11 +850,14 @@ function applyTool(date) {
           return;
         }
       }
-      // Vérifier période bloquée jour par jour
-      const periode = vacConfig.periodes.find(p => date >= p.debut && date <= p.fin);
-      if (periode && periode.joursBloqués && periode.joursBloqués.includes(date)) {
-        showToast(`⚠️ ${periode.nom} · Ce jour est saturé (seuil atteint)`);
-        return;
+      // Vérifier période saturée — avertir mais ne pas bloquer (le rang détermine la priorité)
+      if (currentTool === 'VAC') {
+        const periode = vacConfig.periodes.find(p => date >= p.debut && date <= p.fin);
+        if (periode && periode.joursBloqués && periode.joursBloqués.includes(date)) {
+          // Avertissement seulement — le MAR peut quand même poser
+          showToast(`⚠️ ${periode.nom} · Ce jour est déjà saturé — votre demande sera en conflit`);
+          // On continue (pas de return) — le MAR pose quand même
+        }
       }
     }
   }
