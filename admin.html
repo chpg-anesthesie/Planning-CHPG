@@ -2056,7 +2056,7 @@ const PERIODES_DEFAUT = {
   ],
 };
 
-function openWizard() {
+async function openWizard() {
   const nextYear = YEAR + 1;
   document.getElementById('wizNextYear').textContent = nextYear;
   wizCurrentStep = 0;
@@ -2071,6 +2071,21 @@ Le workflow de démarrage est habituellement lancé en octobre.
 
 Continuer quand même ?`)) return;
   }
+
+  // Charger les groupes depuis GSheet
+  try {
+    const vacData = await api({action:'getVacancesConfig'});
+    if (vacData.success && vacData.groupes) {
+      wizGroupes = vacData.groupes;
+      // Enrichir wizMarsData avec le groupe de chaque MAR
+      ['A','B','C'].forEach(grp => {
+        (vacData.groupes[grp]||[]).forEach(m => {
+          const mar = wizMarsData.find(x => x.id === m.id);
+          if (mar) mar.groupe = grp;
+        });
+      });
+    }
+  } catch(e) { /* silencieux */ }
 
   renderWizStep();
   document.getElementById('wizardOverlay').classList.add('open');
@@ -2807,6 +2822,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
