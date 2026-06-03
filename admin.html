@@ -785,7 +785,7 @@ if (sessionStorage.getItem('adminCode')) {
   <div class="tab-panel" id="panel-indispos">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <div>
-        <div style="font-size:16px;font-weight:700">Indisponibilités <span id="indisposYear">—</span></div>
+        <div style="font-size:16px;font-weight:700">Indisponibilités <span id="indisposYear">—</span> <span id="indisposYearBadge" style="display:none;font-size:11px;padding:2px 8px;border-radius:10px;background:#FEF3C7;color:#92400E;font-weight:600;margin-left:6px"></span></div>
         <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Visualisez qui a saisi ses indispos · Les cases rouges = MARs sans saisie</div>
       </div>
       <div style="display:flex;gap:8px">
@@ -1591,6 +1591,16 @@ async function loadIndispos(){
   try{
     const data=await api({action:'getAllIndispos'});
     if(!data.success) throw new Error(data.error);
+    // Afficher l'année des indispos (peut être N+1 si INDISPOS_ACTIVE définie)
+    const indYear = data.year || YEAR;
+    document.getElementById('indisposYear').textContent = indYear;
+    const badge = document.getElementById('indisposYearBadge');
+    if (indYear !== YEAR) {
+      badge.textContent = 'Saisie ' + indYear + ' en cours';
+      badge.style.display = 'inline';
+    } else {
+      badge.style.display = 'none';
+    }
     renderIndispos(data.data);
     document.getElementById('indisposContent').style.display='block';
   }catch(e){document.getElementById('indisposEmpty').style.display='block';}
@@ -2179,7 +2189,7 @@ async function launchWizard() {
     <div class="wiz-progress">
       <div class="wiz-progress-item" id="wiz-p1">⏳ Sauvegarde des périodes de vacances...</div>
       <div class="wiz-progress-item" id="wiz-p2" style="opacity:.4">○ Création de INDISPOS_${nextYear}...</div>
-      <div class="wiz-progress-item" id="wiz-p3" style="opacity:.4">○ Basculement ANNEE_ACTIVE → ${nextYear}...</div>
+      <div class="wiz-progress-item" id="wiz-p3" style="opacity:.4">○ Activation saisie indispos ${nextYear}...</div>
       <div class="wiz-progress-item" id="wiz-p4" style="opacity:.4">○ Envoi des codes d'accès...</div>
     </div>`;
   document.getElementById('wizBackBtn').style.visibility = 'hidden';
@@ -2187,7 +2197,7 @@ async function launchWizard() {
   const steps = [
     {id:'wiz-p1', label:'Périodes sauvegardées', action: () => api({action:'savePeriodes', periodes: wizPeriodes})},
     {id:'wiz-p2', label:'INDISPOS créé',         action: () => api({action:'initYear', year: nextYear})},
-    {id:'wiz-p3', label:'Année basculée',        action: () => api({action:'setActiveYear', year: nextYear})},
+    {id:'wiz-p3', label:'Indispos activées',      action: () => api({action:'setIndisposYear', year: nextYear})},
     {id:'wiz-p4', label:'Codes envoyés',         action: () => api({action:'sendCodes'})},
   ];
 
@@ -2220,8 +2230,7 @@ async function launchWizard() {
   const sansEmail = actifs.filter(m => !m.email);
 
   if (allOk) {
-    YEAR = YEAR + 1; // Mettre à jour l'année locale
-    document.getElementById('headerYear').textContent = YEAR;
+    // YEAR reste sur N — ANNEE_ACTIVE ne bascule qu'au Wizard 3
     setTimeout(() => {
       document.getElementById('wizBody').innerHTML = `
         <div style="text-align:center;padding:20px 0">
@@ -2547,20 +2556,45 @@ async function renderWizCStep() {
         wizCStatsData = data.stats || [];
       } catch(e) { body.innerHTML = '<div class="wizard-warning">\u274c Stats : ' + e.message + '</div>'; return; }
     }
-    let html = '<div class="wizard-section-title">R\xe9capitulatif \xe9quit\xe9 ' + YEAR + '</div>';
-    html += '<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">V\xe9rifiez la r\xe9partition avant d\'archiver.</div>';
+    let html = '<div class="wizard-section-title">Récapitulatif équité ' + YEAR + '</div>';
+    html += '<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">Comparaison initial (génération) vs réel (fin d'année). Vérifiez avant d'archiver.</div>';
     if (!wizCStatsData.length) {
-      html += '<div class="wizard-warning">\u26a0\ufe0f Aucune statistique disponible.</div>';
+      html += '<div class="wizard-warning">⚠️ Aucune statistique disponible.</div>';
     } else {
-      html += '<div class="wiz-mar-list">';
-      wizCStatsData.forEach(s => {
-        const diff = (s.total || 0) - (s.cible || 0);
-        const cls = Math.abs(diff) <= 2 ? 'wiz-ok' : 'wiz-warn';
-        const sign = diff > 0 ? '+' : '';
-        const init = (s.medecin || '\u2014').split(' ').pop();
-        html += '<div class="wiz-mar-row"><div class="wiz-mar-init">' + init + '</div><div class="wiz-mar-name">' + (s.medecin || '\u2014') + '</div><div class="wiz-mar-meta"><span class="' + cls + '">' + (s.total || 0) + ' gardes · cible ' + (s.cible || '\u2014') + ' · ' + sign + diff + '</span></div></div>';
+      html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
+      html += '<thead><tr style="background:var(--bg);font-weight:600">' +
+        '<th style="padding:6px 8px;text-align:left">MAR</th>' +
+        '<th style="padding:6px 4px;text-align:center">Cible</th>' +
+        '<th style="padding:6px 4px;text-align:center" title="Total initial">Tot.i</th>' +
+        '<th style="padding:6px 4px;text-align:center" title="Total réel">Tot.r</th>' +
+        '<th style="padding:6px 4px;text-align:center" title="Écart total">Δ</th>' +
+        '<th style="padding:6px 4px;text-align:center" title="G REA initial/réel/écart">G i/r/Δ</th>' +
+        '<th style="padding:6px 4px;text-align:center" title="G2 MAT initial/réel/écart">G2 i/r/Δ</th>' +
+        '<th style="padding:6px 4px;text-align:center" title="Week-end initial/réel/écart">WE i/r/Δ</th>' +
+        '<th style="padding:6px 4px;text-align:center" title="Jeudi initial/réel/écart">Jeu i/r/Δ</th>' +
+        '<th style="padding:6px 4px;text-align:center" title="Noël/Jour de l'an initial/réel/écart">Noël i/r/Δ</th>' +
+        '</tr></thead><tbody>';
+      wizCStatsData.forEach((s, idx) => {
+        const ecart = s.ecart_total || 0;
+        const cls = Math.abs(ecart) <= 2 ? '#166534' : Math.abs(ecart) <= 4 ? '#92400e' : '#991b1b';
+        const bg = idx % 2 === 0 ? 'transparent' : 'var(--bg)';
+        const sign = v => v > 0 ? '+'+v : v < 0 ? ''+v : '0';
+        const cell = (ini, reel, ecart) => `${ini}/${reel}<span style="color:${Math.abs(ecart)>1?'#991b1b':'#166534'};font-weight:600"> ${sign(ecart)}</span>`;
+        const id = (s.medecin||'—').split(' ').pop();
+        html += `<tr style="background:${bg}">` +
+          `<td style="padding:5px 8px;font-weight:600">${id}</td>` +
+          `<td style="padding:5px 4px;text-align:center">${s.cible||'—'}</td>` +
+          `<td style="padding:5px 4px;text-align:center">${s.ini_total||0}</td>` +
+          `<td style="padding:5px 4px;text-align:center">${s.reel_total||0}</td>` +
+          `<td style="padding:5px 4px;text-align:center;font-weight:700;color:${cls}">${sign(ecart)}</td>` +
+          `<td style="padding:5px 4px;text-align:center">${cell(s.ini_g||0, s.reel_g||0, s.ecart_g||0)}</td>` +
+          `<td style="padding:5px 4px;text-align:center">${cell(s.ini_g2||0, s.reel_g2||0, s.ecart_g2||0)}</td>` +
+          `<td style="padding:5px 4px;text-align:center">${cell(s.ini_we||0, s.reel_we||0, s.ecart_we||0)}</td>` +
+          `<td style="padding:5px 4px;text-align:center">${cell(s.ini_jeu||0, s.reel_jeu||0, s.ecart_jeu||0)}</td>` +
+          `<td style="padding:5px 4px;text-align:center">${cell(s.ini_noelAn||0, s.reel_noelAn||0, s.ecart_noelAn||0)}</td>` +
+          `</tr>`;
       });
-      html += '</div>';
+      html += '</tbody></table></div>';
     }
     body.innerHTML = html;
 
@@ -2581,22 +2615,46 @@ async function launchWizardCloture() {
   const nextBtn = document.getElementById('wizCNextBtn');
   nextBtn.disabled = true;
   document.getElementById('wizCBackBtn').style.visibility = 'hidden';
-  document.getElementById('wizCBody').innerHTML = '<div class="wiz-progress"><div class="wiz-progress-item" id="wizc-p1">\u23f3 Archivage ann\xe9e ' + YEAR + '\u2026</div></div>';
-  const el = document.getElementById('wizc-p1');
-  el.classList.add('running');
-  try {
-    const res = await api({action: 'archiveYear', year: YEAR});
-    if (!res || !res.success) throw new Error(res?.error || 'Erreur');
-    el.classList.remove('running'); el.classList.add('done');
-    el.textContent = '\u2713 Ann\xe9e ' + YEAR + ' archiv\xe9e';
+  document.getElementById('wizCBody').innerHTML = '<div class="wiz-progress">' +
+'<div class="wiz-progress-item" id="wizc-p1">⏳ Archivage année ' + YEAR + '…</div>' +
+'<div class="wiz-progress-item" id="wizc-p2" style="opacity:.4">○ Basculement vers ' + (YEAR+1) + '…</div>' +
+'<div class="wiz-progress-item" id="wizc-p3" style="opacity:.4">○ Nettoyage configuration…</div>' +
+'</div>';
+
+  const stepsC = [
+    {id:'wizc-p1', label:'Année ' + YEAR + ' archivée',        action: () => api({action:'archiveYear', year: YEAR})},
+    {id:'wizc-p2', label:'Année active → ' + (YEAR+1),         action: () => api({action:'setActiveYear', year: YEAR+1})},
+    {id:'wizc-p3', label:'Configuration nettoyée',              action: () => api({action:'clearIndisposYear'})},
+  ];
+
+  let allOkC = true;
+  for (let i = 0; i < stepsC.length; i++) {
+    const step = stepsC[i];
+    const el = document.getElementById(step.id);
+    el.classList.add('running'); el.style.opacity = '1';
+    try {
+      const res = await step.action();
+      if (!res || !res.success) throw new Error(res?.error || 'Erreur');
+      el.classList.remove('running'); el.classList.add('done');
+      el.textContent = '✓ ' + step.label;
+    } catch(e) {
+      el.classList.remove('running'); el.classList.add('error');
+      el.textContent = '✕ Erreur : ' + e.message;
+      allOkC = false; break;
+    }
+    const next = document.getElementById(stepsC[i+1]?.id);
+    if (next) { next.style.opacity = '1'; next.textContent = next.textContent.replace('○','⏳'); }
+  }
+
+  if (allOkC) {
+    YEAR = YEAR + 1;
+    document.getElementById('headerYear').textContent = YEAR;
     setTimeout(() => {
-      document.getElementById('wizCBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">\ud83c\udf89</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Ann\xe9e ' + YEAR + ' cl\xf4tur\xe9e !</div><div style="font-size:13px;color:var(--ink-3)">Stats et indispos archiv\xe9es sur GitHub Pages.</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardCloture()">Fermer</button></div>';
+      document.getElementById('wizCBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Année ' + (YEAR-1) + ' clôturée !</div><div style="font-size:13px;color:var(--ink-3)">Stats archivées · Année active → ' + YEAR + '</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardCloture()">Fermer</button></div>';
       nextBtn.style.display = 'none';
     }, 600);
-  } catch(e) {
-    el.classList.remove('running'); el.classList.add('error');
-    el.textContent = '\u2715 Erreur : ' + e.message;
-    nextBtn.disabled = false; nextBtn.textContent = 'R\xe9essayer';
+  } else {
+    nextBtn.disabled = false; nextBtn.textContent = 'Réessayer';
   }
 }
 </script>
@@ -2699,5 +2757,6 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
