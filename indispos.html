@@ -661,11 +661,11 @@ function updateVacBanner() {
     if (!p.joursBloqués || p.joursBloqués.length === 0) return;
     // Vrai conflit = jour bloqué ET le MAR a posé une VAC/FORM dessus
     const vraisConflits = p.joursBloqués.filter(date =>
-      currentIndispos[date] === 'VAC' || currentIndispos[date] === 'FORM'
+      indispos[date] === 'VAC' || indispos[date] === 'FORM'
     );
     // Saturés informatifs = jour bloqué mais MAR n'a rien posé
     const satures = p.joursBloqués.filter(date =>
-      !currentIndispos[date] || (currentIndispos[date] !== 'VAC' && currentIndispos[date] !== 'FORM')
+      !indispos[date] || (indispos[date] !== 'VAC' && indispos[date] !== 'FORM')
     );
     if (vraisConflits.length > 0) {
       totalVraisConflits += vraisConflits.length;
@@ -773,7 +773,7 @@ if (vacConfig) {
     if (status) cls += ' ' + status.toLowerCase();
     // Distinguer vrai conflit (MAR a posé) vs saturé informatif (MAR n'a pas posé)
     if (isBlocked && !status) {
-      const myVal = currentIndispos[date];
+      const myVal = indispos[date];
       if (myVal === 'VAC' || myVal === 'FORM') cls += ' conflit'; // rouge-orange
       else cls += ' sature'; // orange pâle informatif
     }
