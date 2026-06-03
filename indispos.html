@@ -285,6 +285,8 @@ body {
 
 /* ── BOTTOM BAR ── */
 .bottom-bar {
+  display: flex;
+  gap: 8px;
   position:fixed;
   bottom:0; left:0; right:0;
   background:white;
@@ -295,6 +297,19 @@ body {
   box-shadow:0 -4px 16px rgba(0,0,0,.06);
   z-index:100;
 }
+.prio-btn {
+  flex: 0 0 auto;
+  padding: 14px 18px;
+  background: #f1f5f9;
+  color: #334155;
+  border: none;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.prio-btn:hover { background: #e2e8f0; }
 .save-btn {
   flex:1;
   background:var(--red);
@@ -427,10 +442,24 @@ body {
 
   <!-- Bouton sauvegarder -->
   <div class="bottom-bar">
+    <button class="prio-btn" id="prioBtn" onclick="openPrioPanel()">
+      🏅 Ma priorité
+    </button>
     <button class="save-btn" id="saveBtn" onclick="saveIndispos()">
-      💾 Sauvegarder mes indisponibilités
+      💾 Sauvegarder
     </button>
   </div>
+
+<!-- Panneau priorité vacances -->
+<div id="prioOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-end;justify-content:center" onclick="if(event.target===this)closePrioPanel()">
+  <div id="prioPanel" style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:20px 16px 32px;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:700;color:#1e293b">🏅 Ma priorité vacances</div>
+      <button onclick="closePrioPanel()" style="background:none;border:none;font-size:20px;color:#94a3b8;cursor:pointer;padding:4px">✕</button>
+    </div>
+    <div id="prioContent"><div style="text-align:center;padding:20px;color:#94a3b8">Chargement…</div></div>
+  </div>
+</div>
 
 </div>
 
@@ -500,6 +529,84 @@ async function doLogin() {
   }
   btn.textContent = 'Accéder →';
   btn.disabled = false;
+}
+
+// ── PANNEAU PRIORITÉ VACANCES ─────────────────────────────────────────
+function openPrioPanel() {
+  const overlay = document.getElementById('prioOverlay');
+  overlay.style.display = 'flex';
+  renderPrioPanel();
+}
+function closePrioPanel() {
+  document.getElementById('prioOverlay').style.display = 'none';
+}
+
+function renderPrioPanel() {
+  const el = document.getElementById('prioContent');
+  if (!vacConfig || !vacConfig.periodes) {
+    el.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:16px">Données non disponibles</div>';
+    return;
+  }
+
+  const ORDRE_BASE = {HIVER:'CAB', PRINTEMPS:'ABC', ETE:'ABC', TOUSSAINT:'BCA', NOEL:'CAB'};
+  const GRP_COLORS = {A:'#3B82F6', B:'#10B981', C:'#F59E0B'};
+
+  // Trouver le groupe et rang du MAR depuis les periodes
+  // Le rang global est dans vacConfig.periodes[0].rang (rang dans l'ordre toutes périodes)
+  const firstPeriode = vacConfig.periodes[0];
+  const rang = firstPeriode ? firstPeriode.rang : null;
+  const total = firstPeriode ? (firstPeriode.joursBloqués.length + firstPeriode.joursDisponibles.length > 0 ? null : null) : null;
+
+  // Déterminer le groupe depuis l'ordre des groupes
+  // On déduit le groupe depuis le rang et la structure connue (7 par groupe)
+  let grp = '?', rangGroupe = rang, totalGroupe = 7;
+  if (rang !== null) {
+    if (rang <= 7) { grp = 'A'; rangGroupe = rang; }
+    else if (rang <= 14) { grp = 'B'; rangGroupe = rang - 7; }
+    else { grp = 'C'; rangGroupe = rang - 14; }
+  }
+
+  let html = '';
+
+  // Carte identité
+  html += `<div style="background:#f8fafc;border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+    <div style="width:44px;height:44px;border-radius:50%;background:${GRP_COLORS[grp]||'#64748b'};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:white">${grp}</div>
+    <div>
+      <div style="font-size:14px;font-weight:700;color:#1e293b">Groupe ${grp}</div>
+      ${rang ? `<div style="font-size:12px;color:#64748b">Rang global ${rang} · ${rangGroupe}/${totalGroupe} dans le groupe</div>` : ''}
+    </div>
+  </div>`;
+
+  // Tableau ordre par période
+  html += `<div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Priorité par période</div>`;
+  html += `<div style="display:flex;flex-direction:column;gap:6px">`;
+
+  vacConfig.periodes.forEach(p => {
+    const nomNorm = p.nom.normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().trim();
+    const base = ORDRE_BASE[nomNorm] || 'ABC';
+    const offset = (YEAR - 2026);
+    const grpArr = base.split('');
+    const grpShift = offset % 3;
+    const ordered = [...grpArr.slice(grpShift), ...grpArr.slice(0, grpShift)];
+    const myPos = ordered.indexOf(grp) + 1;
+    const posLabel = myPos === 1 ? '🥇 1er' : myPos === 2 ? '🥈 2ème' : '🥉 3ème';
+    const posColor = myPos === 1 ? '#166534' : myPos === 2 ? '#92400e' : '#64748b';
+    const hasConflits = p.joursBloqués && p.joursBloqués.length > 0;
+
+    html += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#1e293b">${p.nom}</div>
+        <div style="font-size:11px;color:#94a3b8">${p.debut} → ${p.fin}</div>
+        ${hasConflits ? `<div style="font-size:11px;color:#dc2626;margin-top:2px">⚠️ ${p.joursBloqués.length} jour(s) en conflit</div>` : ''}
+      </div>
+      <div style="font-size:13px;font-weight:700;color:${posColor}">${posLabel}</div>
+    </div>`;
+  });
+
+  html += `</div>`;
+  html += `<div style="margin-top:12px;font-size:11px;color:#94a3b8;text-align:center">Rang ${rang} sur l'ensemble des MARs · ${YEAR}</div>`;
+
+  el.innerHTML = html;
 }
 
 // ── API ───────────────────────────────────────────────────────────────
