@@ -456,6 +456,22 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 }
 .wizard-section-title { font-size:13px; font-weight:700; color:var(--ink-2); margin-bottom:10px; }
 .wiz-mar-list { display:flex; flex-direction:column; gap:6px; }
+.btn-year {
+  padding: 6px 16px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-year.active {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fff;
+}
 .wiz-mar-row {
   display:flex; align-items:center; gap:10px; padding:8px 12px;
   border:1px solid var(--line); border-radius:9px;
@@ -971,6 +987,8 @@ let ADMIN_CODE = '', YEAR = 2026;
 let DATA = null, marsData = [], gardesData = null;
 let currentWeekIdx = 0, currentCalMonth = new Date().getMonth();
 let panelType = '', allViolations = [], activeFilter = 'all';
+let selectedYear = null; // null = utilise ANNEE_ACTIVE, sinon N+1
+let nextYearAvailable = false; // true si planning_N+1.json existe
 
 const MONTH_NAMES = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const DAY_NAMES_SHORT = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
@@ -1075,9 +1093,20 @@ function showTab(name) {
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────
+async function checkNextYearAvailable() {
+  try {
+    const resp = await fetch(`./planning_${YEAR+1}.json?t=${Date.now()}`, {method:'HEAD'});
+    nextYearAvailable = resp.ok;
+    selectedYear = null; // reset à chaque init
+  } catch(e) {
+    nextYearAvailable = false;
+  }
+}
+
 async function initDashboard() {
   // Petit délai pour s'assurer que le DOM est prêt et YEAR bien défini
   await new Promise(r => setTimeout(r, 50));
+  await checkNextYearAvailable();
   await Promise.all([loadPlanningData(), loadStatusBar(), loadOverrides(), loadCycleStatus()]);
 }
 
@@ -1338,11 +1367,22 @@ function openPanel(type, prefillDocId='', prefillDate=''){
   document.getElementById('panelTitle').textContent=titles[type]||'Modification';
   document.getElementById('panelResult').style.display='none';
   const marOpts=marsData.filter(m=>m.actif).map(m=>`<option value="${m.id}"${m.id===prefillDocId?' selected':''}>${m.id}</option>`).join('');
+  // Sélecteur d'année si période double
+  const yearSelectorHtml = nextYearAvailable ? `
+    <div class="form-field" style="margin-bottom:12px">
+      <label class="form-label">Année concernée</label>
+      <div style="display:flex;gap:8px">
+        <button type="button" id="btnYearN" onclick="setPanelYear(${YEAR})"
+          class="btn-year ${selectedYear===YEAR+1?'':'active'}">${YEAR}</button>
+        <button type="button" id="btnYearN1" onclick="setPanelYear(${YEAR+1})"
+          class="btn-year ${selectedYear===YEAR+1?'active':''}">${YEAR+1} ✨</button>
+      </div>
+    </div>` : '';
   const SECTEURS=['VIS','END','ORL','REA','ORT','CI','RI','MAT','DVI'];
   const sectOpts=SECTEURS.map(s=>`<option value="${s}">${s}</option>`).join('');
   let body='';
   if(type==='secteur'){
-    body=`
+    body=yearSelectorHtml+`
       <div class="form-field"><label class="form-label">Date</label><input class="form-input" type="date" id="pDate" value="${prefillDate}"/></div>
       <div class="form-field"><label class="form-label">Médecin</label><select class="form-select" id="pDoctor"><option value="">— Choisir —</option>${marOpts}</select></div>
       <div class="form-grid">
@@ -1354,7 +1394,7 @@ function openPanel(type, prefillDocId='', prefillDate=''){
       </div>`;
   }
   if(type==='garde'){
-    body=`
+    body=yearSelectorHtml+`
       <div class="form-field"><label class="form-label">Type</label>
         <select class="form-select" id="pModType" onchange="updateGardeForm()">
           <option value="">— Choisir —</option>
@@ -1389,6 +1429,15 @@ function updateGardeForm(){
   document.getElementById('gardeFormExtra').innerHTML=extra;
 }
 
+function setPanelYear(year) {
+  selectedYear = year;
+  // Mettre à jour l'apparence des boutons
+  const btnN = document.getElementById('btnYearN');
+  const btnN1 = document.getElementById('btnYearN1');
+  if (btnN) btnN.className = 'btn-year' + (year === YEAR+1 ? '' : ' active');
+  if (btnN1) btnN1.className = 'btn-year' + (year === YEAR+1 ? ' active' : '');
+}
+
 function openPanelForDoc(docId,date){openPanel('secteur',docId,date);}
 function closePanelOutside(e){if(e.target===document.getElementById('panelOverlay'))closePanel();}
 function closePanel(){document.getElementById('panelOverlay').classList.remove('open');}
@@ -1416,6 +1465,7 @@ async function submitPanel(){
       if(!modType||!date||!doctor) throw new Error('Veuillez remplir tous les champs');
       mod={type:modType,date,doctorId:doctor,doctorId2:doctor2,value,date2};
     }
+    if (selectedYear) mod.year = selectedYear;
     const data=await api({action:'applyModification',modification:mod});
     if(!data.success) throw new Error(data.error);
     result.textContent='✅ Modification appliquée — planning republié automatiquement.';
@@ -2757,6 +2807,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
