@@ -249,6 +249,9 @@ body {
 .cal-day.past { opacity:.5; cursor:default; }
 .cal-day.conflit { background:#FED7AA !important; border:2px solid #F97316 !important; }
 .cal-day.conflit .cal-day-num { color:#C2410C; font-weight:700; }
+.cal-day.sature { background:#FEF9C3 !important; border:1px dashed #CA8A04 !important; }
+.cal-day.sature .cal-day-num { color:#92400E; }
+.cal-day.conflit .cal-day-num { color:#C2410C; font-weight:700; }
 
 .cal-day-num {
   font-size:13px;
@@ -646,35 +649,49 @@ function updateVacBanner() {
   const banner = document.getElementById('vacBanner');
   const msgs = [];
 
-  // Conflits personnels (jours bloqués pour ce MAR)
-  let totalJoursConflits = 0;
+  // Distinguer vrais conflits (MAR a posé ET est en surnombre)
+  // vs jours saturés informatifs (seuil atteint mais MAR n'a pas posé)
+  let totalVraisConflits = 0;
+  let totalSatures = 0;
+
   vacConfig.periodes.forEach(p => {
-    if (p.joursBloqués && p.joursBloqués.length > 0) {
-      totalJoursConflits += p.joursBloqués.length;
-      msgs.push(`🔴 ${p.nom} · ${p.joursBloqués.length} jour(s) en conflit`);
+    if (!p.joursBloqués || p.joursBloqués.length === 0) return;
+    // Vrai conflit = jour bloqué ET le MAR a posé une VAC/FORM dessus
+    const vraisConflits = p.joursBloqués.filter(date =>
+      currentIndispos[date] === 'VAC' || currentIndispos[date] === 'FORM'
+    );
+    // Saturés informatifs = jour bloqué mais MAR n'a rien posé
+    const satures = p.joursBloqués.filter(date =>
+      !currentIndispos[date] || (currentIndispos[date] !== 'VAC' && currentIndispos[date] !== 'FORM')
+    );
+    if (vraisConflits.length > 0) {
+      totalVraisConflits += vraisConflits.length;
+      msgs.push(`🔴 ${p.nom} · ${vraisConflits.length} jour(s) en conflit — déplacez vos vacances`);
+    }
+    if (satures.length > 0) {
+      totalSatures += satures.length;
+      msgs.push(`⚠️ ${p.nom} · ${satures.length} jour(s) déjà saturé(s) — évitez ces dates`);
     }
   });
 
-  // Périodes saturées globalement
+  // Périodes saturées globalement (sans joursBloqués)
   vacConfig.periodes.forEach(p => {
     if (!p.joursBloqués || p.joursBloqués.length === 0) {
-      if (p.tousBloqués) {
-        msgs.push(`🚫 ${p.nom} · Période saturée`);
-      } else if (p.bloque) {
-        msgs.push(`⚠️ ${p.nom} · Certains jours saturés`);
-      }
+      if (p.tousBloqués) msgs.push(`🚫 ${p.nom} · Période complète`);
+      else if (p.bloque) msgs.push(`⚠️ ${p.nom} · Certains jours saturés`);
     }
   });
 
   if (msgs.length) {
     banner.style.display = 'block';
-    const bannerColor = totalJoursConflits > 0 ? '#FEF2F2' : '#FFF7ED';
-    const textColor = totalJoursConflits > 0 ? '#B91C1C' : '#C2410C';
-    banner.style.background = bannerColor;
-    banner.style.color = textColor;
-    const prefix = totalJoursConflits > 0
-      ? `<strong>⚠️ ${totalJoursConflits} jour(s) en conflit — déplacez vos vacances</strong><br>`
-      : '';
+    const hasVraisConflits = totalVraisConflits > 0;
+    banner.style.background = hasVraisConflits ? '#FEF2F2' : '#FFFBEB';
+    banner.style.color = hasVraisConflits ? '#B91C1C' : '#92400E';
+    const prefix = hasVraisConflits
+      ? `<strong>🔴 ${totalVraisConflits} jour(s) en conflit réel — déplacez vos vacances</strong><br>`
+      : totalSatures > 0
+        ? `<strong>⚠️ ${totalSatures} jour(s) saturé(s) — ces dates sont déjà prises</strong><br>`
+        : '';
     banner.innerHTML = prefix + msgs.join(' &nbsp;·&nbsp; ');
   } else {
     banner.style.display = 'none';
@@ -751,7 +768,12 @@ if (vacConfig) {
     if (date === today) cls += ' today';
     if (isPast || isAvantPremierJour) cls += ' past';
     if (status) cls += ' ' + status.toLowerCase();
-    if (isBlocked && !status) cls += ' conflit';
+    // Distinguer vrai conflit (MAR a posé) vs saturé informatif (MAR n'a pas posé)
+    if (isBlocked && !status) {
+      const myVal = currentIndispos[date];
+      if (myVal === 'VAC' || myVal === 'FORM') cls += ' conflit'; // rouge-orange
+      else cls += ' sature'; // orange pâle informatif
+    }
 
     const badge = status
   ? `<div class="cal-day-badge ${status.toLowerCase()}-badge">${STATUS_LABELS[status]?.slice(0,3) || status}</div>`
