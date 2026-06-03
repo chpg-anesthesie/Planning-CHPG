@@ -788,7 +788,10 @@ if (sessionStorage.getItem('adminCode')) {
         <div style="font-size:16px;font-weight:700">Indisponibilités <span id="indisposYear">—</span></div>
         <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Visualisez qui a saisi ses indispos · Les cases rouges = MARs sans saisie</div>
       </div>
-      <button class="btn-primary" onclick="loadIndispos()" title="Charge l'état des saisies depuis le GSheet">↻ Actualiser</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary" onclick="notifierConflitsPanel()" id="btnNotifConflits" title="Envoyer un email aux MARs ayant des conflits vacances">📧 Notifier conflits</button>
+        <button class="btn-primary" onclick="loadIndispos()" title="Charge l'état des saisies depuis le GSheet">↻ Actualiser</button>
+      </div>
     </div>
     <div id="indisposLoading" class="loading"><div class="spinner"></div> Chargement…</div>
     <div id="indisposContent" style="display:none">
@@ -1559,6 +1562,28 @@ function renderStats(stats){
 }
 
 // ── INDISPOS ──────────────────────────────────────────────────────────
+async function notifierConflitsPanel() {
+  const btn = document.getElementById('btnNotifConflits');
+  btn.disabled = true;
+  btn.textContent = '⏳ Envoi…';
+  try {
+    const res = await api({action: 'notifierConflits', year: YEAR});
+    if (res.success) {
+      toast(`✅ ${res.sent} email(s) envoyé(s)${res.skipped ? ', ' + res.skipped + ' sans email' : ''}`, 'success');
+      btn.textContent = '📧 Notifier conflits';
+      btn.disabled = false;
+    } else {
+      toast('❌ ' + (res.error || 'Erreur'), 'error');
+      btn.textContent = '📧 Notifier conflits';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    toast('❌ ' + e.message, 'error');
+    btn.textContent = '📧 Notifier conflits';
+    btn.disabled = false;
+  }
+}
+
 async function loadIndispos(){
   document.getElementById('indisposLoading').style.display='flex';
   document.getElementById('indisposContent').style.display='none';
@@ -2227,11 +2252,13 @@ async function launchWizard() {
 let wizGCurrentStep = 0;
 let wizGIndisposData = null;
 let wizGVacData = null;
+let wizGConflitsData = null;
 
 async function openWizardGardes() {
   wizGCurrentStep = 0;
   wizGIndisposData = null;
   wizGVacData = null;
+  wizGConflitsData = null;
   document.getElementById('wizGardesYear').textContent = YEAR;
   if (YEAR <= 2026) {
     toast('GARDES_2026 est figé — génération désactivée pour 2026', 'error');
@@ -2243,6 +2270,27 @@ async function openWizardGardes() {
 
 function closeWizardGardes() {
   document.getElementById('wizardGardesOverlay').classList.remove('open');
+}
+
+async function notifierConflitsWizard() {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '⏳ Envoi…';
+  try {
+    const res = await api({action: 'notifierConflits', year: YEAR});
+    if (res.success) {
+      toast(`✅ ${res.sent} email(s) envoyé(s)${res.skipped ? ', ' + res.skipped + ' sans email' : ''}`, 'success');
+      btn.textContent = '✅ Envoyé';
+    } else {
+      toast('❌ ' + (res.error || 'Erreur envoi'), 'error');
+      btn.disabled = false;
+      btn.textContent = '📧 Notifier les MARs en conflit';
+    }
+  } catch(e) {
+    toast('❌ ' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = '📧 Notifier les MARs en conflit';
+  }
 }
 
 async function wizGPrev() {
@@ -2291,16 +2339,43 @@ async function renderWizGStep() {
       const ind = wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || [];
       return !ind || ind.length === 0;
     });
-    const blocked = sansIndispo.length > 0;
+
+    // Charger les conflits vacances
+    if (!wizGConflitsData) {
+      try {
+        const cData = await api({action: 'getConflitsAll', year: YEAR});
+        wizGConflitsData = cData.success ? cData : {conflits: [], nbConflits: 0};
+      } catch(e) {
+        wizGConflitsData = {conflits: [], nbConflits: 0};
+      }
+    }
+    const nbConflits = wizGConflitsData.nbConflits || 0;
+    const blocked = sansIndispo.length > 0 || nbConflits > 0;
+
     // Bloquer ou débloquer le bouton Suivant
     document.getElementById('wizGNextBtn').disabled = blocked;
     let html = '<div class="wizard-section-title">Indisponibilités ' + YEAR + ' — récapitulatif</div>';
-    if (blocked) {
-      html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">❌ <strong>' + sansIndispo.length + ' MAR(s) n\'ont pas encore saisi leurs indispos</strong> : ' + sansIndispo.map(m => m.initiales).join(', ') + '<br><small>La génération est impossible tant que tout le monde n\'a pas rempli. Relancez les MARs concernés.</small></div>';
+
+    // Bloc indispos
+    if (sansIndispo.length > 0) {
+      html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">❌ <strong>' + sansIndispo.length + ' MAR(s) n\'ont pas encore saisi leurs indispos</strong> : ' + sansIndispo.map(m => m.initiales).join(', ') + '<br><small>La génération est impossible tant que tout le monde n\'a pas rempli.</small></div>';
     } else {
-      html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534">✅ Tous les MARs ont saisi leurs indispos — vous pouvez continuer.</div>';
+      html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534">✅ Tous les MARs ont saisi leurs indispos.</div>';
     }
-    html += '<div class="wiz-mar-list">';
+
+    // Bloc conflits vacances
+    if (nbConflits > 0) {
+      html += '<div class="wizard-warning" style="background:#FEF2F2;border-left:3px solid #F97316;color:#B91C1C;margin-top:8px">🔴 <strong>' + nbConflits + ' MAR(s) ont des conflits vacances non résolus</strong><br><small>La génération est bloquée. Notifiez les MARs et attendez qu\'ils déplacent leurs vacances.</small><br><button class="btn-secondary" style="margin-top:8px;font-size:11px" onclick="notifierConflitsWizard()">📧 Notifier les MARs en conflit</button></div>';
+      html += '<div class="wiz-mar-list" style="margin-top:8px">';
+      (wizGConflitsData.conflits || []).forEach(c => {
+        html += '<div class="wiz-mar-row"><div class="wiz-mar-init" style="background:#FED7AA;color:#C2410C">' + c.id.slice(0,3) + '</div><div class="wiz-mar-name">' + c.nom + '</div><div class="wiz-mar-meta"><span class="wiz-warn">🔴 ' + c.periodesConflits.map(p => p.periode + ' (' + p.joursBloqués.length + 'j)').join(', ') + '</span></div></div>';
+      });
+      html += '</div>';
+    } else if (sansIndispo.length === 0) {
+      html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534;margin-top:8px">✅ Aucun conflit vacances — vous pouvez continuer.</div>';
+    }
+
+    html += '<div class="wiz-mar-list" style="margin-top:12px">';
     actifs.forEach(m => {
       const ind = wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || [];
       const count = Array.isArray(ind) ? ind.length : Object.keys(ind).length;
@@ -2620,3 +2695,4 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
