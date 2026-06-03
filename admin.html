@@ -2077,11 +2077,11 @@ Continuer quand même ?`)) return;
     const vacData = await api({action:'getVacancesConfig'});
     if (vacData.success && vacData.groupes) {
       wizGroupes = vacData.groupes;
-      // Enrichir wizMarsData avec le groupe de chaque MAR
+      // Enrichir wizMarsData avec le groupe ET l'ordre de chaque MAR
       ['A','B','C'].forEach(grp => {
-        (vacData.groupes[grp]||[]).forEach(m => {
+        (vacData.groupes[grp]||[]).forEach((m, idx) => {
           const mar = wizMarsData.find(x => x.id === m.id);
-          if (mar) mar.groupe = grp;
+          if (mar) { mar.groupe = grp; mar.ordreGroupe = idx; }
         });
       });
     }
@@ -2185,10 +2185,13 @@ function renderWizStep() {
     // Composition des groupes
     html += `<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">`;
     ['A','B','C'].forEach(grp => {
-      const members = wizMarsData.filter(m => m.actif && m.groupe === grp);
-      // Rotation interne : décaler d'un cran par année (offset % membres)
+      // Trier par ordre GSheet, puis décaler d'offset crans (1 cran par an)
+      const members = wizMarsData
+        .filter(m => m.actif && m.groupe === grp)
+        .sort((a,b) => (a.ordreGroupe||0) - (b.ordreGroupe||0));
+      const shift = members.length ? offset % members.length : 0;
       const shifted = members.length
-        ? [...members.slice(offset % members.length), ...members.slice(0, offset % members.length)]
+        ? [...members.slice(shift), ...members.slice(0, shift)]
         : [];
       html += `<div style="flex:1;min-width:140px;border:1px solid var(--line);border-radius:10px;padding:10px">
         <div style="font-size:11px;font-weight:700;color:white;background:${GRP_COLORS[grp]};padding:2px 8px;border-radius:20px;display:inline-block;margin-bottom:6px">Groupe ${grp}</div>
