@@ -573,7 +573,7 @@ function renderPrioPanel() {
     <div style="width:44px;height:44px;border-radius:50%;background:${GRP_COLORS[grp]||'#64748b'};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:white">${grp}</div>
     <div>
       <div style="font-size:14px;font-weight:700;color:#1e293b">Groupe ${grp}</div>
-      ${rang ? `<div style="font-size:12px;color:#64748b">Rang global ${rang} · ${rangGroupe}/${totalGroupe} dans le groupe</div>` : ''}
+      ${rang ? `<div style="font-size:12px;color:#64748b">Rang ${rangGroupe}/${totalGroupe} dans le groupe · global ${rang}/22 (HIVER)</div>` : ''}
     </div>
   </div>`;
 
@@ -588,8 +588,9 @@ function renderPrioPanel() {
     const grpArr = base.split('');
     const grpShift = offset % 3;
     const ordered = [...grpArr.slice(grpShift), ...grpArr.slice(0, grpShift)];
+    const rangGlobal = p.rang || 0;
     const myPos = ordered.indexOf(grp) + 1;
-    const posLabel = myPos === 1 ? '🥇 1er' : myPos === 2 ? '🥈 2ème' : '🥉 3ème';
+    const grpPosLabel = myPos === 1 ? '🥇 Groupe prioritaire' : myPos === 2 ? '🥈 Groupe 2ème' : '🥉 Groupe 3ème';
     const posColor = myPos === 1 ? '#166534' : myPos === 2 ? '#92400e' : '#64748b';
     const hasConflits = p.joursBloqués && p.joursBloqués.length > 0;
 
@@ -599,7 +600,10 @@ function renderPrioPanel() {
         <div style="font-size:11px;color:#94a3b8">${p.debut} → ${p.fin}</div>
         ${hasConflits ? `<div style="font-size:11px;color:#dc2626;margin-top:2px">⚠️ ${p.joursBloqués.length} jour(s) en conflit</div>` : ''}
       </div>
-      <div style="font-size:13px;font-weight:700;color:${posColor}">${posLabel}</div>
+      <div style="text-align:right">
+        <div style="font-size:12px;font-weight:700;color:${posColor}">${grpPosLabel}</div>
+        <div style="font-size:11px;color:#94a3b8">Rang ${rangGlobal}/22</div>
+      </div>
     </div>`;
   });
 
