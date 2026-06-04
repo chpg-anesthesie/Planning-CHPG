@@ -2557,9 +2557,9 @@ async function launchWizardGardes() {
   document.getElementById('wizGBody').innerHTML = '<div class="wiz-progress"><div class="wiz-progress-item" id="wizg-p1">⏳ Génération des gardes ' + YEAR + '…</div><div class="wiz-progress-item" id="wizg-p2" style="opacity:.4">○ Publication sur GitHub Pages…</div><div class="wiz-progress-item" id="wizg-p3" style="opacity:.4">○ Envoi récapitulatifs aux MARs…</div></div>';
 
   const steps = [
-    {id:'wizg-p1', label:'Gardes générées',  action: () => api({action:'generateGardes'})},
-    {id:'wizg-p2', label:'Planning publié',  action: () => api({action:'publishPlanning'})},
-    {id:'wizg-p3', label:'Récapitulatifs envoyés', action: () => api({action:'envoyerRecapIndispos', year: YEAR})},
+    {id:'wizg-p1', label:'Gardes générées',  action: () => api({action:'generateGardes', year: YEAR+1})},
+    {id:'wizg-p2', label:'Planning publié',  action: () => api({action:'publishPlanning', year: YEAR+1})},
+    {id:'wizg-p3', label:'Récapitulatifs envoyés', action: () => api({action:'envoyerRecapIndispos', year: YEAR+1})},
   ];
 
   let allOk = true;
