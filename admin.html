@@ -1102,6 +1102,7 @@ async function checkNextYearAvailable() {
   try {
     const resp = await fetch(`./planning_${YEAR+1}.json?t=${Date.now()}`, {method:'HEAD'});
     nextYearAvailable = resp.ok;
+      if (nextYearAvailable) loadCycleStatus();
     selectedYear = null; // reset à chaque init
   } catch(e) {
     nextYearAvailable = false;
@@ -2914,6 +2915,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
