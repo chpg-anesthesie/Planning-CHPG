@@ -2065,14 +2065,9 @@ async function openWizard() {
   wizPeriodes = PERIODES_DEFAUT[nextYear] || PERIODES_DEFAUT[2027].map(p => ({...p}));
   wizMarsData = [...marsData];
 
-  // Avertissement si trop tôt
+  // Avertissement si trop tôt — bandeau inline, non bloquant
   const month = new Date().getMonth() + 1;
-  if (month < 9) {
-    if (!confirm(`Vous êtes en ${new Date().toLocaleString('fr-FR',{month:'long'})} ${YEAR}.
-Le workflow de démarrage est habituellement lancé en octobre.
-
-Continuer quand même ?`)) return;
-  }
+  window._wizEarlyWarning = (month < 9);
 
   // Charger les groupes depuis GSheet
   try {
@@ -2088,6 +2083,12 @@ Continuer quand même ?`)) return;
       });
     }
   } catch(e) { /* silencieux */ }
+
+  // Détecter si INDISPOS_N+1 existe déjà
+  try {
+    const st = await api({action:'getStatus'});
+    window._wizIndisposExists = !!(st.status && st.status.indisposN1Exists);
+  } catch(e) { window._wizIndisposExists = false; }
 
   renderWizStep();
   document.getElementById('wizardOverlay').classList.add('open');
@@ -2143,6 +2144,12 @@ function renderWizStep() {
     const noEmail = wizMarsData.filter(m => m.actif && !m.email);
     if (noEmail.length) {
       html += `<div class="wizard-warning">⚠️ ${noEmail.length} MAR(s) sans email : ${noEmail.map(m=>m.initiales).join(', ')} — ils ne recevront pas leur code d'accès.</div>`;
+    }
+    if (window._wizEarlyWarning) {
+      html += `<div style="margin-bottom:12px;padding:10px 14px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;font-size:12px;color:#92400E">
+        ⏰ <strong>Démarrage anticipé</strong> — vous êtes en ${new Date().toLocaleString('fr-FR',{month:'long'})} ${YEAR}.<br>
+        Le Wizard 1 est habituellement lancé en <strong>octobre</strong>. Vous pouvez continuer pour tester.
+      </div>`;
     }
     html += `<div class="wizard-section-title">MARs actifs pour ${nextYear}</div>`;
     html += `<div class="wiz-mar-list">`;
@@ -2264,7 +2271,7 @@ function renderWizStep() {
     <div style="margin:16px 0;padding:14px;background:var(--line-light);border-radius:10px;font-size:12px;color:var(--ink-3);line-height:1.7">
       <strong style="color:var(--ink);display:block;margin-bottom:6px">Actions qui vont être exécutées :</strong>
       → Sauvegarde des périodes de vacances dans PERIODES_VAC<br>
-      → Création de l'onglet INDISPOS_${nextYear}<br>
+      ${window._wizIndisposExists ? `⚠️ INDISPOS_${nextYear} existe déjà — <strong>étape ignorée</strong>` : `→ Création de l'onglet INDISPOS_${nextYear}`}<br>
       → Archivage OVERRIDES → OVERRIDES_${YEAR}<br>
       → Activation saisie indispos ${nextYear} (ANNEE_ACTIVE reste sur ${YEAR})<br>
       → Envoi des codes d'accès à ${avecEmail.length} MAR(s) par email
@@ -2307,7 +2314,10 @@ async function launchWizard() {
 
   const steps = [
     {id:'wiz-p1', label:'Périodes sauvegardées', action: () => api({action:'savePeriodes', periodes: wizPeriodes})},
-    {id:'wiz-p2', label:'INDISPOS créé',         action: () => api({action:'initYear', year: nextYear})},
+    {id:'wiz-p2', label:'INDISPOS créé',         action: async () => {
+      if (window._wizIndisposExists) return {success: true};
+      return api({action:'initYear', year: nextYear});
+    }},
     {id:'wiz-p3', label:'Indispos activées',      action: () => api({action:'setIndisposYear', year: nextYear})},
     {id:'wiz-p4', label:'Codes envoyés',         action: () => api({action:'sendCodes'})},
   ];
@@ -2885,6 +2895,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
