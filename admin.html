@@ -542,13 +542,27 @@ if (sessionStorage.getItem('adminCode')) {
     <div class="header-flag"><div class="flag-top"></div><div class="flag-bot"></div></div>
     <div>
       <div class="header-title">Planning CHPG Monaco</div>
-      <div class="header-sub">Administration · Année <span id="headerYear">—</span></div>
+      <div class="header-sub" style="display:flex;align-items:center;gap:8px">
+        Administration ·
+        <select id="adminYearSelect" onchange="switchAdminYear(Number(this.value))"
+          style="padding:2px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);color:white;font-size:11px;font-family:inherit;cursor:pointer;display:none">
+        </select>
+        <span id="headerYear" style="font-size:11px">—</span>
+      </div>
     </div>
   </div>
   <div class="header-right">
     <a href="./index.html" class="header-link">← Voir le planning</a>
     <a href="./config.html" class="header-link">⚙️ Config</a>
   </div>
+</div>
+
+<!-- BANDEAU LECTURE SEULE -->
+<div id="readonlyBanner" style="display:none;align-items:center;gap:10px;padding:8px 24px;background:#FEF3C7;border-bottom:1px solid #FCD34D;font-size:12px;color:#92400E">
+  <span style="font-size:14px">🔒</span>
+  <strong>Année archivée — lecture seule.</strong>
+  Les modifications sont désactivées pour cette année.
+  <span style="margin-left:auto;font-size:11px;opacity:.7">Sélectionnez l'année active pour modifier.</span>
 </div>
 
 <!-- STATUS BAR -->
@@ -988,6 +1002,9 @@ if (sessionStorage.getItem('adminCode')) {
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 let ADMIN_CODE = '', YEAR = 2026;
 let INDISPOS_YEAR = YEAR + 1;
+let ADMIN_YEAR = YEAR;          // année sélectionnée dans le sélecteur admin
+let ADMIN_YEAR_READONLY = false; // true si année archivée (stats_YYYY.json présent)
+let availableYears = [];         // [{year, label, readonly}]
 let DATA = null, marsData = [], gardesData = null;
 let currentWeekIdx = 0, currentCalMonth = new Date().getMonth();
 let panelType = '', allViolations = [], activeFilter = 'all';
@@ -1098,6 +1115,70 @@ function showTab(name) {
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────
+async function detectAvailableYears() {
+  availableYears = [];
+  // Tester les 3 dernières années + N+1
+  const toCheck = [YEAR - 1, YEAR, YEAR + 1];
+  for (const y of toCheck) {
+    try {
+      // Vérifier si planning_YYYY.json existe
+      const r = await fetch(`./planning_${y}.json?t=${Date.now()}`, {method: 'HEAD'});
+      if (!r.ok) continue;
+      // Vérifier si archivé (stats_YYYY.json existe)
+      let readonly = false;
+      try {
+        const rs = await fetch(`./stats_${y}.json?t=${Date.now()}`, {method: 'HEAD'});
+        readonly = rs.ok;
+      } catch(e) {}
+      const isActive = y === YEAR;
+      availableYears.push({
+        year: y,
+        label: y + (isActive ? ' — actif' : readonly ? ' — archivé' : ' — N+1'),
+        readonly
+      });
+    } catch(e) {}
+  }
+  // Mettre à jour le sélecteur
+  const sel = document.getElementById('adminYearSelect');
+  const span = document.getElementById('headerYear');
+  if (sel && availableYears.length > 1) {
+    sel.innerHTML = availableYears.map(a =>
+      `<option value="${a.year}" ${a.year === ADMIN_YEAR ? 'selected' : ''}>${a.label}</option>`
+    ).join('');
+    sel.style.display = '';
+    span.style.display = 'none';
+  } else {
+    sel.style.display = 'none';
+    span.style.display = '';
+    span.textContent = YEAR;
+  }
+}
+
+async function switchAdminYear(year) {
+  const entry = availableYears.find(a => a.year === year);
+  if (!entry) return;
+  ADMIN_YEAR = year;
+  ADMIN_YEAR_READONLY = entry.readonly;
+  // Bandeau lecture seule
+  const banner = document.getElementById('readonlyBanner');
+  if (banner) banner.style.display = ADMIN_YEAR_READONLY ? 'flex' : 'none';
+  // Recharger les onglets selon l'année
+  await reloadForYear(year);
+}
+
+async function reloadForYear(year) {
+  // Recharger les données de l'onglet actif
+  const activePanel = document.querySelector('.tab-panel.active');
+  if (!activePanel) return;
+  const panelId = activePanel.id.replace('panel-', '');
+  if (panelId === 'gardes')       loadStats(year);
+  if (panelId === 'affectations') loadAffectations(year);
+  if (panelId === 'indispos')     loadIndispos(year);
+  if (panelId === 'vacances')     loadVacances(year);
+  // Mettre à jour le header
+  document.getElementById('headerYear').textContent = year;
+}
+
 async function checkNextYearAvailable() {
   try {
     const resp = await fetch(`./planning_${YEAR+1}.json?t=${Date.now()}`, {method:'HEAD'});
@@ -1113,6 +1194,8 @@ async function initDashboard() {
   // Petit délai pour s'assurer que le DOM est prêt et YEAR bien défini
   await new Promise(r => setTimeout(r, 50));
   await checkNextYearAvailable();
+  ADMIN_YEAR = YEAR; // init année admin = année active
+  await detectAvailableYears();
   await Promise.all([loadPlanningData(), loadStatusBar(), loadOverrides(), loadCycleStatus()]);
 }
 
@@ -1368,6 +1451,10 @@ function openWorkflowModal(){ openWizard(); }
 
 // ── PANNEAU ────────────────────────────────────────────────────────────
 function openPanel(type, prefillDocId='', prefillDate=''){
+  if (ADMIN_YEAR_READONLY) {
+    toast('🔒 Année ' + ADMIN_YEAR + ' archivée — modifications désactivées', 'error');
+    return;
+  }
   panelType=type;
   const titles={secteur:'🔄 Changer de secteur',garde:'🔁 Modifier une garde'};
   document.getElementById('panelTitle').textContent=titles[type]||'Modification';
@@ -2915,6 +3002,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
