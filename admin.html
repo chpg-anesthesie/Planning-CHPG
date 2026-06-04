@@ -1117,27 +1117,23 @@ function showTab(name) {
 // ── INIT ───────────────────────────────────────────────────────────────
 async function detectAvailableYears() {
   availableYears = [];
-  // Tester les 3 dernières années + N+1
-  const toCheck = [YEAR - 1, YEAR, YEAR + 1];
-  for (const y of toCheck) {
+  // Année active toujours présente
+  availableYears.push({ year: YEAR, label: YEAR + ' — actif', readonly: false });
+  // N+1 : réutiliser nextYearAvailable déjà calculé par checkNextYearAvailable()
+  if (nextYearAvailable) {
+    availableYears.push({ year: YEAR + 1, label: (YEAR + 1) + ' — N+1', readonly: false });
+  }
+  // Années archivées : tester stats_YYYY.json (fichier léger ~quelques Ko)
+  for (const y of [YEAR - 1, YEAR - 2]) {
     try {
-      // Vérifier si planning_YYYY.json existe
-      const r = await fetch(`./planning_${y}.json?t=${Date.now()}`, {method: 'HEAD'});
-      if (!r.ok) continue;
-      // Vérifier si archivé (stats_YYYY.json existe)
-      let readonly = false;
-      try {
-        const rs = await fetch(`./stats_${y}.json?t=${Date.now()}`, {method: 'HEAD'});
-        readonly = rs.ok;
-      } catch(e) {}
-      const isActive = y === YEAR;
-      availableYears.push({
-        year: y,
-        label: y + (isActive ? ' — actif' : readonly ? ' — archivé' : ' — N+1'),
-        readonly
-      });
+      const rs = await fetch(`./stats_${y}.json?t=${Date.now()}`);
+      if (rs.ok) {
+        availableYears.unshift({ year: y, label: y + ' — archivé', readonly: true });
+      }
     } catch(e) {}
   }
+  // Trier par année croissante
+  availableYears.sort((a, b) => a.year - b.year);
   // Mettre à jour le sélecteur
   const sel = document.getElementById('adminYearSelect');
   const span = document.getElementById('headerYear');
@@ -1145,11 +1141,11 @@ async function detectAvailableYears() {
     sel.innerHTML = availableYears.map(a =>
       `<option value="${a.year}" ${a.year === ADMIN_YEAR ? 'selected' : ''}>${a.label}</option>`
     ).join('');
-    sel.style.display = '';
+    sel.style.display = 'inline-block';
     span.style.display = 'none';
   } else {
     sel.style.display = 'none';
-    span.style.display = '';
+    span.style.display = 'inline';
     span.textContent = YEAR;
   }
 }
@@ -3002,6 +2998,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
