@@ -774,10 +774,7 @@ if (sessionStorage.getItem('adminCode')) {
         <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Vérifiez l'équilibre des gardes entre MARs · Le bouton Générer est désactivé si l'année est figée</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
-        <select id="statsYearSelect" onchange="loadStats(Number(this.value))"
-          style="padding:6px 10px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-family:inherit;background:white;color:var(--ink)">
-        </select>
-        <button class="btn-secondary" onclick="loadStats(Number(document.getElementById('statsYearSelect').value)||YEAR)">↻ Actualiser</button>
+        <button class="btn-secondary" onclick="loadStats(ADMIN_YEAR)">↻ Actualiser</button>
         <button class="btn-primary" onclick="generateGardes()" id="btnGenerate">⚡ Générer les gardes</button>
       </div>
     </div>
@@ -1096,8 +1093,7 @@ function showTab(name) {
   document.getElementById('tab-'+name).classList.add('active');
   if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations();
   if (name==='gardes') {
-    const selYear = document.getElementById('statsYearSelect');
-    loadStats(selYear && selYear.value ? Number(selYear.value) : YEAR);
+    loadStats(ADMIN_YEAR);
     // Désactiver génération gardes seulement si YEAR+1 est déjà sanctuarisé (≤2026)
     const btnGen = document.getElementById('btnGenerate');
     if (YEAR+1 <= 2026) {
@@ -1171,7 +1167,8 @@ async function reloadForYear(year) {
   if (panelId === 'affectations') loadAffectations(year);
   if (panelId === 'indispos')     loadIndispos(year);
   if (panelId === 'vacances')     loadVacances(year);
-  // Mettre à jour le header et les titres des onglets
+  if (panelId === 'accueil')      loadPlanningData();
+  // Mettre à jour le header
   document.getElementById('headerYear').textContent = year;
   // Désactiver visuellement les boutons de modification si readonly
   const modBtns = document.querySelectorAll('.btn-primary[onclick*="openPanel"], .btn-primary[onclick*="applyModification"]');
@@ -1227,7 +1224,7 @@ async function loadPlanningData() {
     let res, attempts = 0;
     while (attempts < 3) {
       try {
-        res = await fetch(`./planning_${YEAR}.json?` + Date.now());
+        res = await fetch(`./planning_${ADMIN_YEAR}.json?` + Date.now());
         if (res.ok) break;
       } catch(e) {}
       attempts++;
@@ -1661,20 +1658,7 @@ function renderCalendrier(){
 
 // ── GARDES — STATS ────────────────────────────────────────────────────
 async function loadStats(year){
-  year = year || YEAR;
-  // Init sélecteur
-  const sel = document.getElementById('statsYearSelect');
-  if (sel) {
-    if (!sel.options.length) {
-      [YEAR, YEAR+1].forEach(y => {
-        const opt = document.createElement('option');
-        opt.value = y;
-        opt.textContent = y === YEAR ? y + ' — en cours' : y + ' — N+1';
-        sel.appendChild(opt);
-      });
-    }
-    sel.value = year;
-  }
+  year = year || ADMIN_YEAR;
   document.getElementById('gardesYear').textContent = year;
   document.getElementById('gardesLoading').style.display='flex';
   document.getElementById('gardesEmpty').style.display='none';
@@ -1863,7 +1847,7 @@ async function runDiagnostic(){
   document.getElementById('diagEmpty').style.display='none';
   document.getElementById('btnDiag').disabled=true;
   try{
-    const data=await fetch(`./planning_${YEAR}.json?`+Date.now()).then(r=>r.json());
+    const data=await fetch(`./planning_${ADMIN_YEAR}.json?`+Date.now()).then(r=>r.json());
     allViolations=[];
     data.months.forEach(month=>{
       month.days.forEach((day,dayIdx)=>{
@@ -3008,6 +2992,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
