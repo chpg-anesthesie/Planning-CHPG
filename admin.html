@@ -1171,8 +1171,15 @@ async function reloadForYear(year) {
   if (panelId === 'affectations') loadAffectations(year);
   if (panelId === 'indispos')     loadIndispos(year);
   if (panelId === 'vacances')     loadVacances(year);
-  // Mettre à jour le header
+  // Mettre à jour le header et les titres des onglets
   document.getElementById('headerYear').textContent = year;
+  // Désactiver visuellement les boutons de modification si readonly
+  const modBtns = document.querySelectorAll('.btn-primary[onclick*="openPanel"], .btn-primary[onclick*="applyModification"]');
+  modBtns.forEach(btn => {
+    btn.disabled = ADMIN_YEAR_READONLY;
+    btn.style.opacity = ADMIN_YEAR_READONLY ? '0.4' : '';
+    btn.title = ADMIN_YEAR_READONLY ? '🔒 Année archivée — lecture seule' : '';
+  });
 }
 
 async function checkNextYearAvailable() {
@@ -1557,7 +1564,7 @@ async function submitPanel(){
       if(!modType||!date||!doctor) throw new Error('Veuillez remplir tous les champs');
       mod={type:modType,date,doctorId:doctor,doctorId2:doctor2,value,date2};
     }
-    if (selectedYear) mod.year = selectedYear;
+    mod.year = ADMIN_YEAR; // toujours utiliser l'année du contexte admin
     const data=await api({action:'applyModification',modification:mod});
     if(!data.success) throw new Error(data.error);
     result.textContent='✅ Modification appliquée — planning republié automatiquement.';
@@ -3001,6 +3008,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
