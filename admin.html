@@ -2547,7 +2547,7 @@ async function renderWizGStep() {
       const ind = wizGIndisposData ? (wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || []) : [];
       return !ind || ind.length === 0;
     });
-    let html = '<div class="wizard-section-title">Prêt à générer les gardes ' + YEAR + '</div>';
+    let html = '<div class="wizard-section-title">Prêt à générer les gardes ' + (YEAR+1) + '</div>';
     html += '<div style="background:var(--bg);border-radius:12px;padding:16px;margin:12px 0">';
     html += '<div style="margin-bottom:8px;font-size:13px"><strong>' + actifs.length + '</strong> MARs actifs inclus</div>';
     if (sansIndispo.length) {
@@ -2563,10 +2563,17 @@ async function launchWizardGardes() {
   const nextBtn = document.getElementById('wizGNextBtn');
   nextBtn.disabled = true;
   document.getElementById('wizGBackBtn').style.visibility = 'hidden';
-  document.getElementById('wizGBody').innerHTML = '<div class="wiz-progress"><div class="wiz-progress-item" id="wizg-p1">⏳ Génération des gardes ' + YEAR + '…</div><div class="wiz-progress-item" id="wizg-p2" style="opacity:.4">○ Publication sur GitHub Pages…</div><div class="wiz-progress-item" id="wizg-p3" style="opacity:.4">○ Envoi récapitulatifs aux MARs…</div></div>';
+  document.getElementById('wizGBody').innerHTML = '<div class="wiz-progress"><div class="wiz-progress-item" id="wizg-p1">⏳ Génération des gardes ' + (YEAR+1) + '…</div><div class="wiz-progress-item" id="wizg-p2" style="opacity:.4">○ Publication sur GitHub Pages…</div><div class="wiz-progress-item" id="wizg-p3" style="opacity:.4">○ Envoi récapitulatifs aux MARs…</div></div>';
 
   const steps = [
-    {id:'wizg-p1', label:'Gardes générées',  action: () => api({action:'generateGardes', year: YEAR+1})},
+    {id:'wizg-p1', label:'Gardes générées',  action: () => {
+      const t = setTimeout(() => {
+        const el = document.getElementById('wizg-p1');
+        if (el && el.classList.contains('running'))
+          el.textContent = '⏳ Génération des gardes ' + (YEAR+1) + '… (toujours en cours, patience…)';
+      }, 45000);
+      return api({action:'generateGardes', year: YEAR+1}).finally(() => clearTimeout(t));
+    }},
     {id:'wizg-p2', label:'Planning publié',  action: () => api({action:'publishPlanning', year: YEAR+1})},
     {id:'wizg-p3', label:'Récapitulatifs envoyés', action: () => api({action:'envoyerRecapIndispos', year: YEAR+1})},
   ];
@@ -2595,7 +2602,7 @@ async function launchWizardGardes() {
 
   if (allOk) {
     setTimeout(() => {
-      document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Gardes ' + YEAR + ' générées !</div><div style="font-size:13px;color:var(--ink-3)">Le planning est publié et les MARs ont été notifiés.<br>Vérifiez l\'équité dans l\'onglet Équité.</div><button class=\"btn-primary\" style=\"margin-top:20px\" onclick=\"closeWizardGardes();showTab(\'gardes\')\">Voir l\'équité →</button></div>';
+      document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Gardes ' + (YEAR+1) + ' générées !</div><div style="font-size:13px;color:var(--ink-3)">Le planning est publié et les MARs ont été notifiés.<br>Vérifiez l\'équité dans l\'onglet Équité.</div><button class=\"btn-primary\" style=\"margin-top:20px\" onclick=\"closeWizardGardes();showTab(\'gardes\')\">Voir l\'équité →</button></div>';
       nextBtn.style.display = 'none';
     }, 600);
   } else {
@@ -2878,6 +2885,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
