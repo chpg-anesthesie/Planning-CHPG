@@ -1076,7 +1076,8 @@ function showTab(name) {
   document.getElementById('tab-'+name).classList.add('active');
   if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations();
   if (name==='gardes') {
-    loadStats(YEAR);
+    const selYear = document.getElementById('statsYearSelect');
+    loadStats(selYear && selYear.value ? Number(selYear.value) : YEAR);
     // Désactiver génération gardes seulement si YEAR+1 est déjà sanctuarisé (≤2026)
     const btnGen = document.getElementById('btnGenerate');
     if (YEAR+1 <= 2026) {
@@ -1562,16 +1563,31 @@ function renderCalendrier(){
 }
 
 // ── GARDES — STATS ────────────────────────────────────────────────────
-async function loadStats(){
+async function loadStats(year){
+  year = year || YEAR;
+  // Initialiser/synchroniser le sélecteur d'année
+  const sel = document.getElementById('statsYearSelect');
+  if (sel) {
+    if (!sel.options.length) {
+      [YEAR, YEAR+1].forEach(y => {
+        const opt = document.createElement('option');
+        opt.value = y; opt.textContent = y + ' (en cours)';
+        if (y === YEAR+1) opt.textContent = y + ' (N+1)';
+        sel.appendChild(opt);
+      });
+    }
+    sel.value = year;
+  }
+  document.getElementById('gardesYear').textContent = year;
   document.getElementById('gardesLoading').style.display='flex';
   document.getElementById('gardesEmpty').style.display='none';
   try{
-    const data=await api({action:'getStats', year: YEAR});
+    const data=await api({action:'getStats', year});
     if(!data.success) throw new Error(data.error);
     renderStats(data.stats);
   }catch(e){
     document.getElementById('gardesEmpty').style.display='block';
-    document.getElementById('gardesEmpty').textContent='Stats non disponibles — lancez d\'abord le générateur.';
+    document.getElementById('gardesEmpty').textContent='Stats non disponibles pour ' + year + ' — générez d\'abord les gardes.';
   }finally{document.getElementById('gardesLoading').style.display='none';}
 }
 
@@ -2895,6 +2911,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
