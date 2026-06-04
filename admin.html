@@ -2517,15 +2517,24 @@ async function renderWizGStep() {
         return;
       }
     }
-    let html = '<div class="wizard-section-title">Périodes de vacances ' + YEAR + ' — validation</div>';
+    let html = '<div class="wizard-section-title">Périodes de vacances ' + INDISPOS_YEAR + ' — validation</div>';
     html += '<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">Vérifiez que les seuils de présence sont respectés avant de lancer.</div>';
     if (!wizGVacData.length) {
       html += '<div class="wizard-warning">⚠️ Aucune période configurée. Vérifiez config.html → Vacances.</div>';
     } else {
       html += '<table class="wiz-periodes"><thead><tr><th>Période</th><th>Dates</th><th>Seuil</th><th>Statut</th></tr></thead><tbody>';
       wizGVacData.forEach(p => {
-        const icon = p.statut === 'VALIDE' ? '✅' : p.statut === 'PARTIEL' ? '⚠️' : '❌';
-        html += '<tr><td style="font-weight:600">' + (p.label||p.periode||'—') + '</td><td style="font-size:11px;color:var(--ink-3)">' + (p.debut||'—') + ' → ' + (p.fin||'—') + '</td><td>' + (p.seuil||'—') + '</td><td>' + icon + ' ' + (p.statut||'—') + '</td></tr>';
+        // getVacValidation retourne {nom, debut, fin, seuil, mars[{statut}]}
+        const nom = p.nom || p.label || p.periode || '—';
+        const mars = p.mars || [];
+        const nbRefus = mars.filter(m => m.statut === 'REFUSE' || m.statut === 'PARTIEL').length;
+        const nbValide = mars.filter(m => m.statut === 'VALIDE').length;
+        let statut, icon;
+        if (nbRefus === 0 && mars.length > 0) { statut = 'VALIDE'; icon = '✅'; }
+        else if (nbRefus > 0 && nbValide > 0) { statut = 'PARTIEL (' + nbRefus + ' conflit(s))'; icon = '⚠️'; }
+        else if (nbRefus > 0) { statut = 'CONFLITS (' + nbRefus + ')'; icon = '❌'; }
+        else { statut = '—'; icon = '⚠️'; }
+        html += '<tr><td style="font-weight:600">' + nom + '</td><td style="font-size:11px;color:var(--ink-3)">' + (p.debut||'—') + ' → ' + (p.fin||'—') + '</td><td>' + (p.seuil||'—') + '</td><td>' + icon + ' ' + statut + '</td></tr>';
       });
       html += '</tbody></table>';
     }
@@ -2869,6 +2878,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
