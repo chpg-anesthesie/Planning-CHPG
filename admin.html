@@ -736,7 +736,7 @@ if (sessionStorage.getItem('adminCode')) {
         <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Cliquez une cellule pour changer le secteur · La sauvegarde republie le planning automatiquement</div>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn-secondary" onclick="loadAffectations()">↻ Recharger</button>
+        <button class="btn-secondary" onclick="loadAffectations(ADMIN_YEAR)">↻ Recharger</button>
         <button class="btn-primary" onclick="saveAllAffectations()" id="btnSaveAff" title="Sauvegarde les affectations dans le GSheet et republie le planning automatiquement">💾 Enregistrer tout</button>
       </div>
     </div>
@@ -1091,7 +1091,7 @@ function showTab(name) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
-  if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations();
+  if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations(ADMIN_YEAR);
   if (name==='gardes') {
     loadStats(ADMIN_YEAR);
     // Désactiver génération gardes seulement si YEAR+1 est déjà sanctuarisé (≤2026)
@@ -1943,11 +1943,12 @@ let currentAffCell = null;
 const MOIS_COURTS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 const SECTEURS_AFF = ['VIS','END','ORL','REA','ORT','CI','RI','MAT','VOLANT'];
 
-async function loadAffectations() {
+async function loadAffectations(year) {
+  year = year || ADMIN_YEAR;
   document.getElementById('affLoading').style.display = 'flex';
   document.getElementById('affContent').style.display = 'none';
   try {
-    const data = await api({action: 'getAffectations'});
+    const data = await api({action: 'getAffectations', year});
     if (!data.success) throw new Error(data.error);
     affData = data.affectations;
     affPending = false;
@@ -2992,6 +2993,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
