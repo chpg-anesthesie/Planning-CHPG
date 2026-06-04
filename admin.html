@@ -1077,16 +1077,16 @@ function showTab(name) {
   if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations();
   if (name==='gardes') {
     loadStats();
-    // Désactiver génération gardes si année déjà figée (2026)
+    // Désactiver génération gardes seulement si YEAR+1 est déjà sanctuarisé (≤2026)
     const btnGen = document.getElementById('btnGenerate');
-    if (YEAR <= 2026) {
+    if (YEAR+1 <= 2026) {
       btnGen.disabled = true;
-      btnGen.title = 'GARDES_2026 est figé — génération désactivée';
+      btnGen.title = 'GARDES_2026 est sanctuarisé — génération désactivée';
       btnGen.innerHTML = '🔒 Gardes figées (' + YEAR + ')';
     } else {
       btnGen.disabled = false;
       btnGen.title = '';
-      btnGen.innerHTML = '⚡ Générer les gardes';
+      btnGen.innerHTML = '⚡ Générer les gardes ' + (YEAR+1);
     }
   }
   if (name==='indispos') loadIndispos();
@@ -1576,7 +1576,7 @@ async function loadStats(){
 }
 
 async function generateGardes(){
-  if(YEAR <= 2026){ toast('GARDES_2026 est figé — génération désactivée', 'error'); return; }
+  if(YEAR+1 <= 2026){ toast('GARDES_2026 est sanctuarisé — génération désactivée', 'error'); return; }
   if(!confirm('Lancer la génération des gardes ?\nOpération : 30-60 secondes.')) return;
   const btn=document.getElementById('btnGenerate');
   btn.disabled=true; btn.innerHTML='<div class="spinner-sm"></div> Génération…';
@@ -2380,9 +2380,9 @@ async function openWizardGardes() {
   wizGIndisposData = null;
   wizGVacData = null;
   wizGConflitsData = null;
-  document.getElementById('wizGardesYear').textContent = YEAR;
-  if (YEAR <= 2026) {
-    toast('GARDES_2026 est figé — génération désactivée pour 2026', 'error');
+  document.getElementById('wizGardesYear').textContent = YEAR + 1;
+  if (YEAR+1 <= 2026) {
+    toast('GARDES_2026 est sanctuarisé — génération désactivée', 'error');
     return;
   }
   await renderWizGStep();
@@ -2869,6 +2869,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
