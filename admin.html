@@ -1177,10 +1177,13 @@ async function reloadForYear(year) {
 
 async function checkNextYearAvailable() {
   try {
-    const resp = await fetch(`./planning_${YEAR+1}.json?t=${Date.now()}`, {method:'HEAD'});
-    nextYearAvailable = resp.ok;
-      if (nextYearAvailable) loadCycleStatus();
-    selectedYear = null; // reset à chaque init
+    // GitHub Pages ne supporte pas HEAD fiablement — on fetch juste les premiers octets
+    const resp = await fetch(`./planning_${YEAR+1}.json?t=${Date.now()}`, {
+      headers: { 'Range': 'bytes=0-1' }
+    });
+    nextYearAvailable = resp.ok || resp.status === 206;
+    if (nextYearAvailable) loadCycleStatus();
+    selectedYear = null;
   } catch(e) {
     nextYearAvailable = false;
   }
@@ -2998,6 +3001,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
