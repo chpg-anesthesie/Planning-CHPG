@@ -1076,7 +1076,7 @@ function showTab(name) {
   document.getElementById('tab-'+name).classList.add('active');
   if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations();
   if (name==='gardes') {
-    loadStats();
+    loadStats(YEAR);
     // Désactiver génération gardes seulement si YEAR+1 est déjà sanctuarisé (≤2026)
     const btnGen = document.getElementById('btnGenerate');
     if (YEAR+1 <= 2026) {
@@ -1566,7 +1566,7 @@ async function loadStats(){
   document.getElementById('gardesLoading').style.display='flex';
   document.getElementById('gardesEmpty').style.display='none';
   try{
-    const data=await api({action:'getStats'});
+    const data=await api({action:'getStats', year: YEAR});
     if(!data.success) throw new Error(data.error);
     renderStats(data.stats);
   }catch(e){
@@ -2612,7 +2612,7 @@ async function launchWizardGardes() {
 
   if (allOk) {
     setTimeout(() => {
-      document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Gardes ' + (YEAR+1) + ' générées !</div><div style="font-size:13px;color:var(--ink-3)">Le planning est publié et les MARs ont été notifiés.<br>Vérifiez l\'équité dans l\'onglet Équité.</div><button class=\"btn-primary\" style=\"margin-top:20px\" onclick=\"closeWizardGardes();showTab(\'gardes\')\">Voir l\'équité →</button></div>';
+      document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Gardes ' + (YEAR+1) + ' générées !</div><div style="font-size:13px;color:var(--ink-3)">Le planning est publié et les MARs ont été notifiés.<br>Vérifiez l\'équité dans l\'onglet Équité.</div><button class=\"btn-primary\" style=\"margin-top:20px\" onclick=\"closeWizardGardes();showTab(\'gardes\');loadStats(YEAR+1)\">Voir l\'équité →</button></div>';
       nextBtn.style.display = 'none';
     }, 600);
   } else {
@@ -2895,6 +2895,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
