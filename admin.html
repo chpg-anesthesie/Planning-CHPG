@@ -984,6 +984,7 @@ if (sessionStorage.getItem('adminCode')) {
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 let ADMIN_CODE = '', YEAR = 2026;
+let INDISPOS_YEAR = YEAR + 1;
 let DATA = null, marsData = [], gardesData = null;
 let currentWeekIdx = 0, currentCalMonth = new Date().getMonth();
 let panelType = '', allViolations = [], activeFilter = 'all';
@@ -1617,7 +1618,7 @@ async function notifierConflitsPanel() {
   btn.disabled = true;
   btn.textContent = '⏳ Envoi…';
   try {
-    const res = await api({action: 'notifierConflits', year: YEAR});
+    const res = await api({action: 'notifierConflits', year: INDISPOS_YEAR});
     if (res.success) {
       toast(`✅ ${res.sent} email(s) envoyé(s)${res.skipped ? ', ' + res.skipped + ' sans email' : ''}`, 'success');
       btn.textContent = '📧 Notifier conflits';
@@ -1643,6 +1644,7 @@ async function loadIndispos(){
     if(!data.success) throw new Error(data.error);
     // Afficher l'année des indispos (peut être N+1 si INDISPOS_ACTIVE définie)
     const indYear = data.year || YEAR;
+    INDISPOS_YEAR = indYear; // mettre à jour la variable globale
     document.getElementById('indisposYear').textContent = indYear;
     const badge = document.getElementById('indisposYearBadge');
     if (indYear !== YEAR) {
@@ -2396,7 +2398,7 @@ async function notifierConflitsWizard() {
   btn.disabled = true;
   btn.textContent = '⏳ Envoi…';
   try {
-    const res = await api({action: 'notifierConflits', year: YEAR});
+    const res = await api({action: 'notifierConflits', year: INDISPOS_YEAR});
     if (res.success) {
       toast(`✅ ${res.sent} email(s) envoyé(s)${res.skipped ? ', ' + res.skipped + ' sans email' : ''}`, 'success');
       btn.textContent = '✅ Envoyé';
@@ -2462,7 +2464,7 @@ async function renderWizGStep() {
     // Charger les conflits vacances
     if (!wizGConflitsData) {
       try {
-        const cData = await api({action: 'getConflitsAll', year: YEAR});
+        const cData = await api({action: 'getConflitsAll', year: INDISPOS_YEAR});
         wizGConflitsData = cData.success ? cData : {conflits: [], nbConflits: 0};
       } catch(e) {
         wizGConflitsData = {conflits: [], nbConflits: 0};
