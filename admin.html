@@ -759,8 +759,11 @@ if (sessionStorage.getItem('adminCode')) {
         <div style="font-size:16px;font-weight:700">Équité des gardes <span id="gardesYear">—</span></div>
         <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Vérifiez l'équilibre des gardes entre MARs · Le bouton Générer est désactivé si l'année est figée</div>
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-secondary" onclick="loadStats()">↻ Stats actuelles</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="statsYearSelect" onchange="loadStats(Number(this.value))"
+          style="padding:6px 10px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-family:inherit;background:white;color:var(--ink)">
+        </select>
+        <button class="btn-secondary" onclick="loadStats(Number(document.getElementById('statsYearSelect').value)||YEAR)">↻ Actualiser</button>
         <button class="btn-primary" onclick="generateGardes()" id="btnGenerate">⚡ Générer les gardes</button>
       </div>
     </div>
@@ -1565,14 +1568,14 @@ function renderCalendrier(){
 // ── GARDES — STATS ────────────────────────────────────────────────────
 async function loadStats(year){
   year = year || YEAR;
-  // Initialiser/synchroniser le sélecteur d'année
+  // Init sélecteur
   const sel = document.getElementById('statsYearSelect');
   if (sel) {
     if (!sel.options.length) {
       [YEAR, YEAR+1].forEach(y => {
         const opt = document.createElement('option');
-        opt.value = y; opt.textContent = y + ' (en cours)';
-        if (y === YEAR+1) opt.textContent = y + ' (N+1)';
+        opt.value = y;
+        opt.textContent = y === YEAR ? y + ' — en cours' : y + ' — N+1';
         sel.appendChild(opt);
       });
     }
@@ -1582,12 +1585,12 @@ async function loadStats(year){
   document.getElementById('gardesLoading').style.display='flex';
   document.getElementById('gardesEmpty').style.display='none';
   try{
-    const data=await api({action:'getStats', year});
+    const data = await api({action:'getStats', year});
     if(!data.success) throw new Error(data.error);
     renderStats(data.stats);
   }catch(e){
     document.getElementById('gardesEmpty').style.display='block';
-    document.getElementById('gardesEmpty').textContent='Stats non disponibles pour ' + year + ' — générez d\'abord les gardes.';
+    document.getElementById('gardesEmpty').textContent = 'Stats non disponibles pour ' + year + ' — vérifiez que GARDES_' + year + ' existe.';
   }finally{document.getElementById('gardesLoading').style.display='none';}
 }
 
@@ -2911,6 +2914,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
