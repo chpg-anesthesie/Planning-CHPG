@@ -3203,8 +3203,6 @@ async function launchWizardCloture() {
 <script>
 'use strict';
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
-let ADMIN_CODE = '';
 let YEAR = 2027;
 
 // ── AUTH ──────────────────────────────────────────────────────────────
@@ -3412,12 +3410,7 @@ async function toggleActif(id) {
 }
 
 // ── AFFECTATIONS ──────────────────────────────────────────────────────
-let affData = {}; // affData[doctorId][month] = secteur
-let affPending = false;
-let currentAffCell = null;
 
-const MOIS_COURTS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
-const SECTEURS_AFF = ['VIS','END','ORL','REA','ORT','CI','RI','MAT','VOLANT'];
 
 async function loadAffectations() {
   document.getElementById('affLoading').style.display = 'flex';
@@ -3942,8 +3935,6 @@ let wizRStep = 0;
 let wizRData = {nom:'', initiales:'', quotite:100, pctGardes:100, email:'', codeAcces:'', actif:true};
 let wizRAffectations = {};
 let wizRGroupe = 'A';
-const WIZ_SECTEURS = ['MAT','AMB','REA','VOLANT'];
-const WIZ_MOIS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
 async function openWizardRecrue() {
   wizRStep = 0;
