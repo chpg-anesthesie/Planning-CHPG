@@ -592,17 +592,27 @@ if (sessionStorage.getItem('adminCode')) {
 <!-- NAV TABS -->
 <div class="nav-tabs">
   <button class="nav-tab active" onclick="showTab('accueil')" id="tab-accueil">🏠 Accueil</button>
+  <button class="nav-tab" onclick="showTab('planning')" id="tab-planning">📅 Planning</button>
+  <button class="nav-tab" onclick="showTab('equipe')" id="tab-equipe">👥 Équipe</button>
   <button class="nav-tab" onclick="showTab('affectations')" id="tab-affectations">📋 Affectations <span id="affPendingDot" style="display:none;width:6px;height:6px;background:#F59E0B;border-radius:50%;display:inline-block;margin-left:4px;vertical-align:middle"></span></button>
-  <button class="nav-tab" onclick="showTab('gardes')" id="tab-gardes">📊 Équité</button>
-  <button class="nav-tab" onclick="showTab('indispos')" id="tab-indispos">👥 Indispos</button>
-  <button class="nav-tab" onclick="showTab('vacances')" id="tab-vacances">🏖️ Vacances</button>
-  <button class="nav-tab" onclick="showTab('diagnostic')" id="tab-diagnostic">🔬 Diagnostic</button>
+  <button class="nav-tab" onclick="showTab('equite')" id="tab-equite">📊 Équité</button>
+  <button class="nav-tab" onclick="showTab('maintenance')" id="tab-maintenance">🔧 Maintenance</button>
 </div>
 
 <!-- MAIN -->
 <div class="main">
 
-  <!-- ── ACCUEIL ── -->
+  <!-- ── PLANNING (stub P16 patch 2) ── -->
+<div class="tab-panel" id="panel-planning">
+  <div style="padding:40px;text-align:center;color:var(--ink-3)">⏳ Onglet Planning en cours de migration…</div>
+</div>
+
+<!-- ── ÉQUIPE (stub P16 patch 3) ── -->
+<div class="tab-panel" id="panel-equipe">
+  <div style="padding:40px;text-align:center;color:var(--ink-3)">⏳ Onglet Équipe en cours de migration…</div>
+</div>
+
+<!-- ── ACCUEIL ── -->
   <div class="tab-panel active" id="panel-accueil">
     <!-- Action Cards -->
     <!-- Actions quotidiennes -->
@@ -767,7 +777,7 @@ if (sessionStorage.getItem('adminCode')) {
   </div>
 
   <!-- ── ÉQUITÉ GARDES ── -->
-  <div class="tab-panel" id="panel-gardes">
+  <div class="tab-panel" id="panel-equite">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <div>
         <div style="font-size:16px;font-weight:700">Équité des gardes <span id="gardesYear">—</span></div>
@@ -864,7 +874,7 @@ if (sessionStorage.getItem('adminCode')) {
   </div>
 
   <!-- ── VACANCES ── -->
-  <div class="tab-panel" id="panel-vacances">
+  <div class="tab-panel" id="panel-planning-vac">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <div>
         <div style="font-size:16px;font-weight:700">Validation vacances <span id="vacancesYear">—</span></div>
@@ -886,7 +896,7 @@ if (sessionStorage.getItem('adminCode')) {
   </div>
 
   <!-- ── DIAGNOSTIC ── -->
-  <div class="tab-panel" id="panel-diagnostic">
+  <div class="tab-panel" id="panel-maintenance">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <div>
         <div style="font-size:16px;font-weight:700">Diagnostic planning <span id="diagYear">—</span></div>
@@ -1909,7 +1919,7 @@ function renderDiagnostic(){
 
 function filterViol(type,btn){
   activeFilter=type;
-  document.querySelectorAll('#panel-diagnostic .btn-secondary').forEach(b=>b.style.background='');
+  document.querySelectorAll('#panel-maintenance .btn-secondary').forEach(b=>b.style.background='');
   if(btn) btn.style.background='var(--red-soft)';
   renderDiagnostic();
 }
@@ -2993,6 +3003,7 @@ async function launchWizardCloture() {
 </div>
 </body>
 </html>
+
 
 
 
