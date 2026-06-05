@@ -1,4 +1,4 @@
-<div class="tab-panel" id="panel-maintenance">
+<div class="tab-panel" id="panel-maintenance" style="display:none!important">
   <div class="maint-grid">
 
     <div class="maint-action">
@@ -726,7 +726,6 @@ if (sessionStorage.getItem('adminCode')) {
   <button class="nav-tab" onclick="showTab('equipe')" id="tab-equipe">👥 Équipe</button>
   <button class="nav-tab" onclick="showTab('affectations')" id="tab-affectations">📋 Affectations <span id="affPendingDot" style="display:none;width:6px;height:6px;background:#F59E0B;border-radius:50%;display:inline-block;margin-left:4px;vertical-align:middle"></span></button>
   <button class="nav-tab" onclick="showTab('equite')" id="tab-equite">📊 Équité</button>
-  <button class="nav-tab" onclick="showTab('maintenance')" id="tab-maintenance">🔧 Maintenance</button>
 </div>
 
 <!-- MAIN -->
@@ -3316,6 +3315,7 @@ function renderEquipe() {
           <button class="btn-icon" onclick="toggleActif('${m.id}')" title="${m.actif ? 'Désactiver' : 'Activer'}">
             ${m.actif ? '⏸' : '▶'}
           </button>
+          ${m.email ? `<button class="btn-icon" onclick="sendCodeToMAR('${m.id}','${m.nom}')" title="Renvoyer le code d'accès">✉️</button>` : ''}
         </div>
       </td>
     </tr>
@@ -4087,6 +4087,17 @@ function updatePlanningIndisposVisibility() {
   section.style.display = visible ? 'block' : 'none';
 }
 
+
+async function sendCodeToMAR(marId, marNom) {
+  if (!confirm(`Renvoyer le code d'accès à ${marNom} ?`)) return;
+  try {
+    const data = await api({action: 'sendCodesMar', medecin: marId});
+    if (!data.success) throw new Error(data.error);
+    toast(`✅ Code envoyé à ${marNom}`, 'success');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
 </script>
 
 <!-- WIZARD DÉPART D'UN MAR -->
