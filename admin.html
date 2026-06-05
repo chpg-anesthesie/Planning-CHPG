@@ -602,9 +602,117 @@ if (sessionStorage.getItem('adminCode')) {
 <!-- MAIN -->
 <div class="main">
 
-  <!-- ── PLANNING (stub P16 patch 2) ── -->
+  <!-- ── PLANNING ── -->
 <div class="tab-panel" id="panel-planning">
-  <div style="padding:40px;text-align:center;color:var(--ink-3)">⏳ Onglet Planning en cours de migration…</div>
+    <!-- Dashboard layout -->
+    <div class="dashboard-layout">
+      <div>
+        <!-- Planning semaine -->
+        <div class="week-card">
+          <div class="week-header">
+            <div class="week-nav">
+              <button class="week-nav-btn" onclick="prevWeek()">←</button>
+              <div class="week-label" id="weekLabel">Chargement…</div>
+              <button class="week-nav-btn" onclick="nextWeek()">→</button>
+            </div>
+            <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
+          </div>
+          <div style="overflow-x:auto">
+            <div class="week-grid" id="weekGrid">
+              <div style="padding:40px;text-align:center;color:var(--ink-4);grid-column:1/-1">Chargement…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-card">
+          <div class="sidebar-header">
+            <span class="sidebar-title">Modifications à venir</span>
+            <button onclick="loadOverrides()" style="font-size:10px;background:none;border:none;color:var(--ink-4);cursor:pointer">↻</button>
+          </div>
+          <div class="sidebar-body" id="overridesBody">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+        <div class="sidebar-card">
+          <div class="sidebar-header">
+            <span class="sidebar-title">État du cycle</span>
+            <button onclick="loadCycleStatus()" style="font-size:10px;background:none;border:none;color:var(--ink-4);cursor:pointer">↻</button>
+          </div>
+          <div class="sidebar-body" id="cycleStatusBody">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  <!-- Suivi des saisies indispos -->
+  <div style="margin-top:28px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:16px;font-weight:700">Suivi des saisies <span id="indisposYear">—</span> <span id="indisposYearBadge" style="display:none;font-size:11px;padding:2px 8px;border-radius:10px;background:#FEF3C7;color:#92400E;font-weight:600;margin-left:6px"></span></div>
+        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Qui a saisi ses indispos · Cases rouges = MARs sans saisie</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary" onclick="notifierConflitsPanel()" id="btnNotifConflits">📧 Notifier conflits</button>
+        <button class="btn-primary" onclick="loadIndispos()">↻ Actualiser</button>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div>
+        <div style="font-size:16px;font-weight:700">Indisponibilités <span id="indisposYear">—</span> <span id="indisposYearBadge" style="display:none;font-size:11px;padding:2px 8px;border-radius:10px;background:#FEF3C7;color:#92400E;font-weight:600;margin-left:6px"></span></div>
+        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Visualisez qui a saisi ses indispos · Les cases rouges = MARs sans saisie</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary" onclick="notifierConflitsPanel()" id="btnNotifConflits" title="Envoyer un email aux MARs ayant des conflits vacances">📧 Notifier conflits</button>
+        <button class="btn-primary" onclick="loadIndispos()" title="Charge l'état des saisies depuis le GSheet">↻ Actualiser</button>
+      </div>
+    </div>
+    <div id="indisposLoading" class="loading"><div class="spinner"></div> Chargement…</div>
+    <div id="indisposContent" style="display:none">
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <span class="card-title">État des saisies par MAR</span>
+          <div style="display:flex;gap:10px;font-size:11px">
+            <span style="color:var(--green)">● Saisi</span>
+            <span style="color:var(--red)">● Non saisi</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="mar-grid" id="marGrid"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Heatmap des semaines de tension</span>
+          <span style="font-size:11px;color:var(--ink-4)">Plus c'est rouge = plus d'absences simultanées</span>
+        </div>
+        <div class="card-body">
+          <div style="overflow-x:auto"><div class="heatmap" id="heatmap"></div></div>
+          <div style="display:flex;gap:8px;margin-top:8px;font-size:10px;color:var(--ink-4);align-items:center">
+            <span>Effectif estimé :</span>
+            <div class="legend-cell heat-ok" style="width:16px;height:16px;border-radius:3px;background:#DCFCE7"></div><span>&gt;75</span>
+            <div style="width:16px;height:16px;border-radius:3px;background:#FEF3C7"></div><span>65–75</span>
+            <div style="width:16px;height:16px;border-radius:3px;background:#FCA5A5"></div><span>&lt;65</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="indisposEmpty" style="padding:40px;text-align:center;color:var(--ink-4)">
+  <div style="font-size:32px;margin-bottom:12px">👥</div>
+  <div style="font-size:14px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Suivi des saisies</div>
+  <div style="font-size:12px;max-width:400px;margin:0 auto;line-height:1.6">
+    Visualisez qui a saisi ses indispos et les semaines de tension.<br>
+    Cliquez <strong>↻ Actualiser</strong> pour charger les données.
+  </div>
+  </div>
+
+  <div class="advanced-bar" style="margin-top:16px">
+    <a href="./indispos.html" class="advanced-link">📅 Saisie indispos (MARs)</a>
+  </div>
 </div>
 
 <!-- ── ÉQUIPE (stub P16 patch 3) ── -->
@@ -686,55 +794,7 @@ if (sessionStorage.getItem('adminCode')) {
       </div>
     </div>
 
-    <!-- Dashboard layout -->
-    <div class="dashboard-layout">
-      <div>
-        <!-- Planning semaine -->
-        <div class="week-card">
-          <div class="week-header">
-            <div class="week-nav">
-              <button class="week-nav-btn" onclick="prevWeek()">←</button>
-              <div class="week-label" id="weekLabel">Chargement…</div>
-              <button class="week-nav-btn" onclick="nextWeek()">→</button>
-            </div>
-            <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
-          </div>
-          <div style="overflow-x:auto">
-            <div class="week-grid" id="weekGrid">
-              <div style="padding:40px;text-align:center;color:var(--ink-4);grid-column:1/-1">Chargement…</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Sidebar -->
-      <div class="sidebar">
-        <div class="sidebar-card">
-          <div class="sidebar-header">
-            <span class="sidebar-title">Modifications à venir</span>
-            <button onclick="loadOverrides()" style="font-size:10px;background:none;border:none;color:var(--ink-4);cursor:pointer">↻</button>
-          </div>
-          <div class="sidebar-body" id="overridesBody">
-            <div class="loading"><div class="spinner"></div></div>
-          </div>
-        </div>
-        <div class="sidebar-card">
-          <div class="sidebar-header">
-            <span class="sidebar-title">État du cycle</span>
-            <button onclick="loadCycleStatus()" style="font-size:10px;background:none;border:none;color:var(--ink-4);cursor:pointer">↻</button>
-          </div>
-          <div class="sidebar-body" id="cycleStatusBody">
-            <div class="loading"><div class="spinner"></div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="advanced-bar">
-      <a href="./config.html" class="advanced-link">⚙️ Configuration système</a>
-      <span style="color:var(--line)">|</span>
-      <a href="./indispos.html" class="advanced-link">📅 Saisie indispos (MARs)</a>
-    </div>
   </div>
 
   <!-- ── GARDES ── -->
@@ -822,56 +882,6 @@ if (sessionStorage.getItem('adminCode')) {
   </div>
 
   <!-- ── INDISPOS ── -->
-  <div class="tab-panel" id="panel-indispos">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-      <div>
-        <div style="font-size:16px;font-weight:700">Indisponibilités <span id="indisposYear">—</span> <span id="indisposYearBadge" style="display:none;font-size:11px;padding:2px 8px;border-radius:10px;background:#FEF3C7;color:#92400E;font-weight:600;margin-left:6px"></span></div>
-        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Visualisez qui a saisi ses indispos · Les cases rouges = MARs sans saisie</div>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-secondary" onclick="notifierConflitsPanel()" id="btnNotifConflits" title="Envoyer un email aux MARs ayant des conflits vacances">📧 Notifier conflits</button>
-        <button class="btn-primary" onclick="loadIndispos()" title="Charge l'état des saisies depuis le GSheet">↻ Actualiser</button>
-      </div>
-    </div>
-    <div id="indisposLoading" class="loading"><div class="spinner"></div> Chargement…</div>
-    <div id="indisposContent" style="display:none">
-      <div class="card" style="margin-bottom:20px">
-        <div class="card-header">
-          <span class="card-title">État des saisies par MAR</span>
-          <div style="display:flex;gap:10px;font-size:11px">
-            <span style="color:var(--green)">● Saisi</span>
-            <span style="color:var(--red)">● Non saisi</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="mar-grid" id="marGrid"></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">Heatmap des semaines de tension</span>
-          <span style="font-size:11px;color:var(--ink-4)">Plus c'est rouge = plus d'absences simultanées</span>
-        </div>
-        <div class="card-body">
-          <div style="overflow-x:auto"><div class="heatmap" id="heatmap"></div></div>
-          <div style="display:flex;gap:8px;margin-top:8px;font-size:10px;color:var(--ink-4);align-items:center">
-            <span>Effectif estimé :</span>
-            <div class="legend-cell heat-ok" style="width:16px;height:16px;border-radius:3px;background:#DCFCE7"></div><span>&gt;75</span>
-            <div style="width:16px;height:16px;border-radius:3px;background:#FEF3C7"></div><span>65–75</span>
-            <div style="width:16px;height:16px;border-radius:3px;background:#FCA5A5"></div><span>&lt;65</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div id="indisposEmpty" style="padding:40px;text-align:center;color:var(--ink-4)">
-  <div style="font-size:32px;margin-bottom:12px">👥</div>
-  <div style="font-size:14px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Suivi des saisies</div>
-  <div style="font-size:12px;max-width:400px;margin:0 auto;line-height:1.6">
-    Visualisez qui a saisi ses indispos et les semaines de tension.<br>
-    Cliquez <strong>↻ Actualiser</strong> pour charger les données.
-  </div>
-</div>
-  </div>
 
   <!-- ── VACANCES ── -->
   <div class="tab-panel" id="panel-planning-vac">
