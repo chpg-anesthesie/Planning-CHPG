@@ -661,6 +661,60 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .diag-ok { color:var(--green); }
 .diag-warn { color:var(--orange); }
 .diag-err { color:var(--red); }
+
+/* ── PLANNING V2 ── */
+.plan-toolbar { background:var(--white); border-bottom:1px solid var(--line); padding:10px 20px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:-24px -32px 20px; }
+.plan-layout { display:grid; grid-template-columns:1fr 320px; gap:16px; transition:grid-template-columns .25s; }
+.plan-layout.no-panel { grid-template-columns:1fr 0; }
+.plan-grid-wrap { min-width:0; }
+.plan-table { width:100%; border-collapse:collapse; background:var(--white); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); font-size:12px; }
+.plan-th-sector { background:var(--line-light); padding:10px 14px; text-align:left; font-size:10px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:.07em; border-bottom:2px solid var(--line); border-right:1px solid var(--line); position:sticky;left:0;z-index:10;min-width:110px;max-width:110px; }
+.plan-th-day { background:var(--white); padding:6px 4px 4px; text-align:center; border-bottom:2px solid var(--line); border-right:1px solid var(--line); min-width:110px; max-width:130px; vertical-align:top; }
+.plan-th-day:last-child { border-right:none; }
+.plan-th-day.weekend { background:var(--line-light); }
+.plan-th-day.today { background:#FFF8F8; }
+.plan-day-name { font-size:12px; font-weight:700; color:var(--ink); }
+.plan-day-num { font-size:11px; color:var(--ink-3); margin-top:1px; }
+.plan-ampm-labels { display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:5px; }
+.plan-ampm-label { font-size:9px; font-weight:700; text-transform:uppercase; color:var(--white); background:var(--red); border-radius:3px; padding:2px 0; text-align:center; }
+.plan-sector-row { border-bottom:1px solid var(--line); }
+.plan-sector-row:last-child { border-bottom:none; }
+.plan-td-sector { padding:0 10px; background:var(--line-light); border-right:1px solid var(--line); vertical-align:middle; height:56px; position:sticky; left:0; z-index:5; }
+.plan-sector-pill { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; border:1px solid; white-space:nowrap; }
+.plan-td-day { padding:0; border-right:1px solid var(--line); vertical-align:top; height:56px; }
+.plan-td-day:last-child { border-right:none; }
+.plan-td-day.weekend { background:var(--line-light); }
+.plan-td-day.today { background:#FFF8F8; }
+.plan-slot-pair { display:grid; grid-template-columns:1fr 1fr; height:56px; }
+.plan-slot { padding:4px 3px; display:flex; flex-wrap:wrap; gap:2px; align-content:start; border-right:1px solid var(--line-light); min-height:56px; }
+.plan-slot:last-child { border-right:none; }
+.plan-chip { display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; font-family:var(--mono); padding:2px 5px; border-radius:4px; background:var(--line-light); color:var(--ink-2); white-space:nowrap; max-width:48px; overflow:hidden; }
+.plan-chip.guard { background:var(--ink); color:white; }
+.plan-chip.h18 { background:#FEF3C7; color:#92400E; }
+.plan-chip-flash { display:inline-flex; align-items:center; justify-content:center; width:28px; height:20px; border-radius:4px; font-size:13px; border:1.5px dashed #F97316; background:#FFF7ED; color:#F97316; cursor:pointer; animation:chipFlash 1.3s ease-in-out infinite; }
+.plan-chip-flash:hover { transform:scale(1.1); }
+@keyframes chipFlash { 0%,100%{opacity:1;background:#FFF7ED;} 50%{opacity:.45;background:#FFEDD5;} }
+.plan-slot-dash { color:var(--line); font-size:10px; padding:2px; }
+/* Side panel */
+.plan-side-panel { background:var(--white); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow-lg); display:flex; flex-direction:column; max-height:calc(100vh - 200px); overflow:hidden; position:sticky; top:120px; }
+.psp-header { padding:16px 16px 12px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-start; flex-shrink:0; }
+.psp-title { font-size:14px; font-weight:700; color:var(--ink); }
+.psp-sub { font-size:11px; color:var(--ink-3); margin-top:2px; }
+.psp-close { background:none; border:none; font-size:16px; cursor:pointer; color:var(--ink-3); line-height:1; padding:2px; }
+.psp-close:hover { color:var(--ink); }
+#pspContent { flex:1; overflow-y:auto; padding:12px 16px; }
+.psp-group-label { font-size:10px; font-weight:700; color:var(--ink-4); text-transform:uppercase; letter-spacing:.07em; margin:12px 0 6px; }
+.psp-group-label:first-child { margin-top:0; }
+.psp-mar-btn { display:flex; align-items:center; gap:10px; width:100%; padding:9px 12px; border:1px solid var(--line); border-radius:10px; background:var(--white); cursor:pointer; font-family:inherit; transition:all .12s; margin-bottom:6px; text-align:left; }
+.psp-mar-btn:hover { border-color:var(--red); background:var(--red-soft); }
+.psp-mar-btn:hover .psp-mar-id { color:var(--red); }
+.psp-mar-initials { font-family:var(--mono); font-size:11px; background:var(--line-light); border-radius:4px; padding:2px 7px; color:var(--ink-3); flex-shrink:0; }
+.psp-mar-id { font-size:13px; font-weight:600; color:var(--ink); }
+.psp-mar-secteur { font-size:10px; color:var(--ink-4); margin-left:auto; }
+.psp-mar-btn.volant .psp-mar-initials { background:#DBEAFE; color:#1D4ED8; }
+.psp-mar-btn.ctp .psp-mar-initials { background:#F3E8FF; color:#7C3AED; }
+.psp-mar-btn.r .psp-mar-initials { background:#DCFCE7; color:#166534; }
+.psp-footer { padding:12px 16px; border-top:1px solid var(--line); flex-shrink:0; }
 </style>
 <script>
 // Masquer l'overlay immédiatement si un code est en sessionStorage
@@ -753,56 +807,54 @@ if (sessionStorage.getItem('adminCode')) {
 
   <!-- ── PLANNING ── -->
 <div class="tab-panel" id="panel-planning">
-    <!-- Dashboard layout -->
-    <div class="dashboard-layout">
-      <div>
-        <!-- Planning semaine -->
-        <div class="week-card">
-          <div class="week-header">
-            <div class="week-nav">
-              <button class="week-nav-btn" onclick="prevWeek()">←</button>
-              <div class="week-label" id="weekLabel">Chargement…</div>
-              <button class="week-nav-btn" onclick="nextWeek()">→</button>
-              <span class="week-flash-badge" id="flashBadge" style="display:none">⚠️ <span id="flashCount">0</span> case<span id="flashPlural">s</span> à pourvoir</span>
-              <span class="week-validated-badge" id="validatedBadge" style="display:none">✅ Semaine validée</span>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
-              <button class="week-validate-btn" id="btnValiderSemaine" onclick="toggleValiderSemaine()" style="display:none">✅ Valider la semaine</button>
-            </div>
-          </div>
-          <div style="overflow-x:auto">
-            <div class="week-grid" id="weekGrid">
-              <div style="padding:40px;text-align:center;color:var(--ink-4);grid-column:1/-1">Chargement…</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Sidebar -->
-      <div class="sidebar">
-        <div class="sidebar-card">
-          <div class="sidebar-header">
-            <span class="sidebar-title">Modifications à venir</span>
-            <button onclick="loadOverrides()" style="font-size:10px;background:none;border:none;color:var(--ink-4);cursor:pointer">↻</button>
-          </div>
-          <div class="sidebar-body" id="overridesBody">
-            <div class="loading"><div class="spinner"></div></div>
-          </div>
-        </div>
-        <div class="sidebar-card">
-          <div class="sidebar-header">
-            <span class="sidebar-title">État du cycle</span>
-            <button onclick="loadCycleStatus()" style="font-size:10px;background:none;border:none;color:var(--ink-4);cursor:pointer">↻</button>
-          </div>
-          <div class="sidebar-body" id="cycleStatusBody">
-            <div class="loading"><div class="spinner"></div></div>
-          </div>
-        </div>
+  <!-- TOOLBAR SEMAINE -->
+  <div class="plan-toolbar">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="week-nav-btn" onclick="prevWeek()">←</button>
+      <span class="week-label" id="weekLabel">Chargement…</span>
+      <button class="week-nav-btn" onclick="nextWeek()">→</button>
+      <span class="week-flash-badge" id="flashBadge" style="display:none">⚠️ <span id="flashCount">0</span> case<span id="flashPlural">s</span> à pourvoir</span>
+      <span class="week-validated-badge" id="validatedBadge" style="display:none">✅ Validée</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
+      <button class="week-validate-btn" id="btnValiderSemaine" onclick="toggleValiderSemaine()" style="display:none">✅ Valider la semaine</button>
+    </div>
+  </div>
+
+  <!-- LAYOUT : grille + panel latéral -->
+  <div class="plan-layout" id="planLayout">
+
+    <!-- GRILLE PLANNING -->
+    <div class="plan-grid-wrap">
+      <div style="overflow-x:auto;">
+        <table class="plan-table" id="planTable">
+          <tbody><tr><td style="padding:40px;text-align:center;color:var(--ink-4);">Chargement…</td></tr></tbody>
+        </table>
       </div>
     </div>
 
-  <!-- Suivi des saisies indispos -->
+    <!-- PANEL LATÉRAL DISPO -->
+    <div class="plan-side-panel" id="planSidePanel" style="display:none;">
+      <div class="psp-header">
+        <div>
+          <div class="psp-title" id="pspTitle">MARs disponibles</div>
+          <div class="psp-sub" id="pspSub">—</div>
+        </div>
+        <button onclick="closeSidePanel()" class="psp-close">✕</button>
+      </div>
+      <div id="pspContent">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+      <div class="psp-footer">
+        <button onclick="closeSidePanel()" style="border:1px solid var(--line);background:var(--white);border-radius:8px;padding:7px 16px;cursor:pointer;font-size:12px;color:var(--ink-3);font-family:inherit;">Laisser vide</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SECTION INDISPOS -->
   <div id="planningIndisposSection" style="margin-top:28px;display:none">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div>
@@ -815,51 +867,16 @@ if (sessionStorage.getItem('adminCode')) {
       </div>
     </div>
     <div id="indisposLoading" class="loading"><div class="spinner"></div> Chargement…</div>
-    <div id="indisposContent" style="display:none">
-      <div class="card" style="margin-bottom:20px">
-        <div class="card-header">
-          <span class="card-title">État des saisies par MAR</span>
-          <div style="display:flex;gap:10px;font-size:11px">
-            <span style="color:var(--green)">● Saisi</span>
-            <span style="color:var(--red)">● Non saisi</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="mar-grid" id="marGrid"></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">Heatmap des semaines de tension</span>
-          <span style="font-size:11px;color:var(--ink-4)">Plus c'est rouge = plus d'absences simultanées</span>
-        </div>
-        <div class="card-body">
-          <div style="overflow-x:auto"><div class="heatmap" id="heatmap"></div></div>
-          <div style="display:flex;gap:8px;margin-top:8px;font-size:10px;color:var(--ink-4);align-items:center">
-            <span>Effectif estimé :</span>
-            <div style="width:16px;height:16px;border-radius:3px;background:#DCFCE7"></div><span>&gt;75%</span>
-            <div style="width:16px;height:16px;border-radius:3px;background:#FEF3C7"></div><span>65–75%</span>
-            <div style="width:16px;height:16px;border-radius:3px;background:#FCA5A5"></div><span>&lt;65%</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div id="indisposEmpty" style="padding:40px;text-align:center;color:var(--ink-4)">
-      <div style="font-size:32px;margin-bottom:12px">👥</div>
-      <div style="font-size:14px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Suivi des saisies</div>
-      <div style="font-size:12px;max-width:400px;margin:0 auto;line-height:1.6">
-        Visualisez qui a saisi ses indispos et les semaines de tension.<br>
-        Cliquez <strong>↻ Actualiser</strong> pour charger les données.
-      </div>
-    </div>
+    <div id="indisposContent" style="display:none"></div>
   </div>
 
-  <div class="advanced-bar" style="margin-top:16px">
-    <a href="./indispos.html" class="advanced-link">📅 Saisie indispos (MARs)</a>
+  <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap;">
+    <a href="indispos.html" class="advanced-link">📅 Saisie indispos (MARs)</a>
   </div>
 </div>
 
 <!-- ── ÉQUIPE ── -->
+
 <div class="tab-panel" id="panel-equipe">
   <div class="page-header">
       <div>
@@ -1437,89 +1454,134 @@ function getWeekDays(weekNum) {
 // ── WEEK RENDER ────────────────────────────────────────────────────────
 function renderWeek() {
   if (!DATA) return;
-  const weeks=getAllWeeks(); if(!weeks.length) return;
-  const wk=weeks[currentWeekIdx]; if(!wk) return;
-  const daySlots=getWeekDays(wk.weekNum);
-  const today=todayStr();
+  const weeks = getAllWeeks(); if (!weeks.length) return;
+  const wk = weeks[currentWeekIdx]; if (!wk) return;
+  const daySlots = getWeekDays(wk.weekNum);
+  const today = todayStr();
 
-  const first=daySlots.find(d=>d); const last=[...daySlots].reverse().find(d=>d);
-  if (first&&last) {
-    const fmt=ds=>new Date(ds).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
-    document.getElementById('weekLabel').textContent=`S${wk.weekNum} · ${fmt(first.date)} – ${fmt(last.date)}`;
-    document.getElementById('statusWeek').textContent=`S${wk.weekNum}`;
+  // Label semaine
+  const first = daySlots.find(d => d);
+  const last  = [...daySlots].reverse().find(d => d);
+  if (first && last) {
+    const fmt = ds => new Date(ds).toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit'});
+    document.getElementById('weekLabel').textContent = `S${wk.weekNum} · ${fmt(first.date)} – ${fmt(last.date)}`;
   }
 
-  const smap={}; SECTORS_DISPLAY.forEach(s=>{smap[s]=Array(7).fill(null).map(()=>({am:[],pm:[]}));});
-  daySlots.forEach((slot,dow)=>{
+  const SECTORS = [
+    {code:'VIS', label:'Viscéral',   bg:'#DBEAFE', fg:'#1D4ED8', brd:'#93C5FD'},
+    {code:'REA', label:'Réa',        bg:'#FEE2E2', fg:'#991B1B', brd:'#FCA5A5'},
+    {code:'ORT', label:'Ortho',      bg:'#F3E8FF', fg:'#6B21A8', brd:'#D8B4FE'},
+    {code:'ORL', label:'ORL',        bg:'#FEF3C7', fg:'#92400E', brd:'#FCD34D'},
+    {code:'END', label:'Endo',       bg:'#DCFCE7', fg:'#166534', brd:'#86EFAC'},
+    {code:'CI',  label:'Cardio/Int', bg:'#FFEDD5', fg:'#9A3412', brd:'#FDBA74'},
+    {code:'RI',  label:'Radio/Int',  bg:'#ECFDF5', fg:'#065F46', brd:'#6EE7B7'},
+    {code:'MAT', label:'Maternité',  bg:'#FCE7F3', fg:'#9D174D', brd:'#F9A8D4'},
+    {code:'DVI', label:'DVI',        bg:'#E0E7FF', fg:'#3730A3', brd:'#A5B4FC'},
+    {code:'CS',  label:'Consult.',   bg:'#F0FDF4', fg:'#166534', brd:'#86EFAC'},
+    {code:'G/RG',label:'Gardes',     bg:'#1E293B', fg:'#fff',    brd:'#1E293B'},
+  ];
+
+  const ABSENT_V2 = new Set(['G','G2','RG','V','F','CTP','R','A']);
+
+  // Construire smap[secteur][dow] = {am:[], pm:[]}
+  const smap = {};
+  SECTORS.forEach(s => { smap[s.code] = Array(7).fill(null).map(() => ({am:[], pm:[]})); });
+
+  daySlots.forEach((slot, dow) => {
     if (!slot) return;
-    slot.month.doctors.forEach(doc=>{
-      const entry=doc.days[slot.dayIdx]||{}; const st=entry.status||'';
-      if(st==='G'||st==='G2') smap['G/RG'][dow].am.push({init:doc.initials,st:'guard',docId:doc.id,date:slot.date});
-      if(st==='18') smap['18h'][dow].am.push({init:doc.initials,st:'h18',docId:doc.id,date:slot.date});
-      if(ABSENT.has(st)) return;
-      const am=entry.morning||''; const amKey=am.startsWith('CS-')?'CS':am;
-      const pm=entry.afternoon||''; const pmKey=pm.startsWith('CS-')?'CS':pm;
-      if(amKey&&smap[amKey]) smap[amKey][dow].am.push({init:doc.initials,st:'',docId:doc.id,date:slot.date});
-      if(pmKey&&smap[pmKey]&&pmKey!==amKey) smap[pmKey][dow].pm.push({init:doc.initials,st:'',docId:doc.id,date:slot.date});
-      const cs=entry.cs||''; if(cs&&smap['CS']) smap['CS'][dow].pm.push({init:doc.initials,st:'',docId:doc.id,date:slot.date});
+    const monthData = slot.sourceMonth || slot.month;
+    monthData.doctors.forEach(doc => {
+      const entry = slot.sourceMonth
+        ? (slot.sourceMonth.doctors.find(d => d.id === doc.id)?.days[slot.dayIdx] || {})
+        : (doc.days[slot.dayIdx] || {});
+      const st = entry.status || '';
+      if (ABSENT_V2.has(st)) {
+        // Gardes : afficher dans G/RG
+        if (st === 'G')  smap['G/RG'][dow].am.push({init:doc.initials, id:doc.id, st:'G'});
+        if (st === 'G2') smap['G/RG'][dow].am.push({init:doc.initials, id:doc.id, st:'G2'});
+        return;
+      }
+      const am = entry.morning || '';
+      const pm = entry.afternoon || '';
+      const amKey = am.startsWith('CS-') ? 'CS' : am;
+      const pmKey = pm.startsWith('CS-') ? 'CS' : pm;
+      if (amKey && smap[amKey]) smap[amKey][dow].am.push({init:doc.initials, id:doc.id, st});
+      if (pmKey && smap[pmKey] && pmKey !== amKey) smap[pmKey][dow].pm.push({init:doc.initials, id:doc.id, st});
     });
   });
 
-  const activeSectors=SECTORS_DISPLAY.filter(s=>smap[s].some(col=>col.am.length>0||col.pm.length>0));
-  let html='';
-  html+='<div class="wg-header-empty"></div>';
-  daySlots.forEach((slot,i)=>{
-    const isWe=slot?(slot.isWeekend||slot.isFerie):true;
-    const isTd=slot?slot.date===today:false;
-    const cls=['wg-day-header',isWe?'weekend':'',isTd?'today':''].filter(Boolean).join(' ');
-    if(!slot){html+=`<div class="${cls}"></div>`;return;}
-    html+=`<div class="${cls}"><div class="wg-day-name">${DAYS_FR[i]}</div><div class="wg-day-num">${slot.day}</div>${slot.isFerie?'<div class="wg-day-jf">JF</div>':''}</div>`;
+  // Secteurs actifs = au moins un slot rempli
+  const activeSectors = SECTORS.filter(s =>
+    s.code === 'G/RG' || smap[s.code].some(d => d.am.length || d.pm.length)
+  );
+
+  // ── EN-TÊTE ──
+  let thead = '<thead><tr>';
+  thead += '<th class="plan-th-sector">SECTEUR</th>';
+  daySlots.forEach((slot, i) => {
+    if (!slot) { thead += '<th class="plan-th-day weekend"></th>'; return; }
+    const isWe = slot.isWeekend || slot.isFerie;
+    const isTd = slot.date === today;
+    const cls  = ['plan-th-day', isWe ? 'weekend' : '', isTd ? 'today' : ''].filter(Boolean).join(' ');
+    thead += `<th class="${cls}">
+      <div class="plan-day-name">${['LUN','MAR','MER','JEU','VEN','SAM','DIM'][i]}</div>
+      <div class="plan-day-num">${slot.day}${slot.isFerie ? ' <span style="font-size:8px;color:#C2410C;font-weight:700">JF</span>' : ''}</div>
+      ${!isWe ? '<div class="plan-ampm-labels"><div class="plan-ampm-label">AM</div><div class="plan-ampm-label">PM</div></div>' : ''}
+    </th>`;
   });
-  activeSectors.forEach(sector=>{
-    html+=`<div class="wg-sector-label">${SECTOR_LABEL[sector]||sector}</div>`;
-    daySlots.forEach((slot,dow)=>{
-      const isWe=slot?(slot.isWeekend||slot.isFerie):true;
-      const isTd=slot?slot.date===today:false;
-      const cls=['wg-cell',isWe?'weekend':'',isTd?'today':''].filter(Boolean).join(' ');
-      html+=`<div class="${cls}">`;
-      if(slot){
-        const amList=smap[sector][dow].am;
-        const pmList=smap[sector][dow].pm;
-        if(!amList.length&&!pmList.length){
-          // Case vide : flash si secteur attendu (pas G/RG/18h)
-          const isFlashable = sector !== 'G/RG' && sector !== '18h';
-          if(isFlashable && slot && !slot.isWeekend && !slot.isFerie){
-            html+=`<div class="wg-cell-inner"><span class="chip-flash" onclick="openDispoPopup('${sector}','${slot.date}')" title="Affecter un MAR">+</span></div>`;
-          } else {
-            html+=`<div class="wg-cell-inner"><span style="color:var(--line);font-size:10px">—</span></div>`;
-          }
+  thead += '</tr></thead>';
+
+  // ── CORPS ──
+  let tbody = '<tbody>';
+  activeSectors.forEach(s => {
+    tbody += `<tr class="plan-sector-row">`;
+    tbody += `<td class="plan-td-sector">
+      <span class="plan-sector-pill" style="background:${s.bg};color:${s.fg};border-color:${s.brd};">${s.label}</span>
+    </td>`;
+
+    daySlots.forEach((slot, dow) => {
+      if (!slot) { tbody += '<td class="plan-td-day weekend"></td>'; return; }
+      const isWe = slot.isWeekend || slot.isFerie;
+      const isTd = slot.date === today;
+      const cls  = ['plan-td-day', isWe ? 'weekend' : '', isTd ? 'today' : ''].filter(Boolean).join(' ');
+      tbody += `<td class="${cls}">`;
+
+      if (isWe) {
+        // Weekend : afficher les gardes uniquement
+        const names = smap[s.code][dow].am;
+        tbody += '<div style="display:flex;flex-wrap:wrap;gap:3px;padding:6px;align-items:center;height:56px;">';
+        if (names.length) {
+          names.forEach(p => {
+            const chipCls = (p.st==='G'||p.st==='G2') ? 'plan-chip guard' : 'plan-chip';
+            tbody += `<span class="${chipCls}" title="${p.id}">${p.init}</span>`;
+          });
         } else {
-          if(amList.length){
-            html+=`<div style="display:flex;align-items:center;gap:2px;padding:2px 3px">`;
-            html+=`<span style="font-size:8px;font-weight:700;color:var(--ink-4);width:14px;flex-shrink:0">AM</span>`;
-            html+=`<div style="display:flex;flex-wrap:wrap;gap:1px">`;
-            amList.forEach(p=>{
-              const chipCls=p.st==='guard'?'chip guard':p.st==='h18'?'chip h18':'chip';
-              html+=`<span class="${chipCls}" onclick="openPanelForDoc('${p.docId}','${slot.date}')" title="${p.docId}">${p.init}</span>`;
-            });
-            html+=`</div></div>`;
-          }
-          if(pmList.length){
-            if(amList.length) html+=`<div style="height:1px;background:var(--line-light);margin:0 3px"></div>`;
-            html+=`<div style="display:flex;align-items:center;gap:2px;padding:2px 3px">`;
-            html+=`<span style="font-size:8px;font-weight:700;color:var(--ink-4);width:14px;flex-shrink:0">PM</span>`;
-            html+=`<div style="display:flex;flex-wrap:wrap;gap:1px">`;
-            pmList.forEach(p=>{
-              html+=`<span class="chip" onclick="openPanelForDoc('${p.docId}','${slot.date}')" title="${p.docId}">${p.init}</span>`;
-            });
-            html+=`</div></div>`;
-          }
+          tbody += `<span class="plan-slot-dash">—</span>`;
         }
+        tbody += '</div>';
+      } else {
+        const amList = smap[s.code][dow].am;
+        const pmList = smap[s.code][dow].pm;
+        const makeChips = arr => arr.map(p => {
+          const chipCls = (p.st==='G'||p.st==='G2') ? 'plan-chip guard' : p.st==='18' ? 'plan-chip h18' : 'plan-chip';
+          return `<span class="${chipCls}" title="${p.id}">${p.init}</span>`;
+        }).join('');
+        const flashBtn = (slot && s.code !== 'G/RG')
+          ? `<span class="plan-chip-flash" onclick="openSidePanel('${s.code}','${slot.date}','${s.label}')" title="Affecter un MAR">+</span>`
+          : '';
+
+        tbody += '<div class="plan-slot-pair">';
+        tbody += `<div class="plan-slot">${amList.length ? makeChips(amList) : (s.code !== 'G/RG' ? flashBtn : '<span class="plan-slot-dash">—</span>')}</div>`;
+        tbody += `<div class="plan-slot">${pmList.length ? makeChips(pmList) : (s.code !== 'G/RG' ? flashBtn : '<span class="plan-slot-dash">—</span>')}</div>`;
+        tbody += '</div>';
       }
-      html+=`</div>`;
+      tbody += '</td>';
     });
+    tbody += '</tr>';
   });
-  document.getElementById('weekGrid').innerHTML=html;
+  tbody += '</tbody>';
+
+  document.getElementById('planTable').innerHTML = thead + tbody;
   updateFlashBadge();
   updateValidationBadge();
 }
@@ -1529,19 +1591,17 @@ function nextWeek(){const w=getAllWeeks();if(currentWeekIdx<w.length-1){currentW
 
 // ── FLASH BADGE ───────────────────────────────────────────────────────
 function updateFlashBadge() {
-  const chips = document.querySelectorAll('.chip-flash');
+  const chips = document.querySelectorAll('.plan-chip-flash');
   const n = chips.length;
   const badge = document.getElementById('flashBadge');
-  const btnVal = document.getElementById('btnValiderSemaine');
   if (badge) {
+    badge.style.display = n > 0 ? 'inline-flex' : 'none';
     if (n > 0) {
-      badge.style.display = 'inline-flex';
       document.getElementById('flashCount').textContent = n;
       document.getElementById('flashPlural').textContent = n > 1 ? 's' : '';
-    } else {
-      badge.style.display = 'none';
     }
   }
+  const btnVal = document.getElementById('btnValiderSemaine');
   if (btnVal) btnVal.style.display = 'inline-block';
 }
 
@@ -1551,7 +1611,6 @@ function updateValidationBadge() {
   const weeks = getAllWeeks();
   const wk = weeks[currentWeekIdx];
   if (!wk) return;
-  // Chercher si cette semaine est validée dans le JSON
   let validated = false;
   for (const month of DATA.months) {
     if (!month.weeks) continue;
@@ -1559,11 +1618,11 @@ function updateValidationBadge() {
     if (wkInfo) { validated = wkInfo.validated; break; }
   }
   const vBadge = document.getElementById('validatedBadge');
-  const btn = document.getElementById('btnValiderSemaine');
+  const btn    = document.getElementById('btnValiderSemaine');
   if (vBadge) vBadge.style.display = validated ? 'inline-flex' : 'none';
   if (btn) {
-    btn.textContent = validated ? '↩ Dé-valider' : '✅ Valider la semaine';
-    btn.className = validated ? 'week-validate-btn validated' : 'week-validate-btn';
+    btn.textContent  = validated ? '↩ Dé-valider' : '✅ Valider la semaine';
+    btn.className    = validated ? 'week-validate-btn validated' : 'week-validate-btn';
   }
 }
 
@@ -1586,7 +1645,6 @@ async function toggleValiderSemaine() {
     const res = await api({action:'validerSemaine', year: ADMIN_YEAR, isoWeek: wk.weekNum, valide: newVal});
     if (!res.success) throw new Error(res.error);
     showToast(newVal ? `✅ Semaine ${wk.weekNum} validée — publiée sur index.html` : `↩ Semaine ${wk.weekNum} dévalidée`);
-    // Recharger le planning pour avoir le JSON à jour
     await loadPlanningData();
     renderWeek();
   } catch(e) {
@@ -1596,74 +1654,78 @@ async function toggleValiderSemaine() {
   }
 }
 
-// ── POPUP DISPO (combler case flash) ─────────────────────────────────
-let _dispoCtx = null;
+// ── SIDE PANEL DISPO ─────────────────────────────────────────────────
+let _sideCtx = null;
 
-async function openDispoPopup(sector, date) {
-  _dispoCtx = {sector, date};
-  // Créer overlay si pas existant
-  let overlay = document.getElementById('dispoOverlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'dispoOverlay';
-    overlay.className = 'dispo-overlay';
-    overlay.innerHTML = `
-      <div class="dispo-box" onclick="event.stopPropagation()">
-        <div class="dispo-title" id="dispoTitle">Affecter un MAR</div>
-        <div class="dispo-sub" id="dispoSub">—</div>
-        <div id="dispoGroups"><div class="spinner" style="margin:20px auto;display:block;"></div></div>
-        <div style="margin-top:16px;display:flex;justify-content:flex-end;">
-          <button onclick="closeDispoPopup()" style="border:1px solid var(--line);background:var(--white);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px;color:var(--ink-3);font-family:inherit;">Laisser vide</button>
-        </div>
-      </div>`;
-    overlay.addEventListener('click', e => { if(e.target===overlay) closeDispoPopup(); });
-    document.body.appendChild(overlay);
-  }
-  overlay.style.display = 'flex';
-  document.getElementById('dispoTitle').textContent = 'Affecter un MAR';
-  document.getElementById('dispoSub').innerHTML = `<span style="font-weight:600">${sector}</span> · ${new Date(date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}`;
-  document.getElementById('dispoGroups').innerHTML = '<div class="spinner" style="margin:20px auto;display:block;"></div>';
+async function openSidePanel(sector, date, sectorLabel) {
+  _sideCtx = {sector, date, sectorLabel};
+  const panel  = document.getElementById('planSidePanel');
+  const layout = document.getElementById('planLayout');
+  panel.style.display = 'flex';
+  layout.classList.remove('no-panel');
+
+  document.getElementById('pspTitle').textContent = `Affecter en ${sectorLabel}`;
+  document.getElementById('pspSub').textContent   =
+    new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+  document.getElementById('pspContent').innerHTML =
+    '<div class="loading"><div class="spinner"></div></div>';
 
   try {
     const res = await api({action:'getMARsDispoJour', date});
     if (!res.success) throw new Error(res.error);
-    renderDispoGroups(res.dispo, sector);
+    renderSidePanelContent(res.dispo, sector);
   } catch(e) {
-    document.getElementById('dispoGroups').innerHTML = `<div style="color:var(--red);font-size:12px;padding:12px 0;">Erreur : ${e.message}</div>`;
+    document.getElementById('pspContent').innerHTML =
+      `<div style="color:var(--red);font-size:12px;padding:12px 0;">Erreur : ${e.message}</div>`;
   }
 }
 
-function renderDispoGroups(dispo, sector) {
-  const ROLE_STYLE = {
-    VOLANT: {bg:'#DBEAFE', fg:'#1D4ED8', label:'Volants'},
-    PRESENT:{bg:'#F1F5F9', fg:'#334155', label:'Présents dans secteur'},
-  };
-  const groups = {};
+function renderSidePanelContent(dispo, sector) {
+  const GROUPS = [
+    {key:'VOLANT',  label:'Volants disponibles',     cls:'volant'},
+    {key:'PRESENT', label:'Présents dans un secteur', cls:''},
+    {key:'CTP',     label:'CTP (dernier recours)',    cls:'ctp'},
+    {key:'R',       label:'Récup (dernier recours)',  cls:'r'},
+  ];
+  // Note: CTP et R sont dans ABSENT_CODES donc pas dans dispo.
+  // On affiche uniquement VOLANT et PRESENT (ceux qui sont libres ce jour).
+  const byRole = {};
   dispo.forEach(m => {
-    if (!groups[m.role]) groups[m.role] = [];
-    groups[m.role].push(m);
+    if (!byRole[m.role]) byRole[m.role] = [];
+    byRole[m.role].push(m);
   });
+
   let html = '';
-  ['VOLANT','PRESENT'].forEach(role => {
-    if (!groups[role]?.length) return;
-    const rs = ROLE_STYLE[role];
-    html += `<div class="dispo-group-label">${rs.label}</div><div class="dispo-mars">`;
-    groups[role].forEach(m => {
-      html += `<button class="dispo-mar-btn"
-        style="background:${rs.bg};color:${rs.fg};"
-        onclick="placeMAR('${m.id}','${_dispoCtx.sector}','${_dispoCtx.date}')"
-        title="${m.id}">${m.id.length <= 6 ? m.id : m.id.slice(0,6)}</button>`;
+  GROUPS.forEach(g => {
+    const mars = byRole[g.key];
+    if (!mars?.length) return;
+    html += `<div class="psp-group-label">${g.label}</div>`;
+    mars.forEach(m => {
+      html += `<button class="psp-mar-btn ${g.cls}" onclick="placeMAR('${m.id}')">
+        <span class="psp-mar-initials">${m.id.slice(0,3)}</span>
+        <span class="psp-mar-id">${m.id}</span>
+        <span class="psp-mar-secteur">${m.secteur}</span>
+      </button>`;
     });
-    html += '</div>';
   });
-  if (!html) html = '<div style="text-align:center;color:var(--ink-4);padding:16px 0;font-size:13px;">Aucun MAR disponible ce jour</div>';
-  document.getElementById('dispoGroups').innerHTML = html;
+
+  if (!html) {
+    html = '<div style="text-align:center;color:var(--ink-4);padding:20px 0;font-size:13px;">Aucun MAR disponible ce jour</div>';
+  }
+  document.getElementById('pspContent').innerHTML = html;
 }
 
-async function placeMAR(marId, sector, date) {
-  closeDispoPopup();
+async function placeMAR(marId) {
+  if (!_sideCtx) return;
+  const {sector, date} = _sideCtx;
+  closeSidePanel();
   try {
-    const res = await api({action:'savePlanningOverride', date, marId, morning: sector, afternoon: sector, comment:`Comité — ${sector}`});
+    const res = await api({
+      action:'savePlanningOverride',
+      date, marId,
+      morning: sector, afternoon: sector,
+      comment: `Comité — ${sector}`
+    });
     if (!res.success) throw new Error(res.error);
     showToast(`✅ ${marId} affecté en ${sector} le ${date}`);
     await loadPlanningData();
@@ -1673,10 +1735,16 @@ async function placeMAR(marId, sector, date) {
   }
 }
 
+function closeSidePanel() {
+  const panel  = document.getElementById('planSidePanel');
+  const layout = document.getElementById('planLayout');
+  if (panel)  panel.style.display = 'none';
+  if (layout) layout.classList.add('no-panel');
+  _sideCtx = null;
+}
+
 function closeDispoPopup() {
-  const overlay = document.getElementById('dispoOverlay');
-  if (overlay) overlay.style.display = 'none';
-  _dispoCtx = null;
+  closeSidePanel();
 }
 
 // ── OVERRIDES ──────────────────────────────────────────────────────────
