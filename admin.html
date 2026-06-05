@@ -683,7 +683,7 @@ if (sessionStorage.getItem('adminCode')) {
   </div>
   <div class="header-right">
     <a href="./index.html" class="header-link">← Voir le planning</a>
-    <a href="./config.html" class="header-link">⚙️ Config</a>
+    
   </div>
 </div>
 
@@ -1075,28 +1075,6 @@ if (sessionStorage.getItem('adminCode')) {
 
   <!-- ── INDISPOS ── -->
 
-  <!-- ── VACANCES ── -->
-  <div class="tab-panel" id="panel-planning-vac">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-      <div>
-        <div style="font-size:16px;font-weight:700">Validation vacances <span id="vacancesYear">—</span></div>
-        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Statut des souhaits par période et par MAR</div>
-      </div>
-      <button class="btn-primary" onclick="loadVacances()" title="Calcule le statut des demandes de congés selon les groupes A/B/C et les seuils">↻ Actualiser</button>
-    </div>
-    <div id="vacLoading" class="loading"><div class="spinner"></div> Chargement…</div>
-    <div id="vacContent" style="display:none"></div>
-    <div id="vacEmpty" style="padding:40px;text-align:center;color:var(--ink-4)">
-  <div style="font-size:32px;margin-bottom:12px">🏖️</div>
-  <div style="font-size:14px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Validation des vacances</div>
-  <div style="font-size:12px;max-width:400px;margin:0 auto;line-height:1.6">
-    Vérifiez les demandes de congés par période et par MAR.<br>
-    Statuts : <strong style="color:var(--green)">Validé</strong> · <strong style="color:var(--orange)">Partiel</strong> · <strong style="color:var(--red)">Refusé</strong><br>
-    Cliquez <strong>↻ Actualiser</strong> pour charger les données.
-  </div>
-</div>
-  </div>
-
   <!-- ── DIAGNOSTIC ── -->
 <!-- /main -->
 
@@ -1258,21 +1236,6 @@ function showTab(name) {
   document.getElementById('tab-'+name).classList.add('active');
   if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations(ADMIN_YEAR);
   if (name==='equipe') loadEquipe();
-  if (name==='gardes') {
-    loadStats(ADMIN_YEAR);
-    // Désactiver génération gardes seulement si YEAR+1 est déjà sanctuarisé (≤2026)
-    const btnGen = document.getElementById('btnGenerate');
-    if (YEAR+1 <= 2026) {
-      btnGen.disabled = true;
-      btnGen.title = 'GARDES_2026 est sanctuarisé — génération désactivée';
-      btnGen.innerHTML = '🔒 Gardes figées (' + YEAR + ')';
-    } else {
-      btnGen.disabled = false;
-      btnGen.title = '';
-      btnGen.innerHTML = '⚡ Générer les gardes ' + (YEAR+1);
-    }
-  }
-  if (name==='maintenance') { initMaintenance(); }
   if (name==='equite') loadStats(ADMIN_YEAR);
 }
 
@@ -2451,10 +2414,10 @@ function renderWizStep() {
         <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">
           ${inactifs.map(m=>`<span style="padding:2px 8px;background:#FDE68A;border-radius:12px;font-weight:700">${m.initiales} — ${m.nom}</span>`).join('')}
         </div>
-        <div style="margin-top:6px">S'ils doivent participer au planning ${nextYear}, activez-les dans <strong>config.html → Équipe</strong> avant de continuer.</div>
+        <div style="margin-top:6px">S'ils doivent participer au planning ${nextYear}, activez-les dans <strong>admin.html → Équipe</strong> avant de continuer.</div>
       </div>`;
     }
-    html += `<div style="margin-top:12px;font-size:12px;color:var(--ink-3)">Pour modifier un MAR, fermez ce wizard et allez dans <strong>config.html → Équipe</strong>.</div>`;
+    html += `<div style="margin-top:12px;font-size:12px;color:var(--ink-3)">Pour modifier un MAR, fermez ce wizard et allez dans <strong>l'onglet Équipe</strong>.</div>`;
 
   } else if (wizCurrentStep === 1) {
     // ÉTAPE 2 — Périodes vacances
@@ -2528,7 +2491,7 @@ function renderWizStep() {
       </tr>`;
     });
     html += `</tbody></table>`;
-    html += `<div style="margin-top:10px;font-size:11px;color:var(--ink-4)">Le groupe listé en premier obtient ses congés en priorité. Pour changer un MAR de groupe → <strong>config.html → Vacances</strong>.</div>`;
+    html += `<div style="margin-top:10px;font-size:11px;color:var(--ink-4)">Le groupe listé en premier obtient ses congés en priorité. Pour changer un MAR de groupe → onglet <strong>Équipe</strong>.</div>`;
 
   } else if (wizCurrentStep === 3) {
     // ÉTAPE 4 — Récapitulatif + Lancement
@@ -2576,7 +2539,7 @@ function collectPeriodes() {
 }
 
 function collectGroupes() {
-  // Groupes sont read-only dans le wizard pour l'instant — modifiables dans config.html
+  // Groupes sont read-only dans le wizard pour l'instant — modifiables dans l'onglet Équipe
 }
 
 async function launchWizard() {
@@ -2812,7 +2775,7 @@ async function renderWizGStep() {
     let html = '<div class="wizard-section-title">Périodes de vacances ' + INDISPOS_YEAR + ' — validation</div>';
     html += '<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">Vérifiez que les seuils de présence sont respectés avant de lancer.</div>';
     if (!wizGVacData.length) {
-      html += '<div class="wizard-warning">⚠️ Aucune période configurée. Vérifiez config.html → Vacances.</div>';
+      html += '<div class="wizard-warning">⚠️ Aucune période configurée. Vérifiez admin.html → Équipe.</div>';
     } else {
       html += '<table class="wiz-periodes"><thead><tr><th>Période</th><th>Dates</th><th>Seuil</th><th>Statut</th></tr></thead><tbody>';
       wizGVacData.forEach(p => {
@@ -2830,7 +2793,7 @@ async function renderWizGStep() {
       });
       html += '</tbody></table>';
     }
-    html += '<div style="margin-top:14px;font-size:12px;color:var(--ink-3)">Pour modifier, fermez et allez dans <strong>config.html → Vacances</strong>.</div>';
+    html += '<div style="margin-top:14px;font-size:12px;color:var(--ink-3)">Pour modifier, fermez et allez dans <strong>admin.html → Équipe</strong>.</div>';
     body.innerHTML = html;
 
   } else if (wizGCurrentStep === 2) {
@@ -3710,7 +3673,7 @@ async function openWizardDepart() {
   document.getElementById('wizDNextBtn').disabled = false;
   document.getElementById('wizDNextBtn').style.display = '';
   document.getElementById('wizDNextBtn').textContent = 'Suivant →';
-  // Charger la liste des MARs depuis l'API (marData n'existe pas dans config.html)
+  // Charger la liste des MARs depuis l'API (marData n'existe pas dans l'onglet Équipe)
   try {
     const d = await api({action:'getMedecins'});
     if (d.success) wizDMarsData = d.medecins.filter(m => m.actif);
@@ -3790,7 +3753,7 @@ async function renderWizDStep() {
     html += '<div style="font-size:14px;font-weight:700;margin-bottom:4px">' + (mar?.nom||'') + ' (' + (mar?.initiales||'') + ')</div>';
     html += '<div style="font-size:12px;color:var(--ink-3)">Le MAR sera passé à ACTIF = N dans l\'onglet MEDECINS.<br>Il n\'apparaîtra plus dans les générations futures.</div>';
     html += '</div>';
-    html += '<div class="wizard-warning" style="background:#fef3c7;border-left:3px solid #f59e0b;color:#92400e">⚠️ Cette action est réversible depuis config.html → Équipe (réactiver le MAR).</div>';
+    html += '<div class="wizard-warning" style="background:#fef3c7;border-left:3px solid #f59e0b;color:#92400e">⚠️ Cette action est réversible depuis admin.html → Équipe (réactiver le MAR).</div>';
     body.innerHTML = html;
 
   } else if (wizDStep === 3) {
