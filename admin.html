@@ -799,6 +799,9 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .ann-step-badge.orange { background:var(--orange-soft); color:var(--orange); }
 .ann-step-badge.blue { background:var(--blue-soft); color:var(--blue); }
 .ann-step-badge.green { background:var(--green-soft); color:var(--green); }
+
+.plan-chip.cs-chip { background:#F0FDF4; color:#166534; border:1px solid #86EFAC; max-width:60px; }
+.cs-sub { font-size:8px; color:#166534; margin-left:2px; opacity:.8; }
 </style>
 <script>
 // Masquer l'overlay immédiatement si un code est en sessionStorage
@@ -1546,17 +1549,27 @@ function renderWeek() {
         : (doc.days[slot.dayIdx] || {});
       const st = entry.status || '';
       if (ABSENT_V2.has(st)) {
-        // Gardes : afficher dans G/RG
         if (st === 'G')  smap['G/RG'][dow].am.push({init:doc.initials, id:doc.id, st:'G'});
         if (st === 'G2') smap['G/RG'][dow].am.push({init:doc.initials, id:doc.id, st:'G2'});
         return;
       }
-      const am = entry.morning || '';
+      const am = entry.morning   || '';
       const pm = entry.afternoon || '';
-      const amKey = am.startsWith('CS-') ? 'CS' : am;
-      const pmKey = pm.startsWith('CS-') ? 'CS' : pm;
-      if (amKey && smap[amKey]) smap[amKey][dow].am.push({init:doc.initials, id:doc.id, st});
-      if (pmKey && smap[pmKey] && pmKey !== amKey) smap[pmKey][dow].pm.push({init:doc.initials, id:doc.id, st});
+      // CS : afficher l'initiale + le sous-label (ex: CS-VIS → "VIS")
+      const amKey  = am.startsWith('CS-') ? 'CS' : am;
+      const pmKey  = pm.startsWith('CS-') ? 'CS' : pm;
+      const amSub  = am.startsWith('CS-') ? am.split('-')[1] : '';
+      const pmSub  = pm.startsWith('CS-') ? pm.split('-')[1] : '';
+      // AM : toujours pousser si secteur connu
+      if (amKey && smap[amKey]) smap[amKey][dow].am.push({init:doc.initials, id:doc.id, st, sub:amSub});
+      // PM : toujours pousser, même si même secteur qu'AM
+      if (pmKey && smap[pmKey]) smap[pmKey][dow].pm.push({init:doc.initials, id:doc.id, st, sub:pmSub});
+      // CS entry.cs (consultation explicite)
+      const cs = entry.cs || '';
+      if (cs && smap['CS']) {
+        const csSub = cs.includes('-') ? cs.split('-')[1] : '';
+        smap['CS'][dow].am.push({init:doc.initials, id:doc.id, st, sub:csSub});
+      }
     });
   });
 
@@ -1613,8 +1626,9 @@ function renderWeek() {
         const amList = smap[s.code][dow].am;
         const pmList = smap[s.code][dow].pm;
         const makeChips = arr => arr.map(p => {
-          const chipCls = (p.st==='G'||p.st==='G2') ? 'plan-chip guard' : p.st==='18' ? 'plan-chip h18' : 'plan-chip';
-          return `<span class="${chipCls}" title="${p.id}">${p.init}</span>`;
+          const chipCls = (p.st==='G'||p.st==='G2') ? 'plan-chip guard' : p.st==='18' ? 'plan-chip h18' : (p.sub ? 'plan-chip cs-chip' : 'plan-chip');
+          const label = p.sub ? `${p.init}<span class="cs-sub">${p.sub}</span>` : p.init;
+          return `<span class="${chipCls}" title="${p.id}">${label}</span>`;
         }).join('');
         const flashBtn = (slot && s.code !== 'G/RG')
           ? `<span class="plan-chip-flash" onclick="openSidePanel('${s.code}','${slot.date}','${s.label}')" title="Affecter un MAR">+</span>`
@@ -1709,25 +1723,26 @@ let _sideCtx = null;
 
 async function openSidePanel(sector, date, sectorLabel) {
   _sideCtx = {sector, date, sectorLabel};
-  const panel  = document.getElementById('planSidePanel');
-  const layout = document.getElementById('planLayout');
-  panel.style.display = 'flex';
-  layout.classList.remove('no-panel');
+  const dispoCard   = document.getElementById('dispoCard');
+  const actionsCard = document.getElementById('actionsCard');
+  if (dispoCard)   { dispoCard.style.display = 'flex'; dispoCard.style.flexDirection = 'column'; }
+  if (actionsCard)  actionsCard.style.display = 'none';
 
   document.getElementById('pspTitle').textContent = `Affecter en ${sectorLabel}`;
-  document.getElementById('pspSub').textContent   =
+  document.getElementById('pspSub').textContent =
     new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
   document.getElementById('pspContent').innerHTML =
     '<div class="loading"><div class="spinner"></div></div>';
 
-  try {
-    const res = await api({action:'getMARsDispoJour', date});
-    if (!res.success) throw new Error(res.error);
-    renderSidePanelContent(res.dispo, sector);
-  } catch(e) {
-    document.getElementById('pspContent').innerHTML =
-      `<div style="color:var(--red);font-size:12px;padding:12px 0;">Erreur : ${e.message}</div>`;
-  }
+  api({action:'getMARsDispoJour', date})
+    .then(res => {
+      if (!res.success) throw new Error(res.error);
+      renderSidePanelContent(res.dispo, sector);
+    })
+    .catch(e => {
+      document.getElementById('pspContent').innerHTML =
+        `<div style="color:var(--red);font-size:12px;padding:12px 0;">Erreur : ${e.message}</div>`;
+    });
 }
 
 function renderSidePanelContent(dispo, sector) {
@@ -1786,10 +1801,10 @@ async function placeMAR(marId) {
 }
 
 function closeSidePanel() {
-  const panel  = document.getElementById('planSidePanel');
-  const layout = document.getElementById('planLayout');
-  if (panel)  panel.style.display = 'none';
-  if (layout) layout.classList.add('no-panel');
+  const dispoCard   = document.getElementById('dispoCard');
+  const actionsCard = document.getElementById('actionsCard');
+  if (dispoCard)   dispoCard.style.display   = 'none';
+  if (actionsCard) actionsCard.style.display = 'block';
   _sideCtx = null;
 }
 
