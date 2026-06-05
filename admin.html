@@ -715,6 +715,90 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .psp-mar-btn.ctp .psp-mar-initials { background:#F3E8FF; color:#7C3AED; }
 .psp-mar-btn.r .psp-mar-initials { background:#DCFCE7; color:#166534; }
 .psp-footer { padding:12px 16px; border-top:1px solid var(--line); flex-shrink:0; }
+
+/* ── PLANNING V2 ─────────────────────────────────────────────────── */
+.plan-page { display:flex; flex-direction:column; }
+.plan-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; background:var(--white); border-bottom:1px solid var(--line); padding:10px 0 12px; margin-bottom:16px; }
+.plan-main-layout { display:grid; grid-template-columns:1fr 290px; gap:16px; align-items:start; }
+.plan-left { min-width:0; }
+.plan-table { width:100%; border-collapse:collapse; background:var(--white); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); font-size:12px; }
+.plan-th-sector { background:var(--line-light); padding:10px 12px; text-align:left; font-size:10px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:.07em; border-bottom:2px solid var(--line); border-right:1px solid var(--line); position:sticky; left:0; z-index:10; min-width:96px; max-width:96px; }
+.plan-th-day { background:var(--white); padding:6px 4px 4px; text-align:center; border-bottom:2px solid var(--line); border-right:1px solid var(--line); min-width:96px; vertical-align:top; }
+.plan-th-day:last-child { border-right:none; }
+.plan-th-day.weekend { background:var(--line-light); }
+.plan-th-day.today { background:#FFF8F8; }
+.plan-day-name { font-size:12px; font-weight:700; color:var(--ink); }
+.plan-day-num { font-size:11px; color:var(--ink-3); margin-top:1px; }
+.plan-ampm-labels { display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:5px; }
+.plan-ampm-label { font-size:9px; font-weight:700; text-transform:uppercase; color:var(--white); background:var(--red); border-radius:3px; padding:2px 0; text-align:center; }
+.plan-sector-row { border-bottom:1px solid var(--line); }
+.plan-sector-row:last-child { border-bottom:none; }
+.plan-td-sector { padding:0 8px; background:var(--line-light); border-right:1px solid var(--line); vertical-align:middle; height:52px; position:sticky; left:0; z-index:5; }
+.plan-sector-pill { display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:700; border:1px solid; white-space:nowrap; }
+.plan-td-day { padding:0; border-right:1px solid var(--line); vertical-align:top; height:52px; }
+.plan-td-day:last-child { border-right:none; }
+.plan-td-day.weekend { background:var(--line-light); }
+.plan-td-day.today { background:#FFF8F8; }
+.plan-slot-pair { display:grid; grid-template-columns:1fr 1fr; height:52px; }
+.plan-slot { padding:3px; display:flex; flex-wrap:wrap; gap:2px; align-content:start; border-right:1px solid var(--line-light); }
+.plan-slot:last-child { border-right:none; }
+.plan-chip { display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; font-family:var(--mono); padding:2px 4px; border-radius:3px; background:var(--line-light); color:var(--ink-2); white-space:nowrap; max-width:46px; overflow:hidden; cursor:default; }
+.plan-chip.guard { background:var(--ink); color:white; }
+.plan-chip.h18 { background:#FEF3C7; color:#92400E; }
+.plan-chip-flash { display:inline-flex; align-items:center; justify-content:center; width:24px; height:18px; border-radius:3px; font-size:13px; border:1.5px dashed #F97316; background:#FFF7ED; color:#F97316; cursor:pointer; animation:planFlash 1.3s ease-in-out infinite; }
+.plan-chip-flash:hover { transform:scale(1.12); animation:none; background:#FFEDD5; }
+@keyframes planFlash { 0%,100%{opacity:1;background:#FFF7ED;} 50%{opacity:.4;background:#FFEDD5;} }
+.plan-slot-dash { color:var(--line); font-size:9px; padding:1px; }
+/* Badges toolbar */
+.week-flash-badge { display:inline-flex; align-items:center; gap:5px; background:#FFF7ED; border:1px solid #FED7AA; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:600; color:#C2410C; }
+.week-validated-badge { display:inline-flex; align-items:center; gap:5px; background:#DCFCE7; border:1px solid #86EFAC; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:600; color:#166534; }
+.week-validate-btn { background:var(--green); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:11px; font-weight:700; cursor:pointer; transition:opacity .15s; font-family:'DM Sans',sans-serif; }
+.week-validate-btn:hover { opacity:.88; }
+.week-validate-btn.validated { background:#166534; }
+/* Side panel */
+.plan-right { position:sticky; top:112px; }
+.psp-card { background:var(--white); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; margin-bottom:12px; }
+.psp-header { padding:12px 14px 10px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-start; }
+.psp-title { font-size:13px; font-weight:700; color:var(--ink); }
+.psp-sub { font-size:11px; color:var(--ink-3); margin-top:2px; }
+.psp-close { background:none; border:none; font-size:16px; cursor:pointer; color:var(--ink-4); line-height:1; }
+.psp-close:hover { color:var(--ink); }
+.psp-body { padding:10px 14px; max-height:300px; overflow-y:auto; }
+.psp-footer { padding:8px 14px; border-top:1px solid var(--line); }
+.psp-group-label { font-size:10px; font-weight:700; color:var(--ink-4); text-transform:uppercase; letter-spacing:.07em; margin:8px 0 5px; }
+.psp-group-label:first-child { margin-top:0; }
+.psp-mar-btn { display:flex; align-items:center; gap:8px; width:100%; padding:7px 8px; border:1px solid var(--line); border-radius:8px; background:var(--white); cursor:pointer; font-family:inherit; transition:all .12s; margin-bottom:5px; text-align:left; }
+.psp-mar-btn:hover { border-color:var(--red); background:var(--red-soft); }
+.psp-mar-initials { font-family:var(--mono); font-size:10px; background:var(--line-light); border-radius:3px; padding:2px 5px; color:var(--ink-3); flex-shrink:0; }
+.psp-mar-initials.volant { background:#DBEAFE; color:#1D4ED8; }
+.psp-mar-initials.ctp { background:#F3E8FF; color:#7C3AED; }
+.psp-mar-initials.rr { background:#DCFCE7; color:#166534; }
+.psp-mar-id { font-size:12px; font-weight:600; color:var(--ink); }
+.psp-mar-secteur { font-size:10px; color:var(--ink-4); margin-left:auto; }
+/* Actions mini */
+.action-card-mini { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius); cursor:pointer; transition:all .15s; }
+.action-card-mini:hover { transform:translateY(-1px); box-shadow:var(--shadow); }
+.action-card-mini.blue:hover { border-color:var(--blue); }
+.action-card-mini.green:hover { border-color:var(--green); }
+.action-card-mini.orange:hover { border-color:var(--orange); }
+.acm-icon { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+.acm-icon.blue { background:var(--blue-soft); }
+.acm-icon.green { background:var(--green-soft); }
+.acm-icon.orange { background:var(--orange-soft); }
+.acm-title { font-size:12px; font-weight:700; color:var(--ink); }
+.acm-desc { font-size:10px; color:var(--ink-4); margin-top:1px; }
+/* Opérations annuelles */
+.annual-compact { margin-top:14px; background:var(--white); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; box-shadow:var(--shadow); }
+.annual-compact-title { font-size:10px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:.07em; margin-bottom:8px; }
+.annual-compact-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.ann-step { display:flex; align-items:flex-start; gap:6px; padding:8px; border:1px solid var(--line); border-radius:8px; cursor:pointer; transition:all .15s; }
+.ann-step:hover { border-color:var(--ink-3); background:var(--line-light); }
+.ann-step-num { font-size:20px; font-weight:800; color:var(--line); line-height:1; flex-shrink:0; }
+.ann-step-label { font-size:11px; font-weight:700; color:var(--ink); line-height:1.2; margin-bottom:4px; }
+.ann-step-badge { display:inline-flex; padding:1px 6px; border-radius:10px; font-size:9px; font-weight:700; }
+.ann-step-badge.orange { background:var(--orange-soft); color:var(--orange); }
+.ann-step-badge.blue { background:var(--blue-soft); color:var(--blue); }
+.ann-step-badge.green { background:var(--green-soft); color:var(--green); }
 </style>
 <script>
 // Masquer l'overlay immédiatement si un code est en sessionStorage
@@ -795,8 +879,7 @@ if (sessionStorage.getItem('adminCode')) {
 
 <!-- NAV TABS -->
 <div class="nav-tabs">
-  <button class="nav-tab active" onclick="showTab('accueil')" id="tab-accueil">🏠 Accueil</button>
-  <button class="nav-tab" onclick="showTab('planning')" id="tab-planning">📅 Planning</button>
+  <button class="nav-tab active" onclick="showTab('planning')" id="tab-planning">📅 Planning</button>
   <button class="nav-tab" onclick="showTab('equipe')" id="tab-equipe">👥 Équipe</button>
   <button class="nav-tab" onclick="showTab('affectations')" id="tab-affectations">📋 Affectations <span id="affPendingDot" style="display:none;width:6px;height:6px;background:#F59E0B;border-radius:50%;display:inline-block;margin-left:4px;vertical-align:middle"></span></button>
   <button class="nav-tab" onclick="showTab('equite')" id="tab-equite">📊 Équité</button>
@@ -806,76 +889,117 @@ if (sessionStorage.getItem('adminCode')) {
 <div class="main">
 
   <!-- ── PLANNING ── -->
-<div class="tab-panel" id="panel-planning">
+<div class="tab-panel active" id="panel-planning">
+  <div class="plan-page">
 
-  <!-- TOOLBAR SEMAINE -->
-  <div class="plan-toolbar">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <button class="week-nav-btn" onclick="prevWeek()">←</button>
-      <span class="week-label" id="weekLabel">Chargement…</span>
-      <button class="week-nav-btn" onclick="nextWeek()">→</button>
-      <span class="week-flash-badge" id="flashBadge" style="display:none">⚠️ <span id="flashCount">0</span> case<span id="flashPlural">s</span> à pourvoir</span>
-      <span class="week-validated-badge" id="validatedBadge" style="display:none">✅ Validée</span>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
-      <button class="week-validate-btn" id="btnValiderSemaine" onclick="toggleValiderSemaine()" style="display:none">✅ Valider la semaine</button>
-    </div>
-  </div>
-
-  <!-- LAYOUT : grille + panel latéral -->
-  <div class="plan-layout" id="planLayout">
-
-    <!-- GRILLE PLANNING -->
-    <div class="plan-grid-wrap">
-      <div style="overflow-x:auto;">
-        <table class="plan-table" id="planTable">
-          <tbody><tr><td style="padding:40px;text-align:center;color:var(--ink-4);">Chargement…</td></tr></tbody>
-        </table>
+    <div class="plan-toolbar">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="week-nav-btn" onclick="prevWeek()">←</button>
+        <span class="week-label" id="weekLabel">Chargement…</span>
+        <button class="week-nav-btn" onclick="nextWeek()">→</button>
+        <span class="week-flash-badge" id="flashBadge" style="display:none;">⚠️ <span id="flashCount">0</span> case<span id="flashPlural">s</span> à pourvoir</span>
+        <span class="week-validated-badge" id="validatedBadge" style="display:none;">✅ Validée</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
+        <button class="week-validate-btn" id="btnValiderSemaine" onclick="toggleValiderSemaine()">✅ Valider</button>
       </div>
     </div>
 
-    <!-- PANEL LATÉRAL DISPO -->
-    <div class="plan-side-panel" id="planSidePanel" style="display:none;">
-      <div class="psp-header">
-        <div>
-          <div class="psp-title" id="pspTitle">MARs disponibles</div>
-          <div class="psp-sub" id="pspSub">—</div>
+    <div class="plan-main-layout">
+
+      <div class="plan-left">
+        <div style="overflow-x:auto;">
+          <table class="plan-table" id="planTable">
+            <tbody><tr><td style="padding:40px;text-align:center;color:var(--ink-4);">
+              <div class="spinner" style="margin:0 auto 10px;"></div>Chargement…
+            </td></tr></tbody>
+          </table>
         </div>
-        <button onclick="closeSidePanel()" class="psp-close">✕</button>
+        <div class="annual-compact">
+          <div class="annual-compact-title">Opérations annuelles</div>
+          <div class="annual-compact-grid">
+            <div class="ann-step" onclick="openWizard()">
+              <span class="ann-step-num">1</span>
+              <div><div class="ann-step-label" id="labelDemarrer">Démarrer 2027</div><span class="ann-step-badge orange">Octobre</span></div>
+            </div>
+            <div class="ann-step" onclick="openWizardGardes()">
+              <span class="ann-step-num">2</span>
+              <div><div class="ann-step-label">Générer les gardes</div><span class="ann-step-badge blue">Nov–Déc</span></div>
+            </div>
+            <div class="ann-step" onclick="openWizardCloture()">
+              <span class="ann-step-num">3</span>
+              <div><div class="ann-step-label">Clôturer l'année</div><span class="ann-step-badge green">Janvier</span></div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div id="pspContent">
-        <div class="loading"><div class="spinner"></div></div>
-      </div>
-      <div class="psp-footer">
-        <button onclick="closeSidePanel()" style="border:1px solid var(--line);background:var(--white);border-radius:8px;padding:7px 16px;cursor:pointer;font-size:12px;color:var(--ink-3);font-family:inherit;">Laisser vide</button>
+
+      <div class="plan-right" id="planRight">
+
+        <div class="psp-card" id="dispoCard" style="display:none;">
+          <div class="psp-header">
+            <div>
+              <div class="psp-title" id="pspTitle">Affecter un MAR</div>
+              <div class="psp-sub" id="pspSub">—</div>
+            </div>
+            <button class="psp-close" onclick="closeSidePanel()">✕</button>
+          </div>
+          <div class="psp-body" id="pspContent"><div class="loading"><div class="spinner"></div></div></div>
+          <div class="psp-footer">
+            <button onclick="closeSidePanel()" class="btn-secondary" style="width:100%;">Laisser vide</button>
+          </div>
+        </div>
+
+        <div id="actionsCard">
+          <div class="psp-card" style="margin-bottom:12px;">
+            <div class="psp-header" style="border-bottom:none;padding-bottom:8px;">
+              <div class="psp-title">Actions rapides</div>
+            </div>
+            <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px;">
+              <div class="action-card-mini blue" onclick="openPanel('garde')">
+                <div class="acm-icon blue">🔁</div>
+                <div><div class="acm-title">Modifier une garde</div><div class="acm-desc">Échange, don ou exceptionnelle</div></div>
+              </div>
+              <div class="action-card-mini green" onclick="openPanel('secteur')">
+                <div class="acm-icon green">🔄</div>
+                <div><div class="acm-title">Changer de secteur</div><div class="acm-desc">Modifier le secteur AM/PM d'un MAR</div></div>
+              </div>
+              <div class="action-card-mini orange" onclick="exportWeekExcel()">
+                <div class="acm-icon orange">📊</div>
+                <div><div class="acm-title">Exporter Excel</div><div class="acm-desc">Planning semaine en cours</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="psp-card">
+            <div class="psp-header" style="border-bottom:none;padding-bottom:4px;">
+              <div class="psp-title">État du cycle</div>
+              <button onclick="loadCycleStatus()" style="font-size:10px;background:none;border:none;color:var(--ink-4);cursor:pointer;">↻</button>
+            </div>
+            <div class="psp-body" id="cycleStatusBody"><div class="loading"><div class="spinner"></div></div></div>
+          </div>
+        </div>
+
       </div>
     </div>
 
-  </div>
-
-  <!-- SECTION INDISPOS -->
-  <div id="planningIndisposSection" style="margin-top:28px;display:none">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <div>
-        <div style="font-size:16px;font-weight:700">Suivi des saisies <span id="indisposYear">—</span> <span id="indisposYearBadge" style="display:none;font-size:11px;padding:2px 8px;border-radius:10px;background:#FEF3C7;color:#92400E;font-weight:600;margin-left:6px"></span></div>
-        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Qui a saisi ses indispos · Cases rouges = MARs sans saisie</div>
+    <div id="planningIndisposSection" style="margin-top:28px;display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <div style="font-size:16px;font-weight:700">Suivi des saisies <span id="indisposYear">—</span> <span id="indisposYearBadge" style="display:none;font-size:11px;padding:2px 8px;border-radius:10px;background:#FEF3C7;color:#92400E;font-weight:600;margin-left:6px"></span></div>
+          <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Qui a saisi ses indispos · Cases rouges = MARs sans saisie</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-secondary" onclick="notifierConflitsPanel()" id="btnNotifConflits">📧 Notifier conflits</button>
+          <button class="btn-primary" onclick="loadIndispos()">↻ Actualiser</button>
+        </div>
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-secondary" onclick="notifierConflitsPanel()" id="btnNotifConflits">📧 Notifier conflits</button>
-        <button class="btn-primary" onclick="loadIndispos()">↻ Actualiser</button>
-      </div>
+      <div id="indisposLoading" class="loading"><div class="spinner"></div> Chargement…</div>
+      <div id="indisposContent" style="display:none"></div>
     </div>
-    <div id="indisposLoading" class="loading"><div class="spinner"></div> Chargement…</div>
-    <div id="indisposContent" style="display:none"></div>
-  </div>
-
-  <div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap;">
-    <a href="indispos.html" class="advanced-link">📅 Saisie indispos (MARs)</a>
+    <div style="margin-top:16px;"><a href="indispos.html" class="advanced-link">📅 Saisie indispos (MARs)</a></div>
   </div>
 </div>
-
-<!-- ── ÉQUIPE ── -->
 
 <div class="tab-panel" id="panel-equipe">
   <div class="page-header">
@@ -955,83 +1079,6 @@ if (sessionStorage.getItem('adminCode')) {
 </div>
 
 <!-- ── ACCUEIL ── -->
-  <div class="tab-panel active" id="panel-accueil">
-    <!-- Action Cards -->
-    <!-- Actions quotidiennes -->
-    <div class="actions-grid">
-      <div class="action-card blue" onclick="openPanel('secteur')" title="Modifier le secteur AM ou PM d'un MAR pour une journée précise">
-        <div class="action-icon blue">🔄</div>
-        <div>
-          <div class="action-label">Changer de secteur</div>
-          <div class="action-desc">Modifier le secteur AM/PM d'un MAR pour une date précise sans toucher au GSheet</div>
-        </div>
-        <span class="action-badge blue">Quotidien</span>
-      </div>
-      <div class="action-card red" onclick="openPanel('garde')" title="Échange de garde entre deux MARs, don de garde, ou garde exceptionnelle">
-        <div class="action-icon red">🔁</div>
-        <div>
-          <div class="action-label">Modifier une garde</div>
-          <div class="action-desc">Échangez deux gardes, transférez une garde ou ajoutez une garde exceptionnelle</div>
-        </div>
-        <span class="action-badge red">Fréquent</span>
-      </div>
-      <div class="action-card green" onclick="exportWeekExcel()" title="Télécharge le planning de la semaine affichée au format Excel">
-        <div class="action-icon green">📊</div>
-        <div>
-          <div class="action-label">Exporter le planning</div>
-          <div class="action-desc">Export Excel de la semaine affichée — à envoyer à l'équipe chaque lundi</div>
-        </div>
-        <span class="action-badge green">Hebdomadaire</span>
-      </div>
-    </div>
-
-    <!-- Opérations annuelles -->
-    <div class="annual-ops-section">
-      <div class="annual-ops-header">
-        <span class="annual-ops-title">🗓️ Opérations annuelles</span>
-        <span class="annual-ops-sub">3 étapes séquentielles — dans cet ordre</span>
-      </div>
-      <div class="annual-ops-grid">
-        <div class="action-card orange" onclick="openWizard()" title="Wizard guidé : initialiser l'année N+1, configurer les vacances, envoyer les codes aux MARs">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="action-icon orange">🚀</div>
-            <span class="annual-step-num">1</span>
-          </div>
-          <div>
-            <div class="action-label" id="labelDemarrer">Démarrer 2027</div>
-            <div class="action-desc" id="descDemarrer">Initialiser les indispos, configurer les vacances et envoyer les codes d'accès aux MARs</div>
-          </div>
-          <span class="action-badge orange">Étape 1</span>
-        </div>
-        <div class="action-card purple" onclick="openWizardGardes()" title="Wizard guidé : vérification indispos, vacances, génération et publication">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="action-icon purple">⚡</div>
-            <span class="annual-step-num">2</span>
-          </div>
-          <div>
-            <div class="action-label">Générer les gardes</div>
-            <div class="action-desc">Une fois toutes les indispos reçues — vérifier, générer et publier le planning</div>
-          </div>
-          <span class="action-badge purple">Étape 2</span>
-        </div>
-        <div class="action-card teal" onclick="openWizardCloture()" title="Wizard guidé : vérification planning, stats équité, archivage">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="action-icon teal">📦</div>
-            <span class="annual-step-num">3</span>
-          </div>
-          <div>
-            <div class="action-label">Clôturer l'année</div>
-            <div class="action-desc">En fin d'année — vérifier le planning, récapituler l'équité et archiver</div>
-          </div>
-          <span class="action-badge teal">Étape 3</span>
-        </div>
-      </div>
-    </div>
-
-
-  </div>
-
-  <!-- ── GARDES ── -->
   <!-- ── AFFECTATIONS ── -->
   <div class="tab-panel" id="panel-affectations">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
@@ -1273,8 +1320,11 @@ function toast(msg, type='') {
 function showTab(name) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('panel-'+name).classList.add('active');
-  document.getElementById('tab-'+name).classList.add('active');
+  const panelEl = document.getElementById('panel-'+name);
+  const tabEl   = document.getElementById('tab-'+name);
+  if (panelEl) panelEl.classList.add('active');
+  if (tabEl)   tabEl.classList.add('active');
+  if (name==='planning' && !DATA) loadPlanningData();
   if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations(ADMIN_YEAR);
   if (name==='equipe') loadEquipe();
   if (name==='equite') loadStats(ADMIN_YEAR);
@@ -1388,8 +1438,8 @@ function todayStr() { const d=new Date(); return `${d.getFullYear()}-${String(d.
 function isoWeek(dateStr) { const dt=new Date(dateStr); const tmp=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate())); tmp.setUTCDate(tmp.getUTCDate()+4-(tmp.getUTCDay()||7)); const ys=new Date(Date.UTC(tmp.getUTCFullYear(),0,1)); return Math.ceil((((tmp-ys)/86400000)+1)/7); }
 
 async function loadPlanningData() {
-  const grid = document.getElementById('weekGrid');
-  grid.innerHTML = '<div style="padding:30px;text-align:center;color:var(--ink-4);grid-column:1/-1"><div class="spinner" style="margin:0 auto 8px"></div>Chargement du planning…</div>';
+  const grid = document.getElementById('planTable');
+  if(grid) grid.innerHTML = '<tbody><tr><td colspan="8" style="padding:40px;text-align:center;color:var(--ink-4);"><div class="spinner" style="margin:0 auto 10px;"></div>Chargement…</td></tr></tbody>';
   try {
     // Retry jusqu'à 3 fois si erreur réseau
     let res, attempts = 0;
@@ -1418,11 +1468,11 @@ async function loadPlanningData() {
     } catch(renderErr) {
       console.error('renderWeek error:', renderErr);
       // Ne pas afficher l'erreur réseau si le JSON a bien chargé
-      grid.innerHTML = '<div style="padding:30px;text-align:center;color:var(--orange);grid-column:1/-1">⚠️ Erreur d\'affichage — ' + renderErr.message + '</div>';
+      if(grid) grid.innerHTML = '<tbody><tr><td colspan="8" style="padding:30px;text-align:center;color:var(--orange);">⚠️ Erreur d\'affichage — ' + renderErr.message + '</div>';
     }
   } catch(e) {
     console.error('loadPlanningData error:', e);
-    grid.innerHTML = '<div style="padding:30px;text-align:center;color:var(--red);grid-column:1/-1">⚠️ Impossible de charger le planning ' + YEAR + '<br><span style="font-size:11px;color:var(--ink-4)">Vérifiez votre connexion ou <a href="#" onclick="loadPlanningData();return false" style="color:var(--red)">réessayez</a></span></div>';
+    if(grid) grid.innerHTML = '<tbody><tr><td colspan="8" style="padding:30px;text-align:center;color:var(--red);">⚠️ Impossible de charger le planning ' + YEAR + '<br><span style="font-size:11px;color:var(--ink-4)">Vérifiez votre connexion ou <a href="#" onclick="loadPlanningData();return false" style="color:var(--red)">réessayez</a></span></div>';
   }
 }
 
