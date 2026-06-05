@@ -192,6 +192,26 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .week-nav-btn:hover { border-color:var(--red); color:var(--red); }
 .week-label { font-size:13px; font-weight:700; color:var(--ink); min-width:160px; text-align:center; }
 .week-export-btn { background:var(--red); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:11px; font-weight:700; font-family:'DM Sans',sans-serif; cursor:pointer; transition:opacity .15s; }
+
+.week-validate-btn { background:var(--green); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:11px; font-weight:700; font-family:'DM Sans',sans-serif; cursor:pointer; transition:opacity .15s; }
+.week-validate-btn:hover { opacity:.88; }
+.week-validate-btn.validated { background:#166534; }
+.week-validated-badge { display:inline-flex; align-items:center; gap:5px; background:#DCFCE7; border:1px solid #86EFAC; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:600; color:#166534; }
+.week-flash-badge { display:inline-flex; align-items:center; gap:5px; background:#FFF7ED; border:1px solid #FED7AA; border-radius:20px; padding:3px 10px; font-size:11px; font-weight:600; color:#C2410C; animation:flashBadgePulse 2s ease-in-out infinite; }
+@keyframes flashBadgePulse { 0%,100%{opacity:1;} 50%{opacity:.65;} }
+.chip-flash { display:inline-flex; align-items:center; justify-content:center; width:22px; height:18px; border-radius:4px; font-size:12px; border:1.5px dashed #F97316; background:#FFF7ED; color:#F97316; cursor:pointer; animation:chipFlash 1.3s ease-in-out infinite; }
+.chip-flash:hover { transform:scale(1.15); }
+@keyframes chipFlash { 0%,100%{opacity:1;background:#FFF7ED;} 50%{opacity:.5;background:#FFEDD5;} }
+/* Popup dispo */
+.dispo-overlay { position:fixed; inset:0; background:rgba(15,23,42,.4); z-index:500; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(2px); }
+.dispo-box { background:var(--white); border-radius:18px; padding:24px; width:340px; max-width:95vw; box-shadow:0 16px 48px rgba(0,0,0,.18); animation:popIn .2s cubic-bezier(.16,1,.3,1); }
+@keyframes popIn { from{opacity:0;transform:scale(.94)translateY(8px);} to{opacity:1;transform:scale(1)translateY(0);} }
+.dispo-title { font-size:15px; font-weight:800; margin-bottom:3px; }
+.dispo-sub { font-size:12px; color:var(--ink-3); margin-bottom:16px; }
+.dispo-group-label { font-size:10px; font-weight:700; color:var(--ink-4); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; margin-top:12px; }
+.dispo-mars { display:flex; gap:8px; flex-wrap:wrap; }
+.dispo-mar-btn { padding:7px 14px; border-radius:10px; border:1.5px solid transparent; cursor:pointer; font-weight:700; font-size:13px; font-family:inherit; transition:transform .1s, box-shadow .1s; }
+.dispo-mar-btn:hover { transform:scale(1.06); box-shadow:0 4px 14px rgba(0,0,0,.12); }
 .week-export-btn:hover { opacity:.88; }
 .week-grid { display:grid; grid-template-columns:90px repeat(7,1fr); font-size:11px; }
 .wg-header-empty { background:var(--line-light); border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
@@ -743,8 +763,13 @@ if (sessionStorage.getItem('adminCode')) {
               <button class="week-nav-btn" onclick="prevWeek()">←</button>
               <div class="week-label" id="weekLabel">Chargement…</div>
               <button class="week-nav-btn" onclick="nextWeek()">→</button>
+              <span class="week-flash-badge" id="flashBadge" style="display:none">⚠️ <span id="flashCount">0</span> case<span id="flashPlural">s</span> à pourvoir</span>
+              <span class="week-validated-badge" id="validatedBadge" style="display:none">✅ Semaine validée</span>
             </div>
-            <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
+              <button class="week-validate-btn" id="btnValiderSemaine" onclick="toggleValiderSemaine()" style="display:none">✅ Valider la semaine</button>
+            </div>
           </div>
           <div style="overflow-x:auto">
             <div class="week-grid" id="weekGrid">
@@ -1152,7 +1177,7 @@ let nextYearAvailable = false; // true si planning_N+1.json existe
 
 const MONTH_NAMES = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const DAY_NAMES_SHORT = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-const ABSENT = new Set(['RG','A','CP','F','R','I','E']);
+const ABSENT = new Set(['G','G2','RG','A','V','F','CTP','R','I','E']);
 const SECTORS_DISPLAY = ['G/RG','18h','VIS','REA','ORT','ORL','END','CI','RI','MAT','CS'];
 const SECTOR_LABEL = {'G/RG':'Gardes','18h':'18h','VIS':'Viscéral','REA':'Réa','ORT':'Ortho','ORL':'ORL','END':'Endo','CI':'Cardio','RI':'Radio','MAT':'Maternité','CS':'Consult.'};
 const DAYS_FR = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
@@ -1461,7 +1486,13 @@ function renderWeek() {
         const amList=smap[sector][dow].am;
         const pmList=smap[sector][dow].pm;
         if(!amList.length&&!pmList.length){
-          html+=`<div class="wg-cell-inner"><span style="color:var(--line);font-size:10px">—</span></div>`;
+          // Case vide : flash si secteur attendu (pas G/RG/18h)
+          const isFlashable = sector !== 'G/RG' && sector !== '18h';
+          if(isFlashable && slot && !slot.isWeekend && !slot.isFerie){
+            html+=`<div class="wg-cell-inner"><span class="chip-flash" onclick="openDispoPopup('${sector}','${slot.date}')" title="Affecter un MAR">+</span></div>`;
+          } else {
+            html+=`<div class="wg-cell-inner"><span style="color:var(--line);font-size:10px">—</span></div>`;
+          }
         } else {
           if(amList.length){
             html+=`<div style="display:flex;align-items:center;gap:2px;padding:2px 3px">`;
@@ -1489,10 +1520,164 @@ function renderWeek() {
     });
   });
   document.getElementById('weekGrid').innerHTML=html;
+  updateFlashBadge();
+  updateValidationBadge();
 }
 
 function prevWeek(){if(currentWeekIdx>0){currentWeekIdx--;renderWeek();}}
 function nextWeek(){const w=getAllWeeks();if(currentWeekIdx<w.length-1){currentWeekIdx++;renderWeek();}}
+
+// ── FLASH BADGE ───────────────────────────────────────────────────────
+function updateFlashBadge() {
+  const chips = document.querySelectorAll('.chip-flash');
+  const n = chips.length;
+  const badge = document.getElementById('flashBadge');
+  const btnVal = document.getElementById('btnValiderSemaine');
+  if (badge) {
+    if (n > 0) {
+      badge.style.display = 'inline-flex';
+      document.getElementById('flashCount').textContent = n;
+      document.getElementById('flashPlural').textContent = n > 1 ? 's' : '';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+  if (btnVal) btnVal.style.display = 'inline-block';
+}
+
+// ── BADGE VALIDATION ──────────────────────────────────────────────────
+function updateValidationBadge() {
+  if (!DATA) return;
+  const weeks = getAllWeeks();
+  const wk = weeks[currentWeekIdx];
+  if (!wk) return;
+  // Chercher si cette semaine est validée dans le JSON
+  let validated = false;
+  for (const month of DATA.months) {
+    if (!month.weeks) continue;
+    const wkInfo = month.weeks.find(w => w.isoWeek === wk.weekNum);
+    if (wkInfo) { validated = wkInfo.validated; break; }
+  }
+  const vBadge = document.getElementById('validatedBadge');
+  const btn = document.getElementById('btnValiderSemaine');
+  if (vBadge) vBadge.style.display = validated ? 'inline-flex' : 'none';
+  if (btn) {
+    btn.textContent = validated ? '↩ Dé-valider' : '✅ Valider la semaine';
+    btn.className = validated ? 'week-validate-btn validated' : 'week-validate-btn';
+  }
+}
+
+// ── VALIDER / DÉVALIDER UNE SEMAINE ──────────────────────────────────
+async function toggleValiderSemaine() {
+  if (!DATA) return;
+  const weeks = getAllWeeks();
+  const wk = weeks[currentWeekIdx];
+  if (!wk) return;
+  let validated = false;
+  for (const month of DATA.months) {
+    if (!month.weeks) continue;
+    const wkInfo = month.weeks.find(w => w.isoWeek === wk.weekNum);
+    if (wkInfo) { validated = wkInfo.validated; break; }
+  }
+  const newVal = !validated;
+  const btn = document.getElementById('btnValiderSemaine');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const res = await api({action:'validerSemaine', year: ADMIN_YEAR, isoWeek: wk.weekNum, valide: newVal});
+    if (!res.success) throw new Error(res.error);
+    showToast(newVal ? `✅ Semaine ${wk.weekNum} validée — publiée sur index.html` : `↩ Semaine ${wk.weekNum} dévalidée`);
+    // Recharger le planning pour avoir le JSON à jour
+    await loadPlanningData();
+    renderWeek();
+  } catch(e) {
+    showToast('Erreur : ' + e.message, true);
+    if (btn) { btn.disabled = false; }
+    updateValidationBadge();
+  }
+}
+
+// ── POPUP DISPO (combler case flash) ─────────────────────────────────
+let _dispoCtx = null;
+
+async function openDispoPopup(sector, date) {
+  _dispoCtx = {sector, date};
+  // Créer overlay si pas existant
+  let overlay = document.getElementById('dispoOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'dispoOverlay';
+    overlay.className = 'dispo-overlay';
+    overlay.innerHTML = `
+      <div class="dispo-box" onclick="event.stopPropagation()">
+        <div class="dispo-title" id="dispoTitle">Affecter un MAR</div>
+        <div class="dispo-sub" id="dispoSub">—</div>
+        <div id="dispoGroups"><div class="spinner" style="margin:20px auto;display:block;"></div></div>
+        <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+          <button onclick="closeDispoPopup()" style="border:1px solid var(--line);background:var(--white);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:12px;color:var(--ink-3);font-family:inherit;">Laisser vide</button>
+        </div>
+      </div>`;
+    overlay.addEventListener('click', e => { if(e.target===overlay) closeDispoPopup(); });
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+  document.getElementById('dispoTitle').textContent = 'Affecter un MAR';
+  document.getElementById('dispoSub').innerHTML = `<span style="font-weight:600">${sector}</span> · ${new Date(date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}`;
+  document.getElementById('dispoGroups').innerHTML = '<div class="spinner" style="margin:20px auto;display:block;"></div>';
+
+  try {
+    const res = await api({action:'getMARsDispoJour', date});
+    if (!res.success) throw new Error(res.error);
+    renderDispoGroups(res.dispo, sector);
+  } catch(e) {
+    document.getElementById('dispoGroups').innerHTML = `<div style="color:var(--red);font-size:12px;padding:12px 0;">Erreur : ${e.message}</div>`;
+  }
+}
+
+function renderDispoGroups(dispo, sector) {
+  const ROLE_STYLE = {
+    VOLANT: {bg:'#DBEAFE', fg:'#1D4ED8', label:'Volants'},
+    PRESENT:{bg:'#F1F5F9', fg:'#334155', label:'Présents dans secteur'},
+  };
+  const groups = {};
+  dispo.forEach(m => {
+    if (!groups[m.role]) groups[m.role] = [];
+    groups[m.role].push(m);
+  });
+  let html = '';
+  ['VOLANT','PRESENT'].forEach(role => {
+    if (!groups[role]?.length) return;
+    const rs = ROLE_STYLE[role];
+    html += `<div class="dispo-group-label">${rs.label}</div><div class="dispo-mars">`;
+    groups[role].forEach(m => {
+      html += `<button class="dispo-mar-btn"
+        style="background:${rs.bg};color:${rs.fg};"
+        onclick="placeMAR('${m.id}','${_dispoCtx.sector}','${_dispoCtx.date}')"
+        title="${m.id}">${m.id.length <= 6 ? m.id : m.id.slice(0,6)}</button>`;
+    });
+    html += '</div>';
+  });
+  if (!html) html = '<div style="text-align:center;color:var(--ink-4);padding:16px 0;font-size:13px;">Aucun MAR disponible ce jour</div>';
+  document.getElementById('dispoGroups').innerHTML = html;
+}
+
+async function placeMAR(marId, sector, date) {
+  closeDispoPopup();
+  try {
+    const res = await api({action:'savePlanningOverride', date, marId, morning: sector, afternoon: sector, comment:`Comité — ${sector}`});
+    if (!res.success) throw new Error(res.error);
+    showToast(`✅ ${marId} affecté en ${sector} le ${date}`);
+    await loadPlanningData();
+    renderWeek();
+  } catch(e) {
+    showToast('Erreur : ' + e.message, true);
+  }
+}
+
+function closeDispoPopup() {
+  const overlay = document.getElementById('dispoOverlay');
+  if (overlay) overlay.style.display = 'none';
+  _dispoCtx = null;
+}
 
 // ── OVERRIDES ──────────────────────────────────────────────────────────
 async function loadOverrides() {
