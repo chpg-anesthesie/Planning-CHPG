@@ -1,4 +1,118 @@
-<!DOCTYPE html>
+<div class="tab-panel" id="panel-maintenance">
+
+  <!-- ── Zone 1 : Système ── -->
+  <div class="maint-zone">
+    <div class="maint-zone-title">🔧 Système</div>
+    <div class="maint-cards">
+
+      <div class="maint-card">
+        <div class="maint-card-header">
+          <span class="maint-card-icon">🔍</span>
+          <div>
+            <div class="maint-card-title">Diagnostic système</div>
+            <div class="maint-card-desc">Vérifie que tous les onglets GSheet sont présents, les MARs correctement configurés et GitHub accessible.</div>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="runDiag()" id="btnDiagSys">Vérifier l'état du système</button>
+        <div id="diagSysResult" style="display:none;margin-top:12px"></div>
+      </div>
+
+      <div class="maint-card">
+        <div class="maint-card-header">
+          <span class="maint-card-icon">📋</span>
+          <div>
+            <div class="maint-card-title">Diagnostic planning</div>
+            <div class="maint-card-desc">Analyse les 12 mois du planning et liste toutes les violations de règles métier (secteurs, CS, REA…).</div>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="showTab('diagnostic-planning')" id="btnDiagPlanning">Analyser le planning <span id="diagYear"></span></button>
+      </div>
+
+      <div class="maint-card">
+        <div class="maint-card-header">
+          <span class="maint-card-icon">📜</span>
+          <div>
+            <div class="maint-card-title">Dernières opérations</div>
+            <div class="maint-card-desc">Journal des actions effectuées depuis l'interface (envois, sauvegardes, publications).</div>
+          </div>
+        </div>
+        <button class="btn-secondary" onclick="loadLogsInMaint()">Voir les logs</button>
+        <div id="maintLogArea" style="display:none;margin-top:12px;max-height:200px;overflow-y:auto;font-size:11px;font-family:var(--mono);background:var(--line-light);border-radius:8px;padding:12px;line-height:1.8"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Zone 2 : Publication ── -->
+  <div class="maint-zone" style="margin-top:28px">
+    <div class="maint-zone-title">🚀 Publication</div>
+    <div class="maint-cards">
+
+      <div class="maint-card">
+        <div class="maint-card-header">
+          <span class="maint-card-icon">🌐</span>
+          <div>
+            <div class="maint-card-title">Publier le planning</div>
+            <div class="maint-card-desc">Régénère et publie le planning visible par tous les MARs sur le site. À faire après toute modification manuelle.</div>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="publishPlanning()">Publier maintenant</button>
+      </div>
+
+      <div class="maint-card">
+        <div class="maint-card-header">
+          <span class="maint-card-icon">📦</span>
+          <div>
+            <div class="maint-card-title">Archiver l'année <span id="archiveYearLabel" style="color:var(--ink-3)">—</span></div>
+            <div class="maint-card-desc">Pousse les stats et indispos sur GitHub. À faire en fin d'année après vérification. Les onglets GSheet ne sont pas supprimés.</div>
+          </div>
+        </div>
+        <button class="btn-danger" onclick="archiveCurrentYear()">📦 Archiver</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Zone 3 : Codes d'accès ── -->
+  <div class="maint-zone" style="margin-top:28px">
+    <div class="maint-zone-title">🔑 Codes d'accès MAR</div>
+    <div class="maint-cards">
+
+      <div class="maint-card">
+        <div class="maint-card-header">
+          <span class="maint-card-icon">📧</span>
+          <div>
+            <div class="maint-card-title">Envoyer les codes à tous les MARs</div>
+            <div class="maint-card-desc">Envoie le code d'accès individuel à chaque MAR actif par email. Nécessaire avant la saisie des indispos.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-secondary" onclick="previewCodes()">👁 Voir les destinataires</button>
+          <button class="btn-primary" onclick="sendCodes()">📧 Envoyer à tous</button>
+        </div>
+        <div id="codesPreview" style="display:none;margin-top:12px"></div>
+      </div>
+
+      <div class="maint-card">
+        <div class="maint-card-header">
+          <span class="maint-card-icon">✉️</span>
+          <div>
+            <div class="maint-card-title">Renvoyer à un MAR</div>
+            <div class="maint-card-desc">Envoie le code d'accès à un seul MAR — utile si quelqu'un a perdu son code.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="selectMarCode" class="form-input" style="flex:1;min-width:160px">
+            <option value="">— Choisir un MAR —</option>
+          </select>
+          <button class="btn-primary" onclick="sendCodeToOne()">✉️ Envoyer</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -578,6 +692,18 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
   border-radius: 20px; letter-spacing: .04em;
 }
 .aff-wrap { overflow-x: auto; }
+
+/* ── Maintenance zones P16 ── */
+.maint-zone-title { font-size:13px; font-weight:700; color:var(--ink-2); margin-bottom:12px; padding-bottom:8px; border-bottom:2px solid var(--line); }
+.maint-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+.maint-card { background:var(--white); border:1px solid var(--line); border-radius:var(--radius); padding:20px; display:flex; flex-direction:column; gap:12px; }
+.maint-card-header { display:flex; gap:12px; align-items:flex-start; }
+.maint-card-icon { font-size:22px; flex-shrink:0; }
+.maint-card-title { font-size:14px; font-weight:700; margin-bottom:4px; }
+.maint-card-desc { font-size:12px; color:var(--ink-3); line-height:1.5; }
+.diag-ok { color:var(--green); }
+.diag-warn { color:var(--orange); }
+.diag-err { color:var(--red); }
 </style>
 <script>
 // Masquer l'overlay immédiatement si un code est en sessionStorage
@@ -716,7 +842,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
 
   <!-- Suivi des saisies indispos -->
-  <div style="margin-top:28px">
+  <div id="planningIndisposSection" style="margin-top:28px;display:none">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div>
         <div style="font-size:16px;font-weight:700">Suivi des saisies <span id="indisposYear">—</span> <span id="indisposYearBadge" style="display:none;font-size:11px;padding:2px 8px;border-radius:10px;background:#FEF3C7;color:#92400E;font-weight:600;margin-left:6px"></span></div>
@@ -1036,54 +1162,7 @@ if (sessionStorage.getItem('adminCode')) {
   </div>
 
   <!-- ── DIAGNOSTIC ── -->
-  <div class="tab-panel" id="panel-maintenance">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-      <div>
-        <div style="font-size:16px;font-weight:700">Diagnostic planning <span id="diagYear">—</span></div>
-        <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Vérification des règles métier sur les 12 mois</div>
-      </div>
-      <button class="btn-primary" onclick="runDiagnostic()" id="btnDiag" title="Analyse les 12 mois du planning et liste toutes les violations de règles métier">↻ Lancer le diagnostic</button>
-    </div>
-    <div id="diagLoading" style="display:none" class="loading"><div class="spinner"></div> Analyse en cours…</div>
-    <div id="diagResults" style="display:none">
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px" id="diagSummary"></div>
-      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-        <button class="btn-secondary" onclick="filterViol('all',this)" id="filtAll" style="font-size:11px;padding:5px 12px">Tout</button>
-        <button class="btn-secondary" onclick="filterViol('CS',this)" style="font-size:11px;padding:5px 12px">CS</button>
-        <button class="btn-secondary" onclick="filterViol('REA',this)" style="font-size:11px;padding:5px 12px">REA</button>
-        <button class="btn-secondary" onclick="filterViol('END',this)" style="font-size:11px;padding:5px 12px">END</button>
-        <button class="btn-secondary" onclick="filterViol('ORL',this)" style="font-size:11px;padding:5px 12px">ORL</button>
-        <button class="btn-secondary" onclick="filterViol('RI',this)" style="font-size:11px;padding:5px 12px">RI/CI</button>
-        <button class="btn-secondary" onclick="filterViol('MAT',this)" style="font-size:11px;padding:5px 12px">MAT</button>
-      </div>
-      <div class="diag-grid" id="diagGrid"></div>
-      <div class="detail-panel" id="diagDetail">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:8px">
-          <div style="font-size:14px;font-weight:700" id="detailTitle"></div>
-          <button class="btn-secondary" onclick="closeDetail()" style="font-size:11px;padding:5px 12px">✕ Fermer</button>
-        </div>
-        <div class="card">
-          <div style="overflow-x:auto">
-            <table class="data-table">
-              <thead><tr><th>Date</th><th>Jour</th><th>Secteur</th><th class="center">Attendu</th><th class="center">Réel</th><th class="center">Écart</th></tr></thead>
-              <tbody id="detailBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div id="diagEmpty" style="padding:40px;text-align:center;color:var(--ink-4)">
-  <div style="font-size:32px;margin-bottom:12px">🔬</div>
-  <div style="font-size:14px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Diagnostic des règles métier</div>
-  <div style="font-size:12px;max-width:400px;margin:0 auto;line-height:1.6">
-    Vérifie que chaque jour respecte les besoins en effectif par secteur.<br>
-    Analyse les 12 mois et liste les violations par secteur.<br>
-    Cliquez <strong>↻ Lancer le diagnostic</strong> pour analyser.
-  </div>
-</div>
-  </div>
-
-</div><!-- /main -->
+<!-- /main -->
 
 <!-- PANNEAU MODIFICATION -->
 <div class="panel-overlay" id="panelOverlay" onclick="closePanelOutside(event)">
@@ -1257,8 +1336,8 @@ function showTab(name) {
       btnGen.innerHTML = '⚡ Générer les gardes ' + (YEAR+1);
     }
   }
-  if (name==='indispos') loadIndispos();
-  if (name==='vacances') loadVacances();
+  if (name==='maintenance') { initMaintenance(); }
+  if (name==='equite') loadStats(ADMIN_YEAR);
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────
@@ -1351,6 +1430,7 @@ async function initDashboard() {
   ADMIN_YEAR = YEAR; // init année admin = année active
   await detectAvailableYears();
   await Promise.all([loadPlanningData(), loadStatusBar(), loadOverrides(), loadCycleStatus()]);
+  updatePlanningIndisposVisibility();
 }
 
 // ── STATUS ─────────────────────────────────────────────────────────────
@@ -2102,7 +2182,6 @@ async function loadAffectations(year) {
     const data = await api({action: 'getAffectations', year});
     if (!data.success) throw new Error(data.error);
     affData = data.affectations;
-    affPending = false;
     renderAffectations();
   } catch(e) {
     toast('Erreur affectations : ' + e.message, 'error');
@@ -4688,6 +4767,94 @@ async function launchWizardRecrue() {
     }, 600);
   } else { nb.disabled = false; nb.textContent = 'Réessayer'; }
 }
+
+// ── Maintenance P16 ──────────────────────────────────────────────
+
+async function initMaintenance() {
+  // Remplir le sélecteur MAR pour "Renvoyer à un MAR"
+  const sel = document.getElementById('selectMarCode');
+  if (sel && sel.options.length <= 1) {
+    try {
+      const data = await api({action: 'getMedecins'});
+      if (data.success) {
+        data.medecins.filter(m => m.actif).forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.nom;
+          sel.appendChild(opt);
+        });
+      }
+    } catch(e) {}
+  }
+  // Mettre à jour l'année archive
+  const lbl = document.getElementById('archiveYearLabel');
+  if (lbl) lbl.textContent = YEAR;
+}
+
+async function loadLogsInMaint() {
+  const area = document.getElementById('maintLogArea');
+  area.style.display = 'block';
+  area.textContent = 'Chargement…';
+  try {
+    const data = await api({action: 'getLogs'});
+    if (!data.success) throw new Error(data.error);
+    area.innerHTML = data.logs.map(l => {
+      const cls = l.includes('❌') ? 'diag-err' : l.includes('⚠️') ? 'diag-warn' : l.includes('✅') ? 'diag-ok' : '';
+      return `<div class="${cls}">${l}</div>`;
+    }).join('');
+  } catch(e) {
+    area.textContent = 'Erreur : ' + e.message;
+  }
+}
+
+async function runDiag() {
+  const btn = document.getElementById('btnDiagSys');
+  const res = document.getElementById('diagSysResult');
+  btn.disabled = true; btn.textContent = '⏳ Analyse…';
+  res.style.display = 'none';
+  try {
+    const data = await api({action: 'diagComplet'});
+    if (!data.success) throw new Error(data.error);
+    const lines = data.results || [];
+    const html = lines.map(l => {
+      const cls = l.startsWith('✅') ? 'diag-ok' : l.startsWith('❌') ? 'diag-err' : l.startsWith('⚠️') ? 'diag-warn' : '';
+      return `<div class="${cls}" style="font-size:12px;line-height:1.8;font-family:var(--mono)">${l}</div>`;
+    }).join('');
+    res.innerHTML = `<div style="background:var(--line-light);border-radius:8px;padding:12px;max-height:300px;overflow-y:auto">${html}</div>`;
+    res.style.display = 'block';
+    toast(data.ok ? '✅ Système OK' : '❌ Erreurs détectées', data.ok ? 'success' : 'error');
+  } catch(e) {
+    res.innerHTML = `<div class="diag-err">Erreur : ${e.message}</div>`;
+    res.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = "Vérifier l'état du système";
+  }
+}
+
+async function sendCodeToOne() {
+  const sel = document.getElementById('selectMarCode');
+  if (!sel.value) { toast('Choisissez un MAR', 'error'); return; }
+  const nomOpt = sel.options[sel.selectedIndex].textContent;
+  if (!confirm(`Renvoyer le code d'accès à ${nomOpt} ?`)) return;
+  try {
+    const data = await api({action: 'sendCodesMar', medecin: sel.value});
+    if (!data.success) throw new Error(data.error);
+    toast(`✅ Code envoyé à ${nomOpt}`, 'success');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
+
+// ── Suivi saisies conditionnel ────────────────────────────────────
+function updatePlanningIndisposVisibility() {
+  const section = document.getElementById('planningIndisposSection');
+  if (!section) return;
+  // Visible si INDISPOS_YEAR est défini et différent de l'année active (= saisie N+1 ouverte)
+  // OU si INDISPOS_YEAR === ADMIN_YEAR et indisposN1Exists (saisie en cours)
+  const visible = typeof INDISPOS_YEAR !== 'undefined' && INDISPOS_YEAR && INDISPOS_YEAR !== YEAR;
+  section.style.display = visible ? 'block' : 'none';
+}
+
 </script>
 
 <!-- WIZARD DÉPART D'UN MAR -->
