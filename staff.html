@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Staff Vacances — CHPG Monaco</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;0,9..40,900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --red:    #CE1126;
+  --red-dk: #A50E1F;
+  --ink:    #0F172A;
+  --ink-2:  #334155;
+  --ink-3:  #64748B;
+  --ink-4:  #94A3B8;
+  --line:   #E2E8F0;
+  --line-light: #F1F5F9;
+  --bg:     #F8FAFC;
+  --white:  #FFFFFF;
+  --radius: 12px;
+  --mono:   'DM Mono', monospace;
+  --shadow: 0 1px 3px rgba(0,0,0,.06);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.14);
+
+  --vac-bg:    #DBEAFE; --vac-fg:   #1D4ED8; --vac-brd: #93C5FD;
+  --form-bg:   #F3E8FF; --form-fg:  #7C3AED; --form-brd: #C4B5FD;
+  --ok-bg:     #DCFCE7; --ok-fg:    #166534;
+  --warn-bg:   #FEF3C7; --warn-fg:  #92400E;
+  --danger-bg: #FEE2E2; --danger-fg:#991B1B;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+/* ── AUTH ── */
+.auth-overlay{position:fixed;inset:0;background:linear-gradient(140deg,#0F172A 0%,#1a0508 100%);display:flex;align-items:center;justify-content:center;z-index:999;}
+.auth-box{background:var(--white);border-radius:20px;padding:48px 40px;width:360px;text-align:center;box-shadow:var(--shadow-lg);}
+.auth-flag{width:44px;height:44px;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;margin:0 auto 20px;box-shadow:0 4px 12px rgba(206,17,38,.3);}
+.auth-flag-t{flex:1;background:var(--red);}
+.auth-flag-b{flex:1;background:var(--white);border-top:1px solid var(--line);}
+.auth-title{font-size:22px;font-weight:900;margin-bottom:4px;}
+.auth-sub{font-size:12px;color:var(--ink-4);margin-bottom:32px;}
+.auth-input{width:100%;border:2px solid var(--line);border-radius:12px;padding:14px 16px;font-size:18px;font-family:var(--mono);text-align:center;text-transform:uppercase;letter-spacing:.18em;outline:none;margin-bottom:12px;background:var(--line-light);transition:border-color .15s;}
+.auth-input:focus{border-color:var(--red);background:var(--white);}
+.auth-btn{width:100%;background:var(--red);color:white;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s;font-family:'DM Sans',sans-serif;}
+.auth-btn:hover{background:var(--red-dk);}
+.auth-err{font-size:12px;color:var(--red);margin-top:8px;display:none;}
+
+/* ── HEADER ── */
+.header{background:var(--red);height:60px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.header-left{display:flex;align-items:center;gap:12px;}
+.header-flag{width:26px;height:26px;border-radius:5px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(0,0,0,.2);}
+.hf-t{flex:1;background:var(--red);}
+.hf-b{flex:1;background:white;border-top:1px solid rgba(255,255,255,.3);}
+.header-title{color:white;font-size:15px;font-weight:700;}
+.header-pill{background:rgba(255,255,255,.18);border-radius:20px;padding:3px 12px;font-size:11px;color:rgba(255,255,255,.9);font-weight:600;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.btn-ghost{background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s;font-family:'DM Sans',sans-serif;}
+.btn-ghost:hover{background:rgba(255,255,255,.25);}
+.btn-validate{background:white;color:var(--red);border:none;border-radius:8px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s;}
+.btn-validate:hover{opacity:.85;}
+.btn-validate:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ── TOOLBAR ── */
+.toolbar{background:var(--white);border-bottom:1px solid var(--line);padding:10px 28px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:sticky;top:60px;z-index:90;}
+.periode-tabs{display:flex;gap:6px;flex-wrap:wrap;}
+.ptab{padding:5px 14px;border-radius:20px;border:1.5px solid var(--line);background:var(--white);color:var(--ink-3);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;white-space:nowrap;}
+.ptab.active{font-weight:700;color:var(--ink);}
+.type-btns{display:flex;gap:4px;}
+.tbtn{padding:5px 16px;border-radius:20px;border:1.5px solid var(--line);background:var(--white);color:var(--ink-3);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.tbtn.vac.active{background:var(--vac-bg);border-color:var(--vac-brd);color:var(--vac-fg);font-weight:700;}
+.tbtn.form.active{background:var(--form-bg);border-color:var(--form-brd);color:var(--form-fg);font-weight:700;}
+.seuil-info{margin-left:auto;font-size:12px;color:var(--ink-4);}
+.seuil-info strong{color:var(--ink-2);}
+.view-toggle{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+.vtbtn{padding:5px 14px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:var(--white);color:var(--ink-3);font-family:'DM Sans',sans-serif;transition:all .12s;}
+.vtbtn.active{background:var(--line-light);color:var(--ink);font-weight:600;}
+
+/* ── MAIN ── */
+.main{padding:20px 28px;}
+
+/* ── GRILLE ── */
+.grid-wrap{overflow-x:auto;}
+.grid-table{border-collapse:collapse;width:100%;min-width:600px;}
+.gt-sticky{position:sticky;left:0;z-index:10;}
+
+.gt-head-mar{background:var(--line-light);padding:8px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid var(--line);min-width:160px;}
+.gt-head-quota{background:var(--line-light);padding:8px 8px;text-align:center;font-size:11px;font-weight:600;color:var(--ink-3);border-bottom:2px solid var(--line);min-width:54px;}
+.gt-head-day{padding:6px 3px;text-align:center;border-bottom:2px solid var(--line);min-width:38px;cursor:default;}
+.gt-head-day-date{font-size:11px;font-weight:600;color:var(--ink-2);}
+.gt-head-day-count{font-size:10px;color:var(--ink-4);margin-top:1px;}
+.gt-head-day.tension-ok{background:var(--ok-bg);}
+.gt-head-day.tension-warn{background:var(--warn-bg);}
+.gt-head-day.tension-high{background:var(--danger-bg);}
+.gt-head-total{background:var(--line-light);padding:8px 10px;text-align:center;font-size:11px;font-weight:600;color:var(--ink-3);border-bottom:2px solid var(--line);min-width:80px;}
+
+.gt-row{}
+.gt-row:nth-child(even) .gt-cell-mar,.gt-row:nth-child(even) .gt-cell-quota,.gt-row:nth-child(even) .gt-cell-day,.gt-row:nth-child(even) .gt-cell-total{background:#FAFBFC;}
+.gt-cell-mar{padding:7px 14px;font-size:13px;border-bottom:1px solid var(--line-light);display:flex;align-items:center;gap:8px;background:var(--white);}
+.gt-cell-mar.selected{background:#EFF6FF!important;}
+.gt-initials{font-family:var(--mono);font-size:11px;background:var(--line-light);border-radius:4px;padding:2px 7px;color:var(--ink-3);}
+.gt-name{font-weight:500;color:var(--ink);}
+.gt-quotite{font-size:10px;color:var(--ink-4);margin-left:2px;}
+.gt-cell-quota{padding:7px 8px;text-align:center;font-size:12px;color:var(--ink-3);border-bottom:1px solid var(--line-light);background:var(--white);}
+.gt-cell-day{padding:6px 3px;text-align:center;border-bottom:1px solid var(--line-light);background:var(--white);}
+.gt-cell-day.selected-row{background:#EFF6FF!important;}
+.gt-cell-total{padding:7px 10px;text-align:center;border-bottom:1px solid var(--line-light);background:var(--white);}
+
+.day-chip{width:30px;height:26px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid transparent;transition:all .1s;user-select:none;}
+.day-chip.empty{background:transparent;border-color:var(--line);color:transparent;}
+.day-chip.empty:hover{border-color:var(--ink-3);background:var(--line-light);}
+.day-chip.vac{background:var(--vac-bg);border-color:var(--vac-brd);color:var(--vac-fg);}
+.day-chip.form{background:var(--form-bg);border-color:var(--form-brd);color:var(--form-fg);}
+.day-chip.locked{cursor:default;opacity:.7;outline:2px solid var(--ink-4);outline-offset:1px;}
+.day-chip.locked::after{content:'🔒';font-size:7px;position:absolute;top:-2px;right:-2px;}
+.day-chip-wrap{position:relative;display:inline-block;}
+
+.total-badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;font-family:var(--mono);}
+.total-badge.ok{background:var(--ok-bg);color:var(--ok-fg);}
+.total-badge.over{background:var(--danger-bg);color:var(--danger-fg);}
+.total-badge.zero{background:var(--line-light);color:var(--ink-4);}
+
+/* ── RÉCAP ── */
+.recap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+.recap-card{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow);}
+.recap-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.recap-counts{display:flex;gap:8px;}
+.recap-count-box{flex:1;border-radius:10px;padding:10px;text-align:center;}
+.rcb-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.rcb-val{font-size:20px;font-weight:900;line-height:1;}
+.rcb-quota{font-size:10px;margin-top:2px;opacity:.7;}
+
+/* ── LÉGENDE ── */
+.legend{display:flex;gap:16px;margin-bottom:14px;font-size:12px;color:var(--ink-3);align-items:center;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:6px;}
+.legend-dot{width:12px;height:12px;border-radius:3px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:white;border-radius:12px;padding:10px 20px;font-size:13px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;z-index:500;}
+.toast.show{opacity:1;}
+
+/* ── SPINNER ── */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── STATS BAR ── */
+.stats-bar{background:var(--white);border-bottom:1px solid var(--line);padding:6px 28px;display:flex;gap:20px;overflow-x:auto;align-items:center;}
+.sbar-item{display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.sbar-dot{width:6px;height:6px;border-radius:50%;}
+.sbar-label{font-size:11px;color:var(--ink-4);}
+.sbar-val{font-size:11px;font-weight:700;color:var(--ink-2);font-family:var(--mono);}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-box">
+    <div class="auth-flag"><div class="auth-flag-t"></div><div class="auth-flag-b"></div></div>
+    <div class="auth-title">Staff Vacances</div>
+    <div class="auth-sub">CHPG Monaco · Accès comité planning</div>
+    <input class="auth-input" id="authInput" type="password" placeholder="CODE ADMIN" autocomplete="off" maxlength="20"/>
+    <button class="auth-btn" onclick="doLogin()">Accéder</button>
+    <div class="auth-err" id="authErr">Code incorrect</div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header" id="appHeader" style="display:none;">
+  <div class="header-left">
+    <div class="header-flag"><div class="hf-t"></div><div class="hf-b"></div></div>
+    <span class="header-title">Staff Vacances</span>
+    <span class="header-pill" id="yearPill">2027</span>
+    <span class="header-pill" id="sessionPill">Session en cours</span>
+  </div>
+  <div class="header-right">
+    <button class="btn-ghost" onclick="toggleView()">📊 <span id="viewBtnLabel">Récap</span></button>
+    <button class="btn-ghost" onclick="exportRecap()">📤 Export</button>
+    <button class="btn-validate" id="btnValidate" onclick="validateAll()">✅ Valider et verrouiller</button>
+  </div>
+</div>
+
+<!-- STATS BAR -->
+<div class="stats-bar" id="statsBar" style="display:none;">
+  <div class="sbar-item"><div class="sbar-dot" style="background:#10B981;"></div><span class="sbar-label">Période</span><span class="sbar-val" id="sbPeriode">—</span></div>
+  <div class="sbar-item"><div class="sbar-dot" style="background:#3B82F6;"></div><span class="sbar-label">Seuil</span><span class="sbar-val" id="sbSeuil">—</span></div>
+  <div class="sbar-item"><div class="sbar-dot" style="background:#8B5CF6;"></div><span class="sbar-label">Jours tension</span><span class="sbar-val" id="sbTension">—</span></div>
+  <div class="sbar-item"><div class="sbar-dot" style="background:#F59E0B;"></div><span class="sbar-label">Jours saturés</span><span class="sbar-val" id="sbSature">—</span></div>
+  <div class="sbar-item" style="margin-left:auto;"><div class="sbar-dot" style="background:#6B7280;"></div><span class="sbar-label">MARs chargés</span><span class="sbar-val" id="sbMars">—</span></div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar" id="appToolbar" style="display:none;">
+  <div class="periode-tabs" id="periodeTabs"></div>
+  <div style="width:1px;height:20px;background:var(--line);"></div>
+  <div class="type-btns">
+    <button class="tbtn vac active" id="btnVAC" onclick="setType('VAC')">📅 VAC</button>
+    <button class="tbtn form" id="btnFORM" onclick="setType('FORM')">🎓 FORM</button>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
+    <span class="seuil-info">Seuil : <strong id="seuilVal">—</strong> MARs/j</span>
+    <div class="view-toggle">
+      <button class="vtbtn active" id="vtGrille" onclick="setView('grille')">📅 Grille</button>
+      <button class="vtbtn" id="vtRecap" onclick="setView('recap')">📊 Récap</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="appMain" style="display:none;">
+  <div id="loadingMsg" style="text-align:center;padding:60px;color:var(--ink-4);font-size:14px;">
+    Chargement des données…
+  </div>
+  <div id="griView" style="display:none;">
+    <div class="legend">
+      <span>Tension jour :</span>
+      <span class="legend-item"><span class="legend-dot" style="background:var(--ok-bg);border:1px solid var(--ok-fg);opacity:.6;"></span>OK</span>
+      <span class="legend-item"><span class="legend-dot" style="background:var(--warn-bg);border:1px solid var(--warn-fg);opacity:.6;"></span>Proche seuil</span>
+      <span class="legend-item"><span class="legend-dot" style="background:var(--danger-bg);border:1px solid var(--danger-fg);opacity:.6;"></span>Seuil atteint</span>
+    </div>
+    <div class="grid-wrap">
+      <table class="grid-table" id="gridTable"></table>
+    </div>
+  </div>
+  <div id="recView" style="display:none;">
+    <div class="recap-grid" id="recapGrid"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
+
+// ── ÉTAT ────────────────────────────────────────────────────────────
+let adminCode = '';
+let currentYear = 2027;
+let periodes = [];
+let medecins = [];
+let saisies = {};     // {marId: {date: 'VAC'|'FORM'|''}}
+let locked = {};      // {marId: {date: true}}
+let currentPeriode = 0;
+let currentType = 'VAC';
+let currentView = 'grille';
+
+const QUOTAS = {
+  VAC:  {100:33, 90:30, 80:26, 60:20, 50:17},
+  FORM: {100:10, 90:9,  80:8,  60:6,  50:5 },
+};
+const getQuota = (type, q) => QUOTAS[type][q] || QUOTAS[type][100];
+
+// ── LOGIN ────────────────────────────────────────────────────────────
+document.getElementById('authInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+async function doLogin() {
+  const code = document.getElementById('authInput').value.trim().toUpperCase();
+  if (!code) return;
+  const btn = document.querySelector('.auth-btn');
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+  try {
+    const r = await api({action:'login', code});
+    if (r.success && r.role === 'admin') {
+      adminCode = code;
+      currentYear = r.year || 2027;
+      document.getElementById('yearPill').textContent = currentYear;
+      document.getElementById('authOverlay').style.display = 'none';
+      ['appHeader','statsBar','appToolbar','appMain'].forEach(id => {
+        document.getElementById(id).style.display = '';
+      });
+      document.getElementById('appHeader').style.display = 'flex';
+      document.getElementById('statsBar').style.display = 'flex';
+      document.getElementById('appToolbar').style.display = 'flex';
+      document.getElementById('appMain').style.display = 'block';
+      await loadData();
+    } else {
+      showAuthErr();
+    }
+  } catch(e) {
+    showAuthErr();
+  }
+  btn.innerHTML = 'Accéder';
+  btn.disabled = false;
+}
+
+function showAuthErr() {
+  const err = document.getElementById('authErr');
+  err.style.display = 'block';
+  setTimeout(() => err.style.display = 'none', 3000);
+}
+
+// ── CHARGER DONNÉES ──────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('loadingMsg').style.display = 'block';
+  document.getElementById('griView').style.display = 'none';
+  document.getElementById('recView').style.display = 'none';
+
+  // 1. Médecins
+  const mRes = await api({action:'getMedecins', code:adminCode});
+  if (!mRes.success) return showToast('Erreur chargement médecins');
+  medecins = mRes.medecins.filter(m => m.actif);
+
+  // 2. Périodes vacances
+  const pRes = await api({action:'getVacancesConfig', code:adminCode});
+  if (!pRes.success) return showToast('Erreur chargement périodes');
+  periodes = (pRes.periodes || []).filter(p => p.debut.startsWith(String(currentYear)) || p.fin.startsWith(String(currentYear)));
+
+  if (!periodes.length) {
+    document.getElementById('loadingMsg').textContent = 'Aucune période configurée pour ' + currentYear;
+    return;
+  }
+
+  // 3. Indispos existantes (VAC/FORM déjà saisies)
+  const iRes = await api({action:'getAllIndispos', code:adminCode, year:currentYear});
+  if (iRes.success) {
+    // Initialiser saisies depuis les données existantes
+    medecins.forEach(m => {
+      saisies[m.id] = {};
+      locked[m.id] = {};
+      const ind = iRes.data[m.id] || {};
+      Object.entries(ind).forEach(([date, val]) => {
+        if (val === 'VAC' || val === 'FORM') {
+          saisies[m.id][date] = val;
+          // On ne verrouille pas au chargement — le staff peut modifier
+        }
+      });
+    });
+  } else {
+    medecins.forEach(m => { saisies[m.id] = {}; locked[m.id] = {}; });
+  }
+
+  document.getElementById('sbMars').textContent = medecins.length;
+
+  // Initialiser les onglets périodes
+  buildPeriodeTabs();
+  setCurrentPeriode(0);
+  document.getElementById('loadingMsg').style.display = 'none';
+}
+
+// ── NAVIGATION ───────────────────────────────────────────────────────
+function buildPeriodeTabs() {
+  const COLORS = [
+    {bg:'#DBEAFE',brd:'#93C5FD'},{bg:'#DCFCE7',brd:'#86EFAC'},
+    {bg:'#FEF9C3',brd:'#FDE047'},{bg:'#FFE4E6',brd:'#FCA5A5'},
+    {bg:'#F3E8FF',brd:'#D8B4FE'}
+  ];
+  const container = document.getElementById('periodeTabs');
+  container.innerHTML = '';
+  periodes.forEach((p, i) => {
+    const c = COLORS[i % COLORS.length];
+    const btn = document.createElement('button');
+    btn.className = 'ptab' + (i === currentPeriode ? ' active' : '');
+    btn.style.cssText = i === currentPeriode
+      ? `background:${c.bg};border-color:${c.brd};`
+      : '';
+    const d1 = p.debut.slice(5).replace('-','/');
+    const d2 = p.fin.slice(5).replace('-','/');
+    btn.innerHTML = `${p.nom} <span style="font-size:10px;color:var(--ink-4);margin-left:4px;">${d1}→${d2}</span>`;
+    btn.onclick = () => setCurrentPeriode(i);
+    container.appendChild(btn);
+  });
+}
+
+function setCurrentPeriode(idx) {
+  currentPeriode = idx;
+  buildPeriodeTabs();
+  const p = periodes[idx];
+  document.getElementById('seuilVal').textContent = p.seuil;
+  document.getElementById('sbPeriode').textContent = p.nom;
+  document.getElementById('sbSeuil').textContent = p.seuil + ' MARs/j';
+  updateStatsBar();
+  renderCurrent();
+}
+
+function setType(t) {
+  currentType = t;
+  document.getElementById('btnVAC').className = 'tbtn vac' + (t==='VAC'?' active':'');
+  document.getElementById('btnFORM').className = 'tbtn form' + (t==='FORM'?' active':'');
+  renderCurrent();
+}
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('vtGrille').className = 'vtbtn' + (v==='grille'?' active':'');
+  document.getElementById('vtRecap').className  = 'vtbtn' + (v==='recap'?' active':'');
+  renderCurrent();
+}
+
+function toggleView() {
+  setView(currentView === 'grille' ? 'recap' : 'grille');
+  document.getElementById('viewBtnLabel').textContent = currentView === 'grille' ? 'Récap' : 'Grille';
+}
+
+// ── JOURS DE LA PÉRIODE ──────────────────────────────────────────────
+function getPeriodeDays(p) {
+  const days = [];
+  const d = new Date(p.debut + 'T12:00:00');
+  const e = new Date(p.fin + 'T12:00:00');
+  while (d <= e) {
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) {
+      days.push(d.toISOString().slice(0,10));
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  return days;
+}
+
+function formatDate(s) {
+  const d = new Date(s + 'T12:00:00');
+  const jours = ['D','L','M','M','J','V','S'];
+  return jours[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1);
+}
+
+// ── COMPTAGE ─────────────────────────────────────────────────────────
+function countForMAR(marId, type, days) {
+  if (!days) {
+    // Toutes périodes
+    return Object.values(saisies[marId] || {}).filter(v => v === type).length;
+  }
+  return days.filter(d => (saisies[marId] || {})[d] === type).length;
+}
+
+function countForDay(date) {
+  return medecins.filter(m => {
+    const v = (saisies[m.id] || {})[date];
+    return v === 'VAC' || v === 'FORM';
+  }).length;
+}
+
+function tension(date, seuil) {
+  const n = countForDay(date);
+  if (n >= seuil) return 'high';
+  if (n >= Math.floor(seuil * 0.7)) return 'warn';
+  return 'ok';
+}
+
+// ── TOGGLE JOUR ──────────────────────────────────────────────────────
+function toggleDay(marId, date) {
+  if ((locked[marId] || {})[date]) return;
+  const cur = (saisies[marId] || {})[date];
+  if (!saisies[marId]) saisies[marId] = {};
+  if (cur === currentType) {
+    delete saisies[marId][date];
+  } else {
+    saisies[marId][date] = currentType;
+  }
+  updateStatsBar();
+  renderCurrent();
+}
+
+// ── RENDU GRILLE ─────────────────────────────────────────────────────
+function renderCurrent() {
+  document.getElementById('griView').style.display = currentView === 'grille' ? 'block' : 'none';
+  document.getElementById('recView').style.display = currentView === 'recap'  ? 'block' : 'none';
+  if (currentView === 'grille') renderGrille();
+  else renderRecap();
+}
+
+function renderGrille() {
+  const p = periodes[currentPeriode];
+  const days = getPeriodeDays(p);
+  const table = document.getElementById('gridTable');
+
+  let html = '<thead><tr>';
+  html += `<th class="gt-head-mar gt-sticky">MAR</th>`;
+  html += `<th class="gt-head-quota">Quota ${currentType}</th>`;
+
+  days.forEach(date => {
+    const t = tension(date, p.seuil);
+    const n = countForDay(date);
+    const cls = t === 'high' ? 'tension-high' : t === 'warn' ? 'tension-warn' : 'tension-ok';
+    html += `<th class="gt-head-day ${cls}">
+      <div class="gt-head-day-date">${formatDate(date)}</div>
+      <div class="gt-head-day-count">${n > 0 ? n : ''}</div>
+    </th>`;
+  });
+  html += `<th class="gt-head-total">Posé / Quota</th></tr></thead>`;
+
+  html += '<tbody>';
+  medecins.forEach((m, idx) => {
+    const quota = getQuota(currentType, m.quotite || 100);
+    const posed = countForMAR(m.id, currentType, days);
+    const poseTotal = countForMAR(m.id, currentType);
+    const over = poseTotal > quota;
+    const badgeCls = over ? 'over' : poseTotal > 0 ? 'ok' : 'zero';
+
+    html += `<tr class="gt-row">`;
+    html += `<td class="gt-cell-mar gt-sticky" style="min-width:160px;">
+      <span class="gt-initials">${m.initiales}</span>
+      <span class="gt-name">${m.id}</span>
+      ${(m.quotite || 100) < 100 ? `<span class="gt-quotite">${m.quotite}%</span>` : ''}
+    </td>`;
+    html += `<td class="gt-cell-quota">${quota}j</td>`;
+
+    days.forEach(date => {
+      const val = (saisies[m.id] || {})[date];
+      const lck = (locked[m.id] || {})[date];
+      const chipCls = val === 'VAC' ? 'vac' : val === 'FORM' ? 'form' : 'empty';
+      const lckCls = lck ? ' locked' : '';
+      const label = val || '';
+      html += `<td class="gt-cell-day">
+        <div class="day-chip-wrap">
+          <div class="day-chip ${chipCls}${lckCls}"
+            onclick="toggleDay('${m.id}','${date}')"
+            title="${m.id} — ${date}">${label}</div>
+        </div>
+      </td>`;
+    });
+
+    html += `<td class="gt-cell-total">
+      <span class="total-badge ${badgeCls}">${poseTotal}/${quota}</span>
+    </td>`;
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+// ── RENDU RÉCAP ──────────────────────────────────────────────────────
+function renderRecap() {
+  const grid = document.getElementById('recapGrid');
+  let html = '';
+  medecins.forEach(m => {
+    const vacPosed = countForMAR(m.id, 'VAC');
+    const formPosed = countForMAR(m.id, 'FORM');
+    const vacQ = getQuota('VAC', m.quotite || 100);
+    const formQ = getQuota('FORM', m.quotite || 100);
+    const vacOver = vacPosed > vacQ;
+    const formOver = formPosed > formQ;
+    html += `<div class="recap-card">
+      <div class="recap-header">
+        <span class="gt-initials">${m.initiales}</span>
+        <span style="font-size:13px;font-weight:700;">${m.id}</span>
+        ${(m.quotite||100) < 100 ? `<span style="font-size:11px;color:var(--ink-4);">${m.quotite}%</span>` : ''}
+      </div>
+      <div class="recap-counts">
+        <div class="recap-count-box" style="background:var(--vac-bg);">
+          <div class="rcb-label" style="color:var(--vac-fg);">VAC</div>
+          <div class="rcb-val" style="color:${vacOver?'#DC2626':'var(--vac-fg)'};">${vacPosed}</div>
+          <div class="rcb-quota" style="color:var(--vac-fg);">/ ${vacQ}j</div>
+        </div>
+        <div class="recap-count-box" style="background:var(--form-bg);">
+          <div class="rcb-label" style="color:var(--form-fg);">FORM</div>
+          <div class="rcb-val" style="color:${formOver?'#DC2626':'var(--form-fg)'};">${formPosed}</div>
+          <div class="rcb-quota" style="color:var(--form-fg);">/ ${formQ}j</div>
+        </div>
+      </div>
+    </div>`;
+  });
+  grid.innerHTML = html;
+}
+
+// ── STATS BAR ────────────────────────────────────────────────────────
+function updateStatsBar() {
+  if (!periodes.length) return;
+  const p = periodes[currentPeriode];
+  const days = getPeriodeDays(p);
+  let tension_count = 0, sature_count = 0;
+  days.forEach(d => {
+    const t = tension(d, p.seuil);
+    if (t === 'warn') tension_count++;
+    if (t === 'high') sature_count++;
+  });
+  document.getElementById('sbTension').textContent = tension_count;
+  document.getElementById('sbSature').textContent = sature_count;
+}
+
+// ── VALIDER ET VERROUILLER ───────────────────────────────────────────
+async function validateAll() {
+  if (!confirm('Valider et verrouiller toutes les saisies ? Les MARs ne pourront plus modifier leurs VAC/FORM.')) return;
+  const btn = document.getElementById('btnValidate');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner" style="border-top-color:var(--red);border-color:rgba(0,0,0,.15);"></span>';
+
+  // Verrouiller localement
+  medecins.forEach(m => {
+    if (!locked[m.id]) locked[m.id] = {};
+    Object.keys(saisies[m.id] || {}).forEach(date => {
+      locked[m.id][date] = true;
+    });
+  });
+
+  // Sauvegarder toutes les saisies via API
+  let saved = 0, errors = 0;
+  for (const m of medecins) {
+    try {
+      await api({action:'saveIndispos', code:adminCode, doctorId:m.id, indispos:saisies[m.id] || {}});
+      saved++;
+    } catch(e) { errors++; }
+  }
+
+  btn.disabled = false;
+  btn.textContent = '✅ Valider et verrouiller';
+  showToast(`✅ ${saved} MARs sauvegardés${errors > 0 ? ` · ${errors} erreurs` : ''}`);
+  renderCurrent();
+}
+
+// ── EXPORT ───────────────────────────────────────────────────────────
+function exportRecap() {
+  let csv = 'MAR;Quotité;VAC posé;VAC quota;FORM posé;FORM quota\n';
+  medecins.forEach(m => {
+    const vp = countForMAR(m.id, 'VAC');
+    const fp = countForMAR(m.id, 'FORM');
+    const vq = getQuota('VAC', m.quotite||100);
+    const fq = getQuota('FORM', m.quotite||100);
+    csv += `${m.id};${m.quotite||100}%;${vp};${vq};${fp};${fq}\n`;
+  });
+  const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `staff_vacances_${currentYear}.csv`;
+  a.click();
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────
+async function api(payload) {
+  const url = API + '?payload=' + encodeURIComponent(JSON.stringify(payload));
+  const r = await fetch(url);
+  return r.json();
+}
+
+function showToast(msg, duration=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+</script>
+</body>
+</html>
