@@ -727,6 +727,45 @@ if (sessionStorage.getItem('adminCode')) {
         <button class="btn-primary" onclick="loadIndispos()">↻ Actualiser</button>
       </div>
     </div>
+    <div id="indisposLoading" class="loading"><div class="spinner"></div> Chargement…</div>
+    <div id="indisposContent" style="display:none">
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <span class="card-title">État des saisies par MAR</span>
+          <div style="display:flex;gap:10px;font-size:11px">
+            <span style="color:var(--green)">● Saisi</span>
+            <span style="color:var(--red)">● Non saisi</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="mar-grid" id="marGrid"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Heatmap des semaines de tension</span>
+          <span style="font-size:11px;color:var(--ink-4)">Plus c'est rouge = plus d'absences simultanées</span>
+        </div>
+        <div class="card-body">
+          <div style="overflow-x:auto"><div class="heatmap" id="heatmap"></div></div>
+          <div style="display:flex;gap:8px;margin-top:8px;font-size:10px;color:var(--ink-4);align-items:center">
+            <span>Effectif estimé :</span>
+            <div style="width:16px;height:16px;border-radius:3px;background:#DCFCE7"></div><span>&gt;75%</span>
+            <div style="width:16px;height:16px;border-radius:3px;background:#FEF3C7"></div><span>65–75%</span>
+            <div style="width:16px;height:16px;border-radius:3px;background:#FCA5A5"></div><span>&lt;65%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="indisposEmpty" style="padding:40px;text-align:center;color:var(--ink-4)">
+      <div style="font-size:32px;margin-bottom:12px">👥</div>
+      <div style="font-size:14px;font-weight:600;color:var(--ink-2);margin-bottom:6px">Suivi des saisies</div>
+      <div style="font-size:12px;max-width:400px;margin:0 auto;line-height:1.6">
+        Visualisez qui a saisi ses indispos et les semaines de tension.<br>
+        Cliquez <strong>↻ Actualiser</strong> pour charger les données.
+      </div>
+    </div>
+  </div>
 
   <div class="advanced-bar" style="margin-top:16px">
     <a href="./indispos.html" class="advanced-link">📅 Saisie indispos (MARs)</a>
