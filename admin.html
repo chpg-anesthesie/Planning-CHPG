@@ -802,6 +802,21 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 
 .plan-chip.cs-chip { background:#F0FDF4; color:#166534; border:1px solid #86EFAC; max-width:60px; }
 .cs-sub { font-size:8px; color:#166534; margin-left:2px; opacity:.8; }
+
+/* ── SLOT FLASH (admin) ── */
+.slot-flash {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:100%; min-height:20px; border-radius:4px; font-size:14px;
+  border:1.5px dashed #F97316; background:#FFF7ED; color:#F97316;
+  cursor:pointer; animation:slotFlash 1.4s ease-in-out infinite;
+  flex:1;
+}
+.slot-flash:hover { animation:none; background:#FFEDD5; transform:scale(1.05); }
+@keyframes slotFlash { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+/* Badges toolbar */
+.week-validate-btn { background:var(--green); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:11px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:opacity .15s; }
+.week-validate-btn:hover { opacity:.88; }
+.week-validate-btn.validated { background:#166534; }
 </style>
 <script>
 // Masquer l'overlay immédiatement si un code est en sessionStorage
@@ -893,115 +908,118 @@ if (sessionStorage.getItem('adminCode')) {
 
   <!-- ── PLANNING ── -->
 <div class="tab-panel active" id="panel-planning">
-  <div class="plan-page">
 
-    <div class="plan-toolbar">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <button class="week-nav-btn" onclick="prevWeek()">←</button>
-        <span class="week-label" id="weekLabel">Chargement…</span>
-        <button class="week-nav-btn" onclick="nextWeek()">→</button>
-        <span class="week-flash-badge" id="flashBadge" style="display:none;">⚠️ <span id="flashCount">0</span> case<span id="flashPlural">s</span> à pourvoir</span>
-        <span class="week-validated-badge" id="validatedBadge" style="display:none;">✅ Validée</span>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
-        <button class="week-validate-btn" id="btnValiderSemaine" onclick="toggleValiderSemaine()">✅ Valider</button>
-      </div>
+  <!-- TOOLBAR SEMAINE -->
+  <div class="plan-toolbar">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button class="week-nav-btn" onclick="prevWeek()">←</button>
+      <span class="week-label" id="weekLabel">Chargement…</span>
+      <button class="week-nav-btn" onclick="nextWeek()">→</button>
+      <span id="flashBadge" style="display:none;align-items:center;gap:5px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#C2410C;">
+        ⚠️ <span id="flashCount">0</span> case<span id="flashPlural">s</span> à pourvoir
+      </span>
+      <span id="validatedBadge" style="display:none;align-items:center;gap:5px;background:#DCFCE7;border:1px solid #86EFAC;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#166534;">✅ Validée</span>
     </div>
-
-    <div class="plan-main-layout">
-
-      <div class="plan-left">
-        <div style="overflow-x:auto;">
-          <table class="plan-table" id="planTable">
-            <tbody><tr><td style="padding:40px;text-align:center;color:var(--ink-4);">
-              <div class="spinner" style="margin:0 auto 10px;"></div>Chargement…
-            </td></tr></tbody>
-          </table>
-        </div>
-        <div class="annual-compact">
-          <div class="annual-compact-title">Opérations annuelles</div>
-          <div class="annual-compact-grid">
-            <div class="ann-step" onclick="openWizard()">
-              <span class="ann-step-num">1</span>
-              <div><div class="ann-step-label" id="labelDemarrer">Démarrer 2027</div><span class="ann-step-badge orange">Octobre</span></div>
-            </div>
-            <div class="ann-step" onclick="openWizardGardes()">
-              <span class="ann-step-num">2</span>
-              <div><div class="ann-step-label">Générer les gardes</div><span class="ann-step-badge blue">Nov–Déc</span></div>
-            </div>
-            <div class="ann-step" onclick="openWizardCloture()">
-              <span class="ann-step-num">3</span>
-              <div><div class="ann-step-label">Clôturer l'année</div><span class="ann-step-badge green">Janvier</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="plan-right" id="planRight">
-
-        <div class="psp-card" id="dispoCard" style="display:none;">
-          <div class="psp-header">
-            <div>
-              <div class="psp-title" id="pspTitle">Affecter un MAR</div>
-              <div class="psp-sub" id="pspSub">—</div>
-            </div>
-            <button class="psp-close" onclick="closeSidePanel()">✕</button>
-          </div>
-          <div class="psp-body" id="pspContent"><div class="loading"><div class="spinner"></div></div></div>
-          <div class="psp-footer">
-            <button onclick="closeSidePanel()" class="btn-secondary" style="width:100%;">Laisser vide</button>
-          </div>
-        </div>
-
-        <div id="actionsCard">
-          <div class="psp-card" style="margin-bottom:12px;">
-            <div class="psp-header" style="border-bottom:none;padding-bottom:8px;">
-              <div class="psp-title">Actions rapides</div>
-            </div>
-            <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px;">
-              <div class="action-card-mini blue" onclick="openPanel('garde')">
-                <div class="acm-icon blue">🔁</div>
-                <div><div class="acm-title">Modifier une garde</div><div class="acm-desc">Échange, don ou exceptionnelle</div></div>
-              </div>
-              <div class="action-card-mini green" onclick="openPanel('secteur')">
-                <div class="acm-icon green">🔄</div>
-                <div><div class="acm-title">Changer de secteur</div><div class="acm-desc">Modifier le secteur AM/PM d'un MAR</div></div>
-              </div>
-              <div class="action-card-mini orange" onclick="exportWeekExcel()">
-                <div class="acm-icon orange">📊</div>
-                <div><div class="acm-title">Exporter Excel</div><div class="acm-desc">Planning semaine en cours</div></div>
-              </div>
-            </div>
-          </div>
-          <div class="psp-card">
-            <div class="psp-header" style="border-bottom:none;padding-bottom:4px;">
-              <div class="psp-title">État du cycle</div>
-              <button onclick="loadCycleStatus()" style="font-size:10px;background:none;border:none;color:var(--ink-4);cursor:pointer;">↻</button>
-            </div>
-            <div class="psp-body" id="cycleStatusBody"><div class="loading"><div class="spinner"></div></div></div>
-          </div>
-        </div>
-
-      </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
+      <button class="week-validate-btn" id="btnValiderSemaine" onclick="toggleValiderSemaine()">✅ Valider la semaine</button>
     </div>
-
-    <div id="planningIndisposSection" style="margin-top:28px;display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <div>
-          <div style="font-size:16px;font-weight:700">Suivi des saisies <span id="indisposYear">—</span> <span id="indisposYearBadge" style="display:none;font-size:11px;padding:2px 8px;border-radius:10px;background:#FEF3C7;color:#92400E;font-weight:600;margin-left:6px"></span></div>
-          <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Qui a saisi ses indispos · Cases rouges = MARs sans saisie</div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn-secondary" onclick="notifierConflitsPanel()" id="btnNotifConflits">📧 Notifier conflits</button>
-          <button class="btn-primary" onclick="loadIndispos()">↻ Actualiser</button>
-        </div>
-      </div>
-      <div id="indisposLoading" class="loading"><div class="spinner"></div> Chargement…</div>
-      <div id="indisposContent" style="display:none"></div>
-    </div>
-    <div style="margin-top:16px;"><a href="indispos.html" class="advanced-link">📅 Saisie indispos (MARs)</a></div>
   </div>
+
+  <!-- GRILLE PLEINE LARGEUR -->
+  <div style="overflow-x:auto;margin-bottom:20px;">
+    <table class="planning-table" id="planTable">
+      <tbody><tr><td style="padding:40px;text-align:center;color:var(--ink-4);">
+        <div class="spinner" style="margin:0 auto 10px;"></div>Chargement…
+      </td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- DISPO PANEL (inline, affiché sous la grille au clic sur +) -->
+  <div id="dispoCard" style="display:none;background:var(--white);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:0;margin-bottom:20px;">
+    <div style="padding:14px 20px 10px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:14px;font-weight:700;" id="pspTitle">Affecter un MAR</div>
+        <div style="font-size:12px;color:var(--ink-3);margin-top:2px;" id="pspSub">—</div>
+      </div>
+      <button onclick="closeSidePanel()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--ink-4);">✕</button>
+    </div>
+    <div id="pspContent" style="padding:14px 20px;display:flex;flex-wrap:wrap;gap:16px;min-height:60px;">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- ACTIONS RAPIDES -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+    <div class="action-card blue" onclick="openPanel('garde')">
+      <div class="action-icon blue">🔁</div>
+      <div>
+        <div class="action-label">Modifier une garde</div>
+        <div class="action-desc">Échange, don ou garde exceptionnelle</div>
+      </div>
+      <span class="action-badge blue">Fréquent</span>
+    </div>
+    <div class="action-card green" onclick="openPanel('secteur')">
+      <div class="action-icon green">🔄</div>
+      <div>
+        <div class="action-label">Changer de secteur</div>
+        <div class="action-desc">Modifier le secteur AM/PM d'un MAR</div>
+      </div>
+      <span class="action-badge green">Quotidien</span>
+    </div>
+    <div class="action-card orange" onclick="exportWeekExcel()">
+      <div class="action-icon orange">📊</div>
+      <div>
+        <div class="action-label">Exporter Excel</div>
+        <div class="action-desc">Planning de la semaine en cours</div>
+      </div>
+      <span class="action-badge orange">Hebdo</span>
+    </div>
+  </div>
+
+  <!-- OPÉRATIONS ANNUELLES -->
+  <div class="annual-ops-section">
+    <div class="annual-ops-header">
+      <span class="annual-ops-title">🗓️ Opérations annuelles</span>
+      <span class="annual-ops-sub">3 étapes séquentielles — dans cet ordre</span>
+    </div>
+    <div class="annual-ops-grid">
+      <div class="action-card orange" onclick="openWizard()">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="action-icon orange">🚀</div>
+          <span class="annual-step-num">1</span>
+        </div>
+        <div>
+          <div class="action-label" id="labelDemarrer">Démarrer 2027</div>
+          <div class="action-desc">Initialiser les indispos, configurer les vacances et envoyer les codes</div>
+        </div>
+        <span class="action-badge orange">Étape 1</span>
+      </div>
+      <div class="action-card purple" onclick="openWizardGardes()">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="action-icon purple">⚡</div>
+          <span class="annual-step-num">2</span>
+        </div>
+        <div>
+          <div class="action-label">Générer les gardes</div>
+          <div class="action-desc">Vérifier les indispos, générer et publier le planning</div>
+        </div>
+        <span class="action-badge purple">Étape 2</span>
+      </div>
+      <div class="action-card teal" onclick="openWizardCloture()">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="action-icon teal">📦</div>
+          <span class="annual-step-num">3</span>
+        </div>
+        <div>
+          <div class="action-label">Clôturer l'année</div>
+          <div class="action-desc">Vérifier, récapituler l'équité et archiver</div>
+        </div>
+        <span class="action-badge teal">Étape 3</span>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <div class="tab-panel" id="panel-equipe">
@@ -1512,31 +1530,31 @@ function renderWeek() {
   const daySlots = getWeekDays(wk.weekNum);
   const today = todayStr();
 
-  // Label semaine
   const first = daySlots.find(d => d);
   const last  = [...daySlots].reverse().find(d => d);
   if (first && last) {
-    const fmt = ds => new Date(ds).toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit'});
+    const fmt = ds => new Date(ds).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
     document.getElementById('weekLabel').textContent = `S${wk.weekNum} · ${fmt(first.date)} – ${fmt(last.date)}`;
+    document.getElementById('statusWeek').textContent = `S${wk.weekNum}`;
   }
 
+  // Identique à index.html SECTORS_DEF + avec G/RG en premier
   const SECTORS = [
-    {code:'VIS', label:'Viscéral',   bg:'#DBEAFE', fg:'#1D4ED8', brd:'#93C5FD'},
-    {code:'REA', label:'Réa',        bg:'#FEE2E2', fg:'#991B1B', brd:'#FCA5A5'},
-    {code:'ORT', label:'Ortho',      bg:'#F3E8FF', fg:'#6B21A8', brd:'#D8B4FE'},
-    {code:'ORL', label:'ORL',        bg:'#FEF3C7', fg:'#92400E', brd:'#FCD34D'},
-    {code:'END', label:'Endo',       bg:'#DCFCE7', fg:'#166534', brd:'#86EFAC'},
-    {code:'CI',  label:'Cardio/Int', bg:'#FFEDD5', fg:'#9A3412', brd:'#FDBA74'},
-    {code:'RI',  label:'Radio/Int',  bg:'#ECFDF5', fg:'#065F46', brd:'#6EE7B7'},
-    {code:'MAT', label:'Maternité',  bg:'#FCE7F3', fg:'#9D174D', brd:'#F9A8D4'},
-    {code:'DVI', label:'DVI',        bg:'#E0E7FF', fg:'#3730A3', brd:'#A5B4FC'},
-    {code:'CS',  label:'Consult.',   bg:'#F0FDF4', fg:'#166534', brd:'#86EFAC'},
-    {code:'G/RG',label:'Gardes',     bg:'#1E293B', fg:'#fff',    brd:'#1E293B'},
+    {code:'G/RG', label:'Gardes',                   icon:'Shield'      },
+    {code:'VIS',  label:'Bloc viscéral',             icon:'Activity'    },
+    {code:'REA',  label:'Réanimation',               icon:'HeartPulse'  },
+    {code:'ORT',  label:'Orthopédie',                icon:'Bone'        },
+    {code:'DVI',  label:'Pose DVI',                  icon:'Syringe'     },
+    {code:'ORL',  label:'ORL / Ophtalmologie',       icon:'Eye'         },
+    {code:'END',  label:'Endoscopies',               icon:'Microscope'  },
+    {code:'CI',   label:'Cardio interventionnelle',  icon:'Heart'       },
+    {code:'RI',   label:'Radio interventionnelle',   icon:'Scan'        },
+    {code:'MAT',  label:'Maternité',                 icon:'Baby'        },
+    {code:'CS',   label:'Consultation',              icon:'Stethoscope' },
   ];
 
   const ABSENT_V2 = new Set(['G','G2','RG','V','F','CTP','R','A']);
 
-  // Construire smap[secteur][dow] = {am:[], pm:[]}
   const smap = {};
   SECTORS.forEach(s => { smap[s.code] = Array(7).fill(null).map(() => ({am:[], pm:[]})); });
 
@@ -1548,96 +1566,94 @@ function renderWeek() {
         ? (slot.sourceMonth.doctors.find(d => d.id === doc.id)?.days[slot.dayIdx] || {})
         : (doc.days[slot.dayIdx] || {});
       const st = entry.status || '';
+
       if (ABSENT_V2.has(st)) {
-        if (st === 'G')  smap['G/RG'][dow].am.push({init:doc.initials, id:doc.id, st:'G'});
-        if (st === 'G2') smap['G/RG'][dow].am.push({init:doc.initials, id:doc.id, st:'G2'});
+        if (st === 'G')  smap['G/RG'][dow].am.push({init:doc.initials, id:doc.id, status:'G'});
+        if (st === 'G2') smap['G/RG'][dow].am.push({init:doc.initials, id:doc.id, status:'G2'});
         return;
       }
+
       const am = entry.morning   || '';
       const pm = entry.afternoon || '';
-      // CS : afficher l'initiale + le sous-label (ex: CS-VIS → "VIS")
-      const amKey  = am.startsWith('CS-') ? 'CS' : am;
-      const pmKey  = pm.startsWith('CS-') ? 'CS' : pm;
-      const amSub  = am.startsWith('CS-') ? am.split('-')[1] : '';
-      const pmSub  = pm.startsWith('CS-') ? pm.split('-')[1] : '';
-      // AM : toujours pousser si secteur connu
-      if (amKey && smap[amKey]) smap[amKey][dow].am.push({init:doc.initials, id:doc.id, st, sub:amSub});
-      // PM : toujours pousser, même si même secteur qu'AM
-      if (pmKey && smap[pmKey]) smap[pmKey][dow].pm.push({init:doc.initials, id:doc.id, st, sub:pmSub});
-      // CS entry.cs (consultation explicite)
+      const amKey = am.startsWith('CS-') ? 'CS' : am;
+      const pmKey = pm.startsWith('CS-') ? 'CS' : pm;
+
+      if (amKey && smap[amKey]) smap[amKey][dow].am.push({init:doc.initials, id:doc.id, status:st, sector:am});
+      if (pmKey && smap[pmKey]) smap[pmKey][dow].pm.push({init:doc.initials, id:doc.id, status:st, sector:pm});
+
       const cs = entry.cs || '';
-      if (cs && smap['CS']) {
-        const csSub = cs.includes('-') ? cs.split('-')[1] : '';
-        smap['CS'][dow].am.push({init:doc.initials, id:doc.id, st, sub:csSub});
-      }
+      if (cs && smap['CS']) smap['CS'][dow].am.push({init:doc.initials, id:doc.id, status:st, sector:cs});
     });
   });
 
-  // Secteurs actifs = au moins un slot rempli
   const activeSectors = SECTORS.filter(s =>
-    s.code === 'G/RG' || smap[s.code].some(d => d.am.length || d.pm.length)
+    smap[s.code].some(d => d.am.length || d.pm.length)
   );
 
-  // ── EN-TÊTE ──
-  let thead = '<thead><tr>';
-  thead += '<th class="plan-th-sector">SECTEUR</th>';
+  // ── EN-TÊTE — identique index.html ──
+  let thead = '<thead><tr><th class="th-sector">SECTEUR</th>';
   daySlots.forEach((slot, i) => {
-    if (!slot) { thead += '<th class="plan-th-day weekend"></th>'; return; }
+    if (!slot) { thead += '<th class="th-day weekend"></th>'; return; }
     const isWe = slot.isWeekend || slot.isFerie;
     const isTd = slot.date === today;
-    const cls  = ['plan-th-day', isWe ? 'weekend' : '', isTd ? 'today' : ''].filter(Boolean).join(' ');
+    const cls  = ['th-day', (isWe||slot.isFerie)?'weekend':'', isTd?'today':''].filter(Boolean).join(' ');
     thead += `<th class="${cls}">
-      <div class="plan-day-name">${['LUN','MAR','MER','JEU','VEN','SAM','DIM'][i]}</div>
-      <div class="plan-day-num">${slot.day}${slot.isFerie ? ' <span style="font-size:8px;color:#C2410C;font-weight:700">JF</span>' : ''}</div>
-      ${!isWe ? '<div class="plan-ampm-labels"><div class="plan-ampm-label">AM</div><div class="plan-ampm-label">PM</div></div>' : ''}
+      <div class="day-name">${['LUN','MAR','MER','JEU','VEN','SAM','DIM'][i]}</div>
+      <div class="day-date">${slot.day}${slot.isFerie?' <span style="font-size:8px;color:#C2410C;font-weight:700">JF</span>':''}</div>
+      ${!isWe ? '<div class="am-pm-labels"><div class="am-pm-label">AM</div><div class="am-pm-label pm">PM</div></div>' : ''}
     </th>`;
   });
   thead += '</tr></thead>';
 
-  // ── CORPS ──
+  // ── CORPS — identique index.html ──
+  const makeChips = (arr) => {
+    const chips = arr.map(p => {
+      const cls = (p.status==='G'||p.status==='G2') ? 'slot-name chip-guard'
+                : p.status==='18' ? 'slot-name chip-h18'
+                : 'slot-name';
+      return `<span class="${cls}" title="${p.id}">${p.init}</span>`;
+    });
+    if (chips.length % 2 !== 0) chips.push('<span class="slot-name-spacer"></span>');
+    return chips.join('');
+  };
+
   let tbody = '<tbody>';
   activeSectors.forEach(s => {
-    tbody += `<tr class="plan-sector-row">`;
-    tbody += `<td class="plan-td-sector">
-      <span class="plan-sector-pill" style="background:${s.bg};color:${s.fg};border-color:${s.brd};">${s.label}</span>
-    </td>`;
+    tbody += `<tr class="sector-row"><td class="td-sector">
+      <div class="sector-label">
+        <i data-lucide="${s.icon}" class="sector-icon-svg"></i>
+        <span class="sector-name-text">${s.label}</span>
+      </div></td>`;
 
     daySlots.forEach((slot, dow) => {
-      if (!slot) { tbody += '<td class="plan-td-day weekend"></td>'; return; }
+      if (!slot) { tbody += '<td class="td-day weekend"></td>'; return; }
       const isWe = slot.isWeekend || slot.isFerie;
       const isTd = slot.date === today;
-      const cls  = ['plan-td-day', isWe ? 'weekend' : '', isTd ? 'today' : ''].filter(Boolean).join(' ');
+      const cls  = ['td-day', isWe?'weekend':'', isTd?'today':''].filter(Boolean).join(' ');
       tbody += `<td class="${cls}">`;
 
-      if (isWe) {
-        // Weekend : afficher les gardes uniquement
-        const names = smap[s.code][dow].am;
-        tbody += '<div style="display:flex;flex-wrap:wrap;gap:3px;padding:6px;align-items:center;height:56px;">';
-        if (names.length) {
-          names.forEach(p => {
-            const chipCls = (p.st==='G'||p.st==='G2') ? 'plan-chip guard' : 'plan-chip';
-            tbody += `<span class="${chipCls}" title="${p.id}">${p.init}</span>`;
-          });
-        } else {
-          tbody += `<span class="plan-slot-dash">—</span>`;
-        }
-        tbody += '</div>';
-      } else {
-        const amList = smap[s.code][dow].am;
-        const pmList = smap[s.code][dow].pm;
-        const makeChips = arr => arr.map(p => {
-          const chipCls = (p.st==='G'||p.st==='G2') ? 'plan-chip guard' : p.st==='18' ? 'plan-chip h18' : (p.sub ? 'plan-chip cs-chip' : 'plan-chip');
-          const label = p.sub ? `${p.init}<span class="cs-sub">${p.sub}</span>` : p.init;
-          return `<span class="${chipCls}" title="${p.id}">${label}</span>`;
-        }).join('');
-        const flashBtn = (slot && s.code !== 'G/RG')
-          ? `<span class="plan-chip-flash" onclick="openSidePanel('${s.code}','${slot.date}','${s.label}')" title="Affecter un MAR">+</span>`
-          : '';
+      const amList = smap[s.code][dow].am;
+      const pmList = smap[s.code][dow].pm;
 
-        tbody += '<div class="plan-slot-pair">';
-        tbody += `<div class="plan-slot">${amList.length ? makeChips(amList) : (s.code !== 'G/RG' ? flashBtn : '<span class="plan-slot-dash">—</span>')}</div>`;
-        tbody += `<div class="plan-slot">${pmList.length ? makeChips(pmList) : (s.code !== 'G/RG' ? flashBtn : '<span class="plan-slot-dash">—</span>')}</div>`;
-        tbody += '</div>';
+      if (!amList.length && !pmList.length) {
+        // Case vide — flash si jour ouvré et secteur non-garde
+        if (!isWe && s.code !== 'G/RG') {
+          tbody += `<div class="slot-pair"><div class="slot"><span class="slot-flash" onclick="openSidePanel('${s.code}','${slot.date}','${s.label}')">+</span></div><div class="slot"><span class="slot-flash" onclick="openSidePanel('${s.code}','${slot.date}','${s.label}')">+</span></div></div>`;
+        } else {
+          tbody += `<div class="slot-pair"><div class="slot"><span class="slot-dash">—</span></div><div class="slot"><span class="slot-dash">—</span></div></div>`;
+        }
+      } else if (isWe) {
+        const names = amList;
+        const chips = names.map(p => {
+          const cls = (p.status==='G'||p.status==='G2') ? 'slot-name chip-guard' : 'slot-name';
+          return `<span class="${cls}" title="${p.id}">${p.init}</span>`;
+        }).join('');
+        tbody += `<div class="slot-pair" style="display:flex;align-items:center;justify-content:center;gap:4px;height:100%;">${chips}</div>`;
+      } else {
+        tbody += `<div class="slot-pair">
+          <div class="slot">${amList.length ? makeChips(amList) : `<span class="slot-flash" onclick="openSidePanel('${s.code}','${slot.date}','${s.label}')">+</span>`}</div>
+          <div class="slot">${pmList.length ? makeChips(pmList) : `<span class="slot-flash" onclick="openSidePanel('${s.code}','${slot.date}','${s.label}')">+</span>`}</div>
+        </div>`;
       }
       tbody += '</td>';
     });
@@ -1646,6 +1662,7 @@ function renderWeek() {
   tbody += '</tbody>';
 
   document.getElementById('planTable').innerHTML = thead + tbody;
+  if (window.lucide) lucide.createIcons();
   updateFlashBadge();
   updateValidationBadge();
 }
@@ -1723,16 +1740,15 @@ let _sideCtx = null;
 
 async function openSidePanel(sector, date, sectorLabel) {
   _sideCtx = {sector, date, sectorLabel};
-  const dispoCard   = document.getElementById('dispoCard');
-  const actionsCard = document.getElementById('actionsCard');
-  if (dispoCard)   { dispoCard.style.display = 'flex'; dispoCard.style.flexDirection = 'column'; }
-  if (actionsCard)  actionsCard.style.display = 'none';
-
+  const card = document.getElementById('dispoCard');
+  if (!card) return;
+  card.style.display = 'block';
   document.getElementById('pspTitle').textContent = `Affecter en ${sectorLabel}`;
   document.getElementById('pspSub').textContent =
     new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
   document.getElementById('pspContent').innerHTML =
     '<div class="loading"><div class="spinner"></div></div>';
+  card.scrollIntoView({behavior:'smooth', block:'nearest'});
 
   api({action:'getMARsDispoJour', date})
     .then(res => {
@@ -1741,42 +1757,38 @@ async function openSidePanel(sector, date, sectorLabel) {
     })
     .catch(e => {
       document.getElementById('pspContent').innerHTML =
-        `<div style="color:var(--red);font-size:12px;padding:12px 0;">Erreur : ${e.message}</div>`;
+        `<div style="color:var(--red);font-size:12px;padding:8px 0;">Erreur : ${e.message}</div>`;
     });
 }
 
 function renderSidePanelContent(dispo, sector) {
   const GROUPS = [
-    {key:'VOLANT',  label:'Volants disponibles',     cls:'volant'},
-    {key:'PRESENT', label:'Présents dans un secteur', cls:''},
-    {key:'CTP',     label:'CTP (dernier recours)',    cls:'ctp'},
-    {key:'R',       label:'Récup (dernier recours)',  cls:'r'},
+    {key:'VOLANT',  label:'Volants',           cls:'volant',  bg:'#DBEAFE', fg:'#1D4ED8'},
+    {key:'PRESENT', label:'Présents',           cls:'',        bg:'#F1F5F9', fg:'#334155'},
+    {key:'CTP',     label:'CTP (dernier recours)', cls:'ctp',  bg:'#F3E8FF', fg:'#7C3AED'},
+    {key:'R',       label:'Récup (dernier recours)', cls:'rr', bg:'#DCFCE7', fg:'#166534'},
   ];
-  // Note: CTP et R sont dans ABSENT_CODES donc pas dans dispo.
-  // On affiche uniquement VOLANT et PRESENT (ceux qui sont libres ce jour).
   const byRole = {};
-  dispo.forEach(m => {
-    if (!byRole[m.role]) byRole[m.role] = [];
-    byRole[m.role].push(m);
-  });
+  dispo.forEach(m => { if (!byRole[m.role]) byRole[m.role] = []; byRole[m.role].push(m); });
 
   let html = '';
   GROUPS.forEach(g => {
     const mars = byRole[g.key];
     if (!mars?.length) return;
-    html += `<div class="psp-group-label">${g.label}</div>`;
+    html += `<div style="margin-right:20px;"><div style="font-size:10px;font-weight:700;color:var(--ink-4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">${g.label}</div>`;
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
     mars.forEach(m => {
-      html += `<button class="psp-mar-btn ${g.cls}" onclick="placeMAR('${m.id}')">
-        <span class="psp-mar-initials">${m.id.slice(0,3)}</span>
-        <span class="psp-mar-id">${m.id}</span>
-        <span class="psp-mar-secteur">${m.secteur}</span>
+      html += `<button onclick="placeMAR('${m.id}')"
+        style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid ${g.bg};border-radius:8px;background:${g.bg};cursor:pointer;font-family:inherit;transition:all .12s;"
+        onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+        <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:${g.fg};">${m.id.length<=6?m.id:m.id.slice(0,6)}</span>
+        <span style="font-size:10px;color:${g.fg};opacity:.7;">${m.secteur}</span>
       </button>`;
     });
+    html += '</div></div>';
   });
 
-  if (!html) {
-    html = '<div style="text-align:center;color:var(--ink-4);padding:20px 0;font-size:13px;">Aucun MAR disponible ce jour</div>';
-  }
+  if (!html) html = '<div style="color:var(--ink-4);font-size:13px;">Aucun MAR disponible ce jour</div>';
   document.getElementById('pspContent').innerHTML = html;
 }
 
@@ -1801,10 +1813,8 @@ async function placeMAR(marId) {
 }
 
 function closeSidePanel() {
-  const dispoCard   = document.getElementById('dispoCard');
-  const actionsCard = document.getElementById('actionsCard');
-  if (dispoCard)   dispoCard.style.display   = 'none';
-  if (actionsCard) actionsCard.style.display = 'block';
+  const card = document.getElementById('dispoCard');
+  if (card) card.style.display = 'none';
   _sideCtx = null;
 }
 
