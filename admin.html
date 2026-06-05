@@ -1163,7 +1163,7 @@ if (sessionStorage.getItem('adminCode')) {
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 let ADMIN_CODE = '', YEAR = 2026;
-let INDISPOS_YEAR = YEAR + 1;
+let INDISPOS_YEAR = null; // null = pas de saisie N+1 ouverte
 let ADMIN_YEAR = YEAR;          // année sélectionnée dans le sélecteur admin
 let ADMIN_YEAR_READONLY = false; // true si année archivée (stats_YYYY.json présent)
 let availableYears = [];         // [{year, label, readonly}]
@@ -1194,7 +1194,7 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
     const res = await fetch(API_URL + '?' + new URLSearchParams({payload: JSON.stringify({action:'login', code: saved})}));
     const data = await res.json();
     if (data.success && data.role === 'admin') {
-      ADMIN_CODE = saved; YEAR = data.year || 2026;
+      ADMIN_CODE = saved; YEAR = data.year || 2026; INDISPOS_YEAR = data.indisposYear || null;
       document.getElementById('authOverlay').style.display = 'none';
       document.getElementById('headerYear').textContent = YEAR;
     // Mettre à jour les labels des wizards annuels avec l'année réelle
@@ -1225,7 +1225,7 @@ async function authenticate() {
     const res = await fetch(API_URL + '?' + new URLSearchParams({payload: JSON.stringify({action:'login',code})}));
     const data = await res.json();
     if (data.success && data.role === 'admin') {
-      ADMIN_CODE = code; YEAR = data.year || 2026;
+      ADMIN_CODE = code; YEAR = data.year || 2026; INDISPOS_YEAR = data.indisposYear || null;
       sessionStorage.setItem('adminCode', code);
       document.getElementById('authOverlay').style.display = 'none';
       document.getElementById('headerYear').textContent = YEAR;
@@ -1957,7 +1957,25 @@ function renderIndispos(indisposData){
 }
 
 // ── VACANCES ──────────────────────────────────────────────────────────
-async function loadVacances(){
+async function loadVacances() {
+  document.getElementById('vacLoading').style.display = 'flex';
+  document.getElementById('vacContent').style.display = 'none';
+  try {
+    const data = await api({action: 'getVacancesConfig'});
+    if (!data.success) throw new Error(data.error);
+    periodesData = data.periodes || [];
+    groupesData = data.groupes || {A:[], B:[], C:[]};
+    renderPeriodes();
+    renderGroupes();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    document.getElementById('vacLoading').style.display = 'none';
+    document.getElementById('vacContent').style.display = 'block';
+  }
+}
+
+async function loadVacancesValidation(){
   document.getElementById('vacLoading').style.display='flex';
   document.getElementById('vacContent').style.display='none';
   document.getElementById('vacEmpty').style.display='none';
@@ -4080,9 +4098,11 @@ async function sendCodeToOne() {
 function updatePlanningIndisposVisibility() {
   const section = document.getElementById('planningIndisposSection');
   if (!section) return;
-  // Visible si INDISPOS_YEAR est défini et différent de l'année active (= saisie N+1 ouverte)
-  // OU si INDISPOS_YEAR === ADMIN_YEAR et indisposN1Exists (saisie en cours)
-  const visible = typeof INDISPOS_YEAR !== 'undefined' && INDISPOS_YEAR && INDISPOS_YEAR !== YEAR;
+  // Visible uniquement si INDISPOS_ACTIVE est définie dans CONFIG
+  // = l'API retourne indisposYear différent de year (saisie N+1 ouverte)
+  const visible = (typeof INDISPOS_YEAR !== 'undefined') && 
+                  INDISPOS_YEAR && 
+                  (INDISPOS_YEAR > YEAR);
   section.style.display = visible ? 'block' : 'none';
 }
 
