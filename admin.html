@@ -1,117 +1,54 @@
 <div class="tab-panel" id="panel-maintenance">
+  <div class="maint-grid">
 
-  <!-- ── Zone 1 : Système ── -->
-  <div class="maint-zone">
-    <div class="maint-zone-title">🔧 Système</div>
-    <div class="maint-cards">
-
-      <div class="maint-card">
-        <div class="maint-card-header">
-          <span class="maint-card-icon">🔍</span>
-          <div>
-            <div class="maint-card-title">Diagnostic système</div>
-            <div class="maint-card-desc">Vérifie que tous les onglets GSheet sont présents, les MARs correctement configurés et GitHub accessible.</div>
-          </div>
-        </div>
-        <button class="btn-primary" onclick="runDiag()" id="btnDiagSys">Vérifier l'état du système</button>
-        <div id="diagSysResult" style="display:none;margin-top:12px"></div>
-      </div>
-
-      <div class="maint-card">
-        <div class="maint-card-header">
-          <span class="maint-card-icon">📋</span>
-          <div>
-            <div class="maint-card-title">Diagnostic planning</div>
-            <div class="maint-card-desc">Analyse les 12 mois du planning et liste toutes les violations de règles métier (secteurs, CS, REA…).</div>
-          </div>
-        </div>
-        <button class="btn-primary" onclick="showTab('diagnostic-planning')" id="btnDiagPlanning">Analyser le planning <span id="diagYear"></span></button>
-      </div>
-
-      <div class="maint-card">
-        <div class="maint-card-header">
-          <span class="maint-card-icon">📜</span>
-          <div>
-            <div class="maint-card-title">Dernières opérations</div>
-            <div class="maint-card-desc">Journal des actions effectuées depuis l'interface (envois, sauvegardes, publications).</div>
-          </div>
-        </div>
-        <button class="btn-secondary" onclick="loadLogsInMaint()">Voir les logs</button>
-        <div id="maintLogArea" style="display:none;margin-top:12px;max-height:200px;overflow-y:auto;font-size:11px;font-family:var(--mono);background:var(--line-light);border-radius:8px;padding:12px;line-height:1.8"></div>
-      </div>
-
+    <div class="maint-action">
+      <div class="maint-title">🔍 Diagnostic système</div>
+      <div class="maint-desc">Vérifie l'intégrité des onglets, MARs et connexion GitHub.</div>
+      <button class="btn-primary" onclick="runDiag()" id="btnDiagSys">Lancer le diagnostic</button>
+      <div id="diagSysResult" style="display:none;margin-top:10px;font-size:11px;font-family:var(--mono);background:var(--line-light);border-radius:8px;padding:10px;max-height:250px;overflow-y:auto;line-height:1.8"></div>
     </div>
-  </div>
 
-  <!-- ── Zone 2 : Publication ── -->
-  <div class="maint-zone" style="margin-top:28px">
-    <div class="maint-zone-title">🚀 Publication</div>
-    <div class="maint-cards">
-
-      <div class="maint-card">
-        <div class="maint-card-header">
-          <span class="maint-card-icon">🌐</span>
-          <div>
-            <div class="maint-card-title">Publier le planning</div>
-            <div class="maint-card-desc">Régénère et publie le planning visible par tous les MARs sur le site. À faire après toute modification manuelle.</div>
-          </div>
-        </div>
-        <button class="btn-primary" onclick="publishPlanning()">Publier maintenant</button>
-      </div>
-
-      <div class="maint-card">
-        <div class="maint-card-header">
-          <span class="maint-card-icon">📦</span>
-          <div>
-            <div class="maint-card-title">Archiver l'année <span id="archiveYearLabel" style="color:var(--ink-3)">—</span></div>
-            <div class="maint-card-desc">Pousse les stats et indispos sur GitHub. À faire en fin d'année après vérification. Les onglets GSheet ne sont pas supprimés.</div>
-          </div>
-        </div>
-        <button class="btn-danger" onclick="archiveCurrentYear()">📦 Archiver</button>
-      </div>
-
+    <div class="maint-action">
+      <div class="maint-title">🌐 Publier le planning</div>
+      <div class="maint-desc">Régénère et publie le planning visible par tous les MARs.</div>
+      <button class="btn-primary" onclick="publishPlanning()">Publier maintenant</button>
     </div>
-  </div>
 
-  <!-- ── Zone 3 : Codes d'accès ── -->
-  <div class="maint-zone" style="margin-top:28px">
-    <div class="maint-zone-title">🔑 Codes d'accès MAR</div>
-    <div class="maint-cards">
-
-      <div class="maint-card">
-        <div class="maint-card-header">
-          <span class="maint-card-icon">📧</span>
-          <div>
-            <div class="maint-card-title">Envoyer les codes à tous les MARs</div>
-            <div class="maint-card-desc">Envoie le code d'accès individuel à chaque MAR actif par email. Nécessaire avant la saisie des indispos.</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn-secondary" onclick="previewCodes()">👁 Voir les destinataires</button>
-          <button class="btn-primary" onclick="sendCodes()">📧 Envoyer à tous</button>
-        </div>
-        <div id="codesPreview" style="display:none;margin-top:12px"></div>
-      </div>
-
-      <div class="maint-card">
-        <div class="maint-card-header">
-          <span class="maint-card-icon">✉️</span>
-          <div>
-            <div class="maint-card-title">Renvoyer à un MAR</div>
-            <div class="maint-card-desc">Envoie le code d'accès à un seul MAR — utile si quelqu'un a perdu son code.</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <select id="selectMarCode" class="form-input" style="flex:1;min-width:160px">
-            <option value="">— Choisir un MAR —</option>
-          </select>
-          <button class="btn-primary" onclick="sendCodeToOne()">✉️ Envoyer</button>
-        </div>
-      </div>
-
+    <div class="maint-action">
+      <div class="maint-title">📦 Archiver l'année <span id="archiveYearLabel">—</span></div>
+      <div class="maint-desc">Pousse stats et indispos sur GitHub. À faire en fin d'année.</div>
+      <button class="btn-danger" onclick="archiveCurrentYear()">Archiver</button>
     </div>
-  </div>
 
+    <div class="maint-action">
+      <div class="maint-title">📧 Envoyer les codes d'accès</div>
+      <div class="maint-desc">Envoie le code individuel à chaque MAR actif pour la saisie des indispos.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="previewCodes()">Voir les destinataires</button>
+        <button class="btn-primary" onclick="sendCodes()">Envoyer à tous</button>
+      </div>
+      <div id="codesPreview" style="display:none;margin-top:10px;font-size:12px"></div>
+    </div>
+
+    <div class="maint-action">
+      <div class="maint-title">✉️ Renvoyer à un MAR</div>
+      <div class="maint-desc">Renvoie le code d'accès à un seul MAR si besoin.</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="selectMarCode" class="form-input" style="flex:1">
+          <option value="">— Choisir un MAR —</option>
+        </select>
+        <button class="btn-primary" onclick="sendCodeToOne()">Envoyer</button>
+      </div>
+    </div>
+
+    <div class="maint-action">
+      <div class="maint-title">📜 Dernières opérations</div>
+      <div class="maint-desc">Journal des actions effectuées depuis l'interface.</div>
+      <button class="btn-secondary" onclick="loadLogsInMaint()">Voir les logs</button>
+      <div id="maintLogArea" style="display:none;margin-top:10px;max-height:180px;overflow-y:auto;font-size:11px;font-family:var(--mono);background:var(--line-light);border-radius:8px;padding:10px;line-height:1.8"></div>
+    </div>
+
+  </div>
 </div><!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -3328,82 +3265,16 @@ document.getElementById('authInput').addEventListener('keydown', e => {
 });
 
 // Auto-login depuis sessionStorage si code déjà saisi
-(async function tryAutoLogin() {
-  const saved = sessionStorage.getItem('adminCode');
-  if (!saved) return;
-  try {
-    const params = new URLSearchParams({payload: JSON.stringify({action:'login', code: saved})});
-    const res = await fetch(API_URL + '?' + params);
-    const data = await res.json();
-    if (data.success && data.role === 'admin') {
-      ADMIN_CODE = saved;
-      YEAR = data.year || 2027;
-      sessionStorage.setItem('adminCode', saved);
-      document.getElementById('yearLabel').textContent = YEAR;
-      const archLabel = document.getElementById('archiveYearLabel');
-      if (archLabel) archLabel.textContent = YEAR;
-      document.getElementById('authOverlay').style.display = 'none';
-      loadEquipe();
-    } else {
-      sessionStorage.removeItem('adminCode');
-    }
-  } catch(e) { sessionStorage.removeItem('adminCode'); }
-})();
+()();
 
-async function authenticate() {
-  const code = document.getElementById('authInput').value.trim().toUpperCase();
-  try {
-    const params = new URLSearchParams({payload: JSON.stringify({action:'login', code})});
-    const res = await fetch(API_URL + '?' + params);
-    const data = await res.json();
-    if (data.success && data.role === 'admin') {
-      ADMIN_CODE = code;
-      YEAR = data.year || 2027;
-      sessionStorage.setItem('adminCode', code);
-      document.getElementById('yearLabel').textContent = YEAR;
-      const archLabel = document.getElementById('archiveYearLabel');
-      if (archLabel) archLabel.textContent = YEAR;
-      document.getElementById('authOverlay').style.display = 'none';
-      loadEquipe();
-    } else {
-      document.getElementById('authError').style.display = 'block';
-    }
-  } catch(e) {
-    document.getElementById('authError').style.display = 'block';
-  }
-}
 
 // ── TABS ──────────────────────────────────────────────────────────────
-function showTab(name) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('panel-' + name).classList.add('active');
-  document.getElementById('tab-' + name).classList.add('active');
-  if (name === 'equipe' && document.getElementById('equipeContent').style.display === 'none') loadEquipe();
-  if (name === 'vacances' && document.getElementById('vacContent').style.display === 'none') loadVacances();
-  if (name === 'parametres' && document.getElementById('paramsContent').style.display === 'none') loadParametres();
-}
 
 // ── TOAST ──────────────────────────────────────────────────────────────
-function toast(msg, type = '') {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast show' + (type ? ' ' + type : '');
-  setTimeout(() => el.className = 'toast', 3000);
-}
 
 // ── MODAL ──────────────────────────────────────────────────────────────
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
-}
 
 // ── API ────────────────────────────────────────────────────────────────
-async function api(payload) {
-  payload.code = ADMIN_CODE;
-  const params = new URLSearchParams({payload: JSON.stringify(payload)});
-  const res = await fetch(API_URL + '?' + params);
-  return res.json();
-}
 
 // ── ÉQUIPE ──────────────────────────────────────────────────────────────
 let marData = [];
@@ -3529,59 +3400,7 @@ async function toggleActif(id) {
 // ── AFFECTATIONS ──────────────────────────────────────────────────────
 
 
-async function loadAffectations() {
-  document.getElementById('affLoading').style.display = 'flex';
-  document.getElementById('affContent').style.display = 'none';
-  try {
-    const data = await api({action: 'getAffectations'});
-    if (!data.success) throw new Error(data.error);
-    affData = data.affectations;
-    affPending = false;
-    renderAffectations();
-  } catch(e) {
-    toast('Erreur : ' + e.message, 'error');
-  } finally {
-    document.getElementById('affLoading').style.display = 'none';
-    document.getElementById('affContent').style.display = 'block';
-  }
-}
 
-function renderAffectations() {
-  const grid = document.getElementById('affGrid');
-  grid.innerHTML = '';
-
-  // Headers
-  const hName = document.createElement('div');
-  hName.className = 'aff-header name'; hName.textContent = 'MAR';
-  grid.appendChild(hName);
-  for (let m = 1; m <= 12; m++) {
-    const h = document.createElement('div');
-    h.className = 'aff-header'; h.textContent = MOIS_COURTS[m-1];
-    grid.appendChild(h);
-  }
-
-  // Lignes MARs actifs
-  const actifs = marData.filter(m => m.actif);
-  actifs.forEach(mar => {
-    const nameDiv = document.createElement('div');
-    nameDiv.className = 'aff-name';
-    nameDiv.textContent = mar.id;
-    grid.appendChild(nameDiv);
-
-    for (let m = 1; m <= 12; m++) {
-      const secteur = (affData[mar.id] && affData[mar.id][m]) || 'VOLANT';
-      const cell = document.createElement('div');
-      cell.className = 'aff-cell ' + (secteur === 'VOLANT' ? 'VOLANT' : secteur);
-      cell.textContent = secteur === 'VOLANT' ? 'VOL' : secteur;
-      cell.dataset.mar = mar.id;
-      cell.dataset.month = m;
-      cell.onclick = () => openSecteurModal(mar.id, m, cell);
-      grid.appendChild(cell);
-    }
-  });
-
-  document.getElementById('affPendingMsg').style.display = 'none';
-}
 
 function openSecteurModal(marId, month, cell) {
   currentAffCell = {marId, month, cell};
@@ -3604,45 +3423,11 @@ function applySecteur() {
   closeModal('modalSecteur');
 }
 
-async function saveAllAffectations() {
-  const btn = document.getElementById('btnSaveAff');
-  btn.disabled = true;
-  btn.textContent = '⏳ Enregistrement...';
-  try {
-    const data = await api({action: 'saveAffectations', affectations: affData});
-    if (!data.success) throw new Error(data.error);
-    affPending = false;
-    document.getElementById('affPendingMsg').style.display = 'none';
-    toast('✅ Affectations enregistrées', 'success');
-  } catch(e) {
-    toast('Erreur : ' + e.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '💾 Enregistrer tout';
-  }
-}
 
 // ── VACANCES ──────────────────────────────────────────────────────────
 let periodesData = [];
 let groupesData = {A:[], B:[], C:[]};
 
-async function loadVacances() {
-  document.getElementById('vacLoading').style.display = 'flex';
-  document.getElementById('vacContent').style.display = 'none';
-  try {
-    const data = await api({action: 'getVacancesConfig'});
-    if (!data.success) throw new Error(data.error);
-    periodesData = data.periodes || [];
-    groupesData = data.groupes || {A:[], B:[], C:[]};
-    renderPeriodes();
-    renderGroupes();
-  } catch(e) {
-    toast('Erreur : ' + e.message, 'error');
-  } finally {
-    document.getElementById('vacLoading').style.display = 'none';
-    document.getElementById('vacContent').style.display = 'block';
-  }
-}
 
 function renderPeriodes() {
   const tbody = document.getElementById('periodesBody');
@@ -4237,536 +4022,6 @@ function showFiche(type) {
 const WIZ_SECTEURS = ['MAT','AMB','REA','VOLANT'];
 const WIZ_MOIS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
-async function loadEquipe() {
-  document.getElementById('equipeLoading').style.display = 'flex';
-  document.getElementById('equipeContent').style.display = 'none';
-  try {
-    const data = await api({action: 'getMedecins'});
-    if (!data.success) throw new Error(data.error);
-    marData = data.medecins;
-    renderEquipe();
-  } catch(e) {
-    toast('Erreur : ' + e.message, 'error');
-  } finally {
-    document.getElementById('equipeLoading').style.display = 'none';
-    document.getElementById('equipeContent').style.display = 'block';
-  }
-}
-function renderEquipe() {
-  const tbody = document.getElementById('equipeBody');
-  tbody.innerHTML = marData.map(m => `
-    <tr>
-      <td><span style="font-family:var(--mono);font-size:11px">${m.id}</span></td>
-      <td style="font-weight:600">${m.nom}</td>
-      <td><span class="badge badge-grey">${m.initiales}</span></td>
-      <td>${m.quotite}%</td>
-      <td>${m.pctGardes}%</td>
-      <td style="color:var(--ink-3);font-size:11px">${m.email || '—'}</td>
-      <td>
-        <span class="badge ${m.actif ? 'badge-green' : 'badge-grey'}">
-          ${m.actif ? 'Actif' : 'Inactif'}
-        </span>
-      </td>
-      <td>
-        <div style="display:flex;gap:4px">
-          <button class="btn-icon" onclick="openEditMAR('${m.id}')" title="Modifier">✏️</button>
-          <button class="btn-icon" onclick="toggleActif('${m.id}')" title="${m.actif ? 'Désactiver' : 'Activer'}">
-            ${m.actif ? '⏸' : '▶'}
-          </button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-}
-function openAddMAR() {
-  document.getElementById('modalMARTitle').textContent = 'Nouveau MAR';
-  document.getElementById('marId').value = '';
-  document.getElementById('marId').disabled = false;
-  document.getElementById('marNom').value = '';
-  document.getElementById('marInitiales').value = '';
-  document.getElementById('marQuotite').value = 100;
-  document.getElementById('marPctGardes').value = 100;
-  document.getElementById('marEmail').value = '';
-  document.getElementById('marActif').value = 'true';
-  document.getElementById('marCodeAcces').value = '';
-  document.getElementById('modalMAR').classList.add('open');
-}
-function openEditMAR(id) {
-  const m = marData.find(x => x.id === id);
-  if (!m) return;
-  document.getElementById('modalMARTitle').textContent = 'Modifier · ' + m.nom;
-  document.getElementById('marId').value = m.id;
-  document.getElementById('marId').disabled = true;
-  document.getElementById('marNom').value = m.nom;
-  document.getElementById('marInitiales').value = m.initiales;
-  document.getElementById('marQuotite').value = m.quotite;
-  document.getElementById('marPctGardes').value = m.pctGardes;
-  document.getElementById('marEmail').value = m.email || '';
-  document.getElementById('marActif').value = m.actif ? 'true' : 'false';
-  document.getElementById('marCodeAcces').value = m.codeAcces || '';
-  document.getElementById('modalMAR').classList.add('open');
-}
-async function saveMAR() {
-  const btn = document.getElementById('btnSaveMAR');
-  btn.disabled = true;
-  btn.textContent = '⏳ Enregistrement...';
-  try {
-    const medecin = {
-      id:        document.getElementById('marId').value.trim().toUpperCase(),
-      nom:       document.getElementById('marNom').value.trim(),
-      initiales: document.getElementById('marInitiales').value.trim(),
-      quotite:   Number(document.getElementById('marQuotite').value),
-      pctGardes: Number(document.getElementById('marPctGardes').value),
-      email:     document.getElementById('marEmail').value.trim(),
-      dect:      document.getElementById('marDect').value.trim(),
-      actif:     document.getElementById('marActif').value === 'true',
-      codeAcces: document.getElementById('marCodeAcces').value,
-    };
-    if (!medecin.id || !medecin.nom) { toast('ID et Nom obligatoires', 'error'); return; }
-    const data = await api({action: 'saveMedecin', medecin});
-    if (!data.success) throw new Error(data.error);
-    toast(data.created ? '✅ MAR créé' : '✅ MAR mis à jour', 'success');
-    closeModal('modalMAR');
-    await loadEquipe();
-  } catch(e) {
-    toast('Erreur : ' + e.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '✅ Enregistrer';
-  }
-}
-async function toggleActif(id) {
-  const m = marData.find(x => x.id === id);
-  if (!m) return;
-  const newActif = !m.actif;
-  if (!confirm(`${newActif ? 'Activer' : 'Désactiver'} ${m.nom} ?`)) return;
-  try {
-    const data = await api({action: 'saveMedecin', medecin: {...m, actif: newActif}});
-    if (!data.success) throw new Error(data.error);
-    toast(`✅ ${m.nom} ${newActif ? 'activé' : 'désactivé'}`, 'success');
-    await loadEquipe();
-  } catch(e) {
-    toast('Erreur : ' + e.message, 'error');
-  }
-}
-function showFiche(type) {
-  const fiche = FICHES[type];
-  if (!fiche) return;
-  document.getElementById('modalFicheTitre').textContent = fiche.titre;
-  document.getElementById('modalFicheContent').innerHTML = `
-    <ol style="padding-left:20px;display:flex;flex-direction:column;gap:10px">
-      ${fiche.steps.map(s => `<li style="font-size:13px;color:var(--ink-2);line-height:1.5">${s}</li>`).join('')}
-    </ol>
-  `;
-  document.getElementById('modalFiche').classList.add('open');
-}
-async function loadVacances() {
-  document.getElementById('vacLoading').style.display = 'flex';
-  document.getElementById('vacContent').style.display = 'none';
-  try {
-    const data = await api({action: 'getVacancesConfig'});
-    if (!data.success) throw new Error(data.error);
-    periodesData = data.periodes || [];
-    groupesData = data.groupes || {A:[], B:[], C:[]};
-    renderPeriodes();
-    renderGroupes();
-  } catch(e) {
-    toast('Erreur : ' + e.message, 'error');
-  } finally {
-    document.getElementById('vacLoading').style.display = 'none';
-    document.getElementById('vacContent').style.display = 'block';
-  }
-}
-function renderPeriodes() {
-  const tbody = document.getElementById('periodesBody');
-  tbody.innerHTML = periodesData.map((p, i) => `
-    <tr>
-      <td><input class="form-input" value="${p.nom}" onchange="periodesData[${i}].nom=this.value" style="width:120px;padding:4px 8px"/></td>
-      <td><input class="form-input" type="date" value="${p.debut}" onchange="periodesData[${i}].debut=this.value" style="width:140px;padding:4px 8px"/></td>
-      <td><input class="form-input" type="date" value="${p.fin}" onchange="periodesData[${i}].fin=this.value" style="width:140px;padding:4px 8px"/></td>
-      <td><input class="form-input" type="number" value="${p.seuil}" min="1" max="20" onchange="periodesData[${i}].seuil=Number(this.value)" style="width:70px;padding:4px 8px;text-align:center"/></td>
-      <td><button class="btn-danger" onclick="removePeriode(${i})">🗑</button></td>
-    </tr>
-  `).join('');
-}
-function addPeriode() {
-  periodesData.push({nom:'NOUVELLE', debut:'', fin:'', seuil:8});
-  renderPeriodes();
-}
-function removePeriode(i) {
-  if (!confirm('Supprimer cette période ?')) return;
-  periodesData.splice(i, 1);
-  renderPeriodes();
-}
-async function savePeriodes() {
-  try {
-    const data = await api({action: 'savePeriodes', periodes: periodesData});
-    if (!data.success) throw new Error(data.error);
-    toast('✅ Périodes enregistrées', 'success');
-  } catch(e) {
-    toast('Erreur : ' + e.message, 'error');
-  }
-}
-function renderGroupes() {
-  const container = document.getElementById('vacGroupes');
-  container.innerHTML = '';
-  ['A','B','C'].forEach(grp => {
-    const card = document.createElement('div');
-    card.className = 'vac-group-card';
-    card.innerHTML = `
-      <div class="vac-group-header ${grp}">
-        Groupe ${grp}
-        <span style="font-size:10px;opacity:.7">${groupesData[grp].length} MARs</span>
-      </div>
-      <div class="vac-group-body" id="groupBody${grp}"></div>
-    `;
-    container.appendChild(card);
-
-    const body = document.getElementById('groupBody' + grp);
-    groupesData[grp].forEach((mar, idx) => {
-      const row = document.createElement('div');
-      row.className = 'vac-mar-row';
-      row.innerHTML = `
-        <span>${mar.id}</span>
-        <div style="display:flex;align-items:center;gap:4px">
-          <div class="vac-mar-actions">
-            ${grp !== 'A' ? `<button class="btn-icon" onclick="moveToGroup('${mar.id}','${grp}','prev')" title="Groupe précédent">←</button>` : ''}
-            ${grp !== 'C' ? `<button class="btn-icon" onclick="moveToGroup('${mar.id}','${grp}','next')" title="Groupe suivant">→</button>` : ''}
-            <button class="btn-icon" onclick="moveInGroup('${grp}',${idx},-1)" title="Monter">↑</button>
-            <button class="btn-icon" onclick="moveInGroup('${grp}',${idx},1)" title="Descendre">↓</button>
-          </div>
-          <span class="vac-mar-rank">${idx+1}</span>
-        </div>
-      `;
-      body.appendChild(row);
-    });
-  });
-}
-function moveInGroup(grp, idx, dir) {
-  const arr = groupesData[grp];
-  const newIdx = idx + dir;
-  if (newIdx < 0 || newIdx >= arr.length) return;
-  [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
-  renderGroupes();
-}
-function moveToGroup(marId, fromGrp, direction) {
-  const grps = ['A','B','C'];
-  const fromIdx = grps.indexOf(fromGrp);
-  const toGrp = direction === 'prev' ? grps[fromIdx-1] : grps[fromIdx+1];
-  if (!toGrp) return;
-  const mar = groupesData[fromGrp].find(m => m.id === marId);
-  groupesData[fromGrp] = groupesData[fromGrp].filter(m => m.id !== marId);
-  groupesData[toGrp].push(mar);
-  renderGroupes();
-}
-async function saveGroupes() {
-  try {
-    const data = await api({action: 'saveGroupes', groupes: groupesData});
-    if (!data.success) throw new Error(data.error);
-    toast('✅ Groupes enregistrés', 'success');
-  } catch(e) {
-    toast('Erreur : ' + e.message, 'error');
-  }
-}
-async function openWizardDepart() {
-  wizDStep = 0; wizDMarId = null;
-  document.getElementById('wizDNextBtn').disabled = false;
-  document.getElementById('wizDNextBtn').style.display = '';
-  document.getElementById('wizDNextBtn').textContent = 'Suivant →';
-  // Charger la liste des MARs depuis l'API (marData n'existe pas dans config.html)
-  try {
-    const d = await api({action:'getMedecins'});
-    if (d.success) wizDMarsData = d.medecins.filter(m => m.actif);
-  } catch(e) { wizDMarsData = []; }
-  await renderWizDStep();
-  document.getElementById('wizardDepartOverlay').classList.add('open');
-}
-function closeWizardDepart() { document.getElementById('wizardDepartOverlay').classList.remove('open'); }
-async function wizDPrev() { if (wizDStep > 0) { wizDStep--; await renderWizDStep(); } }
-async function wizDNext() {
-  if (wizDStep === 0 && !wizDMarId) { toast('Sélectionnez un MAR', 'error'); return; }
-  if (wizDStep < 3) { wizDStep++; await renderWizDStep(); }
-  else { await launchWizardDepart(); }
-}
-function updateWizDNav() {
-  document.getElementById('wizDBackBtn').style.visibility = wizDStep === 0 ? 'hidden' : 'visible';
-  const nb = document.getElementById('wizDNextBtn');
-  nb.textContent = wizDStep === 3 ? '🚪 Désactiver le MAR' : 'Suivant →';
-  for (let i = 0; i < 4; i++) {
-    document.getElementById('wizDDot'+i).className = 'wizard-step-dot' + (i<wizDStep?' done':i===wizDStep?' active':'');
-    document.getElementById('wizDStep'+i).className = 'wizard-step' + (i===wizDStep?' active':'');
-  }
-}
-async function renderWizDStep() {
-  updateWizDNav();
-  const body = document.getElementById('wizDBody');
-
-  if (wizDStep === 0) {
-    let html = '<div class="wizard-section-title">Quel MAR part ?</div>';
-    html += '<div style="display:flex;flex-direction:column;gap:8px">';
-    wizDMarsData.forEach(m => {
-      const sel = wizDMarId === m.id ? 'background:#fee2e2;border-color:var(--red);' : '';
-      html += '<div style="padding:12px 14px;border:2px solid var(--line);border-radius:10px;cursor:pointer;' + sel + '" onclick="wizDSelectMAR(\''+m.id+'\')">'
-        + '<span style="font-weight:700">' + m.nom + '</span>'
-        + '<span style="font-size:12px;color:var(--ink-3);margin-left:8px">' + m.initiales + ' · ' + (m.quotite||100) + '%</span>'
-        + '</div>';
-    });
-    html += '</div>';
-    body.innerHTML = html;
-
-  } else if (wizDStep === 1) {
-    const mar = wizDMarsData.find(m => m.id === wizDMarId);
-    body.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement planning…</div>';
-    let gardesFutures = 0;
-    try {
-      const planning = await fetch('./planning_' + ADMIN_YEAR + '.json?' + Date.now()).then(r => r.json());
-      const today = new Date().toISOString().slice(0,10);
-      // Structure réelle : {months: [{days: [...], doctors: [...]}]}
-      (planning.months || []).forEach(month => {
-        (month.doctors || []).forEach(doc => {
-          if (doc.initials !== mar.initiales) return;
-          (doc.days || []).forEach((entry, dayIdx) => {
-            const date = month.days[dayIdx]?.date;
-            if (!date || date < today) return;
-            const st = entry?.status || '';
-            if (st === 'G' || st === 'G2') gardesFutures++;
-          });
-        });
-      });
-    } catch(e) {}
-    let html = '<div class="wizard-section-title">Vérification — ' + (mar?.nom||'') + '</div>';
-    if (gardesFutures > 0) {
-      html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">⚠️ <strong>' + gardesFutures + ' garde(s) future(s)</strong> attribuée(s) à ce MAR.<br><small>Redistribuez-les manuellement depuis admin.html → Modifier une garde avant de désactiver.</small></div>';
-    } else {
-      html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid #16a34a;color:#166534">✅ Aucune garde future détectée pour ce MAR.</div>';
-    }
-    html += '<div style="font-size:12px;color:var(--ink-3);margin-top:12px">Vérifiez également ses affectations sectorielles — elles resteront en GSheet mais n\'auront plus d\'effet une fois le MAR désactivé.</div>';
-    body.innerHTML = html;
-
-  } else if (wizDStep === 2) {
-    const mar = wizDMarsData.find(m => m.id === wizDMarId);
-    let html = '<div class="wizard-section-title">Confirmer la désactivation</div>';
-    html += '<div style="background:#f8fafc;border-radius:12px;padding:16px;margin:12px 0">';
-    html += '<div style="font-size:14px;font-weight:700;margin-bottom:4px">' + (mar?.nom||'') + ' (' + (mar?.initiales||'') + ')</div>';
-    html += '<div style="font-size:12px;color:var(--ink-3)">Le MAR sera passé à ACTIF = N dans l\'onglet MEDECINS.<br>Il n\'apparaîtra plus dans les générations futures.</div>';
-    html += '</div>';
-    html += '<div class="wizard-warning" style="background:#fef3c7;border-left:3px solid #f59e0b;color:#92400e">⚠️ Cette action est réversible depuis config.html → Équipe (réactiver le MAR).</div>';
-    body.innerHTML = html;
-
-  } else if (wizDStep === 3) {
-    const mar = wizDMarsData.find(m => m.id === wizDMarId);
-    let html = '<div class="wizard-section-title">Prêt à désactiver</div>';
-    html += '<div style="font-size:13px;margin-bottom:16px">Le planning sera republié automatiquement après désactivation.</div>';
-    html += '<div class="wiz-mar-row"><div class="wiz-mar-init">' + (mar?.initiales||'') + '</div><div class="wiz-mar-name">' + (mar?.nom||'') + '</div><div class="wiz-mar-meta"><span style="color:var(--red)">→ ACTIF = N</span></div></div>';
-    body.innerHTML = html;
-  }
-}
-function wizDSelectMAR(id) {
-  wizDMarId = id;
-  renderWizDStep();
-}
-async function launchWizardDepart() {
-  const nb = document.getElementById('wizDNextBtn');
-  nb.disabled = true;
-  document.getElementById('wizDBackBtn').style.visibility = 'hidden';
-  const mar = wizDMarsData.find(m => m.id === wizDMarId);
-  document.getElementById('wizDBody').innerHTML = '<div class="wiz-progress">'
-    + '<div class="wiz-progress-item" id="wizd-p1">⏳ Désactivation de ' + (mar?.nom||'') + '…</div>'
-    + '<div class="wiz-progress-item" id="wizd-p2" style="opacity:.4">○ Publication du planning…</div>'
-    + '</div>';
-
-  const steps = [
-    {id:'wizd-p1', label:'MAR désactivé',    action: () => api({action:'saveMedecin', medecin:{...mar, actif:false}})},
-    {id:'wizd-p2', label:'Planning republié', action: () => api({action:'publishPlanning'})},
-  ];
-
-  let allOk = true;
-  for (let i = 0; i < steps.length; i++) {
-    const el = document.getElementById(steps[i].id);
-    el.classList.add('running'); el.style.opacity = '1';
-    try {
-      const res = await steps[i].action();
-      if (!res || !res.success) throw new Error(res?.error || 'Erreur');
-      el.classList.remove('running'); el.classList.add('done');
-      el.textContent = '✓ ' + steps[i].label;
-    } catch(e) {
-      el.classList.remove('running'); el.classList.add('error');
-      el.textContent = '✕ ' + e.message;
-      allOk = false; break;
-    }
-    const next = document.getElementById(steps[i+1]?.id);
-    if (next) { next.style.opacity='1'; next.textContent=next.textContent.replace('○','⏳'); }
-  }
-
-  if (allOk) {
-    if (marData) { const m = marData.find(x => x.id === wizDMarId); if(m) m.actif = false; }
-    setTimeout(() => {
-      document.getElementById('wizDBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">' + (mar?.nom||'') + ' désactivé</div><div style="font-size:13px;color:var(--ink-3)">Le planning a été republié.<br>Pensez à redistribuer ses gardes restantes si nécessaire.</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardDepart();loadEquipe()">Voir l\'équipe</button></div>';
-      nb.style.display = 'none';
-    }, 600);
-  } else { nb.disabled = false; nb.textContent = 'Réessayer'; }
-}
-async function openWizardRecrue() {
-  wizRStep = 0;
-  wizRData = {nom:'', initiales:'', quotite:100, pctGardes:100, email:'', codeAcces:'', actif:true};
-  wizRAffectations = {};
-  WIZ_MOIS.forEach((_,i) => wizRAffectations[i+1] = 'VOLANT');
-  wizRGroupe = 'A';
-  document.getElementById('wizRNextBtn').disabled = false;
-  document.getElementById('wizRNextBtn').style.display = '';
-  renderWizRStep();
-  document.getElementById('wizardRecrueOverlay').classList.add('open');
-}
-function closeWizardRecrue() { document.getElementById('wizardRecrueOverlay').classList.remove('open'); }
-async function wizRPrev() { if (wizRStep > 0) { collectWizRStep(); wizRStep--; renderWizRStep(); } }
-async function wizRNext() {
-  collectWizRStep();
-  if (wizRStep === 0 && (!wizRData.nom || !wizRData.initiales)) { toast('Nom et initiales requis', 'error'); return; }
-  if (wizRStep < 3) { wizRStep++; renderWizRStep(); }
-  else { await launchWizardRecrue(); }
-}
-function collectWizRStep() {
-  if (wizRStep === 0) {
-    wizRData.nom        = document.getElementById('wizRNom')?.value || wizRData.nom;
-    wizRData.initiales  = document.getElementById('wizRInit')?.value?.toUpperCase() || wizRData.initiales;
-    wizRData.quotite    = parseInt(document.getElementById('wizRQuotite')?.value) || wizRData.quotite;
-    wizRData.pctGardes  = parseInt(document.getElementById('wizRPct')?.value) || wizRData.pctGardes;
-    wizRData.email      = document.getElementById('wizREmail')?.value || wizRData.email;
-    wizRData.codeAcces  = document.getElementById('wizRCode')?.value?.toUpperCase() || wizRData.codeAcces;
-  } else if (wizRStep === 1) {
-    WIZ_MOIS.forEach((_,i) => {
-      const el = document.getElementById('wizRAff'+(i+1));
-      if (el) wizRAffectations[i+1] = el.value;
-    });
-  } else if (wizRStep === 2) {
-    const el = document.getElementById('wizRGroupeSelect');
-    if (el) wizRGroupe = el.value;
-  }
-}
-function updateWizRNav() {
-  document.getElementById('wizRBackBtn').style.visibility = wizRStep === 0 ? 'hidden' : 'visible';
-  const nb = document.getElementById('wizRNextBtn');
-  nb.textContent = wizRStep === 3 ? '👋 Créer le MAR' : 'Suivant →';
-  for (let i = 0; i < 4; i++) {
-    document.getElementById('wizRDot'+i).className = 'wizard-step-dot' + (i<wizRStep?' done':i===wizRStep?' active':'');
-    document.getElementById('wizRStep'+i).className = 'wizard-step' + (i===wizRStep?' active':'');
-  }
-}
-function renderWizRStep() {
-  updateWizRNav();
-  const body = document.getElementById('wizRBody');
-
-  if (wizRStep === 0) {
-    body.innerHTML = '<div class="wizard-section-title">Identité du nouveau MAR</div>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
-      + '<div style="grid-column:1/-1"><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Nom complet</label><input id="wizRNom" value="' + wizRData.nom + '" placeholder="ex. DR MARTIN" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
-      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Initiales</label><input id="wizRInit" value="' + wizRData.initiales + '" placeholder="ex. LM" maxlength="3" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px;text-transform:uppercase"></div>'
-      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Quotité (%)</label><input id="wizRQuotite" type="number" value="' + wizRData.quotite + '" min="10" max="100" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
-      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">% Gardes</label><input id="wizRPct" type="number" value="' + wizRData.pctGardes + '" min="0" max="100" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
-      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Email</label><input id="wizREmail" type="email" value="' + wizRData.email + '" placeholder="prenom.nom@chpg.mc" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
-      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Code accès</label><input id="wizRCode" value="' + wizRData.codeAcces + '" placeholder="ex. MARTIN2027" maxlength="12" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px;text-transform:uppercase"></div>'
-      + '</div>';
-
-  } else if (wizRStep === 1) {
-    let html = '<div class="wizard-section-title">Affectations sectorielles ' + ADMIN_YEAR + '</div>';
-    html += '<div style="font-size:12px;color:var(--ink-3);margin-bottom:12px">Secteur par défaut : VOLANT. Modifiez si nécessaire.</div>';
-    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
-    WIZ_MOIS.forEach((m, i) => {
-      html += '<div><label style="font-size:11px;font-weight:600;color:var(--ink-3)">' + m + '</label>'
-        + '<select id="wizRAff'+(i+1)+'" style="width:100%;margin-top:2px;padding:7px;border:1px solid var(--line);border-radius:6px;font-size:12px">'
-        + WIZ_SECTEURS.map(s => '<option value="'+s+'"'+(wizRAffectations[i+1]===s?' selected':'')+'>'+s+'</option>').join('')
-        + '</select></div>';
-    });
-    html += '</div>';
-    body.innerHTML = html;
-
-  } else if (wizRStep === 2) {
-    const rotations = {A:'Priorité 1 en 2027', B:'Priorité 2 en 2027', C:'Priorité 3 en 2027'};
-    let html = '<div class="wizard-section-title">Groupe vacances</div>';
-    html += '<div style="font-size:12px;color:var(--ink-3);margin-bottom:14px">Les groupes A/B/C définissent la priorité de choix des congés par rotation annuelle.</div>';
-    html += '<div style="display:flex;flex-direction:column;gap:8px">';
-    ['A','B','C'].forEach(g => {
-      const sel = wizRGroupe === g ? 'border-color:var(--red);background:#fff5f5;' : '';
-      html += '<div style="padding:12px 14px;border:2px solid var(--line);border-radius:10px;cursor:pointer;'+sel+'" onclick="wizRSelectGroupe(\''+g+'\')">'
-        + '<span style="font-weight:700">Groupe '+g+'</span>'
-        + '<span style="font-size:12px;color:var(--ink-3);margin-left:8px">'+rotations[g]+'</span>'
-        + '</div>';
-    });
-    html += '</div>';
-    body.innerHTML = html;
-
-  } else if (wizRStep === 3) {
-    let html = '<div class="wizard-section-title">Récapitulatif</div>';
-    html += '<div style="background:#f8fafc;border-radius:12px;padding:16px;margin:12px 0;font-size:13px;display:flex;flex-direction:column;gap:6px">';
-    html += '<div><strong>Nom :</strong> ' + wizRData.nom + '</div>';
-    html += '<div><strong>Initiales :</strong> ' + wizRData.initiales + '</div>';
-    html += '<div><strong>Quotité :</strong> ' + wizRData.quotite + '% · Gardes : ' + wizRData.pctGardes + '%</div>';
-    html += '<div><strong>Email :</strong> ' + (wizRData.email||'—') + '</div>';
-    html += '<div><strong>Code accès :</strong> ' + (wizRData.codeAcces||'—') + '</div>';
-    html += '<div><strong>Groupe vacances :</strong> ' + wizRGroupe + '</div>';
-    html += '</div>';
-    if (!wizRData.email) html += '<div class="wizard-warning">⚠️ Pas d\'email — le code d\'accès ne sera pas envoyé automatiquement.</div>';
-    body.innerHTML = html;
-  }
-}
-function wizRSelectGroupe(g) { wizRGroupe = g; renderWizRStep(); }
-async function launchWizardRecrue() {
-  const nb = document.getElementById('wizRNextBtn');
-  nb.disabled = true;
-  document.getElementById('wizRBackBtn').style.visibility = 'hidden';
-  document.getElementById('wizRBody').innerHTML = '<div class="wiz-progress">'
-    + '<div class="wiz-progress-item" id="wizr-p1">⏳ Création du MAR…</div>'
-    + '<div class="wiz-progress-item" id="wizr-p2" style="opacity:.4">○ Sauvegarde affectations…</div>'
-    + '<div class="wiz-progress-item" id="wizr-p3" style="opacity:.4">○ Sauvegarde groupe vacances…</div>'
-    + (wizRData.email ? '<div class="wiz-progress-item" id="wizr-p4" style="opacity:.4">○ Envoi code d\'accès…</div>' : '')
-    + '<div class="wiz-progress-item" id="wizr-p5" style="opacity:.4">○ Publication du planning…</div>'
-    + '</div>';
-
-  // Générer un ID propre depuis les initiales + timestamp
-  // Générer un code accès automatique si non renseigné
-  if (!wizRData.codeAcces) {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    wizRData.codeAcces = Array.from({length:8}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
-  }
-  const newMAR = {
-    ...wizRData,
-    id: wizRData.initiales.toUpperCase().replace(/[^A-Z]/g,'') + '_' + Date.now(),
-    actif: true,
-  };
-  const steps = [
-    {id:'wizr-p1', label:'MAR créé',              action: () => api({action:'saveMedecin', medecin:newMAR})},
-    {id:'wizr-p2', label:'Affectations sauvées',  action: () => api({action:'saveAffectationsMar', medecin:newMAR.id, affectations:wizRAffectations})},
-    {id:'wizr-p3', label:'Groupe sauvegardé',     action: () => api({action:'addMedecinToGroupe', medecin:newMAR.id, groupe:wizRGroupe})},
-    ...(wizRData.email ? [{id:'wizr-p4', label:'Code envoyé', action: () => api({action:'sendCodesMar', medecin:newMAR.id})}] : []),
-    {id:'wizr-p5', label:'Planning republié',     action: () => api({action:'publishPlanning'})},
-  ];
-
-  let allOk = true;
-  for (let i = 0; i < steps.length; i++) {
-    const el = document.getElementById(steps[i].id);
-    if (!el) continue;
-    el.classList.add('running'); el.style.opacity = '1';
-    try {
-      const res = await steps[i].action();
-      if (!res || !res.success) throw new Error(res?.error || 'Erreur');
-      el.classList.remove('running'); el.classList.add('done');
-      el.textContent = '✓ ' + steps[i].label;
-    } catch(e) {
-      el.classList.remove('running'); el.classList.add('error');
-      el.textContent = '✕ ' + e.message;
-      allOk = false; break;
-    }
-    const next = document.getElementById(steps[i+1]?.id);
-    if (next) { next.style.opacity='1'; next.textContent=next.textContent.replace('○','⏳'); }
-  }
-
-  if (allOk) {
-    setTimeout(() => {
-      document.getElementById('wizRBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">' + wizRData.nom + ' ajouté !</div><div style="font-size:13px;color:var(--ink-3)">Le MAR est actif et le planning republié.</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardRecrue();loadEquipe();showTab(\'equipe\')">Voir l\'équipe</button></div>';
-      nb.style.display = 'none';
-    }, 600);
-  } else { nb.disabled = false; nb.textContent = 'Réessayer'; }
-}
 
 // ── Maintenance P16 ──────────────────────────────────────────────
 
@@ -4807,29 +4062,6 @@ async function loadLogsInMaint() {
   }
 }
 
-async function runDiag() {
-  const btn = document.getElementById('btnDiagSys');
-  const res = document.getElementById('diagSysResult');
-  btn.disabled = true; btn.textContent = '⏳ Analyse…';
-  res.style.display = 'none';
-  try {
-    const data = await api({action: 'diagComplet'});
-    if (!data.success) throw new Error(data.error);
-    const lines = data.results || [];
-    const html = lines.map(l => {
-      const cls = l.startsWith('✅') ? 'diag-ok' : l.startsWith('❌') ? 'diag-err' : l.startsWith('⚠️') ? 'diag-warn' : '';
-      return `<div class="${cls}" style="font-size:12px;line-height:1.8;font-family:var(--mono)">${l}</div>`;
-    }).join('');
-    res.innerHTML = `<div style="background:var(--line-light);border-radius:8px;padding:12px;max-height:300px;overflow-y:auto">${html}</div>`;
-    res.style.display = 'block';
-    toast(data.ok ? '✅ Système OK' : '❌ Erreurs détectées', data.ok ? 'success' : 'error');
-  } catch(e) {
-    res.innerHTML = `<div class="diag-err">Erreur : ${e.message}</div>`;
-    res.style.display = 'block';
-  } finally {
-    btn.disabled = false; btn.textContent = "Vérifier l'état du système";
-  }
-}
 
 async function sendCodeToOne() {
   const sel = document.getElementById('selectMarCode');
