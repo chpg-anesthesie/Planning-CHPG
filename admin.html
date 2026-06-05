@@ -511,6 +511,73 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .wiz-progress-item.running { border-color:var(--red); color:var(--ink); background:var(--red-soft); }
 .wiz-progress-item.done { border-color:var(--green); color:var(--green); background:var(--green-soft); }
 .wiz-progress-item.error { border-color:var(--red); color:var(--red); }
+
+/* ── P16 migration config ── */
+.page-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
+}
+.section-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.section-sub { font-size: 12px; color: var(--ink-3); margin-bottom: 20px; }
+.vac-group-card { border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; }
+.vac-group-header {
+  padding: 10px 12px; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.vac-group-header.A { background: #EFF6FF; color: #1D4ED8; }
+.vac-group-header.B { background: #F0FDF4; color: #166534; }
+.vac-group-header.C { background: #FDF4FF; color: #7E22CE; }
+.vac-group-body { padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.vac-groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.btn-sm { padding: 4px 10px !important; font-size: 11px !important; }
+.btn-danger {
+  background: #FFF1F2; color: var(--red); border: 1px solid #FECDD3;
+  border-radius: 8px; padding: 6px 12px; font-size: 11px; font-weight: 600;
+  font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all .15s;
+}
+.btn-danger:hover { background: #FFE4E6; }
+.btn-icon {
+  background: var(--line-light); border: 1px solid var(--line);
+  border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer;
+  transition: all .15s;
+}
+.btn-icon:hover { background: var(--line); }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.form-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+.log-area {
+  background: #0F172A; color: #94A3B8; font-family: var(--mono);
+  font-size: 11px; border-radius: 8px; padding: 12px 14px;
+  line-height: 1.7; max-height: 240px; overflow-y: auto;
+}
+.log-ok   { color: #4ADE80; }
+.log-warn { color: #FB923C; }
+.log-err  { color: #F87171; }
+.log-info { color: #94A3B8; }
+.maint-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.maint-action {
+  border: 1.5px solid var(--line); border-radius: 10px; padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.maint-title { font-size: 13px; font-weight: 700; }
+.maint-desc { font-size: 11px; color: var(--ink-3); line-height: 1.5; }
+.param-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--line);
+}
+.param-row:last-child { border-bottom: none; }
+.param-key { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--ink-2); width: 200px; flex-shrink: 0; }
+.param-val { font-size: 12px; color: var(--ink-3); flex: 1; }
+.param-input {
+  font-family: var(--mono); font-size: 12px; border: 1.5px solid var(--line);
+  border-radius: 6px; padding: 5px 8px; outline: none; width: 180px;
+  transition: border-color .15s;
+}
+.param-input:focus { border-color: var(--red); }
+.header-badge {
+  background: #FEF3C7; color: #B45309;
+  font-size: 10px; font-weight: 700; padding: 4px 10px;
+  border-radius: 20px; letter-spacing: .04em;
+}
+.aff-wrap { overflow-x: auto; }
 </style>
 <script>
 // Masquer l'overlay immédiatement si un code est en sessionStorage
@@ -716,9 +783,82 @@ if (sessionStorage.getItem('adminCode')) {
   </div>
 </div>
 
-<!-- ── ÉQUIPE (stub P16 patch 3) ── -->
+<!-- ── ÉQUIPE ── -->
 <div class="tab-panel" id="panel-equipe">
-  <div style="padding:40px;text-align:center;color:var(--ink-3)">⏳ Onglet Équipe en cours de migration…</div>
+  <div class="page-header">
+      <div>
+        <div class="section-title">Équipe médicale</div>
+        <div class="section-sub">Gestion des MARs — statuts, quotités, emails</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-secondary" onclick="loadEquipe()">↻ Actualiser</button>
+        <button class="btn-primary" onclick="openAddMAR()">+ Ajouter un MAR</button>
+      </div>
+    </div>
+
+    <div id="equipeLoading" class="loading"><div class="spinner"></div> Chargement...</div>
+    <div id="equipeContent" style="display:none">
+      <div class="card">
+        <div class="card-body" style="padding:0;overflow-x:auto">
+          <table class="data-table" id="equipeTable">
+            <thead><tr>
+              <th>ID</th><th>Nom</th><th>Init.</th>
+              <th>Quotité</th><th>% Gardes</th>
+              <th>Email</th><th>DECT</th><th>Statut</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="equipeBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  <!-- Section Vacances -->
+  <div style="margin-top:32px;border-top:1px solid var(--line);padding-top:24px">
+    <div class="page-header">
+      <div>
+        <div class="section-title">Gestion des vacances</div>
+        <div class="section-sub">Périodes, seuils et groupes de priorité A/B/C</div>
+      </div>
+      <button class="btn-secondary" onclick="loadVacances()">↻ Actualiser</button>
+    </div>
+
+    <div id="vacLoading" class="loading"><div class="spinner"></div> Chargement...</div>
+    <div id="vacContent" style="display:none">
+      <!-- Périodes -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <span class="card-title">Périodes de vacances</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn-secondary btn-sm" onclick="addPeriode()">+ Ajouter</button>
+            <button class="btn-primary btn-sm" onclick="savePeriodes()">💾 Enregistrer</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:0">
+          <table class="data-table">
+            <thead><tr>
+              <th>Nom</th><th>Début</th><th>Fin</th><th>Seuil MAR/jour</th><th></th>
+            </tr></thead>
+            <tbody id="periodesBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Groupes -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Groupes de priorité</span>
+          <button class="btn-primary btn-sm" onclick="saveGroupes()">💾 Enregistrer groupes</button>
+        </div>
+        <div class="card-body">
+          <div style="font-size:11px;color:var(--ink-3);margin-bottom:12px">
+            Utilisez les boutons ↑↓ pour modifier l'ordre. Utilisez → ← pour changer de groupe.
+          </div>
+          <div class="vac-groups" id="vacGroupes"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- ── ACCUEIL ── -->
@@ -1113,6 +1253,7 @@ function showTab(name) {
   document.getElementById('panel-'+name).classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
   if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations(ADMIN_YEAR);
+  if (name==='equipe') loadEquipe();
   if (name==='gardes') {
     loadStats(ADMIN_YEAR);
     // Désactiver génération gardes seulement si YEAR+1 est déjà sanctuarisé (≤2026)
@@ -3012,6 +3153,1619 @@ async function launchWizardCloture() {
     </div>
   </div>
 </div>
+
+<!-- ── MODALS ÉQUIPE P16 ── -->
+<!-- MODAL ÉDITION MAR -->
+<div class="modal-overlay" id="modalMAR">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modalMARTitle">Nouveau MAR</span>
+      <button class="modal-close" onclick="closeModal('modalMAR')">✕</button>
+    </div>
+    <div class="form-grid-3" style="margin-bottom:12px">
+      <div class="form-field">
+        <label class="form-label">ID</label>
+        <input class="form-input" id="marId" placeholder="DUPONT" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Nom complet</label>
+        <input class="form-input" id="marNom" placeholder="DR DUPONT"/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Initiales</label>
+        <input class="form-input" id="marInitiales" placeholder="MD" style="font-family:var(--mono)"/>
+      </div>
+    </div>
+    <div class="form-grid" style="margin-bottom:12px">
+      <div class="form-field">
+        <label class="form-label">Quotité (%)</label>
+        <input class="form-input" id="marQuotite" type="number" value="100" min="10" max="200"/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">% Gardes</label>
+        <input class="form-input" id="marPctGardes" type="number" value="100" min="0" max="200"/>
+      </div>
+    </div>
+    <div class="form-grid" style="margin-bottom:12px">
+      <div class="form-field">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="marEmail" type="email" placeholder="prenom.nom@chpg.mc"/>
+      </div>
+      <div class="form-field">
+        <label class="form-label">DECT</label>
+        <input class="form-input" id="marDect" type="text" placeholder="ex. 1234" style="font-family:var(--mono)" maxlength="6"/>
+      </div>
+    </div>
+    <div class="form-field" style="margin-bottom:16px">
+      <label class="form-label">Statut</label>
+      <select class="form-select" id="marActif">
+        <option value="true">Actif</option>
+        <option value="false">Inactif</option>
+      </select>
+    </div>
+    <input type="hidden" id="marCodeAcces"/>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-secondary" onclick="closeModal('modalMAR')">Annuler</button>
+      <button class="btn-primary" onclick="saveMAR()" id="btnSaveMAR">✅ Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SÉLECTION SECTEUR -->
+<div class="modal-overlay" id="modalSecteur">
+  <div class="modal" style="width:320px">
+    <div class="modal-title">
+      <span id="modalSecteurTitle">Modifier secteur</span>
+      <button class="modal-close" onclick="closeModal('modalSecteur')">✕</button>
+    </div>
+    <div class="form-field" style="margin-bottom:16px">
+      <label class="form-label">Secteur</label>
+      <select class="form-select" id="secteurSelect">
+        <option value="VIS">VIS — Viscéral</option>
+        <option value="END">END — Endoscopies</option>
+        <option value="ORL">ORL</option>
+        <option value="REA">REA — Réanimation</option>
+        <option value="ORT">ORT — Orthopédie</option>
+        <option value="CI">CI — Cardio/Interv.</option>
+        <option value="RI">RI — Radio/Interv.</option>
+        <option value="MAT">MAT — Maternité</option>
+        <option value="VOLANT">VOLANT</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-secondary" onclick="closeModal('modalSecteur')">Annuler</button>
+      <button class="btn-primary" onclick="applySecteur()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FICHE OPÉRATOIRE -->
+<div class="modal-overlay" id="modalFiche">
+  <div class="modal" style="width:560px;max-height:80vh;overflow-y:auto">
+    <div class="modal-title">
+      <span id="modalFicheTitre"></span>
+      <button class="modal-close" onclick="closeModal('modalFiche')">✕</button>
+    </div>
+    <div id="modalFicheContent"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
+let ADMIN_CODE = '';
+let YEAR = 2027;
+
+// ── AUTH ──────────────────────────────────────────────────────────────
+document.getElementById('authInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') authenticate();
+});
+
+// Auto-login depuis sessionStorage si code déjà saisi
+(async function tryAutoLogin() {
+  const saved = sessionStorage.getItem('adminCode');
+  if (!saved) return;
+  try {
+    const params = new URLSearchParams({payload: JSON.stringify({action:'login', code: saved})});
+    const res = await fetch(API_URL + '?' + params);
+    const data = await res.json();
+    if (data.success && data.role === 'admin') {
+      ADMIN_CODE = saved;
+      YEAR = data.year || 2027;
+      sessionStorage.setItem('adminCode', saved);
+      document.getElementById('yearLabel').textContent = YEAR;
+      const archLabel = document.getElementById('archiveYearLabel');
+      if (archLabel) archLabel.textContent = YEAR;
+      document.getElementById('authOverlay').style.display = 'none';
+      loadEquipe();
+    } else {
+      sessionStorage.removeItem('adminCode');
+    }
+  } catch(e) { sessionStorage.removeItem('adminCode'); }
+})();
+
+async function authenticate() {
+  const code = document.getElementById('authInput').value.trim().toUpperCase();
+  try {
+    const params = new URLSearchParams({payload: JSON.stringify({action:'login', code})});
+    const res = await fetch(API_URL + '?' + params);
+    const data = await res.json();
+    if (data.success && data.role === 'admin') {
+      ADMIN_CODE = code;
+      YEAR = data.year || 2027;
+      sessionStorage.setItem('adminCode', code);
+      document.getElementById('yearLabel').textContent = YEAR;
+      const archLabel = document.getElementById('archiveYearLabel');
+      if (archLabel) archLabel.textContent = YEAR;
+      document.getElementById('authOverlay').style.display = 'none';
+      loadEquipe();
+    } else {
+      document.getElementById('authError').style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('authError').style.display = 'block';
+  }
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'equipe' && document.getElementById('equipeContent').style.display === 'none') loadEquipe();
+  if (name === 'vacances' && document.getElementById('vacContent').style.display === 'none') loadVacances();
+  if (name === 'parametres' && document.getElementById('paramsContent').style.display === 'none') loadParametres();
+}
+
+// ── TOAST ──────────────────────────────────────────────────────────────
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => el.className = 'toast', 3000);
+}
+
+// ── MODAL ──────────────────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ── API ────────────────────────────────────────────────────────────────
+async function api(payload) {
+  payload.code = ADMIN_CODE;
+  const params = new URLSearchParams({payload: JSON.stringify(payload)});
+  const res = await fetch(API_URL + '?' + params);
+  return res.json();
+}
+
+// ── ÉQUIPE ──────────────────────────────────────────────────────────────
+let marData = [];
+
+async function loadEquipe() {
+  document.getElementById('equipeLoading').style.display = 'flex';
+  document.getElementById('equipeContent').style.display = 'none';
+  try {
+    const data = await api({action: 'getMedecins'});
+    if (!data.success) throw new Error(data.error);
+    marData = data.medecins;
+    renderEquipe();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    document.getElementById('equipeLoading').style.display = 'none';
+    document.getElementById('equipeContent').style.display = 'block';
+  }
+}
+
+function renderEquipe() {
+  const tbody = document.getElementById('equipeBody');
+  tbody.innerHTML = marData.map(m => `
+    <tr>
+      <td><span style="font-family:var(--mono);font-size:11px">${m.id}</span></td>
+      <td style="font-weight:600">${m.nom}</td>
+      <td><span class="badge badge-grey">${m.initiales}</span></td>
+      <td>${m.quotite}%</td>
+      <td>${m.pctGardes}%</td>
+      <td style="color:var(--ink-3);font-size:11px">${m.email || '—'}</td>
+      <td>
+        <span class="badge ${m.actif ? 'badge-green' : 'badge-grey'}">
+          ${m.actif ? 'Actif' : 'Inactif'}
+        </span>
+      </td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn-icon" onclick="openEditMAR('${m.id}')" title="Modifier">✏️</button>
+          <button class="btn-icon" onclick="toggleActif('${m.id}')" title="${m.actif ? 'Désactiver' : 'Activer'}">
+            ${m.actif ? '⏸' : '▶'}
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openAddMAR() {
+  document.getElementById('modalMARTitle').textContent = 'Nouveau MAR';
+  document.getElementById('marId').value = '';
+  document.getElementById('marId').disabled = false;
+  document.getElementById('marNom').value = '';
+  document.getElementById('marInitiales').value = '';
+  document.getElementById('marQuotite').value = 100;
+  document.getElementById('marPctGardes').value = 100;
+  document.getElementById('marEmail').value = '';
+  document.getElementById('marActif').value = 'true';
+  document.getElementById('marCodeAcces').value = '';
+  document.getElementById('modalMAR').classList.add('open');
+}
+
+function openEditMAR(id) {
+  const m = marData.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('modalMARTitle').textContent = 'Modifier · ' + m.nom;
+  document.getElementById('marId').value = m.id;
+  document.getElementById('marId').disabled = true;
+  document.getElementById('marNom').value = m.nom;
+  document.getElementById('marInitiales').value = m.initiales;
+  document.getElementById('marQuotite').value = m.quotite;
+  document.getElementById('marPctGardes').value = m.pctGardes;
+  document.getElementById('marEmail').value = m.email || '';
+  document.getElementById('marActif').value = m.actif ? 'true' : 'false';
+  document.getElementById('marCodeAcces').value = m.codeAcces || '';
+  document.getElementById('modalMAR').classList.add('open');
+}
+
+async function saveMAR() {
+  const btn = document.getElementById('btnSaveMAR');
+  btn.disabled = true;
+  btn.textContent = '⏳ Enregistrement...';
+  try {
+    const medecin = {
+      id:        document.getElementById('marId').value.trim().toUpperCase(),
+      nom:       document.getElementById('marNom').value.trim(),
+      initiales: document.getElementById('marInitiales').value.trim(),
+      quotite:   Number(document.getElementById('marQuotite').value),
+      pctGardes: Number(document.getElementById('marPctGardes').value),
+      email:     document.getElementById('marEmail').value.trim(),
+      dect:      document.getElementById('marDect').value.trim(),
+      actif:     document.getElementById('marActif').value === 'true',
+      codeAcces: document.getElementById('marCodeAcces').value,
+    };
+    if (!medecin.id || !medecin.nom) { toast('ID et Nom obligatoires', 'error'); return; }
+    const data = await api({action: 'saveMedecin', medecin});
+    if (!data.success) throw new Error(data.error);
+    toast(data.created ? '✅ MAR créé' : '✅ MAR mis à jour', 'success');
+    closeModal('modalMAR');
+    await loadEquipe();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✅ Enregistrer';
+  }
+}
+
+async function toggleActif(id) {
+  const m = marData.find(x => x.id === id);
+  if (!m) return;
+  const newActif = !m.actif;
+  if (!confirm(`${newActif ? 'Activer' : 'Désactiver'} ${m.nom} ?`)) return;
+  try {
+    const data = await api({action: 'saveMedecin', medecin: {...m, actif: newActif}});
+    if (!data.success) throw new Error(data.error);
+    toast(`✅ ${m.nom} ${newActif ? 'activé' : 'désactivé'}`, 'success');
+    await loadEquipe();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
+
+// ── AFFECTATIONS ──────────────────────────────────────────────────────
+let affData = {}; // affData[doctorId][month] = secteur
+let affPending = false;
+let currentAffCell = null;
+
+const MOIS_COURTS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+const SECTEURS_AFF = ['VIS','END','ORL','REA','ORT','CI','RI','MAT','VOLANT'];
+
+async function loadAffectations() {
+  document.getElementById('affLoading').style.display = 'flex';
+  document.getElementById('affContent').style.display = 'none';
+  try {
+    const data = await api({action: 'getAffectations'});
+    if (!data.success) throw new Error(data.error);
+    affData = data.affectations;
+    affPending = false;
+    renderAffectations();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    document.getElementById('affLoading').style.display = 'none';
+    document.getElementById('affContent').style.display = 'block';
+  }
+}
+
+function renderAffectations() {
+  const grid = document.getElementById('affGrid');
+  grid.innerHTML = '';
+
+  // Headers
+  const hName = document.createElement('div');
+  hName.className = 'aff-header name'; hName.textContent = 'MAR';
+  grid.appendChild(hName);
+  for (let m = 1; m <= 12; m++) {
+    const h = document.createElement('div');
+    h.className = 'aff-header'; h.textContent = MOIS_COURTS[m-1];
+    grid.appendChild(h);
+  }
+
+  // Lignes MARs actifs
+  const actifs = marData.filter(m => m.actif);
+  actifs.forEach(mar => {
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'aff-name';
+    nameDiv.textContent = mar.id;
+    grid.appendChild(nameDiv);
+
+    for (let m = 1; m <= 12; m++) {
+      const secteur = (affData[mar.id] && affData[mar.id][m]) || 'VOLANT';
+      const cell = document.createElement('div');
+      cell.className = 'aff-cell ' + (secteur === 'VOLANT' ? 'VOLANT' : secteur);
+      cell.textContent = secteur === 'VOLANT' ? 'VOL' : secteur;
+      cell.dataset.mar = mar.id;
+      cell.dataset.month = m;
+      cell.onclick = () => openSecteurModal(mar.id, m, cell);
+      grid.appendChild(cell);
+    }
+  });
+
+  document.getElementById('affPendingMsg').style.display = 'none';
+}
+
+function openSecteurModal(marId, month, cell) {
+  currentAffCell = {marId, month, cell};
+  const secteur = (affData[marId] && affData[marId][month]) || 'VOLANT';
+  document.getElementById('modalSecteurTitle').textContent = `${marId} · ${MOIS_COURTS[month-1]}`;
+  document.getElementById('secteurSelect').value = secteur;
+  document.getElementById('modalSecteur').classList.add('open');
+}
+
+function applySecteur() {
+  if (!currentAffCell) return;
+  const {marId, month, cell} = currentAffCell;
+  const newSecteur = document.getElementById('secteurSelect').value;
+  if (!affData[marId]) affData[marId] = {};
+  affData[marId][month] = newSecteur;
+  cell.className = 'aff-cell ' + (newSecteur === 'VOLANT' ? 'VOLANT' : newSecteur);
+  cell.textContent = newSecteur === 'VOLANT' ? 'VOL' : newSecteur;
+  affPending = true;
+  document.getElementById('affPendingMsg').style.display = 'block';
+  closeModal('modalSecteur');
+}
+
+async function saveAllAffectations() {
+  const btn = document.getElementById('btnSaveAff');
+  btn.disabled = true;
+  btn.textContent = '⏳ Enregistrement...';
+  try {
+    const data = await api({action: 'saveAffectations', affectations: affData});
+    if (!data.success) throw new Error(data.error);
+    affPending = false;
+    document.getElementById('affPendingMsg').style.display = 'none';
+    toast('✅ Affectations enregistrées', 'success');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 Enregistrer tout';
+  }
+}
+
+// ── VACANCES ──────────────────────────────────────────────────────────
+let periodesData = [];
+let groupesData = {A:[], B:[], C:[]};
+
+async function loadVacances() {
+  document.getElementById('vacLoading').style.display = 'flex';
+  document.getElementById('vacContent').style.display = 'none';
+  try {
+    const data = await api({action: 'getVacancesConfig'});
+    if (!data.success) throw new Error(data.error);
+    periodesData = data.periodes || [];
+    groupesData = data.groupes || {A:[], B:[], C:[]};
+    renderPeriodes();
+    renderGroupes();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    document.getElementById('vacLoading').style.display = 'none';
+    document.getElementById('vacContent').style.display = 'block';
+  }
+}
+
+function renderPeriodes() {
+  const tbody = document.getElementById('periodesBody');
+  tbody.innerHTML = periodesData.map((p, i) => `
+    <tr>
+      <td><input class="form-input" value="${p.nom}" onchange="periodesData[${i}].nom=this.value" style="width:120px;padding:4px 8px"/></td>
+      <td><input class="form-input" type="date" value="${p.debut}" onchange="periodesData[${i}].debut=this.value" style="width:140px;padding:4px 8px"/></td>
+      <td><input class="form-input" type="date" value="${p.fin}" onchange="periodesData[${i}].fin=this.value" style="width:140px;padding:4px 8px"/></td>
+      <td><input class="form-input" type="number" value="${p.seuil}" min="1" max="20" onchange="periodesData[${i}].seuil=Number(this.value)" style="width:70px;padding:4px 8px;text-align:center"/></td>
+      <td><button class="btn-danger" onclick="removePeriode(${i})">🗑</button></td>
+    </tr>
+  `).join('');
+}
+
+function addPeriode() {
+  periodesData.push({nom:'NOUVELLE', debut:'', fin:'', seuil:8});
+  renderPeriodes();
+}
+
+function removePeriode(i) {
+  if (!confirm('Supprimer cette période ?')) return;
+  periodesData.splice(i, 1);
+  renderPeriodes();
+}
+
+async function savePeriodes() {
+  try {
+    const data = await api({action: 'savePeriodes', periodes: periodesData});
+    if (!data.success) throw new Error(data.error);
+    toast('✅ Périodes enregistrées', 'success');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
+
+function renderGroupes() {
+  const container = document.getElementById('vacGroupes');
+  container.innerHTML = '';
+  ['A','B','C'].forEach(grp => {
+    const card = document.createElement('div');
+    card.className = 'vac-group-card';
+    card.innerHTML = `
+      <div class="vac-group-header ${grp}">
+        Groupe ${grp}
+        <span style="font-size:10px;opacity:.7">${groupesData[grp].length} MARs</span>
+      </div>
+      <div class="vac-group-body" id="groupBody${grp}"></div>
+    `;
+    container.appendChild(card);
+
+    const body = document.getElementById('groupBody' + grp);
+    groupesData[grp].forEach((mar, idx) => {
+      const row = document.createElement('div');
+      row.className = 'vac-mar-row';
+      row.innerHTML = `
+        <span>${mar.id}</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <div class="vac-mar-actions">
+            ${grp !== 'A' ? `<button class="btn-icon" onclick="moveToGroup('${mar.id}','${grp}','prev')" title="Groupe précédent">←</button>` : ''}
+            ${grp !== 'C' ? `<button class="btn-icon" onclick="moveToGroup('${mar.id}','${grp}','next')" title="Groupe suivant">→</button>` : ''}
+            <button class="btn-icon" onclick="moveInGroup('${grp}',${idx},-1)" title="Monter">↑</button>
+            <button class="btn-icon" onclick="moveInGroup('${grp}',${idx},1)" title="Descendre">↓</button>
+          </div>
+          <span class="vac-mar-rank">${idx+1}</span>
+        </div>
+      `;
+      body.appendChild(row);
+    });
+  });
+}
+
+function moveInGroup(grp, idx, dir) {
+  const arr = groupesData[grp];
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= arr.length) return;
+  [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+  renderGroupes();
+}
+
+function moveToGroup(marId, fromGrp, direction) {
+  const grps = ['A','B','C'];
+  const fromIdx = grps.indexOf(fromGrp);
+  const toGrp = direction === 'prev' ? grps[fromIdx-1] : grps[fromIdx+1];
+  if (!toGrp) return;
+  const mar = groupesData[fromGrp].find(m => m.id === marId);
+  groupesData[fromGrp] = groupesData[fromGrp].filter(m => m.id !== marId);
+  groupesData[toGrp].push(mar);
+  renderGroupes();
+}
+
+async function saveGroupes() {
+  try {
+    const data = await api({action: 'saveGroupes', groupes: groupesData});
+    if (!data.success) throw new Error(data.error);
+    toast('✅ Groupes enregistrés', 'success');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
+
+// ── PARAMÈTRES ──────────────────────────────────────────────────────────
+let configData = [];
+
+async function loadParametres() {
+  document.getElementById('paramsLoading').style.display = 'flex';
+  document.getElementById('paramsContent').style.display = 'none';
+  try {
+    const data = await api({action: 'getConfig'});
+    if (!data.success) throw new Error(data.error);
+    configData = data.config || [];
+    renderParametres();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    document.getElementById('paramsLoading').style.display = 'none';
+    document.getElementById('paramsContent').style.display = 'block';
+  }
+}
+
+function renderParametres() {
+  const body = document.getElementById('paramsBody');
+  body.innerHTML = configData.map((row, i) => `
+    <div class="param-row">
+      <div class="param-key">${row.key}</div>
+      <div class="param-val">${row.key === 'ADMIN_CODE' ? '••••••••' : row.value}</div>
+      <input class="param-input" id="paramInput_${i}" 
+        type="${row.key === 'ADMIN_CODE' ? 'password' : 'text'}"
+        placeholder="Nouvelle valeur" />
+      <button class="btn-primary btn-sm" onclick="saveParam(${i})">Appliquer</button>
+    </div>
+  `).join('');
+}
+
+async function saveParam(i) {
+  const input = document.getElementById('paramInput_' + i);
+  const newVal = input.value.trim();
+  if (!newVal) return;
+  try {
+    const data = await api({action: 'saveConfig', key: configData[i].key, value: newVal});
+    if (!data.success) throw new Error(data.error);
+    configData[i].value = newVal;
+    input.value = '';
+    toast('✅ Paramètre mis à jour', 'success');
+    renderParametres();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
+
+function previewCodes() {
+  const withEmail = marData.filter(m => m.actif && m.email);
+  const withoutEmail = marData.filter(m => m.actif && !m.email);
+  let msg = `${withEmail.length} MARs avec email :\n`;
+  msg += withEmail.map(m => `• ${m.nom} → ${m.email}`).join('\n');
+  if (withoutEmail.length) {
+    msg += `\n\n${withoutEmail.length} MARs sans email (non envoyés) :\n`;
+    msg += withoutEmail.map(m => `• ${m.nom}`).join('\n');
+  }
+  alert(msg);
+}
+
+async function sendCodes() {
+  if (!confirm('Envoyer les codes d\'accès à tous les MARs avec email ?\nLes anciens codes seront invalidés.')) return;
+  try {
+    const data = await api({action: 'sendCodes'});
+    if (!data.success) throw new Error(data.error);
+    toast(`✅ Codes envoyés à ${data.sent} MARs`, 'success');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
+
+// ── MAINTENANCE ──────────────────────────────────────────────────────────
+async function runDiag() {
+  const btn = document.getElementById('btnDiag');
+  btn.disabled = true; btn.textContent = '⏳ Analyse...';
+  try {
+    const data = await api({action: 'diagComplet'});
+    if (!data.success) throw new Error(data.error);
+    const logArea = document.getElementById('logArea');
+    logArea.innerHTML = (data.results || []).map(line => {
+      const cls = line.startsWith('✅') ? 'log-ok' : line.startsWith('❌') ? 'log-err' : line.startsWith('⚠️') ? 'log-warn' : 'log-info';
+      return `<div class="${cls}">${line}</div>`;
+    }).join('');
+    toast('Diagnostic terminé', data.ok ? 'success' : 'error');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Lancer diagComplet()';
+  }
+}
+
+async function publishPlanning() {
+  if (!confirm('Publier le planning sur GitHub Pages ?')) return;
+  try {
+    const data = await api({action: 'publishPlanning'});
+    if (!data.success) throw new Error(data.error);
+    toast('✅ Planning publié', 'success');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
+async function archiveCurrentYear() {
+  if (!confirm(`Archiver l'année ${YEAR} ?\n\nCela va pousser stats_${YEAR}.json et indispos_${YEAR}.json sur GitHub.\nLes onglets GSheet ne seront PAS supprimés.`)) return;
+  try {
+    const data = await api({action: 'archiveYear', year: YEAR});
+    if (!data.success) throw new Error(data.error);
+    toast(`✅ Archivage ${YEAR} terminé`, 'success');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
+async function loadLogs() {
+  try {
+    const data = await api({action: 'getLogs'});
+    if (!data.success) throw new Error(data.error);
+    const logArea = document.getElementById('logArea');
+    if (!data.logs || !data.logs.length) {
+      logArea.innerHTML = '<div class="log-info">Aucun log disponible.</div>';
+      return;
+    }
+    logArea.innerHTML = data.logs.map(line => {
+      const cls = line.includes('✅') ? 'log-ok' : line.includes('❌') ? 'log-err' : line.includes('⚠️') ? 'log-warn' : 'log-info';
+      return `<div class="${cls}">${line}</div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('logArea').innerHTML = `<div class="log-err">Erreur : ${e.message}</div>`;
+  }
+}
+
+// ── FICHES OPÉRATOIRES ──────────────────────────────────────────────────
+const FICHES = {
+  depart: {
+    titre: '📋 Fiche opératoire — Départ d\'un MAR',
+    steps: [
+      'Identifier les gardes restantes du MAR sur GARDES_YYYY',
+      'Redistribuer les gardes via l\'onglet Modifications de comite.html (scénario Don de garde)',
+      'Désactiver le MAR dans l\'onglet Équipe (bouton ⏸)',
+      'Mettre à jour ses affectations sectorielles si nécessaire',
+      'Republier le planning (bouton Publier)',
+      'Archiver ses indisponibilités si besoin',
+    ]
+  },
+  recrue: {
+    titre: '📋 Fiche opératoire — Nouvelle recrue',
+    steps: [
+      'Créer le MAR dans l\'onglet Équipe (bouton + Ajouter)',
+      'Renseigner l\'email pour l\'envoi du code d\'accès',
+      'Définir ses affectations sectorielles dans l\'onglet Affectations',
+      'Assigner à un groupe vacances A/B/C dans l\'onglet Vacances',
+      'Envoyer le code d\'accès depuis l\'onglet Paramètres',
+      'Republier le planning',
+    ]
+  }
+};
+
+
+// ── WIZARD DÉPART D'UN MAR ────────────────────────────────────────────────
+let wizDStep = 0, wizDMarId = null, wizDMarsData = [];
+
+async function openWizardDepart() {
+  wizDStep = 0; wizDMarId = null;
+  document.getElementById('wizDNextBtn').disabled = false;
+  document.getElementById('wizDNextBtn').style.display = '';
+  document.getElementById('wizDNextBtn').textContent = 'Suivant →';
+  // Charger la liste des MARs depuis l'API (marData n'existe pas dans config.html)
+  try {
+    const d = await api({action:'getMedecins'});
+    if (d.success) wizDMarsData = d.medecins.filter(m => m.actif);
+  } catch(e) { wizDMarsData = []; }
+  await renderWizDStep();
+  document.getElementById('wizardDepartOverlay').classList.add('open');
+}
+function closeWizardDepart() { document.getElementById('wizardDepartOverlay').classList.remove('open'); }
+
+async function wizDPrev() { if (wizDStep > 0) { wizDStep--; await renderWizDStep(); } }
+async function wizDNext() {
+  if (wizDStep === 0 && !wizDMarId) { toast('Sélectionnez un MAR', 'error'); return; }
+  if (wizDStep < 3) { wizDStep++; await renderWizDStep(); }
+  else { await launchWizardDepart(); }
+}
+
+function updateWizDNav() {
+  document.getElementById('wizDBackBtn').style.visibility = wizDStep === 0 ? 'hidden' : 'visible';
+  const nb = document.getElementById('wizDNextBtn');
+  nb.textContent = wizDStep === 3 ? '🚪 Désactiver le MAR' : 'Suivant →';
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('wizDDot'+i).className = 'wizard-step-dot' + (i<wizDStep?' done':i===wizDStep?' active':'');
+    document.getElementById('wizDStep'+i).className = 'wizard-step' + (i===wizDStep?' active':'');
+  }
+}
+
+async function renderWizDStep() {
+  updateWizDNav();
+  const body = document.getElementById('wizDBody');
+
+  if (wizDStep === 0) {
+    let html = '<div class="wizard-section-title">Quel MAR part ?</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+    wizDMarsData.forEach(m => {
+      const sel = wizDMarId === m.id ? 'background:#fee2e2;border-color:var(--red);' : '';
+      html += '<div style="padding:12px 14px;border:2px solid var(--line);border-radius:10px;cursor:pointer;' + sel + '" onclick="wizDSelectMAR(\''+m.id+'\')">'
+        + '<span style="font-weight:700">' + m.nom + '</span>'
+        + '<span style="font-size:12px;color:var(--ink-3);margin-left:8px">' + m.initiales + ' · ' + (m.quotite||100) + '%</span>'
+        + '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+
+  } else if (wizDStep === 1) {
+    const mar = wizDMarsData.find(m => m.id === wizDMarId);
+    body.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement planning…</div>';
+    let gardesFutures = 0;
+    try {
+      const planning = await fetch('./planning_' + YEAR + '.json?' + Date.now()).then(r => r.json());
+      const today = new Date().toISOString().slice(0,10);
+      // Structure réelle : {months: [{days: [...], doctors: [...]}]}
+      (planning.months || []).forEach(month => {
+        (month.doctors || []).forEach(doc => {
+          if (doc.initials !== mar.initiales) return;
+          (doc.days || []).forEach((entry, dayIdx) => {
+            const date = month.days[dayIdx]?.date;
+            if (!date || date < today) return;
+            const st = entry?.status || '';
+            if (st === 'G' || st === 'G2') gardesFutures++;
+          });
+        });
+      });
+    } catch(e) {}
+    let html = '<div class="wizard-section-title">Vérification — ' + (mar?.nom||'') + '</div>';
+    if (gardesFutures > 0) {
+      html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">⚠️ <strong>' + gardesFutures + ' garde(s) future(s)</strong> attribuée(s) à ce MAR.<br><small>Redistribuez-les manuellement depuis admin.html → Modifier une garde avant de désactiver.</small></div>';
+    } else {
+      html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid #16a34a;color:#166534">✅ Aucune garde future détectée pour ce MAR.</div>';
+    }
+    html += '<div style="font-size:12px;color:var(--ink-3);margin-top:12px">Vérifiez également ses affectations sectorielles — elles resteront en GSheet mais n\'auront plus d\'effet une fois le MAR désactivé.</div>';
+    body.innerHTML = html;
+
+  } else if (wizDStep === 2) {
+    const mar = wizDMarsData.find(m => m.id === wizDMarId);
+    let html = '<div class="wizard-section-title">Confirmer la désactivation</div>';
+    html += '<div style="background:#f8fafc;border-radius:12px;padding:16px;margin:12px 0">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:4px">' + (mar?.nom||'') + ' (' + (mar?.initiales||'') + ')</div>';
+    html += '<div style="font-size:12px;color:var(--ink-3)">Le MAR sera passé à ACTIF = N dans l\'onglet MEDECINS.<br>Il n\'apparaîtra plus dans les générations futures.</div>';
+    html += '</div>';
+    html += '<div class="wizard-warning" style="background:#fef3c7;border-left:3px solid #f59e0b;color:#92400e">⚠️ Cette action est réversible depuis config.html → Équipe (réactiver le MAR).</div>';
+    body.innerHTML = html;
+
+  } else if (wizDStep === 3) {
+    const mar = wizDMarsData.find(m => m.id === wizDMarId);
+    let html = '<div class="wizard-section-title">Prêt à désactiver</div>';
+    html += '<div style="font-size:13px;margin-bottom:16px">Le planning sera republié automatiquement après désactivation.</div>';
+    html += '<div class="wiz-mar-row"><div class="wiz-mar-init">' + (mar?.initiales||'') + '</div><div class="wiz-mar-name">' + (mar?.nom||'') + '</div><div class="wiz-mar-meta"><span style="color:var(--red)">→ ACTIF = N</span></div></div>';
+    body.innerHTML = html;
+  }
+}
+
+function wizDSelectMAR(id) {
+  wizDMarId = id;
+  renderWizDStep();
+}
+
+async function launchWizardDepart() {
+  const nb = document.getElementById('wizDNextBtn');
+  nb.disabled = true;
+  document.getElementById('wizDBackBtn').style.visibility = 'hidden';
+  const mar = wizDMarsData.find(m => m.id === wizDMarId);
+  document.getElementById('wizDBody').innerHTML = '<div class="wiz-progress">'
+    + '<div class="wiz-progress-item" id="wizd-p1">⏳ Désactivation de ' + (mar?.nom||'') + '…</div>'
+    + '<div class="wiz-progress-item" id="wizd-p2" style="opacity:.4">○ Publication du planning…</div>'
+    + '</div>';
+
+  const steps = [
+    {id:'wizd-p1', label:'MAR désactivé',    action: () => api({action:'saveMedecin', medecin:{...mar, actif:false}})},
+    {id:'wizd-p2', label:'Planning republié', action: () => api({action:'publishPlanning'})},
+  ];
+
+  let allOk = true;
+  for (let i = 0; i < steps.length; i++) {
+    const el = document.getElementById(steps[i].id);
+    el.classList.add('running'); el.style.opacity = '1';
+    try {
+      const res = await steps[i].action();
+      if (!res || !res.success) throw new Error(res?.error || 'Erreur');
+      el.classList.remove('running'); el.classList.add('done');
+      el.textContent = '✓ ' + steps[i].label;
+    } catch(e) {
+      el.classList.remove('running'); el.classList.add('error');
+      el.textContent = '✕ ' + e.message;
+      allOk = false; break;
+    }
+    const next = document.getElementById(steps[i+1]?.id);
+    if (next) { next.style.opacity='1'; next.textContent=next.textContent.replace('○','⏳'); }
+  }
+
+  if (allOk) {
+    if (marData) { const m = marData.find(x => x.id === wizDMarId); if(m) m.actif = false; }
+    setTimeout(() => {
+      document.getElementById('wizDBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">' + (mar?.nom||'') + ' désactivé</div><div style="font-size:13px;color:var(--ink-3)">Le planning a été republié.<br>Pensez à redistribuer ses gardes restantes si nécessaire.</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardDepart();loadEquipe()">Voir l\'équipe</button></div>';
+      nb.style.display = 'none';
+    }, 600);
+  } else { nb.disabled = false; nb.textContent = 'Réessayer'; }
+}
+
+// ── WIZARD ACCUEILLIR UN MAR ──────────────────────────────────────────────
+let wizRStep = 0;
+let wizRData = {nom:'', initiales:'', quotite:100, pctGardes:100, email:'', codeAcces:'', actif:true};
+let wizRAffectations = {};
+let wizRGroupe = 'A';
+const WIZ_SECTEURS = ['MAT','AMB','REA','VOLANT'];
+const WIZ_MOIS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+async function openWizardRecrue() {
+  wizRStep = 0;
+  wizRData = {nom:'', initiales:'', quotite:100, pctGardes:100, email:'', codeAcces:'', actif:true};
+  wizRAffectations = {};
+  WIZ_MOIS.forEach((_,i) => wizRAffectations[i+1] = 'VOLANT');
+  wizRGroupe = 'A';
+  document.getElementById('wizRNextBtn').disabled = false;
+  document.getElementById('wizRNextBtn').style.display = '';
+  renderWizRStep();
+  document.getElementById('wizardRecrueOverlay').classList.add('open');
+}
+function closeWizardRecrue() { document.getElementById('wizardRecrueOverlay').classList.remove('open'); }
+
+async function wizRPrev() { if (wizRStep > 0) { collectWizRStep(); wizRStep--; renderWizRStep(); } }
+async function wizRNext() {
+  collectWizRStep();
+  if (wizRStep === 0 && (!wizRData.nom || !wizRData.initiales)) { toast('Nom et initiales requis', 'error'); return; }
+  if (wizRStep < 3) { wizRStep++; renderWizRStep(); }
+  else { await launchWizardRecrue(); }
+}
+
+function collectWizRStep() {
+  if (wizRStep === 0) {
+    wizRData.nom        = document.getElementById('wizRNom')?.value || wizRData.nom;
+    wizRData.initiales  = document.getElementById('wizRInit')?.value?.toUpperCase() || wizRData.initiales;
+    wizRData.quotite    = parseInt(document.getElementById('wizRQuotite')?.value) || wizRData.quotite;
+    wizRData.pctGardes  = parseInt(document.getElementById('wizRPct')?.value) || wizRData.pctGardes;
+    wizRData.email      = document.getElementById('wizREmail')?.value || wizRData.email;
+    wizRData.codeAcces  = document.getElementById('wizRCode')?.value?.toUpperCase() || wizRData.codeAcces;
+  } else if (wizRStep === 1) {
+    WIZ_MOIS.forEach((_,i) => {
+      const el = document.getElementById('wizRAff'+(i+1));
+      if (el) wizRAffectations[i+1] = el.value;
+    });
+  } else if (wizRStep === 2) {
+    const el = document.getElementById('wizRGroupeSelect');
+    if (el) wizRGroupe = el.value;
+  }
+}
+
+function updateWizRNav() {
+  document.getElementById('wizRBackBtn').style.visibility = wizRStep === 0 ? 'hidden' : 'visible';
+  const nb = document.getElementById('wizRNextBtn');
+  nb.textContent = wizRStep === 3 ? '👋 Créer le MAR' : 'Suivant →';
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('wizRDot'+i).className = 'wizard-step-dot' + (i<wizRStep?' done':i===wizRStep?' active':'');
+    document.getElementById('wizRStep'+i).className = 'wizard-step' + (i===wizRStep?' active':'');
+  }
+}
+
+function renderWizRStep() {
+  updateWizRNav();
+  const body = document.getElementById('wizRBody');
+
+  if (wizRStep === 0) {
+    body.innerHTML = '<div class="wizard-section-title">Identité du nouveau MAR</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+      + '<div style="grid-column:1/-1"><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Nom complet</label><input id="wizRNom" value="' + wizRData.nom + '" placeholder="ex. DR MARTIN" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Initiales</label><input id="wizRInit" value="' + wizRData.initiales + '" placeholder="ex. LM" maxlength="3" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px;text-transform:uppercase"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Quotité (%)</label><input id="wizRQuotite" type="number" value="' + wizRData.quotite + '" min="10" max="100" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">% Gardes</label><input id="wizRPct" type="number" value="' + wizRData.pctGardes + '" min="0" max="100" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Email</label><input id="wizREmail" type="email" value="' + wizRData.email + '" placeholder="prenom.nom@chpg.mc" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Code accès</label><input id="wizRCode" value="' + wizRData.codeAcces + '" placeholder="ex. MARTIN2027" maxlength="12" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px;text-transform:uppercase"></div>'
+      + '</div>';
+
+  } else if (wizRStep === 1) {
+    let html = '<div class="wizard-section-title">Affectations sectorielles ' + YEAR + '</div>';
+    html += '<div style="font-size:12px;color:var(--ink-3);margin-bottom:12px">Secteur par défaut : VOLANT. Modifiez si nécessaire.</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+    WIZ_MOIS.forEach((m, i) => {
+      html += '<div><label style="font-size:11px;font-weight:600;color:var(--ink-3)">' + m + '</label>'
+        + '<select id="wizRAff'+(i+1)+'" style="width:100%;margin-top:2px;padding:7px;border:1px solid var(--line);border-radius:6px;font-size:12px">'
+        + WIZ_SECTEURS.map(s => '<option value="'+s+'"'+(wizRAffectations[i+1]===s?' selected':'')+'>'+s+'</option>').join('')
+        + '</select></div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+
+  } else if (wizRStep === 2) {
+    const rotations = {A:'Priorité 1 en 2027', B:'Priorité 2 en 2027', C:'Priorité 3 en 2027'};
+    let html = '<div class="wizard-section-title">Groupe vacances</div>';
+    html += '<div style="font-size:12px;color:var(--ink-3);margin-bottom:14px">Les groupes A/B/C définissent la priorité de choix des congés par rotation annuelle.</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+    ['A','B','C'].forEach(g => {
+      const sel = wizRGroupe === g ? 'border-color:var(--red);background:#fff5f5;' : '';
+      html += '<div style="padding:12px 14px;border:2px solid var(--line);border-radius:10px;cursor:pointer;'+sel+'" onclick="wizRSelectGroupe(\''+g+'\')">'
+        + '<span style="font-weight:700">Groupe '+g+'</span>'
+        + '<span style="font-size:12px;color:var(--ink-3);margin-left:8px">'+rotations[g]+'</span>'
+        + '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+
+  } else if (wizRStep === 3) {
+    let html = '<div class="wizard-section-title">Récapitulatif</div>';
+    html += '<div style="background:#f8fafc;border-radius:12px;padding:16px;margin:12px 0;font-size:13px;display:flex;flex-direction:column;gap:6px">';
+    html += '<div><strong>Nom :</strong> ' + wizRData.nom + '</div>';
+    html += '<div><strong>Initiales :</strong> ' + wizRData.initiales + '</div>';
+    html += '<div><strong>Quotité :</strong> ' + wizRData.quotite + '% · Gardes : ' + wizRData.pctGardes + '%</div>';
+    html += '<div><strong>Email :</strong> ' + (wizRData.email||'—') + '</div>';
+    html += '<div><strong>Code accès :</strong> ' + (wizRData.codeAcces||'—') + '</div>';
+    html += '<div><strong>Groupe vacances :</strong> ' + wizRGroupe + '</div>';
+    html += '</div>';
+    if (!wizRData.email) html += '<div class="wizard-warning">⚠️ Pas d\'email — le code d\'accès ne sera pas envoyé automatiquement.</div>';
+    body.innerHTML = html;
+  }
+}
+
+function wizRSelectGroupe(g) { wizRGroupe = g; renderWizRStep(); }
+
+async function launchWizardRecrue() {
+  const nb = document.getElementById('wizRNextBtn');
+  nb.disabled = true;
+  document.getElementById('wizRBackBtn').style.visibility = 'hidden';
+  document.getElementById('wizRBody').innerHTML = '<div class="wiz-progress">'
+    + '<div class="wiz-progress-item" id="wizr-p1">⏳ Création du MAR…</div>'
+    + '<div class="wiz-progress-item" id="wizr-p2" style="opacity:.4">○ Sauvegarde affectations…</div>'
+    + '<div class="wiz-progress-item" id="wizr-p3" style="opacity:.4">○ Sauvegarde groupe vacances…</div>'
+    + (wizRData.email ? '<div class="wiz-progress-item" id="wizr-p4" style="opacity:.4">○ Envoi code d\'accès…</div>' : '')
+    + '<div class="wiz-progress-item" id="wizr-p5" style="opacity:.4">○ Publication du planning…</div>'
+    + '</div>';
+
+  // Générer un ID propre depuis les initiales + timestamp
+  // Générer un code accès automatique si non renseigné
+  if (!wizRData.codeAcces) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    wizRData.codeAcces = Array.from({length:8}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+  }
+  const newMAR = {
+    ...wizRData,
+    id: wizRData.initiales.toUpperCase().replace(/[^A-Z]/g,'') + '_' + Date.now(),
+    actif: true,
+  };
+  const steps = [
+    {id:'wizr-p1', label:'MAR créé',              action: () => api({action:'saveMedecin', medecin:newMAR})},
+    {id:'wizr-p2', label:'Affectations sauvées',  action: () => api({action:'saveAffectationsMar', medecin:newMAR.id, affectations:wizRAffectations})},
+    {id:'wizr-p3', label:'Groupe sauvegardé',     action: () => api({action:'addMedecinToGroupe', medecin:newMAR.id, groupe:wizRGroupe})},
+    ...(wizRData.email ? [{id:'wizr-p4', label:'Code envoyé', action: () => api({action:'sendCodesMar', medecin:newMAR.id})}] : []),
+    {id:'wizr-p5', label:'Planning republié',     action: () => api({action:'publishPlanning'})},
+  ];
+
+  let allOk = true;
+  for (let i = 0; i < steps.length; i++) {
+    const el = document.getElementById(steps[i].id);
+    if (!el) continue;
+    el.classList.add('running'); el.style.opacity = '1';
+    try {
+      const res = await steps[i].action();
+      if (!res || !res.success) throw new Error(res?.error || 'Erreur');
+      el.classList.remove('running'); el.classList.add('done');
+      el.textContent = '✓ ' + steps[i].label;
+    } catch(e) {
+      el.classList.remove('running'); el.classList.add('error');
+      el.textContent = '✕ ' + e.message;
+      allOk = false; break;
+    }
+    const next = document.getElementById(steps[i+1]?.id);
+    if (next) { next.style.opacity='1'; next.textContent=next.textContent.replace('○','⏳'); }
+  }
+
+  if (allOk) {
+    setTimeout(() => {
+      document.getElementById('wizRBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">' + wizRData.nom + ' ajouté !</div><div style="font-size:13px;color:var(--ink-3)">Le MAR est actif et le planning republié.</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardRecrue();loadEquipe();showTab(\'equipe\')">Voir l\'équipe</button></div>';
+      nb.style.display = 'none';
+    }, 600);
+  } else { nb.disabled = false; nb.textContent = 'Réessayer'; }
+}
+
+function showFiche(type) {
+  const fiche = FICHES[type];
+  if (!fiche) return;
+  document.getElementById('modalFicheTitre').textContent = fiche.titre;
+  document.getElementById('modalFicheContent').innerHTML = `
+    <ol style="padding-left:20px;display:flex;flex-direction:column;gap:10px">
+      ${fiche.steps.map(s => `<li style="font-size:13px;color:var(--ink-2);line-height:1.5">${s}</li>`).join('')}
+    </ol>
+  `;
+  document.getElementById('modalFiche').classList.add('open');
+}
+
+// ── Équipe + Vacances (P16) ──
+let marData = [];
+let periodesData = [];
+let groupesData = {A:[], B:[], C:[]};
+const FICHES = {
+let wizDStep = 0, wizDMarId = null, wizDMarsData = [];
+let wizRStep = 0;
+let wizRData = {nom:'', initiales:'', quotite:100, pctGardes:100, email:'', codeAcces:'', actif:true};
+let wizRAffectations = {};
+let wizRGroupe = 'A';
+const WIZ_SECTEURS = ['MAT','AMB','REA','VOLANT'];
+const WIZ_MOIS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+async function loadEquipe() {
+  document.getElementById('equipeLoading').style.display = 'flex';
+  document.getElementById('equipeContent').style.display = 'none';
+  try {
+    const data = await api({action: 'getMedecins'});
+    if (!data.success) throw new Error(data.error);
+    marData = data.medecins;
+    renderEquipe();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    document.getElementById('equipeLoading').style.display = 'none';
+    document.getElementById('equipeContent').style.display = 'block';
+  }
+}
+function renderEquipe() {
+  const tbody = document.getElementById('equipeBody');
+  tbody.innerHTML = marData.map(m => `
+    <tr>
+      <td><span style="font-family:var(--mono);font-size:11px">${m.id}</span></td>
+      <td style="font-weight:600">${m.nom}</td>
+      <td><span class="badge badge-grey">${m.initiales}</span></td>
+      <td>${m.quotite}%</td>
+      <td>${m.pctGardes}%</td>
+      <td style="color:var(--ink-3);font-size:11px">${m.email || '—'}</td>
+      <td>
+        <span class="badge ${m.actif ? 'badge-green' : 'badge-grey'}">
+          ${m.actif ? 'Actif' : 'Inactif'}
+        </span>
+      </td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn-icon" onclick="openEditMAR('${m.id}')" title="Modifier">✏️</button>
+          <button class="btn-icon" onclick="toggleActif('${m.id}')" title="${m.actif ? 'Désactiver' : 'Activer'}">
+            ${m.actif ? '⏸' : '▶'}
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+function openAddMAR() {
+  document.getElementById('modalMARTitle').textContent = 'Nouveau MAR';
+  document.getElementById('marId').value = '';
+  document.getElementById('marId').disabled = false;
+  document.getElementById('marNom').value = '';
+  document.getElementById('marInitiales').value = '';
+  document.getElementById('marQuotite').value = 100;
+  document.getElementById('marPctGardes').value = 100;
+  document.getElementById('marEmail').value = '';
+  document.getElementById('marActif').value = 'true';
+  document.getElementById('marCodeAcces').value = '';
+  document.getElementById('modalMAR').classList.add('open');
+}
+function openEditMAR(id) {
+  const m = marData.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('modalMARTitle').textContent = 'Modifier · ' + m.nom;
+  document.getElementById('marId').value = m.id;
+  document.getElementById('marId').disabled = true;
+  document.getElementById('marNom').value = m.nom;
+  document.getElementById('marInitiales').value = m.initiales;
+  document.getElementById('marQuotite').value = m.quotite;
+  document.getElementById('marPctGardes').value = m.pctGardes;
+  document.getElementById('marEmail').value = m.email || '';
+  document.getElementById('marActif').value = m.actif ? 'true' : 'false';
+  document.getElementById('marCodeAcces').value = m.codeAcces || '';
+  document.getElementById('modalMAR').classList.add('open');
+}
+async function saveMAR() {
+  const btn = document.getElementById('btnSaveMAR');
+  btn.disabled = true;
+  btn.textContent = '⏳ Enregistrement...';
+  try {
+    const medecin = {
+      id:        document.getElementById('marId').value.trim().toUpperCase(),
+      nom:       document.getElementById('marNom').value.trim(),
+      initiales: document.getElementById('marInitiales').value.trim(),
+      quotite:   Number(document.getElementById('marQuotite').value),
+      pctGardes: Number(document.getElementById('marPctGardes').value),
+      email:     document.getElementById('marEmail').value.trim(),
+      dect:      document.getElementById('marDect').value.trim(),
+      actif:     document.getElementById('marActif').value === 'true',
+      codeAcces: document.getElementById('marCodeAcces').value,
+    };
+    if (!medecin.id || !medecin.nom) { toast('ID et Nom obligatoires', 'error'); return; }
+    const data = await api({action: 'saveMedecin', medecin});
+    if (!data.success) throw new Error(data.error);
+    toast(data.created ? '✅ MAR créé' : '✅ MAR mis à jour', 'success');
+    closeModal('modalMAR');
+    await loadEquipe();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✅ Enregistrer';
+  }
+}
+async function toggleActif(id) {
+  const m = marData.find(x => x.id === id);
+  if (!m) return;
+  const newActif = !m.actif;
+  if (!confirm(`${newActif ? 'Activer' : 'Désactiver'} ${m.nom} ?`)) return;
+  try {
+    const data = await api({action: 'saveMedecin', medecin: {...m, actif: newActif}});
+    if (!data.success) throw new Error(data.error);
+    toast(`✅ ${m.nom} ${newActif ? 'activé' : 'désactivé'}`, 'success');
+    await loadEquipe();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
+function showFiche(type) {
+  const fiche = FICHES[type];
+  if (!fiche) return;
+  document.getElementById('modalFicheTitre').textContent = fiche.titre;
+  document.getElementById('modalFicheContent').innerHTML = `
+    <ol style="padding-left:20px;display:flex;flex-direction:column;gap:10px">
+      ${fiche.steps.map(s => `<li style="font-size:13px;color:var(--ink-2);line-height:1.5">${s}</li>`).join('')}
+    </ol>
+  `;
+  document.getElementById('modalFiche').classList.add('open');
+}
+async function loadVacances() {
+  document.getElementById('vacLoading').style.display = 'flex';
+  document.getElementById('vacContent').style.display = 'none';
+  try {
+    const data = await api({action: 'getVacancesConfig'});
+    if (!data.success) throw new Error(data.error);
+    periodesData = data.periodes || [];
+    groupesData = data.groupes || {A:[], B:[], C:[]};
+    renderPeriodes();
+    renderGroupes();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    document.getElementById('vacLoading').style.display = 'none';
+    document.getElementById('vacContent').style.display = 'block';
+  }
+}
+function renderPeriodes() {
+  const tbody = document.getElementById('periodesBody');
+  tbody.innerHTML = periodesData.map((p, i) => `
+    <tr>
+      <td><input class="form-input" value="${p.nom}" onchange="periodesData[${i}].nom=this.value" style="width:120px;padding:4px 8px"/></td>
+      <td><input class="form-input" type="date" value="${p.debut}" onchange="periodesData[${i}].debut=this.value" style="width:140px;padding:4px 8px"/></td>
+      <td><input class="form-input" type="date" value="${p.fin}" onchange="periodesData[${i}].fin=this.value" style="width:140px;padding:4px 8px"/></td>
+      <td><input class="form-input" type="number" value="${p.seuil}" min="1" max="20" onchange="periodesData[${i}].seuil=Number(this.value)" style="width:70px;padding:4px 8px;text-align:center"/></td>
+      <td><button class="btn-danger" onclick="removePeriode(${i})">🗑</button></td>
+    </tr>
+  `).join('');
+}
+function addPeriode() {
+  periodesData.push({nom:'NOUVELLE', debut:'', fin:'', seuil:8});
+  renderPeriodes();
+}
+function removePeriode(i) {
+  if (!confirm('Supprimer cette période ?')) return;
+  periodesData.splice(i, 1);
+  renderPeriodes();
+}
+async function savePeriodes() {
+  try {
+    const data = await api({action: 'savePeriodes', periodes: periodesData});
+    if (!data.success) throw new Error(data.error);
+    toast('✅ Périodes enregistrées', 'success');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
+function renderGroupes() {
+  const container = document.getElementById('vacGroupes');
+  container.innerHTML = '';
+  ['A','B','C'].forEach(grp => {
+    const card = document.createElement('div');
+    card.className = 'vac-group-card';
+    card.innerHTML = `
+      <div class="vac-group-header ${grp}">
+        Groupe ${grp}
+        <span style="font-size:10px;opacity:.7">${groupesData[grp].length} MARs</span>
+      </div>
+      <div class="vac-group-body" id="groupBody${grp}"></div>
+    `;
+    container.appendChild(card);
+
+    const body = document.getElementById('groupBody' + grp);
+    groupesData[grp].forEach((mar, idx) => {
+      const row = document.createElement('div');
+      row.className = 'vac-mar-row';
+      row.innerHTML = `
+        <span>${mar.id}</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <div class="vac-mar-actions">
+            ${grp !== 'A' ? `<button class="btn-icon" onclick="moveToGroup('${mar.id}','${grp}','prev')" title="Groupe précédent">←</button>` : ''}
+            ${grp !== 'C' ? `<button class="btn-icon" onclick="moveToGroup('${mar.id}','${grp}','next')" title="Groupe suivant">→</button>` : ''}
+            <button class="btn-icon" onclick="moveInGroup('${grp}',${idx},-1)" title="Monter">↑</button>
+            <button class="btn-icon" onclick="moveInGroup('${grp}',${idx},1)" title="Descendre">↓</button>
+          </div>
+          <span class="vac-mar-rank">${idx+1}</span>
+        </div>
+      `;
+      body.appendChild(row);
+    });
+  });
+}
+function moveInGroup(grp, idx, dir) {
+  const arr = groupesData[grp];
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= arr.length) return;
+  [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+  renderGroupes();
+}
+function moveToGroup(marId, fromGrp, direction) {
+  const grps = ['A','B','C'];
+  const fromIdx = grps.indexOf(fromGrp);
+  const toGrp = direction === 'prev' ? grps[fromIdx-1] : grps[fromIdx+1];
+  if (!toGrp) return;
+  const mar = groupesData[fromGrp].find(m => m.id === marId);
+  groupesData[fromGrp] = groupesData[fromGrp].filter(m => m.id !== marId);
+  groupesData[toGrp].push(mar);
+  renderGroupes();
+}
+async function saveGroupes() {
+  try {
+    const data = await api({action: 'saveGroupes', groupes: groupesData});
+    if (!data.success) throw new Error(data.error);
+    toast('✅ Groupes enregistrés', 'success');
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  }
+}
+async function openWizardDepart() {
+  wizDStep = 0; wizDMarId = null;
+  document.getElementById('wizDNextBtn').disabled = false;
+  document.getElementById('wizDNextBtn').style.display = '';
+  document.getElementById('wizDNextBtn').textContent = 'Suivant →';
+  // Charger la liste des MARs depuis l'API (marData n'existe pas dans config.html)
+  try {
+    const d = await api({action:'getMedecins'});
+    if (d.success) wizDMarsData = d.medecins.filter(m => m.actif);
+  } catch(e) { wizDMarsData = []; }
+  await renderWizDStep();
+  document.getElementById('wizardDepartOverlay').classList.add('open');
+}
+function closeWizardDepart() { document.getElementById('wizardDepartOverlay').classList.remove('open'); }
+async function wizDPrev() { if (wizDStep > 0) { wizDStep--; await renderWizDStep(); } }
+async function wizDNext() {
+  if (wizDStep === 0 && !wizDMarId) { toast('Sélectionnez un MAR', 'error'); return; }
+  if (wizDStep < 3) { wizDStep++; await renderWizDStep(); }
+  else { await launchWizardDepart(); }
+}
+function updateWizDNav() {
+  document.getElementById('wizDBackBtn').style.visibility = wizDStep === 0 ? 'hidden' : 'visible';
+  const nb = document.getElementById('wizDNextBtn');
+  nb.textContent = wizDStep === 3 ? '🚪 Désactiver le MAR' : 'Suivant →';
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('wizDDot'+i).className = 'wizard-step-dot' + (i<wizDStep?' done':i===wizDStep?' active':'');
+    document.getElementById('wizDStep'+i).className = 'wizard-step' + (i===wizDStep?' active':'');
+  }
+}
+async function renderWizDStep() {
+  updateWizDNav();
+  const body = document.getElementById('wizDBody');
+
+  if (wizDStep === 0) {
+    let html = '<div class="wizard-section-title">Quel MAR part ?</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+    wizDMarsData.forEach(m => {
+      const sel = wizDMarId === m.id ? 'background:#fee2e2;border-color:var(--red);' : '';
+      html += '<div style="padding:12px 14px;border:2px solid var(--line);border-radius:10px;cursor:pointer;' + sel + '" onclick="wizDSelectMAR(\''+m.id+'\')">'
+        + '<span style="font-weight:700">' + m.nom + '</span>'
+        + '<span style="font-size:12px;color:var(--ink-3);margin-left:8px">' + m.initiales + ' · ' + (m.quotite||100) + '%</span>'
+        + '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+
+  } else if (wizDStep === 1) {
+    const mar = wizDMarsData.find(m => m.id === wizDMarId);
+    body.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement planning…</div>';
+    let gardesFutures = 0;
+    try {
+      const planning = await fetch('./planning_' + ADMIN_YEAR + '.json?' + Date.now()).then(r => r.json());
+      const today = new Date().toISOString().slice(0,10);
+      // Structure réelle : {months: [{days: [...], doctors: [...]}]}
+      (planning.months || []).forEach(month => {
+        (month.doctors || []).forEach(doc => {
+          if (doc.initials !== mar.initiales) return;
+          (doc.days || []).forEach((entry, dayIdx) => {
+            const date = month.days[dayIdx]?.date;
+            if (!date || date < today) return;
+            const st = entry?.status || '';
+            if (st === 'G' || st === 'G2') gardesFutures++;
+          });
+        });
+      });
+    } catch(e) {}
+    let html = '<div class="wizard-section-title">Vérification — ' + (mar?.nom||'') + '</div>';
+    if (gardesFutures > 0) {
+      html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">⚠️ <strong>' + gardesFutures + ' garde(s) future(s)</strong> attribuée(s) à ce MAR.<br><small>Redistribuez-les manuellement depuis admin.html → Modifier une garde avant de désactiver.</small></div>';
+    } else {
+      html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid #16a34a;color:#166534">✅ Aucune garde future détectée pour ce MAR.</div>';
+    }
+    html += '<div style="font-size:12px;color:var(--ink-3);margin-top:12px">Vérifiez également ses affectations sectorielles — elles resteront en GSheet mais n\'auront plus d\'effet une fois le MAR désactivé.</div>';
+    body.innerHTML = html;
+
+  } else if (wizDStep === 2) {
+    const mar = wizDMarsData.find(m => m.id === wizDMarId);
+    let html = '<div class="wizard-section-title">Confirmer la désactivation</div>';
+    html += '<div style="background:#f8fafc;border-radius:12px;padding:16px;margin:12px 0">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:4px">' + (mar?.nom||'') + ' (' + (mar?.initiales||'') + ')</div>';
+    html += '<div style="font-size:12px;color:var(--ink-3)">Le MAR sera passé à ACTIF = N dans l\'onglet MEDECINS.<br>Il n\'apparaîtra plus dans les générations futures.</div>';
+    html += '</div>';
+    html += '<div class="wizard-warning" style="background:#fef3c7;border-left:3px solid #f59e0b;color:#92400e">⚠️ Cette action est réversible depuis config.html → Équipe (réactiver le MAR).</div>';
+    body.innerHTML = html;
+
+  } else if (wizDStep === 3) {
+    const mar = wizDMarsData.find(m => m.id === wizDMarId);
+    let html = '<div class="wizard-section-title">Prêt à désactiver</div>';
+    html += '<div style="font-size:13px;margin-bottom:16px">Le planning sera republié automatiquement après désactivation.</div>';
+    html += '<div class="wiz-mar-row"><div class="wiz-mar-init">' + (mar?.initiales||'') + '</div><div class="wiz-mar-name">' + (mar?.nom||'') + '</div><div class="wiz-mar-meta"><span style="color:var(--red)">→ ACTIF = N</span></div></div>';
+    body.innerHTML = html;
+  }
+}
+function wizDSelectMAR(id) {
+  wizDMarId = id;
+  renderWizDStep();
+}
+async function launchWizardDepart() {
+  const nb = document.getElementById('wizDNextBtn');
+  nb.disabled = true;
+  document.getElementById('wizDBackBtn').style.visibility = 'hidden';
+  const mar = wizDMarsData.find(m => m.id === wizDMarId);
+  document.getElementById('wizDBody').innerHTML = '<div class="wiz-progress">'
+    + '<div class="wiz-progress-item" id="wizd-p1">⏳ Désactivation de ' + (mar?.nom||'') + '…</div>'
+    + '<div class="wiz-progress-item" id="wizd-p2" style="opacity:.4">○ Publication du planning…</div>'
+    + '</div>';
+
+  const steps = [
+    {id:'wizd-p1', label:'MAR désactivé',    action: () => api({action:'saveMedecin', medecin:{...mar, actif:false}})},
+    {id:'wizd-p2', label:'Planning republié', action: () => api({action:'publishPlanning'})},
+  ];
+
+  let allOk = true;
+  for (let i = 0; i < steps.length; i++) {
+    const el = document.getElementById(steps[i].id);
+    el.classList.add('running'); el.style.opacity = '1';
+    try {
+      const res = await steps[i].action();
+      if (!res || !res.success) throw new Error(res?.error || 'Erreur');
+      el.classList.remove('running'); el.classList.add('done');
+      el.textContent = '✓ ' + steps[i].label;
+    } catch(e) {
+      el.classList.remove('running'); el.classList.add('error');
+      el.textContent = '✕ ' + e.message;
+      allOk = false; break;
+    }
+    const next = document.getElementById(steps[i+1]?.id);
+    if (next) { next.style.opacity='1'; next.textContent=next.textContent.replace('○','⏳'); }
+  }
+
+  if (allOk) {
+    if (marData) { const m = marData.find(x => x.id === wizDMarId); if(m) m.actif = false; }
+    setTimeout(() => {
+      document.getElementById('wizDBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">' + (mar?.nom||'') + ' désactivé</div><div style="font-size:13px;color:var(--ink-3)">Le planning a été republié.<br>Pensez à redistribuer ses gardes restantes si nécessaire.</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardDepart();loadEquipe()">Voir l\'équipe</button></div>';
+      nb.style.display = 'none';
+    }, 600);
+  } else { nb.disabled = false; nb.textContent = 'Réessayer'; }
+}
+async function openWizardRecrue() {
+  wizRStep = 0;
+  wizRData = {nom:'', initiales:'', quotite:100, pctGardes:100, email:'', codeAcces:'', actif:true};
+  wizRAffectations = {};
+  WIZ_MOIS.forEach((_,i) => wizRAffectations[i+1] = 'VOLANT');
+  wizRGroupe = 'A';
+  document.getElementById('wizRNextBtn').disabled = false;
+  document.getElementById('wizRNextBtn').style.display = '';
+  renderWizRStep();
+  document.getElementById('wizardRecrueOverlay').classList.add('open');
+}
+function closeWizardRecrue() { document.getElementById('wizardRecrueOverlay').classList.remove('open'); }
+async function wizRPrev() { if (wizRStep > 0) { collectWizRStep(); wizRStep--; renderWizRStep(); } }
+async function wizRNext() {
+  collectWizRStep();
+  if (wizRStep === 0 && (!wizRData.nom || !wizRData.initiales)) { toast('Nom et initiales requis', 'error'); return; }
+  if (wizRStep < 3) { wizRStep++; renderWizRStep(); }
+  else { await launchWizardRecrue(); }
+}
+function collectWizRStep() {
+  if (wizRStep === 0) {
+    wizRData.nom        = document.getElementById('wizRNom')?.value || wizRData.nom;
+    wizRData.initiales  = document.getElementById('wizRInit')?.value?.toUpperCase() || wizRData.initiales;
+    wizRData.quotite    = parseInt(document.getElementById('wizRQuotite')?.value) || wizRData.quotite;
+    wizRData.pctGardes  = parseInt(document.getElementById('wizRPct')?.value) || wizRData.pctGardes;
+    wizRData.email      = document.getElementById('wizREmail')?.value || wizRData.email;
+    wizRData.codeAcces  = document.getElementById('wizRCode')?.value?.toUpperCase() || wizRData.codeAcces;
+  } else if (wizRStep === 1) {
+    WIZ_MOIS.forEach((_,i) => {
+      const el = document.getElementById('wizRAff'+(i+1));
+      if (el) wizRAffectations[i+1] = el.value;
+    });
+  } else if (wizRStep === 2) {
+    const el = document.getElementById('wizRGroupeSelect');
+    if (el) wizRGroupe = el.value;
+  }
+}
+function updateWizRNav() {
+  document.getElementById('wizRBackBtn').style.visibility = wizRStep === 0 ? 'hidden' : 'visible';
+  const nb = document.getElementById('wizRNextBtn');
+  nb.textContent = wizRStep === 3 ? '👋 Créer le MAR' : 'Suivant →';
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('wizRDot'+i).className = 'wizard-step-dot' + (i<wizRStep?' done':i===wizRStep?' active':'');
+    document.getElementById('wizRStep'+i).className = 'wizard-step' + (i===wizRStep?' active':'');
+  }
+}
+function renderWizRStep() {
+  updateWizRNav();
+  const body = document.getElementById('wizRBody');
+
+  if (wizRStep === 0) {
+    body.innerHTML = '<div class="wizard-section-title">Identité du nouveau MAR</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+      + '<div style="grid-column:1/-1"><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Nom complet</label><input id="wizRNom" value="' + wizRData.nom + '" placeholder="ex. DR MARTIN" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Initiales</label><input id="wizRInit" value="' + wizRData.initiales + '" placeholder="ex. LM" maxlength="3" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px;text-transform:uppercase"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Quotité (%)</label><input id="wizRQuotite" type="number" value="' + wizRData.quotite + '" min="10" max="100" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">% Gardes</label><input id="wizRPct" type="number" value="' + wizRData.pctGardes + '" min="0" max="100" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Email</label><input id="wizREmail" type="email" value="' + wizRData.email + '" placeholder="prenom.nom@chpg.mc" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px"></div>'
+      + '<div><label style="font-size:12px;font-weight:600;color:var(--ink-3)">Code accès</label><input id="wizRCode" value="' + wizRData.codeAcces + '" placeholder="ex. MARTIN2027" maxlength="12" style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px;text-transform:uppercase"></div>'
+      + '</div>';
+
+  } else if (wizRStep === 1) {
+    let html = '<div class="wizard-section-title">Affectations sectorielles ' + ADMIN_YEAR + '</div>';
+    html += '<div style="font-size:12px;color:var(--ink-3);margin-bottom:12px">Secteur par défaut : VOLANT. Modifiez si nécessaire.</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+    WIZ_MOIS.forEach((m, i) => {
+      html += '<div><label style="font-size:11px;font-weight:600;color:var(--ink-3)">' + m + '</label>'
+        + '<select id="wizRAff'+(i+1)+'" style="width:100%;margin-top:2px;padding:7px;border:1px solid var(--line);border-radius:6px;font-size:12px">'
+        + WIZ_SECTEURS.map(s => '<option value="'+s+'"'+(wizRAffectations[i+1]===s?' selected':'')+'>'+s+'</option>').join('')
+        + '</select></div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+
+  } else if (wizRStep === 2) {
+    const rotations = {A:'Priorité 1 en 2027', B:'Priorité 2 en 2027', C:'Priorité 3 en 2027'};
+    let html = '<div class="wizard-section-title">Groupe vacances</div>';
+    html += '<div style="font-size:12px;color:var(--ink-3);margin-bottom:14px">Les groupes A/B/C définissent la priorité de choix des congés par rotation annuelle.</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+    ['A','B','C'].forEach(g => {
+      const sel = wizRGroupe === g ? 'border-color:var(--red);background:#fff5f5;' : '';
+      html += '<div style="padding:12px 14px;border:2px solid var(--line);border-radius:10px;cursor:pointer;'+sel+'" onclick="wizRSelectGroupe(\''+g+'\')">'
+        + '<span style="font-weight:700">Groupe '+g+'</span>'
+        + '<span style="font-size:12px;color:var(--ink-3);margin-left:8px">'+rotations[g]+'</span>'
+        + '</div>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+
+  } else if (wizRStep === 3) {
+    let html = '<div class="wizard-section-title">Récapitulatif</div>';
+    html += '<div style="background:#f8fafc;border-radius:12px;padding:16px;margin:12px 0;font-size:13px;display:flex;flex-direction:column;gap:6px">';
+    html += '<div><strong>Nom :</strong> ' + wizRData.nom + '</div>';
+    html += '<div><strong>Initiales :</strong> ' + wizRData.initiales + '</div>';
+    html += '<div><strong>Quotité :</strong> ' + wizRData.quotite + '% · Gardes : ' + wizRData.pctGardes + '%</div>';
+    html += '<div><strong>Email :</strong> ' + (wizRData.email||'—') + '</div>';
+    html += '<div><strong>Code accès :</strong> ' + (wizRData.codeAcces||'—') + '</div>';
+    html += '<div><strong>Groupe vacances :</strong> ' + wizRGroupe + '</div>';
+    html += '</div>';
+    if (!wizRData.email) html += '<div class="wizard-warning">⚠️ Pas d\'email — le code d\'accès ne sera pas envoyé automatiquement.</div>';
+    body.innerHTML = html;
+  }
+}
+function wizRSelectGroupe(g) { wizRGroupe = g; renderWizRStep(); }
+async function launchWizardRecrue() {
+  const nb = document.getElementById('wizRNextBtn');
+  nb.disabled = true;
+  document.getElementById('wizRBackBtn').style.visibility = 'hidden';
+  document.getElementById('wizRBody').innerHTML = '<div class="wiz-progress">'
+    + '<div class="wiz-progress-item" id="wizr-p1">⏳ Création du MAR…</div>'
+    + '<div class="wiz-progress-item" id="wizr-p2" style="opacity:.4">○ Sauvegarde affectations…</div>'
+    + '<div class="wiz-progress-item" id="wizr-p3" style="opacity:.4">○ Sauvegarde groupe vacances…</div>'
+    + (wizRData.email ? '<div class="wiz-progress-item" id="wizr-p4" style="opacity:.4">○ Envoi code d\'accès…</div>' : '')
+    + '<div class="wiz-progress-item" id="wizr-p5" style="opacity:.4">○ Publication du planning…</div>'
+    + '</div>';
+
+  // Générer un ID propre depuis les initiales + timestamp
+  // Générer un code accès automatique si non renseigné
+  if (!wizRData.codeAcces) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    wizRData.codeAcces = Array.from({length:8}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+  }
+  const newMAR = {
+    ...wizRData,
+    id: wizRData.initiales.toUpperCase().replace(/[^A-Z]/g,'') + '_' + Date.now(),
+    actif: true,
+  };
+  const steps = [
+    {id:'wizr-p1', label:'MAR créé',              action: () => api({action:'saveMedecin', medecin:newMAR})},
+    {id:'wizr-p2', label:'Affectations sauvées',  action: () => api({action:'saveAffectationsMar', medecin:newMAR.id, affectations:wizRAffectations})},
+    {id:'wizr-p3', label:'Groupe sauvegardé',     action: () => api({action:'addMedecinToGroupe', medecin:newMAR.id, groupe:wizRGroupe})},
+    ...(wizRData.email ? [{id:'wizr-p4', label:'Code envoyé', action: () => api({action:'sendCodesMar', medecin:newMAR.id})}] : []),
+    {id:'wizr-p5', label:'Planning republié',     action: () => api({action:'publishPlanning'})},
+  ];
+
+  let allOk = true;
+  for (let i = 0; i < steps.length; i++) {
+    const el = document.getElementById(steps[i].id);
+    if (!el) continue;
+    el.classList.add('running'); el.style.opacity = '1';
+    try {
+      const res = await steps[i].action();
+      if (!res || !res.success) throw new Error(res?.error || 'Erreur');
+      el.classList.remove('running'); el.classList.add('done');
+      el.textContent = '✓ ' + steps[i].label;
+    } catch(e) {
+      el.classList.remove('running'); el.classList.add('error');
+      el.textContent = '✕ ' + e.message;
+      allOk = false; break;
+    }
+    const next = document.getElementById(steps[i+1]?.id);
+    if (next) { next.style.opacity='1'; next.textContent=next.textContent.replace('○','⏳'); }
+  }
+
+  if (allOk) {
+    setTimeout(() => {
+      document.getElementById('wizRBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">' + wizRData.nom + ' ajouté !</div><div style="font-size:13px;color:var(--ink-3)">Le MAR est actif et le planning republié.</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardRecrue();loadEquipe();showTab(\'equipe\')">Voir l\'équipe</button></div>';
+      nb.style.display = 'none';
+    }, 600);
+  } else { nb.disabled = false; nb.textContent = 'Réessayer'; }
+}
+</script>
+
+<!-- WIZARD DÉPART D'UN MAR -->
+<div class="wizard-overlay" id="wizardDepartOverlay">
+  <div class="wizard-box">
+    <div class="wizard-header">
+      <div class="wizard-title-row">
+        <div class="wizard-title">🚪 Départ d'un MAR</div>
+        <button class="wizard-close" onclick="closeWizardDepart()">✕</button>
+      </div>
+      <div class="wizard-steps">
+        <div class="wizard-step active" id="wizDStep0"><div class="wizard-step-dot" id="wizDDot0">1</div><div class="wizard-step-label">Sélection</div></div>
+        <div class="wizard-step" id="wizDStep1"><div class="wizard-step-dot" id="wizDDot1">2</div><div class="wizard-step-label">Vérification</div></div>
+        <div class="wizard-step" id="wizDStep2"><div class="wizard-step-dot" id="wizDDot2">3</div><div class="wizard-step-label">Confirmation</div></div>
+        <div class="wizard-step" id="wizDStep3"><div class="wizard-step-dot" id="wizDDot3">4</div><div class="wizard-step-label">Désactiver</div></div>
+      </div>
+    </div>
+    <div class="wizard-body" id="wizDBody"></div>
+    <div class="wizard-footer">
+      <button class="wizard-back" id="wizDBackBtn" onclick="wizDPrev()">← Retour</button>
+      <button class="wizard-next" id="wizDNextBtn" onclick="wizDNext()">Suivant →</button>
+    </div>
+  </div>
+</div>
+
+<!-- WIZARD ACCUEILLIR UN MAR -->
+<div class="wizard-overlay" id="wizardRecrueOverlay">
+  <div class="wizard-box">
+    <div class="wizard-header">
+      <div class="wizard-title-row">
+        <div class="wizard-title">👋 Accueillir un MAR</div>
+        <button class="wizard-close" onclick="closeWizardRecrue()">✕</button>
+      </div>
+      <div class="wizard-steps">
+        <div class="wizard-step active" id="wizRStep0"><div class="wizard-step-dot" id="wizRDot0">1</div><div class="wizard-step-label">Identité</div></div>
+        <div class="wizard-step" id="wizRStep1"><div class="wizard-step-dot" id="wizRDot1">2</div><div class="wizard-step-label">Affectations</div></div>
+        <div class="wizard-step" id="wizRStep2"><div class="wizard-step-dot" id="wizRDot2">3</div><div class="wizard-step-label">Vacances</div></div>
+        <div class="wizard-step" id="wizRStep3"><div class="wizard-step-dot" id="wizRDot3">4</div><div class="wizard-step-label">Lancer</div></div>
+      </div>
+    </div>
+    <div class="wizard-body" id="wizRBody"></div>
+    <div class="wizard-footer">
+      <button class="wizard-back" id="wizRBackBtn" onclick="wizRPrev()">← Retour</button>
+      <button class="wizard-next" id="wizRNextBtn" onclick="wizRNext()">Suivant →</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
 
