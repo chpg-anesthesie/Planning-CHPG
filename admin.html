@@ -1606,7 +1606,7 @@ function renderWeek() {
   // Label semaine
   const first = daySlots.find(d=>d), last = [...daySlots].reverse().find(d=>d);
   if (first && last) {
-    const fmt = ds => new Date(ds).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+    const fmt = ds => new Date(ds+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
     document.getElementById('weekLabel').textContent = `S${wk.weekNum} · ${fmt(first.date)} – ${fmt(last.date)}`;
   }
 
@@ -2459,7 +2459,7 @@ function renderIndispos(indisposData){
   const weekIndispos={};
   Object.values(indisposData).forEach(dates=>{
     Object.keys(dates).forEach(date=>{
-      const dt=new Date(date); const dow=dt.getDay();
+      const dt=new Date(typeof date==='string'&&date.length===10?date+'T12:00:00':date); const dow=dt.getDay();
       if(dow===0||dow===6) return;
       const wn=getWeekNum(dt);
       weekIndispos[wn]=(weekIndispos[wn]||0)+1;
@@ -2557,7 +2557,7 @@ async function runDiagnostic(){
     allViolations=[];
     data.months.forEach(month=>{
       month.days.forEach((day,dayIdx)=>{
-        const dow=new Date(day.date).getDay(); const isWe=dow===0||dow===6;
+        const dow=new Date(day.date+'T12:00:00').getDay(); const isWe=dow===0||dow===6;
         if(isWe) return;
         const countAM={},countPM={};
         month.doctors.forEach(doc=>{
@@ -2787,7 +2787,7 @@ async function exportWeekExcel(){
   function merge(ws,r1,c1,r2,c2){ws.mergeCells(r1,c1,r2,c2);}
   let row=1;
   const firstSlot=daySlots.find(s=>s);const lastSlot=[...daySlots].reverse().find(s=>s);
-  const fmtD=ds=>new Date(ds).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const fmtD=ds=>new Date(ds+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
   const title=`PLANNING ANESTHÉSISTES — Semaine ${wk.weekNum} — ${fmtD(firstSlot.date)} au ${fmtD(lastSlot.date)}`;
   merge(ws,row,1,row,25);setCell(ws,row,1,title,font(true,13,'FFFFFF'),fill(C.red),align('center','middle'));ws.getRow(row).height=26;row++;
   merge(ws,row,1,row,25);setCell(ws,row,1,"CHPG Monaco · Service d'Anesthésie-Réanimation",font(false,9,'FFFFFF'),fill(C.redDark),align('center','middle'));ws.getRow(row).height=14;row++;
@@ -2795,7 +2795,7 @@ async function exportWeekExcel(){
   ws.getRow(row).height=18;setCell(ws,row,1,'SECTEUR',font(true,9,C.muted),fill(C.greyHd),align('center','middle'),bAll);
   for(let dow=0;dow<7;dow++){const cs=colStart(dow);const isWe=dow>=5;const n=isWe?2:4;merge(ws,row,cs,row,cs+n-1);setCell(ws,row,cs,DFX[dow],font(true,10,isWe?C.muted:C.ink),fill(isWe?C.we:C.greyHd),align('center','middle'),bAll);}row++;
   ws.getRow(row).height=14;setCell(ws,row,1,'',null,fill(C.greyHd),null,bAll);
-  for(let dow=0;dow<7;dow++){const cs=colStart(dow);const isWe=dow>=5;const n=isWe?2:4;merge(ws,row,cs,row,cs+n-1);const slot=daySlots[dow];const dt=slot?new Date(slot.date):null;const dateStr=dt?dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}):'';setCell(ws,row,cs,dateStr,font(false,9,isWe?C.muted:C.ink),fill(isWe?C.we:C.greyHd),align('center','middle'),bAll);}row++;
+  for(let dow=0;dow<7;dow++){const cs=colStart(dow);const isWe=dow>=5;const n=isWe?2:4;merge(ws,row,cs,row,cs+n-1);const slot=daySlots[dow];const dt=slot?new Date(slot.date+'T12:00:00'):null;const dateStr=dt?dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}):'';setCell(ws,row,cs,dateStr,font(false,9,isWe?C.muted:C.ink),fill(isWe?C.we:C.greyHd),align('center','middle'),bAll);}row++;
   ws.getRow(row).height=16;setCell(ws,row,1,'',null,fill(C.greyHd),null,bAll);
   for(let dow=0;dow<7;dow++){const cs=colStart(dow);const isWe=dow>=5;if(isWe){merge(ws,row,cs,row,cs+1);setCell(ws,row,cs,'GARDE 24H',font(true,7,'AAAAAA'),fill(C.we),align('center','middle'),bAll);}else{merge(ws,row,cs,row,cs+1);setCell(ws,row,cs,'AM',font(true,8,'FFFFFF'),fill(C.red),align('center','middle'),bAll);merge(ws,row,cs+2,row,cs+3);setCell(ws,row,cs+2,'PM',font(true,8,'FFFFFF'),fill('374151'),align('center','middle'),bAll);}}row++;
   const active=SX.filter(s=>smap[s].some(d=>d.am.length||d.pm.length));
