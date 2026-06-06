@@ -1677,7 +1677,7 @@ function renderWeek() {
     {code:'CS',  label:'Consultation',             icon:'Stethoscope'},
   ];
 
-  const ABSENT_V2 = new Set(['G','G2','RG','V','F','CTP','R','A']);
+  const ABSENT_V2 = new Set(['RG','V','F','CTP','R','A']); // G, G2, 18 = présents en journée dans leur secteur
 
   // smap[code][dow] = {am:[{init,id,status,isNew}], pm:[...], flash_am, flash_pm}
   const smap = {};
