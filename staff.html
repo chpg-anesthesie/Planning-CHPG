@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Staff Vacances — CHPG Monaco</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--red:#CE1126;--red-dk:#A50E1F;--ink:#0F172A;--ink-2:#334155;--ink-3:#64748B;--ink-4:#94A3B8;--line:#E2E8F0;--ll:#F1F5F9;--bg:#F8FAFC;--white:#FFFFFF;--radius:10px;--mono:'DM Mono',monospace;--shadow:0 1px 4px rgba(0,0,0,.06);--shadow-lg:0 16px 48px rgba(0,0,0,.16);--vac-bg:#DBEAFE;--vac-fg:#1D4ED8;--vac-brd:#93C5FD;--form-bg:#F3E8FF;--form-fg:#7C3AED;--form-brd:#C4B5FD;--ok-bg:#DCFCE7;--ok-fg:#166534;--warn-bg:#FEF9C3;--warn-fg:#92400E;--hot-bg:#FEE2E2;--hot-fg:#991B1B;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh;}
+.auth-overlay{position:fixed;inset:0;background:linear-gradient(140deg,#0F172A 0%,#1a0508 100%);display:flex;align-items:center;justify-content:center;z-index:999;}
+.auth-box{background:var(--white);border-radius:20px;padding:48px 40px;width:400px;text-align:center;box-shadow:var(--shadow-lg);}
+.auth-flag{width:48px;height:48px;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;margin:0 auto 20px;box-shadow:0 4px 12px rgba(206,17,38,.3);}
+.auth-flag-t{flex:1;background:var(--red);}
+.auth-flag-b{flex:1;background:var(--white);border-top:1px solid var(--line);}
+.auth-title{font-size:24px;font-weight:800;margin-bottom:4px;}
+.auth-sub{font-size:13px;color:var(--ink-4);margin-bottom:32px;}
+.auth-input{width:100%;border:2px solid var(--line);border-radius:12px;padding:14px 16px;font-size:18px;font-family:var(--mono);text-align:center;text-transform:uppercase;letter-spacing:.18em;outline:none;margin-bottom:12px;background:var(--ll);transition:border-color .15s;}
+.auth-input:focus{border-color:var(--red);background:var(--white);}
+.auth-btn{width:100%;background:var(--red);color:white;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s;}
+.auth-btn:hover{opacity:.88;}
+.auth-err{font-size:12px;color:var(--red);margin-top:8px;display:none;}
+.header{background:var(--red);height:58px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.header-left{display:flex;align-items:center;gap:12px;}
+.header-flag{width:28px;height:28px;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;}
+.hf-t{flex:1;background:var(--red);}
+.hf-b{flex:1;background:white;border-top:1px solid rgba(255,255,255,.3);}
+.header-title{color:white;font-size:16px;font-weight:700;}
+.header-pill{background:rgba(255,255,255,.2);border-radius:20px;padding:3px 12px;font-size:11px;color:rgba(255,255,255,.9);font-weight:600;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.btn-ghost{background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background .15s;}
+.btn-ghost:hover{background:rgba(255,255,255,.25);}
+.btn-validate{background:white;color:var(--red);border:none;border-radius:8px;padding:7px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.toolbar{background:var(--white);border-bottom:1px solid var(--line);padding:10px 28px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:sticky;top:58px;z-index:90;}
+.periode-tabs{display:flex;gap:6px;}
+.ptab{padding:6px 16px;border-radius:20px;border:1.5px solid var(--line);background:var(--white);color:var(--ink-3);font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap;}
+.ptab.active{font-weight:700;}
+.type-btns{display:flex;gap:4px;margin-left:8px;}
+.tbtn{padding:6px 18px;border-radius:20px;border:1.5px solid var(--line);background:var(--white);color:var(--ink-3);font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.tbtn.vac.active{background:var(--vac-bg);border-color:var(--vac-brd);color:var(--vac-fg);font-weight:700;}
+.tbtn.form.active{background:var(--form-bg);border-color:var(--form-brd);color:var(--form-fg);font-weight:700;}
+.view-toggle{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-left:auto;}
+.vtbtn{padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:var(--white);color:var(--ink-3);font-family:'DM Sans',sans-serif;}
+.vtbtn.active{background:var(--ll);color:var(--ink);font-weight:600;}
+.seuil-info{font-size:12px;color:var(--ink-4);}
+.seuil-info strong{color:var(--ink-2);}
+.stats-bar{background:var(--white);border-bottom:1px solid var(--line);padding:6px 28px;display:flex;gap:24px;align-items:center;font-size:12px;}
+.sbar-item{display:flex;align-items:center;gap:6px;}
+.sbar-dot{width:7px;height:7px;border-radius:50%;}
+.sbar-lbl{color:var(--ink-4);}
+.sbar-val{font-weight:700;color:var(--ink-2);font-family:var(--mono);}
+.main{padding:20px 28px;}
+.grid-wrap{overflow-x:auto;}
+.grid-table{border-collapse:collapse;min-width:100%;font-size:12px;}
+.gt-th-mar{background:var(--ll);padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.07em;border-bottom:2px solid var(--line);border-right:1px solid var(--line);position:sticky;left:0;z-index:10;min-width:200px;}
+.gt-th-quota{background:var(--ll);padding:8px;text-align:center;font-size:10px;font-weight:600;color:var(--ink-3);border-bottom:2px solid var(--line);border-right:1px solid var(--line);min-width:60px;}
+.gt-th-day{padding:6px 4px;text-align:center;border-bottom:2px solid var(--line);border-right:1px solid var(--line);min-width:52px;vertical-align:bottom;}
+.gt-th-day.we{background:var(--ll);}
+.gt-th-day.tension-ok{background:var(--ok-bg);}
+.gt-th-day.tension-warn{background:var(--warn-bg);}
+.gt-th-day.tension-hot{background:var(--hot-bg);}
+.gt-th-day-date{font-size:10px;font-weight:600;color:var(--ink-2);}
+.gt-th-day-count{font-size:10px;color:var(--ink-4);margin-top:2px;}
+.gt-th-total{background:var(--ll);padding:8px 10px;text-align:center;font-size:10px;font-weight:600;color:var(--ink-3);border-bottom:2px solid var(--line);min-width:110px;}
+.gt-sep{padding:4px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-4);background:var(--ll);border-bottom:1px solid var(--line);}
+.gt-row-a .gt-cell-mar{border-left:3px solid #3B82F6;}
+.gt-row-b .gt-cell-mar{border-left:3px solid #F59E0B;}
+.gt-row-c .gt-cell-mar{border-left:3px solid #10B981;}
+.gt-cell-mar{padding:6px 12px;font-size:12px;border-bottom:1px solid var(--ll);display:flex;align-items:center;gap:8px;background:var(--white);position:sticky;left:0;z-index:5;border-right:1px solid var(--line);}
+.gt-initials{font-family:var(--mono);font-size:11px;background:var(--ll);border-radius:4px;padding:2px 7px;color:var(--ink-3);flex-shrink:0;}
+.gt-name{font-weight:600;color:var(--ink);}
+.gt-group{font-size:9px;font-weight:700;border-radius:4px;padding:1px 5px;margin-left:2px;flex-shrink:0;}
+.gt-group.A{background:#EFF6FF;color:#1D4ED8;}
+.gt-group.B{background:#FEF3C7;color:#92400E;}
+.gt-group.C{background:#F0FDF4;color:#166534;}
+.gt-rang{font-size:9px;color:var(--ink-4);margin-left:auto;font-family:var(--mono);}
+.gt-quotite{font-size:10px;color:var(--ink-4);}
+.gt-cell-quota{padding:6px 8px;text-align:center;font-size:11px;color:var(--ink-3);border-bottom:1px solid var(--ll);border-right:1px solid var(--line);background:var(--white);}
+.gt-cell-day{padding:4px 3px;text-align:center;border-bottom:1px solid var(--ll);border-right:1px solid var(--line);background:var(--white);cursor:pointer;user-select:none;}
+.gt-cell-day.we{background:#FAFAFA;cursor:default;}
+.gt-cell-day:hover:not(.we){background:var(--ll);}
+.day-chip{width:40px;height:26px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:var(--mono);border:1.5px solid transparent;transition:all .1s;position:relative;}
+.day-chip.empty{background:transparent;border-color:transparent;color:transparent;}
+.day-chip.vac{background:var(--vac-bg);border-color:var(--vac-brd);color:var(--vac-fg);}
+.day-chip.form{background:var(--form-bg);border-color:var(--form-brd);color:var(--form-fg);}
+.day-chip.locked{cursor:default;opacity:.7;}
+.day-chip.locked::after{content:'🔒';font-size:7px;position:absolute;top:-3px;right:-3px;}
+.day-chip.we-chip{background:transparent;border:none;color:var(--ink-4);font-size:9px;cursor:default;}
+.gt-cell-total{padding:6px 10px;text-align:center;border-bottom:1px solid var(--ll);background:var(--white);}
+.total-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;font-family:var(--mono);margin:1px;}
+.total-badge.ok{background:var(--ok-bg);color:var(--ok-fg);}
+.total-badge.over{background:var(--hot-bg);color:var(--hot-fg);}
+.total-badge.zero{background:var(--ll);color:var(--ink-4);}
+.legend{display:flex;gap:16px;margin-bottom:14px;font-size:12px;color:var(--ink-3);align-items:center;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:6px;}
+.recap-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+.recap-card{background:var(--white);border:1px solid var(--line);border-radius:12px;padding:16px;}
+.recap-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.recap-counts{display:flex;gap:8px;}
+.rcb{flex:1;border-radius:8px;padding:10px;text-align:center;}
+.rcb-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+.rcb-val{font-size:20px;font-weight:800;line-height:1;}
+.rcb-quota{font-size:10px;margin-top:2px;opacity:.7;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:white;border-radius:12px;padding:10px 20px;font-size:13px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;z-index:500;white-space:nowrap;}
+.toast.show{opacity:1;}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;}
+.spinner.dark{border-color:rgba(0,0,0,.1);border-top-color:var(--ink-3);}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-msg{text-align:center;padding:60px;color:var(--ink-4);font-size:14px;display:flex;flex-direction:column;align-items:center;gap:12px;}
+</style>
+</head>
+<body>
+
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-box">
+    <div class="auth-flag"><div class="auth-flag-t"></div><div class="auth-flag-b"></div></div>
+    <div class="auth-title">Staff Vacances</div>
+    <div class="auth-sub">CHPG Monaco · Comité Planning · Accès restreint</div>
+    <input class="auth-input" id="authInput" type="password" placeholder="CODE ADMIN" autocomplete="off" maxlength="20"/>
+    <button class="auth-btn" id="authBtn" onclick="doLogin()">Accéder →</button>
+    <div class="auth-err" id="authErr">Code incorrect</div>
+  </div>
+</div>
+
+<div class="header" id="appHeader" style="display:none;">
+  <div class="header-left">
+    <div class="header-flag"><div class="hf-t"></div><div class="hf-b"></div></div>
+    <span class="header-title">Staff Vacances</span>
+    <span class="header-pill" id="yearPill">—</span>
+    <span class="header-pill" id="lockPill" style="background:rgba(255,255,255,.1);display:none;">🔒 Verrouillé</span>
+  </div>
+  <div class="header-right">
+    <button class="btn-ghost" onclick="toggleView()" id="viewBtn">📊 Récap</button>
+    <button class="btn-ghost" onclick="doExport()">📤 Export CSV</button>
+    <button class="btn-validate" id="btnValidate" onclick="doValidate()">✅ Valider et verrouiller</button>
+  </div>
+</div>
+
+<div class="stats-bar" id="statsBar" style="display:none;">
+  <div class="sbar-item"><div class="sbar-dot" style="background:#CE1126;"></div><span class="sbar-lbl">Période</span><span class="sbar-val" id="sbPeriode">—</span></div>
+  <div class="sbar-item"><div class="sbar-dot" style="background:#3B82F6;"></div><span class="sbar-lbl">Seuil</span><span class="sbar-val" id="sbSeuil">—</span></div>
+  <div class="sbar-item"><div class="sbar-dot" style="background:#F59E0B;"></div><span class="sbar-lbl">Proche seuil</span><span class="sbar-val" id="sbWarn">—</span></div>
+  <div class="sbar-item"><div class="sbar-dot" style="background:#EF4444;"></div><span class="sbar-lbl">Saturés</span><span class="sbar-val" id="sbHot">—</span></div>
+  <div class="sbar-item" style="margin-left:auto;"><div class="sbar-dot" style="background:#6B7280;"></div><span class="sbar-lbl">MARs actifs</span><span class="sbar-val" id="sbMars">—</span></div>
+</div>
+
+<div class="toolbar" id="appToolbar" style="display:none;">
+  <div class="periode-tabs" id="periodeTabs"></div>
+  <div style="width:1px;height:20px;background:var(--line);margin:0 4px;"></div>
+  <div class="type-btns">
+    <button class="tbtn vac active" id="btnVAC" onclick="setType('VAC')">📅 VAC</button>
+    <button class="tbtn form" id="btnFORM" onclick="setType('FORM')">🎓 FORM</button>
+  </div>
+  <div class="view-toggle" style="margin-left:auto;">
+    <button class="vtbtn active" id="vtGrille" onclick="setView('grille')">📅 Grille</button>
+    <button class="vtbtn" id="vtRecap" onclick="setView('recap')">📊 Récap</button>
+  </div>
+  <span class="seuil-info">Seuil : <strong id="seuilVal">—</strong> MARs/j</span>
+</div>
+
+<div class="main" id="appMain" style="display:none;">
+  <div id="loadingArea" class="loading-msg">
+    <div class="spinner dark"></div>Chargement…
+  </div>
+  <div id="griView" style="display:none;">
+    <div class="legend">
+      <span style="font-size:11px;font-weight:700;color:var(--ink-3);">TENSION :</span>
+      <span class="legend-item"><span style="width:12px;height:12px;border-radius:3px;background:var(--ok-bg);border:1px solid #86EFAC;display:inline-block;"></span>OK</span>
+      <span class="legend-item"><span style="width:12px;height:12px;border-radius:3px;background:var(--warn-bg);border:1px solid #FDE047;display:inline-block;"></span>Proche seuil</span>
+      <span class="legend-item"><span style="width:12px;height:12px;border-radius:3px;background:var(--hot-bg);border:1px solid #FCA5A5;display:inline-block;"></span>Saturé</span>
+      <span style="margin-left:12px;font-size:11px;font-weight:700;color:var(--ink-3);">GROUPES :</span>
+      <span class="legend-item"><span style="width:12px;height:12px;border-radius:2px;background:#EFF6FF;border:1px solid #93C5FD;display:inline-block;"></span>A</span>
+      <span class="legend-item"><span style="width:12px;height:12px;border-radius:2px;background:#FEF3C7;border:1px solid #FDE047;display:inline-block;"></span>B</span>
+      <span class="legend-item"><span style="width:12px;height:12px;border-radius:2px;background:#F0FDF4;border:1px solid #86EFAC;display:inline-block;"></span>C</span>
+    </div>
+    <div class="grid-wrap"><table class="grid-table" id="gridTable"></table></div>
+  </div>
+  <div id="recView" style="display:none;">
+    <div class="recap-grid" id="recapGrid"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API='https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
+let adminCode='',currentYear=2027,periodes=[],medecins=[],saisies={},locked={};
+let currentPeriode=0,currentType='VAC',currentView='grille';
+const QUOTAS={VAC:{100:33,90:30,80:26,60:20,50:17},FORM:{100:10,90:9,80:8,60:6,50:5}};
+const getQuota=(type,q)=>QUOTAS[type][Math.round(q)]||QUOTAS[type][100];
+const JOURS_FR=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+const PCOLS=[{bg:'#DBEAFE',brd:'#93C5FD',fg:'#1D4ED8'},{bg:'#DCFCE7',brd:'#86EFAC',fg:'#166534'},{bg:'#FEF9C3',brd:'#FDE047',fg:'#92400E'},{bg:'#FFE4E6',brd:'#FCA5A5',fg:'#991B1B'},{bg:'#F3E8FF',brd:'#D8B4FE',fg:'#7C3AED'}];
+
+document.getElementById('authInput').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+async function doLogin(){
+  const code=document.getElementById('authInput').value.trim().toUpperCase();
+  if(!code)return;
+  const btn=document.getElementById('authBtn');
+  btn.innerHTML='<span class="spinner"></span>';btn.disabled=true;
+  try{
+    const r=await apiCall({action:'login',code},code);
+    if(r.success&&r.role==='admin'){
+      adminCode=code;
+      currentYear=r.indisposYear||r.year+1||2027;
+      document.getElementById('yearPill').textContent=currentYear;
+      document.getElementById('authOverlay').style.display='none';
+      document.getElementById('appHeader').style.display='flex';
+      document.getElementById('statsBar').style.display='flex';
+      document.getElementById('appToolbar').style.display='flex';
+      document.getElementById('appMain').style.display='block';
+      await loadData();
+    }else{showAuthErr('Code incorrect');}
+  }catch(e){showAuthErr('Erreur : '+e.message);}
+  btn.textContent='Accéder →';btn.disabled=false;
+}
+
+function showAuthErr(msg){const el=document.getElementById('authErr');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',4000);}
+
+async function apiCall(payload,overrideCode){
+  payload.code=overrideCode||adminCode;
+  const res=await fetch(API+'?'+new URLSearchParams({payload:JSON.stringify(payload)}),{redirect:'follow',mode:'cors'});
+  return res.json();
+}
+
+async function loadData(){
+  document.getElementById('loadingArea').style.display='flex';
+  document.getElementById('griView').style.display='none';
+  document.getElementById('recView').style.display='none';
+
+  const mRes=await apiCall({action:'getMedecins'});
+  if(!mRes.success)return showToast('Erreur médecins');
+  medecins=mRes.medecins.filter(m=>m.actif);
+  document.getElementById('sbMars').textContent=medecins.length;
+
+  const pRes=await apiCall({action:'getVacancesConfig'});
+  if(!pRes.success)return showToast('Erreur périodes');
+  periodes=(pRes.periodes||[]).filter(p=>parseInt(p.debut.slice(0,4))===currentYear||parseInt(p.debut.slice(0,4))===currentYear-1);
+  if(!periodes.length){document.getElementById('loadingArea').innerHTML='<div>Aucune période pour '+currentYear+'</div>';return;}
+
+  const groupes=pRes.groupes||{A:[],B:[],C:[]};
+  const groupMap={};
+  ['A','B','C'].forEach(g=>{(groupes[g]||[]).forEach((m,i)=>{groupMap[m.id]={groupe:g,rang:i+1};});});
+  medecins.forEach(m=>{const gi=groupMap[m.id]||{groupe:'?',rang:99};m.groupe=gi.groupe;m.rang=gi.rang;});
+
+  const iRes=await apiCall({action:'getAllIndispos',year:currentYear});
+  medecins.forEach(m=>{
+    saisies[m.id]={};locked[m.id]={};
+    if(iRes.success&&iRes.data[m.id]){
+      Object.entries(iRes.data[m.id]).forEach(([date,val])=>{
+        if(val==='VAC'||val==='FORM')saisies[m.id][date]=val;
+      });
+    }
+  });
+
+  buildPeriodeTabs();
+  setCurrentPeriode(0);
+  document.getElementById('loadingArea').style.display='none';
+}
+
+function getPeriodeDays(p){
+  const days=[];
+  const d=new Date(p.debut+'T12:00:00');
+  const e=new Date(p.fin+'T12:00:00');
+  while(d<=e){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
+  return days;
+}
+
+function formatDay(ds){const d=new Date(ds+'T12:00:00');return JOURS_FR[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1);}
+function isWeekend(ds){const d=new Date(ds+'T12:00:00').getDay();return d===0||d===6;}
+function countForMAR(marId,type,days){const src=saisies[marId]||{};if(!days)return Object.values(src).filter(v=>v===type).length;return days.filter(d=>src[d]===type).length;}
+function countForDay(date){return medecins.filter(m=>{const v=(saisies[m.id]||{})[date];return v==='VAC'||v==='FORM';}).length;}
+function tension(date,seuil){const n=countForDay(date);if(n>=seuil)return'hot';if(n>=Math.floor(seuil*.7))return'warn';return'ok';}
+
+function buildPeriodeTabs(){
+  const c=document.getElementById('periodeTabs');c.innerHTML='';
+  periodes.forEach((p,i)=>{
+    const col=PCOLS[i%PCOLS.length];
+    const btn=document.createElement('button');
+    btn.className='ptab'+(i===currentPeriode?' active':'');
+    if(i===currentPeriode){btn.style.background=col.bg;btn.style.borderColor=col.brd;btn.style.color=col.fg;}
+    const d1=p.debut.slice(5).replace('-','/'),d2=p.fin.slice(5).replace('-','/');
+    btn.innerHTML=p.nom+' <span style="font-size:10px;opacity:.7;">'+d1+'→'+d2+'</span>';
+    btn.onclick=()=>setCurrentPeriode(i);
+    c.appendChild(btn);
+  });
+}
+
+function setCurrentPeriode(idx){
+  currentPeriode=idx;
+  buildPeriodeTabs();
+  const p=periodes[idx];
+  document.getElementById('seuilVal').textContent=p.seuil;
+  document.getElementById('sbPeriode').textContent=p.nom;
+  document.getElementById('sbSeuil').textContent=p.seuil+' MARs/j';
+  medecins.sort((a,b)=>a.groupe!==b.groupe?(a.groupe<b.groupe?-1:1):a.rang-b.rang);
+  updateStatsBar();
+  renderCurrent();
+}
+
+function setType(t){
+  currentType=t;
+  document.getElementById('btnVAC').className='tbtn vac'+(t==='VAC'?' active':'');
+  document.getElementById('btnFORM').className='tbtn form'+(t==='FORM'?' active':'');
+  renderCurrent();
+}
+
+function setView(v){
+  currentView=v;
+  document.getElementById('vtGrille').className='vtbtn'+(v==='grille'?' active':'');
+  document.getElementById('vtRecap').className='vtbtn'+(v==='recap'?' active':'');
+  renderCurrent();
+}
+
+function toggleView(){
+  setView(currentView==='grille'?'recap':'grille');
+  document.getElementById('viewBtn').textContent=currentView==='grille'?'📊 Récap':'📅 Grille';
+}
+
+function toggleDay(marId,date){
+  if((locked[marId]||{})[date]){
+    if(!confirm('Déverrouiller le '+formatDay(date)+' pour '+marId+' ?'))return;
+    locked[marId][date]=false;
+  }
+  if(!saisies[marId])saisies[marId]={};
+  const cur=saisies[marId][date];
+  if(cur===currentType)delete saisies[marId][date];
+  else saisies[marId][date]=currentType;
+  updateStatsBar();
+  renderCurrent();
+}
+
+function renderCurrent(){
+  document.getElementById('griView').style.display=currentView==='grille'?'block':'none';
+  document.getElementById('recView').style.display=currentView==='recap'?'block':'none';
+  if(currentView==='grille')renderGrille();else renderRecap();
+}
+
+function renderGrille(){
+  const p=periodes[currentPeriode];
+  const days=getPeriodeDays(p);
+  const t=document.getElementById('gridTable');
+  let thead='<thead><tr>';
+  thead+='<th class="gt-th-mar">MAR</th>';
+  thead+='<th class="gt-th-quota">Quota '+currentType+'</th>';
+  days.forEach(date=>{
+    const we=isWeekend(date);
+    const ten=we?'':(' tension-'+tension(date,p.seuil));
+    const cnt=countForDay(date);
+    const d=new Date(date+'T12:00:00');
+    thead+='<th class="gt-th-day'+(we?' we':'')+ten+'">'
+      +'<div class="gt-th-day-date">'+JOURS_FR[d.getDay()]+'<br>'+d.getDate()+'/'+(d.getMonth()+1)+'</div>'
+      +(!we&&cnt>0?'<div class="gt-th-day-count">'+cnt+'</div>':'')
+      +'</th>';
+  });
+  thead+='<th class="gt-th-total">Total VAC / FORM</th></tr></thead>';
+
+  let tbody='<tbody>';
+  let lastGroupe=null;
+  medecins.forEach(m=>{
+    const quota=getQuota(currentType,m.quotite||100);
+    const posed=countForMAR(m.id,currentType,days);
+    const vacTot=countForMAR(m.id,'VAC');
+    const frmTot=countForMAR(m.id,'FORM');
+    const vacQ=getQuota('VAC',m.quotite||100);
+    const frmQ=getQuota('FORM',m.quotite||100);
+    if(m.groupe!==lastGroupe){
+      lastGroupe=m.groupe;
+      tbody+='<tr><td colspan="'+(days.length+3)+'" class="gt-sep">Groupe '+m.groupe+'</td></tr>';
+    }
+    const rowCls='gt-row-'+(m.groupe||'a').toLowerCase();
+    tbody+='<tr class="'+rowCls+'">';
+    tbody+='<td class="gt-cell-mar" style="min-width:200px;">'
+      +'<span class="gt-initials">'+m.initiales+'</span>'
+      +'<span class="gt-name">'+m.nom.replace('DR ','').replace('PR ','')+'</span>'
+      +'<span class="gt-group '+m.groupe+'">'+m.groupe+'</span>'
+      +((m.quotite||100)<100?'<span class="gt-quotite">'+m.quotite+'%</span>':'')
+      +'<span class="gt-rang">#'+m.rang+'</span>'
+      +'</td>';
+    tbody+='<td class="gt-cell-quota">'+quota+'j</td>';
+    days.forEach(date=>{
+      const we=isWeekend(date);
+      const val=(saisies[m.id]||{})[date];
+      const lck=(locked[m.id]||{})[date];
+      const chipCls=we?'we-chip':(val==='VAC'?'vac':val==='FORM'?'form':'empty');
+      const label=we?'':(val||'');
+      tbody+='<td class="gt-cell-day'+(we?' we':'')+'" onclick="'+(we?'':('toggleDay(\''+m.id+'\',\''+date+'\')'))+'">'
+        +'<div class="day-chip '+chipCls+(lck?' locked':'')+'">'+(lck&&!we?'🔒':label)+'</div>'
+        +'</td>';
+    });
+    tbody+='<td class="gt-cell-total">'
+      +'<span class="total-badge '+(vacTot>vacQ?'over':vacTot>0?'ok':'zero')+'">VAC '+vacTot+'/'+vacQ+'</span>'
+      +'<span class="total-badge '+(frmTot>frmQ?'over':frmTot>0?'ok':'zero')+'">F '+frmTot+'/'+frmQ+'</span>'
+      +'</td>';
+    tbody+='</tr>';
+  });
+  tbody+='</tbody>';
+  t.innerHTML=thead+tbody;
+}
+
+function renderRecap(){
+  const g=document.getElementById('recapGrid');
+  let html='';
+  medecins.forEach(m=>{
+    const vp=countForMAR(m.id,'VAC'),fp=countForMAR(m.id,'FORM');
+    const vq=getQuota('VAC',m.quotite||100),fq=getQuota('FORM',m.quotite||100);
+    html+='<div class="recap-card">'
+      +'<div class="recap-header"><span class="gt-initials">'+m.initiales+'</span>'
+      +'<span style="font-size:12px;font-weight:700;">'+m.nom.replace('DR ','').replace('PR ','')+'</span>'
+      +'<span class="gt-group '+m.groupe+'">'+m.groupe+'</span>'
+      +((m.quotite||100)<100?'<span style="font-size:10px;color:var(--ink-4);">'+m.quotite+'%</span>':'')
+      +'</div>'
+      +'<div class="recap-counts">'
+      +'<div class="rcb" style="background:var(--vac-bg);"><div class="rcb-lbl" style="color:var(--vac-fg);">VAC</div><div class="rcb-val" style="color:'+(vp>vq?'#DC2626':'var(--vac-fg)')+';">'+vp+'</div><div class="rcb-quota" style="color:var(--vac-fg);">/ '+vq+'j</div></div>'
+      +'<div class="rcb" style="background:var(--form-bg);"><div class="rcb-lbl" style="color:var(--form-fg);">FORM</div><div class="rcb-val" style="color:'+(fp>fq?'#DC2626':'var(--form-fg)')+';">'+fp+'</div><div class="rcb-quota" style="color:var(--form-fg);">/ '+fq+'j</div></div>'
+      +'</div></div>';
+  });
+  g.innerHTML=html;
+}
+
+function updateStatsBar(){
+  if(!periodes.length)return;
+  const p=periodes[currentPeriode];
+  const days=getPeriodeDays(p);
+  let warn=0,hot=0;
+  days.forEach(d=>{if(isWeekend(d))return;const t=tension(d,p.seuil);if(t==='warn')warn++;if(t==='hot')hot++;});
+  document.getElementById('sbWarn').textContent=warn;
+  document.getElementById('sbHot').textContent=hot;
+}
+
+async function doValidate(){
+  if(!confirm('Valider et verrouiller toutes les saisies ?\n\nLes MARs ne pourront plus modifier leurs VAC/FORM.\nUn email récap sera envoyé à chaque MAR.'))return;
+  const btn=document.getElementById('btnValidate');
+  btn.disabled=true;btn.textContent='⏳ Enregistrement…';
+  let saved=0,errors=0;
+  for(const m of medecins){
+    try{
+      const res=await apiCall({action:'saveIndispos',doctorId:m.id,indispos:saisies[m.id]||{}});
+      if(res.success){saved++;locked[m.id]={};Object.keys(saisies[m.id]||{}).forEach(date=>{locked[m.id][date]=true;});}
+      else errors++;
+    }catch(e){errors++;}
+  }
+  try{
+    const emailRes=await apiCall({action:'envoyerRecapIndispos',year:currentYear});
+    showToast('✅ '+saved+' MARs sauvegardés · '+(emailRes.sent||0)+' emails envoyés');
+  }catch(e){showToast('✅ '+saved+' MARs sauvegardés · Emails non envoyés');}
+  if(errors)showToast('⚠️ '+errors+' erreur(s)');
+  document.getElementById('lockPill').style.display='inline-flex';
+  btn.disabled=false;btn.textContent='✅ Valider et verrouiller';
+  renderCurrent();
+}
+
+function doExport(){
+  let csv='MAR;Groupe;Rang;Quotité;VAC posé;VAC quota;FORM posé;FORM quota\n';
+  medecins.forEach(m=>{
+    const vp=countForMAR(m.id,'VAC'),fp=countForMAR(m.id,'FORM');
+    const vq=getQuota('VAC',m.quotite||100),fq=getQuota('FORM',m.quotite||100);
+    csv+=m.nom+';'+m.groupe+';'+m.rang+';'+(m.quotite||100)+'%;'+vp+';'+vq+';'+fp+';'+fq+'\n';
+  });
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='staff_vacances_'+currentYear+'.csv';a.click();
+}
+
+function showToast(msg,duration=4000){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),duration);
+}
+</script>
+</body>
+</html>
