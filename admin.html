@@ -1528,7 +1528,7 @@ async function loadStatusBar() {
 
 // ── PLANNING DATA ──────────────────────────────────────────────────────
 function todayStr() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-function isoWeek(dateStr) { const dt=new Date(dateStr); const tmp=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate())); tmp.setUTCDate(tmp.getUTCDate()+4-(tmp.getUTCDay()||7)); const ys=new Date(Date.UTC(tmp.getUTCFullYear(),0,1)); return Math.ceil((((tmp-ys)/86400000)+1)/7); }
+function isoWeek(dateStr) { const dt=new Date(dateStr.length===10?dateStr+'T12:00:00':dateStr); const tmp=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate())); tmp.setUTCDate(tmp.getUTCDate()+4-(tmp.getUTCDay()||7)); const ys=new Date(Date.UTC(tmp.getUTCFullYear(),0,1)); return Math.ceil((((tmp-ys)/86400000)+1)/7); }
 
 async function loadPlanningData() {
   const grid = document.getElementById('planTable');
