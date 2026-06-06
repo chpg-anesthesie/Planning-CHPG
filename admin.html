@@ -2054,7 +2054,7 @@ function renderSidePanelContent(dispo, sector) {
   document.getElementById('pspContent').innerHTML = html;
 }
 
-async async function placeMAR(marId, marInit) {
+async function placeMAR(marId, marInit) {
   const ctx = window._sideCtx;
   if (!ctx) return;
   const {sector, date, slotKey} = ctx;
