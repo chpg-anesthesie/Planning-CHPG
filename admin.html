@@ -1588,7 +1588,7 @@ function getWeekDays(weekNum) {
   DATA.months.forEach(month => {
     month.days.forEach((day,dayIdx) => {
       if (isoWeek(day.date)!==weekNum) return;
-      const dt=new Date(day.date); let dow=dt.getDay(); if(dow===0)dow=6; else dow--;
+      const dt=new Date(day.date+'T12:00:00'); let dow=dt.getDay(); if(dow===0)dow=6; else dow--;
       out[dow]={...day,dayIdx,month};
     });
   });
