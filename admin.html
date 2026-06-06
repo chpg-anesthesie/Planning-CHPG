@@ -1739,10 +1739,11 @@ function renderWeek() {
   thead += '</tr></thead>';
 
   // ── TBODY SECTEURS ──
-  function makeChip(p, extraCls='') {
-    const isNew = p.isNew||false;
+  function makeChip(p, extraCls) {
+    const isNew = p.isNew || false;
     const cls = isNew ? 'slot-name slot-new' : 'slot-name';
-    return `<span class="${cls}${extraCls?` ${extraCls}`:''}" title="${p.id||''}">${p.init}</span>`;
+    const fullCls = extraCls ? cls + ' ' + extraCls : cls;
+    return '<span class="' + fullCls + '" title="' + (p.id||'') + '">' + p.init + '</span>';
   }
   function makeSlot(items, flash, sector, sectorLabel, date, slotKey) {
     let html = '';
