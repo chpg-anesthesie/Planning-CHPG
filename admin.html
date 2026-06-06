@@ -1329,7 +1329,7 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
       // workflowYearLabel supprimé (remplacé par widget État du cycle)
       document.getElementById('wfYear').textContent = YEAR;
       document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR; });
-      document.getElementById('affYear').textContent = YEAR;
+      const affYearEl = document.getElementById('affYear'); if(affYearEl) affYearEl.textContent = YEAR;
       await initDashboard();
       // Ouvrir le wizard si appelé depuis dashboard
       const wizParam = new URLSearchParams(window.location.search).get('wizard');
@@ -1388,39 +1388,30 @@ function showTab(name) {
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────
+// ── SÉLECTEUR ANNÉE ──────────────────────────────────────────────────
+function buildYearSelector() {
+  // Met à jour le sélecteur d'année dans le header si présent
+  const sel = document.getElementById('yearSelector');
+  if (!sel) return;
+  sel.innerHTML = availableYears.map(y =>
+    `<option value="${y.year}" ${y.year===ADMIN_YEAR?'selected':''}>${y.label}</option>`
+  ).join('');
+}
+
 async function detectAvailableYears() {
   availableYears = [];
-  // Année active toujours présente
   availableYears.push({ year: YEAR, label: YEAR + ' — actif', readonly: false });
-  // N+1 : réutiliser nextYearAvailable déjà calculé par checkNextYearAvailable()
   if (nextYearAvailable) {
     availableYears.push({ year: YEAR + 1, label: (YEAR + 1) + ' — N+1', readonly: false });
   }
-  // Années archivées : tester stats_YYYY.json (fichier léger ~quelques Ko)
+  // Tester les années archivées — silencieux si 404
   for (const y of [YEAR - 1, YEAR - 2]) {
     try {
       const rs = await fetch(`./stats_${y}.json?t=${Date.now()}`);
-      if (rs.ok) {
-        availableYears.unshift({ year: y, label: y + ' — archivé', readonly: true });
-      }
-    } catch(e) {}
+      if (rs.ok) availableYears.push({ year: y, label: y + ' — archivé', readonly: true });
+    } catch(e) { /* 404 ou réseau — ignoré */ }
   }
-  // Trier par année croissante
-  availableYears.sort((a, b) => a.year - b.year);
-  // Mettre à jour le sélecteur
-  const sel = document.getElementById('adminYearSelect');
-  const span = document.getElementById('headerYear');
-  if (sel && availableYears.length > 1) {
-    sel.innerHTML = availableYears.map(a =>
-      `<option value="${a.year}" ${a.year === ADMIN_YEAR ? 'selected' : ''}>${a.label}</option>`
-    ).join('');
-    sel.style.display = 'inline-block';
-    span.style.display = 'none';
-  } else {
-    sel.style.display = 'none';
-    span.style.display = 'inline';
-    span.textContent = YEAR;
-  }
+  buildYearSelector();
 }
 
 async function switchAdminYear(year) {
@@ -1471,13 +1462,19 @@ async function checkNextYearAvailable() {
 }
 
 async function initDashboard() {
-  // Petit délai pour s'assurer que le DOM est prêt et YEAR bien défini
   await new Promise(r => setTimeout(r, 50));
-  await checkNextYearAvailable();
-  ADMIN_YEAR = YEAR; // init année admin = année active
-  await detectAvailableYears();
-  await Promise.all([loadPlanningData(), loadStatusBar(), loadOverrides(), loadCycleStatus()]);
-  updatePlanningIndisposVisibility();
+  // Chaque étape wrappée pour éviter qu'un 404 bloque tout
+  try { await checkNextYearAvailable(); } catch(e) {}
+  ADMIN_YEAR = YEAR;
+  try { await detectAvailableYears(); } catch(e) {}
+  // Charger planning en priorité — les autres en parallèle sans bloquer
+  await Promise.allSettled([
+    loadPlanningData(),
+    loadStatusBar().catch(()=>{}),
+    loadOverrides().catch(()=>{}),
+    loadCycleStatus().catch(()=>{}),
+  ]);
+  try { updatePlanningIndisposVisibility(); } catch(e) {}
 }
 
 // ── STATUS ─────────────────────────────────────────────────────────────
