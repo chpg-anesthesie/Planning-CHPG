@@ -1288,6 +1288,9 @@ let ADMIN_YEAR = YEAR;          // année sélectionnée dans le sélecteur admi
 let ADMIN_YEAR_READONLY = false; // true si année archivée (stats_YYYY.json présent)
 let availableYears = [];         // [{year, label, readonly}]
 let DATA = null, marsData = [], gardesData = null;
+// Overrides locaux : modifications faites pendant la session, appliquées par-dessus le JSON
+// Structure : { 'YYYY-MM-DD': { 'SECTOR': { am: {marId, marInit} | null, pm: {marId, marInit} | null } } }
+let _localOverrides = {};
 let currentWeekIdx = 0, currentCalMonth = new Date().getMonth();
 let panelType = '', allViolations = [], activeFilter = 'all';
 let selectedYear = null; // null = utilise ANNEE_ACTIVE, sinon N+1
@@ -1507,6 +1510,7 @@ async function loadPlanningData() {
     }
     if (!res || !res.ok) throw new Error('Fichier planning introuvable');
     DATA = await res.json();
+      _localOverrides = {}; // Reset : le JSON intègre désormais les overrides
     if (!DATA || !DATA.months) throw new Error('Structure JSON invalide');
     const today = todayStr();
     const weeks = getAllWeeks();
@@ -1622,6 +1626,36 @@ function renderWeek() {
       // CS explicite
       const cs = entry.cs||'';
       if (cs && smap['CS'] && !am.startsWith('CS-')) smap['CS'][dow].am.push({init:doc.initials, id:doc.id, status:st});
+    });
+  });
+
+  // Appliquer les overrides locaux de session par-dessus le JSON
+  // (modifications faites via le comité avant que le JSON soit re-pushé)
+  daySlots.forEach((slot, dow) => {
+    if (!slot || slot.isWeekend || slot.isFerie) return;
+    const dateOverrides = _localOverrides[slot.date];
+    if (!dateOverrides) return;
+    SECTORS.forEach(s => {
+      const ov = dateOverrides[s.code];
+      if (!ov) return;
+      if (ov.am) {
+        // Retirer le null existant si présent, ajouter le MAR
+        const cell = smap[s.code][dow];
+        const nullIdx = cell.am.indexOf(null);
+        if (nullIdx >= 0) cell.am.splice(nullIdx, 1);
+        // Éviter les doublons
+        if (!cell.am.find(p => p.id === ov.am.marId)) {
+          cell.am.push({init: ov.am.marInit, id: ov.am.marId, status:'', isNew:true});
+        }
+      }
+      if (ov.pm) {
+        const cell = smap[s.code][dow];
+        const nullIdx = cell.pm.indexOf(null);
+        if (nullIdx >= 0) cell.pm.splice(nullIdx, 1);
+        if (!cell.pm.find(p => p.id === ov.pm.marId)) {
+          cell.pm.push({init: ov.pm.marInit, id: ov.pm.marId, status:'', isNew:true});
+        }
+      }
     });
   });
 
@@ -1844,6 +1878,7 @@ async function toggleValiderSemaine() {
     const res = await api({action:'validerSemaine', year: ADMIN_YEAR, isoWeek: wk.weekNum, valide: newVal});
     if (!res.success) throw new Error(res.error);
     showToast(newVal ? `✅ Semaine ${wk.weekNum} validée — publiée sur index.html` : `↩ Semaine ${wk.weekNum} dévalidée`);
+    _localOverrides = {};
     await loadPlanningData();
     renderWeek();
   } catch(e) {
@@ -1927,45 +1962,46 @@ function renderSidePanelContent(dispo, sector) {
   document.getElementById('pspContent').innerHTML = html;
 }
 
-async function placeMAR(marId, marInit) {
+async async function placeMAR(marId, marInit) {
   const ctx = window._sideCtx;
   if (!ctx) return;
+  const {sector, date, slotKey} = ctx;
 
-  // 1. Feedback visuel immédiat : injecter la chip dans le slot
-  const planTable = document.getElementById('planTable');
-  if (planTable) {
-    // Trouver et remplacer le premier slot-flash dans la cellule cible
-    const flashes = planTable.querySelectorAll('.slot-flash');
-    flashes.forEach(el => {
-      const onclick = el.getAttribute('onclick')||'';
-      if (onclick.includes(`'${ctx.sector}'`) && onclick.includes(`'${ctx.date}'`) && onclick.includes(`'${ctx.slotKey}'`)) {
-        const chip = document.createElement('span');
-        chip.className = 'slot-name slot-new';
-        chip.title = marId + ' (placé manuellement)';
-        chip.textContent = marInit;
-        el.parentNode.replaceChild(chip, el);
-      }
-    });
-  }
+  // 1. Stocker dans _localOverrides (couche locale persistante dans la session)
+  if (!_localOverrides[date]) _localOverrides[date] = {};
+  if (!_localOverrides[date][sector]) _localOverrides[date][sector] = {am:null, pm:null};
+  _localOverrides[date][sector][slotKey] = {marId, marInit};
+
+  // 2. Re-render immédiat depuis smap + _localOverrides (pas de rechargement JSON)
   closeSidePanel();
-  updateFlashBadge();
+  renderWeek();  // applique automatiquement _localOverrides via PATCH 2
 
-  // 2. Appel API (en parallèle)
+  // 3. Appel API en arrière-plan → GAS écrit dans PLANNING_OVERRIDES et push JSON
   showToast('⏳ Enregistrement…');
   try {
     const res = await api({
-      action:'savePlanningOverride',
-      date: ctx.date, marId,
-      morning: ctx.slotKey==='am' ? ctx.sector : '',
-      afternoon: ctx.slotKey==='pm' ? ctx.sector : '',
-      comment: `Comité — ${ctx.sector} ${ctx.slotKey.toUpperCase()}`
+      action: 'savePlanningOverride',
+      date, marId,
+      morning:   slotKey === 'am' ? sector : '',
+      afternoon: slotKey === 'pm' ? sector : '',
+      comment:   `Comité — ${sector} ${slotKey.toUpperCase()}`
     });
     if (!res.success) throw new Error(res.error);
-    showToast(`✅ ${marId} affecté — JSON mis à jour`);
-    // Recharger le planning en arrière-plan pour sync
-    setTimeout(() => loadPlanningData().then(() => renderWeek()), 2000);
+    showToast(`✅ ${marId} affecté en ${sector} · synchronisé`);
+    // Sync silencieuse du JSON en arrière-plan (20s) pour récupérer
+    // d'éventuels changements faits depuis un autre poste
+    setTimeout(async () => {
+      await loadPlanningData();
+      // Conserver les _localOverrides par-dessus le JSON rechargé
+      renderWeek();
+    }, 20000);
   } catch(e) {
-    showToast('Erreur : ' + e.message);
+    showToast('Erreur API : ' + e.message);
+    // Rollback local si l'API a échoué
+    if (_localOverrides[date]?.[sector]) {
+      _localOverrides[date][sector][slotKey] = null;
+    }
+    renderWeek();
   }
 }
 
