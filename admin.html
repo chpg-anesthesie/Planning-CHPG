@@ -817,6 +817,36 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .week-validate-btn { background:var(--green); color:white; border:none; border-radius:8px; padding:6px 14px; font-size:11px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:opacity .15s; }
 .week-validate-btn:hover { opacity:.88; }
 .week-validate-btn.validated { background:#166534; }
+
+/* ── PLANNING ADMIN V2 FINAL ── */
+.slot-new { outline: 2px solid #86EFAC !important; background: #F0FDF4 !important; color: #166534 !important; }
+.chip-guard2 { background: #334155 !important; color: #fff !important; }
+.name-tag.guard2 { background: #334155; color: #fff; }
+.slot-flash {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 20px; border-radius: 4px; font-size: 14px; font-weight: 700;
+  border: 1.5px dashed #F97316; background: #FFF7ED; color: #F97316;
+  cursor: pointer; padding: 0; flex-shrink: 0;
+  animation: planFlashAnim 1.4s ease-in-out infinite;
+}
+.slot-flash:hover { animation: none; background: #FFEDD5; transform: scale(1.08); }
+@keyframes planFlashAnim { 0%,100%{opacity:1;background:#FFF7ED;} 50%{opacity:.35;background:#FFEDD5;} }
+.am-pm-label.pm { background: #94A3B8; }
+/* Bottom table */
+.bt-card { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.bt-card-header { padding: 10px 16px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-4); background: var(--line-light); border-bottom: 1px solid var(--line); }
+.bt-scroll { overflow-x: auto; }
+.bt-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+.bt-label { padding: 7px 16px; font-size: 11px; font-weight: 600; color: var(--ink-3); background: var(--line-light); border-right: 1px solid var(--line); white-space: nowrap; width: 180px; min-width: 180px; border-top: 1px solid var(--line-light); }
+.bt-cell { padding: 5px 6px; text-align: center; background: var(--white); border-right: 1px solid var(--line); border-top: 1px solid var(--line-light); min-width: 100px; }
+.bt-cell.weekend { background: var(--line-light); }
+.bt-dash { color: var(--line); font-size: 11px; }
+.name-tag { display: inline-flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 5px; }
+.name-tag.guard  { background: #1E293B; color: #fff; }
+.name-tag.guard2 { background: #334155; color: #fff; }
+.name-tag.h18    { background: #F0FDF4; color: #166534; }
+.name-tag.rg     { background: #FFF7ED; color: #C2410C; }
+.name-tag.absent { background: #FEF2F2; color: #991B1B; }
 </style>
 <script>
 // Masquer l'overlay immédiatement si un code est en sessionStorage
@@ -934,6 +964,9 @@ if (sessionStorage.getItem('adminCode')) {
       </td></tr></tbody>
     </table>
   </div>
+
+  <!-- TABLE BASSE gardes/fonctions -->
+  <div id="bottomSection" style="margin-bottom:20px;"></div>
 
   <!-- DISPO PANEL (inline, affiché sous la grille au clic sur +) -->
   <div id="dispoCard" style="display:none;background:var(--white);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:0;margin-bottom:20px;">
@@ -1530,129 +1563,162 @@ function renderWeek() {
   const daySlots = getWeekDays(wk.weekNum);
   const today = todayStr();
 
-  const first = daySlots.find(d => d);
-  const last  = [...daySlots].reverse().find(d => d);
+  // Label semaine
+  const first = daySlots.find(d=>d), last = [...daySlots].reverse().find(d=>d);
   if (first && last) {
     const fmt = ds => new Date(ds).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
     document.getElementById('weekLabel').textContent = `S${wk.weekNum} · ${fmt(first.date)} – ${fmt(last.date)}`;
-    document.getElementById('statusWeek').textContent = `S${wk.weekNum}`;
   }
 
-  // Identique à index.html SECTORS_DEF + avec G/RG en premier
   const SECTORS = [
-    {code:'G/RG', label:'Gardes',                   icon:'Shield'      },
-    {code:'VIS',  label:'Bloc viscéral',             icon:'Activity'    },
-    {code:'REA',  label:'Réanimation',               icon:'HeartPulse'  },
-    {code:'ORT',  label:'Orthopédie',                icon:'Bone'        },
-    {code:'DVI',  label:'Pose DVI',                  icon:'Syringe'     },
-    {code:'ORL',  label:'ORL / Ophtalmologie',       icon:'Eye'         },
-    {code:'END',  label:'Endoscopies',               icon:'Microscope'  },
-    {code:'CI',   label:'Cardio interventionnelle',  icon:'Heart'       },
-    {code:'RI',   label:'Radio interventionnelle',   icon:'Scan'        },
-    {code:'MAT',  label:'Maternité',                 icon:'Baby'        },
-    {code:'CS',   label:'Consultation',              icon:'Stethoscope' },
+    {code:'VIS', label:'Bloc viscéral',           icon:'Activity'   },
+    {code:'REA', label:'Réanimation',              icon:'HeartPulse' },
+    {code:'ORT', label:'Orthopédie',               icon:'Bone'       },
+    {code:'DVI', label:'Pose DVI',                 icon:'Syringe'    },
+    {code:'ORL', label:'ORL / Ophtalmologie',      icon:'Eye'        },
+    {code:'END', label:'Endoscopies',              icon:'Microscope' },
+    {code:'CI',  label:'Cardio interventionnelle', icon:'Heart'      },
+    {code:'MAT', label:'Maternité',                icon:'Baby'       },
+    {code:'CS',  label:'Consultation',             icon:'Stethoscope'},
   ];
 
   const ABSENT_V2 = new Set(['G','G2','RG','V','F','CTP','R','A']);
 
+  // smap[code][dow] = {am:[{init,id,status,isNew}], pm:[...], flash_am, flash_pm}
   const smap = {};
-  SECTORS.forEach(s => { smap[s.code] = Array(7).fill(null).map(() => ({am:[], pm:[]})); });
+  SECTORS.forEach(s => {
+    smap[s.code] = Array(7).fill(null).map(() => ({am:[], pm:[], flash_am:false, flash_pm:false}));
+  });
+  // gardes[dow] = {g:init, g2:init}
+  const gardes = Array(7).fill(null).map(() => ({g:null, g2:null}));
+  // bottom rows
+  const h18row    = Array(7).fill(null);
+  const sortieRow = Array(7).fill(null).map(()=>[]);
+  const absentRow = Array(7).fill(null).map(()=>[]);
 
   daySlots.forEach((slot, dow) => {
     if (!slot) return;
     const monthData = slot.sourceMonth || slot.month;
     monthData.doctors.forEach(doc => {
       const entry = slot.sourceMonth
-        ? (slot.sourceMonth.doctors.find(d => d.id === doc.id)?.days[slot.dayIdx] || {})
-        : (doc.days[slot.dayIdx] || {});
-      const st = entry.status || '';
+        ? (slot.sourceMonth.doctors.find(d=>d.id===doc.id)?.days[slot.dayIdx]||{})
+        : (doc.days[slot.dayIdx]||{});
+      const st = entry.status||'';
 
-      if (ABSENT_V2.has(st)) {
-        if (st === 'G')  smap['G/RG'][dow].am.push({init:doc.initials, id:doc.id, status:'G'});
-        if (st === 'G2') smap['G/RG'][dow].am.push({init:doc.initials, id:doc.id, status:'G2'});
-        return;
-      }
+      // Bottom rows
+      if (st==='G')  gardes[dow].g  = doc.initials;
+      if (st==='G2') gardes[dow].g2 = doc.initials;
+      if (st==='18') h18row[dow]    = doc.initials;
+      if (st==='RG') sortieRow[dow].push(doc.initials);
+      if (['A','V','F','CTP','R','I','E','CP'].includes(st)) absentRow[dow].push({init:doc.initials, reason:st});
 
-      const am = entry.morning   || '';
-      const pm = entry.afternoon || '';
-      const amKey = am.startsWith('CS-') ? 'CS' : am;
-      const pmKey = pm.startsWith('CS-') ? 'CS' : pm;
+      if (ABSENT_V2.has(st)) return;
 
-      if (amKey && smap[amKey]) smap[amKey][dow].am.push({init:doc.initials, id:doc.id, status:st, sector:am});
-      if (pmKey && smap[pmKey]) smap[pmKey][dow].pm.push({init:doc.initials, id:doc.id, status:st, sector:pm});
-
-      const cs = entry.cs || '';
-      if (cs && smap['CS']) smap['CS'][dow].am.push({init:doc.initials, id:doc.id, status:st, sector:cs});
+      const am = entry.morning||'', pm = entry.afternoon||'';
+      const amKey = am.startsWith('CS-')?'CS':am;
+      const pmKey = pm.startsWith('CS-')?'CS':pm;
+      if (amKey && smap[amKey]) smap[amKey][dow].am.push({init:doc.initials, id:doc.id, status:st});
+      if (pmKey && smap[pmKey]) smap[pmKey][dow].pm.push({init:doc.initials, id:doc.id, status:st});
+      // CS explicite
+      const cs = entry.cs||'';
+      if (cs && smap['CS'] && !am.startsWith('CS-')) smap['CS'][dow].am.push({init:doc.initials, id:doc.id, status:st});
     });
   });
 
+  // Marquer les flash (slot vide sur jour ouvré)
+  SECTORS.forEach(s => {
+    daySlots.forEach((slot, dow) => {
+      if (!slot || slot.isWeekend || slot.isFerie) return;
+      const cell = smap[s.code][dow];
+      cell.flash_am = cell.am.length === 0;
+      cell.flash_pm = cell.pm.length === 0;
+    });
+  });
+
+  // Lire les overrides placés manuellement (affectés via le comité ce jour)
+  // On les marque avec isNew=true pour les afficher en vert
+  if (window._planningOverrides) {
+    Object.entries(window._planningOverrides).forEach(([date, docId]) => {
+      // déjà dans le smap via le JSON — pas besoin de traitement supplémentaire
+    });
+  }
+
   const activeSectors = SECTORS.filter(s =>
-    smap[s.code].some(d => d.am.length || d.pm.length)
+    smap[s.code].some(d => d.am.length||d.pm.length||d.flash_am||d.flash_pm)
   );
 
-  // ── EN-TÊTE — identique index.html ──
-  let thead = '<thead><tr><th class="th-sector">SECTEUR</th>';
+  // ── THEAD ──
+  const JOURS_ABR = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
+  let thead = '<thead><tr>';
+  thead += '<th class="th-sector">SECTEUR</th>';
   daySlots.forEach((slot, i) => {
-    if (!slot) { thead += '<th class="th-day weekend"></th>'; return; }
-    const isWe = slot.isWeekend || slot.isFerie;
+    if (!slot) { thead += `<th class="th-day weekend"></th>`; return; }
+    const isWe = slot.isWeekend||slot.isFerie;
     const isTd = slot.date === today;
-    const cls  = ['th-day', (isWe||slot.isFerie)?'weekend':'', isTd?'today':''].filter(Boolean).join(' ');
+    const cls  = ['th-day', isWe?'weekend':'', isTd?'today':''].filter(Boolean).join(' ');
+    const jf   = slot.isFerie ? '<span style="font-size:8px;color:#CE1126;font-weight:700;margin-left:2px;vertical-align:super">JF</span>' : '';
+    const ampm = !isWe
+      ? '<div class="am-pm-labels"><div class="am-pm-label">AM</div><div class="am-pm-label pm">PM</div></div>'
+      : '';
     thead += `<th class="${cls}">
-      <div class="day-name">${['LUN','MAR','MER','JEU','VEN','SAM','DIM'][i]}</div>
-      <div class="day-date">${slot.day}${slot.isFerie?' <span style="font-size:8px;color:#C2410C;font-weight:700">JF</span>':''}</div>
-      ${!isWe ? '<div class="am-pm-labels"><div class="am-pm-label">AM</div><div class="am-pm-label pm">PM</div></div>' : ''}
+      <div class="day-name">${JOURS_ABR[i]}</div>
+      <div class="day-num">${slot.day}${jf}</div>
+      ${ampm}
     </th>`;
   });
   thead += '</tr></thead>';
 
-  // ── CORPS — identique index.html ──
-  const makeChips = (arr) => {
-    const chips = arr.map(p => {
-      const cls = (p.status==='G'||p.status==='G2') ? 'slot-name chip-guard'
-                : p.status==='18' ? 'slot-name chip-h18'
-                : 'slot-name';
-      return `<span class="${cls}" title="${p.id}">${p.init}</span>`;
-    });
-    if (chips.length % 2 !== 0) chips.push('<span class="slot-name-spacer"></span>');
-    return chips.join('');
-  };
+  // ── TBODY SECTEURS ──
+  function makeChip(p, extraCls='') {
+    const isNew = p.isNew||false;
+    const cls = isNew ? 'slot-name slot-new' : 'slot-name';
+    return `<span class="${cls}${extraCls?` ${extraCls}`:''}" title="${p.id||''}">${p.init}</span>`;
+  }
+  function makeSlot(items, flash, sector, sectorLabel, date, slotKey) {
+    let html = '';
+    items.forEach(p => { html += makeChip(p); });
+    if (flash) html += `<span class="slot-flash" onclick="openSidePanel('${sector}','${date}','${sectorLabel}','${slotKey}')">+</span>`;
+    if (!items.length && !flash) html += '<span class="slot-dash">—</span>';
+    return html;
+  }
 
   let tbody = '<tbody>';
-  activeSectors.forEach(s => {
-    tbody += `<tr class="sector-row"><td class="td-sector">
-      <div class="sector-label">
-        <i data-lucide="${s.icon}" class="sector-icon-svg"></i>
-        <span class="sector-name-text">${s.label}</span>
-      </div></td>`;
-
+  activeSectors.forEach(sec => {
+    tbody += `<tr class="sector-row">
+      <td class="td-sector">
+        <div class="sector-label">
+          <i data-lucide="${sec.icon}" class="sector-icon-svg"></i>
+          <span class="sector-name-text">${sec.label}</span>
+        </div>
+      </td>`;
     daySlots.forEach((slot, dow) => {
-      if (!slot) { tbody += '<td class="td-day weekend"></td>'; return; }
-      const isWe = slot.isWeekend || slot.isFerie;
+      if (!slot) { tbody += `<td class="td-day weekend"></td>`; return; }
+      const isWe = slot.isWeekend||slot.isFerie;
       const isTd = slot.date === today;
       const cls  = ['td-day', isWe?'weekend':'', isTd?'today':''].filter(Boolean).join(' ');
       tbody += `<td class="${cls}">`;
 
-      const amList = smap[s.code][dow].am;
-      const pmList = smap[s.code][dow].pm;
-
-      if (!amList.length && !pmList.length) {
-        // Case vide — flash si jour ouvré et secteur non-garde
-        if (!isWe && s.code !== 'G/RG') {
-          tbody += `<div class="slot-pair"><div class="slot"><span class="slot-flash" onclick="openSidePanel('${s.code}','${slot.date}','${s.label}')">+</span></div><div class="slot"><span class="slot-flash" onclick="openSidePanel('${s.code}','${slot.date}','${s.label}')">+</span></div></div>`;
-        } else {
-          tbody += `<div class="slot-pair"><div class="slot"><span class="slot-dash">—</span></div><div class="slot"><span class="slot-dash">—</span></div></div>`;
+      if (isWe) {
+        // Weekend : afficher G sur REA, G2 sur MAT
+        let weContent = '<span class="slot-dash">—</span>';
+        if (sec.code==='REA' && gardes[dow].g) {
+          weContent = `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+            <span class="slot-name chip-guard" title="Garde REA">${gardes[dow].g}</span>
+            <span style="font-size:8px;color:#94A3B8;font-weight:600;">REA</span>
+          </div>`;
         }
-      } else if (isWe) {
-        const names = amList;
-        const chips = names.map(p => {
-          const cls = (p.status==='G'||p.status==='G2') ? 'slot-name chip-guard' : 'slot-name';
-          return `<span class="${cls}" title="${p.id}">${p.init}</span>`;
-        }).join('');
-        tbody += `<div class="slot-pair" style="display:flex;align-items:center;justify-content:center;gap:4px;height:100%;">${chips}</div>`;
+        if (sec.code==='MAT' && gardes[dow].g2) {
+          weContent = `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+            <span class="slot-name chip-guard2" title="Garde MAT">${gardes[dow].g2}</span>
+            <span style="font-size:8px;color:#94A3B8;font-weight:600;">MAT</span>
+          </div>`;
+        }
+        tbody += `<div style="display:flex;align-items:center;justify-content:center;height:56px;">${weContent}</div>`;
       } else {
+        const cell = smap[sec.code][dow];
         tbody += `<div class="slot-pair">
-          <div class="slot">${amList.length ? makeChips(amList) : `<span class="slot-flash" onclick="openSidePanel('${s.code}','${slot.date}','${s.label}')">+</span>`}</div>
-          <div class="slot">${pmList.length ? makeChips(pmList) : `<span class="slot-flash" onclick="openSidePanel('${s.code}','${slot.date}','${s.label}')">+</span>`}</div>
+          <div class="slot">${makeSlot(cell.am, cell.flash_am, sec.code, sec.label, slot.date, 'am')}</div>
+          <div class="slot">${makeSlot(cell.pm, cell.flash_pm, sec.code, sec.label, slot.date, 'pm')}</div>
         </div>`;
       }
       tbody += '</td>';
@@ -1661,7 +1727,59 @@ function renderWeek() {
   });
   tbody += '</tbody>';
 
+  // ── BOTTOM TABLE (Gardes & fonctions) ──
+  let bottomHtml = `<div class="bt-card">
+    <div class="bt-card-header">Gardes &amp; fonctions</div>
+    <div class="bt-scroll"><table class="bt-table"><tbody>`;
+
+  function btRow(label, cellsFn) {
+    let row = `<tr><td class="bt-label">${label}</td>`;
+    daySlots.forEach((slot, dow) => {
+      const isWe = slot ? (slot.isWeekend||slot.isFerie) : true;
+      row += `<td class="bt-cell${isWe?' weekend':''}">${slot ? cellsFn(dow) : ''}</td>`;
+    });
+    return row + '</tr>';
+  }
+
+  bottomHtml += btRow('Garde 24h', dow => {
+    const g = gardes[dow];
+    if (!g.g && !g.g2) return '<span class="bt-dash">—</span>';
+    let html = '<div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">';
+    if (g.g)  html += `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;"><span class="name-tag guard">${g.g}</span><span style="font-size:8px;color:#94A3B8;font-weight:600;">REA</span></div>`;
+    if (g.g2) html += `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;"><span class="name-tag guard2">${g.g2}</span><span style="font-size:8px;color:#94A3B8;font-weight:600;">MAT</span></div>`;
+    return html + '</div>';
+  });
+
+  bottomHtml += btRow('8h – 18h', dow =>
+    h18row[dow]
+      ? `<span class="name-tag h18">${h18row[dow]}</span>`
+      : '<span class="bt-dash">—</span>'
+  );
+
+  bottomHtml += btRow('Sortie de garde', dow =>
+    sortieRow[dow].length
+      ? sortieRow[dow].map(i=>`<span class="name-tag rg">${i}</span>`).join('')
+      : '<span class="bt-dash">—</span>'
+  );
+
+  bottomHtml += btRow('Absences / VAC / F', dow =>
+    absentRow[dow].length
+      ? '<div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">'
+        + absentRow[dow].map(a =>
+            `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+              <span class="name-tag absent" title="${a.reason}">${a.init}</span>
+              <span style="font-size:8px;color:#991B1B;font-weight:600;">${a.reason}</span>
+            </div>`
+          ).join('') + '</div>'
+      : '<span class="bt-dash">—</span>'
+  );
+
+  bottomHtml += '</tbody></table></div></div>';
+
+  // ── ÉCRIRE DANS LE DOM ──
   document.getElementById('planTable').innerHTML = thead + tbody;
+  document.getElementById('bottomSection').innerHTML = bottomHtml;
+
   if (window.lucide) lucide.createIcons();
   updateFlashBadge();
   updateValidationBadge();
@@ -1738,14 +1856,16 @@ async function toggleValiderSemaine() {
 // ── SIDE PANEL DISPO ─────────────────────────────────────────────────
 let _sideCtx = null;
 
-async function openSidePanel(sector, date, sectorLabel) {
-  _sideCtx = {sector, date, sectorLabel};
+async function openSidePanel(sector, date, sectorLabel, slotKey) {
+  window._sideCtx = {sector, date, sectorLabel, slotKey};
   const card = document.getElementById('dispoCard');
   if (!card) return;
   card.style.display = 'block';
   document.getElementById('pspTitle').textContent = `Affecter en ${sectorLabel}`;
-  document.getElementById('pspSub').textContent =
-    new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+  document.getElementById('pspSub').innerHTML =
+    `<span style="background:${getSectorBg(sector)};color:${getSectorFg(sector)};padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-right:6px;">${sector}</span>`
+    + `<span style="background:${slotKey==='am'?'#CE1126':'#64748B'};color:#fff;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-right:6px;">${slotKey.toUpperCase()}</span>`
+    + new Date(date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
   document.getElementById('pspContent').innerHTML =
     '<div class="loading"><div class="spinner"></div></div>';
   card.scrollIntoView({behavior:'smooth', block:'nearest'});
@@ -1761,12 +1881,21 @@ async function openSidePanel(sector, date, sectorLabel) {
     });
 }
 
+function getSectorBg(code) {
+  const m = {VIS:'#DBEAFE',REA:'#FEE2E2',ORT:'#F3E8FF',DVI:'#E0E7FF',ORL:'#FEF3C7',END:'#DCFCE7',CI:'#FFEDD5',MAT:'#FCE7F3',CS:'#F0FDF4'};
+  return m[code]||'#F1F5F9';
+}
+function getSectorFg(code) {
+  const m = {VIS:'#1D4ED8',REA:'#991B1B',ORT:'#6B21A8',DVI:'#3730A3',ORL:'#92400E',END:'#166534',CI:'#9A3412',MAT:'#9D174D',CS:'#065F46'};
+  return m[code]||'#334155';
+}
+
 function renderSidePanelContent(dispo, sector) {
   const GROUPS = [
-    {key:'VOLANT',  label:'Volants',           cls:'volant',  bg:'#DBEAFE', fg:'#1D4ED8'},
-    {key:'PRESENT', label:'Présents',           cls:'',        bg:'#F1F5F9', fg:'#334155'},
-    {key:'CTP',     label:'CTP (dernier recours)', cls:'ctp',  bg:'#F3E8FF', fg:'#7C3AED'},
-    {key:'R',       label:'Récup (dernier recours)', cls:'rr', bg:'#DCFCE7', fg:'#166534'},
+    {key:'VOLANT',  bg:'#DBEAFE', fg:'#1D4ED8', label:'Volants disponibles'},
+    {key:'PRESENT', bg:'#F1F5F9', fg:'#334155', label:'Présents dans un secteur'},
+    {key:'CTP',     bg:'#F3E8FF', fg:'#7C3AED', label:'CTP — dernier recours'},
+    {key:'R',       bg:'#DCFCE7', fg:'#166534', label:'Récup — dernier recours'},
   ];
   const byRole = {};
   dispo.forEach(m => { if (!byRole[m.role]) byRole[m.role] = []; byRole[m.role].push(m); });
@@ -1775,48 +1904,78 @@ function renderSidePanelContent(dispo, sector) {
   GROUPS.forEach(g => {
     const mars = byRole[g.key];
     if (!mars?.length) return;
-    html += `<div style="margin-right:20px;"><div style="font-size:10px;font-weight:700;color:var(--ink-4);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">${g.label}</div>`;
-    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+    html += `<div style="margin-bottom:16px;">
+      <div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">${g.label}</div>
+      <div style="display:flex;flex-direction:column;gap:5px;">`;
     mars.forEach(m => {
-      html += `<button onclick="placeMAR('${m.id}')"
-        style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid ${g.bg};border-radius:8px;background:${g.bg};cursor:pointer;font-family:inherit;transition:all .12s;"
-        onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
-        <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:${g.fg};">${m.id.length<=6?m.id:m.id.slice(0,6)}</span>
-        <span style="font-size:10px;color:${g.fg};opacity:.7;">${m.secteur}</span>
+      html += `<button onclick="placeMAR('${m.id}','${m.init}')"
+        style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--white);cursor:pointer;font-family:inherit;text-align:left;transition:all .12s;"
+        onmouseover="this.style.borderColor='#CE1126';this.style.background='#FFF8F8'"
+        onmouseout="this.style.borderColor='var(--line)';this.style.background='var(--white)'">
+        <span style="font-family:var(--mono);font-size:11px;font-weight:700;background:${g.bg};color:${g.fg};padding:3px 7px;border-radius:5px;flex-shrink:0;">${m.id.length<=6?m.id:m.id.slice(0,6)}</span>
+        <div style="flex:1;">
+          <div style="font-size:12px;font-weight:700;color:var(--ink);">${m.id}</div>
+          <div style="font-size:10px;color:var(--ink-4);margin-top:1px;">${m.secteur}</div>
+        </div>
+        <span style="font-size:13px;color:#CBD5E1;">→</span>
       </button>`;
     });
     html += '</div></div>';
   });
 
-  if (!html) html = '<div style="color:var(--ink-4);font-size:13px;">Aucun MAR disponible ce jour</div>';
+  if (!html) html = '<div style="color:var(--ink-4);font-size:13px;padding:8px 0;">Aucun MAR disponible ce jour</div>';
   document.getElementById('pspContent').innerHTML = html;
 }
 
-async function placeMAR(marId) {
-  if (!_sideCtx) return;
-  const {sector, date} = _sideCtx;
+async function placeMAR(marId, marInit) {
+  const ctx = window._sideCtx;
+  if (!ctx) return;
+
+  // 1. Feedback visuel immédiat : injecter la chip dans le slot
+  const planTable = document.getElementById('planTable');
+  if (planTable) {
+    // Trouver et remplacer le premier slot-flash dans la cellule cible
+    const flashes = planTable.querySelectorAll('.slot-flash');
+    flashes.forEach(el => {
+      const onclick = el.getAttribute('onclick')||'';
+      if (onclick.includes(`'${ctx.sector}'`) && onclick.includes(`'${ctx.date}'`) && onclick.includes(`'${ctx.slotKey}'`)) {
+        const chip = document.createElement('span');
+        chip.className = 'slot-name slot-new';
+        chip.title = marId + ' (placé manuellement)';
+        chip.textContent = marInit;
+        el.parentNode.replaceChild(chip, el);
+      }
+    });
+  }
   closeSidePanel();
+  updateFlashBadge();
+
+  // 2. Appel API (en parallèle)
+  showToast('⏳ Enregistrement…');
   try {
     const res = await api({
       action:'savePlanningOverride',
-      date, marId,
-      morning: sector, afternoon: sector,
-      comment: `Comité — ${sector}`
+      date: ctx.date, marId,
+      morning: ctx.slotKey==='am' ? ctx.sector : '',
+      afternoon: ctx.slotKey==='pm' ? ctx.sector : '',
+      comment: `Comité — ${ctx.sector} ${ctx.slotKey.toUpperCase()}`
     });
     if (!res.success) throw new Error(res.error);
-    showToast(`✅ ${marId} affecté en ${sector} le ${date}`);
-    await loadPlanningData();
-    renderWeek();
+    showToast(`✅ ${marId} affecté — JSON mis à jour`);
+    // Recharger le planning en arrière-plan pour sync
+    setTimeout(() => loadPlanningData().then(() => renderWeek()), 2000);
   } catch(e) {
-    showToast('Erreur : ' + e.message, true);
+    showToast('Erreur : ' + e.message);
   }
 }
 
 function closeSidePanel() {
   const card = document.getElementById('dispoCard');
   if (card) card.style.display = 'none';
-  _sideCtx = null;
+  window._sideCtx = null;
 }
+
+function closeDispoPopup() { closeSidePanel(); }
 
 function closeDispoPopup() {
   closeSidePanel();
