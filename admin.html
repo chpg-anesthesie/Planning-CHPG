@@ -2929,10 +2929,22 @@ async function openWizard() {
   const month = new Date().getMonth() + 1;
   window._wizEarlyWarning = (month < 9);
 
-  // Charger les groupes depuis GSheet
+  // Charger périodes + groupes depuis GSheet
   try {
     const vacData = await api({action:'getVacancesConfig'});
-    if (vacData.success && vacData.groupes) {
+    if (vacData.success) {
+      // Périodes : préférer celles du GSheet si disponibles, sinon PERIODES_DEFAUT
+      if (vacData.periodes && vacData.periodes.length) {
+        wizPeriodes = vacData.periodes.map(p => ({
+          nom:   p.nom || p.label || '',
+          label: p.nom || p.label || '',
+          debut: p.debut,
+          fin:   p.fin,
+          seuil: p.seuil || 8,
+        }));
+      }
+      // Groupes
+      if (vacData.groupes) {
       wizGroupes = vacData.groupes;
       // Enrichir wizMarsData avec le groupe ET l'ordre de chaque MAR
       ['A','B','C'].forEach(grp => {
@@ -2941,6 +2953,7 @@ async function openWizard() {
           if (mar) { mar.groupe = grp; mar.ordreGroupe = idx; }
         });
       });
+      } // end if(vacData.groupes)
     }
   } catch(e) { /* silencieux */ }
 
