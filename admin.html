@@ -2902,11 +2902,11 @@ let wizGroupes = {A:[], B:[], C:[]};
 // Périodes zone B pré-remplies par année
 const PERIODES_DEFAUT = {
   2027: [
-    {label:'Hiver',     debut:'2027-02-20', fin:'2027-03-07',  seuil:8},
-    {label:'Printemps', debut:'2027-04-17', fin:'2027-05-03',  seuil:8},
-    {label:'Été',       debut:'2027-07-03', fin:'2027-08-31',  seuil:12},
-    {label:'Toussaint', debut:'2027-10-23', fin:'2027-11-08',  seuil:8},
-    {label:'Noël',      debut:'2027-12-18', fin:'2028-01-05',  seuil:8},
+    {label:'Hiver',     nom:'Hiver',     debut:'2027-02-20', fin:'2027-03-07',  seuil:8},
+    {label:'Printemps', nom:'Printemps', debut:'2027-04-17', fin:'2027-05-03',  seuil:8},
+    {label:'Été',       nom:'Été',       debut:'2027-07-03', fin:'2027-08-31',  seuil:12},
+    {label:'Toussaint', nom:'Toussaint', debut:'2027-10-23', fin:'2027-11-08',  seuil:8},
+    {label:'Noël',      nom:'Noël',      debut:'2027-12-18', fin:'2028-01-05',  seuil:8},
   ],
   2028: [
     {label:'Hiver',     debut:'2028-02-19', fin:'2028-03-06',  seuil:8},
@@ -3182,7 +3182,8 @@ function renderWizStep() {
 
 function collectPeriodes() {
   wizPeriodes = wizPeriodes.map((p, i) => ({
-    label: p.label,
+    label: p.label || p.nom,
+    nom:   p.label || p.nom,
     debut: document.getElementById('wizP'+i+'D')?.value || p.debut,
     fin:   document.getElementById('wizP'+i+'F')?.value || p.fin,
     seuil: parseInt(document.getElementById('wizP'+i+'S')?.value) || p.seuil,
