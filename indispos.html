@@ -786,7 +786,7 @@ function applyTool(date) {
     showToast('🔒 Les vacances et formations sont gérées par le comité');
     return;
   }
-  if (currentTool === 'VAC' || currentTool === 'FORM') {
+  if (false) {
     const pj = premierJourAnneePlanning(YEAR);
   const premierJour = `${pj.getFullYear()}-${String(pj.getMonth()+1).padStart(2,'0')}-${String(pj.getDate()).padStart(2,'0')}`;
   const dj = premierJourAnneePlanning(YEAR + 1);
@@ -859,11 +859,12 @@ function updateStats() {
     }
   });
 
-  const quotaVac = vacConfig ? vacConfig.quotaVac : 40;
-  const quotaColor = vacOuvres >= quotaVac ? '#B91C1C' : 'var(--vac-fg)';
+  const quotaVac = vacConfig ? vacConfig.quotaVac : null;
+  const quotaColor = quotaVac && vacOuvres >= quotaVac ? '#B91C1C' : 'var(--vac-fg)';
+  const quotaLabel = quotaVac ? `${vacOuvres}/${quotaVac} jours ouvrés` : `${vacOuvres} jours ouvrés`;
 
   document.getElementById('statsBar').innerHTML = `
-    <div class="stat-item" style="color:${quotaColor}">🏖️ ${vacOuvres}/${quotaVac} jours ouvrés</div>
+    <div class="stat-item" style="color:${quotaColor}">🏖️ ${quotaLabel}</div>
     <div class="stat-item" style="color:var(--form-fg)">📚 ${counts.FORM} jours</div>
     <div class="stat-item" style="color:var(--indispo-fg)">🚫 ${counts.INDISPO} jours</div>
     <div class="stat-item" style="color:var(--souhait-fg)">⭐ ${counts.SOUHAIT} gardes souhaitées</div>
