@@ -3070,7 +3070,7 @@ function renderWizStep() {
       const members = wizMarsData
         .filter(m => m.actif && m.groupe === grp)
         .sort((a,b) => (a.ordreGroupe||0) - (b.ordreGroupe||0));
-      const shift = members.length ? offset % members.length : 0;
+      const shift = members.length ? (members.length - (offset % members.length)) % members.length : 0;
       const shifted = members.length
         ? [...members.slice(shift), ...members.slice(0, shift)]
         : [];
