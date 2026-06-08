@@ -2921,6 +2921,7 @@ async function openWizard() {
   const nextYear = YEAR + 1;
   document.getElementById('wizNextYear').textContent = nextYear;
   wizCurrentStep = 0;
+  window._wizStaffConfirmed = false;
   wizPeriodes = PERIODES_DEFAUT[nextYear] || PERIODES_DEFAUT[2027].map(p => ({...p}));
   wizMarsData = [...marsData];
 
@@ -2959,21 +2960,28 @@ function closeWizard() {
 
 function updateWizNav() {
   // Progress dots
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 6; i++) {
     const step = document.getElementById('wizStep' + i);
     const dot = document.getElementById('wizDot' + i);
+    if (!step) continue;
     step.className = 'wizard-step' + (i === wizCurrentStep ? ' active' : i < wizCurrentStep ? ' done' : '');
     dot.textContent = i < wizCurrentStep ? '✓' : (i + 1);
   }
   // Buttons
   document.getElementById('wizBackBtn').style.visibility = wizCurrentStep === 0 ? 'hidden' : 'visible';
   const nextBtn = document.getElementById('wizNextBtn');
-  if (wizCurrentStep === 3) {
-    nextBtn.textContent = '🚀 Lancer';
+  if (wizCurrentStep === 5) {
+    nextBtn.textContent = '📧 Envoyer les codes';
     nextBtn.style.background = '#166534';
+    nextBtn.disabled = !window._wizStaffConfirmed;
+  } else if (wizCurrentStep === 3) {
+    nextBtn.textContent = '⚙️ Initialiser';
+    nextBtn.style.background = '#1D4ED8';
+    nextBtn.disabled = false;
   } else {
     nextBtn.innerHTML = 'Suivant →';
     nextBtn.style.background = '';
+    nextBtn.disabled = false;
   }
 }
 
@@ -2982,14 +2990,13 @@ function wizPrev() {
 }
 
 function wizNext() {
-  if (wizCurrentStep < 3) {
-    // Sauvegarder les données de l'étape courante avant de passer
-    if (wizCurrentStep === 1) collectPeriodes();
-    if (wizCurrentStep === 2) collectGroupes();
+  if (wizCurrentStep === 1) collectPeriodes();
+  if (wizCurrentStep === 2) collectGroupes();
+  if (wizCurrentStep === 3) { launchWizInit(); return; }
+  if (wizCurrentStep === 5) { launchWizardSendCodes(); return; }
+  if (wizCurrentStep < 5) {
     wizCurrentStep++;
     renderWizStep();
-  } else {
-    launchWizard();
   }
 }
 
@@ -3108,36 +3115,66 @@ function renderWizStep() {
     html += `<div style="margin-top:10px;font-size:11px;color:var(--ink-4)">Le groupe listé en premier obtient ses congés en priorité. Pour changer un MAR de groupe → onglet <strong>Équipe</strong>.</div>`;
 
   } else if (wizCurrentStep === 3) {
-    // ÉTAPE 4 — Récapitulatif + Lancement
+    // ÉTAPE 4 — Initialisation GSheet
+    const nextYear = YEAR + 1;
+    if (window._wizIndisposExists) {
+      html += `<div style="margin-bottom:12px;padding:10px 14px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;font-size:12px;color:#92400E;">
+        ⚠️ <strong>INDISPOS_${nextYear} existe déjà</strong> — l'initialisation ignorera la création de cet onglet.
+      </div>`;
+    }
+    html += `<div class="wizard-section-title">Initialisation de l'année ${nextYear}</div>`;
+    html += `<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">Ces actions préparent le GSheet pour la saisie des indispos. Cliquez sur <strong>Initialiser</strong> pour lancer.</div>`;
+    html += `<div class="wiz-progress" id="wizInitProgress">
+      <div class="wiz-progress-item" id="wiz-i1">○ Sauvegarde des périodes de vacances</div>
+      <div class="wiz-progress-item" id="wiz-i2">○ Sauvegarde des groupes A/B/C</div>
+      <div class="wiz-progress-item" id="wiz-i3">○ Création de INDISPOS_${nextYear}</div>
+      <div class="wiz-progress-item" id="wiz-i4">○ Activation saisie indispos ${nextYear}</div>
+      <div class="wiz-progress-item" id="wiz-i5">○ Journal</div>
+    </div>`;
+
+  } else if (wizCurrentStep === 4) {
+    // ÉTAPE 5 — Staff physique
+    const nextYear = YEAR + 1;
+    html += `<div class="wizard-section-title">Réunion staff vacances ${nextYear}</div>`;
+    html += `<div style="margin-bottom:16px;padding:14px;background:var(--line-light);border-radius:10px;font-size:13px;color:var(--ink-2);line-height:1.6">
+      Ouvrez <strong>staff.html</strong> sur l'écran de la salle de réunion et saisissez les VAC/FORM de chaque MAR pendant la réunion.
+    </div>`;
+    html += `<div style="text-align:center;margin-bottom:20px">
+      <a href="staff.html" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--red);color:white;border-radius:10px;font-weight:700;font-size:13px;text-decoration:none">
+        📋 Ouvrir staff.html →
+      </a>
+    </div>`;
+    html += `<div id="wizStaffProgress" style="margin-bottom:16px;padding:10px 14px;background:var(--line-light);border-radius:10px;font-size:12px;color:var(--ink-3)">
+      ⏳ Chargement de la progression…
+    </div>`;
+    html += `<div style="text-align:center">
+      <button onclick="wizConfirmStaff()" style="padding:10px 24px;background:#166534;color:white;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer">
+        ✅ Le staff est terminé
+      </button>
+    </div>`;
+    if (window._wizStaffConfirmed) {
+      html += `<div style="margin-top:12px;text-align:center;font-size:12px;color:#166534;font-weight:700">✓ Staff confirmé — vous pouvez passer à l'étape suivante</div>`;
+    }
+    setTimeout(wizPollStaffProgress, 300);
+
+  } else if (wizCurrentStep === 5) {
+    // ÉTAPE 6 — Envoi des codes
     const nextYear = YEAR + 1;
     const actifs = wizMarsData.filter(m => m.actif);
     const avecEmail = actifs.filter(m => m.email);
     const sansEmail = actifs.filter(m => !m.email);
+    if (!window._wizStaffConfirmed) {
+      html += `<div style="padding:14px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;font-size:13px;color:#92400E;margin-bottom:16px">
+        ⚠️ Confirmez d'abord la fin du staff (étape 5) avant d'envoyer les codes.
+      </div>`;
+    }
+    html += `<div class="wizard-section-title">Envoi des codes d'accès</div>`;
     html += `<div class="wiz-recap">
-      <div class="wiz-recap-item">
-        <span>✅</span>
-        <div><strong>${actifs.length} MARs actifs</strong> — ${avecEmail.length} avec email${sansEmail.length ? `, ${sansEmail.length} sans email (${sansEmail.map(m=>m.initiales).join(', ')})` : ''}</div>
-      </div>
-      <div class="wiz-recap-item">
-        <span>✅</span>
-        <div><strong>${wizPeriodes.length} périodes de vacances</strong> configurées pour ${nextYear}</div>
-      </div>
-      <div class="wiz-recap-item">
-        <span>✅</span>
-        <div><strong>Groupes A/B/C</strong> vérifiés — rotation automatique appliquée</div>
-      </div>
-    </div>
-    <div style="margin:16px 0;padding:14px;background:var(--line-light);border-radius:10px;font-size:12px;color:var(--ink-3);line-height:1.7">
-      <strong style="color:var(--ink);display:block;margin-bottom:6px">Actions qui vont être exécutées :</strong>
-      → Sauvegarde des périodes de vacances dans PERIODES_VAC<br>
-      ${window._wizIndisposExists ? `⚠️ INDISPOS_${nextYear} existe déjà — <strong>étape ignorée</strong>` : `→ Création de l'onglet INDISPOS_${nextYear}`}<br>
-      → Archivage OVERRIDES → OVERRIDES_${YEAR}<br>
-      → Activation saisie indispos ${nextYear} (ANNEE_ACTIVE reste sur ${YEAR})<br>
-      → Envoi des codes d'accès à ${avecEmail.length} MAR(s) par email
-    </div>
-    <div style="padding:10px 12px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:9px;font-size:12px;color:#92400E">
-      ⚠️ Ces actions sont irréversibles. Vérifiez que tout est correct avant de lancer.
+      <div class="wiz-recap-item"><span>📧</span><div><strong>${avecEmail.length} MAR(s)</strong> vont recevoir leur code par email</div></div>
+      ${sansEmail.length ? `<div class="wiz-recap-item"><span>⚠️</span><div style="color:var(--orange)"><strong>${sansEmail.length} MAR(s) sans email</strong> : ${sansEmail.map(m=>m.initiales).join(', ')} — à notifier manuellement</div></div>` : ''}
+      <div class="wiz-recap-item"><span>🔒</span><div>Les VAC/FORM saisis lors du staff seront <strong>verrouillés</strong> — les MARs ne pourront plus les modifier</div></div>
     </div>`;
+    html += `<div class="wiz-progress" id="wizCodesProgress" style="margin-top:16px"></div>`;
   }
 
   document.getElementById('wizBody').innerHTML = html;
@@ -3156,36 +3193,31 @@ function collectGroupes() {
   // Groupes sont read-only dans le wizard pour l'instant — modifiables dans l'onglet Équipe
 }
 
-async function launchWizard() {
+// ── WIZARD 1 — Step 3 : Initialisation GSheet ────────────────────────
+async function launchWizInit() {
   const nextYear = YEAR + 1;
   const nextBtn = document.getElementById('wizNextBtn');
   nextBtn.disabled = true;
-
-  // Afficher la progression
-  document.getElementById('wizBody').innerHTML = `
-    <div class="wiz-progress">
-      <div class="wiz-progress-item" id="wiz-p1">⏳ Sauvegarde des périodes de vacances...</div>
-      <div class="wiz-progress-item" id="wiz-p2" style="opacity:.4">○ Création de INDISPOS_${nextYear}...</div>
-      <div class="wiz-progress-item" id="wiz-p3" style="opacity:.4">○ Activation saisie indispos ${nextYear}...</div>
-      <div class="wiz-progress-item" id="wiz-p4" style="opacity:.4">○ Envoi des codes d'accès...</div>
-    </div>`;
   document.getElementById('wizBackBtn').style.visibility = 'hidden';
 
   const steps = [
-    {id:'wiz-p1', label:'Périodes sauvegardées', action: () => api({action:'savePeriodes', periodes: wizPeriodes})},
-    {id:'wiz-p2', label:'INDISPOS créé',         action: async () => {
+    {id:'wiz-i1', label:'Périodes sauvegardées',  action: () => api({action:'savePeriodes', periodes: wizPeriodes})},
+    {id:'wiz-i2', label:'Groupes sauvegardés',    action: () => api({action:'saveGroupes', groupes: wizGroupes})},
+    {id:'wiz-i3', label:'INDISPOS créé',           action: async () => {
       if (window._wizIndisposExists) return {success: true};
       return api({action:'initYear', year: nextYear});
     }},
-    {id:'wiz-p3', label:'Indispos activées',      action: () => api({action:'setIndisposYear', year: nextYear})},
-    {id:'wiz-p4', label:'Codes envoyés',         action: () => api({action:'sendCodes'})},
+    {id:'wiz-i4', label:'Saisie indispos activée', action: () => api({action:'setIndisposYear', year: nextYear})},
+    {id:'wiz-i5', label:'Journal mis à jour',      action: () => Promise.resolve({success: true})},
   ];
 
   let allOk = true;
   for (const step of steps) {
     const el = document.getElementById(step.id);
+    if (!el) continue;
     el.classList.add('running');
     el.style.opacity = '1';
+    el.textContent = '⏳ ' + el.textContent.replace('○ ', '');
     try {
       const res = await step.action();
       if (!res || !res.success) throw new Error(res?.error || 'Erreur');
@@ -3199,43 +3231,96 @@ async function launchWizard() {
       allOk = false;
       break;
     }
-    // Activer l'étape suivante visuellement
-    const next = document.getElementById(steps[steps.indexOf(step)+1]?.id);
-    if (next) { next.style.opacity = '1'; next.textContent = next.textContent.replace('○','⏳'); }
   }
 
-  // Résultat final
-  const actifs = wizMarsData.filter(m => m.actif);
-  const avecEmail = actifs.filter(m => m.email);
-  const sansEmail = actifs.filter(m => !m.email);
-
   if (allOk) {
-    // YEAR reste sur N — ANNEE_ACTIVE ne bascule qu'au Wizard 3
+    window._wizIndisposExists = true;
+    setTimeout(() => {
+      wizCurrentStep = 4;
+      renderWizStep();
+    }, 800);
+  } else {
+    const backBtn = document.getElementById('wizBackBtn');
+    backBtn.style.visibility = 'visible';
+    nextBtn.disabled = false;
+    nextBtn.textContent = '⚙️ Réessayer';
+  }
+}
+
+// ── WIZARD 1 — Step 4 : Staff polling & confirmation ─────────────────
+let _wizStaffPollTimer = null;
+async function wizPollStaffProgress() {
+  const el = document.getElementById('wizStaffProgress');
+  if (!el) return;
+  try {
+    const res = await api({action:'getAllIndispos', year: YEAR + 1});
+    if (res.success && res.data) {
+      const meds = Object.keys(res.data);
+      const avecSaisie = meds.filter(id => Object.keys(res.data[id]).some(d => ['VAC','FORM'].includes(res.data[id][d])));
+      el.textContent = `📊 ${avecSaisie.length} / ${meds.length} MARs avec VAC/FORM saisis`;
+      el.style.color = avecSaisie.length === meds.length ? '#166534' : 'var(--ink-3)';
+    }
+  } catch(e) { /* silencieux */ }
+  if (wizCurrentStep === 4) {
+    _wizStaffPollTimer = setTimeout(wizPollStaffProgress, 30000);
+  }
+}
+
+function wizConfirmStaff() {
+  window._wizStaffConfirmed = true;
+  clearTimeout(_wizStaffPollTimer);
+  renderWizStep();
+  updateWizNav();
+}
+
+// ── WIZARD 1 — Step 5 : Envoi des codes ──────────────────────────────
+async function launchWizardSendCodes() {
+  if (!window._wizStaffConfirmed) return;
+  const nextBtn = document.getElementById('wizNextBtn');
+  nextBtn.disabled = true;
+  document.getElementById('wizBackBtn').style.visibility = 'hidden';
+
+  const progressEl = document.getElementById('wizCodesProgress');
+  if (progressEl) {
+    progressEl.innerHTML = '<div class="wiz-progress-item running">⏳ Envoi des codes en cours…</div>';
+  }
+
+  try {
+    const res = await api({action:'sendCodes'});
+    if (!res || !res.success) throw new Error(res?.error || 'Erreur');
+    const nextYear = YEAR + 1;
+    const actifs = wizMarsData.filter(m => m.actif);
+    const sansEmail = actifs.filter(m => !m.email);
     setTimeout(() => {
       document.getElementById('wizBody').innerHTML = `
         <div style="text-align:center;padding:20px 0">
           <div style="font-size:48px;margin-bottom:12px">🎉</div>
-          <div style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px">Année ${YEAR+1} initialisée !</div>
+          <div style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:6px">Année ${nextYear} initialisée !</div>
           <div style="font-size:13px;color:var(--ink-3);line-height:1.6;max-width:360px;margin:0 auto">
-            INDISPOS_${YEAR+1} créé · INDISPOS_ACTIVE → ${YEAR+1}<br>
+            INDISPOS_${nextYear} créé · INDISPOS_ACTIVE → ${nextYear}<br>
             ANNEE_ACTIVE reste sur ${YEAR}<br>
-            ${avecEmail.length} code(s) envoyés par email
+            ${res.sent || 0} code(s) envoyés par email
             ${sansEmail.length ? `<br><span style="color:var(--orange)">⚠️ ${sansEmail.length} MAR(s) sans email : ${sansEmail.map(m=>m.initiales).join(', ')}</span>` : ''}
           </div>
-          <div style="margin-top:20px;font-size:12px;color:var(--ink-4)">Prochaine étape : les MARs saisissent leurs indispos<br>sur indispos.html d'ici novembre ${YEAR}.</div>
-          <button class="wizard-next" style="margin:20px auto 0;display:inline-flex" onclick="closeWizard();showTab('indispos')">Voir l'état des saisies →</button>
+          <div style="margin-top:20px;font-size:12px;color:var(--ink-4)">Les MARs peuvent maintenant saisir leurs indispos</div>
+          <button class="wizard-next" style="margin:20px auto 0;display:inline-flex" onclick="closeWizard();showTab('indispos')">Voir les indispos →</button>
         </div>`;
       document.getElementById('wizNextBtn').style.display = 'none';
       document.getElementById('wizBackBtn').style.display = 'none';
     }, 500);
-  } else {
-    const backBtn = document.getElementById('wizBackBtn');
-    backBtn.style.visibility = 'visible';
-    backBtn.textContent = '← Réessayer';
-    backBtn.onclick = () => { wizCurrentStep = 3; renderWizStep(); };
+  } catch(e) {
+    if (progressEl) {
+      progressEl.innerHTML = `<div class="wiz-progress-item error">✕ Erreur : ${e.message}</div>`;
+    }
     nextBtn.disabled = false;
-    nextBtn.textContent = 'Réessayer';
+    nextBtn.textContent = '📧 Réessayer';
+    document.getElementById('wizBackBtn').style.visibility = 'visible';
   }
+}
+
+// ── WIZARD 1 — ancienne fonction launchWizard (conservée pour compat) ─
+async function launchWizard() {
+  launchWizardSendCodes();
 }
 
 // ── WIZARD GÉNÉRER LES GARDES ────────────────────────────────────────────
@@ -3741,7 +3826,15 @@ async function launchWizardCloture() {
         </div>
         <div class="wizard-step" id="wizStep3">
           <div class="wizard-step-dot" id="wizDot3">4</div>
-          <div class="wizard-step-label">Lancer</div>
+          <div class="wizard-step-label">Initialisation</div>
+        </div>
+        <div class="wizard-step" id="wizStep4">
+          <div class="wizard-step-dot" id="wizDot4">5</div>
+          <div class="wizard-step-label">Staff</div>
+        </div>
+        <div class="wizard-step" id="wizStep5">
+          <div class="wizard-step-dot" id="wizDot5">6</div>
+          <div class="wizard-step-label">Codes</div>
         </div>
       </div>
     </div>
@@ -4744,6 +4837,7 @@ async function sendCodeToMAR(marId, marNom) {
 
 </body>
 </html>
+
 
 
 
