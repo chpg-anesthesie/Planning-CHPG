@@ -537,6 +537,84 @@ function showToast(msg,duration=4000){
     <div id="recapPrioContent"></div>
   </div>
 </div>
+
+<script>
+// ── RÉCAP PRIORITÉS ───────────────────────────────────────────────────
+function openRecapPriorites() {
+  buildRecapPrioContent();
+  document.getElementById('recapPrioritesOverlay').style.display = 'flex';
+}
+function closeRecapPriorites() {
+  document.getElementById('recapPrioritesOverlay').style.display = 'none';
+}
+
+function buildRecapPrioContent() {
+  const el = document.getElementById('recapPrioContent');
+  if (!el) return;
+
+  const offset = currentYear - 2026;
+  const GRP_COLORS = {A:'#3B82F6', B:'#10B981', C:'#F59E0B'};
+
+  // Ordre intra-groupe roté
+  const rotatedGroups = {};
+  ['A','B','C'].forEach(g => {
+    const members = (groupesRef[g] || []);
+    const n = members.length;
+    const shift = n ? (n - (offset % n)) % n : 0;
+    rotatedGroups[g] = [...members.slice(shift), ...members.slice(0, shift)];
+  });
+
+  // Tableau ordre par période
+  let html = '<div style="margin-bottom:20px">';
+  html += '<div style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Ordre inter-groupes par période</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="background:#F8FAFC"><th style="padding:8px;text-align:left;font-weight:600;border-bottom:1px solid #E2E8F0">Période</th><th style="padding:8px;text-align:left;font-weight:600;border-bottom:1px solid #E2E8F0">Ordre priorité</th></tr></thead><tbody>';
+
+  periodes.forEach((p, pi) => {
+    const nomNorm = (p.nom||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+    const base = ORDRE_BASE_STAFF[nomNorm] || 'ABC';
+    const grpArr = base.split('');
+    const grpShift = offset % 3;
+    const orderedGrps = [...grpArr.slice(grpShift), ...grpArr.slice(0, grpShift)];
+    const isActive = pi === currentPeriode && currentType === 'VAC';
+    const bg = isActive ? '#EFF6FF' : (pi % 2 === 0 ? '#FFFFFF' : '#F8FAFC');
+    const ordreHtml = orderedGrps.map((g,i) =>
+      `<span style="display:inline-flex;align-items:center;gap:3px;margin-right:8px">
+        <span style="font-weight:700;color:white;background:${GRP_COLORS[g]};border-radius:4px;padding:1px 7px;font-size:12px">${g}</span>
+        ${i < 2 ? '<span style="color:#94A3B8;font-size:11px">›</span>' : ''}
+      </span>`
+    ).join('');
+    html += `<tr style="background:${bg}${isActive?';border-left:3px solid #3B82F6':''}">
+      <td style="padding:8px;font-weight:${isActive?'700':'500'}">${p.nom}</td>
+      <td style="padding:8px">${ordreHtml}</td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+
+  // Composition des groupes avec ordre roté
+  html += '<div style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Composition des groupes — ordre de priorité ${currentYear}</div>';
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap">';
+  ['A','B','C'].forEach(g => {
+    const members = rotatedGroups[g];
+    html += `<div style="flex:1;min-width:140px;border:1px solid #E2E8F0;border-radius:10px;padding:10px">
+      <div style="font-size:11px;font-weight:700;color:white;background:${GRP_COLORS[g]};padding:2px 8px;border-radius:5px;display:inline-block;margin-bottom:8px">Groupe ${g}</div>
+      <div style="display:flex;flex-direction:column;gap:4px">`;
+    members.forEach((m, i) => {
+      // Find initiales from medecins
+      const med = medecins.find(x => x.id === m.id);
+      const init = med ? med.initiales : m.id;
+      html += `<div style="display:flex;align-items:center;gap:6px;font-size:12px">
+        <span style="font-size:10px;color:#94A3B8;width:16px;text-align:right">${i+1}</span>
+        <span style="font-family:monospace;font-weight:700;background:#F1F5F9;border-radius:4px;padding:1px 5px;font-size:11px">${init}</span>
+      </div>`;
+    });
+    html += '</div></div>';
+  });
+  html += '</div>';
+
+  el.innerHTML = html;
+}
+</script>
 </body>
 </html>
 
