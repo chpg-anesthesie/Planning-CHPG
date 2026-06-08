@@ -186,7 +186,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 <script>
 const API='https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 let adminCode='',currentYear=2027,periodes=[],medecins=[],saisies={},locked={};
-let currentPeriode=0,currentType='VAC',currentView='grille';
+let currentPeriode=0,currentType='VAC',currentView='grille',currentMonth=0;
 const QUOTAS={VAC:{100:33,90:30,80:26,60:20,50:17},FORM:{100:10,90:9,80:8,60:6,50:5}};
 const getQuota=(type,q)=>QUOTAS[type][Math.round(q)]||QUOTAS[type][100];
 const JOURS_FR=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
@@ -275,16 +275,39 @@ function tension(date,seuil){const n=countForDay(date);if(n>=seuil)return'hot';i
 
 function buildPeriodeTabs(){
   const c=document.getElementById('periodeTabs');c.innerHTML='';
-  periodes.forEach((p,i)=>{
-    const col=PCOLS[i%PCOLS.length];
-    const btn=document.createElement('button');
-    btn.className='ptab'+(i===currentPeriode?' active':'');
-    if(i===currentPeriode){btn.style.background=col.bg;btn.style.borderColor=col.brd;btn.style.color=col.fg;}
-    const d1=p.debut.slice(5).replace('-','/'),d2=p.fin.slice(5).replace('-','/');
-    btn.innerHTML=p.nom+' <span style="font-size:10px;opacity:.7;">'+d1+'→'+d2+'</span>';
-    btn.onclick=()=>setCurrentPeriode(i);
-    c.appendChild(btn);
-  });
+  if(currentType==='FORM'){
+    // Mode FORM : onglets par mois
+    const MOIS=['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+    MOIS.forEach((m,i)=>{
+      const btn=document.createElement('button');
+      btn.className='ptab'+(i===currentMonth?' active':'');
+      if(i===currentMonth){btn.style.background='#6D28D9';btn.style.borderColor='#5B21B6';btn.style.color='white';}
+      btn.textContent=m+' '+currentYear;
+      btn.onclick=()=>{currentMonth=i;buildPeriodeTabs();renderCurrent();};
+      c.appendChild(btn);
+    });
+    document.getElementById('seuilVal').textContent='—';
+    document.getElementById('sbPeriode').textContent=(['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'])[currentMonth];
+    document.getElementById('sbSeuil').textContent='—';
+  } else {
+    // Mode VAC : onglets par période
+    periodes.forEach((p,i)=>{
+      const col=PCOLS[i%PCOLS.length];
+      const btn=document.createElement('button');
+      btn.className='ptab'+(i===currentPeriode?' active':'');
+      if(i===currentPeriode){btn.style.background=col.bg;btn.style.borderColor=col.brd;btn.style.color=col.fg;}
+      const d1=p.debut.slice(5).replace('-','/'),d2=p.fin.slice(5).replace('-','/');
+      btn.innerHTML=p.nom+' <span style="font-size:10px;opacity:.7;">'+d1+'→'+d2+'</span>';
+      btn.onclick=()=>setCurrentPeriode(i);
+      c.appendChild(btn);
+    });
+    const p=periodes[currentPeriode]||{};
+    if(p.seuil){
+      document.getElementById('seuilVal').textContent=p.seuil;
+      document.getElementById('sbPeriode').textContent=p.nom;
+      document.getElementById('sbSeuil').textContent=p.seuil+' MARs/j';
+    }
+  }
 }
 
 function setCurrentPeriode(idx){
@@ -303,6 +326,7 @@ function setType(t){
   currentType=t;
   document.getElementById('btnVAC').className='tbtn vac'+(t==='VAC'?' active':'');
   document.getElementById('btnFORM').className='tbtn form'+(t==='FORM'?' active':'');
+  buildPeriodeTabs();
   renderCurrent();
 }
 
@@ -337,16 +361,26 @@ function renderCurrent(){
   if(currentView==='grille')renderGrille();else renderRecap();
 }
 
+function getMonthDays(month){
+  // Returns all days of the given month index (0-11) for currentYear
+  const days=[];
+  const d=new Date(currentYear,month,1,12,0,0);
+  while(d.getMonth()===month){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
+  return days;
+}
+
 function renderGrille(){
-  const p=periodes[currentPeriode];
-  const days=getPeriodeDays(p);
+  const isFormMode=currentType==='FORM';
+  const p=isFormMode?null:periodes[currentPeriode];
+  const days=isFormMode?getMonthDays(currentMonth):getPeriodeDays(p);
+  const seuil=isFormMode?null:p?.seuil;
   const t=document.getElementById('gridTable');
   let thead='<thead><tr>';
   thead+='<th class="gt-th-mar">MAR</th>';
   thead+='<th class="gt-th-quota">Quota '+currentType+'</th>';
   days.forEach(date=>{
     const we=isWeekend(date);
-    const ten=we?'':(' tension-'+tension(date,p.seuil));
+    const ten=we||isFormMode?'':(' tension-'+tension(date,seuil));
     const cnt=countForDay(date);
     const d=new Date(date+'T12:00:00');
     thead+='<th class="gt-th-day'+(we?' we':'')+ten+'">'
@@ -469,3 +503,4 @@ function showToast(msg,duration=4000){
 </script>
 </body>
 </html>
+
