@@ -3300,7 +3300,7 @@ async function launchWizardSendCodes() {
   }
 
   try {
-    const res = await api({action:'sendCodes'});
+    const res = await api({action:'sendCodesWithRecap', year: YEAR + 1});
     if (!res || !res.success) throw new Error(res?.error || 'Erreur');
     const nextYear = YEAR + 1;
     const actifs = wizMarsData.filter(m => m.actif);
