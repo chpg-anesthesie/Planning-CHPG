@@ -153,6 +153,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     <button class="tbtn vac active" id="btnVAC" onclick="setType('VAC')">📅 VAC</button>
     <button class="tbtn form" id="btnFORM" onclick="setType('FORM')">🎓 FORM</button>
   </div>
+  <button onclick="openRecapPriorites()" style="padding:5px 12px;border:1px solid var(--line);border-radius:8px;background:white;font-size:11px;font-weight:700;cursor:pointer;color:var(--ink-2);">🏆 Priorités</button>
   <div class="view-toggle" style="margin-left:auto;">
     <button class="vtbtn active" id="vtGrille" onclick="setView('grille')">📅 Grille</button>
     <button class="vtbtn" id="vtRecap" onclick="setView('recap')">📊 Récap</button>
@@ -187,6 +188,9 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 const API='https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 let adminCode='',currentYear=2027,periodes=[],medecins=[],saisies={},locked={};
 let currentPeriode=0,currentType='VAC',currentView='grille',currentMonth=0;
+const ORDRE_BASE_STAFF={HIVER:'CAB',PRINTEMPS:'ABC',ETE:'ABC',TOUSSAINT:'BCA',NOEL:'CAB'};
+const GRP_COLORS_STAFF={A:'#3B82F6',B:'#10B981',C:'#F59E0B'};
+let groupesRef={A:[],B:[],C:[]};  // ordre de référence depuis GSheet
 const QUOTAS={VAC:{100:33,90:30,80:26,60:20,50:17},FORM:{100:10,90:9,80:8,60:6,50:5}};
 const getQuota=(type,q)=>QUOTAS[type][Math.round(q)]||QUOTAS[type][100];
 const JOURS_FR=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
@@ -240,8 +244,17 @@ async function loadData(){
   if(!periodes.length){document.getElementById('loadingArea').innerHTML='<div>Aucune période pour '+currentYear+'</div>';return;}
 
   const groupes=pRes.groupes||{A:[],B:[],C:[]};
+  groupesRef=groupes;
+  const offset=(currentYear-2026);
   const groupMap={};
-  ['A','B','C'].forEach(g=>{(groupes[g]||[]).forEach((m,i)=>{groupMap[m.id]={groupe:g,rang:i+1};});});
+  ['A','B','C'].forEach(g=>{
+    const members=(groupes[g]||[]);
+    const n=members.length;
+    // rotation droite : le dernier devient premier
+    const shift=n?(n-(offset%n))%n:0;
+    const rotated=[...members.slice(shift),...members.slice(0,shift)];
+    rotated.forEach((m,i)=>{groupMap[m.id]={groupe:g,rang:i+1};});
+  });
   medecins.forEach(m=>{const gi=groupMap[m.id]||{groupe:'?',rang:99};m.groupe=gi.groupe;m.rang=gi.rang;});
 
   const iRes=await apiCall({action:'getAllIndispos',year:currentYear});
@@ -317,7 +330,21 @@ function setCurrentPeriode(idx){
   document.getElementById('seuilVal').textContent=p.seuil;
   document.getElementById('sbPeriode').textContent=p.nom;
   document.getElementById('sbSeuil').textContent=p.seuil+' MARs/j';
-  medecins.sort((a,b)=>a.groupe!==b.groupe?(a.groupe<b.groupe?-1:1):a.rang-b.rang);
+  // Calculer l'ordre inter-groupes pour cette période
+  const nomNorm=(periodes[idx]?.nom||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+  const base=ORDRE_BASE_STAFF[nomNorm]||'ABC';
+  const off=(currentYear-2026);
+  const grpArr=base.split('');
+  const grpShift=off%3;
+  const orderedGrps=[...grpArr.slice(grpShift),...grpArr.slice(0,grpShift)];
+  const grpOrder={};
+  orderedGrps.forEach((g,i)=>{grpOrder[g]=i;});
+  grpOrder['?']=99;
+  medecins.sort((a,b)=>{
+    const ga=grpOrder[a.groupe]??99,gb=grpOrder[b.groupe]??99;
+    if(ga!==gb)return ga-gb;
+    return a.rang-b.rang;
+  });
   updateStatsBar();
   renderCurrent();
 }
@@ -501,6 +528,15 @@ function showToast(msg,duration=4000){
   setTimeout(()=>t.classList.remove('show'),duration);
 }
 </script>
+<div id="recapPrioOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:800;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:16px;padding:24px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.2);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-size:16px;font-weight:800;color:#0F172A;">🏆 Priorités vacances</div>
+      <button onclick="closeRecapPriorites()" style="border:none;background:none;font-size:18px;cursor:pointer;color:#94A3B8;">✕</button>
+    </div>
+    <div id="recapPrioContent"></div>
+  </div>
+</div>
 </body>
 </html>
 
