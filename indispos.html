@@ -646,7 +646,7 @@ async function loadVacConfig() {
         if (btnCTP) btnCTP.style.display = 'inline-flex';
       }
       updateVacBanner();
-      renderMonth(); // Mettre à jour le quota affiché
+      updateStats(); // Mettre à jour le quota affiché
     }
   } catch(e) {
     console.log('VacConfig non disponible');
