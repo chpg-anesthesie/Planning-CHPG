@@ -503,10 +503,8 @@ async function doValidate(){
     }catch(e){errors++;}
   }
   try{
-    const emailRes=await apiCall({action:'envoyerRecapIndispos',year:currentYear});
-    showToast('✅ '+saved+' MARs sauvegardés · '+(emailRes.sent||0)+' emails envoyés');
-  }catch(e){showToast('✅ '+saved+' MARs sauvegardés · Emails non envoyés');}
-  if(errors)showToast('⚠️ '+errors+' erreur(s)');
+    showToast('✅ '+saved+' MARs sauvegardés'+(errors?' · ⚠️ '+errors+' erreur(s)':''));
+  }catch(e){}
   document.getElementById('lockPill').style.display='inline-flex';
   btn.disabled=false;btn.textContent='✅ Valider et verrouiller';
   renderCurrent();
