@@ -680,7 +680,11 @@ function getWeeksInMonth(month){
     }
     weeks.push({weekNum:wn, days});
   });
-  return weeks.sort((a,b)=>a.weekNum-b.weekNum);
+  // Filtrer les semaines non validées (sauf semaine courante)
+  const todayIso = isoWeek(todayStr());
+  const validatedWeeks = new Set((month.weeks||[]).filter(w=>w.validated).map(w=>w.isoWeek));
+  const filtered = weeks.filter(w => w.weekNum === todayIso || validatedWeeks.has(w.weekNum));
+  return filtered.sort((a,b)=>a.weekNum-b.weekNum);
 }
 
 function weekDaysFull(weekInfo){
@@ -885,7 +889,17 @@ function render(){
   const month=DATA.months.find(m=>m.id===currentMonthId);
   const weeks=getWeeksInMonth(month);
   const week=weeks[currentWeekIdx];
-  if(!week) return;
+  if(!week){
+    // Aucune semaine validée dans ce mois
+    document.getElementById('planningTable').innerHTML=
+      '<div style="text-align:center;padding:48px 20px;color:#94A3B8;font-size:14px">'+
+      '<div style="font-size:32px;margin-bottom:12px">🔒</div>'+
+      '<div style="font-weight:600;color:#64748B;margin-bottom:6px">Planning en cours de validation</div>'+
+      '<div>Ce mois sera publié prochainement par le comité.</div>'+
+      '</div>';
+    document.getElementById('bottomPanel').innerHTML='';
+    return;
+  }
   const daySlots=weekDaysFull(week);
   renderTable(month,daySlots,week);
   renderBottom(month,daySlots,week);
@@ -1480,3 +1494,4 @@ render = function() { _origRender(); if(isMobile){buildMobileDayList();renderMob
 
 </body>
 </html>
+
