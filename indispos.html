@@ -419,11 +419,10 @@ body {
 
   <!-- Légende / outils -->
   <div class="legend" id="legend">
-    <div class="legend-item vac active-tool" data-tool="VAC" onclick="selectTool('VAC')">🏖️ Vacances</div>
-    <div class="legend-item form" data-tool="FORM" onclick="selectTool('FORM')">📚 Formation</div>
     <div class="legend-item indispo" data-tool="INDISPO" onclick="selectTool('INDISPO')">🚫 Indisponible</div>
     <div class="legend-item souhait" data-tool="SOUHAIT" onclick="selectTool('SOUHAIT')">⭐ Garde souhaitée</div>
     <div class="legend-item erase" data-tool="ERASE" onclick="selectTool('ERASE')">✕ Effacer</div>
+    <div class="legend-item ctp" id="btnCTP" data-tool="CTP" onclick="selectTool('CTP')" style="display:none;background:#F3E8FF;color:#6D28D9">🕐 Temps partiel</div>
   </div>
   <div class="tool-hint" id="toolHint">Outil actif : <strong>Vacances</strong> — Touchez un jour pour l'appliquer</div>
 
@@ -641,6 +640,11 @@ async function loadVacConfig() {
     if (res.success) {
       vacConfig = res;
       joursFeries = new Set(res.joursFeries || []);
+      // Afficher CTP si MAR à temps partiel (quota < 33j = quotité < 100%)
+      if (res.quotaVac < 33) {
+        const btnCTP = document.getElementById('btnCTP');
+        if (btnCTP) btnCTP.style.display = 'inline-flex';
+      }
       updateVacBanner();
     }
   } catch(e) {
@@ -772,6 +776,15 @@ function endDrag() {
 document.addEventListener('mouseup', () => { isDragging = false; });
 
 function applyTool(date) {
+  // VAC et FORM posés par le comité — non modifiables par le MAR
+  if (indispos[date] === 'VAC' || indispos[date] === 'FORM') {
+    showToast('🔒 Congé posé par le comité — contactez-les pour modifier');
+    return;
+  }
+  if (currentTool === 'VAC' || currentTool === 'FORM') {
+    showToast('🔒 Les vacances et formations sont gérées par le comité');
+    return;
+  }
   if (currentTool === 'VAC' || currentTool === 'FORM') {
     const pj = premierJourAnneePlanning(YEAR);
   const premierJour = `${pj.getFullYear()}-${String(pj.getMonth()+1).padStart(2,'0')}-${String(pj.getDate()).padStart(2,'0')}`;
@@ -871,4 +884,5 @@ window.addEventListener('beforeunload', e => {
 </script>
 </body>
 </html>
+
 
