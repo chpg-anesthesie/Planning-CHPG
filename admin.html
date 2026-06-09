@@ -1774,8 +1774,8 @@ function renderWeek() {
       cell.flash_am = 0; cell.flash_pm = 0;
       if (!slot || slot.isWeekend || slot.isFerie || !COVERAGE.has(s.code)) return;
       const m = parseInt(slot.date.slice(5,7), 10);
-      const affected = DOCTORS.filter(d => affOf(d.id, m) === s.code);
-      const absent = affected.filter(d => ABSENT_FLASH.has((stMap[dow] && stMap[dow][d.id]) || ''));
+      const affected = Object.keys(AFF).filter(id => affOf(id, m) === s.code);
+      const absent = affected.filter(id => ABSENT_FLASH.has((stMap[dow] && stMap[dow][id]) || ''));
       const extraAm = cell.am.filter(p => affOf(p.id, m) !== s.code).length;
       const extraPm = cell.pm.filter(p => affOf(p.id, m) !== s.code).length;
       cell.flash_am = Math.max(0, absent.length - extraAm);
