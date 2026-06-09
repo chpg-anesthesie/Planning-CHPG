@@ -802,6 +802,11 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 
 .plan-chip.cs-chip { background:#F0FDF4; color:#166534; border:1px solid #86EFAC; max-width:60px; }
 .cs-sub { font-size:8px; color:#166534; margin-left:2px; opacity:.8; }
+.slot-name.cs-chip { background:#F0FDF4; color:#166534; border:1px solid #86EFAC; }
+.cs-group-label { background:var(--ink); color:#fff; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; padding:6px 14px; }
+.cs-group-label .sector-icon-svg { stroke:#fff; width:15px; height:15px; vertical-align:-2px; margin-right:6px; display:inline-block; }
+.cs-sub-name { font-size:12px; font-weight:700; color:#166534; }
+.cs-sub-row .td-sector { background:#F7FEF9; }
 
 /* ── SLOT FLASH (admin) ── */
 .slot-flash {
@@ -1683,7 +1688,6 @@ function renderWeek() {
     {code:'END', label:'Endoscopies',              icon:'Microscope' },
     {code:'CI',  label:'Cardio interventionnelle', icon:'Heart'      },
     {code:'MAT', label:'Maternité',                icon:'Baby'       },
-    {code:'CS',  label:'Consultation',             icon:'Stethoscope'},
   ];
 
   const ABSENT_V2 = new Set(['RG','V','F','CTP','R','A']); // G, G2, 18 = présents en journée dans leur secteur
@@ -1693,6 +1697,18 @@ function renderWeek() {
   SECTORS.forEach(s => {
     smap[s.code] = Array(7).fill(null).map(() => ({am:[], pm:[], flash_am:false, flash_pm:false}));
   });
+  // Consultations détaillées par type (une sous-ligne chacune)
+  const CS_TYPES = [
+    {code:'CS-VIS',   label:'CS Viscéral'},
+    {code:'CS-END',   label:'CS Endoscopies'},
+    {code:'CS-ORL',   label:'CS ORL'},
+    {code:'CS-ORT',   label:'CS Orthopédie'},
+    {code:'CS-MAT',   label:'CS Maternité'},
+    {code:'CS-POLY',  label:'CS Polyvalente'},
+    {code:'CS-INTER', label:'CS Interventionnel'},
+  ];
+  const csTypeMap = {};
+  CS_TYPES.forEach(t => { csTypeMap[t.code] = Array(7).fill(null).map(() => ({am:[], pm:[]})); });
   // gardes[dow] = {g:init, g2:init}
   const gardes = Array(7).fill(null).map(() => ({g:null, g2:null}));
   const stMap = Array(7).fill(null).map(() => ({})); // stMap[dow][docId] = statut du jour
@@ -1725,9 +1741,9 @@ function renderWeek() {
       const pmKey = pm.startsWith('CS-')?'CS':pm;
       if (amKey && smap[amKey]) smap[amKey][dow].am.push({init:doc.initials, id:doc.id, status:st});
       if (pmKey && smap[pmKey]) smap[pmKey][dow].pm.push({init:doc.initials, id:doc.id, status:st});
-      // CS explicite
-      const cs = entry.cs||'';
-      if (cs && smap['CS'] && !am.startsWith('CS-')) smap['CS'][dow].am.push({init:doc.initials, id:doc.id, status:st});
+      // Consultations détaillées par type : AM = morning CS-, PM = afternoon CS-
+      if (am.startsWith('CS-') && csTypeMap[am]) csTypeMap[am][dow].am.push({init:doc.initials, id:doc.id, status:st});
+      if (pm.startsWith('CS-') && csTypeMap[pm]) csTypeMap[pm][dow].pm.push({init:doc.initials, id:doc.id, status:st});
     });
   });
 
@@ -1832,6 +1848,10 @@ function renderWeek() {
     if (!items.length && !flash) html += '<span class="slot-dash">—</span>';
     return html;
   }
+  function makeCsSlot(items) {
+    if (!items.length) return '<span class="slot-dash">·</span>';
+    return items.map(p => '<span class="slot-name cs-chip" title="'+(p.id||'')+'">'+p.init+'</span>').join('');
+  }
 
   let tbody = '<tbody>';
   activeSectors.forEach(sec => {
@@ -1876,6 +1896,36 @@ function renderWeek() {
     });
     tbody += '</tr>';
   });
+
+  // ── SOUS-LIGNES CONSULTATIONS (une par type, AM | PM) ──
+  const activeCsTypes = CS_TYPES.filter(t =>
+    csTypeMap[t.code].some(d => d.am.length || d.pm.length)
+  );
+  if (activeCsTypes.length) {
+    tbody += `<tr class="cs-group-row"><td class="cs-group-label" colspan="${daySlots.length + 1}"><i data-lucide="Stethoscope" class="sector-icon-svg"></i> Consultations</td></tr>`;
+    activeCsTypes.forEach(t => {
+      tbody += `<tr class="sector-row cs-sub-row"><td class="td-sector"><span class="cs-sub-name">${t.label}</span></td>`;
+      daySlots.forEach((slot, dow) => {
+        if (!slot) { tbody += `<td class="td-day weekend"></td>`; return; }
+        const isWe = slot.isWeekend || slot.isFerie;
+        const isTd = slot.date === today;
+        const cls = ['td-day', isWe?'weekend':'', isTd?'today':''].filter(Boolean).join(' ');
+        tbody += `<td class="${cls}">`;
+        if (isWe) {
+          tbody += `<div style="display:flex;align-items:center;justify-content:center;height:56px;"><span class="slot-dash">—</span></div>`;
+        } else {
+          const cell = csTypeMap[t.code][dow];
+          tbody += `<div class="slot-pair">
+            <div class="slot">${makeCsSlot(cell.am)}</div>
+            <div class="slot">${makeCsSlot(cell.pm)}</div>
+          </div>`;
+        }
+        tbody += '</td>';
+      });
+      tbody += '</tr>';
+    });
+  }
+
   tbody += '</tbody>';
 
   // ── BOTTOM TABLE (Gardes & fonctions) ──
