@@ -836,9 +836,9 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .bt-card { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .bt-card-header { padding: 10px 16px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-4); background: var(--line-light); border-bottom: 1px solid var(--line); }
 .bt-scroll { overflow-x: auto; }
-.bt-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+.bt-table { width: 100%; border-collapse: collapse; min-width: 900px; table-layout: fixed; }
 .bt-label { padding: 7px 16px; font-size: 11px; font-weight: 600; color: var(--ink-3); background: var(--line-light); border-right: 1px solid var(--line); white-space: nowrap; width: 180px; min-width: 180px; border-top: 1px solid var(--line-light); }
-.bt-cell { padding: 5px 6px; text-align: center; background: var(--white); border-right: 1px solid var(--line); border-top: 1px solid var(--line-light); min-width: 100px; }
+.bt-cell { padding: 5px 6px; text-align: center; background: var(--white); border-right: 1px solid var(--line); border-top: 1px solid var(--line-light); }
 .bt-cell.weekend { background: var(--line-light); }
 .bt-dash { color: var(--line); font-size: 11px; }
 .name-tag { display: inline-flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 5px; }
@@ -874,7 +874,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .th-day {
   padding: 10px 6px 6px; text-align: center; background: var(--white);
   border-bottom: 1px solid var(--line); border-right: 1px solid var(--line);
-  vertical-align: top; min-width: 100px; max-width: 100px; width: 100px;
+  vertical-align: top;
 }
 .td-sector {
   padding: 0 10px; background: var(--line-light); border-right: 1px solid var(--line);
@@ -898,10 +898,13 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .day-name { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); margin-bottom: 1px; }
 .day-date { font-size: 18px; font-weight: 700; color: var(--ink); line-height: 1; margin-bottom: 6px; }
 .planning-table {
-  width: 100%; border-collapse: separate; border-spacing: 0;
+  width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0;
   background: var(--white); border: 1px solid var(--line); border-radius: var(--radius);
   min-width: 900px; box-shadow: 0 1px 4px rgba(0,0,0,.05);
 }
+.th-day.today { background:#FFF0F1; }
+.td-day.today { background:#FFF8F8; }
+.bt-cell.today { background:#FFF8F8; }
 </style>
 <script>
 // Masquer l'overlay immédiatement si un code est en sessionStorage
@@ -1603,6 +1606,11 @@ async function loadPlanningData() {
     if (!res || !res.ok) throw new Error('Fichier planning introuvable');
     DATA = await res.json();
       _localOverrides = {}; // Reset : le JSON intègre désormais les overrides
+    // Affectations du mois (pour les cases flash basées sur l'effectif attendu)
+    try {
+      const ra = await fetchTimeout(`./affectations_${ADMIN_YEAR}.json?` + Date.now(), {}, 10000);
+      window.AFFM = ra && ra.ok ? ((await ra.json()).affectations || {}) : {};
+    } catch(e) { window.AFFM = {}; }
     if (!DATA || !DATA.months) throw new Error('Structure JSON invalide');
     const today = todayStr();
     const weeks = getAllWeeks();
@@ -1687,6 +1695,7 @@ function renderWeek() {
   });
   // gardes[dow] = {g:init, g2:init}
   const gardes = Array(7).fill(null).map(() => ({g:null, g2:null}));
+  const stMap = Array(7).fill(null).map(() => ({})); // stMap[dow][docId] = statut du jour
   // bottom rows
   const h18row    = Array(7).fill(null);
   const sortieRow = Array(7).fill(null).map(()=>[]);
@@ -1700,6 +1709,7 @@ function renderWeek() {
         ? (slot.sourceMonth.doctors.find(d=>d.id===doc.id)?.days[slot.dayIdx]||{})
         : (doc.days[slot.dayIdx]||{});
       const st = entry.status||'';
+      stMap[dow][doc.id] = st;
 
       // Bottom rows
       if (st==='G')  gardes[dow].g  = doc.initials;
@@ -1751,13 +1761,25 @@ function renderWeek() {
     });
   });
 
-  // Marquer les flash (slot vide sur jour ouvré)
+  // Marquer les flash : un "+" par MAR affecté à un secteur de couverture
+  // ce mois-ci qui est absent ce jour (RG/V/F/CTP/R/A), moins les remplaçants
+  // déjà placés. VOLANT / DVI / CS ne flashent jamais.
+  const COVERAGE = new Set(['VIS','REA','ORT','ORL','END','CI','MAT']);
+  const ABSENT_FLASH = new Set(['RG','V','F','CTP','R','A']);
+  const AFF = window.AFFM || {};
+  const affOf = (id, m) => (AFF[id] && AFF[id][m] ? String(AFF[id][m]).trim().toUpperCase() : '');
   SECTORS.forEach(s => {
     daySlots.forEach((slot, dow) => {
-      if (!slot || slot.isWeekend || slot.isFerie) return;
       const cell = smap[s.code][dow];
-      cell.flash_am = cell.am.length === 0;
-      cell.flash_pm = cell.pm.length === 0;
+      cell.flash_am = 0; cell.flash_pm = 0;
+      if (!slot || slot.isWeekend || slot.isFerie || !COVERAGE.has(s.code)) return;
+      const m = parseInt(slot.date.slice(5,7), 10);
+      const affected = DOCTORS.filter(d => affOf(d.id, m) === s.code);
+      const absent = affected.filter(d => ABSENT_FLASH.has((stMap[dow] && stMap[dow][d.id]) || ''));
+      const extraAm = cell.am.filter(p => affOf(p.id, m) !== s.code).length;
+      const extraPm = cell.pm.filter(p => affOf(p.id, m) !== s.code).length;
+      cell.flash_am = Math.max(0, absent.length - extraAm);
+      cell.flash_pm = Math.max(0, absent.length - extraPm);
     });
   });
 
@@ -1804,7 +1826,9 @@ function renderWeek() {
   function makeSlot(items, flash, sector, sectorLabel, date, slotKey) {
     let html = '';
     items.forEach(p => { html += makeChip(p); });
-    if (flash) html += `<span class="slot-flash" onclick="openSidePanel('${sector}','${date}','${sectorLabel}','${slotKey}')">+</span>`;
+    for (let i = 0; i < flash; i++) {
+      html += `<span class="slot-flash" onclick="openSidePanel('${sector}','${date}','${sectorLabel}','${slotKey}')">+</span>`;
+    }
     if (!items.length && !flash) html += '<span class="slot-dash">—</span>';
     return html;
   }
@@ -1863,7 +1887,8 @@ function renderWeek() {
     let row = `<tr><td class="bt-label">${label}</td>`;
     daySlots.forEach((slot, dow) => {
       const isWe = slot ? (slot.isWeekend||slot.isFerie) : true;
-      row += `<td class="bt-cell${isWe?' weekend':''}">${slot ? cellsFn(dow) : ''}</td>`;
+      const isTd = slot && slot.date === today;
+      row += `<td class="bt-cell${isWe?' weekend':''}${isTd?' today':''}">${slot ? cellsFn(dow) : ''}</td>`;
     });
     return row + '</tr>';
   }
@@ -1917,7 +1942,7 @@ function nextWeek(){const w=getAllWeeks();if(currentWeekIdx<w.length-1){currentW
 
 // ── FLASH BADGE ───────────────────────────────────────────────────────
 function updateFlashBadge() {
-  const chips = document.querySelectorAll('.plan-chip-flash');
+  const chips = document.querySelectorAll('.slot-flash');
   const n = chips.length;
   const badge = document.getElementById('flashBadge');
   if (badge) {
