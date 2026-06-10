@@ -1708,7 +1708,15 @@ function renderWeek() {
     {code:'CS-INTER', label:'CS Interventionnel'},
   ];
   const csTypeMap = {};
-  CS_TYPES.forEach(t => { csTypeMap[t.code] = Array(7).fill(null).map(() => ({am:[], pm:[]})); });
+  CS_TYPES.forEach(t => { csTypeMap[t.code] = Array(7).fill(null).map(() => ({am:[], pm:[], flash_am:0, flash_pm:0})); });
+  // Effectifs requis par jour (index lundi=0) et créneau. Source : CS_RULES (code.gs)
+  const CS_REQUIRED = {
+    0:{am:{}, pm:{'CS-VIS':2,'CS-END':2}},                                              // Lundi
+    1:{am:{'CS-ORL':1,'CS-MAT':1}, pm:{'CS-VIS':1,'CS-END':1,'CS-ORT':1}},               // Mardi
+    2:{am:{'CS-ORL':1,'CS-POLY':1}, pm:{'CS-VIS':1,'CS-END':1,'CS-ORT':1,'CS-INTER':1}}, // Mercredi
+    3:{am:{'CS-ORL':1,'CS-MAT':1}, pm:{'CS-VIS':1,'CS-END':2,'CS-INTER':1}},             // Jeudi
+    4:{am:{'CS-ORT':1,'CS-ORL':1}, pm:{}},                                              // Vendredi
+  };
   // gardes[dow] = {g:init, g2:init}
   const gardes = Array(7).fill(null).map(() => ({g:null, g2:null}));
   const stMap = Array(7).fill(null).map(() => ({})); // stMap[dow][docId] = statut du jour
@@ -1775,6 +1783,16 @@ function renderWeek() {
         }
       }
     });
+    // Overrides locaux sur les consultations (clé = type CS-XXX)
+    CS_TYPES.forEach(t => {
+      const ov = dateOverrides[t.code];
+      if (!ov) return;
+      ['am','pm'].forEach(k => {
+        if (ov[k] && !csTypeMap[t.code][dow][k].find(p => p.id === ov[k].marId)) {
+          csTypeMap[t.code][dow][k].push({init: ov[k].marInit, id: ov[k].marId, status:'', isNew:true});
+        }
+      });
+    });
   });
 
   // Marquer les flash : un "+" par MAR affecté à un secteur de couverture
@@ -1796,6 +1814,18 @@ function renderWeek() {
       const extraPm = cell.pm.filter(p => affOf(p.id, m) !== s.code).length;
       cell.flash_am = Math.max(0, absent.length - extraAm);
       cell.flash_pm = Math.max(0, absent.length - extraPm);
+    });
+  });
+
+  // Flash consultations : un "+" par créneau requis non pourvu
+  CS_TYPES.forEach(t => {
+    daySlots.forEach((slot, dow) => {
+      const cell = csTypeMap[t.code][dow];
+      cell.flash_am = 0; cell.flash_pm = 0;
+      if (!slot || slot.isWeekend || slot.isFerie) return;
+      const req = CS_REQUIRED[dow] || {am:{}, pm:{}};
+      cell.flash_am = Math.max(0, ((req.am && req.am[t.code]) || 0) - cell.am.length);
+      cell.flash_pm = Math.max(0, ((req.pm && req.pm[t.code]) || 0) - cell.pm.length);
     });
   });
 
@@ -1848,9 +1878,17 @@ function renderWeek() {
     if (!items.length && !flash) html += '<span class="slot-dash">—</span>';
     return html;
   }
-  function makeCsSlot(items) {
-    if (!items.length) return '<span class="slot-dash">·</span>';
-    return items.map(p => '<span class="slot-name cs-chip" title="'+(p.id||'')+'">'+p.init+'</span>').join('');
+  function makeCsSlot(items, flash, type, label, date, slotKey) {
+    let html = '';
+    items.forEach(p => {
+      const cls = p.isNew ? 'slot-name cs-chip slot-new' : 'slot-name cs-chip';
+      html += '<span class="'+cls+'" title="'+(p.id||'')+'">'+p.init+'</span>';
+    });
+    for (let i = 0; i < (flash||0); i++) {
+      html += `<span class="slot-flash" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')">+</span>`;
+    }
+    if (!items.length && !flash) html += '<span class="slot-dash">·</span>';
+    return html;
   }
 
   let tbody = '<tbody>';
@@ -1899,7 +1937,7 @@ function renderWeek() {
 
   // ── SOUS-LIGNES CONSULTATIONS (une par type, AM | PM) ──
   const activeCsTypes = CS_TYPES.filter(t =>
-    csTypeMap[t.code].some(d => d.am.length || d.pm.length)
+    csTypeMap[t.code].some(d => d.am.length || d.pm.length || d.flash_am || d.flash_pm)
   );
   if (activeCsTypes.length) {
     tbody += `<tr class="cs-group-row"><td class="cs-group-label" colspan="${daySlots.length + 1}"><i data-lucide="Stethoscope" class="sector-icon-svg"></i> Consultations</td></tr>`;
@@ -1916,8 +1954,8 @@ function renderWeek() {
         } else {
           const cell = csTypeMap[t.code][dow];
           tbody += `<div class="slot-pair">
-            <div class="slot">${makeCsSlot(cell.am)}</div>
-            <div class="slot">${makeCsSlot(cell.pm)}</div>
+            <div class="slot">${makeCsSlot(cell.am, cell.flash_am, t.code, t.label, slot.date, 'am')}</div>
+            <div class="slot">${makeCsSlot(cell.pm, cell.flash_pm, t.code, t.label, slot.date, 'pm')}</div>
           </div>`;
         }
         tbody += '</td>';
@@ -2085,10 +2123,12 @@ async function openSidePanel(sector, date, sectorLabel, slotKey) {
 }
 
 function getSectorBg(code) {
+  if (code && code.startsWith('CS-')) return '#F0FDF4';
   const m = {VIS:'#DBEAFE',REA:'#FEE2E2',ORT:'#F3E8FF',DVI:'#E0E7FF',ORL:'#FEF3C7',END:'#DCFCE7',CI:'#FFEDD5',MAT:'#FCE7F3',CS:'#F0FDF4'};
   return m[code]||'#F1F5F9';
 }
 function getSectorFg(code) {
+  if (code && code.startsWith('CS-')) return '#065F46';
   const m = {VIS:'#1D4ED8',REA:'#991B1B',ORT:'#6B21A8',DVI:'#3730A3',ORL:'#92400E',END:'#166534',CI:'#9A3412',MAT:'#9D174D',CS:'#065F46'};
   return m[code]||'#334155';
 }
