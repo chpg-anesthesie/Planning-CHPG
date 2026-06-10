@@ -1612,7 +1612,8 @@ async function loadPlanningData() {
     }
     if (!res || !res.ok) throw new Error('Fichier planning introuvable');
     DATA = await res.json();
-      _localOverrides = {}; // Reset : le JSON intègre désormais les overrides
+      // _localOverrides CONSERVÉS : ils restent appliqués tant que le JSON
+      // régénéré n'est pas propagé (latence GitHub Pages). Application idempotente.
     // Affectations du mois (pour les cases flash basées sur l'effectif attendu)
     try {
       const ra = await fetchTimeout(`./affectations_${ADMIN_YEAR}.json?` + Date.now(), {}, 10000);
