@@ -281,6 +281,28 @@ body {
 .med-foot-yr { font-family: var(--mono); font-weight: 800; color: var(--red); font-size: 13px; }
 .med-inactive { opacity: .45; }
 
+/* ── Vue Équité ── */
+.eq-wrap { padding: 4px 0 24px; }
+.eq-summary { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
+.eq-kpi { flex:1; min-width:110px; background:var(--white); border:1px solid var(--line); border-radius:12px; padding:12px 14px; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+.eq-kpi-num { font-family:var(--mono); font-size:20px; font-weight:800; color:var(--ink); line-height:1; }
+.eq-kpi-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-4); margin-top:5px; }
+.eq-mean-legend { font-size:11px; color:var(--ink-3); margin-bottom:10px; display:flex; align-items:center; gap:6px; line-height:1.4; }
+.eq-mean-legend .tick { display:inline-block; width:2px; height:13px; background:var(--ink); opacity:.55; flex-shrink:0; }
+.eq-row { display:grid; grid-template-columns:140px 1fr 38px; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--line-light); }
+.eq-row:last-child { border-bottom:none; }
+.eq-who { display:flex; align-items:center; gap:8px; min-width:0; }
+.eq-av { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; font-family:var(--mono); flex-shrink:0; background:#FEE2E2; color:#B91C1C; }
+.eq-nm { font-size:12px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.eq-bar { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.eq-track { position:relative; height:20px; background:var(--line-light); border-radius:6px; overflow:hidden; }
+.eq-fill { position:absolute; top:0; left:0; bottom:0; background:linear-gradient(90deg,#F87171,#CE1126); border-radius:6px; min-width:2px; }
+.eq-mean { position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--ink); opacity:.55; }
+.eq-axes { font-size:10.5px; color:var(--ink-3); font-weight:600; }
+.eq-axes b { color:var(--ink-2); font-weight:800; }
+.eq-total { font-family:var(--mono); font-size:14px; font-weight:800; color:var(--ink); text-align:right; }
+@media (max-width:768px){ .eq-row { grid-template-columns:84px 1fr 32px; gap:8px; } .eq-av{ display:none; } .eq-nm{ font-size:11px; } }
+
 /* ── FICHE MÉDECIN ── */
 .doc-panel-overlay {
   position: fixed; inset: 0; background: rgba(13,17,23,.45);
@@ -526,6 +548,7 @@ body {
 <div class="view-toggle-main">
   <button class="view-main-btn active" id="btnPlanning">📋 Planning</button>
   <button class="view-main-btn" id="btnMedecins">👥 Médecins</button>
+  <button class="view-main-btn" id="btnEquite">📊 Équité</button>
 </div>
 
 <!-- WEEK NAV -->
@@ -548,6 +571,11 @@ body {
 <!-- MÉDECINS VIEW -->
 <div id="medecinsView" style="display:none">
   <div class="med-grid" id="medGrid"></div>
+</div>
+
+<!-- ÉQUITÉ VIEW -->
+<div id="equiteView" style="display:none">
+  <div class="eq-wrap" id="eqWrap"></div>
 </div>
 
 <!-- FICHE MÉDECIN PANEL -->
@@ -737,6 +765,7 @@ async function init(){
 
   document.getElementById('btnPlanning').onclick = () => setMainView('planning');
   document.getElementById('btnMedecins').onclick = () => setMainView('medecins');
+  document.getElementById('btnEquite').onclick = () => setMainView('equite');
 }
 
 // ── SÉLECTEUR D'ANNÉE ──────────────────────────────────────────────────
@@ -829,9 +858,12 @@ function setMainView(v){
   currentMainView=v;
   document.getElementById('btnPlanning').classList.toggle('active',v==='planning');
   document.getElementById('btnMedecins').classList.toggle('active',v==='medecins');
+  const be=document.getElementById('btnEquite'); if(be) be.classList.toggle('active',v==='equite');
   document.getElementById('planningView').style.display=v==='planning'?'':'none';
   document.getElementById('medecinsView').style.display=v==='medecins'?'':'none';
+  const eq=document.getElementById('equiteView'); if(eq) eq.style.display=v==='equite'?'':'none';
   if(v==='medecins') renderMedecins();
+  else if(v==='equite') renderEquite();
 }
 
 // ── MONTH SELECT ───────────────────────────────────────────────────────
@@ -1311,6 +1343,56 @@ function renderDocPanel(){
 }
 
 
+function renderEquite(){
+  const wrap = document.getElementById('eqWrap');
+  if(!wrap || !DATA) return;
+  const agg = {};
+  DATA.months.forEach(m => {
+    m.doctors.forEach(d => {
+      if(!agg[d.id]) agg[d.id] = {id:d.id, init:d.initials, total:0, sa:0, di:0, ve:0, je:0};
+      m.days.forEach((day, i) => {
+        const st = (d.days[i]||{}).status || '';
+        if(st==='G' || st==='G2'){
+          agg[d.id].total++;
+          const w = day.dow;
+          if(w===6) agg[d.id].sa++;
+          else if(w===0) agg[d.id].di++;
+          else if(w===5) agg[d.id].ve++;
+          else if(w===4) agg[d.id].je++;
+        }
+      });
+    });
+  });
+  const list = Object.values(agg).filter(a=>a.total>0).sort((a,b)=>b.total-a.total);
+  if(!list.length){ wrap.innerHTML = '<div style="padding:30px;text-align:center;color:var(--ink-4)">Aucune garde dans ce planning.</div>'; return; }
+  const totals = list.map(a=>a.total);
+  const sum = totals.reduce((s,t)=>s+t,0);
+  const max = Math.max(...totals), min = Math.min(...totals);
+  const mean = sum/list.length;
+  const meanPct = max ? (mean/max*100) : 0;
+  const nameOf = id => (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
+
+  let html = `<div class="eq-summary">
+    <div class="eq-kpi"><div class="eq-kpi-num">${sum}</div><div class="eq-kpi-lbl">Gardes réparties</div></div>
+    <div class="eq-kpi"><div class="eq-kpi-num">${list.length}</div><div class="eq-kpi-lbl">MAR de garde</div></div>
+    <div class="eq-kpi"><div class="eq-kpi-num">${mean.toFixed(1)}</div><div class="eq-kpi-lbl">Moyenne / MAR</div></div>
+    <div class="eq-kpi"><div class="eq-kpi-num">${min}–${max}</div><div class="eq-kpi-lbl">Étendue</div></div>
+  </div>
+  <div class="eq-mean-legend"><span class="tick"></span> Trait = moyenne (${mean.toFixed(1)}). Barre = total annuel (G réa + G2 maternité). Détail des axes prioritaires sous chaque barre.</div>`;
+  list.forEach(a => {
+    const pct = max ? (a.total/max*100) : 0;
+    html += `<div class="eq-row">
+      <div class="eq-who"><div class="eq-av">${a.init}</div><div class="eq-nm">${nameOf(a.id)}</div></div>
+      <div class="eq-bar">
+        <div class="eq-track"><div class="eq-fill" style="width:${pct}%"></div><div class="eq-mean" style="left:${meanPct}%"></div></div>
+        <div class="eq-axes">Sam <b>${a.sa}</b> · Dim <b>${a.di}</b> · Ven <b>${a.ve}</b> · Jeu <b>${a.je}</b></div>
+      </div>
+      <div class="eq-total">${a.total}</div>
+    </div>`;
+  });
+  wrap.innerHTML = html;
+}
+
 init();
 
 // ── MOBILE ────────────────────────────────────────────────────────────
@@ -1333,17 +1415,16 @@ function mobileSetView(v) {
   mobilePlanningView = v;
   document.getElementById('mbtnPlanning').classList.toggle('active', v==='planning');
   document.getElementById('mbtnMedecins').classList.toggle('active', v==='medecins');
+  const mbe = document.getElementById('mbtnEquite'); if(mbe) mbe.classList.toggle('active', v==='equite');
   const content = document.getElementById('mobileDayContent');
   const medView = document.getElementById('medecinsView');
-  if (v === 'planning') {
-    content.style.display = '';
-    medView.style.display = 'none';
-    renderMobileDay();
-  } else {
-    content.style.display = 'none';
-    medView.style.display = 'block';
-    renderMedecins();
-  }
+  const eqView = document.getElementById('equiteView');
+  content.style.display = v==='planning' ? '' : 'none';
+  medView.style.display = v==='medecins' ? 'block' : 'none';
+  if(eqView) eqView.style.display = v==='equite' ? 'block' : 'none';
+  if (v === 'planning') renderMobileDay();
+  else if (v === 'medecins') renderMedecins();
+  else if (v === 'equite') renderEquite();
 }
 
 function buildMobileDayList() {
@@ -1490,6 +1571,7 @@ render = function() { _origRender(); if(isMobile){buildMobileDayList();renderMob
 <div class="mobile-bottom-nav" id="mobileBottomNav" style="display:none">
   <button class="mobile-bottom-btn active" id="mbtnPlanning" onclick="mobileSetView('planning')">📋 Planning</button>
   <button class="mobile-bottom-btn" id="mbtnMedecins" onclick="mobileSetView('medecins')">👥 Médecins</button>
+  <button class="mobile-bottom-btn" id="mbtnEquite" onclick="mobileSetView('equite')">📊 Équité</button>
   <button class="mobile-bottom-btn" id="mbtnToday" onclick="goToToday()">📍 Aujourd'hui</button>
 </div>
 
