@@ -1159,7 +1159,7 @@ function renderDocPanel(){
   const color=AVATAR_COLORS[di%AVATAR_COLORS.length];
   const name=(currentDocId==='PRUNET'?'PR ':'DR ')+currentDocId.charAt(0)+currentDocId.slice(1).toLowerCase();
   const av=document.getElementById('dpAvatar');
-  av.textContent=doc.initials; av.style.background=color.bg; av.style.color=color.fg;
+  av.textContent=doc.initials;
   document.getElementById('dpName').textContent=name;
   document.getElementById('dpNavLabel').textContent=month.label||`${MONTH_NAMES_FR[month.month-1]} ${month.year}`;
 
@@ -1177,6 +1177,7 @@ function renderDocPanel(){
     sector=Object.entries(sectorCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'VOLANT';
   }
   const sc=SECTOR_COLORS[sector]||SECTOR_COLORS.VOLANT;
+  av.style.background=sc.bg; av.style.color=sc.fg; // avatar raccord au secteur
   document.getElementById('dpMeta').innerHTML=`<span style="background:${sc.bg};color:${sc.fg};padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700;font-family:var(--mono)">${sector}</span>`;
 
   // Stats mois
@@ -1261,7 +1262,7 @@ function renderDocPanel(){
   DATA.months.forEach((mo,mi)=>{
     const d2=mo.doctors.find(x=>x.id===currentDocId);
     if(!d2) return;
-    const mc={G:0,'18':0,A:0,CP:0,F:0,RG:0,presents:0};
+    const mc={G:0,G2:0,'18':0,A:0,CP:0,F:0,RG:0,presents:0};
     mo.days.forEach((day,i)=>{
       const st2=(d2.days[i]||{}).status||'';
       if(mc[st2]!==undefined) mc[st2]++;
@@ -1274,10 +1275,10 @@ function renderDocPanel(){
     annualHtml+=`<div class="doc-annual-month" style="${isCurrentPanel?'background:#FFF1F2;border:1px solid #FECDD3':''}">
       <span class="doc-annual-month-name">${mo.label||MONTH_NAMES_FR[mo.month-1]}</span>
       <div class="doc-annual-month-stats">
-        ${mc.G?`<span class="doc-annual-stat" style="background:#EFF6FF;color:#1D4ED8">${mc.G}G</span>`:''}
+        ${(mc.G+mc.G2)?`<span class="doc-annual-stat" style="background:#EFF6FF;color:#1D4ED8">${mc.G+mc.G2}G</span>`:''}
         ${mc['18']?`<span class="doc-annual-stat" style="background:#F0FDF4;color:#166534">${mc['18']}h</span>`:''}
         ${abs2?`<span class="doc-annual-stat" style="background:var(--line-light);color:var(--ink-3)">${abs2}A</span>`:''}
-        ${!mc.G&&!mc['18']&&!abs2?`<span style="font-size:10px;color:var(--ink-4)">${mc.presents}j</span>`:''}
+        ${!(mc.G+mc.G2)&&!mc['18']&&!abs2?`<span style="font-size:10px;color:var(--ink-4)">${mc.presents}j</span>`:''}
       </div>
     </div>`;
   });
