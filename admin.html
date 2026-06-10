@@ -861,6 +861,8 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
   color: var(--ink-2); cursor: default; white-space: nowrap;
   max-width: 44px; overflow: hidden; text-overflow: ellipsis;
 }
+.slot-name.slot-clickable { cursor: pointer; transition: outline .1s; }
+.slot-name.slot-clickable:hover { outline: 2px solid var(--red); outline-offset: 0; }
 .slot {
   padding: 4px 3px; display: grid; grid-template-columns: 1fr 1fr;
   gap: 2px; align-content: start; border-right: 1px solid var(--line-light);
@@ -1761,35 +1763,32 @@ function renderWeek() {
     if (!slot || slot.isWeekend || slot.isFerie) return;
     const dateOverrides = _localOverrides[slot.date];
     if (!dateOverrides) return;
-    SECTORS.forEach(s => {
-      const ov = dateOverrides[s.code];
-      if (!ov) return;
-      if (ov.am) {
-        // Retirer le null existant si présent, ajouter le MAR
-        const cell = smap[s.code][dow];
-        const nullIdx = cell.am.indexOf(null);
-        if (nullIdx >= 0) cell.am.splice(nullIdx, 1);
-        // Éviter les doublons
-        if (!cell.am.find(p => p.id === ov.am.marId)) {
-          cell.am.push({init: ov.am.marInit, id: ov.am.marId, status:'', isNew:true});
-        }
-      }
-      if (ov.pm) {
-        const cell = smap[s.code][dow];
-        const nullIdx = cell.pm.indexOf(null);
-        if (nullIdx >= 0) cell.pm.splice(nullIdx, 1);
-        if (!cell.pm.find(p => p.id === ov.pm.marId)) {
-          cell.pm.push({init: ov.pm.marInit, id: ov.pm.marId, status:'', isNew:true});
-        }
-      }
-    });
-    // Overrides locaux sur les consultations (clé = type CS-XXX)
-    CS_TYPES.forEach(t => {
-      const ov = dateOverrides[t.code];
+    Object.keys(dateOverrides).forEach(secCode => {
+      const ov = dateOverrides[secCode];
       if (!ov) return;
       ['am','pm'].forEach(k => {
-        if (ov[k] && !csTypeMap[t.code][dow][k].find(p => p.id === ov[k].marId)) {
-          csTypeMap[t.code][dow][k].push({init: ov[k].marInit, id: ov[k].marId, status:'', isNew:true});
+        if (!ov[k]) return;
+        const marId = ov[k].marId, marInit = ov[k].marInit;
+        // Consultations : clé CS-XXX → csTypeMap
+        if (secCode.startsWith('CS-')) {
+          if (csTypeMap[secCode] && !csTypeMap[secCode][dow][k].find(p => p.id === marId)) {
+            csTypeMap[secCode][dow][k].push({init: marInit, id: marId, status:'', isNew:true});
+          }
+          return;
+        }
+        // Secteur : retirer d'abord ce MAR de TOUS les secteurs pour ce demi-jour
+        // (déplacement / retrait propre, pas de doublon)
+        SECTORS.forEach(s2 => {
+          const c2 = smap[s2.code][dow][k];
+          const idx = c2.findIndex(p => p && p.id === marId);
+          if (idx >= 0) c2.splice(idx, 1);
+        });
+        // Ajouter dans le secteur cible (VOLANT n'a pas de ligne → le MAR est simplement retiré)
+        if (smap[secCode]) {
+          const cell = smap[secCode][dow];
+          const nullIdx = cell[k].indexOf(null);
+          if (nullIdx >= 0) cell[k].splice(nullIdx, 1);
+          cell[k].push({init: marInit, id: marId, status:'', isNew:true});
         }
       });
     });
@@ -1871,7 +1870,10 @@ function renderWeek() {
   }
   function makeSlot(items, flash, sector, sectorLabel, date, slotKey) {
     let html = '';
-    items.forEach(p => { html += makeChip(p); });
+    items.forEach(p => {
+      const cls = p.isNew ? 'slot-name slot-new slot-clickable' : 'slot-name slot-clickable';
+      html += `<span class="${cls}" title="${p.id||''}" onclick="openMarMenu('${p.id}','${p.init}','${sector}','${date}','${slotKey}')">${p.init}</span>`;
+    });
     for (let i = 0; i < flash; i++) {
       html += `<span class="slot-flash" onclick="openSidePanel('${sector}','${date}','${sectorLabel}','${slotKey}')">+</span>`;
     }
@@ -2211,6 +2213,36 @@ async function placeMAR(marId, marInit) {
     }
     renderWeek();
   }
+}
+
+// ── Menu déplacer / retirer un MAR déjà posté (clic sur sa pastille) ──
+function openMarMenu(marId, marInit, currentSector, date, slotKey) {
+  const card = document.getElementById('dispoCard');
+  if (!card) return;
+  window._sideCtx = {date, slotKey};
+  card.style.display = 'block';
+  document.getElementById('pspTitle').textContent = `Déplacer ${marId}`;
+  document.getElementById('pspSub').innerHTML =
+    `<span style="background:${getSectorBg(currentSector)};color:${getSectorFg(currentSector)};padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-right:6px;">${currentSector}</span>`
+    + `<span style="background:${slotKey==='am'?'#CE1126':'#64748B'};color:#fff;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-right:6px;">${slotKey.toUpperCase()}</span>`
+    + new Date(date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  const targets = ['VIS','REA','ORT','ORL','END','CI','MAT'].filter(s => s !== currentSector);
+  let html = `<div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Déplacer vers</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">`;
+  targets.forEach(s => {
+    html += `<button onclick="moveMARTo('${marId}','${marInit}','${s}')"
+      style="font-family:var(--mono);font-size:12px;font-weight:700;background:${getSectorBg(s)};color:${getSectorFg(s)};border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;">${s}</button>`;
+  });
+  html += `</div>
+    <button onclick="moveMARTo('${marId}','${marInit}','VOLANT')"
+      style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid #FCA5A5;border-radius:10px;background:#FEF2F2;color:#B91C1C;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">↩ Retirer (renvoyer en volant)</button>`;
+  document.getElementById('pspContent').innerHTML = html;
+  card.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function moveMARTo(marId, marInit, targetSector) {
+  window._sideCtx = Object.assign({}, window._sideCtx, {sector: targetSector});
+  placeMAR(marId, marInit);
 }
 
 function closeSidePanel() {
