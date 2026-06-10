@@ -552,7 +552,7 @@ body {
 </div>
 
 <!-- WEEK NAV -->
-<div class="week-nav">
+<div class="week-nav" id="weekNav">
   <span class="nav-label">Semaine</span>
   <div class="week-pills" id="weekPills"></div>
   <div class="nav-divider"></div>
@@ -862,6 +862,7 @@ function setMainView(v){
   document.getElementById('planningView').style.display=v==='planning'?'':'none';
   document.getElementById('medecinsView').style.display=v==='medecins'?'':'none';
   const eq=document.getElementById('equiteView'); if(eq) eq.style.display=v==='equite'?'':'none';
+  const wn=document.getElementById('weekNav'); if(wn) wn.style.display=v==='planning'?'':'none';
   if(v==='medecins') renderMedecins();
   else if(v==='equite') renderEquite();
 }
@@ -1419,6 +1420,8 @@ function mobileSetView(v) {
   const content = document.getElementById('mobileDayContent');
   const medView = document.getElementById('medecinsView');
   const eqView = document.getElementById('equiteView');
+  const dayNav = document.getElementById('mobileDayNav');
+  if(dayNav) dayNav.style.display = v==='planning' ? '' : 'none';
   content.style.display = v==='planning' ? '' : 'none';
   medView.style.display = v==='medecins' ? 'block' : 'none';
   if(eqView) eqView.style.display = v==='equite' ? 'block' : 'none';
@@ -1555,7 +1558,7 @@ render = function() { _origRender(); if(isMobile){buildMobileDayList();renderMob
 
 <!-- MOBILE VUE JOUR -->
 <div class="mobile-view" id="mobileView" style="display:none">
-  <div class="mobile-day-nav">
+  <div class="mobile-day-nav" id="mobileDayNav">
     <button class="mobile-nav-btn" onclick="mobilePrevDay()">←</button>
     <div class="mobile-day-info">
       <div class="mobile-day-name" id="mobileDayName"></div>
