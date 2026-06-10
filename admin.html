@@ -2977,6 +2977,29 @@ async function exportWeekExcel(){
       const cs3=entry.cs3||'';if(cs3&&smap[cs3])smap[cs3][dow].pm.push({init:doc.initials,sub:'',status:st});
     });
   });
+  // Appliquer les overrides locaux (modifs via cases flash) — pour coller à l'écran
+  daySlots.forEach((slot,dow)=>{
+    if(!slot)return;
+    const ov=_localOverrides[slot.date];
+    if(!ov)return;
+    Object.keys(ov).forEach(secCode=>{
+      const o=ov[secCode];if(!o)return;
+      ['am','pm'].forEach(k=>{
+        if(!o[k])return;
+        const mi=o[k].marInit;
+        if(secCode.startsWith('CS-')){
+          if(smap['CS']&&!smap['CS'][dow][k].find(p=>p.init===mi)){
+            smap['CS'][dow][k].push({init:mi,sub:(secCode.split('-')[1]||''),status:''});
+          }
+          return;
+        }
+        SX.forEach(s2=>{const arr=smap[s2][dow][k];const idx=arr.findIndex(p=>p.init===mi);if(idx>=0)arr.splice(idx,1);});
+        if(smap[secCode]&&!smap[secCode][dow][k].find(p=>p.init===mi)){
+          smap[secCode][dow][k].push({init:mi,sub:'',status:''});
+        }
+      });
+    });
+  });
   const colStart=dow=>dow<5?2+dow*4:22+(dow-5)*2;
   const wb=new ExcelJS.Workbook();const ws=wb.addWorksheet(`Semaine ${wk.weekNum}`,{pageSetup:{orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1}});
   ws.views=[{showGridLines:false}];ws.getColumn(1).width=20;
