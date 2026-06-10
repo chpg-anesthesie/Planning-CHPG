@@ -378,6 +378,7 @@ body {
   font-family: var(--mono); white-space: nowrap; max-width: 36px;
   overflow: hidden; text-overflow: ellipsis;
 }
+.doc-cal-tag.cs { font-size: 7px; letter-spacing: -0.3px; max-width: 100%; padding: 1px 2px; }
 /* Couleurs statuts */
 .dc-G    { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
 .dc-G2   { background: #FFF1F2; color: var(--red); border-color: #FECDD3; }
@@ -1274,13 +1275,14 @@ function renderDocPanel(){
     else if(st==='R'){ stClass='dc-R'; tags.push(`<div class="doc-cal-tag" style="background:#F0FDF4;color:#166534">R</div>`); }
     else if(morning&&!isWe){
       stClass='dc-work';
-      const mKey=morning.startsWith('CS-')?'CS':morning;
-      const pm=afternoon&&afternoon!==morning?(afternoon.startsWith('CS-')?'CS':afternoon):'';
-      const sc2=SECTOR_COLORS[mKey]||{bg:'#F1F5F9',fg:'#64748B'};
-      tags.push(`<div class="doc-cal-tag" style="background:${sc2.bg};color:${sc2.fg}">${mKey}</div>`);
-      if(pm&&pm!==mKey){
-        const sc3=SECTOR_COLORS[pm]||{bg:'#F1F5F9',fg:'#64748B'};
-        tags.push(`<div class="doc-cal-tag" style="background:${sc3.bg};color:${sc3.fg}">${pm}</div>`);
+      const mIsCs = morning.startsWith('CS-');
+      const sc2 = mIsCs ? SECTOR_COLORS['CS'] : (SECTOR_COLORS[morning]||{bg:'#F1F5F9',fg:'#64748B'});
+      tags.push(`<div class="doc-cal-tag${mIsCs?' cs':''}" style="background:${sc2.bg};color:${sc2.fg}">${morning}</div>`);
+      const pmRaw = afternoon && afternoon !== morning ? afternoon : '';
+      if(pmRaw){
+        const pIsCs = pmRaw.startsWith('CS-');
+        const sc3 = pIsCs ? SECTOR_COLORS['CS'] : (SECTOR_COLORS[pmRaw]||{bg:'#F1F5F9',fg:'#64748B'});
+        tags.push(`<div class="doc-cal-tag${pIsCs?' cs':''}" style="background:${sc3.bg};color:${sc3.fg}">${pmRaw}</div>`);
       }
     }
 
