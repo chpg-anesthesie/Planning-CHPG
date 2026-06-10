@@ -1690,7 +1690,7 @@ function renderWeek() {
     {code:'MAT', label:'Maternité',                icon:'Baby'       },
   ];
 
-  const ABSENT_V2 = new Set(['RG','V','F','CTP','R','A']); // G, G2, 18 = présents en journée dans leur secteur
+  const ABSENT_V2 = new Set(['RG','V','F','CTP','R','A','TP']); // G, G2, 18 = présents en journée dans leur secteur
 
   // smap[code][dow] = {am:[{init,id,status,isNew}], pm:[...], flash_am, flash_pm}
   const smap = {};
@@ -1740,7 +1740,7 @@ function renderWeek() {
       if (st==='G2') gardes[dow].g2 = doc.initials;
       if (st==='18') h18row[dow]    = doc.initials;
       if (st==='RG') sortieRow[dow].push(doc.initials);
-      if (['A','V','F','CTP','R','I','E','CP'].includes(st)) absentRow[dow].push({init:doc.initials, reason:st});
+      if (['A','V','F','CTP','R','I','E','CP','TP'].includes(st)) absentRow[dow].push({init:doc.initials, reason:st});
 
       if (ABSENT_V2.has(st)) return;
 
@@ -1799,7 +1799,7 @@ function renderWeek() {
   // ce mois-ci qui est absent ce jour (RG/V/F/CTP/R/A), moins les remplaçants
   // déjà placés. VOLANT / DVI / CS ne flashent jamais.
   const COVERAGE = new Set(['VIS','REA','ORT','ORL','END','CI','MAT']);
-  const ABSENT_FLASH = new Set(['RG','V','F','CTP','R','A']);
+  const ABSENT_FLASH = new Set(['RG','V','F','CTP','R','A','TP']);
   const AFF = window.AFFM || {};
   const affOf = (id, m) => (AFF[id] && AFF[id][m] ? String(AFF[id][m]).trim().toUpperCase() : '');
   SECTORS.forEach(s => {
@@ -2928,13 +2928,13 @@ async function exportWeekExcel(){
   const SX=['VIS','REA','ORT','DVI','ORL','END','CI','RI','MAT','CS'];
   const DFX=['LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI','DIMANCHE'];
   const C={red:'CE1126',redDark:'9A0D1C',greyHd:'D9D9D9',greyLt:'F2F2F2',we:'EFEFEF',white:'FFFFFF',ink:'000000',muted:'595959',guard:'FFE0E0',guardFg:'B91C1C',h18:'FFF2CC',h18Fg:'B45309',rg:'E2EFDA',rgFg:'166534',abs:'F2F2F2',absFg:'595959',dark:'1A1A2E'};
-  const ABSENT_S=new Set(['RG','CP','A','F','R']);
+  const ABSENT_S=new Set(['RG','CP','A','F','R','TP']);
   const smap={};SX.forEach(s=>{smap[s]=Array(7).fill(null).map(()=>({am:[],pm:[]}));});
   const guards=Array(7).fill(null).map(()=>[]);const h18a=Array(7).fill('');const sorties=Array(7).fill(null).map(()=>[]);const absents=Array(7).fill(null).map(()=>[]);
   month.doctors.forEach(doc=>{
     daySlots.forEach((slot,dow)=>{
       if(!slot)return;const entry=doc.days[slot.dayIdx]||{};const st=entry.status||'';const am=entry.morning||'';const pm=entry.afternoon||'';
-      if(st==='G'||st==='G2')guards[dow].push(doc.initials);if(st==='18')h18a[dow]=doc.initials;if(st==='RG')sorties[dow].push(doc.initials);if(['A','CP','F','R','I','E'].includes(st))absents[dow].push(doc.initials);
+      if(st==='G'||st==='G2')guards[dow].push(doc.initials);if(st==='18')h18a[dow]=doc.initials;if(st==='RG')sorties[dow].push(doc.initials);if(['A','CP','F','R','I','E','TP'].includes(st))absents[dow].push(doc.initials);
       if(ABSENT_S.has(st))return;
       const amKey=am.startsWith('CS-')?'CS':am;const pmKey=pm.startsWith('CS-')?'CS':pm;const amSub=am.includes('-')?am.split('-')[1]:'';const pmSub=pm.includes('-')?pm.split('-')[1]:'';
       if(amKey&&smap[amKey])smap[amKey][dow].am.push({init:doc.initials,sub:amSub,status:st});
