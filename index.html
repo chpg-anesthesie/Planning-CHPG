@@ -303,6 +303,20 @@ body {
 .eq-total { font-family:var(--mono); font-size:14px; font-weight:800; color:var(--ink); text-align:right; }
 @media (max-width:768px){ .eq-row { grid-template-columns:84px 1fr 32px; gap:8px; } .eq-av{ display:none; } .eq-nm{ font-size:11px; } }
 
+/* ── Vue Affectations ── */
+.aff-wrap { padding: 4px 0 24px; overflow-x: auto; }
+.aff-legend { display:flex; flex-wrap:wrap; gap:6px 12px; margin-bottom:14px; font-size:11px; color:var(--ink-3); }
+.aff-legend-item { display:inline-flex; align-items:center; gap:5px; }
+.aff-legend-dot { width:11px; height:11px; border-radius:3px; flex-shrink:0; }
+.aff-grid { display:flex; flex-direction:column; gap:3px; min-width:330px; }
+.aff-row { display:grid; grid-template-columns:90px repeat(12,1fr); gap:2px; align-items:center; }
+.aff-name { font-size:11px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:4px; }
+.aff-cell { font-size:8px; font-weight:700; font-family:var(--mono); text-align:center; padding:5px 0; border-radius:4px; overflow:hidden; white-space:nowrap; }
+.aff-head { position:sticky; top:0; background:var(--bg); z-index:1; padding-bottom:2px; }
+.aff-head .aff-name { color:var(--ink-4); font-size:9px; text-transform:uppercase; letter-spacing:.04em; }
+.aff-head-cell { background:transparent; color:var(--ink-4); font-size:9px; font-weight:700; text-align:center; }
+@media (max-width:768px){ .aff-row { grid-template-columns:70px repeat(12,1fr); } .aff-name{ font-size:10px; } .aff-cell{ font-size:7px; } }
+
 /* ── FICHE MÉDECIN ── */
 .doc-panel-overlay {
   position: fixed; inset: 0; background: rgba(13,17,23,.45);
@@ -550,6 +564,7 @@ body {
   <button class="view-main-btn active" id="btnPlanning">📋 Planning</button>
   <button class="view-main-btn" id="btnMedecins">👥 Médecins</button>
   <button class="view-main-btn" id="btnEquite">📊 Équité</button>
+  <button class="view-main-btn" id="btnAffect">🔄 Affectations</button>
 </div>
 
 <!-- WEEK NAV -->
@@ -577,6 +592,11 @@ body {
 <!-- ÉQUITÉ VIEW -->
 <div id="equiteView" style="display:none">
   <div class="eq-wrap" id="eqWrap"></div>
+</div>
+
+<!-- AFFECTATIONS VIEW -->
+<div id="affectView" style="display:none">
+  <div class="aff-wrap" id="affWrap"></div>
 </div>
 
 <!-- FICHE MÉDECIN PANEL -->
@@ -767,6 +787,7 @@ async function init(){
   document.getElementById('btnPlanning').onclick = () => setMainView('planning');
   document.getElementById('btnMedecins').onclick = () => setMainView('medecins');
   document.getElementById('btnEquite').onclick = () => setMainView('equite');
+  document.getElementById('btnAffect').onclick = () => setMainView('affect');
 }
 
 // ── SÉLECTEUR D'ANNÉE ──────────────────────────────────────────────────
@@ -863,9 +884,12 @@ function setMainView(v){
   document.getElementById('planningView').style.display=v==='planning'?'':'none';
   document.getElementById('medecinsView').style.display=v==='medecins'?'':'none';
   const eq=document.getElementById('equiteView'); if(eq) eq.style.display=v==='equite'?'':'none';
+  const af=document.getElementById('affectView'); if(af) af.style.display=v==='affect'?'':'none';
+  const be2=document.getElementById('btnAffect'); if(be2) be2.classList.toggle('active',v==='affect');
   const wn=document.getElementById('weekNav'); if(wn) wn.style.display=v==='planning'?'':'none';
   if(v==='medecins') renderMedecins();
   else if(v==='equite') renderEquite();
+  else if(v==='affect') renderAffectations();
 }
 
 // ── MONTH SELECT ───────────────────────────────────────────────────────
@@ -1396,6 +1420,39 @@ function renderEquite(){
   wrap.innerHTML = html;
 }
 
+function renderAffectations(){
+  const wrap = document.getElementById('affWrap');
+  if(!wrap || !DATA) return;
+  const MO = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+  const MOF = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  const docs = (DATA.months[0]?.doctors || []).slice().sort((a,b)=>a.id.localeCompare(b.id));
+  const nameOf = id => (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
+  const secOf = (id,m) => { const a = AFFECTATIONS_DATA[id]||{}; return a[m] || a[String(m)] || 'VOLANT'; };
+  const abbr = s => s==='VOLANT' ? 'VOL' : s;
+  const SECLABELS = {VIS:'Viscéral',REA:'Réanimation',ORT:'Ortho',ORL:'ORL',END:'Endoscopies',CI:'Cardio/Inter',RI:'Radio/Inter',MAT:'Maternité',VOLANT:'Volant'};
+  const present = new Set();
+  docs.forEach(d => { for(let m=1;m<=12;m++) present.add(secOf(d.id,m)); });
+  const legendOrder = ['VIS','REA','ORT','ORL','END','CI','RI','MAT','VOLANT'].filter(s=>present.has(s));
+
+  let html = `<div class="aff-legend">`;
+  legendOrder.forEach(s=>{ const sc=SECTOR_COLORS[s]||SECTOR_COLORS.VOLANT; html += `<span class="aff-legend-item"><span class="aff-legend-dot" style="background:${sc.fg}"></span>${SECLABELS[s]||s}</span>`; });
+  html += `</div><div class="aff-grid">`;
+  html += `<div class="aff-row aff-head"><div class="aff-name">Médecin</div>`;
+  MO.forEach((mi,i)=>{ html += `<div class="aff-head-cell" title="${MOF[i]}">${mi}</div>`; });
+  html += `</div>`;
+  docs.forEach(d=>{
+    html += `<div class="aff-row"><div class="aff-name" title="${nameOf(d.id)}">${nameOf(d.id)}</div>`;
+    for(let m=1;m<=12;m++){
+      const sec = secOf(d.id,m);
+      const sc = SECTOR_COLORS[sec] || SECTOR_COLORS.VOLANT || {bg:'#F1F5F9',fg:'#64748B'};
+      html += `<div class="aff-cell" style="background:${sc.bg};color:${sc.fg}" title="${MOF[m-1]} : ${sec}">${abbr(sec)}</div>`;
+    }
+    html += `</div>`;
+  });
+  html += `</div>`;
+  wrap.innerHTML = html;
+}
+
 init();
 
 // ── MOBILE ────────────────────────────────────────────────────────────
@@ -1419,17 +1476,21 @@ function mobileSetView(v) {
   document.getElementById('mbtnPlanning').classList.toggle('active', v==='planning');
   document.getElementById('mbtnMedecins').classList.toggle('active', v==='medecins');
   const mbe = document.getElementById('mbtnEquite'); if(mbe) mbe.classList.toggle('active', v==='equite');
+  const mba = document.getElementById('mbtnAffect'); if(mba) mba.classList.toggle('active', v==='affect');
   const content = document.getElementById('mobileDayContent');
   const medView = document.getElementById('medecinsView');
   const eqView = document.getElementById('equiteView');
+  const afView = document.getElementById('affectView');
   const dayNav = document.getElementById('mobileDayNav');
   if(dayNav) dayNav.style.display = v==='planning' ? '' : 'none';
   content.style.display = v==='planning' ? '' : 'none';
   medView.style.display = v==='medecins' ? 'block' : 'none';
   if(eqView) eqView.style.display = v==='equite' ? 'block' : 'none';
+  if(afView) afView.style.display = v==='affect' ? 'block' : 'none';
   if (v === 'planning') renderMobileDay();
   else if (v === 'medecins') renderMedecins();
   else if (v === 'equite') renderEquite();
+  else if (v === 'affect') renderAffectations();
 }
 
 function buildMobileDayList() {
@@ -1577,6 +1638,7 @@ render = function() { _origRender(); if(isMobile){buildMobileDayList();renderMob
   <button class="mobile-bottom-btn active" id="mbtnPlanning" onclick="mobileSetView('planning')">📋 Planning</button>
   <button class="mobile-bottom-btn" id="mbtnMedecins" onclick="mobileSetView('medecins')">👥 Médecins</button>
   <button class="mobile-bottom-btn" id="mbtnEquite" onclick="mobileSetView('equite')">📊 Équité</button>
+  <button class="mobile-bottom-btn" id="mbtnAffect" onclick="mobileSetView('affect')">🔄 Secteurs</button>
   <button class="mobile-bottom-btn" id="mbtnToday" onclick="goToToday()">📍 Aujourd'hui</button>
 </div>
 
