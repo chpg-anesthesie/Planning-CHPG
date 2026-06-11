@@ -1604,7 +1604,7 @@ async function loadPlanningData() {
     let res, attempts = 0;
     while (attempts < 3) {
       try {
-        res = await fetchTimeout(`./planning_${ADMIN_YEAR}.json?` + Date.now(), {redirect:'follow'}, 15000);
+        res = await fetchTimeout(`https://raw.githubusercontent.com/chpg-anesthesie/Planning-CHPG/main/planning_${ADMIN_YEAR}.json?` + Date.now(), {redirect:'follow'}, 15000);
         if (res.ok) break;
       } catch(e) {}
       attempts++;
@@ -1616,7 +1616,7 @@ async function loadPlanningData() {
       // régénéré n'est pas propagé (latence GitHub Pages). Application idempotente.
     // Affectations du mois (pour les cases flash basées sur l'effectif attendu)
     try {
-      const ra = await fetchTimeout(`./affectations_${ADMIN_YEAR}.json?` + Date.now(), {}, 10000);
+      const ra = await fetchTimeout(`https://raw.githubusercontent.com/chpg-anesthesie/Planning-CHPG/main/affectations_${ADMIN_YEAR}.json?` + Date.now(), {}, 10000);
       window.AFFM = ra && ra.ok ? ((await ra.json()).affectations || {}) : {};
     } catch(e) { window.AFFM = {}; }
     if (!DATA || !DATA.months) throw new Error('Structure JSON invalide');
@@ -2199,13 +2199,6 @@ async function placeMAR(marId, marInit) {
     });
     if (!res.success) throw new Error(res.error);
     showToast(`✅ ${marId} affecté en ${sector} · synchronisé`);
-    // Sync silencieuse du JSON en arrière-plan (20s) pour récupérer
-    // d'éventuels changements faits depuis un autre poste
-    setTimeout(async () => {
-      await loadPlanningData();
-      // Conserver les _localOverrides par-dessus le JSON rechargé
-      renderWeek();
-    }, 20000);
   } catch(e) {
     showToast('Erreur API : ' + e.message);
     // Rollback local si l'API a échoué
