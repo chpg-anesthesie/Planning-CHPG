@@ -1596,36 +1596,6 @@ async function loadStatusBar() {
 function todayStr() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function isoWeek(dateStr) { const dt=new Date(dateStr.length===10?dateStr+'T12:00:00':dateStr); const tmp=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate())); tmp.setUTCDate(tmp.getUTCDate()+4-(tmp.getUTCDay()||7)); const ys=new Date(Date.UTC(tmp.getUTCFullYear(),0,1)); return Math.ceil((((tmp-ys)/86400000)+1)/7); }
 
-// ── Retouches comité persistées (overrides_YYYY.json) ──────────────────
-// Fichier léger produit par GAS depuis l'onglet PLANNING_OVERRIDES.
-// Peut ne pas exister encore (404 toléré). Sert de base ; les retouches
-// faites dans la session en cours (_localOverrides) priment en cas de conflit.
-function applyFileOverrides(fileOv){
-  if(!fileOv) return;
-  Object.keys(fileOv).forEach(date=>{
-    _localOverrides[date] = _localOverrides[date] || {};
-    Object.keys(fileOv[date]||{}).forEach(sec=>{
-      _localOverrides[date][sec] = _localOverrides[date][sec] || {};
-      ['am','pm'].forEach(k=>{
-        if(fileOv[date][sec][k] && !_localOverrides[date][sec][k]){
-          _localOverrides[date][sec][k] = fileOv[date][sec][k];
-        }
-      });
-    });
-  });
-}
-async function fetchOverridesFile(){
-  try{
-    const ro = await fetchTimeout(`./overrides_${ADMIN_YEAR}.json?` + Date.now(), {}, 8000);
-    if(ro && ro.ok) return await ro.json();
-  }catch(e){}
-  return null;
-}
-async function refreshOverrides(){
-  const f = await fetchOverridesFile();
-  if(f){ applyFileOverrides(f); try{ renderWeek(); }catch(e){} }
-}
-
 async function loadPlanningData() {
   const grid = document.getElementById('planTable');
   if(grid) grid.innerHTML = '<tbody><tr><td colspan="8" style="padding:40px;text-align:center;color:var(--ink-4);"><div class="spinner" style="margin:0 auto 10px;"></div>Chargement…</td></tr></tbody>';
@@ -1649,8 +1619,6 @@ async function loadPlanningData() {
       const ra = await fetchTimeout(`./affectations_${ADMIN_YEAR}.json?` + Date.now(), {}, 10000);
       window.AFFM = ra && ra.ok ? ((await ra.json()).affectations || {}) : {};
     } catch(e) { window.AFFM = {}; }
-    // Retouches comité persistées (peut ne pas exister tant que le patch GAS n'est pas posé)
-    applyFileOverrides(await fetchOverridesFile());
     if (!DATA || !DATA.months) throw new Error('Structure JSON invalide');
     const today = todayStr();
     const weeks = getAllWeeks();
@@ -2231,9 +2199,13 @@ async function placeMAR(marId, marInit) {
     });
     if (!res.success) throw new Error(res.error);
     showToast(`✅ ${marId} affecté en ${sector} · synchronisé`);
-    // Sync légère en arrière-plan : on ne recharge plus le gros JSON,
-    // seulement le petit fichier de retouches (changements d'autres postes).
-    setTimeout(() => { refreshOverrides(); }, 20000);
+    // Sync silencieuse du JSON en arrière-plan (20s) pour récupérer
+    // d'éventuels changements faits depuis un autre poste
+    setTimeout(async () => {
+      await loadPlanningData();
+      // Conserver les _localOverrides par-dessus le JSON rechargé
+      renderWeek();
+    }, 20000);
   } catch(e) {
     showToast('Erreur API : ' + e.message);
     // Rollback local si l'API a échoué
