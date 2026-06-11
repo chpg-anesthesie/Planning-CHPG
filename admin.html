@@ -1043,30 +1043,14 @@ if (sessionStorage.getItem('adminCode')) {
   </div>
 
   <!-- ACTIONS RAPIDES -->
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+  <div style="display:grid;grid-template-columns:minmax(240px,360px);gap:12px;margin-bottom:20px;">
     <div class="action-card blue" onclick="openPanel('garde')">
       <div class="action-icon blue">🔁</div>
       <div>
         <div class="action-label">Modifier une garde</div>
-        <div class="action-desc">Échange, don ou garde exceptionnelle</div>
+        <div class="action-desc">Échange ou don de garde</div>
       </div>
       <span class="action-badge blue">Fréquent</span>
-    </div>
-    <div class="action-card green" onclick="openPanel('secteur')">
-      <div class="action-icon green">🔄</div>
-      <div>
-        <div class="action-label">Changer de secteur</div>
-        <div class="action-desc">Modifier le secteur AM/PM d'un MAR</div>
-      </div>
-      <span class="action-badge green">Quotidien</span>
-    </div>
-    <div class="action-card orange" onclick="exportWeekExcel()">
-      <div class="action-icon orange">📊</div>
-      <div>
-        <div class="action-label">Exporter Excel</div>
-        <div class="action-desc">Planning de la semaine en cours</div>
-      </div>
-      <span class="action-badge orange">Hebdo</span>
     </div>
   </div>
 
@@ -2377,7 +2361,6 @@ function openPanel(type, prefillDocId='', prefillDate=''){
           <option value="">— Choisir —</option>
           <option value="echangeGarde">Échange de garde</option>
           <option value="donGarde">Don de garde</option>
-          <option value="gardeExceptionnelle">Garde exceptionnelle</option>
         </select>
       </div>
       <div id="gardeFormExtra"></div>`;
@@ -2390,20 +2373,40 @@ function updateGardeForm(){
   const type=document.getElementById('pModType')?.value;
   const marOpts=marsData.filter(m=>m.actif).map(m=>`<option value="${m.id}">${m.id}</option>`).join('');
   let extra='';
-  if(type==='echangeGarde'||type==='donGarde'){
+  if(type==='echangeGarde'){
     extra=`
-      <div class="form-field"><label class="form-label">Date de la garde</label><input class="form-input" type="date" id="pDate"/></div>
-      <div class="form-field"><label class="form-label">${type==='donGarde'?'Médecin qui donne':'Médecin A'}</label><select class="form-select" id="pDoctor"><option value="">—</option>${marOpts}</select></div>
-      <div class="form-field"><label class="form-label">${type==='donGarde'?'Médecin qui reçoit':'Médecin B'}</label><select class="form-select" id="pDoctor2"><option value="">—</option>${marOpts}</select></div>
-      <div class="form-field"><label class="form-label">Date du RG (si différente du lendemain)</label><input class="form-input" type="date" id="pDate2"/></div>`;
+      <div class="form-field"><label class="form-label">Date de la garde</label><input class="form-input" type="date" id="pDate" onchange="showGardeRole()"/></div>
+      <div id="gardeRoleHint" style="display:none;font-size:11px;font-weight:600;color:var(--blue);padding:6px 10px;background:#EFF4FE;border-radius:8px;margin-bottom:4px"></div>
+      <div class="form-field"><label class="form-label">Médecin A — possède la garde</label><select class="form-select" id="pDoctor" onchange="showGardeRole()"><option value="">—</option>${marOpts}</select></div>
+      <div class="form-field"><label class="form-label">Médecin B — la reprend</label><select class="form-select" id="pDoctor2"><option value="">—</option>${marOpts}</select></div>
+      <div style="font-size:11px;color:var(--ink-4);line-height:1.5;padding:8px 10px;background:var(--line-light);border-radius:8px">
+        À cette date, la garde de A passe à B (même rôle G/G2). Le repos de garde du lendemain suit automatiquement.
+      </div>`;
   }
-  if(type==='gardeExceptionnelle'){
+  if(type==='donGarde'){
     extra=`
-      <div class="form-field"><label class="form-label">Date</label><input class="form-input" type="date" id="pDate"/></div>
-      <div class="form-field"><label class="form-label">Médecin</label><select class="form-select" id="pDoctor"><option value="">—</option>${marOpts}</select></div>
-      <div class="form-field"><label class="form-label">Type</label><select class="form-select" id="pValue"><option value="G">G — Garde REA</option><option value="G2">G2 — Garde MAT</option></select></div>`;
+      <div class="form-field"><label class="form-label">Date de la garde</label><input class="form-input" type="date" id="pDate" onchange="showGardeRole()"/></div>
+      <div id="gardeRoleHint" style="display:none;font-size:11px;font-weight:600;color:var(--blue);padding:6px 10px;background:#EFF4FE;border-radius:8px;margin-bottom:4px"></div>
+      <div class="form-field"><label class="form-label">Médecin qui donne</label><select class="form-select" id="pDoctor" onchange="showGardeRole()"><option value="">—</option>${marOpts}</select></div>
+      <div class="form-field"><label class="form-label">Médecin qui reçoit</label><select class="form-select" id="pDoctor2"><option value="">—</option>${marOpts}</select></div>
+      <div style="font-size:11px;color:var(--ink-4);line-height:1.5;padding:8px 10px;background:var(--line-light);border-radius:8px">
+        Le médecin qui reçoit prend la garde + le repos de garde du lendemain (automatique).
+      </div>`;
   }
   document.getElementById('gardeFormExtra').innerHTML=extra;
+}
+
+async function showGardeRole(){
+  try{
+    const hint=document.getElementById('gardeRoleHint'); if(!hint) return;
+    const d=document.getElementById('pDate')?.value, a=document.getElementById('pDoctor')?.value;
+    if(!d||!a){ hint.style.display='none'; return; }
+    if(!gardesData){ const r=await api({action:'getGardes'}); if(r&&r.success) gardesData=r.data; }
+    const code=(gardesData&&gardesData[d]&&gardesData[d][a])?String(gardesData[d][a]).trim().toUpperCase():'';
+    if(code==='G'){ hint.textContent='Garde de A ce jour : G — REA'; hint.style.display='block'; }
+    else if(code==='G2'){ hint.textContent='Garde de A ce jour : G2 — Maternité'; hint.style.display='block'; }
+    else { hint.textContent='⚠️ Aucune garde G/G2 pour ce médecin à cette date'; hint.style.display='block'; }
+  }catch(e){ const x=document.getElementById('gardeRoleHint'); if(x) x.style.display='none'; }
 }
 
 function setPanelYear(year) {
