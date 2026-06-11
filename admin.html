@@ -1335,6 +1335,7 @@ let DATA = null, marsData = [], gardesData = null;
 // Overrides locaux : modifications faites pendant la session, appliquées par-dessus le JSON
 // Structure : { 'YYYY-MM-DD': { 'SECTOR': { am: {marId, marInit} | null, pm: {marId, marInit} | null } } }
 let _localOverrides = {};
+let _localVides = {};  // cases flash laissées volontairement vides (session)
 let currentWeekIdx = 0, currentCalMonth = new Date().getMonth();
 let panelType = '', allViolations = [], activeFilter = 'all';
 let selectedYear = null; // null = utilise ANNEE_ACTIVE, sinon N+1
@@ -1856,6 +1857,11 @@ function renderWeek() {
       const cls = p.isNew ? 'slot-name slot-new slot-clickable' : 'slot-name slot-clickable';
       html += `<span class="${cls}" title="${p.id||''}" onclick="openMarMenu('${p.id}','${p.init}','${sector}','${date}','${slotKey}')">${p.init}</span>`;
     });
+    const _vide = _localVides[date] && _localVides[date].has(`${sector}|${slotKey}`);
+    if (_vide) {
+      if (!items.length) html += `<span onclick="undoCaseVide('${date}','${sector}|${slotKey}')" title="Laissée vide — cliquer pour rétablir" style="color:#CBD5E1;font-size:13px;font-weight:700;cursor:pointer;padding:0 3px">∅</span>`;
+      return html;
+    }
     for (let i = 0; i < flash; i++) {
       html += `<span class="slot-flash" onclick="openSidePanel('${sector}','${date}','${sectorLabel}','${slotKey}')">+</span>`;
     }
@@ -1868,6 +1874,11 @@ function renderWeek() {
       const cls = p.isNew ? 'slot-name cs-chip slot-new slot-clickable' : 'slot-name cs-chip slot-clickable';
       html += `<span class="${cls}" title="${p.id||''}" onclick="openMarMenu('${p.id}','${p.init}','${type}','${date}','${slotKey}')">${p.init}</span>`;
     });
+    const _vide = _localVides[date] && _localVides[date].has(`${type}|${slotKey}`);
+    if (_vide) {
+      if (!items.length) html += `<span onclick="undoCaseVide('${date}','${type}|${slotKey}')" title="Laissée vide — cliquer pour rétablir" style="color:#CBD5E1;font-size:13px;font-weight:700;cursor:pointer;padding:0 3px">∅</span>`;
+      return html;
+    }
     for (let i = 0; i < (flash||0); i++) {
       html += `<span class="slot-flash" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')">+</span>`;
     }
@@ -2069,6 +2080,7 @@ async function toggleValiderSemaine() {
     if (!res.success) throw new Error(res.error);
     showToast(newVal ? `✅ Semaine ${wk.weekNum} validée — publiée sur index.html` : `↩ Semaine ${wk.weekNum} dévalidée`);
     _localOverrides = {};
+    _localVides = {};
     await loadPlanningData();
     renderWeek();
   } catch(e) {
@@ -2090,7 +2102,8 @@ async function openSidePanel(sector, date, sectorLabel, slotKey) {
   document.getElementById('pspSub').innerHTML =
     `<span style="background:${getSectorBg(sector)};color:${getSectorFg(sector)};padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-right:6px;">${sector}</span>`
     + `<span style="background:${slotKey==='am'?'#CE1126':'#64748B'};color:#fff;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-right:6px;">${slotKey.toUpperCase()}</span>`
-    + new Date(date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+    + new Date(date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})
+    + ` <button onclick="leaveCaseVide()" style="margin-left:8px;border:1px solid var(--line);background:var(--white);color:var(--ink-3);border-radius:8px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;">∅ Laisser vide</button>`;
   document.getElementById('pspContent').innerHTML =
     '<div class="loading"><div class="spinner"></div></div>';
   card.scrollIntoView({behavior:'smooth', block:'nearest'});
@@ -2213,6 +2226,19 @@ function openMarMenu(marId, marInit, currentSector, date, slotKey) {
       style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid #FCA5A5;border-radius:10px;background:#FEF2F2;color:#B91C1C;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">↩ Retirer (renvoyer en volant)</button>`;
   document.getElementById('pspContent').innerHTML = html;
   card.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function leaveCaseVide() {
+  const ctx = window._sideCtx; if (!ctx) return;
+  const {sector, date, slotKey} = ctx;
+  if (!_localVides[date]) _localVides[date] = new Set();
+  _localVides[date].add(`${sector}|${slotKey}`);
+  const c = document.getElementById('dispoCard'); if (c) c.style.display = 'none';
+  renderWeek();
+  if (typeof showToast === 'function') showToast('Case laissée vide');
+}
+function undoCaseVide(date, key) {
+  if (_localVides[date]) { _localVides[date].delete(key); renderWeek(); }
 }
 
 function moveMARTo(marId, marInit, targetSector) {
