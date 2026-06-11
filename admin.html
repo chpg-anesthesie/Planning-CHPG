@@ -1733,44 +1733,45 @@ function renderWeek() {
       if (amKey && smap[amKey]) smap[amKey][dow].am.push({init:doc.initials, id:doc.id, status:st});
       if (pmKey && smap[pmKey]) smap[pmKey][dow].pm.push({init:doc.initials, id:doc.id, status:st});
       // Consultations détaillées par type : AM = morning CS-, PM = afternoon CS-
-      if (am.startsWith('CS-') && csTypeMap[am]) csTypeMap[am][dow].am.push({init:doc.initials, id:doc.id, status:st});
+      if (am.startsWith('CS-') && csTypeMap[am]) {
+        csTypeMap[am][dow].am.push({init:doc.initials, id:doc.id, status:st});
+        const secMatin = pm.startsWith('CS-') ? '' : pm;   // consult du matin → aussi visible dans son secteur (=aprem)
+        if (secMatin && smap[secMatin]) smap[secMatin][dow].am.push({init:doc.initials, id:doc.id, status:st});
+      }
       if (pm.startsWith('CS-') && csTypeMap[pm]) csTypeMap[pm][dow].pm.push({init:doc.initials, id:doc.id, status:st});
     });
   });
 
-  // Appliquer les overrides locaux de session par-dessus le JSON
-  // (modifications faites via le comité avant que le JSON soit re-pushé)
+  // Appliquer les overrides locaux de session (re-clé par MAR → chaque MAR est
+  // indépendant : retirer/déplacer l'un n'annule pas l'autre)
   daySlots.forEach((slot, dow) => {
     if (!slot || slot.isWeekend || slot.isFerie) return;
-    const dateOverrides = _localOverrides[slot.date];
-    if (!dateOverrides) return;
-    Object.keys(dateOverrides).forEach(secCode => {
-      const ov = dateOverrides[secCode];
+    const dateOv = _localOverrides[slot.date];
+    if (!dateOv) return;
+    Object.keys(dateOv).forEach(marId => {
+      const ov = dateOv[marId];
       if (!ov) return;
+      const marInit = getInitials(marId);
       ['am','pm'].forEach(k => {
-        if (!ov[k]) return;
-        const marId = ov[k].marId, marInit = ov[k].marInit;
-        // Consultations : clé CS-XXX → csTypeMap
-        if (secCode.startsWith('CS-')) {
-          if (csTypeMap[secCode] && !csTypeMap[secCode][dow][k].find(p => p.id === marId)) {
-            csTypeMap[secCode][dow][k].push({init: marInit, id: marId, status:'', isNew:true});
-          }
-          return;
-        }
-        // Secteur : retirer d'abord ce MAR de TOUS les secteurs pour ce demi-jour
-        // (déplacement / retrait propre, pas de doublon)
+        const tgt = ov[k];
+        if (tgt == null) return;
+        // retirer ce MAR de TOUS les secteurs + consultations pour ce demi-jour
         SECTORS.forEach(s2 => {
           const c2 = smap[s2.code][dow][k];
-          const idx = c2.findIndex(p => p && p.id === marId);
-          if (idx >= 0) c2.splice(idx, 1);
+          const i = c2.findIndex(p => p && p.id === marId);
+          if (i >= 0) c2.splice(i, 1);
         });
-        // Ajouter dans le secteur cible (VOLANT n'a pas de ligne → le MAR est simplement retiré)
-        if (smap[secCode]) {
-          const cell = smap[secCode][dow];
-          const nullIdx = cell[k].indexOf(null);
-          if (nullIdx >= 0) cell[k].splice(nullIdx, 1);
-          cell[k].push({init: marInit, id: marId, status:'', isNew:true});
+        CS_TYPES.forEach(t => {
+          const cc = csTypeMap[t.code][dow][k];
+          const i = cc.findIndex(p => p && p.id === marId);
+          if (i >= 0) cc.splice(i, 1);
+        });
+        if (tgt === 'VOLANT' || tgt === 'VIDE') return;   // retiré / laissé vide
+        if (tgt.startsWith('CS-')) {
+          if (csTypeMap[tgt]) csTypeMap[tgt][dow][k].push({init: marInit, id: marId, status:'', isNew:true});
+          return;
         }
+        if (smap[tgt]) smap[tgt][dow][k].push({init: marInit, id: marId, status:'', isNew:true});
       });
     });
   });
@@ -2160,8 +2161,8 @@ async function placeMAR(marId, marInit) {
 
   // 1. Stocker dans _localOverrides (couche locale persistante dans la session)
   if (!_localOverrides[date]) _localOverrides[date] = {};
-  if (!_localOverrides[date][sector]) _localOverrides[date][sector] = {am:null, pm:null};
-  _localOverrides[date][sector][slotKey] = {marId, marInit};
+  if (!_localOverrides[date][marId]) _localOverrides[date][marId] = {am:null, pm:null};
+  _localOverrides[date][marId][slotKey] = sector;
 
   // 2. Re-render immédiat depuis smap + _localOverrides (pas de rechargement JSON)
   closeSidePanel();
@@ -2182,8 +2183,8 @@ async function placeMAR(marId, marInit) {
   } catch(e) {
     showToast('Erreur API : ' + e.message);
     // Rollback local si l'API a échoué
-    if (_localOverrides[date]?.[sector]) {
-      _localOverrides[date][sector][slotKey] = null;
+    if (_localOverrides[date]?.[marId]) {
+      _localOverrides[date][marId][slotKey] = null;
     }
     renderWeek();
   }
@@ -2968,26 +2969,20 @@ async function exportWeekExcel(){
       const cs3=entry.cs3||'';if(cs3&&smap[cs3])smap[cs3][dow].pm.push({init:doc.initials,sub:'',status:st});
     });
   });
-  // Appliquer les overrides locaux (modifs via cases flash) — pour coller à l'écran
+  // Appliquer les overrides locaux (re-clé par MAR) — pour coller à l'écran
   daySlots.forEach((slot,dow)=>{
     if(!slot)return;
     const ov=_localOverrides[slot.date];
     if(!ov)return;
-    Object.keys(ov).forEach(secCode=>{
-      const o=ov[secCode];if(!o)return;
+    Object.keys(ov).forEach(marId=>{
+      const o=ov[marId];if(!o)return;
+      const mi=getInitials(marId);
       ['am','pm'].forEach(k=>{
-        if(!o[k])return;
-        const mi=o[k].marInit;
-        if(secCode.startsWith('CS-')){
-          if(smap['CS']&&!smap['CS'][dow][k].find(p=>p.init===mi)){
-            smap['CS'][dow][k].push({init:mi,sub:(secCode.split('-')[1]||''),status:''});
-          }
-          return;
-        }
+        const tgt=o[k];if(tgt==null)return;
         SX.forEach(s2=>{const arr=smap[s2][dow][k];const idx=arr.findIndex(p=>p.init===mi);if(idx>=0)arr.splice(idx,1);});
-        if(smap[secCode]&&!smap[secCode][dow][k].find(p=>p.init===mi)){
-          smap[secCode][dow][k].push({init:mi,sub:'',status:''});
-        }
+        if(tgt==='VOLANT'||tgt==='VIDE')return;
+        if(tgt.startsWith('CS-')){if(smap['CS']&&!smap['CS'][dow][k].find(p=>p.init===mi))smap['CS'][dow][k].push({init:mi,sub:(tgt.split('-')[1]||''),status:''});return;}
+        if(smap[tgt]&&!smap[tgt][dow][k].find(p=>p.init===mi))smap[tgt][dow][k].push({init:mi,sub:'',status:''});
       });
     });
   });
