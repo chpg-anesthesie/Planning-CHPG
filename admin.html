@@ -1865,8 +1865,8 @@ function renderWeek() {
   function makeCsSlot(items, flash, type, label, date, slotKey) {
     let html = '';
     items.forEach(p => {
-      const cls = p.isNew ? 'slot-name cs-chip slot-new' : 'slot-name cs-chip';
-      html += '<span class="'+cls+'" title="'+(p.id||'')+'">'+p.init+'</span>';
+      const cls = p.isNew ? 'slot-name cs-chip slot-new slot-clickable' : 'slot-name cs-chip slot-clickable';
+      html += `<span class="${cls}" title="${p.id||''}" onclick="openMarMenu('${p.id}','${p.init}','${type}','${date}','${slotKey}')">${p.init}</span>`;
     });
     for (let i = 0; i < (flash||0); i++) {
       html += `<span class="slot-flash" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')">+</span>`;
