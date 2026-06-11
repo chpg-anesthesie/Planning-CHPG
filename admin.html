@@ -980,11 +980,6 @@ if (sessionStorage.getItem('adminCode')) {
   </div>
   <div class="status-sep"></div>
   <div class="status-item">
-    <span class="status-label">Overrides à venir</span>
-    <span class="status-value" id="statusOverrides">—</span>
-  </div>
-  <div class="status-sep"></div>
-  <div class="status-item">
     <span class="status-label">Semaine</span>
     <span class="status-value" id="statusWeek">—</span>
   </div>
@@ -1011,7 +1006,7 @@ if (sessionStorage.getItem('adminCode')) {
       <span class="week-label" id="weekLabel">Chargement…</span>
       <button class="week-nav-btn" onclick="nextWeek()">→</button>
       <span id="flashBadge" style="display:none;align-items:center;gap:5px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#C2410C;">
-        ⚠️ <span id="flashCount">0</span> case<span id="flashPlural">s</span> à pourvoir
+        ⚠️ <span id="flashCount">0</span> <span id="flashWord">cases</span> à pourvoir
       </span>
       <span id="validatedBadge" style="display:none;align-items:center;gap:5px;background:#DCFCE7;border:1px solid #86EFAC;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#166534;">✅ Validée</span>
     </div>
@@ -1587,7 +1582,7 @@ async function loadStatusBar() {
   try {
     const [medData, ovData] = await Promise.all([api({action:'getMedecins'}), api({action:'getOverrides'})]);
     if (medData.success) { marsData = medData.medecins; document.getElementById('statusMars').textContent = medData.medecins.filter(m=>m.actif).length; }
-    if (ovData.success) { document.getElementById('statusOverrides').textContent = ovData.upcoming; if(ovData.upcoming>5) document.getElementById('dotStatus').className='status-dot orange'; }
+    if (ovData.success) { if(ovData.upcoming>5) document.getElementById('dotStatus').className='status-dot orange'; }
     document.getElementById('statusSys').textContent = 'OK';
   } catch(e) { document.getElementById('statusSys').textContent = 'Erreur'; document.getElementById('dotStatus').className='status-dot red'; }
 }
@@ -1680,6 +1675,7 @@ function renderWeek() {
   if (first && last) {
     const fmt = ds => new Date(ds+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
     document.getElementById('weekLabel').textContent = `S${wk.weekNum} · ${fmt(first.date)} – ${fmt(last.date)}`;
+    const swEl = document.getElementById('statusWeek'); if (swEl) swEl.textContent = `S${wk.weekNum}`;
   }
 
   const SECTORS = [
@@ -2040,7 +2036,7 @@ function updateFlashBadge() {
     badge.style.display = n > 0 ? 'inline-flex' : 'none';
     if (n > 0) {
       document.getElementById('flashCount').textContent = n;
-      document.getElementById('flashPlural').textContent = n > 1 ? 's' : '';
+      document.getElementById('flashWord').textContent = n > 1 ? 'cases' : 'case';
     }
   }
   const btnVal = document.getElementById('btnValiderSemaine');
@@ -2258,7 +2254,6 @@ async function loadOverrides() {
     if(!data.success) throw new Error(data.error);
     const futures=data.overrides.filter(o=>o.isFuture).slice(0,8);
     const body=document.getElementById('overridesBody');
-    document.getElementById('statusOverrides').textContent=data.upcoming;
     if(!futures.length){body.innerHTML='<div style="text-align:center;color:var(--green);padding:16px;font-size:12px">✅ Aucune modification en attente</div>';return;}
     body.innerHTML=futures.map(o=>`
       <div class="override-item">
