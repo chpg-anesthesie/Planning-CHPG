@@ -1336,6 +1336,7 @@ let DATA = null, marsData = [], gardesData = null;
 // Structure : { 'YYYY-MM-DD': { 'SECTOR': { am: {marId, marInit} | null, pm: {marId, marInit} | null } } }
 let _localOverrides = {};
 let _localVides = {};  // cases flash laissées volontairement vides (session)
+let _dispoCache = {};  // cache liste MARs dispos par jour (évite re-fetch à chaque case)
 let currentWeekIdx = 0, currentCalMonth = new Date().getMonth();
 let panelType = '', allViolations = [], activeFilter = 'all';
 let selectedYear = null; // null = utilise ANNEE_ACTIVE, sinon N+1
@@ -1470,7 +1471,7 @@ function showTab(name) {
   if (name==='planning' && !DATA) loadPlanningData();
   if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations(ADMIN_YEAR);
   if (name==='equipe') loadEquipe();
-  if (name==='equite') loadStats(ADMIN_YEAR);
+  if (name==='equite') { loadStats(ADMIN_YEAR); loadVacancesValidation(); }
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────
@@ -1859,7 +1860,7 @@ function renderWeek() {
     });
     const _vide = _localVides[date] && _localVides[date].has(`${sector}|${slotKey}`);
     if (_vide) {
-      if (!items.length) html += `<span onclick="undoCaseVide('${date}','${sector}|${slotKey}')" title="Laissée vide — cliquer pour rétablir" style="color:#CBD5E1;font-size:13px;font-weight:700;cursor:pointer;padding:0 3px">∅</span>`;
+      if (!items.length) html += `<span onclick="openSidePanel('${sector}','${date}','${sectorLabel}','${slotKey}')" title="Laissée vide — cliquer pour modifier" style="color:#CBD5E1;font-size:13px;font-weight:700;cursor:pointer;padding:0 3px">∅</span>`;
       return html;
     }
     for (let i = 0; i < flash; i++) {
@@ -1876,7 +1877,7 @@ function renderWeek() {
     });
     const _vide = _localVides[date] && _localVides[date].has(`${type}|${slotKey}`);
     if (_vide) {
-      if (!items.length) html += `<span onclick="undoCaseVide('${date}','${type}|${slotKey}')" title="Laissée vide — cliquer pour rétablir" style="color:#CBD5E1;font-size:13px;font-weight:700;cursor:pointer;padding:0 3px">∅</span>`;
+      if (!items.length) html += `<span onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')" title="Laissée vide — cliquer pour modifier" style="color:#CBD5E1;font-size:13px;font-weight:700;cursor:pointer;padding:0 3px">∅</span>`;
       return html;
     }
     for (let i = 0; i < (flash||0); i++) {
@@ -2081,6 +2082,7 @@ async function toggleValiderSemaine() {
     showToast(newVal ? `✅ Semaine ${wk.weekNum} validée — publiée sur index.html` : `↩ Semaine ${wk.weekNum} dévalidée`);
     _localOverrides = {};
     _localVides = {};
+    _dispoCache = {};
     await loadPlanningData();
     renderWeek();
   } catch(e) {
@@ -2099,18 +2101,25 @@ async function openSidePanel(sector, date, sectorLabel, slotKey) {
   if (!card) return;
   card.style.display = 'block';
   document.getElementById('pspTitle').textContent = `Affecter en ${sectorLabel}`;
+  const _vide = _localVides[date] && _localVides[date].has(`${sector}|${slotKey}`);
+  const _videBtn = _vide
+    ? `<button onclick="unleaveCaseVide()" style="margin-left:8px;border:1px solid var(--line);background:var(--white);color:var(--ink-3);border-radius:8px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;">↺ Remettre en flash</button>`
+    : `<button onclick="leaveCaseVide()" style="margin-left:8px;border:1px solid var(--line);background:var(--white);color:var(--ink-3);border-radius:8px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;">∅ Laisser vide</button>`;
   document.getElementById('pspSub').innerHTML =
     `<span style="background:${getSectorBg(sector)};color:${getSectorFg(sector)};padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-right:6px;">${sector}</span>`
     + `<span style="background:${slotKey==='am'?'#CE1126':'#64748B'};color:#fff;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-right:6px;">${slotKey.toUpperCase()}</span>`
     + new Date(date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})
-    + ` <button onclick="leaveCaseVide()" style="margin-left:8px;border:1px solid var(--line);background:var(--white);color:var(--ink-3);border-radius:8px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;">∅ Laisser vide</button>`;
-  document.getElementById('pspContent').innerHTML =
-    '<div class="loading"><div class="spinner"></div></div>';
+    + ' ' + _videBtn;
   card.scrollIntoView({behavior:'smooth', block:'nearest'});
 
+  // Cache par jour : la liste des dispos d'une date est stable durant la session
+  if (_dispoCache[date]) { renderSidePanelContent(_dispoCache[date], sector); return; }
+  document.getElementById('pspContent').innerHTML =
+    '<div class="loading"><div class="spinner"></div></div>';
   api({action:'getMARsDispoJour', date})
     .then(res => {
       if (!res.success) throw new Error(res.error);
+      _dispoCache[date] = res.dispo;
       renderSidePanelContent(res.dispo, sector);
     })
     .catch(e => {
@@ -2136,6 +2145,7 @@ function renderSidePanelContent(dispo, sector) {
     {key:'PRESENT', bg:'#F1F5F9', fg:'#334155', label:'Présents dans un secteur'},
     {key:'CTP',     bg:'#F3E8FF', fg:'#7C3AED', label:'CTP — dernier recours'},
     {key:'R',       bg:'#DCFCE7', fg:'#166534', label:'Récup — dernier recours'},
+    {key:'TP',      bg:'#FEF3C7', fg:'#92400E', label:'Temps partiel — dernier recours'},
   ];
   const byRole = {};
   dispo.forEach(m => { if (!byRole[m.role]) byRole[m.role] = []; byRole[m.role].push(m); });
@@ -2176,6 +2186,7 @@ async function placeMAR(marId, marInit) {
   if (!_localOverrides[date]) _localOverrides[date] = {};
   if (!_localOverrides[date][marId]) _localOverrides[date][marId] = {am:null, pm:null};
   _localOverrides[date][marId][slotKey] = sector;
+  if (_localVides[date]) _localVides[date].delete(`${sector}|${slotKey}`);  // placer annule le vide
 
   // 2. Re-render immédiat depuis smap + _localOverrides (pas de rechargement JSON)
   closeSidePanel();
@@ -2239,6 +2250,13 @@ function leaveCaseVide() {
 }
 function undoCaseVide(date, key) {
   if (_localVides[date]) { _localVides[date].delete(key); renderWeek(); }
+}
+function unleaveCaseVide() {
+  const ctx = window._sideCtx; if (!ctx) return;
+  const {sector, date, slotKey} = ctx;
+  if (_localVides[date]) _localVides[date].delete(`${sector}|${slotKey}`);
+  const c = document.getElementById('dispoCard'); if (c) c.style.display = 'none';
+  renderWeek();
 }
 
 function moveMARTo(marId, marInit, targetSector) {
@@ -2579,7 +2597,7 @@ async function loadStats(year){
     renderStats(data.stats);
   }catch(e){
     document.getElementById('gardesEmpty').style.display='block';
-    document.getElementById('gardesEmpty').textContent = 'Stats non disponibles pour ' + year + ' — vérifiez que GARDES_' + year + ' existe.';
+    document.getElementById('gardesEmpty').textContent = 'Stats non disponibles pour ' + year + ' — cette année a été reconstruite (pas générée). Reconstruisez STATS_GARDES_' + year + ' via buildStats2026() dans Apps Script.';
   }finally{document.getElementById('gardesLoading').style.display='none';}
 }
 
