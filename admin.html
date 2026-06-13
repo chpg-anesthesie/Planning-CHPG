@@ -758,6 +758,9 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 /* Side panel */
 .plan-right { position:sticky; top:112px; }
 .psp-card { background:var(--white); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; margin-bottom:12px; }
+/* Sélecteur de MAR flottant : visible sans scroller */
+#dispoCard { position:fixed; top:70px; right:16px; width:360px; max-width:calc(100vw - 32px); max-height:calc(100vh - 90px); overflow-y:auto; z-index:2000; margin-bottom:0 !important; box-shadow:0 12px 40px rgba(0,0,0,.18) !important; }
+@media (max-width:720px){ #dispoCard{ top:auto; bottom:0; right:0; left:0; width:auto; max-width:none; max-height:78vh; border-radius:16px 16px 0 0 !important; } }
 .psp-header { padding:12px 14px 10px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-start; }
 .psp-title { font-size:13px; font-weight:700; color:var(--ink); }
 .psp-sub { font-size:11px; color:var(--ink-3); margin-top:2px; }
@@ -1043,7 +1046,7 @@ if (sessionStorage.getItem('adminCode')) {
   </div>
 
   <!-- ACTIONS RAPIDES -->
-  <div style="display:grid;grid-template-columns:minmax(240px,360px);gap:12px;margin-bottom:20px;">
+  <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:20px;">
     <div class="action-card blue" onclick="openPanel('garde')">
       <div class="action-icon blue">🔁</div>
       <div>
