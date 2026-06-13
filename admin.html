@@ -1792,8 +1792,9 @@ function renderWeek() {
     const matAm = (smap['MAT'] && smap['MAT'][dow]) ? smap['MAT'][dow].am : null;
     const csAm  = (csTypeMap['CS-MAT'] && csTypeMap['CS-MAT'][dow]) ? csTypeMap['CS-MAT'][dow].am : null;
     if (!matAm || !csAm) return;
+    // sens unique : qui est en MAT (mater présent OU placé par le comité) fait aussi la consult ;
+    // mais une consult CS-MAT auto-remplie ne force PAS quelqu'un dans MAT (→ MAT flashe, le comité choisit)
     matAm.slice().forEach(p => { if (p && !csAm.some(x => x && x.id === p.id)) csAm.push({init:p.init, id:p.id, status:'', isNew:p.isNew}); });
-    csAm.slice().forEach(p => { if (p && !matAm.some(x => x && x.id === p.id)) matAm.push({init:p.init, id:p.id, status:'', isNew:p.isNew}); });
   });
 
   // Marquer les flash : un "+" par MAR affecté à un secteur de couverture
@@ -1808,6 +1809,7 @@ function renderWeek() {
       const cell = smap[s.code][dow];
       cell.flash_am = 0; cell.flash_pm = 0;
       if (!slot || slot.isWeekend || slot.isFerie || !COVERAGE.has(s.code)) return;
+      if (s.code === 'CI' && dow === 3) return;  // jeudi = radio inter seule : CI n'est pas requis
       const m = parseInt(slot.date.slice(5,7), 10);
       const affected = Object.keys(AFF).filter(id => affOf(id, m) === s.code);
       const absent = affected.filter(id => ABSENT_FLASH.has((stMap[dow] && stMap[dow][id]) || ''));
