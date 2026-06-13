@@ -1434,13 +1434,14 @@ async function authenticate() {
 
 async function api(payload) {
   payload.code = ADMIN_CODE;
-  const res = await fetch(API_URL + '?' + new URLSearchParams({payload: JSON.stringify(payload)}), {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
     redirect: 'follow',
-    mode: 'cors',
   });
   return res.json();
 }
-
 // Fetch avec timeout — évite les blocages sur Safari iOS
 async function fetchTimeout(url, options={}, ms=8000) {
   const ctrl = new AbortController();
