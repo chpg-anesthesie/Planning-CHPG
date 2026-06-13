@@ -1473,7 +1473,7 @@ function showTab(name) {
   if (panelEl) panelEl.classList.add('active');
   if (tabEl)   tabEl.classList.add('active');
   if (name==='planning' && !DATA) loadPlanningData();
-  if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations(ADMIN_YEAR);
+  if (name==='affectations') loadAffectations(ADMIN_YEAR);
   if (name==='equipe') loadEquipe();
   if (name==='equite') { loadStats(ADMIN_YEAR); loadVacancesValidation(); }
 }
