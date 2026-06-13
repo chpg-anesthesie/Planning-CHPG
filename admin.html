@@ -810,6 +810,13 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .cs-group-label .sector-icon-svg { stroke:#fff; width:15px; height:15px; vertical-align:-2px; margin-right:6px; display:inline-block; }
 .cs-sub-name { font-size:12px; font-weight:700; color:#166534; }
 .cs-sub-row .td-sector { background:#F7FEF9; }
+.cs-apourvoir { display:inline-block; font-size:9px; font-weight:600; color:#1D4ED8; background:#EFF6FF; border:1px dashed #93C5FD; border-radius:5px; padding:1px 5px; cursor:pointer; line-height:1.4; white-space:nowrap; }
+.cs-apourvoir:hover { background:#DBEAFE; }
+.cs-ouvrir { display:inline-block; font-size:9px; font-weight:600; color:#94A3B8; background:transparent; border:1px dashed #CBD5E1; border-radius:5px; padding:1px 5px; cursor:pointer; line-height:1.4; white-space:nowrap; }
+.cs-ouvrir:hover { color:#475569; border-color:#94A3B8; }
+.cs-fermer { display:inline-block; font-size:11px; font-weight:700; color:#CBD5E1; cursor:pointer; padding:0 2px; vertical-align:middle; }
+.cs-fermer:hover { color:#EF4444; }
+.slot-name.cs-chip.cs-mirror { background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; }
 
 /* ── SLOT FLASH (admin) ── */
 .slot-flash {
@@ -1016,7 +1023,6 @@ if (sessionStorage.getItem('adminCode')) {
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
       <button class="week-validate-btn" id="btnValiderSemaine" onclick="toggleValiderSemaine()">✅ Valider la semaine</button>
-      <button class="week-validate-btn" id="btnPublier" onclick="publishPlanning()">⬆️ Publier</button>
     </div>
   </div>
 
@@ -1339,8 +1345,8 @@ let DATA = null, marsData = [], gardesData = null;
 // Overrides locaux : modifications faites pendant la session, appliquées par-dessus le JSON
 // Structure : { 'YYYY-MM-DD': { 'SECTOR': { am: {marId, marInit} | null, pm: {marId, marInit} | null } } }
 let _localOverrides = {};
-let _pendingChanges = 0;
 let _localVides = {};  // cases flash laissées volontairement vides (session)
+let _localOpens = {};  // consultations ouvertes par le comité (session) : `${csCode}|${slotKey}`
 let _dispoCache = {};  // cache liste MARs dispos par jour (évite re-fetch à chaque case)
 let currentWeekIdx = 0, currentCalMonth = new Date().getMonth();
 let panelType = '', allViolations = [], activeFilter = 'all';
@@ -1436,14 +1442,13 @@ async function authenticate() {
 
 async function api(payload) {
   payload.code = ADMIN_CODE;
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload),
+  const res = await fetch(API_URL + '?' + new URLSearchParams({payload: JSON.stringify(payload)}), {
     redirect: 'follow',
+    mode: 'cors',
   });
   return res.json();
 }
+
 // Fetch avec timeout — évite les blocages sur Safari iOS
 async function fetchTimeout(url, options={}, ms=8000) {
   const ctrl = new AbortController();
@@ -1475,7 +1480,7 @@ function showTab(name) {
   if (panelEl) panelEl.classList.add('active');
   if (tabEl)   tabEl.classList.add('active');
   if (name==='planning' && !DATA) loadPlanningData();
-  if (name==='affectations') loadAffectations(ADMIN_YEAR);
+  if (name==='affectations' && document.getElementById('affContent').style.display==='none') loadAffectations(ADMIN_YEAR);
   if (name==='equipe') loadEquipe();
   if (name==='equite') { loadStats(ADMIN_YEAR); loadVacancesValidation(); }
 }
@@ -1484,13 +1489,13 @@ function showTab(name) {
 // ── SÉLECTEUR ANNÉE ──────────────────────────────────────────────────
 function buildYearSelector() {
   // Met à jour le sélecteur d'année dans le header si présent
-  const sel = document.getElementById('adminYearSelect');
+  const sel = document.getElementById('yearSelector');
   if (!sel) return;
   sel.innerHTML = availableYears.map(y =>
     `<option value="${y.year}" ${y.year===ADMIN_YEAR?'selected':''}>${y.label}</option>`
   ).join('');
-  sel.style.display = availableYears.length > 1 ? '' : 'none';
 }
+
 async function detectAvailableYears() {
   availableYears = [];
   availableYears.push({ year: YEAR, label: YEAR + ' — actif', readonly: false });
@@ -1520,18 +1525,24 @@ async function switchAdminYear(year) {
 }
 
 async function reloadForYear(year) {
-  // Mettre à jour toutes les étiquettes d'année (header + titres comme "Affectations sectorielles")
+  // Recharger les données de l'onglet actif
+  const activePanel = document.querySelector('.tab-panel.active');
+  if (!activePanel) return;
+  const panelId = activePanel.id.replace('panel-', '');
+  if (panelId === 'gardes')       loadStats(year);
+  if (panelId === 'affectations') loadAffectations(year);
+  if (panelId === 'indispos')     loadIndispos(year);
+  if (panelId === 'vacances')     loadVacances(year);
+  if (panelId === 'accueil')      loadPlanningData();
+  // Mettre à jour le header
   document.getElementById('headerYear').textContent = year;
-  document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = year; });
-  // Boutons en lecture seule si l'année est archivée
-  document.querySelectorAll('.btn-primary[onclick*="openPanel"], .btn-primary[onclick*="applyModification"]').forEach(btn => {
+  // Désactiver visuellement les boutons de modification si readonly
+  const modBtns = document.querySelectorAll('.btn-primary[onclick*="openPanel"], .btn-primary[onclick*="applyModification"]');
+  modBtns.forEach(btn => {
     btn.disabled = ADMIN_YEAR_READONLY;
     btn.style.opacity = ADMIN_YEAR_READONLY ? '0.4' : '';
     btn.title = ADMIN_YEAR_READONLY ? '🔒 Année archivée — lecture seule' : '';
   });
-  // Aller directement sur la vue Planning de l'année choisie, et forcer son rechargement
-  DATA = null;
-  showTab('planning');
 }
 
 async function checkNextYearAvailable() {
@@ -1585,7 +1596,7 @@ async function loadPlanningData() {
     let res, attempts = 0;
     while (attempts < 3) {
       try {
-        res = await fetchTimeout(`https://raw.githubusercontent.com/chpg-anesthesie/Planning-CHPG/main/planning_${ADMIN_YEAR}.json?` + Date.now(), {redirect:'follow', cache:'no-store'}, 15000);
+        res = await fetchTimeout(`https://raw.githubusercontent.com/chpg-anesthesie/Planning-CHPG/main/planning_${ADMIN_YEAR}.json?` + Date.now(), {redirect:'follow'}, 15000);
         if (res.ok) break;
       } catch(e) {}
       attempts++;
@@ -1597,7 +1608,7 @@ async function loadPlanningData() {
       // régénéré n'est pas propagé (latence GitHub Pages). Application idempotente.
     // Affectations du mois (pour les cases flash basées sur l'effectif attendu)
     try {
-      const ra = await fetchTimeout(`https://raw.githubusercontent.com/chpg-anesthesie/Planning-CHPG/main/affectations_${ADMIN_YEAR}.json?` + Date.now(), {cache:'no-store'}, 10000);
+      const ra = await fetchTimeout(`https://raw.githubusercontent.com/chpg-anesthesie/Planning-CHPG/main/affectations_${ADMIN_YEAR}.json?` + Date.now(), {}, 10000);
       window.AFFM = ra && ra.ok ? ((await ra.json()).affectations || {}) : {};
     } catch(e) { window.AFFM = {}; }
     if (!DATA || !DATA.months) throw new Error('Structure JSON invalide');
@@ -1703,6 +1714,9 @@ function renderWeek() {
     3:{am:{'CS-ORL':1,'CS-MAT':1}, pm:{'CS-VIS':1,'CS-END':2,'CS-INTER':1}},             // Jeudi
     4:{am:{'CS-ORT':1,'CS-ORL':1}, pm:{}},                                              // Vendredi
   };
+  // Consults toujours affichées (ouvrables à la demande) + miroir « le MAR du secteur fait sa consult »
+  const CS_OPENABLE = ['CS-VIS','CS-END','CS-ORL','CS-ORT'];
+  const CS_SECTOR_MIRROR = {'CS-VIS':'VIS','CS-END':'END','CS-ORL':'ORL','CS-ORT':'ORT','CS-MAT':'MAT'};
   // gardes[dow] = {g:init, g2:init}
   const gardes = Array(7).fill(null).map(() => ({g:null, g2:null}));
   const stMap = Array(7).fill(null).map(() => ({})); // stMap[dow][docId] = statut du jour
@@ -1792,6 +1806,23 @@ function renderWeek() {
     // sens unique : qui est en MAT (mater présent OU placé par le comité) fait aussi la consult ;
     // mais une consult CS-MAT auto-remplie ne force PAS quelqu'un dans MAT (→ MAT flashe, le comité choisit)
     matAm.slice().forEach(p => { if (p && !csAm.some(x => x && x.id === p.id)) csAm.push({init:p.init, id:p.id, status:'', isNew:p.isNew}); });
+  });
+
+  // Consultations ouvertes par le comité (session) : faites par défaut par le MAR du secteur
+  // correspondant ce demi-jour (miroir d'affichage, sans déplacer le MAR de son secteur).
+  daySlots.forEach((slot, dow) => {
+    if (!slot || slot.isWeekend || slot.isFerie) return;
+    const opens = _localOpens[slot.date];
+    if (!opens || !opens.size) return;
+    opens.forEach(key => {
+      const [code, half] = key.split('|');
+      const sec = CS_SECTOR_MIRROR[code];
+      if (!sec || !csTypeMap[code] || !smap[sec]) return;
+      const csCell = csTypeMap[code][dow][half];
+      if (csCell.length) return;  // déjà pourvue (génération ou attribution)
+      const secPeople = smap[sec][dow][half] || [];
+      secPeople.forEach(p => { if (p && !csCell.some(x => x && x.id === p.id)) csCell.push({init:p.init, id:p.id, status:p.status||'', isMirror:true}); });
+    });
   });
 
   // Marquer les flash : un "+" par MAR affecté à un secteur de couverture
@@ -1899,9 +1930,15 @@ function renderWeek() {
   }
   function makeCsSlot(items, flash, type, label, date, slotKey) {
     let html = '';
+    const _open = !!(_localOpens[date] && _localOpens[date].has(`${type}|${slotKey}`));
+    const openable = CS_OPENABLE.includes(type);
     items.forEach(p => {
-      const cls = p.isNew ? 'slot-name cs-chip slot-new slot-clickable' : 'slot-name cs-chip slot-clickable';
-      html += `<span class="${cls}" title="${p.id||''}" onclick="openMarMenu('${p.id}','${p.init}','${type}','${date}','${slotKey}')">${p.init}</span>`;
+      if (p.isMirror) {
+        html += `<span class="slot-name cs-chip cs-mirror" title="${p.id||''} — consult faite par le secteur">${p.init}</span>`;
+      } else {
+        const cls = p.isNew ? 'slot-name cs-chip slot-new slot-clickable' : 'slot-name cs-chip slot-clickable';
+        html += `<span class="${cls}" title="${p.id||''}" onclick="openMarMenu('${p.id}','${p.init}','${type}','${date}','${slotKey}')">${p.init}</span>`;
+      }
     });
     const _vide = _localVides[date] && _localVides[date].has(`${type}|${slotKey}`);
     if (_vide) {
@@ -1909,9 +1946,17 @@ function renderWeek() {
       return html;
     }
     for (let i = 0; i < (flash||0); i++) {
-      html += `<span class="slot-flash" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')">+</span>`;
+      html += `<span class="cs-apourvoir" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')" title="Consultation à pourvoir">à pourvoir</span>`;
     }
-    if (!items.length && !flash) html += '<span class="slot-dash">·</span>';
+    if (_open) {
+      if (!items.length && !(flash||0)) {
+        html += `<span class="cs-apourvoir" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')" title="Consultation ouverte — à pourvoir">à pourvoir</span>`;
+      }
+      html += `<span class="cs-fermer" onclick="closeConsult('${type}','${date}','${slotKey}')" title="Fermer la consultation">×</span>`;
+    } else if (openable && !(flash||0) && items.length < 2) {
+      html += `<span class="cs-ouvrir" onclick="openConsult('${type}','${date}','${slotKey}')" title="Ouvrir une consultation">+ ouvrir</span>`;
+    }
+    if (!html) html += '<span class="slot-dash">·</span>';
     return html;
   }
 
@@ -1961,6 +2006,7 @@ function renderWeek() {
 
   // ── SOUS-LIGNES CONSULTATIONS (une par type, AM | PM) ──
   const activeCsTypes = CS_TYPES.filter(t =>
+    CS_OPENABLE.includes(t.code) ||
     csTypeMap[t.code].some(d => d.am.length || d.pm.length || d.flash_am || d.flash_pm)
   );
   if (activeCsTypes.length) {
@@ -2107,16 +2153,15 @@ async function toggleValiderSemaine() {
   try {
     const res = await api({action:'validerSemaine', year: ADMIN_YEAR, isoWeek: wk.weekNum, valide: newVal});
     if (!res.success) throw new Error(res.error);
-    for (const month of DATA.months) {
-      if (!month.weeks) continue;
-      const wkInfo = month.weeks.find(w => w.isoWeek === wk.weekNum);
-      if (wkInfo) wkInfo.validated = newVal;
-    }
-    showToast(newVal ? `✅ Semaine ${wk.weekNum} validée` : `↩ Semaine ${wk.weekNum} dévalidée`);
-    markPending();
+    showToast(newVal ? `✅ Semaine ${wk.weekNum} validée — publiée sur index.html` : `↩ Semaine ${wk.weekNum} dévalidée`);
+    _localOverrides = {};
+    _localVides = {};
+    _localOpens = {};
+    _dispoCache = {};
+    await loadPlanningData();
+    renderWeek();
   } catch(e) {
     showToast('Erreur : ' + e.message, true);
-  } finally {
     if (btn) { btn.disabled = false; }
     updateValidationBadge();
   }
@@ -2233,8 +2278,7 @@ async function placeMAR(marId, marInit) {
       comment:   `Comité — ${sector} ${slotKey.toUpperCase()}`
     });
     if (!res.success) throw new Error(res.error);
-    showToast(`✅ ${marId} en ${sector} — enregistré`);
-    markPending();
+    showToast(`✅ ${marId} affecté en ${sector} · synchronisé`);
   } catch(e) {
     showToast('Erreur API : ' + e.message);
     // Rollback local si l'API a échoué
@@ -2265,7 +2309,7 @@ function openMarMenu(marId, marInit, currentSector, date, slotKey) {
   });
   html += `</div>
     <button onclick="moveMARTo('${marId}','${marInit}','VOLANT')"
-      style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid #FCA5A5;border-radius:10px;background:#FEF2F2;color:#B91C1C;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">↩ Retirer</button>`;
+      style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid #FCA5A5;border-radius:10px;background:#FEF2F2;color:#B91C1C;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">↩ Retirer (renvoyer en volant)</button>`;
   document.getElementById('pspContent').innerHTML = html;
   card.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
@@ -2288,6 +2332,19 @@ function unleaveCaseVide() {
   if (_localVides[date]) _localVides[date].delete(`${sector}|${slotKey}`);
   const c = document.getElementById('dispoCard'); if (c) c.style.display = 'none';
   renderWeek();
+}
+
+function openConsult(type, date, slotKey) {
+  if (!_localOpens[date]) _localOpens[date] = new Set();
+  _localOpens[date].add(`${type}|${slotKey}`);
+  if (_localVides[date]) _localVides[date].delete(`${type}|${slotKey}`);
+  renderWeek();
+  if (typeof showToast === 'function') showToast('Consultation ouverte');
+}
+function closeConsult(type, date, slotKey) {
+  if (_localOpens[date]) _localOpens[date].delete(`${type}|${slotKey}`);
+  renderWeek();
+  if (typeof showToast === 'function') showToast('Consultation fermée');
 }
 
 function moveMARTo(marId, marInit, targetSector) {
@@ -3002,7 +3059,7 @@ async function saveAllAffectations() {
   const btn = document.getElementById('btnSaveAff');
   btn.disabled = true; btn.textContent = '⏳ Enregistrement...';
   try {
-    const data = await api({action:'saveAffectations', affectations: affData, year: ADMIN_YEAR});
+    const data = await api({action: 'saveAffectations', affectations: affData});
     if (!data.success) throw new Error(data.error);
     affPending = false;
     document.getElementById('affPendingMsg').style.display = 'none';
@@ -4602,31 +4659,15 @@ async function runDiag() {
     btn.disabled = false; btn.textContent = 'Lancer diagComplet()';
   }
 }
-function markPending() { _pendingChanges++; renderPublishBtn(); }
-function renderPublishBtn() {
-  const b = document.getElementById('btnPublier');
-  if (!b) return;
-  if (_pendingChanges > 0) {
-    b.textContent = `⬆️ Publier (${_pendingChanges})`;
-    b.style.background = '#EA580C'; b.style.color = '#fff'; b.style.borderColor = '#EA580C';
-  } else {
-    b.textContent = '⬆️ Publier';
-    b.style.background = ''; b.style.color = ''; b.style.borderColor = '';
-  }
-}
+
 async function publishPlanning() {
-  const b = document.getElementById('btnPublier');
-  if (b) { b.disabled = true; b.textContent = '⏳ Publication…'; }
+  if (!confirm('Publier le planning sur GitHub Pages ?')) return;
   try {
-    const data = await api({action: 'publishPlanning', year: ADMIN_YEAR});
+    const data = await api({action: 'publishPlanning'});
     if (!data.success) throw new Error(data.error);
-    _pendingChanges = 0;
-    toast('✅ Planning publié en ligne', 'success');
+    toast('✅ Planning publié', 'success');
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
-  } finally {
-    if (b) b.disabled = false;
-    renderPublishBtn();
   }
 }
 async function archiveCurrentYear() {
@@ -5149,26 +5190,3 @@ async function sendCodeToMAR(marId, marNom) {
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
