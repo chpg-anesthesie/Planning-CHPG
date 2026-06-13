@@ -1016,6 +1016,7 @@ if (sessionStorage.getItem('adminCode')) {
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
       <button class="week-validate-btn" id="btnValiderSemaine" onclick="toggleValiderSemaine()">✅ Valider la semaine</button>
+      <button class="week-validate-btn" id="btnPublier" onclick="publishPlanning()">⬆️ Publier</button>
     </div>
   </div>
 
@@ -1338,6 +1339,7 @@ let DATA = null, marsData = [], gardesData = null;
 // Overrides locaux : modifications faites pendant la session, appliquées par-dessus le JSON
 // Structure : { 'YYYY-MM-DD': { 'SECTOR': { am: {marId, marInit} | null, pm: {marId, marInit} | null } } }
 let _localOverrides = {};
+let _pendingChanges = 0;
 let _localVides = {};  // cases flash laissées volontairement vides (session)
 let _dispoCache = {};  // cache liste MARs dispos par jour (évite re-fetch à chaque case)
 let currentWeekIdx = 0, currentCalMonth = new Date().getMonth();
@@ -2105,14 +2107,13 @@ async function toggleValiderSemaine() {
   try {
     const res = await api({action:'validerSemaine', year: ADMIN_YEAR, isoWeek: wk.weekNum, valide: newVal});
     if (!res.success) throw new Error(res.error);
-    // Mise à jour LOCALE de l'état (on ne relit PAS le fichier en ligne, pas encore rafraîchi
-    // — c'était la cause du "dévalider qui ne tient pas")
     for (const month of DATA.months) {
       if (!month.weeks) continue;
       const wkInfo = month.weeks.find(w => w.isoWeek === wk.weekNum);
       if (wkInfo) wkInfo.validated = newVal;
     }
     showToast(newVal ? `✅ Semaine ${wk.weekNum} validée` : `↩ Semaine ${wk.weekNum} dévalidée`);
+    markPending();
   } catch(e) {
     showToast('Erreur : ' + e.message, true);
   } finally {
@@ -2232,7 +2233,8 @@ async function placeMAR(marId, marInit) {
       comment:   `Comité — ${sector} ${slotKey.toUpperCase()}`
     });
     if (!res.success) throw new Error(res.error);
-    showToast(`✅ ${marId} affecté en ${sector} · synchronisé`);
+    showToast(`✅ ${marId} en ${sector} — enregistré`);
+    markPending();
   } catch(e) {
     showToast('Erreur API : ' + e.message);
     // Rollback local si l'API a échoué
@@ -4600,15 +4602,31 @@ async function runDiag() {
     btn.disabled = false; btn.textContent = 'Lancer diagComplet()';
   }
 }
-
+function markPending() { _pendingChanges++; renderPublishBtn(); }
+function renderPublishBtn() {
+  const b = document.getElementById('btnPublier');
+  if (!b) return;
+  if (_pendingChanges > 0) {
+    b.textContent = `⬆️ Publier (${_pendingChanges})`;
+    b.style.background = '#EA580C'; b.style.color = '#fff'; b.style.borderColor = '#EA580C';
+  } else {
+    b.textContent = '⬆️ Publier';
+    b.style.background = ''; b.style.color = ''; b.style.borderColor = '';
+  }
+}
 async function publishPlanning() {
-  if (!confirm('Publier le planning sur GitHub Pages ?')) return;
+  const b = document.getElementById('btnPublier');
+  if (b) { b.disabled = true; b.textContent = '⏳ Publication…'; }
   try {
-    const data = await api({action: 'publishPlanning'});
+    const data = await api({action: 'publishPlanning', year: ADMIN_YEAR});
     if (!data.success) throw new Error(data.error);
-    toast('✅ Planning publié', 'success');
+    _pendingChanges = 0;
+    toast('✅ Planning publié en ligne', 'success');
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
+  } finally {
+    if (b) b.disabled = false;
+    renderPublishBtn();
   }
 }
 async function archiveCurrentYear() {
