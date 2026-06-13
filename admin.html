@@ -1529,6 +1529,7 @@ async function reloadForYear(year) {
   if (panelId === 'accueil')      loadPlanningData();
   // Mettre à jour le header
   document.getElementById('headerYear').textContent = year;
+  document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = year; });
   // Désactiver visuellement les boutons de modification si readonly
   const modBtns = document.querySelectorAll('.btn-primary[onclick*="openPanel"], .btn-primary[onclick*="applyModification"]');
   modBtns.forEach(btn => {
