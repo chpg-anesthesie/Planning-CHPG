@@ -3021,104 +3021,153 @@ async function exportWeekExcel(){
   const weeks=getAllWeeks(); const wk=weeks[currentWeekIdx]; if(!wk) return;
   const daySlots=getWeekDays(wk.weekNum);
   const month=DATA.months.find(m=>m.id===wk.monthId)||DATA.months[0];
-  const DOCTORS_INFO=[['PR PRUNET','BP','81409'],['DR ALBOUY','SA','85019'],['DR ARMANDO','GA','81867'],['DR BONNET','LB','81322'],['DR BOUREGBA','MB','81859'],['DR CATINEAU','JC','81268'],['DR FROHLICH','AFR','82616'],['DR FERRIERO','AF','82565'],['DR GHIGLIONE','SG','81809'],['DR GUERIN','JPG','82022'],['DR LEVASSEUR','LUL','82558'],['DR LEY','LL','82132'],['DR MENADE','RM','81378'],['DR OPPRECHT','NO','82188'],['DR PARTOUCHE','NP','81806'],['DR ROUSSEAU','GR','81860'],['DR SUPLY','CS','82578'],['DR SEVERAC','MS','82401'],['DR SULTAN','WS','81348'],['DR TRAN','DT','83783'],['DR ZAMARON','FZ','82481'],['DR WIDEHEM','RW','82101'],['DR SALA','NS','81397']];
-  const SPECIAL_DECT=[['Garde réa','83636'],['Garde bloc/mater','82103'],['Secrétariat Tamaris','81380'],['Secrétariat réa','89819']];
-  const SC={VIS:'DDEEFF',REA:'E8E0F0',ORT:'F3AA7D',DVI:'F3AA7D',ORL:'FFFFC9',END:'FFFFFF',CI:'E7E6E6',RI:'E7E6E6',MAT:'FFA7A9',CS:'D9EAD3'};
-  const SL={VIS:'VISCÉRAL',REA:'RÉANIMATION',ORT:'ORTHOPÉDIE',DVI:'POSE DVI',ORL:'ORL / OPHTALMO',END:'ENDOSCOPIES',CI:'CARDIO / RADIO INTER.',RI:'RADIO INTER.',MAT:'MATERNITÉ',CS:'CONSULTATIONS'};
-  const SX=['VIS','REA','ORT','DVI','ORL','END','CI','RI','MAT','CS'];
+  // ── Skin gabarit historique ──
+  const C={hd:'D9D9D9',grey:'DBDBDB',white:'FFFFFF',we:'F2F2F2'};
+  const BLOCS=[
+    {label:'VISCERAL',codes:['VIS','DVI'],bg:'FFE699'},
+    {label:'REANIMATION',codes:['REA'],bg:'9DC3E6'},
+    {label:'ORTHO',codes:['ORT'],bg:'F4B183'},
+    {label:'ORL  OPHTALMO',codes:['ORL'],bg:'FFF2CC'},
+    {label:'ENDOSCOPIES',codes:['END'],bg:'C6E0B4'},
+    {label:'CARDIO / RADIO INTERV.',codes:['CI','RI'],bg:'E7E6E6'},
+    {label:'MATERNITE',codes:['MAT'],bg:'FFA7A9'},
+  ];
+  const CSROWS=[
+    {label:' VISC. / URO.',subs:['VIS','URO']},
+    {label:' ORTHO.',subs:['ORT']},
+    {label:' ORL / OPHTALMO.',subs:['ORL','OPH']},
+    {label:' ENDOSCOPIES',subs:['END']},
+    {label:' INTERVENTIONNEL',subs:['INTER','CI']},
+    {label:' MATERNITE',subs:['MAT']},
+    {label:' POLYVALENT',subs:['POLY']},
+  ];
   const DFX=['LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI','DIMANCHE'];
-  const C={red:'CE1126',redDark:'9A0D1C',greyHd:'D9D9D9',greyLt:'F2F2F2',we:'EFEFEF',white:'FFFFFF',ink:'000000',muted:'595959',guard:'FFE0E0',guardFg:'B91C1C',h18:'FFF2CC',h18Fg:'B45309',rg:'E2EFDA',rgFg:'166534',abs:'F2F2F2',absFg:'595959',dark:'1A1A2E'};
-  const ABSENT_S=new Set(['RG','CP','A','F','R','TP']);
+  const SX=['VIS','REA','ORT','DVI','ORL','END','CI','RI','MAT'];
+  const DECTFB={BP:'81409',SA:'85019',GA:'81867',LB:'81322',MB:'81859',JC:'81268',AFR:'82616',AF:'82565',SG:'81809',JPG:'82022',LUL:'82558',LL:'82132',RM:'81378',NO:'82188',NP:'81806',GR:'81860',CS:'82578',MS:'82401',WS:'81348',DT:'83783',FZ:'82481',RW:'82101',NS:'81397'};
+  const FIXED=[['Garde réa','83636'],['Garde bloc / mater','82103'],['Secrétariat Tamaris','81380'],['Secrétariat réa','89819']];
+  // ── Collecte ──
   const smap={};SX.forEach(s=>{smap[s]=Array(7).fill(null).map(()=>({am:[],pm:[]}));});
-  const guards=Array(7).fill(null).map(()=>[]);const h18a=Array(7).fill('');const sorties=Array(7).fill(null).map(()=>[]);const absents=Array(7).fill(null).map(()=>[]);
+  const csb={};CSROWS.forEach((r,i)=>{csb[i]=Array(7).fill(null).map(()=>({am:[],pm:[]}));});
+  const subToRow={};CSROWS.forEach((r,i)=>r.subs.forEach(s=>subToRow[s]=i));
+  const POLYI=CSROWS.findIndex(r=>r.subs.indexOf('POLY')>=0);
+  const guards=Array(7).fill(null).map(()=>[]);const astr=Array(7).fill(null).map(()=>[]);const h18=Array(7).fill('');const sorties=Array(7).fill(null).map(()=>[]);const absents=Array(7).fill(null).map(()=>[]);
+  const ABSENT_S=new Set(['RG','CP','A','F','R','TP','V','I','E']);
+  function pushCS(code,dow,half,init){const raw=code.includes('-')?code.split('-')[1]:code;let idx=subToRow[raw];if(idx==null)idx=POLYI;if(idx>=0&&!csb[idx][dow][half].includes(init))csb[idx][dow][half].push(init);}
   month.doctors.forEach(doc=>{
     daySlots.forEach((slot,dow)=>{
       if(!slot)return;const entry=doc.days[slot.dayIdx]||{};const st=entry.status||'';const am=entry.morning||'';const pm=entry.afternoon||'';
-      if(st==='G'||st==='G2')guards[dow].push(doc.initials);if(st==='18')h18a[dow]=doc.initials;if(st==='RG')sorties[dow].push(doc.initials);if(['A','CP','F','R','I','E','TP'].includes(st))absents[dow].push(doc.initials);
+      if(st==='G'||st==='G2')guards[dow].push(doc.initials);
+      if(st==='18')h18[dow]=doc.initials;
+      if(st==='RG')sorties[dow].push(doc.initials);
+      if(['A','CP','F','R','I','E','TP','V'].includes(st))absents[dow].push(doc.initials);
       if(ABSENT_S.has(st))return;
-      const amKey=am.startsWith('CS-')?'CS':am;const pmKey=pm.startsWith('CS-')?'CS':pm;const amSub=am.includes('-')?am.split('-')[1]:'';const pmSub=pm.includes('-')?pm.split('-')[1]:'';
-      if(amKey&&smap[amKey])smap[amKey][dow].am.push({init:doc.initials,sub:amSub,status:st});
-      if(pmKey&&smap[pmKey])smap[pmKey][dow].pm.push({init:doc.initials,sub:pmSub,status:st});
-      const cs=entry.cs||'';if(cs&&smap['CS']){const csSub=cs.includes('-')?cs.split('-')[1]:'';smap['CS'][dow].am.push({init:doc.initials,sub:csSub,status:st});}
-      const cs2=entry.cs2||'';if(cs2&&smap[cs2])smap[cs2][dow].am.push({init:doc.initials,sub:'',status:st});
-      const cs3=entry.cs3||'';if(cs3&&smap[cs3])smap[cs3][dow].pm.push({init:doc.initials,sub:'',status:st});
+      if(am){if(am.startsWith('CS-'))pushCS(am,dow,'am',doc.initials);else if(smap[am])smap[am][dow].am.push(doc.initials);}
+      if(pm){if(pm.startsWith('CS-'))pushCS(pm,dow,'pm',doc.initials);else if(smap[pm])smap[pm][dow].pm.push(doc.initials);}
+      if(entry.cs)pushCS(entry.cs,dow,'am',doc.initials);
+      if(entry.cs2)pushCS(entry.cs2,dow,'am',doc.initials);
+      if(entry.cs3)pushCS(entry.cs3,dow,'pm',doc.initials);
     });
   });
-  // Appliquer les overrides locaux (re-clé par MAR) — pour coller à l'écran
   daySlots.forEach((slot,dow)=>{
-    if(!slot)return;
-    const ov=_localOverrides[slot.date];
-    if(!ov)return;
-    Object.keys(ov).forEach(marId=>{
-      const o=ov[marId];if(!o)return;
-      const mi=getInitials(marId);
-      ['am','pm'].forEach(k=>{
-        const tgt=o[k];if(tgt==null)return;
-        SX.forEach(s2=>{const arr=smap[s2][dow][k];const idx=arr.findIndex(p=>p.init===mi);if(idx>=0)arr.splice(idx,1);});
+    if(!slot)return;const ov=_localOverrides[slot.date];if(!ov)return;
+    Object.keys(ov).forEach(marId=>{const o=ov[marId];if(!o)return;const mi=getInitials(marId);
+      ['am','pm'].forEach(k=>{const tgt=o[k];if(tgt==null)return;
+        SX.forEach(s=>{const a=smap[s][dow][k];const i=a.indexOf(mi);if(i>=0)a.splice(i,1);});
+        CSROWS.forEach((r,i)=>{const a=csb[i][dow][k];const j=a.indexOf(mi);if(j>=0)a.splice(j,1);});
         if(tgt==='VOLANT'||tgt==='VIDE')return;
-        if(tgt.startsWith('CS-')){if(smap['CS']&&!smap['CS'][dow][k].find(p=>p.init===mi))smap['CS'][dow][k].push({init:mi,sub:(tgt.split('-')[1]||''),status:''});return;}
-        if(smap[tgt]&&!smap[tgt][dow][k].find(p=>p.init===mi))smap[tgt][dow][k].push({init:mi,sub:'',status:''});
+        if(tgt.startsWith('CS-')){pushCS(tgt,dow,k,mi);return;}
+        if(smap[tgt]&&!smap[tgt][dow][k].includes(mi))smap[tgt][dow][k].push(mi);
       });
     });
   });
-  const colStart=dow=>dow<5?2+dow*4:22+(dow-5)*2;
-  const wb=new ExcelJS.Workbook();const ws=wb.addWorksheet(`Semaine ${wk.weekNum}`,{pageSetup:{orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1}});
-  ws.views=[{showGridLines:false}];ws.getColumn(1).width=20;
-  for(let dow=0;dow<5;dow++){const cs=colStart(dow);for(let ci=0;ci<4;ci++)ws.getColumn(cs+ci).width=6.5;}
-  for(let dow=5;dow<7;dow++){const cs=colStart(dow);ws.getColumn(cs).width=6.5;ws.getColumn(cs+1).width=6.5;}
-  ws.getColumn(26).width=2;ws.getColumn(27).width=20;ws.getColumn(28).width=8;ws.getColumn(29).width=9;
-  const thin={style:'thin',color:{argb:'FFCCCCCC'}};const thick={style:'medium',color:{argb:'FF888888'}};
-  const bAll={top:thin,bottom:thin,left:thin,right:thin};const bThick={top:thin,bottom:thin,left:thick,right:thin};
+  // ── Feuille ──
+  const wb=new ExcelJS.Workbook();
+  const ws=wb.addWorksheet(`Semaine ${wk.weekNum}`,{pageSetup:{orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0,footer:0}}});
+  ws.views=[{showGridLines:false}];
+  ws.getColumn(1).width=15.7;ws.getColumn(2).width=5.3;for(let c=3;c<=29;c++)ws.getColumn(c).width=13;
+  const thin={style:'thin',color:{argb:'FF000000'}};
+  const bAll={top:thin,bottom:thin,left:thin,right:thin};
   const fill=hex=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+hex}});
-  const font=(bold,sz,hex)=>({name:'Arial',bold,size:sz,color:{argb:'FF'+hex}});
-  const align=(h,v,wrap)=>({horizontal:h,vertical:v,wrapText:!!wrap});
-  function setCell(ws,r,c,val,f,fi,al,bo){const cell=ws.getCell(r,c);if(val!==undefined)cell.value=val;if(f)cell.font=f;if(fi)cell.fill=fi;if(al)cell.alignment=al;if(bo)cell.border=bo;return cell;}
-  function merge(ws,r1,c1,r2,c2){ws.mergeCells(r1,c1,r2,c2);}
-  let row=1;
-  const firstSlot=daySlots.find(s=>s);const lastSlot=[...daySlots].reverse().find(s=>s);
-  const fmtD=ds=>new Date(ds+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
-  const title=`PLANNING ANESTHÉSISTES — Semaine ${wk.weekNum} — ${fmtD(firstSlot.date)} au ${fmtD(lastSlot.date)}`;
-  merge(ws,row,1,row,25);setCell(ws,row,1,title,font(true,13,'FFFFFF'),fill(C.red),align('center','middle'));ws.getRow(row).height=26;row++;
-  merge(ws,row,1,row,25);setCell(ws,row,1,"CHPG Monaco · Service d'Anesthésie-Réanimation",font(false,9,'FFFFFF'),fill(C.redDark),align('center','middle'));ws.getRow(row).height=14;row++;
-  ws.getRow(row).height=5;row++;
-  ws.getRow(row).height=18;setCell(ws,row,1,'SECTEUR',font(true,9,C.muted),fill(C.greyHd),align('center','middle'),bAll);
-  for(let dow=0;dow<7;dow++){const cs=colStart(dow);const isWe=dow>=5;const n=isWe?2:4;merge(ws,row,cs,row,cs+n-1);setCell(ws,row,cs,DFX[dow],font(true,10,isWe?C.muted:C.ink),fill(isWe?C.we:C.greyHd),align('center','middle'),bAll);}row++;
-  ws.getRow(row).height=14;setCell(ws,row,1,'',null,fill(C.greyHd),null,bAll);
-  for(let dow=0;dow<7;dow++){const cs=colStart(dow);const isWe=dow>=5;const n=isWe?2:4;merge(ws,row,cs,row,cs+n-1);const slot=daySlots[dow];const dt=slot?new Date(slot.date+'T12:00:00'):null;const dateStr=dt?dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}):'';setCell(ws,row,cs,dateStr,font(false,9,isWe?C.muted:C.ink),fill(isWe?C.we:C.greyHd),align('center','middle'),bAll);}row++;
-  ws.getRow(row).height=16;setCell(ws,row,1,'',null,fill(C.greyHd),null,bAll);
-  for(let dow=0;dow<7;dow++){const cs=colStart(dow);const isWe=dow>=5;if(isWe){merge(ws,row,cs,row,cs+1);setCell(ws,row,cs,'GARDE 24H',font(true,7,'AAAAAA'),fill(C.we),align('center','middle'),bAll);}else{merge(ws,row,cs,row,cs+1);setCell(ws,row,cs,'AM',font(true,8,'FFFFFF'),fill(C.red),align('center','middle'),bAll);merge(ws,row,cs+2,row,cs+3);setCell(ws,row,cs+2,'PM',font(true,8,'FFFFFF'),fill('374151'),align('center','middle'),bAll);}}row++;
-  const active=SX.filter(s=>smap[s].some(d=>d.am.length||d.pm.length));
-  const getCsBg=(n,def)=>n.sub?SC[n.sub]||def:def;
-  active.forEach(sec=>{
-    const secBg=SC[sec]||'FFFFFF';let maxRows=1;
-    for(let dow=0;dow<7;dow++){const am=smap[sec][dow].am.slice(0,4);const pm=smap[sec][dow].pm.slice(0,4);if(dow<5)maxRows=Math.max(maxRows,Math.max(am.length?Math.ceil(am.length/2):1,pm.length?Math.ceil(pm.length/2):1));else maxRows=Math.max(maxRows,am.length?Math.ceil(am.length/2):1);}
-    for(let ro=0;ro<maxRows;ro++)ws.getRow(row+ro).height=16;
-    if(maxRows>1)merge(ws,row,1,row+maxRows-1,1);
-    setCell(ws,row,1,SL[sec]||sec,font(true,9,C.ink),fill(secBg),align('left','middle'),bThick);
-    for(let dow=0;dow<7;dow++){
-      const cs=colStart(dow);const isWe=dow>=5;const bg=isWe?C.we:secBg;
-      if(isWe){const names=smap[sec][dow].am;merge(ws,row,cs,row+maxRows-1,cs+1);setCell(ws,row,cs,names[0]?names[0].init:'—',font(!!names[0],10,names[0]?C.ink:C.muted),fill(bg),align('center','middle'),bAll);}
-      else{const amN=smap[sec][dow].am.slice(0,4);const pmN=smap[sec][dow].pm.slice(0,4);const amP=[];for(let i=0;i<amN.length;i+=2)amP.push(amN.slice(i,i+2));const pmP=[];for(let i=0;i<pmN.length;i+=2)pmP.push(pmN.slice(i,i+2));if(!amP.length)amP.push([]);if(!pmP.length)pmP.push([]);
-      for(let pi=0;pi<maxRows;pi++){const ap=amP[pi]||[];for(let ni=0;ni<2;ni++){const n=ap[ni];const cbg=n?getCsBg(n,bg):bg;setCell(ws,row+pi,cs+ni,n?n.init:'',font(!!n,9,C.ink),fill(cbg),align('center','middle'),bAll);}const pp=pmP[pi]||[];for(let ni=0;ni<2;ni++){const n=pp[ni];const cbg=n?getCsBg(n,bg):bg;setCell(ws,row+pi,cs+2+ni,n?n.init:'',font(!!n,9,C.ink),fill(cbg),align('center','middle'),bAll);}}}
+  const font=(b,sz,hex)=>({name:'Calibri',bold:!!b,size:sz,color:{argb:'FF'+(hex||'000000')}});
+  const align=(h,v,wrap)=>({horizontal:h||'center',vertical:v||'middle',wrapText:!!wrap});
+  function setCell(r,c,val,f,fi,al,bo){const cell=ws.getCell(r,c);if(val!==undefined&&val!==null)cell.value=val;if(f)cell.font=f;if(fi)cell.fill=fi;if(al)cell.alignment=al;cell.border=bo||bAll;return cell;}
+  function mc(r1,c1,r2,c2){ws.mergeCells(r1,c1,r2,c2);}
+  const colStart=dow=>dow<5?2+dow*4:22+(dow-5)*4;
+  const fmt=ds=>new Date(ds+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+  // L1 titre
+  mc(1,1,1,29);setCell(1,1,"PLANNING SEMAINE DU SERVICE D'ANESTHESIE",font(true,16),null,align('center','middle',true),bAll);ws.getRow(1).height=24;
+  // L4 jours
+  mc(4,1,5,1);setCell(4,1,'SEMAINE n°',font(true,10),fill(C.hd),align('center','middle',true),bAll);
+  for(let dow=0;dow<7;dow++){const cs=colStart(dow);mc(4,cs,4,cs+3);setCell(4,cs,DFX[dow],font(true,10),fill(C.hd),align('center','middle'),bAll);}
+  // L5 dates
+  for(let dow=0;dow<7;dow++){const cs=colStart(dow);mc(5,cs,5,cs+3);const s=daySlots[dow];setCell(5,cs,s?fmt(s.date):'',font(false,10),fill(C.hd),align('center','middle'),bAll);}
+  // L6 num semaine + M/AM | GARDE/ASTREINTE
+  setCell(6,1,wk.weekNum,font(true,11),fill(C.white),align('center','middle'),bAll);
+  for(let dow=0;dow<7;dow++){const cs=colStart(dow);const we=dow>=5;mc(6,cs,6,cs+1);mc(6,cs+2,6,cs+3);
+    setCell(6,cs,we?'GARDE':'M',font(true,10),fill(C.white),align('center','middle'),bAll);
+    setCell(6,cs+2,we?'ASTREINTE':'AM',font(true,10),fill(C.white),align('center','middle'),bAll);}
+  // L7 section blocs (gauche) + valeurs week-end (droite, sous en-têtes)
+  mc(7,1,7,21);setCell(7,1,'ANESTHESISTES AUX BLOCS ',font(true,10),fill(C.hd),align('center','middle'),bAll);
+  [5,6].forEach(dow=>{const cs=colStart(dow);const g=guards[dow].join(' / ');const a=astr[dow].join(' / ');
+    mc(7,cs,7,cs+1);setCell(7,cs,g||'—',font(!!g,10,g?'000000':'888888'),fill(C.we),align('center','middle'),bAll);
+    mc(7,cs+2,7,cs+3);setCell(7,cs+2,a||'—',font(!!a,10,a?'000000':'888888'),fill(C.we),align('center','middle'),bAll);});
+  // L8-21 blocs (2 lignes/secteur)
+  let row=8;
+  BLOCS.forEach(b=>{
+    mc(row,1,row+1,1);setCell(row,1,b.label,font(true,10),fill(b.bg),align('center','middle',true),bAll);
+    for(let dow=0;dow<5;dow++){const cs=colStart(dow);
+      const am=[],pm=[];b.codes.forEach(code=>{if(smap[code]){am.push(...smap[code][dow].am);pm.push(...smap[code][dow].pm);}});
+      const amC=[[row,cs],[row,cs+1],[row+1,cs],[row+1,cs+1]];
+      const pmC=[[row,cs+2],[row,cs+3],[row+1,cs+2],[row+1,cs+3]];
+      for(let i=0;i<4;i++)setCell(amC[i][0],amC[i][1],am[i]||'',font(!!am[i],10),fill(b.bg),align('center','middle'),bAll);
+      for(let i=0;i<4;i++)setCell(pmC[i][0],pmC[i][1],pm[i]||'',font(!!pm[i],10),fill(b.bg),align('center','middle'),bAll);
     }
-    row+=maxRows;
+    row+=2;
   });
-  ws.getRow(row).height=6;merge(ws,row,1,row,25);ws.getCell(row,1).fill=fill(C.greyLt);row++;
-  merge(ws,row,1,row,25);setCell(ws,row,1,'GARDES & FONCTIONS',font(true,9,C.muted),fill(C.greyHd),align('left','middle'));ws.getRow(row).height=14;row++;
-  function gardeRow(label,vals,bgV,fgV){ws.getRow(row).height=20;setCell(ws,row,1,label,font(true,9,C.ink),fill(C.greyLt),align('left','middle'),bAll);for(let dow=0;dow<7;dow++){const cs=colStart(dow);const isWe=dow>=5;const n=isWe?2:4;merge(ws,row,cs,row,cs+n-1);const v=vals[dow]||'';setCell(ws,row,cs,v||'—',font(!!v,9,v?fgV:C.muted),fill(isWe&&!v?C.we:v?bgV:'FFFFFF'),align('center','middle',true),bAll);}}
-  gardeRow('Garde 24h',guards.map(g=>g.join(' / ')),C.guard,C.guardFg);row++;
-  gardeRow('8h – 18h',h18a,C.h18,C.h18Fg);row++;
-  gardeRow('Sortie de garde',sorties.map(s=>s.join(' / ')),C.rg,C.rgFg);row++;
-  const maxAbsLines=Math.max(...absents.map(a=>Math.ceil(a.length/4)||1));
-  for(let li=0;li<maxAbsLines;li++){ws.getRow(row).height=18;setCell(ws,row,1,li===0?'Absences / CP / F':'',font(true,9,C.ink),fill(C.greyLt),align('left','middle'),bAll);for(let dow=0;dow<7;dow++){const cs=colStart(dow);const isWe=dow>=5;const n=isWe?2:4;merge(ws,row,cs,row,cs+n-1);const slice=absents[dow].slice(li*4,(li+1)*4);const v=slice.join('  ·  ');setCell(ws,row,cs,v||'',font(!!v,9,v?C.absFg:C.muted),fill(isWe&&!v?C.we:v?C.abs:'FFFFFF'),align('center','middle'),bAll);}row++;}
-  merge(ws,row,1,row,25);setCell(ws,row,1,`Généré le ${new Date().toLocaleDateString('fr-FR')}  ·  CHPG Monaco · Anesthésie-Réanimation  ·  Confidentiel`,font(false,7,'999999'),fill(C.dark),align('center','middle'));ws.getRow(row).height=12;
-  merge(ws,1,27,1,29);setCell(ws,1,27,'ANESTHÉSISTES & N° DECT',font(true,10,'FFFFFF'),fill(C.red),align('center','middle',true));
-  ws.getRow(2).height=8;for(let c=27;c<=29;c++)ws.getCell(2,c).fill=fill(C.red);ws.getRow(3).height=18;
-  for(const[col,lbl,h]of[[27,'NOM','left'],[28,'INIT.','center'],[29,'DECT','center']]){setCell(ws,3,col,lbl,font(true,9,'FFFFFF'),fill('374151'),align(h,'middle'),bAll);}
-  let r2=4;
-  for(const[name,init,dect]of DOCTORS_INFO){ws.getRow(r2).height=13;setCell(ws,r2,27,name,font(false,9,C.ink),null,align('left','middle'),bAll);setCell(ws,r2,28,init,font(false,9,C.ink),null,align('center','middle'),bAll);setCell(ws,r2,29,dect,font(false,9,C.ink),null,align('center','middle'),bAll);r2++;}
-  ws.getRow(r2).height=6;r2++;
-  for(const[lbl,dect]of SPECIAL_DECT){ws.getRow(r2).height=13;merge(ws,r2,27,r2,28);setCell(ws,r2,27,lbl,font(true,8,C.muted),fill(C.greyLt),align('left','middle'),bAll);setCell(ws,r2,29,dect,font(false,8,C.ink),null,align('center','middle'),bAll);r2++;}
+  // L22 section consult
+  mc(22,1,22,21);setCell(22,1," CONSULTATIONS D'ANESTHESIE",font(true,10),fill(C.hd),align('center','middle'),bAll);
+  // L23-29 consult (1 ligne)
+  CSROWS.forEach((cr,i)=>{const rr=23+i;
+    setCell(rr,1,cr.label,font(true,10),fill(C.white),align('left','middle'),bAll);
+    for(let dow=0;dow<5;dow++){const cs=colStart(dow);const cell=csb[i][dow];const am=cell.am,pm=cell.pm;
+      setCell(rr,cs,am[0]||'',font(!!am[0],10),fill(C.white),align('center','middle'),bAll);
+      setCell(rr,cs+1,am[1]||'',font(!!am[1],10),fill(C.white),align('center','middle'),bAll);
+      setCell(rr,cs+2,pm[0]||'',font(!!pm[0],10),fill(C.white),align('center','middle'),bAll);
+      setCell(rr,cs+3,pm[1]||'',font(!!pm[1],10),fill(C.white),align('center','middle'),bAll);
+    }
+  });
+  // L30-31 ABSENCES
+  mc(30,1,31,1);setCell(30,1,'ABSENCES',font(true,10),fill(C.white),align('center','middle'),bAll);
+  for(let dow=0;dow<5;dow++){const cs=colStart(dow);const list=absents[dow];
+    mc(30,cs,30,cs+3);mc(31,cs,31,cs+3);
+    setCell(30,cs,list.slice(0,3).join(' '),font(!!list.length,10),fill(C.white),align('center','middle',true),bAll);
+    setCell(31,cs,list.slice(3,6).join(' '),font(list.length>3,10),fill(C.white),align('center','middle',true),bAll);
+  }
+  // L32-35 fonctions
+  function fnRow(rr,label,vals){setCell(rr,1,label,font(true,10),fill(C.grey),align('left','middle'),bAll);
+    for(let dow=0;dow<5;dow++){const cs=colStart(dow);mc(rr,cs,rr,cs+3);const v=vals[dow]||'';setCell(rr,cs,v,font(!!v,10),fill(C.grey),align('center','middle',true),bAll);}}
+  fnRow(32,' 8H / 18H',h18);
+  fnRow(33,' ASTREINTES',astr.map(a=>a.join(' / ')));
+  fnRow(34,' GARDES',guards.map(g=>g.join(' / ')));
+  fnRow(35,' SORTIES DE GARDE',sorties.map(s=>s.join(' / ')));
+  // L36-38 INFORMATIONS
+  mc(36,1,38,1);setCell(36,1,' INFORMATIONS ',font(true,10),fill(C.white),align('center','middle',true),bAll);
+  mc(36,2,38,21);setCell(36,2,'',font(false,10),fill(C.white),align('left','top',true),bAll);
+  // ── Roster droite depuis MEDECINS ──
+  mc(8,22,9,29);setCell(8,22,'ANESTHESISTES ET N° DE POSTES',font(true,11),fill(C.white),align('center','middle',true),bAll);
+  const roster=(Array.isArray(marsData)?marsData:[]).filter(m=>m.actif).slice().sort((a,b)=>(a.nom||'').localeCompare(b.nom||''));
+  let rr=10;
+  roster.forEach(m=>{const pre=(m.initiales==='BP')?'PR':'DR';const dect=m.dect||DECTFB[m.initiales]||'';
+    mc(rr,22,rr,25);setCell(rr,22,' '+pre+' '+(m.nom||''),font(false,10),fill(C.white),align('left','middle'),bAll);
+    setCell(rr,26,m.initiales||'',font(true,10),fill(C.white),align('center','middle'),bAll);
+    mc(rr,27,rr,29);setCell(rr,27,dect,font(false,10),fill(C.white),align('center','middle'),bAll);
+    rr++;
+  });
+  rr++;
+  FIXED.forEach(function(p){const lbl=p[0],num=p[1];mc(rr,22,rr,26);setCell(rr,22,' '+lbl,font(true,9),fill(C.hd),align('left','middle'),bAll);mc(rr,27,rr,29);setCell(rr,27,num,font(false,9),fill(C.white),align('center','middle'),bAll);rr++;});
+  // hauteurs
+  for(let r=8;r<=38;r++)ws.getRow(r).height=16;
+  ws.getRow(4).height=18;ws.getRow(5).height=14;ws.getRow(6).height=16;ws.getRow(7).height=18;
   const buf=await wb.xlsx.writeBuffer();
   const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const url=URL.createObjectURL(blob);const a=document.createElement('a');
