@@ -1481,13 +1481,13 @@ function showTab(name) {
 // ── SÉLECTEUR ANNÉE ──────────────────────────────────────────────────
 function buildYearSelector() {
   // Met à jour le sélecteur d'année dans le header si présent
-  const sel = document.getElementById('yearSelector');
+  const sel = document.getElementById('adminYearSelect');
   if (!sel) return;
   sel.innerHTML = availableYears.map(y =>
     `<option value="${y.year}" ${y.year===ADMIN_YEAR?'selected':''}>${y.label}</option>`
   ).join('');
+  sel.style.display = availableYears.length > 1 ? '' : 'none';
 }
-
 async function detectAvailableYears() {
   availableYears = [];
   availableYears.push({ year: YEAR, label: YEAR + ' — actif', readonly: false });
