@@ -1781,6 +1781,20 @@ function renderWeek() {
     });
   });
 
+  // Mater mardi/jeudi matin : la consult CS-MAT et la ligne MAT sont la MÊME personne
+  // (le MAR de mater fait la consult systématiquement) → l'afficher dans les deux,
+  // qu'il y soit arrivé par génération ou par placement manuel.
+  daySlots.forEach((slot, dow) => {
+    if (!slot || slot.isWeekend || slot.isFerie) return;
+    const jsDow = new Date(slot.date + 'T12:00:00').getDay();  // 2=mardi, 4=jeudi
+    if (jsDow !== 2 && jsDow !== 4) return;
+    const matAm = (smap['MAT'] && smap['MAT'][dow]) ? smap['MAT'][dow].am : null;
+    const csAm  = (csTypeMap['CS-MAT'] && csTypeMap['CS-MAT'][dow]) ? csTypeMap['CS-MAT'][dow].am : null;
+    if (!matAm || !csAm) return;
+    matAm.slice().forEach(p => { if (p && !csAm.some(x => x && x.id === p.id)) csAm.push({init:p.init, id:p.id, status:'', isNew:p.isNew}); });
+    csAm.slice().forEach(p => { if (p && !matAm.some(x => x && x.id === p.id)) matAm.push({init:p.init, id:p.id, status:'', isNew:p.isNew}); });
+  });
+
   // Marquer les flash : un "+" par MAR affecté à un secteur de couverture
   // ce mois-ci qui est absent ce jour (RG/V/F/CTP/R/A), moins les remplaçants
   // déjà placés. VOLANT / DVI / CS ne flashent jamais.
