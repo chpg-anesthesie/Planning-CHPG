@@ -282,7 +282,7 @@ function getPeriodeDays(p){
 
 function formatDay(ds){const d=new Date(ds+'T12:00:00');return JOURS_FR[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1);}
 function isWeekend(ds){const d=new Date(ds+'T12:00:00').getDay();return d===0||d===6;}
-function countForMAR(marId,type,days){const src=saisies[marId]||{};if(!days)return Object.values(src).filter(v=>v===type).length;return days.filter(d=>src[d]===type).length;}
+function countForMAR(marId,type,days){const src=saisies[marId]||{};if(!days)return Object.keys(src).filter(d=>src[d]===type&&!isWeekend(d)).length;return days.filter(d=>src[d]===type&&!isWeekend(d)).length;}
 function countForDay(date){return medecins.filter(m=>{const v=(saisies[m.id]||{})[date];return v==='VAC'||v==='FORM';}).length;}
 function tension(date,seuil){const n=countForDay(date);if(n>=seuil)return'hot';if(n>=Math.floor(seuil*.7))return'warn';return'ok';}
 
@@ -444,10 +444,11 @@ function renderGrille(){
       const we=isWeekend(date);
       const val=(saisies[m.id]||{})[date];
       const lck=(locked[m.id]||{})[date];
-      const chipCls=we?'we-chip':(val==='VAC'?'vac':val==='FORM'?'form':'empty');
-      const label=we?'':(val||'');
-      tbody+='<td class="gt-cell-day'+(we?' we':'')+'" onclick="'+(we?'':('toggleDay(\''+m.id+'\',\''+date+'\')'))+'">'
-        +'<div class="day-chip '+chipCls+(lck?' locked':'')+'">'+(lck&&!we?'🔒':label)+'</div>'
+      const hasVal=val==='VAC'||val==='FORM';
+      const chipCls=hasVal?(val==='VAC'?'vac':'form'):(we?'we-chip':'empty');
+      const label=hasVal?val:'';
+      tbody+='<td class="gt-cell-day'+((we&&!hasVal)?' we':'')+'" onclick="toggleDay(\''+m.id+'\',\''+date+'\')">'
+        +'<div class="day-chip '+chipCls+(lck?' locked':'')+'">'+(lck?'🔒':label)+'</div>'
         +'</td>';
     });
     tbody+='<td class="gt-cell-total">'
