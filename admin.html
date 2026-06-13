@@ -1675,6 +1675,7 @@ function renderWeek() {
     {code:'ORL', label:'ORL / Ophtalmologie',      icon:'Eye'        },
     {code:'END', label:'Endoscopies',              icon:'Microscope' },
     {code:'CI',  label:'Cardio interventionnelle', icon:'Heart'      },
+    {code:'RI',  label:'Radio interventionnelle',  icon:'Zap'        },
     {code:'MAT', label:'Maternité',                icon:'Baby'       },
   ];
 
@@ -1815,6 +1816,17 @@ function renderWeek() {
       cell.flash_am = Math.max(0, absent.length - extraAm);
       cell.flash_pm = Math.max(0, absent.length - extraPm);
     });
+  });
+
+  // Secteur interventionnel : RI requis le mercredi + jeudi matin.
+  // (1 seul MAR inter affecté CI → mercredi il tient CI, RI flashe ; jeudi il bascule en RI)
+  const RI_REQ_AM = {2:1, 3:1};  // mercredi=2, jeudi=3 (index semaine)
+  daySlots.forEach((slot, dow) => {
+    const cell = smap['RI'] && smap['RI'][dow];
+    if (!cell) return;
+    cell.flash_pm = 0;
+    if (!slot || slot.isWeekend || slot.isFerie) { cell.flash_am = 0; return; }
+    cell.flash_am = Math.max(0, (RI_REQ_AM[dow] || 0) - cell.am.length);
   });
 
   // Flash consultations : un "+" par créneau requis non pourvu
