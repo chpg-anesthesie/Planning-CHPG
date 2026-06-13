@@ -2265,7 +2265,7 @@ function openMarMenu(marId, marInit, currentSector, date, slotKey) {
   });
   html += `</div>
     <button onclick="moveMARTo('${marId}','${marInit}','VOLANT')"
-      style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid #FCA5A5;border-radius:10px;background:#FEF2F2;color:#B91C1C;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">↩ Retirer (renvoyer en volant)</button>`;
+      style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid #FCA5A5;border-radius:10px;background:#FEF2F2;color:#B91C1C;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">↩ Retirer</button>`;
   document.getElementById('pspContent').innerHTML = html;
   card.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
