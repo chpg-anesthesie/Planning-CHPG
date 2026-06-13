@@ -1518,25 +1518,18 @@ async function switchAdminYear(year) {
 }
 
 async function reloadForYear(year) {
-  // Recharger les données de l'onglet actif
-  const activePanel = document.querySelector('.tab-panel.active');
-  if (!activePanel) return;
-  const panelId = activePanel.id.replace('panel-', '');
-  if (panelId === 'gardes')       loadStats(year);
-  if (panelId === 'affectations') loadAffectations(year);
-  if (panelId === 'indispos')     loadIndispos(year);
-  if (panelId === 'vacances')     loadVacances(year);
-  if (panelId === 'accueil')      loadPlanningData();
-  // Mettre à jour le header
+  // Mettre à jour toutes les étiquettes d'année (header + titres comme "Affectations sectorielles")
   document.getElementById('headerYear').textContent = year;
   document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = year; });
-  // Désactiver visuellement les boutons de modification si readonly
-  const modBtns = document.querySelectorAll('.btn-primary[onclick*="openPanel"], .btn-primary[onclick*="applyModification"]');
-  modBtns.forEach(btn => {
+  // Boutons en lecture seule si l'année est archivée
+  document.querySelectorAll('.btn-primary[onclick*="openPanel"], .btn-primary[onclick*="applyModification"]').forEach(btn => {
     btn.disabled = ADMIN_YEAR_READONLY;
     btn.style.opacity = ADMIN_YEAR_READONLY ? '0.4' : '';
     btn.title = ADMIN_YEAR_READONLY ? '🔒 Année archivée — lecture seule' : '';
   });
+  // Aller directement sur la vue Planning de l'année choisie, et forcer son rechargement
+  DATA = null;
+  showTab('planning');
 }
 
 async function checkNextYearAvailable() {
