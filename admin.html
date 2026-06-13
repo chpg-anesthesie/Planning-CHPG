@@ -2105,14 +2105,17 @@ async function toggleValiderSemaine() {
   try {
     const res = await api({action:'validerSemaine', year: ADMIN_YEAR, isoWeek: wk.weekNum, valide: newVal});
     if (!res.success) throw new Error(res.error);
-    showToast(newVal ? `✅ Semaine ${wk.weekNum} validée — publiée sur index.html` : `↩ Semaine ${wk.weekNum} dévalidée`);
-    _localOverrides = {};
-    _localVides = {};
-    _dispoCache = {};
-    await loadPlanningData();
-    renderWeek();
+    // Mise à jour LOCALE de l'état (on ne relit PAS le fichier en ligne, pas encore rafraîchi
+    // — c'était la cause du "dévalider qui ne tient pas")
+    for (const month of DATA.months) {
+      if (!month.weeks) continue;
+      const wkInfo = month.weeks.find(w => w.isoWeek === wk.weekNum);
+      if (wkInfo) wkInfo.validated = newVal;
+    }
+    showToast(newVal ? `✅ Semaine ${wk.weekNum} validée` : `↩ Semaine ${wk.weekNum} dévalidée`);
   } catch(e) {
     showToast('Erreur : ' + e.message, true);
+  } finally {
     if (btn) { btn.disabled = false; }
     updateValidationBadge();
   }
