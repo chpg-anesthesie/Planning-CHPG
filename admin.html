@@ -2273,8 +2273,8 @@ async function placeMAR(marId, marInit) {
     const res = await api({
       action: 'savePlanningOverride',
       date, marId,
-      morning:   slotKey === 'am' ? sector : '',
-      afternoon: slotKey === 'pm' ? sector : '',
+      morning:   _localOverrides[date][marId].am || '',
+      afternoon: _localOverrides[date][marId].pm || '',
       comment:   `Comité — ${sector} ${slotKey.toUpperCase()}`
     });
     if (!res.success) throw new Error(res.error);
