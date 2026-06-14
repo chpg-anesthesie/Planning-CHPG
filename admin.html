@@ -816,6 +816,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .cs-ouvrir:hover { color:#475569; border-color:#94A3B8; }
 .cs-fermer { display:inline-block; font-size:11px; font-weight:700; color:#CBD5E1; cursor:pointer; padding:0 2px; vertical-align:middle; }
 .cs-fermer:hover { color:#EF4444; }
+.cs-fermee { display:inline-block; font-size:9px; font-weight:600; color:#94A3B8; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:5px; padding:1px 5px; line-height:1.4; white-space:nowrap; text-decoration:line-through; }
 .slot-name.cs-chip.cs-mirror { background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; }
 
 /* ── SLOT FLASH (admin) ── */
@@ -1350,6 +1351,22 @@ let _localOverrides = {};
 let _pendingChanges = 0;
 let _localVides = {};  // cases flash laissées volontairement vides (session)
 let _localOpens = {};  // consultations ouvertes par le comité (session) : `${csCode}|${slotKey}`
+let _localCloses = {}; // consultations FERMÉES par le comité : `${csCode}|${slotKey}` (persiste via localStorage)
+// ── Persistance des fermetures de consultations (page web réelle → localStorage OK) ──
+function _closesKey() { return 'chpg_csCloses_' + (selectedYear || (typeof ANNEE_ACTIVE!=='undefined'?ANNEE_ACTIVE:'') || YEAR || ''); }
+function loadCloses() {
+  try {
+    const raw = localStorage.getItem(_closesKey());
+    _localCloses = {};
+    if (raw) { const o = JSON.parse(raw); Object.keys(o).forEach(d => { _localCloses[d] = new Set(o[d]); }); }
+  } catch(e) { _localCloses = {}; }
+}
+function saveCloses() {
+  try {
+    const o = {}; Object.keys(_localCloses).forEach(d => { if (_localCloses[d] && _localCloses[d].size) o[d] = Array.from(_localCloses[d]); });
+    localStorage.setItem(_closesKey(), JSON.stringify(o));
+  } catch(e) {}
+}
 let _dispoCache = {};  // cache liste MARs dispos par jour (évite re-fetch à chaque case)
 let currentWeekIdx = 0, currentCalMonth = new Date().getMonth();
 let panelType = '', allViolations = [], activeFilter = 'all';
@@ -1660,6 +1677,7 @@ function getWeekDays(weekNum) {
 // ── WEEK RENDER ────────────────────────────────────────────────────────
 function renderWeek() {
   if (!DATA) return;
+  if (!window._closesLoaded) { loadCloses(); window._closesLoaded = true; }
   const weeks = getAllWeeks(); if (!weeks.length) return;
   const wk = weeks[currentWeekIdx]; if (!wk) return;
   const daySlots = getWeekDays(wk.weekNum);
@@ -1873,8 +1891,26 @@ function renderWeek() {
       cell.flash_am = 0; cell.flash_pm = 0;
       if (!slot || slot.isWeekend || slot.isFerie) return;
       const req = CS_REQUIRED[dow] || {am:{}, pm:{}};
-      cell.flash_am = Math.max(0, ((req.am && req.am[t.code]) || 0) - cell.am.length);
-      cell.flash_pm = Math.max(0, ((req.pm && req.pm[t.code]) || 0) - cell.pm.length);
+      const _cAm = _localCloses[slot.date] && _localCloses[slot.date].has(`${t.code}|am`);
+      const _cPm = _localCloses[slot.date] && _localCloses[slot.date].has(`${t.code}|pm`);
+      cell.flash_am = _cAm ? 0 : Math.max(0, ((req.am && req.am[t.code]) || 0) - cell.am.length);
+      cell.flash_pm = _cPm ? 0 : Math.max(0, ((req.pm && req.pm[t.code]) || 0) - cell.pm.length);
+    });
+  });
+
+  // Occupants de chaque consultation (pour pouvoir les libérer si on ferme la consult)
+  window._csOccupants = {};
+  CS_TYPES.forEach(t => {
+    daySlots.forEach((slot, dow) => {
+      if (!slot) return;
+      ['am','pm'].forEach(half => {
+        (csTypeMap[t.code][dow][half] || []).forEach(p => {
+          if (p && p.id) {
+            const kk = `${slot.date}|${t.code}|${half}`;
+            (window._csOccupants[kk] = window._csOccupants[kk] || []).push(p.id);
+          }
+        });
+      });
     });
   });
 
@@ -1970,8 +2006,17 @@ function renderWeek() {
   }
   function makeCsSlot(items, flash, type, label, date, slotKey) {
     let html = '';
+    const _closed = !!(_localCloses[date] && _localCloses[date].has(`${type}|${slotKey}`));
     const _open = !!(_localOpens[date] && _localOpens[date].has(`${type}|${slotKey}`));
     const openable = CS_OPENABLE.includes(type);
+
+    // Consultation fermée volontairement par le comité → "fermée" + possibilité de rouvrir
+    if (_closed) {
+      html += `<span class="cs-fermee" title="Consultation fermée par le comité">fermée</span>`;
+      html += `<span class="cs-ouvrir" onclick="reopenConsult('${type}','${date}','${slotKey}')" title="Rouvrir la consultation">+ rouvrir</span>`;
+      return html;
+    }
+
     items.forEach(p => {
       if (p.isMirror) {
         html += `<span class="slot-name cs-chip cs-mirror" title="${p.id||''} — consult faite par le secteur">${p.init}</span>`;
@@ -1988,13 +2033,15 @@ function renderWeek() {
     for (let i = 0; i < (flash||0); i++) {
       html += `<span class="cs-apourvoir" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')" title="Consultation à pourvoir">à pourvoir</span>`;
     }
-    if (_open) {
-      if (!items.length && !(flash||0)) {
-        html += `<span class="cs-apourvoir" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')" title="Consultation ouverte — à pourvoir">à pourvoir</span>`;
-      }
-      html += `<span class="cs-fermer" onclick="closeConsult('${type}','${date}','${slotKey}')" title="Fermer la consultation">×</span>`;
-    } else if (openable && !(flash||0) && items.length < 2) {
-      html += `<span class="cs-ouvrir" onclick="openConsult('${type}','${date}','${slotKey}')" title="Ouvrir une consultation">+ ouvrir</span>`;
+    // Consult ouverte (session) : proposer "à pourvoir" tant qu'il reste de la place (max 2)
+    if (_open && items.length < 2 && !(flash||0)) {
+      html += `<span class="cs-apourvoir" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')" title="Consultation ouverte — à pourvoir">à pourvoir</span>`;
+    } else if (!_open && openable && !(flash||0) && items.length < 2) {
+      html += `<span class="cs-ouvrir" onclick="openConsult('${type}','${date}','${slotKey}')" title="Ouvrir une 2ᵉ consultation">+ ouvrir</span>`;
+    }
+    // Bouton fermer : sur toute consult active (MAR placé, à pourvoir, ou ouverte)
+    if (items.length || (flash||0) || _open) {
+      html += `<span class="cs-fermer" onclick="closeConsult('${type}','${date}','${slotKey}')" title="Fermer complètement la consultation (libère le MAR)">×</span>`;
     }
     if (!html) html += '<span class="slot-dash">·</span>';
     return html;
@@ -2047,7 +2094,8 @@ function renderWeek() {
   // ── SOUS-LIGNES CONSULTATIONS (une par type, AM | PM) ──
   const activeCsTypes = CS_TYPES.filter(t =>
     CS_OPENABLE.includes(t.code) ||
-    csTypeMap[t.code].some(d => d.am.length || d.pm.length || d.flash_am || d.flash_pm)
+    csTypeMap[t.code].some(d => d.am.length || d.pm.length || d.flash_am || d.flash_pm) ||
+    daySlots.some(slot => slot && _localCloses[slot.date] && (_localCloses[slot.date].has(`${t.code}|am`) || _localCloses[slot.date].has(`${t.code}|pm`)))
   );
   if (activeCsTypes.length) {
     tbody += `<tr class="cs-group-row"><td class="cs-group-label" colspan="${daySlots.length + 1}"><i data-lucide="Stethoscope" class="sector-icon-svg"></i> Consultations</td></tr>`;
@@ -2390,13 +2438,45 @@ function openConsult(type, date, slotKey) {
   if (!_localOpens[date]) _localOpens[date] = new Set();
   _localOpens[date].add(`${type}|${slotKey}`);
   if (_localVides[date]) _localVides[date].delete(`${type}|${slotKey}`);
+  if (_localCloses[date]) { _localCloses[date].delete(`${type}|${slotKey}`); saveCloses(); }
   renderWeek();
   if (typeof showToast === 'function') showToast('Consultation ouverte');
 }
 function closeConsult(type, date, slotKey) {
+  // 1) marquer fermée (persiste pour ne plus réafficher "à pourvoir")
   if (_localOpens[date]) _localOpens[date].delete(`${type}|${slotKey}`);
+  if (!_localCloses[date]) _localCloses[date] = new Set();
+  _localCloses[date].add(`${type}|${slotKey}`);
+  saveCloses();
+  // 2) libérer le(s) MAR qui faisai(en)t cette consult (override VOLANT, persiste)
+  const occ = (window._csOccupants && window._csOccupants[`${date}|${type}|${slotKey}`]) || [];
+  occ.forEach(marId => {
+    if (!_localOverrides[date]) _localOverrides[date] = {};
+    if (!_localOverrides[date][marId]) _localOverrides[date][marId] = {am:null, pm:null};
+    _localOverrides[date][marId][slotKey] = 'VOLANT';
+  });
   renderWeek();
-  if (typeof showToast === 'function') showToast('Consultation fermée');
+  occ.forEach(marId => _saveOverrideBg(marId, date, slotKey, 'consult fermée'));
+  if (typeof showToast === 'function') showToast(occ.length ? `Consultation fermée — ${occ.length} MAR libéré(s)` : 'Consultation fermée');
+}
+function reopenConsult(type, date, slotKey) {
+  if (_localCloses[date]) { _localCloses[date].delete(`${type}|${slotKey}`); saveCloses(); }
+  if (!_localOpens[date]) _localOpens[date] = new Set();
+  _localOpens[date].add(`${type}|${slotKey}`);   // rouvre directement en "à pourvoir"
+  renderWeek();
+  if (typeof showToast === 'function') showToast('Consultation rouverte');
+}
+// Sauvegarde d'un override en arrière-plan (sans bloquer le rendu)
+async function _saveOverrideBg(marId, date, slotKey, why) {
+  try {
+    await api({
+      action: 'savePlanningOverride', date, marId,
+      morning:   _localOverrides[date][marId].am || '',
+      afternoon: _localOverrides[date][marId].pm || '',
+      comment:   `Comité — ${why} ${slotKey.toUpperCase()}`
+    });
+    markPending();
+  } catch(e) {}
 }
 
 function moveMARTo(marId, marInit, targetSector) {
