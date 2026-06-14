@@ -1856,6 +1856,24 @@ function renderWeek() {
     cell.flash_am = Math.max(0, (RI_REQ_AM[dow] || 0) - cell.am.length);
   });
 
+  // Couverture obligatoire : la mater doit TOUJOURS être pourvue (flash si vide, y compris
+  // après un retrait manuel — on prend le max avec la logique d'absence ci-dessus) ; la pose
+  // DVI du mardi matin doit TOUJOURS avoir 1 MAR (habilité) → flash si vide.
+  const DVI_REQ_AM = {1:1};  // mardi (index semaine : lundi=0) matin
+  daySlots.forEach((slot, dow) => {
+    const ouvre = slot && !slot.isWeekend && !slot.isFerie;
+    const mat = smap['MAT'] && smap['MAT'][dow];
+    if (mat && ouvre) {
+      mat.flash_am = Math.max(mat.flash_am || 0, 1 - mat.am.length);
+      mat.flash_pm = Math.max(mat.flash_pm || 0, 1 - mat.pm.length);
+    }
+    const dvi = smap['DVI'] && smap['DVI'][dow];
+    if (dvi) {
+      dvi.flash_pm = 0;
+      dvi.flash_am = ouvre ? Math.max(0, (DVI_REQ_AM[dow] || 0) - dvi.am.length) : 0;
+    }
+  });
+
   // Flash consultations : un "+" par créneau requis non pourvu
   CS_TYPES.forEach(t => {
     daySlots.forEach((slot, dow) => {
