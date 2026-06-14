@@ -1001,11 +1001,15 @@ function renderTable(month,daySlots,week){
         }
       }
       if(entry.status && ABSENT_STATUSES.has(entry.status)) return;
-      const mKey=entry.morning&&entry.morning.startsWith('CS-')?'CS':entry.morning;
-      const pKey=entry.afternoon&&entry.afternoon.startsWith('CS-')?'CS':entry.afternoon;
       const status=entry.status||'';
-      if(mKey&&smap[mKey]) smap[mKey][dow].am.push({init:doc.initials,status,sector:entry.morning});
-      if(pKey&&smap[pKey]) smap[pKey][dow].pm.push({init:doc.initials,status,sector:entry.afternoon});
+      // multi-secteur "VIS+REA" → le MAR apparaît dans chaque secteur
+      [['am',entry.morning],['pm',entry.afternoon]].forEach(([half,val])=>{
+        (val||'').split('+').forEach(raw=>{
+          const part=raw.trim(); if(!part) return;
+          const key=part.startsWith('CS-')?'CS':part;
+          if(smap[key]) smap[key][dow][half].push({init:doc.initials,status,sector:part});
+        });
+      });
       if(entry.cs&&smap['CS']) smap['CS'][dow].am.push({init:doc.initials,status,sector:entry.cs});
       if(entry.cs2&&smap[entry.cs2]) smap[entry.cs2][dow].am.push({init:doc.initials,status,sector:entry.cs2});
       if(entry.cs3&&smap[entry.cs3]) smap[entry.cs3][dow].pm.push({init:doc.initials,status,sector:entry.cs3});
@@ -1136,8 +1140,7 @@ function renderMedecins(){
       const isWe=isWeekend(day.weekday);
       if(isWe){if(st==='G')counts.presents++;}
       else{if(!['RG','A','CP','F','R'].includes(st))counts.presents++;}
-      const s=entry.morning&&!entry.morning.startsWith('CS-')?entry.morning:null;
-      if(s) sectorCounts[s]=(sectorCounts[s]||0)+1;
+      (entry.morning||'').split('+').forEach(raw=>{const s=raw.trim();if(s&&!s.startsWith('CS-'))sectorCounts[s]=(sectorCounts[s]||0)+1;});
     });
     // Secteur depuis affectations JSON (source de vérité), fallback mode statistique
     const monthNum = month.month;
@@ -1229,8 +1232,7 @@ function renderDocPanel(){
   } else {
     const sectorCounts={};
     doc.days.forEach(entry=>{
-      const s=entry.morning&&!entry.morning.startsWith('CS-')?entry.morning:null;
-      if(s) sectorCounts[s]=(sectorCounts[s]||0)+1;
+      (entry.morning||'').split('+').forEach(raw=>{const s=raw.trim();if(s&&!s.startsWith('CS-'))sectorCounts[s]=(sectorCounts[s]||0)+1;});
     });
     sector=Object.entries(sectorCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||'VOLANT';
   }
@@ -1299,14 +1301,21 @@ function renderDocPanel(){
     else if(st==='R'){ stClass='dc-R'; tags.push(`<div class="doc-cal-tag" style="background:#F0FDF4;color:#166534">R</div>`); }
     else if(morning&&!isWe){
       stClass='dc-work';
-      const mIsCs = morning.startsWith('CS-');
-      const sc2 = mIsCs ? SECTOR_COLORS['CS'] : (SECTOR_COLORS[morning]||{bg:'#F1F5F9',fg:'#64748B'});
-      tags.push(`<div class="doc-cal-tag${mIsCs?' cs':''}" style="background:${sc2.bg};color:${sc2.fg}">${morning}</div>`);
+      // multi-secteur "VIS+REA" → un tag coloré par secteur
+      morning.split('+').forEach(raw=>{
+        const part=raw.trim(); if(!part) return;
+        const mIsCs = part.startsWith('CS-');
+        const sc2 = mIsCs ? SECTOR_COLORS['CS'] : (SECTOR_COLORS[part]||{bg:'#F1F5F9',fg:'#64748B'});
+        tags.push(`<div class="doc-cal-tag${mIsCs?' cs':''}" style="background:${sc2.bg};color:${sc2.fg}">${part}</div>`);
+      });
       const pmRaw = afternoon && afternoon !== morning ? afternoon : '';
       if(pmRaw){
-        const pIsCs = pmRaw.startsWith('CS-');
-        const sc3 = pIsCs ? SECTOR_COLORS['CS'] : (SECTOR_COLORS[pmRaw]||{bg:'#F1F5F9',fg:'#64748B'});
-        tags.push(`<div class="doc-cal-tag${pIsCs?' cs':''}" style="background:${sc3.bg};color:${sc3.fg}">${pmRaw}</div>`);
+        pmRaw.split('+').forEach(raw=>{
+          const part=raw.trim(); if(!part) return;
+          const pIsCs = part.startsWith('CS-');
+          const sc3 = pIsCs ? SECTOR_COLORS['CS'] : (SECTOR_COLORS[part]||{bg:'#F1F5F9',fg:'#64748B'});
+          tags.push(`<div class="doc-cal-tag${pIsCs?' cs':''}" style="background:${sc3.bg};color:${sc3.fg}">${part}</div>`);
+        });
       }
     }
 
@@ -1569,10 +1578,14 @@ function renderMobileDay() {
     if (st==='RG') rg.push(doc.initials);
     if (['A','CP','F','R'].includes(st)) absents.push(doc.initials);
     if (ABSENT_STATUSES.has(st)) return;
-    const mKey = entry.morning && entry.morning.startsWith('CS-') ? 'CS' : entry.morning;
-    const pKey = entry.afternoon && entry.afternoon.startsWith('CS-') ? 'CS' : entry.afternoon;
-    if (mKey && smap[mKey]) smap[mKey].am.push(doc.initials);
-    if (pKey && smap[pKey]) smap[pKey].pm.push(doc.initials);
+    // multi-secteur "VIS+REA" → le MAR apparaît dans chaque secteur
+    [['am',entry.morning],['pm',entry.afternoon]].forEach(([half,val])=>{
+      (val||'').split('+').forEach(raw=>{
+        const part=raw.trim(); if(!part) return;
+        const key=part.startsWith('CS-')?'CS':part;
+        if(smap[key]) smap[key][half].push(doc.initials);
+      });
+    });
     if (entry.cs && smap['CS']) smap['CS'].am.push(doc.initials);
   });
 
