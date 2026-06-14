@@ -1806,23 +1806,6 @@ function renderWeek() {
     matAm.slice().forEach(p => { if (p && !csAm.some(x => x && x.id === p.id)) csAm.push({init:p.init, id:p.id, status:'', isNew:p.isNew}); });
   });
 
-  // Consultations ouvertes par le comité (session) : faites par défaut par le MAR du secteur
-  // correspondant ce demi-jour (miroir d'affichage, sans déplacer le MAR de son secteur).
-  daySlots.forEach((slot, dow) => {
-    if (!slot || slot.isWeekend || slot.isFerie) return;
-    const opens = _localOpens[slot.date];
-    if (!opens || !opens.size) return;
-    opens.forEach(key => {
-      const [code, half] = key.split('|');
-      const sec = CS_SECTOR_MIRROR[code];
-      if (!sec || !csTypeMap[code] || !smap[sec]) return;
-      const csCell = csTypeMap[code][dow][half];
-      if (csCell.length) return;  // déjà pourvue (génération ou attribution)
-      const secPeople = smap[sec][dow][half] || [];
-      secPeople.forEach(p => { if (p && !csCell.some(x => x && x.id === p.id)) csCell.push({init:p.init, id:p.id, status:p.status||'', isMirror:true}); });
-    });
-  });
-
   // Marquer les flash : un "+" par MAR affecté à un secteur de couverture
   // ce mois-ci qui est absent ce jour (RG/V/F/CTP/R/A), moins les remplaçants
   // déjà placés. VOLANT / DVI / CS ne flashent jamais.
