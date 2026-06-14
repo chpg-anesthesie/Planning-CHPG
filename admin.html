@@ -1826,7 +1826,7 @@ function renderWeek() {
   // ce mois-ci qui est absent ce jour (RG/V/F/CTP/R/A), moins les remplaçants
   // déjà placés. VOLANT / DVI / CS ne flashent jamais.
   const COVERAGE = new Set(['VIS','REA','ORT','ORL','END','CI','MAT']);
-  const ABSENT_FLASH = new Set(['RG','V','F','CTP','R','A','TP']);
+  const ABSENT_FLASH = new Set(['RG','V','F','CTP','CP','R','A','TP']);
   const AFF = window.AFFM || {};
   const affOf = (id, m) => (AFF[id] && AFF[id][m] ? String(AFF[id][m]).trim().toUpperCase() : '');
   SECTORS.forEach(s => {
