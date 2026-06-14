@@ -873,6 +873,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 }
 .slot-name.slot-clickable { cursor: pointer; transition: outline .1s; }
 .slot-name.slot-clickable:hover { outline: 2px solid var(--red); outline-offset: 0; }
+.slot-name.mar-dup { box-shadow: 0 0 0 2px #F59E0B; background:#FFFBEB; color:#92400E; }
 .slot {
   padding: 4px 3px; display: grid; grid-template-columns: 1fr 1fr;
   gap: 2px; align-content: start; border-right: 1px solid var(--line-light);
@@ -1926,11 +1927,36 @@ function renderWeek() {
     const fullCls = extraCls ? cls + ' ' + extraCls : cls;
     return '<span class="' + fullCls + '" title="' + (p.id||'') + '">' + p.init + '</span>';
   }
+  // Doublon : un même MAR placé dans 2 secteurs le même demi-jour (autorisé, mais signalé
+  // par un liseré ambré pour éviter les erreurs de saisie). On ne compte que les secteurs,
+  // pas les consultations (un MAR en secteur + sa consult via le miroir est volontaire).
+  const dupSet = {};
+  daySlots.forEach((slot, dow) => {
+    if (!slot || slot.isWeekend || slot.isFerie) return;
+    ['am','pm'].forEach(half => {
+      const seen = {};
+      SECTORS.forEach(s => {
+        const cell = smap[s.code] && smap[s.code][dow];
+        if (!cell) return;
+        (cell[half] || []).forEach(p => { if (p && p.id) seen[p.id] = (seen[p.id] || 0) + 1; });
+      });
+      Object.keys(seen).forEach(id => {
+        if (seen[id] >= 2) {
+          if (!dupSet[slot.date]) dupSet[slot.date] = new Set();
+          dupSet[slot.date].add(`${id}|${half}`);
+        }
+      });
+    });
+  });
+
   function makeSlot(items, flash, sector, sectorLabel, date, slotKey) {
     let html = '';
     items.forEach(p => {
-      const cls = p.isNew ? 'slot-name slot-new slot-clickable' : 'slot-name slot-clickable';
-      html += `<span class="${cls}" title="${p.id||''}" onclick="openMarMenu('${p.id}','${p.init}','${sector}','${date}','${slotKey}')">${p.init}</span>`;
+      const dup = dupSet[date] && dupSet[date].has(`${p.id}|${slotKey}`);
+      let cls = p.isNew ? 'slot-name slot-new slot-clickable' : 'slot-name slot-clickable';
+      if (dup) cls += ' mar-dup';
+      const tt = dup ? `${p.id||''} — aussi placé dans un autre secteur ce demi-jour` : (p.id||'');
+      html += `<span class="${cls}" title="${tt}" onclick="openMarMenu('${p.id}','${p.init}','${sector}','${date}','${slotKey}')">${p.init}</span>`;
     });
     const _vide = _localVides[date] && _localVides[date].has(`${sector}|${slotKey}`);
     if (_vide) {
