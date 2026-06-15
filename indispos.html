@@ -444,24 +444,12 @@ body {
 
   <!-- Bouton sauvegarder -->
   <div class="bottom-bar">
-    <button class="prio-btn" id="prioBtn" onclick="openPrioPanel()">
-      🏅 Ma priorité
-    </button>
     <button class="save-btn" id="saveBtn" onclick="saveIndispos()">
       💾 Sauvegarder
     </button>
   </div>
 
-<!-- Panneau priorité vacances -->
-<div id="prioOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-end;justify-content:center" onclick="if(event.target===this)closePrioPanel()">
-  <div id="prioPanel" style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:20px 16px 32px;max-height:85vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div style="font-size:16px;font-weight:700;color:#1e293b">🏅 Ma priorité vacances</div>
-      <button onclick="closePrioPanel()" style="background:none;border:none;font-size:20px;color:#94a3b8;cursor:pointer;padding:4px">✕</button>
-    </div>
-    <div id="prioContent"><div style="text-align:center;padding:20px;color:#94a3b8">Chargement…</div></div>
-  </div>
-</div>
+<!-- Panneau « Ma priorité » retiré (réservé à staff.html) -->
 
 </div>
 
