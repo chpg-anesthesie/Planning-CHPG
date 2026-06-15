@@ -3858,8 +3858,9 @@ async function openWizardGardes() {
     toast('GARDES_2026 est sanctuarisé — génération désactivée', 'error');
     return;
   }
-  await renderWizGStep();
+  document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:48px 0"><div style="font-size:40px;margin-bottom:14px">⏳</div><div style="font-size:15px;font-weight:600;color:#334155">Chargement de l\'assistant…</div><div style="font-size:13px;color:var(--ink-3);margin-top:6px">Lecture des indispos et calcul des conflits (~1 min)</div></div>';
   document.getElementById('wizardGardesOverlay').classList.add('open');
+  await renderWizGStep();
 }
 
 function closeWizardGardes() {
@@ -4075,7 +4076,7 @@ async function launchWizardGardes() {
 
   if (allOk) {
     setTimeout(() => {
-      document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Gardes ' + (YEAR+1) + ' générées !</div><div style="font-size:13px;color:var(--ink-3)">Le planning est publié et les MARs ont été notifiés.<br>Vérifiez l\'équité dans l\'onglet Équité.</div><button class=\"btn-primary\" style=\"margin-top:20px\" onclick=\"closeWizardGardes();showTab(\'gardes\');loadStats(YEAR+1)\">Voir l\'équité →</button></div>';
+      document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">Gardes ' + (YEAR+1) + ' générées !</div><div style="font-size:13px;color:var(--ink-3)">Le planning est publié et les MARs ont été notifiés.<br>Vérifiez l\'équité dans l\'onglet Équité.</div><button class=\"btn-primary\" style=\"margin-top:20px\" onclick=\"closeWizardGardes();ADMIN_YEAR=YEAR+1;showTab(\'equite\')\">Voir l\'équité →</button></div>';
       nextBtn.style.display = 'none';
     }, 600);
   } else {
@@ -4157,7 +4158,7 @@ async function renderWizCStep() {
         wizCStatsData = data.stats || [];
       } catch(e) { body.innerHTML = '<div class="wizard-warning">\u274c Stats : ' + e.message + '</div>'; return; }
     }
-    let html = '<div class="wizard-section-title">Récapitulatif équité ' + YEAR + '</div>';
+    let html = '<div class="wizard-section-title">'Récapitulatif équité ' + (YEAR+1) + '</div>';
     html += '<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">Comparaison initial vs final. Verifiez avant archivage.</div>';
     if (!wizCStatsData.length) {
       html += '<div class="wizard-warning">⚠️ Aucune statistique disponible.</div>';
