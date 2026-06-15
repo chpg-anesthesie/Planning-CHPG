@@ -774,6 +774,13 @@ function applyTool(date) {
     showToast('🔒 Les vacances et formations sont gérées par le comité');
     return;
   }
+  if (currentTool === 'CTP' && vacConfig && vacConfig.quotaCtp != null && indispos[date] !== 'CTP') {
+    const ctpCount = Object.values(indispos).filter(s => s === 'CTP').length;
+    if (ctpCount >= vacConfig.quotaCtp) {
+      showToast(`🚫 Quota temps partiel atteint — ${vacConfig.quotaCtp} jour(s) maximum`);
+      return;
+    }
+  }
   if (false) {
     const pj = premierJourAnneePlanning(YEAR);
   const premierJour = `${pj.getFullYear()}-${String(pj.getMonth()+1).padStart(2,'0')}-${String(pj.getDate()).padStart(2,'0')}`;
@@ -850,9 +857,15 @@ function updateStats() {
   const quotaVac = vacConfig ? vacConfig.quotaVac : null;
   const quotaColor = quotaVac && vacOuvres >= quotaVac ? '#B91C1C' : 'var(--vac-fg)';
   const quotaLabel = quotaVac ? `${vacOuvres}/${quotaVac} jours ouvrés` : `${vacOuvres} jours ouvrés`;
+  const showCtp = vacConfig && vacConfig.quotaVac < 33 && vacConfig.quotaCtp != null;
+  const ctpCount = Object.values(indispos).filter(s => s === 'CTP').length;
+  const ctpItem = showCtp
+    ? `<div class="stat-item" style="color:${ctpCount >= vacConfig.quotaCtp ? '#B91C1C' : '#6D28D9'}">🕐 ${ctpCount}/${vacConfig.quotaCtp} TP</div>`
+    : '';
 
   document.getElementById('statsBar').innerHTML = `
     <div class="stat-item" style="color:${quotaColor}">🏖️ ${quotaLabel}</div>
+    ${ctpItem}
     <div class="stat-item" style="color:var(--form-fg)">📚 ${counts.FORM} jours</div>
     <div class="stat-item" style="color:var(--indispo-fg)">🚫 ${counts.INDISPO} jours</div>
     <div class="stat-item" style="color:var(--souhait-fg)">⭐ ${counts.SOUHAIT} gardes souhaitées</div>
