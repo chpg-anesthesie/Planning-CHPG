@@ -3481,7 +3481,8 @@ function wizPrev() {
   if (wizCurrentStep > 0) { wizCurrentStep--; renderWizStep(); }
 }
 
-function wizNext() {
+async function wizNext() {
+  if (wizCurrentStep === 0) await saveWizQuotites(true);
   if (wizCurrentStep === 1) collectPeriodes();
   if (wizCurrentStep === 2) collectGroupes();
   if (wizCurrentStep === 3) { launchWizInit(); return; }
@@ -3491,7 +3492,26 @@ function wizNext() {
     renderWizStep();
   }
 }
-
+async function saveWizQuotites(silent) {
+      const actifs = wizMarsData.filter(m => m.actif);
+      let changed = 0;
+      for (const m of actifs) {
+        const qEl = document.getElementById('wizQuot_' + m.id);
+        const pEl = document.getElementById('wizPct_' + m.id);
+        if (!qEl || !pEl) continue;
+        const newQ = Number(qEl.value) || 100;
+        const newP = Number(pEl.value) || 100;
+        if (newQ === (m.quotite||100) && newP === (m.pctGardes||100)) continue;
+        m.quotite = newQ; m.pctGardes = newP;
+        try { await api({action:'saveMedecin', medecin: m}); changed++; }
+        catch(e) { toast('❌ Échec pour ' + m.initiales, 'error'); }
+      }
+      if (typeof marsData !== 'undefined') {
+        actifs.forEach(m => { const g = marsData.find(x => x.id === m.id); if (g) { g.quotite = m.quotite; g.pctGardes = m.pctGardes; } });
+      }
+      if (changed) toast(`✅ ${changed} ligne(s) enregistrée(s)`, 'success');
+      else if (!silent) toast('Aucun changement à enregistrer', 'success');
+    }
 function renderWizStep() {
   updateWizNav();
   const nextYear = YEAR + 1;
@@ -3510,13 +3530,18 @@ function renderWizStep() {
       </div>`;
     }
     html += `<div class="wizard-section-title">MARs actifs pour ${nextYear}</div>`;
+    html += `<div style="margin-bottom:10px;padding:10px 14px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;font-size:12px;color:#1E40AF">📋 <strong>Revue des quotités ${nextYear}</strong> — vérifiez/ajustez la quotité et le % de gardes de chacun (chacun contre-vérifie les siens), puis <strong>enregistrez</strong> avant de continuer. C'est sous ces valeurs que les congés seront calculés.</div>`;
     html += `<div class="wiz-mar-list">`;
     wizMarsData.filter(m => m.actif).forEach(m => {
       const emailOk = m.email ? `<span class="wiz-ok">✓ ${m.email}</span>` : `<span class="wiz-warn">⚠️ Email manquant</span>`;
       html += `<div class="wiz-mar-row">
         <div class="wiz-mar-init">${m.initiales}</div>
         <div class="wiz-mar-name">${m.nom}</div>
-        <div class="wiz-mar-meta">${m.quotite||100}% · ${emailOk}</div>
+        <div class="wiz-mar-meta" style="display:flex;align-items:center;gap:8px">
+          <label style="color:var(--ink-3)">Quotité <input type="number" id="wizQuot_${m.id}" value="${m.quotite||100}" min="0" max="100" step="10" style="width:50px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;text-align:right;font-size:11px">%</label>
+          <label style="color:var(--ink-3)">Gardes <input type="number" id="wizPct_${m.id}" value="${m.pctGardes||100}" min="0" max="200" step="5" style="width:50px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;text-align:right;font-size:11px">%</label>
+          ${emailOk}
+        </div>
       </div>`;
     });
     html += `</div>`;
@@ -3530,7 +3555,8 @@ function renderWizStep() {
         <div style="margin-top:6px">S'ils doivent participer au planning ${nextYear}, activez-les dans <strong>admin.html → Équipe</strong> avant de continuer.</div>
       </div>`;
     }
-    html += `<div style="margin-top:12px;font-size:12px;color:var(--ink-3)">Pour modifier un MAR, fermez ce wizard et allez dans <strong>l'onglet Équipe</strong>.</div>`;
+    html += `<div style="margin-top:14px;text-align:right"><button onclick="saveWizQuotites()" style="padding:8px 16px;background:#166534;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer">💾 Enregistrer les quotités</button></div>`;
+    html += `<div style="margin-top:10px;font-size:12px;color:var(--ink-3)">Pour <strong>ajouter / retirer</strong> un MAR ou changer un email, fermez ce wizard et allez dans <strong>l'onglet Équipe</strong>.</div>`;
 
   } else if (wizCurrentStep === 1) {
     // ÉTAPE 2 — Périodes vacances
