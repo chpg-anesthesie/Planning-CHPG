@@ -1287,6 +1287,12 @@ if (sessionStorage.getItem('adminCode')) {
   .seg{display:inline-flex;background:var(--line-light,#F1F5F9);border-radius:9px;padding:3px;gap:2px}
   .seg-btn{border:0;background:transparent;font:inherit;font-size:13px;font-weight:600;color:var(--ink-3,#64748B);padding:6px 14px;border-radius:7px;cursor:pointer}
   .seg-btn.active{background:#fff;color:var(--ink,#1E293B);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .stat-head-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .stat-publish{font:inherit;font-size:13px;font-weight:700;padding:8px 14px;border-radius:9px;cursor:pointer;border:1px solid var(--line,#E2E8F0);background:#fff;color:var(--ink-3,#64748B)}
+  .stat-publish:disabled{opacity:.6;cursor:default}
+  .stat-publish.dirty{background:var(--red,#DC2626);border-color:var(--red,#DC2626);color:#fff;animation:pubpulse 1.6s ease-in-out infinite}
+  .stat-publish .pub-badge{display:inline-block;background:rgba(255,255,255,.25);border-radius:999px;padding:0 6px;margin-left:3px;font-size:11px}
+  @keyframes pubpulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.35)}50%{box-shadow:0 0 0 5px rgba(220,38,38,0)}}
   /* barre MAR + mois */
   .stat-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
   .stat-sel{flex:1;min-width:180px;font:inherit;font-size:14px;padding:9px 12px;border:1px solid var(--line,#E2E8F0);border-radius:9px;background:#fff;color:var(--ink,#1E293B)}
@@ -1585,7 +1591,7 @@ function showTab(name) {
 const STAT = {
   view: 'mar', gardes: {}, days: [], marId: null, monthKey: null,
   selected: new Set(), plageMode: false, plageStart: null, year: null,
-  feries: new Set(),
+  feries: new Set(), pending: 0,
 };
 const STAT_LOCK = new Set(['G','G2','RG']); // gardes → verrouillées
 const STAT_META = {
@@ -1638,7 +1644,7 @@ async function loadStatuts(){
     Object.keys(STAT.gardes).forEach(d=>Object.keys(STAT.gardes[d]).forEach(id=>{ if(STAT.gardes[d][id]==='I') delete STAT.gardes[d][id]; }));
     STAT.feries=new Set((jf&&jf.success&&jf.joursFeries)||[]);
     STAT.year=ADMIN_YEAR; STAT.days=statBuildDays(ADMIN_YEAR);
-    STAT.selected.clear(); STAT.plageMode=false; STAT.plageStart=null;
+    STAT.selected.clear(); STAT.plageMode=false; STAT.plageStart=null; STAT.pending=0;
     const actifs=marData.filter(m=>m.actif);
     if(!STAT.marId || !actifs.find(m=>m.id===STAT.marId)) STAT.marId = actifs.length?actifs[0].id:null;
     const keys=statMonthKeys();
@@ -1650,12 +1656,16 @@ async function loadStatuts(){
 
 function renderStatuts(){
   const ro=ADMIN_YEAR_READONLY;
+  const pubBtn = ro ? '' : `<button class="stat-publish${STAT.pending?' dirty':''}" onclick="statPublish()">⬆ Publier${STAT.pending?` <span class="pub-badge">${STAT.pending}</span>`:''}</button>`;
   let h=`<div class="stat-head">
     <div><div class="stat-title">✏️ Statuts journaliers · ${STAT.year}</div>
-      <div class="stat-sub">${ro?'🔒 Année archivée — lecture seule':'Éditez vacances, indispos, formations… sans passer par le tableur.'}</div></div>
-    <div class="seg">
-      <button class="seg-btn ${STAT.view==='mar'?'active':''}" onclick="statSetView('mar')">Vue MAR</button>
-      <button class="seg-btn ${STAT.view==='annee'?'active':''}" onclick="statSetView('annee')">Vue Année</button>
+      <div class="stat-sub">${ro?'🔒 Année archivée — lecture seule':'Éditez vacances, indispos, formations… puis publiez.'}</div></div>
+    <div class="stat-head-right">
+      ${pubBtn}
+      <div class="seg">
+        <button class="seg-btn ${STAT.view==='mar'?'active':''}" onclick="statSetView('mar')">Vue MAR</button>
+        <button class="seg-btn ${STAT.view==='annee'?'active':''}" onclick="statSetView('annee')">Vue Année</button>
+      </div>
     </div></div>`;
   h += STAT.view==='mar' ? renderStatMar(ro) : renderStatAnnee(ro);
   document.getElementById('statutsContent').innerHTML=h;
@@ -1715,6 +1725,7 @@ function renderStatActions(){
       <button class="stat-st-btn erase" onclick="statApply('')">Effacer statut</button>
     </div></div>`;
 }
+
 const PRESENT_CODES = new Set(['','G','G2','18']); // case vide ou garde/18h = présent
 function statActive(m, date){
   if(m.dateDebut && date < m.dateDebut) return false; // pas encore arrivé
@@ -1805,15 +1816,27 @@ async function statApply(statut){
     const r=await api({action:'setDailyStatus', year:STAT.year, marId:STAT.marId, statut, dates});
     if(!r.success) throw new Error(r.error||'setDailyStatus');
     const applied=r.applied||[], rej=(r.rejected||[]).length;
-    applied.forEach(d=>{                       // MAJ locale → pas de rechargement lent
+    applied.forEach(d=>{                       // MAJ locale → affichage instantané
       if(!STAT.gardes[d]) STAT.gardes[d]={};
       if(statut==='') delete STAT.gardes[d][STAT.marId];
       else STAT.gardes[d][STAT.marId]=statut;
     });
-    toast(`${lib} : ${applied.length} jour(s)${rej?`, ${rej} refusé(s) (garde)`:''} · planning republié`);
+    STAT.pending += applied.length;
+    toast(`${lib} : ${applied.length} jour(s)${rej?`, ${rej} refusé(s) (garde)`:''} — à publier`);
     STAT.selected.clear();
     renderStatuts();
   }catch(e){ toast('Erreur : '+e.message, 'error'); }
+}
+async function statPublish(){
+  if(ADMIN_YEAR_READONLY){ toast('Année archivée — lecture seule', 'error'); return; }
+  const btn=document.querySelector('.stat-publish'); if(btn){ btn.disabled=true; btn.textContent='⏳ Publication…'; }
+  try{
+    const r=await api({action:'publishPlanning', year:STAT.year});
+    if(!r.success) throw new Error(r.error||'publishPlanning');
+    STAT.pending=0;
+    toast('Planning publié ✓ — visible côté public après propagation (~1 min)');
+    renderStatuts();
+  }catch(e){ toast('Publication échouée : '+e.message, 'error'); renderStatuts(); }
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────
