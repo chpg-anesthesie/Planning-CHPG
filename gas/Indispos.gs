@@ -725,7 +725,6 @@ try {
           .setMimeType(ContentService.MimeType.JSON);
       } catch(err) { return _error(err.message); }
     }
-
     if (action === 'getGardes') {
       if (user.role !== 'admin') return _deny();
       const gYear = Number(payload.year) || TEST_YEAR;              // (C3) année paramétrable
@@ -748,7 +747,13 @@ try {
       return ContentService.createTextOutput(JSON.stringify({success:true, data:result, year:gYear}))
         .setMimeType(ContentService.MimeType.JSON);
     }
-
+    if (action === 'getJoursFeries') {
+      if (user.role !== 'admin') return _deny();
+      const fYear = Number(payload.year) || TEST_YEAR;
+      const jf = [...getJoursFeries(fYear), ...getJoursFeries(fYear + 1)];
+      return ContentService.createTextOutput(JSON.stringify({success:true, joursFeries: jf, year: fYear}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     if (action === 'getVacConfig') {
       const indYear = getIndisposYear();
       const cfg = getVacConfig(user.id, indYear);
@@ -988,7 +993,8 @@ if (!affSheet) {
         medecins.push({id:String(data[r][0]).trim(), nom:String(data[r][1]).trim(),
           initiales:String(data[r][2]).trim(), actif:String(data[r][3]).trim().toUpperCase()==='O',
           quotite:Number(data[r][4])||100, pctGardes:Number(data[r][5])||100,
-          codeAcces:String(data[r][6]).trim(), email:String(data[r][7]).trim(), dect:String(data[r][8]).trim()});
+          codeAcces:String(data[r][6]).trim(), email:String(data[r][7]).trim(), dect:String(data[r][8]).trim(),
+          dateDebut:String(data[r][9]||'').trim(), dateFin:String(data[r][10]||'').trim()});
       }
       return ContentService.createTextOutput(JSON.stringify({success:true, medecins}))
         .setMimeType(ContentService.MimeType.JSON);
