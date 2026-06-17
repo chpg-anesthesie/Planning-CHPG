@@ -173,8 +173,8 @@ function getMedecinFlags() {
 // A = absent cycle TRAN
 // NB : I (indispo garde) → MAR PRÉSENT en journée dans son secteur
 const ABSENT_CODES = new Set(['RG','V','F','CTP','CP','R','A','TP','CL']);
-const ARMAND_DEBUT_PLANNING = '2026-11-01';
-const TRAN_FIN_PLANNING = '2026-09-01';   // TRAN absent du planning à partir de cette date
+// (C2-D3) ARMAND_DEBUT_PLANNING / TRAN_FIN_PLANNING retirés — gates pilotées par
+// date_debut/date_fin (MEDECINS), dans generatePlanningFromGardes + getMARsDispoJour.
 // ── MAR HABILITÉS DVI (mardi matin uniquement) ─────────────────────────
 const DVI_ALLOWED = ['BONNET','WIDEHEM','LEVASSEUR'];
 
@@ -1073,4 +1073,12 @@ function testSetDailyStatus() {
   let row = -1;
   for (let r = 3; r < data.length; r++) if (String(data[r][0]).trim().toUpperCase() === marId) { row = r; break; }
   Logger.log(`${marId} ${date} → row=${row} col=${col} valeur="${(row>=0&&col!==undefined)?data[row][col]:'INTROUVABLE'}"`);
+}
+function debugLCstatus() {
+  const months = generatePlanningFromGardes(2026);
+  const jul = months.find(mo => mo.year === 2026 && mo.month === 7); // juillet
+  if (!jul) { Logger.log('juillet 2026 introuvable'); return; }
+  const lc = jul.doctors.find(d => d.id === 'COPELOVICI');
+  if (!lc) { Logger.log('✅ COPELOVICI absente de juillet (filtre mensuel OK → patchs en place)'); return; }
+  Logger.log('COPELOVICI juillet : ' + lc.days.map(d => d.status || '·').join(' '));
 }
