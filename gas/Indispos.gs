@@ -1,0 +1,2345 @@
+// ── CONFIG ─────────────────────────────────────────────────────────────
+const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
+const GITHUB_REPO_INDISPOS = 'Planning-CHPG';
+const ADMIN_CODE = 'CHPG2026ADMIN';
+const TEST_YEAR = getActiveYear();
+
+function getIndisposYear() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('CONFIG');
+  if (!sheet) return getActiveYear();
+  const data = sheet.getDataRange().getValues();
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][0]).trim() === 'INDISPOS_ACTIVE') {
+      const y = parseInt(String(data[r][1]).trim());
+      if (!isNaN(y)) return y;
+    }
+  }
+  return getActiveYear();
+}
+
+// (C3) MEDECINS_LIST supprimé — l'effectif vient de l'onglet MEDECINS.
+
+// ── LOG ───────────────────────────────────────────────────────────────
+function logAction(message) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('LOGS');
+    if (!sheet) {
+      sheet = ss.insertSheet('LOGS');
+      sheet.getRange(1, 1, 1, 2).setValues([['TIMESTAMP','MESSAGE']]);
+      sheet.getRange(1, 1, 1, 2).setFontWeight('bold');
+      sheet.setColumnWidth(1, 160);
+      sheet.setColumnWidth(2, 400);
+    }
+    sheet.appendRow([new Date(), message]);
+    if (sheet.getLastRow() > 501) sheet.deleteRows(2, sheet.getLastRow() - 501);
+  } catch(e) {
+    Logger.log('logAction error: ' + e.message);
+  }
+}
+
+// ── GÉNÉRATION CODE ACCÈS ─────────────────────────────────────────────
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+// (C3) setupIndispos supprimé — remplacé par initYear / setupAnnee.
+
+// ── LIRE INDISPOS D'UN MAR ────────────────────────────────────────────
+function getIndisposForDoctor(doctorId, year) {
+  year = year || TEST_YEAR;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(`INDISPOS_${year}`);
+  if (!sheet) return {};
+  const data = sheet.getDataRange().getValues();
+  const dates = reconstruireDatesHeaders(data, year); // (C3b) helper unifié
+  // MARs à partir de la ligne 4 (index 3)
+  for (let r = 3; r < data.length; r++) {
+    if (String(data[r][0]).trim() === String(doctorId).trim()) {
+      const indispos = {};
+      dates.forEach((date, i) => {
+        if (!date) return;
+        const val = String(data[r][i+1]||'').trim();
+        if (val) indispos[date] = val;
+      });
+      return indispos;
+    }
+  }
+  return {};
+}
+
+// ── SAUVEGARDER INDISPOS D'UN MAR ────────────────────────────────────
+function saveIndisposForDoctor(doctorId, indisposMap, year) {
+  year = year || TEST_YEAR;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(`INDISPOS_${year}`);
+  if (!sheet) return false;
+  const data = sheet.getDataRange().getValues();
+  const dates = reconstruireDatesHeaders(data, year); // (C3b) helper unifié
+  // MARs à partir de la ligne 4 (index 3)
+  for (let r = 3; r < data.length; r++) {
+    if (String(data[r][0]).trim() === String(doctorId).trim()) {
+      const rowValues = dates.map(date => date ? (indisposMap[date] || '') : '');
+      sheet.getRange(r + 1, 2, 1, rowValues.length).setValues([rowValues]);
+      return true;
+    }
+  }
+  return false;
+}
+
+// ── VÉRIFIER CODE ACCÈS ───────────────────────────────────────────────
+function checkCode(code) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const configSheet = ss.getSheetByName('CONFIG');
+  let adminCode = 'CHPG2026ADMIN';
+  if (configSheet) {
+    const configData = configSheet.getDataRange().getValues();
+    for (let r = 1; r < configData.length; r++) {
+      if (String(configData[r][0]).trim() === 'ADMIN_CODE') {
+        adminCode = String(configData[r][1]).trim();
+        break;
+      }
+    }
+  }
+  if (code === adminCode) return {role: 'admin', id: 'ADMIN'};
+
+  const sheet = ss.getSheetByName('MEDECINS');
+  if (!sheet) return null;
+  const data = sheet.getDataRange().getValues();
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][6]).trim() === String(code).trim()) {
+      return {role:'mar', id:data[r][0], name:data[r][1], initials:data[r][2]};
+    }
+  }
+  return null;
+}
+
+// ── JOURS FÉRIÉS ─────────────────────────────────────────────────────
+// (C3) Définition unique : getJoursFeries() est global, défini dans code.gs.
+
+// ── CALCUL PRIORITÉS VACANCES ─────────────────────────────────────────
+function getVacConfig(doctorId, year) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  const ORDRE_BASE_2026 = {
+    HIVER:'CAB', PRINTEMPS:'ABC', ETE:'ABC', TOUSSAINT:'BCA', NOEL:'CAB',
+  };
+
+  function premierJourAnneePlanning(y) {
+    const jan1 = new Date(y, 0, 1);
+    const dow = jan1.getDay();
+    const offset = dow === 1 ? 7 : dow === 0 ? 1 : 8 - dow;
+    const d = new Date(y, 0, 1 + offset);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'00')}-${String(d.getDate()).padStart(2,'00')}`;
+  }
+
+  const groupSheet = ss.getSheetByName('GROUPES_VAC');
+  const groupData = groupSheet.getDataRange().getValues();
+  const groups = { A: [], B: [], C: [] };
+  const ordre2026 = { A: {}, B: {}, C: {} };
+  for (let r = 1; r < groupData.length; r++) {
+    const grp = String(groupData[r][0]).trim();
+    const id  = String(groupData[r][1]).trim();
+    const ord = Number(groupData[r][2]);
+    if (!id || !groups[grp]) continue;
+    groups[grp].push(id);
+    ordre2026[grp][id] = ord;
+  }
+
+  const offset = year - 2026;
+  function getOrderedGroup(grp) {
+    const sorted = [...groups[grp]].sort((a,b) => ordre2026[grp][a] - ordre2026[grp][b]);
+    const shift = offset % sorted.length;
+    return [...sorted.slice(shift), ...sorted.slice(0, shift)];
+  }
+  const orderedA = getOrderedGroup('A');
+  const orderedB = getOrderedGroup('B');
+  const orderedC = getOrderedGroup('C');
+
+  const perSheet = ss.getSheetByName('PERIODES_VAC');
+  const perData = perSheet.getDataRange().getValues();
+  const debutAnnee = premierJourAnneePlanning(year);
+  const finAnnee = premierJourAnneePlanning(year + 1);
+
+  const indSheet = ss.getSheetByName(`INDISPOS_${year}`);
+  if (!indSheet) return { periodes: [], quotaVac: 40, totalVacDoc: 0 };
+  const indData = indSheet.getDataRange().getValues();
+
+  const jan1Ind = new Date(year, 0, 1);
+  const dow1Ind = jan1Ind.getDay();
+  const off1Ind = dow1Ind === 1 ? 7 : dow1Ind === 0 ? 1 : 8 - dow1Ind;
+  const startInd = new Date(year, 0, 1 + off1Ind, 12, 0, 0);
+  const jan1NextInd = new Date(year + 1, 0, 1);
+  const dow1NextInd = jan1NextInd.getDay();
+  const offNextInd = dow1NextInd === 1 ? 7 : dow1NextInd === 0 ? 1 : 8 - dow1NextInd;
+  const endInd = new Date(year + 1, 0, offNextInd);
+  const indDates = [];
+  const dtInd = new Date(startInd);
+  while (dtInd <= endInd) {
+    indDates.push(`${dtInd.getFullYear()}-${String(dtInd.getMonth()+1).padStart(2,'00')}-${String(dtInd.getDate()).padStart(2,'00')}`);
+    dtInd.setDate(dtInd.getDate() + 1);
+  }
+
+  const vacByDoc = {};
+  for (let r = 3; r < indData.length; r++) {
+    const id = String(indData[r][0]).trim();
+    if (!id) continue;
+    vacByDoc[id] = new Set();
+    indDates.forEach((date, i) => {
+      const val = String(indData[r][i+1]||'').trim();
+      if (val === 'VAC' || val === 'FORM') vacByDoc[id].add(date);
+    });
+  }
+
+  const medSheet = ss.getSheetByName('MEDECINS');
+  const medData = medSheet.getDataRange().getValues();
+  let quotite = 100;
+  for (let r = 1; r < medData.length; r++) {
+    if (String(medData[r][0]).trim() === doctorId) {
+      quotite = Number(medData[r][4]) || 100;
+      break;
+    }
+  }
+  const quotas = getQuotasConges(quotite);
+  const quotaVac = quotas.vac;
+
+  const jfYear = getJoursFeries(year);
+  const jfNextYear = getJoursFeries(year + 1);
+  const totalVacDoc = [...(vacByDoc[doctorId] || [])].filter(date => {
+    const dow = new Date(date).getDay();
+    return dow !== 0 && dow !== 6 && !jfYear.has(date) && !jfNextYear.has(date);
+  }).length;
+
+  const periodes = [];
+  for (let r = 1; r < perData.length; r++) {
+    const nom = String(perData[r][0]).trim();
+    const debutRaw = perData[r][1];
+    const finRaw   = perData[r][2];
+    const debut = debutRaw instanceof Date
+      ? `${debutRaw.getFullYear()}-${String(debutRaw.getMonth()+1).padStart(2,'00')}-${String(debutRaw.getDate()).padStart(2,'00')}`
+      : String(debutRaw).trim();
+    const fin = finRaw instanceof Date
+      ? `${finRaw.getFullYear()}-${String(finRaw.getMonth()+1).padStart(2,'00')}-${String(finRaw.getDate()).padStart(2,'00')}`
+      : String(finRaw).trim();
+    const seuil = Number(perData[r][3]);
+
+    if (debut < debutAnnee || debut >= finAnnee) continue;
+
+    const nomNorm = nom.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+    const base = ORDRE_BASE_2026[nomNorm] || 'ABC';
+    const grpArr = base.split('');
+    const grpShift = offset % 3;
+    const orderedGrps = [...grpArr.slice(grpShift), ...grpArr.slice(0, grpShift)];
+    const orderedList = [];
+    orderedGrps.forEach(g => {
+      if (g === 'A') orderedList.push(...orderedA);
+      else if (g === 'B') orderedList.push(...orderedB);
+      else if (g === 'C') orderedList.push(...orderedC);
+    });
+
+    const rang = orderedList.indexOf(doctorId) + 1;
+    const joursBloqués = [];
+    const joursDisponibles = [];
+    const dt = new Date(debut + 'T12:00:00');
+    const dtFin = new Date(fin + 'T12:00:00');
+
+    while (dt <= dtFin) {
+      const dateStr = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'00')}-${String(dt.getDate()).padStart(2,'00')}`;
+      const _dow = dt.getDay();
+      if (_dow === 0 || _dow === 6 || jfYear.has(dateStr) || jfNextYear.has(dateStr)) {
+        joursDisponibles.push(dateStr); dt.setDate(dt.getDate() + 1); continue;
+      }
+      const marEnVacCeJour = orderedList.filter(id => vacByDoc[id]?.has(dateStr));
+      const nbEnVac = marEnVacCeJour.length;
+      const rangDansCeJour = marEnVacCeJour.indexOf(doctorId) + 1;
+
+      if (rangDansCeJour > 0 && rangDansCeJour > seuil) joursBloqués.push(dateStr);
+else joursDisponibles.push(dateStr);
+
+      dt.setDate(dt.getDate() + 1);
+    }
+
+    const aBloqueAuMoinsUnJour = joursBloqués.length > 0;
+    const tousBloqués = joursBloqués.length === (joursDisponibles.length + joursBloqués.length);
+
+    periodes.push({
+      nom, debut, fin, seuil, rang,
+      joursBloqués, joursDisponibles,
+      bloque: aBloqueAuMoinsUnJour, tousBloqués,
+      marAvantNonValides: 0, marEnVac: 0, seuilAtteint: tousBloqués,
+    });
+  }
+
+  return { periodes, quotaVac, quotaForm: quotas.form, quotaCtp: quotas.ctp, totalVacDoc };
+}
+// ── R2 — Système de congés (quotas pilotés par CONFIG_CONGES) ──────────
+function setupCongesConfig() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('CONFIG_CONGES');
+  if (sheet) { SpreadsheetApp.getUi().alert('CONFIG_CONGES existe déjà — rien modifié.'); return; }
+  sheet = ss.insertSheet('CONFIG_CONGES');
+  sheet.getRange(1, 1, 1, 4).setValues([['QUOTITE', 'VAC', 'FORM', 'CTP']]).setFontWeight('bold');
+  const rows = [[100,33,10,0],[90,30,9,12],[80,26,8,26],[60,20,6,62],[50,17,5,104]];
+  sheet.getRange(2, 1, rows.length, 4).setValues(rows);
+  sheet.setColumnWidth(1, 90); [2,3,4].forEach(c => sheet.setColumnWidth(c, 70));
+  sheet.setFrozenRows(1);
+  SpreadsheetApp.getUi().alert('✅ CONFIG_CONGES créé.\n\n⚠️ Chiffres à confirmer avec la DRH (surtout CTP).');
+}
+
+let _quotasCache = null;
+function _loadQuotasConges() {
+  if (_quotasCache !== null) return _quotasCache;
+  _quotasCache = {};
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG_CONGES');
+  if (sheet) {
+    const data = sheet.getDataRange().getValues();
+    for (let r = 1; r < data.length; r++) {
+      const q = Number(data[r][0]); if (!q) continue;
+      _quotasCache[q] = { vac:Number(data[r][1])||0, form:Number(data[r][2])||0, ctp:Number(data[r][3])||0 };
+    }
+  }
+  return _quotasCache;
+}
+
+function getQuotasConges(quotite) {
+  const q = Number(quotite) || 100;
+  const table = _loadQuotasConges();
+  if (table[q]) return { vac:table[q].vac, form:table[q].form, ctp:q>=100?0:table[q].ctp };
+  const tiers = Object.keys(table).map(Number);
+  if (tiers.length) {
+    const n = tiers.reduce((a,b) => Math.abs(b-q)<Math.abs(a-q)?b:a);
+    return { vac:table[n].vac, form:table[n].form, ctp:q>=100?0:table[n].ctp };
+  }
+  return { vac:Math.round(17+16*(q-50)/50), form:Math.round(5+5*(q-50)/50), ctp:0 };
+}
+// ── VALIDATION VACANCES ───────────────────────────────────────────────
+function getVacValidation(year) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  const ORDRE_BASE_2026 = {
+    HIVER:'CAB', PRINTEMPS:'ABC', ETE:'ABC', TOUSSAINT:'BCA', NOEL:'CAB',
+  };
+
+  function premierJourAnneePlanning(y) {
+    const jan1 = new Date(y, 0, 1);
+    const dow = jan1.getDay();
+    const offset = dow === 1 ? 7 : dow === 0 ? 1 : 8 - dow;
+    const d = new Date(y, 0, 1 + offset);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'00')}-${String(d.getDate()).padStart(2,'00')}`;
+  }
+
+  const groupSheet = ss.getSheetByName('GROUPES_VAC');
+  const groupData = groupSheet.getDataRange().getValues();
+  const groups = { A: [], B: [], C: [] };
+  const ordre2026 = { A: {}, B: {}, C: {} };
+  for (let r = 1; r < groupData.length; r++) {
+    const grp = String(groupData[r][0]).trim();
+    const id  = String(groupData[r][1]).trim();
+    const ord = Number(groupData[r][2]);
+    if (!id || !groups[grp]) continue;
+    groups[grp].push(id);
+    ordre2026[grp][id] = ord;
+  }
+
+  const offset = year - 2026;
+  function getOrderedGroup(grp) {
+    const sorted = [...groups[grp]].sort((a,b) => ordre2026[grp][a] - ordre2026[grp][b]);
+    const shift = offset % sorted.length;
+    return [...sorted.slice(shift), ...sorted.slice(0, shift)];
+  }
+  const orderedA = getOrderedGroup('A');
+  const orderedB = getOrderedGroup('B');
+  const orderedC = getOrderedGroup('C');
+
+  const perSheet = ss.getSheetByName('PERIODES_VAC');
+  const perData = perSheet.getDataRange().getValues();
+  const debutAnnee = premierJourAnneePlanning(year);
+  const finAnnee = premierJourAnneePlanning(year + 1);
+
+  const indSheet = ss.getSheetByName(`INDISPOS_${year}`);
+  if (!indSheet) return [];
+
+  const jan1Ind = new Date(year, 0, 1);
+  const dow1Ind = jan1Ind.getDay();
+  const off1Ind = dow1Ind === 1 ? 7 : dow1Ind === 0 ? 1 : 8 - dow1Ind;
+  const startInd = new Date(year, 0, 1 + off1Ind, 12, 0, 0);
+  const jan1NextInd = new Date(year + 1, 0, 1);
+  const dow1NextInd = jan1NextInd.getDay();
+  const offNextInd = dow1NextInd === 1 ? 7 : dow1NextInd === 0 ? 1 : 8 - dow1NextInd;
+  const endInd = new Date(year + 1, 0, offNextInd);
+  const indDates = [];
+  const dtInd = new Date(startInd);
+  while (dtInd <= endInd) {
+    indDates.push(`${dtInd.getFullYear()}-${String(dtInd.getMonth()+1).padStart(2,'00')}-${String(dtInd.getDate()).padStart(2,'00')}`);
+    dtInd.setDate(dtInd.getDate() + 1);
+  }
+
+  const indData = indSheet.getDataRange().getValues();
+  const vacByDoc = {};
+  for (let r = 3; r < indData.length; r++) {
+    const id = String(indData[r][0]).trim();
+    if (!id) continue;
+    vacByDoc[id] = new Set();
+    indDates.forEach((date, i) => {
+      const val = String(indData[r][i+1]||'').trim();
+      if (val === 'VAC' || val === 'FORM') vacByDoc[id].add(date);
+    });
+  }
+
+  const medSheet = ss.getSheetByName('MEDECINS');
+  const medData = medSheet.getDataRange().getValues();
+  const nomMap = {};
+  for (let r = 1; r < medData.length; r++) {
+    const id = String(medData[r][0]).trim();
+    nomMap[id] = String(medData[r][1]).trim();
+  }
+
+  const jfYear = getJoursFeries(year);
+  const jfNextYear = getJoursFeries(year + 1);
+
+  const result = [];
+  for (let r = 1; r < perData.length; r++) {
+    const nom = String(perData[r][0]).trim();
+    const debutRaw = perData[r][1];
+    const finRaw   = perData[r][2];
+    const debut = debutRaw instanceof Date
+      ? `${debutRaw.getFullYear()}-${String(debutRaw.getMonth()+1).padStart(2,'00')}-${String(debutRaw.getDate()).padStart(2,'00')}`
+      : String(debutRaw).trim();
+    const fin = finRaw instanceof Date
+      ? `${finRaw.getFullYear()}-${String(finRaw.getMonth()+1).padStart(2,'00')}-${String(finRaw.getDate()).padStart(2,'00')}`
+      : String(finRaw).trim();
+    const seuil = Number(perData[r][3]);
+
+    if (debut < debutAnnee || debut >= finAnnee) continue;
+
+    const nomNorm = nom.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+    const base = ORDRE_BASE_2026[nomNorm] || 'ABC';
+    const grpArr = base.split('');
+    const grpShift = offset % 3;
+    const orderedGrps = [...grpArr.slice(grpShift), ...grpArr.slice(0, grpShift)];
+    const orderedList = [];
+    orderedGrps.forEach(g => {
+      if (g === 'A') orderedList.push(...orderedA);
+      else if (g === 'B') orderedList.push(...orderedB);
+      else if (g === 'C') orderedList.push(...orderedC);
+    });
+
+    const mars = orderedList.map((id, idx) => {
+      const rang = idx + 1;
+      const joursVac = [...(vacByDoc[id] || [])].filter(d => d >= debut && d <= fin);
+      const joursOuvres = joursVac.filter(d => {
+        const dow = new Date(d).getDay();
+        return dow !== 0 && dow !== 6 && !jfYear.has(d) && !jfNextYear.has(d);
+      });
+
+      let joursValides = 0, joursRefuses = 0;
+      joursOuvres.forEach(date => {
+        const marEnVacCeJour = orderedList.filter(mid => vacByDoc[mid]?.has(date));
+        const rangCeJour = marEnVacCeJour.indexOf(id) + 1;
+        if (rangCeJour > 0 && rangCeJour <= seuil) joursValides++;
+        else if (rangCeJour > seuil) joursRefuses++;
+      });
+
+      let statut;
+      if (joursOuvres.length === 0) statut = 'AUCUN';
+      else if (joursRefuses === 0) statut = 'VALIDE';
+      else if (joursValides === 0) statut = 'REFUSE';
+      else statut = 'PARTIEL';
+
+      return {id, nom:nomMap[id]||id, rang,
+        joursVac:joursVac.length, joursOuvres:joursOuvres.length,
+        joursValides, joursRefuses, statut};
+    });
+
+    result.push({ nom, debut, fin, seuil, mars });
+  }
+
+  return result;
+}
+
+// ── APPLY MODIFICATION (Comité) ───────────────────────────────────────
+function applyModification(mod) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const year = Number(mod.year) || TEST_YEAR;
+
+  function getSheet(name) {
+    const s = ss.getSheetByName(name);
+    if (!s) throw new Error(`Onglet ${name} introuvable`);
+    return s;
+  }
+
+  function buildDateIndex(sheet) {
+    const jan1 = new Date(year, 0, 1);
+    const dow1 = jan1.getDay();
+    const off1 = dow1 === 1 ? 7 : dow1 === 0 ? 1 : 8 - dow1;
+    const startDate = new Date(year, 0, 1 + off1, 12, 0, 0);
+    const nCols = sheet.getLastColumn() - 1;
+    const index = {};
+    for (let i = 0; i < nCols; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'00')}-${String(d.getDate()).padStart(2,'00')}`;
+      index[key] = i + 2;
+    }
+    return index;
+  }
+
+  function getDateIndex(sheet, date) { return buildDateIndex(sheet)[date] || -1; }
+
+  function getDoctorRow(sheet, doctorId) {
+    const col = sheet.getRange(1, 1, sheet.getLastRow(), 1).getValues();
+    for (let i = 3; i < col.length; i++) {
+      if (String(col[i][0]).trim() === doctorId) return i + 1;
+    }
+    return -1;
+  }
+
+  function writeCell(sheetName, doctorId, date, value) {
+    const sheet = getSheet(sheetName);
+    const col = getDateIndex(sheet, date);
+    const row = getDoctorRow(sheet, doctorId);
+    if (col < 0) throw new Error(`Date ${date} introuvable dans ${sheetName}`);
+    if (row < 0) throw new Error(`Médecin ${doctorId} introuvable dans ${sheetName}`);
+    sheet.getRange(row, col).setValue(value);
+  }
+
+  function readCell(sheetName, doctorId, date) {
+    const sheet = getSheet(sheetName);
+    const col = getDateIndex(sheet, date);
+    const row = getDoctorRow(sheet, doctorId);
+    if (col < 0 || row < 0) return '';
+    return String(sheet.getRange(row, col).getValue()).trim();
+  }
+
+  function nextDay(date) {
+    const d = new Date(date + 'T12:00:00');
+    d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'00')}-${String(d.getDate()).padStart(2,'00')}`;
+  }
+
+  const { type, date, doctorId, doctorId2, value, date2 } = mod;
+
+  switch (type) {
+    case 'echangeSecteur': {
+      const valA = readCell(`INDISPOS_${year}`, doctorId,  date);
+      const valB = readCell(`INDISPOS_${year}`, doctorId2, date);
+      writeCell(`INDISPOS_${year}`, doctorId,  date, valB);
+      writeCell(`INDISPOS_${year}`, doctorId2, date, valA);
+      break;
+    }
+    case 'gardeExceptionnelle': {
+      const lendemain = nextDay(date);
+      writeCell(`GARDES_${year}`, doctorId, date, value || 'G');
+      writeCell(`GARDES_${year}`, doctorId, lendemain, 'RG');
+      break;
+    }
+    case 'echangeGarde': {
+      const valGardeA = readCell(`GARDES_${year}`, doctorId,  date);
+      const valGardeB = readCell(`GARDES_${year}`, doctorId2, date);
+      writeCell(`GARDES_${year}`, doctorId,  date, valGardeB);
+      writeCell(`GARDES_${year}`, doctorId2, date, valGardeA);
+      const jourRG = date2 || nextDay(date);
+      const valRGA = readCell(`GARDES_${year}`, doctorId,  jourRG);
+      const valRGB = readCell(`GARDES_${year}`, doctorId2, jourRG);
+      writeCell(`GARDES_${year}`, doctorId,  jourRG, valRGB);
+      writeCell(`GARDES_${year}`, doctorId2, jourRG, valRGA);
+      break;
+    }
+    case 'donGarde': {
+      const valGarde = readCell(`GARDES_${year}`, doctorId, date);
+      const jourRG = date2 || nextDay(date);
+      writeCell(`GARDES_${year}`, doctorId,  date,   '');
+      writeCell(`GARDES_${year}`, doctorId2, date,   valGarde);
+      writeCell(`GARDES_${year}`, doctorId,  jourRG, '');
+      writeCell(`GARDES_${year}`, doctorId2, jourRG, 'RG');
+      break;
+    }
+    // (C3b) 'indispo'/'secteur'/'libre' retirés — écrivaient dans OVERRIDES (jamais lu).
+    // Le placement secteur réel passe par savePlanningOverride → PLANNING_OVERRIDES.
+    default:
+      throw new Error(`Type de modification inconnu : ${type}`);
+  }
+
+  generatePlanning();
+  return true;
+}
+// ── STATUT CYCLE PLANNING ────────────────────────────────────────────
+function getPlanningStatus() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const year = TEST_YEAR;
+  const nextYear = year + 1;
+  const indNextSheet = ss.getSheetByName('INDISPOS_' + nextYear);
+  const indisposN1Exists = !!indNextSheet;
+  let indisposN1Complete = false, marsManquants = 0;
+  if (indNextSheet) {
+    const medSheet = ss.getSheetByName('MEDECINS');
+    const medData = medSheet ? medSheet.getDataRange().getValues() : [];
+    const actifs = [];
+    for (let r = 1; r < medData.length; r++) {
+      if (String(medData[r][3]).trim().toUpperCase() === 'O') actifs.push(String(medData[r][0]).trim());
+    }
+    const indData = indNextSheet.getDataRange().getValues();
+    const indById = {};
+    for (let r = 3; r < indData.length; r++) {
+      const id = String(indData[r][0]).trim();
+      if (!id) continue;
+      indById[id] = indData[r].slice(1).some(v => String(v).trim() !== '');
+    }
+    marsManquants = actifs.filter(id => !indById[id]).length;
+    indisposN1Complete = marsManquants === 0;
+  }
+  const gardesNextSheet = ss.getSheetByName('GARDES_' + nextYear);
+  const gardesN1Generated = !!(gardesNextSheet && gardesNextSheet.getLastRow() > 3);
+  // Vérifier la présence de stats_N.json sur GitHub Pages
+let gardesNClosed = false;
+try {
+  const checkUrl = 'https://chpg-anesthesie.github.io/Planning-CHPG/stats_' + year + '.json';
+  const resp = UrlFetchApp.fetch(checkUrl, {muteHttpExceptions: true});
+  gardesNClosed = resp.getResponseCode() === 200;
+} catch(e) {
+  gardesNClosed = false;
+}
+  return { indisposN1Exists, indisposN1Complete, marsManquants, gardesN1Generated, gardesNClosed, year, nextYear };
+}
+// ── API WEB APP — doGet ───────────────────────────────────────────────
+function doGet(e) {
+  try {
+    const payload = JSON.parse(e.parameter.payload || '{}');
+    const action = payload.action;
+    const code = payload.code;
+
+    if (action === 'getActiveYear') {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, year: TEST_YEAR
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (action === 'getStatus') {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, status: getPlanningStatus()
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    const user = checkCode(code);
+    if (!user) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false, error: 'Code invalide'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (action === 'login') {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, role: user.role, id: user.id,
+        name: user.name, initials: user.initials, 
+        year: TEST_YEAR, indisposYear: getIndisposYear(),
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'getIndispos') {
+      const targetId = user.role === 'admin' ? payload.doctorId : user.id;
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, indispos: getIndisposForDoctor(targetId, getIndisposYear())
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'saveIndispos') {
+      const targetId = user.role === 'admin' ? payload.doctorId : user.id;
+      return ContentService.createTextOutput(JSON.stringify({
+        success: saveIndisposForDoctor(targetId, payload.indispos, getIndisposYear())
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'getAllIndispos') {
+  if (user.role !== 'admin') return _deny();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const indYear = Number(payload.year) || getIndisposYear();
+  const sheet = ss.getSheetByName(`INDISPOS_${indYear}`);
+      if (!sheet) return _error(`INDISPOS_${indYear} introuvable`);
+      const data = sheet.getDataRange().getValues();
+      const dates = reconstruireDatesHeaders(data, indYear); // (C3b) helper unifié
+      const result = {};
+      for (let r = 3; r < data.length; r++) {
+        const id = String(data[r][0]).trim();
+        if (!id) continue;
+        result[id] = {};
+        dates.forEach((date, i) => {
+          if (!date) return;
+          const val = String(data[r][i+1]||'').trim();
+          if (val) result[id][date] = val;
+        });
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, data: result, year: indYear
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'applyModification') {
+      if (user.role !== 'admin') return _deny();
+      return ContentService.createTextOutput(JSON.stringify({
+        success: applyModification(payload.modification)
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'getStats') {
+  if (user.role !== 'admin') return _deny();
+  const statsYear = Number(payload.year) || TEST_YEAR;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(`STATS_GARDES_${statsYear}`);
+  if (!sheet) return _error(`Onglet STATS_GARDES_${statsYear} introuvable`);
+      const data = sheet.getDataRange().getValues();
+      const stats = [];
+      for (let r = 1; r < data.length; r++) {
+        if (!data[r][0]) continue;
+        stats.push({medecin:data[r][0], cible:data[r][1], total:data[r][2],
+          g:data[r][3], g2:data[r][4], lun:data[r][5], mar:data[r][6], mer:data[r][7],
+          jeu:data[r][8], ven:data[r][9], sat:data[r][10], dim:data[r][11],
+          recupR:data[r][12], h18:data[r][13]});
+      }
+      return ContentService.createTextOutput(JSON.stringify({success:true, stats}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'generateGardes') {
+  if (user.role !== 'admin') return _deny();
+  logAction('DEBUG generateGardes: payload.year=' + payload.year + ' TEST_YEAR=' + TEST_YEAR);
+  const yearToGenerate = Number(payload.year) || TEST_YEAR;
+  logAction('DEBUG yearToGenerate=' + yearToGenerate);
+  if (yearToGenerate === 2026) return _error('Génération désactivée — GARDES_2026 est sanctuarisé');
+if (yearToGenerate === 2026) return _error('Génération désactivée — GARDES_2026 est sanctuarisé');
+try {
+  generateGardes(yearToGenerate);
+  generatePlanning(yearToGenerate);
+        const ss = SpreadsheetApp.getActiveSpreadsheet();
+        const sheet = ss.getSheetByName(`STATS_GARDES_${yearToGenerate}`);
+        const data = sheet.getDataRange().getValues();
+        const stats = [];
+        for (let r = 1; r < data.length; r++) {
+          if (!data[r][0]) continue;
+          stats.push({medecin:data[r][0], cible:data[r][1], total:data[r][2],
+            g:data[r][3], g2:data[r][4], lun:data[r][5], mar:data[r][6], mer:data[r][7],
+            jeu:data[r][8], ven:data[r][9], sat:data[r][10], dim:data[r][11],
+            recupR:data[r][12], h18:data[r][13]});
+        }
+        return ContentService.createTextOutput(JSON.stringify({success:true, stats}))
+          .setMimeType(ContentService.MimeType.JSON);
+      } catch(err) { return _error(err.message); }
+    }
+
+    if (action === 'getGardes') {
+      if (user.role !== 'admin') return _deny();
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName(`GARDES_${TEST_YEAR}`);
+      if (!sheet) return _error(`Onglet GARDES_${TEST_YEAR} introuvable`);
+      const data = sheet.getDataRange().getValues();
+      const allDates = [];
+      const dt = new Date(TEST_YEAR, 0, 1, 12, 0, 0);
+      while (dt.getFullYear() === TEST_YEAR) {
+        allDates.push(`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'00')}-${String(dt.getDate()).padStart(2,'00')}`);
+        dt.setDate(dt.getDate() + 1);
+      }
+      const result = {};
+      for (let r = 3; r < data.length; r++) {
+        const id = String(data[r][0]).trim();
+        if (!id) continue;
+        allDates.forEach((date, i) => {
+          const val = String(data[r][i+1]||'').trim();
+          if (!val) return;
+          if (!result[date]) result[date] = {};
+          result[date][id] = val;
+        });
+      }
+      return ContentService.createTextOutput(JSON.stringify({success:true, data:result}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'getVacConfig') {
+      const indYear = getIndisposYear();
+      const cfg = getVacConfig(user.id, indYear);
+      const jf = getJoursFeries(indYear);
+      const jfNext = getJoursFeries(indYear + 1);
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, periodes: cfg.periodes, quotaVac: cfg.quotaVac,
+        quotaForm: cfg.quotaForm, quotaCtp: cfg.quotaCtp,
+        totalVacDoc: cfg.totalVacDoc, joursFeries: [...jf, ...jfNext],
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'setActiveYear') {
+      if (user.role !== 'admin') return _deny();
+      const newYear = Number(payload.year);
+      if (!newYear || newYear < 2026) return _error('Année invalide');
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const ovSheet = ss.getSheetByName('OVERRIDES');
+      if (ovSheet && ovSheet.getLastRow() > 1) {
+        const currentYear = TEST_YEAR;
+        const archiveName = `OVERRIDES_${currentYear}`;
+        let archiveSheet = ss.getSheetByName(archiveName);
+        if (!archiveSheet) {
+          archiveSheet = ss.insertSheet(archiveName);
+          const header = ovSheet.getRange(1, 1, 1, ovSheet.getLastColumn()).getValues();
+          archiveSheet.getRange(1, 1, 1, header[0].length).setValues(header);
+        }
+        const dataRows = ovSheet.getRange(2, 1, ovSheet.getLastRow() - 1, ovSheet.getLastColumn()).getValues();
+        archiveSheet.getRange(archiveSheet.getLastRow() + 1, 1, dataRows.length, dataRows[0].length).setValues(dataRows);
+        ovSheet.deleteRows(2, ovSheet.getLastRow() - 1);
+        Logger.log(`✅ OVERRIDES archivé dans ${archiveName} (${dataRows.length} lignes)`);
+      }
+      const configSheet = ss.getSheetByName('CONFIG');
+      const configData = configSheet.getDataRange().getValues();
+      for (let r = 1; r < configData.length; r++) {
+        if (String(configData[r][0]).trim() === 'ANNEE_ACTIVE') {
+          configSheet.getRange(r + 1, 2).setValue(newYear); break;
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({success:true, year:newYear}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'initYear') {
+      if (user.role !== 'admin') return _deny();
+      const newYear = Number(payload.year);
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      let indSheet = ss.getSheetByName(`INDISPOS_${newYear}`);
+      if (indSheet) return _error(`INDISPOS_${newYear} existe déjà`);
+      // ── Effectif = onglet MEDECINS (actifs), source unique (plus de MEDECINS_LIST en dur) ──
+      const medSheetSrc = ss.getSheetByName('MEDECINS');
+      const actifsIds = [];
+      if (medSheetSrc) {
+        const medSrcData = medSheetSrc.getDataRange().getValues();
+        for (let r = 1; r < medSrcData.length; r++) {
+          const id = String(medSrcData[r][0]).trim();
+          const actif = String(medSrcData[r][3]).trim().toUpperCase() === 'O';
+          if (id && actif) actifsIds.push(id);
+        }
+      }
+      if (!actifsIds.length) return _error('Aucun MAR actif dans MEDECINS — vérifiez la colonne ACTIF (O/N)');
+      indSheet = ss.insertSheet(`INDISPOS_${newYear}`);
+
+      const jan1 = new Date(newYear, 0, 1);
+      const dow1 = jan1.getDay();
+      const offset = dow1 === 1 ? 7 : dow1 === 0 ? 1 : 8 - dow1;
+      const startDate = new Date(newYear, 0, 1 + offset);
+      const jan1Next = new Date(newYear + 1, 0, 1);
+      const dow1Next = jan1Next.getDay();
+      const offsetNext = dow1Next === 1 ? 7 : dow1Next === 0 ? 1 : 8 - dow1Next;
+      const endDate = new Date(newYear + 1, 0, offsetNext);
+      const days = [];
+      const dLoop = new Date(startDate);
+      while (dLoop <= endDate) { days.push(new Date(dLoop)); dLoop.setDate(dLoop.getDate() + 1); }
+
+      const ROUGE = '#C0392B', GRIS_WE = '#CFD8DC', BLANC = '#FFFFFF';
+      const JOURS_ABR = ['D','L','M','M','J','V','S'];
+      const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin',
+                       'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+      const nCols = days.length + 1;
+      indSheet.setFrozenRows(3);
+
+      const row1 = ['MÉDECIN']; days.forEach(() => row1.push(''));
+      indSheet.getRange(1, 1, 1, nCols).setValues([row1]);
+      indSheet.getRange(1, 1).setFontWeight('bold').setBackground(ROUGE).setFontColor(BLANC);
+
+      let mStart = 2, prevMonth = days[0].getMonth();
+      days.forEach((day, i) => {
+        const col = i + 2, isLast = i === days.length - 1;
+        if (day.getMonth() !== prevMonth || isLast) {
+          const mEnd = day.getMonth() !== prevMonth ? col - 1 : col;
+          if (mEnd > mStart) indSheet.getRange(1, mStart, 1, mEnd - mStart + 1).merge();
+          indSheet.getRange(1, mStart).setValue(MOIS_FR[prevMonth])
+            .setBackground(ROUGE).setFontColor(BLANC).setFontWeight('bold').setHorizontalAlignment('center');
+          mStart = col; prevMonth = day.getMonth();
+        }
+      });
+
+      const row2 = ['JOUR']; days.forEach(d => row2.push(JOURS_ABR[d.getDay()]));
+      indSheet.getRange(2, 1, 1, nCols).setValues([row2]);
+      indSheet.getRange(2, 1).setFontWeight('bold').setBackground(ROUGE).setFontColor(BLANC);
+
+      const row3 = ['N°']; days.forEach(d => row3.push(d.getDate()));
+      indSheet.getRange(3, 1, 1, nCols).setValues([row3]);
+      indSheet.getRange(3, 1).setFontWeight('bold').setBackground(ROUGE).setFontColor(BLANC);
+
+      const medRows = actifsIds.map(id => [id, ...Array(days.length).fill('')]);
+      indSheet.getRange(4, 1, medRows.length, nCols).setValues(medRows);
+
+      const jfY = getJoursFeries(newYear);
+      const jfYn = getJoursFeries(newYear + 1);
+      days.forEach((day, i) => {
+        const col = i + 2, isWE = day.getDay() === 0 || day.getDay() === 6;
+        const ds = `${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`;
+        const isFerie = jfY.has(ds) || jfYn.has(ds);
+        if (isWE || isFerie) indSheet.getRange(1, col, 3 + medRows.length, 1).setBackground(GRIS_WE);
+        const nextDay = days[i + 1];
+        if (!nextDay || nextDay.getMonth() !== day.getMonth()) {
+          indSheet.getRange(1, col, 3 + medRows.length, 1)
+            .setBorder(null, null, null, true, null, null, '#000000', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+        }
+      });
+      indSheet.setColumnWidth(1, 120);
+      for (let c = 2; c <= nCols; c++) indSheet.setColumnWidth(c, 35);
+      indSheet.getRange(1, 2, 3 + medRows.length, nCols - 1).setHorizontalAlignment('center');
+// ── Créer AFFECTATIONS_newYear si inexistant ──────────────────────
+const affName = `AFFECTATIONS_${newYear}`;
+let affSheet = ss.getSheetByName(affName);
+if (!affSheet) {
+  affSheet = ss.insertSheet(affName);
+  const RED = '#C0392B', WHITE = '#FFFFFF';
+  const MONTHS_SHORT = ['JAN','FEV','MARS','AVRIL','MAI','JUIN',
+                        'JUILLET','AOUT','SEPT','OCT','NOV','DEC'];
+  const affHeaders = ['MÉDECIN', ...MONTHS_SHORT.map(m => `${m} ${newYear}`)];
+  affSheet.getRange(1, 1, 1, affHeaders.length).setValues([affHeaders]);
+  affSheet.getRange(1, 1, 1, affHeaders.length)
+    .setFontWeight('bold').setBackground(RED).setFontColor(WHITE).setHorizontalAlignment('center');
+  affSheet.setColumnWidth(1, 140);
+  for (let c = 2; c <= affHeaders.length; c++) affSheet.setColumnWidth(c, 90);
+  affSheet.setFrozenRows(1);
+  affSheet.setFrozenColumns(1);
+
+  // Lire les MARs actifs depuis MEDECINS
+  const medSheet2 = ss.getSheetByName('MEDECINS');
+  const affRows = [];
+  if (medSheet2) {
+    const medData2 = medSheet2.getDataRange().getValues();
+    for (let r = 1; r < medData2.length; r++) {
+      const id = String(medData2[r][0]).trim();
+      const actif = String(medData2[r][3]).trim().toUpperCase() === 'O';
+      if (id && actif) affRows.push([id, ...Array(12).fill('VOLANT')]);
+    }
+  }
+  if (affRows.length > 0) {
+    affSheet.getRange(2, 1, affRows.length, affHeaders.length).setValues(affRows);
+    affSheet.getRange(2, 2, affRows.length, 12)
+      .setFontColor('#64748B').setHorizontalAlignment('center');
+  }
+  Logger.log(`✅ ${affName} créé (${affRows.length} MARs)`);
+}
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, message: `INDISPOS_${newYear} créé avec ${days.length} jours`
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'publishPlanning') {
+      if (user.role !== 'admin') return _deny();
+      try {
+        generatePlanning(Number(payload.year) || TEST_YEAR);
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true, message: `Planning ${TEST_YEAR} publié`
+        })).setMimeType(ContentService.MimeType.JSON);
+      } catch(err) { return _error(err.message); }
+    }
+
+    if (action === 'getVacValidation') {
+      if (user.role !== 'admin') return _deny();
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, data: getVacValidation(getIndisposYear())
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'getOverrides') {
+      if (user.role !== 'admin') return _deny();
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName('OVERRIDES');
+      if (!sheet) return ContentService.createTextOutput(JSON.stringify({
+        success:true, overrides:[], total:0, passed:0, upcoming:0
+      })).setMimeType(ContentService.MimeType.JSON);
+      const data = sheet.getDataRange().getValues();
+      const today = new Date(); today.setHours(0,0,0,0);
+      const overrides = [];
+      for (let r = 1; r < data.length; r++) {
+        const raw = data[r][0];
+        if (!raw) continue;
+        let dateStr = raw instanceof Date
+          ? `${raw.getFullYear()}-${String(raw.getMonth()+1).padStart(2,'00')}-${String(raw.getDate()).padStart(2,'00')}`
+          : String(raw).trim();
+        if (!dateStr) continue;
+        const isFuture = new Date(dateStr + 'T00:00:00') >= today;
+        overrides.push({rowIndex:r+1, date:dateStr,
+          doctorId:String(data[r][1]||'').trim().toUpperCase(),
+          morning:String(data[r][2]||'').trim().toUpperCase(),
+          afternoon:String(data[r][3]||'').trim().toUpperCase(),
+          comment:String(data[r][4]||'').trim(), isFuture});
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        success:true, overrides,
+        total:overrides.length,
+        passed:overrides.filter(o=>!o.isFuture).length,
+        upcoming:overrides.filter(o=>o.isFuture).length,
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'deleteOverride') {
+      if (user.role !== 'admin') return _deny();
+      const rowIndex = Number(payload.rowIndex);
+      if (!rowIndex || rowIndex < 2) return _error('Index invalide');
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName('OVERRIDES');
+      if (!sheet) return _error('Onglet OVERRIDES introuvable');
+      sheet.deleteRow(rowIndex);
+      generatePlanning();
+      return ContentService.createTextOutput(JSON.stringify({success:true}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'getMedecins') {
+      if (user.role !== 'admin') return _deny();
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName('MEDECINS');
+      if (!sheet) return _error('Onglet MEDECINS introuvable');
+      const data = sheet.getDataRange().getValues();
+      const medecins = [];
+      for (let r = 1; r < data.length; r++) {
+        if (!data[r][0]) continue;
+        medecins.push({id:String(data[r][0]).trim(), nom:String(data[r][1]).trim(),
+          initiales:String(data[r][2]).trim(), actif:String(data[r][3]).trim().toUpperCase()==='O',
+          quotite:Number(data[r][4])||100, pctGardes:Number(data[r][5])||100,
+          codeAcces:String(data[r][6]).trim(), email:String(data[r][7]).trim(), dect:String(data[r][8]).trim()});
+      }
+      return ContentService.createTextOutput(JSON.stringify({success:true, medecins}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'saveMedecin') {
+      if (user.role !== 'admin') return _deny();
+      const m = payload.medecin;
+      if (!m || !m.id) return _error('Données invalides');
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName('MEDECINS');
+      const data = sheet.getDataRange().getValues();
+      const row = [m.id.toUpperCase().trim(), m.nom.trim(), m.initiales.trim(),
+        m.actif?'O':'N', Number(m.quotite)||100, Number(m.pctGardes)||100,
+        m.codeAcces||'', m.email||''];
+      let found = false;
+      for (let r = 1; r < data.length; r++) {
+        if (String(data[r][0]).trim().toUpperCase() === m.id.toUpperCase().trim()) {
+          sheet.getRange(r+1, 1, 1, row.length).setValues([row]); found = true; break;
+        }
+      }
+      if (!found) sheet.appendRow(row);
+      return ContentService.createTextOutput(JSON.stringify({success:true, created:!found}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'getAffectations') {
+  if (user.role !== 'admin') return _deny();
+  const affYear = Number(payload.year) || TEST_YEAR;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(`AFFECTATIONS_${affYear}`);
+      if (!sheet) return ContentService.createTextOutput(JSON.stringify({success:true, affectations:{}}))
+        .setMimeType(ContentService.MimeType.JSON);
+      const data = sheet.getDataRange().getValues();
+      const affectations = {};
+      for (let r = 1; r < data.length; r++) {
+        const id = String(data[r][0]).trim();
+        if (!id) continue;
+        affectations[id] = {};
+        for (let m = 1; m <= 12; m++) {
+          const val = String(data[r][m]||'').trim();
+          if (val) affectations[id][m] = val;
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({success:true, affectations}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'saveAffectations') {
+  if (user.role !== 'admin') return _deny();
+  const aff = payload.affectations;
+  if (!aff) return _error('Données manquantes');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const affYear = Number(payload.year) || TEST_YEAR;
+  const sheetName = `AFFECTATIONS_${affYear}`;
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return _error(`Onglet ${sheetName} introuvable`);
+  const data = sheet.getDataRange().getValues();
+  const idToRow = {};
+  for (let r = 1; r < data.length; r++) {
+    const id = String(data[r][0]).trim();
+    if (id) idToRow[id] = r + 1;
+  }
+  Object.keys(aff).forEach(doctorId => {
+    const rowNum = idToRow[doctorId];
+    if (!rowNum) return;
+    const vals = [];
+    for (let m = 1; m <= 12; m++) vals.push(aff[doctorId][m] || 'VOLANT');
+    sheet.getRange(rowNum, 2, 1, 12).setValues([vals]);
+  });
+  logAction(`saveAffectations — ${Object.keys(aff).length} MAR(s) mis à jour`);
+  
+  // ← AJOUT : republier le planning après chaque modification d'affectation
+  try { generatePlanning(affYear); } catch(e) { Logger.log('generatePlanning error: ' + e.message); }
+
+  return ContentService.createTextOutput(JSON.stringify({success:true}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+    if (action === 'getVacancesConfig') {
+      if (user.role !== 'admin') return _deny();
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const perSheet = ss.getSheetByName('PERIODES_VAC');
+      const periodes = [];
+      if (perSheet) {
+        const perData = perSheet.getDataRange().getValues();
+        for (let r = 1; r < perData.length; r++) {
+          const nom = String(perData[r][0]).trim();
+          if (!nom) continue;
+          const debutRaw = perData[r][1], finRaw = perData[r][2];
+          const debut = debutRaw instanceof Date
+            ? `${debutRaw.getFullYear()}-${String(debutRaw.getMonth()+1).padStart(2,'00')}-${String(debutRaw.getDate()).padStart(2,'00')}`
+            : String(debutRaw).trim();
+          const fin = finRaw instanceof Date
+            ? `${finRaw.getFullYear()}-${String(finRaw.getMonth()+1).padStart(2,'00')}-${String(finRaw.getDate()).padStart(2,'00')}`
+            : String(finRaw).trim();
+          periodes.push({nom, debut, fin, seuil:Number(perData[r][3])||8});
+        }
+      }
+      const groupSheet = ss.getSheetByName('GROUPES_VAC');
+      const groupes = {A:[],B:[],C:[]};
+      if (groupSheet) {
+        const groupData = groupSheet.getDataRange().getValues();
+        const tempGroups = {A:[],B:[],C:[]};
+        for (let r = 1; r < groupData.length; r++) {
+          const grp = String(groupData[r][0]).trim(), id = String(groupData[r][1]).trim();
+          const ord = Number(groupData[r][2])||0;
+          if (!id||!tempGroups[grp]) continue;
+          tempGroups[grp].push({id, ordre:ord});
+        }
+        ['A','B','C'].forEach(g => {
+          groupes[g] = tempGroups[g].sort((a,b)=>a.ordre-b.ordre).map(m=>({id:m.id}));
+        });
+      }
+      return ContentService.createTextOutput(JSON.stringify({success:true, periodes, groupes}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'savePeriodes') {
+      if (user.role !== 'admin') return _deny();
+      const periodes = payload.periodes;
+      if (!Array.isArray(periodes)) return _error('Données invalides');
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      let sheet = ss.getSheetByName('PERIODES_VAC');
+      if (!sheet) {
+        sheet = ss.insertSheet('PERIODES_VAC');
+        sheet.getRange(1,1,1,4).setValues([['NOM','DEBUT','FIN','SEUIL']]);
+        sheet.getRange(1,1,1,4).setFontWeight('bold');
+      }
+      if (sheet.getLastRow() > 1) sheet.deleteRows(2, sheet.getLastRow() - 1);
+      if (periodes.length > 0) {
+        const rows = periodes.map(p => [p.nom, p.debut, p.fin, Number(p.seuil)||8]);
+        sheet.getRange(2, 1, rows.length, 4).setValues(rows);
+      }
+      return ContentService.createTextOutput(JSON.stringify({success:true}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'saveGroupes') {
+      if (user.role !== 'admin') return _deny();
+      const groupes = payload.groupes;
+      if (!groupes) return _error('Données invalides');
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      let sheet = ss.getSheetByName('GROUPES_VAC');
+      if (!sheet) {
+        sheet = ss.insertSheet('GROUPES_VAC');
+        sheet.getRange(1,1,1,3).setValues([['GROUPE','MEDECIN_ID','ORDRE']]);
+        sheet.getRange(1,1,1,3).setFontWeight('bold');
+      }
+      if (sheet.getLastRow() > 1) sheet.deleteRows(2, sheet.getLastRow() - 1);
+      const rows = [];
+      ['A','B','C'].forEach(grp => {
+        (groupes[grp]||[]).forEach((mar, idx) => rows.push([grp, mar.id, idx+1]));
+      });
+      if (rows.length > 0) sheet.getRange(2, 1, rows.length, 3).setValues(rows);
+      return ContentService.createTextOutput(JSON.stringify({success:true}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'getConfig') {
+      if (user.role !== 'admin') return _deny();
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName('CONFIG');
+      if (!sheet) return _error('Onglet CONFIG introuvable');
+      const data = sheet.getDataRange().getValues();
+      const config = [];
+      for (let r = 1; r < data.length; r++) {
+        const key = String(data[r][0]).trim();
+        if (key) config.push({key, value:String(data[r][1]).trim()});
+      }
+      return ContentService.createTextOutput(JSON.stringify({success:true, config}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'saveConfig') {
+      if (user.role !== 'admin') return _deny();
+      const key = String(payload.key||'').trim();
+      const value = String(payload.value||'').trim();
+      if (!key) return _error('Clé manquante');
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName('CONFIG');
+      if (!sheet) return _error('Onglet CONFIG introuvable');
+      const data = sheet.getDataRange().getValues();
+      let found = false;
+      for (let r = 1; r < data.length; r++) {
+        if (String(data[r][0]).trim() === key) {
+          sheet.getRange(r+1, 2).setValue(value); found = true; break;
+        }
+      }
+      if (!found) sheet.appendRow([key, value]);
+      return ContentService.createTextOutput(JSON.stringify({success:true}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'getLogs') {
+      if (user.role !== 'admin') return _deny();
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName('LOGS');
+      if (!sheet || sheet.getLastRow() < 2) return ContentService.createTextOutput(JSON.stringify({
+        success:true, logs:['Aucun log disponible.']
+      })).setMimeType(ContentService.MimeType.JSON);
+      const data = sheet.getDataRange().getValues();
+      const logs = [];
+      const start = Math.max(1, data.length - 50);
+      for (let r = data.length - 1; r >= start; r--) {
+        const ts = data[r][0];
+        const msg = data[r][1]!==undefined ? String(data[r][1]).trim() : String(data[r][0]).trim();
+        if (!msg) continue;
+        const tsStr = ts instanceof Date ? `[${ts.toLocaleString('fr-FR')}] ` : '';
+        logs.push(tsStr + msg);
+      }
+      return ContentService.createTextOutput(JSON.stringify({success:true, logs}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'sendCodes') {
+      if (user.role !== 'admin') return _deny();
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const medSheet = ss.getSheetByName('MEDECINS');
+      if (!medSheet) return _error('Onglet MEDECINS introuvable');
+      const data = medSheet.getDataRange().getValues();
+      let sent = 0;
+      const errors = [];
+      for (let r = 1; r < data.length; r++) {
+        const id = String(data[r][0]).trim(), nom = String(data[r][1]).trim();
+        const actif = String(data[r][3]).trim().toUpperCase() === 'O';
+        const code = String(data[r][6]).trim(), email = String(data[r][7]).trim();
+        if (!id || !actif || !email || !code) continue;
+        try {
+          MailApp.sendEmail({to:email,
+            subject:`[Planning CHPG Monaco ${TEST_YEAR}] Votre code d'accès`,
+            body:`Bonjour ${nom},\n\nVoici votre code d'accès personnel pour le planning ${TEST_YEAR} :\n\n    ${code}\n\nCe code vous permettra de saisir vos indisponibilités et congés sur :\nhttps://chpg-anesthesie.github.io/Planning-CHPG/indispos.html\n\nConservez ce code confidentiel.\n\nBonne journée,\nLe Comité Planning CHPG Monaco`});
+          sent++;
+        } catch(err) { errors.push(`${nom} (${email}) : ${err.message}`); }
+      }
+      logAction(`sendCodes — ${sent} emails envoyés${errors.length?', '+errors.length+' erreur(s)':''}`);
+      return ContentService.createTextOutput(JSON.stringify({success:true, sent, errors}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'diagComplet') {
+      if (user.role !== 'admin') return _deny();
+      const results = [];
+      let ok = true;
+      function check(label, condition, warn) {
+        if (condition) results.push(`✅ ${label}`);
+        else if (warn) results.push(`⚠️ ${label}`);
+        else { results.push(`❌ ${label}`); ok = false; }
+      }
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      results.push('── Onglets requis ──────────────────');
+      ['CONFIG','MEDECINS','PERIODES_VAC','GROUPES_VAC','OVERRIDES',
+       `INDISPOS_${TEST_YEAR}`,`GARDES_${TEST_YEAR}`,
+       `STATS_GARDES_${TEST_YEAR}`,`AFFECTATIONS_${TEST_YEAR}`].forEach(name => {
+        check(`Onglet ${name}`, !!ss.getSheetByName(name));
+      });
+      results.push('── CONFIG ──────────────────────────');
+      const configSheet = ss.getSheetByName('CONFIG');
+      if (configSheet) {
+        const cfgData = configSheet.getDataRange().getValues();
+        const cfgMap = {};
+        for (let r = 1; r < cfgData.length; r++) cfgMap[String(cfgData[r][0]).trim()] = String(cfgData[r][1]).trim();
+        check('ANNEE_ACTIVE présente', !!cfgMap['ANNEE_ACTIVE']);
+        check(`ANNEE_ACTIVE = ${TEST_YEAR}`, String(cfgMap['ANNEE_ACTIVE'])===String(TEST_YEAR));
+        check('ADMIN_CODE présent', !!cfgMap['ADMIN_CODE']);
+        check('GITHUB_TOKEN présent', !!cfgMap['GITHUB_TOKEN'], true);
+        check('GITHUB_REPO présent', !!cfgMap['GITHUB_REPO']||!!cfgMap['GITHUB_REPO_INDISPOS'], true);
+      }
+      results.push('── Équipe ──────────────────────────');
+      const medSheet = ss.getSheetByName('MEDECINS');
+      if (medSheet) {
+        const medData = medSheet.getDataRange().getValues();
+        const actifs = [], sansEmail = [], sansCode = [];
+        for (let r = 1; r < medData.length; r++) {
+          const id = String(medData[r][0]).trim();
+          const actif = String(medData[r][3]).trim().toUpperCase() === 'O';
+          const code = String(medData[r][6]).trim(), email = String(medData[r][7]).trim();
+          if (!id) continue;
+          if (actif) {
+            actifs.push(id);
+            if (!email) sansEmail.push(id);
+            if (!code) sansCode.push(id);
+          }
+        }
+        check(`${actifs.length} MARs actifs`, actifs.length > 0);
+        check(`MARs sans email : ${sansEmail.length||'aucun'}`, sansEmail.length===0, true);
+        check(`MARs sans code d'accès : ${sansCode.length||'aucun'}`, sansCode.length===0, true);
+        results.push('── Affectations ────────────────────');
+        const affSheet = ss.getSheetByName(`AFFECTATIONS_${TEST_YEAR}`);
+        if (affSheet) {
+          const affData = affSheet.getDataRange().getValues();
+          const affIds = new Set();
+          for (let r = 1; r < affData.length; r++) { const id = String(affData[r][0]).trim(); if (id) affIds.add(id); }
+          const sansAff = actifs.filter(id => !affIds.has(id));
+          check(`MARs actifs sans affectation : ${sansAff.length||'aucun'}`, sansAff.length===0, true);
+          if (sansAff.length) results.push(`  → ${sansAff.join(', ')}`);
+        } else { results.push(`⚠️ Onglet AFFECTATIONS_${TEST_YEAR} absent`); }
+      }
+      results.push('── Overrides ───────────────────────');
+      const ovSheet = ss.getSheetByName('OVERRIDES');
+      if (ovSheet && ovSheet.getLastRow() > 1) {
+        const ovData = ovSheet.getDataRange().getValues();
+        const seen = new Set(), doublons = [];
+        for (let r = 1; r < ovData.length; r++) {
+          const key = `${ovData[r][0]}_${ovData[r][1]}`;
+          if (seen.has(key)) doublons.push(key); seen.add(key);
+        }
+        const total = ovData.length - 1;
+        const today = new Date(); today.setHours(0,0,0,0);
+        const futures = ovData.slice(1).filter(row => {
+          const raw = row[0];
+          return (raw instanceof Date ? raw : new Date(String(raw)+'T00:00:00')) >= today;
+        }).length;
+        results.push(`ℹ️ ${total} override(s) au total, ${futures} à venir`);
+        check(`Doublons dans OVERRIDES : ${doublons.length||'aucun'}`, doublons.length===0, true);
+      } else { results.push('ℹ️ Aucun override enregistré'); }
+      results.push('── Vacances ────────────────────────');
+      const perSheet = ss.getSheetByName('PERIODES_VAC');
+      if (perSheet) {
+        const nbPer = perSheet.getDataRange().getValues().length - 1;
+        check(`${nbPer} période(s) configurée(s)`, nbPer > 0);
+      }
+      const grpSheet = ss.getSheetByName('GROUPES_VAC');
+      if (grpSheet) {
+        const grpData = grpSheet.getDataRange().getValues();
+        const counts = {A:0,B:0,C:0};
+        for (let r = 1; r < grpData.length; r++) {
+          const g = String(grpData[r][0]).trim();
+          if (counts[g]!==undefined) counts[g]++;
+        }
+        check(`Groupes A/B/C peuplés (${counts.A}/${counts.B}/${counts.C})`,
+          counts.A>0&&counts.B>0&&counts.C>0);
+      }
+      results.push('── Gardes ──────────────────────────');
+      const gardesSheet = ss.getSheetByName(`GARDES_${TEST_YEAR}`);
+      check(`Onglet GARDES_${TEST_YEAR} avec données`, gardesSheet&&gardesSheet.getLastRow()>3);
+      const statsSheet = ss.getSheetByName(`STATS_GARDES_${TEST_YEAR}`);
+      check(`Onglet STATS_GARDES_${TEST_YEAR} avec données`, statsSheet&&statsSheet.getLastRow()>1);
+      results.push('────────────────────────────────────');
+      results.push(ok ? '✅ Diagnostic OK' : '❌ Erreurs détectées');
+      logAction(`diagComplet — ${ok?'OK':'ERREURS'} (${results.filter(l=>l.startsWith('❌')).length} erreur(s))`);
+      return ContentService.createTextOutput(JSON.stringify({success:true, ok, results}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    if (action === 'archiveYear') {
+      if (user.role !== 'admin') return _deny();
+      const yearToArchive = Number(payload.year);
+      if (!yearToArchive || yearToArchive < 2026) return _error('Année invalide');
+      try {
+        const rapport = archiveYear(yearToArchive);
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          message: rapport || `Archivage ${yearToArchive} terminé`
+        })).setMimeType(ContentService.MimeType.JSON);
+      } catch(err) {
+        return _error(err.message);
+      }
+    }
+    if (action === 'saveAffectationsMar') {
+  if (user.role !== 'admin') return _deny();
+  const medecinId = String(payload.medecin || '').trim().toUpperCase();
+  const aff = payload.affectations;
+  if (!medecinId || !aff) return _error('Données manquantes');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(`AFFECTATIONS_${TEST_YEAR}`);
+  if (!sheet) return _error(`Onglet AFFECTATIONS_${TEST_YEAR} introuvable`);
+  const data = sheet.getDataRange().getValues();
+  const vals = [];
+  for (let m = 1; m <= 12; m++) vals.push(aff[m] || 'VOLANT');
+  let found = false;
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][0]).trim().toUpperCase() === medecinId) {
+      sheet.getRange(r + 1, 2, 1, 12).setValues([vals]);
+      found = true; break;
+    }
+  }
+  if (!found) {
+    sheet.appendRow([medecinId, ...vals]);
+  }
+  logAction(`saveAffectationsMar — ${medecinId} mis à jour`);
+  return ContentService.createTextOutput(JSON.stringify({success: true, created: !found}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+if (action === 'addMedecinToGroupe') {
+  if (user.role !== 'admin') return _deny();
+  const medecinId = String(payload.medecin || '').trim().toUpperCase();
+  const groupe = String(payload.groupe || '').trim().toUpperCase();
+  if (!medecinId || !['A','B','C'].includes(groupe)) return _error('Données invalides');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('GROUPES_VAC');
+  if (!sheet) {
+    sheet = ss.insertSheet('GROUPES_VAC');
+    sheet.getRange(1,1,1,3).setValues([['GROUPE','MEDECIN_ID','ORDRE']]);
+    sheet.getRange(1,1,1,3).setFontWeight('bold');
+  }
+  const data = sheet.getDataRange().getValues();
+  // Vérifier si le MAR est déjà dans un groupe
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][1]).trim().toUpperCase() === medecinId) {
+      sheet.getRange(r + 1, 1).setValue(groupe);
+      logAction(`addMedecinToGroupe — ${medecinId} déplacé vers groupe ${groupe}`);
+      return ContentService.createTextOutput(JSON.stringify({success: true, moved: true}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  // Calculer l'ordre max dans ce groupe
+  let maxOrdre = 0;
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][0]).trim().toUpperCase() === groupe) {
+      maxOrdre = Math.max(maxOrdre, Number(data[r][2]) || 0);
+    }
+  }
+  sheet.appendRow([groupe, medecinId, maxOrdre + 1]);
+  logAction(`addMedecinToGroupe — ${medecinId} ajouté au groupe ${groupe}`);
+  return ContentService.createTextOutput(JSON.stringify({success: true, created: true}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+if (action === 'sendCodesMar') {
+  if (user.role !== 'admin') return _deny();
+  const medecinId = String(payload.medecin || '').trim().toUpperCase();
+  if (!medecinId) return _error('Médecin manquant');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const medSheet = ss.getSheetByName('MEDECINS');
+  if (!medSheet) return _error('Onglet MEDECINS introuvable');
+  const data = medSheet.getDataRange().getValues();
+  for (let r = 1; r < data.length; r++) {
+    const id = String(data[r][0]).trim();
+    if (id.toUpperCase() !== medecinId) continue;
+    const nom = String(data[r][1]).trim();
+    const code = String(data[r][6]).trim();
+    const email = String(data[r][7]).trim();
+    if (!email) return _error(`Pas d'email pour ${nom}`);
+    if (!code) return _error(`Pas de code pour ${nom}`);
+    try {
+      MailApp.sendEmail({to: email,
+        subject: `[Planning CHPG Monaco ${TEST_YEAR}] Votre code d'accès`,
+        body: `Bonjour ${nom},\n\nVoici votre code d'accès personnel pour le planning ${TEST_YEAR} :\n\n    ${code}\n\nCe code vous permettra de saisir vos indisponibilités et congés sur :\nhttps://chpg-anesthesie.github.io/Planning-CHPG/indispos.html\n\nConservez ce code confidentiel.\n\nBonne journée,\nLe Comité Planning CHPG Monaco`});
+      logAction(`sendCodesMar — email envoyé à ${nom} (${email})`);
+      return ContentService.createTextOutput(JSON.stringify({success: true, sent: 1}))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch(err) {
+      return _error(`Envoi échoué pour ${nom} : ${err.message}`);
+    }
+  }
+  return _error(`Médecin ${medecinId} introuvable`);
+}
+if (action === 'getConflitsAll') {
+      if (user.role !== 'admin') return _deny();
+      const year = Number(payload.year) || TEST_YEAR;
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const medSheet = ss.getSheetByName('MEDECINS');
+      if (!medSheet) return _error('Onglet MEDECINS introuvable');
+      const medData = medSheet.getDataRange().getValues();
+      const actifs = [];
+      for (let r = 1; r < medData.length; r++) {
+        const id = String(medData[r][0]).trim();
+        const actif = String(medData[r][3]).trim().toUpperCase() === 'O';
+        const email = String(medData[r][7]).trim();
+        if (id && actif) actifs.push({id, nom: String(medData[r][1]).trim(), email});
+      }
+      const conflits = [];
+      actifs.forEach(mar => {
+        const cfg = getVacConfig(mar.id, year);
+        const periodesConflits = [];
+        cfg.periodes.forEach(p => {
+          if (p.joursBloqués && p.joursBloqués.length > 0) {
+            periodesConflits.push({
+              periode: p.nom,
+              debut: p.debut,
+              fin: p.fin,
+              joursBloqués: p.joursBloqués,
+              joursDisponibles: p.joursDisponibles,
+            });
+          }
+        });
+        if (periodesConflits.length > 0) {
+          conflits.push({
+            id: mar.id,
+            nom: mar.nom,
+            email: mar.email,
+            periodesConflits,
+          });
+        }
+      });
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        conflits,
+        total: actifs.length,
+        nbConflits: conflits.length,
+        nbResolus: actifs.length - conflits.length,
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'notifierConflits') {
+      if (user.role !== 'admin') return _deny();
+      const year = Number(payload.year) || getIndisposYear();
+      const jfY = getJoursFeries(year), jfYn = getJoursFeries(year + 1);  // exempter WE/fériés du seuil
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+      // ── Charger toutes les données une seule fois ──
+      const medSheet = ss.getSheetByName('MEDECINS');
+      if (!medSheet) return _error('Onglet MEDECINS introuvable');
+      const medData = medSheet.getDataRange().getValues();
+
+      const perSheet = ss.getSheetByName('PERIODES_VAC');
+      if (!perSheet) return _error('PERIODES_VAC introuvable');
+      const perData = perSheet.getDataRange().getValues();
+
+      const groupSheet = ss.getSheetByName('GROUPES_VAC');
+      if (!groupSheet) return _error('GROUPES_VAC introuvable');
+      const groupData = groupSheet.getDataRange().getValues();
+
+      const indSheet = ss.getSheetByName(`INDISPOS_${year}`);
+      if (!indSheet) return _error(`INDISPOS_${year} introuvable`);
+      const indData = indSheet.getDataRange().getValues();
+
+      // Reconstruire les dates
+      const dates = reconstruireDatesHeaders(indData, year); // (C3b) helper unifié
+
+      // Construire vacByDoc
+      const vacByDoc = {};
+      for (let r = 3; r < indData.length; r++) {
+        const id = String(indData[r][0]).trim();
+        if (!id) continue;
+        vacByDoc[id] = new Set();
+        dates.forEach((date, i) => {
+          if (!date) return;
+          const val = String(indData[r][i+1]||'').trim();
+          if (val === 'VAC' || val === 'FORM') vacByDoc[id].add(date);
+        });
+      }
+
+      // Groupes + ordre
+      const groups = {A:[],B:[],C:[]}, ordre2026 = {A:{},B:{},C:{}};
+      for (let r = 1; r < groupData.length; r++) {
+        const grp = String(groupData[r][0]).trim(), id = String(groupData[r][1]).trim(), ord = Number(groupData[r][2]);
+        if (!id || !groups[grp]) continue;
+        groups[grp].push(id); ordre2026[grp][id] = ord;
+      }
+      const offset = year - 2026;
+      function getOrd(grp) {
+        const sorted = [...groups[grp]].sort((a,b) => ordre2026[grp][a] - ordre2026[grp][b]);
+        const sh = offset % sorted.length;
+        return [...sorted.slice(sh), ...sorted.slice(0, sh)];
+      }
+      const ordA = getOrd('A'), ordB = getOrd('B'), ordC = getOrd('C');
+
+      // Périodes
+      const ORDRE_BASE = {HIVER:'CAB',PRINTEMPS:'ABC',ETE:'ABC',TOUSSAINT:'BCA',NOEL:'CAB'};
+      function normP(s) { return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim(); }
+      function premierJour(y) { const j = new Date(y,0,1); const d = j.getDay(); const o = d===1?7:d===0?1:8-d; const r = new Date(y,0,1+o); return `${r.getFullYear()}-${String(r.getMonth()+1).padStart(2,'0')}-${String(r.getDate()).padStart(2,'0')}`; }
+      const debutAnnee = premierJour(year), finAnnee = premierJour(year+1);
+
+      const periodes = [];
+      for (let r = 1; r < perData.length; r++) {
+        const nom = String(perData[r][0]).trim();
+        if (!nom) continue;
+        const dr = perData[r][1], fr = perData[r][2];
+        const debut = dr instanceof Date ? `${dr.getFullYear()}-${String(dr.getMonth()+1).padStart(2,'0')}-${String(dr.getDate()).padStart(2,'0')}` : String(dr).trim();
+        const fin = fr instanceof Date ? `${fr.getFullYear()}-${String(fr.getMonth()+1).padStart(2,'0')}-${String(fr.getDate()).padStart(2,'0')}` : String(fr).trim();
+        if (debut < debutAnnee || debut >= finAnnee) continue;
+        const base = ORDRE_BASE[normP(nom)] || 'ABC';
+        const ga = base.split(''); const gs = offset % 3;
+        const og = [...ga.slice(gs), ...ga.slice(0, gs)];
+        const ol = []; og.forEach(g => { if (g==='A') ol.push(...ordA); else if (g==='B') ol.push(...ordB); else ol.push(...ordC); });
+        periodes.push({nom, debut, fin, seuil: Number(perData[r][3])||8, orderedList: ol});
+      }
+
+      // Calculer conflits par MAR
+      const actifs = [];
+      for (let r = 1; r < medData.length; r++) {
+        const id = String(medData[r][0]).trim();
+        if (!id || String(medData[r][3]).trim().toUpperCase() !== 'O') continue;
+        actifs.push({id, nom: String(medData[r][1]).trim(), email: String(medData[r][7]).trim(), code: String(medData[r][6]).trim()});
+      }
+
+      let sent = 0, skipped = 0;
+      const errors = [];
+
+      actifs.forEach(mar => {
+        const periodesConflits = [];
+        periodes.forEach(p => {
+          const joursBloqués = [];
+          const joursDisponibles = [];
+          const dt = new Date(p.debut + 'T12:00:00');
+          const dtFin = new Date(p.fin + 'T12:00:00');
+          while (dt <= dtFin) {
+            const ds = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+            const _dow = dt.getDay();
+            if (_dow === 0 || _dow === 6 || jfY.has(ds) || jfYn.has(ds)) { joursDisponibles.push(ds); dt.setDate(dt.getDate()+1); continue; }
+            const marEnVac = p.orderedList.filter(id => vacByDoc[id]?.has(ds));
+            const rang = marEnVac.indexOf(mar.id) + 1;
+            if (rang > 0 && rang > p.seuil) joursBloqués.push(ds);
+            else joursDisponibles.push(ds);
+            dt.setDate(dt.getDate() + 1);
+          }
+          if (joursBloqués.length > 0) periodesConflits.push({periode: p.nom, debut: p.debut, fin: p.fin, joursBloqués, joursDisponibles});
+        });
+        if (periodesConflits.length === 0) return;
+        if (!mar.email) { skipped++; return; }
+        let body = `Bonjour ${mar.nom},\n\nCertaines de vos demandes de vacances pour ${year} sont en conflit.\n\n`;
+        periodesConflits.forEach(p => {
+          body += `── ${p.periode} (${p.debut} → ${p.fin}) ──\n`;
+          body += `Jours en conflit : ${p.joursBloqués.join(', ')}\n`;
+          if (p.joursDisponibles.length > 0) body += `Jours disponibles : ${p.joursDisponibles.join(', ')}\n`;
+          body += '\n';
+        });
+        body += `Code d'accès : ${mar.code}\nIndispos : https://chpg-anesthesie.github.io/Planning-CHPG/indispos.html\n\nLe Comité Planning CHPG Monaco`;
+        try {
+          MailApp.sendEmail({to: mar.email, subject: `[Planning CHPG Monaco ${year}] Conflits vacances`, body});
+          sent++;
+        } catch(err) { errors.push(`${mar.nom} : ${err.message}`); }
+      });
+
+      logAction(`notifierConflits ${year} — ${sent} emails, ${skipped} sans email, ${errors.length} erreur(s)`);
+      return ContentService.createTextOutput(JSON.stringify({success: true, sent, skipped, errors}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    if (action === 'envoyerRecapIndispos') {
+      if (user.role !== 'admin') return _deny();
+      const year = Number(payload.year) || TEST_YEAR;
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const medSheet = ss.getSheetByName('MEDECINS');
+      if (!medSheet) return _error('Onglet MEDECINS introuvable');
+      const medData = medSheet.getDataRange().getValues();
+
+      // Lire les indispos
+      const indSheet = ss.getSheetByName(`INDISPOS_${year}`);
+      if (!indSheet) return _error(`Onglet INDISPOS_${year} introuvable`);
+      const indData = indSheet.getDataRange().getValues();
+
+      // Reconstruire les dates depuis lignes 2 (jours) et 3 (numéros)
+      const dates = reconstruireDatesHeaders(indData, year); // (C3b) helper unifié
+
+      // Lire les périodes vacances
+      const perSheet = ss.getSheetByName('PERIODES_VAC');
+      const periodes = [];
+      if (perSheet) {
+        const perData = perSheet.getDataRange().getValues();
+        for (let r = 1; r < perData.length; r++) {
+          const nom = String(perData[r][0]).trim();
+          if (!nom) continue;
+          const debutRaw = perData[r][1], finRaw = perData[r][2];
+          const debut = debutRaw instanceof Date
+            ? `${debutRaw.getFullYear()}-${String(debutRaw.getMonth()+1).padStart(2,'0')}-${String(debutRaw.getDate()).padStart(2,'0')}`
+            : String(debutRaw).trim();
+          const fin = finRaw instanceof Date
+            ? `${finRaw.getFullYear()}-${String(finRaw.getMonth()+1).padStart(2,'0')}-${String(finRaw.getDate()).padStart(2,'0')}`
+            : String(finRaw).trim();
+          periodes.push({nom, debut, fin});
+        }
+      }
+
+      let sent = 0, skipped = 0;
+      const errors = [];
+const MOIS_ABR = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+      const fmtJour = ds => { const d=new Date(ds+'T12:00:00'); return d.getDate()+' '+MOIS_ABR[d.getMonth()]; };
+      const fmtPlage = (a,b) => {
+        if(a===b) return fmtJour(a);
+        const da=new Date(a+'T12:00:00'), db=new Date(b+'T12:00:00');
+        if(da.getMonth()===db.getMonth()) return da.getDate()+' → '+db.getDate()+' '+MOIS_ABR[db.getMonth()];
+        return fmtJour(a)+' → '+fmtJour(b);
+      };
+      const toRanges = arr => {
+        const j=[...arr].sort(); const out=[]; if(!j.length) return out;
+        let deb=j[0], prev=j[0];
+        for(let i=1;i<j.length;i++){ const d1=new Date(prev+'T12:00:00'); d1.setDate(d1.getDate()+1);
+          if(d1.toISOString().slice(0,10)!==j[i]){ out.push([deb,prev]); deb=j[i]; } prev=j[i]; }
+        out.push([deb,prev]); return out;
+      };
+      const pill = (t,bg,bd,fg) => '<span style="display:inline-block;background:'+bg+';border:1px solid '+bd+';border-radius:999px;padding:3px 11px;font-size:12px;font-weight:600;color:'+fg+';margin:0 5px 5px 0;white-space:nowrap">'+t+'</span>';
+      const pillV = t => pill(t,'#eef4fb','#cfe0f2','#1d6fb8');
+      const pillF = t => pill(t,'#fdf3e3','#f2d98a','#b45309');
+      const pillI = t => pill(t,'#f1f1f3','#dadce0','#5f6368');
+      const pillsOf = (arr, fn) => toRanges(arr).map(r => fn(fmtPlage(r[0],r[1]))).join('');
+      for (let r = 1; r < medData.length; r++) {
+        const id = String(medData[r][0]).trim();
+        const nom = String(medData[r][1]).trim();
+        const actif = String(medData[r][3]).trim().toUpperCase() === 'O';
+        const email = String(medData[r][7]).trim();
+        if (!id || !actif) continue;
+        if (!email) { skipped++; continue; }
+
+        // Lire les indispos de ce MAR
+        const marIndispos = {};
+        for (let ri = 3; ri < indData.length; ri++) {
+          if (String(indData[ri][0]).trim() !== id) continue;
+          dates.forEach((date, i) => {
+            if (!date) return;
+            const val = String(indData[ri][i+1]||'').trim();
+            if (val) marIndispos[date] = val;
+          });
+          break;
+        }
+
+        // Construire le récap HTML par période
+        let sections = '', sectionsText = '';
+        periodes.forEach(p => {
+          const jV=[], jF=[], jI=[];
+          Object.entries(marIndispos).forEach(([date, val]) => {
+            if (date < p.debut || date > p.fin) return;
+            if (val === 'VAC') jV.push(date);
+            else if (val === 'FORM') jF.push(date);
+            else if (val === 'INDISPO') jI.push(date);
+          });
+          if (!jV.length && !jF.length && !jI.length) return;
+          let inner = '';
+          if (jV.length) inner += '<div style="margin:6px 0 0"><span style="font-size:11px;font-weight:700;color:#1d6fb8;text-transform:uppercase">Vacances</span><br>'+pillsOf(jV,pillV)+'</div>';
+          if (jF.length) inner += '<div style="margin:6px 0 0"><span style="font-size:11px;font-weight:700;color:#b45309;text-transform:uppercase">Formations</span><br>'+pillsOf(jF,pillF)+'</div>';
+          if (jI.length) inner += '<div style="margin:6px 0 0"><span style="font-size:11px;font-weight:700;color:#5f6368;text-transform:uppercase">Indisponibilités</span><br>'+pillsOf(jI,pillI)+'</div>';
+          sections += '<div style="margin:14px 0 0"><div style="font-size:13px;font-weight:700;color:#16202e">'+p.nom+'</div>'+inner+'</div>';
+          sectionsText += p.nom+' : '+[...jV,...jF,...jI].map(fmtJour).join(', ')+'\n';
+        });
+        const hors = Object.entries(marIndispos).filter(([date]) => !periodes.some(p => date >= p.debut && date <= p.fin));
+        if (hors.length) {
+          sections += '<div style="margin:14px 0 0"><div style="font-size:13px;font-weight:700;color:#16202e">Hors périodes</div><div style="margin:6px 0 0">'+hors.map(([d,v]) => pillI(fmtJour(d)+' · '+v)).join('')+'</div></div>';
+          sectionsText += 'Hors périodes : '+hors.map(([d,v])=>fmtJour(d)+' ('+v+')').join(', ')+'\n';
+        }
+        if (!sections) { sections = '<div style="color:#9aa4b2;font-style:italic;font-size:13px">Aucune indisponibilité enregistrée.</div>'; sectionsText = 'Aucune indisponibilité.'; }
+
+        const site = 'https://chpg-anesthesie.github.io/Planning-CHPG/';
+        const html =
+          '<div style="background:#f4f6f9;padding:0;margin:0">'+
+          '<div style="max-width:560px;margin:0 auto;padding:24px 14px;font-family:Arial,Helvetica,sans-serif">'+
+            '<div style="background:#ffffff;border:1px solid #e3e8ef;border-radius:14px;overflow:hidden">'+
+              '<div style="background:#ce1126;padding:18px 22px">'+
+                '<div style="color:#fff;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">CHPG Monaco · Anesthésie-Réanimation</div>'+
+                '<div style="color:#fff;font-size:19px;font-weight:700;margin-top:4px">Récapitulatif de vos indisponibilités '+year+'</div>'+
+              '</div>'+
+              '<div style="padding:22px">'+
+                '<p style="margin:0 0 6px;font-size:14px;color:#3a4759">Bonjour <strong>'+nom+'</strong>,</p>'+
+                '<p style="margin:0 0 8px;font-size:13px;color:#3a4759">Le planning '+year+' vient d\'être généré. Voici ce qui est enregistré pour vous :</p>'+
+                sections+
+                '<div style="border-top:1px solid #eef1f5;margin:20px 0 16px"></div>'+
+                '<a href="'+site+'" style="display:inline-block;background:#15803d;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:10px">Voir le planning →</a>'+
+                '<p style="margin:16px 0 0;font-size:12px;color:#9aa4b2">Une erreur ? Contactez le comité planning.</p>'+
+              '</div>'+
+            '</div>'+
+            '<div style="text-align:center;font-size:11px;color:#9aa4b2;margin-top:14px">Le Comité Planning CHPG Monaco</div>'+
+          '</div>'+
+          '</div>';
+
+        const bodyText =
+          'Bonjour '+nom+',\n\n'+
+          'Le planning '+year+' vient d\'être généré. Vos indisponibilités :\n\n'+
+          (sectionsText||'Aucune indisponibilité.')+'\n'+
+          'Planning : '+site+'\n\nLe Comité Planning CHPG Monaco';
+
+        try {
+          MailApp.sendEmail({
+            to: email,
+            subject: `[Planning CHPG Monaco ${year}] Votre récapitulatif indisponibilités`,
+            htmlBody: html,
+            body: bodyText,
+          });
+          sent++;
+        } catch(err) {
+          errors.push(`${nom} : ${err.message}`);
+        }
+      }
+
+      logAction(`envoyerRecapIndispos ${year} — ${sent} emails, ${skipped} sans email, ${errors.length} erreur(s)`);
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, sent, skipped, errors
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (action === 'setIndisposYear') {
+      if (user.role !== 'admin') return _deny();
+      const newYear = Number(payload.year);
+      if (!newYear || newYear < 2026) return _error('Année invalide');
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName('CONFIG');
+      if (!sheet) return _error('CONFIG introuvable');
+      const data = sheet.getDataRange().getValues();
+      let found = false;
+      for (let r = 1; r < data.length; r++) {
+        if (String(data[r][0]).trim() === 'INDISPOS_ACTIVE') {
+          sheet.getRange(r+1, 2).setValue(newYear);
+          found = true; break;
+        }
+      }
+      if (!found) sheet.appendRow(['INDISPOS_ACTIVE', newYear]);
+      logAction(`setIndisposYear → ${newYear}`);
+      return ContentService.createTextOutput(JSON.stringify({success:true, year:newYear}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'clearIndisposYear') {
+      if (user.role !== 'admin') return _deny();
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName('CONFIG');
+      if (!sheet) return _error('CONFIG introuvable');
+      const data = sheet.getDataRange().getValues();
+      for (let r = 1; r < data.length; r++) {
+        if (String(data[r][0]).trim() === 'INDISPOS_ACTIVE') {
+          sheet.deleteRow(r+1); break;
+        }
+      }
+      logAction('clearIndisposYear — INDISPOS_ACTIVE supprimée');
+      return ContentService.createTextOutput(JSON.stringify({success:true}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+// ── ACTION : savePlanningOverride ─────────────────────────────────────
+// Appelé quand le comité place un MAR dans une case flash
+// payload : { action, code, date, marId, morning, afternoon, comment }
+if (action === 'savePlanningOverride') {
+  if (user.role !== 'admin') return _deny();
+  const { date, marId, morning, afternoon, comment } = payload;
+  if (!date || !marId) return _error('date et marId requis');
+  try {
+    savePlanningOverride(date, marId, morning || '', afternoon || morning || '', comment || '');
+    logAction(`savePlanningOverride — ${marId} le ${date} → ${morning}`);
+    return ContentService.createTextOutput(JSON.stringify({success: true}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(e) {
+    return _error(e.message);
+  }
+}
+
+// ── ACTION : deletePlanningOverride ───────────────────────────────────
+// Appelé pour supprimer un override (comité retire un MAR placé manuellement)
+// payload : { action, code, date, marId }
+if (action === 'deletePlanningOverride') {
+  if (user.role !== 'admin') return _deny();
+  const { date, marId } = payload;
+  if (!date || !marId) return _error('date et marId requis');
+  try {
+    deletePlanningOverride(date, marId);
+    logAction(`deletePlanningOverride — ${marId} le ${date}`);
+    return ContentService.createTextOutput(JSON.stringify({success: true}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(e) {
+    return _error(e.message);
+  }
+}
+
+// ── ACTION : getPlanningOverrides ─────────────────────────────────────
+// Retourne tous les overrides pour une année donnée
+// payload : { action, code, year? }
+if (action === 'getPlanningOverrides') {
+  if (user.role !== 'admin') return _deny();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('PLANNING_OVERRIDES');
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({success: true, overrides: []}))
+    .setMimeType(ContentService.MimeType.JSON);
+  const data = sheet.getDataRange().getValues();
+  const overrides = [];
+  for (let r = 1; r < data.length; r++) {
+    const raw = data[r][0];
+    if (!raw) continue;
+    const date = raw instanceof Date
+      ? `${raw.getFullYear()}-${String(raw.getMonth()+1).padStart(2,'0')}-${String(raw.getDate()).padStart(2,'0')}`
+      : String(raw).trim();
+    overrides.push({
+      date,
+      marId:    String(data[r][1] || '').trim().toUpperCase(),
+      morning:  String(data[r][2] || '').trim().toUpperCase(),
+      afternoon:String(data[r][3] || '').trim().toUpperCase(),
+      comment:  String(data[r][4] || '').trim(),
+    });
+  }
+  return ContentService.createTextOutput(JSON.stringify({success: true, overrides}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ── ACTION : validerSemaine ───────────────────────────────────────────
+// Valide ou dévalide une semaine → mise à jour SEMAINES_VALIDEES + push JSON
+// payload : { action, code, year, isoWeek, valide (true/false) }
+if (action === 'validerSemaine') {
+  if (user.role !== 'admin') return _deny();
+  const yearVal  = Number(payload.year) || TEST_YEAR;
+  const isoWeek  = Number(payload.isoWeek);
+  const valide   = payload.valide === true || payload.valide === 'true';
+  if (!isoWeek) return _error('isoWeek requis');
+  try {
+    validerSemaine(yearVal, isoWeek, valide);
+    logAction(`validerSemaine — S${isoWeek} ${yearVal} → ${valide ? 'VALIDÉE' : 'dévalidée'}`);
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      isoWeek, year: yearVal, validated: valide
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch(e) {
+    return _error(e.message);
+  }
+}
+
+// ── ACTION : getSemainesValidees ──────────────────────────────────────
+// Retourne la liste des semaines validées pour une année
+// payload : { action, code, year? }
+if (action === 'getSemainesValidees') {
+  if (user.role !== 'admin') return _deny();
+  const yearVal = Number(payload.year) || TEST_YEAR;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('SEMAINES_VALIDEES');
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({success: true, semaines: []}))
+    .setMimeType(ContentService.MimeType.JSON);
+  const data = sheet.getDataRange().getValues();
+  const semaines = [];
+  for (let r = 1; r < data.length; r++) {
+    if (Number(data[r][0]) !== yearVal) continue;
+    semaines.push({
+      isoWeek:       Number(data[r][1]),
+      validated:     String(data[r][2]).trim().toUpperCase() === 'O',
+      dateValidation:data[r][3] ? String(data[r][3]) : '',
+    });
+  }
+  return ContentService.createTextOutput(JSON.stringify({success: true, semaines, year: yearVal}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ── ACTION : getMARsDispoJour ─────────────────────────────────────────
+// Retourne les MARs disponibles un jour donné pour le popup "combler case flash"
+// Groupés par rôle : VOLANT / CTP / R / autres présents
+// payload : { action, code, date }
+if (action === 'getMARsDispoJour') {
+  if (user.role !== 'admin') return _deny();
+  const targetDate = String(payload.date || '').trim();
+  if (!targetDate) return _error('date requise');
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const year = Number(targetDate.slice(0,4));
+  const gardesSheet = ss.getSheetByName(`GARDES_${year}`);
+  if (!gardesSheet) return _error(`GARDES_${year} introuvable`);
+
+  const gardesData = gardesSheet.getDataRange().getValues();
+  const dateToCol = buildDateToCol(gardesData, year);
+  const colIdx = dateToCol[targetDate];
+  if (colIdx === undefined) return _error(`Date ${targetDate} introuvable dans GARDES_${year}`);
+
+  const affSheet = ss.getSheetByName(`AFFECTATIONS_${year}`);
+  const medSheet = ss.getSheetByName('MEDECINS');
+
+  // Lire l'affectation de chaque MAR
+  const affMap = {}; // marId → secteur
+  if (affSheet) {
+    const affData = affSheet.getDataRange().getValues();
+    const dt = new Date(targetDate + 'T12:00:00');
+    const monthIdx = dt.getMonth() + 1; // 1-12
+    for (let r = 1; r < affData.length; r++) {
+      const id = String(affData[r][0]).trim();
+      if (!id) continue;
+      // Colonne du mois (1=JAN, 2=FEV, ... 12=DEC)
+      affMap[id] = normalizeAffectation(String(affData[r][monthIdx] || '').trim().toUpperCase());
+    }
+  }
+
+  // Lire les actifs depuis MEDECINS
+  const actifs = new Set();
+  const initMap = {};
+  if (medSheet) {
+    const medData = medSheet.getDataRange().getValues();
+    for (let r = 1; r < medData.length; r++) {
+      const id = String(medData[r][0]).trim();
+      if (!id) continue;
+      initMap[id] = String(medData[r][2] || '').trim();   // colonne INITIALES
+      if (String(medData[r][3]).trim().toUpperCase() === 'O') actifs.add(id);
+    }
+  }
+
+  const FLAGS = getMedecinFlags(); // (C2-D2) date_debut/date_fin externalisées → MEDECINS
+  const ABSENT_CODES_SET = new Set(['RG','V','CP','F','CTP','A','CL']);
+  const dispo = [];
+
+  // (C2-D2) Index des codes GARDES par MAR (un MAR sans ligne GARDES → code vide).
+  const codeById = {};
+  for (let r = 3; r < gardesData.length; r++) {
+    const gid = String(gardesData[r][0]).trim();
+    if (gid) codeById[gid] = String(gardesData[r][colIdx] || '').trim().toUpperCase();
+  }
+
+  // (C2-D2) Itérer sur l'effectif réel (MEDECINS actifs), PAS sur les lignes GARDES.
+  // → un MAR actif récemment arrivé (ex. COPELOVICI, absente de GARDES_2026 reconstruit)
+  //   apparaît quand même ; date_debut/date_fin gèrent arrivée/départ.
+  Array.from(actifs).forEach(id => {
+    let code = codeById[id] || '';
+    // (C2-D3) jours fixes non travaillés (ex. BONNET jeu/ven) → TP, lus depuis MEDECINS
+    const _tp = FLAGS.tpJoursFixes[id];
+    if (!code && _tp && _tp.has(new Date(targetDate + 'T12:00:00').getDay())) code = 'TP';
+    if (ABSENT_CODES_SET.has(code)) return; // absent
+    const _dd = FLAGS.dateDebut[id], _df = FLAGS.dateFin[id];
+    if (_dd && targetDate < _dd) return; // pas encore actif (ex. ARMAND avant le 1er nov)
+    if (_df && targetDate >= _df) return; // n'est plus actif (ex. TRAN à partir du 1er sept)
+    if (estSemaineOff(id, targetDate)) return; // rythme 2/2 (TRAN, COPELOVICI…) — semaine off
+
+    const secteur = affMap[id] || 'VOLANT';
+    let role;
+    if (code === 'TP') role = 'TP';
+    else if (code === 'R') role = 'R';
+    else if (secteur === 'VOLANT') role = 'VOLANT';
+    else role = 'PRESENT';
+
+    dispo.push({ id, init: initMap[id] || id, role, secteur, code: code || 'PRESENT' });
+  });
+
+  // Trier : VOLANT d'abord, puis CTP, puis R, puis autres
+  const roleOrder = {VOLANT:0, CTP:1, R:2, PRESENT:3, TP:4};
+  dispo.sort((a,b) => (roleOrder[a.role]||3) - (roleOrder[b.role]||3));
+
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true, date: targetDate, dispo
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+if (action === 'sendCodesWithRecap') {
+  if (user.role !== 'admin') return _deny();
+  const indYear = Number(payload.year) || getIndisposYear();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  const medSheet = ss.getSheetByName('MEDECINS');
+  if (!medSheet) return _error('Onglet MEDECINS introuvable');
+  const medData = medSheet.getDataRange().getValues();
+
+  const perSheet = ss.getSheetByName('PERIODES_VAC');
+  const periodes = [];
+  if (perSheet) {
+    const perData = perSheet.getDataRange().getValues();
+    for (let r = 1; r < perData.length; r++) {
+      const nom = String(perData[r][0]).trim();
+      if (!nom) continue;
+      const dr = perData[r][1], fr = perData[r][2];
+      const debut = dr instanceof Date
+        ? dr.getFullYear()+'-'+String(dr.getMonth()+1).padStart(2,'0')+'-'+String(dr.getDate()).padStart(2,'0')
+        : String(dr).trim();
+      const fin = fr instanceof Date
+        ? fr.getFullYear()+'-'+String(fr.getMonth()+1).padStart(2,'0')+'-'+String(fr.getDate()).padStart(2,'0')
+        : String(fr).trim();
+      periodes.push({nom, debut, fin});
+    }
+  }
+
+  const indSheet = ss.getSheetByName('INDISPOS_'+indYear);
+  if (!indSheet) return _error('INDISPOS_'+indYear+' introuvable');
+  const indData = indSheet.getDataRange().getValues();
+
+  const dates = reconstruireDatesHeaders(indData, indYear); // (C3b) helper unifié
+
+  function fmtDate(ds) {
+    const d = new Date(ds+'T12:00:00');
+    return d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear();
+  }
+const MOIS_ABR = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+  function fmtJour(ds){ const d=new Date(ds+'T12:00:00'); return d.getDate()+' '+MOIS_ABR[d.getMonth()]; }
+  function fmtPlage(a,b){
+    if(a===b) return fmtJour(a);
+    const da=new Date(a+'T12:00:00'), db=new Date(b+'T12:00:00');
+    if(da.getMonth()===db.getMonth()) return da.getDate()+' → '+db.getDate()+' '+MOIS_ABR[db.getMonth()];
+    return fmtJour(a)+' → '+fmtJour(b);
+  }
+  const pillV = t => '<span style="display:inline-block;background:#eef4fb;border:1px solid #cfe0f2;border-radius:999px;padding:3px 11px;font-size:12px;font-weight:600;color:#1d6fb8;margin:0 5px 5px 0;white-space:nowrap">'+t+'</span>';
+  const pillF = t => '<span style="display:inline-block;background:#fdf3e3;border:1px solid #f2d98a;border-radius:999px;padding:3px 11px;font-size:12px;font-weight:600;color:#b45309;margin:0 5px 5px 0;white-space:nowrap">'+t+'</span>';
+
+  let sent = 0, skipped = 0;
+  const errors = [];
+
+  for (let r = 1; r < medData.length; r++) {
+    const id    = String(medData[r][0]).trim();
+    const nom   = String(medData[r][1]).trim();
+    const actif = String(medData[r][3]).trim().toUpperCase() === 'O';
+    const code  = String(medData[r][6]).trim();
+    const email = String(medData[r][7]).trim();
+    if (!id || !actif) continue;
+    if (!email) { skipped++; continue; }
+
+    const marVAC = {}, marFORM = {};
+    for (let ri = 3; ri < indData.length; ri++) {
+      if (String(indData[ri][0]).trim() !== id) continue;
+      dates.forEach((date, i) => {
+        if (!date) return;
+        const val = String(indData[ri][i+1]||'').trim();
+        if (val === 'VAC') marVAC[date] = true;
+        else if (val === 'FORM') marFORM[date] = true;
+      });
+      break;
+    }
+
+    let vacRows = '', vacText = '';
+    periodes.forEach(p => {
+      const jours = Object.keys(marVAC).filter(d => d >= p.debut && d <= p.fin).sort();
+      if (!jours.length) return;
+      const ranges = [];
+      let debut = jours[0], prev = jours[0];
+      for (let i = 1; i < jours.length; i++) {
+        const d1 = new Date(prev+'T12:00:00');
+        d1.setDate(d1.getDate()+1);
+        if (d1.toISOString().slice(0,10) !== jours[i]) { ranges.push([debut, prev]); debut = jours[i]; }
+        prev = jours[i];
+      }
+      ranges.push([debut, prev]);
+      const pills = ranges.map(r => pillV(fmtPlage(r[0], r[1]))).join('');
+      vacRows += '<tr><td style="padding:9px 12px 4px 0;font-weight:700;color:#16202e;white-space:nowrap;vertical-align:top">'+p.nom+'</td><td style="padding:9px 0 4px 0;vertical-align:top">'+pills+'</td></tr>';
+      vacText += '  '+p.nom+' : '+ranges.map(r => fmtPlage(r[0], r[1])).join(', ')+'\n';
+    });
+    const vacHors = Object.keys(marVAC).filter(d => !periodes.some(p => d >= p.debut && d <= p.fin)).sort();
+    if (vacHors.length) {
+      const pills = vacHors.map(d => pillV(fmtJour(d))).join('');
+      vacRows += '<tr><td style="padding:9px 12px 4px 0;font-weight:700;color:#16202e;vertical-align:top">Autres</td><td style="padding:9px 0 4px 0;vertical-align:top">'+pills+'</td></tr>';
+      vacText += '  Autres : '+vacHors.map(fmtJour).join(', ')+'\n';
+    }
+    const formKeys = Object.keys(marFORM).sort();
+    const nbVAC = Object.keys(marVAC).length;
+    const nbFORM = formKeys.length;
+    const link = 'https://chpg-anesthesie.github.io/Planning-CHPG/indispos.html';
+
+    const vacBlock = vacRows
+      ? '<table style="width:100%;border-collapse:collapse;margin:2px 0 0">'+vacRows+'</table>'
+      : '<div style="color:#9aa4b2;font-style:italic;font-size:13px">Aucune vacance posée.</div>';
+    const formBlock = nbFORM
+      ? '<div style="margin-top:2px">'+formKeys.map(d => pillF(fmtJour(d))).join('')+'</div>'
+      : '<div style="color:#9aa4b2;font-style:italic;font-size:13px">Aucune formation posée.</div>';
+
+    const html =
+      '<div style="background:#f4f6f9;padding:0;margin:0">'+
+      '<div style="max-width:560px;margin:0 auto;padding:24px 14px;font-family:Arial,Helvetica,sans-serif">'+
+        '<div style="background:#ffffff;border:1px solid #e3e8ef;border-radius:14px;overflow:hidden">'+
+          '<div style="background:#ce1126;padding:18px 22px">'+
+            '<div style="color:#ffffff;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">CHPG Monaco · Anesthésie-Réanimation</div>'+
+            '<div style="color:#ffffff;font-size:19px;font-weight:700;margin-top:4px">Vos congés &amp; ouverture des indispos '+indYear+'</div>'+
+          '</div>'+
+          '<div style="padding:22px">'+
+            '<p style="margin:0 0 18px;font-size:14px;color:#3a4759">Bonjour <strong>'+nom+'</strong>,</p>'+
+            '<div style="font-size:13px;font-weight:700;color:#16202e">📋 Vos congés posés au staff</div>'+
+            '<div style="font-size:11px;font-weight:700;color:#1d6fb8;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 2px">🏖️ Vacances · '+nbVAC+' j</div>'+
+            vacBlock+
+            '<div style="font-size:11px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 2px">📚 Formations · '+nbFORM+' j</div>'+
+            formBlock+
+            '<div style="border-top:1px solid #eef1f5;margin:22px 0 16px"></div>'+
+            '<div style="font-size:13px;font-weight:700;color:#16202e;margin-bottom:10px">🔓 Saisissez vos indisponibilités</div>'+
+            '<p style="margin:0 0 14px;font-size:13px;color:#3a4759">La saisie est maintenant ouverte. Connectez-vous avec votre code personnel :</p>'+
+            '<div style="background:#f4f6f9;border:1px solid #e3e8ef;border-radius:10px;padding:12px 16px;margin-bottom:16px">'+
+              '<div style="font-size:11px;color:#697789;text-transform:uppercase;letter-spacing:.5px">Votre code d\'accès</div>'+
+              '<div style="font-size:22px;font-weight:700;letter-spacing:2px;color:#ce1126;font-family:monospace">'+code+'</div>'+
+            '</div>'+
+            '<a href="'+link+'" style="display:inline-block;background:#15803d;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:10px">Ouvrir la saisie →</a>'+
+            '<p style="margin:16px 0 0;font-size:12px;color:#9aa4b2">Conservez ce code confidentiel. En cas d\'erreur dans vos congés, contactez le comité planning.</p>'+
+          '</div>'+
+        '</div>'+
+        '<div style="text-align:center;font-size:11px;color:#9aa4b2;margin-top:14px">Le Comité Planning CHPG Monaco</div>'+
+      '</div>'+
+      '</div>';
+
+    const bodyText =
+      'Bonjour '+nom+',\n\n'+
+      'Vos congés posés au staff '+indYear+' :\n'+
+      'Vacances ('+nbVAC+' j) :\n'+(vacText||'  Aucune\n')+
+      'Formations ('+nbFORM+' j) : '+(formKeys.map(fmtJour).join(', ')||'Aucune')+'\n\n'+
+      'Saisie des indisponibilités ouverte. Code : '+code+'\n'+
+      'Lien : '+link+'\n\n'+
+      'Conservez ce code confidentiel.\nLe Comité Planning CHPG Monaco';
+
+    try {
+      MailApp.sendEmail({
+        to: email,
+        subject: '[Planning CHPG Monaco '+indYear+'] Vos congés + ouverture des indispos',
+        htmlBody: html,
+        body: bodyText,
+      });
+      sent++;
+    } catch(err) {
+      errors.push(nom+' : '+err.message);
+    }
+  }
+
+  logAction('sendCodesWithRecap '+indYear+' — '+sent+' emails, '+skipped+' sans email, '+errors.length+' erreur(s)');
+  return ContentService.createTextOutput(JSON.stringify({success:true, sent, skipped, errors}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+if (action === 'setDailyStatus') {
+      if (user.role !== 'admin') return _deny();
+      const year   = Number(payload.year) || TEST_YEAR;
+      const marId  = String(payload.marId || '').trim().toUpperCase();
+      const statut = String(payload.statut || '').trim().toUpperCase(); // '' = effacer
+      const dates  = Array.isArray(payload.dates)
+        ? payload.dates
+        : (payload.date ? [String(payload.date)] : []);
+      if (!marId || !dates.length) return _error('marId et date(s) requis');
+
+      const ALLOWED = new Set(['', 'V', 'I', 'F', 'TP', 'CL', 'A']);
+      if (!ALLOWED.has(statut)) return _error(`Statut non autorisé : ${statut}`);
+
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName(`GARDES_${year}`);
+      if (!sheet) return _error(`GARDES_${year} introuvable`);
+      const data = sheet.getDataRange().getValues();
+      const dateToCol = buildDateToCol(data, year);
+
+      let row = -1;
+      for (let r = 3; r < data.length; r++) {
+        if (String(data[r][0]).trim().toUpperCase() === marId) { row = r; break; }
+      }
+      if (row < 0) return _error(`${marId} introuvable dans GARDES_${year}`);
+
+      const GARDE_BLOCK = new Set(['G', 'G2', 'RG']); // garde + récup → échange/don
+      const applied = [], rejected = [];
+      dates.forEach(d => {
+        const col = dateToCol[d];
+        if (col === undefined) { rejected.push(`${d} (hors planning)`); return; }
+        const current = String(data[row][col] || '').trim().toUpperCase();
+        if (GARDE_BLOCK.has(current)) { rejected.push(`${d} (${current} → échange/don)`); return; }
+        sheet.getRange(row + 1, col + 1).setValue(statut);
+        applied.push(d);
+      });
+
+      if (applied.length) {
+        try {
+          const indMap = {'':'', 'V':'VAC', 'I':'INDISPO', 'F':'FORM', 'TP':'TP', 'CL':'CL', 'A':'A'};
+          const existing = getIndisposForDoctor(marId, year);
+          applied.forEach(d => { existing[d] = indMap[statut]; });
+          saveIndisposForDoctor(marId, existing, year);
+        } catch(e) { Logger.log('Miroir INDISPOS: ' + e.message); }
+        try { generatePlanning(year); } catch(e) { Logger.log('generatePlanning: ' + e.message); }
+      }
+      logAction(`setDailyStatus — ${marId} "${statut || '∅'}" ×${applied.length}, ${rejected.length} rejeté(s)`);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, applied, rejected }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(JSON.stringify({success:false, error:'Action inconnue'}))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({success:false, error:err.message}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// ── HELPERS INTERNES ─────────────────────────────────────────────────
+function _deny() {
+  return ContentService.createTextOutput(JSON.stringify({success:false, error:'Accès refusé'}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+function _error(msg) {
+  return ContentService.createTextOutput(JSON.stringify({success:false, error:msg}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ── doPost — même logique que doGet ──────────────────────────────────
+function doPost(e) {
+  // Réutiliser doGet en reconstituant e.parameter
+  try {
+    const payload = JSON.parse(e.postData.contents);
+    return doGet({parameter: {payload: JSON.stringify(payload)}});
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({success:false, error:err.message}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+function testNotifierConflits() {
+  const year = 2027;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  const medSheet = ss.getSheetByName('MEDECINS');
+  const medData = medSheet.getDataRange().getValues();
+  const actifs = [];
+  for (let r = 1; r < medData.length; r++) {
+    const id = String(medData[r][0]).trim();
+    if (!id || String(medData[r][3]).trim().toUpperCase() !== 'O') continue;
+    actifs.push({id, nom: String(medData[r][1]).trim(), email: String(medData[r][7]).trim()});
+  }
+  Logger.log('MARs actifs: ' + actifs.length);
+  
+  const indSheet = ss.getSheetByName('INDISPOS_' + year);
+  if (!indSheet) { Logger.log('INDISPOS_' + year + ' introuvable'); return; }
+  const indData = indSheet.getDataRange().getValues();
+  Logger.log('INDISPOS lignes: ' + indData.length + ' cols: ' + indData[0].length);
+  
+  const dates = [];
+  let curY = year, curM = null;
+  const MM = {'janvier':1,'février':2,'mars':3,'avril':4,'mai':5,'juin':6,'juillet':7,'août':8,'septembre':9,'octobre':10,'novembre':11,'décembre':12};
+  for (let c = 1; c < indData[0].length; c++) {
+    const cell = indData[0][c];
+    if (cell) {
+      if (cell instanceof Date) { curY = cell.getFullYear(); curM = cell.getMonth()+1; }
+      else { const low = String(cell).toLowerCase(); const m2 = String(cell).match(/(\d{4})/); if (m2) curY = parseInt(m2[1]); Object.entries(MM).forEach(([n,v]) => { if (low.includes(n)) curM = v; }); }
+    }
+    const dn = indData[2][c];
+    dates.push((dn && curY && curM) ? curY+'-'+String(curM).padStart(2,'0')+'-'+String(Number(dn)).padStart(2,'0') : null);
+  }
+  Logger.log('Dates non-nulles: ' + dates.filter(Boolean).length);
+  
+  const vacByDoc = {};
+  for (let r = 3; r < indData.length; r++) {
+    const id = String(indData[r][0]).trim();
+    if (!id) continue;
+    vacByDoc[id] = new Set();
+    dates.forEach((date, i) => {
+      if (!date) return;
+      const val = String(indData[r][i+1]||'').trim();
+      if (val === 'VAC' || val === 'FORM') vacByDoc[id].add(date);
+    });
+  }
+  const nonVides = Object.entries(vacByDoc).filter(([k,v]) => v.size > 0);
+  Logger.log('MARs avec VAC: ' + nonVides.length);
+
+  const groupSheet = ss.getSheetByName('GROUPES_VAC');
+  const groupData = groupSheet.getDataRange().getValues();
+  const groups = {A:[],B:[],C:[]}, ordre2026 = {A:{},B:{},C:{}};
+  for (let r = 1; r < groupData.length; r++) {
+    const grp = String(groupData[r][0]).trim(), id = String(groupData[r][1]).trim(), ord = Number(groupData[r][2]);
+    if (!id || !groups[grp]) continue;
+    groups[grp].push(id); ordre2026[grp][id] = ord;
+  }
+  const offset = year - 2026;
+  function getOrd(grp) {
+    const sorted = [...groups[grp]].sort((a,b) => ordre2026[grp][a] - ordre2026[grp][b]);
+    const sh = offset % sorted.length;
+    return [...sorted.slice(sh), ...sorted.slice(0, sh)];
+  }
+  const ordA = getOrd('A'), ordB = getOrd('B'), ordC = getOrd('C');
+
+  const testDate = '2027-02-22';
+  const ORDRE_BASE = {HIVER:'CAB',PRINTEMPS:'ABC',ETE:'ABC',TOUSSAINT:'BCA',NOEL:'CAB'};
+  const base = ORDRE_BASE['HIVER'];
+  const ga = base.split(''); const gs = offset % 3;
+  const og = [...ga.slice(gs), ...ga.slice(0, gs)];
+  const ol = []; og.forEach(g => { if (g==='A') ol.push(...ordA); else if (g==='B') ol.push(...ordB); else ol.push(...ordC); });
+  const marEnVac = ol.filter(id => vacByDoc[id] && vacByDoc[id].has(testDate));
+  Logger.log('MARs en VAC le ' + testDate + ': ' + marEnVac.length);
+
+  // Tester le filtre des périodes
+  const perSheet = ss.getSheetByName('PERIODES_VAC');
+  const perData = perSheet.getDataRange().getValues();
+
+  function premierJour(y) {
+    const j = new Date(y,0,1); const d = j.getDay(); 
+    const o = d===1?7:d===0?1:8-d; 
+    const r = new Date(y,0,1+o); 
+    return r.getFullYear()+'-'+String(r.getMonth()+1).padStart(2,'0')+'-'+String(r.getDate()).padStart(2,'0');
+  }
+  const debutAnnee = premierJour(year);
+  const finAnnee = premierJour(year+1);
+  Logger.log('debutAnnee: ' + debutAnnee + ' finAnnee: ' + finAnnee);
+  
+  for (let r = 1; r < perData.length; r++) {
+    const nom = String(perData[r][0]).trim();
+    const dr = perData[r][1];
+    const debut = dr instanceof Date 
+      ? dr.getFullYear()+'-'+String(dr.getMonth()+1).padStart(2,'0')+'-'+String(dr.getDate()).padStart(2,'0') 
+      : String(dr).trim();
+    const passe = debut >= debutAnnee && debut < finAnnee;
+    Logger.log('Periode ' + nom + ' debut=' + debut + ' → ' + (passe ? '✅ incluse' : '❌ EXCLUE'));
+  }
+}
+function testSetDailyStatusWrite() {
+  const ADMIN = 'ADMINPLANNING';   // ← ton code admin (CONFIG ▸ ADMIN_CODE)
+  const payload = {
+    action: 'setDailyStatus', code: ADMIN,
+    year: 2027, marId: 'FROHLICH', statut: 'CL',
+    dates: ['2027-03-10', '2027-03-11'],
+  };
+  Logger.log(doGet({ parameter: { payload: JSON.stringify(payload) } }).getContent());
+}
