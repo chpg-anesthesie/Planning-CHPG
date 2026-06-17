@@ -2204,7 +2204,7 @@ if (action === 'setDailyStatus') {
           applied.forEach(d => { existing[d] = indMap[statut]; });
           saveIndisposForDoctor(marId, existing, year);
         } catch(e) { Logger.log('Miroir INDISPOS: ' + e.message); }
-        try { generatePlanning(year); } catch(e) { Logger.log('generatePlanning: ' + e.message); }
+        // (C3) plus d'auto-republication : déclenchée par le bouton « Publier » (action publishPlanning).
       }
       logAction(`setDailyStatus — ${marId} "${statut || '∅'}" ×${applied.length}, ${rejected.length} rejeté(s)`);
       return ContentService.createTextOutput(JSON.stringify({ success: true, applied, rejected }))
