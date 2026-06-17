@@ -1625,13 +1625,17 @@ async function loadStatuts(){
   const load=document.getElementById('statutsLoading'), wrap=document.getElementById('statutsContent');
   load.style.display='flex'; wrap.style.display='none';
   try{
-    if(!marData.length){ const d=await api({action:'getMedecins'}); if(d.success) marData=d.medecins; }
-    const g=await api({action:'getGardes', year:ADMIN_YEAR});
+    const needMeds = !marData.length;
+    const [medRes, g, jf] = await Promise.all([
+      needMeds ? api({action:'getMedecins'}) : Promise.resolve(null),
+      api({action:'getGardes', year:ADMIN_YEAR}),
+      api({action:'getJoursFeries', year:ADMIN_YEAR}),
+    ]);
+    if(needMeds && medRes && medRes.success) marData=medRes.medecins;
     if(!g.success) throw new Error(g.error||'getGardes');
     STAT.gardes=g.data||{};
     // (C3) 'I' (indispo garde) : utile seulement à la génération W2 → masqué dans l'éditeur
     Object.keys(STAT.gardes).forEach(d=>Object.keys(STAT.gardes[d]).forEach(id=>{ if(STAT.gardes[d][id]==='I') delete STAT.gardes[d][id]; }));
-    const jf=await api({action:'getJoursFeries', year:ADMIN_YEAR});
     STAT.feries=new Set((jf&&jf.success&&jf.joursFeries)||[]);
     STAT.year=ADMIN_YEAR; STAT.days=statBuildDays(ADMIN_YEAR);
     STAT.selected.clear(); STAT.plageMode=false; STAT.plageStart=null;
@@ -1800,10 +1804,15 @@ async function statApply(statut){
   try{
     const r=await api({action:'setDailyStatus', year:STAT.year, marId:STAT.marId, statut, dates});
     if(!r.success) throw new Error(r.error||'setDailyStatus');
-    const ap=(r.applied||[]).length, rej=(r.rejected||[]).length;
-    toast(`${lib} : ${ap} jour(s)${rej?`, ${rej} refusé(s) (garde)`:''}`);
+    const applied=r.applied||[], rej=(r.rejected||[]).length;
+    applied.forEach(d=>{                       // MAJ locale → pas de rechargement lent
+      if(!STAT.gardes[d]) STAT.gardes[d]={};
+      if(statut==='') delete STAT.gardes[d][STAT.marId];
+      else STAT.gardes[d][STAT.marId]=statut;
+    });
+    toast(`${lib} : ${applied.length} jour(s)${rej?`, ${rej} refusé(s) (garde)`:''} · planning republié`);
     STAT.selected.clear();
-    await loadStatuts();
+    renderStatuts();
   }catch(e){ toast('Erreur : '+e.message, 'error'); }
 }
 
