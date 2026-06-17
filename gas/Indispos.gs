@@ -728,28 +728,24 @@ try {
 
     if (action === 'getGardes') {
       if (user.role !== 'admin') return _deny();
+      const gYear = Number(payload.year) || TEST_YEAR;              // (C3) année paramétrable
       const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const sheet = ss.getSheetByName(`GARDES_${TEST_YEAR}`);
-      if (!sheet) return _error(`Onglet GARDES_${TEST_YEAR} introuvable`);
+      const sheet = ss.getSheetByName(`GARDES_${gYear}`);
+      if (!sheet) return _error(`Onglet GARDES_${gYear} introuvable`);
       const data = sheet.getDataRange().getValues();
-      const allDates = [];
-      const dt = new Date(TEST_YEAR, 0, 1, 12, 0, 0);
-      while (dt.getFullYear() === TEST_YEAR) {
-        allDates.push(`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'00')}-${String(dt.getDate()).padStart(2,'00')}`);
-        dt.setDate(dt.getDate() + 1);
-      }
+      const dateToCol = buildDateToCol(data, gYear);                // (C3) ancré 1er lundi → fin du décalage + queue janvier N+1
       const result = {};
       for (let r = 3; r < data.length; r++) {
         const id = String(data[r][0]).trim();
         if (!id) continue;
-        allDates.forEach((date, i) => {
-          const val = String(data[r][i+1]||'').trim();
+        Object.keys(dateToCol).forEach(date => {
+          const val = String(data[r][dateToCol[date]] || '').trim();
           if (!val) return;
           if (!result[date]) result[date] = {};
           result[date][id] = val;
         });
       }
-      return ContentService.createTextOutput(JSON.stringify({success:true, data:result}))
+      return ContentService.createTextOutput(JSON.stringify({success:true, data:result, year:gYear}))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -2169,7 +2165,7 @@ if (action === 'setDailyStatus') {
         : (payload.date ? [String(payload.date)] : []);
       if (!marId || !dates.length) return _error('marId et date(s) requis');
 
-      const ALLOWED = new Set(['', 'V', 'I', 'F', 'TP', 'CL', 'A']);
+      const ALLOWED = new Set(['', 'V', 'I', 'F', 'TP', 'CL', 'A', '18']);
       if (!ALLOWED.has(statut)) return _error(`Statut non autorisé : ${statut}`);
 
       const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -2197,7 +2193,7 @@ if (action === 'setDailyStatus') {
 
       if (applied.length) {
         try {
-          const indMap = {'':'', 'V':'VAC', 'I':'INDISPO', 'F':'FORM', 'TP':'TP', 'CL':'CL', 'A':'A'};
+          const indMap = {'':'', 'V':'VAC', 'I':'INDISPO', 'F':'FORM', 'TP':'TP', 'CL':'CL', 'A':'A', '18':'INDISPO'};
           const existing = getIndisposForDoctor(marId, year);
           applied.forEach(d => { existing[d] = indMap[statut]; });
           saveIndisposForDoctor(marId, existing, year);
