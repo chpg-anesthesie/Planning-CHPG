@@ -1003,6 +1003,7 @@ if (sessionStorage.getItem('adminCode')) {
   <button class="nav-tab" onclick="showTab('equipe')" id="tab-equipe">👥 Équipe</button>
   <button class="nav-tab" onclick="showTab('affectations')" id="tab-affectations">📋 Affectations <span id="affPendingDot" style="display:none;width:6px;height:6px;background:#F59E0B;border-radius:50%;display:inline-block;margin-left:4px;vertical-align:middle"></span></button>
   <button class="nav-tab" onclick="showTab('equite')" id="tab-equite">📊 Équité</button>
+  <button class="nav-tab" onclick="showTab('statuts')" id="tab-statuts">✏️ Statuts</button>
 </div>
 
 <!-- MAIN -->
@@ -1275,6 +1276,69 @@ if (sessionStorage.getItem('adminCode')) {
   <!-- ── INDISPOS ── -->
 
   <!-- ── DIAGNOSTIC ── -->
+
+  <!-- ── STATUTS JOURNALIERS (C3) ── -->
+  <style>
+  /* ══ Éditeur de statuts journaliers (C3) ══ */
+  #panel-statuts .stat-head{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+  #panel-statuts .stat-title{font-size:15px;font-weight:700;color:var(--ink,#1E293B)}
+  #panel-statuts .stat-sub{font-size:12px;color:var(--ink-4,#94A3B8);margin-top:2px}
+  /* bascule de vue */
+  .seg{display:inline-flex;background:var(--line-light,#F1F5F9);border-radius:9px;padding:3px;gap:2px}
+  .seg-btn{border:0;background:transparent;font:inherit;font-size:13px;font-weight:600;color:var(--ink-3,#64748B);padding:6px 14px;border-radius:7px;cursor:pointer}
+  .seg-btn.active{background:#fff;color:var(--ink,#1E293B);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  /* barre MAR + mois */
+  .stat-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .stat-sel{flex:1;min-width:180px;font:inherit;font-size:14px;padding:9px 12px;border:1px solid var(--line,#E2E8F0);border-radius:9px;background:#fff;color:var(--ink,#1E293B)}
+  .month-nav{display:inline-flex;align-items:center;gap:6px}
+  .month-nav button{width:34px;height:34px;border:1px solid var(--line,#E2E8F0);background:#fff;border-radius:9px;font-size:18px;line-height:1;cursor:pointer;color:var(--ink-2,#334155)}
+  .month-nav button:disabled{opacity:.35;cursor:default}
+  .month-nav span{min-width:128px;text-align:center;font-size:14px;font-weight:700;color:var(--ink,#1E293B)}
+  /* calendrier mois */
+  .stat-cal{margin-bottom:16px}
+  .stat-wd,.stat-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .stat-wd{margin-bottom:6px}
+  .stat-wd>div{text-align:center;font-size:11px;font-weight:700;color:var(--ink-4,#94A3B8)}
+  .stat-cell{position:relative;aspect-ratio:1/1;border:1.5px solid var(--cbd,#E5E9F0);background:var(--cbg,#fff);color:var(--cfg,#334155);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;user-select:none;transition:transform .05s}
+  .stat-cell:active{transform:scale(.94)}
+  .stat-cell.empty{border:0;background:transparent;cursor:default}
+  .stat-cell.we{box-shadow:inset 0 0 0 100px rgba(148,163,184,.06)}
+  .stat-cell.lock{cursor:not-allowed;opacity:.92}
+  .stat-cell.lock::after{content:"🔒";position:absolute;top:3px;right:5px;font-size:9px;opacity:.7}
+  .stat-cell.sel{outline:3px solid var(--blue,#2563EB);outline-offset:-1px;border-color:var(--blue,#2563EB)}
+  .sc-day{font-size:14px;font-weight:700;line-height:1}
+  .sc-code{font-size:10px;font-weight:700;letter-spacing:.3px;margin-top:2px;min-height:11px}
+  .stat-empty{padding:24px;text-align:center;color:var(--ink-4,#94A3B8);font-size:13px}
+  /* barre d'actions */
+  .stat-actions{border-top:1px solid var(--line,#E2E8F0);padding-top:14px;display:flex;flex-direction:column;gap:12px}
+  .stat-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .stat-plage,.stat-clear{font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:9px;border:1px solid var(--line,#E2E8F0);background:#fff;color:var(--ink-2,#334155);cursor:pointer}
+  .stat-plage.on{background:var(--blue,#2563EB);border-color:var(--blue,#2563EB);color:#fff}
+  .stat-count{font-size:13px;font-weight:600;color:var(--ink-3,#64748B);margin-left:auto}
+  .stat-statbtns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .stat-statbtns.disabled{opacity:.4;pointer-events:none}
+  .stat-applylabel{font-size:13px;font-weight:700;color:var(--ink,#1E293B);margin-right:2px}
+  .stat-st-btn{font:inherit;font-size:13px;font-weight:700;padding:9px 14px;border-radius:9px;cursor:pointer;border:1.5px solid var(--cbd,#E5E9F0);background:var(--cbg,#fff);color:var(--cfg,#334155)}
+  .stat-st-btn:active{transform:scale(.96)}
+  .stat-st-btn.erase{border:1.5px dashed #CBD5E1;background:#fff;color:var(--ink-3,#64748B)}
+  /* vue année (grille type GSheet) */
+  .sa-hint{font-size:12px;color:var(--ink-4,#94A3B8);margin-bottom:8px}
+  .sa-wrap{overflow:auto;border:1px solid var(--line,#E2E8F0);border-radius:10px;max-height:72vh;-webkit-overflow-scrolling:touch}
+  .sa-table{border-collapse:separate;border-spacing:0;font-size:10px}
+  .sa-table th,.sa-table td{border-right:1px solid #EEF1F5;border-bottom:1px solid #EEF1F5;text-align:center;white-space:nowrap}
+  .sa-month{position:sticky;top:0;z-index:3;background:#F8FAFC;font-weight:700;color:var(--ink-2,#334155);padding:4px 0;border-bottom:1px solid var(--line,#E2E8F0)}
+  .sa-day{position:sticky;top:23px;z-index:3;background:#fff;color:var(--ink-4,#94A3B8);font-weight:600;width:20px;min-width:20px;padding:3px 0}
+  .sa-day.we{background:#F1F5F9}
+  .sa-name{position:sticky;left:0;z-index:2;background:#fff;font-weight:700;color:var(--ink,#1E293B);padding:0 8px;text-align:left;min-width:62px;cursor:pointer;border-right:1px solid var(--line,#E2E8F0)}
+  .sa-corner{z-index:4}
+  .sa-cell{width:20px;min-width:20px;height:20px;font-weight:700;cursor:pointer}
+  .sa-cell.we{box-shadow:inset 0 0 0 100px rgba(148,163,184,.05)}
+  .sa-cell:active{outline:2px solid var(--blue,#2563EB)}
+  </style>
+  <div class="tab-panel" id="panel-statuts">
+    <div id="statutsLoading" class="loading" style="display:none"><div class="spinner"></div> Chargement…</div>
+    <div id="statutsContent" style="display:none"></div>
+  </div>
 <!-- /main -->
 
 <!-- PANNEAU MODIFICATION -->
@@ -1504,6 +1568,199 @@ function showTab(name) {
   if (name==='affectations') loadAffectations(ADMIN_YEAR);
   if (name==='equipe') loadEquipe();
   if (name==='equite') { loadStats(ADMIN_YEAR); loadVacancesValidation(); }
+  if (name==='statuts') loadStatuts();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ══ ÉDITEUR DE STATUTS JOURNALIERS (C3) ══════════════════════════════
+const STAT = {
+  view: 'mar', gardes: {}, days: [], marId: null, monthKey: null,
+  selected: new Set(), plageMode: false, plageStart: null, year: null,
+};
+const STAT_LOCK = new Set(['G','G2','RG']); // gardes → verrouillées
+const STAT_META = {
+  '':   {label:'Présent',        bg:'#FFFFFF', fg:'#94A3B8', bd:'#E5E9F0'},
+  'V':  {label:'Vacances',       bg:'#EEF4FB', fg:'#1D6FB8', bd:'#CFE0F2'},
+  'I':  {label:'Indispo garde',  bg:'#F1F1F3', fg:'#5F6368', bd:'#DADCE0'},
+  'F':  {label:'Formation',      bg:'#FDF3E3', fg:'#B45309', bd:'#F2D98A'},
+  'TP': {label:'Temps partiel',  bg:'#FEF3C7', fg:'#92400E', bd:'#FDE68A'},
+  'CL': {label:'Congé long',     bg:'#F3E8FF', fg:'#7C3AED', bd:'#E9D5FF'},
+  'A':  {label:'Absent (cycle)', bg:'#F8FAFC', fg:'#94A3B8', bd:'#E5E9F0'},
+  'G':  {label:'Garde REA',      bg:'#1E293B', fg:'#FFFFFF', bd:'#1E293B'},
+  'G2': {label:'Garde MAT',      bg:'#334155', fg:'#FFFFFF', bd:'#334155'},
+  'RG': {label:'Sortie garde',   bg:'#FFF7ED', fg:'#C2410C', bd:'#FED7AA'},
+  '18': {label:'8h–18h',         bg:'#F0FDF4', fg:'#166534', bd:'#BBF7D0'},
+  'R':  {label:'Récup',          bg:'#DCFCE7', fg:'#166534', bd:'#BBF7D0'},
+};
+const STAT_POSABLES = ['V','I','F','TP','CL'];
+const MOIS_FR = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const MOIS_AB = ['','Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+function statMeta(code){ return STAT_META[code] || {label:code, bg:'#FFFFFF', fg:'#334155', bd:'#E5E9F0'}; }
+function statCode(id,date){ return (STAT.gardes[date]||{})[id] || ''; }
+
+function statFirstMonday(y){ const j=new Date(y,0,1),d=j.getDay(),o=d===1?7:d===0?1:8-d; return new Date(y,0,1+o); }
+function statBuildDays(year){
+  const start=statFirstMonday(year), end=statFirstMonday(year+1); end.setDate(end.getDate()-1);
+  const days=[], d=new Date(start);
+  while(d<=end){ const m=d.getMonth()+1, day=d.getDate();
+    days.push({date:`${d.getFullYear()}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`, dow:d.getDay(), month:m, day, year:d.getFullYear()});
+    d.setDate(d.getDate()+1); }
+  return days;
+}
+function statMonthKeys(){ return [...new Set(STAT.days.map(d=>`${d.year}-${String(d.month).padStart(2,'0')}`))]; }
+function statKeyOf(d){ return `${d.year}-${String(d.month).padStart(2,'0')}`; }
+
+async function loadStatuts(){
+  const load=document.getElementById('statutsLoading'), wrap=document.getElementById('statutsContent');
+  load.style.display='flex'; wrap.style.display='none';
+  try{
+    if(!marData.length){ const d=await api({action:'getMedecins'}); if(d.success) marData=d.medecins; }
+    const g=await api({action:'getGardes', year:ADMIN_YEAR});
+    if(!g.success) throw new Error(g.error||'getGardes');
+    STAT.gardes=g.data||{}; STAT.year=ADMIN_YEAR; STAT.days=statBuildDays(ADMIN_YEAR);
+    STAT.selected.clear(); STAT.plageMode=false; STAT.plageStart=null;
+    const actifs=marData.filter(m=>m.actif);
+    if(!STAT.marId || !actifs.find(m=>m.id===STAT.marId)) STAT.marId = actifs.length?actifs[0].id:null;
+    const keys=statMonthKeys();
+    if(!STAT.monthKey || !keys.includes(STAT.monthKey)) STAT.monthKey = keys[0];
+    renderStatuts();
+  }catch(e){ toast('Erreur statuts : '+e.message, 'error'); }
+  finally{ load.style.display='none'; wrap.style.display='block'; }
+}
+
+function renderStatuts(){
+  const ro=ADMIN_YEAR_READONLY;
+  let h=`<div class="stat-head">
+    <div><div class="stat-title">✏️ Statuts journaliers · ${STAT.year}</div>
+      <div class="stat-sub">${ro?'🔒 Année archivée — lecture seule':'Éditez vacances, indispos, formations… sans passer par le tableur.'}</div></div>
+    <div class="seg">
+      <button class="seg-btn ${STAT.view==='mar'?'active':''}" onclick="statSetView('mar')">Vue MAR</button>
+      <button class="seg-btn ${STAT.view==='annee'?'active':''}" onclick="statSetView('annee')">Vue Année</button>
+    </div></div>`;
+  h += STAT.view==='mar' ? renderStatMar(ro) : renderStatAnnee(ro);
+  document.getElementById('statutsContent').innerHTML=h;
+  if(window.lucide) lucide.createIcons();
+}
+
+function renderStatMar(ro){
+  const actifs=marData.filter(m=>m.actif);
+  const [yy,mm]=STAT.monthKey.split('-').map(Number);
+  const monthDays=STAT.days.filter(d=>d.year===yy && d.month===mm);
+  const keys=statMonthKeys(), idx=keys.indexOf(STAT.monthKey);
+  let h=`<div class="stat-bar">
+    <select class="stat-sel" onchange="statSetMar(this.value)">
+      ${actifs.map(m=>`<option value="${m.id}" ${m.id===STAT.marId?'selected':''}>${m.id} — ${m.nom}</option>`).join('')}
+    </select>
+    <div class="month-nav">
+      <button onclick="statMonthStep(-1)" ${idx<=0?'disabled':''}>‹</button>
+      <span>${MOIS_FR[mm]} ${yy}</span>
+      <button onclick="statMonthStep(1)" ${idx>=keys.length-1?'disabled':''}>›</button>
+    </div></div>`;
+  h += renderStatCalendar(monthDays, ro);
+  if(!ro) h += renderStatActions();
+  return h;
+}
+
+function renderStatCalendar(monthDays, ro){
+  if(!monthDays.length) return '<div class="stat-empty">Aucun jour ce mois.</div>';
+  const col=d=>(d.dow+6)%7;
+  let cells='';
+  for(let i=0;i<col(monthDays[0]);i++) cells+='<div class="stat-cell empty"></div>';
+  monthDays.forEach(d=>{
+    const code=statCode(STAT.marId,d.date), lock=STAT_LOCK.has(code), sel=STAT.selected.has(d.date);
+    const m=statMeta(code), we=d.dow===0||d.dow===6;
+    cells+=`<div class="stat-cell${lock?' lock':''}${sel?' sel':''}${we?' we':''}"
+      ${(!ro&&!lock)?`onclick="statSelectDay('${d.date}')"`:''}
+      title="${m.label}${lock?' — passez par échange/don':''}"
+      style="--cbg:${m.bg};--cfg:${m.fg};--cbd:${m.bd}">
+      <span class="sc-day">${d.day}</span><span class="sc-code">${code}</span></div>`;
+  });
+  return `<div class="stat-cal"><div class="stat-wd">${['L','M','M','J','V','S','D'].map(w=>`<div>${w}</div>`).join('')}</div>
+    <div class="stat-grid">${cells}</div></div>`;
+}
+
+function renderStatActions(){
+  const n=STAT.selected.size;
+  const btn=st=>`<button class="stat-st-btn" onclick="statApply('${st}')" style="--cbg:${statMeta(st).bg};--cfg:${statMeta(st).fg};--cbd:${statMeta(st).bd}">${statMeta(st).label}</button>`;
+  const plageLbl = STAT.plageMode ? (STAT.plageStart?'Tap fin de plage…':'Tap début de plage…') : '↔ Plage';
+  return `<div class="stat-actions" id="statApplyBar">
+    <div class="stat-tools">
+      <button class="stat-plage${STAT.plageMode?' on':''}" onclick="statTogglePlage()">${plageLbl}</button>
+      <button class="stat-clear" onclick="statClearSel()">Vider la sélection</button>
+      <span class="stat-count">${n} jour${n>1?'s':''} sélectionné${n>1?'s':''}</span>
+    </div>
+    <div class="stat-statbtns${n?'':' disabled'}">
+      <span class="stat-applylabel">Appliquer :</span>
+      ${STAT_POSABLES.map(btn).join('')}
+      <button class="stat-st-btn erase" onclick="statApply('')">Effacer statut</button>
+    </div></div>`;
+}
+
+function renderStatAnnee(ro){
+  const actifs=marData.filter(m=>m.actif);
+  let band='<tr><th class="sa-name sa-corner"></th>', drow='<tr><th class="sa-name">MAR</th>';
+  let i=0;
+  while(i<STAT.days.length){
+    const mo=STAT.days[i].month, yr=STAT.days[i].year; let span=0;
+    while(i+span<STAT.days.length && STAT.days[i+span].month===mo && STAT.days[i+span].year===yr) span++;
+    band+=`<th class="sa-month" colspan="${span}">${MOIS_AB[mo]}${yr!==STAT.year?' '+yr:''}</th>`; i+=span;
+  }
+  band+='</tr>';
+  STAT.days.forEach(d=>{ const we=d.dow===0||d.dow===6; drow+=`<th class="sa-day${we?' we':''}">${d.day}</th>`; });
+  drow+='</tr>';
+  const body=actifs.map(m=>{
+    let row=`<tr><td class="sa-name" onclick="statJumpMar('${m.id}')">${m.id}</td>`;
+    STAT.days.forEach(d=>{
+      const code=statCode(m.id,d.date), we=d.dow===0||d.dow===6, meta=statMeta(code);
+      row+=`<td class="sa-cell${we?' we':''}" title="${m.id} · ${d.date} · ${meta.label}"
+        onclick="statJumpCell('${m.id}','${d.date}')"
+        style="background:${code?meta.bg:(we?'#F8FAFC':'#fff')};color:${meta.fg}">${code}</td>`;
+    });
+    return row+'</tr>';
+  }).join('');
+  return `<div class="sa-hint">Tap une case → édition de ce MAR · tap un nom → vue MAR</div>
+    <div class="sa-wrap"><table class="sa-table"><thead>${band}${drow}</thead><tbody>${body}</tbody></table></div>`;
+}
+
+// ── interactions ──
+function statSetView(v){ STAT.view=v; STAT.plageMode=false; STAT.plageStart=null; renderStatuts(); }
+function statSetMar(id){ STAT.marId=id; STAT.selected.clear(); STAT.plageMode=false; STAT.plageStart=null; renderStatuts(); }
+function statMonthStep(n){ const k=statMonthKeys(), i=k.indexOf(STAT.monthKey)+n; if(i<0||i>=k.length) return; STAT.monthKey=k[i]; renderStatuts(); }
+function statTogglePlage(){ STAT.plageMode=!STAT.plageMode; STAT.plageStart=null; renderStatuts(); }
+function statClearSel(){ STAT.selected.clear(); STAT.plageMode=false; STAT.plageStart=null; renderStatuts(); }
+function statJumpMar(id){ STAT.view='mar'; STAT.marId=id; STAT.selected.clear(); renderStatuts(); }
+function statJumpCell(id,date){
+  STAT.view='mar'; STAT.marId=id; STAT.monthKey=date.slice(0,7); STAT.selected.clear();
+  if(!STAT_LOCK.has(statCode(id,date))) STAT.selected.add(date);
+  renderStatuts();
+}
+function statSelectDay(date){
+  if(STAT.plageMode){
+    if(!STAT.plageStart){ STAT.plageStart=date; STAT.selected.clear(); STAT.selected.add(date); }
+    else{
+      const [a,b]=[STAT.plageStart,date].sort();
+      STAT.selected.clear();
+      STAT.days.forEach(d=>{ if(d.date>=a&&d.date<=b && !STAT_LOCK.has(statCode(STAT.marId,d.date))) STAT.selected.add(d.date); });
+      STAT.plageStart=null; STAT.plageMode=false;
+    }
+  } else { if(STAT.selected.has(date)) STAT.selected.delete(date); else STAT.selected.add(date); }
+  renderStatuts();
+}
+async function statApply(statut){
+  if(ADMIN_YEAR_READONLY){ toast('Année archivée — lecture seule', 'error'); return; }
+  if(!STAT.marId){ toast('Sélectionnez un MAR', 'error'); return; }
+  const dates=[...STAT.selected];
+  if(!dates.length){ toast('Sélectionnez au moins un jour', 'error'); return; }
+  const lib=statut?statMeta(statut).label:'Effacement';
+  try{
+    const r=await api({action:'setDailyStatus', year:STAT.year, marId:STAT.marId, statut, dates});
+    if(!r.success) throw new Error(r.error||'setDailyStatus');
+    const ap=(r.applied||[]).length, rej=(r.rejected||[]).length;
+    toast(`${lib} : ${ap} jour(s)${rej?`, ${rej} refusé(s) (garde)`:''}`);
+    STAT.selected.clear();
+    await loadStatuts();
+  }catch(e){ toast('Erreur : '+e.message, 'error'); }
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────
