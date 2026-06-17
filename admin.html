@@ -1323,6 +1323,11 @@ if (sessionStorage.getItem('adminCode')) {
   .stat-st-btn.erase{border:1.5px dashed #CBD5E1;background:#fff;color:var(--ink-3,#64748B)}
   /* vue année (grille type GSheet) */
   .sa-hint{font-size:12px;color:var(--ink-4,#94A3B8);margin-bottom:8px}
+  .sa-alert{background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#991B1B}
+  .sa-alert-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+  .sa-alert-day{background:#fff;border:1px solid #FCA5A5;border-radius:7px;padding:2px 7px;font-weight:700;font-size:11px;white-space:nowrap}
+  .sa-ok{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12px;color:#166534;font-weight:600}
+  .sa-day.miss{background:#FEE2E2;color:#B91C1C;font-weight:800;box-shadow:inset 0 -2px 0 #DC2626}
   .sa-wrap{overflow:auto;border:1px solid var(--line,#E2E8F0);border-radius:10px;max-height:72vh;-webkit-overflow-scrolling:touch}
   .sa-table{border-collapse:separate;border-spacing:0;font-size:10px}
   .sa-table th,.sa-table td{border-right:1px solid #EEF1F5;border-bottom:1px solid #EEF1F5;text-align:center;white-space:nowrap}
@@ -1576,6 +1581,7 @@ function showTab(name) {
 const STAT = {
   view: 'mar', gardes: {}, days: [], marId: null, monthKey: null,
   selected: new Set(), plageMode: false, plageStart: null, year: null,
+  feries: new Set(),
 };
 const STAT_LOCK = new Set(['G','G2','RG']); // gardes → verrouillées
 const STAT_META = {
@@ -1592,7 +1598,7 @@ const STAT_META = {
   '18': {label:'8h–18h',         bg:'#F0FDF4', fg:'#166534', bd:'#BBF7D0'},
   'R':  {label:'Récup',          bg:'#DCFCE7', fg:'#166534', bd:'#BBF7D0'},
 };
-const STAT_POSABLES = ['V','I','F','TP','CL'];
+const STAT_POSABLES = ['V','F','TP','CL','18'];
 const MOIS_FR = ['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const MOIS_AB = ['','Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
@@ -1618,7 +1624,12 @@ async function loadStatuts(){
     if(!marData.length){ const d=await api({action:'getMedecins'}); if(d.success) marData=d.medecins; }
     const g=await api({action:'getGardes', year:ADMIN_YEAR});
     if(!g.success) throw new Error(g.error||'getGardes');
-    STAT.gardes=g.data||{}; STAT.year=ADMIN_YEAR; STAT.days=statBuildDays(ADMIN_YEAR);
+    STAT.gardes=g.data||{};
+    // (C3) 'I' (indispo garde) : utile seulement à la génération W2 → masqué dans l'éditeur
+    Object.keys(STAT.gardes).forEach(d=>Object.keys(STAT.gardes[d]).forEach(id=>{ if(STAT.gardes[d][id]==='I') delete STAT.gardes[d][id]; }));
+    const jf=await api({action:'getJoursFeries', year:ADMIN_YEAR});
+    STAT.feries=new Set((jf&&jf.success&&jf.joursFeries)||[]);
+    STAT.year=ADMIN_YEAR; STAT.days=statBuildDays(ADMIN_YEAR);
     STAT.selected.clear(); STAT.plageMode=false; STAT.plageStart=null;
     const actifs=marData.filter(m=>m.actif);
     if(!STAT.marId || !actifs.find(m=>m.id===STAT.marId)) STAT.marId = actifs.length?actifs[0].id:null;
@@ -1696,9 +1707,22 @@ function renderStatActions(){
       <button class="stat-st-btn erase" onclick="statApply('')">Effacer statut</button>
     </div></div>`;
 }
-
+function statCoverage(){
+  const issues={};
+  STAT.days.forEach(d=>{
+    const codes=Object.values(STAT.gardes[d.date]||{});
+    const miss=[];
+    if(!codes.includes('G'))  miss.push('G');
+    if(!codes.includes('G2')) miss.push('G2');
+    const ouvre = d.dow>=1 && d.dow<=5 && !STAT.feries.has(d.date);
+    if(ouvre && !codes.includes('18')) miss.push('18');
+    if(miss.length) issues[d.date]=miss;
+  });
+  return issues;
+}
 function renderStatAnnee(ro){
   const actifs=marData.filter(m=>m.actif);
+  const issues=statCoverage();
   let band='<tr><th class="sa-name sa-corner"></th>', drow='<tr><th class="sa-name">MAR</th>';
   let i=0;
   while(i<STAT.days.length){
@@ -1707,7 +1731,7 @@ function renderStatAnnee(ro){
     band+=`<th class="sa-month" colspan="${span}">${MOIS_AB[mo]}${yr!==STAT.year?' '+yr:''}</th>`; i+=span;
   }
   band+='</tr>';
-  STAT.days.forEach(d=>{ const we=d.dow===0||d.dow===6; drow+=`<th class="sa-day${we?' we':''}">${d.day}</th>`; });
+  STAT.days.forEach(d=>{ const we=d.dow===0||d.dow===6; const bad=issues[d.date]; drow+=`<th class="sa-day${we?' we':''}${bad?' miss':''}"${bad?` title="Manque : ${bad.join(', ')}"`:''}>${d.day}</th>`; });
   drow+='</tr>';
   const body=actifs.map(m=>{
     let row=`<tr><td class="sa-name" onclick="statJumpMar('${m.id}')">${m.id}</td>`;
@@ -1719,7 +1743,11 @@ function renderStatAnnee(ro){
     });
     return row+'</tr>';
   }).join('');
-  return `<div class="sa-hint">Tap une case → édition de ce MAR · tap un nom → vue MAR</div>
+  const probs=Object.keys(issues).sort();
+  const banner = probs.length
+    ? `<div class="sa-alert"><strong>⚠️ ${probs.length} jour(s) à découvert</strong> — poste obligatoire manquant (G et G2 chaque jour ; 18 en jour ouvré) :<div class="sa-alert-list">${probs.map(d=>`<span class="sa-alert-day">${d.slice(8)}/${d.slice(5,7)} · ${issues[d].join(',')}</span>`).join('')}</div></div>`
+    : `<div class="sa-ok">✅ Couverture complète — un G et un G2 chaque jour, un 18 chaque jour ouvré.</div>`;
+  return `${banner}<div class="sa-hint">Tap une case → édition de ce MAR · tap un nom → vue MAR</div>
     <div class="sa-wrap"><table class="sa-table"><thead>${band}${drow}</thead><tbody>${body}</tbody></table></div>`;
 }
 
