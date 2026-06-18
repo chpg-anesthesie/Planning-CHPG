@@ -1133,7 +1133,7 @@ if (sessionStorage.getItem('adminCode')) {
             <thead><tr>
               <th>ID</th><th>Nom</th><th>Init.</th>
               <th>Quotité</th><th>% Gardes</th>
-              <th>Email</th><th>DECT</th><th>Statut</th><th>Actions</th>
+              <th>Email</th><th>DECT</th><th>Statut</th><th>Particularités</th><th>Actions</th>
             </tr></thead>
             <tbody id="equipeBody"></tbody>
           </table>
@@ -4748,6 +4748,37 @@ async function launchWizardCloture() {
         <option value="false">Inactif</option>
       </select>
     </div>
+    <div style="border-top:1px solid var(--line);margin:6px 0 14px;padding-top:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Particularités <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-4)">— optionnel, pour la génération des gardes</span></div>
+      <div class="form-grid" style="margin-bottom:14px">
+        <div class="form-field">
+          <label class="form-label">Arrivée (présent à partir du)</label>
+          <input class="form-input" id="marDateDebut" type="date"/>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Départ (présent jusqu'au)</label>
+          <input class="form-input" id="marDateFin" type="date"/>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px 16px;margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);cursor:pointer"><input type="checkbox" id="marNoGarde" style="width:16px;height:16px;flex:none"/> Ne fait pas de garde</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);cursor:pointer"><input type="checkbox" id="marOnly18" style="width:16px;height:16px;flex:none"/> Seulement 18h</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);cursor:pointer"><input type="checkbox" id="marNoWeekend" style="width:16px;height:16px;flex:none"/> Pas de week-end</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);cursor:pointer"><input type="checkbox" id="marRythme2" style="width:16px;height:16px;flex:none"/> Rythme 2 sem. / 2</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);cursor:pointer"><input type="checkbox" id="marSouhaitPlafond" style="width:16px;height:16px;flex:none"/> Plafond de souhaits prioritaire</label>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Jours de temps partiel fixes</label>
+        <div id="marTpDays" style="display:flex;gap:7px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-2);cursor:pointer;border:1px solid var(--line);border-radius:7px;padding:5px 9px"><input type="checkbox" value="LUN" style="margin:0"/> Lun</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-2);cursor:pointer;border:1px solid var(--line);border-radius:7px;padding:5px 9px"><input type="checkbox" value="MAR" style="margin:0"/> Mar</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-2);cursor:pointer;border:1px solid var(--line);border-radius:7px;padding:5px 9px"><input type="checkbox" value="MER" style="margin:0"/> Mer</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-2);cursor:pointer;border:1px solid var(--line);border-radius:7px;padding:5px 9px"><input type="checkbox" value="JEU" style="margin:0"/> Jeu</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-2);cursor:pointer;border:1px solid var(--line);border-radius:7px;padding:5px 9px"><input type="checkbox" value="VEN" style="margin:0"/> Ven</label>
+        </div>
+        <div style="font-size:11px;color:var(--ink-4);margin-top:6px">Jours où le MAR est systématiquement absent (temps partiel récurrent).</div>
+      </div>
+    </div>
     <input type="hidden" id="marCodeAcces"/>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn-secondary" onclick="closeModal('modalMAR')">Annuler</button>
@@ -4833,7 +4864,26 @@ async function loadEquipe() {
     document.getElementById('equipeContent').style.display = 'block';
   }
 }
-
+function getTpDays() {
+  return Array.from(document.querySelectorAll('#marTpDays input:checked')).map(c => c.value).join(',');
+}
+function setTpDays(str) {
+  const set = new Set(String(str || '').toUpperCase().split(/[,;\s]+/).filter(Boolean));
+  document.querySelectorAll('#marTpDays input').forEach(c => { c.checked = set.has(c.value); });
+}
+function marFlagsSummary(m) {
+  const chips = [];
+  const chip = (txt, title) => `<span class="badge badge-grey" title="${title}" style="font-size:10px">${txt}</span>`;
+  if (m.dateDebut)      chips.push(chip('▸ ' + m.dateDebut.slice(5), 'Arrivée : ' + m.dateDebut));
+  if (m.dateFin)        chips.push(chip('◂ ' + m.dateFin.slice(5),  'Départ : ' + m.dateFin));
+  if (m.noGarde)        chips.push(chip('sans garde', 'Ne fait pas de garde'));
+  if (m.only18)         chips.push(chip('18h', 'Seulement 18h'));
+  if (m.noWeekend)      chips.push(chip('sans WE', 'Pas de week-end'));
+  if (m.rythme2sur2)    chips.push(chip('2/2', 'Rythme 2 semaines sur 2'));
+  if (m.souhaitPlafond) chips.push(chip('★ souhaits', 'Plafond de souhaits prioritaire'));
+  if (m.tpJoursFixes)   chips.push(chip('TP ' + m.tpJoursFixes, 'Temps partiel fixe : ' + m.tpJoursFixes));
+  return chips.length ? chips.join(' ') : '<span style="color:var(--ink-4)">—</span>';
+}
 function renderEquipe() {
   const tbody = document.getElementById('equipeBody');
   tbody.innerHTML = marData.map(m => `
@@ -4844,11 +4894,13 @@ function renderEquipe() {
       <td>${m.quotite}%</td>
       <td>${m.pctGardes}%</td>
       <td style="color:var(--ink-3);font-size:11px">${m.email || '—'}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--ink-3)">${m.dect || '—'}</td>
       <td>
         <span class="badge ${m.actif ? 'badge-green' : 'badge-grey'}">
           ${m.actif ? 'Actif' : 'Inactif'}
         </span>
       </td>
+      <td style="max-width:240px;line-height:1.9">${marFlagsSummary(m)}</td>
       <td>
         <div style="display:flex;gap:4px">
           <button class="btn-icon" onclick="openEditMAR('${m.id}')" title="Modifier">✏️</button>
@@ -4873,6 +4925,15 @@ function openAddMAR() {
   document.getElementById('marEmail').value = '';
   document.getElementById('marActif').value = 'true';
   document.getElementById('marCodeAcces').value = '';
+  document.getElementById('marDect').value = '';
+  document.getElementById('marDateDebut').value = '';
+  document.getElementById('marDateFin').value = '';
+  document.getElementById('marNoGarde').checked = false;
+  document.getElementById('marOnly18').checked = false;
+  document.getElementById('marNoWeekend').checked = false;
+  document.getElementById('marRythme2').checked = false;
+  document.getElementById('marSouhaitPlafond').checked = false;
+  setTpDays('');
   document.getElementById('modalMAR').classList.add('open');
 }
 
@@ -4889,6 +4950,15 @@ function openEditMAR(id) {
   document.getElementById('marEmail').value = m.email || '';
   document.getElementById('marActif').value = m.actif ? 'true' : 'false';
   document.getElementById('marCodeAcces').value = m.codeAcces || '';
+  document.getElementById('marDect').value = m.dect || '';
+  document.getElementById('marDateDebut').value = m.dateDebut || '';
+  document.getElementById('marDateFin').value = m.dateFin || '';
+  document.getElementById('marNoGarde').checked = !!m.noGarde;
+  document.getElementById('marOnly18').checked = !!m.only18;
+  document.getElementById('marNoWeekend').checked = !!m.noWeekend;
+  document.getElementById('marRythme2').checked = !!m.rythme2sur2;
+  document.getElementById('marSouhaitPlafond').checked = !!m.souhaitPlafond;
+  setTpDays(m.tpJoursFixes || '');
   document.getElementById('modalMAR').classList.add('open');
 }
 
@@ -4907,6 +4977,14 @@ async function saveMAR() {
       dect:      document.getElementById('marDect').value.trim(),
       actif:     document.getElementById('marActif').value === 'true',
       codeAcces: document.getElementById('marCodeAcces').value,
+      dateDebut: document.getElementById('marDateDebut').value,
+      dateFin:   document.getElementById('marDateFin').value,
+      noGarde:        document.getElementById('marNoGarde').checked,
+      only18:         document.getElementById('marOnly18').checked,
+      noWeekend:      document.getElementById('marNoWeekend').checked,
+      rythme2sur2:    document.getElementById('marRythme2').checked,
+      souhaitPlafond: document.getElementById('marSouhaitPlafond').checked,
+      tpJoursFixes:   getTpDays(),
     };
     if (!medecin.id || !medecin.nom) { toast('ID et Nom obligatoires', 'error'); return; }
     const data = await api({action: 'saveMedecin', medecin});
