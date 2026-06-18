@@ -372,7 +372,10 @@ function toggleView(){
   document.getElementById('viewBtn').textContent=currentView==='grille'?'📊 Récap':'📅 Grille';
 }
 
+function isScolaire(date){return periodes.some(p=>date>=p.debut&&date<=p.fin);}
+
 function toggleDay(marId,date){
+  if(vacHS&&isScolaire(date)){showToast('Vacances scolaires : à saisir via le bouton VAC');return;}
   if((locked[marId]||{})[date]){
     if(!confirm('Déverrouiller le '+formatDay(date)+' pour '+marId+' ?'))return;
     locked[marId][date]=false;
@@ -450,9 +453,15 @@ function renderGrille(){
       const hasVal=val==='VAC'||val==='FORM';
       const chipCls=hasVal?(val==='VAC'?'vac':'form'):(we?'we-chip':'empty');
       const label=hasVal?val:'';
-      tbody+='<td class="gt-cell-day'+((we&&!hasVal)?' we':'')+'" onclick="toggleDay(\''+m.id+'\',\''+date+'\')">'
-        +'<div class="day-chip '+chipCls+(lck?' locked':'')+'">'+(lck?'🔒':label)+'</div>'
-        +'</td>';
+      if(vacHS&&isScolaire(date)){
+        tbody+='<td class="gt-cell-day" style="cursor:not-allowed;background:#F1F5F9" title="Vacances scolaires — à saisir via le bouton VAC">'
+          +'<div class="day-chip '+(hasVal?chipCls:'')+'" style="opacity:.5">'+(hasVal?label:'·')+'</div>'
+          +'</td>';
+      } else {
+        tbody+='<td class="gt-cell-day'+((we&&!hasVal)?' we':'')+'" onclick="toggleDay(\''+m.id+'\',\''+date+'\')">'
+          +'<div class="day-chip '+chipCls+(lck?' locked':'')+'">'+(lck?'🔒':label)+'</div>'
+          +'</td>';
+      }
     });
     tbody+='<td class="gt-cell-total">'
       +'<span class="total-badge '+(vacTot>vacQ?'over':vacTot>0?'ok':'zero')+'">VAC '+vacTot+'/'+vacQ+'</span>'
@@ -558,7 +567,7 @@ function buildRecapPrioContent() {
     const nomNorm = (p.nom||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
     const base = ORDRE_BASE_STAFF[nomNorm] || 'ABC';
     const grpArr = base.split('');
-    const grpShift = offset % 3;
+    const grpShift = (3 - (offset % 3)) % 3;
     const orderedGrps = [...grpArr.slice(grpShift), ...grpArr.slice(0, grpShift)];
     const isActive = pi === currentPeriode && currentType === 'VAC';
     const bg = isActive ? '#EFF6FF' : (pi % 2 === 0 ? '#FFFFFF' : '#F8FAFC');
@@ -633,7 +642,7 @@ function buildRecapPrioContent() {
     const nomNorm = (p.nom||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
     const base = ORDRE_BASE_STAFF[nomNorm] || 'ABC';
     const grpArr = base.split('');
-    const grpShift = offset % 3;
+    const grpShift = (3 - (offset % 3)) % 3;
     const orderedGrps = [...grpArr.slice(grpShift), ...grpArr.slice(0, grpShift)];
     const isActive = pi === currentPeriode && currentType === 'VAC';
     const bg = isActive ? '#EFF6FF' : (pi % 2 === 0 ? '#FFFFFF' : '#F8FAFC');
