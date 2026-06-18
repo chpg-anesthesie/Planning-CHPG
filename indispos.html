@@ -628,8 +628,8 @@ async function loadVacConfig() {
     if (res.success) {
       vacConfig = res;
       joursFeries = new Set(res.joursFeries || []);
-      // Afficher CTP si MAR à temps partiel (quota < 33j = quotité < 100%)
-      if (res.quotaVac < 33) {
+      // Afficher CTP si MAR à temps partiel (quota < 33j) ET TP pas déjà dans son rythme
+      if (res.quotaVac < 33 && !res.tpFixe) {
         const btnCTP = document.getElementById('btnCTP');
         if (btnCTP) btnCTP.style.display = 'inline-flex';
       }
