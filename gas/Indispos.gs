@@ -987,14 +987,23 @@ if (!affSheet) {
       const sheet = ss.getSheetByName('MEDECINS');
       if (!sheet) return _error('Onglet MEDECINS introuvable');
       const data = sheet.getDataRange().getValues();
+      const isO = v => String(v).trim().toUpperCase() === 'O';
+      const toDate = v => {
+        if (!v) return '';
+        if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        return String(v).trim();
+      };
       const medecins = [];
       for (let r = 1; r < data.length; r++) {
         if (!data[r][0]) continue;
         medecins.push({id:String(data[r][0]).trim(), nom:String(data[r][1]).trim(),
-          initiales:String(data[r][2]).trim(), actif:String(data[r][3]).trim().toUpperCase()==='O',
+          initiales:String(data[r][2]).trim(), actif:isO(data[r][3]),
           quotite:Number(data[r][4])||100, pctGardes:Number(data[r][5])||100,
           codeAcces:String(data[r][6]).trim(), email:String(data[r][7]).trim(), dect:String(data[r][8]).trim(),
-          dateDebut:String(data[r][9]||'').trim(), dateFin:String(data[r][10]||'').trim()});
+          dateDebut:toDate(data[r][9]), dateFin:toDate(data[r][10]),
+          noGarde:isO(data[r][11]), only18:isO(data[r][12]), noWeekend:isO(data[r][13]),
+          rythme2sur2:isO(data[r][14]), souhaitPlafond:isO(data[r][15]),
+          tpJoursFixes:String(data[r][16]||'').trim().toUpperCase()});
       }
       return ContentService.createTextOutput(JSON.stringify({success:true, medecins}))
         .setMimeType(ContentService.MimeType.JSON);
@@ -1004,22 +1013,48 @@ if (!affSheet) {
       if (user.role !== 'admin') return _deny();
       const m = payload.medecin;
       if (!m || !m.id) return _error('Données invalides');
+      const id = String(m.id).toUpperCase().trim();
       const ss = SpreadsheetApp.getActiveSpreadsheet();
       const sheet = ss.getSheetByName('MEDECINS');
       const data = sheet.getDataRange().getValues();
-      const row = [m.id.toUpperCase().trim(), m.nom.trim(), m.initiales.trim(),
-        m.actif?'O':'N', Number(m.quotite)||100, Number(m.pctGardes)||100,
-        m.codeAcces||'', m.email||''];
-      let found = false;
+
+      // ligne existante ? sinon valeurs par défaut
+      let rowIdx = -1, ex = [];
       for (let r = 1; r < data.length; r++) {
-        if (String(data[r][0]).trim().toUpperCase() === m.id.toUpperCase().trim()) {
-          sheet.getRange(r+1, 1, 1, row.length).setValues([row]); found = true; break;
-        }
+        if (String(data[r][0]).trim().toUpperCase() === id) { rowIdx = r; ex = data[r]; break; }
       }
-      if (!found) sheet.appendRow(row);
-      return ContentService.createTextOutput(JSON.stringify({success:true, created:!found}))
+      // fusion : valeur du formulaire si fournie, sinon on garde l'existant
+      const old = i => (ex[i] !== undefined && ex[i] !== null) ? ex[i] : '';
+      const str = (k, i) => (m[k] !== undefined && m[k] !== null) ? String(m[k]).trim() : old(i);
+      const num = (k, i, d) => (m[k] !== undefined && m[k] !== null && m[k] !== '') ? (Number(m[k]) || d) : (old(i) !== '' ? old(i) : d);
+      const yn  = (k, i) => (m[k] !== undefined) ? (m[k] ? 'O' : 'N') : (String(old(i)).trim().toUpperCase() === 'O' ? 'O' : 'N');
+
+      const row = [
+        id,                        // A id
+        str('nom', 1),             // B nom
+        str('initiales', 2),       // C initiales
+        yn('actif', 3),            // D actif
+        num('quotite', 4, 100),    // E quotité
+        num('pctGardes', 5, 100),  // F % gardes
+        str('codeAcces', 6),       // G code
+        str('email', 7),           // H email
+        str('dect', 8),            // I dect
+        str('dateDebut', 9),       // J date_debut
+        str('dateFin', 10),        // K date_fin
+        yn('noGarde', 11),         // L no_garde
+        yn('only18', 12),          // M only_18
+        yn('noWeekend', 13),       // N no_weekend
+        yn('rythme2sur2', 14),     // O rythme_2sur2
+        yn('souhaitPlafond', 15),  // P souhait_plafond
+        (m.tpJoursFixes !== undefined) ? String(m.tpJoursFixes).trim().toUpperCase() : String(old(16)).trim().toUpperCase()  // Q tp_jours_fixes
+      ];
+        }
+      if (rowIdx >= 0) sheet.getRange(rowIdx + 1, 1, 1, row.length).setValues([row]);
+      else             sheet.appendRow(row);
+
+      _medFlagsCache = null;  // invalider le cache des particularités
+      return ContentService.createTextOutput(JSON.stringify({success:true, created: rowIdx < 0}))
         .setMimeType(ContentService.MimeType.JSON);
-    }
 
     if (action === 'getAffectations') {
   if (user.role !== 'admin') return _deny();
