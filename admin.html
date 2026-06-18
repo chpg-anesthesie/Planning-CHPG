@@ -3949,7 +3949,7 @@ function renderWizStep() {
       const nomNorm = normPeriode(nom);
       const base = ORDRE_BASE[nomNorm] || 'ABC';
       const grpArr = base.split('');
-      const grpShift = offset % 3;
+      const grpShift = (3 - (offset % 3)) % 3;
       const ordered = [...grpArr.slice(grpShift), ...grpArr.slice(0, grpShift)];
       const bg = pi % 2 === 0 ? 'transparent' : 'var(--bg)';
 
