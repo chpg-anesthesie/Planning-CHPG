@@ -152,6 +152,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
   <div class="type-btns">
     <button class="tbtn vac active" id="btnVAC" onclick="setType('VAC')">📅 VAC</button>
     <button class="tbtn form" id="btnFORM" onclick="setType('FORM')">🎓 FORM</button>
+    <button class="tbtn vac" id="btnVACHS" onclick="setType('VACHS')">📆 VAC année</button>
   </div>
   <button onclick="openRecapPriorites()" style="padding:5px 12px;border:1px solid var(--line);border-radius:8px;background:white;font-size:11px;font-weight:700;cursor:pointer;color:var(--ink-2);">🏆 Priorités</button>
   <div class="view-toggle" style="margin-left:auto;">
@@ -187,7 +188,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 <script>
 const API='https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 let adminCode='',currentYear=2027,periodes=[],medecins=[],saisies={},locked={};
-let currentPeriode=0,currentType='VAC',currentView='grille',currentMonth=0;
+let currentPeriode=0,currentType='VAC',currentView='grille',currentMonth=0,vacHS=false;
 const ORDRE_BASE_STAFF={HIVER:'CAB',PRINTEMPS:'ABC',ETE:'ABC',TOUSSAINT:'BCA',NOEL:'CAB'};
 const GRP_COLORS_STAFF={A:'#3B82F6',B:'#10B981',C:'#F59E0B'};
 let groupesRef={A:[],B:[],C:[]};  // ordre de référence depuis GSheet
@@ -288,7 +289,7 @@ function tension(date,seuil){const n=countForDay(date);if(n>=seuil)return'hot';i
 
 function buildPeriodeTabs(){
   const c=document.getElementById('periodeTabs');c.innerHTML='';
-  if(currentType==='FORM'){
+  if(currentType==='FORM'||vacHS){
     // Mode FORM : onglets par mois
     const MOIS=['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
     MOIS.forEach((m,i)=>{
@@ -335,7 +336,7 @@ function setCurrentPeriode(idx){
   const base=ORDRE_BASE_STAFF[nomNorm]||'ABC';
   const off=(currentYear-2026);
   const grpArr=base.split('');
-  const grpShift=off%3;
+  const grpShift=(3-(off%3))%3; // rotation inversée : le dernier groupe devient premier
   const orderedGrps=[...grpArr.slice(grpShift),...grpArr.slice(0,grpShift)];
   const grpOrder={};
   orderedGrps.forEach((g,i)=>{grpOrder[g]=i;});
@@ -350,9 +351,11 @@ function setCurrentPeriode(idx){
 }
 
 function setType(t){
-  currentType=t;
+  vacHS=(t==='VACHS');
+  currentType=(t==='FORM')?'FORM':'VAC';
   document.getElementById('btnVAC').className='tbtn vac'+(t==='VAC'?' active':'');
   document.getElementById('btnFORM').className='tbtn form'+(t==='FORM'?' active':'');
+  document.getElementById('btnVACHS').className='tbtn vac'+(t==='VACHS'?' active':'');
   buildPeriodeTabs();
   renderCurrent();
 }
@@ -397,7 +400,7 @@ function getMonthDays(month){
 }
 
 function renderGrille(){
-  const isFormMode=currentType==='FORM';
+  const isFormMode=currentType==='FORM'||vacHS;
   const p=isFormMode?null:periodes[currentPeriode];
   const days=isFormMode?getMonthDays(currentMonth):getPeriodeDays(p);
   const seuil=isFormMode?null:p?.seuil;
