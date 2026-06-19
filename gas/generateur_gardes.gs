@@ -197,6 +197,8 @@ function generateGardes(year){
       dette[id].vd =reel[id].vd -fairV;
       dette[id].vjf=reel[id].vjf-fairVj;
     });
+    // (équité annuelle = dogme) plafond ±2 par axe : la dette nudge, ne bouleverse pas l'année
+    gardeDoctors.forEach(id=>['sam','jeu','vd','vjf'].forEach(k=>{dette[id][k]=Math.max(-2,Math.min(2,dette[id][k]));}));
   }
 
   // ── 5. Cibles proportionnelles à la quotité ──────────────────────────
@@ -207,13 +209,14 @@ function generateGardes(year){
   const nJeu=allDays.filter(d=>d.dow===4).length;
   const nVen=allDays.filter(d=>d.dow===5).length;
   const nVjf=allDays.filter(d=>d.isVjf).length;
-  const nFerie=allDays.filter(d=>d.isFerie&&d.dow>=1&&d.dow<=5).length;
+  const nFerie=allDays.filter(d=>d.isFerie&&(d.dow===2||d.dow===3)).length;       // fériés NON couplés (mar/mer) → axe férié
+  const nCoupleSam=allDays.filter(d=>d.isFerie&&(d.dow===1||d.dow===4)).length;   // jeudi/lundi fériés couplés → comptés en samedi
   const cible={};
   gardeDoctors.forEach(id=>{
     const p=pct[id]/100;
     cible[id]={
       total:(nDays*2)*p/sumPct,
-      sam:NO_WEEKEND.has(id)?0:(nSam*2)*p/sumPctWE,
+      sam:NO_WEEKEND.has(id)?0:((nSam+nCoupleSam)*2)*p/sumPctWE,
       jeu:(nJeu*2)*p/sumPct,
       vd:NO_WEEKEND.has(id)?0:(nVen*2)*p/sumPctWE,
       vjf:(nVjf*2)*p/sumPct,   // veilles de semaine : jours ouvrés → tous éligibles (PRUNET inclus)
@@ -311,7 +314,7 @@ function generateGardes(year){
       if(dow===6)cnt[id].recupR++;
       if(dayByDate[date]?.isVjf)cnt[id].vjf++;
       const _rdow=dayByDate[date]?.dow;
-      if(dayByDate[date]?.isFerie&&_rdow>=1&&_rdow<=5)cnt[id].ferie++;
+      if(dayByDate[date]?.isFerie&&(_rdow===2||_rdow===3))cnt[id].ferie++;
     });
   }
 
