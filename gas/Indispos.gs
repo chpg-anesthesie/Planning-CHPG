@@ -759,9 +759,11 @@ try {
       const cfg = getVacConfig(user.id, indYear);
       const jf = getJoursFeries(indYear);
       const jfNext = getJoursFeries(indYear + 1);
+      const _f = getMedecinFlags();
+      const tpFixe = _f.rythme2sur2.has(user.id) || !!_f.tpJoursFixes[user.id];
       return ContentService.createTextOutput(JSON.stringify({
         success: true, periodes: cfg.periodes, quotaVac: cfg.quotaVac,
-        quotaForm: cfg.quotaForm, quotaCtp: cfg.quotaCtp,
+        quotaForm: cfg.quotaForm, quotaCtp: cfg.quotaCtp, tpFixe: tpFixe,
         totalVacDoc: cfg.totalVacDoc, joursFeries: [...jf, ...jfNext],
       })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -1048,13 +1050,13 @@ if (!affSheet) {
         yn('souhaitPlafond', 15),  // P souhait_plafond
         (m.tpJoursFixes !== undefined) ? String(m.tpJoursFixes).trim().toUpperCase() : String(old(16)).trim().toUpperCase()  // Q tp_jours_fixes
       ];
-        }
       if (rowIdx >= 0) sheet.getRange(rowIdx + 1, 1, 1, row.length).setValues([row]);
       else             sheet.appendRow(row);
 
       _medFlagsCache = null;  // invalider le cache des particularités
       return ContentService.createTextOutput(JSON.stringify({success:true, created: rowIdx < 0}))
         .setMimeType(ContentService.MimeType.JSON);
+    }
 
     if (action === 'getAffectations') {
   if (user.role !== 'admin') return _deny();
