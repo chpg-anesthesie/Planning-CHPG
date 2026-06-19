@@ -810,13 +810,13 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .cs-group-label .sector-icon-svg { stroke:#fff; width:15px; height:15px; vertical-align:-2px; margin-right:6px; display:inline-block; }
 .cs-sub-name { font-size:12px; font-weight:700; color:#166534; }
 .cs-sub-row .td-sector { background:#F7FEF9; }
-.cs-apourvoir { display:inline-block; font-size:9px; font-weight:600; color:#1D4ED8; background:#EFF6FF; border:1px dashed #93C5FD; border-radius:5px; padding:1px 5px; cursor:pointer; line-height:1.4; white-space:nowrap; }
-.cs-apourvoir:hover { background:#DBEAFE; }
-.cs-ouvrir { display:inline-block; font-size:9px; font-weight:600; color:#94A3B8; background:transparent; border:1px dashed #CBD5E1; border-radius:5px; padding:1px 5px; cursor:pointer; line-height:1.4; white-space:nowrap; }
-.cs-ouvrir:hover { color:#475569; border-color:#94A3B8; }
-.cs-fermer { display:inline-block; font-size:11px; font-weight:700; color:#CBD5E1; cursor:pointer; padding:0 2px; vertical-align:middle; }
-.cs-fermer:hover { color:#EF4444; }
-.cs-fermee { display:inline-block; font-size:9px; font-weight:600; color:#94A3B8; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:5px; padding:1px 5px; line-height:1.4; white-space:nowrap; text-decoration:line-through; }
+.cs-apourvoir { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600; color:#047857; background:#ECFDF5; border:1px solid #A7F3D0; border-radius:7px; padding:3px 9px; cursor:pointer; line-height:1.3; white-space:nowrap; transition:background .12s; }
+.cs-apourvoir:hover { background:#D1FAE5; }
+.cs-ouvrir { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600; color:#64748B; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:7px; padding:3px 9px; cursor:pointer; line-height:1.3; white-space:nowrap; transition:all .12s; }
+.cs-ouvrir:hover { color:#334155; border-color:#CBD5E1; background:#F1F5F9; }
+.cs-fermer { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; font-size:13px; font-weight:700; color:#CBD5E1; cursor:pointer; border-radius:5px; vertical-align:middle; transition:all .12s; }
+.cs-fermer:hover { color:#EF4444; background:#FEF2F2; }
+.cs-fermee { display:inline-flex; align-items:center; font-size:11px; font-weight:600; color:#94A3B8; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:7px; padding:3px 9px; line-height:1.3; white-space:nowrap; text-decoration:line-through; }
 .slot-name.cs-chip.cs-mirror { background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; }
 
 /* ── SLOT FLASH (admin) ── */
@@ -2364,11 +2364,11 @@ function renderWeek() {
       return html;
     }
     for (let i = 0; i < (flash||0); i++) {
-      html += `<span class="cs-apourvoir" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')" title="Consultation à pourvoir">à pourvoir</span>`;
+      html += `<span class="cs-apourvoir" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')" title="Consultation à pourvoir — cliquer pour affecter">+ ajouter</span>`;
     }
     // Consult ouverte (session) : proposer "à pourvoir" tant qu'il reste de la place (max 2)
     if (_open && items.length < 2 && !(flash||0)) {
-      html += `<span class="cs-apourvoir" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')" title="Consultation ouverte — à pourvoir">à pourvoir</span>`;
+      html += `<span class="cs-apourvoir" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')" title="Consultation ouverte — cliquer pour affecter">+ ajouter</span>`;
     } else if (!_open && openable && !(flash||0) && items.length < 2) {
       html += `<span class="cs-ouvrir" onclick="openConsult('${type}','${date}','${slotKey}')" title="Ouvrir une 2ᵉ consultation">+ ouvrir</span>`;
     }
@@ -2636,6 +2636,29 @@ function getSectorFg(code) {
   return m[code]||'#334155';
 }
 
+// ── Compteur de consultations par MAR sur un mois (équité) ──
+// 1 consultation = 1 demi-jour CS-* ; inclut le miroir mater (mardi/jeudi matin, MAR en MAT).
+function consultCountsForMonth(ym) {
+  const counts = {};
+  if (!ym || !DATA || !DATA.months) return counts;
+  DATA.months.forEach(month => {
+    (month.days||[]).forEach((day, dayIdx) => {
+      if (!day || !day.date || day.date.slice(0,7) !== ym) return;
+      const jsDow = new Date(day.date + 'T12:00:00').getDay(); // 2=mardi, 4=jeudi
+      (month.doctors||[]).forEach(doc => {
+        const e = (doc.days && doc.days[dayIdx]) || {};
+        const amSecs = String(e.morning||'').split('+').map(x=>x.trim()).filter(Boolean);
+        const pmSecs = String(e.afternoon||'').split('+').map(x=>x.trim()).filter(Boolean);
+        let n = amSecs.filter(x=>x.startsWith('CS-')).length
+              + pmSecs.filter(x=>x.startsWith('CS-')).length;
+        if ((jsDow===2 || jsDow===4) && amSecs.includes('MAT') && !amSecs.includes('CS-MAT')) n++;
+        if (n) counts[doc.id] = (counts[doc.id]||0) + n;
+      });
+    });
+  });
+  return counts;
+}
+
 function renderSidePanelContent(dispo, sector) {
   const GROUPS = [
     {key:'VOLANT',  bg:'#DBEAFE', fg:'#1D4ED8', label:'Volants disponibles'},
@@ -2647,10 +2670,18 @@ function renderSidePanelContent(dispo, sector) {
   const byRole = {};
   dispo.forEach(m => { if (!byRole[m.role]) byRole[m.role] = []; byRole[m.role].push(m); });
 
+  // Équité consultations : compteur du mois de la date affectée
+  const _ym = ((window._sideCtx && window._sideCtx.date) || '').slice(0,7);
+  const _csCounts = consultCountsForMonth(_ym);
+  const _nMar = (marsData||[]).filter(m=>m.actif!==false && String(m.actif).toUpperCase()!=='N').length
+              || Object.keys(_csCounts).length || 1;
+  const _csAvg = Object.values(_csCounts).reduce((a,b)=>a+b,0) / _nMar;
+
   let html = '';
   GROUPS.forEach(g => {
     const mars = byRole[g.key];
     if (!mars?.length) return;
+    mars.sort((a,b)=>((_csCounts[a.id]||0)-(_csCounts[b.id]||0)) || String(a.id).localeCompare(String(b.id)));
     html += `<div style="margin-bottom:16px;">
       <div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">${g.label}</div>
       <div style="display:flex;flex-direction:column;gap:5px;">`;
@@ -2664,6 +2695,7 @@ function renderSidePanelContent(dispo, sector) {
           <div style="font-size:12px;font-weight:700;color:var(--ink);">${m.id}</div>
           <div style="font-size:10px;color:var(--ink-4);margin-top:1px;">${m.secteur}</div>
         </div>
+        ${(()=>{const c=_csCounts[m.id]||0;const hi=c>_csAvg;return `<span title="${c} consultation(s) ce mois-ci" style="font-size:11px;font-weight:700;background:${hi?'#FEF3C7':'#DCFCE7'};color:${hi?'#92400E':'#166534'};padding:3px 8px;border-radius:20px;flex-shrink:0;">${c} cs</span>`;})()}
         <span style="font-size:13px;color:#CBD5E1;">→</span>
       </button>`;
     });
