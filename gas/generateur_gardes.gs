@@ -137,7 +137,8 @@ function generateGardes(year){
     const lend=addOneDay(ds), ferieLend=jf.has(lend)||jfn.has(lend);
     // VJF de semaine : J non férié, J+1 férié, J = lun..jeu (le JF tombe donc mar..ven)
     const isVjf=!isFerie&&ferieLend&&dow>=1&&dow<=4;
-    allDays.push({date:ds,dow,month:dt.getMonth()+1,
+    const mon=new Date(dt); mon.setDate(mon.getDate()-((dow+6)%7)); // lundi ISO (clé semaine, pré-calculée)
+    allDays.push({date:ds,dow,month:dt.getMonth()+1,wk:toDateStr(mon),
       isFerie,isSat:dow===6,isSun:dow===0,
       isWeekday:dow>=1&&dow<=5,isReduced:isReducedPeriod(dt.getMonth()+1),isVjf});
   }
@@ -164,7 +165,7 @@ function generateGardes(year){
   // idem jeudis et VD. Lu seulement si la cible N-1 de l'axe est connue
   // (colonnes CIBLE SAM/JEU/VD de STATS_GARDES_{N-1}) ; sinon départ neutre.
   const dette={};
-  gardeDoctors.forEach(id=>{dette[id]={sam:0,jeu:0,vd:0,vjf:0,total:0};});
+  gardeDoctors.forEach(id=>{dette[id]={sam:0,jeu:0,vd:0,vjf:0,jf:0,total:0};});
   let prevStats=ss.getSheetByName(`STATS_GARDES_${year-1}`);
   if(!prevStats){
     // Repli : l'onglet N-1 a pu être déplacé vers le classeur d'archives (W3)
@@ -174,17 +175,18 @@ function generateGardes(year){
   if(prevStats){
     const ps=prevStats.getDataRange().getValues();
     const hdr=ps[0].map(h=>String(h).trim());
-    const iSam=hdr.indexOf('SAM'), iJeu=hdr.indexOf('JEU'), iVd=hdr.indexOf('VD'), iVjf=hdr.indexOf('VEILLE JF');
+    const iSam=hdr.indexOf('SAM'), iJeu=hdr.indexOf('JEU'), iVd=hdr.indexOf('VD'), iVjf=hdr.indexOf('VEILLE JF'), iJf=hdr.indexOf('JF');
     // (dette) on lit les NOMBRES RÉELS affectés en N-1 (pas la colonne CIBLE, ~uniforme),
     // puis on recompose la part juste proportionnelle à la quotité à partir de ces réels.
-    const reel={}; let totSam=0,totJeu=0,totVd=0,totVjf=0;
+    const reel={}; let totSam=0,totJeu=0,totVd=0,totVjf=0,totJf=0;
     for(let r=1;r<ps.length;r++){
       const id=String(ps[r][0]).trim();
       if(!id||!dette[id]) continue;
       const rs=iSam>=0?Number(ps[r][iSam])||0:0, rj=iJeu>=0?Number(ps[r][iJeu])||0:0,
-            rv=iVd>=0?Number(ps[r][iVd])||0:0,  rvj=iVjf>=0?Number(ps[r][iVjf])||0:0;
-      reel[id]={sam:rs,jeu:rj,vd:rv,vjf:rvj};
-      totSam+=rs; totJeu+=rj; totVd+=rv; totVjf+=rvj;
+            rv=iVd>=0?Number(ps[r][iVd])||0:0,  rvj=iVjf>=0?Number(ps[r][iVjf])||0:0,
+            rjf=iJf>=0?Number(ps[r][iJf])||0:0;
+      reel[id]={sam:rs,jeu:rj,vd:rv,vjf:rvj,jf:rjf};
+      totSam+=rs; totJeu+=rj; totVd+=rv; totVjf+=rvj; totJf+=rjf;
     }
     const sumP=gardeDoctors.reduce((s,id)=>s+pct[id]/100,0);
     const sumPWE=gardeDoctors.reduce((s,id)=>NO_WEEKEND.has(id)?s:s+pct[id]/100,0);
@@ -195,13 +197,15 @@ function generateGardes(year){
       const fairV=(NO_WEEKEND.has(id)||!sumPWE)?0:totVd *p/sumPWE;
       const fairJ=sumP?totJeu*p/sumP:0;
       const fairVj=sumP?totVjf*p/sumP:0;
+      const fairJf=(NO_WEEKEND.has(id)||!sumPWE)?0:totJf*p/sumPWE;
       dette[id].sam=reel[id].sam-fairS;
       dette[id].jeu=reel[id].jeu-fairJ;
       dette[id].vd =reel[id].vd -fairV;
       dette[id].vjf=reel[id].vjf-fairVj;
+      dette[id].jf =reel[id].jf -fairJf;
     });
     // (équité annuelle = dogme) plafond ±2 par axe : la dette nudge, ne bouleverse pas l'année
-    gardeDoctors.forEach(id=>['sam','jeu','vd','vjf'].forEach(k=>{dette[id][k]=Math.max(-2,Math.min(2,dette[id][k]));}));
+    gardeDoctors.forEach(id=>['sam','jeu','vd','vjf','jf'].forEach(k=>{dette[id][k]=Math.max(-2,Math.min(2,dette[id][k]));}));
   }
 
   // ── 5. Cibles PRO-RATÉES par disponibilité STRUCTURELLE ──────────────
@@ -280,6 +284,7 @@ function generateGardes(year){
   });
   allDoctors.forEach(id=>{if(!rSet[id])rSet[id]=new Set();if(!rgSet[id])rgSet[id]=new Set();});
   const recupDue={}; gardeDoctors.forEach(id=>{recupDue[id]=[];}); // (R fix) #R ≡ #samedis (couplages inclus)
+  const weekCnt={}; gardeDoctors.forEach(id=>{weekCnt[id]={};}); // gardes par semaine ISO (espacement O(1))
 
   function blocked(id,date){
     const _dd=FLAGS.dateDebut[id], _df=FLAGS.dateFin[id]; // (F3) arrivée/départ en cours d'année
@@ -323,16 +328,27 @@ function generateGardes(year){
   }
   // Lissage : pénalise une garde proche (hors adjacence J±1 déjà bloquée).
   // J±2 = le "1j/2" avec le RG (et jeudi→samedi) → forte ; J±3/J±4 → légère.
+  // clé de semaine = lundi ISO, PRÉ-CALCULÉE dans dayByDate[date].wk (zéro parsing Date)
+  const weekKey = ds => dayByDate[ds]?.wk;
+  const weekLoad = (id,date) => {                       // O(1) via compteur incrémental
+    let n=weekCnt[id][dayByDate[date].wk]||0;
+    if(gSet[id]?.has(date)||g2Set[id]?.has(date)) n--;  // exclure la date elle-même si déjà posée
+    return n;
+  };
   function spacingPenalty(id, date){
     const has = n => {
       const x = new Date(date + 'T12:00:00'); x.setDate(x.getDate() + n);
       const ds = toDateStr(x);
       return (gSet[id] && gSet[id].has(ds)) || (g2Set[id] && g2Set[id].has(ds));
     };
-    if (has(-2) || has(2)) return 100;
-    if (has(-3) || has(3)) return 10;
-    if (has(-4) || has(4)) return 1;
-    return 0;
+    let p=0;
+    if (has(-2) || has(2)) p+=100;
+    if (has(-3) || has(3)) p+=10;
+    if (has(-4) || has(4)) p+=1;
+    const wl=weekLoad(id,date);      // >2 gardes/semaine à éviter (souple)
+    if(wl>=2) p+=80;                 // ce serait la 3e (ou +)
+    if(wl>=3) p+=200;
+    return p;
   }
   // Score de SÉLECTION (sans distinction G/G2) :
   //   [ratio axe prioritaire du jour, ratio total, total brut]
@@ -343,7 +359,10 @@ function generateGardes(year){
     if(dayByDate[date]?.isFerie) prim.push(ratio(id,'ferie'));
     return [space].concat(prim).concat([ratioTotal(id),cnt[id].total]);
   }
-  function scoreVD(id){return [ratio(id,'vd'),ratioTotal(id),cnt[id].g+cnt[id].g2];}
+  function scoreVD(id,fri,sun){
+    const wpen=(weekLoad(id,fri)>=1||weekLoad(id,sun)>=1)?80:0; // VD = ven+dim : éviter une 3e garde la même semaine
+    return [wpen,ratio(id,'vd'),ratioTotal(id),cnt[id].g+cnt[id].g2];
+  }
   function cmp(a,b){for(let i=0;i<a.length;i++){if(a[i]!==b[i])return a[i]-b[i];}return 0;}
   // Attribution des rôles G/G2 entre 2 MARs : celui qui a le moins de G prend G
   function assignRoles(A,B){
@@ -366,6 +385,8 @@ function generateGardes(year){
       const _rdow=dayByDate[date]?.dow;
       if(dayByDate[date]?.isFerie&&(_rdow===2||_rdow===3))cnt[id].ferie++;
       if(dayByDate[date]?.isFerie)cnt[id].jf++; // total fériés (couplages inclus)
+      const _wk=dayByDate[date]?.wk;
+      if(_wk!==undefined) weekCnt[id][_wk]=(weekCnt[id][_wk]||0)+1;
     });
   }
 
@@ -535,10 +556,10 @@ function generateGardes(year){
       const dimExists=!!dayByDate[dimDate];
       const availVD=dimExists?avail.filter(id=>!blocked(id,dimDate)):[];
       if(availVD.length>=2){
-        availVD.sort((a,b)=>cmp(scoreVD(a),scoreVD(b)));
+        availVD.sort((a,b)=>cmp(scoreVD(a,date,dimDate),scoreVD(b,date,dimDate)));
         const A=availVD[0];
         const rest=availVD.filter(id=>id!==A);
-        rest.sort((a,b)=>cmp(scoreVD(a),scoreVD(b)));
+        rest.sort((a,b)=>cmp(scoreVD(a,date,dimDate),scoreVD(b,date,dimDate)));
         const B=rest[0];
         cnt[A].vd++;cnt[B].vd++;
         // Rôles : celui qui a le moins de G prend G, et garde ce rôle vendredi ET dimanche
@@ -642,7 +663,9 @@ function generateGardes(year){
       const A=role===0?gardes[days_[0]].g:gardes[days_[0]].g2;
       days_.forEach(dd=>{
         if(role===0){gardes[dd].g=B;gSet[A].delete(dd);gSet[B].add(dd);}
-        else{gardes[dd].g2=B;g2Set[A].delete(dd);g2Set[B].add(dd);}});
+        else{gardes[dd].g2=B;g2Set[A].delete(dd);g2Set[B].add(dd);}
+        const _wk=dayByDate[dd].wk;
+        weekCnt[A][_wk]=(weekCnt[A][_wk]||0)-1; weekCnt[B][_wk]=(weekCnt[B][_wk]||0)+1;});
       Object.keys(c).forEach(ax=>{cnt[A][ax]-=c[ax];cnt[B][ax]+=c[ax];});
       const n=c.total;
       if(role===0){cnt[A].g-=n;cnt[B].g+=n;}else{cnt[A].g2-=n;cnt[B].g2+=n;}
@@ -660,7 +683,9 @@ function generateGardes(year){
           if(B===A)continue;
           if(SOUHAIT_PLAFOND.has(B)&&cnt[B].total+slot.contrib.total>cible[B].total)continue;
           if(!canHold(B,days_))continue;
-          const dd_=delta(A,B,slot.contrib,role);
+          let dd_=delta(A,B,slot.contrib,role);
+          let wkPen=0; days_.forEach(dd=>{ if((weekCnt[B][dayByDate[dd].wk]||0)>=2) wkPen+=30; });
+          dd_+=wkPen;
           if(dd_<bestD){bestD=dd_;bestB=B;}}
         if(bestB){applyTr(slot,bestB);moves++;changed=true;}
       }
