@@ -422,7 +422,7 @@ body {
     <div class="legend-item indispo" data-tool="INDISPO" onclick="selectTool('INDISPO')">🚫 Indisponible</div>
     <div class="legend-item souhait" data-tool="SOUHAIT" onclick="selectTool('SOUHAIT')">⭐ Garde souhaitée</div>
     <div class="legend-item erase" data-tool="ERASE" onclick="selectTool('ERASE')">✕ Effacer</div>
-    <div class="legend-item ctp" id="btnCTP" data-tool="CTP" onclick="selectTool('CTP')" style="display:none;background:#F3E8FF;color:#6D28D9">🕐 Temps partiel</div>
+    <div class="legend-item ctp" id="btnCTP" data-tool="TP" onclick="selectTool('TP')" style="display:none;background:#F3E8FF;color:#6D28D9">🕐 Temps partiel</div>
   </div>
   <div class="tool-hint" id="toolHint">Outil actif : <strong>Vacances</strong> — Touchez un jour pour l'appliquer</div>
 
@@ -774,8 +774,8 @@ function applyTool(date) {
     showToast('🔒 Les vacances et formations sont gérées par le comité');
     return;
   }
-  if (currentTool === 'CTP' && vacConfig && vacConfig.quotaCtp != null && indispos[date] !== 'CTP') {
-    const ctpCount = Object.values(indispos).filter(s => s === 'CTP').length;
+  if (currentTool === 'TP' && vacConfig && vacConfig.quotaCtp != null && indispos[date] !== 'TP') {
+    const ctpCount = Object.values(indispos).filter(s => s === 'TP').length;
     if (ctpCount >= vacConfig.quotaCtp) {
       showToast(`🚫 Quota temps partiel atteint — ${vacConfig.quotaCtp} jour(s) maximum`);
       return;
@@ -858,7 +858,7 @@ function updateStats() {
   const quotaColor = quotaVac && vacOuvres >= quotaVac ? '#B91C1C' : 'var(--vac-fg)';
   const quotaLabel = quotaVac ? `${vacOuvres}/${quotaVac} jours ouvrés` : `${vacOuvres} jours ouvrés`;
   const showCtp = vacConfig && vacConfig.quotaVac < 33 && vacConfig.quotaCtp != null;
-  const ctpCount = Object.values(indispos).filter(s => s === 'CTP').length;
+  const ctpCount = Object.values(indispos).filter(s => s === 'TP').length;
   const ctpItem = showCtp
     ? `<div class="stat-item" style="color:${ctpCount >= vacConfig.quotaCtp ? '#B91C1C' : '#6D28D9'}">🕐 ${ctpCount}/${vacConfig.quotaCtp} TP</div>`
     : '';
