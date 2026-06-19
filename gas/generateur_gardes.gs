@@ -72,6 +72,9 @@ function isVacancesScolaires(dateStr,year){
 
 function generateGardes(year){
   if(!year) throw new Error('Précisez l\'année');
+  const ANNEES_VERROUILLEES = new Set([2026]); // planning publié & figé : génération interdite
+  if(ANNEES_VERROUILLEES.has(Number(year)))
+    throw new Error(`Année ${year} VERROUILLÉE (planning figé) — génération refusée pour protéger GARDES_${year} / STATS_GARDES_${year}.`);
   const ss=SpreadsheetApp.getActiveSpreadsheet();
 
   // (C2-D1) Flags effectif lus depuis MEDECINS (remplacent les Set en dur).
@@ -201,27 +204,52 @@ function generateGardes(year){
     gardeDoctors.forEach(id=>['sam','jeu','vd','vjf'].forEach(k=>{dette[id][k]=Math.max(-2,Math.min(2,dette[id][k]));}));
   }
 
-  // ── 5. Cibles proportionnelles à la quotité ──────────────────────────
-  const sumPct=gardeDoctors.reduce((s,id)=>s+pct[id]/100,0);
-  const sumPctWE=gardeDoctors.reduce((s,id)=>NO_WEEKEND.has(id)?s:s+pct[id]/100,0);
+  // ── 5. Cibles PRO-RATÉES par disponibilité STRUCTURELLE ──────────────
+  // Réduit la cible : hors [date_debut,date_fin] OU statut 'CL' (congé long).
+  // NE réduit PAS : INDISPO/VAC/FORM (indispo volontaire → le MAR assume sa
+  // concentration). Poids axe = pct × (jours d'axe structurellement dispo /
+  // total jours d'axe) ; la part libérée est redistribuée aux autres.
   const nDays=allDays.length;
   const nSam=allDays.filter(d=>d.dow===6).length;
   const nJeu=allDays.filter(d=>d.dow===4).length;
   const nVen=allDays.filter(d=>d.dow===5).length;
   const nVjf=allDays.filter(d=>d.isVjf).length;
-  const nFerie=allDays.filter(d=>d.isFerie&&(d.dow===2||d.dow===3)).length;       // fériés NON couplés (mar/mer) → axe férié
-  const nCoupleSam=allDays.filter(d=>d.isFerie&&(d.dow===1||d.dow===4)).length;   // jeudi/lundi fériés couplés → comptés en samedi
+  const nFerie=allDays.filter(d=>d.isFerie&&(d.dow===2||d.dow===3)).length;       // fériés NON couplés (mar/mer)
+  const nCoupleSam=allDays.filter(d=>d.isFerie&&(d.dow===1||d.dow===4)).length;   // jeudi/lundi fériés couplés → comptés samedi
+  function structAvail(id,d){
+    const dd=FLAGS.dateDebut[id], df=FLAGS.dateFin[id];
+    if(dd && d.date<dd) return false;
+    if(df && d.date>=df) return false;
+    if(indispos[id]?.[d.date]==='CL') return false;
+    return true;
+  }
+  const AX={
+    total: allDays,
+    sam:   allDays.filter(d=>d.dow===6||(d.isFerie&&(d.dow===1||d.dow===4))),
+    jeu:   allDays.filter(d=>d.dow===4),
+    vd:    allDays.filter(d=>d.dow===5),
+    vjf:   allDays.filter(d=>d.isVjf),
+    ferie: allDays.filter(d=>d.isFerie&&(d.dow===2||d.dow===3)),
+    jf:    allDays.filter(d=>d.isFerie),
+  };
+  const nFerieAll=allDays.filter(d=>d.isFerie).length;
+  const SLOTS={total:nDays*2, sam:(nSam+nCoupleSam)*2, jeu:nJeu*2, vd:nVen*2, vjf:nVjf*2, ferie:nFerie*2, jf:nFerieAll*2};
+  function axisEligible(axis,id){
+    if((axis==='sam'||axis==='vd'||axis==='ferie'||axis==='jf')&&NO_WEEKEND.has(id)) return false;
+    if(axis==='vjf'&&FLAGS.souhaitPlafond.has(id)) return false; // PRUNET hors VJF
+    return true;
+  }
   const cible={};
-  gardeDoctors.forEach(id=>{
-    const p=pct[id]/100;
-    cible[id]={
-      total:(nDays*2)*p/sumPct,
-      sam:NO_WEEKEND.has(id)?0:((nSam+nCoupleSam)*2)*p/sumPctWE,
-      jeu:(nJeu*2)*p/sumPct,
-      vd:NO_WEEKEND.has(id)?0:(nVen*2)*p/sumPctWE,
-      vjf:(nVjf*2)*p/sumPct,   // veilles de semaine : jours ouvrés → tous éligibles (PRUNET inclus)
-      ferie:NO_WEEKEND.has(id)?0:(nFerie*2)*p/sumPctWE,
-    };
+  gardeDoctors.forEach(id=>{cible[id]={};});
+  Object.keys(AX).forEach(axis=>{
+    const tot=AX[axis].length||1, w={};
+    gardeDoctors.forEach(id=>{
+      if(!axisEligible(axis,id)){w[id]=0;return;}
+      const avail=AX[axis].filter(d=>structAvail(id,d)).length;
+      w[id]=(pct[id]/100)*(avail/tot);
+    });
+    const sw=gardeDoctors.reduce((s,id)=>s+w[id],0)||1;
+    gardeDoctors.forEach(id=>{cible[id][axis]=SLOTS[axis]*w[id]/sw;});
   });
 // ── 5bis. Souhaits plafonnés à la cible (PRUNET uniquement) ──────────
   // La cible totale devient le MAX entre la cible proportionnelle et le
@@ -235,27 +263,48 @@ function generateGardes(year){
     const n=Object.values(souhaits).filter(ids=>ids.includes(id)).length;
     cible[id].total = Math.max(cible[id].total, n);
   });
+  // Budget de jours LIBRES (lun/mar/mer) = total − axes-clés. Plafonne les
+  // souhaits non-PRUNET : leurs parts sam/jeu/VD/VJF/férié restent dues à
+  // l'équipe (équité) et ne peuvent être noyées sous des mardis.
+  const freeBudget={};
+  gardeDoctors.forEach(id=>{
+    const c=cible[id];
+    freeBudget[id]=c.total-(c.sam+c.jeu+c.vd+c.vjf+c.ferie);
+  });
   // ── 6. État ──────────────────────────────────────────────────────────
   const gSet={},g2Set={},rgSet={},rSet={};
   const cnt={};
   gardeDoctors.forEach(id=>{
     gSet[id]=new Set();g2Set[id]=new Set();rgSet[id]=new Set();rSet[id]=new Set();
-    cnt[id]={total:0,g:0,g2:0,sam:0,jeu:0,ven:0,vd:0,vjf:0,ferie:0,lun:0,mar:0,mer:0,dim:0,recupR:0};
+    cnt[id]={total:0,g:0,g2:0,sam:0,jeu:0,ven:0,vd:0,vjf:0,ferie:0,jf:0,lun:0,mar:0,mer:0,dim:0,recupR:0};
   });
   allDoctors.forEach(id=>{if(!rSet[id])rSet[id]=new Set();if(!rgSet[id])rgSet[id]=new Set();});
+  const recupDue={}; gardeDoctors.forEach(id=>{recupDue[id]=[];}); // (R fix) #R ≡ #samedis (couplages inclus)
 
   function blocked(id,date){
+    const _dd=FLAGS.dateDebut[id], _df=FLAGS.dateFin[id]; // (F3) arrivée/départ en cours d'année
+    if(_dd&&date<_dd) return true;
+    if(_df&&date>=_df) return true;
     const s=indispos[id]?.[date];
     if(s==='INDISPO'||s==='VAC'||s==='FORM'||s==='TP'||s==='CL'||s==='CTP') return true;
     if(estSemaineOff(id,date)) return true;   // ← AJOUT : semaine "off" du rythme 2/2
     if(rgSet[id].has(date)||rSet[id]?.has(date)) return true;
     const _lend=addOneDay(date);
     if(gSet[id]?.has(_lend)||g2Set[id]?.has(_lend)) return true; // jamais 2 gardes d'affilée, même si la garde du lendemain est déjà posée (souhait/VD hors ordre chrono)
+    // Combo jeudi-samedi interdit (hors jeudi férié couplé)
+    const _di=dayByDate[date];
+    if(_di){
+      if(_di.dow===6){const thu=toDateStr(new Date(new Date(date+'T12:00:00').getTime()-2*86400000)),tdi=dayByDate[thu];
+        if(tdi&&!tdi.isFerie&&(gSet[id]?.has(thu)||g2Set[id]?.has(thu))) return true;}
+      if(_di.dow===4&&!_di.isFerie){const sat=toDateStr(new Date(new Date(date+'T12:00:00').getTime()+2*86400000));
+        if(gSet[id]?.has(sat)||g2Set[id]?.has(sat)) return true;}
+    }
     if(s==='RG_TRANSITION') return true;
     const dow=new Date(date+'T12:00:00').getDay();
     if(NO_WEEKEND.has(id)&&(dow===0||dow===6)) return true;
     const di=dayByDate[date];
     if(NO_WEEKEND.has(id)&&di?.isFerie) return true;
+    if(SOUHAIT_PLAFOND.has(id)&&di?.isVjf) return true; // PRUNET : complément cible hors VJF
     // Plafond souhaits : un MAR plafonné ne dépasse jamais sa cible totale
     if(SOUHAIT_PLAFOND.has(id) && cnt[id] && cnt[id].total >= cible[id].total) return true;
     return false;
@@ -304,6 +353,7 @@ function generateGardes(year){
 
   function assign(date,g,g2,dow){
     gardes[date]={g,g2};
+    assignDow[date]=dow;
     [[g,false],[g2,true]].forEach(([id,isg2])=>{
       if(!id) return;
       if(isg2){g2Set[id].add(date);cnt[id].g2++;}else{gSet[id].add(date);cnt[id].g++;}
@@ -311,34 +361,135 @@ function generateGardes(year){
       cnt[id].total++;
       const KEYS=['dim','lun','mar','mer','jeu','ven','sam'];
       cnt[id][KEYS[dow]]++;
-      if(dow===6)cnt[id].recupR++;
+      if(dow===6){cnt[id].recupR++;recupDue[id].push(date);}
       if(dayByDate[date]?.isVjf)cnt[id].vjf++;
       const _rdow=dayByDate[date]?.dow;
       if(dayByDate[date]?.isFerie&&(_rdow===2||_rdow===3))cnt[id].ferie++;
+      if(dayByDate[date]?.isFerie)cnt[id].jf++; // total fériés (couplages inclus)
     });
   }
 
   // ── 8. Placement ─────────────────────────────────────────────────────
   const gardes={};
+  const assignDow={}; // (optim) axe-jour de chaque date (couplages fériés : 6)
   const warnings=[];
 
-  // 8a. PRUNET SOUHAIT en premier (s'ajoute au quota)
-  Object.entries(souhaits).forEach(([date,ids])=>{
-    ids.forEach(id=>{
-      if(gardes[date]) return; // jour déjà pris
-      if(NO_GARDE.has(id)) return; // sécurité : NO_GARDE ne peut pas être de garde
-      if(blocked(id,date)) return; // ← souhaiteur RG/indispo/plafonné ce jour → souhait non honoré (jamais 2 gardes d'affilée)
-      const dow=new Date(date+'T12:00:00').getDay();
-      if(NO_WEEKEND.has(id)&&(dow===0||dow===6)) return; // sécurité WE
-      const others=gardeDoctors.filter(m=>m!==id&&!blocked(m,date));
-      if(others.length<1){warnings.push(`SOUHAIT ${id} ${date} sans binôme`);return;}
-      const _vjf=dayByDate[date]?.isVjf;
-      others.sort((a,b)=>cmp(scoreSelect(a,dow,_vjf,date),scoreSelect(b,dow,_vjf,date)));
-      const partner=others[0];
-      // Attribuer les rôles G/G2 entre le souhaiteur et son binôme
-      const [g,g2]=assignRoles(id,partner);
-      assign(date,g,g2,dow);
+  // ── 7bis. NOËL / JOUR DE L'AN — rotation pluriannuelle ───────────────
+  // 4 dates (24/12, 25/12, 31/12, 01/01) = 8 MAR/an. Priorité = jamais fait
+  // puis le plus ancien. ≤ 1 jour/MAR/an. PRUNET exempté. Les couplages (VD
+  // ven/dim, jeudi/lundi férié ↔ samedi) sont respectés : le binôme de
+  // rotation possède toute l'unité liée. Historique = onglet NOEL_AN_HISTORIQUE.
+  const noelDatesAssigned=new Set();
+  const noelAssignees={};
+  {
+    const noelHistory={};
+    const nhSheet=ss.getSheetByName('NOEL_AN_HISTORIQUE');
+    if(nhSheet){
+      const nd=nhSheet.getDataRange().getValues();
+      for(let r=1;r<nd.length;r++){
+        const id=String(nd[r][0]).trim(); if(!id) continue;
+        const y=nd[r][1]; noelHistory[id]=(y===''||y==null)?null:Number(y);
+      }
+    }
+    const shiftD=(d,n)=>toDateStr(new Date(new Date(d+'T12:00:00').getTime()+n*86400000));
+    let noelDates=[];
+    [year,year+1].forEach(y=>[`${y}-12-24`,`${y}-12-25`,`${y}-12-31`,`${y+1}-01-01`].forEach(dn=>{
+      if(dayByDate[dn]&&(dn.startsWith(String(year))||dn===`${year+1}-01-01`)) noelDates.push(dn);
+    }));
+    noelDates=[...new Set(noelDates)].filter(d=>dayByDate[d]).sort();
+
+    const noelUnit=(date)=>{
+      const di=dayByDate[date],dow=di.dow,u=[date];
+      if(dow===5) u.push(shiftD(date,2));                       // VD vendredi → dimanche
+      else if(dow===0) u.push(shiftD(date,-2));                 // VD dimanche → vendredi
+      else if(di.isFerie&&dow===4) u.push(shiftD(date,2));      // jeudi férié → samedi (JS)
+      else if(di.isFerie&&dow===1) u.push(shiftD(date,-2));     // lundi férié → samedi (SL)
+      else if(dow===6){                                         // samedi couplé à un férié ?
+        const thu=shiftD(date,-2),mon=shiftD(date,2);
+        if(dayByDate[thu]?.isFerie&&dayByDate[thu].dow===4) u.push(thu);
+        if(dayByDate[mon]?.isFerie&&dayByDate[mon].dow===1) u.push(mon);
+      }
+      return [...new Set(u)].filter(d=>dayByDate[d]).sort();
+    };
+    const canHoldUnit=(m,unit)=>unit.every(d=>!blocked(m,d));
+    const assignUnit=(unit,A,B)=>{
+      const [g,gg]=assignRoles(A,B);
+      const hasFri=unit.some(d=>dayByDate[d].dow===5);
+      unit.forEach(d=>{
+        const dw=dayByDate[d].dow;
+        const adow=(dw===6||(dayByDate[d].isFerie&&(dw===4||dw===1)))?6:dw;
+        assign(d,g,gg,adow); noelDatesAssigned.add(d);
+      });
+      if(hasFri){cnt[g].vd++;cnt[gg].vd++;}
+    };
+    const overdueKey=(m)=>{const ly=noelHistory[m]; return ly==null?[0,0,m]:[1,ly,m];};
+    const cmpKey=(a,b)=>a[0]-b[0]||a[1]-b[1]||(a[2]<b[2]?-1:a[2]>b[2]?1:0);
+
+    const noelDone=new Set();
+    noelDates.forEach(date=>{
+      if(gardes[date]) return;
+      const unit=noelUnit(date);
+      let cands=gardeDoctors.filter(m=>!SOUHAIT_PLAFOND.has(m)&&!noelDone.has(m)&&canHoldUnit(m,unit));
+      if(cands.length<2) cands=gardeDoctors.filter(m=>!SOUHAIT_PLAFOND.has(m)&&canHoldUnit(m,unit));
+      cands.sort((a,b)=>cmpKey(overdueKey(a),overdueKey(b)));
+      if(cands.length<2){warnings.push(`NOEL/AN ${date} : <2 dispo`);return;}
+      const A=cands[0],B=cands[1];
+      assignUnit(unit,A,B); noelAssignees[date]=[A,B];
+      noelDone.add(A);noelDone.add(B);
     });
+    if(Object.keys(noelAssignees).length)
+      Logger.log('Noël/An: '+Object.entries(noelAssignees).map(([d,ab])=>`${d}:${ab.join('+')}`).join(' | '));
+  }
+
+  // ── 8a. SOUHAITS — deux régimes ──────────────────────────────────────
+  // Régime 1 : souhait_plafond (PRUNET) = priorité absolue, peut dépasser sa cible.
+  // Régime 2 : autres MAR = préférence de placement DANS leur cible, équitable
+  //            (le moins-servi mène) ; la 2e place préfère un co-souhaiteur.
+  const souhParJour={}; // date (dans l'année) -> souhaiteurs gardeDoctors
+  Object.entries(souhaits).forEach(([date,ids])=>{
+    if(!dayByDate[date]) return;
+    souhParJour[date]=ids.filter(m=>gardeDoctors.indexOf(m)>=0);
+  });
+  const souhaitHonored={}; allDoctors.forEach(id=>{souhaitHonored[id]=0;});
+
+  function placeSouhait(id,date){
+    const dow=new Date(date+'T12:00:00').getDay();
+    const vjf=dayByDate[date]?.isVjf;
+    let co=(souhParJour[date]||[]).filter(m=>m!==id&&!blocked(m,date)
+              &&(SOUHAIT_PLAFOND.has(m)||cnt[m].total<freeBudget[m]));
+    let partner;
+    if(co.length){
+      co.sort((a,b)=>(souhaitHonored[a]-souhaitHonored[b])
+                     ||cmp(scoreSelect(a,dow,vjf,date),scoreSelect(b,dow,vjf,date)));
+      partner=co[0]; souhaitHonored[partner]++;
+    } else {
+      const others=gardeDoctors.filter(m=>m!==id&&!blocked(m,date));
+      if(!others.length){warnings.push(`SOUHAIT ${id} ${date} sans binôme`);return false;}
+      others.sort((a,b)=>cmp(scoreSelect(a,dow,vjf,date),scoreSelect(b,dow,vjf,date)));
+      partner=others[0];
+    }
+    const [g,g2]=assignRoles(id,partner);
+    assign(date,g,g2,dow);
+    return true;
+  }
+
+  // Régime 1 — PRUNET (souhait_plafond) : priorité absolue
+  gardeDoctors.filter(id=>SOUHAIT_PLAFOND.has(id)).forEach(id=>{
+    Object.keys(souhParJour).filter(date=>souhParJour[date].indexOf(id)>=0).sort().forEach(date=>{
+      if(gardes[date]||blocked(id,date)) return;
+      if(placeSouhait(id,date)) souhaitHonored[id]++;
+    });
+  });
+
+  // Régime 2 — autres MAR : équitable, DANS la cible
+  Object.keys(souhParJour).sort().forEach(date=>{
+    if(gardes[date]) return;
+    const cands=souhParJour[date].filter(m=>!SOUHAIT_PLAFOND.has(m)&&!blocked(m,date)
+                  &&cnt[m].total<freeBudget[m]);
+    if(!cands.length) return; // sera rempli par la passe chronologique
+    cands.sort((a,b)=>souhaitHonored[a]-souhaitHonored[b]); // le moins servi mène
+    const lead=cands[0];
+    if(placeSouhait(lead,date)) souhaitHonored[lead]++;
   });
 
   // 8b. Placement chronologique
@@ -405,14 +556,132 @@ function generateGardes(year){
     const A=avail[0],B=avail[1];
     const [g,g2]=assignRoles(A,B);
     assign(date,g,g2,dow);
+    // ── 8c. OPTIMISEUR GLOBAL (recherche locale par transferts de créneaux) ─
+  // Minimise Σ poids·(réel−cible)² sur les axes d'équité en transférant un
+  // créneau (unité VD/couplage incluse) d'un MAR sur-cible vers un sous-cible.
+  // Respecte espacements, NO_WEEKEND, plafond PRUNET, souhaits verrouillés et
+  // l'intégrité VD / couplages fériés. ~0,1 s ; chacun finit à ≤1,3 de sa cible.
+  {
+    const W={vd:5,sam:5,jf:12,jeu:3,vjf:3,total:2}, WGG2=1;
+    const EQ=['vd','sam','jf','jeu','vjf','total'];
+    const KEYS=['dim','lun','mar','mer','jeu','ven','sam'];
+    const ABS=new Set(['INDISPO','VAC','FORM','TP','CL','CTP']);
+    const shift=(ds,n)=>toDateStr(new Date(new Date(ds+'T12:00:00').getTime()+n*86400000));
+    // 1) Groupes de jours liés (VD ven/dim, couplages fériés) — union-find.
+    const parent={};
+    const find=x=>{if(parent[x]===undefined)parent[x]=x;let r=x;while(parent[r]!==r)r=parent[r];while(parent[x]!==r){const nx=parent[x];parent[x]=r;x=nx;}return r;};
+    const union=(a,b)=>{parent[find(a)]=find(b);};
+    const placedD=Object.keys(gardes).filter(d=>gardes[d].g);
+    placedD.forEach(d=>{if(parent[d]===undefined)parent[d]=d;});
+    placedD.forEach(d=>{
+      const di=dayByDate[d],dow=di.dow;let p=null;
+      if(dow===5)p=shift(d,2);
+      else if(di.isFerie&&dow===4)p=shift(d,2);
+      else if(di.isFerie&&dow===1)p=shift(d,-2);
+      if(p&&gardes[p]&&gardes[p].g===gardes[d].g&&gardes[p].g2===gardes[d].g2)union(d,p);
+    });
+    const groups={};
+    placedD.forEach(d=>{const r=find(d);(groups[r]||(groups[r]=[])).push(d);});
+    // 2) Contribution (tous champs cnt) d'un groupe, indépendante du titulaire.
+    const contribOf=days_=>{
+      const c={total:0,sam:0,jeu:0,vd:0,vjf:0,ferie:0,jf:0,lun:0,mar:0,mer:0,ven:0,dim:0,recupR:0};
+      days_.forEach(dd=>{const ad=assignDow[dd],di=dayByDate[dd];
+        c.total++; c[KEYS[ad]]++; if(ad===6)c.recupR++;
+        if(di.isVjf)c.vjf++; if(di.isFerie&&(di.dow===2||di.dow===3))c.ferie++; if(di.isFerie)c.jf++;});
+      if(days_.some(dd=>assignDow[dd]===5))c.vd=1;
+      return c;
+    };
+    // 3) Slots = (groupe, rôle 0=G/1=G2) ; verrou si titulaire = PRUNET ou souhait honoré.
+    const slots=[];
+    Object.values(groups).forEach(days_=>{
+      const contrib=contribOf(days_);
+      [0,1].forEach(role=>{
+        const holder=role===0?gardes[days_[0]].g:gardes[days_[0]].g2;
+        const locked=SOUHAIT_PLAFOND.has(holder)||days_.some(dd=>(souhParJour[dd]||[]).indexOf(holder)>=0)||days_.some(dd=>noelDatesAssigned.has(dd));
+        slots.push({days:days_,role,contrib,locked});
+      });
+    });
+    // 4) Faisabilité : B peut-il tenir ce rôle sur tous les jours du groupe ?
+    const canHold=(B,days_)=>{
+      for(let k=0;k<days_.length;k++){const dd=days_[k];
+        const di=dayByDate[dd],dow=di.dow,s=indispos[B]?.[dd];
+        if(ABS.has(s))return false;
+        if(estSemaineOff(B,dd))return false;
+        const ddg=FLAGS.dateDebut[B],dfg=FLAGS.dateFin[B];
+        if(ddg&&dd<ddg)return false; if(dfg&&dd>=dfg)return false;
+        if(NO_WEEKEND.has(B)&&(dow===0||dow===6||di.isFerie))return false;
+        if(SOUHAIT_PLAFOND.has(B)&&di.isVjf)return false;
+        const gg=gardes[dd]; if(B===gg.g||B===gg.g2)return false;
+        const adj=[shift(dd,-1),shift(dd,1)];
+        for(let a=0;a<2;a++){if(days_.indexOf(adj[a])>=0)continue;
+          const ag=gardes[adj[a]]; if(ag&&(B===ag.g||B===ag.g2))return false;}
+        // combo jeudi-samedi interdit (hors jeudi férié)
+        if(dow===6){const thu=shift(dd,-2),tdi=dayByDate[thu];
+          if(days_.indexOf(thu)<0&&tdi&&!tdi.isFerie&&(gSet[B].has(thu)||g2Set[B].has(thu)))return false;}
+        if(dow===4&&!di.isFerie){const sat=shift(dd,2);
+          if(days_.indexOf(sat)<0&&(gSet[B].has(sat)||g2Set[B].has(sat)))return false;}
+      }
+      return true;
+    };
+    // 5) Coût marginal d'un transfert A→B (même rôle).
+    const delta=(A,B,c,role)=>{
+      let d=0;
+      EQ.forEach(ax=>{const ca=c[ax];if(!ca)return;
+        // cible effective = cible − dette (qui a trop fait en N-1 vise plus bas)
+        const cbA=cible[A][ax]-(dette[A]?.[ax]||0),cbB=cible[B][ax]-(dette[B]?.[ax]||0),a0=cnt[A][ax],b0=cnt[B][ax];
+        d+=W[ax]*((Math.pow(a0-ca-cbA,2)-Math.pow(a0-cbA,2))+(Math.pow(b0+ca-cbB,2)-Math.pow(b0-cbB,2)));});
+      const n=c.total,aG=cnt[A].g,aG2=cnt[A].g2,bG=cnt[B].g,bG2=cnt[B].g2;
+      let na,nb;
+      if(role===0){na=(aG-n)-aG2;nb=(bG+n)-bG2;}else{na=aG-(aG2-n);nb=bG-(bG2+n);}
+      d+=WGG2*((na*na-(aG-aG2)*(aG-aG2))+(nb*nb-(bG-bG2)*(bG-bG2)));
+      return d;
+    };
+    // 6) Appliquer le transfert (tous champs cnt + rôle).
+    const applyTr=(slot,B)=>{
+      const role=slot.role,days_=slot.days,c=slot.contrib;
+      const A=role===0?gardes[days_[0]].g:gardes[days_[0]].g2;
+      days_.forEach(dd=>{
+        if(role===0){gardes[dd].g=B;gSet[A].delete(dd);gSet[B].add(dd);}
+        else{gardes[dd].g2=B;g2Set[A].delete(dd);g2Set[B].add(dd);}});
+      Object.keys(c).forEach(ax=>{cnt[A][ax]-=c[ax];cnt[B][ax]+=c[ax];});
+      const n=c.total;
+      if(role===0){cnt[A].g-=n;cnt[B].g+=n;}else{cnt[A].g2-=n;cnt[B].g2+=n;}
+    };
+    // 7) Recherche locale (best-improvement par slot, passes successives).
+    const t0=Date.now();let moves=0;
+    for(let pass=0;pass<60;pass++){
+      let changed=false;
+      for(let si=0;si<slots.length;si++){const slot=slots[si];
+        if(slot.locked)continue;
+        const days_=slot.days,role=slot.role;
+        const A=role===0?gardes[days_[0]].g:gardes[days_[0]].g2;
+        let bestB=null,bestD=-1e-9;
+        for(let bi=0;bi<gardeDoctors.length;bi++){const B=gardeDoctors[bi];
+          if(B===A)continue;
+          if(SOUHAIT_PLAFOND.has(B)&&cnt[B].total+slot.contrib.total>cible[B].total)continue;
+          if(!canHold(B,days_))continue;
+          const dd_=delta(A,B,slot.contrib,role);
+          if(dd_<bestD){bestD=dd_;bestB=B;}}
+        if(bestB){applyTr(slot,bestB);moves++;changed=true;}
+      }
+      if(!changed||Date.now()-t0>20000)break;
+    }
+    Logger.log('Optimiseur: '+moves+' transferts');
+    // 8) Recomposer rgSet / recupDue depuis l'état optimisé (pour R + 18h + STATS).
+    allDoctors.forEach(id=>{rgSet[id]=new Set();});
+    gardeDoctors.forEach(id=>{recupDue[id]=[];});
+    Object.keys(gardes).forEach(dd=>{const gg=gardes[dd];if(!gg.g)return;
+      [gg.g,gg.g2].forEach(id=>{if(!id)return;rgSet[id].add(addOneDay(dd));
+        if(assignDow[dd]===6)recupDue[id].push(dd);});});
+  }
   });
 
   // ── 9. Placer les R ──────────────────────────────────────────────────
   const rAssigned={};
   allDoctors.forEach(id=>{
-    if(!gSet[id]) return;
-    allDays.filter(d=>d.isSat&&(gSet[id]?.has(d.date)||g2Set[id]?.has(d.date))).forEach(sam=>{
-      const samDt=new Date(sam.date+'T12:00:00');let placed=false;
+    if(!recupDue[id]) return;
+    recupDue[id].forEach(samDate=>{
+      const samDt=new Date(samDate+'T12:00:00');let placed=false;
       for(let w=2;w<=16&&!placed;w++){
         for(let off=0;off<5&&!placed;off++){
           const cDt=new Date(samDt);cDt.setDate(samDt.getDate()+w*7+off);
@@ -458,15 +727,17 @@ function generateGardes(year){
     return true;
   }
   weekdays.forEach(day=>{
+    const veille=toDateStr(new Date(new Date(day.date+'T12:00:00').getTime()-86400000)); // pas 2 x 18h d'affilée
     // (18h veille de garde samedi) le vendredi, le 18h revient au MAR de garde (G) du samedi
     if(day.dow===5){
       const satDate=toDateStr(new Date(new Date(day.date+'T12:00:00').getTime()+86400000));
       const satG=gardes[satDate]?.g;
-      if(satG&&dispo18(satG,day.date)){h18A[day.date]=satG;h18cnt[satG]++;return;}
+      if(satG&&dispo18(satG,day.date)&&h18A[veille]!==satG){h18A[day.date]=satG;h18cnt[satG]++;return;}
     }
-    // Primaire : on évite les INDISPO. Repli : on les admet si personne d'autre.
-    let pool=allDoctors.filter(id=>dispo18(id,day.date)&&indispos[id]?.[day.date]!=='INDISPO');
-    if(!pool.length) pool=allDoctors.filter(id=>dispo18(id,day.date));
+    // Primaire : on évite les INDISPO et le 18h de la veille. Replis successifs.
+    let pool=allDoctors.filter(id=>dispo18(id,day.date)&&h18A[veille]!==id&&indispos[id]?.[day.date]!=='INDISPO');
+    if(!pool.length) pool=allDoctors.filter(id=>dispo18(id,day.date)&&h18A[veille]!==id);
+    if(!pool.length) pool=allDoctors.filter(id=>dispo18(id,day.date)); // dernier recours : on lève la contrainte
     if(!pool.length){warnings.push(`Aucun 18h ${day.date}`);return;}
     pool.sort((a,b)=>(h18cnt[a]/(h18T[a]||1))-(h18cnt[b]/(h18T[b]||1)));
     h18A[day.date]=pool[0];h18cnt[pool[0]]++;
