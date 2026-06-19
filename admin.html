@@ -2635,29 +2635,6 @@ function getSectorFg(code) {
   const m = {VIS:'#1D4ED8',REA:'#991B1B',ORT:'#6B21A8',DVI:'#3730A3',ORL:'#92400E',END:'#166534',CI:'#9A3412',MAT:'#9D174D',CS:'#065F46'};
   return m[code]||'#334155';
 }
-
-// ── Compteur de consultations par MAR sur un mois (équité) ──
-// 1 consultation = 1 demi-jour CS-* ; inclut le miroir mater (mardi/jeudi matin, MAR en MAT).
-function consultCountsForMonth(ym) {
-  const counts = {};
-  if (!ym || !DATA || !DATA.months) return counts;
-  DATA.months.forEach(month => {
-    (month.days||[]).forEach((day, dayIdx) => {
-      if (!day || !day.date || day.date.slice(0,7) !== ym) return;
-      const jsDow = new Date(day.date + 'T12:00:00').getDay(); // 2=mardi, 4=jeudi
-      (month.doctors||[]).forEach(doc => {
-        const e = (doc.days && doc.days[dayIdx]) || {};
-        const amSecs = String(e.morning||'').split('+').map(x=>x.trim()).filter(Boolean);
-        const pmSecs = String(e.afternoon||'').split('+').map(x=>x.trim()).filter(Boolean);
-        let n = amSecs.filter(x=>x.startsWith('CS-')).length
-              + pmSecs.filter(x=>x.startsWith('CS-')).length;
-        if ((jsDow===2 || jsDow===4) && amSecs.includes('MAT') && !amSecs.includes('CS-MAT')) n++;
-        if (n) counts[doc.id] = (counts[doc.id]||0) + n;
-      });
-    });
-  });
-  return counts;
-}
 // ── Compteur de consultations par MAR sur un mois (équité) ──
 // 1 consultation = 1 demi-jour CS-* ; inclut le miroir mater (mardi/jeudi matin, MAR en MAT).
 function consultCountsForMonth(ym) {
@@ -2696,19 +2673,9 @@ function renderSidePanelContent(dispo, sector) {
   const _csAvg = Object.values(_csCounts).reduce((a,b)=>a+b,0) / _nMar;
 
   let html = '';
-
-  // Équité consultations : compteur du mois de la date affectée
-  const _ym = ((window._sideCtx && window._sideCtx.date) || '').slice(0,7);
-  const _csCounts = consultCountsForMonth(_ym);
-  const _nMar = (marsData||[]).filter(m=>m.actif!==false && String(m.actif).toUpperCase()!=='N').length
-              || Object.keys(_csCounts).length || 1;
-  const _csAvg = Object.values(_csCounts).reduce((a,b)=>a+b,0) / _nMar;
-
-  let html = '';
   GROUPS.forEach(g => {
     const mars = byRole[g.key];
     if (!mars?.length) return;
-    mars.sort((a,b)=>((_csCounts[a.id]||0)-(_csCounts[b.id]||0)) || String(a.id).localeCompare(String(b.id)));
     mars.sort((a,b)=>((_csCounts[a.id]||0)-(_csCounts[b.id]||0)) || String(a.id).localeCompare(String(b.id)));
     html += `<div style="margin-bottom:16px;">
       <div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">${g.label}</div>
@@ -2723,7 +2690,6 @@ function renderSidePanelContent(dispo, sector) {
           <div style="font-size:12px;font-weight:700;color:var(--ink);">${m.id}</div>
           <div style="font-size:10px;color:var(--ink-4);margin-top:1px;">${m.secteur}</div>
         </div>
-        ${(()=>{const c=_csCounts[m.id]||0;const hi=c>_csAvg;return `<span title="${c} consultation(s) ce mois-ci" style="font-size:11px;font-weight:700;background:${hi?'#FEF3C7':'#DCFCE7'};color:${hi?'#92400E':'#166534'};padding:3px 8px;border-radius:20px;flex-shrink:0;">${c} cs</span>`;})()}
         ${(()=>{const c=_csCounts[m.id]||0;const hi=c>_csAvg;return `<span title="${c} consultation(s) ce mois-ci" style="font-size:11px;font-weight:700;background:${hi?'#FEF3C7':'#DCFCE7'};color:${hi?'#92400E':'#166534'};padding:3px 8px;border-radius:20px;flex-shrink:0;">${c} cs</span>`;})()}
         <span style="font-size:13px;color:#CBD5E1;">→</span>
       </button>`;
