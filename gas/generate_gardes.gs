@@ -97,11 +97,11 @@ function generateGardes(year){
 
   // ── 2. Médecins ──────────────────────────────────────────────────────
   const medData=ss.getSheetByName('MEDECINS').getDataRange().getValues();
-  const allDoctors=[],gardeDoctors=[],pct={};
+  const allDoctors=[],gardeDoctors=[],pct={},quot={};
   for(let r=1;r<medData.length;r++){
     const id=String(medData[r][0]).trim();
     if(!id||id==='DRUGE') continue;
-    allDoctors.push(id);pct[id]=Number(medData[r][5])||100;
+    allDoctors.push(id);pct[id]=Number(medData[r][5])||100;quot[id]=Number(medData[r][4])||100;
     if(!NO_GARDE.has(id)) gardeDoctors.push(id);
     if(!indispos[id]) indispos[id]={};
   }
@@ -171,17 +171,32 @@ function generateGardes(year){
   if(prevStats){
     const ps=prevStats.getDataRange().getValues();
     const hdr=ps[0].map(h=>String(h).trim());
-    const iCSam=hdr.indexOf('CIBLE SAM'), iCJeu=hdr.indexOf('CIBLE JEU'), iCVd=hdr.indexOf('CIBLE VD'), iCVjf=hdr.indexOf('CIBLE VJF');
     const iSam=hdr.indexOf('SAM'), iJeu=hdr.indexOf('JEU'), iVd=hdr.indexOf('VD'), iVjf=hdr.indexOf('VEILLE JF');
-    const num=v=>{const x=parseFloat(String(v).replace(/[^\d.]/g,'')); return isNaN(x)?null:x;};
+    // (dette) on lit les NOMBRES RÉELS affectés en N-1 (pas la colonne CIBLE, ~uniforme),
+    // puis on recompose la part juste proportionnelle à la quotité à partir de ces réels.
+    const reel={}; let totSam=0,totJeu=0,totVd=0,totVjf=0;
     for(let r=1;r<ps.length;r++){
       const id=String(ps[r][0]).trim();
       if(!id||!dette[id]) continue;
-      if(iCSam>=0&&iSam>=0){const c=num(ps[r][iCSam]); if(c!==null) dette[id].sam=(Number(ps[r][iSam])||0)-c;}
-      if(iCJeu>=0&&iJeu>=0){const c=num(ps[r][iCJeu]); if(c!==null) dette[id].jeu=(Number(ps[r][iJeu])||0)-c;}
-      if(iCVd>=0 &&iVd>=0 ){const c=num(ps[r][iCVd]);  if(c!==null) dette[id].vd =(Number(ps[r][iVd]) ||0)-c;}
-      if(iCVjf>=0&&iVjf>=0){const c=num(ps[r][iCVjf]); if(c!==null) dette[id].vjf=(Number(ps[r][iVjf])||0)-c;}
+      const rs=iSam>=0?Number(ps[r][iSam])||0:0, rj=iJeu>=0?Number(ps[r][iJeu])||0:0,
+            rv=iVd>=0?Number(ps[r][iVd])||0:0,  rvj=iVjf>=0?Number(ps[r][iVjf])||0:0;
+      reel[id]={sam:rs,jeu:rj,vd:rv,vjf:rvj};
+      totSam+=rs; totJeu+=rj; totVd+=rv; totVjf+=rvj;
     }
+    const sumP=gardeDoctors.reduce((s,id)=>s+pct[id]/100,0);
+    const sumPWE=gardeDoctors.reduce((s,id)=>NO_WEEKEND.has(id)?s:s+pct[id]/100,0);
+    gardeDoctors.forEach(id=>{
+      if(!reel[id]) return; // MAR absent de N-1 → dette neutre
+      const p=pct[id]/100;
+      const fairS=(NO_WEEKEND.has(id)||!sumPWE)?0:totSam*p/sumPWE;
+      const fairV=(NO_WEEKEND.has(id)||!sumPWE)?0:totVd *p/sumPWE;
+      const fairJ=sumP?totJeu*p/sumP:0;
+      const fairVj=sumP?totVjf*p/sumP:0;
+      dette[id].sam=reel[id].sam-fairS;
+      dette[id].jeu=reel[id].jeu-fairJ;
+      dette[id].vd =reel[id].vd -fairV;
+      dette[id].vjf=reel[id].vjf-fairVj;
+    });
   }
 
   // ── 5. Cibles proportionnelles à la quotité ──────────────────────────
@@ -192,6 +207,7 @@ function generateGardes(year){
   const nJeu=allDays.filter(d=>d.dow===4).length;
   const nVen=allDays.filter(d=>d.dow===5).length;
   const nVjf=allDays.filter(d=>d.isVjf).length;
+  const nFerie=allDays.filter(d=>d.isFerie&&d.dow>=1&&d.dow<=5).length;
   const cible={};
   gardeDoctors.forEach(id=>{
     const p=pct[id]/100;
@@ -201,6 +217,7 @@ function generateGardes(year){
       jeu:(nJeu*2)*p/sumPct,
       vd:NO_WEEKEND.has(id)?0:(nVen*2)*p/sumPctWE,
       vjf:(nVjf*2)*p/sumPct,   // veilles de semaine : jours ouvrés → tous éligibles (PRUNET inclus)
+      ferie:NO_WEEKEND.has(id)?0:(nFerie*2)*p/sumPctWE,
     };
   });
 // ── 5bis. Souhaits plafonnés à la cible (PRUNET uniquement) ──────────
@@ -220,7 +237,7 @@ function generateGardes(year){
   const cnt={};
   gardeDoctors.forEach(id=>{
     gSet[id]=new Set();g2Set[id]=new Set();rgSet[id]=new Set();rSet[id]=new Set();
-    cnt[id]={total:0,g:0,g2:0,sam:0,jeu:0,ven:0,vd:0,vjf:0,lun:0,mar:0,mer:0,dim:0,recupR:0};
+    cnt[id]={total:0,g:0,g2:0,sam:0,jeu:0,ven:0,vd:0,vjf:0,ferie:0,lun:0,mar:0,mer:0,dim:0,recupR:0};
   });
   allDoctors.forEach(id=>{if(!rSet[id])rSet[id]=new Set();if(!rgSet[id])rgSet[id]=new Set();});
 
@@ -271,6 +288,7 @@ function generateGardes(year){
     const space=spacingPenalty(id,date); // lissage : prime sur l'équité (tue jeudi→samedi + 1j/2)
     const prim=dow===6?[ratio(id,'sam')]:dow===4?[ratio(id,'jeu')]:[];
     if(isVjf) prim.push(ratio(id,'vjf'));
+    if(dayByDate[date]?.isFerie) prim.push(ratio(id,'ferie'));
     return [space].concat(prim).concat([ratioTotal(id),cnt[id].total]);
   }
   function scoreVD(id){return [ratio(id,'vd'),ratioTotal(id),cnt[id].g+cnt[id].g2];}
@@ -292,6 +310,8 @@ function generateGardes(year){
       cnt[id][KEYS[dow]]++;
       if(dow===6)cnt[id].recupR++;
       if(dayByDate[date]?.isVjf)cnt[id].vjf++;
+      const _rdow=dayByDate[date]?.dow;
+      if(dayByDate[date]?.isFerie&&_rdow>=1&&_rdow<=5)cnt[id].ferie++;
     });
   }
 
@@ -322,6 +342,35 @@ function generateGardes(year){
   allDays.forEach(day=>{
     const date=day.date,dow=day.dow;
     if(gardes[date]) return; // déjà assigné (souhait ou dimanche VD)
+    // (Couplages fériés) jeudi férié → binôme du samedi suivant ; lundi férié → binôme du samedi précédent.
+    // Le férié couplé est compté dans l'axe samedi (assign avec dow=6) ; jfCnt le compte aussi comme férié.
+    if(day.isFerie && (dow===4||dow===1)){
+      const satDate=toDateStr(new Date(new Date(date+'T12:00:00').getTime()+(dow===4?2:-2)*86400000));
+      if(gardes[satDate]){
+        // samedi déjà placé → hériter du même binôme et des mêmes rôles
+        const {g,g2}=gardes[satDate];
+        if(g&&g2&&!blocked(g,date)&&!blocked(g2,date)){assign(date,g,g2,6);return;}
+        warnings.push(`Couplage férié : binôme samedi indispo ${date} (repli)`);
+      } else if(dow===4){
+        // jeudi férié, samedi pas encore placé → placer le binôme sur jeudi ET samedi
+        const availC=gardeDoctors.filter(id=>!blocked(id,date)&&!blocked(id,satDate));
+        if(availC.length>=2){
+          const scoreSat=id=>[ratio(id,'sam'),ratioTotal(id),cnt[id].g+cnt[id].g2];
+          availC.sort((a,b)=>cmp(scoreSat(a),scoreSat(b)));
+          const A=availC[0];
+          const rest=availC.filter(id=>id!==A); rest.sort((a,b)=>cmp(scoreSat(a),scoreSat(b)));
+          const B=rest[0];
+          const [g,g2]=assignRoles(A,B);
+          assign(date,g,g2,6);     // jeudi férié → axe samedi
+          assign(satDate,g,g2,6);  // samedi suivant, même binôme/rôles
+          return;
+        }
+        warnings.push(`Couplage jeudi férié impossible ${date} (repli)`);
+      } else {
+        warnings.push(`Lundi férié sans samedi placé ${date} (repli)`);
+      }
+      // repli : laisse continuer vers le placement normal ci-dessous
+    }
 
     const avail=gardeDoctors.filter(id=>!blocked(id,date));
     if(avail.length<2){warnings.push(`Manque MAR ${date}`);gardes[date]={g:null,g2:null};return;}
@@ -388,11 +437,12 @@ function generateGardes(year){
 
   // ── 10. 18h ───────────────────────────────────────────────────────────
   const weekdays=allDays.filter(d=>d.isWeekday&&!d.isFerie);
-  const nN=allDoctors.filter(id=>!ONLY_18.has(id)).length;
-  const nML=[...ONLY_18].filter(id=>allDoctors.includes(id)).length;
-  const baseT=weekdays.length/(nN+nML*RATIO_18);
+  // (18h proportionnel) Poids = quotité (col MEDECINS) × RATIO_18 pour les "seulement 18h"
+  const w18=id=>((quot[id]||100)/100)*(ONLY_18.has(id)?RATIO_18:1);
+  const sumW18=allDoctors.reduce((s,id)=>s+w18(id),0);
+  const baseT=sumW18?weekdays.length/sumW18:0;
   const h18T={},h18cnt={},h18A={};
-  allDoctors.forEach(id=>{h18T[id]=ONLY_18.has(id)?Math.round(baseT*RATIO_18):Math.round(baseT);h18cnt[id]=0;});
+  allDoctors.forEach(id=>{h18T[id]=Math.round(baseT*w18(id));h18cnt[id]=0;});
   // Disponibilité 18h : exclut absences totales, gardes/récups, semaines "off"
   // (rythme 2/2) et BONNET les jeudi/vendredi (60%).
   const ABSENT_18 = new Set(['VAC','FORM','CL','TP','CTP','CP','A','RG_TRANSITION']);
@@ -405,6 +455,12 @@ function generateGardes(year){
     return true;
   }
   weekdays.forEach(day=>{
+    // (18h veille de garde samedi) le vendredi, le 18h revient au MAR de garde (G) du samedi
+    if(day.dow===5){
+      const satDate=toDateStr(new Date(new Date(day.date+'T12:00:00').getTime()+86400000));
+      const satG=gardes[satDate]?.g;
+      if(satG&&dispo18(satG,day.date)){h18A[day.date]=satG;h18cnt[satG]++;return;}
+    }
     // Primaire : on évite les INDISPO. Repli : on les admet si personne d'autre.
     let pool=allDoctors.filter(id=>dispo18(id,day.date)&&indispos[id]?.[day.date]!=='INDISPO');
     if(!pool.length) pool=allDoctors.filter(id=>dispo18(id,day.date));
