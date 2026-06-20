@@ -1887,7 +1887,7 @@ async function detectAvailableYears() {
   // Tester les années archivées — silencieux si 404
   for (const y of [YEAR - 1, YEAR - 2]) {
     try {
-      const rs = await fetchTimeout(`./stats_${y}.json?t=${Date.now()}`, {}, 5000);
+      const rs = await fetchTimeout(`./archives/stats_${y}.json?t=${Date.now()}`, {}, 5000);
       if (rs.ok) availableYears.push({ year: y, label: y + ' — archivé', readonly: true });
     } catch(e) { /* 404 ou réseau — ignoré */ }
   }
