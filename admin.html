@@ -803,24 +803,51 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .ann-step-badge.blue { background:var(--blue-soft); color:var(--blue); }
 .ann-step-badge.green { background:var(--green-soft); color:var(--green); }
 
-.plan-chip.cs-chip { background:#F0FDF4; color:#166534; border:1px solid #86EFAC; max-width:60px; }
-.cs-sub { font-size:8px; color:#166534; margin-left:2px; opacity:.8; }
-.slot-name.cs-chip { background:#F0FDF4; color:#166534; border:1px solid #86EFAC; }
-.cs-group-label { background:var(--ink); color:#fff; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; padding:6px 14px; }
-.cs-group-label .sector-icon-svg { stroke:#fff; width:15px; height:15px; vertical-align:-2px; margin-right:6px; display:inline-block; }
-.cs-sub-name { font-size:12px; font-weight:700; color:#166534; }
-.cs-sub-row .td-sector { background:#F7FEF9; }
-.cs-cell { display:flex; align-items:center; gap:4px; flex-wrap:wrap; min-height:22px; }
-.cs-tools { display:inline-flex; align-items:center; gap:3px; opacity:0; pointer-events:none; transition:opacity .12s; }
-.cs-cell:hover .cs-tools { opacity:1; pointer-events:auto; }
-.cs-apourvoir { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600; color:#047857; background:#ECFDF5; border:1px solid #A7F3D0; border-radius:7px; padding:3px 9px; cursor:pointer; line-height:1.3; white-space:nowrap; transition:background .12s; }
-.cs-apourvoir:hover { background:#D1FAE5; }
-.cs-ouvrir { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600; color:#64748B; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:7px; padding:2px 8px; cursor:pointer; line-height:1.3; white-space:nowrap; transition:all .12s; }
-.cs-ouvrir:hover { color:#334155; border-color:#CBD5E1; background:#F1F5F9; }
-.cs-fermer { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; font-size:13px; font-weight:700; color:#CBD5E1; cursor:pointer; border-radius:5px; transition:all .12s; }
-.cs-fermer:hover { color:#EF4444; background:#FEF2F2; }
-.cs-fermee { display:inline-flex; align-items:center; font-size:11px; font-weight:600; color:#94A3B8; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:7px; padding:3px 9px; line-height:1.3; white-space:nowrap; text-decoration:line-through; }
-.slot-name.cs-chip.cs-mirror { background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; }
+/* ── CONSULTATIONS — visuel premium (refonte CSS ; structure & JS inchangés, AM/PM préservé) ── */
+.cs-sub { font-size:8px; color:var(--green); margin-left:3px; opacity:.7; font-family:var(--mono); }
+.cs-group-label { background:var(--ink); color:#fff; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; padding:7px 14px; }
+.cs-group-label .sector-icon-svg { stroke:#fff; width:15px; height:15px; vertical-align:-2px; margin-right:7px; display:inline-block; }
+.cs-sub-name { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--ink-2); }
+.cs-sub-name::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px var(--green-soft); flex-shrink:0; }
+.cs-sub-row .td-sector { background:#FCFEFD; }
+.cs-cell { display:flex; align-items:center; gap:5px; flex-wrap:wrap; min-height:24px; }
+
+/* puce MAR — jeton sur fond clair, accent vert latéral, micro-élévation au survol */
+.slot-name.cs-chip { display:inline-flex; align-items:center; gap:6px; max-width:64px;
+  font-family:var(--mono); font-size:11px; font-weight:500; color:var(--ink);
+  background:var(--white); border:1px solid rgba(15,23,42,.12); border-radius:8px;
+  padding:3px 8px 3px 7px; box-shadow:0 1px 1.5px rgba(15,23,42,.05);
+  transition:border-color .14s, box-shadow .14s, transform .14s; }
+.slot-name.cs-chip::before { content:""; width:3px; height:12px; border-radius:2px; background:var(--green); flex-shrink:0; }
+.slot-name.cs-chip.slot-clickable:hover { outline:none; border-color:rgba(15,23,42,.26); box-shadow:0 2px 6px -1px rgba(15,23,42,.14); transform:translateY(-1px); }
+.slot-name.cs-chip.slot-new { outline:none !important; background:linear-gradient(0deg,var(--green-soft),var(--white)) !important; color:var(--ink) !important; border-color:#A7F3D0 !important; }
+.slot-name.cs-chip.cs-mirror { color:var(--blue); background:var(--white); border-color:rgba(15,23,42,.12); }
+.slot-name.cs-chip.cs-mirror::before { background:var(--blue); }
+.plan-chip.cs-chip { background:var(--white); color:var(--ink); border:1px solid rgba(15,23,42,.12); border-radius:8px; max-width:64px; box-shadow:0 1px 1.5px rgba(15,23,42,.05); }
+
+/* « + ajouter » — affordance fantôme qui se remplit au survol */
+.cs-apourvoir { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:var(--green);
+  background:transparent; border:1px dashed rgba(22,101,52,.45); border-radius:8px; padding:3px 9px 3px 8px;
+  cursor:pointer; line-height:1.3; white-space:nowrap; transition:background .14s, border-color .14s; }
+.cs-apourvoir:hover { background:var(--green-soft); border-color:var(--green); border-style:solid; }
+
+/* outils au survol — fondu + glissé */
+.cs-tools { display:inline-flex; align-items:center; gap:4px; opacity:0; transform:translateX(-5px); pointer-events:none; transition:opacity .16s, transform .16s; }
+.cs-cell:hover .cs-tools { opacity:1; transform:none; pointer-events:auto; }
+.cs-ouvrir { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:var(--ink-3);
+  background:var(--white); border:1px solid var(--line); border-radius:8px; padding:3px 9px; cursor:pointer;
+  line-height:1.3; white-space:nowrap; box-shadow:0 1px 1.5px rgba(15,23,42,.05); transition:all .14s; }
+.cs-ouvrir:hover { color:var(--ink); border-color:#CBD5E1; box-shadow:0 2px 6px -1px rgba(15,23,42,.12); background:var(--white); }
+.cs-fermer { display:inline-flex; align-items:center; justify-content:center; width:21px; height:21px; font-size:14px; font-weight:500;
+  color:var(--ink-4); cursor:pointer; border-radius:7px; border:1px solid transparent; line-height:1; transition:all .14s; }
+.cs-fermer:hover { color:var(--red); background:#FEF2F2; border-color:#FECACA; }
+
+/* état fermé — sobre, avec « rouvrir » discret en vert */
+.cs-fermee { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:500; color:var(--ink-4);
+  background:var(--line-light); border:1px solid var(--line); border-radius:8px; padding:3px 10px; line-height:1.3;
+  white-space:nowrap; text-decoration:line-through; text-decoration-color:var(--ink-4); }
+.cs-fermee + .cs-ouvrir { color:var(--green); border-color:rgba(22,101,52,.3); box-shadow:none; }
+.cs-fermee + .cs-ouvrir:hover { color:var(--green); background:var(--green-soft); border-color:var(--green); }
 
 /* ── SLOT FLASH (admin) ── */
 .slot-flash {
