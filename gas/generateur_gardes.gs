@@ -1,4 +1,8 @@
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
+// Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
+// → inexploitables. La dette ne lit qu'à partir de cette année (2027 = 1re année
+// générée proprement par l'algo). 2027 part donc en dette NEUTRE ; 1re vraie dette = 2028.
+const PREMIERE_ANNEE_STATS_FIABLES = 2027;
 
 // ══════════════════════════════════════════════════════════════════════
 // GÉNÉRATEUR DE GARDES — ALGORITHME DE RÉFÉRENCE
@@ -72,9 +76,6 @@ function isVacancesScolaires(dateStr,year){
 
 function generateGardes(year){
   if(!year) throw new Error('Précisez l\'année');
-  const ANNEES_VERROUILLEES = new Set([2026]); // planning publié & figé : génération interdite
-  if(ANNEES_VERROUILLEES.has(Number(year)))
-    throw new Error(`Année ${year} VERROUILLÉE (planning figé) — génération refusée pour protéger GARDES_${year} / STATS_GARDES_${year}.`);
   const ss=SpreadsheetApp.getActiveSpreadsheet();
 
   // (C2-D1) Flags effectif lus depuis MEDECINS (remplacent les Set en dur).
@@ -166,11 +167,14 @@ function generateGardes(year){
   // (colonnes CIBLE SAM/JEU/VD de STATS_GARDES_{N-1}) ; sinon départ neutre.
   const dette={};
   gardeDoctors.forEach(id=>{dette[id]={sam:0,jeu:0,vd:0,vjf:0,jf:0,total:0};});
-  let prevStats=ss.getSheetByName(`STATS_GARDES_${year-1}`);
-  if(!prevStats){
-    // Repli : l'onglet N-1 a pu être déplacé vers le classeur d'archives (W3)
-    try { prevStats=SpreadsheetApp.openById(ARCHIVE_SS_ID).getSheetByName(`STATS_GARDES_${year-1}`); }
-    catch(e){ /* archives inaccessibles → dette neutre, l'algo continue */ }
+  let prevStats=null;
+  if(year-1 >= PREMIERE_ANNEE_STATS_FIABLES){
+    prevStats=ss.getSheetByName(`STATS_GARDES_${year-1}`);
+    if(!prevStats){
+      // Repli : l'onglet N-1 a pu être déplacé vers le classeur d'archives (W3)
+      try { prevStats=SpreadsheetApp.openById(ARCHIVE_SS_ID).getSheetByName(`STATS_GARDES_${year-1}`); }
+      catch(e){ /* archives inaccessibles → dette neutre, l'algo continue */ }
+    }
   }
   if(prevStats){
     const ps=prevStats.getDataRange().getValues();
@@ -267,13 +271,32 @@ function generateGardes(year){
     const n=Object.values(souhaits).filter(ids=>ids.includes(id)).length;
     cible[id].total = Math.max(cible[id].total, n);
   });
-  // Budget de jours LIBRES (lun/mar/mer) = total − axes-clés. Plafonne les
-  // souhaits non-PRUNET : leurs parts sam/jeu/VD/VJF/férié restent dues à
-  // l'équipe (équité) et ne peuvent être noyées sous des mardis.
+  // Budget de jours LIBRES (lun/mar/mer) = total − axes-clés. Les souhaits des
+  // non-PRUNET sont plafonnés à ce budget : leurs parts sam/jeu/VD/VJF/férié
+  // restent dues à l'équipe (équité) et ne peuvent être noyées sous des mardis.
   const freeBudget={};
   gardeDoctors.forEach(id=>{
     const c=cible[id];
     freeBudget[id]=c.total-(c.sam+c.jeu+c.vd+c.vjf+c.ferie);
+  });
+  // ── 5ter. Lissage annuel : espérance de gardes par MOIS, proportionnelle aux
+  // jours STRUCTURELLEMENT disponibles ce mois (respecte 2/2, CL, dates, absences
+  // fixes). Un MAR 2/2 (ex. COPELOVICI/LC) a une espérance nulle ses semaines off.
+  const ABSENT_STRUCT=new Set(['INDISPO','VAC','FORM','TP','CL','CTP']);
+  const monthExp={};
+  gardeDoctors.forEach(id=>{
+    const ma={}; for(let m=1;m<=12;m++) ma[m]=0;
+    const dd=FLAGS.dateDebut[id], df=FLAGS.dateFin[id];
+    allDays.forEach(d=>{
+      if(dd && d.date<dd) return;
+      if(df && d.date>=df) return;
+      if(ABSENT_STRUCT.has(indispos[id]?.[d.date])) return;
+      if(estSemaineOff(id,d.date)) return;
+      ma[d.month]++;
+    });
+    const tot=Object.values(ma).reduce((s,x)=>s+x,0)||1;
+    const me={}; for(let m=1;m<=12;m++) me[m]=cible[id].total*ma[m]/tot;
+    monthExp[id]=me;
   });
   // ── 6. État ──────────────────────────────────────────────────────────
   const gSet={},g2Set={},rgSet={},rSet={};
@@ -285,6 +308,7 @@ function generateGardes(year){
   allDoctors.forEach(id=>{if(!rSet[id])rSet[id]=new Set();if(!rgSet[id])rgSet[id]=new Set();});
   const recupDue={}; gardeDoctors.forEach(id=>{recupDue[id]=[];}); // (R fix) #R ≡ #samedis (couplages inclus)
   const weekCnt={}; gardeDoctors.forEach(id=>{weekCnt[id]={};}); // gardes par semaine ISO (espacement O(1))
+  const monthCnt={}; gardeDoctors.forEach(id=>{monthCnt[id]={};}); // gardes par mois (lissage annuel)
 
   function blocked(id,date){
     const _dd=FLAGS.dateDebut[id], _df=FLAGS.dateFin[id]; // (F3) arrivée/départ en cours d'année
@@ -350,14 +374,15 @@ function generateGardes(year){
     if(wl>=3) p+=200;
     return p;
   }
+  const monthOver=(id,date)=>{ const m=Number(date.slice(5,7)); return Math.max(0,(monthCnt[id][m]||0)-(monthExp[id][m]||0)); };
   // Score de SÉLECTION (sans distinction G/G2) :
-  //   [ratio axe prioritaire du jour, ratio total, total brut]
+  //   [espacement, ratio axe du jour, lissage mensuel, ratio total, total brut]
   function scoreSelect(id,dow,isVjf,date){
     const space=spacingPenalty(id,date); // lissage : prime sur l'équité (tue jeudi→samedi + 1j/2)
     const prim=dow===6?[ratio(id,'sam')]:dow===4?[ratio(id,'jeu')]:[];
     if(isVjf) prim.push(ratio(id,'vjf'));
     if(dayByDate[date]?.isFerie) prim.push(ratio(id,'ferie'));
-    return [space].concat(prim).concat([ratioTotal(id),cnt[id].total]);
+    return [space].concat(prim).concat([Math.round(monthOver(id,date)*100)/100,ratioTotal(id),cnt[id].total]);
   }
   function scoreVD(id,fri,sun){
     const wpen=(weekLoad(id,fri)>=1||weekLoad(id,sun)>=1)?80:0; // VD = ven+dim : éviter une 3e garde la même semaine
@@ -387,6 +412,7 @@ function generateGardes(year){
       if(dayByDate[date]?.isFerie)cnt[id].jf++; // total fériés (couplages inclus)
       const _wk=dayByDate[date]?.wk;
       if(_wk!==undefined) weekCnt[id][_wk]=(weekCnt[id][_wk]||0)+1;
+      const _m=Number(date.slice(5,7)); monthCnt[id][_m]=(monthCnt[id][_m]||0)+1;
     });
   }
 
@@ -577,7 +603,9 @@ function generateGardes(year){
     const A=avail[0],B=avail[1];
     const [g,g2]=assignRoles(A,B);
     assign(date,g,g2,dow);
-    // ── 8c. OPTIMISEUR GLOBAL (recherche locale par transferts de créneaux) ─
+  });
+
+  // ── 8c. OPTIMISEUR GLOBAL (recherche locale par transferts de créneaux) ─
   // Minimise Σ poids·(réel−cible)² sur les axes d'équité en transférant un
   // créneau (unité VD/couplage incluse) d'un MAR sur-cible vers un sous-cible.
   // Respecte espacements, NO_WEEKEND, plafond PRUNET, souhaits verrouillés et
@@ -665,7 +693,9 @@ function generateGardes(year){
         if(role===0){gardes[dd].g=B;gSet[A].delete(dd);gSet[B].add(dd);}
         else{gardes[dd].g2=B;g2Set[A].delete(dd);g2Set[B].add(dd);}
         const _wk=dayByDate[dd].wk;
-        weekCnt[A][_wk]=(weekCnt[A][_wk]||0)-1; weekCnt[B][_wk]=(weekCnt[B][_wk]||0)+1;});
+        weekCnt[A][_wk]=(weekCnt[A][_wk]||0)-1; weekCnt[B][_wk]=(weekCnt[B][_wk]||0)+1;
+        const _m=Number(dd.slice(5,7));
+        monthCnt[A][_m]=(monthCnt[A][_m]||0)-1; monthCnt[B][_m]=(monthCnt[B][_m]||0)+1;});
       Object.keys(c).forEach(ax=>{cnt[A][ax]-=c[ax];cnt[B][ax]+=c[ax];});
       const n=c.total;
       if(role===0){cnt[A].g-=n;cnt[B].g+=n;}else{cnt[A].g2-=n;cnt[B].g2+=n;}
@@ -686,6 +716,9 @@ function generateGardes(year){
           let dd_=delta(A,B,slot.contrib,role);
           let wkPen=0; days_.forEach(dd=>{ if((weekCnt[B][dayByDate[dd].wk]||0)>=2) wkPen+=30; });
           dd_+=wkPen;
+          const WM=2; days_.forEach(dd=>{ const m=dayByDate[dd].month;
+            const cb=monthCnt[B][m]||0, ca=monthCnt[A][m]||0, eb=monthExp[B][m]||0, ea=monthExp[A][m]||0;
+            dd_+=WM*((Math.pow(cb+1-eb,2)-Math.pow(cb-eb,2))+(Math.pow(ca-1-ea,2)-Math.pow(ca-ea,2))); });
           if(dd_<bestD){bestD=dd_;bestB=B;}}
         if(bestB){applyTr(slot,bestB);moves++;changed=true;}
       }
@@ -699,7 +732,6 @@ function generateGardes(year){
       [gg.g,gg.g2].forEach(id=>{if(!id)return;rgSet[id].add(addOneDay(dd));
         if(assignDow[dd]===6)recupDue[id].push(dd);});});
   }
-  });
 
   // ── 9. Placer les R ──────────────────────────────────────────────────
   const rAssigned={};
@@ -751,21 +783,26 @@ function generateGardes(year){
     if(_tp && _tp.has(new Date(date+'T12:00:00').getDay())) return false;
     return true;
   }
+  const h18wk={}; // semaines ISO où chaque MAR a déjà fait un 18h (≤ 1 par semaine)
+  const did18wk=(id,date)=> h18wk[id]?h18wk[id].has(dayByDate[date].wk):false;
+  const set18=(id,date)=>{ h18A[date]=id; h18cnt[id]++; (h18wk[id]||(h18wk[id]=new Set())).add(dayByDate[date].wk); };
   weekdays.forEach(day=>{
     const veille=toDateStr(new Date(new Date(day.date+'T12:00:00').getTime()-86400000)); // pas 2 x 18h d'affilée
     // (18h veille de garde samedi) le vendredi, le 18h revient au MAR de garde (G) du samedi
     if(day.dow===5){
       const satDate=toDateStr(new Date(new Date(day.date+'T12:00:00').getTime()+86400000));
       const satG=gardes[satDate]?.g;
-      if(satG&&dispo18(satG,day.date)&&h18A[veille]!==satG){h18A[day.date]=satG;h18cnt[satG]++;return;}
+      if(satG&&dispo18(satG,day.date)&&h18A[veille]!==satG&&!did18wk(satG,day.date)){set18(satG,day.date);return;}
     }
-    // Primaire : on évite les INDISPO et le 18h de la veille. Replis successifs.
-    let pool=allDoctors.filter(id=>dispo18(id,day.date)&&h18A[veille]!==id&&indispos[id]?.[day.date]!=='INDISPO');
-    if(!pool.length) pool=allDoctors.filter(id=>dispo18(id,day.date)&&h18A[veille]!==id);
-    if(!pool.length) pool=allDoctors.filter(id=>dispo18(id,day.date)); // dernier recours : on lève la contrainte
+    // Replis successifs : on lève d'abord INDISPO, puis la veille, et seulement
+    // en tout dernier recours la règle "≤ 1 par semaine".
+    let pool=allDoctors.filter(id=>dispo18(id,day.date)&&h18A[veille]!==id&&!did18wk(id,day.date)&&indispos[id]?.[day.date]!=='INDISPO');
+    if(!pool.length) pool=allDoctors.filter(id=>dispo18(id,day.date)&&h18A[veille]!==id&&!did18wk(id,day.date));
+    if(!pool.length) pool=allDoctors.filter(id=>dispo18(id,day.date)&&!did18wk(id,day.date)); // garde "1/semaine"
+    if(!pool.length) pool=allDoctors.filter(id=>dispo18(id,day.date)); // dernier recours absolu
     if(!pool.length){warnings.push(`Aucun 18h ${day.date}`);return;}
     pool.sort((a,b)=>(h18cnt[a]/(h18T[a]||1))-(h18cnt[b]/(h18T[b]||1)));
-    h18A[day.date]=pool[0];h18cnt[pool[0]]++;
+    set18(pool[0],day.date);
   });
 
   // ── 11. Compteurs JF/Noël (la VJF de semaine est comptée dans cnt.vjf) ──
