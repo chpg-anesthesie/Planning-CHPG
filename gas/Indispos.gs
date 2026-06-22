@@ -1101,7 +1101,7 @@ if (!affSheet) {
       if (user.role !== 'admin') return _deny();
       const ss = SpreadsheetApp.getActiveSpreadsheet();
       const perSheet = ss.getSheetByName('PERIODES_VAC');
-      const periodes = [];
+      let periodes = [];
       if (perSheet) {
         const perData = perSheet.getDataRange().getValues();
         for (let r = 1; r < perData.length; r++) {
@@ -1116,6 +1116,12 @@ if (!affSheet) {
             : String(finRaw).trim();
           periodes.push({nom, debut, fin, seuil:Number(perData[r][3])||8});
         }
+      }
+      // Année visée (wizard) : ne garder que ses périodes ; si aucune, proposer (API Nice + filet)
+      const wizYear = Number(payload.year) || 0;
+      if (wizYear) {
+        const pourAnnee = periodes.filter(function(p){ return String(p.debut).startsWith(String(wizYear)); });
+        periodes = pourAnnee.length ? pourAnnee : proposerVacances(wizYear);
       }
       const groupSheet = ss.getSheetByName('GROUPES_VAC');
       const groupes = {A:[],B:[],C:[]};
