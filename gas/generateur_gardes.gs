@@ -430,12 +430,20 @@ function generateGardes(year){
   const noelAssignees={};
   {
     const noelHistory={};
-    const nhSheet=ss.getSheetByName('NOEL_AN_HISTORIQUE');
-    if(nhSheet){
-      const nd=nhSheet.getDataRange().getValues();
-      for(let r=1;r<nd.length;r++){
-        const id=String(nd[r][0]).trim(); if(!id) continue;
-        const y=nd[r][1]; noelHistory[id]=(y===''||y==null)?null:Number(y);
+    // Rotation Noël/An : dernière année où chacun a fait Noël/An, lue dans HISTORIQUE
+    // (onglet unique = mémoire longue + source rotation ; remplace NOEL_AN_HISTORIQUE).
+    const histSheet=ss.getSheetByName('HISTORIQUE');
+    if(histSheet){
+      const hd=histSheet.getDataRange().getValues();
+      const Hh=hd[0].map(x=>String(x).trim());
+      const cId=Hh.indexOf('ID'), cAn=Hh.indexOf('ANNEE'), cNa=Hh.indexOf('NOEL/AN');
+      if(cId>=0&&cAn>=0&&cNa>=0){
+        for(let r=1;r<hd.length;r++){
+          const id=String(hd[r][cId]).trim(); if(!id) continue;
+          if((Number(hd[r][cNa])||0)<=0) continue;            // n'a pas fait Noël/An cette année-là
+          const y=Number(hd[r][cAn])||0;
+          if(noelHistory[id]==null||y>noelHistory[id]) noelHistory[id]=y;  // garde la plus récente
+        }
       }
     }
     const shiftD=(d,n)=>toDateStr(new Date(new Date(d+'T12:00:00').getTime()+n*86400000));
@@ -743,7 +751,7 @@ function generateGardes(year){
         for(let off=0;off<5&&!placed;off++){
           const cDt=new Date(samDt);cDt.setDate(samDt.getDate()+w*7+off);
           const cDate=toDateStr(cDt);const cDow=cDt.getDay();
-          if(cDow===0||cDow===6||!cDate.startsWith(String(year))) continue;
+          if(cDow===0||cDow===6||dayByDate[cDate]?.isFerie||!cDate.startsWith(String(year))) continue;
           if(rAssigned[cDate]||blocked(id,cDate)||gSet[id]?.has(cDate)||g2Set[id]?.has(cDate)||rSet[id].has(cDate)) continue;
           if(isVacancesScolaires(cDate,year)) continue;
           const di=dayByDate[cDate];
@@ -756,7 +764,7 @@ function generateGardes(year){
       }
       if(!placed){
         for(const d of allDays){
-          if(!d.isWeekday||rAssigned[d.date]||isVacancesScolaires(d.date,year)) continue;
+          if(!d.isWeekday||d.isFerie||rAssigned[d.date]||isVacancesScolaires(d.date,year)) continue;
           if(blocked(id,d.date)||gSet[id]?.has(d.date)||g2Set[id]?.has(d.date)||rSet[id].has(d.date)) continue;
           rSet[id].add(d.date);rAssigned[d.date]=true;break;
         }
