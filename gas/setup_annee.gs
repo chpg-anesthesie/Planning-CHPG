@@ -1,3 +1,92 @@
+function conceptDe(s){
+  s = String(s||'');
+  if (/toussaint/i.test(s)) return 'toussaint';
+  if (/no[eë]l/i.test(s)) return 'noel';
+  if (/hiver|f[ée]vrier/i.test(s)) return 'hiver';
+  if (/printemps|p[âa]ques/i.test(s)) return 'printemps';
+  if (/[ée]t[ée]/i.test(s)) return 'ete';
+  return null;
+}
+var _NOMS_VAC = { toussaint:'Toussaint', noel:'Noël', hiver:'Hiver', printemps:'Printemps', ete:'Été' };
+
+// Cœur sans popup (appelable depuis W1, contexte web)
+function importerVacancesScolaires_core(year, zone) {
+  zone = zone || 'Zone B';
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('PERIODES_VAC');
+  if (!sheet) { sheet = ss.insertSheet('PERIODES_VAC'); sheet.getRange(1,1,1,4).setValues([['NOM','DEBUT','FIN','SEUIL']]).setFontWeight('bold'); }
+  const existing = sheet.getDataRange().getValues().slice(1).map(function(r){
+    const d = r[1] instanceof Date ? toDateStr(r[1]) : String(r[1]).trim();
+    return { concept: conceptDe(r[0]), debut: d };
+  }).filter(function(x){ return x.debut; });
+  const ajout = [];
+  function present(concept, anchorYear) {
+    function m(c, d){ return c === concept && String(d).startsWith(String(anchorYear) + '-'); }
+    return existing.some(function(x){ return m(x.concept, x.debut); })
+        || ajout.some(function(a){ return m(conceptDe(a[0]), a[1]); });
+  }
+  const base = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';
+  [(year-1)+'-'+year, year+'-'+(year+1)].forEach(function(as) {
+    const url = base + '?limit=20'
+      + '&refine=' + encodeURIComponent('zones:"' + zone + '"')
+      + '&refine=' + encodeURIComponent('population:"Élèves"')
+      + '&refine=' + encodeURIComponent('population:"-"')
+      + '&refine=' + encodeURIComponent('annee_scolaire:"' + as + '"');
+    let data;
+    try {
+      const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+      if (resp.getResponseCode() !== 200) { Logger.log('API ' + resp.getResponseCode() + ' ' + as); return; }
+      data = JSON.parse(resp.getContentText());
+    } catch (e) { Logger.log('Échec API ' + as + ' : ' + e.message); return; }
+    (data.results || []).forEach(function(r) {
+      if (!r.start_date || !r.end_date) return;
+      const concept = conceptDe(r.description || '');
+      const isEte = concept === 'ete';
+      const startRaw = new Date(r.start_date), endRaw = new Date(r.end_date);
+      if ((endRaw - startRaw)/86400000 < 2 && !isEte) return; // pont/marqueur (Ascension), sauf été
+      const debut = Utilities.formatDate(startRaw, 'Europe/Paris', 'yyyy-MM-dd');
+      if (!debut.startsWith(String(year))) return; // n'importe que les périodes qui DÉBUTENT cette année (exclut le Noël de janvier)
+      let fin;
+      if (isEte) { fin = debut.slice(0,4) + '-08-31'; }
+      else {
+        const f = new Date(Utilities.formatDate(endRaw, 'Europe/Paris', 'yyyy-MM-dd') + 'T12:00:00');
+        f.setDate(f.getDate() - 1); fin = toDateStr(f);
+      }
+      const anchorYear = Number(debut.slice(0,4));
+      if (concept) { if (present(concept, anchorYear)) return; }
+      else { if (existing.some(function(x){return x.debut===debut;}) || ajout.some(function(a){return a[1]===debut;})) return; }
+      const nom = _NOMS_VAC[concept] || (r.description || 'Vacances');
+      ajout.push([nom, debut, fin, isEte ? 12 : 8]);
+    });
+  });
+  const REPERES = [
+    { concept:'hiver',     nom:'Hiver',     debut:year+'-02-08', fin:year+'-02-23',     seuil:8  },
+    { concept:'printemps', nom:'Printemps', debut:year+'-04-05', fin:year+'-04-20',     seuil:8  },
+    { concept:'ete',       nom:'Été',       debut:year+'-07-05', fin:year+'-08-31',     seuil:12 },
+    { concept:'toussaint', nom:'Toussaint', debut:year+'-10-18', fin:year+'-11-02',     seuil:8  },
+    { concept:'noel',      nom:'Noël',      debut:year+'-12-19', fin:(year+1)+'-01-04', seuil:8  }
+  ];
+  const estimes = [];
+  REPERES.forEach(function(p){
+    if (present(p.concept, year)) return;
+    ajout.push([p.nom, p.debut, p.fin, p.seuil]);
+    estimes.push(p.nom);
+  });
+  if (ajout.length) {
+    ajout.sort(function(a,b){ return a[1] < b[1] ? -1 : 1; });
+    sheet.getRange(sheet.getLastRow()+1, 1, ajout.length, 4).setValues(ajout);
+  }
+  return { ajoutes: ajout.length, estimes: estimes };
+}
+
+// Lanceur avec popup, pour exécution manuelle depuis l'éditeur
+function importerVacancesScolaires(year, zone) {
+  const res = importerVacancesScolaires_core(year, zone);
+  let msg = res.ajoutes ? ('✅ ' + res.ajoutes + ' période(s) ajoutée(s) pour ' + year + '.') : 'ℹ️ Rien à ajouter (tout est déjà présent).';
+  if (res.estimes.length) msg += '\n\nDates estimées (à caler) : ' + res.estimes.join(', ') + '.';
+  SpreadsheetApp.getUi().alert(msg);
+}
+
 // ── SETUP ANNÉE ────────────────────────────────────────────────────────
 function setupAnnee(year) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -166,15 +255,23 @@ function setupAnnee(year) {
   }
   Logger.log(`✅ CONFIG : ANNEE_ACTIVE = ${year}`);
 
+  // ── 4. PERIODES_VAC : import (proposition) des vacances scolaires ──
+  const _vac = importerVacancesScolaires_core(year);
+  let _vacMsg = `• PERIODES_VAC : ${_vac.ajoutes} période(s) ajoutée(s)`;
+  if (_vac.estimes.length) _vacMsg += ` (à caler : ${_vac.estimes.join(', ')})`;
+  _vacMsg += `\n`;
+
   SpreadsheetApp.getUi().alert(
     `✅ Setup ${year} terminé !\n\n` +
     `• ${indisposName} créé (${allDays.length} jours)\n` +
     `• ${affName} créé (à remplir)\n` +
-    `• CONFIG : ANNEE_ACTIVE = ${year}\n\n` +
+    `• CONFIG : ANNEE_ACTIVE = ${year}\n` +
+    _vacMsg + `\n` +
     `Prochaines étapes :\n` +
-    `1. Remplir ${affName} avec les secteurs des MAR\n` +
-    `2. Les MAR saisissent leurs indispos sur indispos.html\n` +
-    `3. Lancer generateGardes()`
+    `1. Vérifier/ajuster PERIODES_VAC (dates de vacances)\n` +
+    `2. Remplir ${affName} avec les secteurs des MAR\n` +
+    `3. Les MAR saisissent leurs indispos sur indispos.html\n` +
+    `4. Lancer generateGardes()`
   );
 }
 
@@ -398,7 +495,7 @@ function TEST_remplirIndispos(year, scenario) {
   SpreadsheetApp.getUi().alert(`✅ INDISPOS_${year} rempli (« ${scenario} »). Lance W2 puis W3.`);
 }
 function TEST_run() {
-  const ANNEE    = 2029;       // ← change l'année ici
+  const ANNEE    = 2028;       // ← change l'année ici
   const SCENARIO = 'charge';   // 'normal' | 'charge' | 'leger'
   TEST_remplirIndispos(ANNEE, SCENARIO);
 }
