@@ -49,7 +49,23 @@ function setupAnnee(year) {
   // ── 1. INDISPOS_YYYY ────────────────────────────────────────────────
   const indisposName = `INDISPOS_${year}`;
   let indSheet = ss.getSheetByName(indisposName);
-  if (indSheet) ss.deleteSheet(indSheet);
+  if (indSheet) {
+    // Garde-fou : ne JAMAIS écraser des indispos déjà saisies sans confirmation.
+    const last = indSheet.getLastRow(), lastC = indSheet.getLastColumn();
+    let saisies = 0;
+    if (last >= 4 && lastC >= 2) {
+      const vals = indSheet.getRange(4, 2, last - 3, lastC - 1).getValues();
+      saisies = vals.reduce((n, row) => n + row.filter(c => String(c).trim()).length, 0);
+    }
+    if (saisies > 0) {
+      const ui = SpreadsheetApp.getUi();
+      const rep = ui.alert(`⚠️ ${indisposName} contient déjà ${saisies} saisie(s)`,
+        `Relancer W1 va TOUT effacer et recréer une grille vide.\n\nContinuer quand même ?`,
+        ui.ButtonSet.YES_NO);
+      if (rep !== ui.Button.YES) { ui.alert('Annulé — la grille existante est conservée.'); return; }
+    }
+    ss.deleteSheet(indSheet);
+  }
   indSheet = ss.insertSheet(indisposName);
   indSheet.setFrozenRows(3);
 
@@ -163,249 +179,98 @@ function setupAnnee(year) {
 }
 
 // ── ARCHIVAGE ANNÉE N ──────────────────────────────────────────────────
-// Phase 1 (active)  : push stats_N.json + indispos_N.json sur GitHub
-// Phase 2 (commentée) : suppression des onglets N du GSheet — à décommenter en janvier N+1
-function archiveYear(year) {
-  if (!year) {
-    SpreadsheetApp.getUi().alert('❌ Préciser l\'année à archiver. Ex : archiveYear(2026)');
-    return;
-  }
+
+function archiveYear(year, moveSheets) {
+  if (moveSheets === undefined) moveSheets = true;
+  if (!year) { try{SpreadsheetApp.getUi().alert("❌ Préciser l'année. Ex : archiveYear(2026)");}catch(e){} return "❌ année manquante"; }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const GITHUB_USER = 'chpg-anesthesie';
-  // (C3) getGithubToken() imbriqué retiré — on utilise la version globale (code.gs).
-  const GITHUB_REPO = 'Planning-CHPG';
-  const GITHUB_BRANCH = 'main';
+  const GITHUB_USER='chpg-anesthesie', GITHUB_REPO='Planning-CHPG', GITHUB_BRANCH='main';
   const results = [];
 
-  // ── HELPER PUSH GITHUB ──────────────────────────────────────────────
-  function pushFile(fileName, content) {
-    const apiUrl = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${fileName}`;
-    let sha = '';
-    try {
-      const getResp = UrlFetchApp.fetch(apiUrl, {
-        headers: {Authorization: `token ${getGithubToken()}`},
-        muteHttpExceptions: true
-      });
-      if (getResp.getResponseCode() === 200) sha = JSON.parse(getResp.getContentText()).sha;
-    } catch(e) {}
-
-    const body = {
-      message: `Archive ${year} — ${fileName} — ${new Date().toISOString()}`,
-      content: Utilities.base64Encode(Utilities.newBlob(content).getBytes()),
-      branch: GITHUB_BRANCH,
-    };
-    if (sha) body.sha = sha;
-
-    const resp = UrlFetchApp.fetch(apiUrl, {
-      method: 'PUT',
-      headers: {Authorization: `token ${getGithubToken()}`, 'Content-Type': 'application/json'},
-      payload: JSON.stringify(body),
-      muteHttpExceptions: true
-    });
-    const code = resp.getResponseCode();
-    if (code === 200 || code === 201) {
-      Logger.log(`✅ ${fileName} pushé sur GitHub`);
-      return true;
-    } else {
-      Logger.log(`❌ GitHub error ${code} pour ${fileName}: ${resp.getContentText().slice(0,200)}`);
-      return false;
-    }
+  function pushFile(path, content){
+    const apiUrl=`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${path}`;
+    let sha='';
+    try{ const g=UrlFetchApp.fetch(apiUrl,{headers:{Authorization:`token ${getGithubToken()}`},muteHttpExceptions:true});
+      if(g.getResponseCode()===200) sha=JSON.parse(g.getContentText()).sha; }catch(e){}
+    const body={message:`Archive ${year} — ${path} — ${new Date().toISOString()}`,
+      content:Utilities.base64Encode(Utilities.newBlob(content).getBytes()), branch:GITHUB_BRANCH};
+    if(sha) body.sha=sha;
+    const r=UrlFetchApp.fetch(apiUrl,{method:'PUT',headers:{Authorization:`token ${getGithubToken()}`,'Content-Type':'application/json'},payload:JSON.stringify(body),muteHttpExceptions:true});
+    const c=r.getResponseCode();
+    if(c===200||c===201){Logger.log(`✅ ${path} poussé`);return true;}
+    Logger.log(`❌ GitHub ${c} ${path}: ${r.getContentText().slice(0,200)}`); return false;
   }
 
-  // ── 1. PUSH stats_N.json ────────────────────────────────────────────
-  const statsSheet = ss.getSheetByName(`STATS_GARDES_${year}`);
-  const gardesSheet = ss.getSheetByName(`GARDES_${year}`);
-  if (!statsSheet) {
-    results.push(`❌ Onglet STATS_GARDES_${year} introuvable`);
+  // ── 1. STATS_GARDES_N → HISTORIQUE (append idempotent) + sauvegarde JSON ──
+  const st = ss.getSheetByName(`STATS_GARDES_${year}`);
+  if (!st) {
+    results.push(`❌ STATS_GARDES_${year} introuvable — archivage interrompu`);
   } else {
-    // ── Stats initiales depuis STATS_GARDES_YYYY ──
-    const statsData = statsSheet.getDataRange().getValues();
-    const headers = statsData[0].map(h => String(h).trim());
-    const statsInitiales = {};
-    for (let r = 1; r < statsData.length; r++) {
-      const id = String(statsData[r][0]).trim();
-      if (!id) continue;
-      statsInitiales[id] = {};
-      headers.forEach((h, i) => { statsInitiales[id][h] = statsData[r][i]; });
+    const d = st.getDataRange().getValues();
+    const Hd = d[0].map(x=>String(x).trim());
+    const get = (r,n)=>{ const i=Hd.indexOf(n); return i<0?'':d[r][i]; };
+    const num = (r,n)=>Number(get(r,n))||0;
+
+    // a) Alimenter HISTORIQUE (créé si absent)
+    let h = ss.getSheetByName('HISTORIQUE');
+    if (!h) { h = ss.insertSheet('HISTORIQUE');
+      h.getRange(1,1,1,18).setValues([['ID','ANNEE','TOTAL','G','G2','LUN','MAR','MER','JEU','VEN','SAM','DIM','VD','VEILLE JF','JF','NOEL/AN','RECUP R','18H']]).setFontWeight('bold');
+      h.setFrozenRows(1); h.setColumnWidth(1,140); }
+    const hd = h.getDataRange().getValues();
+    const seen = new Set();
+    for (let r=1;r<hd.length;r++){ const id=String(hd[r][0]).trim(); if(id) seen.add(`${id}|${hd[r][1]}`); }
+    const hrows=[];
+    for (let r=1;r<d.length;r++){
+      const id=String(d[r][0]).trim(); if(!id) continue;
+      if (seen.has(`${id}|${year}`)) continue;
+      hrows.push([id,year, num(r,'TOTAL G'),num(r,'G (REA)'),num(r,'G2 (MAT)'),
+        num(r,'LUN'),num(r,'MAR'),num(r,'MER'),num(r,'JEU'),num(r,'VEN'),num(r,'SAM'),num(r,'DIM'),
+        num(r,'VD'),num(r,'VEILLE JF'),num(r,'JF'),num(r,'NOEL/AN'),num(r,'RECUP R'),num(r,'18H')]);
     }
+    if (hrows.length){ h.getRange(h.getLastRow()+1,1,hrows.length,18).setValues(hrows);
+      results.push(`✅ HISTORIQUE : ${hrows.length} ligne(s) ${year} ajoutée(s)`); }
+    else results.push(`ℹ️ HISTORIQUE : ${year} déjà présent`);
 
-    // ── Stats réelles recomptées depuis GARDES_YYYY ──
-    const statsReelles = {};
-    if (gardesSheet) {
-      const gardesData = gardesSheet.getDataRange().getValues();
-
-      // Reconstruire les jours avec dates
-      const joursFeries = getJoursFeries(year);
-      const joursFeriesNext = getJoursFeries(year + 1);
-      const allJoursFeries = new Set([...joursFeries, ...joursFeriesNext]);
-
-      const NOEL_AN = new Set([
-        `${year}-12-24`,`${year}-12-25`,`${year}-12-31`,
-        `${year+1}-01-01`,`${year+1}-12-24`,`${year+1}-12-25`,
-      ]);
-
-      // (C3) Reconstruction robuste via buildDateToCol (positionnel) au lieu du
-      // parse fragile new Date(cell) sur en-têtes texte ("Janvier") → stats à 0.
-      const _dtc = buildDateToCol(gardesData, year);
-      const colDates = {};
-      Object.keys(_dtc).forEach(d => { colDates[_dtc[d]] = d; });
-
-      // Initialiser compteurs
-      for (let r = 3; r < gardesData.length; r++) {
-        const id = String(gardesData[r][0]).trim();
-        if (!id) continue;
-        statsReelles[id] = {
-          total:0, g:0, g2:0,
-          lun:0, mar:0, mer:0, jeu:0, ven:0, sat:0, dim:0,
-          jf:0, veilleJf:0, noelAn:0
-        };
-      }
-
-      // Compter
-      Object.entries(colDates).forEach(([c, date]) => {
-        const dt = new Date(date+'T12:00:00');
-        const dow = dt.getDay();
-        const isJF = allJoursFeries.has(date);
-        const lendemain = (() => {
-          const d2 = new Date(dt); d2.setDate(d2.getDate()+1);
-          return `${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,'0')}-${String(d2.getDate()).padStart(2,'0')}`;
-        })();
-        const isVeille = !isJF && allJoursFeries.has(lendemain);
-
-        for (let r = 3; r < gardesData.length; r++) {
-          const id = String(gardesData[r][0]).trim();
-          if (!id || !statsReelles[id]) continue;
-          const val = String(gardesData[r][Number(c)]||'').trim();
-          if (val !== 'G' && val !== 'G2') continue;
-
-          const s = statsReelles[id];
-          s.total++;
-          if (val === 'G')  s.g++;
-          if (val === 'G2') s.g2++;
-          if (dow === 1) s.lun++;
-          if (dow === 2) s.mar++;
-          if (dow === 3) s.mer++;
-          if (dow === 4) s.jeu++;
-          if (dow === 5) s.ven++;
-          if (dow === 6) s.sat++;
-          if (dow === 0) s.dim++;
-          if (isJF)     s.jf++;
-          if (isVeille) s.veilleJf++;
-          if (NOEL_AN.has(date)) s.noelAn++;
-        }
-      });
-    }
-
-    // ── Construire le rapport comparatif ──
-    const stats = [];
-    Object.keys(statsInitiales).forEach(id => {
-      const ini = statsInitiales[id];
-      const reel = statsReelles[id] || {};
-      const we_ini = (Number(ini['SAM'])||0) + (Number(ini['DIM'])||0);
-      const we_reel = (reel.sat||0) + (reel.dim||0);
-
-      stats.push({
-        medecin: id,
-        cible: ini['CIBLE'] || '—',
-        // Stats initiales
-        ini_total:    Number(ini['TOTAL G'])  || 0,
-        ini_g:        Number(ini['G (REA)'])  || 0,
-        ini_g2:       Number(ini['G2 (MAT)']) || 0,
-        ini_we:       we_ini,
-        ini_jeu:      Number(ini['JEU'])      || 0,
-        ini_jf:       Number(ini['JF'])       || 0,
-        ini_veilleJf: Number(ini['VEILLE JF'])|| 0,
-        ini_noelAn:   Number(ini['NOEL/AN'])  || 0,
-        // Stats réelles
-        reel_total:    reel.total    || 0,
-        reel_g:        reel.g        || 0,
-        reel_g2:       reel.g2       || 0,
-        reel_we:       we_reel,
-        reel_jeu:      reel.jeu      || 0,
-        reel_jf:       reel.jf       || 0,
-        reel_veilleJf: reel.veilleJf || 0,
-        reel_noelAn:   reel.noelAn   || 0,
-        // Écarts
-        ecart_total:    (reel.total||0)   - (Number(ini['TOTAL G'])||0),
-        ecart_g:        (reel.g||0)       - (Number(ini['G (REA)'])||0),
-        ecart_g2:       (reel.g2||0)      - (Number(ini['G2 (MAT)'])||0),
-        ecart_we:       we_reel           - we_ini,
-        ecart_jeu:      (reel.jeu||0)     - (Number(ini['JEU'])||0),
-        ecart_noelAn:   (reel.noelAn||0)  - (Number(ini['NOEL/AN'])||0),
-      });
-    });
-
-    const ok = pushFile(`stats_${year}.json`, JSON.stringify({year, stats}, null, 2));
-    results.push(ok ? `✅ stats_${year}.json pushé` : `❌ Échec push stats_${year}.json`);
+    // b) Sauvegarde JSON (rangée dans archives/)
+    const statsObj = d.slice(1).filter(row=>String(row[0]).trim()).map(row=>{ const o={}; Hd.forEach((hn,i)=>o[hn]=row[i]); return o; });
+    const ok1 = pushFile(`archives/stats_${year}.json`, JSON.stringify({year, stats:statsObj}, null, 2));
+    results.push(ok1?`✅ archives/stats_${year}.json`:`❌ push stats échoué`);
   }
 
-  // ── 2. PUSH indispos_N.json ─────────────────────────────────────────
-  const indSheet = ss.getSheetByName(`INDISPOS_${year}`);
-  if (!indSheet) {
-    results.push(`⚠️ Onglet INDISPOS_${year} introuvable — ignoré`);
-  } else {
-    const indData = indSheet.getDataRange().getValues();
-    const indispos = {};
-    const dates = reconstruireDatesHeaders(indData, year); // (C3b) helper unifié
+  // ── 2. INDISPOS_N → sauvegarde JSON ──
+  const ind = ss.getSheetByName(`INDISPOS_${year}`);
+  if (ind) {
+    const idd = ind.getDataRange().getValues();
+    const dates = reconstruireDatesHeaders(idd, year);
+    const indispos={};
+    for (let r=3;r<idd.length;r++){ const id=String(idd[r][0]).trim(); if(!id) continue; indispos[id]={};
+      dates.forEach((dt,i)=>{ if(!dt) return; const v=String(idd[r][i+1]||'').trim(); if(v) indispos[id][dt]=v; }); }
+    const ok2 = pushFile(`archives/indispos_${year}.json`, JSON.stringify({year, indispos}, null, 2));
+    results.push(ok2?`✅ archives/indispos_${year}.json`:`❌ push indispos échoué`);
+  } else results.push(`⚠️ INDISPOS_${year} introuvable — ignoré`);
 
-    for (let r = 3; r < indData.length; r++) {
-      const id = String(indData[r][0]).trim();
-      if (!id) continue;
-      indispos[id] = {};
-      dates.forEach((date, i) => {
-        if (!date) return;
-        const val = String(indData[r][i + 1] || '').trim();
-        if (val) indispos[id][date] = val;
+  // ── 3. Déplacer les onglets de l'année vers le classeur d'archive ──
+  // Le maître reste propre ; la dette N+1 retrouve STATS_GARDES_N via le repli ARCHIVE_SS_ID.
+  const archiveOk = results.every(r=>!r.startsWith('❌'));
+  if (moveSheets && archiveOk) {
+    let arch=null;
+    try{ arch=SpreadsheetApp.openById(ARCHIVE_SS_ID); }catch(e){ results.push(`⚠️ Classeur d'archive inaccessible — onglets conservés`); }
+    if (arch) {
+      [`GARDES_${year}`,`INDISPOS_${year}`,`AFFECTATIONS_${year}`,`STATS_GARDES_${year}`].forEach(name=>{
+        const sh=ss.getSheetByName(name);
+        if(!sh){ results.push(`⚠️ ${name} introuvable — ignoré`); return; }
+        try{ const old=arch.getSheetByName(name); if(old) arch.deleteSheet(old);
+          sh.copyTo(arch).setName(name); ss.deleteSheet(sh); results.push(`📦 ${name} → archive`); }
+        catch(e){ results.push(`⚠️ Transfert ${name} échoué : ${e.message}`); }
       });
     }
+  } else if (moveSheets) results.push(`⏸️ Transfert suspendu (archivage incomplet)`);
 
-    const ok = pushFile(`indispos_${year}.json`, JSON.stringify({year, indispos}, null, 2));
-    results.push(ok ? `✅ indispos_${year}.json pushé` : `❌ Échec push indispos_${year}.json`);
-  }
-
-  // ── 3. SUPPRESSION ONGLETS N — décommenter en janvier N+1 ──────────
-  /*
-  const ongletsASupprimer = [
-    `GARDES_${year}`,
-    `INDISPOS_${year}`,
-    `AFFECTATIONS_${year}`,
-    `STATS_GARDES_${year}`,
-  ];
-  ongletsASupprimer.forEach(name => {
-    const sheet = ss.getSheetByName(name);
-    if (sheet) {
-      ss.deleteSheet(sheet);
-      results.push(`🗑️ Onglet ${name} supprimé`);
-      Logger.log(`🗑️ ${name} supprimé`);
-    } else {
-      results.push(`⚠️ Onglet ${name} introuvable — ignoré`);
-    }
-  });
-  */
-
-  // ── RAPPORT FINAL ───────────────────────────────────────────────────
   const rapport = results.join('\n');
   Logger.log(`\n── Archivage ${year} ──\n${rapport}`);
-  try {
-    SpreadsheetApp.getUi().alert(`Archivage ${year}\n\n${rapport}`);
-  } catch(e) {
-    // Appelé depuis API web — pas d'UI disponible
-    Logger.log('✅ Archivage terminé (appelé depuis API)');
-  }
+  try{ SpreadsheetApp.getUi().alert(`Archivage ${year}\n\n${rapport}`); }catch(e){}
   return rapport;
-}
-
-// ── TRIGGER ARCHIVAGE FIN D'ANNÉE ──────────────────────────────────────
-function createArchiveTrigger() {
-  ScriptApp.getProjectTriggers().forEach(t => {
-    if (t.getHandlerFunction() === 'archiveAnnee') ScriptApp.deleteTrigger(t);
-  });
-  const now = new Date();
-  const triggerDate = new Date(now.getFullYear(), 11, 31, 23, 0, 0);
-  if (triggerDate < now) triggerDate.setFullYear(now.getFullYear() + 1);
-  ScriptApp.newTrigger('archiveAnnee').timeBased().at(triggerDate).create();
-  SpreadsheetApp.getUi().alert(`✅ Trigger archivage créé pour le 31/12/${triggerDate.getFullYear()} à 23h00`);
 }
 function archiveYear2026() {
   archiveYear(2026);
@@ -463,4 +328,193 @@ function normalizeAffectations2026() {
 
   Logger.log('✅ AFFECTATIONS_2026 normalisé');
   SpreadsheetApp.getUi().alert('✅ AFFECTATIONS_2026 normalisé — noms et secteurs mis à jour.');
+}
+// ── AMORÇAGE (une fois) : crée HISTORIQUE et le remplit avec l'existant ──
+function creerHistorique() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let h = ss.getSheetByName('HISTORIQUE');
+  if (!h) { h = ss.insertSheet('HISTORIQUE');
+    h.getRange(1,1,1,18).setValues([['ID','ANNEE','TOTAL','G','G2','LUN','MAR','MER','JEU','VEN','SAM','DIM','VD','VEILLE JF','JF','NOEL/AN','RECUP R','18H']]).setFontWeight('bold');
+    h.setFrozenRows(1); h.setColumnWidth(1,140); }
+  const hd = h.getDataRange().getValues();
+  const seen = new Set();
+  for (let r=1;r<hd.length;r++){ const id=String(hd[r][0]).trim(); if(id) seen.add(`${id}|${hd[r][1]}`); }
+  const rows=[];
+
+  // 1) Lignes complètes depuis chaque STATS_GARDES_YYYY présent
+  ss.getSheets().forEach(sh=>{
+    const m = sh.getName().match(/^STATS_GARDES_(\d{4})$/); if(!m) return;
+    const year=Number(m[1]);
+    const d=sh.getDataRange().getValues(); const Hd=d[0].map(x=>String(x).trim());
+    const num=(r,n)=>{ const i=Hd.indexOf(n); return i<0?0:(Number(d[r][i])||0); };
+    for(let r=1;r<d.length;r++){ const id=String(d[r][0]).trim(); if(!id||seen.has(`${id}|${year}`)) continue;
+      rows.push([id,year,num(r,'TOTAL G'),num(r,'G (REA)'),num(r,'G2 (MAT)'),
+        num(r,'LUN'),num(r,'MAR'),num(r,'MER'),num(r,'JEU'),num(r,'VEN'),num(r,'SAM'),num(r,'DIM'),
+        num(r,'VD'),num(r,'VEILLE JF'),num(r,'JF'),num(r,'NOEL/AN'),num(r,'RECUP R'),num(r,'18H')]);
+      seen.add(`${id}|${year}`); }
+  });
+
+  // 2) Mémoire Noël/An antérieure (NOEL_AN_HISTORIQUE) : lignes minimales NOEL/AN=1
+  //    pour les années sans STATS (ex. 2023-2025). Les autres colonnes restent vides.
+  const nh = ss.getSheetByName('NOEL_AN_HISTORIQUE');
+  if (nh){ const nd=nh.getDataRange().getValues();
+    for(let r=1;r<nd.length;r++){ const id=String(nd[r][0]).trim(); const y=Number(nd[r][1])||0;
+      if(!id||!y||seen.has(`${id}|${y}`)) continue;
+      rows.push([id,y,'','','','','','','','','','','','','',1,'','']); seen.add(`${id}|${y}`); }
+  }
+
+  if(rows.length) h.getRange(h.getLastRow()+1,1,rows.length,18).setValues(rows);
+  try{ SpreadsheetApp.getUi().alert(`✅ HISTORIQUE amorcé : ${rows.length} ligne(s) ajoutée(s).`); }catch(e){}
+  return `${rows.length} lignes`;
+}
+// ═══════ TEST — À SUPPRIMER AVANT LA MISE EN SERVICE ═══════
+function TEST_remplirIndispos(year, scenario) {
+  scenario = scenario || 'normal';
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(`INDISPOS_${year}`);
+  if (!sh) { SpreadsheetApp.getUi().alert(`❌ INDISPOS_${year} absent — lance d'abord W1.`); return; }
+  const data = sh.getDataRange().getValues();
+  const dates = reconstruireDatesHeaders(data, year);
+  const nCol = dates.length;
+  const dow = dates.map(d => d ? new Date(d+'T12:00:00').getDay() : -1);
+  const P = ({normal:{vac:6,form:3,ind:4,souh:4}, charge:{vac:8,form:5,ind:7,souh:6},
+              leger:{vac:4,form:1,ind:2,souh:2}})[scenario] || {vac:6,form:3,ind:4,souh:4};
+  const rint = n => Math.floor(Math.random()*n);
+  const lundis = []; for (let c=0;c<nCol;c++) if (dow[c]===1) lundis.push(c);
+  for (let r=3; r<data.length; r++) {
+    const id = String(data[r][0]).trim(); if (!id) continue;
+    const row = []; for (let c=0;c<nCol;c++) row[c] = String(data[r][c+1]||'');
+    let posees=0; const ls=lundis.slice();
+    for (let k=ls.length-1;k>0;k--){const j=rint(k+1);[ls[k],ls[j]]=[ls[j],ls[k]];}
+    for (const L of ls) { if (posees>=P.vac) break; const dur=(Math.random()<0.5?1:2); let ok=true;
+      for (let c=L;c<Math.min(L+dur*7,nCol);c++) if (row[c]) ok=false;
+      if (!ok) continue; for (let c=L;c<Math.min(L+dur*7,nCol);c++) if(dates[c]) row[c]='VAC'; posees+=dur; }
+    for (let k=0;k<P.form;k++){ const c=rint(nCol); if(dates[c]&&!row[c]&&dow[c]>=1&&dow[c]<=5) row[c]='FORM'; }
+    for (let k=0;k<P.ind;k++){ const c=rint(nCol); if(dates[c]&&!row[c]) row[c]='INDISPO'; }
+    let s=P.souh; for (let t=0;t<80 && s>0;t++){ const c=rint(nCol);
+      if(dates[c]&&!row[c]&&dow[c]>=1&&dow[c]<=3){ row[c]='SOUHAIT'; s--; } }
+    sh.getRange(r+1, 2, 1, nCol).setValues([row]);
+  }
+  SpreadsheetApp.getUi().alert(`✅ INDISPOS_${year} rempli (« ${scenario} »). Lance W2 puis W3.`);
+}
+function TEST_run() {
+  const ANNEE    = 2029;       // ← change l'année ici
+  const SCENARIO = 'charge';   // 'normal' | 'charge' | 'leger'
+  TEST_remplirIndispos(ANNEE, SCENARIO);
+}
+function TEST_W2() { generateGardes(2029); }      // génère le planning
+function TEST_W3_safe()  { archiveYear(2029, false); }  // itération rapide
+function TEST_W3_reel()  { archiveYear(2027, true);  }  // test du déplacement réel
+// ═══ Détection du "concept" d'une période d'après son nom ═══
+function conceptDe(s){
+  s = String(s||'');
+  if (/toussaint/i.test(s)) return 'toussaint';
+  if (/no[eë]l/i.test(s)) return 'noel';
+  if (/hiver|f[ée]vrier/i.test(s)) return 'hiver';
+  if (/printemps|p[âa]ques/i.test(s)) return 'printemps';
+  if (/[ée]t[ée]/i.test(s)) return 'ete';
+  return null;
+}
+
+// ═══ Import (proposition) des vacances scolaires — open data Éducation nationale ═══
+// Académie de Nice (Zone B) = Alpes-Maritimes. Monaco peut différer → vérifier/ajuster à la main.
+// Non destructif et ré-exécutable sans doublon. Complète par des dates plausibles « (à caler) »
+// les périodes que l'API ne publie pas encore (année scolaire suivante).
+function importerVacancesScolaires(year, zone) {
+  zone = zone || 'Zone B';
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('PERIODES_VAC');
+  if (!sheet) { sheet = ss.insertSheet('PERIODES_VAC'); sheet.getRange(1,1,1,4).setValues([['NOM','DEBUT','FIN','SEUIL']]).setFontWeight('bold'); }
+  const existing = sheet.getDataRange().getValues().slice(1).map(function(r){
+    const d = r[1] instanceof Date ? toDateStr(r[1]) : String(r[1]).trim();
+    return { concept: conceptDe(r[0]), debut: d };
+  }).filter(function(x){ return x.debut; });
+  const ajout = [];
+  // un repère = concept + année civile du DÉBUT (distingue le Noël de janvier de celui de décembre)
+  function present(concept, anchorYear) {
+    function m(c, d){ return c === concept && String(d).startsWith(String(anchorYear) + '-'); }
+    return existing.some(function(x){ return m(x.concept, x.debut); })
+        || ajout.some(function(a){ return m(conceptDe(a[0]), a[1]); });
+  }
+  // ── 1. API ──
+  const base = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';
+  [(year-1)+'-'+year, year+'-'+(year+1)].forEach(function(as) {
+    const url = base + '?limit=20'
+      + '&refine=' + encodeURIComponent('zones:"' + zone + '"')
+      + '&refine=' + encodeURIComponent('population:"Élèves"')
+      + '&refine=' + encodeURIComponent('population:"-"')
+      + '&refine=' + encodeURIComponent('annee_scolaire:"' + as + '"');
+    let data;
+    try {
+      const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+      if (resp.getResponseCode() !== 200) { Logger.log('API ' + resp.getResponseCode() + ' ' + as); return; }
+      data = JSON.parse(resp.getContentText());
+    } catch (e) { Logger.log('Échec API ' + as + ' : ' + e.message); return; }
+    (data.results || []).forEach(function(r) {
+      if (!r.start_date || !r.end_date) return;
+      const desc = r.description || 'Vacances';
+      const concept = conceptDe(desc);
+      const isEte = concept === 'ete';
+      const startRaw = new Date(r.start_date), endRaw = new Date(r.end_date);
+      if ((endRaw - startRaw)/86400000 < 2 && !isEte) return; // pont/marqueur (Ascension), sauf été
+      const debut = Utilities.formatDate(startRaw, 'Europe/Paris', 'yyyy-MM-dd');
+      let fin;
+      if (isEte) { fin = debut.slice(0,4) + '-08-31'; }
+      else {
+        const f = new Date(Utilities.formatDate(endRaw, 'Europe/Paris', 'yyyy-MM-dd') + 'T12:00:00');
+        f.setDate(f.getDate() - 1); fin = toDateStr(f);
+      }
+      if (!debut.startsWith(String(year)) && !fin.startsWith(String(year))) return;
+      const anchorYear = Number(debut.slice(0,4));
+      if (concept) { if (present(concept, anchorYear)) return; }
+      else { if (existing.some(function(x){return x.debut===debut;}) || ajout.some(function(a){return a[1]===debut;})) return; }
+      ajout.push([isEte ? "Vacances d'Été" : desc, debut, fin, isEte ? 10 : 8]);
+    });
+  });
+  // ── 2. Filet "à peu près" : repères standard de l'année N manquants ──
+  const REPERES = [
+    { concept:'noel',      anchor:year-1, nom:"Vacances de Noël",          debut:(year-1)+'-12-19', fin:year+'-01-04',     seuil:8  },
+    { concept:'hiver',     anchor:year,   nom:"Vacances d'Hiver",          debut:year+'-02-08',     fin:year+'-02-23',     seuil:8  },
+    { concept:'printemps', anchor:year,   nom:"Vacances de Printemps",     debut:year+'-04-05',     fin:year+'-04-20',     seuil:8  },
+    { concept:'ete',       anchor:year,   nom:"Vacances d'Été",            debut:year+'-07-05',     fin:year+'-08-31',     seuil:10 },
+    { concept:'toussaint', anchor:year,   nom:"Vacances de la Toussaint",  debut:year+'-10-18',     fin:year+'-11-02',     seuil:8  },
+    { concept:'noel',      anchor:year,   nom:"Vacances de Noël",          debut:year+'-12-19',     fin:(year+1)+'-01-04', seuil:8  }
+  ];
+  REPERES.forEach(function(p){ if (!present(p.concept, p.anchor)) ajout.push([p.nom + ' (à caler)', p.debut, p.fin, p.seuil]); });
+  if (!ajout.length) { SpreadsheetApp.getUi().alert('ℹ️ Rien à ajouter pour ' + year + ' (tout est déjà présent).'); return; }
+  ajout.sort(function(a,b){ return a[1] < b[1] ? -1 : 1; });
+  sheet.getRange(sheet.getLastRow()+1, 1, ajout.length, 4).setValues(ajout);
+  SpreadsheetApp.getUi().alert('✅ ' + ajout.length + ' période(s) pour ' + year + '.\nLes lignes « (à caler) » sont des estimations à ajuster au jour.');
+}
+function IMPORT_vac() { importerVacancesScolaires(2027); }
+// ═══ DIAGNOSTIC — à exécuter une fois pour voir la vraie réponse de l'API ═══
+function DIAG_apiVacances() {
+  const url = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records'
+    + '?limit=10'
+    + '&refine=' + encodeURIComponent('zones:"Zone B"')
+    + '&refine=' + encodeURIComponent('population:"Élèves"');
+  const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  Logger.log('CODE: ' + resp.getResponseCode());
+  Logger.log('BODY (1500 premiers car.): ' + resp.getContentText().slice(0, 1500));
+}
+// ═══ DIAG 2 — isoler le filtre annee_scolaire ═══
+function DIAG_apiVacances2() {
+  const base = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';
+  ['2026-2027', '2027-2028'].forEach(function(as) {
+    const url = base + '?limit=5'
+      + '&refine=' + encodeURIComponent('location:"Nice"')
+      + '&refine=' + encodeURIComponent('population:"Élèves"')
+      + '&refine=' + encodeURIComponent('annee_scolaire:"' + as + '"');
+    const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    Logger.log('── ' + as + ' — CODE: ' + resp.getResponseCode());
+    Logger.log(resp.getContentText().slice(0, 800));
+  });
+
+  // Et sans le filtre annee_scolaire, pour voir le format réel de ce champ sur Nice :
+  const url2 = base + '?limit=10'
+    + '&refine=' + encodeURIComponent('location:"Nice"')
+    + '&refine=' + encodeURIComponent('population:"Élèves"');
+  const resp2 = UrlFetchApp.fetch(url2, { muteHttpExceptions: true });
+  Logger.log('── sans filtre annee — CODE: ' + resp2.getResponseCode());
+  Logger.log(resp2.getContentText().slice(0, 1200));
 }
