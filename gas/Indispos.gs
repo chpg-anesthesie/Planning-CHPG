@@ -773,21 +773,7 @@ try {
       const newYear = Number(payload.year);
       if (!newYear || newYear < 2026) return _error('Année invalide');
       const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const ovSheet = ss.getSheetByName('OVERRIDES');
-      if (ovSheet && ovSheet.getLastRow() > 1) {
-        const currentYear = TEST_YEAR;
-        const archiveName = `OVERRIDES_${currentYear}`;
-        let archiveSheet = ss.getSheetByName(archiveName);
-        if (!archiveSheet) {
-          archiveSheet = ss.insertSheet(archiveName);
-          const header = ovSheet.getRange(1, 1, 1, ovSheet.getLastColumn()).getValues();
-          archiveSheet.getRange(1, 1, 1, header[0].length).setValues(header);
-        }
-        const dataRows = ovSheet.getRange(2, 1, ovSheet.getLastRow() - 1, ovSheet.getLastColumn()).getValues();
-        archiveSheet.getRange(archiveSheet.getLastRow() + 1, 1, dataRows.length, dataRows[0].length).setValues(dataRows);
-        ovSheet.deleteRows(2, ovSheet.getLastRow() - 1);
-        Logger.log(`✅ OVERRIDES archivé dans ${archiveName} (${dataRows.length} lignes)`);
-      }
+      // (Onglet OVERRIDES retiré : registre inutilisé, jamais alimenté, non branché au planning.)
       const configSheet = ss.getSheetByName('CONFIG');
       const configData = configSheet.getDataRange().getValues();
       for (let r = 1; r < configData.length; r++) {
