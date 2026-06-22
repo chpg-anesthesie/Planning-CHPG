@@ -4517,23 +4517,21 @@ async function renderWizCStep() {
     let html = '<div class="wizard-section-title">V\xe9rification de l\'ann\xe9e ' + nextY + '</div>';
     let planningData = null;
     try { planningData = await fetch('./planning_' + nextY + '.json?' + Date.now()).then(r => r.json()); } catch(e) {}
-    const weeks = planningData ? Object.keys(planningData).filter(k => k.startsWith('S')) : [];
-    const filled = planningData ? weeks.filter(k => { const w = planningData[k]; return w && Object.values(w).some(d => d && (d.G || d.G2)); }).length : 0;
+    // Gardes attribuées : months[].doctors[].days[].status === 'G' / 'G2'
+    const months = (planningData && Array.isArray(planningData.months)) ? planningData.months : [];
+    let nbGardes = 0;
+    months.forEach(mo => (mo.doctors || []).forEach(doc => (doc.days || []).forEach(day => {
+      if (day && (day.status === 'G' || day.status === 'G2')) nbGardes++;
+    })));
 
-    if (!planningData || filled === 0) {
+    if (nbGardes === 0) {
       html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">\u26d4 <strong>Le planning ' + nextY + ' n\'a pas encore \xe9t\xe9 g\xe9n\xe9r\xe9.</strong><br>Faites d\'abord \xab D\xe9marrer l\'ann\xe9e ' + nextY + ' \xbb (\xe9tape 1) puis \xab G\xe9n\xe9rer les gardes \xbb (\xe9tape 2). La cl\xf4ture de ' + YEAR + ' sera alors disponible.</div>';
       wizCPlanningOk = false;
       document.getElementById('wizCNextBtn').disabled = true;
     } else {
-      const missing = weeks.length - filled;
-      if (missing > 0) {
-        html += '<div class="wizard-warning" style="background:#fef3c7;border-left:3px solid var(--orange);color:#92400e">\u26a0\ufe0f <strong>' + missing + ' semaine(s) sans garde en ' + nextY + '.</strong> Vous pouvez continuer, mais v\xe9rifiez que c\'est normal.</div>';
-      } else {
-        html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534">\u2705 Planning ' + nextY + ' pr\xeat \u2014 ' + filled + ' semaines g\xe9n\xe9r\xe9es.</div>';
-      }
+      html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534">\u2705 Planning ' + nextY + ' g\xe9n\xe9r\xe9 \u2014 ' + nbGardes + ' gardes attribu\xe9es.</div>';
       wizCPlanningOk = true;
       document.getElementById('wizCNextBtn').disabled = false;
-      html += '<div class="wiz-mar-list" style="margin-top:12px"><div class="wiz-mar-row"><div class="wiz-mar-init" style="width:auto;padding:0 12px">\ud83d\udcc5</div><div class="wiz-mar-name">Semaines g\xe9n\xe9r\xe9es en ' + nextY + '</div><div class="wiz-mar-meta"><span class="wiz-ok">' + filled + ' / ' + weeks.length + '</span></div></div></div>';
     }
     body.innerHTML = html;
 
