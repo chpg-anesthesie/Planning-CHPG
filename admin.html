@@ -4484,15 +4484,15 @@ async function wizCPrev() {
 }
 
 async function wizCNext() {
-  if (wizCCurrentStep < 2) { wizCCurrentStep++; await renderWizCStep(); }
+  if (wizCCurrentStep < 1) { wizCCurrentStep++; await renderWizCStep(); }
   else { await launchWizardCloture(); }
 }
 
 function updateWizCNav() {
   document.getElementById('wizCBackBtn').style.visibility = wizCCurrentStep === 0 ? 'hidden' : 'visible';
   const nextBtn = document.getElementById('wizCNextBtn');
-  nextBtn.textContent = wizCCurrentStep === 2 ? '📦 Archiver l\'année' : 'Suivant →';
-  for (let i = 0; i < 3; i++) {
+  nextBtn.textContent = wizCCurrentStep === 1 ? '📦 Archiver l\'année' : 'Suivant →';
+  for (let i = 0; i < 2; i++) {
     document.getElementById('wizCDot' + i).className = 'wizard-step-dot' + (i < wizCCurrentStep ? ' done' : i === wizCCurrentStep ? ' active' : '');
     document.getElementById('wizCStep' + i).className = 'wizard-step' + (i === wizCCurrentStep ? ' active' : '');
   }
@@ -4504,87 +4504,37 @@ async function renderWizCStep() {
   body.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement\u2026</div>';
 
   if (wizCCurrentStep === 0) {
+    // ── Étape 1 : vérification + sécurité (le planning doit avoir été généré) ──
     let html = '<div class="wizard-section-title">V\xe9rification du planning ' + YEAR + '</div>';
     let planningData = null;
     try { planningData = await fetch('./planning_' + YEAR + '.json?' + Date.now()).then(r => r.json()); } catch(e) {}
-    if (!planningData) {
-      html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">\u274c Impossible de charger le planning ' + YEAR + '.</div>';
-      document.getElementById('wizCNextBtn').disabled = true;
+    const weeks = planningData ? Object.keys(planningData).filter(k => k.startsWith('S')) : [];
+    const filled = planningData ? weeks.filter(k => { const w = planningData[k]; return w && Object.values(w).some(d => d && (d.G || d.G2)); }).length : 0;
+
+    if (!planningData || filled === 0) {
+      html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">\u26d4 <strong>Le planning ' + YEAR + ' n\'a pas encore \xe9t\xe9 g\xe9n\xe9r\xe9.</strong><br>Lancez d\'abord la pr\xe9paration de l\'ann\xe9e puis la g\xe9n\xe9ration des gardes. L\'archivage sera disponible une fois le planning \xe9tabli.</div>';
       wizCPlanningOk = false;
+      document.getElementById('wizCNextBtn').disabled = true;
     } else {
-      const weeks = Object.keys(planningData).filter(k => k.startsWith('S'));
-      const filled = weeks.filter(k => { const w = planningData[k]; return w && Object.values(w).some(d => d && (d.G || d.G2)); }).length;
       const missing = weeks.length - filled;
       if (missing > 0) {
-        html += '<div class="wizard-warning" style="background:#fef3c7;border-left:3px solid var(--orange);color:#92400e">\u26a0\ufe0f <strong>' + missing + ' semaine(s) sans garde.</strong> V\xe9rifiez avant de cl\xf4turer.</div>';
-        wizCPlanningOk = false;
+        html += '<div class="wizard-warning" style="background:#fef3c7;border-left:3px solid var(--orange);color:#92400e">\u26a0\ufe0f <strong>' + missing + ' semaine(s) sans garde.</strong> Vous pouvez archiver, mais v\xe9rifiez que c\'est normal.</div>';
       } else {
         html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534">\u2705 Planning ' + YEAR + ' complet \u2014 ' + filled + ' semaines.</div>';
-        wizCPlanningOk = true;
       }
+      wizCPlanningOk = true;
+      document.getElementById('wizCNextBtn').disabled = false;
       html += '<div class="wiz-mar-list" style="margin-top:12px"><div class="wiz-mar-row"><div class="wiz-mar-init" style="width:auto;padding:0 12px">\ud83d\udcc5</div><div class="wiz-mar-name">Semaines avec gardes</div><div class="wiz-mar-meta"><span class="wiz-ok">' + filled + ' / ' + weeks.length + '</span></div></div></div>';
     }
     body.innerHTML = html;
 
   } else if (wizCCurrentStep === 1) {
-    if (!wizCStatsData) {
-      try {
-        const data = await api({action: 'getStats'});
-        if (!data.success) throw new Error(data.error);
-        wizCStatsData = data.stats || [];
-      } catch(e) { body.innerHTML = '<div class="wizard-warning">\u274c Stats : ' + e.message + '</div>'; return; }
-    }
-    let html = '<div class="wizard-section-title">Récapitulatif équité ' + (YEAR+1) + '</div>';
-    html += '<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">Comparaison initial vs final. Verifiez avant archivage.</div>';
-    if (!wizCStatsData.length) {
-      html += '<div class="wizard-warning">⚠️ Aucune statistique disponible.</div>';
-    } else {
-      html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">';
-      html += '<thead><tr style="background:var(--bg);font-weight:600">' +
-        '<th style="padding:6px 8px;text-align:left">MAR</th>' +
-        '<th style="padding:6px 4px;text-align:center">Cible</th>' +
-        '<th style="padding:6px 4px;text-align:center" title="Total initial">Tot.i</th>' +
-        '<th style="padding:6px 4px;text-align:center" title="Total réel">Tot.r</th>' +
-        '<th style="padding:6px 4px;text-align:center" title="Écart total">Δ</th>' +
-        '<th style="padding:6px 4px;text-align:center" title="G REA initial/réel/écart">G i/r/Δ</th>' +
-        '<th style="padding:6px 4px;text-align:center" title="G2 MAT initial/réel/écart">G2 i/r/Δ</th>' +
-        '<th style="padding:6px 4px;text-align:center" title="Week-end initial/réel/écart">WE i/r/Δ</th>' +
-        '<th style="padding:6px 4px;text-align:center" title="Jeudi initial/réel/écart">Jeu i/r/Δ</th>' +
-        '<th style="padding:6px 4px;text-align:center" title="Noel/Jour de l\'an">Noël i/r/Δ</th>' +
-        '</tr></thead><tbody>';
-      wizCStatsData.forEach((s, idx) => {
-        const ecart = s.ecart_total || 0;
-        const cls = Math.abs(ecart) <= 2 ? '#166534' : Math.abs(ecart) <= 4 ? '#92400e' : '#991b1b';
-        const bg = idx % 2 === 0 ? 'transparent' : 'var(--bg)';
-        const sign = v => v > 0 ? '+'+v : v < 0 ? ''+v : '0';
-        const cell = (ini, reel, ecart) => `${ini}/${reel}<span style="color:${Math.abs(ecart)>1?'#991b1b':'#166534'};font-weight:600"> ${sign(ecart)}</span>`;
-        const id = (s.medecin||'—').split(' ').pop();
-        html += `<tr style="background:${bg}">` +
-          `<td style="padding:5px 8px;font-weight:600">${id}</td>` +
-          `<td style="padding:5px 4px;text-align:center">${s.cible||'—'}</td>` +
-          `<td style="padding:5px 4px;text-align:center">${s.ini_total||0}</td>` +
-          `<td style="padding:5px 4px;text-align:center">${s.reel_total||0}</td>` +
-          `<td style="padding:5px 4px;text-align:center;font-weight:700;color:${cls}">${sign(ecart)}</td>` +
-          `<td style="padding:5px 4px;text-align:center">${cell(s.ini_g||0, s.reel_g||0, s.ecart_g||0)}</td>` +
-          `<td style="padding:5px 4px;text-align:center">${cell(s.ini_g2||0, s.reel_g2||0, s.ecart_g2||0)}</td>` +
-          `<td style="padding:5px 4px;text-align:center">${cell(s.ini_we||0, s.reel_we||0, s.ecart_we||0)}</td>` +
-          `<td style="padding:5px 4px;text-align:center">${cell(s.ini_jeu||0, s.reel_jeu||0, s.ecart_jeu||0)}</td>` +
-          `<td style="padding:5px 4px;text-align:center">${cell(s.ini_noelAn||0, s.reel_noelAn||0, s.ecart_noelAn||0)}</td>` +
-          `</tr>`;
-      });
-      html += '</tbody></table></div>';
-    }
-    body.innerHTML = html;
-
-  } else if (wizCCurrentStep === 2) {
+    // ── Étape 2 : archivage, en langage clair ──
     let html = '<div class="wizard-section-title">Archiver l\'ann\xe9e ' + YEAR + '</div>';
     html += '<div style="background:var(--bg);border-radius:12px;padding:16px;margin:12px 0">';
-    html += '<div style="font-size:13px;margin-bottom:8px">Cette op\xe9ration va :</div>';
-    html += '<ul style="font-size:12px;color:var(--ink-3);padding-left:18px;line-height:2"><li>Pousser <code>stats_' + YEAR + '.json</code> sur GitHub Pages</li><li>Pousser <code>indispos_' + YEAR + '.json</code> sur GitHub Pages</li></ul></div>';
-    if (!wizCPlanningOk) {
-      html += '<div class="wizard-warning" style="background:#fef3c7;border-left:3px solid var(--orange);color:#92400e">\u26a0\ufe0f Planning incomplet d\xe9tect\xe9 \u2014 v\xe9rifiez avant d\'archiver.</div>';
-    }
-    html += '<div style="font-size:12px;color:var(--ink-3);margin-top:12px">Op\xe9ration <strong>non destructive</strong> \u2014 les onglets GSheet ne sont pas modifi\xe9s.</div>';
+    html += '<div style="font-size:13px;margin-bottom:8px">L\'archivage va :</div>';
+    html += '<ul style="font-size:12px;color:var(--ink-3);padding-left:18px;line-height:2"><li>Enregistrer d\xe9finitivement le bilan de l\'ann\xe9e ' + YEAR + ' (gardes effectu\xe9es et \xe9quit\xe9) dans l\'historique</li><li>Conserver les indisponibilit\xe9s de l\'ann\xe9e pour m\xe9moire</li><li>Basculer l\'outil sur l\'ann\xe9e ' + (YEAR+1) + '</li></ul></div>';
+    html += '<div style="font-size:12px;color:var(--ink-3);margin-top:12px">Op\xe9ration <strong>sans risque</strong> : rien n\'est supprim\xe9, l\'ann\xe9e reste consultable.</div>';
     body.innerHTML = html;
   }
 }
@@ -4652,10 +4602,6 @@ async function launchWizardCloture() {
         </div>
         <div class="wizard-step" id="wizCStep1">
           <div class="wizard-step-dot" id="wizCDot1">2</div>
-          <div class="wizard-step-label">Équité</div>
-        </div>
-        <div class="wizard-step" id="wizCStep2">
-          <div class="wizard-step-dot" id="wizCDot2">3</div>
           <div class="wizard-step-label">Archiver</div>
         </div>
       </div>
