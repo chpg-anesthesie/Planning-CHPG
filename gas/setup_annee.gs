@@ -1,3 +1,4 @@
+// ═══ Détection du "concept" d'une période d'après son nom ═══
 function conceptDe(s){
   s = String(s||'');
   if (/toussaint/i.test(s)) return 'toussaint';
@@ -9,21 +10,12 @@ function conceptDe(s){
 }
 var _NOMS_VAC = { toussaint:'Toussaint', noel:'Noël', hiver:'Hiver', printemps:'Printemps', ete:'Été' };
 
-// Cœur sans popup (appelable depuis W1, contexte web)
-function importerVacancesScolaires_core(year, zone) {
+// Calcule les périodes proposées pour `year` (API Nice/Zone B + filet). LECTURE SEULE.
+function proposerVacances(year, zone) {
   zone = zone || 'Zone B';
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName('PERIODES_VAC');
-  if (!sheet) { sheet = ss.insertSheet('PERIODES_VAC'); sheet.getRange(1,1,1,4).setValues([['NOM','DEBUT','FIN','SEUIL']]).setFontWeight('bold'); }
-  const existing = sheet.getDataRange().getValues().slice(1).map(function(r){
-    const d = r[1] instanceof Date ? toDateStr(r[1]) : String(r[1]).trim();
-    return { concept: conceptDe(r[0]), debut: d };
-  }).filter(function(x){ return x.debut; });
-  const ajout = [];
+  const out = [];
   function present(concept, anchorYear) {
-    function m(c, d){ return c === concept && String(d).startsWith(String(anchorYear) + '-'); }
-    return existing.some(function(x){ return m(x.concept, x.debut); })
-        || ajout.some(function(a){ return m(conceptDe(a[0]), a[1]); });
+    return out.some(function(p){ return conceptDe(p.nom) === concept && String(p.debut).startsWith(String(anchorYear) + '-'); });
   }
   const base = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';
   [(year-1)+'-'+year, year+'-'+(year+1)].forEach(function(as) {
@@ -43,9 +35,9 @@ function importerVacancesScolaires_core(year, zone) {
       const concept = conceptDe(r.description || '');
       const isEte = concept === 'ete';
       const startRaw = new Date(r.start_date), endRaw = new Date(r.end_date);
-      if ((endRaw - startRaw)/86400000 < 2 && !isEte) return; // pont/marqueur (Ascension), sauf été
+      if ((endRaw - startRaw)/86400000 < 2 && !isEte) return;
       const debut = Utilities.formatDate(startRaw, 'Europe/Paris', 'yyyy-MM-dd');
-      if (!debut.startsWith(String(year))) return; // n'importe que les périodes qui DÉBUTENT cette année (exclut le Noël de janvier)
+      if (!debut.startsWith(String(year))) return;
       let fin;
       if (isEte) { fin = debut.slice(0,4) + '-08-31'; }
       else {
@@ -53,10 +45,8 @@ function importerVacancesScolaires_core(year, zone) {
         f.setDate(f.getDate() - 1); fin = toDateStr(f);
       }
       const anchorYear = Number(debut.slice(0,4));
-      if (concept) { if (present(concept, anchorYear)) return; }
-      else { if (existing.some(function(x){return x.debut===debut;}) || ajout.some(function(a){return a[1]===debut;})) return; }
-      const nom = _NOMS_VAC[concept] || (r.description || 'Vacances');
-      ajout.push([nom, debut, fin, isEte ? 12 : 8]);
+      if (concept && present(concept, anchorYear)) return;
+      out.push({ nom: _NOMS_VAC[concept] || (r.description || 'Vacances'), debut: debut, fin: fin, seuil: isEte ? 12 : 8, estime: false });
     });
   });
   const REPERES = [
@@ -66,11 +56,30 @@ function importerVacancesScolaires_core(year, zone) {
     { concept:'toussaint', nom:'Toussaint', debut:year+'-10-18', fin:year+'-11-02',     seuil:8  },
     { concept:'noel',      nom:'Noël',      debut:year+'-12-19', fin:(year+1)+'-01-04', seuil:8  }
   ];
-  const estimes = [];
-  REPERES.forEach(function(p){
-    if (present(p.concept, year)) return;
+  REPERES.forEach(function(p){ if (!present(p.concept, year)) out.push({ nom:p.nom, debut:p.debut, fin:p.fin, seuil:p.seuil, estime:true }); });
+  out.sort(function(a,b){ return a.debut < b.debut ? -1 : 1; });
+  return out;
+}
+
+// Écrit dans PERIODES_VAC les périodes de `year` absentes (non destructif). Sans popup.
+function importerVacancesScolaires_core(year, zone) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('PERIODES_VAC');
+  if (!sheet) { sheet = ss.insertSheet('PERIODES_VAC'); sheet.getRange(1,1,1,4).setValues([['NOM','DEBUT','FIN','SEUIL']]).setFontWeight('bold'); }
+  const existing = sheet.getDataRange().getValues().slice(1).map(function(r){
+    const d = r[1] instanceof Date ? toDateStr(r[1]) : String(r[1]).trim();
+    return { concept: conceptDe(r[0]), debut: d };
+  }).filter(function(x){ return x.debut; });
+  const propose = proposerVacances(year, zone);
+  const ajout = []; const estimes = [];
+  propose.forEach(function(p){
+    const concept = conceptDe(p.nom);
+    const anchorYear = Number(String(p.debut).slice(0,4));
+    const dejaLa = existing.some(function(x){ return x.concept === concept && String(x.debut).startsWith(anchorYear + '-'); })
+                || ajout.some(function(a){ return conceptDe(a[0]) === concept && String(a[1]).startsWith(anchorYear + '-'); });
+    if (dejaLa) return;
     ajout.push([p.nom, p.debut, p.fin, p.seuil]);
-    estimes.push(p.nom);
+    if (p.estime) estimes.push(p.nom);
   });
   if (ajout.length) {
     ajout.sort(function(a,b){ return a[1] < b[1] ? -1 : 1; });
@@ -79,14 +88,14 @@ function importerVacancesScolaires_core(year, zone) {
   return { ajoutes: ajout.length, estimes: estimes };
 }
 
-// Lanceur avec popup, pour exécution manuelle depuis l'éditeur
+// Lanceur manuel (popup), pour l'éditeur
 function importerVacancesScolaires(year, zone) {
   const res = importerVacancesScolaires_core(year, zone);
   let msg = res.ajoutes ? ('✅ ' + res.ajoutes + ' période(s) ajoutée(s) pour ' + year + '.') : 'ℹ️ Rien à ajouter (tout est déjà présent).';
   if (res.estimes.length) msg += '\n\nDates estimées (à caler) : ' + res.estimes.join(', ') + '.';
   SpreadsheetApp.getUi().alert(msg);
 }
-
+function IMPORT_vac() { importerVacancesScolaires(2027); }
 // ── SETUP ANNÉE ────────────────────────────────────────────────────────
 function setupAnnee(year) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -502,116 +511,3 @@ function TEST_run() {
 function TEST_W2() { generateGardes(2029); }      // génère le planning
 function TEST_W3_safe()  { archiveYear(2029, false); }  // itération rapide
 function TEST_W3_reel()  { archiveYear(2027, true);  }  // test du déplacement réel
-// ═══ Détection du "concept" d'une période d'après son nom ═══
-function conceptDe(s){
-  s = String(s||'');
-  if (/toussaint/i.test(s)) return 'toussaint';
-  if (/no[eë]l/i.test(s)) return 'noel';
-  if (/hiver|f[ée]vrier/i.test(s)) return 'hiver';
-  if (/printemps|p[âa]ques/i.test(s)) return 'printemps';
-  if (/[ée]t[ée]/i.test(s)) return 'ete';
-  return null;
-}
-
-// ═══ Import (proposition) des vacances scolaires — open data Éducation nationale ═══
-// Académie de Nice (Zone B) = Alpes-Maritimes. Monaco peut différer → vérifier/ajuster à la main.
-// Non destructif et ré-exécutable sans doublon. Complète par des dates plausibles « (à caler) »
-// les périodes que l'API ne publie pas encore (année scolaire suivante).
-function importerVacancesScolaires(year, zone) {
-  zone = zone || 'Zone B';
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName('PERIODES_VAC');
-  if (!sheet) { sheet = ss.insertSheet('PERIODES_VAC'); sheet.getRange(1,1,1,4).setValues([['NOM','DEBUT','FIN','SEUIL']]).setFontWeight('bold'); }
-  const existing = sheet.getDataRange().getValues().slice(1).map(function(r){
-    const d = r[1] instanceof Date ? toDateStr(r[1]) : String(r[1]).trim();
-    return { concept: conceptDe(r[0]), debut: d };
-  }).filter(function(x){ return x.debut; });
-  const ajout = [];
-  // un repère = concept + année civile du DÉBUT (distingue le Noël de janvier de celui de décembre)
-  function present(concept, anchorYear) {
-    function m(c, d){ return c === concept && String(d).startsWith(String(anchorYear) + '-'); }
-    return existing.some(function(x){ return m(x.concept, x.debut); })
-        || ajout.some(function(a){ return m(conceptDe(a[0]), a[1]); });
-  }
-  // ── 1. API ──
-  const base = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';
-  [(year-1)+'-'+year, year+'-'+(year+1)].forEach(function(as) {
-    const url = base + '?limit=20'
-      + '&refine=' + encodeURIComponent('zones:"' + zone + '"')
-      + '&refine=' + encodeURIComponent('population:"Élèves"')
-      + '&refine=' + encodeURIComponent('population:"-"')
-      + '&refine=' + encodeURIComponent('annee_scolaire:"' + as + '"');
-    let data;
-    try {
-      const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-      if (resp.getResponseCode() !== 200) { Logger.log('API ' + resp.getResponseCode() + ' ' + as); return; }
-      data = JSON.parse(resp.getContentText());
-    } catch (e) { Logger.log('Échec API ' + as + ' : ' + e.message); return; }
-    (data.results || []).forEach(function(r) {
-      if (!r.start_date || !r.end_date) return;
-      const desc = r.description || 'Vacances';
-      const concept = conceptDe(desc);
-      const isEte = concept === 'ete';
-      const startRaw = new Date(r.start_date), endRaw = new Date(r.end_date);
-      if ((endRaw - startRaw)/86400000 < 2 && !isEte) return; // pont/marqueur (Ascension), sauf été
-      const debut = Utilities.formatDate(startRaw, 'Europe/Paris', 'yyyy-MM-dd');
-      let fin;
-      if (isEte) { fin = debut.slice(0,4) + '-08-31'; }
-      else {
-        const f = new Date(Utilities.formatDate(endRaw, 'Europe/Paris', 'yyyy-MM-dd') + 'T12:00:00');
-        f.setDate(f.getDate() - 1); fin = toDateStr(f);
-      }
-      if (!debut.startsWith(String(year)) && !fin.startsWith(String(year))) return;
-      const anchorYear = Number(debut.slice(0,4));
-      if (concept) { if (present(concept, anchorYear)) return; }
-      else { if (existing.some(function(x){return x.debut===debut;}) || ajout.some(function(a){return a[1]===debut;})) return; }
-      ajout.push([isEte ? "Vacances d'Été" : desc, debut, fin, isEte ? 10 : 8]);
-    });
-  });
-  // ── 2. Filet "à peu près" : repères standard de l'année N manquants ──
-  const REPERES = [
-    { concept:'noel',      anchor:year-1, nom:"Vacances de Noël",          debut:(year-1)+'-12-19', fin:year+'-01-04',     seuil:8  },
-    { concept:'hiver',     anchor:year,   nom:"Vacances d'Hiver",          debut:year+'-02-08',     fin:year+'-02-23',     seuil:8  },
-    { concept:'printemps', anchor:year,   nom:"Vacances de Printemps",     debut:year+'-04-05',     fin:year+'-04-20',     seuil:8  },
-    { concept:'ete',       anchor:year,   nom:"Vacances d'Été",            debut:year+'-07-05',     fin:year+'-08-31',     seuil:10 },
-    { concept:'toussaint', anchor:year,   nom:"Vacances de la Toussaint",  debut:year+'-10-18',     fin:year+'-11-02',     seuil:8  },
-    { concept:'noel',      anchor:year,   nom:"Vacances de Noël",          debut:year+'-12-19',     fin:(year+1)+'-01-04', seuil:8  }
-  ];
-  REPERES.forEach(function(p){ if (!present(p.concept, p.anchor)) ajout.push([p.nom + ' (à caler)', p.debut, p.fin, p.seuil]); });
-  if (!ajout.length) { SpreadsheetApp.getUi().alert('ℹ️ Rien à ajouter pour ' + year + ' (tout est déjà présent).'); return; }
-  ajout.sort(function(a,b){ return a[1] < b[1] ? -1 : 1; });
-  sheet.getRange(sheet.getLastRow()+1, 1, ajout.length, 4).setValues(ajout);
-  SpreadsheetApp.getUi().alert('✅ ' + ajout.length + ' période(s) pour ' + year + '.\nLes lignes « (à caler) » sont des estimations à ajuster au jour.');
-}
-function IMPORT_vac() { importerVacancesScolaires(2027); }
-// ═══ DIAGNOSTIC — à exécuter une fois pour voir la vraie réponse de l'API ═══
-function DIAG_apiVacances() {
-  const url = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records'
-    + '?limit=10'
-    + '&refine=' + encodeURIComponent('zones:"Zone B"')
-    + '&refine=' + encodeURIComponent('population:"Élèves"');
-  const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-  Logger.log('CODE: ' + resp.getResponseCode());
-  Logger.log('BODY (1500 premiers car.): ' + resp.getContentText().slice(0, 1500));
-}
-// ═══ DIAG 2 — isoler le filtre annee_scolaire ═══
-function DIAG_apiVacances2() {
-  const base = 'https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-calendrier-scolaire/records';
-  ['2026-2027', '2027-2028'].forEach(function(as) {
-    const url = base + '?limit=5'
-      + '&refine=' + encodeURIComponent('location:"Nice"')
-      + '&refine=' + encodeURIComponent('population:"Élèves"')
-      + '&refine=' + encodeURIComponent('annee_scolaire:"' + as + '"');
-    const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-    Logger.log('── ' + as + ' — CODE: ' + resp.getResponseCode());
-    Logger.log(resp.getContentText().slice(0, 800));
-  });
-
-  // Et sans le filtre annee_scolaire, pour voir le format réel de ce champ sur Nice :
-  const url2 = base + '?limit=10'
-    + '&refine=' + encodeURIComponent('location:"Nice"')
-    + '&refine=' + encodeURIComponent('population:"Élèves"');
-  const resp2 = UrlFetchApp.fetch(url2, { muteHttpExceptions: true });
-  Logger.log('── sans filtre annee — CODE: ' + resp2.getResponseCode());
-  Logger.log(resp2.getContentText().slice(0, 1200));
-}
