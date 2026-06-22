@@ -3786,7 +3786,7 @@ async function openWizard() {
 
   // Charger périodes + groupes depuis GSheet
   try {
-    const vacData = await api({action:'getVacancesConfig'});
+    const vacData = await api({action:'getVacancesConfig', year: nextYear});
     if (vacData.success) {
       // Périodes : préférer celles du GSheet si disponibles, sinon PERIODES_DEFAUT
       if (vacData.periodes && vacData.periodes.length) {
