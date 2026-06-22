@@ -2207,10 +2207,18 @@ function renderWeek() {
       const m = parseInt(slot.date.slice(5,7), 10);
       const affected = Object.keys(AFF).filter(id => affOf(id, m) === s.code);
       const absent = affected.filter(id => ABSENT_FLASH.has((stMap[dow] && stMap[dow][id]) || ''));
+      // Régulier du secteur retiré/déplacé à la main (override) → laisse une case à pourvoir
+      const ovDay = _localOverrides[slot.date] || {};
+      const removed = (half) => affected.filter(id => {
+        if (ABSENT_FLASH.has((stMap[dow] && stMap[dow][id]) || '')) return false; // absent : déjà compté
+        const t = ovDay[id] && ovDay[id][half];
+        if (t == null) return false;                            // pas d'override → en place
+        return !String(t).split('+').includes(s.code);          // déplacé/retiré hors du secteur
+      }).length;
       const extraAm = cell.am.filter(p => affOf(p.id, m) !== s.code).length;
       const extraPm = cell.pm.filter(p => affOf(p.id, m) !== s.code).length;
-      cell.flash_am = Math.max(0, absent.length - extraAm);
-      cell.flash_pm = Math.max(0, absent.length - extraPm);
+      cell.flash_am = Math.max(0, absent.length + removed('am') - extraAm);
+      cell.flash_pm = Math.max(0, absent.length + removed('pm') - extraPm);
     });
   });
 
