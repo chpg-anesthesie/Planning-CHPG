@@ -2578,6 +2578,34 @@ function renderWeek() {
     return row + '</tr>';
   }
 
+  // ── Volants à poster (par demi-journée, hors Pr PRUNET) ──
+  const volRow = Array(7).fill(null).map(()=>({am:[], pm:[]}));
+  const VOL_BUSY = new Set(['RG','V','F','CTP','R','A','TP','G','G2']); // absent ou de garde
+  daySlots.forEach((slot, dow) => {
+    if (!slot || slot.isWeekend || slot.isFerie) return;
+    const monthData = slot.sourceMonth || slot.month;
+    const ovDay = _localOverrides[slot.date] || {};
+    monthData.doctors.forEach(doc => {
+      if (doc.id === 'PRUNET') return;                       // Pr PRUNET : volant non posté toléré
+      const entry = slot.sourceMonth
+        ? (slot.sourceMonth.doctors.find(d=>d.id===doc.id)?.days[slot.dayIdx]||{})
+        : (doc.days[slot.dayIdx]||{});
+      if (VOL_BUSY.has(entry.status||'')) return;
+      [['am','morning'],['pm','afternoon']].forEach(([half, field]) => {
+        let eff = entry[field] || '';
+        const o = ovDay[doc.id] && ovDay[doc.id][half];
+        if (o != null) eff = o;                              // override prioritaire
+        if (eff === 'VOLANT') volRow[dow][half].push(doc.initials);
+      });
+    });
+  });
+  bottomHtml += btRow('Volants à poster', dow => {
+    const v = volRow[dow];
+    if (!v.am.length && !v.pm.length) return '<span class="bt-dash" style="color:#16A34A;">✓ tous postés</span>';
+    const chip = i => `<span class="name-tag" style="background:#FFEDD5;color:#9A3412;border:1px solid #FED7AA;">${i}</span>`;
+    const line = (lbl, arr) => `<div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:center;align-items:center;"><span style="font-size:8px;color:#94A3B8;font-weight:700;min-width:16px;">${lbl}</span>${arr.length?arr.map(chip).join(''):'<span class="bt-dash">—</span>'}</div>`;
+    return `<div style="display:flex;flex-direction:column;gap:3px;">${line('AM',v.am)}${line('PM',v.pm)}</div>`;
+  });
   bottomHtml += btRow('Garde 24h', dow => {
     const g = gardes[dow];
     if (!g.g && !g.g2) return '<span class="bt-dash">—</span>';
