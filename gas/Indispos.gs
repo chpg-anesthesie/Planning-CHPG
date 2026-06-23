@@ -1372,6 +1372,13 @@ if (!affSheet) {
       if (user.role !== 'admin') return _deny();
       const yearToArchive = Number(payload.year);
       if (!yearToArchive || yearToArchive < 2026) return _error('Année invalide');
+      // ── Garde-fou : l'année SUIVANTE doit être prête (W1+W2) avant de clôturer ──
+      const _ssArch = SpreadsheetApp.getActiveSpreadsheet();
+      const _next = yearToArchive + 1;
+      if (!_ssArch.getSheetByName(`INDISPOS_${_next}`))
+        return _error(`Année ${_next} non préparée : lancez d'abord « Démarrer l'année » (étape 1) avant de clôturer ${yearToArchive}.`);
+      if (!_ssArch.getSheetByName(`STATS_GARDES_${_next}`))
+        return _error(`Gardes ${_next} non générées : lancez d'abord la génération des gardes (étape 2) avant de clôturer ${yearToArchive}.`);
       try {
         const rapport = archiveYear(yearToArchive);
         return ContentService.createTextOutput(JSON.stringify({
