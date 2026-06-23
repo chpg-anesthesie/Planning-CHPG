@@ -473,8 +473,23 @@ function generatePlanning(yearOverride) {
     }
   }
 
+  // ── Snapshot d'équité figé à la génération (lu depuis STATS_GARDES) ──
+  let equiteInitiale = null;
+  try {
+    const stSheet = ss.getSheetByName(`STATS_GARDES_${year}`);
+    if (stSheet && stSheet.getLastRow() > 1) {
+      const sd = stSheet.getDataRange().getValues();
+      // colonnes : 0 MEDECIN · 2 TOTAL G · 8 JEU · 9 VEN · 10 SAM · 11 DIM
+      equiteInitiale = sd.slice(1).filter(r => r[0]).map(r => ({
+        id: String(r[0]).trim(),
+        total: Number(r[2]) || 0, je: Number(r[8]) || 0,
+        ve: Number(r[9]) || 0, sa: Number(r[10]) || 0, di: Number(r[11]) || 0,
+      }));
+    }
+  } catch(e) { Logger.log('equiteInitiale: ' + e.message); }
+
   // ── Push planning_YYYY.json ──────────────────────────────────────────
-  pushFileToGitHub(`planning_${year}.json`, JSON.stringify({months}));
+  pushFileToGitHub(`planning_${year}.json`, JSON.stringify({months, equiteInitiale}));
 
   // ── Push affectations_YYYY.json ──────────────────────────────────────
   try {
