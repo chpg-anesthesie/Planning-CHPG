@@ -1497,6 +1497,38 @@ function saveLocalEdits() {
     localStorage.setItem(_editsKey(), JSON.stringify({ overrides: _localOverrides, vides }));
   } catch(e) {}
 }
+// Supprime un override dès que le planning publié (DATA) le reflète déjà : la case
+// redevient normale (initiales, plus de vert). Ne touche jamais un override que DATA ne
+// reflète pas encore → aucune modification en attente n'est perdue.
+function reconcileOverrides() {
+  if (!DATA || !DATA.months) return;
+  const idx = {};
+  DATA.months.forEach(mo => (mo.days||[]).forEach((day, i) => { if (day && day.date) idx[day.date] = {mo, i}; }));
+  const norm = v => String(v||'').split('+').map(x=>x.trim()).filter(Boolean).sort().join('+');
+  let changed = false;
+  Object.keys(_localOverrides).forEach(date => {
+    const loc = idx[date], dd = _localOverrides[date];
+    Object.keys(dd).forEach(marId => {
+      const ov = dd[marId]; if (!ov) return;
+      ['am','pm'].forEach(half => {
+        if (ov[half] == null) return;
+        let dataVal = '';
+        if (loc) {
+          const doc = loc.mo.doctors.find(d => d.id === marId);
+          const entry = doc ? (doc.days[loc.i] || {}) : null;
+          if (entry) dataVal = half==='am' ? (entry.morning||'') : (entry.afternoon||'');
+        }
+        const ovN = norm(ov[half]), dvN = norm(dataVal);
+        const removal = (ov[half]==='VOLANT' || ov[half]==='VIDE');
+        if (removal) { if (dvN==='' || dvN==='VOLANT') { ov[half]=null; changed=true; } }
+        else if (ovN && ovN===dvN) { ov[half]=null; changed=true; }
+      });
+      if (ov.am==null && ov.pm==null) { delete dd[marId]; changed=true; }
+    });
+    if (dd && !Object.keys(dd).length) { delete _localOverrides[date]; changed=true; }
+  });
+  if (changed) saveLocalEdits();
+}
 function resetLocalEdits() {
   if (!confirm("Réinitialiser les modifications locales de cette année ?\n\nÀ utiliser seulement si l'affichage semble figé sur d'anciennes modifications (ex. après une régénération). Les modifications déjà publiées ne sont pas affectées.")) return;
   _localOverrides = {}; _localVides = {};
@@ -2000,7 +2032,7 @@ async function initDashboard() {
 async function loadStatusBar() {
   try {
     const [medData, ovData] = await Promise.all([api({action:'getMedecins'}), api({action:'getOverrides'})]);
-    if (medData.success) { marsData = medData.medecins; document.getElementById('statusMars').textContent = medData.medecins.filter(m=>m.actif).length; }
+    if (medData.success) { marsData = medData.medecins; document.getElementById('statusMars').textContent = medData.medecins.filter(m=>m.actif).length; if (DATA && typeof renderWeek === 'function') renderWeek(); }
     if (ovData.success) { if(ovData.upcoming>5) document.getElementById('dotStatus').className='status-dot orange'; }
     document.getElementById('statusSys').textContent = 'OK';
   } catch(e) { document.getElementById('statusSys').textContent = 'Erreur'; document.getElementById('dotStatus').className='status-dot red'; }
@@ -2086,6 +2118,7 @@ function renderWeek() {
   if (!DATA) return;
   if (!window._closesLoaded) { loadCloses(); window._closesLoaded = true; }
   if (!window._editsLoaded) { loadLocalEdits(); window._editsLoaded = true; }
+  if (DATA) reconcileOverrides();
   const weeks = getAllWeeks(); if (!weeks.length) return;
   const wk = weeks[currentWeekIdx]; if (!wk) return;
   const daySlots = getWeekDays(wk.weekNum);
