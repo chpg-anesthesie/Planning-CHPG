@@ -708,6 +708,49 @@ function generateGardes(year){
       const n=c.total;
       if(role===0){cnt[A].g-=n;cnt[B].g+=n;}else{cnt[A].g2-=n;cnt[B].g2+=n;}
     };
+    // Règle 1 : vrai si `id` a déjà une garde de week-end (ven/sam/dim) sur le
+    // week-end adjacent (±5 à ±9 j), hors jours du groupe courant.
+    const hasAdjWeekend=(id,days_)=>{
+      for(let gi=0;gi<days_.length;gi++){
+        const base=new Date(days_[gi]+'T12:00:00');
+        for(let n=-9;n<=9;n++){ if(n>=-4&&n<=4)continue;
+          const x=new Date(base);x.setDate(base.getDate()+n);const xs=toDateStr(x);
+          const dx=dayByDate[xs]; if(!dx)continue;
+          if(dx.dow!==5&&dx.dow!==6&&dx.dow!==0)continue;
+          if(days_.indexOf(xs)>=0)continue;
+          if((gSet[id]&&gSet[id].has(xs))||(g2Set[id]&&g2Set[id].has(xs)))return true;
+        }
+      }
+      return false;
+    };
+    // Lissage anti-chaînes : pénalise les gardes serrées (J±2/±3/±4) du même MAR.
+    const _spacingPen=(id,days_)=>{
+      let p=0;
+      for(let gi=0;gi<days_.length;gi++){
+        const b=new Date(days_[gi]+'T12:00:00');
+        for(const n of [-4,-3,-2,2,3,4]){
+          const x=new Date(b);x.setDate(b.getDate()+n);const xs=toDateStr(x);
+          if(days_.indexOf(xs)>=0)continue;
+          if((gSet[id]&&gSet[id].has(xs))||(g2Set[id]&&g2Set[id].has(xs)))
+            p+=Math.abs(n)===2?250:(Math.abs(n)===3?40:6);
+        }
+      }
+      return p;
+    };
+    // Anti 2 week-ends de garde consécutifs : garde ven/sam/dim sur le week-end adjacent.
+    const _hasAdjWE=(id,days_)=>{
+      for(let gi=0;gi<days_.length;gi++){
+        const b=new Date(days_[gi]+'T12:00:00');
+        for(let n=-9;n<=9;n++){ if(n>=-4&&n<=4)continue;
+          const x=new Date(b);x.setDate(b.getDate()+n);const xs=toDateStr(x);
+          const dx=dayByDate[xs]; if(!dx)continue;
+          if(dx.dow!==5&&dx.dow!==6&&dx.dow!==0)continue;
+          if(days_.indexOf(xs)>=0)continue;
+          if((gSet[id]&&gSet[id].has(xs))||(g2Set[id]&&g2Set[id].has(xs)))return true;
+        }
+      }
+      return false;
+    };
     // 7) Recherche locale (best-improvement par slot, passes successives).
     const t0=Date.now();let moves=0;
     for(let pass=0;pass<60;pass++){
@@ -716,6 +759,7 @@ function generateGardes(year){
         if(slot.locked)continue;
         const days_=slot.days,role=slot.role;
         const A=role===0?gardes[days_[0]].g:gardes[days_[0]].g2;
+        const _isWE=days_.some(dd=>{const w=dayByDate[dd].dow;return w===5||w===6||w===0;});
         let bestB=null,bestD=-1e-9;
         for(let bi=0;bi<gardeDoctors.length;bi++){const B=gardeDoctors[bi];
           if(B===A)continue;
@@ -727,6 +771,13 @@ function generateGardes(year){
           const WM=2; days_.forEach(dd=>{ const m=dayByDate[dd].month;
             const cb=monthCnt[B][m]||0, ca=monthCnt[A][m]||0, eb=monthExp[B][m]||0, ea=monthExp[A][m]||0;
             dd_+=WM*((Math.pow(cb+1-eb,2)-Math.pow(cb-eb,2))+(Math.pow(ca-1-ea,2)-Math.pow(ca-ea,2))); });
+          // Règle 1 : éviter 2 week-ends de garde consécutifs (forte pénalité, souple)
+          if(days_.some(dd=>{const w=dayByDate[dd].dow;return w===5||w===6||w===0;})){
+            if(hasAdjWeekend(B,days_))dd_+=500;   // B enchaînerait 2 week-ends
+            if(hasAdjWeekend(A,days_))dd_-=500;   // ce transfert soulage A d'un enchaînement
+          }
+          if(_isWE){ if(_hasAdjWE(B,days_))dd_+=500; if(_hasAdjWE(A,days_))dd_-=500; }
+          dd_+=_spacingPen(B,days_)-_spacingPen(A,days_);
           if(dd_<bestD){bestD=dd_;bestB=B;}}
         if(bestB){applyTr(slot,bestB);moves++;changed=true;}
       }
@@ -754,6 +805,12 @@ function generateGardes(year){
           if(cDow===0||cDow===6||dayByDate[cDate]?.isFerie||!cDate.startsWith(String(year))) continue;
           if(rAssigned[cDate]||blocked(id,cDate)||gSet[id]?.has(cDate)||g2Set[id]?.has(cDate)||rSet[id].has(cDate)) continue;
           if(isVacancesScolaires(cDate,year)) continue;
+          if([-3,-2,-1,1,2,3].some(k=>{const x=new Date(cDt);x.setDate(cDt.getDate()+k);return rSet[id].has(toDateStr(x));})) continue;
+          // Règle 2 : lisser les R — pas un autre R du même MAR à moins de 3 jours
+          { let _tooClose=false; for(let _k=-2;_k<=2;_k++){ if(_k===0)continue;
+              const _x=new Date(cDt);_x.setDate(cDt.getDate()+_k);
+              if(rSet[id].has(toDateStr(_x))){_tooClose=true;break;} }
+            if(_tooClose) continue; }
           const di=dayByDate[cDate];
           if(di&&!di.isReduced){
             const present=allDoctors.filter(m=>!blocked(m,cDate)&&!gSet[m]?.has(cDate)&&!g2Set[m]?.has(cDate)).length;
@@ -763,10 +820,14 @@ function generateGardes(year){
         }
       }
       if(!placed){
-        for(const d of allDays){
-          if(!d.isWeekday||d.isFerie||rAssigned[d.date]||isVacancesScolaires(d.date,year)) continue;
-          if(blocked(id,d.date)||gSet[id]?.has(d.date)||g2Set[id]?.has(d.date)||rSet[id].has(d.date)) continue;
-          rSet[id].add(d.date);rAssigned[d.date]=true;break;
+        for(const _gap of [3,0]){            // 1re passe espacée (>=3j), 2e passe libre (garantit la pose)
+          if(placed)break;
+          for(const d of allDays){
+            if(!d.isWeekday||d.isFerie||rAssigned[d.date]||isVacancesScolaires(d.date,year)) continue;
+            if(blocked(id,d.date)||gSet[id]?.has(d.date)||g2Set[id]?.has(d.date)||rSet[id].has(d.date)) continue;
+            if(_gap&&[-3,-2,-1,1,2,3].some(k=>{const x=new Date(d.date+'T12:00:00');x.setDate(x.getDate()+k);return rSet[id].has(toDateStr(x));})) continue;
+            rSet[id].add(d.date);rAssigned[d.date]=true;placed=true;break;
+          }
         }
       }
     });
