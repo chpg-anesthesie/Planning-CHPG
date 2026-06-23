@@ -2246,6 +2246,86 @@ if (action === 'setDailyStatus') {
       return ContentService.createTextOutput(JSON.stringify({ success: true, applied, rejected }))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    if (action === 'poserAbsenceLongue') {
+      if (user.role !== 'admin') return _deny();
+      const marId = String(payload.marId || '').trim().toUpperCase();
+      const d1 = String(payload.dateDebut || '').trim();
+      const d2 = String(payload.dateFin   || '').trim();
+      if (!marId || !d1 || !d2) return _error('marId, dateDebut et dateFin requis');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d1) || !/^\d{4}-\d{2}-\d{2}$/.test(d2)) return _error('Dates au format YYYY-MM-DD');
+      if (d1 > d2) return _error('La date de début est après la date de fin');
+
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+      // Toutes les dates calendaires de la plage [d1, d2]
+      const allDates = [];
+      { const cur = new Date(d1 + 'T12:00:00'), end = new Date(d2 + 'T12:00:00');
+        while (cur <= end) {
+          allDates.push(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`);
+          cur.setDate(cur.getDate() + 1);
+        } }
+      const nextStr = (d) => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate()+1);
+        return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; };
+
+      // Années civiles couvrant la plage (1 ou 2 en pratique)
+      const years = [];
+      for (let y = Number(d1.slice(0,4)); y <= Number(d2.slice(0,4)); y++) years.push(y);
+
+      const freed = [];                 // gardes libérées {date, role}
+      let nbCL = 0;
+      const touched = [];
+
+      years.forEach(year => {
+        const gSheet = ss.getSheetByName(`GARDES_${year}`);
+        if (gSheet) {
+          // Année GÉNÉRÉE : CL écrase tout (gardes + RG), on note les gardes libérées
+          const data = gSheet.getDataRange().getValues();
+          const dateToCol = buildDateToCol(data, year);
+          let row = -1;
+          for (let r = 3; r < data.length; r++)
+            if (String(data[r][0]).trim().toUpperCase() === marId) { row = r; break; }
+          if (row < 0) return;
+          const inYear = allDates.filter(dt => dateToCol[dt] !== undefined);
+          if (!inYear.length) return;
+          const indMap = getIndisposForDoctor(marId, year);
+          inYear.forEach(dt => {
+            const col = dateToCol[dt];
+            const curv = String(data[row][col] || '').trim().toUpperCase();
+            if (curv === 'G' || curv === 'G2') freed.push({ date: dt, role: curv });
+            gSheet.getRange(row + 1, col + 1).setValue('CL');
+            indMap[dt] = 'CL';
+            nbCL++;
+          });
+          // Nettoie le RG du lendemain d'une garde libérée si ce lendemain est hors plage
+          freed.forEach(f => {
+            const lend = nextStr(f.date), lc = dateToCol[lend];
+            if (lc !== undefined && inYear.indexOf(lend) < 0
+                && String(data[row][lc] || '').trim().toUpperCase() === 'RG')
+              gSheet.getRange(row + 1, lc + 1).setValue('');
+          });
+          saveIndisposForDoctor(marId, indMap, year);
+          touched.push(`${year} (générée)`);
+        } else {
+          // Année NON générée : CL dans INDISPOS seulement (zéro garde à reprendre)
+          const iSheet = ss.getSheetByName(`INDISPOS_${year}`);
+          if (!iSheet) return;
+          const idata = iSheet.getDataRange().getValues();
+          const dset = new Set(reconstruireDatesHeaders(idata, year).filter(Boolean));
+          const inYear = allDates.filter(dt => dset.has(dt));
+          if (!inYear.length) return;
+          const indMap = getIndisposForDoctor(marId, year);
+          inYear.forEach(dt => { indMap[dt] = 'CL'; nbCL++; });
+          saveIndisposForDoctor(marId, indMap, year);
+          touched.push(`${year} (préparation)`);
+        }
+      });
+
+      if (!nbCL) return _error('Aucune date de la plage ne correspond à une année configurée (INDISPOS/GARDES).');
+      freed.sort((a,b) => a.date < b.date ? -1 : 1);
+      logAction(`poserAbsenceLongue — ${marId} ${d1} -> ${d2} : ${nbCL} j CL, ${freed.length} garde(s) liberee(s)`);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, marId, nbCL, freed, touched }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     return ContentService.createTextOutput(JSON.stringify({success:false, error:'Action inconnue'}))
       .setMimeType(ContentService.MimeType.JSON);
 
