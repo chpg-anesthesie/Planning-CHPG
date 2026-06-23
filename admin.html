@@ -1027,7 +1027,7 @@ if (sessionStorage.getItem('adminCode')) {
 <div class="nav-tabs">
   <button class="nav-tab active" onclick="showTab('planning')" id="tab-planning">📅 Planning</button>
   <button class="nav-tab" onclick="showTab('equipe')" id="tab-equipe">👥 Équipe</button>
-  <button class="nav-tab" onclick="showTab('affectations')" id="tab-affectations">📋 Affectations <span id="affPendingDot" style="display:none;width:6px;height:6px;background:#F59E0B;border-radius:50%;display:inline-block;margin-left:4px;vertical-align:middle"></span></button>
+  <button class="nav-tab" onclick="showTab('affectations')" id="tab-affectations">📋 Affectations <span id="affPendingDot" style="display:none;width:6px;height:6px;background:#F59E0B;border-radius:50%;margin-left:4px;vertical-align:middle"></span></button>
   <button class="nav-tab" onclick="showTab('equite')" id="tab-equite">📊 Équité</button>
   <button class="nav-tab" onclick="showTab('statuts')" id="tab-statuts">✏️ Statuts</button>
 </div>
@@ -1375,6 +1375,9 @@ if (sessionStorage.getItem('adminCode')) {
   .sa-corner{z-index:4}
   .sa-cell{width:20px;min-width:20px;height:20px;font-weight:700;cursor:pointer}
   .sa-cell.we{box-shadow:inset 0 0 0 100px rgba(148,163,184,.05)}
+  .sa-day.today{background:#DBEAFE;color:#1D4ED8;font-weight:800;box-shadow:inset 0 -2px 0 #3B82F6}
+  .sa-cell.today{box-shadow:inset 2px 0 0 #93C5FD, inset -2px 0 0 #93C5FD}
+  .sa-pcell.today{background:#DBEAFE;color:#1D4ED8;font-weight:800}
   .sa-cell:active{outline:2px solid var(--blue,#2563EB)}
   </style>
   <div class="tab-panel" id="panel-statuts">
@@ -1616,7 +1619,7 @@ function showTab(name) {
 // ══════════════════════════════════════════════════════════════════
 // ══ ÉDITEUR DE STATUTS JOURNALIERS (C3) ══════════════════════════════
 const STAT = {
-  view: 'mar', gardes: {}, days: [], marId: null, monthKey: null,
+  view: 'annee', gardes: {}, days: [], marId: null, monthKey: null,
   selected: new Set(), plageMode: false, plageStart: null, year: null,
   feries: new Set(), pending: 0,
 };
@@ -1775,6 +1778,7 @@ function statCoverage(){
 function renderStatAnnee(ro){
   const actifs=marData.filter(m=>m.actif);
   const issues=statCoverage();
+  const _td=new Date(), todayStr=`${_td.getFullYear()}-${String(_td.getMonth()+1).padStart(2,'0')}-${String(_td.getDate()).padStart(2,'0')}`;
   let band='<tr><th class="sa-name sa-corner"></th>', drow='<tr><th class="sa-name">MAR</th>';
   let i=0;
   while(i<STAT.days.length){
@@ -1783,13 +1787,13 @@ function renderStatAnnee(ro){
     band+=`<th class="sa-month" colspan="${span}">${MOIS_AB[mo]}${yr!==STAT.year?' '+yr:''}</th>`; i+=span;
   }
   band+='</tr>';
-  STAT.days.forEach(d=>{ const we=d.dow===0||d.dow===6; const bad=issues[d.date]; drow+=`<th class="sa-day${we?' we':''}${bad?' miss':''}"${bad?` title="Manque : ${bad.join(', ')}"`:''}>${d.day}</th>`; });
+  STAT.days.forEach(d=>{ const we=d.dow===0||d.dow===6; const bad=issues[d.date]; drow+=`<th class="sa-day${we?' we':''}${bad?' miss':''}${d.date===todayStr?' today':''}"${bad?` title="Manque : ${bad.join(', ')}"`:''}>${d.day}</th>`; });
   drow+='</tr>';
   const body=actifs.map(m=>{
     let row=`<tr><td class="sa-name" onclick="statJumpMar('${m.id}')">${m.id}</td>`;
     STAT.days.forEach(d=>{
       const code=statCode(m.id,d.date), we=d.dow===0||d.dow===6, meta=statMeta(code);
-      row+=`<td class="sa-cell${we?' we':''}" title="${m.id} · ${d.date} · ${meta.label}"
+      row+=`<td class="sa-cell${we?' we':''}${d.date===todayStr?' today':''}" title="${m.id} · ${d.date} · ${meta.label}"
         onclick="statJumpCell('${m.id}','${d.date}')"
         style="background:${code?meta.bg:(we?'#F8FAFC':'#fff')};color:${meta.fg}">${code}</td>`;
     });
@@ -1799,7 +1803,7 @@ function renderStatAnnee(ro){
     + `<tr class="sa-present"><td class="sa-name">Présents</td>${STAT.days.map(d=>{
         const n=actifs.filter(m=>statActive(m,d.date) && PRESENT_CODES.has(statCode(m.id,d.date))).length;
         const we=d.dow===0||d.dow===6;
-        return `<td class="sa-pcell${we?' we':''}">${n}</td>`;
+        return `<td class="sa-pcell${we?' we':''}${d.date===todayStr?' today':''}">${n}</td>`;
       }).join('')}</tr>`;
   const probs=Object.keys(issues).sort();
   const banner = probs.length
