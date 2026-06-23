@@ -1147,6 +1147,7 @@ if (sessionStorage.getItem('adminCode')) {
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn-secondary" onclick="loadEquipe()">↻ Actualiser</button>
+        <button class="btn-secondary" onclick="openCL()">🏖️ Absence longue</button>
         <button class="btn-primary" onclick="openAddMAR()">+ Ajouter un MAR</button>
       </div>
     </div>
@@ -4697,6 +4698,24 @@ async function launchWizardCloture() {
 
 <!-- ── MODALS ÉQUIPE P16 ── -->
 <!-- MODAL ÉDITION MAR -->
+<div class="modal-overlay" id="modalCL">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">
+      <span>🏖️ Absence longue (CL)</span>
+      <button class="modal-close" onclick="closeModal('modalCL')">✕</button>
+    </div>
+    <div class="form-grid-3" style="margin-bottom:12px">
+      <div class="form-field"><label class="form-label">MAR</label><select class="form-select" id="clMar"></select></div>
+      <div class="form-field"><label class="form-label">Du</label><input class="form-input" type="date" id="clDebut"/></div>
+      <div class="form-field"><label class="form-label">Au</label><input class="form-input" type="date" id="clFin"/></div>
+    </div>
+    <div id="clResult" style="display:none;margin:4px 0 12px"></div>
+    <div style="text-align:right">
+      <button class="btn-secondary" onclick="closeModal('modalCL')">Fermer</button>
+      <button class="btn-primary" id="clBtn" onclick="poserCL()">Poser l'absence</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="modalMAR">
   <div class="modal">
     <div class="modal-title">
@@ -4908,6 +4927,43 @@ function renderEquipe() {
       </td>
     </tr>
   `).join('');
+}
+
+function openCL() {
+  const sel = document.getElementById('clMar');
+  sel.innerHTML = marData.filter(m=>m.actif).map(m=>`<option value="${m.id}">${m.nom}</option>`).join('');
+  document.getElementById('clDebut').value = '';
+  document.getElementById('clFin').value = '';
+  const res = document.getElementById('clResult'); res.style.display='none'; res.innerHTML='';
+  document.getElementById('modalCL').classList.add('open');
+}
+
+async function poserCL() {
+  const marId = document.getElementById('clMar').value;
+  const dateDebut = document.getElementById('clDebut').value;
+  const dateFin = document.getElementById('clFin').value;
+  if (!marId || !dateDebut || !dateFin) { toast('MAR, début et fin requis', 'error'); return; }
+  if (dateDebut > dateFin) { toast('La date de début est après la fin', 'error'); return; }
+  const btn = document.getElementById('clBtn');
+  btn.disabled = true; btn.textContent = '⏳ Pose en cours...';
+  try {
+    const data = await api({ action:'poserAbsenceLongue', marId, dateDebut, dateFin });
+    if (!data.success) throw new Error(data.error);
+    const res = document.getElementById('clResult');
+    let html = `<div style="padding:8px 10px;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:8px;color:#065F46;font-size:12px">✅ ${data.nbCL} jour(s) en CL · ${data.touched.join(', ')}</div>`;
+    if (data.freed && data.freed.length) {
+      html += `<div style="margin-top:8px;padding:8px 10px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;color:#92400E;font-size:12px"><strong>${data.freed.length} garde(s) à reprendre</strong> (à recouvrir manuellement, sur volontariat) :<br>` + data.freed.map(f=>`${f.date} <span style="opacity:.7">(${f.role==='G'?'réa':'mat'})</span>`).join(' · ') + `</div>`;
+    } else {
+      html += `<div style="margin-top:8px;color:var(--ink-3);font-size:12px">Aucune garde à reprendre.</div>`;
+    }
+    res.innerHTML = html; res.style.display = 'block';
+    toast('✅ Absence posée', 'success');
+    if (typeof loadEquipe === 'function') loadEquipe();
+  } catch(e) {
+    toast('Erreur : ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = "Poser l'absence";
+  }
 }
 
 function openAddMAR() {
