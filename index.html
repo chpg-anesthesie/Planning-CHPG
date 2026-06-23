@@ -311,7 +311,7 @@ body {
 .aff-grid { display:flex; flex-direction:column; gap:3px; min-width:330px; }
 .aff-row { display:grid; grid-template-columns:90px repeat(12,1fr); gap:2px; align-items:center; }
 .aff-name { font-size:11px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:4px; }
-.aff-cell { font-size:8px; font-weight:700; font-family:var(--mono); text-align:center; padding:5px 0; border-radius:4px; overflow:hidden; white-space:nowrap; }
+.aff-cell { font-size:8px; font-weight:600; font-family:var(--mono); text-align:center; padding:5px 0; border-radius:4px; overflow:hidden; white-space:nowrap; background:#fff; border:1px solid #EEF1F5; }
 .aff-head { position:sticky; top:0; background:var(--bg); z-index:1; padding-bottom:2px; }
 .aff-head .aff-name { color:var(--ink-4); font-size:9px; text-transform:uppercase; letter-spacing:.04em; }
 .aff-head-cell { background:transparent; color:var(--ink-4); font-size:9px; font-weight:700; text-align:center; }
@@ -1445,23 +1445,32 @@ function renderDocPanel(){
 function renderEquite(){
   const wrap = document.getElementById('eqWrap');
   if(!wrap || !DATA) return;
-  const agg = {};
-  DATA.months.forEach(m => {
-    m.doctors.forEach(d => {
-      if(!agg[d.id]) agg[d.id] = {id:d.id, init:d.initials, total:0, sa:0, di:0, ve:0, je:0};
-      m.days.forEach((day, i) => {
-        const st = (d.days[i]||{}).status || '';
-        if(st==='G' || st==='G2'){
-          agg[d.id].total++;
-          const w = day.dow;
-          if(w===6) agg[d.id].sa++;
-          else if(w===0) agg[d.id].di++;
-          else if(w===5) agg[d.id].ve++;
-          else if(w===4) agg[d.id].je++;
-        }
+  let agg = {};
+  if (DATA.equiteInitiale && DATA.equiteInitiale.length) {
+    // Snapshot figé à la génération — pas de dérive avec les échanges/dons
+    const initOf = {};
+    (DATA.months[0]?.doctors||[]).forEach(d => initOf[d.id] = d.initials);
+    DATA.equiteInitiale.forEach(e => {
+      agg[e.id] = {id:e.id, init: initOf[e.id]||e.id.slice(0,3), total:e.total, sa:e.sa, di:e.di, ve:e.ve, je:e.je};
+    });
+  } else {
+    DATA.months.forEach(m => {
+      m.doctors.forEach(d => {
+        if(!agg[d.id]) agg[d.id] = {id:d.id, init:d.initials, total:0, sa:0, di:0, ve:0, je:0};
+        m.days.forEach((day, i) => {
+          const st = (d.days[i]||{}).status || '';
+          if(st==='G' || st==='G2'){
+            agg[d.id].total++;
+            const w = day.dow;
+            if(w===6) agg[d.id].sa++;
+            else if(w===0) agg[d.id].di++;
+            else if(w===5) agg[d.id].ve++;
+            else if(w===4) agg[d.id].je++;
+          }
+        });
       });
     });
-  });
+  }
   const list = Object.values(agg).filter(a=>a.total>0).sort((a,b)=>b.total-a.total);
   if(!list.length){ wrap.innerHTML = '<div style="padding:30px;text-align:center;color:var(--ink-4)">Aucune garde dans ce planning.</div>'; return; }
   const totals = list.map(a=>a.total);
@@ -1477,7 +1486,7 @@ function renderEquite(){
     <div class="eq-kpi"><div class="eq-kpi-num">${mean.toFixed(1)}</div><div class="eq-kpi-lbl">Moyenne / MAR</div></div>
     <div class="eq-kpi"><div class="eq-kpi-num">${min}–${max}</div><div class="eq-kpi-lbl">Étendue</div></div>
   </div>
-  <div class="eq-mean-legend"><span class="tick"></span> Trait = moyenne (${mean.toFixed(1)}). Barre = total annuel (G réa + G2 maternité). Détail des axes prioritaires sous chaque barre.</div>`;
+  <div class="eq-mean-legend"><span class="tick"></span> Trait = moyenne (${mean.toFixed(1)}). Barre = total annuel (G réa + G2 maternité). Détail des axes prioritaires sous chaque barre.${(DATA.equiteInitiale&&DATA.equiteInitiale.length)?' <b>Répartition figée à la génération</b> — les échanges/dons ne la modifient pas.':''}</div>`;
   list.forEach(a => {
     const pct = max ? (a.total/max*100) : 0;
     html += `<div class="eq-row">
@@ -1517,7 +1526,7 @@ function renderAffectations(){
     for(let m=1;m<=12;m++){
       const sec = secOf(d.id,m);
       const sc = SECTOR_COLORS[sec] || SECTOR_COLORS.VOLANT || {bg:'#F1F5F9',fg:'#64748B'};
-      html += `<div class="aff-cell" style="background:${sc.bg};color:${sc.fg}" title="${MOF[m-1]} : ${sec}">${abbr(sec)}</div>`;
+      html += `<div class="aff-cell" style="color:${sc.fg};box-shadow:inset 0 -2px 0 ${sc.fg}" title="${MOF[m-1]} : ${sec}">${abbr(sec)}</div>`;
     }
     html += `</div>`;
   });
