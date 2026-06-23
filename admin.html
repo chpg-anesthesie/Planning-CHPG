@@ -1053,6 +1053,7 @@ if (sessionStorage.getItem('adminCode')) {
       <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
       <button class="week-validate-btn" id="btnValiderSemaine" onclick="toggleValiderSemaine()">✅ Valider la semaine</button>
       <button class="week-validate-btn" id="btnPublier" onclick="publishPlanning()">⬆️ Publier</button>
+<span onclick="resetLocalEdits()" title="Réinitialiser les modifications locales de cette année (si l'affichage semble figé sur d'anciennes modifs)" style="font-size:11px;color:var(--ink-4,#94A3B8);cursor:pointer;margin-left:10px;white-space:nowrap">↺ réinit.</span>
     </div>
   </div>
 
@@ -1476,6 +1477,47 @@ function saveCloses() {
     localStorage.setItem(_closesKey(), JSON.stringify(o));
   } catch(e) {}
 }
+// ── P15 · Persistance des modifications locales (overrides + cases vides) par année ──
+function _editsKey() { return 'chpg_localEdits_' + (selectedYear || (typeof ANNEE_ACTIVE!=='undefined'?ANNEE_ACTIVE:'') || YEAR || ''); }
+function loadLocalEdits() {
+  try {
+    const raw = localStorage.getItem(_editsKey());
+    _localOverrides = {}; _localVides = {};
+    if (raw) {
+      const o = JSON.parse(raw);
+      _localOverrides = o.overrides || {};
+      Object.keys(o.vides || {}).forEach(d => { _localVides[d] = new Set(o.vides[d]); });
+    }
+  } catch(e) { _localOverrides = {}; _localVides = {}; }
+}
+function saveLocalEdits() {
+  try {
+    const vides = {};
+    Object.keys(_localVides).forEach(d => { if (_localVides[d] && _localVides[d].size) vides[d] = Array.from(_localVides[d]); });
+    localStorage.setItem(_editsKey(), JSON.stringify({ overrides: _localOverrides, vides }));
+  } catch(e) {}
+}
+function resetLocalEdits() {
+  if (!confirm("Réinitialiser les modifications locales de cette année ?\n\nÀ utiliser seulement si l'affichage semble figé sur d'anciennes modifications (ex. après une régénération). Les modifications déjà publiées ne sont pas affectées.")) return;
+  _localOverrides = {}; _localVides = {};
+  try { localStorage.removeItem(_editsKey()); } catch(e) {}
+  renderWeek();
+  if (typeof toast === 'function') toast('Modifications locales réinitialisées', 'success');
+}
+// ── P15 · Bannière rassurante après publication ──
+function showPublishReassurance() {
+  let el = document.getElementById('pubReassure');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'pubReassure';
+    el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9000;max-width:520px;background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;border-radius:12px;padding:14px 18px;box-shadow:0 8px 28px rgba(0,0,0,.12);font-size:13.5px;line-height:1.5';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = "<b>✅ Modifications enregistrées.</b> Elles sont déjà visibles ici. La version des MAR se met à jour automatiquement dans 1 à 2 minutes — <b>inutile de recharger la page</b>.";
+  el.style.display = 'block';
+  clearTimeout(window._pubReassureT);
+  window._pubReassureT = setTimeout(() => { if (el) el.style.display = 'none'; }, 9000);
+}
 let _dispoCache = {};  // cache liste MARs dispos par jour (évite re-fetch à chaque case)
 let currentWeekIdx = 0, currentCalMonth = new Date().getMonth();
 let panelType = '', allViolations = [], activeFilter = 'all';
@@ -1865,7 +1907,8 @@ async function statPublish(){
     const r=await api({action:'publishPlanning', year:STAT.year});
     if(!r.success) throw new Error(r.error||'publishPlanning');
     STAT.pending=0;
-    toast('Planning publié ✓ — visible côté public après propagation (~1 min)');
+    toast('Planning publié ✓', 'success');
+    showPublishReassurance();
     renderStatuts();
   }catch(e){ toast('Publication échouée : '+e.message, 'error'); renderStatuts(); }
 }
@@ -2042,6 +2085,7 @@ function getWeekDays(weekNum) {
 function renderWeek() {
   if (!DATA) return;
   if (!window._closesLoaded) { loadCloses(); window._closesLoaded = true; }
+  if (!window._editsLoaded) { loadLocalEdits(); window._editsLoaded = true; }
   const weeks = getAllWeeks(); if (!weeks.length) return;
   const wk = weeks[currentWeekIdx]; if (!wk) return;
   const daySlots = getWeekDays(wk.weekNum);
@@ -2750,6 +2794,7 @@ async function placeMAR(marId, marInit, mode) {
   }
   _localOverrides[date][marId][slotKey] = value;
   if (_localVides[date]) _localVides[date].delete(`${sector}|${slotKey}`);  // placer annule le vide
+  saveLocalEdits();
 
   // 2. Re-render immédiat depuis smap + _localOverrides (pas de rechargement JSON)
   closeSidePanel();
@@ -2774,6 +2819,7 @@ async function placeMAR(marId, marInit, mode) {
     if (_localOverrides[date]?.[marId]) {
       _localOverrides[date][marId][slotKey] = null;
     }
+    saveLocalEdits();
     renderWeek();
   }
 }
@@ -2808,17 +2854,19 @@ function leaveCaseVide() {
   const {sector, date, slotKey} = ctx;
   if (!_localVides[date]) _localVides[date] = new Set();
   _localVides[date].add(`${sector}|${slotKey}`);
+  saveLocalEdits();
   const c = document.getElementById('dispoCard'); if (c) c.style.display = 'none';
   renderWeek();
   if (typeof showToast === 'function') showToast('Case laissée vide');
 }
 function undoCaseVide(date, key) {
-  if (_localVides[date]) { _localVides[date].delete(key); renderWeek(); }
+  if (_localVides[date]) { _localVides[date].delete(key); saveLocalEdits(); renderWeek(); }
 }
 function unleaveCaseVide() {
   const ctx = window._sideCtx; if (!ctx) return;
   const {sector, date, slotKey} = ctx;
   if (_localVides[date]) _localVides[date].delete(`${sector}|${slotKey}`);
+  saveLocalEdits();
   const c = document.getElementById('dispoCard'); if (c) c.style.display = 'none';
   renderWeek();
 }
@@ -5313,6 +5361,7 @@ async function publishPlanning() {
     if (!data.success) throw new Error(data.error);
     _pendingChanges = 0;
     toast('✅ Planning publié en ligne', 'success');
+    showPublishReassurance();
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
   } finally {
