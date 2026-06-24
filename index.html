@@ -1463,7 +1463,7 @@ function renderEquite(){
     const initOf = {};
     (DATA.months[0]?.doctors||[]).forEach(d => initOf[d.id] = d.initials);
     DATA.equiteInitiale.forEach(e => {
-      agg[e.id] = {id:e.id, init: initOf[e.id]||e.id.slice(0,3), total:e.total, sa:e.sa, di:e.di, ve:e.ve, je:e.je};
+      agg[e.id] = {id:e.id, init: initOf[e.id]||e.id.slice(0,3), total:e.total, sa:e.sa, di:e.di, ve:e.ve, je:e.je, vd:e.vd, jf:e.jf, vjf:e.vjf};
     });
   } else {
     DATA.months.forEach(m => {
@@ -1505,7 +1505,7 @@ function renderEquite(){
       <div class="eq-who"><div class="eq-av">${a.init}</div><div class="eq-nm">${nameOf(a.id)}</div></div>
       <div class="eq-bar">
         <div class="eq-track"><div class="eq-fill" style="width:${pct}%"></div><div class="eq-mean" style="left:${meanPct}%"></div></div>
-        <div class="eq-axes">Sam <b>${a.sa}</b> · Dim <b>${a.di}</b> · Ven <b>${a.ve}</b> · Jeu <b>${a.je}</b></div>
+        <div class="eq-axes">VD <b>${a.vd||0}</b> · Sam <b>${a.sa}</b> · Jeu <b>${a.je}</b> · JF <b>${a.jf||0}</b> · VJF <b>${a.vjf||0}</b></div>
       </div>
       <div class="eq-total">${a.total}</div>
     </div>`;
