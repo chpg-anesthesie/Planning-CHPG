@@ -2766,7 +2766,7 @@ function consultCountsForMonth(ym) {
 function volantsAPoster(date, half) {
   if (!DATA || !DATA.months || !date || !half) return [];
   const field = half === 'am' ? 'morning' : 'afternoon';
-  const BUSY = new Set(['RG','V','F','CTP','R','A','TP','G','G2']);
+  const BUSY = new Set(['RG','V','F','CTP','R','A','TP']); // G/G2 = de garde mais présents en journée → à poster
   const ov = _localOverrides[date] || {};
   for (const mo of DATA.months) {
     const i = (mo.days||[]).findIndex(d => d && d.date === date);
