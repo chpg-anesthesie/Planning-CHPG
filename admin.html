@@ -2024,7 +2024,6 @@ async function initDashboard() {
     loadPlanningData(),
     loadStatusBar().catch(()=>{}),
     loadOverrides().catch(()=>{}),
-    loadCycleStatus().catch(()=>{}),
   ]);
   // Détection des années en parallèle — le sélecteur se remplit dès qu'elle est prête, sans retarder le planning
   const yearDetect = (async () => {
