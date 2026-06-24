@@ -319,6 +319,20 @@ body {
 .aff-cell.cur { box-shadow:inset 0 0 0 1.5px var(--red); }
 @media (max-width:768px){ .aff-name{ min-width:76px; font-size:11px; padding:0 6px; } .aff-cell{ font-size:10px; padding:7px 2px; } .aff-mhead{ min-width:26px; } }
 
+.cons-panel { margin-top: 16px; }
+.cons-head { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; }
+.cons-head-icon { width:15px; height:15px; }
+.cons-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; }
+.cons-day { background:var(--white); border:1px solid var(--line); border-radius:10px; padding:9px 8px; }
+.cons-day.today { border-color:var(--red); }
+.cons-dayhead { font-size:12px; font-weight:700; color:var(--ink); margin-bottom:7px; }
+.cons-half-lbl { font-size:10px; font-weight:600; color:var(--ink-4); text-transform:uppercase; letter-spacing:.04em; margin:7px 0 3px; }
+.cons-chip { border-radius:7px; padding:5px 7px; margin-bottom:4px; }
+.cons-spec { display:block; font-size:11px; font-weight:700; line-height:1.2; }
+.cons-mar { display:block; font-size:11px; line-height:1.3; opacity:.82; }
+.cons-empty { font-size:11px; color:var(--ink-4); padding:1px 0; }
+@media (max-width:768px){ .cons-grid { grid-template-columns:repeat(2,1fr); } }
+
 /* ── FICHE MÉDECIN ── */
 .doc-panel-overlay {
   position: fixed; inset: 0; background: rgba(13,17,23,.45);
@@ -584,6 +598,7 @@ body {
   <div class="table-container">
     <table class="planning-table" id="planningTable"></table>
   </div>
+  <div id="consPanel" class="cons-panel"></div>
   <div id="bottomSection" class="bottom-tables"></div>
 </div>
 
@@ -1030,6 +1045,7 @@ function render(){
       '<div style="font-weight:600;color:#64748B;margin-bottom:6px">Planning en cours de validation</div>'+
       '<div>Ce mois sera publié prochainement par le comité.</div>'+
       '</div>';
+    const _cp=document.getElementById('consPanel'); if(_cp) _cp.innerHTML='';
     document.getElementById('bottomPanel').innerHTML='';
     return;
   }
@@ -1093,7 +1109,7 @@ function renderTable(month,daySlots,week){
     });
   });
 
-  const active=SECTORS_DEF.filter(s=>smap[s.code].some(d=>d.am.length||d.pm.length));
+  const active=SECTORS_DEF.filter(s=>s.code!=='CS'&&smap[s.code].some(d=>d.am.length||d.pm.length));
   let tbody='<tbody>';
   active.forEach(s=>{
     tbody+=`<tr class="sector-row"><td class="td-sector">
@@ -1130,6 +1146,54 @@ function renderTable(month,daySlots,week){
   });
   tbody+='</tbody>';
   document.getElementById('planningTable').innerHTML=thead+tbody;
+
+  // Panneau consultations (agenda par jour, sous la grille)
+  renderConsPanel(month,daySlots,today);
+}
+
+function renderConsPanel(month,daySlots,today){
+  const panel=document.getElementById('consPanel');
+  if(!panel) return;
+  const CS_LABELS={VIS:'Viscéral',ORL:'ORL',ORT:'Ortho',END:'Endoscopies',MAT:'Maternité',INTER:'Interventionnel',POLY:'Polyvalent'};
+  const csColor=spec=>SECTOR_COLORS[spec]||(spec==='INTER'?SECTOR_COLORS.CI:spec==='POLY'?SECTOR_COLORS.VOLANT:{bg:'#F1F5F9',fg:'#64748B'});
+  const nameOf=id=>(id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
+  const cons=Array(7).fill(null).map(()=>({am:[],pm:[]}));
+  month.doctors.forEach(doc=>{
+    daySlots.forEach((slot,dow)=>{
+      if(!slot) return;
+      let entry={};
+      if(slot.dayIdx>=0){
+        if(slot.sourceMonth){ const od=slot.sourceMonth.doctors.find(d=>d.id===doc.id); entry=od?(od.days[slot.dayIdx]||{}):{}; }
+        else { entry=doc.days[slot.dayIdx]||{}; }
+      }
+      if(entry.status && ABSENT_STATUSES.has(entry.status)) return;
+      [['am',entry.morning],['pm',entry.afternoon]].forEach(function(hv){
+        const half=hv[0]; (hv[1]||'').split('+').forEach(raw=>{
+          const part=raw.trim();
+          if(!part.startsWith('CS-')) return;
+          cons[dow][half].push({id:doc.id,spec:part.slice(3)});
+        });
+      });
+    });
+  });
+  const cols=[];
+  daySlots.forEach((slot,dow)=>{
+    if(!slot) return;
+    const has=cons[dow].am.length||cons[dow].pm.length;
+    if(isWeekend(slot.weekday) && !has) return;
+    cols.push({slot,dow});
+  });
+  if(!cols.length){ panel.innerHTML=''; return; }
+  const chip=c=>{ const sc=csColor(c.spec), lbl=CS_LABELS[c.spec]||c.spec; return `<div class="cons-chip" style="background:${sc.bg};color:${sc.fg}" title="${esc(lbl)} · ${esc(nameOf(c.id))}"><span class="cons-spec">${esc(lbl)}</span><span class="cons-mar">${esc(nameOf(c.id))}</span></div>`; };
+  const half=arr=>arr.length?arr.map(chip).join(''):'<div class="cons-empty">—</div>';
+  let html=`<div class="cons-head"><i data-lucide="stethoscope" class="cons-head-icon"></i><span>Consultations</span></div><div class="cons-grid">`;
+  cols.forEach(function(col){
+    const slot=col.slot, dow=col.dow, isTd=slot.date===today;
+    const dn=DAYS_FR[dow], lbl=dn.charAt(0)+dn.slice(1,3).toLowerCase();
+    html+=`<div class="cons-day${isTd?' today':''}"><div class="cons-dayhead">${lbl} ${slot.day}</div><div class="cons-half-lbl">Matin</div>${half(cons[dow].am)}<div class="cons-half-lbl">Après-midi</div>${half(cons[dow].pm)}</div>`;
+  });
+  html+=`</div>`;
+  panel.innerHTML=html;
 }
 
 // ── BOTTOM ─────────────────────────────────────────────────────────────
