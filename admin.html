@@ -2010,7 +2010,6 @@ async function checkNextYearAvailable() {
       headers: { 'Range': 'bytes=0-1' }
     }, 5000);
     nextYearAvailable = resp.ok || resp.status === 206;
-    if (nextYearAvailable) loadCycleStatus();
     selectedYear = null;
   } catch(e) {
     nextYearAvailable = false;
@@ -2039,9 +2038,8 @@ async function initDashboard() {
 // ── STATUS ─────────────────────────────────────────────────────────────
 async function loadStatusBar() {
   try {
-    const [medData, ovData] = await Promise.all([api({action:'getMedecins'}), api({action:'getOverrides'})]);
+    const medData = await api({action:'getMedecins'});
     if (medData.success) { marsData = medData.medecins; document.getElementById('statusMars').textContent = medData.medecins.filter(m=>m.actif).length; if (DATA && typeof renderWeek === 'function') renderWeek(); }
-    if (ovData.success) { if(ovData.upcoming>5) document.getElementById('dotStatus').className='status-dot orange'; }
     document.getElementById('statusSys').textContent = 'OK';
   } catch(e) { document.getElementById('statusSys').textContent = 'Erreur'; document.getElementById('dotStatus').className='status-dot red'; }
 }
@@ -3022,6 +3020,7 @@ async function loadOverrides() {
   try {
     const data=await api({action:'getOverrides'});
     if(!data.success) throw new Error(data.error);
+    if(data.upcoming>5) document.getElementById('dotStatus').className='status-dot orange';
     const futures=data.overrides.filter(o=>o.isFuture).slice(0,8);
     const body=document.getElementById('overridesBody');
     if(!futures.length){body.innerHTML='<div style="text-align:center;color:var(--green);padding:16px;font-size:12px">✅ Aucune modification en attente</div>';return;}
