@@ -304,18 +304,20 @@ body {
 @media (max-width:768px){ .eq-row { grid-template-columns:84px 1fr 32px; gap:8px; } .eq-av{ display:none; } .eq-nm{ font-size:11px; } }
 
 /* ── Vue Affectations ── */
-.aff-wrap { padding: 4px 0 24px; overflow-x: auto; }
-.aff-legend { display:flex; flex-wrap:wrap; gap:6px 12px; margin-bottom:14px; font-size:11px; color:var(--ink-3); }
+.aff-wrap { padding: 4px 0 24px; }
+.aff-legend { display:flex; flex-wrap:wrap; gap:6px 14px; margin-bottom:14px; font-size:12px; color:var(--ink-3); }
 .aff-legend-item { display:inline-flex; align-items:center; gap:5px; }
 .aff-legend-dot { width:11px; height:11px; border-radius:3px; flex-shrink:0; }
-.aff-grid { display:flex; flex-direction:column; gap:3px; min-width:330px; }
-.aff-row { display:grid; grid-template-columns:90px repeat(12,1fr); gap:2px; align-items:center; }
-.aff-name { font-size:11px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:4px; }
-.aff-cell { font-size:8px; font-weight:600; font-family:var(--mono); text-align:center; padding:5px 0; border-radius:4px; overflow:hidden; white-space:nowrap; background:#fff; border:1px solid #EEF1F5; }
-.aff-head { position:sticky; top:0; background:var(--bg); z-index:1; padding-bottom:2px; }
-.aff-head .aff-name { color:var(--ink-4); font-size:9px; text-transform:uppercase; letter-spacing:.04em; }
-.aff-head-cell { background:transparent; color:var(--ink-4); font-size:9px; font-weight:700; text-align:center; }
-@media (max-width:768px){ .aff-row { grid-template-columns:70px repeat(12,1fr); } .aff-name{ font-size:10px; } .aff-cell{ font-size:7px; } }
+.aff-tablewrap { overflow:auto; border:1px solid var(--line); border-radius:10px; max-height:74vh; -webkit-overflow-scrolling:touch; }
+.aff-table { border-collapse:separate; border-spacing:0; width:100%; font-size:11px; }
+.aff-table th, .aff-table td { text-align:center; white-space:nowrap; }
+.aff-mhead { position:sticky; top:0; z-index:3; background:var(--bg); color:var(--ink-4); font-size:11px; font-weight:700; padding:7px 0; min-width:40px; border-bottom:1px solid var(--line); }
+.aff-mhead.cur { color:var(--red); }
+.aff-name { position:sticky; left:0; z-index:2; background:var(--white); text-align:left; font-size:12px; font-weight:700; color:var(--ink); padding:0 10px; min-width:104px; border-right:1px solid var(--line); }
+.aff-corner { top:0; z-index:4; background:var(--bg); color:var(--ink-4); }
+.aff-cell { padding:8px 4px; font-weight:700; letter-spacing:.02em; border-bottom:1px solid rgba(148,163,184,.16); }
+.aff-cell.cur { box-shadow:inset 0 0 0 1.5px var(--red); }
+@media (max-width:768px){ .aff-name{ min-width:76px; font-size:11px; padding:0 6px; } .aff-cell{ font-size:10px; padding:7px 2px; } .aff-mhead{ min-width:26px; } }
 
 /* ── FICHE MÉDECIN ── */
 .doc-panel-overlay {
@@ -1519,6 +1521,9 @@ function renderAffectations(){
   const MO = ['J','F','M','A','M','J','J','A','S','O','N','D'];
   const MOF = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
   const docs = (DATA.months[0]?.doctors || []).slice().sort((a,b)=>a.id.localeCompare(b.id));
+  const baseYear = DATA.months[0]?.year;
+  const _now = new Date();
+  const curM = (_now.getFullYear()===baseYear) ? _now.getMonth()+1 : 0;
   const nameOf = id => (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
   const secOf = (id,m) => { const a = AFFECTATIONS_DATA[id]||{}; return a[m] || a[String(m)] || 'VOLANT'; };
   const abbr = s => s==='VOLANT' ? 'VOL' : s;
@@ -1527,23 +1532,26 @@ function renderAffectations(){
   docs.forEach(d => { for(let m=1;m<=12;m++) present.add(secOf(d.id,m)); });
   const legendOrder = ['VIS','REA','ORT','ORL','END','CI','RI','MAT','VOLANT'].filter(s=>present.has(s));
 
-  let html = `<div class="aff-legend">`;
-  legendOrder.forEach(s=>{ const sc=SECTOR_COLORS[s]||SECTOR_COLORS.VOLANT; html += `<span class="aff-legend-item"><span class="aff-legend-dot" style="background:${sc.fg}"></span>${SECLABELS[s]||s}</span>`; });
-  html += `</div><div class="aff-grid">`;
-  html += `<div class="aff-row aff-head"><div class="aff-name">Médecin</div>`;
-  MO.forEach((mi,i)=>{ html += `<div class="aff-head-cell" title="${MOF[i]}">${mi}</div>`; });
-  html += `</div>`;
-  docs.forEach(d=>{
-    html += `<div class="aff-row"><div class="aff-name" title="${nameOf(d.id)}">${nameOf(d.id)}</div>`;
+  let legend = `<div class="aff-legend">`;
+  legendOrder.forEach(s=>{ const sc=SECTOR_COLORS[s]||SECTOR_COLORS.VOLANT; legend += `<span class="aff-legend-item"><span class="aff-legend-dot" style="background:${sc.fg}"></span>${SECLABELS[s]||s}</span>`; });
+  legend += `</div>`;
+
+  let head = `<tr><th class="aff-name aff-corner">Médecin</th>`;
+  MO.forEach((mi,i)=>{ const cur=(i+1)===curM?' cur':''; head += `<th class="aff-mhead${cur}" title="${MOF[i]}">${mi}</th>`; });
+  head += `</tr>`;
+
+  const body = docs.map(d=>{
+    let row = `<tr><th class="aff-name" title="${nameOf(d.id)}">${nameOf(d.id)}</th>`;
     for(let m=1;m<=12;m++){
       const sec = secOf(d.id,m);
       const sc = SECTOR_COLORS[sec] || SECTOR_COLORS.VOLANT || {bg:'#F1F5F9',fg:'#64748B'};
-      html += `<div class="aff-cell" style="color:${sc.fg};box-shadow:inset 0 -2px 0 ${sc.fg}" title="${MOF[m-1]} : ${sec}">${abbr(sec)}</div>`;
+      const cur = m===curM?' cur':'';
+      row += `<td class="aff-cell${cur}" style="background:${sc.bg};color:${sc.fg}" title="${MOF[m-1]} : ${SECLABELS[sec]||sec}">${abbr(sec)}</td>`;
     }
-    html += `</div>`;
-  });
-  html += `</div>`;
-  wrap.innerHTML = html;
+    return row+`</tr>`;
+  }).join('');
+
+  wrap.innerHTML = legend + `<div class="aff-tablewrap"><table class="aff-table"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
 }
 
 init();
