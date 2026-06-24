@@ -504,7 +504,7 @@ function TEST_remplirIndispos(year, scenario) {
   SpreadsheetApp.getUi().alert(`✅ INDISPOS_${year} rempli (« ${scenario} »). Lance W2 puis W3.`);
 }
 function TEST_run() {
-  const ANNEE    = 2027;       // ← change l'année ici
+  const ANNEE    = 2031;       // ← change l'année ici
   const SCENARIO = 'charge';   // 'normal' | 'charge' | 'leger'
   TEST_remplirIndispos(ANNEE, SCENARIO);
 }
