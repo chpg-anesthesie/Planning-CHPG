@@ -613,6 +613,8 @@ body {
 .ann-corner{z-index:4}
 .ann-cell{width:20px;min-width:20px;height:20px;font-weight:700}
 .ann-cell.we{box-shadow:inset 0 0 0 100px rgba(148,163,184,.05)}
+.ann-day.today{background:#FEF2F2;color:#BE123C;box-shadow:inset 0 -2px 0 #BE123C}
+.ann-cell.today{box-shadow:inset 1px 0 0 #BE123C,inset -1px 0 0 #BE123C}
 .ann-cell.inactive{background:repeating-linear-gradient(45deg,#F8FAFC,#F8FAFC 3px,#EEF1F5 3px,#EEF1F5 6px)}
 @media(max-width:768px){.ann-wrap{padding:12px 16px}}
 </style>
@@ -906,6 +908,8 @@ function renderAnnee(){
     'G':{bg:'#1E293B',fg:'#fff'},'G2':{bg:'#334155',fg:'#fff'},'RG':{bg:'#FFF7ED',fg:'#C2410C'},
     '18':{bg:'#F0FDF4',fg:'#166534'},'R':{bg:'#DCFCE7',fg:'#166534'}};
   const meta=c=>META[c]||{bg:'#fff',fg:'#334155'};
+  const _now=new Date();
+  const todayStr=_now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0')+'-'+String(_now.getDate()).padStart(2,'0');
   const MOIS=['','Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
   const allDays=[]; DATA.months.forEach(m=>m.days.forEach((d,i)=>allDays.push({d,m,i})));
   const order=[], init={};
@@ -919,21 +923,29 @@ function renderAnnee(){
     band+=`<th class="ann-month" colspan="${span}">${MOIS[refM]}${refY!==baseYear?' '+refY:''}</th>`; i+=span;
   }
   band+='</tr>';
-  allDays.forEach(x=>{ const we=x.d.isWeekend||x.d.isFerie; drow+=`<th class="ann-day${we?' we':''}">${x.d.day}</th>`; });
+  allDays.forEach(x=>{ const we=x.d.isWeekend||x.d.isFerie; const td=x.d.date===todayStr?' today':''; drow+=`<th class="ann-day${we?' we':''}${td}">${x.d.day}</th>`; });
   drow+='</tr>';
   const body=order.map(id=>{
     let row=`<tr><td class="ann-name">${init[id]}</td>`;
     allDays.forEach(x=>{
       const we=x.d.isWeekend||x.d.isFerie;
+      const td=x.d.date===todayStr?' today':'';
       const dm=x.m.doctors.find(dc=>dc.id===id);
-      if(!dm){ row+=`<td class="ann-cell inactive${we?' we':''}"></td>`; return; }
+      if(!dm){ row+=`<td class="ann-cell inactive${we?' we':''}${td}"></td>`; return; }
       let st=(dm.days[x.i]&&dm.days[x.i].status)||''; if(st==='I') st='';
       const mt=meta(st);
-      row+=`<td class="ann-cell${we?' we':''}" title="${init[id]} · ${x.d.date} · ${st||'présent'}" style="background:${st?mt.bg:(we?'#F8FAFC':'#fff')};color:${mt.fg}">${st}</td>`;
+      row+=`<td class="ann-cell${we?' we':''}${td}" title="${init[id]} · ${x.d.date} · ${st||'présent'}" style="background:${st?mt.bg:(we?'#F8FAFC':'#fff')};color:${mt.fg}">${st}</td>`;
     });
     return row+'</tr>';
   }).join('');
   wrap.innerHTML=`<div class="ann-tablewrap"><table class="ann-table"><thead>${band}${drow}</thead><tbody>${body}</tbody></table></div>`;
+  // Centrer la colonne du jour à l'ouverture (si l'année affichée contient aujourd'hui)
+  requestAnimationFrame(()=>{
+    const tw=wrap.querySelector('.ann-tablewrap'), thc=wrap.querySelector('.ann-day.today');
+    if(!tw||!thc) return;
+    const twR=tw.getBoundingClientRect(), thR=thc.getBoundingClientRect();
+    tw.scrollLeft += (thR.left - twR.left) - tw.clientWidth/2 + thR.width/2;
+  });
 }
 
 function setMainView(v){
