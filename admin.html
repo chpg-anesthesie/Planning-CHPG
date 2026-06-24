@@ -1962,13 +1962,18 @@ async function detectAvailableYears() {
   if (nextYearAvailable) {
     availableYears.push({ year: YEAR + 1, label: (YEAR + 1) + ' — N+1', readonly: false });
   }
-  // Tester les années archivées — silencieux si 404
-  for (const y of [YEAR - 1, YEAR - 2]) {
-    try {
-      const rs = await fetchTimeout(`./archives/stats_${y}.json?t=${Date.now()}`, {}, 5000);
-      if (rs.ok) availableYears.push({ year: y, label: y + ' — archivé', readonly: true });
-    } catch(e) { /* 404 ou réseau — ignoré */ }
-  }
+  // Tester toutes les années archivées depuis le démarrage du projet (en parallèle, silencieux si 404)
+  const ARCHIVE_FLOOR = 2025;
+  const pastYears = [];
+  for (let y = YEAR - 1; y >= ARCHIVE_FLOOR; y--) pastYears.push(y);
+  const checks = await Promise.allSettled(pastYears.map(y =>
+    fetchTimeout(`./archives/stats_${y}.json?t=${Date.now()}`, {}, 5000).then(rs => ({ y, ok: rs.ok }))
+  ));
+  checks.forEach(r => {
+    if (r.status === 'fulfilled' && r.value.ok) {
+      availableYears.push({ year: r.value.y, label: r.value.y + ' — archivé', readonly: true });
+    }
+  });
   buildYearSelector();
 }
 
