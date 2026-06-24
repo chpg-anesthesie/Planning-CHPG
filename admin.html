@@ -3726,22 +3726,23 @@ async function exportWeekExcel(){
   // ── Skin gabarit historique ──
   const C={hd:'D9D9D9',grey:'DBDBDB',white:'FFFFFF',we:'F2F2F2'};
   const BLOCS=[
-    {label:'VISCERAL',codes:['VIS','DVI'],bg:'FFE699'},
-    {label:'REANIMATION',codes:['REA'],bg:'9DC3E6'},
-    {label:'ORTHO',codes:['ORT'],bg:'F4B183'},
-    {label:'ORL  OPHTALMO',codes:['ORL'],bg:'FFF2CC'},
-    {label:'ENDOSCOPIES',codes:['END'],bg:'C6E0B4'},
-    {label:'CARDIO / RADIO INTERV.',codes:['CI','RI'],bg:'E7E6E6'},
-    {label:'MATERNITE',codes:['MAT'],bg:'FFA7A9'},
+    {label:'VISCERAL',codes:['VIS','DVI'],bg:'FFE699',rows:2},
+    {label:'REANIMATION',codes:['REA'],bg:'9DC3E6',rows:2},
+    {label:'ORTHO',codes:['ORT'],bg:'F4B183',rows:2},
+    {label:'ORL  OPHTALMO',codes:['ORL'],bg:'FFF2CC',rows:2},
+    {label:'ENDOSCOPIES',codes:['END'],bg:'C6E0B4',rows:2},
+    {label:'CARDIO INTERV.',codes:['CI'],bg:'E7E6E6',rows:1},
+    {label:'RADIO / INTERV.',codes:['RI'],bg:'E7E6E6',rows:1},
+    {label:'MATERNITE',codes:['MAT'],bg:'FFA7A9',rows:2},
   ];
   const CSROWS=[
-    {label:' VISC. / URO.',subs:['VIS','URO']},
-    {label:' ORTHO.',subs:['ORT']},
-    {label:' ORL / OPHTALMO.',subs:['ORL','OPH']},
-    {label:' ENDOSCOPIES',subs:['END']},
-    {label:' INTERVENTIONNEL',subs:['INTER','CI']},
-    {label:' MATERNITE',subs:['MAT']},
-    {label:' POLYVALENT',subs:['POLY']},
+    {label:' VISC. / URO.',subs:['VIS','URO'],bg:'FFE699'},
+    {label:' ORTHO.',subs:['ORT'],bg:'F4B183'},
+    {label:' ORL / OPHTALMO.',subs:['ORL','OPH'],bg:'FFF2CC'},
+    {label:' ENDOSCOPIES',subs:['END'],bg:'C6E0B4'},
+    {label:' INTERVENTIONNEL',subs:['INTER','CI'],bg:'E7E6E6'},
+    {label:' MATERNITE',subs:['MAT'],bg:'FFA7A9'},
+    {label:' POLYVALENT',subs:['POLY'],bg:'F2F2F2'},
   ];
   const DFX=['LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI','DIMANCHE'];
   const SX=['VIS','REA','ORT','DVI','ORL','END','CI','RI','MAT'];
@@ -3764,9 +3765,9 @@ async function exportWeekExcel(){
       if(['A','CP','F','R','I','E','TP','V'].includes(st))absents[dow].push(doc.initials);
       if(ABSENT_S.has(st))return;
       ['am','pm'].forEach(half=>{(half==='am'?am:pm||'').split('+').forEach(raw=>{const s=raw.trim();if(!s)return;if(s.startsWith('CS-'))pushCS(s,dow,half,doc.initials);else if(smap[s]&&!smap[s][dow][half].includes(doc.initials))smap[s][dow][half].push(doc.initials);});});
-      if(entry.cs)pushCS(entry.cs,dow,'am',doc.initials);
-      if(entry.cs2)pushCS(entry.cs2,dow,'am',doc.initials);
-      if(entry.cs3)pushCS(entry.cs3,dow,'pm',doc.initials);
+      // entry.cs : secours seulement si la consult n'est pas déjà captée dans matin/après-midi (évite le doublon AM)
+      if(entry.cs){const raw=entry.cs.includes('-')?entry.cs.split('-')[1]:entry.cs;let idx=subToRow[raw];if(idx==null)idx=POLYI;
+        if(idx>=0&&!csb[idx][dow].am.includes(doc.initials)&&!csb[idx][dow].pm.includes(doc.initials))pushCS(entry.cs,dow,'am',doc.initials);}
     });
   });
   daySlots.forEach((slot,dow)=>{
@@ -3784,7 +3785,7 @@ async function exportWeekExcel(){
   const wb=new ExcelJS.Workbook();
   const ws=wb.addWorksheet(`Semaine ${wk.weekNum}`,{pageSetup:{orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0,footer:0}}});
   ws.views=[{showGridLines:false}];
-  ws.getColumn(1).width=15.7;ws.getColumn(2).width=5.3;for(let c=3;c<=29;c++)ws.getColumn(c).width=13;
+  ws.getColumn(1).width=15.7;for(let c=2;c<=29;c++)ws.getColumn(c).width=8.43;
   const thin={style:'thin',color:{argb:'FF000000'}};
   const bAll={top:thin,bottom:thin,left:thin,right:thin};
   const fill=hex=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+hex}});
@@ -3801,64 +3802,65 @@ async function exportWeekExcel(){
   for(let dow=0;dow<7;dow++){const cs=colStart(dow);mc(4,cs,4,cs+3);setCell(4,cs,DFX[dow],font(true,10),fill(C.hd),align('center','middle'),bAll);}
   // L5 dates
   for(let dow=0;dow<7;dow++){const cs=colStart(dow);mc(5,cs,5,cs+3);const s=daySlots[dow];setCell(5,cs,s?fmt(s.date):'',font(false,10),fill(C.hd),align('center','middle'),bAll);}
-  // L6 num semaine + M/AM | GARDE/ASTREINTE
+  // L6 num semaine + M/AM (weekend = GARDE, plus d'astreinte)
   setCell(6,1,wk.weekNum,font(true,11),fill(C.white),align('center','middle'),bAll);
-  for(let dow=0;dow<7;dow++){const cs=colStart(dow);const we=dow>=5;mc(6,cs,6,cs+1);mc(6,cs+2,6,cs+3);
-    setCell(6,cs,we?'GARDE':'M',font(true,10),fill(C.white),align('center','middle'),bAll);
-    setCell(6,cs+2,we?'ASTREINTE':'AM',font(true,10),fill(C.white),align('center','middle'),bAll);}
-  // L7 section blocs (gauche) + valeurs week-end (droite, sous en-têtes)
+  for(let dow=0;dow<7;dow++){const cs=colStart(dow);const we=dow>=5;
+    if(we){mc(6,cs,6,cs+3);setCell(6,cs,'GARDE',font(true,10),fill(C.white),align('center','middle'),bAll);}
+    else{mc(6,cs,6,cs+1);mc(6,cs+2,6,cs+3);
+      setCell(6,cs,'M',font(true,10),fill(C.white),align('center','middle'),bAll);
+      setCell(6,cs+2,'AM',font(true,10),fill(C.white),align('center','middle'),bAll);}}
+  // L7 section blocs (gauche) + garde week-end (droite, pleine largeur, plus d'astreinte)
   mc(7,1,7,21);setCell(7,1,'ANESTHESISTES AUX BLOCS ',font(true,10),fill(C.hd),align('center','middle'),bAll);
-  [5,6].forEach(dow=>{const cs=colStart(dow);const g=guards[dow].join(' / ');const a=astr[dow].join(' / ');
-    mc(7,cs,7,cs+1);setCell(7,cs,g||'—',font(!!g,10,g?'000000':'888888'),fill(C.we),align('center','middle'),bAll);
-    mc(7,cs+2,7,cs+3);setCell(7,cs+2,a||'—',font(!!a,10,a?'000000':'888888'),fill(C.we),align('center','middle'),bAll);});
-  // L8-21 blocs (2 lignes/secteur)
+  [5,6].forEach(dow=>{const cs=colStart(dow);const g=guards[dow].join(' / ');
+    mc(7,cs,7,cs+3);setCell(7,cs,g||'—',font(!!g,10,g?'000000':'888888'),fill(C.we),align('center','middle'),bAll);});
+  // L8-21 blocs (Cardio/Radio séparés sur 2 lignes adjacentes)
   let row=8;
   BLOCS.forEach(b=>{
-    mc(row,1,row+1,1);setCell(row,1,b.label,font(true,10),fill(b.bg),align('center','middle',true),bAll);
+    const nr=b.rows||2;
+    if(nr>1)mc(row,1,row+nr-1,1);setCell(row,1,b.label,font(true,10),fill(b.bg),align('center','middle',true),bAll);
     for(let dow=0;dow<5;dow++){const cs=colStart(dow);
       const am=[],pm=[];b.codes.forEach(code=>{if(smap[code]){am.push(...smap[code][dow].am);pm.push(...smap[code][dow].pm);}});
-      const amC=[[row,cs],[row,cs+1],[row+1,cs],[row+1,cs+1]];
-      const pmC=[[row,cs+2],[row,cs+3],[row+1,cs+2],[row+1,cs+3]];
-      for(let i=0;i<4;i++)setCell(amC[i][0],amC[i][1],am[i]||'',font(!!am[i],10),fill(b.bg),align('center','middle'),bAll);
-      for(let i=0;i<4;i++)setCell(pmC[i][0],pmC[i][1],pm[i]||'',font(!!pm[i],10),fill(b.bg),align('center','middle'),bAll);
+      const amC=[],pmC=[];
+      for(let k=0;k<nr;k++){amC.push([row+k,cs],[row+k,cs+1]);pmC.push([row+k,cs+2],[row+k,cs+3]);}
+      for(let i=0;i<amC.length;i++)setCell(amC[i][0],amC[i][1],am[i]||'',font(!!am[i],10),fill(b.bg),align('center','middle'),bAll);
+      for(let i=0;i<pmC.length;i++)setCell(pmC[i][0],pmC[i][1],pm[i]||'',font(!!pm[i],10),fill(b.bg),align('center','middle'),bAll);
     }
-    row+=2;
+    row+=nr;
   });
   // L22 section consult
   mc(22,1,22,21);setCell(22,1," CONSULTATIONS D'ANESTHESIE",font(true,10),fill(C.hd),align('center','middle'),bAll);
-  // L23-29 consult (1 ligne)
-  CSROWS.forEach((cr,i)=>{const rr=23+i;
-    setCell(rr,1,cr.label,font(true,10),fill(C.white),align('left','middle'),bAll);
+  // L23-29 consult (1 ligne, cases colorées par spécialité)
+  CSROWS.forEach((cr,i)=>{const rr=23+i;const bg=cr.bg||'FFFFFF';
+    setCell(rr,1,cr.label,font(true,10),fill(bg),align('left','middle'),bAll);
     for(let dow=0;dow<5;dow++){const cs=colStart(dow);const cell=csb[i][dow];const am=cell.am,pm=cell.pm;
-      setCell(rr,cs,am[0]||'',font(!!am[0],10),fill(C.white),align('center','middle'),bAll);
-      setCell(rr,cs+1,am[1]||'',font(!!am[1],10),fill(C.white),align('center','middle'),bAll);
-      setCell(rr,cs+2,pm[0]||'',font(!!pm[0],10),fill(C.white),align('center','middle'),bAll);
-      setCell(rr,cs+3,pm[1]||'',font(!!pm[1],10),fill(C.white),align('center','middle'),bAll);
+      setCell(rr,cs,am[0]||'',font(!!am[0],10),fill(bg),align('center','middle'),bAll);
+      setCell(rr,cs+1,am[1]||'',font(!!am[1],10),fill(bg),align('center','middle'),bAll);
+      setCell(rr,cs+2,pm[0]||'',font(!!pm[0],10),fill(bg),align('center','middle'),bAll);
+      setCell(rr,cs+3,pm[1]||'',font(!!pm[1],10),fill(bg),align('center','middle'),bAll);
     }
   });
-  // L30-31 ABSENCES
+  // L30-31 ABSENCES — une initiale par case
   mc(30,1,31,1);setCell(30,1,'ABSENCES',font(true,10),fill(C.white),align('center','middle'),bAll);
   for(let dow=0;dow<5;dow++){const cs=colStart(dow);const list=absents[dow];
-    mc(30,cs,30,cs+3);mc(31,cs,31,cs+3);
-    setCell(30,cs,list.slice(0,3).join(' '),font(!!list.length,10),fill(C.white),align('center','middle',true),bAll);
-    setCell(31,cs,list.slice(3,6).join(' '),font(list.length>3,10),fill(C.white),align('center','middle',true),bAll);
+    const cells=[[30,cs],[30,cs+1],[30,cs+2],[30,cs+3],[31,cs],[31,cs+1],[31,cs+2],[31,cs+3]];
+    for(let i=0;i<8;i++){const v=list[i]||'';setCell(cells[i][0],cells[i][1],v,font(!!v,10),fill(C.white),align('center','middle'),bAll);}
   }
-  // L32-35 fonctions
+  // L32-34 fonctions (Astreinte supprimée → décalage vers le haut)
   function fnRow(rr,label,vals){setCell(rr,1,label,font(true,10),fill(C.grey),align('left','middle'),bAll);
     for(let dow=0;dow<5;dow++){const cs=colStart(dow);mc(rr,cs,rr,cs+3);const v=vals[dow]||'';setCell(rr,cs,v,font(!!v,10),fill(C.grey),align('center','middle',true),bAll);}}
   fnRow(32,' 8H / 18H',h18);
-  fnRow(33,' ASTREINTES',astr.map(a=>a.join(' / ')));
-  fnRow(34,' GARDES',guards.map(g=>g.join(' / ')));
-  fnRow(35,' SORTIES DE GARDE',sorties.map(s=>s.join(' / ')));
-  // L36-38 INFORMATIONS
-  mc(36,1,38,1);setCell(36,1,' INFORMATIONS ',font(true,10),fill(C.white),align('center','middle',true),bAll);
-  mc(36,2,38,21);setCell(36,2,'',font(false,10),fill(C.white),align('left','top',true),bAll);
+  fnRow(33,' GARDES',guards.map(g=>g.join(' / ')));
+  fnRow(34,' SORTIES DE GARDE',sorties.map(s=>s.join(' / ')));
+  // L35-37 INFORMATIONS — une case éditable par jour (lun→ven, pas le WE)
+  mc(35,1,37,1);setCell(35,1,' INFORMATIONS ',font(true,10),fill(C.white),align('center','middle',true),bAll);
+  for(let dow=0;dow<5;dow++){const cs=colStart(dow);mc(35,cs,37,cs+3);setCell(35,cs,'',font(false,10),fill(C.white),align('left','top',true),bAll);}
   // ── Roster droite depuis MEDECINS ──
   mc(8,22,9,29);setCell(8,22,'ANESTHESISTES ET N° DE POSTES',font(true,11),fill(C.white),align('center','middle',true),bAll);
   const roster=(Array.isArray(marsData)?marsData:[]).filter(m=>m.actif).slice().sort((a,b)=>(a.nom||'').localeCompare(b.nom||''));
   let rr=10;
   roster.forEach(m=>{const pre=(m.initiales==='BP')?'PR':'DR';const dect=m.dect||DECTFB[m.initiales]||'';
-    mc(rr,22,rr,25);setCell(rr,22,' '+pre+' '+(m.nom||''),font(false,10),fill(C.white),align('left','middle'),bAll);
+    const nom=(m.nom||'').replace(/^\s*(DR|PR)\s+/i,'');
+    mc(rr,22,rr,25);setCell(rr,22,' '+pre+' '+nom,font(false,10),fill(C.white),align('left','middle'),bAll);
     setCell(rr,26,m.initiales||'',font(true,10),fill(C.white),align('center','middle'),bAll);
     mc(rr,27,rr,29);setCell(rr,27,dect,font(false,10),fill(C.white),align('center','middle'),bAll);
     rr++;
