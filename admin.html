@@ -2019,17 +2019,20 @@ async function checkNextYearAvailable() {
 
 async function initDashboard() {
   await new Promise(r => setTimeout(r, 50));
-  // Chaque étape wrappée pour éviter qu'un 404 bloque tout
-  try { await checkNextYearAvailable(); } catch(e) {}
   ADMIN_YEAR = YEAR;
-  try { await detectAvailableYears(); } catch(e) {}
-  // Charger planning en priorité — les autres en parallèle sans bloquer
-  await Promise.allSettled([
+  // Démarrer tout de suite les chargements lourds (indépendants de la détection d'années)
+  const mainLoads = Promise.allSettled([
     loadPlanningData(),
     loadStatusBar().catch(()=>{}),
     loadOverrides().catch(()=>{}),
     loadCycleStatus().catch(()=>{}),
   ]);
+  // Détection des années en parallèle — le sélecteur se remplit dès qu'elle est prête, sans retarder le planning
+  const yearDetect = (async () => {
+    try { await checkNextYearAvailable(); } catch(e) {}
+    try { await detectAvailableYears(); } catch(e) {}
+  })();
+  await Promise.allSettled([mainLoads, yearDetect]);
   try { updatePlanningIndisposVisibility(); } catch(e) {}
 }
 
