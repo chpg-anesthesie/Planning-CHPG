@@ -3958,12 +3958,26 @@ async function openWizard() {
     window._wizIndisposExists = !!(st.status && st.status.indisposN1Exists);
   } catch(e) { window._wizIndisposExists = false; }
 
+  // Verrou plein : INDISPOS_{N+1} déjà créé → wizard verrouillé
+  if (window._wizIndisposExists) {
+    renderWizLocked(nextYear);
+    document.getElementById('wizardOverlay').classList.add('open');
+    return;
+  }
+
   renderWizStep();
   document.getElementById('wizardOverlay').classList.add('open');
 }
 
-function closeWizard() {
-  document.getElementById('wizardOverlay').classList.remove('open');
+function renderWizLocked(year) {
+  document.getElementById('wizBackBtn').style.visibility = 'hidden';
+  const nb = document.getElementById('wizNextBtn'); nb.disabled = true; nb.style.display = 'none';
+  document.querySelectorAll('#wizardOverlay .wizard-step').forEach(function(s){ s.classList.remove('active'); s.classList.add('done'); });
+  document.getElementById('wizBody').innerHTML = wizardLockedHTML(
+    'Année ' + year + ' déjà démarrée',
+    "L'onglet INDISPOS_" + year + " existe déjà : l'année est initialisée et les MARs peuvent saisir leurs indispos. Relancer le démarrage est verrouillé pour ne pas écraser la configuration en place.",
+    "Pour réinitialiser (rare) : supprimez manuellement l'onglet INDISPOS_" + year + " dans le Google Sheet, puis rouvrez cet assistant."
+  );
 }
 
 function updateWizNav() {
