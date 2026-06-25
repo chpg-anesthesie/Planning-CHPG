@@ -566,6 +566,11 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
   font-size:11px; font-family:var(--mono); color:var(--ink); width:100%;
 }
 .wiz-periodes input:focus { outline:none; border-color:var(--red); }
+.wizard-locked { background:#FEF2F2; border:1px solid #FECACA; border-radius:14px; padding:34px 28px; text-align:center; margin:6px 0; }
+.wizard-locked-icon { font-size:46px; line-height:1; margin-bottom:14px; }
+.wizard-locked-title { font-size:16px; font-weight:700; color:#B91C1C; margin-bottom:10px; }
+.wizard-locked-msg { font-size:13px; color:#7F1D1D; line-height:1.55; max-width:480px; margin:0 auto 14px; }
+.wizard-locked-hint { font-size:12px; color:var(--ink-3); background:#fff; border:1px dashed #FCA5A5; border-radius:8px; padding:10px 13px; max-width:480px; margin:0 auto; line-height:1.5; }
 .wiz-recap { display:flex; flex-direction:column; gap:8px; }
 .wiz-recap-item {
   display:flex; align-items:flex-start; gap:10px; padding:10px 12px;
@@ -4359,19 +4364,47 @@ let wizGIndisposData = null;
 let wizGVacData = null;
 let wizGConflitsData = null;
 
+// Carte « wizard verrouillé » réutilisable (fond rouge pastel + cadenas)
+function wizardLockedHTML(title, msg, hint) {
+  return '<div class="wizard-locked"><div class="wizard-locked-icon">🔒</div>'
+    + '<div class="wizard-locked-title">' + title + '</div>'
+    + '<div class="wizard-locked-msg">' + msg + '</div>'
+    + (hint ? '<div class="wizard-locked-hint">' + hint + '</div>' : '')
+    + '</div>';
+}
+
 async function openWizardGardes() {
   wizGCurrentStep = 0;
   wizGIndisposData = null;
   wizGVacData = null;
   wizGConflitsData = null;
-  document.getElementById('wizGardesYear').textContent = YEAR + 1;
-  if (YEAR+1 <= 2026) {
-    toast('GARDES_2026 est sanctuarisé — génération désactivée', 'error');
-    return;
-  }
-  document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:48px 0"><div style="font-size:40px;margin-bottom:14px">⏳</div><div style="font-size:15px;font-weight:600;color:#334155">Chargement de l\'assistant…</div><div style="font-size:13px;color:var(--ink-3);margin-top:6px">Lecture des indispos et calcul des conflits (~1 min)</div></div>';
+  const genYear = YEAR + 1;
+  document.getElementById('wizGardesYear').textContent = genYear;
   document.getElementById('wizardGardesOverlay').classList.add('open');
+  document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:48px 0"><div style="font-size:40px;margin-bottom:14px">⏳</div><div style="font-size:14px;color:var(--ink-3)">Vérification…</div></div>';
+  // ── Verrou : 2026 sanctuarisé (manuel) OU GARDES_{genYear} déjà généré ──
+  let lockReason = (genYear <= 2026) ? 'sanctuary' : null;
+  if (!lockReason) {
+    try {
+      const st = await api({action:'getStatus'});
+      if (st && st.success && st.status && st.status.gardesN1Generated) lockReason = 'generated';
+    } catch(e) {}
+  }
+  if (lockReason) { renderWizGLocked(genYear, lockReason); return; }
+  document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:48px 0"><div style="font-size:40px;margin-bottom:14px">⏳</div><div style="font-size:15px;font-weight:600;color:#334155">Chargement de l\'assistant…</div><div style="font-size:13px;color:var(--ink-3);margin-top:6px">Lecture des indispos et calcul des conflits (~1 min)</div></div>';
   await renderWizGStep();
+}
+
+function renderWizGLocked(year, reason) {
+  document.getElementById('wizGBackBtn').style.visibility = 'hidden';
+  const nb = document.getElementById('wizGNextBtn'); nb.disabled = true; nb.style.display = 'none';
+  document.querySelectorAll('#wizardGardesOverlay .wizard-step').forEach(function(s){ s.classList.remove('active'); s.classList.add('done'); });
+  const title = reason === 'sanctuary' ? ('Gardes ' + year + ' gérées manuellement') : ('Gardes ' + year + ' déjà générées');
+  const msg = reason === 'sanctuary'
+    ? (year + " n'a pas été produit par l'algorithme : ses gardes et sa preuve d'équité sont saisies manuellement (sanctuarisées). La génération est désactivée pour cette année.")
+    : ('Les gardes ' + year + ' ont été générées et la preuve d\'équité (STATS_GARDES_' + year + ') est figée. La régénération est verrouillée pour protéger l\'équité de l\'algorithme et le planning publié.');
+  const hint = reason === 'sanctuary' ? '' : ("Pour régénérer (rare) : supprimez manuellement l'onglet GARDES_" + year + ' dans le Google Sheet, puis rouvrez cet assistant.');
+  document.getElementById('wizGBody').innerHTML = wizardLockedHTML(title, msg, hint);
 }
 
 function closeWizardGardes() {
