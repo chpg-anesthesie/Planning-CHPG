@@ -78,6 +78,15 @@ function generateGardes(year){
   if(!year) throw new Error('Précisez l\'année');
   const ss=SpreadsheetApp.getActiveSpreadsheet();
 
+  // ── 🔒 GARDE-FOU ANTI-RÉGÉNÉRATION ────────────────────────────────────
+  // Une fois GARDES_{year} créé, la génération est VERROUILLÉE. Le code plus bas
+  // fait deleteSheet+recreate de GARDES_{year} ET STATS_GARDES_{year} : sans ce
+  // garde-fou, relancer W2 écraserait la preuve d'équité de l'algo et le planning.
+  // Pour régénérer volontairement (rare) : supprimer d'abord manuellement l'onglet.
+  if(ss.getSheetByName(`GARDES_${year}`)){
+    throw new Error(`🔒 GARDES_${year} existe déjà — génération verrouillée pour protéger l'équité. Pour régénérer (rare), supprimez d'abord manuellement l'onglet GARDES_${year}.`);
+  }
+
   // (C2-D1) Flags effectif lus depuis MEDECINS (remplacent les Set en dur).
   const FLAGS = getMedecinFlags();
   const NO_GARDE   = FLAGS.noGarde;
