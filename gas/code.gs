@@ -479,22 +479,32 @@ function generatePlanning(yearOverride) {
     const stSheet = ss.getSheetByName(`STATS_GARDES_${year}`);
     if (stSheet && stSheet.getLastRow() > 1) {
       const sd = stSheet.getDataRange().getValues();
-      // colonnes : 0 MEDECIN · 2 TOTAL G · 8 JEU · 9 VEN · 10 SAM · 11 DIM
+      // colonnes : 0 MEDECIN · 2 TOTAL G · 8 JEU · 9 VEN · 10 SAM · 11 DIM · 14 JF · 15 VEILLE JF · 20 VD
       equiteInitiale = sd.slice(1).filter(r => r[0]).map(r => ({
         id: String(r[0]).trim(),
         total: Number(r[2]) || 0, je: Number(r[8]) || 0,
         ve: Number(r[9]) || 0, sa: Number(r[10]) || 0, di: Number(r[11]) || 0,
+        vd: Number(r[20]) || 0, jf: Number(r[14]) || 0, vjf: Number(r[15]) || 0,
       }));
     }
   } catch(e) { Logger.log('equiteInitiale: ' + e.message); }
 
   // ── Push planning_YYYY.json ──────────────────────────────────────────
-  pushFileToGitHub(`planning_${year}.json`, JSON.stringify({months, equiteInitiale}));
-
+  const monthsMin = months.map(m => Object.assign({}, m, {
+    doctors: (m.doctors || []).map(d => Object.assign({}, d, {
+      days: (d.days || []).map(e => {
+        if (!e || typeof e !== 'object') return e;
+        const o = {};
+        for (const k in e) { const v = e[k]; if (v !== '' && v != null) o[k] = v; }
+        return o;
+      })
+    }))
+  }));
+  pushFileToGitHub(`planning_${year}.json`, JSON.stringify({months: monthsMin, equiteInitiale}));
   // ── Push affectations_YYYY.json ──────────────────────────────────────
   try {
     const affectations = loadAffectations(year);
-    pushFileToGitHub(`affectations_${year}.json`, JSON.stringify({year, affectations}, null, 2));
+    pushFileToGitHub(`affectations_${year}.json`, JSON.stringify({year, affectations}));
     Logger.log(`✅ affectations_${year}.json pushé`);
   } catch(e) {
     Logger.log(`⚠️ Push affectations échoué : ${e.message}`);
