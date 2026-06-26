@@ -132,8 +132,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     <span class="header-pill" id="lockPill" style="background:rgba(255,255,255,.1);display:none;">🔒 Verrouillé</span>
   </div>
   <div class="header-right">
-    <button class="btn-ghost" onclick="toggleView()" id="viewBtn">📊 Récap</button>
-    <button class="btn-ghost" onclick="doExport()">📤 Export CSV</button>
+        <button class="btn-ghost" onclick="toggleView()" id="viewBtn">📊 Récap</button>
     <button class="btn-validate" id="btnValidate" onclick="doValidate()">✅ Valider et verrouiller</button>
   </div>
 </div>
@@ -521,17 +520,6 @@ async function doValidate(){
   document.getElementById('lockPill').style.display='inline-flex';
   btn.disabled=false;btn.textContent='✅ Valider et verrouiller';
   renderCurrent();
-}
-
-function doExport(){
-  let csv='MAR;Groupe;Rang;Quotité;VAC posé;VAC quota;FORM posé;FORM quota\n';
-  medecins.forEach(m=>{
-    const vp=countForMAR(m.id,'VAC'),fp=countForMAR(m.id,'FORM');
-    const vq=getQuota('VAC',m.quotite||100),fq=getQuota('FORM',m.quotite||100);
-    csv+=m.nom+';'+m.groupe+';'+m.rang+';'+(m.quotite||100)+'%;'+vp+';'+vq+';'+fp+';'+fq+'\n';
-  });
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='staff_vacances_'+currentYear+'.csv';a.click();
 }
 
 function showToast(msg,duration=4000){
