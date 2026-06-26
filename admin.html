@@ -398,37 +398,20 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .detail-panel.open { display:block; }
 
 /* ── AFFECTATIONS ── */
-.aff-grid {
-  display: grid;
-  grid-template-columns: 150px repeat(12, 1fr);
-  gap: 3px; font-size: 11px; min-width: 900px;
-}
-.aff-header {
-  background: var(--red); color: white; font-weight: 700;
-  padding: 6px 4px; text-align: center; font-size: 10px; border-radius: 4px;
-}
-.aff-header.name { text-align: left; padding-left: 8px; }
-.aff-name {
-  font-size: 11px; font-weight: 600; padding: 6px 8px;
-  background: var(--line-light); border-radius: 4px;
-  display: flex; align-items: center;
-}
-.aff-cell {
-  border: 1.5px solid var(--line); border-radius: 4px;
-  padding: 5px 2px; text-align: center; font-family: var(--mono);
-  font-size: 10px; font-weight: 600; cursor: pointer;
-  transition: all .1s; background: white;
-}
-.aff-cell:hover { border-color: var(--red); background: var(--red-soft); }
-.aff-cell.VIS { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
-.aff-cell.END { background: #F0FDF4; color: #166534; border-color: #BBF7D0; }
-.aff-cell.ORL { background: #FDF4FF; color: #7E22CE; border-color: #E9D5FF; }
-.aff-cell.REA { background: #FFF1F2; color: #BE123C; border-color: #FECDD3; }
-.aff-cell.ORT { background: #FFF7ED; color: #C2410C; border-color: #FED7AA; }
-.aff-cell.CI  { background: #ECFDF5; color: #065F46; border-color: #A7F3D0; }
-.aff-cell.MAT { background: #FDF2F8; color: #9D174D; border-color: #FBCFE8; }
-.aff-cell.RI  { background: #FFFBEB; color: #92400E; border-color: #FDE68A; }
-.aff-cell.VOLANT { background: var(--line-light); color: var(--ink-4); }
+.aff-legend { display:flex; flex-wrap:wrap; gap:6px 14px; margin-bottom:14px; font-size:12px; color:var(--ink-3); }
+.aff-legend-item { display:inline-flex; align-items:center; gap:5px; }
+.aff-legend-dot { width:11px; height:11px; border-radius:3px; flex-shrink:0; }
+.aff-tablewrap { overflow:auto; border:1px solid var(--line); border-radius:10px; max-height:74vh; }
+.aff-table { border-collapse:separate; border-spacing:0; width:100%; font-size:11px; }
+.aff-table th, .aff-table td { text-align:center; white-space:nowrap; }
+.aff-mhead { position:sticky; top:0; z-index:3; background:var(--bg); color:var(--ink-4); font-size:11px; font-weight:700; padding:7px 0; min-width:40px; border-bottom:1px solid var(--line); }
+.aff-mhead.cur { color:var(--red); }
+.aff-name { position:sticky; left:0; z-index:2; background:var(--white); text-align:left; font-size:12px; font-weight:700; color:var(--ink); padding:0 12px; min-width:138px; border-right:1px solid var(--line); }
+.aff-corner { top:0; z-index:4; background:var(--bg); color:var(--ink-4); }
+.aff-cell { padding:8px 4px; font-weight:700; letter-spacing:.02em; border-bottom:1px solid rgba(148,163,184,.16); cursor:pointer; transition:filter .1s; }
+.aff-cell:hover { filter:brightness(.93); box-shadow:inset 0 0 0 1.5px var(--red); }
+.aff-cell.cur { box-shadow:inset 0 0 0 1.5px var(--red); }
+
 
 /* ── ADVANCED ── */
 .advanced-bar { padding:20px 0 4px; text-align:center; border-top:1px solid var(--line); display:flex; align-items:center; justify-content:center; gap:20px; }
@@ -1049,10 +1032,7 @@ if (sessionStorage.getItem('adminCode')) {
       <button class="week-nav-btn" onclick="prevWeek()">←</button>
       <span class="week-label" id="weekLabel">Chargement…</span>
       <button class="week-nav-btn" onclick="nextWeek()">→</button>
-      <span id="flashBadge" style="display:none;align-items:center;gap:5px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#C2410C;">
-        ⚠️ <span id="flashCount">0</span> <span id="flashWord">cases</span> à pourvoir
-      </span>
-      <span id="validatedBadge" style="display:none;align-items:center;gap:5px;background:#DCFCE7;border:1px solid #86EFAC;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#166534;">✅ Validée</span>
+            <span id="validatedBadge" style="display:none;align-items:center;gap:5px;background:#DCFCE7;border:1px solid #86EFAC;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#166534;">✅ Validée</span>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
@@ -1237,25 +1217,9 @@ if (sessionStorage.getItem('adminCode')) {
       </div>
     </div>
 
-    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
-      <span class="badge badge-blue">VIS</span>
-      <span class="badge badge-green">END</span>
-      <span class="badge badge-purple">ORL</span>
-      <span class="badge badge-red">REA</span>
-      <span class="badge badge-orange">ORT</span>
-      <span style="background:#ECFDF5;color:#065F46" class="badge">CI</span>
-      <span style="background:#FDF2F8;color:#9D174D" class="badge">MAT</span>
-      <span style="background:#FFFBEB;color:#92400E" class="badge">RI</span>
-      <span class="badge badge-grey">VOLANT</span>
-    </div>
-
-    <div id="affLoading" class="loading"><div class="spinner"></div> Chargement…</div>
+        <div id="affLoading" class="loading"><div class="spinner"></div> Chargement…</div>
     <div id="affContent" style="display:none">
-      <div class="card">
-        <div class="card-body" style="padding:12px;overflow-x:auto">
-          <div class="aff-grid" id="affGrid"></div>
-        </div>
-      </div>
+      <div id="affGrid"></div>
       <div id="affPendingMsg" style="display:none;padding:10px 14px;background:var(--orange-soft);border:1px solid #FED7AA;border-radius:8px;font-size:12px;color:var(--orange);font-weight:600;margin-top:12px">
         ⚠️ Modifications non sauvegardées — cliquez "Enregistrer tout"
       </div>
@@ -2778,12 +2742,18 @@ function volantsAPoster(date, half) {
   const field = half === 'am' ? 'morning' : 'afternoon';
   const BUSY = new Set(['RG','V','F','CTP','R','A','TP']); // G/G2 = de garde mais présents en journée → à poster
   const ov = _localOverrides[date] || {};
+  // Seuls les VRAIS volants (affectation de base = VOLANT) sont « à poster ».
+  // Un MAR sectorisé retiré à la main (override VOLANT) ne doit PAS y apparaître.
+  const AFF = window.AFFM || {};
+  const mIdx = parseInt(date.slice(5,7), 10);
+  const baseVolant = id => { const a = (AFF[id] && AFF[id][mIdx]) ? String(AFF[id][mIdx]).trim().toUpperCase() : ''; return a === '' || a === 'VOLANT'; };
   for (const mo of DATA.months) {
     const i = (mo.days||[]).findIndex(d => d && d.date === date);
     if (i < 0) continue;
     const out = [];
     for (const doc of (mo.doctors||[])) {
       if (doc.id === 'PRUNET') continue;
+      if (!baseVolant(doc.id)) continue;
       const e = (doc.days && doc.days[i]) || {};
       if (BUSY.has(e.status||'')) continue;
       let eff = e[field] || '';
@@ -2795,6 +2765,7 @@ function volantsAPoster(date, half) {
   }
   return [];
 }
+
 function renderSidePanelContent(dispo, sector) {
   const GROUPS = [
     {key:'VOLANT',  bg:'#DBEAFE', fg:'#1D4ED8', label:'Volants disponibles'},
@@ -3633,6 +3604,15 @@ let currentAffCell = null;
 
 const MOIS_COURTS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 const SECTEURS_AFF = ['VIS','END','ORL','REA','ORT','CI','RI','MAT','VOLANT'];
+const SECTOR_COLORS_AFF = {
+  VIS:{bg:'#EFF6FF',fg:'#1D4ED8'}, REA:{bg:'#FFF1F2',fg:'#BE123C'},
+  ORT:{bg:'#FFF7ED',fg:'#C2410C'}, ORL:{bg:'#FDF4FF',fg:'#7E22CE'},
+  END:{bg:'#F0FDF4',fg:'#166534'}, CI:{bg:'#ECFDF5',fg:'#065F46'},
+  RI:{bg:'#FFFBEB',fg:'#92400E'}, MAT:{bg:'#FDF2F8',fg:'#9D174D'},
+  VOLANT:{bg:'#F1F5F9',fg:'#64748B'},
+};
+const SECTOR_LABELS_AFF = {VIS:'Viscéral',REA:'Réanimation',ORT:'Ortho',ORL:'ORL',END:'Endoscopies',CI:'Cardio/Inter',RI:'Radio/Inter',MAT:'Maternité',VOLANT:'Volant'};
+
 
 async function loadAffectations(year) {
   year = year || ADMIN_YEAR;
@@ -3653,41 +3633,47 @@ async function loadAffectations(year) {
 
 function renderAffectations() {
   const grid = document.getElementById('affGrid');
-  grid.innerHTML = '';
+  if (!grid) return;
+  const MO  = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+  const MOF = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  const nameOf = id => (id === 'PRUNET' ? 'Pr ' : 'Dr ') + id;
+  const abbr = sec => sec === 'VOLANT' ? 'VOL' : sec;
+  const _now = new Date();
+  const curM = (_now.getFullYear() === ADMIN_YEAR) ? _now.getMonth() + 1 : 0;
+  const secOf = (id, m) => (affData[id] && (affData[id][m] || affData[id][String(m)])) || 'VOLANT';
+  const actifs = marsData.filter(m => m.actif).slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
 
-  // Header
-  const hName = document.createElement('div');
-  hName.className = 'aff-header name'; hName.textContent = 'MAR';
-  grid.appendChild(hName);
-  for (let m = 1; m <= 12; m++) {
-    const h = document.createElement('div');
-    h.className = 'aff-header'; h.textContent = MOIS_COURTS[m-1];
-    grid.appendChild(h);
-  }
+  // Légende (secteurs présents)
+  const present = new Set();
+  actifs.forEach(d => { for (let m = 1; m <= 12; m++) present.add(secOf(d.id, m)); });
+  const legendOrder = ['VIS','REA','ORT','ORL','END','CI','RI','MAT','VOLANT'].filter(x => present.has(x));
+  let legend = '<div class="aff-legend">';
+  legendOrder.forEach(x => { const sc = SECTOR_COLORS_AFF[x] || SECTOR_COLORS_AFF.VOLANT; legend += `<span class="aff-legend-item"><span class="aff-legend-dot" style="background:${sc.fg}"></span>${SECTOR_LABELS_AFF[x] || x}</span>`; });
+  legend += '</div>';
 
-  // Lignes MARs actifs
-  const actifs = marsData.filter(m => m.actif);
-  actifs.forEach(mar => {
-    const nameDiv = document.createElement('div');
-    nameDiv.className = 'aff-name';
-    nameDiv.textContent = mar.id;
-    grid.appendChild(nameDiv);
+  // En-tête mois
+  let head = '<tr><th class="aff-name aff-corner">Médecin</th>';
+  MO.forEach((mi, i) => { const c = (i + 1) === curM ? ' cur' : ''; head += `<th class="aff-mhead${c}" title="${MOF[i]}">${mi}</th>`; });
+  head += '</tr>';
 
+  // Corps
+  const body = actifs.map(d => {
+    let row = `<tr><th class="aff-name" title="${nameOf(d.id)}">${nameOf(d.id)}</th>`;
     for (let m = 1; m <= 12; m++) {
-      const secteur = (affData[mar.id] && affData[mar.id][m]) || 'VOLANT';
-      const cell = document.createElement('div');
-      cell.className = 'aff-cell ' + (secteur === 'VOLANT' ? 'VOLANT' : secteur);
-      cell.textContent = secteur === 'VOLANT' ? 'VOL' : secteur;
-      cell.dataset.mar = mar.id;
-      cell.dataset.month = m;
-      cell.onclick = () => openSecteurModalAff(mar.id, m, cell);
-      grid.appendChild(cell);
+      const sec = secOf(d.id, m);
+      const sc  = SECTOR_COLORS_AFF[sec] || SECTOR_COLORS_AFF.VOLANT;
+      const c   = m === curM ? ' cur' : '';
+      row += `<td class="aff-cell${c}" style="background:${sc.bg};color:${sc.fg}" data-mar="${d.id}" data-month="${m}" title="${MOF[m-1]} : ${SECTOR_LABELS_AFF[sec] || sec}" onclick="openSecteurModalAff('${d.id}',${m},this)">${abbr(sec)}</td>`;
     }
-  });
+    return row + '</tr>';
+  }).join('');
 
-  document.getElementById('affPendingMsg').style.display = 'none';
-  document.getElementById('affPendingDot').style.display = 'none';
+  grid.innerHTML = legend + `<div class="aff-tablewrap"><table class="aff-table"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+
+  const _pm = document.getElementById('affPendingMsg'); if (_pm) _pm.style.display = 'none';
+  const _pd = document.getElementById('affPendingDot'); if (_pd) _pd.style.display = 'none';
 }
+
 
 function openSecteurModalAff(marId, month, cell) {
   currentAffCell = {marId, month, cell};
@@ -3702,8 +3688,9 @@ function applySecteurAff() {
   const {marId, month, cell} = currentAffCell;
   const newSecteur = document.getElementById('secteurAffSelect').value;
   if (!affData[marId]) affData[marId] = {};
-  affData[marId][month] = newSecteur;
-  cell.className = 'aff-cell ' + (newSecteur === 'VOLANT' ? 'VOLANT' : newSecteur);
+    affData[marId][month] = newSecteur;
+  const _sc = SECTOR_COLORS_AFF[newSecteur] || SECTOR_COLORS_AFF.VOLANT;
+  cell.style.background = _sc.bg; cell.style.color = _sc.fg;
   cell.textContent = newSecteur === 'VOLANT' ? 'VOL' : newSecteur;
   affPending = true;
   document.getElementById('affPendingMsg').style.display = 'block';
