@@ -1642,20 +1642,24 @@ function mobileSetView(v) {
   document.getElementById('mbtnMedecins').classList.toggle('active', v==='medecins');
   const mbe = document.getElementById('mbtnEquite'); if(mbe) mbe.classList.toggle('active', v==='equite');
   const mba = document.getElementById('mbtnAffect'); if(mba) mba.classList.toggle('active', v==='affect');
+  const mban = document.getElementById('mbtnAnnee'); if(mban) mban.classList.toggle('active', v==='annee');
   const content = document.getElementById('mobileDayContent');
   const medView = document.getElementById('medecinsView');
   const eqView = document.getElementById('equiteView');
   const afView = document.getElementById('affectView');
+  const anView = document.getElementById('anneeView');
   const dayNav = document.getElementById('mobileDayNav');
   if(dayNav) dayNav.style.display = v==='planning' ? '' : 'none';
   content.style.display = v==='planning' ? '' : 'none';
   medView.style.display = v==='medecins' ? 'block' : 'none';
   if(eqView) eqView.style.display = v==='equite' ? 'block' : 'none';
   if(afView) afView.style.display = v==='affect' ? 'block' : 'none';
+  if(anView) anView.style.display = v==='annee' ? 'block' : 'none';
   if (v === 'planning') renderMobileDay();
   else if (v === 'medecins') renderMedecins();
   else if (v === 'equite') renderEquite();
   else if (v === 'affect') renderAffectations();
+  else if (v === 'annee') renderAnnee();
 }
 
 function buildMobileDayList() {
@@ -1808,7 +1812,7 @@ render = function() { _origRender(); if(isMobile){buildMobileDayList();renderMob
   <button class="mobile-bottom-btn" id="mbtnMedecins" onclick="mobileSetView('medecins')">👥 Médecins</button>
   <button class="mobile-bottom-btn" id="mbtnEquite" onclick="mobileSetView('equite')">📊 Équité</button>
   <button class="mobile-bottom-btn" id="mbtnAffect" onclick="mobileSetView('affect')">🔄 Secteurs</button>
-  <button class="mobile-bottom-btn" id="mbtnToday" onclick="goToToday()">📍 Aujourd'hui</button>
+  <button class="mobile-bottom-btn" id="mbtnAnnee" onclick="mobileSetView('annee')">🗓️ Année</button>
 </div>
 
 </body>
