@@ -228,7 +228,7 @@ function generateGardes(year){
   // total jours d'axe) ; la part libérée est redistribuée aux autres.
   const nDays=allDays.length;
   const nSam=allDays.filter(d=>d.dow===6).length;
-  const nJeu=allDays.filter(d=>d.dow===4).length;
+  const nJeu=allDays.filter(d=>d.dow===4&&!d.isFerie).length;
   const nVen=allDays.filter(d=>d.dow===5).length;
   const nVjf=allDays.filter(d=>d.isVjf).length;
   const nFerie=allDays.filter(d=>d.isFerie&&(d.dow===2||d.dow===3)).length;       // fériés NON couplés (mar/mer)
@@ -242,15 +242,15 @@ function generateGardes(year){
   }
   const AX={
     total: allDays,
-    sam:   allDays.filter(d=>d.dow===6||(d.isFerie&&(d.dow===1||d.dow===4))),
-    jeu:   allDays.filter(d=>d.dow===4),
+    sam:   allDays.filter(d=>d.dow===6),
+    jeu:   allDays.filter(d=>d.dow===4&&!d.isFerie),
     vd:    allDays.filter(d=>d.dow===5),
     vjf:   allDays.filter(d=>d.isVjf),
     ferie: allDays.filter(d=>d.isFerie&&(d.dow===2||d.dow===3)),
     jf:    allDays.filter(d=>d.isFerie),
   };
   const nFerieAll=allDays.filter(d=>d.isFerie).length;
-  const SLOTS={total:nDays*2, sam:(nSam+nCoupleSam)*2, jeu:nJeu*2, vd:nVen*2, vjf:nVjf*2, ferie:nFerie*2, jf:nFerieAll*2};
+  const SLOTS={total:nDays*2, sam:nSam*2, jeu:nJeu*2, vd:nVen*2, vjf:nVjf*2, ferie:nFerie*2, jf:nFerieAll*2};
   function axisEligible(axis,id){
     if((axis==='sam'||axis==='vd'||axis==='ferie'||axis==='jf')&&NO_WEEKEND.has(id)) return false;
     if(axis==='vjf'&&FLAGS.souhaitPlafond.has(id)) return false; // PRUNET hors VJF
@@ -413,8 +413,13 @@ function generateGardes(year){
       rgSet[id].add(addOneDay(date));
       cnt[id].total++;
       const KEYS=['dim','lun','mar','mer','jeu','ven','sam'];
-      cnt[id][KEYS[dow]]++;
-      if(dow===6){cnt[id].recupR++;recupDue[id].push(date);}
+      // (Fix v2) SEUL le jeudi férié couplé = JF seul (pas de WE de 3 j → pas un "jeudi").
+      // Le lundi férié reste un LUNDI (+JF) ; le samedi (même férié) reste un SAMEDI + récup R.
+      const _diA=dayByDate[date], _coupledF=_diA&&_diA.isFerie&&_diA.dow===4;
+      if(!_coupledF){
+        cnt[id][KEYS[dow]]++;
+        if(dow===6){cnt[id].recupR++;recupDue[id].push(date);}
+      }
       if(dayByDate[date]?.isVjf)cnt[id].vjf++;
       const _rdow=dayByDate[date]?.dow;
       if(dayByDate[date]?.isFerie&&(_rdow===2||_rdow===3))cnt[id].ferie++;
@@ -481,7 +486,7 @@ function generateGardes(year){
       const hasFri=unit.some(d=>dayByDate[d].dow===5);
       unit.forEach(d=>{
         const dw=dayByDate[d].dow;
-        const adow=(dw===6||(dayByDate[d].isFerie&&(dw===4||dw===1)))?6:dw;
+        const adow=dw; // vrai jour ; le jeudi férié couplé est exclu via _coupledF dans assign()
         assign(d,g,gg,adow); noelDatesAssigned.add(d);
       });
       if(hasFri){cnt[g].vd++;cnt[gg].vd++;}
@@ -567,7 +572,7 @@ function generateGardes(year){
       if(gardes[satDate]){
         // samedi déjà placé → hériter du même binôme et des mêmes rôles
         const {g,g2}=gardes[satDate];
-        if(g&&g2&&!blocked(g,date)&&!blocked(g2,date)){assign(date,g,g2,6);return;}
+        if(g&&g2&&!blocked(g,date)&&!blocked(g2,date)){assign(date,g,g2,dow);return;} // vrai jour : lundi férié → LUNDI
         warnings.push(`Couplage férié : binôme samedi indispo ${date} (repli)`);
       } else if(dow===4){
         // jeudi férié, samedi pas encore placé → placer le binôme sur jeudi ET samedi
@@ -579,8 +584,8 @@ function generateGardes(year){
           const rest=availC.filter(id=>id!==A); rest.sort((a,b)=>cmp(scoreSat(a),scoreSat(b)));
           const B=rest[0];
           const [g,g2]=assignRoles(A,B);
-          assign(date,g,g2,6);     // jeudi férié → axe samedi
-          assign(satDate,g,g2,6);  // samedi suivant, même binôme/rôles
+          assign(date,g,g2,dow);   // jeudi férié (dow=4) : exclu du comptage jour via _coupledF, JF seul
+          assign(satDate,g,g2,6);  // samedi suivant, même binôme/rôles : SAMEDI + récup R
           return;
         }
         warnings.push(`Couplage jeudi férié impossible ${date} (repli)`);
@@ -628,7 +633,7 @@ function generateGardes(year){
   // Respecte espacements, NO_WEEKEND, plafond PRUNET, souhaits verrouillés et
   // l'intégrité VD / couplages fériés. ~0,1 s ; chacun finit à ≤1,3 de sa cible.
   {
-    const W={vd:5,sam:5,jf:12,jeu:3,vjf:3,total:2}, WGG2=1;
+    const W={vd:7,sam:6,jeu:5,vjf:5,jf:4,total:2}, WGG2=1;
     const EQ=['vd','sam','jf','jeu','vjf','total'];
     const KEYS=['dim','lun','mar','mer','jeu','ven','sam'];
     const ABS=new Set(['INDISPO','VAC','FORM','TP','CL','CTP']);
@@ -652,7 +657,8 @@ function generateGardes(year){
     const contribOf=days_=>{
       const c={total:0,sam:0,jeu:0,vd:0,vjf:0,ferie:0,jf:0,lun:0,mar:0,mer:0,ven:0,dim:0,recupR:0};
       days_.forEach(dd=>{const ad=assignDow[dd],di=dayByDate[dd];
-        c.total++; c[KEYS[ad]]++; if(ad===6)c.recupR++;
+        const coupledF=di.isFerie&&di.dow===4; // SEUL le jeudi férié couplé exclu du comptage jour
+        c.total++; if(!coupledF){c[KEYS[ad]]++; if(ad===6)c.recupR++;}
         if(di.isVjf)c.vjf++; if(di.isFerie&&(di.dow===2||di.dow===3))c.ferie++; if(di.isFerie)c.jf++;});
       if(days_.some(dd=>assignDow[dd]===5))c.vd=1;
       return c;
@@ -798,7 +804,7 @@ function generateGardes(year){
     gardeDoctors.forEach(id=>{recupDue[id]=[];});
     Object.keys(gardes).forEach(dd=>{const gg=gardes[dd];if(!gg.g)return;
       [gg.g,gg.g2].forEach(id=>{if(!id)return;rgSet[id].add(addOneDay(dd));
-        if(assignDow[dd]===6)recupDue[id].push(dd);});});
+        if(dayByDate[dd].dow===6)recupDue[id].push(dd);});}); // R = vrais samedis (jeudi/lundi férié couplé n'ouvre pas de R)
   }
 
   // ── 9. Placer les R ──────────────────────────────────────────────────
