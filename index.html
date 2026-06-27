@@ -556,6 +556,10 @@ body {
 </style>
   <style>
 .eqv-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.eq-switchbar{padding:16px 32px 0}
+.eqv-switch{display:inline-flex;background:#EEF1F5;border-radius:9px;padding:3px;gap:2px}
+.eqv-sw-btn{border:0;background:transparent;padding:6px 16px;border-radius:7px;font-family:inherit;font-size:12px;font-weight:700;color:#64748B;cursor:pointer}
+.eqv-sw-btn.active{background:#fff;color:#0F172A;box-shadow:0 1px 2px rgba(15,23,42,.14)}
 .eqv-card{border:1px solid #E2E8F0;border-radius:12px;padding:11px 13px;background:#fff}
 .eqv-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .eqv-name{font-size:13.5px;font-weight:800;color:#0F172A}
@@ -629,6 +633,10 @@ body {
 
 <!-- ÉQUITÉ VIEW -->
 <div id="equiteView" style="display:none">
+  <div class="eq-switchbar"><div class="eqv-switch" id="eqSwitchIdx">
+    <button class="eqv-sw-btn active" data-src="initiale" onclick="setEquiteSourceIdx('initiale')">Initiale</button>
+    <button class="eqv-sw-btn" data-src="live" onclick="setEquiteSourceIdx('live')">Instantané</button>
+  </div></div>
   <div class="eq-wrap" id="eqWrap"></div>
 </div>
 
@@ -1563,9 +1571,47 @@ function renderEquiteCards(list){
   }).join('')+'</div>';
 }
 
+let EQ_SRC_IDX = 'initiale';
+function setEquiteSourceIdx(src){
+  EQ_SRC_IDX = src;
+  document.querySelectorAll('#eqSwitchIdx .eqv-sw-btn').forEach(b=>b.classList.toggle('active', b.dataset.src===src));
+  if(src==='live') loadEquiteLive(); else renderEquite();
+}
+async function loadEquiteLive(){
+  const wrap = document.getElementById('eqWrap');
+  if(!wrap) return;
+  const nameOf = id => (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
+  wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Chargement de l\'instantané…</div>';
+  try{
+    const params = new URLSearchParams({payload: JSON.stringify({action:'getStatsLive', year: currentYear})});
+    const res = await fetch(API_URL + '?' + params.toString());
+    const j = await res.json();
+    if(!j.success) throw new Error(j.error||'erreur');
+    const list = j.stats.filter(s=>(s.total||0)>0).map(s=>({
+      name:nameOf(s.medecin), total:s.total||0, cTot:s.cible||0,
+      lu:s.lun||0, ma:s.mar||0, me:s.mer||0, je:s.jeu||0, sa:s.sat||0, vd:s.vd||0, jf:s.jf||0, vjf:s.vjf||0,
+      cSa:s.cSat||0, cJe:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0,
+    }));
+    if(!list.length){ wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Aucune garde dans ce planning.</div>'; return; }
+    const sum=list.reduce((s,a)=>s+a.total,0), mean=sum/list.length;
+    const totals=list.map(a=>a.total), max=Math.max(...totals), min=Math.min(...totals);
+    const html = `<div class="eq-summary">
+      <div class="eq-kpi"><div class="eq-kpi-num">${sum}</div><div class="eq-kpi-lbl">Gardes réparties</div></div>
+      <div class="eq-kpi"><div class="eq-kpi-num">${list.length}</div><div class="eq-kpi-lbl">MAR de garde</div></div>
+      <div class="eq-kpi"><div class="eq-kpi-num">${mean.toFixed(1)}</div><div class="eq-kpi-lbl">Moyenne / MAR</div></div>
+      <div class="eq-kpi"><div class="eq-kpi-num">${min}\u2013${max}</div><div class="eq-kpi-lbl">Étendue</div></div>
+    </div>
+    <div class="eqv-legend">Instantané — gardes réelles à l'instant T (échanges/dons inclus) · trait = cible figée.</div>`;
+    wrap.innerHTML = html + renderEquiteCards(list);
+  }catch(e){
+    wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#CE1126">Instantané indisponible : '+(e.message||e)+'</div>';
+  }
+}
 function renderEquite(){
   const wrap = document.getElementById('eqWrap');
   if(!wrap || !DATA) return;
+  EQ_SRC_IDX='initiale';
+  const _sw=document.getElementById('eqSwitchIdx'); if(_sw) _sw.querySelectorAll('.eqv-sw-btn').forEach(b=>b.classList.toggle('active', b.dataset.src==='initiale'));
   const nameOf = id => (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
   if(!(DATA.equiteInitiale && DATA.equiteInitiale.length)){
     wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Vue équité indisponible — republier le planning pour générer la répartition figée.</div>';

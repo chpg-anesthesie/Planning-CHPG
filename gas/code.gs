@@ -43,6 +43,62 @@ function buildStats2026() {
   st.setColumnWidth(1,140);
   SpreadsheetApp.getUi().alert(`✅ STATS_GARDES_${year} reconstruit (${rows.length} MARs)`);
 }
+
+// ── Stats LIVE : recalcule depuis GARDES_YYYY (échanges/dons inclus), cibles lues dans STATS_GARDES ──
+function computeStatsLive(year) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const gardes = ss.getSheetByName(`GARDES_${year}`);
+  if (!gardes) throw new Error(`GARDES_${year} introuvable`);
+  const data = gardes.getDataRange().getValues();
+  const dateToCol = buildDateToCol(data, year);
+  const colToDate = {};
+  Object.keys(dateToCol).forEach(d => { colToDate[dateToCol[d]] = d; });
+  const jf = getJoursFeries(year), jfn = getJoursFeries(year + 1);
+  const isF = d => jf.has(d) || jfn.has(d);
+  const NOEL = new Set([`${year}-12-24`,`${year}-12-25`,`${year}-12-31`,`${year+1}-01-01`]);
+  const KEYS = ['dim','lun','mar','mer','jeu','ven','sam'];
+  const nextDay = d => {
+    const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + 1);
+    return Utilities.formatDate(x, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  };
+  const cibById = {};
+  const stSheet = ss.getSheetByName(`STATS_GARDES_${year}`);
+  if (stSheet) {
+    const sd = stSheet.getDataRange().getValues();
+    for (let r = 1; r < sd.length; r++) {
+      const id = String(sd[r][0]).trim(); if (!id) continue;
+      cibById[id] = { cible:Number(sd[r][1])||0, cSat:Number(sd[r][17])||0,
+        cJeu:Number(sd[r][18])||0, cVd:Number(sd[r][19])||0, cVjf:Number(sd[r][21])||0 };
+    }
+  }
+  const stats = [];
+  for (let r = 3; r < data.length; r++) {
+    const id = String(data[r][0]).trim();
+    if (!id) continue;
+    const c = {total:0,g:0,g2:0,lun:0,mar:0,mer:0,jeu:0,ven:0,sam:0,dim:0,recupR:0,h18:0,jf:0,vjf:0,vd:0,noelAn:0};
+    Object.keys(colToDate).forEach(col => {
+      const date = colToDate[col];
+      const val = String(data[r][Number(col)] || '').trim().toUpperCase();
+      if (val === 'R')  c.recupR++;
+      if (val === '18') c.h18++;
+      if (val !== 'G' && val !== 'G2') return;
+      const dow = new Date(date + 'T12:00:00').getDay();
+      c.total++;
+      if (val === 'G') c.g++; else c.g2++;
+      c[KEYS[dow]]++;
+      if (isF(date)) c.jf++;
+      if (dow === 5) c.vd++;
+      if (!isF(date) && isF(nextDay(date)) && dow >= 1 && dow <= 4) c.vjf++;
+      if (NOEL.has(date)) c.noelAn++;
+    });
+    const cb = cibById[id] || {cible:0,cSat:0,cJeu:0,cVd:0,cVjf:0};
+    stats.push({medecin:id, cible:cb.cible, total:c.total, g:c.g, g2:c.g2,
+      lun:c.lun, mar:c.mar, mer:c.mer, jeu:c.jeu, ven:c.ven, sat:c.sam, dim:c.dim,
+      recupR:c.recupR, h18:c.h18, jf:c.jf, vjf:c.vjf, vd:c.vd,
+      cSat:cb.cSat, cJeu:cb.cJeu, cVd:cb.cVd, cVjf:cb.cVjf});
+  }
+  return stats;
+}
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER = 'chpg-anesthesie';
 
@@ -487,6 +543,7 @@ function generatePlanning(yearOverride) {
         lu: Number(r[5]) || 0, ma: Number(r[6]) || 0, me: Number(r[7]) || 0,
         je: Number(r[8]) || 0, ve: Number(r[9]) || 0, sa: Number(r[10]) || 0, di: Number(r[11]) || 0,
         vd: Number(r[20]) || 0, jf: Number(r[14]) || 0, vjf: Number(r[15]) || 0,
+        cible: Number(r[1]) || 0, cSa: Number(r[17]) || 0, cJe: Number(r[18]) || 0, cVd: Number(r[19]) || 0, cVjf: Number(r[21]) || 0,
       }));
     }
   } catch(e) { Logger.log('equiteInitiale: ' + e.message); }

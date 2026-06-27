@@ -622,6 +622,13 @@ function doGet(e) {
         success: true, status: getPlanningStatus()
       })).setMimeType(ContentService.MimeType.JSON);
     }
+    if (action === 'getStatsLive') {
+      const statsYear = Number(payload.year) || TEST_YEAR;
+      try {
+        return ContentService.createTextOutput(JSON.stringify({success:true, stats:computeStatsLive(statsYear)}))
+          .setMimeType(ContentService.MimeType.JSON);
+      } catch (err) { return _error(err.message); }
+    }
     const user = checkCode(code);
     if (!user) {
       return ContentService.createTextOutput(JSON.stringify({
@@ -701,7 +708,8 @@ function doGet(e) {
         stats.push({medecin:data[r][0], cible:data[r][1], total:data[r][2],
           g:data[r][3], g2:data[r][4], lun:data[r][5], mar:data[r][6], mer:data[r][7],
           jeu:data[r][8], ven:data[r][9], sat:data[r][10], dim:data[r][11],
-          recupR:data[r][12], h18:data[r][13]});
+          recupR:data[r][12], h18:data[r][13],
+          jf:data[r][14], vjf:data[r][15], vd:data[r][20], cSat:data[r][17], cJeu:data[r][18], cVd:data[r][19], cVjf:data[r][21]});
       }
       return ContentService.createTextOutput(JSON.stringify({success:true, stats}))
         .setMimeType(ContentService.MimeType.JSON);
@@ -726,7 +734,8 @@ try {
           stats.push({medecin:data[r][0], cible:data[r][1], total:data[r][2],
             g:data[r][3], g2:data[r][4], lun:data[r][5], mar:data[r][6], mer:data[r][7],
             jeu:data[r][8], ven:data[r][9], sat:data[r][10], dim:data[r][11],
-            recupR:data[r][12], h18:data[r][13]});
+            recupR:data[r][12], h18:data[r][13],
+            jf:data[r][14], vjf:data[r][15], vd:data[r][20], cSat:data[r][17], cJeu:data[r][18], cVd:data[r][19], cVjf:data[r][21]});
         }
         return ContentService.createTextOutput(JSON.stringify({success:true, stats}))
           .setMimeType(ContentService.MimeType.JSON);
