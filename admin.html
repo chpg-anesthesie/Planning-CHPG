@@ -4326,14 +4326,22 @@ async function renderWizGStep() {
   body.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement…</div>';
 
   if (wizGCurrentStep === 0) {
-    if (!wizGIndisposData) {
-      try {
-        const data = await api({action: 'getAllIndispos'});
-        if (!data.success) throw new Error(data.error);
-        wizGIndisposData = data.data || {};
-      } catch(e) {
-        body.innerHTML = '<div class="wizard-warning">❌ Impossible de charger les indispos : ' + e.message + '</div>';
-        return;
+    // Charger indispos + conflits EN PARALLÈLE (ne charge que ce qui manque)
+    const _needInd = !wizGIndisposData, _needConf = !wizGConflitsData;
+    if (_needInd || _needConf) {
+      const [_indRes, _confRes] = await Promise.all([
+        _needInd ? api({action:'getAllIndispos'}).catch(e => ({success:false, error:e.message})) : Promise.resolve(null),
+        _needConf ? api({action:'getConflitsAll', year: INDISPOS_YEAR}).catch(() => ({success:false})) : Promise.resolve(null)
+      ]);
+      if (_needInd) {
+        if (!_indRes || !_indRes.success) {
+          body.innerHTML = '<div class="wizard-warning">❌ Impossible de charger les indispos : ' + ((_indRes && _indRes.error) || '') + '</div>';
+          return;
+        }
+        wizGIndisposData = _indRes.data || {};
+      }
+      if (_needConf) {
+        wizGConflitsData = (_confRes && _confRes.success) ? _confRes : {conflits: [], nbConflits: 0};
       }
     }
     const actifs = (marsData || []).filter(m => m.actif);
@@ -4341,16 +4349,6 @@ async function renderWizGStep() {
       const ind = wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || [];
       return !ind || ind.length === 0;
     });
-
-    // Charger les conflits vacances
-    if (!wizGConflitsData) {
-      try {
-        const cData = await api({action: 'getConflitsAll', year: INDISPOS_YEAR});
-        wizGConflitsData = cData.success ? cData : {conflits: [], nbConflits: 0};
-      } catch(e) {
-        wizGConflitsData = {conflits: [], nbConflits: 0};
-      }
-    }
     const nbConflits = wizGConflitsData.nbConflits || 0;
     const blocked = sansIndispo.length > 0 || nbConflits > 0;
 
