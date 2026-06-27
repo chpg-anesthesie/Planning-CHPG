@@ -109,6 +109,16 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .spinner.dark{border-color:rgba(0,0,0,.1);border-top-color:var(--ink-3);}
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading-msg{text-align:center;padding:60px;color:var(--ink-4);font-size:14px;display:flex;flex-direction:column;align-items:center;gap:12px;}
+  /* ── Bandeau Noël/Jour de l'An (prioritaires garde) ── */
+.noel-bnr{position:relative;display:flex;align-items:center;gap:12px;margin:10px 16px 0;background:linear-gradient(90deg,#FFF5F6,#fff);border:1px solid #F3D6DA;border-left:4px solid var(--red);border-radius:10px;padding:9px 12px;overflow:hidden;}
+.noel-bnr .nb-badge{flex-shrink:0;background:var(--red);color:#fff;font-size:12px;font-weight:700;border-radius:7px;padding:6px 11px;white-space:nowrap;}
+.noel-bnr .nb-track{flex:1;overflow:hidden;white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);}
+.noel-bnr .nb-run{display:inline-block;padding-left:100%;animation:nbScroll 30s linear infinite;font-size:13px;font-weight:600;color:#3A4759;}
+.noel-bnr:hover .nb-run{animation-play-state:paused;}
+.noel-bnr .nb-nm{color:var(--red);font-weight:800;}
+.noel-bnr .nb-ly{color:var(--ink-4);font-weight:600;font-size:12px;}
+.noel-bnr .nb-sep{color:#CBD5E1;margin:0 10px;}
+@keyframes nbScroll{from{transform:translateX(0);}to{transform:translateX(-100%);}}
 </style>
 </head>
 <body>
@@ -136,6 +146,8 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     <button class="btn-validate" id="btnValidate" onclick="doValidate()">✅ Valider et verrouiller</button>
   </div>
 </div>
+
+<div id="noelBanner" class="noel-bnr" style="display:none;"></div>
 
 <div class="stats-bar" id="statsBar" style="display:none;">
   <div class="sbar-item"><div class="sbar-dot" style="background:#CE1126;"></div><span class="sbar-lbl">Période</span><span class="sbar-val" id="sbPeriode">—</span></div>
@@ -269,9 +281,22 @@ async function loadData(){
 
   buildPeriodeTabs();
   setCurrentPeriode(0);
+  renderNoelBanner();
   document.getElementById('loadingArea').style.display='none';
 }
 
+async function renderNoelBanner(){
+  const el=document.getElementById('noelBanner');
+  if(!el) return;
+  try{
+    const r=await apiCall({action:'getNoelAnEligibles',year:currentYear});
+    if(!r||!r.success||!r.eligibles||!r.eligibles.length){ el.style.display='none'; return; }
+    const items=r.eligibles.map(e=>'<span class="nb-nm">Dr '+e.id+'</span> <span class="nb-ly">· '+(e.last?e.last:'jamais')+'</span>').join('<span class="nb-sep">•</span>');
+    const run='Prioritaires pour la garde&nbsp;: <span class="nb-sep">•</span>'+items;
+    el.innerHTML='<div class="nb-badge">🎄 Noël &amp; Jour de l\'An '+r.year+'</div><div class="nb-track"><div class="nb-run">'+run+'&nbsp;&nbsp;&nbsp;&nbsp;'+run+'</div></div>';
+    el.style.display='flex';
+  }catch(e){ el.style.display='none'; }
+}
 function getPeriodeDays(p){
   const days=[];
   const d=new Date(p.debut+'T12:00:00');
