@@ -948,6 +948,22 @@ if (sessionStorage.getItem('adminCode')) {
   });
 }
 </script>
+  <style>
+.eqv-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.eqv-card{border:1px solid #E2E8F0;border-radius:12px;padding:11px 13px;background:#fff}
+.eqv-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.eqv-name{font-size:13.5px;font-weight:800;color:#0F172A}
+.eqv-total{font-size:10.5px;font-weight:700;color:#64748B;background:#F1F5F9;border-radius:7px;padding:3px 8px;white-space:nowrap}
+.eqv-row{display:flex;align-items:center;gap:7px;margin:3px 0}
+.eqv-lbl{width:30px;font-size:10.5px;color:#64748B;font-weight:600}
+.eqv-track{flex:1;position:relative;height:11px;background:#EEF1F5;border-radius:6px}
+.eqv-fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;opacity:.9}
+.eqv-tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:#0F172A}
+.eqv-val{width:52px;font-size:10.5px;color:#0F172A;font-weight:700;text-align:right}
+.eqv-val span{color:#64748B;font-weight:600}
+.eqv-legend{font-size:11px;color:#64748B;margin:4px 0 14px}
+@media(max-width:720px){.eqv-grid{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
 
@@ -1247,16 +1263,8 @@ if (sessionStorage.getItem('adminCode')) {
           <span style="color:var(--red)">● Écart important</span>
         </div>
       </div>
-      <div style="overflow-x:auto">
-        <table class="stats-table" id="statsTable">
-          <thead><tr>
-            <th>Médecin</th><th>Cible</th><th>Total</th><th>G REA</th><th>G2 MAT</th>
-            <th>Lun</th><th>Mar</th><th>Mer</th><th>Jeu</th><th>Ven</th><th>Sam</th><th>Dim</th>
-            <th>Récup R</th><th>18H</th>
-          </tr></thead>
-          <tbody id="statsBody"></tbody>
-        </table>
-      </div>
+      <div class="eqv-legend">Barre = réel · trait = cible (plein : Jeu/Sam/VD/VJF) ou moyenne d'équipe (estompé : Lun/Mar/Mer/JF) · <b style="color:#CE1126">rouge</b> au-dessus · <b style="color:#1D4ED8">bleu</b> en-dessous · <b style="color:#15803D">vert</b> à la cible.</div>
+      <div id="statsCards"></div>
     </div>
 
     <div id="gardesLoading" style="display:none" class="loading"><div class="spinner"></div> Génération en cours (30-60s)…</div>
@@ -3334,21 +3342,34 @@ async function generateGardes(){
   finally{document.getElementById('gardesLoading').style.display='none';btn.disabled=false;btn.innerHTML='⚡ Générer les gardes';}
 }
 
+function renderEquiteCards(list){
+  const AX=[['lu','Lun'],['ma','Mar'],['me','Mer'],['je','Jeu'],['sa','Sam'],['vd','VD'],['jf','JF'],['vjf','VJF']];
+  const CB={je:'cJe',sa:'cSa',vd:'cVd',vjf:'cVjf'};
+  const meanAx={};
+  ['lu','ma','me','jf'].forEach(k=>{const v=list.map(x=>+x[k]||0);meanAx[k]=v.length?v.reduce((s,n)=>s+n,0)/v.length:0;});
+  const cibOf=(it,k)=>CB[k]?(+it[CB[k]]||0):meanAx[k];
+  const colOf=(v,c)=>{const d=v-c;return Math.abs(d)<0.5?'#15803D':(d>0?'#CE1126':'#1D4ED8');};
+  const maxOf=k=>Math.max(0.1,...list.map(x=>+x[k]||0),...list.map(x=>cibOf(x,k)))*1.15;
+  const sorted=list.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  return '<div class="eqv-grid">'+sorted.map(it=>{
+    const bars=AX.map(([k,lbl])=>{
+      const v=+it[k]||0,c=cibOf(it,k),mx=maxOf(k);
+      const w=Math.min(100,v/mx*100),cx=Math.min(100,c/mx*100);
+      const cval=CB[k]?c:c.toFixed(1),tick=CB[k]?'':'opacity:.42';
+      return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:'+colOf(v,c)+'"></div><div class="eqv-tick" style="left:'+cx+'%;'+tick+'"></div></div><div class="eqv-val">'+v+'<span> /'+cval+'</span></div></div>';
+    }).join('');
+    return '<div class="eqv-card"><div class="eqv-head"><div class="eqv-name">'+it.name+'</div><div class="eqv-total">'+it.total+' gardes</div></div>'+bars+'</div>';
+  }).join('')+'</div>';
+}
+
 function renderStats(stats){
-  if(!stats||!stats.length){document.getElementById('gardesEmpty').style.display='block';return;}
-  const maxG=Math.max(...stats.map(s=>s.total||0));
-  document.getElementById('statsBody').innerHTML=stats.map(s=>{
-    const pct=maxG>0?(s.total/maxG*100):0;
-    const diff=s.total-(s.cible||0);
-    const cls=Math.abs(diff)<=1?'ok':Math.abs(diff)<=2?'warn':'';
-    return `<tr>
-      <td>${s.medecin}</td><td style="color:var(--ink-4)">${s.cible||'—'}</td>
-      <td><div style="display:flex;align-items:center;gap:6px"><span style="font-weight:700">${s.total||0}</span><div class="bar-bg"><div class="bar-fill ${cls}" style="width:${pct}%"></div></div></div></td>
-      <td>${s.g||0}</td><td>${s.g2||0}</td><td>${s.lun||0}</td><td>${s.mar||0}</td><td>${s.mer||0}</td>
-      <td>${s.jeu||0}</td><td>${s.ven||0}</td><td>${s.sat||0}</td><td>${s.dim||0}</td>
-      <td>${s.recupR||0}</td><td>${s.h18||0}</td>
-    </tr>`;
-  }).join('');
+  if(!stats||!stats.length){document.getElementById('gardesEmpty').style.display='block';document.getElementById('statsCard').style.display='none';return;}
+  const list = stats.map(s=>({
+    name:s.medecin, total:s.total||0,
+    lu:s.lun||0, ma:s.mar||0, me:s.mer||0, je:s.jeu||0, sa:s.sat||0, vd:s.vd||0, jf:s.jf||0, vjf:s.vjf||0,
+    cSa:s.cSat||0, cJe:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0,
+  }));
+  document.getElementById('statsCards').innerHTML = renderEquiteCards(list);
   document.getElementById('statsCard').style.display='block';
   document.getElementById('gardesEmpty').style.display='none';
 }
