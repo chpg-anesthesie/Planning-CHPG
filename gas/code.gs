@@ -243,8 +243,9 @@ function getJoursFeries(year) {
   }
   const feteDieu = addDays(paques, 60);
   // Report au lundi si le férié tombe un dimanche (loi n°798) :
-  // 1er janv., 1er mai, Assomption, Toussaint, Fête du Prince, Noël.
-  // PAS la Sainte Dévote (27/01) ni l'Immaculée Conception (08/12).
+  // 1er janv., 1er mai, Assomption, Toussaint, Fête du Prince,
+  // Immaculée Conception (08/12) et Noël.
+  // PAS la Sainte Dévote (27/01).
   function reporte(mo, da) {
     const dt = new Date(year, mo - 1, da, 12, 0, 0);
     if (dt.getDay() === 0) dt.setDate(dt.getDate() + 1);
@@ -252,7 +253,7 @@ function getJoursFeries(year) {
   }
   return new Set([
     reporte(1,1), dateStr(1,27), reporte(5,1), reporte(8,15),
-    reporte(11,1), reporte(11,19), dateStr(12,8), reporte(12,25),
+    reporte(11,1), reporte(11,19), reporte(12,8), reporte(12,25),
     addDays(paques,1), addDays(paques,39), addDays(paques,50),
     feteDieu,
   ]);
@@ -479,11 +480,12 @@ function generatePlanning(yearOverride) {
     const stSheet = ss.getSheetByName(`STATS_GARDES_${year}`);
     if (stSheet && stSheet.getLastRow() > 1) {
       const sd = stSheet.getDataRange().getValues();
-      // colonnes : 0 MEDECIN · 2 TOTAL G · 8 JEU · 9 VEN · 10 SAM · 11 DIM · 14 JF · 15 VEILLE JF · 20 VD
+      // colonnes : 0 MEDECIN · 2 TOTAL G · 5 LUN · 6 MAR · 7 MER · 8 JEU · 9 VEN · 10 SAM · 11 DIM · 14 JF · 15 VEILLE JF · 20 VD
       equiteInitiale = sd.slice(1).filter(r => r[0]).map(r => ({
         id: String(r[0]).trim(),
-        total: Number(r[2]) || 0, je: Number(r[8]) || 0,
-        ve: Number(r[9]) || 0, sa: Number(r[10]) || 0, di: Number(r[11]) || 0,
+        total: Number(r[2]) || 0,
+        lu: Number(r[5]) || 0, ma: Number(r[6]) || 0, me: Number(r[7]) || 0,
+        je: Number(r[8]) || 0, ve: Number(r[9]) || 0, sa: Number(r[10]) || 0, di: Number(r[11]) || 0,
         vd: Number(r[20]) || 0, jf: Number(r[14]) || 0, vjf: Number(r[15]) || 0,
       }));
     }
