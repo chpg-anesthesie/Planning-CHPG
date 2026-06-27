@@ -962,6 +962,10 @@ if (sessionStorage.getItem('adminCode')) {
 .eqv-val{width:52px;font-size:10.5px;color:#0F172A;font-weight:700;text-align:right}
 .eqv-val span{color:#64748B;font-weight:600}
 .eqv-legend{font-size:11px;color:#64748B;margin:4px 0 14px}
+.eqv-row-tot{margin-bottom:7px;padding-bottom:8px;border-bottom:1px solid #EEF1F5}
+.eqv-row-tot .eqv-lbl{font-weight:800;color:#0F172A}
+.eqv-track-tot{height:14px}
+.eqv-row-tot .eqv-val{font-weight:800;font-size:11px}
 @media(max-width:720px){.eqv-grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -3350,22 +3354,25 @@ function renderEquiteCards(list){
   const cibOf=(it,k)=>CB[k]?(+it[CB[k]]||0):meanAx[k];
   const colOf=(v,c)=>{const d=v-c;return Math.abs(d)<0.5?'#15803D':(d>0?'#CE1126':'#1D4ED8');};
   const maxOf=k=>Math.max(0.1,...list.map(x=>+x[k]||0),...list.map(x=>cibOf(x,k)))*1.15;
+  const maxTot=Math.max(0.1,...list.map(x=>+x.total||0),...list.map(x=>+x.cTot||0))*1.12;
   const sorted=list.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
   return '<div class="eqv-grid">'+sorted.map(it=>{
+    const tv=+it.total||0,tc=+it.cTot||0,tw=Math.min(100,tv/maxTot*100),tcx=Math.min(100,tc/maxTot*100);
+    const totBar='<div class="eqv-row eqv-row-tot"><div class="eqv-lbl">Total</div><div class="eqv-track eqv-track-tot"><div class="eqv-fill" style="width:'+tw+'%;background:'+colOf(tv,tc)+'"></div>'+(tc>0?'<div class="eqv-tick" style="left:'+tcx+'%"></div>':'')+'</div><div class="eqv-val">'+tv+'<span> /'+(tc>0?tc.toFixed(1):'—')+'</span></div></div>';
     const bars=AX.map(([k,lbl])=>{
       const v=+it[k]||0,c=cibOf(it,k),mx=maxOf(k);
       const w=Math.min(100,v/mx*100),cx=Math.min(100,c/mx*100);
       const cval=CB[k]?c:c.toFixed(1),tick=CB[k]?'':'opacity:.42';
       return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:'+colOf(v,c)+'"></div><div class="eqv-tick" style="left:'+cx+'%;'+tick+'"></div></div><div class="eqv-val">'+v+'<span> /'+cval+'</span></div></div>';
     }).join('');
-    return '<div class="eqv-card"><div class="eqv-head"><div class="eqv-name">'+it.name+'</div><div class="eqv-total">'+it.total+' gardes</div></div>'+bars+'</div>';
+    return '<div class="eqv-card"><div class="eqv-head"><div class="eqv-name">'+it.name+'</div></div>'+totBar+bars+'</div>';
   }).join('')+'</div>';
 }
 
 function renderStats(stats){
   if(!stats||!stats.length){document.getElementById('gardesEmpty').style.display='block';document.getElementById('statsCard').style.display='none';return;}
   const list = stats.map(s=>({
-    name:s.medecin, total:s.total||0,
+    name:s.medecin, total:s.total||0, cTot:s.cible||0,
     lu:s.lun||0, ma:s.mar||0, me:s.mer||0, je:s.jeu||0, sa:s.sat||0, vd:s.vd||0, jf:s.jf||0, vjf:s.vjf||0,
     cSa:s.cSat||0, cJe:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0,
   }));
