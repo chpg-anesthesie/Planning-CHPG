@@ -3763,6 +3763,9 @@ async function openWizard() {
   const nextYear = YEAR + 1;
   document.getElementById('wizNextYear').textContent = nextYear;
   wizCurrentStep = 0;
+  // Affichage immédiat de la fenêtre (feedback au clic) — chargement ensuite, comme W2
+  document.getElementById('wizardOverlay').classList.add('open');
+  document.getElementById('wizBody').innerHTML = '<div style="text-align:center;padding:48px 0"><div style="font-size:40px;margin-bottom:14px">⏳</div><div style="font-size:15px;font-weight:600;color:#334155">Chargement de l\'assistant…</div><div style="font-size:13px;color:var(--ink-3);margin-top:6px">Lecture des périodes de vacances et des groupes</div></div>';
   window._wizStaffConfirmed = false;
   wizPeriodes = PERIODES_DEFAUT[nextYear] || PERIODES_DEFAUT[2027].map(p => ({...p}));
   wizMarsData = [...marsData];
@@ -3771,11 +3774,15 @@ async function openWizard() {
   const month = new Date().getMonth() + 1;
   window._wizEarlyWarning = (month < 9);
 
-  // Charger périodes + groupes depuis GSheet
+  // Charger périodes + groupes ET statut EN PARALLÈLE (≈ moitié du temps d'attente)
+  const [vacData, st] = await Promise.all([
+    api({action:'getVacancesConfig', year: nextYear}).catch(() => ({ success:false })),
+    api({action:'getStatus'}).catch(() => ({}))
+  ]);
+
+  // Périodes + groupes
   try {
-    const vacData = await api({action:'getVacancesConfig', year: nextYear});
-    if (vacData.success) {
-      // Périodes : préférer celles du GSheet si disponibles, sinon PERIODES_DEFAUT
+    if (vacData && vacData.success) {
       if (vacData.periodes && vacData.periodes.length) {
         wizPeriodes = vacData.periodes.map(p => ({
           nom:   p.nom || p.label || '',
@@ -3785,25 +3792,20 @@ async function openWizard() {
           seuil: p.seuil || 8,
         }));
       }
-      // Groupes
       if (vacData.groupes) {
-      wizGroupes = vacData.groupes;
-      // Enrichir wizMarsData avec le groupe ET l'ordre de chaque MAR
-      ['A','B','C'].forEach(grp => {
-        (vacData.groupes[grp]||[]).forEach((m, idx) => {
-          const mar = wizMarsData.find(x => x.id === m.id);
-          if (mar) { mar.groupe = grp; mar.ordreGroupe = idx; }
+        wizGroupes = vacData.groupes;
+        ['A','B','C'].forEach(grp => {
+          (vacData.groupes[grp]||[]).forEach((m, idx) => {
+            const mar = wizMarsData.find(x => x.id === m.id);
+            if (mar) { mar.groupe = grp; mar.ordreGroupe = idx; }
+          });
         });
-      });
-      } // end if(vacData.groupes)
+      }
     }
   } catch(e) { /* silencieux */ }
 
-  // Détecter si INDISPOS_N+1 existe déjà
-  try {
-    const st = await api({action:'getStatus'});
-    window._wizIndisposExists = !!(st.status && st.status.indisposN1Exists);
-  } catch(e) { window._wizIndisposExists = false; }
+  // Statut : INDISPOS_N+1 existe déjà ?
+  window._wizIndisposExists = !!(st && st.status && st.status.indisposN1Exists);
 
   // Verrou plein : INDISPOS_{N+1} déjà créé → wizard verrouillé
   if (window._wizIndisposExists) {
