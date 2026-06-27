@@ -636,6 +636,13 @@ function doGet(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    if (action === 'getNoelAnEligibles') {
+      const yr = parseInt(payload.year) || getIndisposYear();
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, year: yr, eligibles: computeNoelAnEligibles(yr)
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (action === 'getIndispos') {
       const targetId = user.role === 'admin' ? payload.doctorId : user.id;
       return ContentService.createTextOutput(JSON.stringify({
@@ -1726,8 +1733,15 @@ const MOIS_ABR = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','s
           break;
         }
 
-        // Construire le récap HTML par période
-        let sections = '', sectionsText = '';
+        // Construire le récap (synthèse + blocs par période)
+        const _TV={label:'Vacances',bg:'#eef4fb',fg:'#1d6fb8'}, _TF={label:'Formation',bg:'#fdf3e3',fg:'#b45309'}, _TI={label:'Indispo',bg:'#f1f1f3',fg:'#5f6368'};
+        const _blocks = [], _cnt = {VAC:0,FORM:0,INDISPO:0};
+        let sectionsText = '';
+        const _rowsFor = (jV,jF,jI) => [
+          {label:_TV.label,bg:_TV.bg,fg:_TV.fg,dates:jV},
+          {label:_TF.label,bg:_TF.bg,fg:_TF.fg,dates:jF},
+          {label:_TI.label,bg:_TI.bg,fg:_TI.fg,dates:jI},
+        ];
         periodes.forEach(p => {
           const jV=[], jF=[], jI=[];
           Object.entries(marIndispos).forEach(([date, val]) => {
@@ -1737,19 +1751,26 @@ const MOIS_ABR = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','s
             else if (val === 'INDISPO') jI.push(date);
           });
           if (!jV.length && !jF.length && !jI.length) return;
-          let inner = '';
-          if (jV.length) inner += '<div style="margin:6px 0 0"><span style="font-size:11px;font-weight:700;color:#1d6fb8;text-transform:uppercase">Vacances</span><br>'+pillsOf(jV,pillV)+'</div>';
-          if (jF.length) inner += '<div style="margin:6px 0 0"><span style="font-size:11px;font-weight:700;color:#b45309;text-transform:uppercase">Formations</span><br>'+pillsOf(jF,pillF)+'</div>';
-          if (jI.length) inner += '<div style="margin:6px 0 0"><span style="font-size:11px;font-weight:700;color:#5f6368;text-transform:uppercase">Indisponibilités</span><br>'+pillsOf(jI,pillI)+'</div>';
-          sections += '<div style="margin:14px 0 0"><div style="font-size:13px;font-weight:700;color:#16202e">'+p.nom+'</div>'+inner+'</div>';
+          _blocks.push({title:p.nom, rows:_rowsFor(jV,jF,jI)});
+          _cnt.VAC+=jV.length; _cnt.FORM+=jF.length; _cnt.INDISPO+=jI.length;
           sectionsText += p.nom+' : '+[...jV,...jF,...jI].map(fmtJour).join(', ')+'\n';
         });
-        const hors = Object.entries(marIndispos).filter(([date]) => !periodes.some(p => date >= p.debut && date <= p.fin));
-        if (hors.length) {
-          sections += '<div style="margin:14px 0 0"><div style="font-size:13px;font-weight:700;color:#16202e">Hors périodes</div><div style="margin:6px 0 0">'+hors.map(([d,v]) => pillI(fmtJour(d)+' · '+v)).join('')+'</div></div>';
-          sectionsText += 'Hors périodes : '+hors.map(([d,v])=>fmtJour(d)+' ('+v+')').join(', ')+'\n';
+        const _hV=[], _hF=[], _hI=[];
+        Object.entries(marIndispos).forEach(([date, val]) => {
+          if (periodes.some(p => date >= p.debut && date <= p.fin)) return;
+          if (val === 'VAC') _hV.push(date); else if (val === 'FORM') _hF.push(date); else if (val === 'INDISPO') _hI.push(date);
+        });
+        if (_hV.length || _hF.length || _hI.length) {
+          _blocks.push({title:'Hors périodes', rows:_rowsFor(_hV,_hF,_hI)});
+          _cnt.VAC+=_hV.length; _cnt.FORM+=_hF.length; _cnt.INDISPO+=_hI.length;
+          sectionsText += 'Hors périodes : '+[..._hV,..._hF,..._hI].map(fmtJour).join(', ')+'\n';
         }
-        if (!sections) { sections = '<div style="color:#9aa4b2;font-style:italic;font-size:13px">Aucune indisponibilité enregistrée.</div>'; sectionsText = 'Aucune indisponibilité.'; }
+        const sections = renderRecapMailBlocks_([
+          {n:_cnt.VAC,label:'jours vacances',bg:'#eef4fb',fg:'#1d6fb8'},
+          {n:_cnt.FORM,label:'jours formation',bg:'#fdf3e3',fg:'#b45309'},
+          {n:_cnt.INDISPO,label:'jours indispo',bg:'#f1f1f3',fg:'#5f6368'},
+        ], _blocks);
+        if (!sectionsText) sectionsText = 'Aucune indisponibilité.';
 
         const site = 'https://chpg-anesthesie.github.io/Planning-CHPG/';
         const html =
@@ -2106,40 +2127,35 @@ const MOIS_ABR = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','s
       break;
     }
 
-    let vacRows = '', vacText = '';
+    const _TV2={label:'Vacances',bg:'#eef4fb',fg:'#1d6fb8'}, _TF2={label:'Formation',bg:'#fdf3e3',fg:'#b45309'};
+    const _blocks2 = []; let vacText = '';
     periodes.forEach(p => {
-      const jours = Object.keys(marVAC).filter(d => d >= p.debut && d <= p.fin).sort();
-      if (!jours.length) return;
-      const ranges = [];
-      let debut = jours[0], prev = jours[0];
-      for (let i = 1; i < jours.length; i++) {
-        const d1 = new Date(prev+'T12:00:00');
-        d1.setDate(d1.getDate()+1);
-        if (d1.toISOString().slice(0,10) !== jours[i]) { ranges.push([debut, prev]); debut = jours[i]; }
-        prev = jours[i];
-      }
-      ranges.push([debut, prev]);
-      const pills = ranges.map(r => pillV(fmtPlage(r[0], r[1]))).join('');
-      vacRows += '<tr><td style="padding:9px 12px 4px 0;font-weight:700;color:#16202e;white-space:nowrap;vertical-align:top">'+p.nom+'</td><td style="padding:9px 0 4px 0;vertical-align:top">'+pills+'</td></tr>';
-      vacText += '  '+p.nom+' : '+ranges.map(r => fmtPlage(r[0], r[1])).join(', ')+'\n';
+      const jV = Object.keys(marVAC).filter(d => d >= p.debut && d <= p.fin).sort();
+      const jF = Object.keys(marFORM).filter(d => d >= p.debut && d <= p.fin).sort();
+      if (!jV.length && !jF.length) return;
+      _blocks2.push({title:p.nom, rows:[
+        {label:_TV2.label,bg:_TV2.bg,fg:_TV2.fg,dates:jV},
+        {label:_TF2.label,bg:_TF2.bg,fg:_TF2.fg,dates:jF},
+      ]});
+      if (jV.length) vacText += '  '+p.nom+' : '+jV.map(fmtJour).join(', ')+'\n';
     });
-    const vacHors = Object.keys(marVAC).filter(d => !periodes.some(p => d >= p.debut && d <= p.fin)).sort();
-    if (vacHors.length) {
-      const pills = vacHors.map(d => pillV(fmtJour(d))).join('');
-      vacRows += '<tr><td style="padding:9px 12px 4px 0;font-weight:700;color:#16202e;vertical-align:top">Autres</td><td style="padding:9px 0 4px 0;vertical-align:top">'+pills+'</td></tr>';
-      vacText += '  Autres : '+vacHors.map(fmtJour).join(', ')+'\n';
+    const _hV2 = Object.keys(marVAC).filter(d => !periodes.some(p => d >= p.debut && d <= p.fin)).sort();
+    const _hF2 = Object.keys(marFORM).filter(d => !periodes.some(p => d >= p.debut && d <= p.fin)).sort();
+    if (_hV2.length || _hF2.length) {
+      _blocks2.push({title:'Hors périodes', rows:[
+        {label:_TV2.label,bg:_TV2.bg,fg:_TV2.fg,dates:_hV2},
+        {label:_TF2.label,bg:_TF2.bg,fg:_TF2.fg,dates:_hF2},
+      ]});
+      if (_hV2.length) vacText += '  Autres : '+_hV2.map(fmtJour).join(', ')+'\n';
     }
     const formKeys = Object.keys(marFORM).sort();
     const nbVAC = Object.keys(marVAC).length;
     const nbFORM = formKeys.length;
     const link = 'https://chpg-anesthesie.github.io/Planning-CHPG/indispos.html';
-
-    const vacBlock = vacRows
-      ? '<table style="width:100%;border-collapse:collapse;margin:2px 0 0">'+vacRows+'</table>'
-      : '<div style="color:#9aa4b2;font-style:italic;font-size:13px">Aucune vacance posée.</div>';
-    const formBlock = nbFORM
-      ? '<div style="margin-top:2px">'+formKeys.map(d => pillF(fmtJour(d))).join('')+'</div>'
-      : '<div style="color:#9aa4b2;font-style:italic;font-size:13px">Aucune formation posée.</div>';
+    const congesBlocks = renderRecapMailBlocks_([
+      {n:nbVAC,label:'jours vacances',bg:'#eef4fb',fg:'#1d6fb8'},
+      {n:nbFORM,label:'jours formation',bg:'#fdf3e3',fg:'#b45309'},
+    ], _blocks2);
 
     const html =
       '<div style="background:#f4f6f9;padding:0;margin:0">'+
@@ -2151,11 +2167,8 @@ const MOIS_ABR = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','s
           '</div>'+
           '<div style="padding:22px">'+
             '<p style="margin:0 0 18px;font-size:14px;color:#3a4759">Bonjour <strong>'+nom+'</strong>,</p>'+
-            '<div style="font-size:13px;font-weight:700;color:#16202e">📋 Vos congés posés au staff</div>'+
-            '<div style="font-size:11px;font-weight:700;color:#1d6fb8;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 2px">🏖️ Vacances · '+nbVAC+' j</div>'+
-            vacBlock+
-            '<div style="font-size:11px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 2px">📚 Formations · '+nbFORM+' j</div>'+
-            formBlock+
+            '<div style="font-size:13px;font-weight:700;color:#16202e;margin-bottom:12px">📋 Vos congés posés au staff</div>'+
+            congesBlocks+
             '<div style="border-top:1px solid #eef1f5;margin:22px 0 16px"></div>'+
             '<div style="font-size:13px;font-weight:700;color:#16202e;margin-bottom:10px">🔓 Saisissez vos indisponibilités</div>'+
             '<p style="margin:0 0 14px;font-size:13px;color:#3a4759">La saisie est maintenant ouverte. Connectez-vous avec votre code personnel :</p>'+
@@ -2460,4 +2473,103 @@ function testSetDailyStatusWrite() {
     dates: ['2027-03-10', '2027-03-11'],
   };
   Logger.log(doGet({ parameter: { payload: JSON.stringify(payload) } }).getContent());
+}
+// ── Rendu HTML d'un récap d'indispos pour mail : synthèse + blocs par période ──
+// synth  = [{n, label, bg, fg}]   (cartes du haut, n=0 → masquée)
+// blocks = [{title, rows:[{label, bg, fg, dates:[ISO,...]}]}]
+function renderRecapMailBlocks_(synth, blocks) {
+  const MOIS_ABR = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+  const fmtJour = ds => { const d=new Date(ds+'T12:00:00'); return d.getDate()+' '+MOIS_ABR[d.getMonth()]; };
+  const fmtPlage = (a,b) => { if(a===b) return fmtJour(a); const da=new Date(a+'T12:00:00'),db=new Date(b+'T12:00:00'); if(da.getMonth()===db.getMonth()) return da.getDate()+' → '+db.getDate()+' '+MOIS_ABR[db.getMonth()]; return fmtJour(a)+' → '+fmtJour(b); };
+  const toRanges = arr => { const j=arr.slice().sort(); const out=[]; if(!j.length) return out; let deb=j[0],prev=j[0]; for(let i=1;i<j.length;i++){ const d1=new Date(prev+'T12:00:00'); d1.setDate(d1.getDate()+1); if(d1.toISOString().slice(0,10)!==j[i]){ out.push([deb,prev]); deb=j[i]; } prev=j[i]; } out.push([deb,prev]); return out; };
+  const rangesText = arr => toRanges(arr).map(r=>fmtPlage(r[0],r[1])).join('&nbsp;&nbsp;·&nbsp;&nbsp;');
+
+  let synthHtml = '';
+  if (synth && synth.length) {
+    const cells = synth.filter(x=>x.n).map(x =>
+      '<td style="padding:0 6px 0 0"><div style="background:'+x.bg+';border-radius:9px;padding:8px 12px;text-align:center"><div style="font-size:18px;font-weight:800;color:'+x.fg+';line-height:1">'+x.n+'</div><div style="font-size:10px;font-weight:600;color:'+x.fg+';text-transform:uppercase;letter-spacing:.4px;margin-top:2px">'+x.label+'</div></div></td>'
+    ).join('');
+    if (cells) synthHtml = '<table cellpadding="0" cellspacing="0" style="margin:4px 0 18px;width:100%"><tr>'+cells+'<td style="width:99%"></td></tr></table>';
+  }
+
+  const blocksHtml = blocks.map(blk => {
+    const rows = (blk.rows||[]).filter(r=>r.dates&&r.dates.length).map(r =>
+      '<tr><td style="padding:7px 12px 7px 0;vertical-align:top;white-space:nowrap;width:96px"><span style="display:inline-block;background:'+r.bg+';color:'+r.fg+';font-size:11px;font-weight:700;border-radius:6px;padding:3px 9px">'+r.label+'</span></td>'
+      +'<td style="padding:7px 0;vertical-align:top;font-size:13px;color:#334155;line-height:1.55">'+rangesText(r.dates)+'</td></tr>'
+    ).join('');
+    if (!rows) return '';
+    return '<div style="margin:0 0 12px;border:1px solid #e8edf3;border-radius:12px;overflow:hidden">'
+      +'<div style="background:#f7f9fc;border-left:4px solid #ce1126;padding:9px 14px;font-size:13px;font-weight:700;color:#16202e">'+blk.title+'</div>'
+      +'<table cellpadding="0" cellspacing="0" style="width:100%;padding:4px 14px 8px"><tbody>'+rows+'</tbody></table></div>';
+  }).join('');
+
+  return synthHtml + (blocksHtml || '<div style="color:#9aa4b2;font-style:italic;font-size:13px">Aucune indisponibilité enregistrée.</div>');
+}
+// ── Éligibles Noël/Jour de l'An (bandeau staff.html) ───────────────────
+// Réutilise la rotation overdueKey du générateur : jamais-fait d'abord,
+// puis l'année la plus ancienne. Exclut no_garde et PRUNET (souhait_plafond),
+// et les MAR hors année planning (date_debut/date_fin).
+// Seuils ajustables via CONFIG : NOEL_SEUIL_ANS (3), NOEL_PLANCHER (4), NOEL_PLAFOND (8).
+function computeNoelAnEligibles(year) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  let SEUIL = 3, PLANCHER = 4, PLAFOND = 8;
+  const cfg = ss.getSheetByName('CONFIG');
+  if (cfg) {
+    const cd = cfg.getDataRange().getValues();
+    const getN = k => { for (let r=1;r<cd.length;r++){ if(String(cd[r][0]).trim()===k){ const v=parseInt(String(cd[r][1]).trim()); if(!isNaN(v)) return v; } } return null; };
+    const a=getN('NOEL_SEUIL_ANS'); if(a!=null) SEUIL=a;
+    const b=getN('NOEL_PLANCHER');  if(b!=null) PLANCHER=b;
+    const c=getN('NOEL_PLAFOND');   if(c!=null) PLAFOND=c;
+  }
+
+  const FLAGS = getMedecinFlags();
+  const planStart = toDateStr(getPremierJourPlanning(year));
+  const planEnd   = toDateStr(new Date(getPremierJourPlanning(year + 1).getTime() - 86400000));
+  const horsAnnee = id => { const dd=FLAGS.dateDebut[id], df=FLAGS.dateFin[id]; if(df && df<planStart) return true; if(dd && dd>planEnd) return true; return false; };
+
+  // Effectif éligible : actifs − no_garde − PRUNET − hors année
+  const initMap = {}, eligibles = [];
+  const med = ss.getSheetByName('MEDECINS');
+  if (med) {
+    const md = med.getDataRange().getValues();
+    for (let r=1;r<md.length;r++){
+      const id = String(md[r][0]).trim(); if(!id || id==='DRUGE') continue;
+      initMap[id] = String(md[r][2]||'').trim() || id;
+      if (String(md[r][3]).trim().toUpperCase() !== 'O') continue;
+      if (FLAGS.noGarde.has(id)) continue;
+      if (FLAGS.souhaitPlafond.has(id)) continue;
+      if (horsAnnee(id)) continue;
+      eligibles.push(id);
+    }
+  }
+
+  // Historique : dernière année où chacun a fait Noël/An (onglet HISTORIQUE)
+  const noelHistory = {};
+  const hist = ss.getSheetByName('HISTORIQUE');
+  if (hist) {
+    const hd = hist.getDataRange().getValues();
+    const Hh = hd[0].map(x=>String(x).trim());
+    const cId=Hh.indexOf('ID'), cAn=Hh.indexOf('ANNEE'), cNa=Hh.indexOf('NOEL/AN');
+    if (cId>=0 && cAn>=0 && cNa>=0) {
+      for (let r=1;r<hd.length;r++){
+        const id=String(hd[r][cId]).trim(); if(!id) continue;
+        if ((Number(hd[r][cNa])||0)<=0) continue;
+        const y=Number(hd[r][cAn])||0;
+        if (noelHistory[id]==null || y>noelHistory[id]) noelHistory[id]=y;
+      }
+    }
+  }
+
+  const overdueKey = m => { const ly=noelHistory[m]; return ly==null ? [0,0,m] : [1,ly,m]; };
+  const cmp = (a,b)=>a[0]-b[0]||a[1]-b[1]||(a[2]<b[2]?-1:a[2]>b[2]?1:0);
+  eligibles.sort((a,b)=>cmp(overdueKey(a),overdueKey(b)));
+
+  // "En retard" = jamais fait OU pas fait depuis ≥ SEUIL ans
+  const enRetard = eligibles.filter(id => { const ly=noelHistory[id]; return ly==null || (year-ly)>=SEUIL; });
+  let finalIds = enRetard.slice();
+  if (finalIds.length < PLANCHER) finalIds = eligibles.slice(0, PLANCHER);
+  finalIds = finalIds.slice(0, PLAFOND);
+
+  return finalIds.map(id => ({ id, init: initMap[id]||id, last: (noelHistory[id]!=null ? noelHistory[id] : null) }));
 }
