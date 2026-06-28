@@ -577,6 +577,30 @@ function applyModification(mod) {
       writeCell(`GARDES_${year}`, doctorId2, jourRG, 'RG');
       break;
     }
+    case 'echangeGardeJours': {
+      // Échange de DEUX gardes sur deux dates : doctorId@date <-> doctorId2@date2 (le rôle reste attaché à sa date).
+      if (date === date2) throw new Error('Les deux dates doivent être différentes');
+      const codeA = readCell(`GARDES_${year}`, doctorId,  date);
+      const codeB = readCell(`GARDES_${year}`, doctorId2, date2);
+      if (!/^G2?$/.test(String(codeA).toUpperCase())) throw new Error(`Pas de garde G/G2 pour ${doctorId} le ${date}`);
+      if (!/^G2?$/.test(String(codeB).toUpperCase())) throw new Error(`Pas de garde G/G2 pour ${doctorId2} le ${date2}`);
+      const rg1 = nextDay(date), rg2 = nextDay(date2);
+      if (rg1 === date2 || rg2 === date) throw new Error('Dates trop proches (gardes adjacentes) — à échanger manuellement');
+      // refus si un MAR a déjà quelque chose à la date d'arrivée (évite d'écraser une garde existante)
+      if (readCell(`GARDES_${year}`, doctorId, date2) || readCell(`GARDES_${year}`, doctorId2, date))
+        throw new Error('Un des médecins a déjà une garde à l\'autre date — échange à traiter manuellement');
+      // échange des gardes (chaque date conserve son rôle G/G2)
+      writeCell(`GARDES_${year}`, doctorId,  date,  '');
+      writeCell(`GARDES_${year}`, doctorId2, date,  codeA);
+      writeCell(`GARDES_${year}`, doctorId2, date2, '');
+      writeCell(`GARDES_${year}`, doctorId,  date2, codeB);
+      // les repos de garde (RG) du lendemain suivent la personne
+      writeCell(`GARDES_${year}`, doctorId,  rg1, '');
+      writeCell(`GARDES_${year}`, doctorId2, rg1, 'RG');
+      writeCell(`GARDES_${year}`, doctorId2, rg2, '');
+      writeCell(`GARDES_${year}`, doctorId,  rg2, 'RG');
+      break;
+    }
     // (C3b) 'indispo'/'secteur'/'libre' retirés — écrivaient dans OVERRIDES (jamais lu).
     // Le placement secteur réel passe par savePlanningOverride → PLANNING_OVERRIDES.
     default:

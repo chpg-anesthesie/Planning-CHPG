@@ -3057,58 +3057,102 @@ function openPanel(type, prefillDocId='', prefillDate=''){
       </div>`;
   }
   if(type==='garde'){
-    body=yearSelectorHtml+`
-      <div class="form-field"><label class="form-label">Type</label>
-        <select class="form-select" id="pModType" onchange="updateGardeForm()">
-          <option value="">— Choisir —</option>
-          <option value="echangeGarde">Échange de garde</option>
-          <option value="donGarde">Don de garde</option>
-        </select>
+    body=`
+      <div style="display:flex;gap:6px;background:var(--line-light);border-radius:12px;padding:4px;margin-bottom:16px">
+        <button type="button" id="gsegDon" onclick="setGardeMode('don')" style="flex:1;border:0;background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(15,23,42,.12);padding:9px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Don de garde</button>
+        <button type="button" id="gsegEch" onclick="setGardeMode('ech')" style="flex:1;border:0;background:transparent;color:var(--ink-3);padding:9px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Échange de garde</button>
       </div>
       <div id="gardeFormExtra"></div>`;
   }
   document.getElementById('panelBody').innerHTML=body;
   document.getElementById('panelOverlay').classList.add('open');
+  if(type==='garde'){ GD={mode:'don',d1:'',p1:'',role1:'',recv:'',d2:'',p2:'',role2:''}; initGardePanel(); }
 }
 
-function updateGardeForm(){
-  const type=document.getElementById('pModType')?.value;
-  const marOpts=marsData.filter(m=>m.actif).map(m=>`<option value="${m.id}">${m.id}</option>`).join('');
-  let extra='';
-  if(type==='echangeGarde'){
-    extra=`
-      <div class="form-field"><label class="form-label">Date de la garde</label><input class="form-input" type="date" id="pDate" onchange="showGardeRole()"/></div>
-      <div id="gardeRoleHint" style="display:none;font-size:11px;font-weight:600;color:var(--blue);padding:6px 10px;background:#EFF4FE;border-radius:8px;margin-bottom:4px"></div>
-      <div class="form-field"><label class="form-label">Médecin A — possède la garde</label><select class="form-select" id="pDoctor" onchange="showGardeRole()"><option value="">—</option>${marOpts}</select></div>
-      <div class="form-field"><label class="form-label">Médecin B — la reprend</label><select class="form-select" id="pDoctor2"><option value="">—</option>${marOpts}</select></div>
-      <div style="font-size:11px;color:var(--ink-4);line-height:1.5;padding:8px 10px;background:var(--line-light);border-radius:8px">
-        À cette date, la garde de A passe à B (même rôle G/G2). Le repos de garde du lendemain suit automatiquement.
-      </div>`;
-  }
-  if(type==='donGarde'){
-    extra=`
-      <div class="form-field"><label class="form-label">Date de la garde</label><input class="form-input" type="date" id="pDate" onchange="showGardeRole()"/></div>
-      <div id="gardeRoleHint" style="display:none;font-size:11px;font-weight:600;color:var(--blue);padding:6px 10px;background:#EFF4FE;border-radius:8px;margin-bottom:4px"></div>
-      <div class="form-field"><label class="form-label">Médecin qui donne</label><select class="form-select" id="pDoctor" onchange="showGardeRole()"><option value="">—</option>${marOpts}</select></div>
-      <div class="form-field"><label class="form-label">Médecin qui reçoit</label><select class="form-select" id="pDoctor2"><option value="">—</option>${marOpts}</select></div>
-      <div style="font-size:11px;color:var(--ink-4);line-height:1.5;padding:8px 10px;background:var(--line-light);border-radius:8px">
-        Le médecin qui reçoit prend la garde + le repos de garde du lendemain (automatique).
-      </div>`;
-  }
-  document.getElementById('gardeFormExtra').innerHTML=extra;
+let GD = {mode:'don', d1:'', p1:'', role1:'', recv:'', d2:'', p2:'', role2:''};
+let gardesByYear = {};
+const _nm = id => (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
+const _roleTxt = r => r==='G' ? 'G \u00b7 R\u00e9a' : 'G2 \u00b7 Mat';
+function _fmtDate(d){ if(!d) return '\u2014'; const x=new Date(d+'T12:00:00'); return ['dim','lun','mar','mer','jeu','ven','sam'][x.getDay()]+' '+String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0'); }
+async function ensureGardesYear(y){ if(!gardesByYear[y]){ try{ const r=await api({action:'getGardes', year:Number(y)}); gardesByYear[y]=(r&&r.success)?(r.data||{}):{}; }catch(e){ gardesByYear[y]={}; } } return gardesByYear[y]; }
+function _holdersFor(date){ const y=date&&date.slice(0,4); const m=((gardesByYear[y]||{})[date])||{}; const out=[]; Object.keys(m).forEach(id=>{ const c=String(m[id]).trim().toUpperCase(); if(c==='G'||c==='G2') out.push({id,role:c}); }); out.sort((p,q)=> p.role===q.role?0:(p.role==='G'?-1:1)); return out; }
+function _gcard(g, selId, picker){
+  const sel = selId===g.id;
+  const roleStyle = g.role==='G' ? 'background:#eef4ff;color:#1d4ed8' : 'background:#ecfdf5;color:#0d9488';
+  return '<div onclick="'+picker+'(\''+g.id+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border:1.5px solid '+(sel?'#1d4ed8':'var(--line)')+';border-radius:11px;cursor:pointer;margin-bottom:7px;'+(sel?'background:#f5f8ff;box-shadow:0 0 0 3px rgba(29,78,216,.10)':'background:var(--white)')+'">'
+    + '<span style="font-size:14px;font-weight:700;color:var(--ink)">'+_nm(g.id)+'</span>'
+    + '<span style="display:flex;align-items:center;gap:9px"><span style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:7px;'+roleStyle+'">'+_roleTxt(g.role)+'</span>'
+    + '<span style="font-size:11px;font-weight:700;color:'+(sel?'#1d4ed8':'var(--ink-4)')+'">'+(sel?'\u2713 choisi':'choisir')+'</span></span></div>';
+}
+function _setRecap(html){ const r=document.getElementById('gardeRecap'); if(!r) return; r.innerHTML = html ? '<div style="border:1px solid #cdeee6;background:#f4fcf9;border-radius:11px;padding:12px 14px;font-size:13px;line-height:1.5;color:#0f3d34;margin:6px 0 4px">'+html+'</div>' : ''; }
+
+function setGardeMode(mode){
+  GD.mode=mode; const dOn=mode==='don';
+  const a=document.getElementById('gsegDon'), b=document.getElementById('gsegEch');
+  if(a){ a.style.background=dOn?'#fff':'transparent'; a.style.color=dOn?'var(--ink)':'var(--ink-3)'; a.style.boxShadow=dOn?'0 1px 3px rgba(15,23,42,.12)':'none'; }
+  if(b){ b.style.background=!dOn?'#fff':'transparent'; b.style.color=!dOn?'var(--ink)':'var(--ink-3)'; b.style.boxShadow=!dOn?'0 1px 3px rgba(15,23,42,.12)':'none'; }
+  document.getElementById('gardeFormExtra').innerHTML = dOn ? _donFormHtml() : _echFormHtml();
+  if(dOn) renderDon(); else renderEch();
+}
+async function initGardePanel(){ await ensureGardesYear(String(ADMIN_YEAR)); setGardeMode(GD.mode||'don'); }
+
+function _donFormHtml(){
+  return '<div class="form-field"><label class="form-label">\u2460 Jour de la garde</label>'
+    + '<input class="form-input" type="date" id="pDate" value="'+(GD.d1||'')+'" onchange="onDonDate(this.value)"/></div>'
+    + '<div id="donHolders"></div>'
+    + '<div class="form-field" id="donRecvWrap" style="display:none"><label class="form-label">\u2462 M\u00e9decin qui r\u00e9cup\u00e8re</label>'
+    + '<select class="form-select" id="donRecv" onchange="onDonRecv(this.value)"></select></div>'
+    + '<div id="gardeRecap"></div>'
+    + '<div style="font-size:11px;color:var(--ink-4);line-height:1.5;padding:8px 10px;background:var(--line-light);border-radius:8px;margin-top:6px">Le m\u00e9decin qui r\u00e9cup\u00e8re prend la garde + le repos du lendemain (automatique).</div>';
+}
+function renderDon(){
+  const wrap=document.getElementById('donHolders'); if(!wrap) return;
+  if(!GD.d1){ wrap.innerHTML=''; const rw=document.getElementById('donRecvWrap'); if(rw) rw.style.display='none'; _setRecap(''); return; }
+  const holders=_holdersFor(GD.d1);
+  if(!holders.length){ wrap.innerHTML='<div style="font-size:12.5px;color:var(--ink-4);text-align:center;padding:14px;border:1px dashed var(--line);border-radius:11px;margin-bottom:10px">Aucune garde trouv\u00e9e \u00e0 cette date.</div>'; const rw=document.getElementById('donRecvWrap'); if(rw) rw.style.display='none'; _setRecap(''); return; }
+  if(GD.p1 && !holders.some(h=>h.id===GD.p1)) GD.p1='';
+  wrap.innerHTML='<div class="form-label" style="margin-bottom:6px">\u2461 Quelle garde est donn\u00e9e\u00a0?</div>'+holders.map(h=>_gcard(h,GD.p1,'pickGiver')).join('');
+  const onCall=holders.map(h=>h.id);
+  const recv=document.getElementById('donRecv');
+  if(recv) recv.innerHTML='<option value="">\u2014 Choisir \u2014</option>'+marsData.filter(m=>m.actif&&!onCall.includes(m.id)).map(m=>'<option value="'+m.id+'"'+(m.id===GD.recv?' selected':'')+'>'+_nm(m.id)+'</option>').join('');
+  const rw=document.getElementById('donRecvWrap'); if(rw) rw.style.display = GD.p1 ? 'block' : 'none';
+  _updateDonRecap();
+}
+async function onDonDate(v){ GD.d1=v; GD.p1=''; GD.recv=''; if(v) await ensureGardesYear(v.slice(0,4)); renderDon(); }
+function pickGiver(id){ const h=_holdersFor(GD.d1).find(x=>x.id===id); GD.p1=id; GD.role1=h?h.role:''; renderDon(); }
+function onDonRecv(v){ GD.recv=v; _updateDonRecap(); }
+function _updateDonRecap(){
+  const h=_holdersFor(GD.d1).find(x=>x.id===GD.p1);
+  if(h && GD.recv) _setRecap('<b>'+_nm(GD.p1)+'</b> donne sa garde <b>'+_roleTxt(h.role)+'</b> du <b>'+_fmtDate(GD.d1)+'</b> \u00e0 <b>'+_nm(GD.recv)+'</b>.<br><span style="color:var(--ink-3)">Le repos du lendemain suit automatiquement.</span>');
+  else _setRecap('');
 }
 
-async function showGardeRole(){
-  try{
-    const hint=document.getElementById('gardeRoleHint'); if(!hint) return;
-    const d=document.getElementById('pDate')?.value, a=document.getElementById('pDoctor')?.value;
-    if(!d||!a){ hint.style.display='none'; return; }
-    if(!gardesData){ const r=await api({action:'getGardes'}); if(r&&r.success) gardesData=r.data; }
-    const code=(gardesData&&gardesData[d]&&gardesData[d][a])?String(gardesData[d][a]).trim().toUpperCase():'';
-    if(code==='G'){ hint.textContent='Garde de A ce jour : G — REA'; hint.style.display='block'; }
-    else if(code==='G2'){ hint.textContent='Garde de A ce jour : G2 — Maternité'; hint.style.display='block'; }
-    else { hint.textContent='⚠️ Aucune garde G/G2 pour ce médecin à cette date'; hint.style.display='block'; }
-  }catch(e){ const x=document.getElementById('gardeRoleHint'); if(x) x.style.display='none'; }
+function _echFormHtml(){
+  return '<div class="form-field"><label class="form-label">\u2460 Premi\u00e8re date</label>'
+    + '<input class="form-input" type="date" id="echD1" value="'+(GD.d1||'')+'" onchange="onEchDate(1,this.value)"/></div>'
+    + '<div id="echH1"></div>'
+    + '<div class="form-field" style="margin-top:8px"><label class="form-label">\u2461 Deuxi\u00e8me date</label>'
+    + '<input class="form-input" type="date" id="echD2" value="'+(GD.d2||'')+'" onchange="onEchDate(2,this.value)"/></div>'
+    + '<div id="echH2"></div>'
+    + '<div id="gardeRecap"></div>'
+    + '<div style="font-size:11px;color:var(--ink-4);line-height:1.5;padding:8px 10px;background:var(--line-light);border-radius:8px;margin-top:6px">Chacun r\u00e9cup\u00e8re la garde de l\'autre, repos du lendemain inclus. Le r\u00f4le reste attach\u00e9 \u00e0 sa date.</div>';
+}
+function renderEch(){ _renderEchSlot(1); _renderEchSlot(2); _updateEchRecap(); }
+function _renderEchSlot(n){
+  const d=n===1?GD.d1:GD.d2, selKey=n===1?'p1':'p2', wrap=document.getElementById(n===1?'echH1':'echH2'); if(!wrap) return;
+  if(!d){ wrap.innerHTML=''; return; }
+  const holders=_holdersFor(d);
+  if(!holders.length){ wrap.innerHTML='<div style="font-size:12.5px;color:var(--ink-4);text-align:center;padding:12px;border:1px dashed var(--line);border-radius:11px;margin:2px 0 8px">Aucune garde \u00e0 cette date.</div>'; GD[selKey]=''; return; }
+  if(GD[selKey] && !holders.some(h=>h.id===GD[selKey])) GD[selKey]='';
+  wrap.innerHTML=holders.map(h=>_gcard(h,GD[selKey],n===1?'pickEch1':'pickEch2')).join('');
+}
+async function onEchDate(n,v){ if(n===1){GD.d1=v;GD.p1='';}else{GD.d2=v;GD.p2='';} if(v) await ensureGardesYear(v.slice(0,4)); renderEch(); }
+function pickEch1(id){ const h=_holdersFor(GD.d1).find(x=>x.id===id); GD.p1=id; GD.role1=h?h.role:''; renderEch(); }
+function pickEch2(id){ const h=_holdersFor(GD.d2).find(x=>x.id===id); GD.p2=id; GD.role2=h?h.role:''; renderEch(); }
+function _updateEchRecap(){
+  const ha=_holdersFor(GD.d1).find(x=>x.id===GD.p1), hb=_holdersFor(GD.d2).find(x=>x.id===GD.p2);
+  if(ha&&hb) _setRecap('<b>'+_nm(GD.p1)+'</b> ('+_roleTxt(ha.role)+', '+_fmtDate(GD.d1)+') <span style="color:#0d9488;font-weight:800">\u21c4</span> <b>'+_nm(GD.p2)+'</b> ('+_roleTxt(hb.role)+', '+_fmtDate(GD.d2)+').<br><span style="color:var(--ink-3)">Chacun r\u00e9cup\u00e8re la garde de l\'autre, repos du lendemain inclus.</span>');
+  else _setRecap('');
 }
 
 function setPanelYear(year) {
@@ -3140,12 +3184,17 @@ async function submitPanel(){
       mod={type:'secteur',date,doctorId:doctor,value:am,valuePM:pm};
     }
     if(panelType==='garde'){
-      const modType=document.getElementById('pModType')?.value;
-      const value=document.getElementById('pValue')?.value;
-      if(!modType||!date||!doctor) throw new Error('Veuillez remplir tous les champs');
-      mod={type:modType,date,doctorId:doctor,doctorId2:doctor2,value,date2};
+      if(GD.mode==='don'){
+        if(!GD.d1||!GD.p1||!GD.recv) throw new Error('Choisissez le jour, la garde donnée et le médecin qui récupère');
+        mod={type:'donGarde', date:GD.d1, doctorId:GD.p1, doctorId2:GD.recv};
+      } else {
+        if(!GD.d1||!GD.p1||!GD.d2||!GD.p2) throw new Error('Choisissez les deux dates et les deux gardes concernées');
+        if(GD.d1===GD.d2) throw new Error('Les deux dates doivent être différentes');
+        if(GD.d1.slice(0,4)!==GD.d2.slice(0,4)) throw new Error('Échange entre deux années non géré');
+        mod={type:'echangeGardeJours', date:GD.d1, doctorId:GD.p1, date2:GD.d2, doctorId2:GD.p2};
+      }
     }
-    mod.year = ADMIN_YEAR; // toujours utiliser l'année du contexte admin
+    mod.year = (panelType==='garde' && GD.d1) ? (Number(GD.d1.slice(0,4))||ADMIN_YEAR) : ADMIN_YEAR;
     const data=await api({action:'applyModification',modification:mod});
     if(!data.success) throw new Error(data.error);
     result.textContent='✅ Modification appliquée — planning republié automatiquement.';
