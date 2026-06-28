@@ -1685,6 +1685,7 @@ if (action === 'getConflitsAll') {
         .setMimeType(ContentService.MimeType.JSON);
     }
     if (action === 'envoyerRecapIndispos') {
+      // (Remplace l'ancien récap indispos) — Récapitulatif des GARDES attribuées (G réa / G2 mat).
       if (user.role !== 'admin') return _deny();
       const year = Number(payload.year) || TEST_YEAR;
       const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1692,55 +1693,42 @@ if (action === 'getConflitsAll') {
       if (!medSheet) return _error('Onglet MEDECINS introuvable');
       const medData = medSheet.getDataRange().getValues();
 
-      // Lire les indispos
-      const indSheet = ss.getSheetByName(`INDISPOS_${year}`);
-      if (!indSheet) return _error(`Onglet INDISPOS_${year} introuvable`);
-      const indData = indSheet.getDataRange().getValues();
+      const gardesSheet = ss.getSheetByName(`GARDES_${year}`);
+      if (!gardesSheet) return _error(`Onglet GARDES_${year} introuvable`);
+      const gData = gardesSheet.getDataRange().getValues();
+      const dateToCol = buildDateToCol(gData, year);
+      const colToDate = {};
+      Object.keys(dateToCol).forEach(d => { colToDate[dateToCol[d]] = d; });
 
-      // Reconstruire les dates depuis lignes 2 (jours) et 3 (numéros)
-      const dates = reconstruireDatesHeaders(indData, year); // (C3b) helper unifié
+      // Fériés : Set (depuis getJoursFeries déjà déployé) pour savoir QUELS jours, + mapping nom local (mêmes calculs).
+      const feriesSet = getJoursFeries(year), feriesSetN = getJoursFeries(year + 1);
+      const isF = d => feriesSet.has(d) || feriesSetN.has(d);
+      const feriesNamed = (y) => {
+        const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3);
+        const h=(19*a+b-d-g+15)%30,ii=Math.floor(c/4),k=c%4,l=(32+2*e+2*ii-h-k)%7,mm=Math.floor((a+11*h+22*l)/451);
+        const mo=Math.floor((h+l-7*mm+114)/31), da=((h+l-7*mm+114)%31)+1;
+        const paques=new Date(y,mo-1,da,12,0,0);
+        const fmt=dt=>`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+        const add=(dt,n)=>{const x=new Date(dt);x.setDate(x.getDate()+n);return fmt(x);};
+        const fix=(m2,d2)=>{const dt=new Date(y,m2-1,d2,12,0,0);if(dt.getDay()===0)dt.setDate(dt.getDate()+1);return fmt(dt);};
+        const plain=(m2,d2)=>`${y}-${String(m2).padStart(2,'0')}-${String(d2).padStart(2,'0')}`;
+        const M={};
+        M[fix(1,1)]='Jour de l\'An'; M[plain(1,27)]='Sainte Dévote'; M[fix(5,1)]='Fête du Travail';
+        M[fix(8,15)]='Assomption'; M[fix(11,1)]='Toussaint'; M[fix(11,19)]='Fête du Prince';
+        M[fix(12,8)]='Immaculée Conception'; M[fix(12,25)]='Noël';
+        M[add(paques,1)]='Lundi de Pâques'; M[add(paques,39)]='Ascension'; M[add(paques,50)]='Lundi de Pentecôte'; M[add(paques,60)]='Fête-Dieu';
+        return M;
+      };
+      const fnames = Object.assign({}, feriesNamed(year), feriesNamed(year + 1));
 
-      // Lire les périodes vacances
-      const perSheet = ss.getSheetByName('PERIODES_VAC');
-      const periodes = [];
-      if (perSheet) {
-        const perData = perSheet.getDataRange().getValues();
-        for (let r = 1; r < perData.length; r++) {
-          const nom = String(perData[r][0]).trim();
-          if (!nom) continue;
-          const debutRaw = perData[r][1], finRaw = perData[r][2];
-          const debut = debutRaw instanceof Date
-            ? `${debutRaw.getFullYear()}-${String(debutRaw.getMonth()+1).padStart(2,'0')}-${String(debutRaw.getDate()).padStart(2,'0')}`
-            : String(debutRaw).trim();
-          const fin = finRaw instanceof Date
-            ? `${finRaw.getFullYear()}-${String(finRaw.getMonth()+1).padStart(2,'0')}-${String(finRaw.getDate()).padStart(2,'0')}`
-            : String(finRaw).trim();
-          periodes.push({nom, debut, fin});
-        }
-      }
+      const site = 'https://chpg-anesthesie.github.io/Planning-CHPG/';
+      const JOURS = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+      const MOIS  = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+      const dd = n => String(n).padStart(2,'0');
 
       let sent = 0, skipped = 0;
       const errors = [];
-const MOIS_ABR = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
-      const fmtJour = ds => { const d=new Date(ds+'T12:00:00'); return d.getDate()+' '+MOIS_ABR[d.getMonth()]; };
-      const fmtPlage = (a,b) => {
-        if(a===b) return fmtJour(a);
-        const da=new Date(a+'T12:00:00'), db=new Date(b+'T12:00:00');
-        if(da.getMonth()===db.getMonth()) return da.getDate()+' → '+db.getDate()+' '+MOIS_ABR[db.getMonth()];
-        return fmtJour(a)+' → '+fmtJour(b);
-      };
-      const toRanges = arr => {
-        const j=[...arr].sort(); const out=[]; if(!j.length) return out;
-        let deb=j[0], prev=j[0];
-        for(let i=1;i<j.length;i++){ const d1=new Date(prev+'T12:00:00'); d1.setDate(d1.getDate()+1);
-          if(d1.toISOString().slice(0,10)!==j[i]){ out.push([deb,prev]); deb=j[i]; } prev=j[i]; }
-        out.push([deb,prev]); return out;
-      };
-      const pill = (t,bg,bd,fg) => '<span style="display:inline-block;background:'+bg+';border:1px solid '+bd+';border-radius:999px;padding:3px 11px;font-size:12px;font-weight:600;color:'+fg+';margin:0 5px 5px 0;white-space:nowrap">'+t+'</span>';
-      const pillV = t => pill(t,'#eef4fb','#cfe0f2','#1d6fb8');
-      const pillF = t => pill(t,'#fdf3e3','#f2d98a','#b45309');
-      const pillI = t => pill(t,'#f1f1f3','#dadce0','#5f6368');
-      const pillsOf = (arr, fn) => toRanges(arr).map(r => fn(fmtPlage(r[0],r[1]))).join('');
+
       for (let r = 1; r < medData.length; r++) {
         const id = String(medData[r][0]).trim();
         const nom = String(medData[r][1]).trim();
@@ -1749,89 +1737,111 @@ const MOIS_ABR = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','s
         if (!id || !actif) continue;
         if (!email) { skipped++; continue; }
 
-        // Lire les indispos de ce MAR
-        const marIndispos = {};
-        for (let ri = 3; ri < indData.length; ri++) {
-          if (String(indData[ri][0]).trim() !== id) continue;
-          dates.forEach((date, i) => {
-            if (!date) return;
-            const val = String(indData[ri][i+1]||'').trim();
-            if (val) marIndispos[date] = val;
+        // Gardes du MAR (G / G2 uniquement)
+        const gardes = [];
+        for (let ri = 3; ri < gData.length; ri++) {
+          if (String(gData[ri][0]).trim() !== id) continue;
+          Object.keys(colToDate).forEach(col => {
+            const date = colToDate[col];
+            const val = String(gData[ri][Number(col)] || '').trim().toUpperCase();
+            if (val === 'G' || val === 'G2') gardes.push({ date, type: val });
           });
           break;
         }
+        gardes.sort((x,y2) => x.date < y2.date ? -1 : (x.date > y2.date ? 1 : 0));
 
-        // Construire le récap (synthèse + blocs par période)
-        const _TV={label:'Vacances',bg:'#eef4fb',fg:'#1d6fb8'}, _TF={label:'Formation',bg:'#fdf3e3',fg:'#b45309'}, _TI={label:'Indispo',bg:'#f1f1f3',fg:'#5f6368'};
-        const _blocks = [], _cnt = {VAC:0,FORM:0,INDISPO:0};
-        let sectionsText = '';
-        const _rowsFor = (jV,jF,jI) => [
-          {label:_TV.label,bg:_TV.bg,fg:_TV.fg,dates:jV},
-          {label:_TF.label,bg:_TF.bg,fg:_TF.fg,dates:jF},
-          {label:_TI.label,bg:_TI.bg,fg:_TI.fg,dates:jI},
-        ];
-        periodes.forEach(p => {
-          const jV=[], jF=[], jI=[];
-          Object.entries(marIndispos).forEach(([date, val]) => {
-            if (date < p.debut || date > p.fin) return;
-            if (val === 'VAC') jV.push(date);
-            else if (val === 'FORM') jF.push(date);
-            else if (val === 'INDISPO') jI.push(date);
+        let nRea=0, nMat=0, nWe=0, nFer=0;
+        const byMonth = {};
+        gardes.forEach(gg => {
+          const dt = new Date(gg.date + 'T12:00:00'), dw = dt.getDay();
+          if (gg.type === 'G') nRea++; else nMat++;
+          if (dw === 0 || dw === 6) nWe++;
+          if (isF(gg.date)) nFer++;
+          const mo = Number(gg.date.slice(5,7)) - 1;
+          (byMonth[mo] = byMonth[mo] || []).push(gg);
+        });
+
+        // ---------- HTML ----------
+        const chips =
+          `<span style="display:inline-block;background:#eef4ff;color:#1d4ed8;border:1px solid #dbe6ff;border-radius:999px;font-size:12px;font-weight:700;padding:4px 11px;margin:0 6px 6px 0">${nRea} réanimation</span>` +
+          `<span style="display:inline-block;background:#ecfdf5;color:#0d9488;border:1px solid #cdeee6;border-radius:999px;font-size:12px;font-weight:700;padding:4px 11px;margin:0 6px 6px 0">${nMat} maternité</span>` +
+          (nWe ? `<span style="display:inline-block;background:#fff7ed;color:#c2410c;border:1px solid #fde3cf;border-radius:999px;font-size:12px;font-weight:700;padding:4px 11px;margin:0 6px 6px 0">${nWe} week-end${nWe>1?'s':''}</span>` : '') +
+          (nFer ? `<span style="display:inline-block;background:#fef2f2;color:#b91c1c;border:1px solid #fbd5d5;border-radius:999px;font-size:12px;font-weight:700;padding:4px 11px;margin:0 6px 6px 0">${nFer} férié${nFer>1?'s':''}</span>` : '');
+
+        let rowsHtml = '';
+        Object.keys(byMonth).map(Number).sort((p,q)=>p-q).forEach(mo => {
+          rowsHtml += `<div style="font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#94a3b8;margin:18px 0 8px 2px">${MOIS[mo]}</div>`;
+          byMonth[mo].forEach(gg => {
+            const dt = new Date(gg.date + 'T12:00:00'), dw = dt.getDay();
+            const dlabel = `${JOURS[dw]} ${dd(dt.getDate())}/${dd(mo+1)}`;
+            const ferie = isF(gg.date), we = (dw === 0 || dw === 6);
+            const badge = gg.type === 'G'
+              ? '<span style="display:inline-block;background:#eef4ff;color:#1d4ed8;border-radius:7px;font-size:12px;font-weight:700;padding:4px 10px">G &middot; Réa</span>'
+              : '<span style="display:inline-block;background:#ecfdf5;color:#0d9488;border-radius:7px;font-size:12px;font-weight:700;padding:4px 10px">G2 &middot; Mat</span>';
+            let rowStyle = 'border:1px solid #eef1f5;', tag = '';
+            if (ferie) {
+              const nm = fnames[gg.date];
+              rowStyle = 'border:1px solid #fbd5d5;background:#fef6f6;';
+              tag = `<span style="font-size:10.5px;font-weight:700;color:#b91c1c;background:#fdeaea;border-radius:5px;padding:2px 7px">Férié${nm?' &middot; '+nm:''}</span>`;
+            } else if (we) {
+              rowStyle = 'border:1px solid #fde3cf;background:#fffaf5;';
+              tag = '<span style="font-size:10.5px;font-weight:700;color:#c2410c;background:#fff1e6;border-radius:5px;padding:2px 7px">Week-end</span>';
+            }
+            rowsHtml += `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;${rowStyle}border-radius:10px;margin-bottom:7px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:700;color:#0f172a">${dlabel}</span>${tag}</div>${badge}</div>`;
           });
-          if (!jV.length && !jF.length && !jI.length) return;
-          _blocks.push({title:p.nom, rows:_rowsFor(jV,jF,jI)});
-          _cnt.VAC+=jV.length; _cnt.FORM+=jF.length; _cnt.INDISPO+=jI.length;
-          sectionsText += p.nom+' : '+[...jV,...jF,...jI].map(fmtJour).join(', ')+'\n';
         });
-        const _hV=[], _hF=[], _hI=[];
-        Object.entries(marIndispos).forEach(([date, val]) => {
-          if (periodes.some(p => date >= p.debut && date <= p.fin)) return;
-          if (val === 'VAC') _hV.push(date); else if (val === 'FORM') _hF.push(date); else if (val === 'INDISPO') _hI.push(date);
-        });
-        if (_hV.length || _hF.length || _hI.length) {
-          _blocks.push({title:'Hors périodes', rows:_rowsFor(_hV,_hF,_hI)});
-          _cnt.VAC+=_hV.length; _cnt.FORM+=_hF.length; _cnt.INDISPO+=_hI.length;
-          sectionsText += 'Hors périodes : '+[..._hV,..._hF,..._hI].map(fmtJour).join(', ')+'\n';
-        }
-        const sections = renderRecapMailBlocks_([
-          {n:_cnt.VAC,label:'jours vacances',bg:'#eef4fb',fg:'#1d6fb8'},
-          {n:_cnt.FORM,label:'jours formation',bg:'#fdf3e3',fg:'#b45309'},
-          {n:_cnt.INDISPO,label:'jours indispo',bg:'#f1f1f3',fg:'#5f6368'},
-        ], _blocks);
-        if (!sectionsText) sectionsText = 'Aucune indisponibilité.';
 
-        const site = 'https://chpg-anesthesie.github.io/Planning-CHPG/';
+        const summaryHtml = gardes.length
+          ? `<div style="background:#f8fafc;border:1px solid #eef1f5;border-radius:12px;padding:14px 16px;margin-bottom:22px"><div style="font-size:13px;color:#64748b;font-weight:600;margin-bottom:10px">${gardes.length} garde${gardes.length>1?'s':''} sur l'année</div><div>${chips}</div></div>`
+          : '';
+        const emptyHtml = '<div style="background:#f8fafc;border:1px solid #eef1f5;border-radius:12px;padding:18px;text-align:center;color:#64748b;font-size:14px">Aucune garde programmée pour vous en ' + year + '.</div>';
+        const coreHtml = gardes.length ? (summaryHtml + rowsHtml) : emptyHtml;
+
         const html =
-          '<div style="background:#f4f6f9;padding:0;margin:0">'+
-          '<div style="max-width:560px;margin:0 auto;padding:24px 14px;font-family:Arial,Helvetica,sans-serif">'+
-            '<div style="background:#ffffff;border:1px solid #e3e8ef;border-radius:14px;overflow:hidden">'+
-              '<div style="background:#ce1126;padding:18px 22px">'+
-                '<div style="color:#fff;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">CHPG Monaco · Anesthésie-Réanimation</div>'+
-                '<div style="color:#fff;font-size:19px;font-weight:700;margin-top:4px">Récapitulatif de vos indisponibilités '+year+'</div>'+
-              '</div>'+
-              '<div style="padding:22px">'+
-                '<p style="margin:0 0 6px;font-size:14px;color:#3a4759">Bonjour <strong>'+nom+'</strong>,</p>'+
-                '<p style="margin:0 0 8px;font-size:13px;color:#3a4759">Le planning '+year+' vient d\'être généré. Voici ce qui est enregistré pour vous :</p>'+
-                sections+
-                '<div style="border-top:1px solid #eef1f5;margin:20px 0 16px"></div>'+
-                '<a href="'+site+'" style="display:inline-block;background:#15803d;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:10px">Voir le planning →</a>'+
-                '<p style="margin:16px 0 0;font-size:12px;color:#9aa4b2">Une erreur ? Contactez le comité planning.</p>'+
-              '</div>'+
-            '</div>'+
-            '<div style="text-align:center;font-size:11px;color:#9aa4b2;margin-top:14px">Le Comité Planning CHPG Monaco</div>'+
-          '</div>'+
+          '<div style="background:#e9edf1;padding:0;margin:0">' +
+          '<div style="max-width:600px;margin:0 auto;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif">' +
+            '<div style="background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #e3e8ef">' +
+              '<div style="background:#0f172a;padding:22px 26px">' +
+                '<div style="color:#cbd5e1;font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase">Planning CHPG Monaco</div>' +
+                '<div style="color:#ffffff;font-size:23px;font-weight:800;margin-top:12px">Vos gardes ' + year + '</div>' +
+                '<div style="color:#94a3b8;font-size:14px;margin-top:3px">' + nom + '</div>' +
+              '</div>' +
+              '<div style="padding:22px 26px 8px">' +
+                '<p style="margin:0 0 16px;font-size:14px;line-height:1.55;color:#334155">Bonjour ' + nom + ',<br>Le planning ' + year + ' vient d\'être généré. Voici vos gardes pour l\'année — à reporter dans votre agenda.</p>' +
+                coreHtml +
+                '<div style="border-top:1px solid #eef1f5;margin:8px 0 18px"></div>' +
+                '<div style="text-align:center"><a href="' + site + '" style="display:inline-block;background:#15803d;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 24px;border-radius:10px">Voir le planning complet &rarr;</a>' +
+                '<p style="margin:14px 0 0;font-size:12px;color:#9aa4b2;line-height:1.5">Une erreur ou un échange à signaler ? Contactez le comité planning.</p></div>' +
+              '</div>' +
+              '<div style="background:#f8fafc;border-top:1px solid #eef1f5;padding:14px;text-align:center"><div style="font-size:11px;color:#9aa4b2">Le Comité Planning CHPG Monaco</div></div>' +
+            '</div>' +
+          '</div>' +
           '</div>';
 
-        const bodyText =
-          'Bonjour '+nom+',\n\n'+
-          'Le planning '+year+' vient d\'être généré. Vos indisponibilités :\n\n'+
-          (sectionsText||'Aucune indisponibilité.')+'\n'+
-          'Planning : '+site+'\n\nLe Comité Planning CHPG Monaco';
+        // ---------- Texte brut (repli) ----------
+        let bodyText = 'Bonjour ' + nom + ',\n\nLe planning ' + year + ' vient d\'être généré. Voici vos gardes :\n\n';
+        if (!gardes.length) {
+          bodyText += 'Aucune garde programmée pour vous en ' + year + '.\n';
+        } else {
+          bodyText += gardes.length + ' garde' + (gardes.length>1?'s':'') + ' — ' + nRea + ' réa / ' + nMat + ' mat'
+            + (nWe ? ' \u00b7 ' + nWe + ' week-end' + (nWe>1?'s':'') : '')
+            + (nFer ? ' \u00b7 ' + nFer + ' férié' + (nFer>1?'s':'') : '') + '\n\n';
+          Object.keys(byMonth).map(Number).sort((p,q)=>p-q).forEach(mo => {
+            bodyText += MOIS[mo] + ' :\n';
+            byMonth[mo].forEach(gg => {
+              const dt = new Date(gg.date + 'T12:00:00'), dw = dt.getDay();
+              const nm = fnames[gg.date];
+              const tag = isF(gg.date) ? ' [Férié' + (nm?' '+nm:'') + ']' : ((dw===0||dw===6) ? ' [week-end]' : '');
+              bodyText += '  ' + JOURS[dw] + ' ' + dd(dt.getDate()) + '/' + dd(mo+1) + ' \u2014 ' + (gg.type==='G'?'G (réa)':'G2 (mat)') + tag + '\n';
+            });
+          });
+        }
+        bodyText += '\nVoir le planning : ' + site + '\n\nLe Comité Planning CHPG Monaco';
 
         try {
           MailApp.sendEmail({
             to: email,
-            subject: `[Planning CHPG Monaco ${year}] Votre récapitulatif indisponibilités`,
+            subject: `[Planning CHPG Monaco ${year}] Vos gardes ${year}`,
             htmlBody: html,
             body: bodyText,
           });
@@ -1841,7 +1851,7 @@ const MOIS_ABR = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','s
         }
       }
 
-      logAction(`envoyerRecapIndispos ${year} — ${sent} emails, ${skipped} sans email, ${errors.length} erreur(s)`);
+      logAction(`envoyerRecapGardes ${year} — ${sent} emails, ${skipped} sans email, ${errors.length} erreur(s)`);
       return ContentService.createTextOutput(JSON.stringify({
         success: true, sent, skipped, errors
       })).setMimeType(ContentService.MimeType.JSON);
