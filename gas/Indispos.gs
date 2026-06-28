@@ -122,8 +122,31 @@ function checkCode(code) {
 // (C3) Définition unique : getJoursFeries() est global, défini dans code.gs.
 
 // ── CALCUL PRIORITÉS VACANCES ─────────────────────────────────────────
+// ── Cache PAR-EXÉCUTION des onglets partagés (process neuf à chaque requête →
+// jamais de données périmées). Évite que getVacConfig relise GROUPES_VAC / PERIODES_VAC /
+// INDISPOS / MEDECINS une fois PAR médecin (getConflitsAll boucle sur ~20 MARs).
+var _VAC_SHARED = {};
+function _getVacShared(year) {
+  if (_VAC_SHARED[year]) return _VAC_SHARED[year];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const gs = ss.getSheetByName('GROUPES_VAC');
+  const ps = ss.getSheetByName('PERIODES_VAC');
+  const is_ = ss.getSheetByName(`INDISPOS_${year}`);
+  const ms = ss.getSheetByName('MEDECINS');
+  _VAC_SHARED[year] = {
+    groupData: gs ? gs.getDataRange().getValues() : [],
+    perData:   ps ? ps.getDataRange().getValues() : [],
+    indData:   is_ ? is_.getDataRange().getValues() : null,
+    medData:   ms ? ms.getDataRange().getValues() : [],
+    jfYear:     getJoursFeries(year),
+    jfNextYear: getJoursFeries(year + 1),
+  };
+  return _VAC_SHARED[year];
+}
+
 function getVacConfig(doctorId, year) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const _ctx = _getVacShared(year);
 
   const ORDRE_BASE_2026 = {
     HIVER:'CAB', PRINTEMPS:'ABC', ETE:'ABC', TOUSSAINT:'BCA', NOEL:'CAB',
@@ -137,8 +160,7 @@ function getVacConfig(doctorId, year) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'00')}-${String(d.getDate()).padStart(2,'00')}`;
   }
 
-  const groupSheet = ss.getSheetByName('GROUPES_VAC');
-  const groupData = groupSheet.getDataRange().getValues();
+  const groupData = _ctx.groupData;
   const groups = { A: [], B: [], C: [] };
   const ordre2026 = { A: {}, B: {}, C: {} };
   for (let r = 1; r < groupData.length; r++) {
@@ -160,14 +182,12 @@ function getVacConfig(doctorId, year) {
   const orderedB = getOrderedGroup('B');
   const orderedC = getOrderedGroup('C');
 
-  const perSheet = ss.getSheetByName('PERIODES_VAC');
-  const perData = perSheet.getDataRange().getValues();
+  const perData = _ctx.perData;
   const debutAnnee = premierJourAnneePlanning(year);
   const finAnnee = premierJourAnneePlanning(year + 1);
 
-  const indSheet = ss.getSheetByName(`INDISPOS_${year}`);
-  if (!indSheet) return { periodes: [], quotaVac: 40, totalVacDoc: 0 };
-  const indData = indSheet.getDataRange().getValues();
+  const indData = _ctx.indData;
+  if (!indData) return { periodes: [], quotaVac: 40, totalVacDoc: 0 };
 
   const jan1Ind = new Date(year, 0, 1);
   const dow1Ind = jan1Ind.getDay();
@@ -195,8 +215,7 @@ function getVacConfig(doctorId, year) {
     });
   }
 
-  const medSheet = ss.getSheetByName('MEDECINS');
-  const medData = medSheet.getDataRange().getValues();
+  const medData = _ctx.medData;
   let quotite = 100;
   for (let r = 1; r < medData.length; r++) {
     if (String(medData[r][0]).trim() === doctorId) {
@@ -207,8 +226,8 @@ function getVacConfig(doctorId, year) {
   const quotas = getQuotasConges(quotite);
   const quotaVac = quotas.vac;
 
-  const jfYear = getJoursFeries(year);
-  const jfNextYear = getJoursFeries(year + 1);
+  const jfYear = _ctx.jfYear;
+  const jfNextYear = _ctx.jfNextYear;
   const totalVacDoc = [...(vacByDoc[doctorId] || [])].filter(date => {
     const dow = new Date(date).getDay();
     return dow !== 0 && dow !== 6 && !jfYear.has(date) && !jfNextYear.has(date);
