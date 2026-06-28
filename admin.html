@@ -5037,7 +5037,7 @@ function renderEquipe() {
       <td>
         <div style="display:flex;gap:4px">
           <button class="btn-icon" onclick="openEditMAR('${m.id}')" title="Modifier">✏️</button>
-          <button class="btn-icon" onclick="toggleActif('${m.id}')" title="${m.actif ? 'Désactiver' : 'Activer'}">
+          <button class="btn-icon" onclick="${m.actif ? `openWizardDepart('${m.id}')` : `toggleActif('${m.id}')`}" title="${m.actif ? 'Gérer le départ' : 'Activer'}">
             ${m.actif ? '⏸' : '▶'}
           </button>
           ${m.email ? `<button class="btn-icon" onclick="sendCodeToMAR('${m.id}','${m.nom}')" title="Renvoyer le code d'accès">✉️</button>` : ''}
@@ -5438,6 +5438,15 @@ const FICHES = {
 // ── WIZARD DÉPART D'UN MAR ────────────────────────────────────────────────
 let wizDStep = 0, wizDMarId = null, wizDMarsData = [], wizDGardes = null, wizDFeries = null;
 function closeWizardDepart() { document.getElementById('wizardDepartOverlay').classList.remove('open'); }
+function openWizardDepart(marId) {
+  wizDMarsData = (typeof marData !== 'undefined' && marData ? marData : []).filter(m => m.actif);
+  if (marId && !wizDMarsData.some(m => m.id === marId)) marId = null;
+  wizDMarId = marId || null;
+  wizDGardes = null;
+  wizDStep = marId ? 1 : 0;          // MAR connu (clic ⏸) -> on saute la sélection, direct à la vérif des gardes
+  document.getElementById('wizardDepartOverlay').classList.add('open');
+  renderWizDStep();
+}
 
 async function wizDPrev() { if (wizDStep > 0) { wizDStep--; await renderWizDStep(); } }
 async function wizDNext() {
