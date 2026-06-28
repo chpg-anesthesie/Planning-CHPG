@@ -1551,18 +1551,25 @@ function renderDocPanel(){
 function renderEquiteCards(list){
   const AX=[['lu','Lun'],['ma','Mar'],['me','Mer'],['je','Jeu'],['sa','Sam'],['vd','VD'],['jf','JF'],['vjf','VJF']];
   const CB={je:'cJe',sa:'cSa',vd:'cVd',vjf:'cVjf'};
+  const NEUTRAL={lu:1,ma:1,me:1}; // hors équité : pas de cible, barre neutre
   const meanAx={};
   ['lu','ma','me','jf'].forEach(k=>{const v=list.map(x=>+x[k]||0);meanAx[k]=v.length?v.reduce((s,n)=>s+n,0)/v.length:0;});
   const cibOf=(it,k)=>CB[k]?(+it[CB[k]]||0):meanAx[k];
   const colOf=(v,c)=>{const d=v-c;return Math.abs(d)<0.5?'#15803D':(d>0?'#CE1126':'#1D4ED8');};
   const maxOf=k=>Math.max(0.1,...list.map(x=>+x[k]||0),...list.map(x=>cibOf(x,k)))*1.15;
-  const maxTot=Math.max(0.1,...list.map(x=>+x.total||0),...list.map(x=>+x.cTot||0))*1.12;
+  const maxTot=Math.max(0.1,...list.map(x=>+x.total||0))*1.12; // échelle = totaux réels (une cible aberrante ne peut plus vider la barre)
   const sorted=list.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
   return '<div class="eqv-grid">'+sorted.map(it=>{
     const tv=+it.total||0,tc=+it.cTot||0,tw=Math.min(100,tv/maxTot*100),tcx=Math.min(100,tc/maxTot*100);
     const totBar='<div class="eqv-row eqv-row-tot"><div class="eqv-lbl">Total</div><div class="eqv-track eqv-track-tot"><div class="eqv-fill" style="width:'+tw+'%;background:'+colOf(tv,tc)+'"></div>'+(tc>0?'<div class="eqv-tick" style="left:'+tcx+'%"></div>':'')+'</div><div class="eqv-val">'+tv+'<span> /'+(tc>0?tc.toFixed(1):'—')+'</span></div></div>';
     const bars=AX.map(([k,lbl])=>{
-      const v=+it[k]||0,c=cibOf(it,k),mx=maxOf(k);
+      const v=+it[k]||0;
+      if(NEUTRAL[k]){
+        const mx=Math.max(0.1,...list.map(x=>+x[k]||0))*1.15;
+        const w=Math.min(100,v/mx*100);
+        return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:#94A3B8;opacity:.5"></div></div><div class="eqv-val">'+v+'</div></div>';
+      }
+      const c=cibOf(it,k),mx=maxOf(k);
       const w=Math.min(100,v/mx*100),cx=Math.min(100,c/mx*100);
       const cval=CB[k]?c:c.toFixed(1),tick=CB[k]?'':'opacity:.42';
       return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:'+colOf(v,c)+'"></div><div class="eqv-tick" style="left:'+cx+'%;'+tick+'"></div></div><div class="eqv-val">'+v+'<span> /'+cval+'</span></div></div>';
@@ -1572,6 +1579,20 @@ function renderEquiteCards(list){
 }
 
 let EQ_SRC_IDX = 'initiale';
+let CIBLES_CACHE = {};
+async function getCiblesFromStats(year){
+  if(CIBLES_CACHE[year]) return CIBLES_CACHE[year];
+  try{
+    const params = new URLSearchParams({payload: JSON.stringify({action:'getStatsLive', year})});
+    const res = await fetch(API_URL + '?' + params.toString());
+    const j = await res.json();
+    if(!j || !j.success || !Array.isArray(j.stats)) return {};
+    const m = {};
+    j.stats.forEach(s=>{ m[s.medecin] = {cible:s.cible||0, cSat:s.cSat||0, cJeu:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0}; });
+    CIBLES_CACHE[year] = m;
+    return m;
+  }catch(e){ return {}; }
+}
 function setEquiteSourceIdx(src){
   EQ_SRC_IDX = src;
   document.querySelectorAll('#eqSwitchIdx .eqv-sw-btn').forEach(b=>b.classList.toggle('active', b.dataset.src===src));
@@ -1614,25 +1635,34 @@ function renderEquite(){
   const _sw=document.getElementById('eqSwitchIdx'); if(_sw) _sw.querySelectorAll('.eqv-sw-btn').forEach(b=>b.classList.toggle('active', b.dataset.src==='initiale'));
   const nameOf = id => (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
   if(!(DATA.equiteInitiale && DATA.equiteInitiale.length)){
-    wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Vue équité indisponible — republier le planning pour générer la répartition figée.</div>';
+    wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Vue \u00e9quit\u00e9 indisponible \u2014 republier le planning pour g\u00e9n\u00e9rer la r\u00e9partition fig\u00e9e.</div>';
     return;
   }
-  const list = DATA.equiteInitiale.filter(e=>e.total>0).map(e=>({
-    name:nameOf(e.id), total:e.total, cTot:e.cible||0,
-    lu:e.lu||0, ma:e.ma||0, me:e.me||0, je:e.je||0, sa:e.sa||0, vd:e.vd||0, jf:e.jf||0, vjf:e.vjf||0,
-    cSa:e.cSa||0, cJe:e.cJe||0, cVd:e.cVd||0, cVjf:e.cVjf||0,
-  }));
-  if(!list.length){ wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Aucune garde dans ce planning.</div>'; return; }
-  const sum=list.reduce((s,a)=>s+a.total,0), mean=sum/list.length;
-  const totals=list.map(a=>a.total), max=Math.max(...totals), min=Math.min(...totals);
-  const html = `<div class="eq-summary">
-    <div class="eq-kpi"><div class="eq-kpi-num">${sum}</div><div class="eq-kpi-lbl">Gardes réparties</div></div>
-    <div class="eq-kpi"><div class="eq-kpi-num">${list.length}</div><div class="eq-kpi-lbl">MAR de garde</div></div>
-    <div class="eq-kpi"><div class="eq-kpi-num">${mean.toFixed(1)}</div><div class="eq-kpi-lbl">Moyenne / MAR</div></div>
-    <div class="eq-kpi"><div class="eq-kpi-num">${min}–${max}</div><div class="eq-kpi-lbl">Étendue</div></div>
-  </div>
-  <div class="eqv-legend">Barre = réel · trait = cible (plein : Jeu/Sam/VD/VJF) ou moyenne d'équipe (estompé : Lun/Mar/Mer/JF) · <b style="color:#CE1126">rouge</b> au-dessus · <b style="color:#1D4ED8">bleu</b> en-dessous · <b style="color:#15803D">vert</b> à la cible. Répartition figée à la génération.</div>`;
-  wrap.innerHTML = html + renderEquiteCards(list);
+  const paint = (cibles)=>{
+    if(EQ_SRC_IDX!=='initiale') return;
+    const list = DATA.equiteInitiale.filter(e=>e.total>0).map(e=>{
+      const cb = cibles[e.id] || {};
+      return {
+        name:nameOf(e.id), total:e.total, cTot:cb.cible||0,
+        lu:e.lu||0, ma:e.ma||0, me:e.me||0, je:e.je||0, sa:e.sa||0, vd:e.vd||0, jf:e.jf||0, vjf:e.vjf||0,
+        cSa:cb.cSat||0, cJe:cb.cJeu||0, cVd:cb.cVd||0, cVjf:cb.cVjf||0,
+      };
+    });
+    if(!list.length){ wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Aucune garde dans ce planning.</div>'; return; }
+    const sum=list.reduce((s,a)=>s+a.total,0), mean=sum/list.length;
+    const totals=list.map(a=>a.total), max=Math.max(...totals), min=Math.min(...totals);
+    const html = `<div class="eq-summary">
+      <div class="eq-kpi"><div class="eq-kpi-num">${sum}</div><div class="eq-kpi-lbl">Gardes r\u00e9parties</div></div>
+      <div class="eq-kpi"><div class="eq-kpi-num">${list.length}</div><div class="eq-kpi-lbl">MAR de garde</div></div>
+      <div class="eq-kpi"><div class="eq-kpi-num">${mean.toFixed(1)}</div><div class="eq-kpi-lbl">Moyenne / MAR</div></div>
+      <div class="eq-kpi"><div class="eq-kpi-num">${min}\u2013${max}</div><div class="eq-kpi-lbl">\u00c9tendue</div></div>
+    </div>
+    <div class="eqv-legend">Barre = r\u00e9el \u00b7 trait = cible (Jeu/Sam/VD/VJF) ou moyenne (JF) \u00b7 Lun/Mar/Mer neutres (hors \u00e9quit\u00e9) \u00b7 <b style="color:#CE1126">rouge</b> au-dessus \u00b7 <b style="color:#1D4ED8">bleu</b> en-dessous \u00b7 <b style="color:#15803D">vert</b> \u00e0 la cible. R\u00e9partition fig\u00e9e \u00e0 la g\u00e9n\u00e9ration ; cibles lues dans STATS_GARDES.</div>`;
+    wrap.innerHTML = html + renderEquiteCards(list);
+  };
+  const cached = CIBLES_CACHE[currentYear];
+  paint(cached || {});
+  if(!cached){ getCiblesFromStats(currentYear).then(paint); }
 }
 
 function renderAffectations(){
