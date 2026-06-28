@@ -1093,13 +1093,13 @@ if (sessionStorage.getItem('adminCode')) {
 
   <!-- ACTIONS RAPIDES -->
   <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:20px;">
-    <div class="action-card blue" onclick="openPanel('garde')">
+    <div class="action-card blue" onclick="openPanel('garde')" style="flex-direction:row;align-items:center;gap:16px;">
       <div class="action-icon blue">🔁</div>
-      <div>
+      <div style="flex:1;min-width:0">
         <div class="action-label">Modifier une garde</div>
         <div class="action-desc">Échange ou don de garde</div>
       </div>
-      <span class="action-badge blue">Fréquent</span>
+      <span class="action-badge blue" style="align-self:center">Fréquent</span>
     </div>
   </div>
 
