@@ -3290,7 +3290,7 @@ function renderEquiteCards(list){
   const meanAx={};
   ['lu','ma','me','jf'].forEach(k=>{const v=list.map(x=>+x[k]||0);meanAx[k]=v.length?v.reduce((s,n)=>s+n,0)/v.length:0;});
   const cibOf=(it,k)=>CB[k]?(+it[CB[k]]||0):meanAx[k];
-  const colOf=(v,c)=>{const d=v-c;return Math.abs(d)<0.5?'#15803D':(d>0?'#CE1126':'#1D4ED8');};
+  const colOf=(v,c)=>{const d=v-c;return d>=2?'#CE1126':(d<=-2?'#1D4ED8':'#15803D');};
   const maxOf=k=>Math.max(0.1,...list.map(x=>+x[k]||0),...list.map(x=>cibOf(x,k)))*1.15;
   const maxTot=Math.max(0.1,...list.map(x=>+x.total||0))*1.12; // échelle = totaux réels (une cible aberrante ne peut plus vider la barre)
   const sorted=list.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));

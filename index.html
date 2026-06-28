@@ -1555,7 +1555,7 @@ function renderEquiteCards(list){
   const meanAx={};
   ['lu','ma','me','jf'].forEach(k=>{const v=list.map(x=>+x[k]||0);meanAx[k]=v.length?v.reduce((s,n)=>s+n,0)/v.length:0;});
   const cibOf=(it,k)=>CB[k]?(+it[CB[k]]||0):meanAx[k];
-  const colOf=(v,c)=>{const d=v-c;return Math.abs(d)<0.5?'#15803D':(d>0?'#CE1126':'#1D4ED8');};
+  const colOf=(v,c)=>{const d=v-c;return d>=2?'#CE1126':(d<=-2?'#1D4ED8':'#15803D');};
   const maxOf=k=>Math.max(0.1,...list.map(x=>+x[k]||0),...list.map(x=>cibOf(x,k)))*1.15;
   const maxTot=Math.max(0.1,...list.map(x=>+x.total||0))*1.12; // échelle = totaux réels (une cible aberrante ne peut plus vider la barre)
   const sorted=list.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
@@ -1700,7 +1700,7 @@ function renderEquite(){
       <div class="eq-kpi"><div class="eq-kpi-num">${mean.toFixed(1)}</div><div class="eq-kpi-lbl">Moyenne / MAR</div></div>
       <div class="eq-kpi"><div class="eq-kpi-num">${min}\u2013${max}</div><div class="eq-kpi-lbl">\u00c9tendue</div></div>
     </div>
-    <div class="eqv-legend">Barre = r\u00e9el \u00b7 trait = cible (Jeu/Sam/VD/VJF) ou moyenne (JF) \u00b7 Lun/Mar/Mer neutres (hors \u00e9quit\u00e9) \u00b7 <b style="color:#CE1126">rouge</b> au-dessus \u00b7 <b style="color:#1D4ED8">bleu</b> en-dessous \u00b7 <b style="color:#15803D">vert</b> \u00e0 la cible. R\u00e9partition fig\u00e9e \u00e0 la g\u00e9n\u00e9ration ; cibles lues dans STATS_GARDES.</div>`;
+    <div class="eqv-legend">Barre = r\u00e9el \u00b7 trait = cible (Jeu/Sam/VD/VJF) ou moyenne (JF) \u00b7 Lun/Mar/Mer neutres (hors \u00e9quit\u00e9) \u00b7 <b style="color:#CE1126">rouge</b> \u2265 2 au-dessus \u00b7 <b style="color:#1D4ED8">bleu</b> \u2265 2 en-dessous \u00b7 <b style="color:#15803D">vert</b> \u00e0 \u00b12 de la cible. R\u00e9partition fig\u00e9e \u00e0 la g\u00e9n\u00e9ration ; cibles lues dans STATS_GARDES.</div>`;
     paintEquite(wrap, html, list);
   };
   const cached = CIBLES_CACHE[currentYear];
