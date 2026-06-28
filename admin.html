@@ -3066,11 +3066,12 @@ function openPanel(type, prefillDocId='', prefillDate=''){
   }
   document.getElementById('panelBody').innerHTML=body;
   document.getElementById('panelOverlay').classList.add('open');
-  if(type==='garde'){ GD={mode:'don',d1:'',p1:'',role1:'',recv:'',d2:'',p2:'',role2:''}; initGardePanel(); }
+  if(type==='garde'){ GD={mode:'don',d1:prefillDate||'',p1:(prefillDate&&prefillDocId)?prefillDocId:'',role1:'',recv:'',d2:'',p2:'',role2:''}; initGardePanel(); }
 }
 
 let GD = {mode:'don', d1:'', p1:'', role1:'', recv:'', d2:'', p2:'', role2:''};
 let gardesByYear = {};
+let DON_ON_DONE = null;
 const _nm = id => (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
 const _roleTxt = r => r==='G' ? 'G \u00b7 R\u00e9a' : 'G2 \u00b7 Mat';
 function _fmtDate(d){ if(!d) return '\u2014'; const x=new Date(d+'T12:00:00'); return ['dim','lun','mar','mer','jeu','ven','sam'][x.getDay()]+' '+String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0'); }
@@ -3199,6 +3200,7 @@ async function submitPanel(){
     if(!data.success) throw new Error(data.error);
     result.textContent='✅ Modification appliquée — planning republié automatiquement.';
     result.className='result-box ok'; result.style.display='block';
+    if(panelType==='garde' && GD.mode==='don' && DON_ON_DONE){ const _cb=DON_ON_DONE, _d=GD.d1; DON_ON_DONE=null; try{ _cb(_d); }catch(e){} }
     setTimeout(()=>{loadPlanningData();loadOverrides();closePanel();},1500);
   }catch(e){
     result.textContent='❌ '+e.message;
@@ -5434,7 +5436,7 @@ const FICHES = {
 
 
 // ── WIZARD DÉPART D'UN MAR ────────────────────────────────────────────────
-let wizDStep = 0, wizDMarId = null, wizDMarsData = [];
+let wizDStep = 0, wizDMarId = null, wizDMarsData = [], wizDGardes = null, wizDFeries = null;
 function closeWizardDepart() { document.getElementById('wizardDepartOverlay').classList.remove('open'); }
 
 async function wizDPrev() { if (wizDStep > 0) { wizDStep--; await renderWizDStep(); } }
@@ -5473,32 +5475,30 @@ async function renderWizDStep() {
 
   } else if (wizDStep === 1) {
     const mar = wizDMarsData.find(m => m.id === wizDMarId);
-    body.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement planning…</div>';
-    let gardesFutures = 0;
-    try {
-      const planning = await fetch('./planning_' + YEAR + '.json?' + Date.now()).then(r => r.json());
-      const today = new Date().toISOString().slice(0,10);
-      // Structure réelle : {months: [{days: [...], doctors: [...]}]}
-      (planning.months || []).forEach(month => {
-        (month.doctors || []).forEach(doc => {
-          if (doc.initials !== mar.initiales) return;
-          (doc.days || []).forEach((entry, dayIdx) => {
-            const date = month.days[dayIdx]?.date;
-            if (!date || date < today) return;
-            const st = entry?.status || '';
-            if (st === 'G' || st === 'G2') gardesFutures++;
+    body.innerHTML = '<div class="loading"><div class="spinner"></div> Chargement des gardes…</div>';
+    if (wizDGardes === null) {
+      const list = [];
+      try {
+        const planning = await fetch('./planning_' + YEAR + '.json?' + Date.now()).then(r => r.json());
+        const today = new Date().toISOString().slice(0,10);
+        (planning.months || []).forEach(month => {
+          (month.doctors || []).forEach(doc => {
+            if (doc.initials !== mar.initiales) return;
+            (doc.days || []).forEach((entry, dayIdx) => {
+              const date = month.days[dayIdx]?.date;
+              if (!date || date < today) return;
+              const st = entry?.status || '';
+              if (st === 'G' || st === 'G2') list.push({date, role: st, done:false});
+            });
           });
         });
-      });
-    } catch(e) {}
-    let html = '<div class="wizard-section-title">Vérification — ' + (mar?.nom||'') + '</div>';
-    if (gardesFutures > 0) {
-      html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">⚠️ <strong>' + gardesFutures + ' garde(s) future(s)</strong> attribuée(s) à ce MAR.<br><small>Redistribuez-les manuellement depuis admin.html → Modifier une garde avant de désactiver.</small></div>';
-    } else {
-      html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid #16a34a;color:#166534">✅ Aucune garde future détectée pour ce MAR.</div>';
+      } catch(e) {}
+      list.sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:0);
+      wizDGardes = list;
+      if (wizDFeries === null) { try { const rf = await api({action:'getJoursFeries', year:YEAR}); wizDFeries = new Set((rf&&rf.success&&rf.joursFeries)||[]); } catch(e){ wizDFeries = new Set(); } }
     }
-    html += '<div style="font-size:12px;color:var(--ink-3);margin-top:12px">Vérifiez également ses affectations sectorielles — elles resteront en GSheet mais n\'auront plus d\'effet une fois le MAR désactivé.</div>';
-    body.innerHTML = html;
+    renderWizDGardes(mar);
+    return;
 
   } else if (wizDStep === 2) {
     const mar = wizDMarsData.find(m => m.id === wizDMarId);
@@ -5519,7 +5519,55 @@ async function renderWizDStep() {
   }
 }
 
+function renderWizDGardes(mar){
+  const body = document.getElementById('wizDBody');
+  const JOURS = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+  const list = wizDGardes || [];
+  const remaining = list.filter(g=>!g.done).length;
+  let html = '<div class="wizard-section-title">Gardes à redonner — ' + (mar?.nom||'') + '</div>';
+  if (!list.length) {
+    html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid #16a34a;color:#166534">✅ Aucune garde future. Tu peux désactiver le MAR directement.</div>';
+  } else {
+    html += '<div style="font-size:12.5px;color:var(--ink-3);margin-bottom:10px">' + (remaining>0
+      ? '<strong style="color:var(--red)">' + remaining + ' garde' + (remaining>1?'s':'') + '</strong> encore attribuée' + (remaining>1?'s':'') + ' à ce MAR. Redonne-les avant de désactiver.'
+      : '<strong style="color:#16a34a">Toutes redistribuées ✅</strong> — tu peux désactiver sans risque.') + '</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:7px">';
+    list.forEach(g=>{
+      const dt = new Date(g.date+'T12:00:00'), dw = dt.getDay();
+      const dlabel = JOURS[dw] + ' ' + String(dt.getDate()).padStart(2,'0') + '/' + String(dt.getMonth()+1).padStart(2,'0');
+      const we = (dw===0||dw===6), fer = wizDFeries && wizDFeries.has(g.date);
+      const roleBadge = g.role==='G'
+        ? '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:#eef4ff;color:#1d4ed8">G \u00b7 R\u00e9a</span>'
+        : '<span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:#ecfdf5;color:#0d9488">G2 \u00b7 Mat</span>';
+      const tag = fer
+        ? '<span style="font-size:10px;font-weight:700;color:#b91c1c;background:#fdeaea;border-radius:5px;padding:2px 6px;margin-left:6px">F\u00e9ri\u00e9</span>'
+        : (we ? '<span style="font-size:10px;font-weight:700;color:#c2410c;background:#fff1e6;border-radius:5px;padding:2px 6px;margin-left:6px">Week-end</span>' : '');
+      const right = g.done
+        ? '<span style="font-size:12px;font-weight:700;color:#16a34a">\u2713 redonn\u00e9e</span>'
+        : '<button class="btn-secondary" style="font-size:11px;padding:6px 12px" onclick="wizDRedonner(\'' + g.date + '\')">Redonner \u2192</button>';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:10px;' + (g.done?'opacity:.55;background:#f8fafc':'') + '">'
+        + '<div style="display:flex;align-items:center;gap:9px"><span style="font-size:13.5px;font-weight:700;color:var(--ink)">' + dlabel + '</span>' + roleBadge + tag + '</div>'
+        + right + '</div>';
+    });
+    html += '</div>';
+    html += '<button style="margin-top:10px;font-size:11.5px;color:var(--ink-3);background:none;border:0;cursor:pointer;text-decoration:underline;font-family:inherit" onclick="wizDRefreshGardes()">\u21bb Re-v\u00e9rifier depuis le planning</button>';
+  }
+  html += '<div style="font-size:12px;color:var(--ink-3);margin-top:12px">Ses affectations sectorielles resteront en GSheet mais n\'auront plus d\'effet une fois d\u00e9sactiv\u00e9.</div>';
+  body.innerHTML = html;
+}
+function wizDRedonner(date){
+  DON_ON_DONE = (d)=>{
+    if (wizDGardes){ const g = wizDGardes.find(x=>x.date===d); if (g) g.done = true; }
+    if (document.getElementById('wizardDepartOverlay') && document.getElementById('wizardDepartOverlay').classList.contains('open') && wizDStep===1){
+      renderWizDGardes(wizDMarsData.find(m=>m.id===wizDMarId));
+    }
+  };
+  openPanel('garde', wizDMarId, date);
+}
+function wizDRefreshGardes(){ wizDGardes = null; renderWizDStep(); }
+
 function wizDSelectMAR(id) {
+  if (id !== wizDMarId) wizDGardes = null;
   wizDMarId = id;
   renderWizDStep();
 }
