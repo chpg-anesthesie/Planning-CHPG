@@ -1803,12 +1803,20 @@ function renderMobileDay() {
         else if(smap[part]) smap[part][half].push(doc.initials);
       });
     });
-    if (entry.cs) (cons['']=cons['']||{am:[],pm:[]}).am.push(doc.initials);
   });
 
   const specCol = sp => SECTOR_COLORS[sp] || (sp==='INTER'?SECTOR_COLORS.CI:sp==='POLY'?SECTOR_COLORS.VOLANT:{bg:'#F1F5F9',fg:'#64748B'});
   const chip = (init, cls='', col=null) => `<span class="mobile-chip ${cls}"${col?` style="background:${col.bg};color:${col.fg}"`:''}>${init}</span>`;
   const dash = () => '<span class="mobile-chip dash">—</span>';
+  // Qui est de garde / 18h aujourd'hui → pour les repérer DANS leur secteur de journée
+  const guardSet = new Set(guards), h18Set = new Set(h18arr);
+  const schip = (init, col) => {
+    const duty = guardSet.has(init) ? {c:'#CE1126',t:'G'} : (h18Set.has(init) ? {c:'#D97706',t:'18'} : null);
+    const base = col ? `background:${col.bg};color:${col.fg}` : '';
+    const ring = duty ? `;box-shadow:0 0 0 2px ${duty.c}` : '';
+    const tag  = duty ? `<sup style="color:${duty.c};font-weight:800;font-size:9px;margin-left:1px">${duty.t}</sup>` : '';
+    return `<span class="mobile-chip" style="${base}${ring}">${init}${tag}</span>`;
+  };
   let html = '';
 
   const isWE = dayData.isWeekend || dayData.isFerie;
@@ -1823,11 +1831,11 @@ function renderMobileDay() {
         <div class="mobile-sector-body">
           <div class="mobile-slot">
             <div class="mobile-slot-label">Matin</div>
-            <div class="mobile-slot-names">${am.length ? am.map(i=>chip(i,'',col)).join('') : dash()}</div>
+            <div class="mobile-slot-names">${am.length ? am.map(i=>schip(i,col)).join('') : dash()}</div>
           </div>
           <div class="mobile-slot">
             <div class="mobile-slot-label">Après-midi</div>
-            <div class="mobile-slot-names">${pm.length ? pm.map(i=>chip(i,'',col)).join('') : dash()}</div>
+            <div class="mobile-slot-names">${pm.length ? pm.map(i=>schip(i,col)).join('') : dash()}</div>
           </div>
         </div>
       </div>`;
@@ -1845,11 +1853,11 @@ function renderMobileDay() {
         <div class="mobile-sector-body">
           <div class="mobile-slot">
             <div class="mobile-slot-label">Matin</div>
-            <div class="mobile-slot-names">${am.length ? am.map(i=>chip(i,'',col)).join('') : dash()}</div>
+            <div class="mobile-slot-names">${am.length ? am.map(i=>schip(i,col)).join('') : dash()}</div>
           </div>
           <div class="mobile-slot">
             <div class="mobile-slot-label">Après-midi</div>
-            <div class="mobile-slot-names">${pm.length ? pm.map(i=>chip(i,'',col)).join('') : dash()}</div>
+            <div class="mobile-slot-names">${pm.length ? pm.map(i=>schip(i,col)).join('') : dash()}</div>
           </div>
         </div>
       </div>`;
