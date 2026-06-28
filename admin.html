@@ -4324,27 +4324,6 @@ function closeWizardGardes() {
   document.getElementById('wizardGardesOverlay').classList.remove('open');
 }
 
-async function notifierConflitsWizard() {
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = '⏳ Envoi…';
-  try {
-    const res = await api({action: 'notifierConflits', year: INDISPOS_YEAR});
-    if (res.success) {
-      toast(`✅ ${res.sent} email(s) envoyé(s)${res.skipped ? ', ' + res.skipped + ' sans email' : ''}`, 'success');
-      btn.textContent = '✅ Envoyé';
-    } else {
-      toast('❌ ' + (res.error || 'Erreur envoi'), 'error');
-      btn.disabled = false;
-      btn.textContent = '📧 Notifier les MARs en conflit';
-    }
-  } catch(e) {
-    toast('❌ ' + e.message, 'error');
-    btn.disabled = false;
-    btn.textContent = '📧 Notifier les MARs en conflit';
-  }
-}
-
 async function wizGPrev() {
   if (wizGCurrentStep > 0) { wizGCurrentStep--; await renderWizGStep(); }
 }
@@ -4422,7 +4401,7 @@ async function renderWizGStep() {
 
     // Bloc conflits vacances
     if (nbConflits > 0) {
-      html += '<div class="wizard-warning" style="background:#FEF2F2;border-left:3px solid #F97316;color:#B91C1C;margin-top:8px">🔴 <strong>' + nbConflits + ' MAR(s) ont des conflits vacances non résolus</strong><br><small>La génération est bloquée. Notifiez les MARs et attendez qu\'ils déplacent leurs vacances.</small><br><button class="btn-secondary" style="margin-top:8px;font-size:11px" onclick="notifierConflitsWizard()">📧 Notifier les MARs en conflit</button></div>';
+      html += '<div class="wizard-warning" style="background:#FEF2F2;border-left:3px solid #F97316;color:#B91C1C;margin-top:8px">🔴 <strong>' + nbConflits + ' MAR(s) ont des conflits vacances non résolus</strong><br><small>La génération est bloquée. Résolvez le conflit avant de générer (les vacances sont normalement arbitrées au staff).</small></div>';
       html += '<div class="wiz-mar-list" style="margin-top:8px">';
       (wizGConflitsData.conflits || []).forEach(c => {
         html += '<div class="wiz-mar-row"><div class="wiz-mar-init" style="background:#FED7AA;color:#C2410C">' + c.id.slice(0,3) + '</div><div class="wiz-mar-name">' + c.nom + '</div><div class="wiz-mar-meta"><span class="wiz-warn">🔴 ' + c.periodesConflits.map(p => p.periode + ' (' + p.joursBloqués.length + 'j)').join(', ') + '</span></div></div>';
