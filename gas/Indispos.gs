@@ -917,10 +917,10 @@ try {
           const adata = absSheet.getDataRange().getValues();
           const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
           const planStart = fmt(days[0]), planEnd = fmt(days[days.length - 1]);
-          const rowOf = {}; actifsIds.forEach((id, i) => { rowOf[id] = 4 + i; });
+          const rowOf = {}; actifsIds.forEach((id, i) => { rowOf[String(id).trim().toUpperCase()] = 4 + i; });
           for (let r = 1; r < adata.length; r++) {
             const id = String(adata[r][0]).trim().toUpperCase();
-            const a  = String(adata[r][1]).trim(), b = String(adata[r][2]).trim();
+            const a  = _isoDate(adata[r][1]), b = _isoDate(adata[r][2]);
             if (!id || !a || !b || !(id in rowOf)) continue;
             if (b < planStart || a > planEnd) continue;     // ne chevauche pas l'année planning
             days.forEach((day, i) => { const ds = fmt(day); if (ds >= a && ds <= b) indSheet.getRange(rowOf[id], i + 2).setValue('CL'); });
@@ -2354,11 +2354,12 @@ if (action === 'setDailyStatus') {
       {
         let absSheet = ss.getSheetByName('ABSENCES_LONGUES');
         if (!absSheet) { absSheet = ss.insertSheet('ABSENCES_LONGUES'); absSheet.appendRow(['MAR_ID','DATE_DEBUT','DATE_FIN','POSE_LE']); }
+        absSheet.getRange('B:C').setNumberFormat('@');   // dates stockées en TEXTE (pas de coercition Date)
         const adata = absSheet.getDataRange().getValues();
         let exists = false;
         for (let r = 1; r < adata.length; r++) {
           if (String(adata[r][0]).trim().toUpperCase() === marId
-              && String(adata[r][1]).trim() === d1 && String(adata[r][2]).trim() === d2) { exists = true; break; }
+              && _isoDate(adata[r][1]) === d1 && _isoDate(adata[r][2]) === d2) { exists = true; break; }
         }
         if (!exists) absSheet.appendRow([marId, d1, d2, new Date()]);
       }
@@ -2450,6 +2451,14 @@ function _deny() {
 function _error(msg) {
   return ContentService.createTextOutput(JSON.stringify({success:false, error:msg}))
     .setMimeType(ContentService.MimeType.JSON);
+}
+// Normalise une valeur de cellule (texte OU objet Date) en 'yyyy-MM-dd' — évite la coercition date de Sheets.
+function _isoDate(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? s : Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
 
 // ── doPost — même logique que doGet ──────────────────────────────────
