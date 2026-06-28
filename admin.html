@@ -4318,6 +4318,8 @@ function renderWizGLocked(year, reason) {
   document.getElementById('wizGBody').innerHTML = wizardLockedHTML(title, msg, hint);
 }
 
+function closeWizard() { document.getElementById('wizardOverlay').classList.remove('open'); }
+
 function closeWizardGardes() {
   document.getElementById('wizardGardesOverlay').classList.remove('open');
 }
