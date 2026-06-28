@@ -910,6 +910,24 @@ try {
       const medRows = actifsIds.map(id => [id, ...Array(days.length).fill('')]);
       indSheet.getRange(4, 1, medRows.length, nCols).setValues(medRows);
 
+      // ── Report des absences longues (CL) chevauchant cette année (registre ABSENCES_LONGUES) ──
+      try {
+        const absSheet = ss.getSheetByName('ABSENCES_LONGUES');
+        if (absSheet && days.length) {
+          const adata = absSheet.getDataRange().getValues();
+          const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          const planStart = fmt(days[0]), planEnd = fmt(days[days.length - 1]);
+          const rowOf = {}; actifsIds.forEach((id, i) => { rowOf[id] = 4 + i; });
+          for (let r = 1; r < adata.length; r++) {
+            const id = String(adata[r][0]).trim().toUpperCase();
+            const a  = String(adata[r][1]).trim(), b = String(adata[r][2]).trim();
+            if (!id || !a || !b || !(id in rowOf)) continue;
+            if (b < planStart || a > planEnd) continue;     // ne chevauche pas l'année planning
+            days.forEach((day, i) => { const ds = fmt(day); if (ds >= a && ds <= b) indSheet.getRange(rowOf[id], i + 2).setValue('CL'); });
+          }
+        }
+      } catch(e) {}
+
       const jfY = getJoursFeries(newYear);
       const jfYn = getJoursFeries(newYear + 1);
       days.forEach((day, i) => {
@@ -2332,6 +2350,19 @@ if (action === 'setDailyStatus') {
 
       const ss = SpreadsheetApp.getActiveSpreadsheet();
 
+      // Registre persistant des absences longues -> permet le report auto vers les années pas encore créées (initYear le rejoue)
+      {
+        let absSheet = ss.getSheetByName('ABSENCES_LONGUES');
+        if (!absSheet) { absSheet = ss.insertSheet('ABSENCES_LONGUES'); absSheet.appendRow(['MAR_ID','DATE_DEBUT','DATE_FIN','POSE_LE']); }
+        const adata = absSheet.getDataRange().getValues();
+        let exists = false;
+        for (let r = 1; r < adata.length; r++) {
+          if (String(adata[r][0]).trim().toUpperCase() === marId
+              && String(adata[r][1]).trim() === d1 && String(adata[r][2]).trim() === d2) { exists = true; break; }
+        }
+        if (!exists) absSheet.appendRow([marId, d1, d2, new Date()]);
+      }
+
       // Toutes les dates calendaires de la plage [d1, d2]
       const allDates = [];
       { const cur = new Date(d1 + 'T12:00:00'), end = new Date(d2 + 'T12:00:00');
@@ -2347,6 +2378,7 @@ if (action === 'setDailyStatus') {
       for (let y = Number(d1.slice(0,4)); y <= Number(d2.slice(0,4)); y++) years.push(y);
 
       const freed = [];                 // gardes libérées {date, role}
+      const deferred = [];              // années de la plage pas encore créées (report différé à l'init)
       let nbCL = 0;
       const touched = [];
 
@@ -2383,7 +2415,7 @@ if (action === 'setDailyStatus') {
         } else {
           // Année NON générée : CL dans INDISPOS seulement (zéro garde à reprendre)
           const iSheet = ss.getSheetByName(`INDISPOS_${year}`);
-          if (!iSheet) return;
+          if (!iSheet) { deferred.push(year); return; }
           const idata = iSheet.getDataRange().getValues();
           const dset = new Set(reconstruireDatesHeaders(idata, year).filter(Boolean));
           const inYear = allDates.filter(dt => dset.has(dt));
@@ -2395,10 +2427,10 @@ if (action === 'setDailyStatus') {
         }
       });
 
-      if (!nbCL) return _error('Aucune date de la plage ne correspond à une année configurée (INDISPOS/GARDES).');
+      if (!nbCL && !deferred.length) return _error('Aucune date de la plage ne correspond à une année configurée (INDISPOS/GARDES).');
       freed.sort((a,b) => a.date < b.date ? -1 : 1);
-      logAction(`poserAbsenceLongue — ${marId} ${d1} -> ${d2} : ${nbCL} j CL, ${freed.length} garde(s) liberee(s)`);
-      return ContentService.createTextOutput(JSON.stringify({ success: true, marId, nbCL, freed, touched }))
+      logAction(`poserAbsenceLongue — ${marId} ${d1} -> ${d2} : ${nbCL} j CL, ${freed.length} garde(s) liberee(s)${deferred.length ? ', reporté: ' + deferred.join('/') : ''}`);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, marId, nbCL, freed, touched, deferred }))
         .setMimeType(ContentService.MimeType.JSON);
     }
     return ContentService.createTextOutput(JSON.stringify({success:false, error:'Action inconnue'}))

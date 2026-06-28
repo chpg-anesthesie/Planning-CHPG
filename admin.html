@@ -5074,6 +5074,9 @@ async function poserCL() {
     } else {
       html += `<div style="margin-top:8px;color:var(--ink-3);font-size:12px">Aucune garde à reprendre.</div>`;
     }
+    if (data.deferred && data.deferred.length) {
+      html += `<div style="margin-top:8px;padding:8px 10px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;color:#1E40AF;font-size:12px">ℹ️ La partie <strong>${data.deferred.join(', ')}</strong> sera appliquée automatiquement à l'initialisation de ${data.deferred.length>1?'ces années':'cette année'} (enregistrée dans le registre des absences).</div>`;
+    }
     res.innerHTML = html; res.style.display = 'block';
     toast('✅ Absence posée', 'success');
     if (typeof loadEquipe === 'function') loadEquipe();
