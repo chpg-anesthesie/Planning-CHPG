@@ -960,8 +960,8 @@ if (sessionStorage.getItem('adminCode')) {
 .eqv-row{display:flex;align-items:center;gap:7px;margin:3px 0}
 .eqv-lbl{width:30px;font-size:10.5px;color:#64748B;font-weight:600}
 .eqv-track{flex:1;position:relative;height:11px;background:#EEF1F5;border-radius:6px}
-.eqv-fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;opacity:.9}
-.eqv-tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:#0F172A}
+.eqv-fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;opacity:.9;transition:width .45s cubic-bezier(.4,0,.2,1),background-color .3s ease}
+.eqv-tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:#0F172A;transition:left .45s cubic-bezier(.4,0,.2,1)}
 .eqv-val{width:52px;font-size:10.5px;color:#0F172A;font-weight:700;text-align:right}
 .eqv-val span{color:#64748B;font-weight:600}
 .eqv-legend{font-size:11px;color:#64748B;margin:4px 0 14px}
@@ -1261,7 +1261,7 @@ if (sessionStorage.getItem('adminCode')) {
           <button class="eqv-sw-btn active" data-src="initiale" onclick="setEquiteSource('initiale')">Initiale</button>
           <button class="eqv-sw-btn" data-src="live" onclick="setEquiteSource('live')">Instantané</button>
         </div>
-        <button class="btn-secondary" onclick="loadStats(ADMIN_YEAR)">↻ Actualiser</button>
+        <button class="btn-secondary" onclick="loadStats(ADMIN_YEAR, true)">↻ Actualiser</button>
       </div>
     </div>
 
@@ -1760,6 +1760,12 @@ function renderStatuts(){
   h += STAT.view==='mar' ? renderStatMar(ro) : renderStatAnnee(ro);
   document.getElementById('statutsContent').innerHTML=h;
   if(window.lucide) lucide.createIcons();
+  if(STAT.view==='annee'){
+    requestAnimationFrame(()=>{
+      const w=document.querySelector('#statutsContent .sa-wrap'), t=w&&w.querySelector('.sa-day.today');
+      if(w&&t){ const wr=w.getBoundingClientRect(), tr=t.getBoundingClientRect(); w.scrollLeft += (tr.left-wr.left) - w.clientWidth/2 + tr.width/2; }
+    });
+  }
 }
 
 function renderStatMar(ro){
@@ -3237,18 +3243,24 @@ function setEquiteSource(src){
   document.querySelectorAll('#eqSwitchAdmin .eqv-sw-btn').forEach(b=>b.classList.toggle('active', b.dataset.src===src));
   loadStats(ADMIN_YEAR);
 }
-async function loadStats(year){
+let STATS_CACHE={};
+async function loadStats(year, force){
   year = year || ADMIN_YEAR;
   document.getElementById('gardesYear').textContent = year;
-  document.getElementById('gardesLoading').style.display='flex';
-  document.getElementById('gardesEmpty').style.display='none';
+  const src = EQ_SRC, key = year+'|'+src;
+  const cached = !force && STATS_CACHE[key];
+  if(cached){ renderStats(cached); document.getElementById('gardesLoading').style.display='none'; document.getElementById('gardesEmpty').style.display='none'; }
+  else { document.getElementById('gardesLoading').style.display='flex'; document.getElementById('gardesEmpty').style.display='none'; }
   try{
-    const data = await api({action: EQ_SRC==='live'?'getStatsLive':'getStats', year});
+    const data = await api({action: src==='live'?'getStatsLive':'getStats', year});
     if(!data.success) throw new Error(data.error);
-    renderStats(data.stats);
+    STATS_CACHE[key]=data.stats;
+    if(EQ_SRC===src && year===ADMIN_YEAR) renderStats(data.stats);
   }catch(e){
-    document.getElementById('gardesEmpty').style.display='block';
-    document.getElementById('gardesEmpty').textContent = 'Stats non disponibles pour ' + year + ' — cette année a été reconstruite (pas générée). Reconstruisez STATS_GARDES_' + year + ' via buildStats2026() dans Apps Script.';
+    if(!cached){
+      document.getElementById('gardesEmpty').style.display='block';
+      document.getElementById('gardesEmpty').textContent = 'Stats non disponibles pour ' + year + ' — cette année a été reconstruite (pas générée). Reconstruisez STATS_GARDES_' + year + ' via buildStats2026() dans Apps Script.';
+    }
   }finally{document.getElementById('gardesLoading').style.display='none';}
 }
 
@@ -3263,6 +3275,7 @@ async function generateGardes(){
   try{
     const data=await api({action:'generateGardes'});
     if(!data.success) throw new Error(data.error);
+    STATS_CACHE={};
     renderStats(data.stats);
     toast('✅ Gardes générées — vérifiez l\'équité ci-dessous','success');
     loadCalendrier();
@@ -3300,6 +3313,32 @@ function renderEquiteCards(list){
   }).join('')+'</div>';
 }
 
+function morphGrid(oldGrid, newGridHtml){
+  try{
+    const tmp=document.createElement('div'); tmp.innerHTML=newGridHtml;
+    const newGrid=tmp.firstElementChild;
+    if(!oldGrid || !newGrid) return false;
+    const oC=[...oldGrid.children], nC=[...newGrid.children];
+    if(oC.length!==nC.length) return false;
+    for(let i=0;i<oC.length;i++){
+      const oN=oC[i].querySelector('.eqv-name'), nN=nC[i].querySelector('.eqv-name');
+      if(oN&&nN&&oN.textContent!==nN.textContent) return false;
+      const oR=oC[i].querySelectorAll('.eqv-row'), nR=nC[i].querySelectorAll('.eqv-row');
+      if(oR.length!==nR.length) return false;
+      for(let r=0;r<oR.length;r++){
+        const of=oR[r].querySelector('.eqv-fill'), nf=nR[r].querySelector('.eqv-fill');
+        if(of&&nf){ of.style.width=nf.style.width; of.style.background=nf.style.background; of.style.opacity=nf.style.opacity; }
+        const ot=oR[r].querySelector('.eqv-tick'), nt=nR[r].querySelector('.eqv-tick'), tk=oR[r].querySelector('.eqv-track');
+        if(ot&&nt){ ot.style.left=nt.style.left; ot.style.opacity=nt.style.opacity; }
+        else if(ot&&!nt){ ot.remove(); }
+        else if(!ot&&nt&&tk){ tk.appendChild(nt.cloneNode(true)); }
+        const ov=oR[r].querySelector('.eqv-val'), nv=nR[r].querySelector('.eqv-val');
+        if(ov&&nv&&ov.innerHTML!==nv.innerHTML) ov.innerHTML=nv.innerHTML;
+      }
+    }
+    return true;
+  }catch(e){ return false; }
+}
 function renderStats(stats){
   if(!stats||!stats.length){document.getElementById('gardesEmpty').style.display='block';document.getElementById('statsCard').style.display='none';return;}
   const list = stats.map(s=>({
@@ -3307,7 +3346,7 @@ function renderStats(stats){
     lu:s.lun||0, ma:s.mar||0, me:s.mer||0, je:s.jeu||0, sa:s.sat||0, vd:s.vd||0, jf:s.jf||0, vjf:s.vjf||0,
     cSa:s.cSat||0, cJe:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0,
   }));
-  document.getElementById('statsCards').innerHTML = renderEquiteCards(list);
+  (function(){ const cont=document.getElementById('statsCards'); const grid=cont.querySelector('.eqv-grid'); const gh=renderEquiteCards(list); if(!(grid && morphGrid(grid, gh))) cont.innerHTML = gh; })();
   document.getElementById('statsCard').style.display='block';
   document.getElementById('gardesEmpty').style.display='none';
 }

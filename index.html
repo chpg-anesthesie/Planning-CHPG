@@ -567,8 +567,8 @@ body {
 .eqv-row{display:flex;align-items:center;gap:7px;margin:3px 0}
 .eqv-lbl{width:30px;font-size:10.5px;color:#64748B;font-weight:600}
 .eqv-track{flex:1;position:relative;height:11px;background:#EEF1F5;border-radius:6px}
-.eqv-fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;opacity:.9}
-.eqv-tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:#0F172A}
+.eqv-fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;opacity:.9;transition:width .45s cubic-bezier(.4,0,.2,1),background-color .3s ease}
+.eqv-tick{position:absolute;top:-2px;bottom:-2px;width:2px;background:#0F172A;transition:left .45s cubic-bezier(.4,0,.2,1)}
 .eqv-val{width:52px;font-size:10.5px;color:#0F172A;font-weight:700;text-align:right}
 .eqv-val span{color:#64748B;font-weight:600}
 .eqv-legend{font-size:11px;color:#64748B;margin:4px 0 14px}
@@ -1593,6 +1593,42 @@ async function getCiblesFromStats(year){
     return m;
   }catch(e){ return {}; }
 }
+let LIVE_CACHE = {};
+function morphGrid(oldGrid, newGridHtml){
+  try{
+    const tmp=document.createElement('div'); tmp.innerHTML=newGridHtml;
+    const newGrid=tmp.firstElementChild;
+    if(!oldGrid || !newGrid) return false;
+    const oC=[...oldGrid.children], nC=[...newGrid.children];
+    if(oC.length!==nC.length) return false;
+    for(let i=0;i<oC.length;i++){
+      const oN=oC[i].querySelector('.eqv-name'), nN=nC[i].querySelector('.eqv-name');
+      if(oN&&nN&&oN.textContent!==nN.textContent) return false;
+      const oR=oC[i].querySelectorAll('.eqv-row'), nR=nC[i].querySelectorAll('.eqv-row');
+      if(oR.length!==nR.length) return false;
+      for(let r=0;r<oR.length;r++){
+        const of=oR[r].querySelector('.eqv-fill'), nf=nR[r].querySelector('.eqv-fill');
+        if(of&&nf){ of.style.width=nf.style.width; of.style.background=nf.style.background; of.style.opacity=nf.style.opacity; }
+        const ot=oR[r].querySelector('.eqv-tick'), nt=nR[r].querySelector('.eqv-tick'), tk=oR[r].querySelector('.eqv-track');
+        if(ot&&nt){ ot.style.left=nt.style.left; ot.style.opacity=nt.style.opacity; }
+        else if(ot&&!nt){ ot.remove(); }
+        else if(!ot&&nt&&tk){ tk.appendChild(nt.cloneNode(true)); }
+        const ov=oR[r].querySelector('.eqv-val'), nv=nR[r].querySelector('.eqv-val');
+        if(ov&&nv&&ov.innerHTML!==nv.innerHTML) ov.innerHTML=nv.innerHTML;
+      }
+    }
+    return true;
+  }catch(e){ return false; }
+}
+function paintEquite(wrap, headHtml, list){
+  const grid = wrap.querySelector('.eqv-grid');
+  const gridHtml = renderEquiteCards(list);
+  if(grid && morphGrid(grid, gridHtml)){
+    const head = wrap.querySelector('#eqHead'); if(head) head.innerHTML = headHtml;
+    return;
+  }
+  wrap.innerHTML = '<div id="eqHead">'+headHtml+'</div>' + gridHtml;
+}
 function setEquiteSourceIdx(src){
   EQ_SRC_IDX = src;
   document.querySelectorAll('#eqSwitchIdx .eqv-sw-btn').forEach(b=>b.classList.toggle('active', b.dataset.src===src));
@@ -1602,13 +1638,9 @@ async function loadEquiteLive(){
   const wrap = document.getElementById('eqWrap');
   if(!wrap) return;
   const nameOf = id => (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
-  wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Chargement de l\'instantané…</div>';
-  try{
-    const params = new URLSearchParams({payload: JSON.stringify({action:'getStatsLive', year: currentYear})});
-    const res = await fetch(API_URL + '?' + params.toString());
-    const j = await res.json();
-    if(!j.success) throw new Error(j.error||'erreur');
-    const list = j.stats.filter(s=>(s.total||0)>0).map(s=>({
+  const build = (stats)=>{
+    if(EQ_SRC_IDX!=='live') return;
+    const list = stats.filter(s=>(s.total||0)>0).map(s=>({
       name:nameOf(s.medecin), total:s.total||0, cTot:s.cible||0,
       lu:s.lun||0, ma:s.mar||0, me:s.mer||0, je:s.jeu||0, sa:s.sat||0, vd:s.vd||0, jf:s.jf||0, vjf:s.vjf||0,
       cSa:s.cSat||0, cJe:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0,
@@ -1622,10 +1654,21 @@ async function loadEquiteLive(){
       <div class="eq-kpi"><div class="eq-kpi-num">${mean.toFixed(1)}</div><div class="eq-kpi-lbl">Moyenne / MAR</div></div>
       <div class="eq-kpi"><div class="eq-kpi-num">${min}\u2013${max}</div><div class="eq-kpi-lbl">Étendue</div></div>
     </div>
-    <div class="eqv-legend">Instantané — gardes réelles à l'instant T (échanges/dons inclus) · trait = cible figée.</div>`;
-    wrap.innerHTML = html + renderEquiteCards(list);
+    <div class="eqv-legend">Instantané — gardes réelles à l'instant T (échanges/dons inclus) · trait = cible (STATS_GARDES) · Lun/Mar/Mer neutres.</div>`;
+    paintEquite(wrap, html, list);
+  };
+  const cached = LIVE_CACHE[currentYear];
+  if(cached){ build(cached); }
+  else if(!wrap.querySelector('.eqv-grid')){ wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Chargement de l\'instantané…</div>'; }
+  try{
+    const params = new URLSearchParams({payload: JSON.stringify({action:'getStatsLive', year: currentYear})});
+    const res = await fetch(API_URL + '?' + params.toString());
+    const j = await res.json();
+    if(!j.success) throw new Error(j.error||'erreur');
+    LIVE_CACHE[currentYear] = j.stats;
+    build(j.stats);
   }catch(e){
-    wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#CE1126">Instantané indisponible : '+(e.message||e)+'</div>';
+    if(!cached && EQ_SRC_IDX==='live') wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#CE1126">Instantané indisponible : '+(e.message||e)+'</div>';
   }
 }
 function renderEquite(){
@@ -1658,7 +1701,7 @@ function renderEquite(){
       <div class="eq-kpi"><div class="eq-kpi-num">${min}\u2013${max}</div><div class="eq-kpi-lbl">\u00c9tendue</div></div>
     </div>
     <div class="eqv-legend">Barre = r\u00e9el \u00b7 trait = cible (Jeu/Sam/VD/VJF) ou moyenne (JF) \u00b7 Lun/Mar/Mer neutres (hors \u00e9quit\u00e9) \u00b7 <b style="color:#CE1126">rouge</b> au-dessus \u00b7 <b style="color:#1D4ED8">bleu</b> en-dessous \u00b7 <b style="color:#15803D">vert</b> \u00e0 la cible. R\u00e9partition fig\u00e9e \u00e0 la g\u00e9n\u00e9ration ; cibles lues dans STATS_GARDES.</div>`;
-    wrap.innerHTML = html + renderEquiteCards(list);
+    paintEquite(wrap, html, list);
   };
   const cached = CIBLES_CACHE[currentYear];
   paint(cached || {});
