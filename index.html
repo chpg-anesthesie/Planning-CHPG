@@ -1806,7 +1806,8 @@ function renderMobileDay() {
     if (entry.cs) (cons['']=cons['']||{am:[],pm:[]}).am.push(doc.initials);
   });
 
-  const chip = (init, cls='') => `<span class="mobile-chip ${cls}">${init}</span>`;
+  const specCol = sp => SECTOR_COLORS[sp] || (sp==='INTER'?SECTOR_COLORS.CI:sp==='POLY'?SECTOR_COLORS.VOLANT:{bg:'#F1F5F9',fg:'#64748B'});
+  const chip = (init, cls='', col=null) => `<span class="mobile-chip ${cls}"${col?` style="background:${col.bg};color:${col.fg}"`:''}>${init}</span>`;
   const dash = () => '<span class="mobile-chip dash">—</span>';
   let html = '';
 
@@ -1816,16 +1817,17 @@ function renderMobileDay() {
     activeSectors.forEach(s => {
       const am = smap[s.code].am;
       const pm = smap[s.code].pm;
-      html += `<div class="mobile-sector-card">
+      const col = SECTOR_COLORS[s.code] || null;
+      html += `<div class="mobile-sector-card"${col?` style="border-left:3px solid ${col.fg}"`:''}>
         <div class="mobile-sector-header"><span class="mobile-sector-name">${s.label}</span></div>
         <div class="mobile-sector-body">
           <div class="mobile-slot">
             <div class="mobile-slot-label">Matin</div>
-            <div class="mobile-slot-names">${am.length ? am.map(i=>chip(i)).join('') : dash()}</div>
+            <div class="mobile-slot-names">${am.length ? am.map(i=>chip(i,'',col)).join('') : dash()}</div>
           </div>
           <div class="mobile-slot">
             <div class="mobile-slot-label">Après-midi</div>
-            <div class="mobile-slot-names">${pm.length ? pm.map(i=>chip(i)).join('') : dash()}</div>
+            <div class="mobile-slot-names">${pm.length ? pm.map(i=>chip(i,'',col)).join('') : dash()}</div>
           </div>
         </div>
       </div>`;
@@ -1837,16 +1839,17 @@ function renderMobileDay() {
     consSpecs.forEach(sp=>{
       const am=cons[sp].am, pm=cons[sp].pm;
       const lbl=CS_LABELS[sp]||(sp||'Consultation');
-      html += `<div class="mobile-sector-card">
+      const col=specCol(sp);
+      html += `<div class="mobile-sector-card" style="border-left:3px solid ${col.fg}">
         <div class="mobile-sector-header"><span class="mobile-sector-name">Consultation · ${lbl}</span></div>
         <div class="mobile-sector-body">
           <div class="mobile-slot">
             <div class="mobile-slot-label">Matin</div>
-            <div class="mobile-slot-names">${am.length ? am.map(i=>chip(i)).join('') : dash()}</div>
+            <div class="mobile-slot-names">${am.length ? am.map(i=>chip(i,'',col)).join('') : dash()}</div>
           </div>
           <div class="mobile-slot">
             <div class="mobile-slot-label">Après-midi</div>
-            <div class="mobile-slot-names">${pm.length ? pm.map(i=>chip(i)).join('') : dash()}</div>
+            <div class="mobile-slot-names">${pm.length ? pm.map(i=>chip(i,'',col)).join('') : dash()}</div>
           </div>
         </div>
       </div>`;
