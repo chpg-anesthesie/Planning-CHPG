@@ -1673,7 +1673,7 @@ function showTab(name) {
   if (tabEl)   tabEl.classList.add('active');
   if (name==='planning' && !DATA) loadPlanningData();
   if (name==='affectations') loadAffectations(ADMIN_YEAR);
-  if (name==='equipe') loadEquipe();
+  if (name==='equipe') { loadEquipe(); loadVacances(); }
   if (name==='equite') { loadStats(ADMIN_YEAR); loadVacancesValidation(); }
   if (name==='statuts') loadStatuts();
 }
