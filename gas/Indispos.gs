@@ -1969,6 +1969,37 @@ if (action === 'deletePlanningOverride') {
   }
 }
 
+// ── ACTION : applyRotationLib (rotation consultations libérales endo) ──
+if (action === 'applyRotationLib') {
+  if (user.role !== 'admin') return _deny();
+  const year = Number(payload.year) || TEST_YEAR;
+  const assignments = Array.isArray(payload.assignments) ? payload.assignments : [];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('PLANNING_OVERRIDES');
+  if (!sheet) {
+    sheet = ss.insertSheet('PLANNING_OVERRIDES');
+    sheet.getRange(1,1,1,5).setValues([['DATE','MAR_ID','MATIN','APREM','COMMENTAIRE']]);
+    sheet.getRange(1,1,1,5).setFontWeight('bold');
+  }
+  const data = sheet.getDataRange().getValues();
+  // 1) retirer les anciennes lignes de rotation (tag ROT-LIB), du bas vers le haut
+  for (let r = data.length - 1; r >= 1; r--) {
+    if (String(data[r][4]).trim() === 'ROT-LIB') sheet.deleteRow(r + 1);
+  }
+  // 2) écrire les nouvelles attributions : 1 MAR / date, consult endo l'après-midi
+  const add = assignments
+    .filter(a => a && a.date && a.marId)
+    .map(a => [String(a.date), String(a.marId).toUpperCase(), '', 'CS-END', 'ROT-LIB']);
+  if (add.length) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, add.length, 5).setValues(add);
+  }
+  // 3) republier le planning
+  try { generatePlanning(year); } catch(e) { Logger.log('applyRotationLib generatePlanning: ' + e.message); }
+  logAction(`applyRotationLib ${year} — ${add.length} créneaux libéraux endo`);
+  return ContentService.createTextOutput(JSON.stringify({ success: true, count: add.length }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 // ── ACTION : getPlanningOverrides ─────────────────────────────────────
 // Retourne tous les overrides pour une année donnée
 // payload : { action, code, year? }

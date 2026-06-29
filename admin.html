@@ -1235,6 +1235,7 @@ if (sessionStorage.getItem('adminCode')) {
         <div style="font-size:12px;color:var(--ink-3);margin-top:2px">Cliquez une cellule pour changer le secteur · La sauvegarde republie le planning automatiquement</div>
       </div>
       <div style="display:flex;gap:8px">
+        <button class="btn-secondary" onclick="openRotationLib()" title="Répartir les consultations libérales d'endoscopie (mardi/jeudi PM)">⟳ Rotation libérale</button>
         <button class="btn-secondary" onclick="loadAffectations(ADMIN_YEAR)">↻ Recharger</button>
         <button class="btn-primary" onclick="saveAllAffectations()" id="btnSaveAff" title="Sauvegarde les affectations dans le GSheet et republie le planning automatiquement">💾 Enregistrer tout</button>
       </div>
@@ -5633,6 +5634,110 @@ let wizRAffectations = {};
 let wizRGroupe = 'A';
 function closeWizardRecrue() { document.getElementById('wizardRecrueOverlay').classList.remove('open'); }
 
+// ════ ROTATION CONSULTATIONS LIBÉRALES (endoscopie) — v1 ════
+const ROT = { occ:[], assign:[], aff:{}, busy:{}, soliste:'', share:0.33, d1:'', d2:'', locked:{} };
+function closeRotationLib(){ document.getElementById('rotationLibOverlay').classList.remove('open'); }
+function _rotNm(id){ const m=(marsData||[]).find(x=>x.id===id); return m?(m.nom||id):id; }
+function _endMembersForMonth(m){ const out=[]; Object.keys(ROT.aff||{}).forEach(id=>{ if(String((ROT.aff[id]||{})[m]||'').toUpperCase()==='END') out.push(id); }); return out; }
+function _allEndMembers(){ const set=new Set(); const m1=Number(ROT.d1.slice(5,7)), m2=Number(ROT.d2.slice(5,7)); for(let m=m1;m<=m2;m++) _endMembersForMonth(m).forEach(id=>set.add(id)); return [...set]; }
+
+async function openRotationLib(){
+  const y=ADMIN_YEAR;
+  ROT.d1=ROT.d1||(y+'-07-01'); ROT.d2=ROT.d2||(y+'-12-31'); ROT.locked={};
+  document.getElementById('rotationLibOverlay').classList.add('open');
+  document.getElementById('rotBody').innerHTML='<div class="loading"><div class="spinner"></div> Chargement des affectations…</div>';
+  try{ const r=await api({action:'getAffectations', year:y}); ROT.aff=(r&&r.success)?(r.affectations||{}):{}; }catch(e){ ROT.aff={}; }
+  ROT.busy={};
+  try{
+    const pj=await fetch('./planning_'+y+'.json?'+Date.now()).then(r=>r.json());
+    const BUSY=new Set(['G','G2','RG','18','V','I','F','A','CP','R','E','TP','CL']);
+    const initToId={}; (marsData||[]).forEach(m=>{ initToId[m.initiales]=m.id; });
+    (pj.months||[]).forEach(mo=>{ (mo.doctors||[]).forEach(doc=>{ const id=doc.id||initToId[doc.initials]; if(!id) return; (doc.days||[]).forEach((entry,di)=>{ const date=mo.days[di]&&mo.days[di].date; if(!date) return; if(BUSY.has((entry&&entry.status)||'')) (ROT.busy[id]=ROT.busy[id]||{})[date]=true; }); }); });
+  }catch(e){}
+  renderRotConfig(); rotGenerate();
+}
+
+function renderRotConfig(){
+  const all=_allEndMembers();
+  if((!ROT.soliste||!all.includes(ROT.soliste)) && all.length) ROT.soliste = all.includes('GR')?'GR':all[0];
+  const opts=all.map(id=>`<option value="${id}"${id===ROT.soliste?' selected':''}>${_rotNm(id)}</option>`).join('');
+  document.getElementById('rotBody').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-bottom:12px">
+      <div><label class="form-label">Du</label><input class="form-input" type="date" id="rotD1" value="${ROT.d1}" onchange="rotPeriod()"></div>
+      <div><label class="form-label">Au</label><input class="form-input" type="date" id="rotD2" value="${ROT.d2}" onchange="rotPeriod()"></div>
+      <div><label class="form-label">Soliste (cible)</label><select class="form-select" id="rotSol" onchange="ROT.soliste=this.value;ROT.locked={};rotGenerate()">${opts}</select></div>
+      <div><label class="form-label">Part du soliste</label><select class="form-select" id="rotShare" onchange="ROT.share=parseFloat(this.value);ROT.locked={};rotGenerate()">
+        <option value="0.33"${ROT.share==0.33?' selected':''}>33 % (1/3)</option>
+        <option value="0.25"${ROT.share==0.25?' selected':''}>25 % (1/4)</option>
+        <option value="0.5"${ROT.share==0.5?' selected':''}>50 % (1/2)</option>
+      </select></div>
+    </div>
+    <div style="font-size:11.5px;color:var(--ink-3);margin-bottom:12px">Groupe = MAR affectés <b>END</b> ce mois-là (hors soliste). Pool = consults <b>mardi PM + jeudi PM</b>. Le soliste est sauté les jours où il est en garde / indispo / CL / VAC.</div>
+    <div id="rotBars" style="margin-bottom:14px"></div>
+    <div id="rotList"></div>`;
+}
+function rotPeriod(){ ROT.d1=document.getElementById('rotD1').value; ROT.d2=document.getElementById('rotD2').value; ROT.locked={}; renderRotConfig(); rotGenerate(); }
+
+function rotGenerate(){
+  const occ=[]; let d=new Date(ROT.d1+'T12:00:00'); const end=new Date(ROT.d2+'T12:00:00');
+  while(d<=end){ const dw=d.getDay(); if(dw===2||dw===4){ const ds=d.toISOString().slice(0,10); occ.push({date:ds, slot:dw===2?'Mardi PM':'Jeudi PM', m:d.getMonth()+1}); } d.setDate(d.getDate()+1); }
+  ROT.occ=occ;
+  const sol=ROT.soliste, share=ROT.share;
+  const avail=(id,date)=> id && !(ROT.busy[id]&&ROT.busy[id][date]);
+  const counts={}; let done=0;
+  ROT.assign=occ.map((o,i)=>{
+    if(ROT.locked[i]){ const v=ROT.assign[i]||null; if(v){counts[v]=(counts[v]||0)+1;done++;} return v; }
+    const members=_endMembersForMonth(o.m); if(!members.length) return null;
+    const gs=members.filter(id=>id!==sol).length||1;
+    const cands=members.filter(id=>avail(id,o.date)); if(!cands.length) return null;
+    let best=null,bestDef=-Infinity,bestRate=-1;
+    cands.forEach(id=>{ const rate=id===sol?share:(1-share)/gs; const def=rate*done-(counts[id]||0); if(def>bestDef+1e-9||(Math.abs(def-bestDef)<1e-9&&rate>bestRate)){bestDef=def;best=id;bestRate=rate;} });
+    if(best){counts[best]=(counts[best]||0)+1;done++;}
+    return best;
+  });
+  renderRotResult();
+}
+function rotOverride(i,v){ ROT.assign[i]=v||null; ROT.locked[i]=true; renderRotResult(); }
+
+function renderRotResult(){
+  const counts={}; ROT.assign.forEach(a=>{ if(a)counts[a]=(counts[a]||0)+1; });
+  const total=ROT.assign.filter(Boolean).length||1;
+  const sol=ROT.soliste;
+  const order=[sol,...Object.keys(counts).filter(id=>id!==sol).sort()];
+  const max=Math.max(...Object.values(counts),1);
+  let bars='';
+  order.forEach(id=>{ if(!id) return; const c=counts[id]||0,pct=Math.round(c/total*100),isSol=id===sol; const col=isSol?'var(--red)':'var(--teal)';
+    const tgt=isSol?`<div style="position:absolute;top:-2px;bottom:-2px;left:${Math.round(ROT.share*100)}%;width:2px;background:var(--ink);opacity:.5"></div>`:'';
+    bars+=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px"><div style="width:130px;font-size:12.5px;font-weight:700;${isSol?'color:var(--red)':''}">${_rotNm(id)}${isSol?' ⭐':''}</div>`
+      +`<div style="flex:1;height:20px;background:var(--line-light);border-radius:6px;position:relative;overflow:hidden"><div style="height:100%;width:${Math.round(c/max*100)}%;background:${col};border-radius:6px"></div>${tgt}</div>`
+      +`<div style="width:64px;text-align:right;font-size:12px;font-weight:700;color:var(--ink-3)">${c} · ${pct}%</div></div>`; });
+  const solPct=Math.round((counts[sol]||0)/total*100);
+  document.getElementById('rotBars').innerHTML=`<div style="font-size:12px;font-weight:800;margin-bottom:8px">Équité — ${total} créneaux · ${_rotNm(sol)} ${solPct}% (cible ${Math.round(ROT.share*100)}%)</div>`+bars;
+  const allCand=_allEndMembers();
+  const optFor=(cur)=>['',...allCand].map(id=>`<option value="${id}"${id===cur?' selected':''}>${id?_rotNm(id):'—'}</option>`).join('');
+  let rows='';
+  ROT.occ.forEach((o,i)=>{ const a=ROT.assign[i];
+    const warn=!a?'<span style="font-size:10px;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;margin-left:5px">à pourvoir</span>':'';
+    const lk=ROT.locked[i]?'<span title="forcé manuellement" style="color:var(--ink-4);font-size:11px;margin-left:4px">🔒</span>':'';
+    rows+=`<tr style="border-bottom:1px solid var(--line-light)"><td style="padding:5px 8px;font-size:12px;white-space:nowrap">${new Date(o.date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit'})}</td>`
+      +`<td style="padding:5px 8px"><span style="font-size:10.5px;font-weight:700;color:#7c3aed;background:#f3e8ff;border-radius:4px;padding:2px 6px">${o.slot}</span></td>`
+      +`<td style="padding:5px 8px"><select style="font-size:12px;padding:3px 5px;border:1px solid var(--line);border-radius:6px;font-family:inherit" onchange="rotOverride(${i},this.value)">${optFor(a)}</select>${warn}${lk}</td></tr>`; });
+  document.getElementById('rotList').innerHTML=`<div style="font-size:12px;font-weight:800;margin:4px 0 6px">Créneaux du pool (${ROT.occ.length})</div>`
+    +`<div style="max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:8px"><table style="width:100%;border-collapse:collapse">${rows}</table></div>`;
+}
+
+async function rotApply(){
+  const btn=document.getElementById('rotApplyBtn'); if(btn){btn.disabled=true;btn.textContent='⏳ Application…';}
+  const assignments=ROT.occ.map((o,i)=>({date:o.date, marId:ROT.assign[i]})).filter(a=>a.marId);
+  try{
+    const r=await api({action:'applyRotationLib', year:ADMIN_YEAR, assignments});
+    if(r&&r.success){ toast(`✅ Rotation appliquée — ${r.count} créneaux, planning republié`,'success'); closeRotationLib(); if(typeof loadPlanningData==='function') loadPlanningData(); }
+    else toast('❌ '+((r&&r.error)||'Erreur'),'error');
+  }catch(e){ toast('❌ '+e.message,'error'); }
+  if(btn){btn.disabled=false;btn.textContent='Appliquer la rotation';}
+}
+
+
 async function wizRPrev() { if (wizRStep > 0) { collectWizRStep(); wizRStep--; renderWizRStep(); } }
 async function wizRNext() {
   collectWizRStep();
@@ -5875,6 +5980,22 @@ async function sendCodeToMAR(marId, marNom) {
 </div>
 
 <!-- WIZARD ACCUEILLIR UN MAR -->
+<div class="wizard-overlay" id="rotationLibOverlay">
+  <div class="wizard-box">
+    <div class="wizard-header">
+      <div class="wizard-title-row">
+        <div class="wizard-title">⟳ Rotation consultations libérales — Endoscopie</div>
+        <button class="wizard-close" onclick="closeRotationLib()">✕</button>
+      </div>
+    </div>
+    <div class="wizard-body" id="rotBody"></div>
+    <div class="wizard-footer">
+      <button class="wizard-back" onclick="ROT.locked={};rotGenerate()">⟳ Re-générer</button>
+      <button class="wizard-next" id="rotApplyBtn" onclick="rotApply()">Appliquer la rotation</button>
+    </div>
+  </div>
+</div>
+
 <div class="wizard-overlay" id="wizardRecrueOverlay">
   <div class="wizard-box">
     <div class="wizard-header">
