@@ -808,6 +808,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .slot-name.cs-chip.slot-new { outline:none !important; background:var(--green-soft) !important; color:var(--green) !important; border-color:#A7F3D0 !important; }
 .slot-name.cs-chip.cs-mirror { color:var(--blue); background:var(--white); border-color:rgba(15,23,42,.14); }
 .plan-chip.cs-chip { background:var(--white); color:var(--ink); border:1px solid rgba(15,23,42,.12); border-radius:8px; max-width:64px; box-shadow:0 1px 1.5px rgba(15,23,42,.05); }
+.cs-lib { display:inline-block; font-size:8.5px; font-weight:800; color:#7c3aed; background:#f3e8ff; border:1px solid #e9d5ff; border-radius:4px; padding:1px 4px; margin-right:3px; vertical-align:1px; letter-spacing:.3px; }
 
 /* « à pourvoir » requis (comité) — petit point discret, sans texte */
 .cs-apourvoir { display:inline-flex; width:9px; height:9px; padding:0; border-radius:50%;
@@ -2448,9 +2449,11 @@ function renderWeek() {
     const _closed = !!(_localCloses[date] && _localCloses[date].has(`${type}|${slotKey}`));
     const _open = !!(_localOpens[date] && _localOpens[date].has(`${type}|${slotKey}`));
     const openable = CS_OPENABLE.includes(type);
+    const _lib = (type === 'CS-END' && slotKey === 'pm' && [2,4].includes(new Date(date+'T12:00:00').getDay()));
+    const _libTag = _lib ? `<span class="cs-lib" title="Consultation 100% libérale — rotation GR">lib</span>` : '';
 
     if (_closed) {
-      return `<div class="cs-cell"><span class="cs-fermee" title="Consultation fermée par le comité">fermée</span><span class="cs-ouvrir" onclick="reopenConsult('${type}','${date}','${slotKey}')" title="Rouvrir la consultation">rouvrir</span></div>`;
+      return `<div class="cs-cell">${_libTag}<span class="cs-fermee" title="Consultation fermée par le comité">fermée</span><span class="cs-ouvrir" onclick="reopenConsult('${type}','${date}','${slotKey}')" title="Rouvrir la consultation">rouvrir</span></div>`;
     }
 
     let prim = '';
@@ -2477,7 +2480,7 @@ function renderWeek() {
     if (items.length || (flash||0) || _open) {
       tools += `<span class="cs-fermer" onclick="closeConsult('${type}','${date}','${slotKey}')" title="Fermer la consultation (libère le MAR)">×</span>`;
     }
-    return `<div class="cs-cell">${prim}${req}${tools ? `<span class="cs-tools">${tools}</span>` : ''}</div>`;
+    return `<div class="cs-cell">${_libTag}${prim}${req}${tools ? `<span class="cs-tools">${tools}</span>` : ''}</div>`;
   }
 
   let tbody = '<tbody>';
