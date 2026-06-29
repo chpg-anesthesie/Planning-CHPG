@@ -796,25 +796,30 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .cs-sub-name { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--ink-2); }
 .cs-sub-name::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px var(--green-soft); flex-shrink:0; }
 .cs-sub-row .td-sector { background:#FCFEFD; }
-.cs-cell { grid-column:1 / -1; display:flex; align-items:center; gap:4px; flex-wrap:wrap; min-height:24px; }
+.cs-cell { display:flex; align-items:center; gap:4px; flex-wrap:wrap; min-height:20px; flex:1; }
+.cs-pair { display:flex; flex-direction:column; height:100%; }
+.cs-half { display:flex; align-items:flex-start; gap:6px; padding:4px 6px; min-height:28px; flex:1; }
+.cs-half + .cs-half { border-top:1px dashed #EEF1F5; }
+.cs-ampm { flex:none; width:22px; font-size:8.5px; font-weight:800; color:var(--ink-4); letter-spacing:.04em; padding-top:3px; }
+.cs-arr { color:var(--ink-4); font-weight:800; margin-right:1px; }
 
 /* puce MAR — jeton sur fond clair, accent vert latéral, micro-élévation au survol */
 .slot-name.cs-chip { display:inline-flex; align-items:center; max-width:none;
-  font-family:var(--mono); font-size:11px; font-weight:600; color:var(--green);
-  background:var(--white); border:1px solid rgba(15,23,42,.14); border-radius:7px;
-  padding:2px 7px; box-shadow:0 1px 1.5px rgba(15,23,42,.04);
+  font-size:11px; font-weight:700; color:var(--teal);
+  background:#ECFDF5; border:1px solid #99E6D3; border-radius:7px;
+  padding:2px 8px; box-shadow:none;
   transition:border-color .14s, box-shadow .14s, transform .14s; }
 .slot-name.cs-chip.slot-clickable:hover { outline:none; border-color:rgba(15,23,42,.30); box-shadow:0 2px 6px -1px rgba(15,23,42,.14); transform:translateY(-1px); }
 .slot-name.cs-chip.slot-new { outline:none !important; background:var(--green-soft) !important; color:var(--green) !important; border-color:#A7F3D0 !important; }
-.slot-name.cs-chip.cs-mirror { color:var(--blue); background:var(--white); border-color:rgba(15,23,42,.14); }
+.slot-name.cs-chip.cs-mirror { color:var(--ink-3); background:var(--white); border:1px dashed #CBD5E1; font-weight:600; }
 .plan-chip.cs-chip { background:var(--white); color:var(--ink); border:1px solid rgba(15,23,42,.12); border-radius:8px; max-width:64px; box-shadow:0 1px 1.5px rgba(15,23,42,.05); }
 .cs-lib { display:inline-block; font-size:8.5px; font-weight:800; color:#7c3aed; background:#f3e8ff; border:1px solid #e9d5ff; border-radius:4px; padding:1px 4px; margin-right:3px; vertical-align:1px; letter-spacing:.3px; }
 
 /* « à pourvoir » requis (comité) — petit point discret, sans texte */
-.cs-apourvoir { display:inline-flex; width:9px; height:9px; padding:0; border-radius:50%;
-  background:#FEF3C7; border:1px solid #F59E0B; cursor:pointer; flex-shrink:0;
-  transition:transform .14s, box-shadow .14s; }
-.cs-apourvoir:hover { transform:scale(1.18); box-shadow:0 0 0 3px rgba(245,158,11,.18); }
+.cs-apourvoir { display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700;
+  color:#B45309; background:#FFFBEB; border:1px solid #FCD34D; border-radius:7px;
+  padding:2px 7px; line-height:1.4; cursor:pointer; transition:all .14s; }
+.cs-apourvoir:hover { background:#FEF3C7; box-shadow:0 1px 4px rgba(245,158,11,.22); }
 
 /* outils au survol — fondu + glissé */
 .cs-tools { display:inline-flex; align-items:center; gap:4px; opacity:0; transform:translateX(-5px); pointer-events:none; transition:opacity .16s, transform .16s; }
@@ -2459,7 +2464,7 @@ function renderWeek() {
     let prim = '';
     items.forEach(p => {
       if (p.isMirror) {
-        prim += `<span class="slot-name cs-chip cs-mirror" title="${p.id||''} — consult faite par le secteur">${p.init}</span>`;
+        prim += `<span class="slot-name cs-chip cs-mirror" title="${p.id||''} — consult faite par le secteur"><span class="cs-arr">↳</span>${p.init}</span>`;
       } else {
         const cls = p.isNew ? 'slot-name cs-chip slot-new slot-clickable' : 'slot-name cs-chip slot-clickable';
         prim += `<span class="${cls}" title="${p.id||''}" onclick="openMarMenu('${p.id}','${p.init}','${type}','${date}','${slotKey}')">${p.init}</span>`;
@@ -2469,7 +2474,7 @@ function renderWeek() {
     // Marqueur "à pourvoir" (requis comité) = petit point discret, sans texte. Masqué si laissée vide.
     let req = '';
     if (!_vide && (flash||0) > 0 && items.length < 2) {
-      req = `<span class="cs-apourvoir" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')" title="Consultation requise à pourvoir — cliquer pour affecter"></span>`;
+      req = `<span class="cs-apourvoir" onclick="openSidePanel('${type}','${date}','${label}','${slotKey}')" title="Consultation requise à pourvoir — cliquer pour affecter">à pourvoir</span>`;
     }
     // Outils au survol : OUVRIR (n'importe quel secteur / jour / AM-PM) tant qu'il reste de la place,
     // FERMER s'il y a du contenu. Plus de "+ ajouter" affiché par défaut : vide = vide.
@@ -2531,7 +2536,9 @@ function renderWeek() {
   // Tous les secteurs sont affichés → chacun ouvrable chaque jour, AM comme PM.
   const activeCsTypes = CS_TYPES;
   if (activeCsTypes.length) {
-    tbody += `<tr class="cs-group-row"><td class="cs-group-label" colspan="${daySlots.length + 1}"><i data-lucide="Stethoscope" class="sector-icon-svg"></i> Consultations</td></tr>`;
+    const _lg='font-size:10px;color:#cbd5e1;display:inline-flex;align-items:center;gap:4px;text-transform:none;letter-spacing:0;font-weight:600';
+    const _sw='width:15px;height:12px;border-radius:4px;display:inline-block';
+    tbody += `<tr class="cs-group-row"><td class="cs-group-label" colspan="${daySlots.length + 1}"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><span><i data-lucide="Stethoscope" class="sector-icon-svg"></i> Consultations</span><span style="display:inline-flex;gap:13px;align-items:center"><span style="${_lg}"><span style="${_sw};background:#ECFDF5;border:1px solid #99E6D3"></span>affecté</span><span style="${_lg}"><span style="${_sw};background:#fff;border:1px dashed #CBD5E1"></span>secteur</span><span style="${_lg}"><span style="${_sw};background:#FFFBEB;border:1px solid #FCD34D"></span>à pourvoir</span><span style="${_lg}"><span style="color:#c4b5fd;font-weight:800;font-size:8px;letter-spacing:.3px">lib</span>libéral</span></span></div></td></tr>`;
     activeCsTypes.forEach(t => {
       tbody += `<tr class="sector-row cs-sub-row"><td class="td-sector"><span class="cs-sub-name">${t.label}</span></td>`;
       daySlots.forEach((slot, dow) => {
@@ -2544,9 +2551,9 @@ function renderWeek() {
           tbody += `<div style="display:flex;align-items:center;justify-content:center;height:56px;"><span class="slot-dash">—</span></div>`;
         } else {
           const cell = csTypeMap[t.code][dow];
-          tbody += `<div class="slot-pair">
-            <div class="slot">${makeCsSlot(cell.am, cell.flash_am, t.code, t.label, slot.date, 'am')}</div>
-            <div class="slot">${makeCsSlot(cell.pm, cell.flash_pm, t.code, t.label, slot.date, 'pm')}</div>
+          tbody += `<div class="cs-pair">
+            <div class="cs-half"><span class="cs-ampm">AM</span>${makeCsSlot(cell.am, cell.flash_am, t.code, t.label, slot.date, 'am')}</div>
+            <div class="cs-half"><span class="cs-ampm">PM</span>${makeCsSlot(cell.pm, cell.flash_pm, t.code, t.label, slot.date, 'pm')}</div>
           </div>`;
         }
         tbody += '</td>';
