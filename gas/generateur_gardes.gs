@@ -188,18 +188,18 @@ function generateGardes(year){
   if(prevStats){
     const ps=prevStats.getDataRange().getValues();
     const hdr=ps[0].map(h=>String(h).trim());
-    const iSam=hdr.indexOf('SAM'), iJeu=hdr.indexOf('JEU'), iVd=hdr.indexOf('VD'), iVjf=hdr.indexOf('VEILLE JF'), iJf=hdr.indexOf('JF');
+    const iSam=hdr.indexOf('SAM'), iJeu=hdr.indexOf('JEU'), iVd=hdr.indexOf('VD'), iVjf=hdr.indexOf('VEILLE JF'), iJf=hdr.indexOf('JF'), iTot=hdr.indexOf('TOTAL G');
     // (dette) on lit les NOMBRES RÉELS affectés en N-1 (pas la colonne CIBLE, ~uniforme),
     // puis on recompose la part juste proportionnelle à la quotité à partir de ces réels.
-    const reel={}; let totSam=0,totJeu=0,totVd=0,totVjf=0,totJf=0;
+    const reel={}; let totSam=0,totJeu=0,totVd=0,totVjf=0,totJf=0,totTot=0;
     for(let r=1;r<ps.length;r++){
       const id=String(ps[r][0]).trim();
       if(!id||!dette[id]) continue;
       const rs=iSam>=0?Number(ps[r][iSam])||0:0, rj=iJeu>=0?Number(ps[r][iJeu])||0:0,
             rv=iVd>=0?Number(ps[r][iVd])||0:0,  rvj=iVjf>=0?Number(ps[r][iVjf])||0:0,
-            rjf=iJf>=0?Number(ps[r][iJf])||0:0;
-      reel[id]={sam:rs,jeu:rj,vd:rv,vjf:rvj,jf:rjf};
-      totSam+=rs; totJeu+=rj; totVd+=rv; totVjf+=rvj; totJf+=rjf;
+            rjf=iJf>=0?Number(ps[r][iJf])||0:0,  rt=iTot>=0?Number(ps[r][iTot])||0:0;
+      reel[id]={sam:rs,jeu:rj,vd:rv,vjf:rvj,jf:rjf,total:rt};
+      totSam+=rs; totJeu+=rj; totVd+=rv; totVjf+=rvj; totJf+=rjf; totTot+=rt;
     }
     const sumP=gardeDoctors.reduce((s,id)=>s+pct[id]/100,0);
     const sumPWE=gardeDoctors.reduce((s,id)=>NO_WEEKEND.has(id)?s:s+pct[id]/100,0);
@@ -211,14 +211,16 @@ function generateGardes(year){
       const fairJ=sumP?totJeu*p/sumP:0;
       const fairVj=sumP?totVjf*p/sumP:0;
       const fairJf=(NO_WEEKEND.has(id)||!sumPWE)?0:totJf*p/sumPWE;
+      const fairT=sumP?totTot*p/sumP:0;
       dette[id].sam=reel[id].sam-fairS;
       dette[id].jeu=reel[id].jeu-fairJ;
       dette[id].vd =reel[id].vd -fairV;
       dette[id].vjf=reel[id].vjf-fairVj;
       dette[id].jf =reel[id].jf -fairJf;
+      dette[id].total=reel[id].total-fairT;
     });
     // (équité annuelle = dogme) plafond ±2 par axe : la dette nudge, ne bouleverse pas l'année
-    gardeDoctors.forEach(id=>['sam','jeu','vd','vjf','jf'].forEach(k=>{dette[id][k]=Math.max(-2,Math.min(2,dette[id][k]));}));
+    gardeDoctors.forEach(id=>['sam','jeu','vd','vjf','jf','total'].forEach(k=>{dette[id][k]=Math.max(-2,Math.min(2,dette[id][k]));}));
   }
 
   // ── 5. Cibles PRO-RATÉES par disponibilité STRUCTURELLE ──────────────
