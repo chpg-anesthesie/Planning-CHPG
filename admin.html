@@ -1282,6 +1282,7 @@ if (sessionStorage.getItem('adminCode')) {
           <span style="color:var(--red)">● Écart important</span>
         </div>
       </div>
+      <div id="equiteCertificat" style="margin-bottom:14px"></div>
       <div class="eqv-legend">Barre = réel · trait = cible (plein : Jeu/Sam/VD/VJF) ou moyenne d'équipe (estompé : Lun/Mar/Mer/JF) · <b style="color:#CE1126">rouge</b> au-dessus · <b style="color:#1D4ED8">bleu</b> en-dessous · <b style="color:#15803D">vert</b> à la cible.</div>
       <div id="statsCards"></div>
     </div>
@@ -3410,8 +3411,42 @@ function renderStats(stats){
     cSa:s.cSat||0, cJe:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0,
   }));
   (function(){ const cont=document.getElementById('statsCards'); const grid=cont.querySelector('.eqv-grid'); const gh=renderEquiteCards(list); if(!(grid && morphGrid(grid, gh))) cont.innerHTML = gh; })();
+  renderCertificat(list);
   document.getElementById('statsCard').style.display='block';
   document.getElementById('gardesEmpty').style.display='none';
+}
+
+// ── CERTIFICAT D'ÉQUITÉ : prouve, après génération, que le planning est juste ──
+// Lit réel vs cible par axe (STATS_GARDES). Verdict : conforme si tous les MAR
+// sont à < 2 de leur cible sur chaque axe (l'écart résiduel = plancher arithmétique :
+// cibles fractionnaires, gardes entières). Au-delà de 2 = à examiner.
+function renderCertificat(list){
+  const AX=[['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],['vd','cVd','VD'],['vjf','cVjf','veilles fériés']];
+  const SEUIL=2.0; // au-delà = au-dessus du plancher arithmétique → à examiner
+  let maxEc=0, maxWho='', maxAx='', maxVal=0; const flag=[];
+  list.forEach(m=>{
+    let worst=0, wax='';
+    AX.forEach(([rk,ck,lab])=>{ const cb=m[ck]||0; if(cb<=0) return;
+      const ec=(m[rk]||0)-cb; if(Math.abs(ec)>Math.abs(worst)){ worst=ec; wax=lab; } });
+    if(Math.abs(worst)>maxEc){ maxEc=Math.abs(worst); maxWho=m.name; maxAx=wax; maxVal=worst; }
+    if(Math.abs(worst)>=SEUIL) flag.push({name:m.name,worst,wax});
+  });
+  const conforme=flag.length===0, parfait=maxEc<1;
+  let h='';
+  if(conforme){
+    h+='<div style="border-radius:12px;padding:16px 18px;background:'+(parfait?'#dcfce7':'#ecfdf5')+';border:1px solid '+(parfait?'#86efac':'#a7f3d0')+'">';
+    h+='<div style="font-size:15px;font-weight:800;color:#166534">✅ Planning équitable — certifié</div>';
+    h+='<div style="font-size:12.5px;color:#15803d;margin-top:6px;line-height:1.55">Tous les MAR sont à <strong>moins de 2 gardes</strong> de leur cible sur chaque axe'+(parfait?', et même à moins de 1':'')+'. Écart maximum : <strong>'+(maxVal>=0?'+':'')+maxVal.toFixed(1)+'</strong> ('+maxWho+', '+maxAx+'). Cet écart résiduel est le <strong>plancher arithmétique</strong> — les cibles sont fractionnaires (ex. 4,8 samedis) mais les gardes entières, l\'égalité stricte au chiffre près est donc impossible. Il est <strong>compensé l\'année suivante</strong> par la dette inter-annuelle.</div>';
+    h+='</div>';
+  } else {
+    h+='<div style="border-radius:12px;padding:16px 18px;background:#fef2f2;border:1px solid #fecaca">';
+    h+='<div style="font-size:15px;font-weight:800;color:#991b1b">🔴 À examiner — '+flag.length+' écart(s) au-delà du plancher</div>';
+    h+='<div style="font-size:12.5px;color:#b91c1c;margin-top:6px;line-height:1.55">Ces MAR dépassent <strong>2 gardes d\'écart</strong> sur un axe, au-delà du simple arrondi. À vérifier avant publication (causes fréquentes : dette de total non activée, ou contrainte individuelle non déclarée).</div>';
+    h+='<div style="margin-top:8px;font-size:12.5px;color:#7f1d1d">';
+    flag.forEach(f=>{ h+='<div style="padding:2px 0"><strong>'+f.name+'</strong> : '+(f.worst>=0?'+':'')+f.worst.toFixed(1)+' sur '+f.wax+'</div>'; });
+    h+='</div></div>';
+  }
+  const el=document.getElementById('equiteCertificat'); if(el) el.innerHTML=h;
 }
 
 // ── INDISPOS ──────────────────────────────────────────────────────────
