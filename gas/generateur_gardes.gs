@@ -23,6 +23,7 @@ const PREMIERE_ANNEE_STATS_FIABLES = 2027;
 // → lus localement dans generateGardes via getMedecinFlags() (const FLAGS).
 const RATIO_18      = 1.3;
 const DETTE_AMORTI  = 0.6;  // amortissement de la dette : evite la sur-correction/oscillation annuelle (10 ans : 0 annee non-conforme)
+const FREEBUDGET_MARGE = 1;  // marge : reserve ~1 jour pour absorber les pertes de placement VD (multi-mardis robuste)
 const MIN_PRESENT   = {1:16, 2:15, 3:16, 4:15, 5:15};
 // (C2-D3) Rythme 2/2 lu depuis MEDECINS (colonne rythme_2sur2, via getMedecinFlags).
 // Ancre semaine 23/2026 conservée en dur (la dérive année-53-sem. = Fix A, séparé).
@@ -291,7 +292,7 @@ function generateGardes(year){
     const c=cible[id];
     // un week-end VD coûte 2 jours (vendredi + dimanche) au total → compté ×2,
     // sinon le budget de souhaits est surévalué et les mardis affament l'axe VD.
-    freeBudget[id]=c.total-(c.sam+c.jeu+2*c.vd+c.vjf+c.ferie);
+    freeBudget[id]=c.total-(c.sam+c.jeu+2*c.vd+c.vjf+c.ferie)-FREEBUDGET_MARGE;
   });
   // ── 5ter. Lissage annuel : espérance de gardes par MOIS, proportionnelle aux
   // jours STRUCTURELLEMENT disponibles ce mois (respecte 2/2, CL, dates, absences
