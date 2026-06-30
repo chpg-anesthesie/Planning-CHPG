@@ -559,6 +559,10 @@ function generateGardes(year){
   // Régime 2 — autres MAR : équitable, DANS la cible
   Object.keys(souhParJour).sort().forEach(date=>{
     if(gardes[date]) return;
+    // Défense en profondeur : un souhait n'est honoré que sur jour LIBRE (lun/mar/mer).
+    // Un souhait sur jeudi/samedi/VD (axe d'équité) est ignoré → le MAR reçoit sa part
+    // normale par l'équité, l'axe ne peut pas être monopolisé même si le garde-fou est contourné.
+    const _dw=new Date(date+'T12:00:00').getDay(); if(_dw<1||_dw>3) return;
     const cands=souhParJour[date].filter(m=>!SOUHAIT_PLAFOND.has(m)&&!blocked(m,date)
                   &&cnt[m].total<freeBudget[m]);
     if(!cands.length) return; // sera rempli par la passe chronologique
