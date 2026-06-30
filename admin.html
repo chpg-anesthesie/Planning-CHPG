@@ -3421,10 +3421,13 @@ function renderStats(stats){
 // sont à < 2 de leur cible sur chaque axe (l'écart résiduel = plancher arithmétique :
 // cibles fractionnaires, gardes entières). Au-delà de 2 = à examiner.
 function renderCertificat(list){
-  const AX=[['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],['vd','cVd','VD'],['vjf','cVjf','veilles fériés']];
+  const AXfull=[['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],['vd','cVd','VD'],['vjf','cVjf','veilles fériés']];
+  // Profils fixes (plafond de souhaits / jours fixes) : concentration voulue → jugés sur le TOTAL seul
+  const _spec = name => { const x=(typeof marsData!=='undefined'?marsData:[]).find(d=>d.initiales===name||d.nom===name||d.id===name); return !!(x&&(x.souhaitPlafond||x.tpJoursFixes)); };
   const SEUIL=2.0; // au-delà = au-dessus du plancher arithmétique → à examiner
   let maxEc=0, maxWho='', maxAx='', maxVal=0; const flag=[];
   list.forEach(m=>{
+    const AX = _spec(m.name) ? [['total','cTot','total']] : AXfull;
     let worst=0, wax='';
     AX.forEach(([rk,ck,lab])=>{ const cb=m[ck]||0; if(cb<=0) return;
       const ec=(m[rk]||0)-cb; if(Math.abs(ec)>Math.abs(worst)){ worst=ec; wax=lab; } });
