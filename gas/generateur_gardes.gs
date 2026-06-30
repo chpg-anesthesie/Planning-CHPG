@@ -22,6 +22,7 @@ const PREMIERE_ANNEE_STATS_FIABLES = 2027;
 // (C2-D1) NO_GARDE / ONLY_18 / NO_WEEKEND sortis vers l'onglet MEDECINS.
 // → lus localement dans generateGardes via getMedecinFlags() (const FLAGS).
 const RATIO_18      = 1.3;
+const DETTE_AMORTI  = 0.6;  // amortissement de la dette : evite la sur-correction/oscillation annuelle (10 ans : 0 annee non-conforme)
 const MIN_PRESENT   = {1:16, 2:15, 3:16, 4:15, 5:15};
 // (C2-D3) Rythme 2/2 lu depuis MEDECINS (colonne rythme_2sur2, via getMedecinFlags).
 // Ancre semaine 23/2026 conservée en dur (la dérive année-53-sem. = Fix A, séparé).
@@ -220,7 +221,7 @@ function generateGardes(year){
       dette[id].total=reel[id].total-fairT;
     });
     // (équité annuelle = dogme) plafond ±2 par axe : la dette nudge, ne bouleverse pas l'année
-    gardeDoctors.forEach(id=>['sam','jeu','vd','vjf','jf','total'].forEach(k=>{dette[id][k]=Math.max(-2,Math.min(2,dette[id][k]));}));
+    gardeDoctors.forEach(id=>['sam','jeu','vd','vjf','jf','total'].forEach(k=>{dette[id][k]=DETTE_AMORTI*Math.max(-2,Math.min(2,dette[id][k]));}));
   }
 
   // ── 5. Cibles PRO-RATÉES par disponibilité STRUCTURELLE ──────────────
