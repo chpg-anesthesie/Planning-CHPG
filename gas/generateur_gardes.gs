@@ -288,7 +288,9 @@ function generateGardes(year){
   const freeBudget={};
   gardeDoctors.forEach(id=>{
     const c=cible[id];
-    freeBudget[id]=c.total-(c.sam+c.jeu+c.vd+c.vjf+c.ferie);
+    // un week-end VD coûte 2 jours (vendredi + dimanche) au total → compté ×2,
+    // sinon le budget de souhaits est surévalué et les mardis affament l'axe VD.
+    freeBudget[id]=c.total-(c.sam+c.jeu+2*c.vd+c.vjf+c.ferie);
   });
   // ── 5ter. Lissage annuel : espérance de gardes par MOIS, proportionnelle aux
   // jours STRUCTURELLEMENT disponibles ce mois (respecte 2/2, CL, dates, absences
