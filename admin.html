@@ -4474,93 +4474,91 @@ async function renderWizGStep() {
       html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534;margin-top:8px">✅ Aucun conflit vacances — vous pouvez continuer.</div>';
     }
 
-    // ── Audit équité : indispos ET souhaits sur TOUS les axes à enjeu (bloque AVANT de générer) ──
+    // ── Audit équité : indispos & souhaits sur TOUS les axes (cible exacte, bloque AVANT génération) ──
     if (wizGFeries) {
       const _fer = wizGFeries, _y = INDISPOS_YEAR;
       const _pad = n => String(n).padStart(2,'0');
       const _dstr = dt => dt.getFullYear()+'-'+_pad(dt.getMonth()+1)+'-'+_pad(dt.getDate());
-      // Classe un jour dans son axe d'équité. Priorité : férié > veille férié > samedi > dim > vendredi(VD) > jeudi.
-      const _typeOf = ds => {
-        if (_fer.has(ds)) return 'jf';
-        const dt = new Date(ds+'T12:00:00'), dow = dt.getDay();
-        if (dow === 6) return 'sam';
-        if (dow === 0) return 'dim';
-        if (dow >= 1 && dow <= 5) { const nx = new Date(dt.getTime()+86400000); if (_fer.has(_dstr(nx))) return 'vjf'; }
-        if (dow === 5) return 'ven';   // vendredi = axe VD (le plus pondéré)
-        if (dow === 4) return 'jeu';   // jeudi (hors veille de férié, déjà capté ci-dessus)
-        return null;
-      };
-      const _AXES = ['sam','ven','jeu','vjf','jf'];   // axes bloquants (dim couplé au VD : affiché, non bloquant)
-      const _LAB  = {sam:'samedis',dim:'dimanches',ven:'vendredis (VD)',jeu:'jeudis',vjf:'veilles fériés',jf:'fériés'};
-      const _tot = {sam:0,dim:0,ven:0,jeu:0,vjf:0,jf:0};
-      for (let dt=new Date(_y,0,1); dt<=new Date(_y,11,31); dt.setDate(dt.getDate()+1)) { const t=_typeOf(_dstr(dt)); if(t)_tot[t]++; }
-      const _nA = actifs.length || 1;
-      const _fair = {}; _AXES.forEach(a => { _fair[a] = Math.max(1, Math.round(_tot[a]*2/_nA)); }); // part équitable ≈ cible de l'axe
-      // Comptage indispos + souhaits par axe, par MAR
+      const _isVF = ds => { const dt=new Date(ds+'T12:00:00'),dow=dt.getDay(); if(dow<1||dow>5)return false; const nx=new Date(dt.getTime()+86400000); return _fer.has(_dstr(nx)); };
+      // 1) Recenser les jours de chaque axe sur l'année
+      const _satD=[],_venD=[],_jeuD=[],_jfD=[]; let _nVjf=0;
+      for (let dt=new Date(_y,0,1); dt<=new Date(_y,11,31); dt.setDate(dt.getDate()+1)) {
+        const ds=_dstr(dt), dow=dt.getDay(), fer=_fer.has(ds);
+        if (fer) { _jfD.push(ds); continue; }
+        if (dow===6) _satD.push(ds); else if (dow===5) _venD.push(ds); else if (dow===4) _jeuD.push(ds);
+        if (_isVF(ds)) _nVjf++;
+      }
+      const _nSam=_satD.length, _nVen=_venD.length, _nJeu=_jeuD.length, _nJf=_jfD.length;
+      // 2) Cible exacte par axe (fidèle à l'algo : weekend exclut « pas de week-end »)
+      let _sumPAll=0, _sumPWE=0;
+      actifs.forEach(m => { const p=(m.pctGardes||100)/100; _sumPAll+=p; if(!m.noWeekend)_sumPWE+=p; });
+      _sumPAll=_sumPAll||1; _sumPWE=_sumPWE||1;
+      const _cible = m => { const p=(m.pctGardes||100)/100, we=m.noWeekend?0:1; return {
+        sam: we?_nSam*2*p/_sumPWE:0, ven: we?_nVen*2*p/_sumPWE:0, jeu: _nJeu*2*p/_sumPAll, jf: we?_nJf*2*p/_sumPWE:0 }; };
+      const _MARGE = 1.4;                    // indispo bloque si dispo < cible×1.4 (≈ refus > ~86%, validé en simulation)
+      const _LAB = {sam:'samedis', ven:'week-ends VD', jeu:'jeudis', jf:'fériés'};
+      // 3) Par MAR : refus, dispo (VD = vendredi ET dimanche libres), souhaits — puis comparaison aux cibles
       const _rows = actifs.map(m => {
         const ind = wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || {};
-        const ci = {sam:0,dim:0,ven:0,jeu:0,vjf:0,jf:0};   // INDISPO (refus)
-        const cs = {sam:0,dim:0,ven:0,jeu:0,vjf:0,jf:0};   // SOUHAIT
-        Object.keys(ind).forEach(ds => { const t=_typeOf(ds); if(!t) return;
-          if (ind[ds]==='INDISPO') ci[t]++; else if (ind[ds]==='SOUHAIT') cs[t]++; });
-        ci.tp = ci.sam+ci.dim+ci.ven+ci.jeu+ci.vjf+ci.jf;
-        cs.tp = _AXES.reduce((s,a)=>s+cs[a],0);
-        return {m,ci,cs};
-      }).sort((a,b)=>b.ci.tp-a.ci.tp);
-      // Détection des profils ROUGES (cassent l'équité) + message d'action par MAR
-      const _alertes = [];
+        const ref=new Set(), sou=new Set();
+        Object.keys(ind).forEach(ds => { if(ind[ds]==='INDISPO')ref.add(ds); else if(ind[ds]==='SOUHAIT')sou.add(ds); });
+        const cb=_cible(m);
+        const refS={sam:_satD.filter(d=>ref.has(d)).length, ven:_venD.filter(d=>ref.has(d)).length, jeu:_jeuD.filter(d=>ref.has(d)).length, jf:_jfD.filter(d=>ref.has(d)).length};
+        const dispo={
+          sam:_satD.filter(d=>!ref.has(d)).length,
+          ven:_venD.filter(d=>{const dim=_dstr(new Date(new Date(d+'T12:00:00').getTime()+2*86400000)); return !ref.has(d)&&!ref.has(dim);}).length,
+          jeu:_jeuD.filter(d=>!ref.has(d)).length,
+          jf:_jfD.filter(d=>!ref.has(d)).length };
+        const souC={sam:_satD.filter(d=>sou.has(d)).length, ven:_venD.filter(d=>sou.has(d)).length, jeu:_jeuD.filter(d=>sou.has(d)).length, jf:_jfD.filter(d=>sou.has(d)).length};
+        souC.tp = souC.sam+souC.ven+souC.jeu+souC.jf;
+        refS.tp = refS.sam+refS.ven+refS.jeu+refS.jf;
+        return {m,cb,refS,dispo,souC};
+      }).sort((a,b)=>b.refS.tp-a.refS.tp);
+      // 4) Profils ROUGES + message d'action
+      const _alertes=[];
       _rows.forEach(o => {
-        const msgs = [];
-        _AXES.forEach(a => {
-          if (_tot[a] && o.ci[a]/_tot[a] >= 0.5)
-            msgs.push('🚫 '+o.ci[a]+'/'+_tot[a]+' '+_LAB[a]+' refusés (>50%) — réduire ces indispos, ou le passer en « pas de week-end » dans Équipe (réduit sa cible, supprime le report sur les collègues)');
-          if (o.cs[a] > _fair[a])
-            msgs.push('⭐ '+o.cs[a]+' souhaits sur '+_LAB[a]+' (équité ≈ '+_fair[a]+') — reporter le surplus sur des jours libres (lun/mar/mer), garder ≤ '+_fair[a]);
+        const msgs=[];
+        ['sam','ven','jeu','jf'].forEach(a => {
+          if (o.cb[a] > 0 && o.dispo[a] < o.cb[a]*_MARGE)
+            msgs.push('🚫 ne laisse que '+o.dispo[a]+' '+_LAB[a]+' disponibles (il en faut ≥ '+Math.ceil(o.cb[a]*_MARGE)+' pour placer sa part équitable de '+o.cb[a].toFixed(1)+') — réduire ces refus, ou le passer en « pas de week-end » dans Équipe');
+          if (o.souC[a] > Math.ceil(o.cb[a]))
+            msgs.push('⭐ '+o.souC[a]+' souhaits sur '+_LAB[a]+' (max équitable '+Math.ceil(o.cb[a])+') — reporter le surplus sur des jours libres (lun/mar/mer)');
         });
         if (msgs.length) _alertes.push({init:o.m.initiales, nom:o.m.nom, msgs});
       });
-      // Bannière + BLOCAGE de la génération
       if (_alertes.length) {
         document.getElementById('wizGNextBtn').disabled = true;
         html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b;margin-top:8px">🔴 <strong>Génération bloquée — '+_alertes.length+' profil(s) à corriger</strong> pour garantir l\'équité.<br><small>Le comité contacte chaque MAR ci-dessous en lui indiquant l\'action à mener. Une fois tous repassés au vert, la génération sera possible.</small></div>';
         html += '<div class="wiz-mar-list" style="margin-top:8px">';
-        _alertes.forEach(a => {
-          html += '<div class="wiz-mar-row" style="align-items:flex-start"><div class="wiz-mar-init" style="background:#FECACA;color:#991B1B">'+a.init+'</div><div class="wiz-mar-name">'+a.nom+'<div style="font-size:11px;color:#B91C1C;font-weight:500;margin-top:3px;line-height:1.5">'+a.msgs.join('<br>')+'</div></div></div>';
-        });
+        _alertes.forEach(a => { html += '<div class="wiz-mar-row" style="align-items:flex-start"><div class="wiz-mar-init" style="background:#FECACA;color:#991B1B">'+a.init+'</div><div class="wiz-mar-name">'+a.nom+'<div style="font-size:11px;color:#B91C1C;font-weight:500;margin-top:3px;line-height:1.5">'+a.msgs.join('<br>')+'</div></div></div>'; });
         html += '</div>';
       } else {
         html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534;margin-top:8px">✅ Aucun profil déséquilibré (indispos & souhaits) — l\'équité est préservée, génération possible.</div>';
       }
-      const _cell = (n,total) => {
-        const r = total ? n/total : 0;
-        const bg = n===0?'#fff':r>=0.5?'#FEE2E2':r>=0.3?'#FEF3C7':'#F1F5F9';
-        const fg = n===0?'#94A3B8':r>=0.5?'#991B1B':r>=0.3?'#92400E':'#334155';
-        return '<td style="text-align:center;padding:5px 6px;border-bottom:1px solid var(--line);background:'+bg+';color:'+fg+';font-weight:'+(r>=0.5?'800':'600')+'">'+n+(total?'<span style="opacity:.45;font-size:9px">/'+total+'</span>':'')+'</td>';
-      };
-      const _scell = (n,fair) => {   // cellule souhait : rouge si > part équitable
-        const bg = n===0?'#fff':n>fair?'#FEE2E2':n>=Math.ceil(fair*0.6)?'#FEF3C7':'#F1F5F9';
-        const fg = n===0?'#94A3B8':n>fair?'#991B1B':n>=Math.ceil(fair*0.6)?'#92400E':'#334155';
-        return '<td style="text-align:center;padding:5px 6px;border-bottom:1px solid var(--line);background:'+bg+';color:'+fg+';font-weight:'+(n>fair?'800':'600')+'">'+n+'<span style="opacity:.45;font-size:9px">/'+fair+'</span></td>';
-      };
+      // 5) Tableaux de contrôle
       const _thH = h => '<th style="text-align:center;padding:5px 6px;border-bottom:2px solid var(--line);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">'+h+'</th>';
       const _thMar = '<th style="text-align:left;padding:5px 6px;border-bottom:2px solid var(--line);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">MAR</th>';
-      // Tableau 1 — INDISPOS sur axes
+      const _iCell = (ref,disp,cb) => { // indispo : rouge si dispo < cible×marge
+        const red = cb>0 && disp < cb*_MARGE, amb = cb>0 && disp < cb*2;
+        const bg = ref===0?'#fff':red?'#FEE2E2':amb?'#FEF3C7':'#F1F5F9', fg = ref===0?'#94A3B8':red?'#991B1B':amb?'#92400E':'#334155';
+        return '<td style="text-align:center;padding:5px 6px;border-bottom:1px solid var(--line);background:'+bg+';color:'+fg+';font-weight:'+(red?'800':'600')+'">'+ref+'</td>';
+      };
+      const _sCell = (n,cb) => { // souhait : rouge si > ceil(cible)
+        const lim=Math.ceil(cb), red=n>lim, amb=n===lim&&n>0;
+        const bg = n===0?'#fff':red?'#FEE2E2':amb?'#FEF3C7':'#F1F5F9', fg = n===0?'#94A3B8':red?'#991B1B':amb?'#92400E':'#334155';
+        return '<td style="text-align:center;padding:5px 6px;border-bottom:1px solid var(--line);background:'+bg+';color:'+fg+';font-weight:'+(red?'800':'600')+'">'+n+'<span style="opacity:.45;font-size:9px">/'+lim+'</span></td>';
+      };
       html += '<div class="wizard-section-title" style="margin-top:16px">Indispos sur jours à enjeu</div>';
-      html += '<div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">Jours marqués 🚫 <strong>Indisponible</strong> (refus de garde) sur les axes d\'équité — vacances/formations exclues. Rouge ≥ 50% : profil bloquant, à corriger avant de générer.</div>';
-      html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'+_thMar+_thH('Samedis')+_thH('Dimanches')+_thH('Vendredis (VD)')+_thH('Jeudis')+_thH('Veilles fériés')+_thH('Fériés')+'</tr></thead><tbody>';
-      _rows.forEach(o => {
-        html += '<tr><td style="text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);font-weight:700">'+o.m.initiales+'</td>'+_cell(o.ci.sam,_tot.sam)+_cell(o.ci.dim,_tot.dim)+_cell(o.ci.ven,_tot.ven)+_cell(o.ci.jeu,_tot.jeu)+_cell(o.ci.vjf,_tot.vjf)+_cell(o.ci.jf,_tot.jf)+'</tr>';
-      });
+      html += '<div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">Nombre de jours <strong>refusés</strong> (vacances/formations exclues). Rouge = trop peu de jours laissés disponibles pour placer sa part équitable → bloquant.</div>';
+      html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'+_thMar+_thH('Samedis')+_thH('Week-ends VD')+_thH('Jeudis')+_thH('Fériés')+'</tr></thead><tbody>';
+      _rows.forEach(o => { html += '<tr><td style="text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);font-weight:700">'+o.m.initiales+'</td>'+_iCell(o.refS.sam,o.dispo.sam,o.cb.sam)+_iCell(o.refS.ven,o.dispo.ven,o.cb.ven)+_iCell(o.refS.jeu,o.dispo.jeu,o.cb.jeu)+_iCell(o.refS.jf,o.dispo.jf,o.cb.jf)+'</tr>'; });
       html += '</tbody></table></div>';
-      // Tableau 2 — SOUHAITS sur axes (le vrai angle mort : un souhait d'axe est verrouillé et casse l'équité)
-      const _souhRows = _rows.filter(o => o.cs.tp > 0);
+      const _souhRows = _rows.filter(o => o.souC.tp > 0);
       html += '<div class="wizard-section-title" style="margin-top:16px">Souhaits sur jours à enjeu</div>';
-      html += '<div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">Souhaits ⭐ posés sur un axe d\'équité. Au-delà de la part équitable (rouge), ils monopolisent l\'axe et cassent l\'équité — à reporter sur des jours libres. <em>Les souhaits sur lun/mar/mer sont libres et ne sont pas comptés ici.</em></div>';
+      html += '<div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">Souhaits ⭐ posés sur un axe d\'équité (le chiffre après / est le maximum équitable). Au-delà, ils monopolisent l\'axe et cassent l\'équité. <em>Les souhaits sur lun/mar/mer sont libres et non comptés ici.</em></div>';
       if (_souhRows.length) {
-        html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'+_thMar+_thH('Samedis')+_thH('Vendredis (VD)')+_thH('Jeudis')+_thH('Veilles fériés')+_thH('Fériés')+'</tr></thead><tbody>';
-        _souhRows.forEach(o => {
-          html += '<tr><td style="text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);font-weight:700">'+o.m.initiales+'</td>'+_scell(o.cs.sam,_fair.sam)+_scell(o.cs.ven,_fair.ven)+_scell(o.cs.jeu,_fair.jeu)+_scell(o.cs.vjf,_fair.vjf)+_scell(o.cs.jf,_fair.jf)+'</tr>';
-        });
+        html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'+_thMar+_thH('Samedis')+_thH('VD (ven)')+_thH('Jeudis')+_thH('Fériés')+'</tr></thead><tbody>';
+        _souhRows.forEach(o => { html += '<tr><td style="text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);font-weight:700">'+o.m.initiales+'</td>'+_sCell(o.souC.sam,o.cb.sam)+_sCell(o.souC.ven,o.cb.ven)+_sCell(o.souC.jeu,o.cb.jeu)+_sCell(o.souC.jf,o.cb.jf)+'</tr>'; });
         html += '</tbody></table></div>';
       } else {
         html += '<div style="font-size:12px;color:var(--ink-3);padding:8px 0">Aucun souhait posé sur un jour d\'équité — rien à signaler.</div>';
