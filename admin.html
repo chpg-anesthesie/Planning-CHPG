@@ -4601,6 +4601,53 @@ async function renderWizGStep() {
       } else {
         html += '<div style="font-size:12px;color:var(--ink-3);padding:8px 0">Aucun souhait posé sur un jour d\'équité — rien à signaler.</div>';
       }
+
+      // ── Audit COUVERTURE : assez de MAR dispo chaque semaine pour pourvoir les gardes ? ──
+      // Capacité hebdo = Σ min(jours libres, 2) par MAR de garde (un MAR couvre ~2 gardes/sem. avec
+      // les espacements). Requis = jours de la semaine × 2. Seuil calibré en simulation : les trous
+      // apparaissent quand la capacité passe sous le requis (≈ 17 MAR absents la même quinzaine).
+      {
+        const _blk = new Set(['INDISPO','VAC','FORM','CL','CTP','TP']);
+        const _gMars = actifs.filter(m => !m.noGarde);
+        const _wk = {};
+        for (let dt=new Date(_y,0,1); dt<=new Date(_y,11,31); dt.setDate(dt.getDate()+1)) {
+          const ds=_dstr(dt); const mon=new Date(dt); mon.setDate(mon.getDate()-((dt.getDay()+6)%7));
+          const key=_dstr(mon); if(!_wk[key]) _wk[key]={lundi:key, days:[]}; _wk[key].days.push(ds);
+        }
+        const _cov=[];
+        Object.values(_wk).forEach(w => {
+          if (w.days.length < 4) return; // semaines tronquées de bord d'année : ignorées
+          const demand = w.days.length*2; let supply=0; const abs=[];
+          _gMars.forEach(m => {
+            const ind = wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || {};
+            let free=0; w.days.forEach(ds => { const c=ind[ds]; if(!c || !_blk.has(c)) free++; });
+            supply += Math.min(free,2); if (free<=1) abs.push(m.initiales);
+          });
+          if (supply < demand*1.25) _cov.push({lundi:w.lundi, fin:w.days[w.days.length-1], demand, supply, abs, red: supply<demand});
+        });
+        const _fmt = ds => { const d=new Date(ds+'T12:00:00'); return d.getDate()+'/'+(d.getMonth()+1); };
+        html += '<div class="wizard-section-title" style="margin-top:16px">Couverture des gardes par semaine</div>';
+        if (_cov.length) {
+          const nbRed=_cov.filter(c=>c.red).length;
+          if (nbRed) html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b;margin-top:4px">🔴 <strong>'+nbRed+' semaine(s) risquent de ne pas être entièrement pourvues</strong> — trop de MAR absents en même temps.<br><small>Rééquilibrez les vacances sur ces semaines, sinon des gardes resteront vides (à pourvoir à la main). Ceci ne bloque pas la génération.</small></div>';
+          else html += '<div class="wizard-warning" style="background:#FEF3C7;border-left:3px solid #F59E0B;color:#92400E;margin-top:4px">🟠 <strong>Couverture tendue</strong> sur quelques semaines (pas de trou attendu, marge faible). À surveiller.</div>';
+          html += '<div style="font-size:11px;color:var(--ink-3);margin:6px 0 8px">Capacité = ce que les MAR disponibles peuvent assurer ; Requis = gardes à pourvoir. Rouge = capacité &lt; requis.</div>';
+          html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'
+            +'<th style="text-align:left;padding:5px 6px;border-bottom:2px solid var(--line);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">Semaine</th>'
+            +_thH('Capacité')+_thH('Requis')+'<th style="text-align:left;padding:5px 6px;border-bottom:2px solid var(--line);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">MAR absents</th></tr></thead><tbody>';
+          _cov.sort((a,b)=>(a.supply-a.demand)-(b.supply-b.demand)).forEach(c => {
+            const bg=c.red?'#FEE2E2':'#FEF3C7', fg=c.red?'#991B1B':'#92400E';
+            const absTxt = c.abs.length>8 ? (c.abs.slice(0,8).join(', ')+' +'+(c.abs.length-8)) : (c.abs.join(', ')||'—');
+            html += '<tr><td style="text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);font-weight:700">'+_fmt(c.lundi)+'–'+_fmt(c.fin)+'</td>'
+              +'<td style="text-align:center;padding:5px 6px;border-bottom:1px solid var(--line);background:'+bg+';color:'+fg+';font-weight:800">'+c.supply+'</td>'
+              +'<td style="text-align:center;padding:5px 6px;border-bottom:1px solid var(--line);color:var(--ink-3)">'+c.demand+'</td>'
+              +'<td style="text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);font-size:11px;color:var(--ink-3)">'+absTxt+'</td></tr>';
+          });
+          html += '</tbody></table></div>';
+        } else {
+          html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534;margin-top:4px">✅ Couverture suffisante toute l\'année — toutes les gardes pourront être pourvues.</div>';
+        }
+      }
     }
     html += '<div class="wiz-mar-list" style="margin-top:12px">';
     actifs.forEach(m => {
