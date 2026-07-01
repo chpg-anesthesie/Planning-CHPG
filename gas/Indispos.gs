@@ -39,6 +39,25 @@ function logAction(message) {
   }
 }
 
+// ── JOURNAL DES CONNEXIONS (qui se connecte, quand, avec quel rôle) ────
+function logConnexion(user) {
+  try {
+    if (!user) return;
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('CONNEXIONS');
+    if (!sheet) {
+      sheet = ss.insertSheet('CONNEXIONS');
+      sheet.getRange(1, 1, 1, 4).setValues([['HORODATAGE','NOM','INITIALES','ROLE']]);
+      sheet.getRange(1, 1, 1, 4).setFontWeight('bold');
+      sheet.setColumnWidth(1, 160); sheet.setColumnWidth(2, 200);
+    }
+    sheet.appendRow([new Date(), user.name || '', user.initials || '', user.role || '']);
+    if (sheet.getLastRow() > 2001) sheet.deleteRows(2, sheet.getLastRow() - 2001);
+  } catch(e) {
+    Logger.log('logConnexion error: ' + e.message);
+  }
+}
+
 // ── GÉNÉRATION CODE ACCÈS ─────────────────────────────────────────────
 function generateCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -679,6 +698,7 @@ function doGet(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
     if (action === 'login') {
+      logConnexion(user);
       return ContentService.createTextOutput(JSON.stringify({
         success: true, role: user.role, id: user.id,
         name: user.name, initials: user.initials, 
