@@ -617,7 +617,8 @@ function generatePlanning(yearOverride) {
       })
     }))
   }));
-  pushFileToGitHub(`planning_${year}.json`, JSON.stringify({months: monthsMin, equiteInitiale}));
+  const _pushRes = pushFileToGitHub(`planning_${year}.json`, JSON.stringify({months: monthsMin, equiteInitiale}));
+  if (_pushRes && !_pushRes.ok) throw new Error(_pushErrMsg(`planning_${year}.json`, _pushRes));
   // ── Push affectations_YYYY.json ──────────────────────────────────────
   try {
     const affectations = loadAffectations(year);
@@ -935,15 +936,27 @@ function pushFileToGitHub(fileName, content) {
   const code = resp.getResponseCode();
   if (code === 200 || code === 201) {
     Logger.log(`✅ ${fileName} mis à jour sur GitHub`);
-  } else {
-    Logger.log(`❌ GitHub error ${code} pour ${fileName}: ${resp.getContentText().slice(0,300)}`);
-    logAction(`❌ Push échoué ${fileName}: ${resp.getContentText().slice(0,100)}`);
+    return { ok: true, code: code };
   }
+  const errBody = resp.getContentText().slice(0, 300);
+  Logger.log(`❌ GitHub error ${code} pour ${fileName}: ${errBody}`);
+  logAction(`❌ Push échoué ${fileName}: ${errBody.slice(0, 100)}`);
+  return { ok: false, code: code, body: errBody };
+}
+
+// Message clair (pour l'utilisateur) à partir d'un push GitHub raté.
+function _pushErrMsg(fileName, res) {
+  const c = res && res.code;
+  if (c === 401) return "Publication échouée : token GitHub invalide ou expiré. Vérifie / régénère la clé GITHUB_TOKEN dans l'onglet CONFIG.";
+  if (c === 403) return "Publication échouée : accès refusé par GitHub (403) — le token n'a peut-être pas le droit « repo », ou la limite d'API est atteinte.";
+  if (c === 404) return "Publication échouée : dépôt ou branche introuvable (404). Vérifie le dépôt et la branche dans le code.";
+  if (c === 409 || c === 422) return "Publication échouée : conflit GitHub (" + c + ") sur " + fileName + ". Réessaie une fois.";
+  return "Publication échouée sur " + fileName + " (code GitHub " + (c || "?") + ").";
 }
 
 // ── RÉTROCOMPATIBILITÉ ────────────────────────────────────────────────
 function pushToGitHub(content) {
-  pushFileToGitHub(`planning_${getActiveYear()}.json`, content);
+  return pushFileToGitHub(`planning_${getActiveYear()}.json`, content);
 }
 
 // ── TRIGGERS ─────────────────────────────────────────────────────────
@@ -956,7 +969,9 @@ function onEdit(e) {
     sheetName === 'PLANNING_OVERRIDES' ||
     sheetName === 'SEMAINES_VALIDEES'
   ) {
-    generatePlanning();
+    // Republication auto silencieuse : on log l'échec sans bloquer l'édition de la
+    // feuille (c'est le bouton « Publier » qui, lui, remonte les erreurs à l'écran).
+    try { generatePlanning(); } catch (err) { Logger.log('onEdit republication échouée : ' + err.message); }
   }
 }
 
