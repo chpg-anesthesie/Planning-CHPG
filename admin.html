@@ -2749,11 +2749,15 @@ function getSectorFg(code) {
 function consultCountsForMonth(ym) {
   const counts = {};
   if (!ym || !DATA || !DATA.months) return counts;
+  const seen = new Set(); // un même jour apparaît dans plusieurs blocs "mois" (chevauchement) → dédup (médecin,date)
   DATA.months.forEach(month => {
     (month.days||[]).forEach((day, dayIdx) => {
       if (!day || !day.date || day.date.slice(0,7) !== ym) return;
       const jsDow = new Date(day.date + 'T12:00:00').getDay();
       (month.doctors||[]).forEach(doc => {
+        const key = doc.id + '|' + day.date;
+        if (seen.has(key)) return;      // ce (médecin, jour) a déjà été compté via un autre bloc
+        seen.add(key);
         const e = (doc.days && doc.days[dayIdx]) || {};
         const amSecs = String(e.morning||'').split('+').map(x=>x.trim()).filter(Boolean);
         const pmSecs = String(e.afternoon||'').split('+').map(x=>x.trim()).filter(Boolean);
