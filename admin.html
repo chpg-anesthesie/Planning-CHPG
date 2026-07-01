@@ -2822,9 +2822,32 @@ function renderSidePanelContent(dispo, sector) {
       </div>`
     : '';
 
+  // Ordre du picker : pour une CONSULTATION, proposer d'abord les MAR affectés au secteur
+  // concerné (et présents ce jour), puis les volants, puis le reste. Sinon ordre habituel.
+  const _AFF = window.AFFM || {};
+  const _mo = parseInt((_ym||'').slice(5,7),10) || (new Date().getMonth()+1);
+  const _affOf = id => (_AFF[id] && _AFF[id][_mo]) ? String(_AFF[id][_mo]).trim().toUpperCase() : '';
+  const _MIRROR = {'CS-VIS':'VIS','CS-END':'END','CS-ORL':'ORL','CS-ORT':'ORT','CS-MAT':'MAT','CS-INTER':'CI'};
+  const _mir = _isCS ? _MIRROR[sector] : null;
+  const _used = new Set();
+  const _take = pred => { const a = (dispo||[]).filter(m => !_used.has(m.id) && pred(m)); a.forEach(m=>_used.add(m.id)); return a; };
+  let _sections;
+  if (_isCS && _mir) {
+    _sections = [
+      {label:'Secteur '+_mir+' — à privilégier', mars:_take(m=>_affOf(m.id)===_mir && (m.role==='VOLANT'||m.role==='PRESENT')), bg:'#DCFCE7', fg:'#166534'},
+      {label:'Volants disponibles',              mars:_take(m=>m.role==='VOLANT'),  bg:'#DBEAFE', fg:'#1D4ED8'},
+      {label:'Autres présents',                  mars:_take(m=>m.role==='PRESENT'), bg:'#F1F5F9', fg:'#334155'},
+      {label:'CTP — dernier recours',            mars:_take(m=>m.role==='CTP'),     bg:'#F3E8FF', fg:'#7C3AED'},
+      {label:'Récup — dernier recours',          mars:_take(m=>m.role==='R'),       bg:'#DCFCE7', fg:'#166534'},
+      {label:'Temps partiel — dernier recours',  mars:_take(m=>m.role==='TP'),      bg:'#FEF3C7', fg:'#92400E'},
+      {label:'Autres disponibles',               mars:_take(()=>true),              bg:'#F1F5F9', fg:'#334155'},
+    ];
+  } else {
+    _sections = GROUPS.map(g => ({label:g.label, mars:_take(m=>m.role===g.key), bg:g.bg, fg:g.fg}));
+  }
   let html = '';
-  GROUPS.forEach(g => {
-    const mars = byRole[g.key];
+  _sections.forEach(g => {
+    const mars = g.mars;
     if (!mars?.length) return;
     mars.sort((a,b)=>((_csCounts[a.id]||0)-(_csCounts[b.id]||0)) || String(a.id).localeCompare(String(b.id)));
     html += `<div style="margin-bottom:16px;">
