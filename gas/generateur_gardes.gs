@@ -29,9 +29,14 @@ const MIN_PRESENT   = {1:16, 2:15, 3:16, 4:15, 5:15};
 // Ancre semaine 23/2026 conservée en dur (la dérive année-53-sem. = Fix A, séparé).
 function estSemaineOff(id, dateStr){
   if(!getMedecinFlags().rythme2sur2.has(id)) return false;
-  const w = getISOWeek(dateStr);
-  const yr = Number(dateStr.slice(0,4));
-  return ((((yr - 2026)*52 + (w - 23)) % 4) + 4) % 4 >= 2;
+  // Compte les vraies semaines écoulées depuis le lundi de la semaine ISO 23/2026
+  // (01/06/2026), robuste aux années à 53 semaines. 2 sem. ON puis 2 sem. OFF.
+  const ancre = Date.UTC(2026, 5, 1);
+  const dt = new Date(dateStr + 'T12:00:00');
+  const m = new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()));
+  m.setUTCDate(m.getUTCDate() - ((m.getUTCDay() + 6) % 7)); // lundi de la semaine du jour
+  const nb = Math.round((m - ancre) / (7 * 86400000));      // semaines réelles écoulées
+  return (((nb % 4) + 4) % 4) >= 2;
 }
 
 function toDateStr(d){
