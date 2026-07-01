@@ -2698,22 +2698,10 @@ function computeNoelAnEligibles(year) {
     }
   }
 
-  // Historique : dernière année où chacun a fait Noël/An (onglet HISTORIQUE)
-  const noelHistory = {};
-  const hist = ss.getSheetByName('HISTORIQUE');
-  if (hist) {
-    const hd = hist.getDataRange().getValues();
-    const Hh = hd[0].map(x=>String(x).trim());
-    const cId=Hh.indexOf('ID'), cAn=Hh.indexOf('ANNEE'), cNa=Hh.indexOf('NOEL/AN');
-    if (cId>=0 && cAn>=0 && cNa>=0) {
-      for (let r=1;r<hd.length;r++){
-        const id=String(hd[r][cId]).trim(); if(!id) continue;
-        if ((Number(hd[r][cNa])||0)<=0) continue;
-        const y=Number(hd[r][cAn])||0;
-        if (noelHistory[id]==null || y>noelHistory[id]) noelHistory[id]=y;
-      }
-    }
-  }
+  // Historique Noël/An : source unique getNoelHistory(year) = HISTORIQUE ∪ onglets
+  // GARDES_{Y} présents (voir code.gs). Prend en compte l'année générée mais pas
+  // encore archivée, pour ne pas re-proposer qui vient de faire Noël l'an passé.
+  const noelHistory = getNoelHistory(year);
 
   const overdueKey = m => { const ly=noelHistory[m]; return ly==null ? [0,0,m] : [1,ly,m]; };
   const cmp = (a,b)=>a[0]-b[0]||a[1]-b[1]||(a[2]<b[2]?-1:a[2]>b[2]?1:0);
