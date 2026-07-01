@@ -815,6 +815,8 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .slot-name.cs-chip.cs-mirror { color:var(--ink-3); background:var(--white); border:1px dashed #CBD5E1; font-weight:600; }
 .plan-chip.cs-chip { background:var(--white); color:var(--ink); border:1px solid rgba(15,23,42,.12); border-radius:8px; max-width:64px; box-shadow:0 1px 1.5px rgba(15,23,42,.05); }
 .cs-lib { display:inline-block; font-size:8.5px; font-weight:800; color:#7c3aed; background:#f3e8ff; border:1px solid #e9d5ff; border-radius:4px; padding:1px 4px; margin-right:3px; vertical-align:1px; letter-spacing:.3px; }
+.cs-chip-lib { border-color:#c4b5fd !important; box-shadow:0 0 0 1px #ede9fe inset; }
+.cs-lib-inline { display:inline-block; font-size:8px; font-weight:800; color:#fff; background:#7c3aed; border-radius:3px; padding:0 3px; margin-right:4px; letter-spacing:.4px; vertical-align:1px; }
 
 /* « à pourvoir » requis (comité) — petit point discret, sans texte */
 .cs-apourvoir { display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700;
@@ -2218,11 +2220,11 @@ function renderWeek() {
       });
       // Consultations détaillées par type : AM = morning CS-, PM = afternoon CS-
       if (am.startsWith('CS-') && csTypeMap[am]) {
-        csTypeMap[am][dow].am.push({init:doc.initials, id:doc.id, status:st});
+        csTypeMap[am][dow].am.push({init:doc.initials, id:doc.id, status:st, lib:!!entry.lib});
         const secMatin = pm.startsWith('CS-') ? '' : pm;   // consult du matin → aussi visible dans son secteur (=aprem)
         if (secMatin && smap[secMatin]) smap[secMatin][dow].am.push({init:doc.initials, id:doc.id, status:st});
       }
-      if (pm.startsWith('CS-') && csTypeMap[pm]) csTypeMap[pm][dow].pm.push({init:doc.initials, id:doc.id, status:st});
+      if (pm.startsWith('CS-') && csTypeMap[pm]) csTypeMap[pm][dow].pm.push({init:doc.initials, id:doc.id, status:st, lib:!!entry.lib});
     });
   });
 
@@ -2457,7 +2459,9 @@ function renderWeek() {
     const _open = !!(_localOpens[date] && _localOpens[date].has(`${type}|${slotKey}`));
     const openable = CS_OPENABLE.includes(type);
     const _lib = (type === 'CS-END' && slotKey === 'pm' && [2,4].includes(new Date(date+'T12:00:00').getDay()));
-    const _libTag = _lib ? `<span class="cs-lib" title="Consultation 100% libérale — rotation GR">lib</span>` : '';
+    const _hasLib = items.some(p => p && p.lib);
+    // Marqueur "LIB" autonome uniquement si le créneau libéral existe mais n'est pas encore attribué
+    const _libTag = (_lib && !_hasLib) ? `<span class="cs-lib" title="Créneau consultation libérale endo (rotation GR) — non attribué">LIB</span>` : '';
 
     if (_closed) {
       return `<div class="cs-cell">${_libTag}<span class="cs-fermee" title="Consultation fermée par le comité">fermée</span><span class="cs-ouvrir" onclick="reopenConsult('${type}','${date}','${slotKey}')" title="Rouvrir la consultation">rouvrir</span></div>`;
@@ -2467,6 +2471,10 @@ function renderWeek() {
     items.forEach(p => {
       if (p.isMirror) {
         prim += `<span class="slot-name cs-chip cs-mirror" title="${p.id||''} — consult faite par le secteur"><span class="cs-arr">↳</span>${p.init}</span>`;
+      } else if (p.lib) {
+        // Case combinée : badge LIB + initiales du MAR qui fait la consultation libérale
+        const cls = p.isNew ? 'slot-name cs-chip cs-chip-lib slot-new slot-clickable' : 'slot-name cs-chip cs-chip-lib slot-clickable';
+        prim += `<span class="${cls}" title="${p.id||''} — consultation libérale endoscopie (rotation GR)" onclick="openMarMenu('${p.id}','${p.init}','${type}','${date}','${slotKey}')"><span class="cs-lib-inline">LIB</span>${p.init}</span>`;
       } else {
         const cls = p.isNew ? 'slot-name cs-chip slot-new slot-clickable' : 'slot-name cs-chip slot-clickable';
         prim += `<span class="${cls}" title="${p.id||''}" onclick="openMarMenu('${p.id}','${p.init}','${type}','${date}','${slotKey}')">${p.init}</span>`;
