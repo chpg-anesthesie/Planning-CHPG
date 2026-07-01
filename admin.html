@@ -1562,8 +1562,34 @@ let nextYearAvailable = false; // true si planning_N+1.json existe
 const MONTH_NAMES = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const DAY_NAMES_SHORT = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 const ABSENT = new Set(['G','G2','RG','A','V','F','CTP','R','I','E']);
-const SECTORS_DISPLAY = ['G/RG','18h','VIS','REA','ORT','ORL','END','CI','RI','MAT','CS'];
-const SECTOR_LABEL = {'G/RG':'Gardes','18h':'18h','VIS':'Viscéral','REA':'Réa','ORT':'Ortho','ORL':'ORL','END':'Endo','CI':'Cardio','RI':'Radio','MAT':'Maternité','CS':'Consult.'};
+// ── SOURCE UNIQUE DES SECTEURS ────────────────────────────────────────
+// UN SEUL endroit à modifier pour ajouter / retirer / renommer / recolorer / réordonner
+// un secteur (ex. réorganisation 2027 : BLOC CENTRAL). Toutes les listes et maps ci-dessous
+// en dérivent. Champs : code, label (long), court (grille), aff (libellé affectations),
+// icon, bg/fg (couleurs affectations ; null = pas de couleur propre → gris volant),
+// cs (consultation miroir ; null = aucune), actif.
+const SECTEURS_CFG = [
+  {code:'VIS', label:'Bloc viscéral',            court:'Viscéral',  aff:'Viscéral',    icon:'Activity',   bg:'#EFF6FF', fg:'#1D4ED8', cs:'CS-VIS',   actif:true},
+  {code:'REA', label:'Réanimation',              court:'Réa',       aff:'Réanimation', icon:'HeartPulse', bg:'#FFF1F2', fg:'#BE123C', cs:null,       actif:true},
+  {code:'ORT', label:'Orthopédie',               court:'Ortho',     aff:'Ortho',       icon:'Bone',       bg:'#FFF7ED', fg:'#C2410C', cs:'CS-ORT',   actif:true},
+  {code:'DVI', label:'Pose DVI',                 court:'DVI',       aff:null,          icon:'Syringe',    bg:null,      fg:null,      cs:null,       actif:true},
+  {code:'ORL', label:'ORL / Ophtalmologie',      court:'ORL',       aff:'ORL',         icon:'Eye',        bg:'#FDF4FF', fg:'#7E22CE', cs:'CS-ORL',   actif:true},
+  {code:'END', label:'Endoscopies',              court:'Endo',      aff:'Endoscopies', icon:'Microscope', bg:'#F0FDF4', fg:'#166534', cs:'CS-END',   actif:true},
+  {code:'CI',  label:'Cardio interventionnelle', court:'Cardio',    aff:'Cardio/Inter',icon:'Heart',      bg:'#ECFDF5', fg:'#065F46', cs:'CS-INTER', actif:true},
+  {code:'RI',  label:'Radio interventionnelle',  court:'Radio',     aff:'Radio/Inter', icon:'Zap',        bg:'#FFFBEB', fg:'#92400E', cs:null,       actif:true},
+  {code:'MAT', label:'Maternité',                court:'Maternité', aff:'Maternité',   icon:'Baby',       bg:'#FDF2F8', fg:'#9D174D', cs:'CS-MAT',   actif:true},
+];
+// ── Dérivations automatiques (ne pas éditer : tout vient de SECTEURS_CFG) ──
+const SECTEURS_ACTIFS  = SECTEURS_CFG.filter(s => s.actif);
+const CS_SECTOR_MIRROR = Object.fromEntries(SECTEURS_CFG.filter(s => s.cs).map(s => [s.cs, s.code]));
+const SECTOR_COLORS_AFF = Object.assign(
+  Object.fromEntries(SECTEURS_CFG.filter(s => s.bg).map(s => [s.code, {bg:s.bg, fg:s.fg}])),
+  { VOLANT:{bg:'#F1F5F9',fg:'#64748B'} }
+);
+const SECTOR_LABELS_AFF = Object.assign(
+  Object.fromEntries(SECTEURS_CFG.filter(s => s.aff).map(s => [s.code, s.aff])),
+  { VOLANT:'Volant' }
+);
 const DAYS_FR = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
 // INITIALS_MAP construit dynamiquement depuis marsData (chargé via API)
 function getInitials(id) { const m = marsData.find(x => x.id === id); return m ? m.initiales : id; }
@@ -2144,17 +2170,7 @@ function renderWeek() {
     const swEl = document.getElementById('statusWeek'); if (swEl) swEl.textContent = `S${wk.weekNum}`;
   }
 
-  const SECTORS = [
-    {code:'VIS', label:'Bloc viscéral',           icon:'Activity'   },
-    {code:'REA', label:'Réanimation',              icon:'HeartPulse' },
-    {code:'ORT', label:'Orthopédie',               icon:'Bone'       },
-    {code:'DVI', label:'Pose DVI',                 icon:'Syringe'    },
-    {code:'ORL', label:'ORL / Ophtalmologie',      icon:'Eye'        },
-    {code:'END', label:'Endoscopies',              icon:'Microscope' },
-    {code:'CI',  label:'Cardio interventionnelle', icon:'Heart'      },
-    {code:'RI',  label:'Radio interventionnelle',  icon:'Zap'        },
-    {code:'MAT', label:'Maternité',                icon:'Baby'       },
-  ];
+  const SECTORS = SECTEURS_ACTIFS.map(s => ({code:s.code, label:s.label, icon:s.icon}));
 
   const ABSENT_V2 = new Set(['RG','V','F','CTP','R','A','TP']); // G, G2, 18 = présents en journée dans leur secteur
 
@@ -2185,7 +2201,7 @@ function renderWeek() {
   };
   // Consults toujours affichées (ouvrables à la demande) + miroir « le MAR du secteur fait sa consult »
   const CS_OPENABLE = ['CS-VIS','CS-END','CS-ORL','CS-ORT'];
-  const CS_SECTOR_MIRROR = {'CS-VIS':'VIS','CS-END':'END','CS-ORL':'ORL','CS-ORT':'ORT','CS-MAT':'MAT'};
+  // CS_SECTOR_MIRROR : désormais global, dérivé de SECTEURS_CFG.
   // gardes[dow] = {g:init, g2:init}
   const gardes = Array(7).fill(null).map(() => ({g:null, g2:null}));
   const stMap = Array(7).fill(null).map(() => ({})); // stMap[dow][docId] = statut du jour
@@ -2846,7 +2862,7 @@ function renderSidePanelContent(dispo, sector) {
   const _AFF = window.AFFM || {};
   const _mo = parseInt((_ym||'').slice(5,7),10) || (new Date().getMonth()+1);
   const _affOf = id => (_AFF[id] && _AFF[id][_mo]) ? String(_AFF[id][_mo]).trim().toUpperCase() : '';
-  const _MIRROR = {'CS-VIS':'VIS','CS-END':'END','CS-ORL':'ORL','CS-ORT':'ORT','CS-MAT':'MAT','CS-INTER':'CI'};
+  const _MIRROR = CS_SECTOR_MIRROR;
   const _mir = _isCS ? _MIRROR[sector] : null;
   const _used = new Set();
   const _take = pred => { const a = (dispo||[]).filter(m => !_used.has(m.id) && pred(m)); a.forEach(m=>_used.add(m.id)); return a; };
@@ -3119,7 +3135,7 @@ function openPanel(type, prefillDocId='', prefillDate=''){
           class="btn-year ${selectedYear===YEAR+1?'active':''}">${YEAR+1} ✨</button>
       </div>
     </div>` : '';
-  const SECTEURS=['VIS','END','ORL','REA','ORT','CI','RI','MAT','DVI'];
+  const SECTEURS = SECTEURS_ACTIFS.map(s => s.code);
   const sectOpts=SECTEURS.map(s=>`<option value="${s}">${s}</option>`).join('');
   let body='';
   if(type==='secteur'){
@@ -3676,14 +3692,7 @@ let affPending = false;
 let currentAffCell = null;
 
 const MOIS_COURTS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
-const SECTOR_COLORS_AFF = {
-  VIS:{bg:'#EFF6FF',fg:'#1D4ED8'}, REA:{bg:'#FFF1F2',fg:'#BE123C'},
-  ORT:{bg:'#FFF7ED',fg:'#C2410C'}, ORL:{bg:'#FDF4FF',fg:'#7E22CE'},
-  END:{bg:'#F0FDF4',fg:'#166534'}, CI:{bg:'#ECFDF5',fg:'#065F46'},
-  RI:{bg:'#FFFBEB',fg:'#92400E'}, MAT:{bg:'#FDF2F8',fg:'#9D174D'},
-  VOLANT:{bg:'#F1F5F9',fg:'#64748B'},
-};
-const SECTOR_LABELS_AFF = {VIS:'Viscéral',REA:'Réanimation',ORT:'Ortho',ORL:'ORL',END:'Endoscopies',CI:'Cardio/Inter',RI:'Radio/Inter',MAT:'Maternité',VOLANT:'Volant'};
+// SECTOR_COLORS_AFF et SECTOR_LABELS_AFF : désormais dérivés de SECTEURS_CFG (voir la source unique en haut).
 
 
 async function loadAffectations(year) {
