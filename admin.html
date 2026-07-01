@@ -5873,7 +5873,7 @@ function renderRotConfig(){
         <option value="0.5"${ROT.share==0.5?' selected':''}>50 % (1/2)</option>
       </select></div>
     </div>
-    <div style="font-size:11.5px;color:var(--ink-3);margin-bottom:12px">Groupe = MAR affectés <b>END</b> ce mois-là (hors soliste). Pool = consults <b>mardi PM + jeudi PM</b>. Le soliste est sauté les jours où il est en garde / indispo / CL / VAC.</div>
+    <div style="font-size:11.5px;color:var(--ink-3);margin-bottom:12px">Groupe = MAR affectés <b>END</b> ce mois-là (hors soliste). Pool = consults <b>mardi PM + jeudi PM</b>. Un MAR n'est éligible que s'il est <b>présent au bloc endo de la semaine N+1</b> (lundi ou mardi PM) pour endormir ses patients. Sinon le créneau est laissé « à pourvoir » (le comité tranche).</div>
     <div id="rotBars" style="margin-bottom:14px"></div>
     <div id="rotList"></div>`;
 }
@@ -5884,7 +5884,14 @@ function rotGenerate(){
   while(d<=end){ const dw=d.getDay(); if(dw===2||dw===4){ const ds=d.toISOString().slice(0,10); occ.push({date:ds, slot:dw===2?'Mardi PM':'Jeudi PM', m:d.getMonth()+1}); } d.setDate(d.getDate()+1); }
   ROT.occ=occ;
   const sol=ROT.soliste, share=ROT.share;
-  const avail=(id,date)=> id && !(ROT.busy[id]&&ROT.busy[id][date]);
+  // Le MAR doit être présent au bloc endo de la semaine N+1 (lundi OU mardi PM) pour endormir
+  // les patients issus de sa consultation de la semaine N. Vaut pour tous les MAR END.
+  const _fmt=x=>x.toISOString().slice(0,10);
+  const _blocN1=ds=>{ const d=new Date(ds+'T12:00:00'); const mon=new Date(d); mon.setDate(d.getDate()-((d.getDay()+6)%7));
+    const m1=new Date(mon); m1.setDate(mon.getDate()+7); const t1=new Date(mon); t1.setDate(mon.getDate()+8); return [_fmt(m1),_fmt(t1)]; };
+  const _busy=(id,ds)=> !!(ROT.busy[id]&&ROT.busy[id][ds]);
+  const _presentN1=(id,ds)=>{ const [b1,b2]=_blocN1(ds); return !_busy(id,b1)||!_busy(id,b2); };
+  const avail=(id,date)=> id && !_busy(id,date) && _presentN1(id,date);
   const counts={}; let done=0;
   ROT.assign=occ.map((o,i)=>{
     if(ROT.locked[i]){ const v=ROT.assign[i]||null; if(v){counts[v]=(counts[v]||0)+1;done++;} return v; }
