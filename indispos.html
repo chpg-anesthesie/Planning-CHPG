@@ -608,9 +608,15 @@ function renderPrioPanel() {
 
 // ── API ───────────────────────────────────────────────────────────────
 async function apiCall(action, extra = {}) {
-  const body = {action, code: currentCode, ...extra};
-  const params = new URLSearchParams({payload: JSON.stringify(body)});
-  const res = await fetch(API_URL + '?' + params.toString());
+  // (F4) POST : le code et les indispos voyagent dans le corps de la
+  // requête, plus jamais dans l'URL (historique navigateur, logs proxy).
+  // Supprime aussi la limite de taille d'URL (longues absences).
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({action, code: currentCode, ...extra}),
+    redirect: 'follow',
+  });
   return res.json();
 }
 
@@ -646,14 +652,18 @@ async function saveIndispos() {
   btn.textContent = '⏳ Sauvegarde...';
   btn.disabled = true;
 
-  const res = await apiCall('saveIndispos', {indispos});
-  if (res.success) {
-    hasChanges = false;
-    showToast('✅ Indisponibilités sauvegardées');
-  } else {
-    showToast('❌ Erreur lors de la sauvegarde');
+  try {
+    const res = await apiCall('saveIndispos', {indispos});
+    if (res.success) {
+      hasChanges = false;
+      showToast('✅ Indisponibilités sauvegardées');
+    } else {
+      showToast('❌ Erreur lors de la sauvegarde');
+    }
+  } catch(e) {
+    // (F9) Erreur réseau : le bouton ne reste plus bloqué sur ⏳
+    showToast('❌ Erreur réseau — vérifiez la connexion et réessayez');
   }
-
   btn.textContent = '💾 Sauvegarder mes indisponibilités';
   btn.disabled = false;
 }

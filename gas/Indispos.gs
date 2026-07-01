@@ -1,7 +1,7 @@
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
 const GITHUB_REPO_INDISPOS = 'Planning-CHPG';
-const ADMIN_CODE = 'CHPG2026ADMIN';
+// (F1) Constante ADMIN_CODE supprimée — le code admin vit UNIQUEMENT dans CONFIG.
 const TEST_YEAR = getActiveYear();
 
 function getIndisposYear() {
@@ -114,17 +114,19 @@ function saveIndisposForDoctor(doctorId, indisposMap, year) {
 function checkCode(code) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName('CONFIG');
-  let adminCode = 'CHPG2026ADMIN';
+  // (F1) Plus AUCUN code de secours : si ADMIN_CODE manque dans CONFIG,
+  // l'accès admin est refusé (panne visible > porte ouverte invisible).
+  let adminCode = null;
   if (configSheet) {
     const configData = configSheet.getDataRange().getValues();
     for (let r = 1; r < configData.length; r++) {
       if (String(configData[r][0]).trim() === 'ADMIN_CODE') {
-        adminCode = String(configData[r][1]).trim();
+        adminCode = String(configData[r][1]).trim() || null;
         break;
       }
     }
   }
-  if (code === adminCode) return {role: 'admin', id: 'ADMIN'};
+  if (adminCode && code === adminCode) return {role: 'admin', id: 'ADMIN'};
 
   const sheet = ss.getSheetByName('MEDECINS');
   if (!sheet) return null;
@@ -2646,7 +2648,9 @@ function testNotifierConflits() {
   }
 }
 function testSetDailyStatusWrite() {
-  const ADMIN = 'ADMINPLANNING';   // ← ton code admin (CONFIG ▸ ADMIN_CODE)
+  // (F1) Le code admin est lu depuis CONFIG — plus jamais en dur dans le code.
+  const cfg = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG').getDataRange().getValues();
+  const ADMIN = (cfg.find(r => String(r[0]).trim() === 'ADMIN_CODE') || [,''])[1];
   const payload = {
     action: 'setDailyStatus', code: ADMIN,
     year: 2027, marId: 'FROHLICH', statut: 'CL',

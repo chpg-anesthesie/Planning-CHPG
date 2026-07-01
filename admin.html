@@ -1633,7 +1633,7 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
   const saved = sessionStorage.getItem('adminCode');
   if (!saved) return;
   try {
-    const res = await fetch(API_URL + '?' + new URLSearchParams({payload: JSON.stringify({action:'login', code: saved})}), {redirect:'follow', mode:'cors'});
+    const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({action:'login', code: saved}), redirect:'follow'});
     const data = await res.json();
     if (data.success && data.role === 'admin') {
       ADMIN_CODE = saved; YEAR = data.year || 2026; INDISPOS_YEAR = data.indisposYear || null;
@@ -1670,9 +1670,9 @@ async function authenticate() {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 20000);
-    const res = await fetch(API_URL + '?' + new URLSearchParams({
-      payload: JSON.stringify({action:'login', code})
-    }), {signal: ctrl.signal, redirect: 'follow', mode: 'cors'});
+    const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action:'login', code}),
+      signal: ctrl.signal, redirect: 'follow'});
     clearTimeout(timer);
     const data = await res.json();
     if (data.success && data.role === 'admin') {
