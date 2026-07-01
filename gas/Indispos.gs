@@ -1477,11 +1477,15 @@ if (!affSheet) {
       if (!_ssArch.getSheetByName(`STATS_GARDES_${_next}`))
         return _error(`Gardes ${_next} non générées : lancez d'abord la génération des gardes (étape 2) avant de clôturer ${yearToArchive}.`);
       try {
-        const rapport = archiveYear(yearToArchive);
-        return ContentService.createTextOutput(JSON.stringify({
-          success: true,
-          message: rapport || `Archivage ${yearToArchive} terminé`
-        })).setMimeType(ContentService.MimeType.JSON);
+        const rapport = String(archiveYear(yearToArchive) || '');
+        const archiveOk = !/(^|\n)❌/.test(rapport);   // une ligne « ❌ » dans le rapport = étape échouée
+        return ContentService.createTextOutput(JSON.stringify(
+          archiveOk
+            ? { success: true, message: rapport || `Archivage ${yearToArchive} terminé` }
+            : { success: false,
+                error: `Archivage ${yearToArchive} incomplet — une étape a échoué (le plus souvent le push GitHub : vérifie la clé GITHUB_TOKEN dans l'onglet CONFIG). Les onglets GSheet sont conservés, relance l'archivage après correction.`,
+                rapport: rapport }
+        )).setMimeType(ContentService.MimeType.JSON);
       } catch(err) {
         return _error(err.message);
       }
