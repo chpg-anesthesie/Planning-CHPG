@@ -409,7 +409,7 @@ function loadPlanningOverrides() {
     const aprem  = String(data[r][3] || '').trim().toUpperCase();
     if (!date || !docId) continue;
     if (!overrides[date]) overrides[date] = {};
-    overrides[date][docId] = { morning: matin, afternoon: aprem || matin };
+    overrides[date][docId] = { morning: matin, afternoon: aprem || matin, tag: String(data[r][4] || '').trim().toUpperCase() };
   }
   return overrides;
 }
@@ -801,6 +801,7 @@ function generatePlanningFromGardes(year) {
         if (!DOCTORS.find(d => d.id === docId)) return;
         if (ov.morning)   result[docId][dayIdx].morning   = ov.morning;
         if (ov.afternoon) result[docId][dayIdx].afternoon = ov.afternoon;
+        if (ov.tag === 'ROT-LIB') result[docId][dayIdx].lib = true;   // marque le soliste de la consult libérale endo
       });
     });
 
