@@ -435,6 +435,61 @@ function loadSemainesValidees(year) {
 // Mappe date→colonne par POSITION : colonne 1 = premier lundi de l'année
 // planning, +1 jour par colonne. Robuste aux en-têtes texte ("Janvier"…)
 // que new Date() ne sait pas parser (cause du bug post-reconstruction).
+// ── HISTORIQUE NOËL / JOUR DE L'AN (source unique : rotation ET banderole) ──
+// Dernière année (< beforeYear) où chaque MAR a fait Noël/An. Fusionne :
+//  - l'onglet HISTORIQUE (années archivées, colonne NOEL/AN) ;
+//  - les onglets GARDES_{Y} encore présents (années générées mais PAS encore
+//    archivées : ex. 2027 quand on prépare 2028 — l'assignation existe déjà
+//    mais n'est pas dans HISTORIQUE).
+// Corrige le décalage d'un an : sans ça, générer N ré-attribuerait Noël à la
+// personne qui fait déjà Noël N-1. On ne compte QUE les années < beforeYear
+// (sinon régénérer une année compterait sa propre assignation) et on garde la
+// plus récente par MAR.
+function getNoelHistory(beforeYear) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const lim = Number(beforeYear) || Infinity;
+  const hist = {};
+  const bump = (id, y) => { if (id && y < lim && (hist[id] == null || y > hist[id])) hist[id] = y; };
+
+  // 1) HISTORIQUE (années archivées)
+  const h = ss.getSheetByName('HISTORIQUE');
+  if (h) {
+    const hd = h.getDataRange().getValues();
+    const H = hd[0].map(x => String(x).trim());
+    const cId = H.indexOf('ID'), cAn = H.indexOf('ANNEE'), cNa = H.indexOf('NOEL/AN');
+    if (cId >= 0 && cAn >= 0 && cNa >= 0) {
+      for (let r = 1; r < hd.length; r++) {
+        const id = String(hd[r][cId]).trim(); if (!id) continue;
+        if ((Number(hd[r][cNa]) || 0) <= 0) continue;
+        bump(id, Number(hd[r][cAn]) || 0);
+      }
+    }
+  }
+
+  // 2) Onglets GARDES_{Y} présents (années générées, pas encore archivées)
+  ss.getSheets().forEach(sh => {
+    const m = sh.getName().match(/^GARDES_(\d{4})$/);
+    if (!m) return;
+    const y = Number(m[1]);
+    if (y >= lim) return;                       // on ne regarde que les années passées
+    const data = sh.getDataRange().getValues();
+    const dateToCol = buildDateToCol(data, y);
+    const noelCols = [`${y}-12-24`, `${y}-12-25`, `${y}-12-31`, `${y + 1}-01-01`]
+      .map(d => dateToCol[d]).filter(c => c != null);
+    if (!noelCols.length) return;
+    for (let r = 3; r < data.length; r++) {
+      const id = String(data[r][0]).trim(); if (!id) continue;
+      const did = noelCols.some(col => {
+        const v = String(data[r][Number(col)] || '').trim().toUpperCase();
+        return v === 'G' || v === 'G2';
+      });
+      if (did) bump(id, y);
+    }
+  });
+
+  return hist;
+}
+
 function buildDateToCol(data, year) {
   const dateToCol = {};
   if (year) {
