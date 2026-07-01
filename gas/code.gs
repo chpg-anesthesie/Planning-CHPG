@@ -236,6 +236,9 @@ const DVI_ALLOWED = ['BONNET','WIDEHEM','LEVASSEUR'];
 
 // ── CS PAR JOUR (après-midi) ───────────────────────────────────────────
 // Format : jour_semaine → [ [secteur_affilié, code_cs], ... ]
+// Consultations : FALSE = créneaux vides par défaut, placés à la main par le comité
+// (rotation libérale endo + placements comité passent par les overrides). TRUE = auto-affectation.
+const GENERER_CONSULTATIONS = false;
 const CS_RULES = {
   1: { am: [],                                      pm: [['VIS','CS-VIS'],['VIS','CS-VIS'],['END','CS-END'],['END','CS-END']] },
   2: { am: [['ORL','CS-ORL'],['MAT','CS-MAT']],     pm: [['VIS','CS-VIS'],['END','CS-END'],['ORT','CS-ORT']] },                       // ← CHOIX: 'MAT' ou 'VOLANT'
@@ -735,7 +738,11 @@ function generatePlanningFromGardes(year) {
           // L'après-midi reste sur son secteur d'affectation
         }
       }
-// ── 3b-bis. CS matin (le MAR revient dans son secteur l'aprem) ─
+// ── 3b-bis + 3c. Auto-affectation des consultations ─────────────
+      // DÉSACTIVÉE par défaut (GENERER_CONSULTATIONS=false) : le comité place chaque
+      // MAR à la main sur des créneaux vides « à pourvoir ». La rotation libérale endo
+      // (ROT-LIB) et les placements comité arrivent via les overrides (§4 ci-dessous).
+      if (GENERER_CONSULTATIONS) {
       const csAmRules = (CS_RULES[dow] || {am: []}).am || [];
       const csAmUsed = new Set();
       csAmRules.forEach(([secteurAffil, csCode]) => {
@@ -784,6 +791,7 @@ function generatePlanningFromGardes(year) {
         }
         // Si pas de candidate → case flash (cs reste vide, géré côté frontend)
       });
+      } // fin if (GENERER_CONSULTATIONS) — sinon consultations laissées vides
 
       // ── 3d. CS-ORL → désormais géré en 3b-bis (consultation du matin) ─
 
