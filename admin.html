@@ -4524,6 +4524,77 @@ function updateWizGNav() {
   }
 }
 
+// ── Fenêtre de transparence : reports de dette inter-annuelle ──────────
+// Recalcule, à l'identique du backend (generateur_gardes.gs §4 « Dette »),
+// l'écart de chaque MAR à sa cible l'an dernier et le report appliqué cette
+// année. N'apparaît qu'à partir de 2028 (1re année où la dette est utilisée).
+// NB : si la formule backend change, mettre à jour ici aussi.
+async function renderDetteExplication(genY) {
+  const PREMIERE = 2027; // = PREMIERE_ANNEE_STATS_FIABLES (backend)
+  if (!genY || (genY - 1) < PREMIERE) return '';
+  let stats;
+  try {
+    const r = await api({action:'getStats', year: genY - 1});
+    if (!r || !r.success || !Array.isArray(r.stats) || !r.stats.length) {
+      return '<div class="wizard-section-title" style="margin-top:16px">🔁 Report de dette ' + (genY-1) + ' \u2192 ' + genY + '</div>'
+        + '<div class="wizard-warning" style="background:#F1F5F9;border-left:3px solid #94A3B8;color:#475569">Statistiques ' + (genY-1) + ' indisponibles \u2014 la g\u00e9n\u00e9ration d\u00e9marrera sans report de dette.</div>';
+    }
+    stats = r.stats;
+  } catch (e) { return ''; }
+
+  const medBy = {};
+  (marsData||[]).forEach(m => { medBy[m.id]=m; medBy[m.initiales]=m; });
+
+  // Sommes de quotit\u00e9s sur les MAR \u00e9ligibles gardes cette ann\u00e9e (fid\u00e8le au backend)
+  let sumP=0, sumPWE=0;
+  (marsData||[]).forEach(m => { if(!m.actif || m.noGarde) return; const p=(m.pctGardes||100)/100; sumP+=p; if(!m.noWeekend)sumPWE+=p; });
+  sumP=sumP||1; sumPWE=sumPWE||1;
+
+  // Axes \u00e0 enjeu (on \u00e9carte le total : plus faible enjeu + colonne ambigu\u00eb c\u00f4t\u00e9 stats)
+  const AX=[{k:'sam',col:'sat',lab:'samedis',we:true},{k:'vd',col:'vd',lab:'week-ends VD',we:true},{k:'jeu',col:'jeu',lab:'jeudis',we:false},{k:'vjf',col:'vjf',lab:'veilles de f\u00e9ri\u00e9',we:false},{k:'jf',col:'jf',lab:'f\u00e9ri\u00e9s',we:true}];
+  const tot={sam:0,vd:0,jeu:0,vjf:0,jf:0};
+  const rows=[];
+  stats.forEach(sm => {
+    const m=medBy[sm.medecin]; if(!m || m.noGarde) return;
+    const real={sam:+sm.sat||0, vd:+sm.vd||0, jeu:+sm.jeu||0, vjf:+sm.vjf||0, jf:+sm.jf||0};
+    for(const k in tot) tot[k]+=real[k];
+    rows.push({init:m.initiales||sm.medecin, pct:(m.pctGardes||100)/100, nw:!!m.noWeekend, real});
+  });
+  if(!rows.length) return '';
+
+  const clamp = x => 0.6*Math.max(-2,Math.min(2,x));  // amorti \u00d70,6, plafond \u00b12
+  const items = rows.map(r => {
+    const lignes=[];
+    AX.forEach(ax => {
+      const fair = ax.we ? (r.nw?0:tot[ax.k]*r.pct/sumPWE) : tot[ax.k]*r.pct/sumP;
+      const ecart = r.real[ax.k]-fair;   // >0 : a fait PLUS que sa cible l'an dernier
+      const dette = clamp(ecart);
+      const nudge = -dette;              // gardes en plus (+) ou en moins (\u2212) cette ann\u00e9e
+      if(Math.abs(dette)>=0.15) lignes.push({lab:ax.lab, ecart, nudge});
+    });
+    return {init:r.init, lignes};
+  }).filter(x => x.lignes.length);
+
+  const titre = '<div class="wizard-section-title" style="margin-top:16px">🔁 Report de dette ' + (genY-1) + ' \u2192 ' + genY + '</div>';
+  if(!items.length) {
+    return titre + '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534">Aucun report significatif : tout le monde \u00e9tait proche de sa cible en ' + (genY-1) + '.</div>';
+  }
+  const f1 = x => (x>0?'+':(x<0?'\u2212':'')) + Math.abs(x).toFixed(1).replace('.',',');
+  let html = titre;
+  html += '<div style="font-size:11.5px;color:var(--ink-3);margin-bottom:10px">L\'\u00e9cart de chacun \u00e0 sa cible l\'an dernier est report\u00e9 (plafonn\u00e9 \u00e0 \u00b12, amorti \u00e0 60\u202f%) pour r\u00e9\u00e9quilibrer cette ann\u00e9e. <b>+</b> = quelques gardes en plus (rattrapage), <b>\u2212</b> = un peu moins.</div>';
+  html += '<div class="wiz-mar-list">';
+  items.forEach(it => {
+    const chips = it.lignes.map(l => {
+      const col = l.nudge>0 ? 'background:#dcfce7;color:#166534' : 'background:#FEF3C7;color:#92400E';
+      return '<span style="display:inline-block;'+col+';border-radius:5px;padding:1px 6px;margin:2px 3px 2px 0;font-size:11px;font-weight:700">'+f1(l.nudge)+' '+l.lab+'</span>'
+        + '<span style="font-size:10.5px;color:var(--ink-3);margin-right:10px">('+f1(l.ecart)+' vs cible en '+(genY-1)+')</span>';
+    }).join('');
+    html += '<div class="wiz-mar-row" style="align-items:flex-start"><div class="wiz-mar-init">'+it.init+'</div><div style="flex:1;padding:2px 0;line-height:1.7">'+chips+'</div></div>';
+  });
+  html += '</div>';
+  return html;
+}
+
 async function renderWizGStep() {
   updateWizGNav();
   const body = document.getElementById('wizGBody');
@@ -4731,6 +4802,9 @@ async function renderWizGStep() {
       html += '<div class="wiz-mar-row"><div class="wiz-mar-init">' + m.initiales + '</div><div class="wiz-mar-name">' + m.nom + '</div><div class="wiz-mar-meta"><span class="' + cls + '">' + (count === 0 ? '❌ Pas encore saisi' : '✓ ' + count + ' jour(s)') + '</span></div></div>';
     });
     html += '</div>';
+
+    // ── Reports de dette inter-annuelle (transparence, à partir de 2028) ──
+    html += await renderDetteExplication(YEAR + 1);
     body.innerHTML = html;
 
   } else if (wizGCurrentStep === 1) {
