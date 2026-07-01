@@ -454,23 +454,13 @@ function generateGardes(year){
   const noelDatesAssigned=new Set();
   const noelAssignees={};
   {
-    const noelHistory={};
-    // Rotation Noël/An : dernière année où chacun a fait Noël/An, lue dans HISTORIQUE
-    // (onglet unique = mémoire longue + source rotation ; remplace NOEL_AN_HISTORIQUE).
-    const histSheet=ss.getSheetByName('HISTORIQUE');
-    if(histSheet){
-      const hd=histSheet.getDataRange().getValues();
-      const Hh=hd[0].map(x=>String(x).trim());
-      const cId=Hh.indexOf('ID'), cAn=Hh.indexOf('ANNEE'), cNa=Hh.indexOf('NOEL/AN');
-      if(cId>=0&&cAn>=0&&cNa>=0){
-        for(let r=1;r<hd.length;r++){
-          const id=String(hd[r][cId]).trim(); if(!id) continue;
-          if((Number(hd[r][cNa])||0)<=0) continue;            // n'a pas fait Noël/An cette année-là
-          const y=Number(hd[r][cAn])||0;
-          if(noelHistory[id]==null||y>noelHistory[id]) noelHistory[id]=y;  // garde la plus récente
-        }
-      }
-    }
+    // Rotation Noël/An : dernière année où chacun a fait Noël/An.
+    // Source unique getNoelHistory(year) = HISTORIQUE (années archivées) ∪ onglets
+    // GARDES_{Y} présents (années générées non encore archivées, Y < year). Corrige
+    // le décalage d'un an : sans ça, générer N ré-attribuerait Noël à la personne
+    // qui fait déjà Noël N-1.
+    const noelHistory = getNoelHistory(year);
+
     const shiftD=(d,n)=>toDateStr(new Date(new Date(d+'T12:00:00').getTime()+n*86400000));
     let noelDates=[];
     [year,year+1].forEach(y=>[`${y}-12-24`,`${y}-12-25`,`${y}-12-31`,`${y+1}-01-01`].forEach(dn=>{
