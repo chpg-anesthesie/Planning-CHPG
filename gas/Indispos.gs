@@ -706,6 +706,25 @@ function doGet(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // (Étape 1 confidentialité) Planning servi depuis le Drive PRIVÉ,
+    // uniquement après vérification du code (MAR ou admin, via checkCode
+    // plus haut). Réponse assemblée par concaténation (pas de re-parse
+    // d'un JSON de ~300 Ko) — le contenu Drive est déjà du JSON valide.
+    if (action === 'getPlanningJson') {
+      const pYear = Number(payload.year) || TEST_YEAR;
+      const content = readPlanningFromDrive(`planning_${pYear}.json`);
+      if (!content) return _error(`planning_${pYear}.json introuvable dans Drive — republier le planning ${pYear} depuis admin.html`);
+      return ContentService.createTextOutput('{"success":true,"year":' + pYear + ',"planning":' + content + '}')
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    if (action === 'getAffectationsJson') {
+      const aYear = Number(payload.year) || TEST_YEAR;
+      const content = readPlanningFromDrive(`affectations_${aYear}.json`);
+      if (!content) return _error(`affectations_${aYear}.json introuvable dans Drive — republier le planning ${aYear} depuis admin.html`);
+      return ContentService.createTextOutput('{"success":true,"year":' + aYear + ',"affectations":' + content + '}')
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (action === 'getNoelAnEligibles') {
       const yr = parseInt(payload.year) || getIndisposYear();
       return ContentService.createTextOutput(JSON.stringify({

@@ -617,12 +617,19 @@ function generatePlanning(yearOverride) {
       })
     }))
   }));
-  const _pushRes = pushFileToGitHub(`planning_${year}.json`, JSON.stringify({months: monthsMin, equiteInitiale}));
+  const _planningJson = JSON.stringify({months: monthsMin, equiteInitiale});
+  const _pushRes = pushFileToGitHub(`planning_${year}.json`, _planningJson);
   if (_pushRes && !_pushRes.ok) throw new Error(_pushErrMsg(`planning_${year}.json`, _pushRes));
+  // (Étape 1 confidentialité) Copie privée Drive — non bloquant si échec.
+  try { savePlanningToDrive(`planning_${year}.json`, _planningJson); }
+  catch(e) { logAction(`⚠️ Drive planning_${year}.json : ${e.message}`); }
   // ── Push affectations_YYYY.json ──────────────────────────────────────
   try {
     const affectations = loadAffectations(year);
-    pushFileToGitHub(`affectations_${year}.json`, JSON.stringify({year, affectations}));
+    const _affJson = JSON.stringify({year, affectations});
+    pushFileToGitHub(`affectations_${year}.json`, _affJson);
+    try { savePlanningToDrive(`affectations_${year}.json`, _affJson); }
+    catch(e) { logAction(`⚠️ Drive affectations_${year}.json : ${e.message}`); }
     Logger.log(`✅ affectations_${year}.json pushé`);
   } catch(e) {
     Logger.log(`⚠️ Push affectations échoué : ${e.message}`);
@@ -906,6 +913,46 @@ function generatePlanningFromGardes(year) {
   });
 
   return months;
+}
+
+// ── STOCKAGE PRIVÉ DRIVE (Étape 1 confidentialité) ────────────────────
+// Les JSON du planning sont aussi rangés dans un dossier Drive PRIVÉ
+// ("Planning-CHPG-JSON") du compte planningchpg. À terme (étape 3), ce
+// stockage remplacera la copie publique GitHub. Fichier écrasé à chaque
+// publication (une seule version par nom).
+const DRIVE_JSON_FOLDER = 'Planning-CHPG-JSON';
+
+function _getDriveJsonFolder() {
+  const it = DriveApp.getFoldersByName(DRIVE_JSON_FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(DRIVE_JSON_FOLDER);
+}
+
+function savePlanningToDrive(fileName, content) {
+  const folder = _getDriveJsonFolder();
+  const it = folder.getFilesByName(fileName);
+  if (it.hasNext()) {
+    it.next().setContent(content);
+  } else {
+    folder.createFile(fileName, content, 'application/json');
+  }
+  Logger.log(`✅ ${fileName} rangé dans Drive (${DRIVE_JSON_FOLDER})`);
+}
+
+function readPlanningFromDrive(fileName) {
+  const folder = _getDriveJsonFolder();
+  const it = folder.getFilesByName(fileName);
+  if (!it.hasNext()) return null;
+  return it.next().getBlob().getDataAsString();
+}
+
+// À exécuter UNE FOIS dans l'éditeur Apps Script après recopie :
+// déclenche l'autorisation Drive + vérifie écriture/lecture.
+function testDrivePlanning() {
+  savePlanningToDrive('test_drive.json', JSON.stringify({ok: true, t: new Date().toISOString()}));
+  const back = readPlanningFromDrive('test_drive.json');
+  Logger.log('Lecture retour : ' + back);
+  if (!back || JSON.parse(back).ok !== true) throw new Error('Test Drive ÉCHOUÉ');
+  Logger.log('✅ Test Drive OK — autorisation accordée, écriture/lecture fonctionnelles');
 }
 
 // ── PUSH FICHIER GITHUB ───────────────────────────────────────────────
