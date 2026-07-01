@@ -2810,6 +2810,13 @@ function renderSidePanelContent(dispo, sector) {
   const _csCounts = consultCountsForMonth(_ym);
   const _nMar = (marsData||[]).filter(m=>m.actif!==false && String(m.actif).toUpperCase()!=='N').length || Object.keys(_csCounts).length || 1;
   const _csAvg = Object.values(_csCounts).reduce((a,b)=>a+b,0) / _nMar;
+  const _isCS = String(sector||'').startsWith('CS');
+  const _csHeader = _isCS
+    ? `<div style="margin-bottom:14px;padding:9px 11px;background:#F0FDF4;border:1px solid #A7F3D0;border-radius:10px;">
+        <div style="font-size:10px;font-weight:700;color:#065F46;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Équité consultations</div>
+        <div style="font-size:11px;color:#166534;line-height:1.45;">Le badge indique les consultations déjà réalisées par le MAR <strong>depuis le 1<sup>er</sup> du mois</strong>. Moyenne équipe : <strong>${_csAvg.toFixed(1)}</strong>. Privilégiez un MAR à faible compteur (<span style="font-weight:800">▼ vert</span>) pour ne pas surcharger les mêmes.</div>
+      </div>`
+    : '';
 
   let html = '';
   GROUPS.forEach(g => {
@@ -2829,7 +2836,11 @@ function renderSidePanelContent(dispo, sector) {
           <div style="font-size:12px;font-weight:700;color:var(--ink);">${m.id}</div>
           <div style="font-size:10px;color:var(--ink-4);margin-top:1px;">${m.secteur}</div>
         </div>
-        ${(()=>{const c=_csCounts[m.id]||0;const hi=c>_csAvg;return `<span title="${c} consultation(s) ce mois-ci" style="font-size:11px;font-weight:700;background:${hi?'#FEF3C7':'#DCFCE7'};color:${hi?'#92400E':'#166534'};padding:3px 8px;border-radius:20px;flex-shrink:0;">${c} cs</span>`;})()}
+        ${(()=>{const c=_csCounts[m.id]||0;const av=_csAvg;
+          const trop=c>=Math.ceil(av)+2, haut=c>av;
+          const bg=trop?'#FEE2E2':haut?'#FEF3C7':'#DCFCE7', fg=trop?'#991B1B':haut?'#92400E':'#166534';
+          const tag=trop?' ⚠':(haut?' ▲':' ▼');
+          return `<span title="${c} consultation(s) réalisée(s) depuis le 1er du mois — moyenne équipe ${av.toFixed(1)}" style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;background:${bg};color:${fg};padding:${_isCS?'4px 11px':'3px 8px'};border-radius:12px;line-height:1.05;font-weight:800;"><span style="font-size:${_isCS?'14px':'11px'};">${c}${tag}</span>${_isCS?'<span style="font-size:8px;font-weight:700;opacity:.8;text-transform:uppercase;letter-spacing:.03em;">consult. ce mois</span>':'<span style="font-size:8px;font-weight:700;opacity:.7;">cs</span>'}</span>`;})()}
         <span style="font-size:13px;color:#CBD5E1;">→</span>
       </button>`;
     });
@@ -2847,7 +2858,7 @@ function renderSidePanelContent(dispo, sector) {
         <div style="display:flex;gap:4px;flex-wrap:wrap;">${_vap.map(i=>`<span style="font-size:11px;font-weight:700;background:#FFEDD5;color:#9A3412;border:1px solid #FED7AA;padding:2px 7px;border-radius:6px;">${i}</span>`).join('')}</div>
       </div>`
     : `<div style="margin-bottom:14px;padding:7px 10px;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;font-size:11px;font-weight:600;color:#166534;">✓ Tous les volants ${_sl} sont postés</div>`;
-  document.getElementById('pspContent').innerHTML = _banner + html;
+  document.getElementById('pspContent').innerHTML = _banner + _csHeader + html;
 }
 
 async function placeMAR(marId, marInit, mode) {
