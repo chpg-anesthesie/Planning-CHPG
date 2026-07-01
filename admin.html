@@ -817,6 +817,10 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .cs-lib { display:inline-block; font-size:8.5px; font-weight:800; color:#7c3aed; background:#f3e8ff; border:1px solid #e9d5ff; border-radius:4px; padding:1px 4px; margin-right:3px; vertical-align:1px; letter-spacing:.3px; }
 .cs-chip-lib { border-color:#c4b5fd !important; box-shadow:0 0 0 1px #ede9fe inset; }
 .cs-lib-inline { display:inline-block; font-size:8px; font-weight:800; color:#fff; background:#7c3aed; border-radius:3px; padding:0 3px; margin-right:4px; letter-spacing:.4px; vertical-align:1px; }
+.cs-chip-wrap { position:relative; display:inline-flex; align-items:center; gap:1px; }
+.cs-chip-wrap .cs-chip-x { display:none; width:14px; height:14px; line-height:12px; text-align:center; border-radius:50%; background:#FEF2F2; color:#B91C1C; border:1px solid #FCA5A5; font-size:11px; font-weight:800; cursor:pointer; flex:none; }
+.cs-chip-wrap:hover .cs-chip-x { display:inline-block; }
+.cs-chip-wrap .cs-chip-x:hover { background:#FCA5A5; color:#fff; }
 
 /* « à pourvoir » requis (comité) — petit point discret, sans texte */
 .cs-apourvoir { display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:700;
@@ -2468,16 +2472,17 @@ function renderWeek() {
     }
 
     let prim = '';
+    const _chipX = (id,init) => `<span class="cs-chip-x" onclick="event.stopPropagation();removeOneCs('${id}','${init}','${type}','${date}','${slotKey}')" title="Retirer ${init} de cette consultation">×</span>`;
     items.forEach(p => {
       if (p.isMirror) {
         prim += `<span class="slot-name cs-chip cs-mirror" title="${p.id||''} — consult faite par le secteur"><span class="cs-arr">↳</span>${p.init}</span>`;
       } else if (p.lib) {
         // Case combinée : badge LIB + initiales du MAR qui fait la consultation libérale
         const cls = p.isNew ? 'slot-name cs-chip cs-chip-lib slot-new slot-clickable' : 'slot-name cs-chip cs-chip-lib slot-clickable';
-        prim += `<span class="${cls}" title="${p.id||''} — consultation libérale endoscopie (rotation GR)" onclick="openMarMenu('${p.id}','${p.init}','${type}','${date}','${slotKey}')"><span class="cs-lib-inline">LIB</span>${p.init}</span>`;
+        prim += `<span class="cs-chip-wrap"><span class="${cls}" title="${p.id||''} — consultation libérale endoscopie (rotation GR)" onclick="openMarMenu('${p.id}','${p.init}','${type}','${date}','${slotKey}')"><span class="cs-lib-inline">LIB</span>${p.init}</span>${_chipX(p.id,p.init)}</span>`;
       } else {
         const cls = p.isNew ? 'slot-name cs-chip slot-new slot-clickable' : 'slot-name cs-chip slot-clickable';
-        prim += `<span class="${cls}" title="${p.id||''}" onclick="openMarMenu('${p.id}','${p.init}','${type}','${date}','${slotKey}')">${p.init}</span>`;
+        prim += `<span class="cs-chip-wrap"><span class="${cls}" title="${p.id||''}" onclick="openMarMenu('${p.id}','${p.init}','${type}','${date}','${slotKey}')">${p.init}</span>${_chipX(p.id,p.init)}</span>`;
       }
     });
     const _vide = _localVides[date] && _localVides[date].has(`${type}|${slotKey}`);
@@ -2993,6 +2998,14 @@ function leaveCaseVide() {
   saveLocalEdits();
   const c = document.getElementById('dispoCard'); if (c) c.style.display = 'none';
   renderWeek();
+}
+// Retirer UN SEUL MAR d'une consultation (le × sur sa puce), sans fermer le créneau
+// ni toucher aux autres occupants. Conserve ses éventuels autres secteurs du demi-jour.
+function removeOneCs(marId, marInit, type, date, slotKey) {
+  const cur = (window._marSectors && window._marSectors[`${date}|${marId}|${slotKey}`]) || [];
+  const remaining = cur.filter(s => s && s !== type);
+  window._sideCtx = {date, slotKey, sector: remaining.length ? remaining.join('+') : 'VOLANT'};
+  placeMAR(marId, marInit, 'move');
 }
 function closeConsult(type, date, slotKey) {
   // 1) marquer fermée (persiste pour ne plus réafficher "à pourvoir")
