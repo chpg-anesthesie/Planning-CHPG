@@ -999,6 +999,31 @@ if (sessionStorage.getItem('adminCode')) {
   </div>
 </div>
 
+<style>
+.year-picker{position:relative;display:inline-block}
+.year-pill{display:inline-flex;align-items:center;gap:7px;padding:3px 8px 3px 11px;border:1px solid var(--line);border-radius:999px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:13px;font-weight:700;line-height:1;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.year-pill:hover{border-color:var(--accent);box-shadow:0 1px 5px rgba(15,23,42,.08)}
+.year-pill-num{letter-spacing:.2px}
+.year-pill-badge{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:2px 6px;border-radius:999px;line-height:1.05;white-space:nowrap}
+.badge-actif{background:#dcfce7;color:#166534}
+.badge-n1{background:#dbeafe;color:#1e40af}
+.badge-archive{background:#e2e8f0;color:#475569}
+.year-pill-chev{opacity:.45;transition:transform .18s;margin-left:1px;flex:none}
+.year-picker.open .year-pill-chev{transform:rotate(180deg)}
+.year-picker.solo .year-pill{cursor:default}
+.year-picker.solo .year-pill:hover{border-color:var(--line);box-shadow:none}
+.year-picker.solo .year-pill-chev{display:none}
+.year-menu{position:absolute;top:calc(100% + 6px);left:0;min-width:170px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.16);padding:5px;z-index:200;display:none;flex-direction:column;gap:2px}
+.year-picker.open .year-menu{display:flex}
+.year-menu-head{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;padding:5px 9px 3px}
+.year-menu-item{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;cursor:pointer;transition:background .12s}
+.year-menu-item:hover{background:#f1f5f9}
+.year-menu-item.active{background:#f8fafc}
+.year-menu-item .ymi-year{font-weight:800;font-size:13px;min-width:36px;color:var(--ink)}
+.year-menu-item .ymi-check{margin-left:auto;color:var(--accent);opacity:0;font-weight:900}
+.year-menu-item.active .ymi-check{opacity:1}
+</style>
+
 <!-- HEADER -->
 <div class="header">
   <div class="header-brand">
@@ -1007,10 +1032,15 @@ if (sessionStorage.getItem('adminCode')) {
       <div class="header-title">Planning CHPG Monaco</div>
       <div class="header-sub" style="display:flex;align-items:center;gap:8px">
         Administration ·
-        <select id="adminYearSelect" onchange="switchAdminYear(Number(this.value))"
-          style="padding:4px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;display:none">
-        </select>
-        <span id="headerYear" style="font-size:11px">—</span>
+        <div class="year-picker solo" id="yearPicker">
+          <button type="button" class="year-pill" id="yearPillBtn" onclick="toggleYearMenu(event)" aria-haspopup="listbox">
+            <span class="year-pill-num" id="yearPillNum">—</span>
+            <span class="year-pill-badge" id="yearPillBadge"></span>
+            <svg class="year-pill-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="year-menu" id="yearMenu" role="listbox"></div>
+        </div>
+        <span id="headerYear" style="display:none"></span>
       </div>
     </div>
   </div>
@@ -1980,20 +2010,53 @@ async function statPublish(){
 
 // ── INIT ───────────────────────────────────────────────────────────────
 // ── SÉLECTEUR ANNÉE ──────────────────────────────────────────────────
-function buildYearSelector() {
-  // Met à jour le sélecteur d'année dans le header si présent
-  const sel = document.getElementById('adminYearSelect');
-  if (!sel) return;
-  sel.innerHTML = availableYears.map(y =>
-    `<option value="${y.year}" ${y.year===ADMIN_YEAR?'selected':''}>${y.label}</option>`
-  ).join('');
-  sel.style.display = availableYears.length > 1 ? '' : 'none';
+function _yearStatusMeta(status) {
+  if (status === 'n1')      return { label: 'N+1',     cls: 'badge-n1' };
+  if (status === 'archive') return { label: 'archivé', cls: 'badge-archive' };
+  return { label: 'actif', cls: 'badge-actif' };
 }
+function buildYearSelector() {
+  const picker = document.getElementById('yearPicker');
+  const num    = document.getElementById('yearPillNum');
+  const badge  = document.getElementById('yearPillBadge');
+  const menu   = document.getElementById('yearMenu');
+  if (!picker || !num || !badge || !menu) return;
+  const cur = availableYears.find(y => y.year === ADMIN_YEAR) || availableYears[0];
+  if (!cur) { picker.style.display = 'none'; return; }
+  picker.style.display = '';
+  const meta = _yearStatusMeta(cur.status);
+  num.textContent = cur.year;
+  badge.textContent = meta.label;
+  badge.className = 'year-pill-badge ' + meta.cls;
+  menu.innerHTML = '<div class="year-menu-head">Changer d\'année</div>' + availableYears.map(y => {
+    const m = _yearStatusMeta(y.status);
+    return `<div class="year-menu-item ${y.year === ADMIN_YEAR ? 'active' : ''}" role="option" onclick="_pickYear(${y.year})">`
+      + `<span class="ymi-year">${y.year}</span>`
+      + `<span class="year-pill-badge ${m.cls}">${m.label}</span>`
+      + `<span class="ymi-check">\u2713</span></div>`;
+  }).join('');
+  picker.classList.toggle('solo', availableYears.length <= 1);
+}
+function toggleYearMenu(e) {
+  e.stopPropagation();
+  const picker = document.getElementById('yearPicker');
+  if (!picker || picker.classList.contains('solo')) return;
+  picker.classList.toggle('open');
+}
+function _pickYear(year) {
+  const picker = document.getElementById('yearPicker');
+  if (picker) picker.classList.remove('open');
+  if (year !== ADMIN_YEAR) switchAdminYear(year);
+}
+document.addEventListener('click', e => {
+  const picker = document.getElementById('yearPicker');
+  if (picker && !picker.contains(e.target)) picker.classList.remove('open');
+});
 async function detectAvailableYears() {
   availableYears = [];
-  availableYears.push({ year: YEAR, label: YEAR + ' — actif', readonly: false });
+  availableYears.push({ year: YEAR, label: YEAR + ' — actif', readonly: false, status: 'actif' });
   if (nextYearAvailable) {
-    availableYears.push({ year: YEAR + 1, label: (YEAR + 1) + ' — N+1', readonly: false });
+    availableYears.push({ year: YEAR + 1, label: (YEAR + 1) + ' — N+1', readonly: false, status: 'n1' });
   }
   // Tester toutes les années archivées depuis le démarrage du projet (en parallèle, silencieux si 404)
   const ARCHIVE_FLOOR = 2025;
@@ -2004,7 +2067,7 @@ async function detectAvailableYears() {
   ));
   checks.forEach(r => {
     if (r.status === 'fulfilled' && r.value.ok) {
-      availableYears.push({ year: r.value.y, label: r.value.y + ' — archivé', readonly: true });
+      availableYears.push({ year: r.value.y, label: r.value.y + ' — archivé', readonly: true, status: 'archive' });
     }
   });
   buildYearSelector();
@@ -2025,6 +2088,7 @@ async function switchAdminYear(year) {
 async function reloadForYear(year) {
   // Mettre à jour toutes les étiquettes d'année (header + titres comme "Affectations sectorielles")
   document.getElementById('headerYear').textContent = year;
+  buildYearSelector();
   document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = year; });
   // Boutons en lecture seule si l'année est archivée
   document.querySelectorAll('.btn-primary[onclick*="openPanel"], .btn-primary[onclick*="applyModification"]').forEach(btn => {
