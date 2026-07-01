@@ -2148,24 +2148,26 @@ async function loadPlanningData() {
   const grid = document.getElementById('planTable');
   if(grid) grid.innerHTML = '<tbody><tr><td colspan="8" style="padding:40px;text-align:center;color:var(--ink-4);"><div class="spinner" style="margin:0 auto 10px;"></div>Chargement…</td></tr></tbody>';
   try {
-    // Retry jusqu'à 3 fois si erreur réseau
-    let res, attempts = 0;
+    // (Étape 3 confidentialité) Lecture via l'API protégée (Drive privé),
+    // plus depuis les JSON publics GitHub. Retry jusqu'à 3 fois.
+    let resJson = null, attempts = 0;
     while (attempts < 3) {
       try {
-        res = await fetchTimeout(`https://raw.githubusercontent.com/chpg-anesthesie/Planning-CHPG/main/planning_${ADMIN_YEAR}.json?` + Date.now(), {redirect:'follow', cache:'no-store'}, 15000);
-        if (res.ok) break;
-      } catch(e) {}
+        const r = await api({action:'getPlanningJson', year: ADMIN_YEAR});
+        if (r && r.success && r.planning) { resJson = r.planning; break; }
+        if (r && r.error && /introuvable/.test(r.error)) throw new Error(r.error);
+      } catch(e) { if (/introuvable/.test(e.message)) throw e; }
       attempts++;
       if (attempts < 3) await new Promise(r => setTimeout(r, 1000));
     }
-    if (!res || !res.ok) throw new Error('Fichier planning introuvable');
-    DATA = await res.json();
+    if (!resJson) throw new Error('Planning ' + ADMIN_YEAR + ' indisponible (API)');
+    DATA = resJson;
       // _localOverrides CONSERVÉS : ils restent appliqués tant que le JSON
-      // régénéré n'est pas propagé (latence GitHub Pages). Application idempotente.
+      // régénéré n'est pas propagé. Application idempotente.
     // Affectations du mois (pour les cases flash basées sur l'effectif attendu)
     try {
-      const ra = await fetchTimeout(`https://raw.githubusercontent.com/chpg-anesthesie/Planning-CHPG/main/affectations_${ADMIN_YEAR}.json?` + Date.now(), {cache:'no-store'}, 10000);
-      window.AFFM = ra && ra.ok ? ((await ra.json()).affectations || {}) : {};
+      const ra = await api({action:'getAffectationsJson', year: ADMIN_YEAR});
+      window.AFFM = (ra && ra.success && ra.affectations && ra.affectations.affectations) || {};
     } catch(e) { window.AFFM = {}; }
     if (!DATA || !DATA.months) throw new Error('Structure JSON invalide');
     const today = todayStr();

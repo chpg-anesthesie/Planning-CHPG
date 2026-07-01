@@ -294,19 +294,8 @@ function archiveYear(year, moveSheets) {
   const GITHUB_USER='chpg-anesthesie', GITHUB_REPO='Planning-CHPG', GITHUB_BRANCH='main';
   const results = [];
 
-  function pushFile(path, content){
-    const apiUrl=`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${path}`;
-    let sha='';
-    try{ const g=UrlFetchApp.fetch(apiUrl,{headers:{Authorization:`token ${getGithubToken()}`},muteHttpExceptions:true});
-      if(g.getResponseCode()===200) sha=JSON.parse(g.getContentText()).sha; }catch(e){}
-    const body={message:`Archive ${year} — ${path} — ${new Date().toISOString()}`,
-      content:Utilities.base64Encode(Utilities.newBlob(content).getBytes()), branch:GITHUB_BRANCH};
-    if(sha) body.sha=sha;
-    const r=UrlFetchApp.fetch(apiUrl,{method:'PUT',headers:{Authorization:`token ${getGithubToken()}`,'Content-Type':'application/json'},payload:JSON.stringify(body),muteHttpExceptions:true});
-    const c=r.getResponseCode();
-    if(c===200||c===201){Logger.log(`✅ ${path} poussé`);return true;}
-    Logger.log(`❌ GitHub ${c} ${path}: ${r.getContentText().slice(0,200)}`); return false;
-  }
+  // (Étape 3) pushFile supprimé : les archives vont dans le Drive privé
+  // via savePlanningToDrive (code.gs), plus sur le dépôt public.
 
   // ── 1. STATS_GARDES_N → HISTORIQUE (append idempotent) + sauvegarde JSON ──
   const st = ss.getSheetByName(`STATS_GARDES_${year}`);
@@ -340,8 +329,12 @@ function archiveYear(year, moveSheets) {
 
     // b) Sauvegarde JSON (rangée dans archives/)
     const statsObj = d.slice(1).filter(row=>String(row[0]).trim()).map(row=>{ const o={}; Hd.forEach((hn,i)=>o[hn]=row[i]); return o; });
-    const ok1 = pushFile(`archives/stats_${year}.json`, JSON.stringify({year, stats:statsObj}, null, 2));
-    results.push(ok1?`✅ archives/stats_${year}.json`:`❌ push stats échoué`);
+    // (Étape 3 confidentialité) Archive rangée dans le Drive PRIVÉ —
+    // les stats nominatives ne vont plus sur le dépôt public.
+    let ok1 = true;
+    try { savePlanningToDrive(`stats_${year}.json`, JSON.stringify({year, stats:statsObj}, null, 2)); }
+    catch(e){ ok1 = false; Logger.log(`❌ Drive stats_${year}.json : ${e.message}`); }
+    results.push(ok1?`✅ stats_${year}.json → Drive`:`❌ archive stats échouée (Drive)`);
   }
 
   // ── 2. INDISPOS_N → sauvegarde JSON ──
@@ -352,8 +345,11 @@ function archiveYear(year, moveSheets) {
     const indispos={};
     for (let r=3;r<idd.length;r++){ const id=String(idd[r][0]).trim(); if(!id) continue; indispos[id]={};
       dates.forEach((dt,i)=>{ if(!dt) return; const v=String(idd[r][i+1]||'').trim(); if(v) indispos[id][dt]=v; }); }
-    const ok2 = pushFile(`archives/indispos_${year}.json`, JSON.stringify({year, indispos}, null, 2));
-    results.push(ok2?`✅ archives/indispos_${year}.json`:`❌ push indispos échoué`);
+    // (Étape 3 confidentialité) Indispos nominatives → Drive PRIVÉ uniquement.
+    let ok2 = true;
+    try { savePlanningToDrive(`indispos_${year}.json`, JSON.stringify({year, indispos}, null, 2)); }
+    catch(e){ ok2 = false; Logger.log(`❌ Drive indispos_${year}.json : ${e.message}`); }
+    results.push(ok2?`✅ indispos_${year}.json → Drive`:`❌ archive indispos échouée (Drive)`);
   } else results.push(`⚠️ INDISPOS_${year} introuvable — ignoré`);
 
   // ── 3. Déplacer les onglets de l'année vers le classeur d'archive ──

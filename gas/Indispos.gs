@@ -659,9 +659,8 @@ function getPlanningStatus() {
   // Vérifier la présence de stats_N.json sur GitHub Pages
 let gardesNClosed = false;
 try {
-  const checkUrl = 'https://chpg-anesthesie.github.io/Planning-CHPG/stats_' + year + '.json';
-  const resp = UrlFetchApp.fetch(checkUrl, {muteHttpExceptions: true});
-  gardesNClosed = resp.getResponseCode() === 200;
+  // (Étape 3) L'archive de clôture vit désormais dans le Drive privé.
+  gardesNClosed = readPlanningFromDrive('stats_' + year + '.json') !== null;
 } catch(e) {
   gardesNClosed = false;
 }
@@ -679,18 +678,9 @@ function doGet(e) {
         success: true, year: TEST_YEAR
       })).setMimeType(ContentService.MimeType.JSON);
     }
-    if (action === 'getStatus') {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true, status: getPlanningStatus()
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-    if (action === 'getStatsLive') {
-      const statsYear = Number(payload.year) || TEST_YEAR;
-      try {
-        return ContentService.createTextOutput(JSON.stringify({success:true, stats:computeStatsLive(statsYear)}))
-          .setMimeType(ContentService.MimeType.JSON);
-      } catch (err) { return _error(err.message); }
-    }
+    // (Étape 3 confidentialité) getStatus (noms des retardataires) et
+    // getStatsLive (stats nominatives) exigent désormais un code valide.
+    // Seul getActiveYear (un simple millésime) reste public.
     const user = checkCode(code);
     if (!user) {
       return ContentService.createTextOutput(JSON.stringify({
@@ -704,6 +694,19 @@ function doGet(e) {
         name: user.name, initials: user.initials, 
         year: TEST_YEAR, indisposYear: getIndisposYear(),
       })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === 'getStatus') {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, status: getPlanningStatus()
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (action === 'getStatsLive') {
+      const statsYear = Number(payload.year) || TEST_YEAR;
+      try {
+        return ContentService.createTextOutput(JSON.stringify({success:true, stats:computeStatsLive(statsYear)}))
+          .setMimeType(ContentService.MimeType.JSON);
+      } catch (err) { return _error(err.message); }
     }
 
     // (Étape 1 confidentialité) Planning servi depuis le Drive PRIVÉ,

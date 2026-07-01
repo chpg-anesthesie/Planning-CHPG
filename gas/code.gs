@@ -618,21 +618,18 @@ function generatePlanning(yearOverride) {
     }))
   }));
   const _planningJson = JSON.stringify({months: monthsMin, equiteInitiale});
-  const _pushRes = pushFileToGitHub(`planning_${year}.json`, _planningJson);
-  if (_pushRes && !_pushRes.ok) throw new Error(_pushErrMsg(`planning_${year}.json`, _pushRes));
-  // (Étape 1 confidentialité) Copie privée Drive — non bloquant si échec.
+  // (Étape 3 confidentialité) Le Drive privé est le stockage UNIQUE du
+  // planning — plus aucune copie publique sur GitHub. Un échec Drive
+  // bloque la publication avec un message clair (même logique que le 401).
   try { savePlanningToDrive(`planning_${year}.json`, _planningJson); }
-  catch(e) { logAction(`⚠️ Drive planning_${year}.json : ${e.message}`); }
-  // ── Push affectations_YYYY.json ──────────────────────────────────────
+  catch(e) { throw new Error(`Publication échouée : enregistrement Drive impossible pour planning_${year}.json (${e.message}).`); }
+  // ── Affectations_YYYY.json (Drive) ────────────────────────────────────
   try {
     const affectations = loadAffectations(year);
-    const _affJson = JSON.stringify({year, affectations});
-    pushFileToGitHub(`affectations_${year}.json`, _affJson);
-    try { savePlanningToDrive(`affectations_${year}.json`, _affJson); }
-    catch(e) { logAction(`⚠️ Drive affectations_${year}.json : ${e.message}`); }
-    Logger.log(`✅ affectations_${year}.json pushé`);
+    savePlanningToDrive(`affectations_${year}.json`, JSON.stringify({year, affectations}));
   } catch(e) {
-    Logger.log(`⚠️ Push affectations échoué : ${e.message}`);
+    Logger.log(`⚠️ Drive affectations échoué : ${e.message}`);
+    logAction(`⚠️ Drive affectations_${year}.json : ${e.message}`);
   }
 }
 
@@ -955,6 +952,25 @@ function testDrivePlanning() {
   Logger.log('✅ Test Drive OK — autorisation accordée, écriture/lecture fonctionnelles');
 }
 
+// À exécuter UNE FOIS avant la suppression des JSON publics (étape 3b) :
+// copie chaque planning_/affectations_ encore présent sur GitHub vers Drive.
+function migrateJsonToDrive() {
+  const out = [];
+  const thisYear = new Date().getFullYear();
+  for (let y = 2026; y <= thisYear + 2; y++) {
+    ['planning', 'affectations'].forEach(kind => {
+      const fn = `${kind}_${y}.json`;
+      try {
+        const r = UrlFetchApp.fetch(`https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${fn}`, {muteHttpExceptions: true});
+        if (r.getResponseCode() === 200) { savePlanningToDrive(fn, r.getContentText()); out.push(`✅ ${fn} → Drive`); }
+        else out.push(`ℹ️ ${fn} absent de GitHub (${r.getResponseCode()})`);
+      } catch(e) { out.push(`❌ ${fn} : ${e.message}`); }
+    });
+  }
+  Logger.log(out.join('\n'));
+  return out;
+}
+
 // ── PUSH FICHIER GITHUB ───────────────────────────────────────────────
 function pushFileToGitHub(fileName, content) {
   const apiUrl = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${fileName}`;
@@ -1001,10 +1017,8 @@ function _pushErrMsg(fileName, res) {
   return "Publication échouée sur " + fileName + " (code GitHub " + (c || "?") + ").";
 }
 
-// ── RÉTROCOMPATIBILITÉ ────────────────────────────────────────────────
-function pushToGitHub(content) {
-  return pushFileToGitHub(`planning_${getActiveYear()}.json`, content);
-}
+// (Étape 3) pushToGitHub (rétrocompat) supprimé — aucun appelant.
+// pushFileToGitHub est conservé : il sert encore à pousser les pages HTML.
 
 // ── TRIGGERS ─────────────────────────────────────────────────────────
 function onEdit(e) {
