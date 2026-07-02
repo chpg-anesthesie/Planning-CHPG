@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light only">
 <title>Charge des gardes 2026-2050 — Anesthésie-Réanimation CHPG</title>
 <style>
   :root{
@@ -11,6 +12,8 @@
     --full:#BFD9F2; --full-strong:#2C7BE5; --reduced:#F5C4A0; --partial:#F0A868;
     --zero:#E7E5DF; --repl:#C9E8D2; --danger:#CE1126; --warn:#D97706; --ok:#15803D;
   }
+  :root{color-scheme:light only}
+  html{background:#F8FAFC}
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     color:var(--ink);background:var(--bg);line-height:1.6;font-variant-numeric:tabular-nums}
@@ -88,10 +91,12 @@
   <p class="lead">Notre équipe vieillit de façon groupée. Quand la génération née entre 1974 et 1978 franchira 60 ans — l'âge où l'on arrête les gardes — il restera trop peu de collègues pour absorber les 730 gardes annuelles.</p>
   <div class="kpi-row">
     <div class="kpi"><div class="v ok">~34</div><div class="l">gardes/an par temps plein<br>aujourd'hui (2026)</div></div>
-    <div class="kpi"><div class="v warn">~54</div><div class="l">au pic de 2040<br>si rien ne change</div></div>
-    <div class="kpi"><div class="v">13</div><div class="l">gardeurs disponibles<br>en 2040 (vs 20 aujourd'hui)</div></div>
+    <div class="kpi"><div class="v warn">+36 %</div><div class="l">de gardes en 2040<br>vs aujourd'hui</div></div>
+    <div class="kpi"><div class="v warn">+13</div><div class="l">gardes/an en plus<br>par personne en 2040</div></div>
+    <div class="kpi"><div class="v">13</div><div class="l">gardeurs en 2040<br>(vs 20 aujourd'hui)</div></div>
     <div class="kpi"><div class="v">7 ans</div><div class="l">de tension forte<br>(2038 → 2044)</div></div>
   </div>
+  <p style="font-size:16px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:14px 18px"><b>Concrètement&nbsp;:</b> un temps plein passera d'environ <b>34 gardes par an aujourd'hui</b> à <b>~47-50 en 2040</b> — soit <b>+13 gardes chaque année</b>, ou <b>+36&nbsp;%</b>. C'est l'équivalent de <b>deux mois de gardes supplémentaires</b> ajoutés à l'année de chacun, pendant sept ans.</p>
   <p>Le chiffre d'aujourd'hui — <b>34 gardes/an pour un temps plein</b> — est celui que chacun peut retrouver dans l'onglet Équité de l'application. C'est notre point de départ vérifiable. La suite n'est que l'application de règles simples à la pyramide des âges réelle du service.</p>
 </section>
 
@@ -147,7 +152,7 @@
       <div class="k"><div class="kv" id="kPeak">—</div><div class="kl">pic max (gardes/an)</div></div>
       <div class="k"><div class="kv" id="kPeakY">—</div><div class="kl">année du pic</div></div>
       <div class="k"><div class="kv" id="kNow">—</div><div class="kl">charge en 2027</div></div>
-      <div class="k"><div class="kv" id="kMin">—</div><div class="kl">gardeurs au creux</div></div>
+      <div class="k"><div class="kv" id="kSurplus">—</div><div class="kl">surplus au pic vs 2027</div></div>
     </div>
     <div class="chart-wrap"><canvas id="simChart"></canvas></div>
     <h3 style="margin-top:22px">Détail par collègue et par année</h3>
@@ -325,8 +330,11 @@ function render(){
   kPeak.textContent=S.peak.toFixed(0);
   kPeak.style.color = S.peak>=52?'#CE1126':S.peak>=44?'#D97706':'#15803D';
   kPeakY.textContent=S.peakY;
-  kNow.textContent=S.perYear[2027].base.toFixed(0);
-  kMin.textContent=S.minG;
+  const now=S.perYear[2027].base;
+  kNow.textContent=now.toFixed(0);
+  const surplusPct=Math.round((S.peak/now-1)*100);
+  kSurplus.textContent='+'+surplusPct+'%';
+  kSurplus.style.color = surplusPct>=30?'#CE1126':surplusPct>=18?'#D97706':'#15803D';
   // Courbe pic
   const data=YEARS.map(y=>+S.perYear[y].base.toFixed(1));
   const cols=data.map(v=>v>=52?'#CE1126':v>=44?'#D97706':'#2C7BE5');
