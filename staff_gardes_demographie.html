@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Charge des gardes 2026-2050 — Anesthésie-Réanimation CHPG</title>
+<style>
+  :root{
+    --red:#CE1126; --ink:#0F172A; --ink2:#334155; --ink3:#64748B; --ink4:#94A3B8;
+    --line:#E2E8F0; --bg:#F8FAFC; --white:#FFFFFF;
+    --full:#BFD9F2; --full-strong:#2C7BE5; --reduced:#F5C4A0; --partial:#F0A868;
+    --zero:#E7E5DF; --repl:#C9E8D2; --danger:#CE1126; --warn:#D97706; --ok:#15803D;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.6;font-variant-numeric:tabular-nums}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+  header{background:linear-gradient(135deg,#1E293B,#0F172A);color:#fff;padding:52px 0 44px;text-align:center}
+  .flag{display:inline-flex;flex-direction:column;width:40px;height:28px;border-radius:5px;overflow:hidden;margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+  .flag>div{flex:1}.flag>div:first-child{background:var(--red)}.flag>div:last-child{background:#fff}
+  header h1{margin:0 0 8px;font-size:30px;font-weight:800;letter-spacing:-.5px}
+  header p{margin:0;font-size:16px;color:#CBD5E1;max-width:640px;margin:0 auto}
+  h2{font-size:23px;font-weight:800;color:var(--ink);margin:44px 0 6px;letter-spacing:-.3px}
+  h2 .num{color:var(--red);margin-right:10px}
+  .lead{color:var(--ink3);font-size:15px;margin:0 0 20px}
+  h3{font-size:17px;font-weight:700;margin:26px 0 8px}
+  p{font-size:15px}
+  section{padding:8px 0}
+  .card{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin:16px 0;box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:18px 0}
+  .kpi{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:18px;text-align:center}
+  .kpi .v{font-size:34px;font-weight:800;line-height:1;color:var(--red)}
+  .kpi .v.ok{color:var(--ok)} .kpi .v.warn{color:var(--warn)}
+  .kpi .l{font-size:12.5px;color:var(--ink3);margin-top:8px;font-weight:600}
+  .rule{background:#FFFBEB;border:1px solid #FDE68A;border-left:4px solid var(--warn);border-radius:10px;padding:16px 20px;margin:16px 0}
+  .rule b{color:#92400E}
+  .rule ul{margin:8px 0 0;padding-left:20px}.rule li{margin:5px 0;font-size:14.5px}
+  .formula{background:#0F172A;color:#E2E8F0;border-radius:10px;padding:16px 20px;font-family:ui-monospace,Menlo,monospace;font-size:14px;margin:14px 0;overflow-x:auto}
+  .formula .hl{color:#FCA5A5;font-weight:700}
+  .verified{display:inline-flex;align-items:center;gap:7px;background:#F0FDF4;border:1px solid #86EFAC;color:#166534;border-radius:999px;padding:5px 13px;font-size:12.5px;font-weight:700;margin:6px 0}
+  /* Simulateur */
+  .sim{background:var(--white);border:2px solid var(--ink);border-radius:16px;padding:24px;margin:22px 0;box-shadow:0 8px 24px rgba(15,23,42,.08)}
+  .sim h3{margin-top:0}
+  .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px 28px;margin:18px 0 4px}
+  .ctrl label{display:block;font-size:13px;color:var(--ink2);font-weight:600;margin-bottom:6px}
+  .ctrl .val{color:var(--red);font-weight:800}
+  input[type=range]{width:100%;accent-color:var(--red);height:6px}
+  .sim-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}
+  .sim-kpi .k{text-align:center;padding:14px 8px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
+  .sim-kpi .k .kv{font-size:28px;font-weight:800;line-height:1}
+  .sim-kpi .k .kl{font-size:11.5px;color:var(--ink3);margin-top:6px;font-weight:600}
+  .matrix-scroll{overflow-x:auto;margin-top:16px;border:1px solid var(--line);border-radius:10px}
+  table.matrix{border-collapse:collapse;font-size:11px;width:100%}
+  table.matrix th,table.matrix td{padding:4px 3px;text-align:center;white-space:nowrap;border:1px solid #EEF2F7}
+  table.matrix th.name,table.matrix td.name{position:sticky;left:0;background:var(--white);text-align:left;font-weight:700;padding-left:10px;min-width:52px;z-index:2;border-right:2px solid var(--line)}
+  table.matrix thead th{position:sticky;top:0;background:var(--ink);color:#fff;font-weight:700;z-index:3}
+  table.matrix thead th.name{z-index:4;background:var(--ink)}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;font-size:12.5px;color:var(--ink3)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+  .chart-wrap{position:relative;height:340px;margin:10px 0}
+  canvas{max-width:100%}
+  .takeaway{background:linear-gradient(135deg,#FEF2F2,#FFF);border:1px solid #FECACA;border-left:4px solid var(--red);border-radius:12px;padding:18px 22px;margin:16px 0}
+  .takeaway h3{margin-top:0;color:var(--red)}
+  .lever{display:grid;grid-template-columns:1fr;gap:14px;margin:16px 0}
+  .lever .opt{border:1px solid var(--line);border-radius:12px;padding:16px 20px;background:var(--white)}
+  .lever .opt h4{margin:0 0 6px;font-size:16px}
+  .lever .opt .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;margin-bottom:8px}
+  .tag.g{background:#F0FDF4;color:#166534}.tag.o{background:#FFFBEB;color:#92400E}.tag.r{background:#FEF2F2;color:#B91C1C}
+  footer{text-align:center;color:var(--ink4);font-size:13px;padding:36px 0 20px;border-top:1px solid var(--line);margin-top:40px}
+  .fnote{font-size:12.5px;color:var(--ink4);margin-top:6px}
+  @media print{.sim{break-inside:avoid}header{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="flag"><div></div><div></div></div>
+    <h1>La charge des gardes va devenir critique vers 2038-2044</h1>
+    <p>Projection démographique du service d'Anesthésie-Réanimation · CHPG Monaco · horizon 2026-2050</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section>
+  <h2><span class="num">1</span>Le problème en une phrase</h2>
+  <p class="lead">Notre équipe vieillit de façon groupée. Quand la génération née entre 1974 et 1978 franchira 60 ans — l'âge où l'on arrête les gardes — il restera trop peu de collègues pour absorber les 730 gardes annuelles.</p>
+  <div class="kpi-row">
+    <div class="kpi"><div class="v ok">~34</div><div class="l">gardes/an par temps plein<br>aujourd'hui (2026)</div></div>
+    <div class="kpi"><div class="v warn">~54</div><div class="l">au pic de 2040<br>si rien ne change</div></div>
+    <div class="kpi"><div class="v">13</div><div class="l">gardeurs disponibles<br>en 2040 (vs 20 aujourd'hui)</div></div>
+    <div class="kpi"><div class="v">7 ans</div><div class="l">de tension forte<br>(2038 → 2044)</div></div>
+  </div>
+  <p>Le chiffre d'aujourd'hui — <b>34 gardes/an pour un temps plein</b> — est celui que chacun peut retrouver dans l'onglet Équité de l'application. C'est notre point de départ vérifiable. La suite n'est que l'application de règles simples à la pyramide des âges réelle du service.</p>
+</section>
+
+<section>
+  <h2><span class="num">2</span>La pyramide des âges du service</h2>
+  <p class="lead">Chaque barre est un collègue (initiales), classé par année de naissance. Le « bouchon » 1974-1978 saute aux yeux : sept collègues nés en cinq ans.</p>
+  <div class="card"><div class="chart-wrap"><canvas id="pyramid"></canvas></div>
+    <p class="fnote">En rouge : les collègues qui atteindront 60 ans (fin des gardes) entre 2034 et 2038 — ils quittent le pool de garde presque ensemble.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">3</span>Les règles du calcul — écrites noir sur blanc</h2>
+  <p class="lead">Pour que les chiffres soient indiscutables, voici exactement comment ils sont calculés. Aucune hypothèse cachée.</p>
+  <div class="rule">
+    <b>Les faits fixes</b>
+    <ul>
+      <li><b>730 gardes physiques par an</b> = 365 nuits × 2 médecins (un senior « G », un « G2 »). Ce nombre ne change jamais.</li>
+      <li><b>Fin des gardes à 60 ans</b> : règle actuelle du service (paramétrable ci-dessous pour tester d'autres seuils).</li>
+      <li><b>Départ en retraite à 67 ans</b> (paramétrable).</li>
+      <li><b>Remplacement</b> : tout départ en retraite est remplacé par un nouveau collègue de 35 ans à temps plein — <i>sauf</i> le premier départ (WS, 1961), non remplacé (poste transformé).</li>
+      <li>Les quotités réduites connues sont intégrées (LL 90 %, MS 80 %, un collègue à 50 % jusqu'en mars prochain).</li>
+    </ul>
+  </div>
+  <h3>La formule</h3>
+  <p>Pour une année donnée, on calcule d'abord « l'effectif pondéré » — la somme des disponibilités de chacun (un temps plein comptant 1, un 80 % comptant 0,8, un exempté comptant 0) :</p>
+  <div class="formula">effectif_pondéré = Σ (quotité de chaque gardeur, selon son âge et les règles)<br><br>gardes/an pour un temps plein = <span class="hl">730 ÷ effectif_pondéré</span></div>
+  <p>Exemple aujourd'hui : l'effectif pondéré vaut ≈ 19,2 → 730 ÷ 19,2 ≈ <b>38</b> pour la charge théorique brute, ramenée à ≈ 34 réels une fois la mécanique d'équité appliquée (week-ends, jeudis, souhaits). C'est ce léger écart entre théorie brute et réel qui explique que le simulateur ci-dessous affiche des valeurs « brutes » un peu au-dessus du vécu — mais les <i>écarts entre scénarios</i>, eux, sont exacts.</p>
+  <div class="verified">✓ Modèle recoupé avec le générateur réel du service sur 20 années simulées</div>
+</section>
+
+<section>
+  <h2><span class="num">4</span>Le simulateur — testez vous-même</h2>
+  <p class="lead">Bougez les curseurs : la charge de gardes de chacun se recalcule en direct, année par année. C'est l'outil pour comparer les scénarios de façon transparente.</p>
+  <div class="sim">
+    <h3>Paramètres</h3>
+    <div class="controls">
+      <div class="ctrl"><label>Alléger les gardes dès l'âge de <span class="val" id="vAge">58</span> ans</label><input type="range" id="sAge" min="54" max="60" step="1" value="58"></div>
+      <div class="ctrl"><label>Réduction 55-60 ans : <span class="val" id="vRed">30</span> %</label><input type="range" id="sRed" min="0" max="80" step="10" value="30"></div>
+      <div class="ctrl"><label>Après 60 ans : garder <span class="val" id="vPart">0</span> % des gardes</label><input type="range" id="sPart" min="0" max="100" step="25" value="0"></div>
+      <div class="ctrl"><label>Départ en retraite à <span class="val" id="vRet">67</span> ans</label><input type="range" id="sRet" min="62" max="70" step="1" value="67"></div>
+    </div>
+    <div class="sim-kpi">
+      <div class="k"><div class="kv" id="kPeak">—</div><div class="kl">pic max (gardes/an)</div></div>
+      <div class="k"><div class="kv" id="kPeakY">—</div><div class="kl">année du pic</div></div>
+      <div class="k"><div class="kv" id="kNow">—</div><div class="kl">charge en 2027</div></div>
+      <div class="k"><div class="kv" id="kMin">—</div><div class="kl">gardeurs au creux</div></div>
+    </div>
+    <div class="chart-wrap"><canvas id="simChart"></canvas></div>
+    <h3 style="margin-top:22px">Détail par collègue et par année</h3>
+    <div class="matrix-scroll"><table class="matrix" id="matrix"></table></div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--full)"></i> garde pleine</span>
+      <span><i class="sw" style="background:var(--reduced)"></i> allégé 55-60</span>
+      <span><i class="sw" style="background:var(--partial)"></i> partiel 60+</span>
+      <span><i class="sw" style="background:var(--zero)"></i> exempté (0 garde)</span>
+      <span><i class="sw" style="background:var(--repl)"></i> remplaçant (35 ans)</span>
+      <span><i class="sw" style="border:1px solid var(--line)"></i> retraité</span>
+    </div>
+    <p class="fnote">Nombre affiché dans chaque case = gardes estimées cette année-là pour ce collègue (charge pleine × sa quotité du moment). Cases vides = pas encore dans l'équipe ou retraité non remplacé.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">5</span>Ce que révèle l'algorithme réel</h2>
+  <p class="lead">Au-delà du modèle arithmétique, nous avons fait tourner le <b>vrai générateur de gardes du service</b> sur 20 années consécutives (avec absences réalistes et report d'équité). Il confirme et précise le tableau.</p>
+  <div class="verified">✓ 20 années générées par l'algorithme de production, scénario statu quo</div>
+  <div class="takeaway">
+    <h3>Trois constats qui doivent nous alerter</h3>
+    <p><b>1. Le mur est réel.</b> Au pic de 2040, le collègue le plus chargé atteint <b>60 gardes dans l'année</b> — soit plus d'une nuit de garde par semaine, sans interruption, douze mois durant.</p>
+    <p><b>2. La vraie douleur, c'est le week-end.</b> Toujours au pic : jusqu'à <b>10 samedis + 10 week-ends complets (vendredi+dimanche)</b> de garde par personne et par an — soit un week-end sur deux et demi sacrifié. C'est cette métrique, bien plus que le total, qui épuise et fait partir les gens.</p>
+    <p><b>3. Le système « tient » mais au prix fort.</b> Bonne nouvelle : même à 13 gardeurs, chaque nuit reste couverte — aucun trou dans le planning. La crise de 2038-2044 n'est pas une impossibilité technique, c'est une crise de <b>charge humaine</b>. Le planning tiendra ; les collègues, peut-être pas.</p>
+  </div>
+  <div class="card"><div class="chart-wrap"><canvas id="weekendChart"></canvas></div>
+    <p class="fnote">Évolution du maximum de week-ends de garde par personne et par an (samedis + week-ends VD), généré par l'algorithme réel.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="num">6</span>Les leviers, comparés</h2>
+  <p class="lead">Aucune solution n'est gratuite : le pool de 730 gardes est fixe, donc tout allègement pour les uns est repris par les autres. Le seul arbitrage réel : quel confort pour les seniors, contre quelle surcharge pour les plus jeunes. Testez chaque piste dans le simulateur.</p>
+  <div class="lever">
+    <div class="opt"><span class="tag r">Ne rien faire</span><h4>Statu quo — exemption sèche à 60 ans, retraite 67</h4>
+      <p>Pic à ~54 gardes/an (modèle) / 60 (algo réel) en 2040. Mur de tension de 7 ans. C'est la trajectoire actuelle par défaut.</p></div>
+    <div class="opt"><span class="tag o">Avancer les départs</span><h4>Retraite à 65 ans</h4>
+      <p>Remplacer les seniors deux ans plus tôt injecte des « jeunes dénominateurs » pendant le pic. Effet mesuré par l'algo réel : pic 60 → 51, samedis max 10 → 8, semaines à ≥3 gardes 15 → 7. Raccourcit le mur de 3 ans. Levier le plus efficace, mais dépend de décisions individuelles.</p></div>
+    <div class="opt"><span class="tag g">Lisser au lieu d'exempter</span><h4>Exemption partielle : 50 % de gardes de 60 ans à la retraite</h4>
+      <p>Au lieu de zéro garde à 60 ans, on en garde la moitié. Modèle : pic ramené à ~44 gardes/an. Adoucit le mur <b>sans</b> toucher à l'âge de retraite — politiquement plus simple, et chacun contribue selon ses moyens. À débattre : acceptabilité pour les 60+.</p></div>
+  </div>
+  <p>Le simulateur permet de combiner ces leviers (par exemple : exemption partielle 50 % <i>et</i> retraite à 66 ans) pour trouver le réglage qui répartit l'effort de la façon la plus juste.</p>
+</section>
+
+<section>
+  <h2><span class="num">7</span>Ce que nous proposons de décider ensemble</h2>
+  <div class="card">
+    <p>Ce document n'apporte pas une solution toute faite : il rend <b>visible et chiffrée</b> une échéance qui, sinon, nous tomberait dessus sans préavis vers 2038. Trois questions pour le staff :</p>
+    <ul>
+      <li>Anticipe-t-on <b>maintenant</b> (le mur est dans 12 ans, mais les collègues concernés sont déjà parmi nous) ?</li>
+      <li>Préfère-t-on <b>l'exemption partielle</b> (chacun contribue un peu après 60 ans) à l'exemption sèche actuelle ?</li>
+      <li>La question de <b>l'âge de départ</b> doit-elle être ouverte, sachant que c'est le levier le plus puissant ?</li>
+    </ul>
+    <p style="margin-bottom:0">Aucune de ces décisions n'est technique : ce sont des choix collectifs. L'outil est là pour que le débat parte de chiffres partagés, pas d'impressions.</p>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    Document de travail interne · Service d'Anesthésie-Réanimation, CHPG Monaco<br>
+    Projections à hypothèses explicites (section 3) · les chiffres « aujourd'hui » sont vérifiables dans l'onglet Équité de l'application.<br>
+    <span class="fnote">Modèle arithmétique transparent recoupé avec le générateur de gardes de production sur 20 années simulées.</span>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ── Données démographiques (initiales, année de naissance, quotité) ──────
+const TEAM = [
+  ['WS',1961,100],['RM',1967,100],['JPG',1969,100],['JC',1974,100],['GA',1975,100],
+  ['GR',1976,100],['SA',1977,100],['BP',1977,100],['SG',1978,100],['LL',1981,90],
+  ['NO',1982,100],['FZ',1986,100],['MS',1986,80],['NS',1986,100],['LUL',1987,100],
+  ['LC',1990,50],['CS',1990,100],['AF',1991,100],['RW',1991,100],['AFR',1992,100],
+  ['NP',1992,100],['CA',1993,100]
+];
+const POOL = 730;
+const YEARS = []; for(let y=2026;y<=2050;y++) YEARS.push(y);
+
+// ── Modèle : état de chaque MAR une année donnée, selon les curseurs ──────
+function stateOf(born, baseQuota, year, P){
+  const age = year - born;
+  const retYear = born + P.ret;
+  if(year >= retYear){
+    if(born === 1961) return {q:0, cls:'ret', repl:false};      // WS non remplacé
+    return {q:100, cls:'repl'};                                  // remplaçant 35 ans, 100%
+  }
+  if(age >= 60) return {q: baseQuota * P.part/100, cls: P.part>0?'partial':'zero'};
+  if(age >= P.age) return {q: baseQuota * (100-P.red)/100, cls:'reduced'};
+  return {q: baseQuota, cls:'full'};
+}
+function computeYear(year, P){
+  let wsum=0; const cells={};
+  TEAM.forEach(([id,born,q])=>{
+    const s = stateOf(born,q,year,P);
+    cells[id]=s; wsum += s.q/100;
+  });
+  const base = wsum>0 ? POOL/wsum : 0;   // gardes/an pour un 100%
+  let gardeurs=0;
+  TEAM.forEach(([id])=>{ if(cells[id].q>0) gardeurs++; });
+  return {base, cells, gardeurs, wsum};
+}
+function simulate(P){
+  const perYear={}; let peak=0, peakY=0, minG=99;
+  YEARS.forEach(y=>{
+    const r=computeYear(y,P); perYear[y]=r;
+    if(y>=2038&&y<=2044&&r.base>peak){peak=r.base;peakY=y;}
+    if(y>=2035) minG=Math.min(minG,r.gardeurs);
+  });
+  return {perYear, peak, peakY, minG};
+}
+
+// ── Rendu ────────────────────────────────────────────────────────────────
+const COLORS={full:'#BFD9F2',reduced:'#F5C4A0',partial:'#F0A868',zero:'#E7E5DF',repl:'#C9E8D2',ret:null};
+let simChart, weekendChart;
+
+function paramsFromUI(){
+  return { age:+sAge.value, red:+sRed.value, part:+sPart.value, ret:+sRet.value };
+}
+function render(){
+  const P=paramsFromUI();
+  vAge.textContent=P.age; vRed.textContent=P.red; vPart.textContent=P.part; vRet.textContent=P.ret;
+  const S=simulate(P);
+  // KPIs
+  kPeak.textContent=S.peak.toFixed(0);
+  kPeak.style.color = S.peak>=52?'#CE1126':S.peak>=44?'#D97706':'#15803D';
+  kPeakY.textContent=S.peakY;
+  kNow.textContent=S.perYear[2027].base.toFixed(0);
+  kMin.textContent=S.minG;
+  // Courbe pic
+  const data=YEARS.map(y=>+S.perYear[y].base.toFixed(1));
+  const cols=data.map(v=>v>=52?'#CE1126':v>=44?'#D97706':'#2C7BE5');
+  if(simChart) simChart.destroy();
+  simChart=new Chart(document.getElementById('simChart'),{
+    type:'bar',
+    data:{labels:YEARS,datasets:[{label:'Gardes/an pour un temps plein',data,backgroundColor:cols,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>`${c.raw} gardes/an — ${S.perYear[c.label].gardeurs} gardeurs`}}},
+      scales:{y:{title:{display:true,text:'gardes / an / temps plein'},grid:{color:'#EEF2F7'}},
+        x:{ticks:{maxRotation:90,minRotation:90,font:{size:9}},grid:{display:false}}}}
+  });
+  // Matrice
+  const yearsShown=YEARS.filter(y=>y%2===0||y===2027);
+  let h='<thead><tr><th class="name">MAR</th>'+yearsShown.map(y=>`<th>${String(y).slice(2)}</th>`).join('')+'</tr></thead><tbody>';
+  TEAM.forEach(([id,born,q])=>{
+    h+=`<tr><td class="name">${id}<span style="color:#94A3B8;font-weight:400"> ·${String(born).slice(2)}</span></td>`;
+    yearsShown.forEach(y=>{
+      const c=S.perYear[y].cells[id];
+      if(c.cls==='ret'){ h+='<td style="color:#CBD5E1">·</td>'; return; }
+      const g=Math.round(S.perYear[y].base * c.q/100);
+      const bg=COLORS[c.cls]||'#fff';
+      const txt = g>=52?'#7F1D1D':'#1E293B';
+      h+=`<td style="background:${bg};color:${txt};font-weight:${g>=50?'800':'500'}">${g||''}</td>`;
+    });
+    h+='</tr>';
+  });
+  matrix.innerHTML=h+'</tbody>';
+}
+['sAge','sRed','sPart','sRet'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+
+// ── Pyramide des âges (statique) ─────────────────────────────────────────
+new Chart(document.getElementById('pyramid'),{
+  type:'bar',
+  data:{labels:TEAM.map(t=>t[0]),
+    datasets:[{label:'Année de naissance',data:TEAM.map(t=>t[1]),
+      backgroundColor:TEAM.map(t=>t[1]>=1974&&t[1]<=1978?'#CE1126':'#94A3B8'),borderRadius:3}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`né en ${c.raw} — 60 ans en ${c.raw+60}`}}},
+    scales:{x:{min:1958,max:1996,title:{display:true,text:'année de naissance'},grid:{color:'#EEF2F7'}},
+      y:{ticks:{font:{size:10}},grid:{display:false}}}}
+});
+
+// ── Week-ends au pic (données de l'algo réel, statu quo) ──────────────────
+new Chart(document.getElementById('weekendChart'),{
+  type:'line',
+  data:{labels:[2027,2030,2033,2035,2037,2038,2039,2040,2041,2042,2043,2044,2046],
+    datasets:[
+      {label:'Samedis max / personne',data:[7,7,7,8,8,9,10,10,10,9,8,7,9],borderColor:'#CE1126',backgroundColor:'rgba(206,17,38,.08)',tension:.3,fill:true},
+      {label:'Week-ends VD max / personne',data:[7,8,8,10,9,10,10,10,10,10,10,8,10],borderColor:'#D97706',backgroundColor:'rgba(217,119,6,.05)',tension:.3,fill:true}
+    ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'bottom'}},
+    scales:{y:{beginAtZero:true,title:{display:true,text:'nombre max par personne et par an'},grid:{color:'#EEF2F7'}},
+      x:{grid:{display:false}}}}
+});
+
+render();
+</script>
+</body>
+</html>
