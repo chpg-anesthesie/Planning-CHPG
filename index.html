@@ -41,6 +41,9 @@
   --viol:#6D28D9; --viol-soft:#F5F3FF; --rose:#BE123C;
   --me:#1D6FB8; --me-soft:#E8F4FD; --me-border:#B9DCF5;
   --warn-bg:#FFF7E6; --warn-bd:#FBD38D; --warn-fg:#92400E;
+  --today-soft:#FFF5F5; --rose-soft:#FFF1F2;
+  --info-bd:#BFDBFE; --rose-bd:#FECDD3; --ok-bd:#BBF7D0; --viol-bd:#DDD6FE;
+  --me-ring:#DCEEFB;
 }
 
 /* ── MODE SOMBRE ── (activé par html[data-theme="dark"]) */
@@ -51,8 +54,11 @@ html[data-theme="dark"] {
   --surface-2:#1B2436; --deep:#232F45;
   --ok:#5BD08B; --ok-soft:#122A1D; --info:#7BAAF7; --info-soft:#152341;
   --viol:#B593F2; --viol-soft:#251B3C; --rose:#F27D96;
-  --me:#7CC0F2; --me-soft:#122A3E; --me-border:#27587D;
+  --me:#93C3E8; --me-soft:#17293A; --me-border:#2B4763;
   --warn-bg:#33260F; --warn-bd:#79591F; --warn-fg:#F2C879;
+  --today-soft:#261620; --rose-soft:#2B1822;
+  --info-bd:#2E4A73; --rose-bd:#5A2A38; --ok-bd:#1F4634; --viol-bd:#3A2F5C;
+  --me-ring:#1C3550;
 }
 html[data-theme="dark"] body{background:var(--bg)}
 html[data-theme="dark"] .med-card:hover,html[data-theme="dark"] .eqv-card:hover{box-shadow:0 6px 16px rgba(0,0,0,.5)}
@@ -220,7 +226,7 @@ body{font-variant-numeric:tabular-nums}
 }
 .th-day:last-child { border-right: none; }
 .th-day.weekend { background: var(--line-light); }
-.th-day.today { background: #FFF5F5; }
+.th-day.today { background: var(--today-soft); }
 .day-name { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); margin-bottom: 1px; }
 .day-date { font-size: 18px; font-weight: 700; color: var(--ink); line-height: 1; margin-bottom: 6px; }
 .th-day.today .day-date { color: var(--red); }
@@ -253,7 +259,7 @@ body{font-variant-numeric:tabular-nums}
 }
 .td-day:last-child { border-right: none; }
 .td-day.weekend { background: var(--line-light); }
-.td-day.today { background: #FFF8F8; }
+.td-day.today { background: var(--today-soft); }
 .slot-pair { display: grid; grid-template-columns: 1fr 1fr; height: 100%; }
 .slot {
   padding: 4px 3px; display: grid; grid-template-columns: 1fr 1fr;
@@ -308,7 +314,7 @@ body{font-variant-numeric:tabular-nums}
 .name-tag.guard  { background: var(--info-soft); color: var(--info); }
 .name-tag.h18    { background: var(--ok-soft); color: var(--ok); }
 .name-tag.rg     { background: var(--viol-soft); color: var(--viol); }
-.name-tag.absent { background: #F9FAFB; color: #6B7280; border: 1px solid #E5E7EB; }
+.name-tag.absent { background: var(--line-light); color: var(--ink-3); border: 1px solid var(--line); }
 
 /* ── VUE MÉDECINS ── */
 .med-grid {
@@ -361,7 +367,7 @@ body{font-variant-numeric:tabular-nums}
 .eq-row { display:grid; grid-template-columns:140px 1fr 38px; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid var(--line-light); }
 .eq-row:last-child { border-bottom:none; }
 .eq-who { display:flex; align-items:center; gap:8px; min-width:0; }
-.eq-av { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; font-family:var(--mono); flex-shrink:0; background:#FEE2E2; color:#B91C1C; }
+.eq-av { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; font-family:var(--mono); flex-shrink:0; background:var(--red-soft); color:var(--red); }
 .eq-nm { font-size:12px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .eq-bar { display:flex; flex-direction:column; gap:3px; min-width:0; }
 .eq-track { position:relative; height:20px; background:var(--line-light); border-radius:6px; overflow:hidden; }
@@ -479,10 +485,10 @@ body{font-variant-numeric:tabular-nums}
 }
 .doc-cal-tag.cs { font-size: 7px; letter-spacing: -0.3px; max-width: 100%; padding: 1px 2px; }
 /* Couleurs statuts */
-.dc-G    { background: var(--info-soft); color: var(--info); border-color: #BFDBFE; }
-.dc-G2   { background: #FFF1F2; color: var(--red); border-color: #FECDD3; }
-.dc-18   { background: var(--ok-soft); color: var(--ok); border-color: #BBF7D0; }
-.dc-RG   { background: var(--viol-soft); color: var(--viol); border-color: #DDD6FE; }
+.dc-G    { background: var(--info-soft); color: var(--info); border-color: var(--info-bd); }
+.dc-G2   { background: var(--rose-soft); color: var(--red); border-color: var(--rose-bd); }
+.dc-18   { background: var(--ok-soft); color: var(--ok); border-color: var(--ok-bd); }
+.dc-RG   { background: var(--viol-soft); color: var(--viol); border-color: var(--viol-bd); }
 .dc-A,.dc-CP,.dc-F { background: var(--line-light); color: var(--ink-3); }
 .dc-R    { background: var(--ok-soft); color: var(--ok); }
 .dc-work { background: var(--white); color: var(--ink-2); border-color: var(--line); }
@@ -632,7 +638,7 @@ body{font-variant-numeric:tabular-nums}
 .eqv-card{border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--white)}
 /* ── Personnalisation MAR connecté (pastel bleu ciel) ── */
 .me-pill{display:inline-flex;align-items:center;gap:6px;background:var(--me-soft);color:var(--me);border:1px solid var(--me-border);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:700;white-space:nowrap}
-.me-card{background:#F4FAFE !important;border-color:var(--me-border) !important;box-shadow:0 0 0 2px #DCEEFB}
+.me-card{background:var(--me-soft) !important;border-color:var(--me-border) !important;box-shadow:0 0 0 2px var(--me-ring)}
 .me-row th.aff-name,.me-row td.ann-name{background:var(--me-soft) !important;color:var(--me) !important;font-weight:800}
 .me-row td{box-shadow:inset 0 2px 0 var(--me-border),inset 0 -2px 0 var(--me-border)}
 .eqv-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
@@ -767,7 +773,7 @@ body{font-variant-numeric:tabular-nums}
 .ann-corner{z-index:4}
 .ann-cell{width:20px;min-width:20px;height:20px;font-weight:700}
 .ann-cell.we{box-shadow:inset 0 0 0 100px rgba(148,163,184,.05)}
-.ann-day.today{background:#FEF2F2;color:var(--rose);box-shadow:inset 0 -2px 0 var(--rose)}
+.ann-day.today{background:var(--today-soft);color:var(--rose);box-shadow:inset 0 -2px 0 var(--rose)}
 .ann-cell.today{box-shadow:inset 1px 0 0 var(--rose),inset -1px 0 0 var(--rose)}
 .ann-cell.inactive{background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 3px,var(--surface-2) 3px,var(--surface-2) 6px)}
 @media(max-width:768px){.ann-wrap{padding:12px 16px}}
@@ -1593,7 +1599,7 @@ function _mix(a,b,t){const A=_hx(a),B=_hx(b);return'#'+A.map((v,i)=>Math.round(v
 function _luma(h){const[r,g,b]=_hx(h);return(0.299*r+0.587*g+0.114*b)/255;}
 function TCC(bg,fg){
   if(!IS_DARK||_luma(bg)<0.45) return {bg,fg}; // déjà sombre (G, G2…) : inchangé
-  return { bg:_mix('#121A29',fg,0.16), fg:_mix(fg,'#FFFFFF',0.55) };
+  return { bg:_mix('#121A29',fg,0.13), fg:_mix(fg,'#FFFFFF',0.64) };
 }
 function _themeMap(base){const o={};for(const k in base)o[k]=TCC(base[k].bg,base[k].fg);return o;}
 
@@ -1859,7 +1865,7 @@ function renderDocPanel(){
     });
     const abs2=mc.A+mc.CP+mc.F;
     const isCurrentPanel=mi===docPanelMonthIdx;
-    annualHtml+=`<div class="doc-annual-month" style="${isCurrentPanel?'background:#FFF1F2;border:1px solid #FECDD3':''}">
+    annualHtml+=`<div class="doc-annual-month" style="${isCurrentPanel?'background:var(--rose-soft);border:1px solid var(--rose-bd)':''}">
       <span class="doc-annual-month-name">${mo.label||MONTH_NAMES_FR[mo.month-1]}</span>
       <div class="doc-annual-month-stats">
         ${(mc.G+mc.G2)?`<span class="doc-annual-stat" style="background:#EFF6FF;color:#1D4ED8">${mc.G+mc.G2}G</span>`:''}
