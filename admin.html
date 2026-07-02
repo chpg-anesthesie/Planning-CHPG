@@ -1098,11 +1098,11 @@ if (sessionStorage.getItem('adminCode')) {
       <button class="week-nav-btn" onclick="prevWeek()">←</button>
       <span class="week-label" id="weekLabel">Chargement…</span>
       <button class="week-nav-btn" onclick="nextWeek()">→</button>
-            <span id="validatedBadge" style="display:none;align-items:center;gap:5px;background:#DCFCE7;border:1px solid #86EFAC;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#166534;">✅ Validée</span>
+            <!-- (Horizon glissant) badge « Validée » supprimé — la validation manuelle n'existe plus -->
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
-      <button class="week-validate-btn" id="btnValiderSemaine" onclick="toggleValiderSemaine()">✅ Valider la semaine</button>
+      <!-- (Horizon glissant) bouton « Valider la semaine » supprimé — index affiche tout, badge provisoire automatique au-delà de 4 semaines -->
       <button class="week-validate-btn" id="btnPublier" onclick="publishPlanning()">⬆️ Publier</button>
 <span onclick="resetLocalEdits()" title="Réinitialiser les modifications locales de cette année (si l'affichage semble figé sur d'anciennes modifs)" style="font-size:11px;color:var(--ink-4,#94A3B8);cursor:pointer;margin-left:10px;white-space:nowrap">↺ réinit.</span>
     </div>
@@ -2717,7 +2717,6 @@ function renderWeek() {
 
   if (window.lucide) lucide.createIcons();
   updateFlashBadge();
-  updateValidationBadge();
 }
 
 function prevWeek(){if(currentWeekIdx>0){currentWeekIdx--;renderWeek();}}
@@ -2735,63 +2734,10 @@ function updateFlashBadge() {
       document.getElementById('flashWord').textContent = n > 1 ? 'cases' : 'case';
     }
   }
-  const btnVal = document.getElementById('btnValiderSemaine');
-  if (btnVal) btnVal.style.display = 'inline-block';
 }
 
-// ── BADGE VALIDATION ──────────────────────────────────────────────────
-function updateValidationBadge() {
-  if (!DATA) return;
-  const weeks = getAllWeeks();
-  const wk = weeks[currentWeekIdx];
-  if (!wk) return;
-  let validated = false;
-  for (const month of DATA.months) {
-    if (!month.weeks) continue;
-    const wkInfo = month.weeks.find(w => w.isoWeek === wk.weekNum);
-    if (wkInfo) { validated = wkInfo.validated; break; }
-  }
-  const vBadge = document.getElementById('validatedBadge');
-  const btn    = document.getElementById('btnValiderSemaine');
-  if (vBadge) vBadge.style.display = validated ? 'inline-flex' : 'none';
-  if (btn) {
-    btn.textContent  = validated ? '↩ Dé-valider' : '✅ Valider la semaine';
-    btn.className    = validated ? 'week-validate-btn validated' : 'week-validate-btn';
-  }
-}
-
-// ── VALIDER / DÉVALIDER UNE SEMAINE ──────────────────────────────────
-async function toggleValiderSemaine() {
-  if (!DATA) return;
-  const weeks = getAllWeeks();
-  const wk = weeks[currentWeekIdx];
-  if (!wk) return;
-  let validated = false;
-  for (const month of DATA.months) {
-    if (!month.weeks) continue;
-    const wkInfo = month.weeks.find(w => w.isoWeek === wk.weekNum);
-    if (wkInfo) { validated = wkInfo.validated; break; }
-  }
-  const newVal = !validated;
-  const btn = document.getElementById('btnValiderSemaine');
-  if (btn) { btn.disabled = true; btn.textContent = '…'; }
-  try {
-    const res = await api({action:'validerSemaine', year: ADMIN_YEAR, isoWeek: wk.weekNum, valide: newVal});
-    if (!res.success) throw new Error(res.error);
-    for (const month of DATA.months) {
-      if (!month.weeks) continue;
-      const wkInfo = month.weeks.find(w => w.isoWeek === wk.weekNum);
-      if (wkInfo) wkInfo.validated = newVal;
-    }
-    showToast(newVal ? `✅ Semaine ${wk.weekNum} validée` : `↩ Semaine ${wk.weekNum} dévalidée`);
-    markPending();
-  } catch(e) {
-    showToast('Erreur : ' + e.message, true);
-  } finally {
-    if (btn) { btn.disabled = false; }
-    updateValidationBadge();
-  }
-}
+// (Horizon glissant) Validation manuelle des semaines supprimée : index.html
+// affiche tout et badge automatiquement en « provisoire » au-delà de 4 semaines.
 
 // ── SIDE PANEL DISPO ─────────────────────────────────────────────────
 let _sideCtx = null;

@@ -113,6 +113,21 @@ body {
 }
 .nav-label { font-size: 11px; font-weight: 600; color: var(--ink-4); text-transform: uppercase; letter-spacing: .06em; }
 .week-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+.week-bar{display:flex;align-items:center;gap:2px;background:var(--white);border:1px solid var(--line);border-radius:10px;padding:2px}
+.week-nav-arrow{width:30px;height:30px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-size:17px;color:var(--ink-2);line-height:1}
+.week-nav-arrow:hover{background:#F1F5F9;color:var(--red)}
+.week-bar-label{min-width:150px;text-align:center;font-size:13px;color:var(--ink);padding:0 6px;white-space:nowrap}
+.week-bar-label b{font-weight:800}
+.prov-dot{font-size:12px}
+.provisoire-banner{display:flex;align-items:center;gap:6px;background:#FFF7E6;border:1px solid #FBD38D;color:#92400E;border-radius:10px;padding:5px 12px;font-size:12px;font-weight:600;margin-left:8px}
+.hdr-stepper{display:inline-flex;align-items:center;gap:2px;background:var(--white);border:1px solid var(--line);border-radius:10px;padding:2px}
+.hdr-stepper button{width:28px;height:28px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-size:15px;color:var(--ink-2);line-height:1}
+.hdr-stepper button:hover{background:#F1F5F9;color:var(--red)}
+.hdr-stepper button:disabled{opacity:.3;cursor:default;background:transparent;color:var(--ink-2)}
+.hdr-step-label{min-width:112px;text-align:center;font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;text-transform:capitalize}
+/* PC : steppers élégants, selects natifs cachés. Mobile : l'inverse (plomberie existante). */
+@media (min-width:769px){ #yearSelect,#monthSelect{display:none} }
+@media (max-width:768px){ #monthStepper,#yearStepper{display:none !important} }
 .week-pill {
   border: 1.5px solid var(--line); background: var(--white); border-radius: 8px;
   padding: 5px 12px; font-size: 12px; font-weight: 600; color: var(--ink-3);
@@ -617,6 +632,16 @@ body {
   </div>
   <div class="header-right">
     <span id="mePill" class="me-pill" style="display:none"></span>
+    <div class="hdr-stepper" id="monthStepper" style="display:none">
+      <button onclick="stepMonth(-1)" title="Mois précédent">‹</button>
+      <span class="hdr-step-label" id="monthStepLabel"></span>
+      <button onclick="stepMonth(1)" title="Mois suivant">›</button>
+    </div>
+    <div class="hdr-stepper" id="yearStepper" style="display:none">
+      <button onclick="stepYear(-1)" title="Année précédente">‹</button>
+      <span class="hdr-step-label" id="yearStepLabel"></span>
+      <button onclick="stepYear(1)" title="Année suivante">›</button>
+    </div>
     <select id="yearSelect" class="year-select"></select>
     <select id="monthSelect" class="month-select"></select>
   </div>
@@ -634,9 +659,14 @@ body {
 <!-- WEEK NAV -->
 <div class="week-nav" id="weekNav">
   <span class="nav-label">Semaine</span>
-  <div class="week-pills" id="weekPills"></div>
+  <div class="week-bar">
+    <button class="week-nav-arrow" onclick="stepWeek(-1)" title="Semaine précédente">‹</button>
+    <span class="week-bar-label" id="weekBarLabel"></span>
+    <button class="week-nav-arrow" onclick="stepWeek(1)" title="Semaine suivante">›</button>
+  </div>
   <div class="nav-divider"></div>
   <button class="btn-today" onclick="goToToday()">Aujourd'hui</button>
+  <span id="provisoireBanner" class="provisoire-banner" style="display:none">🚧 Semaine provisoire — le comité peut encore l'ajuster</span>
 
 </div>
 
@@ -719,6 +749,13 @@ body {
 // (La liste DOCTORS en dur a été supprimée : code mort + noms en clair.)
 let VIEW_CODE = '';
 let MY_ID = null; // id du MAR connecté (null si connexion admin) — personnalisation des vues
+
+// Une semaine est « provisoire » si son lundi est au-delà de aujourd'hui + 28 jours :
+// le comité peut encore y faire des ajustements. Aucune action manuelle requise.
+function isWeekProvisoire(mondayDateStr){
+  const horizon = new Date(); horizon.setHours(12,0,0,0); horizon.setDate(horizon.getDate() + 28);
+  return new Date(mondayDateStr + 'T12:00:00') > horizon;
+}
 
 function _meName(id){ return (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase(); }
 function applyUserBadge(r){
@@ -858,11 +895,9 @@ function getWeeksInMonth(month){
     }
     weeks.push({weekNum:wn, days});
   });
-  // Filtrer les semaines non validées (sauf semaine courante)
-  const todayIso = isoWeek(todayStr());
-  const validatedWeeks = new Set((month.weeks||[]).filter(w=>w.validated).map(w=>w.isoWeek));
-  const filtered = weeks.filter(w => w.weekNum === todayIso || validatedWeeks.has(w.weekNum));
-  return filtered.sort((a,b)=>a.weekNum-b.weekNum);
+  // (Horizon glissant) Toutes les semaines sont affichées — la validation
+  // manuelle a été remplacée par le badge « provisoire » (> aujourd'hui + 4 sem.)
+  return weeks.sort((a,b)=>a.weekNum-b.weekNum);
 }
 
 function weekDaysFull(weekInfo){
@@ -922,6 +957,61 @@ async function init(){
   document.getElementById('btnEquite').onclick = () => setMainView('equite');
   document.getElementById('btnAffect').onclick = () => setMainView('affect');
   document.getElementById('btnAnnee').onclick = () => setMainView('annee');
+  updateHeaderSteppers();
+}
+
+// ── STEPPERS DU HEADER (PC) ────────────────────────────────────────────
+// Affichage adaptatif : chaque vue ne montre que le réglage dont elle a
+// besoin — ‹ Mois Année › pour Planning/Médecins (le mois implique l'année),
+// ‹ Année › pour Équité/Affectations/Année. Les <select> natifs restent la
+// source de vérité (le mobile s'en sert) : les steppers ne font que les piloter.
+function updateHeaderSteppers(){
+  const isMonthly = (currentMainView==='planning' || currentMainView==='medecins');
+  const ms=document.getElementById('monthStepper'), ys=document.getElementById('yearStepper');
+  if(window.innerWidth<=768){ if(ms)ms.style.display='none'; if(ys)ys.style.display='none'; return; }
+  if(ms) ms.style.display = isMonthly ? 'inline-flex' : 'none';
+  if(ys) ys.style.display = isMonthly ? 'none' : 'inline-flex';
+  const m = DATA && DATA.months.find(x=>x.id===currentMonthId);
+  const ml=document.getElementById('monthStepLabel');
+  if(ml && m) ml.textContent = m.label.toLowerCase();
+  const yl=document.getElementById('yearStepLabel');
+  if(yl) yl.textContent = currentYear;
+  // Bornes : griser les flèches en bout de course
+  const ysel=document.getElementById('yearSelect');
+  if(ys && ysel){
+    const idx=[...ysel.options].findIndex(o=>+o.value===+currentYear);
+    ys.querySelectorAll('button')[0].disabled = idx<=0;
+    ys.querySelectorAll('button')[1].disabled = idx>=ysel.options.length-1;
+  }
+}
+
+function stepMonth(dir){
+  const sel=document.getElementById('monthSelect');
+  const idx=[...sel.options].findIndex(o=>o.value===currentMonthId);
+  const ni=idx+dir;
+  if(ni>=0 && ni<sel.options.length){
+    sel.value=sel.options[ni].value;
+    sel.onchange();
+  } else {
+    // Bout d'année → bascule d'année si elle existe, en atterrissant au bon bout
+    const ysel=document.getElementById('yearSelect');
+    const yi=[...ysel.options].findIndex(o=>+o.value===+currentYear);
+    const nyi=yi+dir;
+    if(nyi<0 || nyi>=ysel.options.length) return;
+    window._landAtEnd = dir<0; // en reculant, arriver sur décembre
+    ysel.value=ysel.options[nyi].value;
+    ysel.onchange();
+  }
+  updateHeaderSteppers();
+}
+
+function stepYear(dir){
+  const ysel=document.getElementById('yearSelect');
+  const yi=[...ysel.options].findIndex(o=>+o.value===+currentYear);
+  const nyi=yi+dir;
+  if(nyi<0 || nyi>=ysel.options.length) return;
+  ysel.value=ysel.options[nyi].value;
+  ysel.onchange();
 }
 
 // ── SÉLECTEUR D'ANNÉE ──────────────────────────────────────────────────
@@ -938,7 +1028,14 @@ function buildYearSelect(availableYears) {
   sel.onchange = async () => {
     currentYear = parseInt(sel.value);
     await loadYear(currentYear);
+    if(window._landAtEnd){
+      // Arrivée depuis « mois précédent » : se placer sur décembre
+      window._landAtEnd = false;
+      const msel=document.getElementById('monthSelect');
+      if(msel && msel.options.length){ msel.value=msel.options[msel.options.length-1].value; msel.onchange(); }
+    }
     if(currentMainView === 'medecins') renderMedecins();
+    updateHeaderSteppers();
   };
 }
 
@@ -1070,6 +1167,7 @@ function renderAnnee(){
 }
 
 function setMainView(v){
+  setTimeout(updateHeaderSteppers, 0);
   currentMainView=v;
   document.getElementById('btnPlanning').classList.toggle('active',v==='planning');
   document.getElementById('btnMedecins').classList.toggle('active',v==='medecins');
@@ -1109,6 +1207,7 @@ function buildMonthSelect(){
     render();
     if(currentMainView==='medecins') renderMedecins();
     if(isMobile){buildMobileDayList();renderMobileDay();}
+    updateHeaderSteppers();
   };
 }
 
@@ -1122,37 +1221,50 @@ function buildWeekNav(){
     if(todayWk>=0) currentWeekIdx=todayWk;
     window._weekInitialized=true;
   }
-  const container=document.getElementById('weekPills');
-  container.innerHTML='';
-  weeks.forEach((w,i)=>{
-    const first=new Date(w.days[0].date);
-    const last=new Date(w.days[w.days.length-1].date);
-    const fmt=dt=>dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
-    const btn=document.createElement('button');
-    btn.className='week-pill'+(i===currentWeekIdx?' active':'');
-    btn.textContent=`S${w.weekNum} · ${fmt(first)}–${fmt(last)}`;
-    btn.onclick=()=>{ currentWeekIdx=i; buildWeekNav(); render(); };
-    container.appendChild(btn);
-  });
+  currentWeekIdx=Math.min(currentWeekIdx, weeks.length-1);
+  const w=weeks[currentWeekIdx];
+  const lbl=document.getElementById('weekBarLabel');
+  if(lbl && w){
+    const fmt=dt=>new Date(dt+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+    const prov=isWeekProvisoire(w.days[0].date);
+    lbl.innerHTML=`<b>S${w.weekNum}</b> · ${fmt(w.days[0].date)} – ${fmt(w.days[w.days.length-1].date)}`+(prov?' <span class="prov-dot" title="Semaine provisoire">🚧</span>':'');
+  }
+}
+
+// Navigation de semaine en semaine, en franchissant les mois sans couture
+function stepWeek(dir){
+  const idx=DATA.months.findIndex(m=>m.id===currentMonthId);
+  const month=DATA.months[idx];
+  const weeks=getWeeksInMonth(month);
+  const curNum=weeks[Math.min(currentWeekIdx,weeks.length-1)].weekNum;
+  let ni=currentWeekIdx+dir;
+  if(ni>=0 && ni<weeks.length){ currentWeekIdx=ni; }
+  else{
+    const nm=DATA.months[idx+dir];
+    if(!nm) return; // borne de l'année
+    currentMonthId=nm.id;
+    const nw=getWeeksInMonth(nm);
+    // Une semaine à cheval sur deux mois apparaît dans les deux : on la saute
+    let t=dir>0?0:nw.length-1;
+    if(nw[t] && nw[t].weekNum===curNum) t+=dir;
+    if(t<0||t>=nw.length) return;
+    currentWeekIdx=t;
+    buildMonthSelect();
+    if(currentMainView==='medecins') renderMedecins();
+  }
+  buildWeekNav(); render();
+  updateHeaderSteppers();
 }
 
 // ── MAIN RENDER ────────────────────────────────────────────────────────
 function render(){
   const month=DATA.months.find(m=>m.id===currentMonthId);
   const weeks=getWeeksInMonth(month);
-  const week=weeks[currentWeekIdx];
-  if(!week){
-    // Aucune semaine validée dans ce mois
-    document.getElementById('planningTable').innerHTML=
-      '<div style="text-align:center;padding:48px 20px;color:#94A3B8;font-size:14px">'+
-      '<div style="font-size:32px;margin-bottom:12px">🔒</div>'+
-      '<div style="font-weight:600;color:#64748B;margin-bottom:6px">Planning en cours de validation</div>'+
-      '<div>Ce mois sera publié prochainement par le comité.</div>'+
-      '</div>';
-    const _cp=document.getElementById('consPanel'); if(_cp) _cp.innerHTML='';
-    document.getElementById('bottomPanel').innerHTML='';
-    return;
-  }
+  const week=weeks[Math.min(currentWeekIdx, weeks.length-1)];
+  if(!week){ document.getElementById('planningTable').innerHTML=''; return; }
+  // Bandeau « provisoire » au-delà de l'horizon de 4 semaines
+  const _banner = document.getElementById('provisoireBanner');
+  if(_banner) _banner.style.display = isWeekProvisoire(week.days[0].date) ? 'flex' : 'none';
   const daySlots=weekDaysFull(week);
   renderTable(month,daySlots,week);
   renderBottom(month,daySlots,week);

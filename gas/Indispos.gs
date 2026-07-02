@@ -712,7 +712,7 @@ function doGet(e) {
       'setIndisposYear','setDailyStatus','poserAbsenceLongue','publishPlanning',
       'saveAffectations','saveAffectationsMar','saveConfig','saveGroupes','saveMedecin',
       'savePeriodes','savePlanningOverride','deleteOverride','deletePlanningOverride',
-      'addMedecinToGroupe','validerSemaine']);
+      'addMedecinToGroupe']);
     if (WRITE_ACTIONS.has(action)) {
       try { LockService.getScriptLock().waitLock(30000); }
       catch(e) {
@@ -2109,50 +2109,9 @@ if (action === 'getPlanningOverrides') {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// ── ACTION : validerSemaine ───────────────────────────────────────────
-// Valide ou dévalide une semaine → mise à jour SEMAINES_VALIDEES + push JSON
-// payload : { action, code, year, isoWeek, valide (true/false) }
-if (action === 'validerSemaine') {
-  if (user.role !== 'admin') return _deny();
-  const yearVal  = Number(payload.year) || TEST_YEAR;
-  const isoWeek  = Number(payload.isoWeek);
-  const valide   = payload.valide === true || payload.valide === 'true';
-  if (!isoWeek) return _error('isoWeek requis');
-  try {
-    validerSemaine(yearVal, isoWeek, valide);
-    logAction(`validerSemaine — S${isoWeek} ${yearVal} → ${valide ? 'VALIDÉE' : 'dévalidée'}`);
-    return ContentService.createTextOutput(JSON.stringify({
-      success: true,
-      isoWeek, year: yearVal, validated: valide
-    })).setMimeType(ContentService.MimeType.JSON);
-  } catch(e) {
-    return _error(e.message);
-  }
-}
-
-// ── ACTION : getSemainesValidees ──────────────────────────────────────
-// Retourne la liste des semaines validées pour une année
-// payload : { action, code, year? }
-if (action === 'getSemainesValidees') {
-  if (user.role !== 'admin') return _deny();
-  const yearVal = Number(payload.year) || TEST_YEAR;
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('SEMAINES_VALIDEES');
-  if (!sheet) return ContentService.createTextOutput(JSON.stringify({success: true, semaines: []}))
-    .setMimeType(ContentService.MimeType.JSON);
-  const data = sheet.getDataRange().getValues();
-  const semaines = [];
-  for (let r = 1; r < data.length; r++) {
-    if (Number(data[r][0]) !== yearVal) continue;
-    semaines.push({
-      isoWeek:       Number(data[r][1]),
-      validated:     String(data[r][2]).trim().toUpperCase() === 'O',
-      dateValidation:data[r][3] ? String(data[r][3]) : '',
-    });
-  }
-  return ContentService.createTextOutput(JSON.stringify({success: true, semaines, year: yearVal}))
-    .setMimeType(ContentService.MimeType.JSON);
-}
+// (Horizon glissant) Actions validerSemaine / getSemainesValidees supprimées :
+// la validation manuelle des semaines n'existe plus (badge provisoire automatique
+// côté index.html au-delà de aujourd'hui + 4 semaines).
 
 // ── ACTION : getMARsDispoJour ─────────────────────────────────────────
 // Retourne les MARs disponibles un jour donné pour le popup "combler case flash"

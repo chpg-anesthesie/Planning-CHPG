@@ -414,22 +414,8 @@ function loadPlanningOverrides() {
   return overrides;
 }
 
-// ── LIRE LES SEMAINES VALIDÉES ────────────────────────────────────────
-// Onglet SEMAINES_VALIDEES : ANNEE | SEMAINE_ISO | VALIDEE (O/N) | DATE_VALIDATION
-function loadSemainesValidees(year) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('SEMAINES_VALIDEES');
-  if (!sheet) return new Set();
-  const data = sheet.getDataRange().getValues();
-  const validated = new Set();
-  for (let r = 1; r < data.length; r++) {
-    const annee  = Number(data[r][0]);
-    const semaine = Number(data[r][1]);
-    const val    = String(data[r][2] || '').trim().toUpperCase();
-    if (annee === year && val === 'O') validated.add(semaine);
-  }
-  return validated;
-}
+// (Horizon glissant) loadSemainesValidees supprimée — l'onglet SEMAINES_VALIDEES
+// n'est plus utilisé et peut être supprimé du classeur.
 
 // ── CONSTRUIRE dateToCol DEPUIS L'ONGLET GARDES ───────────────────────
 // Mappe date→colonne par POSITION : colonne 1 = premier lundi de l'année
@@ -685,7 +671,6 @@ function generatePlanningFromGardes(year) {
   // ── Charger les données annexes ──────────────────────────────────────
   const affectations = loadAffectations(year);
   const planningOverrides = loadPlanningOverrides();
-  const semainesValidees = loadSemainesValidees(year);
 
   // ── Grouper par mois ─────────────────────────────────────────────────
   const monthsSet = [];
@@ -872,10 +857,7 @@ function generatePlanningFromGardes(year) {
       const w = getISOWeek(day.date);
       if (!seenWeeks.has(w)) {
         seenWeeks.add(w);
-        weeksInMonth.push({
-          isoWeek: w,
-          validated: semainesValidees.has(w),
-        });
+        weeksInMonth.push({ isoWeek: w });
       }
     });
 
@@ -906,7 +888,7 @@ function generatePlanningFromGardes(year) {
       weeks: weeksInMonth,
     });
 
-    Logger.log(`✅ ${label} généré (${weeksInMonth.filter(w => w.validated).length}/${weeksInMonth.length} semaines validées)`);
+    Logger.log(`✅ ${label} généré (${weeksInMonth.length} semaines)`);
   });
 
   return months;
@@ -1036,32 +1018,7 @@ function onEdit(e) {
   }
 }
 
-// ── VALIDER UNE SEMAINE (appelé depuis admin.html via API) ────────────
-// Écrit dans SEMAINES_VALIDEES et régénère le JSON
-function validerSemaine(year, isoWeek, valide) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName('SEMAINES_VALIDEES');
-  if (!sheet) {
-    sheet = ss.insertSheet('SEMAINES_VALIDEES');
-    sheet.getRange(1,1,1,4).setValues([['ANNEE','SEMAINE_ISO','VALIDEE','DATE_VALIDATION']]);
-    sheet.getRange(1,1,1,4).setFontWeight('bold');
-    sheet.setColumnWidth(1,80); sheet.setColumnWidth(2,100);
-    sheet.setColumnWidth(3,80); sheet.setColumnWidth(4,160);
-  }
-  const data = sheet.getDataRange().getValues();
-  let found = false;
-  for (let r = 1; r < data.length; r++) {
-    if (Number(data[r][0]) === year && Number(data[r][1]) === isoWeek) {
-      sheet.getRange(r+1, 3).setValue(valide ? 'O' : 'N');
-      sheet.getRange(r+1, 4).setValue(new Date().toLocaleString('fr-FR'));
-      found = true; break;
-    }
-  }
-  if (!found) {
-    sheet.appendRow([year, isoWeek, valide ? 'O' : 'N', new Date().toLocaleString('fr-FR')]);
-  }
-  Logger.log(`✅ Semaine ${isoWeek} ${year} → ${valide ? 'VALIDÉE' : 'dévalidée'}`);
-}
+// (Horizon glissant) validerSemaine supprimée — plus de validation manuelle.
 
 // ── ÉCRIRE UN PLANNING OVERRIDE (appelé depuis admin.html via API) ────
 // Quand le comité place un MAR dans une case flash
