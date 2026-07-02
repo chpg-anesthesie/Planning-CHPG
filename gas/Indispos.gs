@@ -112,6 +112,11 @@ function saveIndisposForDoctor(doctorId, indisposMap, year) {
 
 // ── VÉRIFIER CODE ACCÈS ───────────────────────────────────────────────
 function checkCode(code) {
+  // (F6) Anti-force-brute : après 15 codes erronés en 15 minutes (toutes
+  // origines confondues), les connexions sont bloquées 15 minutes.
+  const _cache = CacheService.getScriptCache();
+  const _fails = Number(_cache.get('authFails') || 0);
+  if (_fails >= 15) return {blocked: true};
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName('CONFIG');
   // (F1) Plus AUCUN code de secours : si ADMIN_CODE manque dans CONFIG,
@@ -136,6 +141,9 @@ function checkCode(code) {
       return {role:'mar', id:data[r][0], name:data[r][1], initials:data[r][2]};
     }
   }
+  // (F6) Code inconnu → incrémente le compteur d'échecs (expire après 15 min)
+  try { _cache.put('authFails', String(_fails + 1), 900); } catch(e) {}
+  logAction('🔐 Tentative de connexion échouée (' + (_fails + 1) + '/15)');
   return null;
 }
 
@@ -684,10 +692,34 @@ function doGet(e) {
     // getStatsLive (stats nominatives) exigent désormais un code valide.
     // Seul getActiveYear (un simple millésime) reste public.
     const user = checkCode(code);
+    if (user && user.blocked) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false, error: 'Trop de tentatives — accès bloqué 15 minutes. Réessayez plus tard.'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
     if (!user) {
       return ContentService.createTextOutput(JSON.stringify({
         success: false, error: 'Code invalide'
       })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // (F7) Verrou d'écriture : une seule opération d'écriture à la fois sur
+    // le Sheet (les autres attendent leur tour, max 30 s). Élimine les
+    // corruptions par écritures simultanées (23 MARs + admin en novembre).
+    // Le verrou est libéré automatiquement à la fin de l'exécution.
+    const WRITE_ACTIONS = new Set(['saveIndispos','applyModification','applyRotationLib',
+      'archiveYear','clearIndisposYear','generateGardes','initYear','setActiveYear',
+      'setIndisposYear','setDailyStatus','poserAbsenceLongue','publishPlanning',
+      'saveAffectations','saveAffectationsMar','saveConfig','saveGroupes','saveMedecin',
+      'savePeriodes','savePlanningOverride','deleteOverride','deletePlanningOverride',
+      'addMedecinToGroupe','validerSemaine']);
+    if (WRITE_ACTIONS.has(action)) {
+      try { LockService.getScriptLock().waitLock(30000); }
+      catch(e) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false, error: 'Système occupé (une autre sauvegarde est en cours) — réessayez dans quelques secondes.'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
     }
     if (action === 'login') {
       logConnexion(user);
