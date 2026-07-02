@@ -561,6 +561,11 @@ body {
 .eqv-sw-btn{border:0;background:transparent;padding:6px 16px;border-radius:7px;font-family:inherit;font-size:12px;font-weight:700;color:#64748B;cursor:pointer}
 .eqv-sw-btn.active{background:#fff;color:#0F172A;box-shadow:0 1px 2px rgba(15,23,42,.14)}
 .eqv-card{border:1px solid #E2E8F0;border-radius:12px;padding:11px 13px;background:#fff}
+/* ── Personnalisation MAR connecté (pastel bleu ciel) ── */
+.me-pill{display:inline-flex;align-items:center;gap:6px;background:#E8F4FD;color:#1D6FB8;border:1px solid #B9DCF5;border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:700;white-space:nowrap}
+.me-card{background:#F4FAFE !important;border-color:#B9DCF5 !important;box-shadow:0 0 0 2px #DCEEFB}
+.me-row th.aff-name,.me-row td.ann-name{background:#E8F4FD !important;color:#1D6FB8 !important;font-weight:800}
+.me-row td{box-shadow:inset 0 2px 0 #B9DCF5,inset 0 -2px 0 #B9DCF5}
 .eqv-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .eqv-name{font-size:13.5px;font-weight:800;color:#0F172A}
 .eqv-total{font-size:10.5px;font-weight:700;color:#64748B;background:#F1F5F9;border-radius:7px;padding:3px 8px;white-space:nowrap}
@@ -611,6 +616,7 @@ body {
     </div>
   </div>
   <div class="header-right">
+    <span id="mePill" class="me-pill" style="display:none"></span>
     <select id="yearSelect" class="year-select"></select>
     <select id="monthSelect" class="month-select"></select>
   </div>
@@ -712,6 +718,14 @@ body {
 // mémorisé en sessionStorage et envoyé en POST (jamais dans l'URL).
 // (La liste DOCTORS en dur a été supprimée : code mort + noms en clair.)
 let VIEW_CODE = '';
+let MY_ID = null; // id du MAR connecté (null si connexion admin) — personnalisation des vues
+
+function _meName(id){ return (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase(); }
+function applyUserBadge(r){
+  MY_ID = (r && r.role === 'mar' && r.id) ? r.id : null;
+  const pill = document.getElementById('mePill');
+  if (pill && MY_ID) { pill.textContent = '👤 ' + _meName(MY_ID); pill.style.display = 'inline-flex'; }
+}
 
 async function apiPost(payload) {
   payload.code = VIEW_CODE;
@@ -740,6 +754,7 @@ async function viewLogin() {
     const r = await apiPost({action: 'login'});
     if (r && r.success) {
       sessionStorage.setItem('chpgViewCode', code);
+      applyUserBadge(r);
       document.getElementById('viewAuthOverlay').style.display = 'none';
       init();
     } else {
@@ -757,6 +772,7 @@ async function viewAutoLogin() {
     VIEW_CODE = saved;
     const r = await apiPost({action: 'login'});
     if (r && r.success) {
+      applyUserBadge(r);
       document.getElementById('viewAuthOverlay').style.display = 'none';
       init();
     } else { VIEW_CODE = ''; sessionStorage.removeItem('chpgViewCode'); }
@@ -1031,7 +1047,7 @@ function renderAnnee(){
   allDays.forEach(x=>{ const we=x.d.isWeekend||x.d.isFerie; const td=x.d.date===todayStr?' today':''; drow+=`<th class="ann-day${we?' we':''}${td}">${x.d.day}</th>`; });
   drow+='</tr>';
   const body=order.map(id=>{
-    let row=`<tr><td class="ann-name">${init[id]}</td>`;
+    let row=`<tr${id===MY_ID?' class="me-row"':''}><td class="ann-name">${init[id]}</td>`;
     allDays.forEach(x=>{
       const we=x.d.isWeekend||x.d.isFerie;
       const td=x.d.date===todayStr?' today':'';
@@ -1392,12 +1408,14 @@ function renderMedecins(){
   });
 
   let html='';
-  month.doctors.forEach((doc)=>{
+  // (Perso) Le MAR connecté apparaît en tête
+  const _docsOrdered = month.doctors.slice().sort((a,b)=>(a.id===MY_ID?-1:0)-(b.id===MY_ID?-1:0));
+  _docsOrdered.forEach((doc)=>{
     const s=docStats[doc.id];
     const sc=SECTOR_COLORS[s.sector]||SECTOR_COLORS.VOLANT;
     const absTotal=s.counts.A+s.counts.CP+s.counts.F;
     const name=(doc.id==='PRUNET'?'PR ':'DR ')+doc.id.charAt(0)+doc.id.slice(1).toLowerCase();
-    html+=`<div class="med-card" onclick="openDocPanel('${doc.id}')">
+    html+=`<div class="med-card${doc.id===MY_ID?' me-card':''}" onclick="openDocPanel('${doc.id}')">
       <div class="med-accent" style="background:${sc.fg}"></div>
       <div class="med-card-top">
         <div class="med-avatar" style="background:${sc.bg};color:${sc.fg}">${s.initials}</div>
@@ -1618,7 +1636,11 @@ function renderEquiteCards(list){
   const colOf=(v,c)=>{const d=v-c;return d>=2?'#CE1126':(d<=-2?'#1D4ED8':'#15803D');};
   const maxOf=k=>Math.max(0.1,...list.map(x=>+x[k]||0),...list.map(x=>cibOf(x,k)))*1.15;
   const maxTot=Math.max(0.1,...list.map(x=>+x.total||0))*1.12; // échelle = totaux réels (une cible aberrante ne peut plus vider la barre)
-  const sorted=list.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  const _meN = MY_ID ? _meName(MY_ID) : null; // (Perso) MAR connecté en tête
+  const sorted=list.slice().sort((a,b)=>{
+    if(_meN){ if(String(a.name)===_meN) return -1; if(String(b.name)===_meN) return 1; }
+    return String(a.name).localeCompare(String(b.name));
+  });
   return '<div class="eqv-grid">'+sorted.map(it=>{
     const tv=+it.total||0,tc=+it.cTot||0,tw=Math.min(100,tv/maxTot*100),tcx=Math.min(100,tc/maxTot*100);
     const totBar='<div class="eqv-row eqv-row-tot"><div class="eqv-lbl">Total</div><div class="eqv-track eqv-track-tot"><div class="eqv-fill" style="width:'+tw+'%;background:'+colOf(tv,tc)+'"></div>'+(tc>0?'<div class="eqv-tick" style="left:'+tcx+'%"></div>':'')+'</div><div class="eqv-val">'+tv+'<span> /'+(tc>0?tc.toFixed(1):'—')+'</span></div></div>';
@@ -1634,7 +1656,8 @@ function renderEquiteCards(list){
       const cval=CB[k]?c:c.toFixed(1),tick=CB[k]?'':'opacity:.42';
       return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:'+colOf(v,c)+'"></div><div class="eqv-tick" style="left:'+cx+'%;'+tick+'"></div></div><div class="eqv-val">'+v+'<span> /'+cval+'</span></div></div>';
     }).join('');
-    return '<div class="eqv-card"><div class="eqv-head"><div class="eqv-name">'+it.name+'</div></div>'+totBar+bars+'</div>';
+    const _isMe = _meN && String(it.name)===_meN;
+    return '<div class="eqv-card'+(_isMe?' me-card':'')+'"><div class="eqv-head"><div class="eqv-name">'+it.name+'</div></div>'+totBar+bars+'</div>';
   }).join('')+'</div>';
 }
 
@@ -1790,7 +1813,7 @@ function renderAffectations(){
   head += `</tr>`;
 
   const body = docs.map(d=>{
-    let row = `<tr><th class="aff-name" title="${nameOf(d.id)}">${nameOf(d.id)}</th>`;
+    let row = `<tr${d.id===MY_ID?' class="me-row"':''}><th class="aff-name" title="${nameOf(d.id)}">${nameOf(d.id)}</th>`;
     for(let m=1;m<=12;m++){
       const sec = secOf(d.id,m);
       const sc = SECTOR_COLORS[sec] || SECTOR_COLORS.VOLANT || {bg:'#F1F5F9',fg:'#64748B'};
