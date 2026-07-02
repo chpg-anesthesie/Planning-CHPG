@@ -271,7 +271,11 @@ function generateGardes(year){
     const tot=AX[axis].length||1, w={};
     gardeDoctors.forEach(id=>{
       if(!axisEligible(axis,id)){w[id]=0;return;}
-      const avail=AX[axis].filter(d=>structAvail(id,d)).length;
+      // (D1) jours fixes TP : indisponibilité STRUCTURELLE des axes-jour concernés
+      // (ex. JEU off → cible jeudi 0, comme NO_WEEKEND annule sam/VD). L'axe total
+      // n'est PAS réduit : la quotité (pct) couvre déjà le volume — sinon double peine.
+      const _tpA=FLAGS.tpJoursFixes[id];
+      const avail=AX[axis].filter(d=>structAvail(id,d)&&(axis==='total'||!_tpA||!_tpA.has(d.dow))).length;
       w[id]=(pct[id]/100)*(avail/tot);
     });
     const sw=gardeDoctors.reduce((s,id)=>s+w[id],0)||1;
@@ -337,6 +341,8 @@ function generateGardes(year){
     const s=indispos[id]?.[date];
     if(s==='INDISPO'||s==='VAC'||s==='FORM'||s==='TP'||s==='CL'||s==='CTP') return true;
     if(estSemaineOff(id,date)) return true;   // ← AJOUT : semaine "off" du rythme 2/2
+    const _tpF=FLAGS.tpJoursFixes[id];         // (D1) jours fixes non travaillés (MEDECINS col Q)
+    if(_tpF&&_tpF.has(new Date(date+'T12:00:00').getDay())) return true;
     if(rgSet[id].has(date)||rSet[id]?.has(date)) return true;
     const _lend=addOneDay(date);
     if(gSet[id]?.has(_lend)||g2Set[id]?.has(_lend)) return true; // jamais 2 gardes d'affilée, même si la garde du lendemain est déjà posée (souhait/VD hors ordre chrono)
@@ -684,6 +690,7 @@ function generateGardes(year){
         const di=dayByDate[dd],dow=di.dow,s=indispos[B]?.[dd];
         if(ABS.has(s))return false;
         if(estSemaineOff(B,dd))return false;
+        const _tpB=FLAGS.tpJoursFixes[B]; if(_tpB&&_tpB.has(dow))return false; // (D1)
         const ddg=FLAGS.dateDebut[B],dfg=FLAGS.dateFin[B];
         if(ddg&&dd<ddg)return false; if(dfg&&dd>=dfg)return false;
         if(NO_WEEKEND.has(B)&&(dow===0||dow===6||di.isFerie))return false;
