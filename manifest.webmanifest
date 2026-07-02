@@ -1,0 +1,16 @@
+{
+  "name": "Planning CHPG Monaco",
+  "short_name": "Planning CHPG",
+  "description": "Planning du service d'Anesthésie-Réanimation — CHPG Monaco",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#CE1126",
+  "lang": "fr",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

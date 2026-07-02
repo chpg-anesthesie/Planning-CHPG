@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Planning · CHPG Monaco</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#CE1126">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Planning CHPG">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
@@ -119,6 +126,25 @@ body {
 .week-bar-label{min-width:150px;text-align:center;font-size:13px;color:var(--ink);padding:0 6px;white-space:nowrap}
 .week-bar-label b{font-weight:800}
 .prov-dot{font-size:12px}
+/* ── Vernis premium ── */
+body{font-variant-numeric:tabular-nums}
+.med-card,.eqv-card{transition:transform .15s ease,box-shadow .15s ease}
+.med-card:hover,.eqv-card:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(15,23,42,.08)}
+.view-main-btn,.btn-today,.week-nav-arrow,.hdr-stepper button{transition:background .15s ease,color .15s ease}
+/* ── Carte « Ce soir » ── */
+.tonight-card{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin:0 0 12px}
+.tonight-chip{display:flex;align-items:center;gap:10px;background:var(--white);border:1px solid var(--line);border-radius:12px;padding:9px 14px;min-width:0}
+.tonight-chip.hero{background:linear-gradient(135deg,#1E293B,#0F172A);border-color:#1E293B}
+.tonight-chip.hero .tc-label,.tonight-chip.hero .tc-name{color:#fff}
+.tonight-chip.hero .tc-label{opacity:.75}
+.tonight-chip.me{background:#E8F4FD;border-color:#B9DCF5}
+.tc-emoji{font-size:18px;flex-shrink:0}
+.tc-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-3);white-space:nowrap}
+.tc-name{font-size:14px;font-weight:800;color:var(--ink);white-space:nowrap}
+/* ── Squelette de chargement ── */
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.skel{border-radius:10px;background:linear-gradient(90deg,#EDF2F7 25%,#F8FAFC 50%,#EDF2F7 75%);background-size:800px 100%;animation:shimmer 1.2s infinite linear}
+.skel-wrap{padding:8px 0}
 .provisoire-banner{display:flex;align-items:center;gap:6px;background:#FFF7E6;border:1px solid #FBD38D;color:#92400E;border-radius:10px;padding:5px 12px;font-size:12px;font-weight:600;margin-left:8px}
 .hdr-stepper{display:inline-flex;align-items:center;gap:2px;background:var(--white);border:1px solid var(--line);border-radius:10px;padding:2px}
 .hdr-stepper button{width:28px;height:28px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-size:15px;color:var(--ink-2);line-height:1}
@@ -673,6 +699,7 @@ body {
 <!-- PLANNING VIEW -->
 <div id="planningView">
   <div class="table-container">
+    <div id="tonightCard" class="tonight-card" style="display:none"></div>
     <table class="planning-table" id="planningTable"></table>
   </div>
   <div id="consPanel" class="cons-panel"></div>
@@ -749,6 +776,50 @@ body {
 // (La liste DOCTORS en dur a été supprimée : code mort + noms en clair.)
 let VIEW_CODE = '';
 let MY_ID = null; // id du MAR connecté (null si connexion admin) — personnalisation des vues
+
+// ── Carte « Ce soir » : qui est de garde cette nuit, demain, et ma prochaine ──
+function _gardeOn(dateStr){
+  for(const m of DATA.months){
+    const di=m.days.findIndex(d=>d.date===dateStr);
+    if(di<0) continue;
+    const ids=m.doctors.filter(dc=>{const st=(dc.days[di]||{}).status;return st==='G'||st==='G2';}).map(dc=>dc.id);
+    if(ids.length) return ids;
+  }
+  return [];
+}
+function _plusDays(dateStr,n){const d=new Date(dateStr+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function renderTonightCard(){
+  const el=document.getElementById('tonightCard');
+  if(!el||!DATA) return;
+  const today=todayStr();
+  // Uniquement si l'année affichée contient aujourd'hui
+  const hasToday=DATA.months.some(m=>m.days.some(d=>d.date===today));
+  if(!hasToday){ el.style.display='none'; return; }
+  const fmtD=ds=>new Date(ds+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+  const nm=id=>(id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
+  const chips=[];
+  const tonight=_gardeOn(today);
+  if(tonight.length){
+    const isMe=MY_ID&&tonight.includes(MY_ID);
+    chips.push(`<div class="tonight-chip hero"><span class="tc-emoji">🌙</span><div><div class="tc-label">Cette nuit</div><div class="tc-name">${tonight.map(nm).join(' + ')}${isMe?' — c\u2019est vous':''}</div></div></div>`);
+  }
+  const tom=_gardeOn(_plusDays(today,1));
+  if(tom.length) chips.push(`<div class="tonight-chip"><span class="tc-emoji">🌄</span><div><div class="tc-label">Demain</div><div class="tc-name">${tom.map(nm).join(' + ')}</div></div></div>`);
+  if(MY_ID && !(tonight.includes(MY_ID))){
+    let next=null;
+    outer: for(const m of DATA.months){
+      const doc=m.doctors.find(dc=>dc.id===MY_ID);
+      if(!doc) continue;
+      for(let i=0;i<m.days.length;i++){
+        const st=(doc.days[i]||{}).status;
+        if((st==='G'||st==='G2') && m.days[i].date>today){ next=m.days[i].date; break outer; }
+      }
+    }
+    if(next) chips.push(`<div class="tonight-chip me"><span class="tc-emoji">👤</span><div><div class="tc-label">Votre prochaine garde</div><div class="tc-name">${fmtD(next)}</div></div></div>`);
+  }
+  el.innerHTML=chips.join('');
+  el.style.display=chips.length?'flex':'none';
+}
 
 // Une semaine est « provisoire » si son lundi est au-delà de aujourd'hui + 28 jours :
 // le comité peut encore y faire des ajustements. Aucune action manuelle requise.
@@ -1044,7 +1115,17 @@ let AFFECTATIONS_DATA = {}; // {docId: {1:'VIS', 2:'REA', ...}}
 let AFF_CACHE = {};         // (Étape 2) affectations déjà sondées par init()
 let PLANNING_CACHE = {};    // (Étape 2) plannings déjà chargés (bascule d'année instantanée)
 
+function showSkeleton(){
+  const t=document.getElementById('planningTable');
+  if(t) t.innerHTML='<tbody><tr><td style="border:none;padding:0"><div class="skel-wrap">'+
+    '<div class="skel" style="height:38px;margin-bottom:10px;width:60%"></div>'+
+    Array.from({length:7},()=>'<div class="skel" style="height:52px;margin-bottom:8px"></div>').join('')+
+    '</div></td></tr></tbody>';
+  const tc=document.getElementById('tonightCard'); if(tc) tc.style.display='none';
+}
+
 async function loadYear(year) {
+  if (!PLANNING_CACHE[year]) showSkeleton();
   try {
     if (PLANNING_CACHE[year]) {
       DATA = PLANNING_CACHE[year];
@@ -1265,6 +1346,7 @@ function render(){
   // Bandeau « provisoire » au-delà de l'horizon de 4 semaines
   const _banner = document.getElementById('provisoireBanner');
   if(_banner) _banner.style.display = isWeekProvisoire(week.days[0].date) ? 'flex' : 'none';
+  renderTonightCard();
   const daySlots=weekDaysFull(week);
   renderTable(month,daySlots,week);
   renderBottom(month,daySlots,week);
