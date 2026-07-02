@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Planning · CHPG Monaco</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -571,6 +571,18 @@ body{font-variant-numeric:tabular-nums}
   .mobile-chip.guard { background: var(--red); color: var(--white); box-shadow: 0 1px 2px rgba(206,17,38,.3); }
   .mobile-chip.h18 { background: var(--amber); color: var(--white); box-shadow: 0 1px 2px rgba(217,119,6,.3); }
   .mobile-chip.dash { color: var(--ink-4); font-size: 11px; }
+  .mobile-chip.me-chip { outline: 2px solid var(--me); outline-offset: 1px; font-weight: 800; }
+  .m-tonight { background: linear-gradient(135deg,#1E293B,#0F172A); border-radius: 12px; padding: 11px 14px; color: #fff; }
+  .m-tonight-main { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+  .m-tonight-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; opacity: .7; }
+  .m-tonight-name { font-weight: 800; }
+  .m-tonight-sub { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.15); font-size: 12px; opacity: .85; }
+  .mobile-today-fab { position: fixed; right: 14px; bottom: calc(74px + env(safe-area-inset-bottom)); z-index: 90;
+    background: var(--red); color: #fff; border: none; border-radius: 999px; padding: 10px 16px;
+    font-size: 13px; font-weight: 700; box-shadow: 0 4px 14px rgba(206,17,38,.4); display: flex; align-items: center; gap: 6px; }
+  @keyframes slideL { from { transform: translateX(24px); opacity:.4 } to { transform: none; opacity:1 } }
+  @keyframes slideR { from { transform: translateX(-24px); opacity:.4 } to { transform: none; opacity:1 } }
+  .slide-l { animation: slideL .18s ease } .slide-r { animation: slideR .18s ease }
 
   /* Section gardes */
   .mobile-gardes-section {
@@ -601,7 +613,7 @@ body{font-variant-numeric:tabular-nums}
   .mobile-bottom-nav {
     position: fixed; bottom: 0; left: 0; right: 0;
     background: var(--white); border-top: 1px solid var(--line);
-    padding: 8px 16px 20px; display: flex; gap: 8px;
+    padding: 8px 16px calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 8px;
     box-shadow: 0 -4px 16px rgba(0,0,0,.06);
   }
   .mobile-bottom-btn {
@@ -2190,12 +2202,18 @@ function mobileNextDay() {
   }
 }
 
-let touchStartX = 0;
-document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, {passive:true});
+let touchStartX = 0, touchStartY = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; }, {passive:true});
 document.addEventListener('touchend', e => {
   if (!isMobile || mobilePlanningView !== 'planning') return;
   const dx = e.changedTouches[0].clientX - touchStartX;
-  if (Math.abs(dx) > 50) { if (dx < 0) mobileNextDay(); else mobilePrevDay(); }
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  // Garde verticale : un scroll diagonal ne change plus de jour par accident
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    const el=document.getElementById('mobileDayContent');
+    if(el){ el.classList.remove('slide-l','slide-r'); void el.offsetWidth; el.classList.add(dx<0?'slide-l':'slide-r'); }
+    if (dx < 0) mobileNextDay(); else mobilePrevDay();
+  }
 }, {passive:true});
 
 function renderMobileDay() {
@@ -2211,7 +2229,11 @@ function renderMobileDay() {
   const dateEl = document.getElementById('mobileDayDate');
   dateEl.textContent = dayData.day + ' ' + MONTHS_FR_FULL[dt.getMonth()];
   dateEl.className = 'mobile-day-date' + (isToday ? ' today' : '');
-  document.getElementById('mobileDayJF').textContent = dayData.isFerie ? 'Jour férié' : '';
+  const jfEl=document.getElementById('mobileDayJF');
+  const prov = isWeekProvisoire(dayData.date);
+  jfEl.innerHTML = (dayData.isFerie ? 'Jour férié' : '') + (prov ? (dayData.isFerie?' · ':'')+'🚧 provisoire' : '');
+  const fab=document.getElementById('mobileTodayFab');
+  if(fab) fab.style.display = isToday ? 'none' : 'flex';
 
   const dayIdx = dayData.dayIdx;
   const smap = {};
@@ -2238,7 +2260,9 @@ function renderMobileDay() {
   });
 
   const specCol = sp => SECTOR_COLORS[sp] || (sp==='INTER'?SECTOR_COLORS.CI:sp==='POLY'?SECTOR_COLORS.VOLANT:{bg:'#F1F5F9',fg:'#64748B'});
-  const chip = (init, cls='', col=null) => `<span class="mobile-chip ${cls}"${col?` style="background:${col.bg};color:${col.fg}"`:''}>${init}</span>`;
+  const _meDoc = MY_ID ? month.doctors.find(d=>d.id===MY_ID) : null;
+  const MY_INIT = _meDoc ? _meDoc.initials : null;
+  const chip = (init, cls='', col=null) => `<span class="mobile-chip ${cls}${init===MY_INIT?' me-chip':''}"${col?` style="background:${col.bg};color:${col.fg}"`:''}>${init}</span>`;
   const dash = () => '<span class="mobile-chip dash">—</span>';
   // Qui est de garde / 18h aujourd'hui → pour les repérer DANS leur secteur de journée
   const guardSet = new Set(guards), h18Set = new Set(h18arr);
@@ -2247,9 +2271,19 @@ function renderMobileDay() {
     const base = col ? `background:${col.bg};color:${col.fg}` : '';
     const ring = duty ? `;box-shadow:0 0 0 2px ${duty.c}` : '';
     const tag  = duty ? `<sup style="color:${duty.c};font-weight:800;font-size:9px;margin-left:1px">${duty.t}</sup>` : '';
-    return `<span class="mobile-chip" style="${base}${ring}">${init}${tag}</span>`;
+    return `<span class="mobile-chip${init===MY_INIT?' me-chip':''}" style="${base}${ring}">${init}${tag}</span>`;
   };
   let html = '';
+
+  if (isToday) {
+    const nm=id=>(id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
+    const tomIds=_gardeOn(_plusDays(today,1));
+    const meTonight = MY_INIT && guards.includes(MY_INIT);
+    html += `<div class="m-tonight">
+      <div class="m-tonight-main"><span>🌙</span><div><div class="m-tonight-label">Cette nuit</div><div class="m-tonight-name">${guards.length?guards.join(' + '):'—'}${meTonight?' · c\u2019est vous':''}</div></div></div>
+      ${tomIds.length?`<div class="m-tonight-sub">Demain : ${tomIds.map(nm).join(' + ')}</div>`:''}
+    </div>`;
+  }
 
   const isWE = dayData.isWeekend || dayData.isFerie;
   if (!isWE) {
@@ -2307,6 +2341,31 @@ function renderMobileDay() {
   document.getElementById('mobileDayContent').innerHTML = html;
 }
 
+// PWA : au retour dans l'appli après > 15 min, recharger silencieusement les
+// données de l'année affichée (sinon un onglet gardé ouvert des jours montre
+// un planning périmé).
+let _lastFetch = Date.now();
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible' || !DATA) return;
+  if (Date.now() - _lastFetch < 15*60*1000) return;
+  _lastFetch = Date.now();
+  try {
+    delete PLANNING_CACHE[currentYear]; delete AFF_CACHE[currentYear];
+    await loadYear(currentYear);
+    buildWeekNav(); render();
+    if(currentMainView==='medecins') renderMedecins();
+  } catch(e) {}
+});
+
+function mobileGoToday(){
+  const today=todayStr();
+  // Se replacer sur le mois d'aujourd'hui si besoin
+  const m=DATA.months.find(mm=>mm.days.some(d=>d.date===today));
+  if(m && m.id!==currentMonthId){ currentMonthId=m.id; buildMonthSelect(); buildMobileDayList(); }
+  const i=allDaysFlat.findIndex(d=>d.date===today);
+  if(i>=0){ currentDayIdx=i; renderMobileDay(); }
+}
+
 // Hooks
 const _origRender = render;
 render = function() { _origRender(); if(isMobile){buildMobileDayList();renderMobileDay();} };
@@ -2326,6 +2385,8 @@ render = function() { _origRender(); if(isMobile){buildMobileDayList();renderMob
   </div>
   <div class="mobile-day-content" id="mobileDayContent"></div>
 </div>
+
+<button id="mobileTodayFab" class="mobile-today-fab" style="display:none" onclick="mobileGoToday()">📍 Aujourd'hui</button>
 
 <!-- MOBILE BOTTOM NAV -->
 <div class="mobile-bottom-nav" id="mobileBottomNav" style="display:none">
