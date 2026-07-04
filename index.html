@@ -277,6 +277,7 @@ body{font-variant-numeric:tabular-nums}
 .slot-name-spacer { display: inline-flex; width: 44px; visibility: hidden; }
 .chip-guard { background: var(--info-soft); color: var(--info); }
 .chip-h18   { background: var(--ok-soft); color: var(--ok); }
+.slot-name.me-chip { box-shadow: 0 0 0 1.5px var(--me); font-weight: 800; }
 .slot-dash { color: var(--ink-4); font-size: 12px; text-align: center; margin-top: 4px; }
 
 /* ── BOTTOM TABLES ── */
@@ -1421,6 +1422,7 @@ const DAYS_FR = ['LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI','DIMANCH
 
 function renderTable(month,daySlots,week){
   const today=todayStr();
+  const MY_INIT = MY_ID ? ((month.doctors.find(d=>d.id===MY_ID)||{}).initials||null) : null;
   let thead=`<thead><tr><th class="th-sector">SECTEUR</th>`;
   daySlots.forEach((slot,i)=>{
     if(!slot){ thead+=`<th class="th-day weekend"></th>`; return; }
@@ -1489,13 +1491,14 @@ function renderTable(month,daySlots,week){
         const names=smap[s.code][dow].am;
         const chips=names.map(p=>{
           const c=(p.status==='G'||p.status==='G2')?'slot-name chip-guard':'slot-name';
-          return `<span class="${c}">${p.init||''}</span>`;
+          const me=(MY_INIT&&p.init===MY_INIT)?' me-chip':'';
+          return `<span class="${c}${me}">${p.init||''}</span>`;
         });
         tbody+=`<div class="slot-pair" style="display:flex;align-items:center;justify-content:center;gap:4px;height:100%">${chips.join('')}</div>`;
       } else {
         const amNames=smap[s.code][dow].am;
         const pmNames=smap[s.code][dow].pm;
-        const makeChips=arr=>{ const chips=arr.map(p=>{const c=(p.status==='G'||p.status==='G2')?'slot-name chip-guard':p.status==='18'?'slot-name chip-h18':'slot-name';return `<span class="${c}">${p.init||''}</span>`;});if(chips.length%2!==0)chips.push('<span class="slot-name-spacer"></span>');return chips.join('');};
+        const makeChips=arr=>{ const chips=arr.map(p=>{const c=(p.status==='G'||p.status==='G2')?'slot-name chip-guard':p.status==='18'?'slot-name chip-h18':'slot-name';const me=(MY_INIT&&p.init===MY_INIT)?' me-chip':'';return `<span class="${c}${me}">${p.init||''}</span>`;});if(chips.length%2!==0)chips.push('<span class="slot-name-spacer"></span>');return chips.join('');};
         tbody+=`<div class="slot-pair">
           <div class="slot">${amNames.length?makeChips(amNames):'<span class="slot-dash">—</span>'}</div>
           <div class="slot">${pmNames.length?makeChips(pmNames):'<span class="slot-dash">—</span>'}</div>
