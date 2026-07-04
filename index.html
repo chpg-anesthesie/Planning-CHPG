@@ -1084,7 +1084,7 @@ async function init(){
   buildYearSelect(availableYears);
 
   // 5. Charger le planning de l'année sélectionnée
-  await loadYear(currentYear);
+  if ((await loadYear(currentYear)) === false) return;
 
   document.getElementById('btnPlanning').onclick = () => setMainView('planning');
   document.getElementById('btnMedecins').onclick = () => setMainView('medecins');
@@ -1199,8 +1199,21 @@ async function loadYear(year) {
       PLANNING_CACHE[year] = DATA;
     }
   } catch(e) {
-    document.body.innerHTML = `<div style="padding:40px;font-family:sans-serif;color:#CE1126"><h2>Erreur de chargement ${year}</h2><pre>${esc(e.message)}</pre></div>`;
-    return;
+    const msg = String((e && e.message) || e || '');
+    if (/invalide|code/i.test(msg)) {
+      // Auth : la session n'est plus valide → retour propre à l'écran de connexion
+      try { sessionStorage.removeItem('chpgViewCode'); } catch(_) {}
+      VIEW_CODE = '';
+      const ov = document.getElementById('viewAuthOverlay'); if (ov) ov.style.display = 'flex';
+      if (typeof _authErr === 'function') _authErr('Session expirée — reconnectez-vous');
+    } else {
+      // Erreur non-auth : bannière non destructive (ne rase plus tout le body)
+      const box = document.createElement('div');
+      box.style.cssText = 'padding:40px;font-family:sans-serif;color:#CE1126';
+      box.innerHTML = '<h2>Erreur de chargement ' + year + '</h2><pre>' + esc(msg) + '</pre>';
+      document.body.insertBefore(box, document.body.firstChild);
+    }
+    return false;
   }
 
   // Affectations sectorielles : cache d'init(), sinon API protégée
@@ -2156,8 +2169,8 @@ const MONTHS_FR_FULL = ['Janvier','Février','Mars','Avril','Mai','Juin','Juille
 
 function checkMobile() {
   isMobile = window.innerWidth <= 768;
-  document.getElementById('mobileView').style.display = isMobile ? 'flex' : 'none';
-  document.getElementById('mobileBottomNav').style.display = isMobile ? 'flex' : 'none';
+  const mv = document.getElementById('mobileView'); if (mv) mv.style.display = isMobile ? 'flex' : 'none';
+  const bn = document.getElementById('mobileBottomNav'); if (bn) bn.style.display = isMobile ? 'flex' : 'none';
 }
 window.addEventListener('resize', checkMobile);
 
