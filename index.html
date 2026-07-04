@@ -662,6 +662,9 @@ body{font-variant-numeric:tabular-nums}
 .eqv-card{border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--white)}
 /* ── Personnalisation MAR connecté (pastel bleu ciel) ── */
 .me-pill{display:inline-flex;align-items:center;gap:6px;background:var(--me-soft);color:var(--me);border:1px solid var(--me-border);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:700;white-space:nowrap}
+.me-pill:hover{filter:brightness(.97)}
+.me-pill-logout{opacity:.55;font-weight:700;margin-left:1px}
+.me-pill:hover .me-pill-logout{opacity:1;color:var(--red)}
 .me-card{background:var(--me-soft) !important;border-color:var(--me-border) !important;box-shadow:0 0 0 2px var(--me-ring)}
 .me-row th.aff-name,.me-row td.ann-name{background:var(--me-soft) !important;color:var(--me) !important;font-weight:800}
 .me-row td{box-shadow:inset 0 2px 0 var(--me-border),inset 0 -2px 0 var(--me-border)}
@@ -891,11 +894,22 @@ function _meName(id){ return (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1
 function applyUserBadge(r){
   MY_ID = (r && r.role === 'mar' && r.id) ? r.id : null;
   const pill = document.getElementById('mePill');
-  if (pill && MY_ID) {
-    // Mobile : initiales seules (le header est étroit) ; PC : nom complet
-    pill.textContent = '👤 ' + (isMobile && r.initials ? r.initials : _meName(MY_ID));
+  if (pill) {
+    // MAR : nom (ou initiales sur mobile) · Admin : "Admin". Toujours affiché,
+    // cliquable → déconnexion (permet de changer d'utilisateur).
+    const label = MY_ID ? (isMobile && r.initials ? r.initials : _meName(MY_ID)) : 'Admin';
+    pill.innerHTML = '👤 ' + esc(label) + ' <span class="me-pill-logout">⏻</span>';
     pill.style.display = 'inline-flex';
+    pill.style.cursor = 'pointer';
+    pill.title = 'Changer d\'utilisateur / déconnexion';
+    pill.onclick = logout;
   }
+}
+function logout(){
+  if (!confirm('Se déconnecter et changer d\'utilisateur ?')) return;
+  try { sessionStorage.removeItem('chpgViewCode'); } catch(e){}
+  VIEW_CODE = ''; MY_ID = null;
+  location.reload();
 }
 
 async function apiPost(payload) {
