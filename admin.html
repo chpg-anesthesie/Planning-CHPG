@@ -2104,10 +2104,10 @@ async function reloadForYear(year) {
 
 async function checkNextYearAvailable() {
   try {
-    const resp = await fetchTimeout(`./planning_${YEAR+1}.json?t=${Date.now()}`, {
-      headers: { 'Range': 'bytes=0-1' }
-    }, 5000);
-    nextYearAvailable = resp.ok || resp.status === 206;
+    // (Migration Drive) le JSON de planning n'est plus servi en statique sur Pages :
+    // on sonde le Drive privé via l'API. success ⇔ affectations_N+1.json existe.
+    const resp = await api({action: 'getAffectationsJson', year: YEAR + 1});
+    nextYearAvailable = !!(resp && resp.success && resp.affectations);
     selectedYear = null;
   } catch(e) {
     nextYearAvailable = false;
