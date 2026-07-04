@@ -1934,6 +1934,7 @@ function renderDocPanel(){
 }
 
 
+function _cibNum(v){ const n=(v instanceof Date)?NaN:Number(v); return (isFinite(n)&&n>=0&&n<1000)?n:0; }
 function renderEquiteCards(list){
   const AX=[['lu','Lun'],['ma','Mar'],['me','Mer'],['je','Jeu'],['sa','Sam'],['vd','VD'],['jf','JF'],['vjf','VJF']];
   const CB={je:'cJe',sa:'cSa',vd:'cVd',vjf:'cVjf'};
@@ -1952,11 +1953,14 @@ function renderEquiteCards(list){
     return String(a.name).localeCompare(String(b.name));
   });
   return '<div class="eqv-grid">'+sorted.map(it=>{
-    const tv=+it.total||0,tc=+it.cTot||0,tw=Math.min(100,tv/maxTot*100),tcx=Math.min(100,tc/maxTot*100);
-    const totBar='<div class="eqv-row eqv-row-tot"><div class="eqv-lbl">Total</div><div class="eqv-track eqv-track-tot"><div class="eqv-fill" style="width:'+tw+'%;background:'+colOf(tv,tc)+'"></div>'+(tc>0?'<div class="eqv-tick" style="left:'+tcx+'%"></div>':'')+'</div><div class="eqv-val">'+tv+'<span> /'+(tc>0?tc.toFixed(1):'—')+'</span></div></div>';
+    const _wish=!!it.wish;
+    const tv=+it.total||0, tc=_wish?0:(+it.cTot||0), tw=Math.min(100,tv/maxTot*100), tcx=Math.min(100,tc/maxTot*100);
+    const _totFill=_wish?'#94A3B8':colOf(tv,tc), _totOpac=_wish?';opacity:.5':'';
+    const _totVal=_wish?(tv+'<span> souhaits</span>'):(tv+'<span> /'+(tc>0?tc.toFixed(1):'—')+'</span>');
+    const totBar='<div class="eqv-row eqv-row-tot"><div class="eqv-lbl">Total</div><div class="eqv-track eqv-track-tot"><div class="eqv-fill" style="width:'+tw+'%;background:'+_totFill+_totOpac+'"></div>'+((tc>0&&!_wish)?'<div class="eqv-tick" style="left:'+tcx+'%"></div>':'')+'</div><div class="eqv-val">'+_totVal+'</div></div>';
     const bars=AX.map(([k,lbl])=>{
       const v=+it[k]||0;
-      if(NEUTRAL[k]){
+      if(NEUTRAL[k]||_wish){
         const mx=Math.max(0.1,...list.map(x=>+x[k]||0))*1.15;
         const w=Math.min(100,v/mx*100);
         return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:#94A3B8;opacity:.5"></div></div><div class="eqv-val">'+v+'</div></div>';
@@ -1967,7 +1971,7 @@ function renderEquiteCards(list){
       return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:'+colOf(v,c)+'"></div><div class="eqv-tick" style="left:'+cx+'%;'+tick+'"></div></div><div class="eqv-val">'+v+'<span> /'+cval+'</span></div></div>';
     }).join('');
     const _isMe = _meN && String(it.name)===_meN;
-    return '<div class="eqv-card'+(_isMe?' me-card':'')+'"><div class="eqv-head"><div class="eqv-name">'+it.name+'</div></div>'+totBar+bars+'</div>';
+    return '<div class="eqv-card'+(_isMe?' me-card':'')+'"><div class="eqv-head"><div class="eqv-name">'+it.name+'</div>'+(_wish?'<span style="font-size:9px;font-weight:800;color:#7c3aed;background:#f3e8ff;border:1px solid #e9d5ff;border-radius:4px;padding:1px 5px;letter-spacing:.3px">SOUHAITS</span>':'')+'</div>'+totBar+bars+'</div>';
   }).join('')+'</div>';
 }
 
@@ -2032,9 +2036,9 @@ async function loadEquiteLive(){
   const build = (stats)=>{
     if(EQ_SRC_IDX!=='live') return;
     const list = stats.filter(s=>(s.total||0)>0).map(s=>({
-      name:nameOf(s.medecin), total:s.total||0, cTot:s.cible||0,
+      name:nameOf(s.medecin), wish:s.medecin==='PRUNET', total:s.total||0, cTot:_cibNum(s.cible),
       lu:s.lun||0, ma:s.mar||0, me:s.mer||0, je:s.jeu||0, sa:s.sat||0, vd:s.vd||0, jf:s.jf||0, vjf:s.vjf||0,
-      cSa:s.cSat||0, cJe:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0,
+      cSa:_cibNum(s.cSat), cJe:_cibNum(s.cJeu), cVd:_cibNum(s.cVd), cVjf:_cibNum(s.cVjf),
     }));
     if(!list.length){ wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Aucune garde dans ce planning.</div>'; return; }
     const sum=list.reduce((s,a)=>s+a.total,0), mean=sum/list.length;
@@ -2075,9 +2079,9 @@ function renderEquite(){
     const list = DATA.equiteInitiale.filter(e=>e.total>0).map(e=>{
       const cb = cibles[e.id] || {};
       return {
-        name:nameOf(e.id), total:e.total, cTot:cb.cible||0,
+        name:nameOf(e.id), wish:e.id==='PRUNET', total:e.total, cTot:_cibNum(cb.cible),
         lu:e.lu||0, ma:e.ma||0, me:e.me||0, je:e.je||0, sa:e.sa||0, vd:e.vd||0, jf:e.jf||0, vjf:e.vjf||0,
-        cSa:cb.cSat||0, cJe:cb.cJeu||0, cVd:cb.cVd||0, cVjf:cb.cVjf||0,
+        cSa:_cibNum(cb.cSat), cJe:_cibNum(cb.cJeu), cVd:_cibNum(cb.cVd), cVjf:_cibNum(cb.cVjf),
       };
     });
     if(!list.length){ wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Aucune garde dans ce planning.</div>'; return; }
