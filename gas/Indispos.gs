@@ -131,13 +131,14 @@ function checkCode(code) {
       }
     }
   }
-  if (adminCode && code === adminCode) return {role: 'admin', id: 'ADMIN'};
+  if (adminCode && String(code).trim().toUpperCase() === adminCode.toUpperCase()) return {role: 'admin', id: 'ADMIN'};
 
   const sheet = ss.getSheetByName('MEDECINS');
   if (!sheet) return null;
   const data = sheet.getDataRange().getValues();
+  const _codeUp = String(code).trim().toUpperCase();
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][6]).trim() === String(code).trim()) {
+    if (String(data[r][6]).trim().toUpperCase() === _codeUp) {
       return {role:'mar', id:data[r][0], name:data[r][1], initials:data[r][2]};
     }
   }
