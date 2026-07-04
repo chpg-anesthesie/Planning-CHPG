@@ -930,7 +930,7 @@ async function viewLogin() {
       init();
     } else {
       VIEW_CODE = '';
-      _authErr('Code incorrect');
+      _authErr(r && r.error ? r.error : 'Code incorrect');
     }
   } catch(e) { VIEW_CODE = ''; _authErr('Erreur réseau — réessayez'); }
   btn.disabled = false; btn.textContent = 'Accéder →';
