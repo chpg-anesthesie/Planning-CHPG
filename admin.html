@@ -17,7 +17,7 @@
     <div class="maint-action">
       <div class="maint-title">📦 Archiver l'année <span id="archiveYearLabel">—</span></div>
       <div class="maint-desc">Pousse stats et indispos sur GitHub. À faire en fin d'année.</div>
-      <button class="btn-danger" onclick="archiveCurrentYear()">Archiver</button>
+      <button class="btn-danger" id="btnArchive" onclick="archiveCurrentYear()">Archiver</button>
     </div>
 
     <div class="maint-action">
@@ -1009,6 +1009,11 @@ if (sessionStorage.getItem('adminCode')) {
 .badge-actif{background:#dcfce7;color:#166534}
 .badge-n1{background:#dbeafe;color:#1e40af}
 .badge-archive{background:#e2e8f0;color:#475569}
+#apiBar{position:fixed;top:0;left:0;height:3px;width:100%;z-index:99999;overflow:hidden;opacity:0;transition:opacity .2s;pointer-events:none}
+#apiBar.on{opacity:1}
+#apiBar::before{content:"";position:absolute;top:0;height:100%;width:40%;background:linear-gradient(90deg,transparent,var(--red,#CE1126),transparent);animation:apiSlide 1s infinite linear}
+@keyframes apiSlide{0%{left:-40%}100%{left:100%}}
+.btn-primary:active,.btn-danger:active,.btn-secondary:active,.week-validate-btn:active,.wizard-next:active{transform:translateY(1px)}
 .year-pill-chev{opacity:.45;transition:transform .18s;margin-left:1px;flex:none}
 .year-picker.open .year-pill-chev{transform:rotate(180deg)}
 .year-picker.solo .year-pill{cursor:default}
@@ -1703,15 +1708,25 @@ async function authenticate() {
   }
 }
 
+let _apiBusy = 0;
+function _apiBar(on) {
+  let el = document.getElementById('apiBar');
+  if (!el) { el = document.createElement('div'); el.id = 'apiBar'; document.body.appendChild(el); }
+  _apiBusy = Math.max(0, _apiBusy + (on ? 1 : -1));
+  el.classList.toggle('on', _apiBusy > 0);
+}
 async function api(payload) {
   payload.code = ADMIN_CODE;
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload),
-    redirect: 'follow',
-  });
-  return res.json();
+  _apiBar(true);
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      redirect: 'follow',
+    });
+    return await res.json();
+  } finally { _apiBar(false); }
 }
 // Fetch avec timeout — évite les blocages sur Safari iOS
 async function fetchTimeout(url, options={}, ms=8000) {
@@ -5735,13 +5750,17 @@ async function publishPlanning() {
   }
 }
 async function archiveCurrentYear() {
-  if (!confirm(`Archiver l'année ${YEAR} ?\n\nCela va pousser stats_${YEAR}.json et indispos_${YEAR}.json sur GitHub.\nLes onglets GSheet ne seront PAS supprimés.`)) return;
+  if (!confirm(`Archiver l'année ${YEAR} ?\n\nCela va sauvegarder stats_${YEAR}.json et indispos_${YEAR}.json.\nLes onglets GSheet ne seront PAS supprimés.`)) return;
+  const b = document.getElementById('btnArchive');
+  if (b) { b.disabled = true; b.textContent = '⏳ Archivage…'; }
   try {
     const data = await api({action: 'archiveYear', year: YEAR});
     if (!data.success) throw new Error(data.error);
     toast(`✅ Archivage ${YEAR} terminé`, 'success');
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
+  } finally {
+    if (b) { b.disabled = false; b.textContent = 'Archiver'; }
   }
 }
 // ── FICHES OPÉRATOIRES ──────────────────────────────────────────────────

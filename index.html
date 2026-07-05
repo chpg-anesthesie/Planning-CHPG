@@ -278,6 +278,10 @@ body{font-variant-numeric:tabular-nums}
 .chip-guard { background: var(--info-soft); color: var(--info); }
 .chip-h18   { background: var(--ok-soft); color: var(--ok); }
 .slot-name.me-chip { box-shadow: 0 0 0 1.5px var(--me); font-weight: 800; }
+#apiBar{position:fixed;top:0;left:0;height:3px;width:100%;z-index:99999;overflow:hidden;opacity:0;transition:opacity .2s;pointer-events:none}
+#apiBar.on{opacity:1}
+#apiBar::before{content:"";position:absolute;top:0;height:100%;width:40%;background:linear-gradient(90deg,transparent,var(--red,#CE1126),transparent);animation:apiSlide 1s infinite linear}
+@keyframes apiSlide{0%{left:-40%}100%{left:100%}}
 .slot-dash { color: var(--ink-4); font-size: 12px; text-align: center; margin-top: 4px; }
 
 /* ── BOTTOM TABLES ── */
@@ -912,15 +916,25 @@ function logout(){
   location.reload();
 }
 
+let _apiBusy = 0;
+function _apiBar(on) {
+  let el = document.getElementById('apiBar');
+  if (!el) { el = document.createElement('div'); el.id = 'apiBar'; document.body.appendChild(el); }
+  _apiBusy = Math.max(0, _apiBusy + (on ? 1 : -1));
+  el.classList.toggle('on', _apiBusy > 0);
+}
 async function apiPost(payload) {
   payload.code = VIEW_CODE;
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload),
-    redirect: 'follow',
-  });
-  return res.json();
+  _apiBar(true);
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      redirect: 'follow',
+    });
+    return await res.json();
+  } finally { _apiBar(false); }
 }
 
 function _authErr(msg) {
