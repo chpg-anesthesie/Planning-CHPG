@@ -56,14 +56,14 @@ Cycle annuel = 3 assistants dans admin.html, **tous testés en réel** :
 
 ## Consultation libérale endoscopie
 - Le soliste de la rotation libérale (ROT-LIB, mardi/jeudi PM) est marqué **`entry.lib=true`** côté GAS. Dans `index.html`, sa puce Endoscopies porte un **badge « LIB »** violet (desktop + mobile) + légende conditionnelle. Cohérent avec le rendu admin.
+- **Choix manuel du soliste** (admin, onglet Affectations) : la case libérale vide (badge LIB) et la puce libérale attribuée sont **cliquables** → sélecteur des MARs présents ce jour → remplace/retire le soliste. Le **×** retire. Backend = action GAS **`setLibSoliste(année, date, marId)`** : écrit un override **`ROT-LIB` ciblé** sur cette date (remplace le soliste précédent) puis republie — ne rejoue pas toute la rotation auto. Le tag ROT-LIB vit dans la **colonne E (COMMENTAIRE)** de `PLANNING_OVERRIDES`.
 
 ## État : fonctionnellement terminé
 **Ne PAS reproposer** : `config.html` (abandonné — couvert par les 5 onglets d'admin.html) ; **optimisation perf** du JSON (déjà minifié/gzip) ; patch GAS de robustesse cible (le garde frontend suffit).
 
 **Restant / à surveiller (non urgent)** :
-- **`Indispos.gs` à recopier dans Apps Script** (comparaison de code insensible à la casse — sinon un code avec minuscules en colonne G échoue).
-- **Détection des années archivées** : `detectAvailableYears()` teste encore `./archives/stats_{Y}.json` en **statique sur Pages**. Si les archives ont migré vers le Drive (comme les plannings), il faudra basculer cette détection sur l'API — même correctif que pour N+1. À vérifier quand une année sera archivée.
-- Picker **manuel** des consultations libérales endo : ne filtre pas la présence N+1 (seule la rotation auto le fait).
+- **`Indispos.gs` à recopier dans Apps Script** — contient deux ajouts non encore actifs tant que non recopié : comparaison de code **insensible à la casse** (sinon un code avec minuscules en colonne G échoue) **et** l'action **`setLibSoliste`** (choix manuel du soliste libéral).
+- **Années archivées — à traiter en janvier 2027 avec le vrai Wizard 3.** Confirmé : `archiveYear` écrit `stats_{Y}.json` dans le **Drive** (`savePlanningToDrive`), pas sur GitHub ; les onglets `*_{Y}` sont **déplacés** vers l'archive. Or `detectAvailableYears()` sonde encore `./archives/stats_{Y}.json` en statique Pages (→ 404) **et** `getStats` ne lit que le classeur actif. Fix complet = détection Drive (via API) **+** chemin de lecture Drive. Aucune année encore archivée → non testable avant la 1ʳᵉ archive réelle (janvier 2027) ; à faire à ce moment-là, bout en bout.
 - **Secteurs étape 2** : externaliser `SECTEURS_CFG` dans un onglet Google Sheet, avant le déménagement 2027 « BLOC CENTRAL ».
 - **Module libéral** (règle des 30 %, voir `docs/module_liberal_conception.md`).
 
