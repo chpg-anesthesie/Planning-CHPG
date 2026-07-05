@@ -507,3 +507,68 @@ function TEST_run() {
 function TEST_W2() { generateGardes(2029); }      // génère le planning
 function TEST_W3_safe()  { archiveYear(2029, false); }  // itération rapide
 function TEST_W3_reel()  { archiveYear(2027, true);  }  // test du déplacement réel
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CODES D'ACCÈS ROBUSTES — colonne G (index 6) de MEDECINS
+// 8 caractères non devinables, sans caractères ambigus (0 O 1 I L retirés).
+// La connexion met la saisie en MAJUSCULES et compare sans casse → codes en MAJ.
+// MAR ACTIF (col D = O) → nouveau code ; MAR inactif → code effacé (ne peut plus se connecter).
+// ═══════════════════════════════════════════════════════════════════════════
+var CODE_ALPHABET_ = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+var CODE_LEN_ = 8;
+
+function _codeAleatoire(used) {
+  var c;
+  do {
+    c = '';
+    for (var i = 0; i < CODE_LEN_; i++) c += CODE_ALPHABET_.charAt(Math.floor(Math.random() * CODE_ALPHABET_.length));
+  } while (used && used.has(c));
+  if (used) used.add(c);
+  return c;
+}
+
+// (Re)génère les codes de TOUS les MAR actifs et logue le récap à distribuer.
+// ⚠️ Remplace les codes existants → chaque MAR devra recevoir son nouveau code.
+function genererTousLesCodes() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('MEDECINS');
+  if (!sh) throw new Error('Onglet MEDECINS introuvable');
+  var data = sh.getDataRange().getValues();
+  var used = new Set();
+  var recap = [], efface = 0;
+  for (var r = 1; r < data.length; r++) {
+    var id = String(data[r][0] || '').trim();
+    if (!id) continue;
+    var cell = sh.getRange(r + 1, 7); // colonne G
+    cell.setNumberFormat('@STRING@');
+    if (String(data[r][3]).trim().toUpperCase() === 'O') {          // ACTIF = O
+      var code = _codeAleatoire(used);
+      cell.setValue(code);
+      recap.push(id + '\t' + String(data[r][1] || '') + '\t' + code);
+    } else {
+      cell.setValue('');                                            // inactif → plus de code
+      efface++;
+    }
+  }
+  Logger.log('✅ ' + recap.length + ' code(s) actif(s) généré(s), ' + efface + ' MAR inactif(s) → code effacé.\n\nID\tNOM\tCODE\n' + recap.join('\n'));
+  return recap;
+}
+
+// Régénère le code d'UN seul MAR (recrue, réinitialisation). Retourne le code.
+function genererCodeMAR(id) {
+  id = String(id || '').trim().toUpperCase();
+  if (!id) throw new Error('id manquant (ex : genererCodeMAR("GR"))');
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('MEDECINS');
+  var data = sh.getDataRange().getValues();
+  var used = new Set();
+  for (var r = 1; r < data.length; r++) { var c = String(data[r][6] || '').trim().toUpperCase(); if (c) used.add(c); }
+  for (var r = 1; r < data.length; r++) {
+    if (String(data[r][0] || '').trim().toUpperCase() === id) {
+      var code = _codeAleatoire(used);
+      var cell = sh.getRange(r + 1, 7);
+      cell.setNumberFormat('@STRING@'); cell.setValue(code);
+      Logger.log(id + ' → ' + code);
+      return code;
+    }
+  }
+  throw new Error('MAR introuvable dans MEDECINS : ' + id);
+}
