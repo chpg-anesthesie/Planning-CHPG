@@ -2548,7 +2548,7 @@ function renderWeek() {
     const _lib = (type === 'CS-END' && slotKey === 'pm' && [2,4].includes(new Date(date+'T12:00:00').getDay()));
     const _hasLib = items.some(p => p && p.lib);
     // Marqueur "LIB" autonome uniquement si le créneau libéral existe mais n'est pas encore attribué
-    const _libTag = (_lib && !_hasLib) ? `<span class="cs-lib" title="Créneau consultation libérale endo (rotation GR) — non attribué">LIB</span>` : '';
+    const _libTag = (_lib && !_hasLib) ? `<span class="cs-lib" style="cursor:pointer" onclick="openSidePanel('CS-END','${date}','Endoscopie libérale','${slotKey}',true)" title="Créneau consult libérale endo — cliquer pour désigner le MAR">LIB</span>` : '';
 
     if (_closed) {
       return `<div class="cs-cell">${_libTag}<span class="cs-fermee" title="Consultation fermée par le comité">fermée</span><span class="cs-ouvrir" onclick="reopenConsult('${type}','${date}','${slotKey}')" title="Rouvrir la consultation">rouvrir</span></div>`;
@@ -2562,7 +2562,7 @@ function renderWeek() {
       } else if (p.lib) {
         // Case combinée : badge LIB + initiales du MAR qui fait la consultation libérale
         const cls = p.isNew ? 'slot-name cs-chip cs-chip-lib slot-new slot-clickable' : 'slot-name cs-chip cs-chip-lib slot-clickable';
-        prim += `<span class="cs-chip-wrap"><span class="${cls}" title="${p.id||''} — consultation libérale endoscopie (rotation GR)" onclick="openMarMenu('${p.id}','${p.init}','${type}','${date}','${slotKey}')"><span class="cs-lib-inline">LIB</span>${p.init}</span>${_chipX(p.id,p.init)}</span>`;
+        prim += `<span class="cs-chip-wrap"><span class="${cls}" title="${p.id||''} — consult libérale endo (cliquer pour changer le MAR)" onclick="openSidePanel('CS-END','${date}','Endoscopie libérale','${slotKey}',true)"><span class="cs-lib-inline">LIB</span>${p.init}</span><span class="cs-chip-x" onclick="event.stopPropagation();setLibSolisteRequest('${date}','')" title="Retirer le soliste libéral">×</span></span>`;
       } else {
         const cls = p.isNew ? 'slot-name cs-chip slot-new slot-clickable' : 'slot-name cs-chip slot-clickable';
         prim += `<span class="cs-chip-wrap"><span class="${cls}" title="${p.id||''}" onclick="openMarMenu('${p.id}','${p.init}','${type}','${date}','${slotKey}')">${p.init}</span>${_chipX(p.id,p.init)}</span>`;
@@ -2743,21 +2743,24 @@ function updateFlashBadge() {
 // ── SIDE PANEL DISPO ─────────────────────────────────────────────────
 let _sideCtx = null;
 
-async function openSidePanel(sector, date, sectorLabel, slotKey) {
-  window._sideCtx = {sector, date, sectorLabel, slotKey};
+async function openSidePanel(sector, date, sectorLabel, slotKey, lib) {
+  window._sideCtx = {sector, date, sectorLabel, slotKey, lib: !!lib};
   const card = document.getElementById('dispoCard');
   if (!card) return;
   card.style.display = 'block';
-  document.getElementById('pspTitle').textContent = `Affecter en ${sectorLabel}`;
+  document.getElementById('pspTitle').textContent = lib ? 'Consult. libérale endo — choisir le MAR' : `Affecter en ${sectorLabel}`;
   const _vide = _localVides[date] && _localVides[date].has(`${sector}|${slotKey}`);
   const _videBtn = _vide
     ? `<button onclick="unleaveCaseVide()" style="margin-left:8px;border:1px solid var(--line);background:var(--white);color:var(--ink-3);border-radius:8px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;">↺ Remettre en flash</button>`
     : `<button onclick="leaveCaseVide()" style="margin-left:8px;border:1px solid var(--line);background:var(--white);color:var(--ink-3);border-radius:8px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;">∅ Laisser vide</button>`;
+  const _sideBtn = lib
+    ? `<button onclick="setLibSolisteRequest('${date}','')" style="margin-left:8px;border:1px solid #FCA5A5;background:#FEF2F2;color:#B91C1C;border-radius:8px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;">↩ Retirer le soliste</button>`
+    : _videBtn;
   document.getElementById('pspSub').innerHTML =
     `<span style="background:${getSectorBg(sector)};color:${getSectorFg(sector)};padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-right:6px;">${sector}</span>`
     + `<span style="background:${slotKey==='am'?'#CE1126':'#64748B'};color:#fff;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-right:6px;">${slotKey.toUpperCase()}</span>`
     + new Date(date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})
-    + ' ' + _videBtn;
+    + ' ' + _sideBtn;
   card.scrollIntoView({behavior:'smooth', block:'nearest'});
 
   // Cache par jour : la liste des dispos d'une date est stable durant la session
@@ -2939,6 +2942,7 @@ function renderSidePanelContent(dispo, sector) {
 async function placeMAR(marId, marInit, mode) {
   const ctx = window._sideCtx;
   if (!ctx) return;
+  if (ctx.lib) { return setLibSolisteRequest(ctx.date, marId); }
   const {sector, date, slotKey} = ctx;
 
   // 1. Stocker dans _localOverrides (couche locale persistante dans la session)
@@ -3071,6 +3075,19 @@ async function _saveOverrideBg(marId, date, slotKey, why) {
     });
     markPending();
   } catch(e) {}
+}
+
+// Désigne (ou retire) manuellement le MAR qui fait la consultation libérale endo
+// d'une date donnée. Écrit un override ROT-LIB ciblé côté GAS (remplace le soliste auto).
+async function setLibSolisteRequest(date, marId){
+  showToast('⏳ Enregistrement…');
+  try {
+    const r = await api({action:'setLibSoliste', year: ADMIN_YEAR, date, marId: marId || ''});
+    if (!r || !r.success) throw new Error((r && r.error) || 'échec');
+    showToast(marId ? `✅ Soliste libéral : ${marId} — enregistré` : '✅ Soliste libéral retiré');
+    closeSidePanel();
+    if (typeof loadPlanningData === 'function') loadPlanningData();
+  } catch(e) { showToast('Erreur : ' + e.message); }
 }
 
 function moveMARTo(marId, marInit, targetSector) {

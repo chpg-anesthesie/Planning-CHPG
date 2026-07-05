@@ -708,7 +708,7 @@ function doGet(e) {
     // le Sheet (les autres attendent leur tour, max 30 s). Élimine les
     // corruptions par écritures simultanées (23 MARs + admin en novembre).
     // Le verrou est libéré automatiquement à la fin de l'exécution.
-    const WRITE_ACTIONS = new Set(['saveIndispos','applyModification','applyRotationLib',
+    const WRITE_ACTIONS = new Set(['saveIndispos','applyModification','applyRotationLib','setLibSoliste',
       'archiveYear','clearIndisposYear','generateGardes','initYear','setActiveYear',
       'setIndisposYear','setDailyStatus','poserAbsenceLongue','publishPlanning',
       'saveAffectations','saveAffectationsMar','saveConfig','saveGroupes','saveMedecin',
@@ -2048,6 +2048,37 @@ if (action === 'deletePlanningOverride') {
   } catch(e) {
     return _error(e.message);
   }
+}
+
+// ── ACTION : setLibSoliste (désigner/retirer manuellement le soliste libéral endo d'UNE date) ──
+if (action === 'setLibSoliste') {
+  if (user.role !== 'admin') return _deny();
+  const y = Number(payload.year) || TEST_YEAR;
+  const date = String(payload.date || '').trim();
+  const marId = String(payload.marId || '').trim().toUpperCase();
+  if (!date) return _error('date manquante');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('PLANNING_OVERRIDES');
+  if (!sheet) {
+    sheet = ss.insertSheet('PLANNING_OVERRIDES');
+    sheet.getRange(1,1,1,5).setValues([['DATE','MAR_ID','MATIN','APREM','COMMENTAIRE']]);
+    sheet.getRange(1,1,1,5).setFontWeight('bold');
+  }
+  const data = sheet.getDataRange().getValues();
+  const _d = raw => (raw instanceof Date)
+    ? `${raw.getFullYear()}-${String(raw.getMonth()+1).padStart(2,'0')}-${String(raw.getDate()).padStart(2,'0')}`
+    : String(raw).trim();
+  // 1) retirer le soliste ROT-LIB existant pour CETTE date (du bas vers le haut)
+  for (let r = data.length - 1; r >= 1; r--) {
+    if (_d(data[r][0]) === date && String(data[r][4]).trim().toUpperCase() === 'ROT-LIB') sheet.deleteRow(r + 1);
+  }
+  // 2) écrire le nouveau soliste (marId vide = simplement retirer)
+  if (marId) sheet.appendRow([date, marId, '', 'CS-END', 'ROT-LIB']);
+  // 3) republier le planning
+  try { generatePlanning(y); } catch(e) { Logger.log('setLibSoliste generatePlanning: ' + e.message); }
+  logAction(`setLibSoliste ${date} → ${marId || '(retiré)'}`);
+  return ContentService.createTextOutput(JSON.stringify({ success: true, date, marId }))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ── ACTION : applyRotationLib (rotation consultations libérales endo) ──
