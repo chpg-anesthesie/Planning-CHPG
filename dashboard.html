@@ -180,6 +180,35 @@ a.tile:hover, .tile.clickable:hover {
 .staff-meta span { display:inline-flex; align-items:center; gap:5px; }
 .staff-meta svg { width:14px; height:14px; color:var(--ink-4); flex-shrink:0; }
 
+/* ── VEILLE BIBLIO ── */
+.veille-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:18px}
+.vfilter{display:inline-flex;background:var(--surface-2);border-radius:10px;padding:3px}
+.vfilter button{border:0;background:transparent;color:var(--ink-3);font:600 13px 'DM Sans',sans-serif;padding:6px 14px;border-radius:8px;cursor:pointer}
+.vfilter button.on{background:var(--white);color:var(--me);box-shadow:0 1px 2px rgba(15,23,42,.06)}
+.vsel,.vsearch{border:1px solid var(--line);background:var(--white);color:var(--ink);border-radius:10px;padding:7px 12px;font:500 13px 'DM Sans',sans-serif}
+.vsearch{flex:1;min-width:180px}
+.vsel:focus,.vsearch:focus{outline:none;border-color:var(--me-border)}
+.veille-card{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:15px 18px;margin-bottom:11px;border-left:3px solid transparent}
+.veille-card.unread{border-left-color:var(--me)}
+.vc-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px}
+.vc-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.vc-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+.vc-badge.revue{background:var(--me-soft);color:var(--me)}
+.vc-badge.theme{background:var(--viol-soft);color:var(--viol)}
+.vc-badge.new{background:var(--red-soft);color:var(--red)}
+.vc-score{font-size:12px;font-weight:800;color:var(--ok);background:var(--ok-soft);border-radius:8px;padding:2px 8px}
+.vc-date{font-size:12px;color:var(--ink-4);font-weight:600}
+.vc-title{display:block;font-size:15px;font-weight:700;color:var(--ink);line-height:1.4;text-decoration:none}
+.vc-title:hover{color:var(--me)}
+.vc-resume{font-size:13px;color:var(--ink-2);line-height:1.5;margin-top:5px}
+.vc-journal{font-size:12.5px;color:var(--me);font-weight:600;margin-top:6px}
+.vc-authors{font-size:12.5px;color:var(--ink-3);margin-top:2px}
+.vc-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+.vc-act{font-size:12px;font-weight:600;color:var(--ink-3);background:var(--surface-2);border:0;border-radius:8px;padding:5px 11px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.vc-act:hover{color:var(--ink)}
+.vc-act.on{background:var(--me-soft);color:var(--me)}
+.vc-act.star.on{background:var(--amber-soft);color:var(--amber)}
+
 /* Barre de chargement API (fine, en haut) */
 #apiBar{position:fixed;top:0;left:0;height:2px;width:0;background:var(--red);z-index:9998;transition:width .3s ease,opacity .3s ease;opacity:0}
 #apiBar.on{width:80%;opacity:1}
@@ -249,6 +278,27 @@ a.tile:hover, .tile.clickable:hover {
       <span class="topos-count" id="staffsCount"></span>
     </div>
     <div id="staffsList"></div>
+  </div>
+  <div id="veilleView" style="display:none">
+    <div class="topos-head">
+      <button class="btn-back" onclick="backToHome()"><i data-lucide="arrow-left" style="width:16px;height:16px"></i> Retour</button>
+      <h2>Veille biblio</h2>
+      <span class="topos-count" id="veilleCount"></span>
+    </div>
+    <div class="veille-toolbar" id="veilleToolbar" style="display:none">
+      <div class="vfilter" id="vfilter">
+        <button class="on" onclick="setVFilter('unread',this)">Non lus</button>
+        <button onclick="setVFilter('all',this)">Tous</button>
+        <button onclick="setVFilter('star',this)">★ Favoris</button>
+      </div>
+      <select class="vsel" onchange="onVSource(this.value)">
+        <option value="">Toutes sources</option>
+        <option value="REVUE">Revues cœur</option>
+        <option value="THEME">Thèmes</option>
+      </select>
+      <input class="vsearch" type="search" placeholder="Filtrer par titre, auteur, revue…" oninput="onVSearch(this.value)">
+    </div>
+    <div id="veilleList"></div>
   </div>
 </div>
 
@@ -332,6 +382,7 @@ const TILES = [
   { key:'planning', title:'Planning', sub:'Gardes, secteurs, consultations et équité.', icon:'calendar-days', href:'index.html', ready:true },
   { key:'topos',    title:'Topos / biblio', sub:'Documents et présentations du service.', icon:'book-open', view:'topos', ready:true },
   { key:'staffs',   title:'Staffs à venir', sub:'Programme des réunions et intervenants.', icon:'presentation', view:'staffs', ready:true },
+  { key:'veille',   title:'Veille biblio', sub:'Nouveaux articles PubMed en anesthésie-réanimation.', icon:'radar', view:'veille', ready:true },
   { key:'crh',      title:'CRH', sub:'Comptes rendus de réanimation.', icon:'file-text', href:'crh.html', ready:false },
 ];
 function renderTiles(){
@@ -360,7 +411,7 @@ function showPortal(){
 }
 
 // ── VUE TOPOS ──
-function openView(v){ if(v==='topos') openTopos(); else if(v==='staffs') openStaffs(); }
+function openView(v){ if(v==='topos') openTopos(); else if(v==='staffs') openStaffs(); else if(v==='veille') openVeille(); }
 function fmtDate(s){ if(!s) return ''; const p=String(s).split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : s; }
 function fmtSize(b){ b=Number(b)||0; if(b<1024) return b+' o'; if(b<1048576) return Math.round(b/1024)+' Ko'; return (b/1048576).toFixed(1)+' Mo'; }
 
@@ -379,6 +430,7 @@ async function openTopos(){
 function backToHome(){
   document.getElementById('toposView').style.display='none';
   document.getElementById('staffsView').style.display='none';
+  document.getElementById('veilleView').style.display='none';
   document.getElementById('tilesView').style.display='block';
 }
 
@@ -421,6 +473,97 @@ function renderStaffsList(data){
       + '</div></div>';
   }).join('');
   if(window.lucide) lucide.createIcons();
+}
+
+// ── VUE VEILLE BIBLIO ──
+let VEILLE_ITEMS = [];
+let V_FILTER = 'unread';   // unread | all | star
+let V_SOURCE = '';
+let V_SEARCH = '';
+let V_SEEN   = '';         // dernière visite (yyyy-MM-dd) → badge "nouveau"
+
+async function openVeille(){
+  document.getElementById('tilesView').style.display='none';
+  document.getElementById('veilleView').style.display='block';
+  document.getElementById('veilleCount').textContent='';
+  document.getElementById('veilleToolbar').style.display='none';
+  const box=document.getElementById('veilleList');
+  box.innerHTML='<div class="topos-loading">Chargement…</div>';
+  try{ V_SEEN = localStorage.getItem('chpgVeilleSeen')||''; }catch(e){ V_SEEN=''; }
+  try{
+    const r=await apiPost({action:'getVeille'});
+    if(r && r.success){
+      VEILLE_ITEMS = r.items||[];
+      document.getElementById('veilleToolbar').style.display = VEILLE_ITEMS.length ? 'flex' : 'none';
+      renderVeille();
+      try{ localStorage.setItem('chpgVeilleSeen', new Date().toISOString().slice(0,10)); }catch(e){}
+    } else {
+      box.innerHTML='<div class="topos-empty">'+esc((r&&r.error)||'Erreur de chargement')+'</div>';
+    }
+  }catch(e){ box.innerHTML='<div class="topos-empty">Erreur réseau — réessayez.</div>'; }
+}
+
+function setVFilter(f, el){
+  V_FILTER=f;
+  document.querySelectorAll('#vfilter button').forEach(function(b){ b.classList.toggle('on', b===el); });
+  renderVeille();
+}
+function onVSource(v){ V_SOURCE=v; renderVeille(); }
+function onVSearch(v){ V_SEARCH=String(v||'').trim().toLowerCase(); renderVeille(); }
+
+function _vMatch(it){
+  if(V_FILTER==='unread' && it.lu) return false;
+  if(V_FILTER==='star'   && !it.star) return false;
+  if(V_SOURCE && it.source!==V_SOURCE) return false;
+  if(V_SEARCH){
+    const hay=(it.titre+' '+it.auteurs+' '+it.revue).toLowerCase();
+    if(hay.indexOf(V_SEARCH)===-1) return false;
+  }
+  return true;
+}
+
+function renderVeille(){
+  const box=document.getElementById('veilleList');
+  const unread=VEILLE_ITEMS.filter(function(i){return !i.lu;}).length;
+  const shown=VEILLE_ITEMS.filter(_vMatch);
+  document.getElementById('veilleCount').textContent =
+    VEILLE_ITEMS.length ? (shown.length+' affichés · '+unread+' non lus / '+VEILLE_ITEMS.length+' total') : '';
+  if(!VEILLE_ITEMS.length){
+    box.innerHTML='<div class="topos-empty">Aucun article pour l\'instant.<br><span>Le scan PubMed tourne chaque lundi ; l\'onglet VEILLE se remplit tout seul.</span></div>';
+    return;
+  }
+  if(!shown.length){ box.innerHTML='<div class="topos-empty">Rien à afficher avec ce filtre.</div>'; return; }
+  box.innerHTML = shown.map(function(it){
+    const isNew = V_SEEN && it.ajoute && it.ajoute>V_SEEN;
+    const srcBadge = it.source==='THEME'
+      ? '<span class="vc-badge theme">Thème</span>'
+      : '<span class="vc-badge revue">Revue cœur</span>';
+    const right = (it.score!=null?'<span class="vc-score">'+it.score+'</span>':'')
+                + '<span class="vc-date">'+fmtDate(it.date)+'</span>';
+    const pub='https://pubmed.ncbi.nlm.nih.gov/'+encodeURIComponent(it.pmid)+'/';
+    return '<div class="veille-card'+(it.lu?'':' unread')+'">'
+      + '<div class="vc-top">'+srcBadge+(isNew?'<span class="vc-badge new">nouveau</span>':'')
+        + '<span class="vc-right">'+right+'</span></div>'
+      + '<a class="vc-title" href="'+pub+'" target="_blank" rel="noopener">'+esc(it.titre)+'</a>'
+      + (it.resume?'<div class="vc-resume">'+esc(it.resume)+'</div>':'')
+      + (it.revue?'<div class="vc-journal">'+esc(it.revue)+'</div>':'')
+      + (it.auteurs?'<div class="vc-authors">'+esc(it.auteurs)+'</div>':'')
+      + '<div class="vc-actions">'
+        + '<button class="vc-act'+(it.lu?' on':'')+'" onclick="toggleV(\''+it.pmid+'\',\'lu\')">'+(it.lu?'✓ Lu':'Marquer lu')+'</button>'
+        + '<button class="vc-act star'+(it.star?' on':'')+'" onclick="toggleV(\''+it.pmid+'\',\'star\')">'+(it.star?'★':'☆')+'</button>'
+        + '<a class="vc-act" href="'+pub+'" target="_blank" rel="noopener">PubMed</a>'
+        + (it.doi?'<a class="vc-act" href="https://doi.org/'+esc(it.doi)+'" target="_blank" rel="noopener">DOI</a>':'')
+      + '</div></div>';
+  }).join('');
+}
+
+function toggleV(pmid, field){
+  const it=VEILLE_ITEMS.find(function(x){return x.pmid===pmid;});
+  if(!it) return;
+  const val=!it[field];
+  it[field]=val;
+  renderVeille();
+  apiPost({action:'markVeille', pmid:pmid, field:field, value:val}).catch(function(){});
 }
 
 function renderToposList(data){
