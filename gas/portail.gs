@@ -16,6 +16,7 @@ function portailRoute(action, payload, user) {
   switch (action) {
     case 'listTopos': return _portailJson(listTopos());
     case 'getTopo':   return _portailJson(getTopo(payload && payload.id));
+    case 'listStaffs': return _portailJson(listStaffs());
     default:          return null;   // pas une action portail → doGet continue
   }
 }
@@ -132,4 +133,89 @@ function testPortail() {
     Logger.log('  • ' + t.title + ' (' + t.docs.length + ' doc' + (t.docs.length > 1 ? 's' : '') + ')');
   });
   Logger.log('✅ testPortail OK — dépose tes PDF dans le dossier ci-dessus, puis relance pour vérifier.');
+}
+
+
+// ══════════════════════════════════════════════════════════════════════
+//  STAFFS À VENIR
+//  Source = onglet STAFFS du classeur (1 ligne = 1 staff). Auto-créé avec
+//  ses en-têtes s'il manque. Seuls les staffs à venir (date >= aujourd'hui)
+//  sont renvoyés, triés du plus proche au plus lointain.
+//  Colonnes : DATE | HEURE | THÈME | INTERVENANT | LIEU
+//  (seules DATE + THÈME sont requises ; HEURE/INTERVENANT/LIEU facultatives)
+// ══════════════════════════════════════════════════════════════════════
+
+const STAFFS_TAB = 'STAFFS';
+
+function getOrCreateStaffsTab() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(STAFFS_TAB);
+  if (!sh) {
+    sh = ss.insertSheet(STAFFS_TAB);
+    sh.getRange(1, 1, 1, 5).setValues([['DATE', 'HEURE', 'THÈME', 'INTERVENANT', 'LIEU']]);
+    sh.getRange(1, 1, 1, 5).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(3, 320);
+  }
+  return sh;
+}
+
+// Normalise une valeur de cellule (Date OU texte) en 'yyyy-MM-dd'. Gère les
+// formats FR (jj/mm/aaaa, jj-mm-aa…). Renvoie '' si non interprétable.
+function _staffDate(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const s = String(v || '').trim();
+  if (!s) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if (m) {
+    let d = m[1], mo = m[2], y = m[3];
+    if (y.length === 2) y = '20' + y;
+    return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+  const d2 = new Date(s);
+  return isNaN(d2.getTime()) ? '' : Utilities.formatDate(d2, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+function _staffTabUrl(sh) {
+  return SpreadsheetApp.getActiveSpreadsheet().getUrl() + '#gid=' + sh.getSheetId();
+}
+
+function listStaffs() {
+  const sh = getOrCreateStaffsTab();
+  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const data = sh.getDataRange().getValues();
+  const staffs = [];
+  for (let r = 1; r < data.length; r++) {
+    const iso = _staffDate(data[r][0]);
+    if (!iso) continue;                                   // pas de date valide → ignoré
+    const theme = String(data[r][2] || '').trim();
+    const interv = String(data[r][3] || '').trim();
+    if (!theme && !interv) continue;                      // ligne vide → ignorée
+    if (iso < today) continue;                            // staff passé → masqué
+    staffs.push({
+      date:        iso,
+      heure:       String(data[r][1] || '').trim(),
+      theme:       theme,
+      intervenant: interv,
+      lieu:        String(data[r][4] || '').trim(),
+    });
+  }
+  staffs.sort(function (a, b) {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    return String(a.heure).localeCompare(String(b.heure));
+  });
+  return { success: true, tabUrl: _staffTabUrl(sh), count: staffs.length, staffs: staffs };
+}
+
+// ── À exécuter UNE FOIS dans l'éditeur après recopie ──
+// Crée l'onglet STAFFS s'il manque et journalise son URL + les staffs à venir.
+function testStaffs() {
+  const r = listStaffs();
+  Logger.log('🗓️ Onglet STAFFS : ' + r.tabUrl);
+  Logger.log('📋 Staffs à venir : ' + r.count);
+  r.staffs.forEach(function (s) {
+    Logger.log('  • ' + s.date + (s.heure ? ' ' + s.heure : '') + ' — ' + s.theme + (s.intervenant ? ' (' + s.intervenant + ')' : ''));
+  });
+  Logger.log('✅ testStaffs OK — remplis l\'onglet STAFFS (1 ligne = 1 staff), puis relance.');
 }
