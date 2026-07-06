@@ -736,20 +736,6 @@ function doGet(e) {
         success: true, status: getPlanningStatus()
       })).setMimeType(ContentService.MimeType.JSON);
     }
-    if (action === 'getArchivedYears') {
-      if (user.role !== 'admin') return _deny();
-      const years = new Set();
-      const fit = DriveApp.getFoldersByName(DRIVE_JSON_FOLDER);
-      while (fit.hasNext()) {
-        const files = fit.next().getFiles();
-        while (files.hasNext()) {
-          const m = files.next().getName().match(/^stats_(\d{4})\.json$/);
-          if (m) years.add(Number(m[1]));
-        }
-      }
-      return ContentService.createTextOutput(JSON.stringify({ success:true, years:[...years].sort() }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
     if (action === 'getStatsLive') {
       const statsYear = Number(payload.year) || TEST_YEAR;
       try {
@@ -832,7 +818,7 @@ function doGet(e) {
     if (action === 'getStats') {
   if (user.role !== 'admin') return _deny();
   const statsYear = Number(payload.year) || TEST_YEAR;
-  const ss = _ssWithSheet(`STATS_GARDES_${statsYear}`) || SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(`STATS_GARDES_${statsYear}`);
   if (!sheet) return _error(`Onglet STATS_GARDES_${statsYear} introuvable`);
       const data = sheet.getDataRange().getValues();
@@ -2549,6 +2535,14 @@ if (action === 'setDailyStatus') {
       logAction(`poserAbsenceLongue — ${marId} ${d1} -> ${d2} : ${nbCL} j CL, ${freed.length} garde(s) liberee(s)${deferred.length ? ', reporté: ' + deferred.join('/') : ''}`);
       return ContentService.createTextOutput(JSON.stringify({ success: true, marId, nbCL, freed, touched, deferred }))
         .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ── Délégation PORTAIL (portail.gs) ──────────────────────────────
+    // Toute action NON planning (Topos, Staffs, CRH) est routée vers
+    // portail.gs. Garde `typeof` = filet : si portail.gs n'est pas (encore)
+    // recopié, le planning tourne quand même, rien ne casse.
+    if (typeof portailRoute === 'function') {
+      const _pOut = portailRoute(action, payload, user);
+      if (_pOut) return _pOut;
     }
     return ContentService.createTextOutput(JSON.stringify({success:false, error:'Action inconnue'}))
       .setMimeType(ContentService.MimeType.JSON);
