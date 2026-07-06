@@ -168,6 +168,18 @@ a.tile:hover, .tile.clickable:hover {
 .topos-loading, .topos-empty { text-align:center; padding:48px 20px; color:var(--ink-3); font-size:14px; line-height:1.6; }
 .topos-empty span { font-size:12.5px; color:var(--ink-4); }
 
+/* ── VUE STAFFS ── */
+.staff-card { display:flex; gap:14px; align-items:flex-start; background:var(--white); border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-bottom:12px; }
+.staff-date { flex-shrink:0; width:60px; text-align:center; background:var(--me-soft); border-radius:10px; padding:8px 6px; }
+.staff-dow { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--me); }
+.staff-dnum { font-size:22px; font-weight:800; line-height:1.05; color:var(--ink); }
+.staff-month { font-size:11px; color:var(--me); font-weight:600; }
+.staff-body { flex:1; min-width:0; padding-top:2px; }
+.staff-theme { font-size:15px; font-weight:700; color:var(--ink); line-height:1.35; }
+.staff-meta { font-size:13px; color:var(--ink-3); margin-top:5px; display:flex; flex-wrap:wrap; gap:3px 14px; }
+.staff-meta span { display:inline-flex; align-items:center; gap:5px; }
+.staff-meta svg { width:14px; height:14px; color:var(--ink-4); flex-shrink:0; }
+
 /* Barre de chargement API (fine, en haut) */
 #apiBar{position:fixed;top:0;left:0;height:2px;width:0;background:var(--red);z-index:9998;transition:width .3s ease,opacity .3s ease;opacity:0}
 #apiBar.on{width:80%;opacity:1}
@@ -229,6 +241,14 @@ a.tile:hover, .tile.clickable:hover {
       <span class="topos-count" id="toposCount"></span>
     </div>
     <div id="toposList"></div>
+  </div>
+  <div id="staffsView" style="display:none">
+    <div class="topos-head">
+      <button class="btn-back" onclick="backToHome()"><i data-lucide="arrow-left" style="width:16px;height:16px"></i> Retour</button>
+      <h2>Staffs à venir</h2>
+      <span class="topos-count" id="staffsCount"></span>
+    </div>
+    <div id="staffsList"></div>
   </div>
 </div>
 
@@ -311,7 +331,7 @@ function logout(){
 const TILES = [
   { key:'planning', title:'Planning', sub:'Gardes, secteurs, consultations et équité.', icon:'calendar-days', href:'index.html', ready:true },
   { key:'topos',    title:'Topos / biblio', sub:'Documents et présentations du service.', icon:'book-open', view:'topos', ready:true },
-  { key:'staffs',   title:'Staffs à venir', sub:'Programme des réunions et intervenants.', icon:'presentation', ready:false },
+  { key:'staffs',   title:'Staffs à venir', sub:'Programme des réunions et intervenants.', icon:'presentation', view:'staffs', ready:true },
 ];
 function renderTiles(){
   const box = document.getElementById('tiles');
@@ -339,7 +359,7 @@ function showPortal(){
 }
 
 // ── VUE TOPOS ──
-function openView(v){ if(v==='topos') openTopos(); }
+function openView(v){ if(v==='topos') openTopos(); else if(v==='staffs') openStaffs(); }
 function fmtDate(s){ if(!s) return ''; const p=String(s).split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : s; }
 function fmtSize(b){ b=Number(b)||0; if(b<1024) return b+' o'; if(b<1048576) return Math.round(b/1024)+' Ko'; return (b/1048576).toFixed(1)+' Mo'; }
 
@@ -357,7 +377,49 @@ async function openTopos(){
 }
 function backToHome(){
   document.getElementById('toposView').style.display='none';
+  document.getElementById('staffsView').style.display='none';
   document.getElementById('tilesView').style.display='block';
+}
+
+// ── VUE STAFFS ──
+const _JOURS=['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'];
+const _MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+function staffDateParts(iso){
+  const p=String(iso).split('-'); const d=new Date(+p[0], (+p[1])-1, +p[2]);
+  return { dow:_JOURS[d.getDay()], dnum:(+p[2]), month:_MOIS[(+p[1])-1] };
+}
+async function openStaffs(){
+  document.getElementById('tilesView').style.display='none';
+  document.getElementById('staffsView').style.display='block';
+  document.getElementById('staffsCount').textContent='';
+  const box=document.getElementById('staffsList');
+  box.innerHTML='<div class="topos-loading">Chargement…</div>';
+  try{
+    const r=await apiPost({action:'listStaffs'});
+    if(r && r.success){ renderStaffsList(r); }
+    else { box.innerHTML='<div class="topos-empty">'+esc((r&&r.error)||'Erreur de chargement')+'</div>'; }
+  }catch(e){ box.innerHTML='<div class="topos-empty">Erreur réseau — réessayez.</div>'; }
+}
+function renderStaffsList(data){
+  document.getElementById('staffsCount').textContent = data.count ? (data.count + ' à venir') : '';
+  const box=document.getElementById('staffsList');
+  if(!data.staffs || !data.staffs.length){
+    box.innerHTML='<div class="topos-empty">Aucun staff à venir.<br><span>Ajoutez une ligne dans l\'onglet STAFFS du Sheet pour la voir apparaître ici.</span></div>';
+    return;
+  }
+  box.innerHTML = data.staffs.map(function(s){
+    const dp=staffDateParts(s.date);
+    const meta=[];
+    if(s.heure)       meta.push('<span><i data-lucide="clock"></i>'+esc(s.heure)+'</span>');
+    if(s.intervenant) meta.push('<span><i data-lucide="user"></i>'+esc(s.intervenant)+'</span>');
+    if(s.lieu)        meta.push('<span><i data-lucide="map-pin"></i>'+esc(s.lieu)+'</span>');
+    return '<div class="staff-card">'
+      + '<div class="staff-date"><div class="staff-dow">'+dp.dow+'</div><div class="staff-dnum">'+dp.dnum+'</div><div class="staff-month">'+dp.month+'</div></div>'
+      + '<div class="staff-body"><div class="staff-theme">'+esc(s.theme)+'</div>'
+      + (meta.length ? '<div class="staff-meta">'+meta.join('')+'</div>' : '')
+      + '</div></div>';
+  }).join('');
+  if(window.lucide) lucide.createIcons();
 }
 
 function renderToposList(data){
