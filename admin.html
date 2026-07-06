@@ -5009,7 +5009,7 @@ async function renderWizCStep() {
     const nextY = YEAR + 1;
     let html = '<div class="wizard-section-title">V\xe9rification de l\'ann\xe9e ' + nextY + '</div>';
     let planningData = null;
-    try { planningData = await fetch('./planning_' + nextY + '.json?' + Date.now()).then(r => r.json()); } catch(e) {}
+    try { const _r = await api({action:'getPlanningJson', year: nextY}); if (_r && _r.success && _r.planning) planningData = _r.planning; } catch(e) {}
     // Gardes attribuées : months[].doctors[].days[].status === 'G' / 'G2'
     const months = (planningData && Array.isArray(planningData.months)) ? planningData.months : [];
     let nbGardes = 0;
@@ -5843,7 +5843,8 @@ async function renderWizDStep() {
     if (wizDGardes === null) {
       const list = [];
       try {
-        const planning = await fetch('./planning_' + YEAR + '.json?' + Date.now()).then(r => r.json());
+        const _pjr = await api({action:'getPlanningJson', year: YEAR});
+        const planning = (_pjr && _pjr.success && _pjr.planning) ? _pjr.planning : {};
         const today = new Date().toISOString().slice(0,10);
         (planning.months || []).forEach(month => {
           (month.doctors || []).forEach(doc => {
@@ -6000,7 +6001,7 @@ async function openRotationLib(){
   try{ const r=await api({action:'getAffectations', year:y}); ROT.aff=(r&&r.success)?(r.affectations||{}):{}; }catch(e){ ROT.aff={}; }
   ROT.busy={};
   try{
-    const pj=await fetch('./planning_'+y+'.json?'+Date.now()).then(r=>r.json());
+    const _pjr=await api({action:'getPlanningJson', year:y}); const pj=(_pjr&&_pjr.success&&_pjr.planning)?_pjr.planning:{};
     const BUSY=new Set(['G','G2','RG','18','V','I','F','A','CP','R','E','TP','CL']);
     const initToId={}; (marsData||[]).forEach(m=>{ initToId[m.initiales]=m.id; });
     (pj.months||[]).forEach(mo=>{ (mo.doctors||[]).forEach(doc=>{ const id=doc.id||initToId[doc.initials]; if(!id) return; (doc.days||[]).forEach((entry,di)=>{ const date=mo.days[di]&&mo.days[di].date; if(!date) return; if(BUSY.has((entry&&entry.status)||'')) (ROT.busy[id]=ROT.busy[id]||{})[date]=true; }); }); });
