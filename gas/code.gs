@@ -906,23 +906,62 @@ function _getDriveJsonFolder() {
   return it.hasNext() ? it.next() : DriveApp.createFolder(DRIVE_JSON_FOLDER);
 }
 
-function savePlanningToDrive(fileName, content) {
-  const folder = _getDriveJsonFolder();
-  const it = folder.getFilesByName(fileName);
-  if (it.hasNext()) {
-    it.next().setContent(content);
-  } else {
-    folder.createFile(fileName, content, 'application/json');
+// Tous les fichiers de ce nom situés dans UN dossier nommé DRIVE_JSON_FOLDER
+// (gère les doublons de dossier ET de fichier — Drive les autorise).
+function _jsonFilesByName_(fileName) {
+  const out = [];
+  const it = DriveApp.getFilesByName(fileName);
+  while (it.hasNext()) {
+    const f = it.next();
+    if (f.isTrashed && f.isTrashed()) continue;
+    const ps = f.getParents();
+    let inFolder = false;
+    while (ps.hasNext()) { if (ps.next().getName() === DRIVE_JSON_FOLDER) { inFolder = true; break; } }
+    if (inFolder) out.push(f);
   }
-  Logger.log(`✅ ${fileName} rangé dans Drive (${DRIVE_JSON_FOLDER})`);
+  out.sort((a, b) => b.getLastUpdated() - a.getLastUpdated()); // plus récent d'abord
+  return out;
+}
+
+function savePlanningToDrive(fileName, content) {
+  const files = _jsonFilesByName_(fileName);
+  if (files.length) {
+    files[0].setContent(content);                              // met à jour le plus récent
+    for (let i = 1; i < files.length; i++) files[i].setTrashed(true); // dédoublonne les anciens
+  } else {
+    _getDriveJsonFolder().createFile(fileName, content, 'application/json');
+  }
+  Logger.log(`✅ ${fileName} rangé dans Drive (${DRIVE_JSON_FOLDER}) — ${files.length} copie(s) préexistante(s)` + (files.length > 1 ? `, ${files.length - 1} ancienne(s) mise(s) à la corbeille` : ''));
 }
 
 function readPlanningFromDrive(fileName) {
-  const folder = _getDriveJsonFolder();
-  const it = folder.getFilesByName(fileName);
-  if (!it.hasNext()) return null;
-  return it.next().getBlob().getDataAsString();
+  const files = _jsonFilesByName_(fileName);
+  if (!files.length) return null;
+  return files[0].getBlob().getDataAsString();               // lit toujours le plus récent
 }
+
+// ── DIAGNOSTIC : état des dossiers/fichiers JSON dans le Drive ──
+// À lancer depuis l'éditeur Apps Script ; lire le journal (Ctrl+Entrée).
+function diagDriveJson() {
+  let nbFolders = 0;
+  const fit = DriveApp.getFoldersByName(DRIVE_JSON_FOLDER);
+  while (fit.hasNext()) { const f = fit.next(); nbFolders++; Logger.log(`📁 Dossier "${DRIVE_JSON_FOLDER}" #${nbFolders} — id=${f.getId()}`); }
+  Logger.log(`→ ${nbFolders} dossier(s) nommé(s) "${DRIVE_JSON_FOLDER}"` + (nbFolders > 1 ? ' ⚠️ DOUBLON' : ''));
+  ['planning_2026.json', 'planning_2027.json', 'affectations_2027.json'].forEach(name => {
+    const files = _jsonFilesByName_(name);
+    Logger.log(`\n📄 ${name} : ${files.length} copie(s)` + (files.length > 1 ? ' ⚠️ DOUBLON' : ''));
+    files.forEach((f, i) => {
+      let nbG = 0;
+      try {
+        const j = JSON.parse(f.getBlob().getDataAsString());
+        (j.months || []).forEach(mo => (mo.doctors || []).forEach(d => (d.days || []).forEach(day => { if (day && (day.status === 'G' || day.status === 'G2')) nbG++; })));
+      } catch (e) {}
+      Logger.log(`   #${i} maj=${f.getLastUpdated().toISOString()} taille=${f.getSize()}o gardes=${nbG} id=${f.getId()}`);
+    });
+  });
+}
+
+
 
 // À exécuter UNE FOIS dans l'éditeur Apps Script après recopie :
 // déclenche l'autorisation Drive + vérifie écriture/lecture.
