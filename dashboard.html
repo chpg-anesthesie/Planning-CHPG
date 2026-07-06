@@ -195,6 +195,7 @@ a.tile:hover, .tile.clickable:hover {
 .vc-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
 .vc-badge.revue{background:var(--me-soft);color:var(--me)}
 .vc-badge.theme{background:var(--viol-soft);color:var(--viol)}
+.vc-badge.general{background:var(--amber-soft);color:var(--amber)}
 .vc-badge.new{background:var(--red-soft);color:var(--red)}
 .vc-score{font-size:12px;font-weight:800;color:var(--ok);background:var(--ok-soft);border-radius:8px;padding:2px 8px}
 .vc-date{font-size:12px;color:var(--ink-4);font-weight:600}
@@ -294,6 +295,7 @@ a.tile:hover, .tile.clickable:hover {
       <select class="vsel" onchange="onVSource(this.value)">
         <option value="">Toutes sources</option>
         <option value="REVUE">Revues cœur</option>
+        <option value="GENERAL">Généralistes</option>
         <option value="THEME">Thèmes</option>
       </select>
       <input class="vsearch" type="search" placeholder="Filtrer par titre, auteur, revue…" oninput="onVSearch(this.value)">
@@ -537,7 +539,9 @@ function renderVeille(){
     const isNew = V_SEEN && it.ajoute && it.ajoute>V_SEEN;
     const srcBadge = it.source==='THEME'
       ? '<span class="vc-badge theme">Thème</span>'
-      : '<span class="vc-badge revue">Revue cœur</span>';
+      : (it.source==='GENERAL'
+          ? '<span class="vc-badge general">Généraliste</span>'
+          : '<span class="vc-badge revue">Revue cœur</span>');
     const right = (it.score!=null?'<span class="vc-score">'+it.score+'</span>':'')
                 + '<span class="vc-date">'+fmtDate(it.date)+'</span>';
     const pub='https://pubmed.ncbi.nlm.nih.gov/'+encodeURIComponent(it.pmid)+'/';
