@@ -44,9 +44,18 @@ function buildStats2026() {
   SpreadsheetApp.getUi().alert(`✅ STATS_GARDES_${year} reconstruit (${rows.length} MARs)`);
 }
 
+// Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
+// sinon le classeur d'archive (année clôturée dont les onglets ont été déplacés).
+function _ssWithSheet(sheetName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (ss.getSheetByName(sheetName)) return ss;
+  try { const arch = SpreadsheetApp.openById(ARCHIVE_SS_ID); if (arch.getSheetByName(sheetName)) return arch; } catch (e) {}
+  return null;
+}
+
 // ── Stats LIVE : recalcule depuis GARDES_YYYY (échanges/dons inclus), cibles lues dans STATS_GARDES ──
 function computeStatsLive(year) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = _ssWithSheet(`GARDES_${year}`) || SpreadsheetApp.getActiveSpreadsheet();
   const gardes = ss.getSheetByName(`GARDES_${year}`);
   if (!gardes) throw new Error(`GARDES_${year} introuvable`);
   const data = gardes.getDataRange().getValues();

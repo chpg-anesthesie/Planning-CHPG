@@ -736,6 +736,20 @@ function doGet(e) {
         success: true, status: getPlanningStatus()
       })).setMimeType(ContentService.MimeType.JSON);
     }
+    if (action === 'getArchivedYears') {
+      if (user.role !== 'admin') return _deny();
+      const years = new Set();
+      const fit = DriveApp.getFoldersByName(DRIVE_JSON_FOLDER);
+      while (fit.hasNext()) {
+        const files = fit.next().getFiles();
+        while (files.hasNext()) {
+          const m = files.next().getName().match(/^stats_(\d{4})\.json$/);
+          if (m) years.add(Number(m[1]));
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({ success:true, years:[...years].sort() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     if (action === 'getStatsLive') {
       const statsYear = Number(payload.year) || TEST_YEAR;
       try {
@@ -818,7 +832,7 @@ function doGet(e) {
     if (action === 'getStats') {
   if (user.role !== 'admin') return _deny();
   const statsYear = Number(payload.year) || TEST_YEAR;
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = _ssWithSheet(`STATS_GARDES_${statsYear}`) || SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(`STATS_GARDES_${statsYear}`);
   if (!sheet) return _error(`Onglet STATS_GARDES_${statsYear} introuvable`);
       const data = sheet.getDataRange().getValues();

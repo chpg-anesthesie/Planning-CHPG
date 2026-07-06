@@ -1035,7 +1035,7 @@ if (sessionStorage.getItem('adminCode')) {
   <div class="header-brand">
     <div class="header-flag"><div class="flag-top"></div><div class="flag-bot"></div></div>
     <div>
-      <div class="header-title">Planning CHPG Monaco <span style="font-size:10px;font-weight:600;color:#16a34a;background:#dcfce7;border-radius:4px;padding:1px 5px;margin-left:4px" title="Version du frontend">build 07-06b</span></div>
+      <div class="header-title">Planning CHPG Monaco <span style="font-size:10px;font-weight:600;color:#16a34a;background:#dcfce7;border-radius:4px;padding:1px 5px;margin-left:4px" title="Version du frontend">build 07-06c</span></div>
       <div class="header-sub" style="display:flex;align-items:center;gap:8px">
         Administration ·
         <div class="year-picker solo" id="yearPicker">
@@ -2074,18 +2074,15 @@ async function detectAvailableYears() {
   if (nextYearAvailable) {
     availableYears.push({ year: YEAR + 1, label: (YEAR + 1) + ' — N+1', readonly: false, status: 'n1' });
   }
-  // Tester toutes les années archivées depuis le démarrage du projet (en parallèle, silencieux si 404)
-  const ARCHIVE_FLOOR = 2025;
-  const pastYears = [];
-  for (let y = YEAR - 1; y >= ARCHIVE_FLOOR; y--) pastYears.push(y);
-  const checks = await Promise.allSettled(pastYears.map(y =>
-    fetchTimeout(`./archives/stats_${y}.json?t=${Date.now()}`, {}, 5000).then(rs => ({ y, ok: rs.ok }))
-  ));
-  checks.forEach(r => {
-    if (r.status === 'fulfilled' && r.value.ok) {
-      availableYears.push({ year: r.value.y, label: r.value.y + ' — archivé', readonly: true, status: 'archive' });
+  // Années archivées : lues depuis le Drive privé (stats_YYYY.json), plus de fichier statique Pages
+  try {
+    const r = await api({ action: 'getArchivedYears' });
+    if (r && r.success && Array.isArray(r.years)) {
+      r.years.filter(y => y < YEAR).sort((a, b) => b - a).forEach(y => {
+        availableYears.push({ year: y, label: y + ' — archivé', readonly: true, status: 'archive' });
+      });
     }
-  });
+  } catch (e) {}
   buildYearSelector();
 }
 
