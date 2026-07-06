@@ -225,20 +225,21 @@ function testStaffs() {
 
 // ══════════════════════════════════════════════════════════════════════
 //  VEILLE BIBLIOGRAPHIQUE (PubMed E-utilities)
-//  Deux onglets pilotent tout (contenu vivant, code figé) :
-//   • VEILLE_CFG : revues cœur, thèmes MeSH, paramètres. Colonnes :
-//       TYPE | CLE | VALEUR | ACTIF
-//       - REVUE  : CLE=libellé,  VALEUR=nom journal PubMed → "VALEUR"[Journal]
-//       - THEME  : CLE=libellé,  VALEUR=fragment de requête PubMed (OR entre thèmes)
-//       - PARAM  : CLE=nom,      VALEUR=valeur   (JOURS, ENRICH, ENRICH_MAX, MODEL)
-//   • VEILLE : cache des articles (1 ligne = 1 article, clé = PMID). Colonnes :
-//       PMID | DATE_PUB | TITRE | AUTEURS | REVUE | DOI | SOURCE | SCORE | RESUME | LU | STAR | AJOUTE_LE
-//
-//  Le TRIGGER hebdo appelle runVeille() → interroge PubMed, dédoublonne par
-//  PMID, n'ajoute que le nouveau. getVeille() (appelé par le dashboard) lit
-//  juste l'onglet VEILLE → rapide. L'enrichissement IA (SCORE/RESUME) est
-//  volontairement DÉSACTIVÉ tant qu'aucune clé API Anthropic n'est posée :
-//  PARAM ENRICH=N. Les colonnes SCORE/RESUME restent vides d'ici là.
+//  Onglet VEILLE_CFG (colonnes TYPE | CLE | VALEUR | ACTIF) :
+//   • REVUE   : revue cœur AR → tout le solide de ces revues.
+//   • GENERAL : revue généraliste (NEJM, JAMA…) → CROISÉE avec les thèmes
+//               (un article ne remonte que s'il touche un thème AR).
+//   • THEME   : fragment de requête PubMed (OR entre thèmes), toutes revues.
+//   • PUBTYPE : type de publication PubMed conservé (whitelist). Option B =
+//               essais randomisés, méta-analyses, revues systématiques,
+//               recommandations. "Review" (mise au point) désactivé par défaut.
+//   • PARAM   : JOURS, HUMANS (O/N), LANGS (codes langue PubMed, ex "eng,fre"),
+//               ENRICH, ENRICH_MAX, MODEL.
+//  Les filtres PUBTYPE + HUMANS + LANGS s'appliquent à TOUTES les requêtes.
+//  Onglet VEILLE : cache (1 ligne = 1 article, clé = PMID). Colonnes :
+//   PMID | DATE_PUB | TITRE | AUTEURS | REVUE | DOI | SOURCE | SCORE | RESUME | LU | STAR | AJOUTE_LE
+//  Le trigger hebdo appelle runVeille() ; getVeille() (dashboard) lit le cache.
+//  Enrichissement IA (SCORE/RESUME) OFF tant que PARAM ENRICH=N.
 // ══════════════════════════════════════════════════════════════════════
 
 const VEILLE_CFG_TAB = 'VEILLE_CFG';
@@ -247,7 +248,45 @@ const EUTILS_BASE    = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/';
 const EUTILS_TOOL    = 'PlanningCHPG';
 const EUTILS_EMAIL   = 'planningchpg@gmail.com';
 
-// ── Onglets : création + pré-remplissage standard (idempotent) ──────────
+// Config standard AR — Arthur ajuste ensuite dans l'onglet.
+const VEILLE_DEFAULT_CFG = [
+  ['REVUE', 'Anesthesiology',            'Anesthesiology',              'O'],
+  ['REVUE', 'Br J Anaesth',              'Br J Anaesth',                'O'],
+  ['REVUE', 'Anaesthesia',               'Anaesthesia',                 'O'],
+  ['REVUE', 'Anesth Analg',              'Anesth Analg',                'O'],
+  ['REVUE', 'Intensive Care Med',        'Intensive Care Med',          'O'],
+  ['REVUE', 'Crit Care Med',             'Crit Care Med',               'O'],
+  ['REVUE', 'Crit Care',                 'Crit Care',                   'O'],
+  ['REVUE', 'Ann Intensive Care',        'Ann Intensive Care',          'O'],
+  ['REVUE', 'Anaesth Crit Care Pain Med','Anaesth Crit Care Pain Med',  'O'],
+  ['REVUE', 'Eur J Anaesthesiol',        'Eur J Anaesthesiol',          'O'],
+  ['GENERAL', 'N Engl J Med',            'N Engl J Med',                'O'],
+  ['GENERAL', 'JAMA',                    'JAMA',                        'O'],
+  ['GENERAL', 'Lancet',                  'Lancet',                      'O'],
+  ['GENERAL', 'BMJ',                     'BMJ',                         'O'],
+  ['THEME', 'Sepsis',                    '"sepsis"[MeSH Terms]',                           'O'],
+  ['THEME', 'Voies aériennes',           '"airway management"[MeSH Terms]',                'O'],
+  ['THEME', 'SDRA / ventilation',        '"respiratory distress syndrome"[MeSH Terms]',    'O'],
+  ['THEME', 'Délire post-op',            '"delirium"[MeSH Terms] AND "postoperative"[All Fields]', 'O'],
+  ['THEME', 'Monitorage hémodynamique',  '"hemodynamic monitoring"[MeSH Terms]',           'O'],
+  ['THEME', 'Anesthésie locorégionale',  '"anesthesia, conduction"[MeSH Terms]',           'O'],
+  ['THEME', 'Hémorragie / transfusion',  '"blood transfusion"[MeSH Terms] AND "hemorrhage"[MeSH Terms]', 'O'],
+  ['THEME', 'Arrêt cardiaque',           '"heart arrest"[MeSH Terms]',                     'O'],
+  ['PUBTYPE', 'Essai randomisé',         'Randomized Controlled Trial', 'O'],
+  ['PUBTYPE', 'Méta-analyse',            'Meta-Analysis',               'O'],
+  ['PUBTYPE', 'Revue systématique',      'Systematic Review',           'O'],
+  ['PUBTYPE', 'Recommandations',         'Practice Guideline',          'O'],
+  ['PUBTYPE', 'Recommandations (guide)', 'Guideline',                   'O'],
+  ['PUBTYPE', 'Revue / mise au point',   'Review',                      'N'],
+  ['PARAM', 'JOURS',       '30',                 'O'],
+  ['PARAM', 'HUMANS',      'O',                  'O'],
+  ['PARAM', 'LANGS',       'eng,fre',            'O'],
+  ['PARAM', 'ENRICH',      'N',                  'O'],
+  ['PARAM', 'ENRICH_MAX',  '60',                 'O'],
+  ['PARAM', 'MODEL',       'claude-haiku-4-5',   'O'],
+];
+
+// ── Onglets : création + pré-remplissage + migration idempotente ────────
 function getOrCreateVeilleTabs() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -260,6 +299,7 @@ function getOrCreateVeilleTabs() {
     cfg.setColumnWidth(3, 360);
     cfg.getRange(2, 1, VEILLE_DEFAULT_CFG.length, 4).setValues(VEILLE_DEFAULT_CFG);
   }
+  _ensureVeilleCfgRows(cfg);   // complète un onglet préexistant (généralistes, pubtypes, params)
 
   let v = ss.getSheetByName(VEILLE_TAB);
   if (!v) {
@@ -275,37 +315,26 @@ function getOrCreateVeilleTabs() {
   return { cfg: cfg, veille: v };
 }
 
-// Config standard AR — Arthur ajuste ensuite dans l'onglet.
-const VEILLE_DEFAULT_CFG = [
-  ['REVUE', 'Anesthesiology',            'Anesthesiology',              'O'],
-  ['REVUE', 'Br J Anaesth',              'Br J Anaesth',                'O'],
-  ['REVUE', 'Anaesthesia',               'Anaesthesia',                 'O'],
-  ['REVUE', 'Anesth Analg',              'Anesth Analg',                'O'],
-  ['REVUE', 'Intensive Care Med',        'Intensive Care Med',          'O'],
-  ['REVUE', 'Crit Care Med',             'Crit Care Med',               'O'],
-  ['REVUE', 'Crit Care',                 'Crit Care',                   'O'],
-  ['REVUE', 'Ann Intensive Care',        'Ann Intensive Care',          'O'],
-  ['REVUE', 'Anaesth Crit Care Pain Med','Anaesth Crit Care Pain Med',  'O'],
-  ['REVUE', 'Eur J Anaesthesiol',        'Eur J Anaesthesiol',          'O'],
-  ['THEME', 'Sepsis',                    '"sepsis"[MeSH Terms]',                           'O'],
-  ['THEME', 'Voies aériennes',           '"airway management"[MeSH Terms]',                'O'],
-  ['THEME', 'SDRA / ventilation',        '"respiratory distress syndrome"[MeSH Terms]',    'O'],
-  ['THEME', 'Délire post-op',            '"delirium"[MeSH Terms] AND "postoperative"[All Fields]', 'O'],
-  ['THEME', 'Monitorage hémodynamique',  '"hemodynamic monitoring"[MeSH Terms]',           'O'],
-  ['THEME', 'Anesthésie locorégionale',  '"anesthesia, conduction"[MeSH Terms]',           'O'],
-  ['THEME', 'Hémorragie / transfusion',  '"blood transfusion"[MeSH Terms] AND "hemorrhage"[MeSH Terms]', 'O'],
-  ['THEME', 'Arrêt cardiaque',           '"heart arrest"[MeSH Terms]',                     'O'],
-  ['PARAM', 'JOURS',       '30',                 'O'],
-  ['PARAM', 'ENRICH',      'N',                  'O'],
-  ['PARAM', 'ENRICH_MAX',  '60',                 'O'],
-  ['PARAM', 'MODEL',       'claude-haiku-4-5',   'O'],
-];
+// Ajoute les lignes de config par défaut manquantes (clé = TYPE|CLE), sans
+// toucher l'existant (les ACTIF=N choisis par Arthur sont préservés).
+function _ensureVeilleCfgRows(cfg) {
+  const data = cfg.getDataRange().getValues();
+  const seen = {};
+  for (let r = 1; r < data.length; r++) {
+    seen[String(data[r][0] || '').trim().toUpperCase() + '|' + String(data[r][1] || '').trim().toUpperCase()] = true;
+  }
+  const missing = VEILLE_DEFAULT_CFG.filter(function (row) {
+    return !seen[String(row[0]).toUpperCase() + '|' + String(row[1]).toUpperCase()];
+  });
+  if (missing.length) cfg.getRange(cfg.getLastRow() + 1, 1, missing.length, 4).setValues(missing);
+  return missing.length;
+}
 
 // ── Lecture de la config ────────────────────────────────────────────────
 function _readVeilleCfg() {
   const cfg = getOrCreateVeilleTabs().cfg;
   const data = cfg.getDataRange().getValues();
-  const revues = [], themes = [], params = {};
+  const revues = [], general = [], themes = [], pubtypes = [], params = {};
   for (let r = 1; r < data.length; r++) {
     const type   = String(data[r][0] || '').trim().toUpperCase();
     const cle    = String(data[r][1] || '').trim();
@@ -314,10 +343,12 @@ function _readVeilleCfg() {
     if (!type) continue;
     if (type === 'PARAM') { params[cle.toUpperCase()] = valeur; continue; }
     if (!actif || !valeur) continue;
-    if (type === 'REVUE') revues.push({ cle: cle || valeur, valeur: valeur });
-    if (type === 'THEME') themes.push({ cle: cle || valeur, valeur: valeur });
+    if (type === 'REVUE')   revues.push(valeur);
+    if (type === 'GENERAL') general.push(valeur);
+    if (type === 'THEME')   themes.push(valeur);
+    if (type === 'PUBTYPE') pubtypes.push(valeur);
   }
-  return { revues: revues, themes: themes, params: params };
+  return { revues: revues, general: general, themes: themes, pubtypes: pubtypes, params: params };
 }
 
 // ── Appels PubMed ────────────────────────────────────────────────────────
@@ -325,13 +356,10 @@ function _eutils(endpoint, query) {
   const url = EUTILS_BASE + endpoint + '?' + query +
               '&tool=' + EUTILS_TOOL + '&email=' + encodeURIComponent(EUTILS_EMAIL);
   const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-  if (res.getResponseCode() !== 200) {
-    throw new Error('PubMed ' + endpoint + ' HTTP ' + res.getResponseCode());
-  }
+  if (res.getResponseCode() !== 200) throw new Error('PubMed ' + endpoint + ' HTTP ' + res.getResponseCode());
   return JSON.parse(res.getContentText());
 }
 
-// esearch : renvoie la liste des PMID pour un term + fenêtre de JOURS.
 function _esearch(term, jours) {
   if (!term) return [];
   const q = 'db=pubmed&retmode=json&retmax=200&sort=date' +
@@ -341,7 +369,6 @@ function _esearch(term, jours) {
   return (json && json.esearchresult && json.esearchresult.idlist) || [];
 }
 
-// esummary : métadonnées pour un lot de PMID (max ~200).
 function _esummary(pmids) {
   if (!pmids.length) return {};
   const json = _eutils('esummary.fcgi', 'db=pubmed&retmode=json&id=' + pmids.join(','));
@@ -350,8 +377,7 @@ function _esummary(pmids) {
 
 function _fmtAuthors(authors) {
   if (!authors || !authors.length) return '';
-  const names = authors.filter(function (a) { return a && a.name; })
-                       .map(function (a) { return a.name; });
+  const names = authors.filter(function (a) { return a && a.name; }).map(function (a) { return a.name; });
   if (!names.length) return '';
   return names.length <= 3 ? names.join(', ') : names.slice(0, 3).join(', ') + ' et al.';
 }
@@ -359,13 +385,10 @@ function _fmtAuthors(authors) {
 function _extractDoi(obj) {
   if (obj.articleids) {
     for (let i = 0; i < obj.articleids.length; i++) {
-      if (String(obj.articleids[i].idtype).toLowerCase() === 'doi') {
-        return String(obj.articleids[i].value || '').trim();
-      }
+      if (String(obj.articleids[i].idtype).toLowerCase() === 'doi') return String(obj.articleids[i].value || '').trim();
     }
   }
-  const el = String(obj.elocationid || '');
-  const m = el.match(/10\.\d{4,}\/\S+/);
+  const m = String(obj.elocationid || '').match(/10\.\d{4,}\/\S+/);
   return m ? m[0] : '';
 }
 
@@ -373,46 +396,51 @@ function _fmtPubDate(obj) {
   const raw = String(obj.sortpubdate || obj.epubdate || obj.pubdate || '').trim();
   if (!raw) return '';
   const m = raw.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})/);
-  if (m) return m[1] + '-' + m[2] + '-' + m[3];
-  return raw;   // "2026 Jul" etc. — laissé lisible tel quel
+  return m ? (m[1] + '-' + m[2] + '-' + m[3]) : raw;
 }
 
-// ── RUN hebdo : PubMed → dédoublonnage → append (appelé par le trigger) ──
-function runVeille() {
-  const tabs = getOrCreateVeilleTabs();
-  const sh   = tabs.veille;
-  const cfg  = _readVeilleCfg();
-  const jours = parseInt(cfg.params.JOURS, 10) || 30;
+// ── Filtres communs (type de publication + humains + langues) ───────────
+function _veilleFilters(cfg) {
+  const parts = [];
+  if (cfg.pubtypes.length)
+    parts.push('(' + cfg.pubtypes.map(function (p) { return '"' + p + '"[Publication Type]'; }).join(' OR ') + ')');
+  if (String(cfg.params.HUMANS || 'O').toUpperCase() === 'O')
+    parts.push('"humans"[MeSH Terms]');
+  const langs = String(cfg.params.LANGS || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  if (langs.length)
+    parts.push('(' + langs.map(function (l) { return l + '[la]'; }).join(' OR ') + ')');
+  return parts.join(' AND ');
+}
 
-  // PMID déjà connus (dédoublonnage)
+// ── RUN hebdo : 3 requêtes → dédoublonnage → append ─────────────────────
+function runVeille() {
+  const tabs  = getOrCreateVeilleTabs();
+  const sh    = tabs.veille;
+  const cfg   = _readVeilleCfg();
+  const jours = parseInt(cfg.params.JOURS, 10) || 30;
+  const filt  = _veilleFilters(cfg);
+  const withFilt = function (base) { return filt ? '(' + base + ') AND ' + filt : base; };
+  const orJournals = function (list) { return list.map(function (j) { return '"' + j + '"[Journal]'; }).join(' OR '); };
+  const orThemes   = function (list) { return list.map(function (t) { return '(' + t + ')'; }).join(' OR '); };
+
   const existing = {};
   const cur = sh.getDataRange().getValues();
-  for (let r = 1; r < cur.length; r++) {
-    const p = String(cur[r][0] || '').trim();
-    if (p) existing[p] = true;
-  }
+  for (let r = 1; r < cur.length; r++) { const p = String(cur[r][0] || '').trim(); if (p) existing[p] = true; }
 
-  // 1) revues cœur → un term OR ; 2) thèmes → un term OR. Tag SOURCE distinct.
-  const termRevues = cfg.revues.map(function (x) { return '"' + x.valeur + '"[Journal]'; }).join(' OR ');
-  const termThemes = cfg.themes.map(function (x) { return '(' + x.valeur + ')'; }).join(' OR ');
-
-  const source = {};   // pmid → 'REVUE' | 'THEME'
+  const source = {};   // pmid → REVUE | GENERAL | THEME (premier tag gagne)
   function collect(term, tag) {
     if (!term) return;
-    const ids = _esearch(term, jours);
-    ids.forEach(function (id) { if (!source[id]) source[id] = tag; });
-    Utilities.sleep(400);   // < 3 req/s, courtoisie NCBI
+    _esearch(term, jours).forEach(function (id) { if (!source[id]) source[id] = tag; });
+    Utilities.sleep(400);
   }
-  collect(termRevues, 'REVUE');
-  collect(termThemes, 'THEME');
+  if (cfg.revues.length) collect(withFilt(orJournals(cfg.revues)), 'REVUE');
+  if (cfg.general.length && cfg.themes.length)
+    collect(withFilt('(' + orJournals(cfg.general) + ') AND (' + orThemes(cfg.themes) + ')'), 'GENERAL');
+  if (cfg.themes.length) collect(withFilt(orThemes(cfg.themes)), 'THEME');
 
-  // Ne garder que les PMID nouveaux
   const nouveaux = Object.keys(source).filter(function (id) { return !existing[id]; });
-  if (!nouveaux.length) {
-    return { success: true, added: 0, scanned: Object.keys(source).length };
-  }
+  if (!nouveaux.length) return { success: true, added: 0, scanned: Object.keys(source).length };
 
-  // esummary par lots de 200
   const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   const rows = [];
   for (let i = 0; i < nouveaux.length; i += 200) {
@@ -422,30 +450,18 @@ function runVeille() {
       const o = res[pmid];
       if (!o || o.error) return;
       rows.push([
-        pmid,
-        _fmtPubDate(o),
-        String(o.title || '').replace(/\.$/, ''),
-        _fmtAuthors(o.authors),
-        String(o.source || o.fulljournalname || '').trim(),
-        _extractDoi(o),
-        source[pmid],
-        '',        // SCORE  (rempli par l'enrichissement IA, plus tard)
-        '',        // RESUME (idem)
-        'N',       // LU
-        'N',       // STAR
-        today,     // AJOUTE_LE
+        pmid, _fmtPubDate(o), String(o.title || '').replace(/\.$/, ''), _fmtAuthors(o.authors),
+        String(o.source || o.fulljournalname || '').trim(), _extractDoi(o), source[pmid],
+        '', '', 'N', 'N', today,
       ]);
     });
     Utilities.sleep(400);
   }
-
-  if (rows.length) {
-    sh.getRange(sh.getLastRow() + 1, 1, rows.length, 12).setValues(rows);
-  }
+  if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, 12).setValues(rows);
   return { success: true, added: rows.length, scanned: Object.keys(source).length };
 }
 
-// ── Lecture pour le dashboard (rapide : lit juste l'onglet) ─────────────
+// ── Lecture pour le dashboard ───────────────────────────────────────────
 function getVeille() {
   const tabs = getOrCreateVeilleTabs();
   const cfg  = _readVeilleCfg();
@@ -455,36 +471,22 @@ function getVeille() {
     const pmid = String(data[r][0] || '').trim();
     if (!pmid) continue;
     items.push({
-      pmid:    pmid,
-      date:    String(data[r][1] || ''),
-      titre:   String(data[r][2] || ''),
-      auteurs: String(data[r][3] || ''),
-      revue:   String(data[r][4] || ''),
-      doi:     String(data[r][5] || ''),
-      source:  String(data[r][6] || ''),
-      score:   data[r][7] === '' ? null : Number(data[r][7]),
-      resume:  String(data[r][8] || ''),
-      lu:      String(data[r][9]  || 'N').toUpperCase() === 'O',
-      star:    String(data[r][10] || 'N').toUpperCase() === 'O',
-      ajoute:  String(data[r][11] || ''),
+      pmid: pmid, date: String(data[r][1] || ''), titre: String(data[r][2] || ''),
+      auteurs: String(data[r][3] || ''), revue: String(data[r][4] || ''), doi: String(data[r][5] || ''),
+      source: String(data[r][6] || ''), score: data[r][7] === '' ? null : Number(data[r][7]),
+      resume: String(data[r][8] || ''), lu: String(data[r][9] || 'N').toUpperCase() === 'O',
+      star: String(data[r][10] || 'N').toUpperCase() === 'O', ajoute: String(data[r][11] || ''),
     });
   }
-  // Tri : score (desc, nuls en dernier) puis date (desc). En V1 sans IA, tous
-  // les scores sont nuls → tri effectif par date décroissante.
   items.sort(function (a, b) {
     const sa = a.score == null ? -1 : a.score, sb = b.score == null ? -1 : b.score;
     if (sa !== sb) return sb - sa;
     return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0);
   });
-  return {
-    success: true,
-    count: items.length,
-    enrich: String(cfg.params.ENRICH || 'N').toUpperCase() === 'O',
-    items: items,
-  };
+  return { success: true, count: items.length, enrich: String(cfg.params.ENRICH || 'N').toUpperCase() === 'O', items: items };
 }
 
-// ── Marquage lu / favori (toggle depuis le dashboard) ───────────────────
+// ── Marquage lu / favori ────────────────────────────────────────────────
 function markVeille(pmid, field, value) {
   pmid = String(pmid || '').trim();
   const col = field === 'star' ? 11 : (field === 'lu' ? 10 : 0);
@@ -505,18 +507,33 @@ function installVeilleTrigger() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'runVeille') ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger('runVeille')
-    .timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(6).create();
+  ScriptApp.newTrigger('runVeille').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(6).create();
   Logger.log('⏰ Trigger hebdo posé : runVeille, lundi ~06h.');
 }
 
-// ── À lancer UNE FOIS après recopie : crée les onglets, fait un 1er run ──
+// ── Vider le cache VEILLE (garde l'en-tête) — pour repartir propre ───────
+function resetVeille() {
+  const sh = getOrCreateVeilleTabs().veille;
+  const last = sh.getLastRow();
+  if (last > 1) sh.getRange(2, 1, last - 1, sh.getLastColumn()).clearContent();
+  Logger.log('🗑️ Onglet VEILLE vidé (en-tête conservé). Lance runVeille() pour re-remplir avec le nouveau filtrage.');
+}
+
+// ── Compléter la config sur un onglet existant + récap ──────────────────
+function upgradeVeille() {
+  const n = _ensureVeilleCfgRows(getOrCreateVeilleTabs().cfg);
+  Logger.log(n ? ('⬆️ ' + n + ' ligne(s) de config ajoutée(s) (généralistes, types de publication, params).')
+               : '✅ Config VEILLE_CFG déjà à jour.');
+}
+
+// ── À lancer après recopie : complète la config, run, récap ─────────────
 function testVeille() {
   getOrCreateVeilleTabs();
   const cfg = _readVeilleCfg();
-  Logger.log('⚙️ Config : ' + cfg.revues.length + ' revues, ' + cfg.themes.length +
-             ' thèmes, JOURS=' + (cfg.params.JOURS || '30') + ', ENRICH=' + (cfg.params.ENRICH || 'N'));
+  Logger.log('⚙️ ' + cfg.revues.length + ' revues cœur · ' + cfg.general.length + ' généralistes · ' +
+             cfg.themes.length + ' thèmes · ' + cfg.pubtypes.length + ' types retenus · JOURS=' +
+             (cfg.params.JOURS || '30') + ' · ENRICH=' + (cfg.params.ENRICH || 'N'));
   const r = runVeille();
   Logger.log('📚 runVeille : ' + r.added + ' nouveaux / ' + r.scanned + ' scannés.');
-  Logger.log('✅ testVeille OK — vérifie l\'onglet VEILLE, puis lance installVeilleTrigger().');
+  Logger.log('✅ testVeille OK — vérifie l\'onglet VEILLE.');
 }
