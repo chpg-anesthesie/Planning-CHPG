@@ -17,6 +17,9 @@ function portailRoute(action, payload, user) {
     case 'listTopos': return _portailJson(listTopos());
     case 'getTopo':   return _portailJson(getTopo(payload && payload.id));
     case 'listStaffs': return _portailJson(listStaffs());
+    case 'listProtocoles': return _portailJson(listProtocoles());
+    case 'getProtocole':   return _portailJson(getProtocole(payload && payload.id));
+    case 'listAnnuaire':   return _portailJson(listAnnuaire());
     case 'getVeille':  return _portailJson(getVeille());
     case 'markVeille': return _portailJson(markVeille(payload && payload.pmid, payload && payload.field, payload && payload.value));
     default:          return null;   // pas une action portail → doGet continue
@@ -536,4 +539,164 @@ function testVeille() {
   const r = runVeille();
   Logger.log('📚 runVeille : ' + r.added + ' nouveaux / ' + r.scanned + ' scannés.');
   Logger.log('✅ testVeille OK — vérifie l\'onglet VEILLE.');
+}
+
+
+// ══════════════════════════════════════════════════════════════════════
+//  PROTOCOLES  (clone de Topos, mais sous-dossiers = SPÉCIALITÉS)
+//  Dossier Drive Planning-CHPG-Protocoles (auto-créé). PDF à la racine =
+//  protocole "Général" ; chaque sous-dossier = une spécialité, chaque PDF
+//  dedans = un protocole. Servi en flux privé. Réutilise _isPdf/_fileMeta.
+// ══════════════════════════════════════════════════════════════════════
+
+const PROTOS_FOLDER = 'Planning-CHPG-Protocoles';
+
+function _getProtosFolder() {
+  const it = DriveApp.getFoldersByName(PROTOS_FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(PROTOS_FOLDER);
+}
+
+// Vrai si le fichier est dans le dossier donné (racine ou sous-dossier direct).
+function _fileWithinFolder(file, folderId) {
+  const parents = file.getParents();
+  while (parents.hasNext()) {
+    const p = parents.next();
+    if (p.getId() === folderId) return true;
+    const grand = p.getParents();
+    while (grand.hasNext()) {
+      if (grand.next().getId() === folderId) return true;
+    }
+  }
+  return false;
+}
+
+function listProtocoles() {
+  const root = _getProtosFolder();
+  const groups = [];
+
+  // PDF à la racine → groupe "Général"
+  const rootDocs = [];
+  const rf = root.getFiles();
+  while (rf.hasNext()) { const f = rf.next(); if (_isPdf(f)) rootDocs.push(_fileMeta(f)); }
+  if (rootDocs.length) {
+    rootDocs.sort(function (a, b) { return a.title.localeCompare(b.title, 'fr'); });
+    groups.push({ specialite: 'Général', protocoles: rootDocs });
+  }
+
+  // sous-dossiers = spécialités
+  const subGroups = [];
+  const subs = root.getFolders();
+  while (subs.hasNext()) {
+    const sub = subs.next();
+    const docs = [];
+    const sf = sub.getFiles();
+    while (sf.hasNext()) { const f = sf.next(); if (_isPdf(f)) docs.push(_fileMeta(f)); }
+    if (!docs.length) continue;
+    docs.sort(function (a, b) { return a.title.localeCompare(b.title, 'fr'); });
+    subGroups.push({ specialite: sub.getName(), protocoles: docs });
+  }
+  subGroups.sort(function (a, b) { return a.specialite.localeCompare(b.specialite, 'fr'); });
+
+  const all = groups.concat(subGroups);
+  const count = all.reduce(function (n, g) { return n + g.protocoles.length; }, 0);
+  return { success: true, folderUrl: root.getUrl(), count: count, groups: all };
+}
+
+function getProtocole(id) {
+  if (!id) return { success: false, error: 'Identifiant manquant' };
+  let file;
+  try { file = DriveApp.getFileById(id); }
+  catch (e) { return { success: false, error: 'Document introuvable' }; }
+  if (!_fileWithinFolder(file, _getProtosFolder().getId())) return { success: false, error: 'Accès refusé' };
+  const blob = file.getBlob();
+  return {
+    success: true, name: file.getName(),
+    mimeType: blob.getContentType() || 'application/pdf',
+    dataB64: Utilities.base64Encode(blob.getBytes()),
+  };
+}
+
+// À exécuter UNE FOIS après recopie : crée le dossier Protocoles + logue l'URL.
+function testProtocoles() {
+  const r = listProtocoles();
+  Logger.log('📁 Dossier Protocoles : ' + r.folderUrl);
+  Logger.log('📋 Protocoles vus : ' + r.count);
+  r.groups.forEach(function (g) { Logger.log('  ▸ ' + g.specialite + ' (' + g.protocoles.length + ')'); });
+  Logger.log('✅ testProtocoles OK — crée des sous-dossiers par spécialité et dépose les PDF dedans.');
+}
+
+
+// ══════════════════════════════════════════════════════════════════════
+//  ANNUAIRE  (répertoire hôpital, onglet ANNUAIRE auto-créé)
+//  + section "Équipe MAR" lue depuis MEDECINS (DECT = colonne 8, actifs).
+//  Colonnes ANNUAIRE : CATÉGORIE | LIBELLÉ | NUMÉRO | INFO
+// ══════════════════════════════════════════════════════════════════════
+
+const ANNUAIRE_TAB = 'ANNUAIRE';
+
+function getOrCreateAnnuaireTab() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(ANNUAIRE_TAB);
+  if (!sh) {
+    sh = ss.insertSheet(ANNUAIRE_TAB);
+    sh.getRange(1, 1, 1, 4).setValues([['CATÉGORIE', 'LIBELLÉ', 'NUMÉRO', 'INFO']]);
+    sh.getRange(1, 1, 1, 4).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(1, 160); sh.setColumnWidth(2, 260);
+  }
+  return sh;
+}
+
+function listAnnuaire() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // ── Équipe MAR depuis MEDECINS (actifs) : nom, initiales, DECT (col 8) ──
+  const equipe = [];
+  const med = ss.getSheetByName('MEDECINS');
+  if (med) {
+    const d = med.getDataRange().getValues();
+    for (let r = 1; r < d.length; r++) {
+      const id = String(d[r][0] || '').trim();
+      if (!id) continue;
+      if (String(d[r][3] || '').trim().toUpperCase() !== 'O') continue; // ACTIF = O
+      equipe.push({
+        name:     String(d[r][1] || '').trim() || id,
+        initials: String(d[r][2] || '').trim(),
+        dect:     String(d[r][8] || '').trim(),
+      });
+    }
+    equipe.sort(function (a, b) { return a.name.localeCompare(b.name, 'fr'); });
+  }
+
+  // ── Répertoire hôpital depuis ANNUAIRE, groupé par catégorie ──
+  const sh = getOrCreateAnnuaireTab();
+  const rows = sh.getDataRange().getValues();
+  const map = {}; const order = [];
+  for (let r = 1; r < rows.length; r++) {
+    const lib = String(rows[r][1] || '').trim();
+    const num = String(rows[r][2] || '').trim();
+    if (!lib && !num) continue;
+    const cat = String(rows[r][0] || '').trim() || 'Divers';
+    if (!map[cat]) { map[cat] = []; order.push(cat); }
+    map[cat].push({ libelle: lib, numero: num, info: String(rows[r][3] || '').trim() });
+  }
+  order.sort(function (a, b) { return a.localeCompare(b, 'fr'); });
+  const categories = order.map(function (k) { return { categorie: k, entries: map[k] }; });
+
+  return {
+    success: true,
+    tabUrl: sh.getUrl() + '#gid=' + sh.getSheetId(),
+    equipe: equipe,
+    categories: categories,
+  };
+}
+
+// À exécuter UNE FOIS après recopie : crée l'onglet ANNUAIRE + logue l'état.
+function testAnnuaire() {
+  const r = listAnnuaire();
+  Logger.log('🗂️ Onglet ANNUAIRE : ' + r.tabUrl);
+  Logger.log('👥 Équipe MAR (DECT) : ' + r.equipe.length + ' actifs');
+  Logger.log('☎️ Catégories répertoire : ' + r.categories.length);
+  r.categories.forEach(function (c) { Logger.log('  ▸ ' + c.categorie + ' (' + c.entries.length + ')'); });
+  Logger.log('✅ testAnnuaire OK — remplis l\'onglet ANNUAIRE (CATÉGORIE | LIBELLÉ | NUMÉRO | INFO).');
 }
