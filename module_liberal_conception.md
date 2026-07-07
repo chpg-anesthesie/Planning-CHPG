@@ -6,6 +6,8 @@
 *consultations), pas sur un total unique. Fonction objectif reformulée (pot commun).*
 ***v3.1 — 07/07/2026** : correction — la consultation libérale (NGAP, J0) **déclenche** le*
 *placement au bloc (J+X) ; un parcours alimente les deux axes. Ajout de `DATE_CONSULT`.*
+***v3.2 — 07/07/2026** : `LIBERAL_CIBLE` fixée à **30 % par axe** (au lieu de 29) + borne de*
+*décembre (libéral permis calculé sur le cumul de novembre pour le mois non observable).*
 *Calendrier inchangé : construction APRÈS le go-live d'octobre 2026 et APRÈS « secteurs étape 2 ».*
 *Rien ne part en prod tant que ce plan n'est pas clair et précis. On ne code pas encore.*
 
@@ -114,9 +116,11 @@ placement — il en est le **point d'entrée**.
   J+X (axe CCAM) → conflit ou OK. Re-vérifiée **à chaque avancée de l'horizon publié**.
 - **Horloge mensuelle (couche Pilotage).** Relevé cumulé M → projection 31/12 → reco M+1 →
   arbitrage comité → relevé suivant qui recale. Boucle **auto-corrigée**.
-- **Horizon annuel (couche Argent).** Cible 31/12 **par axe**. **Décembre piloté à l'aveugle**
-  (relevé de décembre reçu fin janvier, après clôture) → cible **≈ 29 %, pas 30,0 %**
-  (`LIBERAL_CIBLE` en CONFIG, par axe). À recalibrer après un an de volatilité observée.
+- **Horizon annuel (couche Argent).** Cible 31/12 = **30 % par axe** (`LIBERAL_CIBLE` en CONFIG).
+  **Décembre est piloté à l'aveugle** (relevé de décembre reçu fin janvier, après clôture) :
+  plutôt qu'une décote forfaitaire, le module calcule à partir du **cumul de novembre** le
+  **libéral encore permis en décembre** pour rester ≤ 30 % sur l'année (borne de décembre, exacte). On vise
+  ainsi 30 % le reste de l'année sans s'exposer au dépassement sur le mois non observable.
 
 **Le relevé est un CUMUL, pas un flux.** Deux implications fortes :
 - **Inertie croissante** : plus l'année avance, plus le % cumulé est difficile à bouger →
@@ -197,7 +201,7 @@ envoie un tableau global — la saisie groupée sera probablement la voie princi
 
 **V1 = rythme constaté** (extrapolation du cumul + tendance du flux récent). Affectations
 prévues → V2. Recale à chaque relevé. Afficher pour **chaque MAR sa marge par axe** (combien de
-libéral en plus/moins pour viser 29 % sur CCAM et sur NGAP) — c'est le carburant de la
+libéral en plus/moins pour viser 30 % sur CCAM et sur NGAP) — c'est le carburant de la
 réallocation.
 
 ### 8.2 Leviers — spécifiques à l'axe
@@ -248,7 +252,7 @@ coups.
 - `LIBERAL_CA_{Y}` — relevés cumulés : `MOIS | MAR_ID | T_CCAM | PCT_CCAM | T_NGAP | PCT_NGAP`.
 - `MEDECINS` — colonne `LIBERAL (O/N)` : appartenance au groupement (maintenue à la main).
 - `SECTEURS` (Lot 0) — externalisation de `SECTEURS_CFG` + `RENDEMENT_LIB` (4 valeurs).
-- `CONFIG` — `LIBERAL_CIBLE` (défaut 29, par axe), calibration à l'usage.
+- `CONFIG` — `LIBERAL_CIBLE` (défaut 30, par axe) + borne de décembre (libéral permis calculé sur le cumul de novembre).
 
 ---
 
@@ -293,7 +297,7 @@ go-live octobre 2026.
    confirmé par le CR réel — pas de seuil global.
 2. **Le module suit T et % des deux axes**, jamais un % consolidé.
 3. **Objectif = optimiser le pot commun** (`Σ min(libéral, 30%×T)` par axe) via réallocation ;
-   la convergence individuelle vers 29 % par axe est le proxy V1.
+   la convergence individuelle vers 30 % par axe est le proxy V1.
 4. **Leviers spécifiques à l'axe** ; la réa ne corrige que le CCAM.
 5. **Relevé mensuel cumulé** → dériver le flux ; corriger tôt >> corriger tard.
 6. **Affichage seul** côté comité (pas de pré-placement).
@@ -306,9 +310,9 @@ go-live octobre 2026.
 
 ## 14. Questions encore ouvertes
 
-- Valeur définitive de `LIBERAL_CIBLE` par axe (29 ? à calibrer avec le groupe après un an de
-  volatilité observée). Les deux axes peuvent mériter des cibles différentes (le NGAP semble plus
-  volatil dans le CR réel).
+- `LIBERAL_CIBLE` **fixé à 30 % par axe** (décision Arthur), avec borne de décembre. À
+  surveiller en réel : si des dépassements récurrents apparaissent malgré la borne, envisager
+  une marge par axe (le NGAP semble plus volatil dans le CR réel).
 - Fréquence réelle des interventions « à programmer sans date » à la sortie de consult →
   conditionne le poids de cet état.
 - **V2 — estimateur temps réel** : prévisualiser les `%` entre deux relevés à partir des codes ;
