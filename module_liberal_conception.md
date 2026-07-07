@@ -340,6 +340,15 @@ go-live octobre 2026.
   ou se reportent ; il faut une **table CCAM→€ en CONFIG paramétrable** (source ameli, jamais
   devinée). À chaque relevé, le chiffre officiel **recale** l'estimation. Le relevé reste la
   source de vérité ; l'estimateur ne certifie jamais rien.
+  - **Sortie actionnable — public requis par axe.** À cible 30 %, `P ≥ (7/3)·L ≈ 2,33·L`. Pour
+    chaque MAR et chaque axe, l'estimateur calcule le **public minimum requis** (`2,33 ×` libéral
+    estimé) et le compare au **public déjà projeté** → il n'affiche que le **déficit** éventuel
+    (le public n'*efface* pas le libéral, il le **dilue**). Par axe : le déficit CCAM se comble par
+    du public CCAM (blocs publics, réa), le déficit NGAP par des **consultations publiques** — pas
+    d'inter-compensation. Le déficit en € se retraduit en **N journées d'affectation** via un
+    rendement moyen (approximatif mais directement exploitable par le comité). C'est la brique qui
+    relie les deux couches par un chiffre ; l'**optimiseur de réallocation** (ci-dessous) la
+    consomme.
 - **V2 — optimiseur de réallocation** explicite : proposer au comité *quelles* vacations
   déplacer et de qui vers qui, sous les deux contraintes de plafond. La V1 se contente d'afficher
   les marges ; la V2 optimise.
