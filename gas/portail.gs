@@ -685,7 +685,7 @@ function listAnnuaire() {
 
   return {
     success: true,
-    tabUrl: sh.getUrl() + '#gid=' + sh.getSheetId(),
+    tabUrl: ss.getUrl() + '#gid=' + sh.getSheetId(),
     equipe: equipe,
     categories: categories,
   };
