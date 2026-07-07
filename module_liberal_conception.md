@@ -8,6 +8,8 @@
 *placement au bloc (J+X) ; un parcours alimente les deux axes. Ajout de `DATE_CONSULT`.*
 ***v3.2 — 07/07/2026** : `LIBERAL_CIBLE` fixée à **30 % par axe** (au lieu de 29) + borne de*
 *décembre (libéral permis calculé sur le cumul de novembre pour le mois non observable).*
+***v3.3 — 07/07/2026** : circuit de saisie figé — groupée mensuelle depuis PDF/papier, sécurisée*
+*par checksum (total du document) + contrôle de monotonie du cumul.*
 *Calendrier inchangé : construction APRÈS le go-live d'octobre 2026 et APRÈS « secteurs étape 2 ».*
 *Rien ne part en prod tant que ce plan n'est pas clair et précis. On ne code pas encore.*
 
@@ -188,10 +190,22 @@ stocke jamais un excédent ou un flux recalculé (évite les incohérences d'arr
 
 *(Remplace le format « deux masses € » de la v2 : la réalité est bi-axiale, `T_ccam` et `T_ngap`.)*
 
-### 7.2 Saisie
+### 7.2 Saisie — groupée, mensuelle, depuis PDF/papier
 
-Même action API pour saisie par le membre **et** saisie groupée par le comité (l'administration
-envoie un tableau global — la saisie groupée sera probablement la voie principale).
+L'administration diffuse le tableau en **PDF/papier** (pas de fichier exploitable) → pas d'import,
+**saisie manuelle mensuelle**. **Voie principale : saisie groupée** par une personne (Arthur ou un
+référent du groupe, à définir) : les ~17 lignes × 4 nombres (`T_ccam`, `%_ccam`, `T_ngap`,
+`%_ngap`) reportées en une fois, le cumul du mois. Le seul risque étant la **faute de frappe**,
+deux garde-fous **gratuits** offerts par le document :
+
+1. **Checksum de bout en bout.** La ligne du bas du PDF (« ACTIVITÉ LIBÉRALE » — le total de tous
+   les excédents, ex. 44170,3 €) est un total de contrôle. Le référent le saisit ; le module
+   recalcule `Σ T_axe × (%_axe − 30)` sur toutes les lignes et **valide en vert si ça tombe pile,
+   rouge sinon** (coquille à localiser). Une saisie validée d'un coup, sans relecture ligne à ligne.
+2. **Monotonie du cumul.** Le relevé étant cumulé, chaque total ne peut que **croître** d'un mois
+   sur l'autre → une valeur qui régresse déclenche une alerte de saisie.
+
+Une **action API commune** couvre la saisie groupée et (accessoirement) une saisie par membre.
 
 ---
 
@@ -305,6 +319,8 @@ go-live octobre 2026.
 8. **`CCAM` collecté en V1, non exploité** ; jamais de grille tarifaire devinée.
 9. **Équité = le désagrément** (frigo/réa), pas l'argent (mutualisé).
 10. **Projection V1 = rythme constaté** ; affectations prévues = V2.
+11. **Saisie groupée mensuelle depuis PDF** (référent), sécurisée par checksum sur le total du
+    document + contrôle de monotonie du cumul.
 
 ---
 
