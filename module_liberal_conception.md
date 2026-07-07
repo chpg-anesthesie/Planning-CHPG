@@ -4,6 +4,8 @@
 ***Révision v3 — 07/07/2026** : intégration du CR administratif réel (activité jan→juin 2026).*
 *Découverte majeure : le seuil de 30 % s'applique **par axe** (CCAM technique ET NGAP*
 *consultations), pas sur un total unique. Fonction objectif reformulée (pot commun).*
+***v3.1 — 07/07/2026** : correction — la consultation libérale (NGAP, J0) **déclenche** le*
+*placement au bloc (J+X) ; un parcours alimente les deux axes. Ajout de `DATE_CONSULT`.*
 *Calendrier inchangé : construction APRÈS le go-live d'octobre 2026 et APRÈS « secteurs étape 2 ».*
 *Rien ne part en prod tant que ce plan n'est pas clair et précis. On ne code pas encore.*
 
@@ -97,9 +99,12 @@ Le module **observe** l'activité, **recopie** l'argent, **corrèle** pour pilot
 jamais le CA depuis les actes. Couches Activité et Argent **disjointes** mais reliées par le
 Pilotage.
 
-**Note de périmètre :** le placement (présence bloc à J+X) concerne l'axe **CCAM** (l'acte
-technique). La **consultation libérale (NGAP)** est un événement de J0 sans contrainte de présence
-bloc → elle vit **uniquement dans la couche Argent**, pas dans le placement.
+**Note de périmètre :** un **parcours libéral** = une **consultation (J0, facturée NGAP)** suivie
+d'un **acte au bloc (J+X, facturé CCAM)**. C'est la **consultation qui déclenche le placement** :
+voir une patiente le 02/01 pour une PTG prévue le 15/01 crée l'obligation d'être au bloc le 15/01.
+L'objet « intervention » (§6) matérialise ce parcours et **alimente les deux axes** de facturation ;
+la **contrainte de présence tombe le jour du bloc** (acte CCAM). Le NGAP n'est donc **pas** hors
+placement — il en est le **point d'entrée**.
 
 ---
 
@@ -121,13 +126,15 @@ bloc → elle vit **uniquement dans la couche Argent**, pas dans le placement.
 
 ---
 
-## 6. Couche ACTIVITÉ — l'intervention (axe CCAM / bloc)
+## 6. Couche ACTIVITÉ — l'intervention (parcours consult → bloc)
 
 ### 6.1 Objet à cycle de vie
 
-La consult (J0) crée l'intervention, souvent quand la semaine du bloc (J+X, 2 j à 3 semaines)
-n'est pas encore planifiée. L'intervention « attend » puis **s'active** quand l'horizon publié
-atteint sa semaine.
+La **consultation libérale (J0, NGAP) crée l'intervention** et **engage la présence au bloc à J+X**
+(l'acte, CCAM), souvent quand la semaine du bloc (2 j à 3 semaines plus tard) n'est pas encore
+planifiée. L'intervention « attend » puis **s'active** quand l'horizon publié atteint sa semaine.
+Un même objet porte donc les deux bouts du parcours : le J0 qui alimente le NGAP, le J+X qui
+alimente le CCAM et fait tomber la contrainte de placement.
 
 ```
 à programmer (date bloc inconnue)
@@ -138,8 +145,11 @@ déclarée (hors horizon)  ──►  active (semaine planifiée)  ──►  OK
 
 ### 6.2 Schéma `LIBERAL_{Y}`
 
-`DATE_BLOC | MAR_ID | SECTEUR | CCAM (optionnel) | COMMENTAIRE`
+`DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | CCAM (optionnel) | COMMENTAIRE`
 
+- **`DATE_CONSULT`** = J0, moment de la consultation libérale (déclencheur). Peut précéder une
+  `DATE_BLOC` encore inconnue (état « à programmer »).
+- **`DATE_BLOC`** = J+X, jour de l'acte : c'est là que tombe la contrainte de présence.
 - **`SECTEUR`** référence `SECTEURS_CFG` (→ Lot 0). Le comité doit savoir que Dr X doit être à
   **ORTHO**, pas seulement « au bloc ». Info **logistique**, pas médicale.
 - **`CCAM` optionnel** : collecté dès la V1, **non exploité en V1** (gratuit à prévoir, coûteux à
@@ -233,7 +243,7 @@ coups.
 
 ## 10. Données (récapitulatif des onglets)
 
-- `LIBERAL_{Y}` — interventions bloc (axe CCAM) : `DATE_BLOC | MAR_ID | SECTEUR | CCAM? |
+- `LIBERAL_{Y}` — parcours consult→bloc : `DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | CCAM? |
   COMMENTAIRE` (auto-créé dans `setupAnnee`, pattern `INDISPOS_${year}`).
 - `LIBERAL_CA_{Y}` — relevés cumulés : `MOIS | MAR_ID | T_CCAM | PCT_CCAM | T_NGAP | PCT_NGAP`.
 - `MEDECINS` — colonne `LIBERAL (O/N)` : appartenance au groupement (maintenue à la main).
