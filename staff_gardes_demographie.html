@@ -79,7 +79,7 @@
 <header>
   <div class="wrap">
     <div class="flag"><div></div><div></div></div>
-    <h1>La charge des gardes va devenir critique vers 2038-2044</h1>
+    <h1>De 36 à ~52 gardes par personne et par an entre 2026 et 2040</h1>
     <p>Projection démographique du service d'Anesthésie-Réanimation · CHPG Monaco · horizon 2026-2050</p>
   </div>
 </header>
@@ -87,24 +87,24 @@
 <div class="wrap">
 
 <section>
-  <h2><span class="num">1</span>Le problème en une phrase</h2>
-  <p class="lead">Notre équipe vieillit de façon groupée. Quand la génération née entre 1974 et 1978 franchira 60 ans — l'âge où l'on arrête les gardes — il restera trop peu de collègues pour absorber les 730 gardes annuelles.</p>
+  <h2><span class="num">1</span>Le constat, en une phrase</h2>
+  <p class="lead">Le nombre de gardes est fixe (730 par an) et l'âge d'arrêt des gardes est fixe (60 ans). La génération née entre 1974 et 1978 franchira ce seuil de façon groupée : mécaniquement, il restera moins de gardeurs pour le même nombre de gardes, donc davantage de gardes par personne.</p>
   <div class="kpi-row">
     <div class="kpi"><div class="v ok">36</div><div class="l">gardes/an par temps plein<br>aujourd'hui (2026)</div></div>
     <div class="kpi"><div class="v warn">+47 %</div><div class="l">de gardes en 2040<br>vs aujourd'hui</div></div>
     <div class="kpi"><div class="v warn">+17</div><div class="l">gardes/an en plus<br>par personne en 2040</div></div>
     <div class="kpi"><div class="v">15</div><div class="l">gardeurs en 2040<br>(vs 21 aujourd'hui)</div></div>
-    <div class="kpi"><div class="v">+4</div><div class="l">gardes dès 2027 :<br>le mur commence l'an prochain</div></div>
+    <div class="kpi"><div class="v">+4</div><div class="l">gardes/an dès 2027<br>(première hausse)</div></div>
   </div>
-  <p style="font-size:16px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:14px 18px"><b>Concrètement&nbsp;:</b> un temps plein passera de <b>36 gardes par an aujourd'hui</b> à <b>~52 en 2040</b> — soit <b>+17 nuits chaque année</b>, ou <b>+47&nbsp;%</b>. Et ça commence <b>dès l'an prochain</b>&nbsp;: +4 gardes en 2027 (un départ en retraite des gardes, un départ de l'équipe, un passage à mi-temps — la même année).</p>
-  <p>Le chiffre d'aujourd'hui — <b>36 gardes/an pour un temps plein</b> — est celui que chacun peut retrouver dans l'onglet Équité de l'application. C'est notre point de départ vérifiable. La suite n'est que l'application de règles simples à la pyramide des âges réelle du service.</p>
+  <p style="font-size:16px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:14px 18px"><b>Concrètement&nbsp;:</b> un temps plein passe de <b>36 gardes par an aujourd'hui</b> à <b>~52 en 2040</b> — soit <b>+17 nuits par an</b>, ou <b>+47&nbsp;%</b>. La première hausse intervient dès <b>2027</b>&nbsp;: +4 gardes (RM atteint 60 ans et arrête les gardes ; et le binôme AF/LC passe de 150&nbsp;% à 50&nbsp;% cumulés à partir de mars 2027).</p>
+  <p>Le chiffre d'aujourd'hui — <b>36 gardes/an pour un temps plein</b> — est le point de départ, vérifiable. La suite n'est que l'application de règles simples à la pyramide des âges réelle du service.</p>
 </section>
 
 <section>
   <h2><span class="num">2</span>La pyramide des âges du service</h2>
-  <p class="lead">Chaque barre est un collègue (initiales), classé par année de naissance. Le « bouchon » 1974-1978 saute aux yeux : sept collègues nés en cinq ans.</p>
+  <p class="lead">Chaque barre est un collègue (initiales), classé par année de naissance. La génération 1974-1978 est particulièrement dense : sept collègues nés en cinq ans.</p>
   <div class="card"><div class="chart-wrap"><canvas id="pyramid"></canvas></div>
-    <p class="fnote">En rouge : les collègues qui atteindront 60 ans (fin des gardes) entre 2034 et 2038 — ils quittent le pool de garde presque ensemble.</p>
+    <p class="fnote">En rouge : la génération née entre 1974 et 1978 (sept collègues), qui atteindra 60 ans — la fin des gardes — entre 2034 et 2038, de façon presque simultanée.</p>
   </div>
 </section>
 
@@ -120,15 +120,15 @@
       <li><b>Remplacement</b> : tout départ en retraite est remplacé par un nouveau collègue de 35 ans à temps plein — <i>sauf</i> le premier départ (WS, 1961), non remplacé (poste transformé).</li>
       <li>Les quotités réduites connues sont intégrées (LL 90 %, MS 80 %).</li>
       <li><b>Cas particulier BP</b> : il assure ~<b>48 gardes/an</b> par choix personnel (dont 39 mardis), sans week-end. Ses gardes sont comptées <b>à part</b> : le pool des autres est donc de 730 − 48 = <b>682 gardes</b> tant qu'il maintient ce rythme (jusqu'à ses 60 ans en 2037 dans le modèle).</li>
-      <li><b>Transition 2027 déjà connue</b> : LC quitte l'équipe, AF passe de 100 % à 50 %, et RM atteint 60 ans — trois pertes la même année.</li>
-      <li><b>Deux renforts différés</b> : MB et LB ne prennent pas de gardes aujourd'hui, mais leurs remplaçants en prendront — à 100&nbsp;% pour le successeur de MB (dès ~2034), à 60&nbsp;% pour celui de LB (dès ~2042, quotité du poste).</li>
+      <li><b>Transition de mars 2027</b> : RM atteint 60 ans (fin des gardes) ; et le binôme AF/LC, aujourd'hui à <b>150 % cumulés</b>, ne conservera qu'un <b>seul poste à 50 %</b> — lequel des deux poursuit n'est pas encore décidé. Effet net : environ deux temps pleins en moins la même année.</li>
+      <li><b>Deux renforts différés</b> : MB et LB ne prennent pas de gardes aujourd'hui, mais leurs remplaçants en prendront — à 100&nbsp;% pour le successeur de MB (dès ~2031), à 60&nbsp;% pour celui de LB (dès ~2042, quotité du poste).</li>
     </ul>
   </div>
   <h3>La formule</h3>
   <p>Pour une année donnée, on calcule d'abord « l'effectif pondéré » — la somme des disponibilités de chacun (un temps plein comptant 1, un 80 % comptant 0,8, un exempté comptant 0) :</p>
   <div class="formula">pool = 730 − 48 (gardes de BP, comptées à part)<br>effectif_pondéré = Σ (quotité de chaque gardeur, selon son âge et les règles)<br><br>gardes/an pour un temps plein = <span class="hl">682 ÷ effectif_pondéré</span></div>
-  <p>Vérification sur <b>aujourd'hui</b> : l'effectif pondéré 2026 vaut 19,2 (comptez vous-même dans l'annexe) → 682 ÷ 19,2 = <b>35,5 ≈ 36</b>. C'est exactement le chiffre de l'onglet Équité. Le modèle est calé sur la réalité observable — pas sur une théorie.</p>
-  <div class="verified">✓ Modèle recoupé avec le générateur réel du service sur 20 années simulées</div>
+  <p>Vérification sur <b>aujourd'hui</b> : l'effectif pondéré 2026 vaut 19,2 (comptez vous-même dans l'annexe) → 682 ÷ 19,2 = <b>35,5 ≈ 36</b>, soit la charge observée aujourd'hui. Le modèle est calé sur la réalité observable — pas sur une théorie.</p>
+  <div class="verified">✓ Projection arithmétique, recoupée avec l'outil de génération des gardes (en développement)</div>
 
   <h3>Exemple : le calcul de 2040, posé à la main</h3>
   <p>N'importe qui peut refaire cette division. En 2040, on liste qui a <b>moins de 60 ans</b> et <b>n'est pas encore retraité</b> — en tenant compte des remplaçants déjà arrivés :</p>
@@ -137,7 +137,7 @@
   &nbsp;• remplaçants déjà en poste (arrivés à 35 ans)&nbsp;: ceux de RM, JPG et MB → +3<br>
   &nbsp;• exemptés (≥ 60 ans)&nbsp;: JC, GA, GR, SA, BP, SG → <span class="hl">0 garde</span> — BP compris&nbsp;: ses 48 gardes retournent au pool<br><br>
   effectif pondéré = 14,2&nbsp;&nbsp;→&nbsp;&nbsp;730 ÷ 14,2 ≈ <span class="hl">51 gardes / an</span></div>
-  <p>Le chiffre-choc de la page 1 n'est donc pas une estimation&nbsp;: c'est une division que chacun peut vérifier. Le générateur réel du service, exécuté année par année, donne <b>52</b> — l'accord entre les deux méthodes est à une garde près.</p>
+  <p>Le chiffre de la page 1 n'est donc pas une estimation&nbsp;: c'est une division que chacun peut vérifier. L'outil de génération des gardes (en développement), exécuté année par année, donne <b>52</b> — l'accord entre les deux approches est à une garde près.</p>
 </section>
 
 <section>
@@ -174,49 +174,22 @@
 </section>
 
 <section>
-  <h2><span class="num">5</span>Ce que révèle l'algorithme réel</h2>
-  <p class="lead">Au-delà du modèle arithmétique, nous avons fait tourner le <b>vrai générateur de gardes du service</b> sur 20 années consécutives (avec absences réalistes et report d'équité). Il confirme et précise le tableau.</p>
-  <div class="verified">✓ 20 années générées par l'algorithme de production, scénario statu quo</div>
+  <h2><span class="num">5</span>La charge de week-end, estimée plus finement</h2>
+  <p class="lead">Le modèle arithmétique donne la tendance générale. Pour estimer précisément la charge de week-end, les plannings 2026-2046 ont été générés année par année avec l'<b>outil de génération des gardes</b> (en cours de développement), avec absences réalistes et report d'équité.</p>
+  <div class="verified">✓ 21 années (2026-2046) générées avec l'outil de génération des gardes — sans changement de règles</div>
   <div class="takeaway">
-    <h3>Trois constats qui doivent nous alerter</h3>
-    <p><b>1. Le mur est réel — et il commence l'an prochain.</b> +4 gardes dès 2027, puis une montée continue jusqu'au cœur de la crise (2038-2042) où un temps plein assure <b>~52 gardes par an</b> — une nuit par semaine, sans interruption, douze mois durant, pendant cinq ans.</p>
-    <p><b>2. La vraie douleur, c'est le week-end.</b> Aujourd'hui : 6 samedis + 6 week-ends VD par an. Au pic : <b>8 samedis + 10 week-ends VD</b> — jusqu'à <b>18 week-ends entamés par an</b>, soit un sur trois. Et BP n'en absorbe aucun : ses 48 gardes sont des mardis. C'est cette métrique, bien plus que le total, qui épuise et fait partir les gens.</p>
-    <p><b>3. Le système « tient » mais au prix fort.</b> Bonne nouvelle : même à 15 gardeurs, chaque nuit reste couverte — aucun trou dans le planning sur 21 années simulées. La crise de 2038-2044 n'est pas une impossibilité technique, c'est une crise de <b>charge humaine</b>. Le planning tiendra ; les collègues, peut-être pas.</p>
+    <h3>Trois constats</h3>
+    <p><b>1. La hausse est progressive et commence en 2027.</b> +4 gardes dès 2027, puis une montée continue jusqu'à 2038-2042, où un temps plein assure <b>~52 gardes par an</b> — soit environ une nuit par semaine sur douze mois, pendant cinq ans.</p>
+    <p><b>2. La charge se concentre sur les week-ends.</b> Aujourd'hui : 6 samedis + 6 week-ends VD par an. Au pic : <b>8 samedis + 10 week-ends VD</b>, soit jusqu'à <b>18 week-ends entamés par an</b> (un sur trois). BP n'en absorbe aucun : ses 48 gardes sont des mardis.</p>
+    <p><b>3. Le planning reste couvert sur toute la période.</b> Même à 15 gardeurs, chaque nuit est couverte — aucun trou dans le planning sur les 21 années simulées. La contrainte de 2038-2044 porte donc sur la charge par personne, pas sur la faisabilité technique du planning.</p>
   </div>
   <div class="card"><div class="chart-wrap"><canvas id="weekendChart"></canvas></div>
-    <p class="fnote">Maximum de week-ends de garde par personne et par an, <b>généré point par point par l'algorithme réel du service</b> sur 20 années consécutives (samedis d'un côté, week-ends VD vendredi+dimanche de l'autre).</p>
+    <p class="fnote">Maximum de week-ends de garde par personne et par an, généré année par année avec l'<b>outil de génération des gardes</b> (en développement) — samedis d'un côté, week-ends VD (vendredi + dimanche) de l'autre.</p>
   </div>
 </section>
 
 <section>
-  <h2><span class="num">6</span>Les leviers, comparés</h2>
-  <p class="lead">Aucune solution n'est gratuite : le pool de 730 gardes est fixe, donc tout allègement pour les uns est repris par les autres. Le seul arbitrage réel : quel confort pour les seniors, contre quelle surcharge pour les plus jeunes. Testez chaque piste dans le simulateur.</p>
-  <div class="lever">
-    <div class="opt"><span class="tag g">Le levier le plus puissant</span><h4>Exemption partielle : garder 50 % de ses gardes de 60 ans à la retraite</h4>
-      <p>Au lieu de zéro garde à 60 ans, chacun en conserve la moitié. Effet mesuré par l'algorithme réel : <b>pic 52 → 42 gardes/an</b> — la courbe entière s'aplatit (jamais au-dessus de 42 sur 21 ans). C'est de très loin le meilleur levier, parce que la génération 1974-1978 continue de contribuer <i>pendant</i> les années critiques. Et il ne touche pas à l'âge de retraite. À débattre : l'acceptabilité pour les 60+ — mais 50 % de 42, c'est ~21 gardes, bien moins que ce que chacun fait aujourd'hui.</p></div>
-    <div class="opt"><span class="tag o">Décevant au pic</span><h4>Retraite à 65 ans</h4>
-      <p>Intuitivement séduisant, mais l'algorithme réel le dégonfle : <b>pic 52 → 51 seulement</b>. Pourquoi ? En 2038, la génération 1974-1978 a 60-64 ans : avancer sa retraite ne la fait pas revenir aux gardes — elle est déjà exemptée. Ce levier n'aide que la <i>descente</i> du mur (44 en 2040, 41 en 2042) en injectant des remplaçants plus tôt. Utile en complément, insuffisant seul.</p></div>
-    <div class="opt"><span class="tag r">Ne rien faire</span><h4>Statu quo — exemption sèche à 60 ans, retraite 67</h4>
-      <p>Pic à 52 gardes/an, cinq années à 48 et plus, jusqu'à 18 week-ends entamés par an. C'est la trajectoire par défaut si aucune décision n'est prise.</p></div>
-  </div>
-  <p>Le simulateur permet de combiner ces leviers (par exemple : exemption partielle 50 % <i>et</i> retraite à 66 ans) pour trouver le réglage qui répartit l'effort de la façon la plus juste.</p>
-</section>
-
-<section>
-  <h2><span class="num">7</span>Ce que nous proposons de décider ensemble</h2>
-  <div class="card">
-    <p>Ce document n'apporte pas une solution toute faite : il rend <b>visible et chiffrée</b> une échéance qui, sinon, nous tomberait dessus sans préavis vers 2038. Trois questions pour le staff :</p>
-    <ul>
-      <li>Anticipe-t-on <b>maintenant</b> (le mur est dans 12 ans, mais les collègues concernés sont déjà parmi nous) ?</li>
-      <li>Préfère-t-on <b>l'exemption partielle</b> (chacun contribue un peu après 60 ans) à l'exemption sèche actuelle ?</li>
-      <li>La question de <b>l'âge de départ</b> doit-elle être ouverte, sachant que c'est le levier le plus puissant ?</li>
-    </ul>
-    <p style="margin-bottom:0">Aucune de ces décisions n'est technique : ce sont des choix collectifs. L'outil est là pour que le débat parte de chiffres partagés, pas d'impressions.</p>
-  </div>
-</section>
-
-<section>
-  <h2><span class="num">8</span>Annexe — vérifiez votre propre ligne</h2>
+  <h2><span class="num">6</span>Annexe — vérifiez votre propre ligne</h2>
   <p class="lead">Voici, sans exception, toutes les données qui alimentent les calculs. Chaque collègue peut contrôler sa ligne&nbsp;: si votre année de naissance est juste, votre trajectoire l'est aussi. Aucune autre donnée n'entre dans le modèle.</p>
   <div class="card" style="padding:0;overflow:hidden">
     <div class="matrix-scroll" style="border:none">
@@ -227,11 +200,11 @@
         </tr></thead>
         <tbody>
 <tr><td class="name">WS</td><td>1961</td><td>100 %</td><td>2021</td><td>2028</td><td style="text-align:left">non remplacé (poste transformé)</td></tr>
-<tr><td class="name">MB</td><td>~1967</td><td>ne garde pas</td><td>—</td><td>2034</td><td style="text-align:left">son remplaçant gardera à 100 % dès 2034</td></tr>
+<tr><td class="name">MB</td><td>1964</td><td>ne garde pas</td><td>—</td><td>2031</td><td style="text-align:left">son remplaçant gardera à 100 % dès 2031</td></tr>
 <tr><td class="name">RM</td><td>1967</td><td>100 %</td><td>2027</td><td>2034</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2034</td></tr>
 <tr><td class="name">JPG</td><td>1969</td><td>100 %</td><td>2029</td><td>2036</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2036</td></tr>
 <tr><td class="name">JC</td><td>1974</td><td>100 %</td><td>2034</td><td>2041</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2041</td></tr>
-<tr><td class="name">LB</td><td>~1975</td><td>ne garde pas (poste à 60 %)</td><td>—</td><td>2042</td><td style="text-align:left">son remplaçant gardera à 60 % dès 2042</td></tr>
+<tr><td class="name">LB</td><td>1975</td><td>ne garde pas (poste à 60 %)</td><td>—</td><td>2042</td><td style="text-align:left">son remplaçant gardera à 60 % dès 2042</td></tr>
 <tr><td class="name">GA</td><td>1975</td><td>100 %</td><td>2035</td><td>2042</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2042</td></tr>
 <tr><td class="name">GR</td><td>1976</td><td>100 %</td><td>2036</td><td>2043</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2043</td></tr>
 <tr><td class="name">SA</td><td>1977</td><td>100 %</td><td>2037</td><td>2044</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2044</td></tr>
@@ -243,9 +216,9 @@
 <tr><td class="name">MS</td><td>1986</td><td>80 %</td><td>2046</td><td>2053</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2053</td></tr>
 <tr><td class="name">NS</td><td>1986</td><td>100 %</td><td>2046</td><td>2053</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2053</td></tr>
 <tr><td class="name">LUL</td><td>1987</td><td>100 %</td><td>2047</td><td>2054</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2054</td></tr>
-<tr><td class="name">LC</td><td>1990</td><td>50 %</td><td colspan="2">quitte l'équipe en 2027</td><td style="text-align:left">non remplacée (acté)</td></tr>
+<tr><td class="name">LC</td><td>1990</td><td>50 %</td><td colspan="3" style="text-align:left">AF et LC totalisent <b>150 % aujourd'hui</b>. À partir de <b>mars 2027</b>, un seul des deux poursuit, à <b>50 %</b> — titulaire non encore décidé. Le poste conservé atteindra 60 ans vers 2050.</td></tr>
 <tr><td class="name">CS</td><td>1990</td><td>100 %</td><td>2050</td><td>2057</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2057</td></tr>
-<tr><td class="name">AF</td><td>1991</td><td>100 % → <b>50 % dès 2027</b></td><td>2051</td><td>2058</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2058</td></tr>
+<tr><td class="name">AF</td><td>1991</td><td>100 %</td><td colspan="3" style="text-align:left">— transition AF/LC de mars 2027, voir ligne LC —</td></tr>
 <tr><td class="name">RW</td><td>1991</td><td>100 %</td><td>2051</td><td>2058</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2058</td></tr>
 <tr><td class="name">AFR</td><td>1992</td><td>100 %</td><td>2052</td><td>2059</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2059</td></tr>
 <tr><td class="name">NP</td><td>1992</td><td>100 %</td><td>2052</td><td>2059</td><td style="text-align:left">remplacé par un MAR de 35 ans en 2059</td></tr>
@@ -258,9 +231,9 @@
   <div class="rule" style="background:#F0FDF4;border-color:#86EFAC;border-left-color:#15803D">
     <b style="color:#166534">Comment ce document a été fabriqué</b>
     <ul>
-      <li>Le chiffre d'<b>aujourd'hui</b> (36 gardes/an, BP à part avec 48) est celui de l'onglet Équité de l'application — vérifiable en un clic. Le modèle le reproduit à 0,5 près (682 ÷ 19,2 = 35,5).</li>
+      <li>Le chiffre d'<b>aujourd'hui</b> (36 gardes/an, BP à part avec 48) correspond à la charge observée actuellement. Le modèle le reproduit à 0,5 près (682 ÷ 19,2 = 35,5).</li>
       <li>Les <b>projections</b> appliquent la formule de la section 3 à ce tableau d'âges — une simple division, refaisable au tableau.</li>
-      <li>Les chiffres de <b>charge réelle</b> (section 5) sont produits par le <b>générateur de gardes du service lui-même</b> — le logiciel qui fabrique vos plannings — exécuté sur 21 années consécutives (2026-2046) avec report d'équité et ~35 jours d'absence par MAR et par an. Accord modèle simple / générateur réel : à une garde près sur toute la trajectoire.</li>
+      <li>Les chiffres de <b>charge de week-end</b> (section 5) sont produits par l'<b>outil de génération des gardes</b>, en cours de développement, exécuté sur 21 années consécutives (2026-2046) avec report d'équité et ~35 jours d'absence par MAR et par an. Accord entre le modèle arithmétique et cet outil : à une garde près sur toute la trajectoire.</li>
     </ul>
   </div>
 </section>
@@ -270,8 +243,8 @@
 <footer>
   <div class="wrap">
     Document de travail interne · Service d'Anesthésie-Réanimation, CHPG Monaco<br>
-    Projections à hypothèses explicites (section 3) · les chiffres « aujourd'hui » sont vérifiables dans l'onglet Équité de l'application.<br>
-    <span class="fnote">Modèle arithmétique transparent recoupé avec le générateur de gardes de production sur 20 années simulées.</span>
+    Projections à hypothèses explicites (section 3) · les chiffres « aujourd'hui » correspondent à la charge observée actuellement.<br>
+    <span class="fnote">Modèle arithmétique transparent, recoupé avec l'outil de génération des gardes (en développement) sur 21 années simulées.</span>
   </div>
 </footer>
 
@@ -279,7 +252,7 @@
 <script>
 // ── Données démographiques (initiales, année de naissance, quotité) ──────
 const TEAM = [
-  ['WS',1961,100],['MB',1967,0],['RM',1967,100],['JPG',1969,100],['JC',1974,100],['LB',1975,0],['GA',1975,100],
+  ['WS',1961,100],['MB',1964,0],['RM',1967,100],['JPG',1969,100],['JC',1974,100],['LB',1975,0],['GA',1975,100],
   ['GR',1976,100],['SA',1977,100],['BP',1977,100],['SG',1978,100],['LL',1981,90],
   ['NO',1982,100],['FZ',1986,100],['MS',1986,80],['NS',1986,100],['LUL',1987,100],
   ['LC',1990,50],['CS',1990,100],['AF',1991,100],['RW',1991,100],['AFR',1992,100],
@@ -289,7 +262,7 @@ const POOL = 730;
 const BP_GARDES = 48;        // BP : ~48 gardes/an par choix (39 mardis), comptées à part
 const BP_BORN = 1977;        // tant qu'il n'est pas exempté (60 ans → 2037)
 // Postes sans garde aujourd'hui, dont le REMPLAÇANT gardera (quotité du poste) :
-const NOGARDE = { MB:{born:1967, replQ:100}, LB:{born:1975, replQ:60} };
+const NOGARDE = { MB:{born:1964, replQ:100}, LB:{born:1975, replQ:60} };
 const YEARS = []; for(let y=2026;y<=2050;y++) YEARS.push(y);
 
 // ── Modèle : état de chaque MAR une année donnée, selon les curseurs ──────
@@ -300,7 +273,8 @@ function stateOf(id, born, baseQuota, year, P){
     if(year >= retYear) return {q:NOGARDE[id].replQ, cls:'repl'};
     return {q:0, cls:'zero'};
   }
-  // Transition 2027 déjà actée : LC part, AF passe à 50 %
+  // Transition mars 2027 : le binôme AF/LC passe de 150 % à 50 % cumulés
+  // (un seul des deux reste, à 50 % ; lequel n'est pas encore décidé — sans effet sur le total pondéré)
   if(id==='LC' && year >= 2027) return {q:0, cls:'ret'};
   if(id==='AF' && year >= 2027) baseQuota = 50;
   const age = year - born;
@@ -396,7 +370,7 @@ function render(){
 
 // ── Pyramide des âges (statique) ─────────────────────────────────────────
 if(typeof Chart!=='undefined'){
-const PYR=TEAM.filter(t=>!NOGARDE[t[0]]);
+const PYR=TEAM.slice().sort((a,b)=>a[1]-b[1]);
 new Chart(document.getElementById('pyramid'),{
   type:'bar',
   data:{labels:PYR.map(t=>t[0]),
