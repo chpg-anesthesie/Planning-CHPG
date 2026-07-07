@@ -10,6 +10,8 @@
 *décembre (libéral permis calculé sur le cumul de novembre pour le mois non observable).*
 ***v3.3 — 07/07/2026** : circuit de saisie figé — groupée mensuelle depuis PDF/papier, sécurisée*
 *par checksum (total du document) + contrôle de monotonie du cumul.*
+***v3.4 — 07/07/2026** : la date opératoire est toujours connue dès la consultation → suppression*
+*de l'état « à programmer sans date » du cycle de vie de l'intervention.*
 *Calendrier inchangé : construction APRÈS le go-live d'octobre 2026 et APRÈS « secteurs étape 2 ».*
 *Rien ne part en prod tant que ce plan n'est pas clair et précis. On ne code pas encore.*
 
@@ -137,31 +139,28 @@ placement — il en est le **point d'entrée**.
 ### 6.1 Objet à cycle de vie
 
 La **consultation libérale (J0, NGAP) crée l'intervention** et **engage la présence au bloc à J+X**
-(l'acte, CCAM), souvent quand la semaine du bloc (2 j à 3 semaines plus tard) n'est pas encore
-planifiée. L'intervention « attend » puis **s'active** quand l'horizon publié atteint sa semaine.
-Un même objet porte donc les deux bouts du parcours : le J0 qui alimente le NGAP, le J+X qui
-alimente le CCAM et fait tomber la contrainte de placement.
+(l'acte, CCAM). **La date opératoire est toujours connue dès la consultation** — il n'existe pas
+d'intervention « à programmer sans date ». La semaine du bloc (2 j à 3 semaines plus tard) n'est
+en revanche souvent pas encore planifiée : l'intervention « attend » puis **s'active** quand
+l'horizon publié atteint sa semaine. Un même objet porte les deux bouts du parcours : le J0 qui
+alimente le NGAP, le J+X qui alimente le CCAM et fait tomber la contrainte de placement.
 
 ```
-à programmer (date bloc inconnue)
-      │  (le MAR pose la date)
-      ▼
-déclarée (hors horizon)  ──►  active (semaine planifiée)  ──►  OK / conflit  ──►  réalisée
+déclarée (date bloc connue, hors horizon)  ──►  active (semaine planifiée)  ──►  OK / conflit  ──►  réalisée
 ```
 
 ### 6.2 Schéma `LIBERAL_{Y}`
 
 `DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | CCAM (optionnel) | COMMENTAIRE`
 
-- **`DATE_CONSULT`** = J0, moment de la consultation libérale (déclencheur). Peut précéder une
-  `DATE_BLOC` encore inconnue (état « à programmer »).
-- **`DATE_BLOC`** = J+X, jour de l'acte : c'est là que tombe la contrainte de présence.
+- **`DATE_CONSULT`** = J0, moment de la consultation libérale (déclencheur, informatif).
+- **`DATE_BLOC`** = J+X, jour de l'acte : **toujours renseignée dès la déclaration**, c'est là que
+  tombe la contrainte de présence.
 - **`SECTEUR`** référence `SECTEURS_CFG` (→ Lot 0). Le comité doit savoir que Dr X doit être à
   **ORTHO**, pas seulement « au bloc ». Info **logistique**, pas médicale.
 - **`CCAM` optionnel** : collecté dès la V1, **non exploité en V1** (gratuit à prévoir, coûteux à
   reconstituer). Curseur à bouger consciemment (cf. §3.1).
 - **Granularité : une ligne = une journée-bloc, pas un patient.**
-- Peut naître **sans date** (état « à programmer »).
 
 ### 6.3 Workflow MAR (~20 s, indispos.html → « Activité libérale »)
 
@@ -329,8 +328,6 @@ go-live octobre 2026.
 - `LIBERAL_CIBLE` **fixé à 30 % par axe** (décision Arthur), avec borne de décembre. À
   surveiller en réel : si des dépassements récurrents apparaissent malgré la borne, envisager
   une marge par axe (le NGAP semble plus volatil dans le CR réel).
-- Fréquence réelle des interventions « à programmer sans date » à la sortie de consult →
-  conditionne le poids de cet état.
 - **V2 — estimateur temps réel** : prévisualiser les `%` entre deux relevés à partir des codes ;
   table tarifaire en CONFIG paramétrable (source ameli), le relevé restant la source de vérité.
 - **V2 — optimiseur de réallocation** explicite : proposer au comité *quelles* vacations
