@@ -328,8 +328,18 @@ go-live octobre 2026.
 - `LIBERAL_CIBLE` **fixé à 30 % par axe** (décision Arthur), avec borne de décembre. À
   surveiller en réel : si des dépassements récurrents apparaissent malgré la borne, envisager
   une marge par axe (le NGAP semble plus volatil dans le CR réel).
-- **V2 — estimateur temps réel** : prévisualiser les `%` entre deux relevés à partir des codes ;
-  table tarifaire en CONFIG paramétrable (source ameli), le relevé restant la source de vérité.
+- **V2 — estimateur temps réel du libéral (indicateur avancé).** Dès la saisie d'une consult, on
+  peut estimer le **numérateur** à venir : `Σ actes libéraux déclarés × montant CCAM` (+ le NGAP
+  de la consult). Le **dénominateur (public)** échappe au module (l'activité publique n'y est pas
+  saisie acte par acte) → on n'obtient pas le ratio complet en temps réel, seulement le libéral
+  accumulé. Montage utile : **partir du dernier relevé cumulé (socle certifié)** et poser
+  par-dessus l'**incrément estimé** des actes déclarés depuis → projection du numérateur bien plus
+  fine qu'une extrapolation au rythme (on voit venir un pic **avant** le relevé). Limites qui en
+  font un *estimateur*, pas un décompte : le code facturé diverge souvent du code prévu
+  (associations, modificateurs, anesthésie indexée sur l'acte chirurgical) ; les actes s'annulent
+  ou se reportent ; il faut une **table CCAM→€ en CONFIG paramétrable** (source ameli, jamais
+  devinée). À chaque relevé, le chiffre officiel **recale** l'estimation. Le relevé reste la
+  source de vérité ; l'estimateur ne certifie jamais rien.
 - **V2 — optimiseur de réallocation** explicite : proposer au comité *quelles* vacations
   déplacer et de qui vers qui, sous les deux contraintes de plafond. La V1 se contente d'afficher
   les marges ; la V2 optimise.
