@@ -294,8 +294,19 @@ function archiveYear(year, moveSheets) {
   const GITHUB_USER='chpg-anesthesie', GITHUB_REPO='Planning-CHPG', GITHUB_BRANCH='main';
   const results = [];
 
-  // (Étape 3) pushFile supprimé : les archives vont dans le Drive privé
-  // via savePlanningToDrive (code.gs), plus sur le dépôt public.
+  function pushFile(path, content){
+    const apiUrl=`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${path}`;
+    let sha='';
+    try{ const g=UrlFetchApp.fetch(apiUrl,{headers:{Authorization:`token ${getGithubToken()}`},muteHttpExceptions:true});
+      if(g.getResponseCode()===200) sha=JSON.parse(g.getContentText()).sha; }catch(e){}
+    const body={message:`Archive ${year} — ${path} — ${new Date().toISOString()}`,
+      content:Utilities.base64Encode(Utilities.newBlob(content).getBytes()), branch:GITHUB_BRANCH};
+    if(sha) body.sha=sha;
+    const r=UrlFetchApp.fetch(apiUrl,{method:'PUT',headers:{Authorization:`token ${getGithubToken()}`,'Content-Type':'application/json'},payload:JSON.stringify(body),muteHttpExceptions:true});
+    const c=r.getResponseCode();
+    if(c===200||c===201){Logger.log(`✅ ${path} poussé`);return true;}
+    Logger.log(`❌ GitHub ${c} ${path}: ${r.getContentText().slice(0,200)}`); return false;
+  }
 
   // ── 1. STATS_GARDES_N → HISTORIQUE (append idempotent) + sauvegarde JSON ──
   const st = ss.getSheetByName(`STATS_GARDES_${year}`);
@@ -315,13 +326,40 @@ function archiveYear(year, moveSheets) {
     const hd = h.getDataRange().getValues();
     const seen = new Set();
     for (let r=1;r<hd.length;r++){ const id=String(hd[r][0]).trim(); if(id) seen.add(`${id}|${hd[r][1]}`); }
+
+    // NOEL/AN "réel" : lu dans GARDES_{year} (échanges/dons inclus), pas dans le
+    // snapshot STATS figé à la génération. Choix assumé : la rotation Noël/An doit
+    // refléter qui a RÉELLEMENT passé Noël / le Jour de l'an de garde (décision 07/2026).
+    // La dette, elle, reste calculée sur le snapshot (planning tel que généré).
+    // Repli : si GARDES_{year} est absent, on retombe sur la colonne NOEL/AN des stats.
+    let noelReel = null;
+    const gSheet = ss.getSheetByName(`GARDES_${year}`);
+    if (gSheet) {
+      const gd = gSheet.getDataRange().getValues();
+      const d2c = buildDateToCol(gd, year);
+      const noelCols = [`${year}-12-24`, `${year}-12-25`, `${year}-12-31`, `${year + 1}-01-01`]
+        .map(dt => d2c[dt]).filter(c => c != null);
+      if (noelCols.length) {
+        noelReel = new Set();
+        for (let r = 3; r < gd.length; r++) {
+          const gid = String(gd[r][0]).trim(); if (!gid) continue;
+          const did = noelCols.some(col => {
+            const v = String(gd[r][Number(col)] || '').trim().toUpperCase();
+            return v === 'G' || v === 'G2';
+          });
+          if (did) noelReel.add(gid);
+        }
+      }
+    }
+
     const hrows=[];
     for (let r=1;r<d.length;r++){
       const id=String(d[r][0]).trim(); if(!id) continue;
       if (seen.has(`${id}|${year}`)) continue;
+      const noelAn = noelReel ? (noelReel.has(id) ? 1 : 0) : num(r,'NOEL/AN');
       hrows.push([id,year, num(r,'TOTAL G'),num(r,'G (REA)'),num(r,'G2 (MAT)'),
         num(r,'LUN'),num(r,'MAR'),num(r,'MER'),num(r,'JEU'),num(r,'VEN'),num(r,'SAM'),num(r,'DIM'),
-        num(r,'VD'),num(r,'VEILLE JF'),num(r,'JF'),num(r,'NOEL/AN'),num(r,'RECUP R'),num(r,'18H')]);
+        num(r,'VD'),num(r,'VEILLE JF'),num(r,'JF'),noelAn,num(r,'RECUP R'),num(r,'18H')]);
     }
     if (hrows.length){ h.getRange(h.getLastRow()+1,1,hrows.length,18).setValues(hrows);
       results.push(`✅ HISTORIQUE : ${hrows.length} ligne(s) ${year} ajoutée(s)`); }
@@ -329,12 +367,8 @@ function archiveYear(year, moveSheets) {
 
     // b) Sauvegarde JSON (rangée dans archives/)
     const statsObj = d.slice(1).filter(row=>String(row[0]).trim()).map(row=>{ const o={}; Hd.forEach((hn,i)=>o[hn]=row[i]); return o; });
-    // (Étape 3 confidentialité) Archive rangée dans le Drive PRIVÉ —
-    // les stats nominatives ne vont plus sur le dépôt public.
-    let ok1 = true;
-    try { savePlanningToDrive(`stats_${year}.json`, JSON.stringify({year, stats:statsObj}, null, 2)); }
-    catch(e){ ok1 = false; Logger.log(`❌ Drive stats_${year}.json : ${e.message}`); }
-    results.push(ok1?`✅ stats_${year}.json → Drive`:`❌ archive stats échouée (Drive)`);
+    const ok1 = pushFile(`archives/stats_${year}.json`, JSON.stringify({year, stats:statsObj}, null, 2));
+    results.push(ok1?`✅ archives/stats_${year}.json`:`❌ push stats échoué`);
   }
 
   // ── 2. INDISPOS_N → sauvegarde JSON ──
@@ -345,11 +379,8 @@ function archiveYear(year, moveSheets) {
     const indispos={};
     for (let r=3;r<idd.length;r++){ const id=String(idd[r][0]).trim(); if(!id) continue; indispos[id]={};
       dates.forEach((dt,i)=>{ if(!dt) return; const v=String(idd[r][i+1]||'').trim(); if(v) indispos[id][dt]=v; }); }
-    // (Étape 3 confidentialité) Indispos nominatives → Drive PRIVÉ uniquement.
-    let ok2 = true;
-    try { savePlanningToDrive(`indispos_${year}.json`, JSON.stringify({year, indispos}, null, 2)); }
-    catch(e){ ok2 = false; Logger.log(`❌ Drive indispos_${year}.json : ${e.message}`); }
-    results.push(ok2?`✅ indispos_${year}.json → Drive`:`❌ archive indispos échouée (Drive)`);
+    const ok2 = pushFile(`archives/indispos_${year}.json`, JSON.stringify({year, indispos}, null, 2));
+    results.push(ok2?`✅ archives/indispos_${year}.json`:`❌ push indispos échoué`);
   } else results.push(`⚠️ INDISPOS_${year} introuvable — ignoré`);
 
   // ── 3. Déplacer les onglets de l'année vers le classeur d'archive ──
@@ -507,68 +538,3 @@ function TEST_run() {
 function TEST_W2() { generateGardes(2029); }      // génère le planning
 function TEST_W3_safe()  { archiveYear(2029, false); }  // itération rapide
 function TEST_W3_reel()  { archiveYear(2027, true);  }  // test du déplacement réel
-
-// ═══════════════════════════════════════════════════════════════════════════
-// CODES D'ACCÈS ROBUSTES — colonne G (index 6) de MEDECINS
-// 8 caractères non devinables, sans caractères ambigus (0 O 1 I L retirés).
-// La connexion met la saisie en MAJUSCULES et compare sans casse → codes en MAJ.
-// MAR ACTIF (col D = O) → nouveau code ; MAR inactif → code effacé (ne peut plus se connecter).
-// ═══════════════════════════════════════════════════════════════════════════
-var CODE_ALPHABET_ = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-var CODE_LEN_ = 8;
-
-function _codeAleatoire(used) {
-  var c;
-  do {
-    c = '';
-    for (var i = 0; i < CODE_LEN_; i++) c += CODE_ALPHABET_.charAt(Math.floor(Math.random() * CODE_ALPHABET_.length));
-  } while (used && used.has(c));
-  if (used) used.add(c);
-  return c;
-}
-
-// (Re)génère les codes de TOUS les MAR actifs et logue le récap à distribuer.
-// ⚠️ Remplace les codes existants → chaque MAR devra recevoir son nouveau code.
-function genererTousLesCodes() {
-  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('MEDECINS');
-  if (!sh) throw new Error('Onglet MEDECINS introuvable');
-  var data = sh.getDataRange().getValues();
-  var used = new Set();
-  var recap = [], efface = 0;
-  for (var r = 1; r < data.length; r++) {
-    var id = String(data[r][0] || '').trim();
-    if (!id) continue;
-    var cell = sh.getRange(r + 1, 7); // colonne G
-    cell.setNumberFormat('@STRING@');
-    if (String(data[r][3]).trim().toUpperCase() === 'O') {          // ACTIF = O
-      var code = _codeAleatoire(used);
-      cell.setValue(code);
-      recap.push(id + '\t' + String(data[r][1] || '') + '\t' + code);
-    } else {
-      cell.setValue('');                                            // inactif → plus de code
-      efface++;
-    }
-  }
-  Logger.log('✅ ' + recap.length + ' code(s) actif(s) généré(s), ' + efface + ' MAR inactif(s) → code effacé.\n\nID\tNOM\tCODE\n' + recap.join('\n'));
-  return recap;
-}
-
-// Régénère le code d'UN seul MAR (recrue, réinitialisation). Retourne le code.
-function genererCodeMAR(id) {
-  id = String(id || '').trim().toUpperCase();
-  if (!id) throw new Error('id manquant (ex : genererCodeMAR("GR"))');
-  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('MEDECINS');
-  var data = sh.getDataRange().getValues();
-  var used = new Set();
-  for (var r = 1; r < data.length; r++) { var c = String(data[r][6] || '').trim().toUpperCase(); if (c) used.add(c); }
-  for (var r = 1; r < data.length; r++) {
-    if (String(data[r][0] || '').trim().toUpperCase() === id) {
-      var code = _codeAleatoire(used);
-      var cell = sh.getRange(r + 1, 7);
-      cell.setNumberFormat('@STRING@'); cell.setValue(code);
-      Logger.log(id + ' → ' + code);
-      return code;
-    }
-  }
-  throw new Error('MAR introuvable dans MEDECINS : ' + id);
-}
