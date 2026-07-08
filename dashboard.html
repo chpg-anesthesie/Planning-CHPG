@@ -256,6 +256,7 @@ a.tile:hover, .tile.clickable:hover {
 .vc-badge.theme{background:var(--viol-soft);color:var(--viol)}
 .vc-badge.general{background:var(--amber-soft);color:var(--amber)}
 .vc-badge.new{background:var(--red-soft);color:var(--red)}
+.vc-badge.pubtype{background:var(--surface-2);color:var(--ink-3)}
 .vc-score{font-size:12px;font-weight:800;color:var(--ok);background:var(--ok-soft);border-radius:8px;padding:2px 8px}
 .vc-date{font-size:12px;color:var(--ink-4);font-weight:600}
 .vc-title{display:block;font-size:15px;font-weight:700;color:var(--ink);line-height:1.4;text-decoration:none}
@@ -365,6 +366,10 @@ a.tile:hover, .tile.clickable:hover {
         <option value="REVUE">Revues cœur</option>
         <option value="GENERAL">Généralistes</option>
         <option value="THEME">Thèmes</option>
+      </select>
+      <select class="vsel" onchange="onVSort(this.value)">
+        <option value="recent">Plus récents</option>
+        <option value="relevance">Pertinence</option>
       </select>
       <input class="vsearch" type="search" placeholder="Filtrer par titre, auteur, revue…" oninput="onVSearch(this.value)">
     </div>
@@ -688,8 +693,14 @@ function renderStaffsList(data){
 let VEILLE_ITEMS = [];
 let V_FILTER = 'unread';   // unread | all | star
 let V_SOURCE = '';
+let V_SORT   = 'recent';   // recent | relevance
 let V_SEARCH = '';
 let V_SEEN   = '';         // dernière visite (yyyy-MM-dd) → badge "nouveau"
+
+// Type d'article : rang pour le tri pertinence + libellé court FR pour le badge.
+const PUBTYPE_RANK = { 'Meta-Analysis':1, 'Systematic Review':2, 'Randomized Controlled Trial':3, 'Practice Guideline':4, 'Guideline':5, 'Review':6 };
+const PUBTYPE_FR   = { 'Meta-Analysis':'Méta-analyse', 'Systematic Review':'Revue systématique', 'Randomized Controlled Trial':'Essai randomisé', 'Practice Guideline':'Recommandation', 'Guideline':'Recommandation', 'Review':'Mise au point' };
+function _ptRank(it){ return PUBTYPE_RANK[it.pubtype] || 9; }
 
 async function openVeille(){
   document.getElementById('tilesView').style.display='none';
@@ -718,6 +729,7 @@ function setVFilter(f, el){
   renderVeille();
 }
 function onVSource(v){ V_SOURCE=v; renderVeille(); }
+function onVSort(v){ V_SORT=v; renderVeille(); }
 function onVSearch(v){ V_SEARCH=String(v||'').trim().toLowerCase(); renderVeille(); }
 
 function _vMatch(it){
@@ -742,6 +754,13 @@ function renderVeille(){
     return;
   }
   if(!shown.length){ box.innerHTML='<div class="topos-empty">Rien à afficher avec ce filtre.</div>'; return; }
+  shown.sort(function(a,b){
+    if(V_SORT==='relevance'){
+      const ra=_ptRank(a), rb=_ptRank(b);
+      if(ra!==rb) return ra-rb;
+    }
+    return a.date<b.date?1:(a.date>b.date?-1:0);
+  });
   box.innerHTML = shown.map(function(it){
     const isNew = V_SEEN && it.ajoute && it.ajoute>V_SEEN;
     const srcBadge = it.source==='THEME'
@@ -749,11 +768,12 @@ function renderVeille(){
       : (it.source==='GENERAL'
           ? '<span class="vc-badge general">Généraliste</span>'
           : '<span class="vc-badge revue">Revue cœur</span>');
+    const ptBadge = PUBTYPE_FR[it.pubtype] ? '<span class="vc-badge pubtype">'+PUBTYPE_FR[it.pubtype]+'</span>' : '';
     const right = (it.score!=null?'<span class="vc-score">'+it.score+'</span>':'')
                 + '<span class="vc-date">'+fmtDate(it.date)+'</span>';
     const pub='https://pubmed.ncbi.nlm.nih.gov/'+encodeURIComponent(it.pmid)+'/';
     return '<div class="veille-card'+(it.lu?'':' unread')+'">'
-      + '<div class="vc-top">'+srcBadge+(isNew?'<span class="vc-badge new">nouveau</span>':'')
+      + '<div class="vc-top">'+srcBadge+ptBadge+(isNew?'<span class="vc-badge new">nouveau</span>':'')
         + '<span class="vc-right">'+right+'</span></div>'
       + '<a class="vc-title" href="'+pub+'" target="_blank" rel="noopener">'+esc(it.titre)+'</a>'
       + (it.resume?'<div class="vc-resume">'+esc(it.resume)+'</div>':'')
