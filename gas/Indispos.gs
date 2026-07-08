@@ -2610,6 +2610,30 @@ if (action === 'setDailyStatus') {
       return ContentService.createTextOutput(JSON.stringify({ success: true, marId, nbCL, freed, touched, deferred }))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // ── JSON du planning (Drive) — consommés par index.html / dashboard.html ──
+    // (Reconstruits après la régression de recopie : ils n'existaient qu'en prod.)
+    if (action === 'getPlanningJson') {
+      const jy = parseInt(payload.year) || getActiveYear();
+      const raw = readPlanningFromDrive(`planning_${jy}.json`);
+      if (!raw) return _error(`planning_${jy}.json introuvable dans le Drive`);
+      return ContentService.createTextOutput(JSON.stringify({success:true, planning: JSON.parse(raw)}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    if (action === 'getAffectationsJson') {
+      const jy = parseInt(payload.year) || getActiveYear();
+      const raw = readPlanningFromDrive(`affectations_${jy}.json`);
+      if (!raw) return _error(`affectations_${jy}.json introuvable dans le Drive`);
+      return ContentService.createTextOutput(JSON.stringify({success:true, affectations: JSON.parse(raw)}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── PORTAIL (dashboard.html) : délégation au routeur de portail.gs ──
+    // Auth déjà faite plus haut (checkCode) → toute action portail est code-gated.
+    if (typeof portailRoute === 'function') {
+      const _rp = portailRoute(action, payload, user);
+      if (_rp) return _rp;
+    }
+
     return ContentService.createTextOutput(JSON.stringify({success:false, error:'Action inconnue'}))
       .setMimeType(ContentService.MimeType.JSON);
 
