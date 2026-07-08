@@ -6252,10 +6252,29 @@ const WIZ_MOIS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct',
 // ── Maintenance P16 ──────────────────────────────────────────────
 
 // Prépare l'onglet Maintenance à l'ouverture : année d'archivage + liste des MARs.
-function initMaintenance() {
+async function initMaintenance() {
   const list = document.getElementById('codesList');
-  if (!list || !Array.isArray(marsData)) return;
-  const actifs = marsData.filter(m => m.actif);
+  if (!list) return;
+  // Deux caches possibles selon la navigation (marsData / marData) ; sinon on charge.
+  let meds = (Array.isArray(marsData) && marsData.length) ? marsData
+           : (typeof marData !== 'undefined' && Array.isArray(marData) && marData.length) ? marData
+           : null;
+  if (!meds) {
+    list.innerHTML = '<div style="padding:12px;color:var(--ink-3)">Chargement de l\'équipe…</div>';
+    try {
+      const r = await api({action: 'getMedecins'});
+      if (r && r.success) { meds = r.medecins; marsData = r.medecins; }
+    } catch (e) {}
+  }
+  if (!meds || !meds.length) {
+    list.innerHTML = '<div style="padding:12px;color:#B91C1C">Impossible de charger la liste des MARs.</div>';
+    return;
+  }
+  const actifs = meds.filter(m => m.actif);
+  if (!actifs.length) {
+    list.innerHTML = '<div style="padding:12px;color:var(--ink-3)">Aucun MAR actif.</div>';
+    return;
+  }
   list.innerHTML = actifs.map(m => {
     const noMail = !m.email;
     return `<label class="code-row" style="display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:8px;cursor:${noMail?'not-allowed':'pointer'};opacity:${noMail?'.5':'1'}">
