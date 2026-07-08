@@ -307,15 +307,26 @@ function getOrCreateVeilleTabs() {
   let v = ss.getSheetByName(VEILLE_TAB);
   if (!v) {
     v = ss.insertSheet(VEILLE_TAB);
-    v.getRange(1, 1, 1, 12).setValues([[
+    v.getRange(1, 1, 1, 13).setValues([[
       'PMID', 'DATE_PUB', 'TITRE', 'AUTEURS', 'REVUE', 'DOI',
-      'SOURCE', 'SCORE', 'RESUME', 'LU', 'STAR', 'AJOUTE_LE',
+      'SOURCE', 'SCORE', 'RESUME', 'LU', 'STAR', 'AJOUTE_LE', 'PUBTYPE',
     ]]);
-    v.getRange(1, 1, 1, 12).setFontWeight('bold');
+    v.getRange(1, 1, 1, 13).setFontWeight('bold');
     v.setFrozenRows(1);
     v.setColumnWidth(3, 420);
+  } else {
+    _ensureVeilleColumns(v);
   }
   return { cfg: cfg, veille: v };
+}
+
+// Migre un onglet VEILLE préexistant (12 col) vers 13 : ajoute PUBTYPE en fin
+// sans décaler LU/STAR (référencés en dur par markVeille).
+function _ensureVeilleColumns(v) {
+  const lastCol = Math.max(v.getLastColumn(), 1);
+  const hdr = v.getRange(1, 1, 1, lastCol).getValues()[0];
+  if (hdr.indexOf('PUBTYPE') !== -1) return;
+  v.getRange(1, lastCol + 1).setValue('PUBTYPE').setFontWeight('bold');
 }
 
 // Ajoute les lignes de config par défaut manquantes (clé = TYPE|CLE), sans
@@ -415,6 +426,28 @@ function _veilleFilters(cfg) {
   return parts.join(' AND ');
 }
 
+// ── Type d'article : niveau de preuve (best-first) pour le tri pertinence ─
+// esummary renvoie o.pubtype = liste (ex. ["Journal Article","Meta-Analysis"]).
+// On retient le libellé le plus fort présent ; '' si aucun connu.
+// Pour changer l'ordre du "best match", il suffit de réordonner cette liste.
+const PUBTYPE_RANK = [
+  'Meta-Analysis',
+  'Systematic Review',
+  'Randomized Controlled Trial',
+  'Practice Guideline',
+  'Guideline',
+  'Review',
+];
+function _pickPubType(list) {
+  if (!list || !list.length) return '';
+  const set = {};
+  list.forEach(function (t) { set[String(t).trim()] = true; });
+  for (let i = 0; i < PUBTYPE_RANK.length; i++) {
+    if (set[PUBTYPE_RANK[i]]) return PUBTYPE_RANK[i];
+  }
+  return '';
+}
+
 // ── RUN hebdo : 3 requêtes → dédoublonnage → append ─────────────────────
 function runVeille() {
   const tabs  = getOrCreateVeilleTabs();
@@ -455,12 +488,12 @@ function runVeille() {
       rows.push([
         pmid, _fmtPubDate(o), String(o.title || '').replace(/\.$/, ''), _fmtAuthors(o.authors),
         String(o.source || o.fulljournalname || '').trim(), _extractDoi(o), source[pmid],
-        '', '', 'N', 'N', today,
+        '', '', 'N', 'N', today, _pickPubType(o.pubtype),
       ]);
     });
     Utilities.sleep(400);
   }
-  if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, 12).setValues(rows);
+  if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, 13).setValues(rows);
   return { success: true, added: rows.length, scanned: Object.keys(source).length };
 }
 
@@ -479,6 +512,7 @@ function getVeille() {
       source: String(data[r][6] || ''), score: data[r][7] === '' ? null : Number(data[r][7]),
       resume: String(data[r][8] || ''), lu: String(data[r][9] || 'N').toUpperCase() === 'O',
       star: String(data[r][10] || 'N').toUpperCase() === 'O', ajoute: String(data[r][11] || ''),
+      pubtype: String(data[r][12] || ''),
     });
   }
   items.sort(function (a, b) {
@@ -503,6 +537,35 @@ function markVeille(pmid, field, value) {
     }
   }
   return { success: false, error: 'PMID absent' };
+}
+
+// ── One-shot : renseigne PUBTYPE sur les articles déjà en cache ──────────
+// À lancer une fois à la main après la mise à jour. Idempotent : ne retraite
+// que les lignes dont la colonne PUBTYPE est vide.
+function backfillPubTypes() {
+  const sh = getOrCreateVeilleTabs().veille;
+  const data = sh.getDataRange().getValues();
+  const todo = [];
+  for (let r = 1; r < data.length; r++) {
+    const pmid = String(data[r][0] || '').trim();
+    const pt   = String(data[r][12] || '').trim();
+    if (pmid && !pt) todo.push({ row: r + 1, pmid: pmid });
+  }
+  if (!todo.length) { Logger.log('PUBTYPE : rien à compléter.'); return { success: true, updated: 0, scanned: 0 }; }
+  let updated = 0;
+  for (let i = 0; i < todo.length; i += 200) {
+    const lot = todo.slice(i, i + 200);
+    const res = _esummary(lot.map(function (x) { return x.pmid; }));
+    lot.forEach(function (x) {
+      const o = res[x.pmid];
+      if (!o || o.error) return;
+      const pt = _pickPubType(o.pubtype);
+      if (pt) { sh.getRange(x.row, 13).setValue(pt); updated++; }
+    });
+    Utilities.sleep(400);
+  }
+  Logger.log('PUBTYPE complété : ' + updated + ' / ' + todo.length + ' scannés.');
+  return { success: true, updated: updated, scanned: todo.length };
 }
 
 // ── Trigger hebdomadaire (idempotent) : lundi ~06h ──────────────────────
