@@ -321,7 +321,7 @@ a.tile:hover, .tile.clickable:hover {
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
     <p class="hello-sub">Choisissez une rubrique du service.</p>
-    <div id="myGardesHero" class="mg-hero" style="display:none" onclick="openMesGardes()">
+    <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
         <div class="mg-hero-label">Mes gardes</div>
@@ -506,6 +506,7 @@ function showPortal(){
   document.getElementById('portal').style.display = 'block';
   renderTiles();
   loadMyGardes();
+  route();
 }
 
 // ── MES GARDES (perso — MAR connecté) ──
@@ -609,7 +610,22 @@ function renderMesGardes(){
 }
 
 // ── VUE TOPOS ──
-function openView(v){ if(v==='topos') openTopos(); else if(v==='staffs') openStaffs(); else if(v==='veille') openVeille(); else if(v==='protocoles') openProtocoles(); else if(v==='annuaire') openAnnuaire(); }
+// ── ROUTING PAR HASH (retour natif, liens partageables, réouverture PWA) ──
+const NAV = { 'topos':openTopos, 'staffs':openStaffs, 'veille':openVeille, 'protocoles':openProtocoles, 'annuaire':openAnnuaire, 'mes-gardes':openMesGardes };
+function _hideAllViews(){
+  ['tilesView','toposView','staffsView','veilleView','protocolesView','annuaireView','mesGardesView']
+    .forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
+}
+function route(){
+  const key=(location.hash||'').replace(/^#/,'').trim();
+  const fn=NAV[key];
+  const ok = fn && !(key==='mes-gardes' && !MY_ID);   // #mes-gardes réservé aux MAR
+  _hideAllViews();
+  if(ok){ fn(); }
+  else { document.getElementById('tilesView').style.display='block'; }
+}
+// Tuiles et bandeau naviguent en changeant le hash → route() prend le relais.
+function openView(v){ location.hash = '#'+v; }
 function fmtDate(s){ if(!s) return ''; const p=String(s).split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : s; }
 function fmtSize(b){ b=Number(b)||0; if(b<1024) return b+' o'; if(b<1048576) return Math.round(b/1024)+' Ko'; return (b/1048576).toFixed(1)+' Mo'; }
 
@@ -625,15 +641,7 @@ async function openTopos(){
     else { box.innerHTML='<div class="topos-empty">'+esc((r&&r.error)||'Erreur de chargement')+'</div>'; }
   }catch(e){ box.innerHTML='<div class="topos-empty">Erreur réseau — réessayez.</div>'; }
 }
-function backToHome(){
-  document.getElementById('toposView').style.display='none';
-  document.getElementById('staffsView').style.display='none';
-  document.getElementById('veilleView').style.display='none';
-  document.getElementById('protocolesView').style.display='none';
-  document.getElementById('annuaireView').style.display='none';
-  document.getElementById('mesGardesView').style.display='none';
-  document.getElementById('tilesView').style.display='block';
-}
+function backToHome(){ location.hash=''; route(); }
 
 // ── VUE STAFFS ──
 const _JOURS=['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'];
@@ -951,6 +959,7 @@ async function viewAutoLogin(){
 document.getElementById('viewAuthInput').addEventListener('keydown', e => { if(e.key==='Enter') viewLogin(); });
 
 if(window.lucide) lucide.createIcons();
+window.addEventListener('hashchange', route);
 viewAutoLogin();
 </script>
 </body>
