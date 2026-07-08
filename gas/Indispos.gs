@@ -1,7 +1,7 @@
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
 const GITHUB_REPO_INDISPOS = 'Planning-CHPG';
-// (F1) Constante ADMIN_CODE supprimée — le code admin vit UNIQUEMENT dans CONFIG.
+const ADMIN_CODE = 'CHPG2026ADMIN';
 const TEST_YEAR = getActiveYear();
 
 function getIndisposYear() {
@@ -112,39 +112,28 @@ function saveIndisposForDoctor(doctorId, indisposMap, year) {
 
 // ── VÉRIFIER CODE ACCÈS ───────────────────────────────────────────────
 function checkCode(code) {
-  // (F6) Anti-force-brute : après 15 codes erronés en 15 minutes (toutes
-  // origines confondues), les connexions sont bloquées 15 minutes.
-  const _cache = CacheService.getScriptCache();
-  const _fails = Number(_cache.get('authFails') || 0);
-  if (_fails >= 15) return {blocked: true};
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName('CONFIG');
-  // (F1) Plus AUCUN code de secours : si ADMIN_CODE manque dans CONFIG,
-  // l'accès admin est refusé (panne visible > porte ouverte invisible).
-  let adminCode = null;
+  let adminCode = 'CHPG2026ADMIN';
   if (configSheet) {
     const configData = configSheet.getDataRange().getValues();
     for (let r = 1; r < configData.length; r++) {
       if (String(configData[r][0]).trim() === 'ADMIN_CODE') {
-        adminCode = String(configData[r][1]).trim() || null;
+        adminCode = String(configData[r][1]).trim();
         break;
       }
     }
   }
-  if (adminCode && String(code).trim().toUpperCase() === adminCode.toUpperCase()) return {role: 'admin', id: 'ADMIN'};
+  if (code === adminCode) return {role: 'admin', id: 'ADMIN'};
 
   const sheet = ss.getSheetByName('MEDECINS');
   if (!sheet) return null;
   const data = sheet.getDataRange().getValues();
-  const _codeUp = String(code).trim().toUpperCase();
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][6]).trim().toUpperCase() === _codeUp) {
+    if (String(data[r][6]).trim() === String(code).trim()) {
       return {role:'mar', id:data[r][0], name:data[r][1], initials:data[r][2]};
     }
   }
-  // (F6) Code inconnu → incrémente le compteur d'échecs (expire après 15 min)
-  try { _cache.put('authFails', String(_fails + 1), 900); } catch(e) {}
-  logAction('🔐 Tentative de connexion échouée (' + (_fails + 1) + '/15)');
   return null;
 }
 
@@ -670,8 +659,9 @@ function getPlanningStatus() {
   // Vérifier la présence de stats_N.json sur GitHub Pages
 let gardesNClosed = false;
 try {
-  // (Étape 3) L'archive de clôture vit désormais dans le Drive privé.
-  gardesNClosed = readPlanningFromDrive('stats_' + year + '.json') !== null;
+  const checkUrl = 'https://chpg-anesthesie.github.io/Planning-CHPG/stats_' + year + '.json';
+  const resp = UrlFetchApp.fetch(checkUrl, {muteHttpExceptions: true});
+  gardesNClosed = resp.getResponseCode() === 200;
 } catch(e) {
   gardesNClosed = false;
 }
@@ -689,48 +679,6 @@ function doGet(e) {
         success: true, year: TEST_YEAR
       })).setMimeType(ContentService.MimeType.JSON);
     }
-    // (Étape 3 confidentialité) getStatus (noms des retardataires) et
-    // getStatsLive (stats nominatives) exigent désormais un code valide.
-    // Seul getActiveYear (un simple millésime) reste public.
-    const user = checkCode(code);
-    if (user && user.blocked) {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false, error: 'Trop de tentatives — accès bloqué 15 minutes. Réessayez plus tard.'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-    if (!user) {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false, error: 'Code invalide'
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    // (F7) Verrou d'écriture : une seule opération d'écriture à la fois sur
-    // le Sheet (les autres attendent leur tour, max 30 s). Élimine les
-    // corruptions par écritures simultanées (23 MARs + admin en novembre).
-    // Le verrou est libéré automatiquement à la fin de l'exécution.
-    const WRITE_ACTIONS = new Set(['saveIndispos','applyModification','applyRotationLib','setLibSoliste',
-      'archiveYear','clearIndisposYear','generateGardes','initYear','setActiveYear',
-      'setIndisposYear','setDailyStatus','poserAbsenceLongue','publishPlanning',
-      'saveAffectations','saveAffectationsMar','saveConfig','saveGroupes','saveMedecin',
-      'savePeriodes','savePlanningOverride','deleteOverride','deletePlanningOverride',
-      'addMedecinToGroupe']);
-    if (WRITE_ACTIONS.has(action)) {
-      try { LockService.getScriptLock().waitLock(30000); }
-      catch(e) {
-        return ContentService.createTextOutput(JSON.stringify({
-          success: false, error: 'Système occupé (une autre sauvegarde est en cours) — réessayez dans quelques secondes.'
-        })).setMimeType(ContentService.MimeType.JSON);
-      }
-    }
-    if (action === 'login') {
-      logConnexion(user);
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true, role: user.role, id: user.id,
-        name: user.name, initials: user.initials, 
-        year: TEST_YEAR, indisposYear: getIndisposYear(),
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-
     if (action === 'getStatus') {
       return ContentService.createTextOutput(JSON.stringify({
         success: true, status: getPlanningStatus()
@@ -743,24 +691,19 @@ function doGet(e) {
           .setMimeType(ContentService.MimeType.JSON);
       } catch (err) { return _error(err.message); }
     }
-
-    // (Étape 1 confidentialité) Planning servi depuis le Drive PRIVÉ,
-    // uniquement après vérification du code (MAR ou admin, via checkCode
-    // plus haut). Réponse assemblée par concaténation (pas de re-parse
-    // d'un JSON de ~300 Ko) — le contenu Drive est déjà du JSON valide.
-    if (action === 'getPlanningJson') {
-      const pYear = Number(payload.year) || TEST_YEAR;
-      const content = readPlanningFromDrive(`planning_${pYear}.json`);
-      if (!content) return _error(`planning_${pYear}.json introuvable dans Drive — republier le planning ${pYear} depuis admin.html`);
-      return ContentService.createTextOutput('{"success":true,"year":' + pYear + ',"planning":' + content + '}')
-        .setMimeType(ContentService.MimeType.JSON);
+    const user = checkCode(code);
+    if (!user) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false, error: 'Code invalide'
+      })).setMimeType(ContentService.MimeType.JSON);
     }
-    if (action === 'getAffectationsJson') {
-      const aYear = Number(payload.year) || TEST_YEAR;
-      const content = readPlanningFromDrive(`affectations_${aYear}.json`);
-      if (!content) return _error(`affectations_${aYear}.json introuvable dans Drive — republier le planning ${aYear} depuis admin.html`);
-      return ContentService.createTextOutput('{"success":true,"year":' + aYear + ',"affectations":' + content + '}')
-        .setMimeType(ContentService.MimeType.JSON);
+    if (action === 'login') {
+      logConnexion(user);
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, role: user.role, id: user.id,
+        name: user.name, initials: user.initials, 
+        year: TEST_YEAR, indisposYear: getIndisposYear(),
+      })).setMimeType(ContentService.MimeType.JSON);
     }
 
     if (action === 'getNoelAnEligibles') {
@@ -1422,104 +1365,166 @@ if (!affSheet) {
       if (user.role !== 'admin') return _deny();
       const results = [];
       let ok = true;
-      function check(label, condition, warn) {
-        if (condition) results.push(`✅ ${label}`);
-        else if (warn) results.push(`⚠️ ${label}`);
+      const R = { OK:1, WARN:2, ERR:3 };
+      function check(label, level) {
+        if (level === true || level === R.OK) results.push(`✅ ${label}`);
+        else if (level === R.WARN) results.push(`⚠️ ${label}`);
         else { results.push(`❌ ${label}`); ok = false; }
       }
+      const info = t => results.push(`ℹ️ ${t}`);
+      const hdr  = t => results.push(`── ${t} ${'─'.repeat(Math.max(0,32-t.length))}`);
       const ss = SpreadsheetApp.getActiveSpreadsheet();
-      results.push('── Onglets requis ──────────────────');
-      ['CONFIG','MEDECINS','PERIODES_VAC','GROUPES_VAC','OVERRIDES',
-       `INDISPOS_${TEST_YEAR}`,`GARDES_${TEST_YEAR}`,
-       `STATS_GARDES_${TEST_YEAR}`,`AFFECTATIONS_${TEST_YEAR}`].forEach(name => {
-        check(`Onglet ${name}`, !!ss.getSheetByName(name));
-      });
-      results.push('── CONFIG ──────────────────────────');
-      const configSheet = ss.getSheetByName('CONFIG');
-      if (configSheet) {
-        const cfgData = configSheet.getDataRange().getValues();
-        const cfgMap = {};
-        for (let r = 1; r < cfgData.length; r++) cfgMap[String(cfgData[r][0]).trim()] = String(cfgData[r][1]).trim();
-        check('ANNEE_ACTIVE présente', !!cfgMap['ANNEE_ACTIVE']);
-        check(`ANNEE_ACTIVE = ${TEST_YEAR}`, String(cfgMap['ANNEE_ACTIVE'])===String(TEST_YEAR));
-        check('ADMIN_CODE présent', !!cfgMap['ADMIN_CODE']);
-        check('GITHUB_TOKEN présent', !!cfgMap['GITHUB_TOKEN'], true);
-        check('GITHUB_REPO présent', !!cfgMap['GITHUB_REPO']||!!cfgMap['GITHUB_REPO_INDISPOS'], true);
+      const has = n => !!ss.getSheetByName(n);
+      const rows = n => { const sh = ss.getSheetByName(n); return sh ? sh.getLastRow() : 0; };
+      const Y  = getActiveYear();
+      const N1 = Y + 1;
+
+      // ── 1. Onglets de base (toujours requis) ──
+      hdr('Onglets de base');
+      ['CONFIG','MEDECINS','HISTORIQUE','PERIODES_VAC','GROUPES_VAC'].forEach(n =>
+        check(`Onglet ${n}`, has(n) ? R.OK : R.ERR));
+      // Onglets créés à l'usage : absence = simple info
+      ['PLANNING_OVERRIDES','SEMAINES_VALIDEES','LOGS','CONNEXIONS'].forEach(n =>
+        has(n) ? check(`Onglet ${n}`, R.OK) : info(`Onglet ${n} pas encore créé (normal tant qu'inutilisé)`));
+
+      // ── 2. Configuration ──
+      hdr('Configuration');
+      const cfgSheet = ss.getSheetByName('CONFIG');
+      const cfg = {};
+      if (cfgSheet) {
+        const cd = cfgSheet.getDataRange().getValues();
+        for (let r = 1; r < cd.length; r++) cfg[String(cd[r][0]).trim()] = String(cd[r][1]).trim();
       }
-      results.push('── Équipe ──────────────────────────');
-      const medSheet = ss.getSheetByName('MEDECINS');
-      if (medSheet) {
-        const medData = medSheet.getDataRange().getValues();
-        const actifs = [], sansEmail = [], sansCode = [];
-        for (let r = 1; r < medData.length; r++) {
-          const id = String(medData[r][0]).trim();
-          const actif = String(medData[r][3]).trim().toUpperCase() === 'O';
-          const code = String(medData[r][6]).trim(), email = String(medData[r][7]).trim();
-          if (!id) continue;
-          if (actif) {
-            actifs.push(id);
-            if (!email) sansEmail.push(id);
-            if (!code) sansCode.push(id);
+      check('ANNEE_ACTIVE présente', cfg['ANNEE_ACTIVE'] ? R.OK : R.ERR);
+      check(`ANNEE_ACTIVE cohérente (= ${Y})`, String(cfg['ANNEE_ACTIVE']) === String(Y) ? R.OK : R.WARN);
+      check('ADMIN_CODE présent', cfg['ADMIN_CODE'] ? R.OK : R.ERR);
+      check('Clé de publication GITHUB_TOKEN présente', cfg['GITHUB_TOKEN'] ? R.OK : R.ERR);
+
+      // ── 3. Publication GitHub (test réel de la clé) ──
+      hdr('Publication (test réel)');
+      try {
+        const tok = getGithubToken();
+        if (!tok) {
+          check('Clé de publication lisible', R.ERR);
+        } else {
+          const url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/branches/${GITHUB_BRANCH}`;
+          const resp = UrlFetchApp.fetch(url, {
+            method: 'get',
+            headers: { Authorization: 'token ' + tok, Accept: 'application/vnd.github+json' },
+            muteHttpExceptions: true
+          });
+          const code = resp.getResponseCode();
+          if (code === 200) {
+            check('Connexion GitHub OK (le planning peut être publié)', R.OK);
+            const exp = (resp.getAllHeaders() || {})['github-authentication-token-expiration'];
+            if (exp) {
+              const days = Math.round((new Date(String(exp)) - new Date()) / 86400000);
+              if (days < 0) check('Token GitHub EXPIRÉ', R.ERR);
+              else if (days <= 14) check(`Token GitHub expire dans ${days} j — à renouveler`, R.WARN);
+              else info(`Token GitHub valide, expire dans ${days} j`);
+            } else info('Token GitHub sans date d\'expiration');
+          } else if (code === 401) {
+            check('Token GitHub invalide/expiré (401) — publications impossibles', R.ERR);
+          } else if (code === 404) {
+            check(`Dépôt/branche introuvable (404) — vérifier ${GITHUB_USER}/${GITHUB_REPO}@${GITHUB_BRANCH}`, R.ERR);
+          } else {
+            check(`Réponse GitHub inattendue (${code})`, R.WARN);
           }
         }
-        check(`${actifs.length} MARs actifs`, actifs.length > 0);
-        check(`MARs sans email : ${sansEmail.length||'aucun'}`, sansEmail.length===0, true);
-        check(`MARs sans code d'accès : ${sansCode.length||'aucun'}`, sansCode.length===0, true);
-        results.push('── Affectations ────────────────────');
-        const affSheet = ss.getSheetByName(`AFFECTATIONS_${TEST_YEAR}`);
-        if (affSheet) {
-          const affData = affSheet.getDataRange().getValues();
-          const affIds = new Set();
-          for (let r = 1; r < affData.length; r++) { const id = String(affData[r][0]).trim(); if (id) affIds.add(id); }
-          const sansAff = actifs.filter(id => !affIds.has(id));
-          check(`MARs actifs sans affectation : ${sansAff.length||'aucun'}`, sansAff.length===0, true);
-          if (sansAff.length) results.push(`  → ${sansAff.join(', ')}`);
-        } else { results.push(`⚠️ Onglet AFFECTATIONS_${TEST_YEAR} absent`); }
+      } catch (e) {
+        check('Connexion GitHub impossible : ' + e.message, R.WARN);
       }
-      results.push('── Overrides ───────────────────────');
-      const ovSheet = ss.getSheetByName('OVERRIDES');
-      if (ovSheet && ovSheet.getLastRow() > 1) {
-        const ovData = ovSheet.getDataRange().getValues();
-        const seen = new Set(), doublons = [];
-        for (let r = 1; r < ovData.length; r++) {
-          const key = `${ovData[r][0]}_${ovData[r][1]}`;
-          if (seen.has(key)) doublons.push(key); seen.add(key);
+
+      // ── 4. Équipe (MEDECINS) ──
+      hdr('Équipe');
+      let actifs = [];
+      const medSheet = ss.getSheetByName('MEDECINS');
+      if (medSheet) {
+        const md = medSheet.getDataRange().getValues();
+        const sansEmail = [], sansCode = [], quotiteKO = [], datesKO = [];
+        for (let r = 1; r < md.length; r++) {
+          const id = String(md[r][0]).trim(); if (!id) continue;
+          if (String(md[r][3]).trim().toUpperCase() !== 'O') continue; // ACTIF = O
+          actifs.push(id);
+          if (!String(md[r][7]).trim()) sansEmail.push(id);            // email col 7
+          if (!String(md[r][6]).trim()) sansCode.push(id);             // code col 6
+          const q = Number(md[r][2]);                                  // quotité col 2
+          if (!(q > 0 && q <= 100)) quotiteKO.push(id);
+          const dd = md[r][9], df = md[r][10];                         // arrivée / départ
+          if (dd && df) {
+            const a = dd instanceof Date ? dd : new Date(String(dd) + 'T00:00:00');
+            const b = df instanceof Date ? df : new Date(String(df) + 'T00:00:00');
+            if (a.getTime() && b.getTime() && b < a) datesKO.push(id);
+          }
         }
-        const total = ovData.length - 1;
-        const today = new Date(); today.setHours(0,0,0,0);
-        const futures = ovData.slice(1).filter(row => {
-          const raw = row[0];
-          return (raw instanceof Date ? raw : new Date(String(raw)+'T00:00:00')) >= today;
-        }).length;
-        results.push(`ℹ️ ${total} override(s) au total, ${futures} à venir`);
-        check(`Doublons dans OVERRIDES : ${doublons.length||'aucun'}`, doublons.length===0, true);
-      } else { results.push('ℹ️ Aucun override enregistré'); }
-      results.push('── Vacances ────────────────────────');
-      const perSheet = ss.getSheetByName('PERIODES_VAC');
-      if (perSheet) {
-        const nbPer = perSheet.getDataRange().getValues().length - 1;
-        check(`${nbPer} période(s) configurée(s)`, nbPer > 0);
+        check(`${actifs.length} MARs actifs`, actifs.length > 0 ? R.OK : R.ERR);
+        check(`MARs actifs sans email : ${sansEmail.length || 'aucun'}${sansEmail.length ? ' (' + sansEmail.join(', ') + ')' : ''}`, sansEmail.length ? R.WARN : R.OK);
+        check(`MARs actifs sans code d'accès : ${sansCode.length || 'aucun'}${sansCode.length ? ' (' + sansCode.join(', ') + ')' : ''}`, sansCode.length ? R.WARN : R.OK);
+        check(`Quotité manquante ou hors bornes : ${quotiteKO.length || 'aucun'}${quotiteKO.length ? ' (' + quotiteKO.join(', ') + ')' : ''}`, quotiteKO.length ? R.WARN : R.OK);
+        check(`Dates arrivée/départ incohérentes : ${datesKO.length || 'aucun'}${datesKO.length ? ' (' + datesKO.join(', ') + ')' : ''}`, datesKO.length ? R.WARN : R.OK);
+      } else {
+        check('Onglet MEDECINS', R.ERR);
       }
+
+      // ── 5. Année active {Y} ──
+      hdr('Année active ' + Y);
+      check(`INDISPOS_${Y} présent`, has(`INDISPOS_${Y}`) ? R.OK : R.WARN);
+      check(`GARDES_${Y} avec données`, rows(`GARDES_${Y}`) > 3 ? R.OK : R.WARN);
+      check(`STATS_GARDES_${Y} (référence équité/dette)`, rows(`STATS_GARDES_${Y}`) > 1 ? R.OK : R.WARN);
+      const affSheet = ss.getSheetByName(`AFFECTATIONS_${Y}`);
+      if (affSheet && actifs.length) {
+        const affIds = new Set();
+        const ad = affSheet.getDataRange().getValues();
+        for (let r = 1; r < ad.length; r++) { const id = String(ad[r][0]).trim(); if (id) affIds.add(id); }
+        const sansAff = actifs.filter(id => !affIds.has(id));
+        check(`MARs actifs sans affectation : ${sansAff.length || 'aucun'}${sansAff.length ? ' (' + sansAff.join(', ') + ')' : ''}`, sansAff.length ? R.WARN : R.OK);
+      } else {
+        check(`AFFECTATIONS_${Y} présent`, affSheet ? R.OK : R.WARN);
+      }
+
+      // ── 6. Année en préparation {N+1} (état du cycle) ──
+      hdr('Préparation ' + N1);
+      if (has(`INDISPOS_${N1}`)) {
+        info(`INDISPOS_${N1} créé → assistant 1 (octobre) lancé`);
+        if (rows(`GARDES_${N1}`) > 3) info(`GARDES_${N1} généré → assistant 2 (novembre) fait`);
+        else info(`GARDES_${N1} pas encore généré → assistant 2 à venir`);
+      } else {
+        info(`Aucun onglet ${N1} : préparation non commencée (normal hors période octobre→décembre)`);
+      }
+
+      // ── 7. Vacances & groupes ──
+      hdr('Vacances & groupes');
+      check(`${Math.max(0, rows('PERIODES_VAC') - 1)} période(s) de vacances configurée(s)`, rows('PERIODES_VAC') > 1 ? R.OK : R.WARN);
       const grpSheet = ss.getSheetByName('GROUPES_VAC');
       if (grpSheet) {
-        const grpData = grpSheet.getDataRange().getValues();
-        const counts = {A:0,B:0,C:0};
-        for (let r = 1; r < grpData.length; r++) {
-          const g = String(grpData[r][0]).trim();
-          if (counts[g]!==undefined) counts[g]++;
-        }
-        check(`Groupes A/B/C peuplés (${counts.A}/${counts.B}/${counts.C})`,
-          counts.A>0&&counts.B>0&&counts.C>0);
+        const gd = grpSheet.getDataRange().getValues();
+        const c = { A:0, B:0, C:0 };
+        for (let r = 1; r < gd.length; r++) { const g = String(gd[r][0]).trim(); if (c[g] !== undefined) c[g]++; }
+        check(`Groupes A/B/C peuplés (${c.A}/${c.B}/${c.C})`, (c.A && c.B && c.C) ? R.OK : R.WARN);
       }
-      results.push('── Gardes ──────────────────────────');
-      const gardesSheet = ss.getSheetByName(`GARDES_${TEST_YEAR}`);
-      check(`Onglet GARDES_${TEST_YEAR} avec données`, gardesSheet&&gardesSheet.getLastRow()>3);
-      const statsSheet = ss.getSheetByName(`STATS_GARDES_${TEST_YEAR}`);
-      check(`Onglet STATS_GARDES_${TEST_YEAR} avec données`, statsSheet&&statsSheet.getLastRow()>1);
+
+      // ── 8. Overrides planning (PLANNING_OVERRIDES) ──
+      hdr('Overrides planning');
+      const ov = ss.getSheetByName('PLANNING_OVERRIDES');
+      if (ov && ov.getLastRow() > 1) {
+        const od = ov.getDataRange().getValues();
+        const seen = new Set(), dup = [];
+        for (let r = 1; r < od.length; r++) {
+          const key = `${od[r][0]}_${od[r][1]}`;
+          if (seen.has(key)) dup.push(key); else seen.add(key);
+        }
+        info(`${od.length - 1} placement(s) manuel(s) enregistré(s)`);
+        check(`Doublons (même date + MAR) : ${dup.length || 'aucun'}`, dup.length ? R.WARN : R.OK);
+      } else {
+        info('Aucun placement manuel enregistré');
+      }
+
       results.push('────────────────────────────────────');
-      results.push(ok ? '✅ Diagnostic OK' : '❌ Erreurs détectées');
-      logAction(`diagComplet — ${ok?'OK':'ERREURS'} (${results.filter(l=>l.startsWith('❌')).length} erreur(s))`);
-      return ContentService.createTextOutput(JSON.stringify({success:true, ok, results}))
+      const nbErr = results.filter(l => l.startsWith('❌')).length;
+      const nbWarn = results.filter(l => l.startsWith('⚠️')).length;
+      results.push(ok ? `✅ Tout est en ordre${nbWarn ? ` (${nbWarn} point(s) de vigilance)` : ''}` : `❌ ${nbErr} problème(s) à corriger${nbWarn ? `, ${nbWarn} avertissement(s)` : ''}`);
+      logAction(`diagComplet — ${ok ? 'OK' : 'ERREURS'} (${nbErr} err, ${nbWarn} warn)`);
+      return ContentService.createTextOutput(JSON.stringify({ success:true, ok, results }))
         .setMimeType(ContentService.MimeType.JSON);
     }
     if (action === 'archiveYear') {
@@ -2050,37 +2055,6 @@ if (action === 'deletePlanningOverride') {
   }
 }
 
-// ── ACTION : setLibSoliste (désigner/retirer manuellement le soliste libéral endo d'UNE date) ──
-if (action === 'setLibSoliste') {
-  if (user.role !== 'admin') return _deny();
-  const y = Number(payload.year) || TEST_YEAR;
-  const date = String(payload.date || '').trim();
-  const marId = String(payload.marId || '').trim().toUpperCase();
-  if (!date) return _error('date manquante');
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName('PLANNING_OVERRIDES');
-  if (!sheet) {
-    sheet = ss.insertSheet('PLANNING_OVERRIDES');
-    sheet.getRange(1,1,1,5).setValues([['DATE','MAR_ID','MATIN','APREM','COMMENTAIRE']]);
-    sheet.getRange(1,1,1,5).setFontWeight('bold');
-  }
-  const data = sheet.getDataRange().getValues();
-  const _d = raw => (raw instanceof Date)
-    ? `${raw.getFullYear()}-${String(raw.getMonth()+1).padStart(2,'0')}-${String(raw.getDate()).padStart(2,'0')}`
-    : String(raw).trim();
-  // 1) retirer le soliste ROT-LIB existant pour CETTE date (du bas vers le haut)
-  for (let r = data.length - 1; r >= 1; r--) {
-    if (_d(data[r][0]) === date && String(data[r][4]).trim().toUpperCase() === 'ROT-LIB') sheet.deleteRow(r + 1);
-  }
-  // 2) écrire le nouveau soliste (marId vide = simplement retirer)
-  if (marId) sheet.appendRow([date, marId, '', 'CS-END', 'ROT-LIB']);
-  // 3) republier le planning
-  try { generatePlanning(y); } catch(e) { Logger.log('setLibSoliste generatePlanning: ' + e.message); }
-  logAction(`setLibSoliste ${date} → ${marId || '(retiré)'}`);
-  return ContentService.createTextOutput(JSON.stringify({ success: true, date, marId }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
 // ── ACTION : applyRotationLib (rotation consultations libérales endo) ──
 if (action === 'applyRotationLib') {
   if (user.role !== 'admin') return _deny();
@@ -2141,9 +2115,50 @@ if (action === 'getPlanningOverrides') {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// (Horizon glissant) Actions validerSemaine / getSemainesValidees supprimées :
-// la validation manuelle des semaines n'existe plus (badge provisoire automatique
-// côté index.html au-delà de aujourd'hui + 4 semaines).
+// ── ACTION : validerSemaine ───────────────────────────────────────────
+// Valide ou dévalide une semaine → mise à jour SEMAINES_VALIDEES + push JSON
+// payload : { action, code, year, isoWeek, valide (true/false) }
+if (action === 'validerSemaine') {
+  if (user.role !== 'admin') return _deny();
+  const yearVal  = Number(payload.year) || TEST_YEAR;
+  const isoWeek  = Number(payload.isoWeek);
+  const valide   = payload.valide === true || payload.valide === 'true';
+  if (!isoWeek) return _error('isoWeek requis');
+  try {
+    validerSemaine(yearVal, isoWeek, valide);
+    logAction(`validerSemaine — S${isoWeek} ${yearVal} → ${valide ? 'VALIDÉE' : 'dévalidée'}`);
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      isoWeek, year: yearVal, validated: valide
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch(e) {
+    return _error(e.message);
+  }
+}
+
+// ── ACTION : getSemainesValidees ──────────────────────────────────────
+// Retourne la liste des semaines validées pour une année
+// payload : { action, code, year? }
+if (action === 'getSemainesValidees') {
+  if (user.role !== 'admin') return _deny();
+  const yearVal = Number(payload.year) || TEST_YEAR;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('SEMAINES_VALIDEES');
+  if (!sheet) return ContentService.createTextOutput(JSON.stringify({success: true, semaines: []}))
+    .setMimeType(ContentService.MimeType.JSON);
+  const data = sheet.getDataRange().getValues();
+  const semaines = [];
+  for (let r = 1; r < data.length; r++) {
+    if (Number(data[r][0]) !== yearVal) continue;
+    semaines.push({
+      isoWeek:       Number(data[r][1]),
+      validated:     String(data[r][2]).trim().toUpperCase() === 'O',
+      dateValidation:data[r][3] ? String(data[r][3]) : '',
+    });
+  }
+  return ContentService.createTextOutput(JSON.stringify({success: true, semaines, year: yearVal}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
 
 // ── ACTION : getMARsDispoJour ─────────────────────────────────────────
 // Retourne les MARs disponibles un jour donné pour le popup "combler case flash"
@@ -2536,14 +2551,6 @@ if (action === 'setDailyStatus') {
       return ContentService.createTextOutput(JSON.stringify({ success: true, marId, nbCL, freed, touched, deferred }))
         .setMimeType(ContentService.MimeType.JSON);
     }
-    // ── Délégation PORTAIL (portail.gs) ──────────────────────────────
-    // Toute action NON planning (Topos, Staffs, CRH) est routée vers
-    // portail.gs. Garde `typeof` = filet : si portail.gs n'est pas (encore)
-    // recopié, le planning tourne quand même, rien ne casse.
-    if (typeof portailRoute === 'function') {
-      const _pOut = portailRoute(action, payload, user);
-      if (_pOut) return _pOut;
-    }
     return ContentService.createTextOutput(JSON.stringify({success:false, error:'Action inconnue'}))
       .setMimeType(ContentService.MimeType.JSON);
 
@@ -2679,9 +2686,7 @@ function testNotifierConflits() {
   }
 }
 function testSetDailyStatusWrite() {
-  // (F1) Le code admin est lu depuis CONFIG — plus jamais en dur dans le code.
-  const cfg = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG').getDataRange().getValues();
-  const ADMIN = (cfg.find(r => String(r[0]).trim() === 'ADMIN_CODE') || [,''])[1];
+  const ADMIN = 'ADMINPLANNING';   // ← ton code admin (CONFIG ▸ ADMIN_CODE)
   const payload = {
     action: 'setDailyStatus', code: ADMIN,
     year: 2027, marId: 'FROHLICH', statut: 'CL',
