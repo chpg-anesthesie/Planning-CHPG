@@ -569,7 +569,7 @@ function renderMyGardesHero(){
   if(!MY_GARDES || !MY_GARDES.length){ main.textContent='Aucune garde à venir'; sub.textContent=''; return; }
   const g0=MY_GARDES[0], n=_daysUntil(g0.date), dp=staffDateParts(g0.date);
   const when = n<=0 ? "aujourd'hui" : n===1 ? 'demain' : 'dans '+n+' jours';
-  const lbl = _mgCap(dp.dow)+' '+dp.dnum+' '+dp.month + (g0.type==='G2'?' · 2ᵉ ligne':'');
+  const lbl = _mgCap(dp.dow)+' '+dp.dnum+' '+dp.month + ' · ' + (g0.type==='G2'?'Mater/Bloc':'Réa');
   main.textContent = 'Prochaine garde '+when+' — '+lbl;
   const rest=MY_GARDES.length-1;
   sub.textContent = rest>0 ? (rest+' autre'+(rest>1?'s':'')+' à venir · voir tout') : 'voir le détail';
@@ -598,7 +598,7 @@ function renderMesGardes(){
   MY_GARDES.forEach(function(g){
     const dp=staffDateParts(g.date), p=g.date.split('-'), mKey=p[0]+'-'+p[1];
     if(mKey!==curMonth){ curMonth=mKey; html+='<div class="mg-month">'+_mgCap(_MOIS[(+p[1])-1])+' '+p[0]+'</div>'; }
-    const tag = g.type==='G2' ? '<span class="mg-tag g2">2ᵉ ligne</span>' : '<span class="mg-tag g">Garde</span>';
+    const tag = g.type==='G2' ? '<span class="mg-tag g2">Mater/Bloc</span>' : '<span class="mg-tag g">Réa</span>';
     html+='<div class="staff-card">'
       + '<div class="staff-date"><div class="staff-dow">'+dp.dow+'</div><div class="staff-dnum">'+dp.dnum+'</div><div class="staff-month">'+dp.month+'</div></div>'
       + '<div class="staff-body"><div class="staff-theme">'+_mgCap(dp.dow)+' '+dp.dnum+' '+dp.month+tag+'</div></div>'
