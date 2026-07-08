@@ -586,6 +586,8 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .aff-wrap { overflow-x: auto; }
 
 /* ── Maintenance zones P16 ── */
+.diag-ok{color:#166534}.diag-err{color:#B91C1C;font-weight:600}.diag-warn{color:#C2410C}.diag-info{color:#64748B;font-weight:600;margin-top:4px}
+.code-row:hover{background:#F1F5F9}
 .maint-zone-title { font-size:13px; font-weight:700; color:var(--ink-2); margin-bottom:12px; padding-bottom:8px; border-bottom:2px solid var(--line); }
 .maint-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
 .maint-card { background:var(--white); border:1px solid var(--line); border-radius:var(--radius); padding:20px; display:flex; flex-direction:column; gap:12px; }
@@ -1373,49 +1375,22 @@ if (sessionStorage.getItem('adminCode')) {
 
     <div class="maint-action">
       <div class="maint-title">🔍 Diagnostic système</div>
-      <div class="maint-desc">Vérifie l'intégrité des onglets, MARs et connexion GitHub.</div>
+      <div class="maint-desc">Vérifie que tout est en ordre pour le quotidien et les assistants : onglets du classeur, réglages, MARs sans email ou sans code, MARs actifs sans affectation, clé de publication.</div>
       <button class="btn-primary" onclick="runDiag()" id="btnDiagSys">Lancer le diagnostic</button>
-      <div id="diagSysResult" style="display:none;margin-top:10px;font-size:11px;font-family:var(--mono);background:var(--line-light);border-radius:8px;padding:10px;max-height:250px;overflow-y:auto;line-height:1.8"></div>
+      <div id="diagSysResult" style="display:none;margin-top:12px;font-size:12px;font-family:var(--mono,monospace);background:#F8FAFC;border:1px solid var(--line);border-radius:10px;padding:12px;max-height:340px;overflow-y:auto;line-height:1.85"></div>
     </div>
 
     <div class="maint-action">
-      <div class="maint-title">🌐 Publier le planning</div>
-      <div class="maint-desc">Régénère et publie le planning visible par tous les MARs.</div>
-      <button class="btn-primary" onclick="publishPlanning()">Publier maintenant</button>
-    </div>
-
-    <div class="maint-action">
-      <div class="maint-title">📦 Archiver l'année <span id="archiveYearLabel">—</span></div>
-      <div class="maint-desc">Pousse stats et indispos sur GitHub. À faire en fin d'année.</div>
-      <button class="btn-danger" onclick="archiveCurrentYear()">Archiver</button>
-    </div>
-
-    <div class="maint-action">
-      <div class="maint-title">📧 Envoyer les codes d'accès</div>
-      <div class="maint-desc">Envoie le code individuel à chaque MAR actif pour la saisie des indispos.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary" onclick="previewCodes()">Voir les destinataires</button>
-        <button class="btn-primary" onclick="sendCodes()">Envoyer à tous</button>
+      <div class="maint-title">✉️ Renvoyer les codes d'accès</div>
+      <div class="maint-desc">Sélectionnez un ou plusieurs MARs, puis envoyez-leur leur code individuel de saisie. Par défaut, tous les MARs actifs sont cochés.</div>
+      <div id="codesToolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 10px">
+        <button class="btn-secondary" type="button" onclick="codesSelectAll(true)">Tout cocher</button>
+        <button class="btn-secondary" type="button" onclick="codesSelectAll(false)">Tout décocher</button>
+        <span id="codesCount" style="font-size:12px;color:var(--ink-3)"></span>
       </div>
-      <div id="codesPreview" style="display:none;margin-top:10px;font-size:12px"></div>
-    </div>
-
-    <div class="maint-action">
-      <div class="maint-title">✉️ Renvoyer à un MAR</div>
-      <div class="maint-desc">Renvoie le code d'accès à un seul MAR si besoin.</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="selectMarCode" class="form-input" style="flex:1">
-          <option value="">— Choisir un MAR —</option>
-        </select>
-        <button class="btn-primary" onclick="sendCodeToOne()">Envoyer</button>
-      </div>
-    </div>
-
-    <div class="maint-action">
-      <div class="maint-title">📜 Dernières opérations</div>
-      <div class="maint-desc">Journal des actions effectuées depuis l'interface.</div>
-      <button class="btn-secondary" onclick="loadLogsInMaint()">Voir les logs</button>
-      <div id="maintLogArea" style="display:none;margin-top:10px;max-height:180px;overflow-y:auto;font-size:11px;font-family:var(--mono);background:var(--line-light);border-radius:8px;padding:10px;line-height:1.8"></div>
+      <div id="codesList" style="max-height:280px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:6px"></div>
+      <button class="btn-primary" style="margin-top:12px" onclick="sendCodesSelected()" id="btnSendCodes">Envoyer aux MARs sélectionnés</button>
+      <div id="codesResult" style="display:none;margin-top:10px;font-size:12.5px;line-height:1.6"></div>
     </div>
 
   </div>
@@ -5721,23 +5696,28 @@ async function sendCodes() {
 
 // ── MAINTENANCE ──────────────────────────────────────────────────────────
 async function runDiag() {
-  const btn = document.getElementById('btnDiag');
-  btn.disabled = true; btn.textContent = '⏳ Analyse...';
+  const btn = document.getElementById('btnDiagSys');
+  const out = document.getElementById('diagSysResult');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyse…'; }
   try {
     const data = await api({action: 'diagComplet'});
-    if (!data.success) throw new Error(data.error);
-    const logArea = document.getElementById('logArea');
-    logArea.innerHTML = (data.results || []).map(line => {
-      const cls = line.startsWith('✅') ? 'log-ok' : line.startsWith('❌') ? 'log-err' : line.startsWith('⚠️') ? 'log-warn' : 'log-info';
-      return `<div class="${cls}">${line}</div>`;
-    }).join('');
-    toast('Diagnostic terminé', data.ok ? 'success' : 'error');
+    if (!data.success) throw new Error(data.error || 'Diagnostic indisponible');
+    if (out) {
+      out.style.display = 'block';
+      out.innerHTML = (data.results || []).map(line => {
+        const cls = line.startsWith('✅') ? 'diag-ok' : line.startsWith('❌') ? 'diag-err' : line.startsWith('⚠️') ? 'diag-warn' : 'diag-info';
+        return `<div class="${cls}">${line}</div>`;
+      }).join('');
+    }
+    toast(data.ok ? '✅ Tout est en ordre' : '⚠️ Points à vérifier — voir le détail', data.ok ? 'success' : 'error');
   } catch(e) {
+    if (out) { out.style.display = 'block'; out.innerHTML = '<div class="diag-err">❌ ' + e.message + '</div>'; }
     toast('Erreur : ' + e.message, 'error');
   } finally {
-    btn.disabled = false; btn.textContent = 'Lancer diagComplet()';
+    if (btn) { btn.disabled = false; btn.textContent = 'Relancer le diagnostic'; }
   }
 }
+
 function markPending() { _pendingChanges++; renderPublishBtn(); }
 function renderPublishBtn() {
   const b = document.getElementById('btnPublier');
@@ -6273,62 +6253,51 @@ const WIZ_MOIS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct',
 
 // Prépare l'onglet Maintenance à l'ouverture : année d'archivage + liste des MARs.
 function initMaintenance() {
-  const lbl = document.getElementById('archiveYearLabel');
-  if (lbl) lbl.textContent = YEAR;
-  const sel = document.getElementById('selectMarCode');
-  if (sel && sel.options.length <= 1 && Array.isArray(marsData)) {
-    marsData.filter(m => m.actif).forEach(m => {
-      const o = document.createElement('option');
-      o.value = m.id;
-      o.textContent = (m.nom || m.initiales || m.id);
-      sel.appendChild(o);
-    });
+  const list = document.getElementById('codesList');
+  if (!list || !Array.isArray(marsData)) return;
+  const actifs = marsData.filter(m => m.actif);
+  list.innerHTML = actifs.map(m => {
+    const noMail = !m.email;
+    return `<label class="code-row" style="display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:8px;cursor:${noMail?'not-allowed':'pointer'};opacity:${noMail?'.5':'1'}">
+      <input type="checkbox" class="code-cb" value="${m.id}" ${noMail?'disabled':'checked'} onchange="codesUpdateCount()">
+      <span style="font-weight:600;min-width:44px">${m.initiales||m.id}</span>
+      <span style="flex:1;color:var(--ink-2)">${m.nom||''}</span>
+      <span style="font-size:11.5px;color:var(--ink-3)">${noMail?'✕ pas d\'email':(m.email)}</span>
+    </label>`;
+  }).join('');
+  codesUpdateCount();
+}
+function codesSelectAll(v) {
+  document.querySelectorAll('#codesList .code-cb:not(:disabled)').forEach(cb => cb.checked = v);
+  codesUpdateCount();
+}
+function codesUpdateCount() {
+  const n = document.querySelectorAll('#codesList .code-cb:checked').length;
+  const el = document.getElementById('codesCount');
+  if (el) el.textContent = n + ' sélectionné' + (n > 1 ? 's' : '');
+}
+async function sendCodesSelected() {
+  const ids = [...document.querySelectorAll('#codesList .code-cb:checked')].map(cb => cb.value);
+  if (!ids.length) { toast('Aucun MAR sélectionné', 'error'); return; }
+  if (!confirm(`Renvoyer le code d'accès à ${ids.length} MAR${ids.length>1?'s':''} ?\nLeur ancien code sera invalidé.`)) return;
+  const btn = document.getElementById('btnSendCodes');
+  const out = document.getElementById('codesResult');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Envoi…'; }
+  let ok = 0; const errs = [];
+  for (const id of ids) {
+    try {
+      const r = await api({action: 'sendCodesMar', medecin: id});
+      if (r && r.success) ok++; else errs.push(`${id} : ${(r && r.error) || 'échec'}`);
+    } catch(e) { errs.push(`${id} : ${e.message}`); }
   }
-}
-
-async function loadLogsInMaint() {
-  const area = document.getElementById('maintLogArea');
-  area.style.display = 'block';
-  area.textContent = 'Chargement…';
-  try {
-    const data = await api({action: 'getLogs'});
-    if (!data.success) throw new Error(data.error);
-    area.innerHTML = data.logs.map(l => {
-      const cls = l.includes('❌') ? 'diag-err' : l.includes('⚠️') ? 'diag-warn' : l.includes('✅') ? 'diag-ok' : '';
-      return `<div class="${cls}">${l}</div>`;
-    }).join('');
-  } catch(e) {
-    area.textContent = 'Erreur : ' + e.message;
+  if (out) {
+    out.style.display = 'block';
+    out.innerHTML = `<b>${ok} code${ok>1?'s':''} envoyé${ok>1?'s':''}.</b>`
+      + (errs.length ? `<div style="color:#C2410C;margin-top:6px">${errs.length} échec(s) :<br>${errs.join('<br>')}</div>` : '');
   }
+  toast(errs.length ? `${ok} envoyé(s), ${errs.length} échec(s)` : `✅ ${ok} code(s) envoyé(s)`, errs.length ? 'error' : 'success');
+  if (btn) { btn.disabled = false; btn.textContent = 'Envoyer aux MARs sélectionnés'; }
 }
-
-
-async function sendCodeToOne() {
-  const sel = document.getElementById('selectMarCode');
-  if (!sel.value) { toast('Choisissez un MAR', 'error'); return; }
-  const nomOpt = sel.options[sel.selectedIndex].textContent;
-  if (!confirm(`Renvoyer le code d'accès à ${nomOpt} ?`)) return;
-  try {
-    const data = await api({action: 'sendCodesMar', medecin: sel.value});
-    if (!data.success) throw new Error(data.error);
-    toast(`✅ Code envoyé à ${nomOpt}`, 'success');
-  } catch(e) {
-    toast('Erreur : ' + e.message, 'error');
-  }
-}
-
-// ── Suivi saisies conditionnel ────────────────────────────────────
-function updatePlanningIndisposVisibility() {
-  const section = document.getElementById('planningIndisposSection');
-  if (!section) return;
-  // Visible uniquement si INDISPOS_ACTIVE est définie dans CONFIG
-  // = l'API retourne indisposYear différent de year (saisie N+1 ouverte)
-  const visible = (typeof INDISPOS_YEAR !== 'undefined') && 
-                  INDISPOS_YEAR && 
-                  (INDISPOS_YEAR > YEAR);
-  section.style.display = visible ? 'block' : 'none';
-}
-
 
 async function sendCodeToMAR(marId, marNom) {
   if (!confirm(`Renvoyer le code d'accès à ${marNom} ?`)) return;
