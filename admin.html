@@ -2081,10 +2081,8 @@ async function reloadForYear(year) {
 
 async function checkNextYearAvailable() {
   try {
-    const resp = await fetchTimeout(`./planning_${YEAR+1}.json?t=${Date.now()}`, {
-      headers: { 'Range': 'bytes=0-1' }
-    }, 5000);
-    nextYearAvailable = resp.ok || resp.status === 206;
+    const resp = await api({action:'getPlanningJson', year: YEAR+1});
+    nextYearAvailable = !!(resp && resp.success && resp.planning);
     selectedYear = null;
   } catch(e) {
     nextYearAvailable = false;
@@ -2126,24 +2124,24 @@ async function loadPlanningData() {
   const grid = document.getElementById('planTable');
   if(grid) grid.innerHTML = '<tbody><tr><td colspan="8" style="padding:40px;text-align:center;color:var(--ink-4);"><div class="spinner" style="margin:0 auto 10px;"></div>Chargement…</td></tr></tbody>';
   try {
-    // Retry jusqu'à 3 fois si erreur réseau
-    let res, attempts = 0;
+    // Lecture via l'API (JSON servis depuis le Drive) — retry jusqu'à 3 fois si erreur réseau
+    let res = null, attempts = 0;
     while (attempts < 3) {
       try {
-        res = await fetchTimeout(`https://raw.githubusercontent.com/chpg-anesthesie/Planning-CHPG/main/planning_${ADMIN_YEAR}.json?` + Date.now(), {redirect:'follow', cache:'no-store'}, 15000);
-        if (res.ok) break;
+        res = await api({action:'getPlanningJson', year: ADMIN_YEAR});
+        if (res && res.success && res.planning) break;
       } catch(e) {}
       attempts++;
       if (attempts < 3) await new Promise(r => setTimeout(r, 1000));
     }
-    if (!res || !res.ok) throw new Error('Fichier planning introuvable');
-    DATA = await res.json();
+    if (!res || !res.success || !res.planning) throw new Error((res && res.error) || 'Fichier planning introuvable');
+    DATA = res.planning;
       // _localOverrides CONSERVÉS : ils restent appliqués tant que le JSON
-      // régénéré n'est pas propagé (latence GitHub Pages). Application idempotente.
+      // régénéré n'est pas propagé. Application idempotente.
     // Affectations du mois (pour les cases flash basées sur l'effectif attendu)
     try {
-      const ra = await fetchTimeout(`https://raw.githubusercontent.com/chpg-anesthesie/Planning-CHPG/main/affectations_${ADMIN_YEAR}.json?` + Date.now(), {cache:'no-store'}, 10000);
-      window.AFFM = ra && ra.ok ? ((await ra.json()).affectations || {}) : {};
+      const ra = await api({action:'getAffectationsJson', year: ADMIN_YEAR});
+      window.AFFM = (ra && ra.success && ra.affectations && ra.affectations.affectations) || {};
     } catch(e) { window.AFFM = {}; }
     if (!DATA || !DATA.months) throw new Error('Structure JSON invalide');
     const today = todayStr();
@@ -5001,7 +4999,7 @@ async function renderWizCStep() {
     const nextY = YEAR + 1;
     let html = '<div class="wizard-section-title">V\xe9rification de l\'ann\xe9e ' + nextY + '</div>';
     let planningData = null;
-    try { planningData = await fetch('./planning_' + nextY + '.json?' + Date.now()).then(r => r.json()); } catch(e) {}
+    try { const _pj = await api({action:'getPlanningJson', year: nextY}); planningData = (_pj && _pj.success && _pj.planning) || null; } catch(e) {}
     // Gardes attribuées : months[].doctors[].days[].status === 'G' / 'G2'
     const months = (planningData && Array.isArray(planningData.months)) ? planningData.months : [];
     let nbGardes = 0;
@@ -5836,7 +5834,8 @@ async function renderWizDStep() {
     if (wizDGardes === null) {
       const list = [];
       try {
-        const planning = await fetch('./planning_' + YEAR + '.json?' + Date.now()).then(r => r.json());
+        const _pj2 = await api({action:'getPlanningJson', year: YEAR});
+        const planning = (_pj2 && _pj2.success && _pj2.planning) || {};
         const today = new Date().toISOString().slice(0,10);
         (planning.months || []).forEach(month => {
           (month.doctors || []).forEach(doc => {
@@ -5993,7 +5992,8 @@ async function openRotationLib(){
   try{ const r=await api({action:'getAffectations', year:y}); ROT.aff=(r&&r.success)?(r.affectations||{}):{}; }catch(e){ ROT.aff={}; }
   ROT.busy={};
   try{
-    const pj=await fetch('./planning_'+y+'.json?'+Date.now()).then(r=>r.json());
+    const _pj3=await api({action:'getPlanningJson', year:y});
+    const pj=(_pj3&&_pj3.success&&_pj3.planning)||{};
     const BUSY=new Set(['G','G2','RG','18','V','I','F','A','CP','R','E','TP','CL']);
     const initToId={}; (marsData||[]).forEach(m=>{ initToId[m.initiales]=m.id; });
     (pj.months||[]).forEach(mo=>{ (mo.doctors||[]).forEach(doc=>{ const id=doc.id||initToId[doc.initials]; if(!id) return; (doc.days||[]).forEach((entry,di)=>{ const date=mo.days[di]&&mo.days[di].date; if(!date) return; if(BUSY.has((entry&&entry.status)||'')) (ROT.busy[id]=ROT.busy[id]||{})[date]=true; }); }); });
