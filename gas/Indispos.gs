@@ -1519,6 +1519,65 @@ if (!affSheet) {
         info('Aucun placement manuel enregistré');
       }
 
+      // ── 9. Publication JSON (Drive) ──
+      hdr('Publication JSON (Drive)');
+      try {
+        let nbFolders = 0;
+        const fit = DriveApp.getFoldersByName(DRIVE_JSON_FOLDER);
+        while (fit.hasNext()) { fit.next(); nbFolders++; }
+        if (nbFolders === 0) check(`Dossier Drive « ${DRIVE_JSON_FOLDER} » introuvable`, R.ERR);
+        else if (nbFolders > 1) check(`Doublon : ${nbFolders} dossiers « ${DRIVE_JSON_FOLDER} »`, R.WARN);
+        else check(`Dossier Drive « ${DRIVE_JSON_FOLDER} » présent`, R.OK);
+
+        const countGardesJson = txt => {
+          let n = 0;
+          const j = JSON.parse(txt);
+          (j.months || []).forEach(mo => (mo.doctors || []).forEach(dc => (dc.days || []).forEach(day => {
+            if (day && (day.status === 'G' || day.status === 'G2')) n++;
+          })));
+          return n;
+        };
+        const countGardesSheet = name => {
+          const sh = ss.getSheetByName(name);
+          if (!sh) return null;
+          const dd = sh.getDataRange().getValues();
+          let n = 0;
+          for (let r = 3; r < dd.length; r++) for (let c = 1; c < dd[r].length; c++) {
+            const v = String(dd[r][c] || '').trim().toUpperCase();
+            if (v === 'G' || v === 'G2') n++;
+          }
+          return n;
+        };
+        const auditPlanning = (y, critique) => {
+          const name = `planning_${y}.json`;
+          const files = _jsonFilesByName_(name);
+          if (!files.length) { check(`${name} absent du Drive — planning ${y} invisible aux MARs`, critique ? R.ERR : R.WARN); return; }
+          if (files.length > 1) check(`Doublon : ${files.length} × ${name}`, R.WARN);
+          const f = files[0];
+          const ageJ = Math.round((Date.now() - f.getLastUpdated().getTime()) / 86400000);
+          let njson = null;
+          try { njson = countGardesJson(f.getBlob().getDataAsString()); } catch (e) {}
+          if (!njson) { check(`${name} vide ou illisible — republier`, R.ERR); return; }
+          const nsheet = countGardesSheet(`GARDES_${y}`);
+          if (nsheet === null) info(`${name} publié (${njson} gardes, il y a ${ageJ} j) — onglet GARDES_${y} absent, cohérence non vérifiable`);
+          else if (njson === nsheet) check(`${name} à jour, cohérent avec GARDES_${y} (${njson} gardes, publié il y a ${ageJ} j)`, R.OK);
+          else check(`${name} DÉSYNCHRONISÉ : ${njson} gardes publiées vs ${nsheet} dans l'onglet — republier`, R.WARN);
+        };
+        const auditAff = y => {
+          const name = `affectations_${y}.json`;
+          const files = _jsonFilesByName_(name);
+          if (!files.length) { info(`${name} absent du Drive`); return; }
+          if (files.length > 1) check(`Doublon : ${files.length} × ${name}`, R.WARN);
+          const ageJ = Math.round((Date.now() - files[0].getLastUpdated().getTime()) / 86400000);
+          info(`${name} présent (publié il y a ${ageJ} j)`);
+        };
+        auditPlanning(Y, true);
+        auditAff(Y);
+        if (rows(`GARDES_${N1}`) > 3) { auditPlanning(N1, false); auditAff(N1); }
+      } catch (e) {
+        check('Audit Drive impossible : ' + e.message, R.WARN);
+      }
+
       results.push('────────────────────────────────────');
       const nbErr = results.filter(l => l.startsWith('❌')).length;
       const nbWarn = results.filter(l => l.startsWith('⚠️')).length;
