@@ -2,7 +2,7 @@
   "name": "Planning CHPG Monaco",
   "short_name": "Planning CHPG",
   "description": "Planning du service d'Anesthésie-Réanimation — CHPG Monaco",
-  "start_url": "./index.html",
+  "start_url": "./dashboard.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#F8FAFC",
