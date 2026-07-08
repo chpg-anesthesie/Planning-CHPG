@@ -12,6 +12,9 @@
 *par checksum (total du document) + contrôle de monotonie du cumul.*
 ***v3.4 — 07/07/2026** : la date opératoire est toujours connue dès la consultation → suppression*
 *de l'état « à programmer sans date » du cycle de vie de l'intervention.*
+***v3.5 — 08/07/2026** : correction schéma `LIBERAL_CA_{Y}` — colonnes EXCÉDENT **recopiées** (6*
+*nombres/MAR), pas dérivées : validé sur le relevé réel (checksum 44 170,30 € exact ; recalcul depuis*
+*le % à 2 décimales = 44 103,59 €, faux). Checksum = somme des excédents recopiés.*
 *Calendrier inchangé : construction APRÈS le go-live d'octobre 2026 et APRÈS « secteurs étape 2 ».*
 *Rien ne part en prod tant que ce plan n'est pas clair et précis. On ne code pas encore.*
 
@@ -98,7 +101,7 @@ administratif cumulé, retardé (M+1). D'où trois couches.
 | Couche | Nature | Source | Rôle |
 |--------|--------|--------|------|
 | **Activité** | Déterministe, maîtrisée | Déclarations MAR + planning quotidien | Placement : présence bloc (axe **CCAM**) |
-| **Argent** | Observée, retardée, cumulée | Relevé mensuel de l'administration | Mesure : `T`/`%` des **deux axes** par MAR |
+| **Argent** | Observée, retardée, cumulée | Relevé mensuel de l'administration | Mesure : `T`/`%`/`excédent` (recopié) des **deux axes** par MAR |
 | **Pilotage** | Dérivée | Croise Activité × Argent × rendement secteurs | Projection + réallocation + équité |
 
 Le module **observe** l'activité, **recopie** l'argent, **corrèle** pour piloter — il ne reconstitue
@@ -179,13 +182,17 @@ pré-placement** : le comité place à la main. On ne touche pas à `generatePla
 
 ### 7.1 Onglet `LIBERAL_CA_{Y}`
 
-Recopie du relevé mensuel **cumulé**, par MAR et par mois, des **4 nombres** de la source :
+Recopie du relevé mensuel **cumulé**, par MAR et par mois, des **6 nombres** de la source :
 
-`MOIS | MAR_ID | T_CCAM | PCT_CCAM | T_NGAP | PCT_NGAP`
+`MOIS | MAR_ID | T_CCAM | PCT_CCAM | EXC_CCAM | T_NGAP | PCT_NGAP | EXC_NGAP`
 
-Le module **dérive** : libéral par axe (`% × T`), excédent par axe (`T × (%−30)` si `%>30`), et le
-**flux du mois** par différence de cumuls. On stocke ce que dit la source (cumul + %) ; on ne
-stocke jamais un excédent ou un flux recalculé (évite les incohérences d'arrondi).
+Les colonnes **EXCÉDENT sont recopiées, pas dérivées** — validé sur le relevé réel (jan→juin 2026) :
+recalculer `T × (%−30)` depuis les % affichés à 2 décimales donne **44 103,59 €** au lieu de
+**44 170,30 €** (−66,71 €), donc le « tombe pile » du checksum est impossible sans les excédents
+recopiés. Le module ne **dérive** que le **flux du mois** (différence de cumuls). Le `%` reste
+recopié : c'est le ratio du pilotage, seul moyen de connaître la marge d'un MAR **sous 30 %** (où
+l'excédent = 0). On stocke ce que dit la source (`T`, `%`, `excédent`) ; on ne recalcule jamais
+l'excédent (évite les incohérences d'arrondi).
 
 *(Remplace le format « deux masses € » de la v2 : la réalité est bi-axiale, `T_ccam` et `T_ngap`.)*
 
@@ -199,10 +206,13 @@ deux garde-fous **gratuits** offerts par le document :
 
 1. **Checksum de bout en bout.** La ligne du bas du PDF (« ACTIVITÉ LIBÉRALE » — le total de tous
    les excédents, ex. 44170,3 €) est un total de contrôle. Le référent le saisit ; le module
-   recalcule `Σ T_axe × (%_axe − 30)` sur toutes les lignes et **valide en vert si ça tombe pile,
-   rouge sinon** (coquille à localiser). Une saisie validée d'un coup, sans relecture ligne à ligne.
-2. **Monotonie du cumul.** Le relevé étant cumulé, chaque total ne peut que **croître** d'un mois
-   sur l'autre → une valeur qui régresse déclenche une alerte de saisie.
+   somme les **colonnes EXCÉDENT recopiées** (`Σ EXC_CCAM + EXC_NGAP`) et **valide en vert si ça
+   tombe pile à 0,00 près, rouge sinon** (coquille à localiser). Vérifié au centime sur le relevé réel
+   (Σ = 44 170,30 €). Ne **jamais** recalculer depuis le % affiché (2 décimales → écart de plusieurs
+   dizaines d'euros). Une saisie validée d'un coup, sans relecture ligne à ligne.
+2. **Monotonie du cumul.** Le relevé étant cumulé, chaque total (`T_CCAM`, `T_NGAP`, `EXC_CCAM`,
+   `EXC_NGAP`) ne peut que **croître** d'un mois sur l'autre → une valeur qui régresse déclenche une
+   alerte de saisie. Le `%`, lui, n'est **pas** monotone (un ratio peut baisser) : pas de contrôle dessus.
 
 Une **action API commune** couvre la saisie groupée et (accessoirement) une saisie par membre.
 
@@ -262,7 +272,7 @@ coups.
 
 - `LIBERAL_{Y}` — parcours consult→bloc : `DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | CCAM? |
   COMMENTAIRE` (auto-créé dans `setupAnnee`, pattern `INDISPOS_${year}`).
-- `LIBERAL_CA_{Y}` — relevés cumulés : `MOIS | MAR_ID | T_CCAM | PCT_CCAM | T_NGAP | PCT_NGAP`.
+- `LIBERAL_CA_{Y}` — relevés cumulés : `MOIS | MAR_ID | T_CCAM | PCT_CCAM | EXC_CCAM | T_NGAP | PCT_NGAP | EXC_NGAP` (6 nombres recopiés/MAR ; excédents recopiés, pas dérivés).
 - `MEDECINS` — colonne `LIBERAL (O/N)` : appartenance au groupement (maintenue à la main).
 - `SECTEURS` (Lot 0) — externalisation de `SECTEURS_CFG` + `RENDEMENT_LIB` (4 valeurs).
 - `CONFIG` — `LIBERAL_CIBLE` (défaut 30, par axe) + borne de décembre (libéral permis calculé sur le cumul de novembre).
@@ -295,7 +305,7 @@ go-live octobre 2026.
   libéral ET le déménagement 2027. Seul lot à faire tôt.
 - **Lot 1 — Fondations données.** Colonne `LIBERAL (O/N)` ; onglets `LIBERAL_{Y}` et
   `LIBERAL_CA_{Y}` auto-créés ; actions API dans `WRITE_ACTIONS` ; visibilité groupement.
-- **Lot 2 — Convergence (cœur métier).** Saisie relevés (4 nombres/mois) ; vue **deux axes** :
+- **Lot 2 — Convergence (cœur métier).** Saisie relevés (6 nombres/mois + total de contrôle) ; vue **deux axes** :
   marge + projection ; membre + comité. Ne dépend pas du Lot 0.
 - **Lot 3 — Placement bloc.** Saisie interventions → `LIBERAL_{Y}` ; badge de conflit. Dépend du
   Lot 1 seul.
@@ -308,7 +318,7 @@ go-live octobre 2026.
 
 1. **Seuil 30 % appliqué séparément sur DEUX axes** (CCAM technique + NGAP consultations),
    confirmé par le CR réel — pas de seuil global.
-2. **Le module suit T et % des deux axes**, jamais un % consolidé.
+2. **Le module suit T, % et excédent (recopié) des deux axes**, jamais un % consolidé.
 3. **Objectif = optimiser le pot commun** (`Σ min(libéral, 30%×T)` par axe) via réallocation ;
    la convergence individuelle vers 30 % par axe est le proxy V1.
 4. **Leviers spécifiques à l'axe** ; la réa ne corrige que le CCAM.
