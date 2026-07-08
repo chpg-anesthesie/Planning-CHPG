@@ -132,6 +132,37 @@ a.tile:hover, .tile.clickable:hover {
   border-radius: 999px; padding: 3px 9px;
 }
 
+/* ── BANDEAU « MES GARDES » (accueil) ── */
+.mg-hero {
+  display:flex; align-items:center; gap:16px;
+  background:linear-gradient(135deg,#1E293B,#0F172A);
+  border:1px solid #1E293B; border-radius:16px;
+  padding:18px 20px; margin:0 0 20px; cursor:pointer;
+  color:#fff; text-decoration:none;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.mg-hero:hover { transform:translateY(-2px); box-shadow:0 12px 28px rgba(15,23,42,.18); }
+.mg-hero-ico { width:46px; height:46px; border-radius:12px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,.12); color:#fff; }
+.mg-hero-ico svg { width:24px; height:24px; }
+.mg-hero-body { flex:1; min-width:0; }
+.mg-hero-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; opacity:.6; }
+.mg-hero-main { font-size:17px; font-weight:700; letter-spacing:-.01em; margin-top:2px; }
+.mg-hero-sub { font-size:13px; opacity:.72; margin-top:3px; }
+.mg-hero-arrow { flex-shrink:0; opacity:.55; display:flex; }
+.mg-hero-arrow svg { width:20px; height:20px; }
+.mg-hero.loading .mg-hero-main { opacity:.45; }
+
+/* ── VUE MES GARDES (détail) ── */
+.mg-tag { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  border-radius:999px; padding:2px 9px; margin-left:8px; vertical-align:middle; }
+.mg-tag.g  { background:var(--me-soft);  color:var(--me); }
+.mg-tag.g2 { background:var(--red-soft); color:var(--rose); }
+.mg-month { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--ink-4); margin:22px 0 10px 4px; }
+.mg-month:first-child { margin-top:0; }
+
 /* ── VUE TOPOS ── */
 .topos-head { display:flex; align-items:center; gap:12px; margin-bottom:22px; flex-wrap:wrap; }
 .btn-back {
@@ -290,6 +321,15 @@ a.tile:hover, .tile.clickable:hover {
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
     <p class="hello-sub">Choisissez une rubrique du service.</p>
+    <div id="myGardesHero" class="mg-hero" style="display:none" onclick="openMesGardes()">
+      <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
+      <div class="mg-hero-body">
+        <div class="mg-hero-label">Mes gardes</div>
+        <div class="mg-hero-main" id="mgHeroMain">Chargement…</div>
+        <div class="mg-hero-sub" id="mgHeroSub"></div>
+      </div>
+      <div class="mg-hero-arrow"><i data-lucide="chevron-right"></i></div>
+    </div>
     <div class="tiles" id="tiles"></div>
   </div>
   <div id="toposView" style="display:none">
@@ -346,6 +386,14 @@ a.tile:hover, .tile.clickable:hover {
     </div>
     <input class="vsearch annu-search" type="search" placeholder="Rechercher un service, un nom, un numéro…" oninput="onAnnuSearch(this.value)" style="display:none">
     <div id="annuaireList"></div>
+  </div>
+  <div id="mesGardesView" style="display:none">
+    <div class="topos-head">
+      <button class="btn-back" onclick="backToHome()"><i data-lucide="arrow-left" style="width:16px;height:16px"></i> Retour</button>
+      <h2>Mes gardes</h2>
+      <span class="topos-count" id="mesGardesCount"></span>
+    </div>
+    <div id="mesGardesList"></div>
   </div>
 </div>
 
@@ -457,6 +505,107 @@ function showPortal(){
   document.getElementById('viewAuthOverlay').style.display = 'none';
   document.getElementById('portal').style.display = 'block';
   renderTiles();
+  loadMyGardes();
+}
+
+// ── MES GARDES (perso — MAR connecté) ──
+let MY_GARDES = null;          // [{date:'YYYY-MM-DD', type:'G'|'G2'}] triées
+let _mgLoading = false;
+const _planCache = {};         // year -> planning JSON (mémoire)
+
+function _todayStr(){ const d=new Date(), p=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+function _daysUntil(dateStr){ const t=new Date(_todayStr()+'T00:00:00'), d=new Date(dateStr+'T00:00:00'); return Math.round((d-t)/86400000); }
+function _mgCap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+
+async function _fetchPlanning(year){
+  if(_planCache[year]) return _planCache[year];
+  const r = await apiPost({action:'getPlanningJson', year});
+  if(r && r.success && r.planning){ _planCache[year]=r.planning; return r.planning; }
+  return null;
+}
+function _extractMyGardes(planning, today){
+  const out=[];
+  if(!planning || !planning.months) return out;
+  planning.months.forEach(function(m){
+    const doc=(m.doctors||[]).find(function(d){ return d.id===MY_ID; });
+    if(!doc || !doc.days) return;
+    for(let i=0;i<doc.days.length;i++){
+      const st=(doc.days[i]||{}).status;
+      if((st==='G'||st==='G2') && m.days[i] && m.days[i].date>=today) out.push({date:m.days[i].date, type:st});
+    }
+  });
+  return out;
+}
+async function loadMyGardes(){
+  const hero=document.getElementById('myGardesHero');
+  if(!MY_ID){ if(hero) hero.style.display='none'; return; }   // admin → pas de bandeau
+  if(hero){ hero.style.display='flex'; hero.classList.add('loading'); }
+  if(_mgLoading) return;
+  _mgLoading=true;
+  try{
+    const today=_todayStr();
+    let year=new Date().getFullYear();
+    try{ const y=await apiPost({action:'getActiveYear'}); if(y && y.success && y.year) year=y.year; }catch(e){}
+    let list=_extractMyGardes(await _fetchPlanning(year), today);
+    if(new Date().getMonth()>=9){   // dès octobre : transition déc.→janv. (N+1 silencieux)
+      try{ list=list.concat(_extractMyGardes(await _fetchPlanning(year+1), today)); }catch(e){}
+    }
+    list.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:0; });
+    MY_GARDES=list;
+    renderMyGardesHero();
+  }catch(e){
+    MY_GARDES=null;
+    const main=document.getElementById('mgHeroMain'), sub=document.getElementById('mgHeroSub');
+    if(main) main.textContent='Gardes indisponibles';
+    if(sub) sub.textContent='Réessayez plus tard';
+  }finally{
+    _mgLoading=false;
+    if(hero) hero.classList.remove('loading');
+  }
+}
+function renderMyGardesHero(){
+  const main=document.getElementById('mgHeroMain'), sub=document.getElementById('mgHeroSub');
+  if(!main||!sub) return;
+  if(!MY_GARDES || !MY_GARDES.length){ main.textContent='Aucune garde à venir'; sub.textContent=''; return; }
+  const g0=MY_GARDES[0], n=_daysUntil(g0.date), dp=staffDateParts(g0.date);
+  const when = n<=0 ? "aujourd'hui" : n===1 ? 'demain' : 'dans '+n+' jours';
+  const lbl = _mgCap(dp.dow)+' '+dp.dnum+' '+dp.month + (g0.type==='G2'?' · 2ᵉ ligne':'');
+  main.textContent = 'Prochaine garde '+when+' — '+lbl;
+  const rest=MY_GARDES.length-1;
+  sub.textContent = rest>0 ? (rest+' autre'+(rest>1?'s':'')+' à venir · voir tout') : 'voir le détail';
+}
+function openMesGardes(){
+  if(!MY_ID) return;
+  document.getElementById('tilesView').style.display='none';
+  document.getElementById('mesGardesView').style.display='block';
+  if(MY_GARDES===null){
+    document.getElementById('mesGardesList').innerHTML='<div class="topos-loading">Chargement…</div>';
+    document.getElementById('mesGardesCount').textContent='';
+    loadMyGardes().then(renderMesGardes);
+    return;
+  }
+  renderMesGardes();
+}
+function renderMesGardes(){
+  const box=document.getElementById('mesGardesList'), cnt=document.getElementById('mesGardesCount');
+  if(!MY_GARDES || !MY_GARDES.length){
+    cnt.textContent='';
+    box.innerHTML='<div class="topos-empty">Aucune garde à venir 🎉<br><span>Vos prochaines gardes apparaîtront ici dès leur publication.</span></div>';
+    return;
+  }
+  cnt.textContent = MY_GARDES.length + (MY_GARDES.length>1?' gardes à venir':' garde à venir');
+  let html='', curMonth='';
+  MY_GARDES.forEach(function(g){
+    const dp=staffDateParts(g.date), p=g.date.split('-'), mKey=p[0]+'-'+p[1];
+    if(mKey!==curMonth){ curMonth=mKey; html+='<div class="mg-month">'+_mgCap(_MOIS[(+p[1])-1])+' '+p[0]+'</div>'; }
+    const tag = g.type==='G2' ? '<span class="mg-tag g2">2ᵉ ligne</span>' : '<span class="mg-tag g">Garde</span>';
+    html+='<div class="staff-card">'
+      + '<div class="staff-date"><div class="staff-dow">'+dp.dow+'</div><div class="staff-dnum">'+dp.dnum+'</div><div class="staff-month">'+dp.month+'</div></div>'
+      + '<div class="staff-body"><div class="staff-theme">'+_mgCap(dp.dow)+' '+dp.dnum+' '+dp.month+tag+'</div></div>'
+      + '</div>';
+  });
+  box.innerHTML=html;
+  if(window.lucide) lucide.createIcons();
 }
 
 // ── VUE TOPOS ──
@@ -482,6 +631,7 @@ function backToHome(){
   document.getElementById('veilleView').style.display='none';
   document.getElementById('protocolesView').style.display='none';
   document.getElementById('annuaireView').style.display='none';
+  document.getElementById('mesGardesView').style.display='none';
   document.getElementById('tilesView').style.display='block';
 }
 
