@@ -17,6 +17,7 @@ function portailRoute(action, payload, user) {
     case 'listTopos': return _portailJson(listTopos());
     case 'getTopo':   return _portailJson(getTopo(payload && payload.id));
     case 'listStaffs': return _portailJson(listStaffs());
+    case 'listStaffsAll': return _portailJson(listStaffsAll());
     case 'listProtocoles': return _portailJson(listProtocoles());
     case 'getProtocole':   return _portailJson(getProtocole(payload && payload.id));
     case 'listAnnuaire':   return _portailJson(listAnnuaire());
@@ -211,6 +212,24 @@ function listStaffs() {
     return String(a.heure).localeCompare(String(b.heure));
   });
   return { success: true, tabUrl: _staffTabUrl(sh), count: staffs.length, staffs: staffs };
+}
+
+// Variante NON filtrée : tous les staffs (passés inclus), sans tri obligatoire.
+// Utilisée par l'export Excel du planning pour retrouver le staff du vendredi
+// de n'importe quelle semaine affichée (même passée).
+function listStaffsAll() {
+  const sh = getOrCreateStaffsTab();
+  const data = sh.getDataRange().getValues();
+  const staffs = [];
+  for (let r = 1; r < data.length; r++) {
+    const iso = _staffDate(data[r][0]);
+    if (!iso) continue;
+    const heure = String(data[r][1] || '').trim();
+    const theme = String(data[r][2] || '').trim();
+    if (!theme && !heure) continue;
+    staffs.push({ date: iso, heure: heure, theme: theme });
+  }
+  return { success: true, staffs: staffs };
 }
 
 // ── À exécuter UNE FOIS dans l'éditeur après recopie ──
