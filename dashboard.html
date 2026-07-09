@@ -998,6 +998,11 @@ document.getElementById('viewAuthInput').addEventListener('keydown', e => { if(e
 if(window.lucide) lucide.createIcons();
 window.addEventListener('hashchange', route);
 viewAutoLogin();
+
+// ── PWA : service worker (cache des assets ; API/HTML/.json jamais interceptés) ──
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
 </script>
 </body>
 </html>
