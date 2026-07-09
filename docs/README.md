@@ -25,6 +25,7 @@ Système web de gestion pour le service d'anesthésie-réanimation du **CHPG (Mo
 | `ROADMAP-Planning-CHPG.md` | Fait / à faire / écarté |
 | `VEILLE_CFG-mode-emploi.md` | Pilotage de la veille biblio (onglet `VEILLE_CFG`) |
 | `guide-comite.html` | Aide du comité (page `admin.html`) |
+| `guide-mar.html` | Guide du MAR : portail, planning, indispos, staff vacances |
 | `staff_gardes_demographie.html` | Simulation démographique de la charge de gardes (2026-2050) |
 | `module-liberal/` | Le chantier **module libéral** (voir ci-dessous) |
 
