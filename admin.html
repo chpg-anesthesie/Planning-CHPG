@@ -2514,35 +2514,39 @@ function renderWeek() {
   });
   thead += '</tr></thead>';
 
-  // ── TBODY SECTEURS ──  // Doublon : un même MAR placé dans 2 secteurs le même demi-jour (autorisé, mais signalé
-  // par un liseré ambré pour éviter les erreurs de saisie). On ne compte que les secteurs,
-  // pas les consultations (un MAR en secteur + sa consult via le miroir est volontaire).
+  // ── TBODY SECTEURS ──
+  // Lieux d'un MAR par demi-jour = sa valeur EFFECTIVE (override de session sinon JSON),
+  // secteurs bloc ET consultations confondus. Sert à deux choses :
+  //  1) _marPlaces → placeMAR / retraits AJOUTENT au lieu de remplacer (le comité pose où il veut) ;
+  //  2) dupSet → liseré ambré dès que la valeur contient ≥ 2 lieux (double affectation réelle).
+  // On lit la CHAÎNE stockée (pas l'occupation rendue) : les miroirs d'affichage (mater CS-MAT,
+  // consult du matin recopiée dans son secteur) ne déclenchent donc JAMAIS de faux doublon.
   const dupSet = {};
-  const curSect = {};   // `${date}|${id}|${half}` → [secteurs où le MAR est actuellement]
+  const curPlaces = {};   // `${date}|${id}|${half}` → [lieux où le MAR est posté]
   daySlots.forEach((slot, dow) => {
     if (!slot || slot.isWeekend || slot.isFerie) return;
-    ['am','pm'].forEach(half => {
-      const seen = {};
-      SECTORS.forEach(s => {
-        const cell = smap[s.code] && smap[s.code][dow];
-        if (!cell) return;
-        (cell[half] || []).forEach(p => {
-          if (p && p.id) {
-            seen[p.id] = (seen[p.id] || 0) + 1;
-            const kk = `${slot.date}|${p.id}|${half}`;
-            (curSect[kk] = curSect[kk] || []).push(s.code);
-          }
-        });
-      });
-      Object.keys(seen).forEach(id => {
-        if (seen[id] >= 2) {
+    const monthData = slot.sourceMonth || slot.month;
+    monthData.doctors.forEach(doc => {
+      const entry = slot.sourceMonth
+        ? (slot.sourceMonth.doctors.find(d=>d.id===doc.id)?.days[slot.dayIdx]||{})
+        : (doc.days[slot.dayIdx]||{});
+      if (ABSENT_V2.has(entry.status||'')) return;
+      ['am','pm'].forEach(half => {
+        const ov = _localOverrides[slot.date] && _localOverrides[slot.date][doc.id];
+        let v = (ov && ov[half] != null) ? ov[half]
+              : (half === 'am' ? (entry.morning||'') : (entry.afternoon||''));
+        if (v === 'VOLANT' || v === 'VIDE') v = '';
+        const toks = [...new Set(String(v).split('+').map(x=>x.trim()).filter(Boolean))];
+        if (!toks.length) return;
+        curPlaces[`${slot.date}|${doc.id}|${half}`] = toks;
+        if (toks.length >= 2) {
           if (!dupSet[slot.date]) dupSet[slot.date] = new Set();
-          dupSet[slot.date].add(`${id}|${half}`);
+          dupSet[slot.date].add(`${doc.id}|${half}`);
         }
       });
     });
   });
-  window._marSectors = curSect;
+  window._marPlaces = curPlaces;
 
   function makeSlot(items, flash, sector, sectorLabel, date, slotKey) {
     let html = '';
@@ -3022,13 +3026,14 @@ async function placeMAR(marId, marInit, mode) {
   if (!_localOverrides[date]) _localOverrides[date] = {};
   if (!_localOverrides[date][marId]) _localOverrides[date][marId] = {am:null, pm:null};
 
-  // Option A : en remplissage de case, si le MAR est DÉJÀ dans un/des secteur(s) ce
-  // demi-jour, on l'AJOUTE (il sera dans 2 secteurs, signalé en ambré). En mode 'move'
+  // En remplissage de case : si le MAR est DÉJÀ posté quelque part ce demi-jour (secteur bloc
+  // OU consultation), on l'AJOUTE — on ne le retire jamais de son premier poste (le comité pose
+  // où il veut ; la double affectation est signalée par un liseré ambré). En mode 'move'
   // (déplacer / retirer depuis le menu), on remplace par la valeur fournie telle quelle.
   let value = sector;
-  if (mode !== 'move' && sector !== 'VOLANT' && sector !== 'VIDE' && !sector.startsWith('CS-')) {
-    const cur = (window._marSectors && window._marSectors[`${date}|${marId}|${slotKey}`]) || [];
-    const extra = cur.filter(s => s && s !== sector);
+  if (mode !== 'move' && sector !== 'VOLANT' && sector !== 'VIDE') {
+    const cur = (window._marPlaces && window._marPlaces[`${date}|${marId}|${slotKey}`]) || [];
+    const extra = [...new Set(cur.filter(s => s && s !== sector))];
     if (extra.length) value = extra.concat(sector).join('+');
   }
   _localOverrides[date][marId][slotKey] = value;
@@ -3108,7 +3113,7 @@ function leaveCaseVide() {
 // Retirer UN SEUL MAR d'une consultation (le × sur sa puce), sans fermer le créneau
 // ni toucher aux autres occupants. Conserve ses éventuels autres secteurs du demi-jour.
 function removeOneCs(marId, marInit, type, date, slotKey) {
-  const cur = (window._marSectors && window._marSectors[`${date}|${marId}|${slotKey}`]) || [];
+  const cur = (window._marPlaces && window._marPlaces[`${date}|${marId}|${slotKey}`]) || [];
   const remaining = cur.filter(s => s && s !== type);
   window._sideCtx = {date, slotKey, sector: remaining.length ? remaining.join('+') : 'VOLANT'};
   placeMAR(marId, marInit, 'move');
@@ -3159,7 +3164,7 @@ function moveMARTo(marId, marInit, targetSector) {
 function removeMARFromSector(marId, marInit, currentSector) {
   const ctx = window._sideCtx; if (!ctx) return;
   const {date, slotKey} = ctx;
-  const cur = (window._marSectors && window._marSectors[`${date}|${marId}|${slotKey}`]) || [];
+  const cur = (window._marPlaces && window._marPlaces[`${date}|${marId}|${slotKey}`]) || [];
   const remaining = cur.filter(s => s && s !== currentSector);
   window._sideCtx = Object.assign({}, ctx, {sector: remaining.length ? remaining.join('+') : 'VOLANT'});
   placeMAR(marId, marInit, 'move');
@@ -4039,6 +4044,13 @@ async function exportWeekExcel(){
   // hauteurs
   for(let r=8;r<=38;r++)ws.getRow(r).height=16;
   ws.getRow(4).height=18;ws.getRow(5).height=14;ws.getRow(6).height=16;ws.getRow(7).height=18;
+  // ── Séparateurs journaliers : barre noire épaisse à gauche de chaque jour + fermeture du vendredi ──
+  const THK={style:'thick',color:{argb:'FF000000'}};
+  const daySep=[2,6,10,14,18];   // colonne de gauche de LUN, MAR, MER, JEU, VEN
+  for(let r=4;r<=37;r++){
+    daySep.forEach(c=>{const cell=ws.getCell(r,c);const b=Object.assign({},cell.border);b.left=THK;cell.border=b;});
+    const ce=ws.getCell(r,21);const be=Object.assign({},ce.border);be.right=THK;ce.border=be;
+  }
   const buf=await wb.xlsx.writeBuffer();
   const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const url=URL.createObjectURL(blob);const a=document.createElement('a');
