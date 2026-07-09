@@ -3896,6 +3896,17 @@ async function exportWeekExcel(){
   if(typeof ExcelJS==='undefined'){toast('ExcelJS non disponible','error');return;}
   const weeks=getAllWeeks(); const wk=weeks[currentWeekIdx]; if(!wk) return;
   const daySlots=getWeekDays(wk.weekNum);
+  // Staff du vendredi (onglet STAFFS) → affiché dans la case Info du vendredi.
+  // On lit TOUS les staffs (variante non filtrée) pour couvrir n'importe quelle semaine.
+  let _staffFri = null;
+  try {
+    const _friDate = daySlots[4] && daySlots[4].date;
+    if (_friDate) {
+      const _sr = await api({ action: 'listStaffsAll' });
+      const _hit = ((_sr && _sr.staffs) || []).filter(s => s.date === _friDate && (s.theme || s.heure));
+      if (_hit.length) _staffFri = _hit;
+    }
+  } catch(e) {}
   const month=DATA.months.find(m=>m.id===wk.monthId)||DATA.months[0];
   // ── Skin gabarit historique ──
   const C={hd:'D9D9D9',grey:'DBDBDB',white:'FFFFFF',we:'F2F2F2'};
@@ -4028,6 +4039,18 @@ async function exportWeekExcel(){
   // L35-37 INFORMATIONS — une case éditable par jour (lun→ven, pas le WE)
   mc(35,1,37,1);setCell(35,1,' INFORMATIONS ',font(true,10),fill(C.white),align('center','middle',true),bAll);
   for(let dow=0;dow<5;dow++){const cs=colStart(dow);mc(35,cs,37,cs+3);setCell(35,cs,'',font(false,10),fill(C.white),align('left','top',true),bAll);}
+  // Staff du vendredi dans sa case INFORMATIONS (vendredi = dow 4 → colonne colStart(4))
+  if (_staffFri && _staffFri.length) {
+    const csFri = colStart(4);
+    const rt = [];
+    _staffFri.forEach((s, i) => {
+      if (i) rt.push({ text: '\n', font: font(false,10) });
+      const head = 'Staff' + (s.heure ? ' ' + s.heure : '');
+      rt.push({ text: head + (s.theme ? ' — ' : ''), font: font(true,10) });
+      if (s.theme) rt.push({ text: s.theme, font: font(false,10) });
+    });
+    ws.getCell(35, csFri).value = { richText: rt };
+  }
   // ── Roster droite depuis MEDECINS ──
   mc(8,22,9,29);setCell(8,22,'ANESTHESISTES ET N° DE POSTES',font(true,11),fill(C.white),align('center','middle',true),bAll);
   const roster=(Array.isArray(marsData)?marsData:[]).filter(m=>m.actif).slice().sort((a,b)=>(a.nom||'').localeCompare(b.nom||''));
