@@ -237,11 +237,12 @@
     <li>Les lignes de secteurs correspondent aux blocs et à la réa ; les lignes « CS-… » aux consultations (voir le glossaire).</li>
     <li>On se déplace de semaine en semaine avec les flèches <span class="kbd">←</span> <span class="kbd">→</span>.</li>
     <li>Une case vide se remplit en cliquant dessus ; une case laissée volontairement vide affiche le symbole <span class="tag">∅</span>.</li>
+    <li>Un MAR posté <strong>à deux endroits le même demi-jour</strong> (par exemple un bloc <em>et</em> sa consultation) est entouré d'un <strong style="color:#B45309">liseré orangé</strong> ; en survolant ses initiales, une bulle rappelle qu'il est « aussi placé ailleurs ». C'est un repère, pas une erreur : le placement double est autorisé (voir 6.2).</li>
   </ul>
   <h3>La barre de la semaine</h3>
   <p>À droite du nom de la semaine :</p>
   <ul>
-    <li><span class="btn-ex">↓ Excel</span> — exporte la semaine affichée en fichier Excel (pratique pour imprimer ou diffuser).</li>
+    <li><span class="btn-ex">↓ Excel</span> — exporte la semaine affichée en fichier Excel (pratique pour imprimer ou diffuser). Les jours y sont séparés par un <strong>trait noir épais</strong> pour bien les distinguer.</li>
     <li><span class="btn-ex green">✅ Valider la semaine</span> — marque la semaine comme vérifiée par le comité ; un badge <strong>✅ Validée</strong> apparaît alors à côté du nom de la semaine (voir chapitre 14).</li>
     <li><span class="btn-ex green">⬆️ Publier</span> — met en ligne les modifications pour l'équipe.</li>
     <li><span class="tag">↺ réinit.</span> — petit lien discret qui réinitialise les modifications locales de l'écran, si l'affichage semble figé sur d'anciennes modifs.</li>
@@ -264,21 +265,29 @@
     <p>Pour les consultations, le panneau propose d'abord les MAR affectés au secteur concerné et présents, puis les volants, puis le reste — cela évite de chercher.</p>
   </div>
 
-  <h3>6.2 · Déplacer ou retirer un MAR déjà placé</h3>
+  <h3>6.2 · Placer un MAR à deux endroits en même temps</h3>
+  <p>Le comité peut tout à fait poster un même MAR à <strong>deux endroits le même demi-jour</strong> — par exemple à un bloc <em>et</em> à sa consultation, ou dans deux secteurs. Il suffit de le placer normalement au second endroit : il <strong>reste</strong> au premier au lieu d'en être retiré.</p>
+  <ul>
+    <li>Le MAR apparaît alors dans les deux lignes concernées, et sa pastille est entourée d'un <strong style="color:#B45309">liseré orangé</strong> avec la bulle « aussi placé ailleurs ce demi-jour ».</li>
+    <li>C'est un simple <strong>repère visuel</strong>, jamais un blocage : à vous de juger si c'est voulu.</li>
+    <li>Pour ne l'enlever que d'<strong>un</strong> des deux endroits, cliquer sa pastille puis « ↩ Retirer de … » : l'autre placement est conservé.</li>
+  </ul>
+
+  <h3>6.3 · Déplacer ou retirer un MAR déjà placé</h3>
   <p>Cliquer sur la pastille du MAR ouvre un petit menu :</p>
   <ul>
     <li><strong>« Déplacer vers … »</strong> pour le changer de secteur ;</li>
     <li><strong>« ↩ Retirer de … »</strong> pour l'enlever de ce secteur / cette consultation.</li>
   </ul>
 
-  <h3>6.3 · Retirer UN SEUL MAR d'une consultation qui en compte deux</h3>
+  <h3>6.4 · Retirer UN SEUL MAR d'une consultation qui en compte deux</h3>
   <p>Survoler la pastille du MAR : un petit <strong style="color:var(--red)">× rouge</strong> apparaît à côté de ses initiales. Cliquer dessus retire ce seul MAR — l'autre reste en place.</p>
   <div class="callout warn">
     <div class="ct">À ne pas confondre</div>
     <p>Le <strong>×</strong> situé à droite de la case (dans les outils du créneau) ferme <strong>toute</strong> la consultation et libère tout le monde d'un coup. Le × collé aux initiales ne retire que ce MAR.</p>
   </div>
 
-  <h3>6.4 · Enregistrement</h3>
+  <h3>6.5 · Enregistrement</h3>
   <p>Chaque modification est enregistrée automatiquement en arrière-plan (message « Enregistré »). Mais elle n'est visible par l'équipe qu'après <strong>publication</strong> (chapitre 14).</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
@@ -415,6 +424,10 @@
     <li>la clé de publication et les <strong>fichiers publiés</strong> (leur présence et leur cohérence avec le planning).</li>
   </ul>
   <p>Le résultat s'affiche ligne par ligne : ce qui va bien, ce qui manque, ce qu'il faut corriger. <strong>Réflexe conseillé</strong> : le lancer avant chaque assistant annuel, et dès qu'un comportement semble anormal.</p>
+  <div class="callout tip">
+    <div class="ct">Si le diagnostic signale un planning « désynchronisé »</div>
+    <p>Cela signifie que le planning <strong>mis en ligne</strong> pour l'équipe ne comporte pas exactement le même nombre de gardes que le tableau de travail. Le diagnostic <strong>liste alors les gardes concernées</strong> (qui, quel jour) et la raison — le plus souvent une garde qui tombe <strong>avant l'arrivée</strong> ou <strong>après le départ</strong> d'un MAR, ou un MAR qui n'est plus dans l'équipe active. Si ces gardes sont normales, il n'y a <strong>rien à faire</strong>, le planning publié est correct ; sinon, corrigez-les dans le tableau puis republiez.</p>
+  </div>
 
   <h3>13.2 · ✉️ Renvoyer les codes d'accès</h3>
   <ol class="steps">
