@@ -163,6 +163,17 @@ a.tile:hover, .tile.clickable:hover {
   color:var(--ink-4); margin:22px 0 10px 4px; }
 .mg-month:first-child { margin-top:0; }
 
+/* ── VUE MES CONGÉS ── */
+.cg-counts { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
+.cg-count { border-radius:999px; padding:6px 13px; font-size:13px; font-weight:600; }
+.cg-count .cg-n { font-weight:800; }
+.cg-count .cg-u { opacity:.7; }
+.cg-list { display:flex; flex-direction:column; gap:8px; }
+.cg-item { display:flex; align-items:center; gap:10px; background:var(--white); border:1px solid var(--line); border-radius:12px; padding:11px 14px; }
+.cg-tag { font-size:11px; font-weight:700; border-radius:7px; padding:3px 9px; flex-shrink:0; }
+.cg-range { flex:1; font-size:14px; color:var(--ink); min-width:0; }
+.cg-days { font-size:12px; color:var(--ink-4); font-weight:600; flex-shrink:0; }
+
 /* ── VUE TOPOS ── */
 .topos-head { display:flex; align-items:center; gap:12px; margin-bottom:22px; flex-wrap:wrap; }
 .btn-back {
@@ -404,6 +415,14 @@ a.tile:hover, .tile.clickable:hover {
     </div>
     <div id="mesGardesList"></div>
   </div>
+  <div id="mesCongesView" style="display:none">
+    <div class="topos-head">
+      <button class="btn-back" onclick="backToHome()"><i data-lucide="arrow-left" style="width:16px;height:16px"></i> Retour</button>
+      <h2>Mes congés</h2>
+      <span class="topos-count" id="mesCongesCount"></span>
+    </div>
+    <div id="mesCongesBody"></div>
+  </div>
 </div>
 
 <script>
@@ -484,6 +503,7 @@ function logout(){
 // ── TUILES ──
 const TILES = [
   { key:'planning', title:'Planning', sub:'Gardes, secteurs, consultations et équité.', icon:'calendar-days', href:'index.html', ready:true },
+  { key:'conges', title:'Mes congés', sub:'Vacances, formation, TP, récup et congés à venir.', icon:'calendar-off', view:'conges', ready:true },
   { key:'topos',    title:'Topos / biblio', sub:'Documents et présentations du service.', icon:'book-open', view:'topos', ready:true },
   { key:'protocoles', title:'Protocoles', sub:'Procédures du service, classées par spécialité.', icon:'clipboard-list', view:'protocoles', tint:'viol', ready:true },
   { key:'staffs',   title:'Staffs à venir', sub:'Programme des réunions et intervenants.', icon:'presentation', view:'staffs', ready:true },
@@ -618,11 +638,98 @@ function renderMesGardes(){
   if(window.lucide) lucide.createIcons();
 }
 
+// ── MES CONGÉS (perso — à venir) ──
+const CONGE_TYPES = {
+  V:  { label:'Vacances',      bg:'#EEF4FB', fg:'#1D6FB8' },
+  F:  { label:'Formation',     bg:'#FDF3E3', fg:'#B45309' },
+  TP: { label:'Temps partiel', bg:'#FEF3C7', fg:'#92400E' },
+  R:  { label:'Récupération',  bg:'#E7F6F3', fg:'#0F766E' },
+  CL: { label:'Congé long',    bg:'#F3E8FF', fg:'#7C3AED' }
+};
+let MY_CONGES = null;   // { days:[{date,type}], periods:[{type,start,end,n}], counts:{} }
+
+function _extractMyConges(planning, today){
+  const out=[];
+  if(!planning || !planning.months) return out;
+  planning.months.forEach(function(m){
+    const doc=(m.doctors||[]).find(function(d){ return d.id===MY_ID; });
+    if(!doc || !doc.days) return;
+    for(let i=0;i<doc.days.length;i++){
+      const st=(doc.days[i]||{}).status;
+      if(CONGE_TYPES[st] && m.days[i] && m.days[i].date>=today) out.push({date:m.days[i].date, type:st});
+    }
+  });
+  return out;
+}
+function _daysBetween(a,b){ return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000); }
+function _buildConges(days){
+  days.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:0; });
+  const periods=[], counts={};
+  days.forEach(function(d){
+    counts[d.type]=(counts[d.type]||0)+1;
+    const last=periods[periods.length-1];
+    if(last && last.type===d.type && _daysBetween(last.end, d.date)<=3){ last.end=d.date; last.n++; }
+    else { periods.push({type:d.type, start:d.date, end:d.date, n:1}); }
+  });
+  return { days:days, periods:periods, counts:counts };
+}
+async function loadMyConges(){
+  const today=_todayStr();
+  let year=new Date().getFullYear();
+  try{ const y=await apiPost({action:'getActiveYear'}); if(y && y.success && y.year) year=y.year; }catch(e){}
+  let days=_extractMyConges(await _fetchPlanning(year), today);
+  if(new Date().getMonth()>=9){ try{ days=days.concat(_extractMyConges(await _fetchPlanning(year+1), today)); }catch(e){} }
+  MY_CONGES=_buildConges(days);
+}
+function openMesConges(){
+  document.getElementById('tilesView').style.display='none';
+  document.getElementById('mesCongesView').style.display='block';
+  if(MY_CONGES===null){
+    document.getElementById('mesCongesBody').innerHTML='<div class="topos-loading">Chargement…</div>';
+    document.getElementById('mesCongesCount').textContent='';
+    loadMyConges().then(renderMesConges);
+    return;
+  }
+  renderMesConges();
+}
+function renderMesConges(){
+  const box=document.getElementById('mesCongesBody'), cnt=document.getElementById('mesCongesCount');
+  if(!MY_CONGES || !MY_CONGES.days.length){
+    if(cnt) cnt.textContent='';
+    box.innerHTML='<div class="topos-empty">Aucun congé à venir.<br><span>Vacances, formation, TP, récup et congés longs apparaîtront ici.</span></div>';
+    return;
+  }
+  const total=MY_CONGES.days.length;
+  if(cnt) cnt.textContent = total+(total>1?' jours à venir':' jour à venir');
+  const order=['V','F','TP','R','CL'];
+  let chips='<div class="cg-counts">';
+  order.forEach(function(t){
+    const n=MY_CONGES.counts[t]||0; if(!n) return;
+    const c=CONGE_TYPES[t];
+    chips+='<span class="cg-count" style="background:'+c.bg+';color:'+c.fg+'"><span class="cg-n">'+n+'</span> '+c.label+' <span class="cg-u">j</span></span>';
+  });
+  chips+='</div>';
+  let list='<div class="cg-list">';
+  MY_CONGES.periods.forEach(function(p){
+    const c=CONGE_TYPES[p.type], s=staffDateParts(p.start), e=staffDateParts(p.end);
+    const range = (p.start===p.end)
+      ? (_mgCap(s.dow)+' '+s.dnum+' '+s.month)
+      : (_mgCap(s.dow)+' '+s.dnum+' '+s.month+' → '+_mgCap(e.dow)+' '+e.dnum+' '+e.month);
+    list+='<div class="cg-item">'
+      + '<span class="cg-tag" style="background:'+c.bg+';color:'+c.fg+'">'+c.label+'</span>'
+      + '<span class="cg-range">'+range+'</span>'
+      + '<span class="cg-days">'+p.n+' j</span>'
+      + '</div>';
+  });
+  list+='</div>';
+  box.innerHTML=chips+list;
+}
+
 // ── VUE TOPOS ──
 // ── ROUTING PAR HASH (retour natif, liens partageables, réouverture PWA) ──
-const NAV = { 'topos':openTopos, 'staffs':openStaffs, 'veille':openVeille, 'protocoles':openProtocoles, 'annuaire':openAnnuaire, 'mes-gardes':openMesGardes };
+const NAV = { 'topos':openTopos, 'staffs':openStaffs, 'veille':openVeille, 'protocoles':openProtocoles, 'annuaire':openAnnuaire, 'mes-gardes':openMesGardes, 'conges':openMesConges };
 function _hideAllViews(){
-  ['tilesView','toposView','staffsView','veilleView','protocolesView','annuaireView','mesGardesView']
+  ['tilesView','toposView','staffsView','veilleView','protocolesView','annuaireView','mesGardesView','mesCongesView']
     .forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
 }
 function route(){
