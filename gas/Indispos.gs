@@ -110,6 +110,78 @@ function saveIndisposForDoctor(doctorId, indisposMap, year) {
   return false;
 }
 
+// ── DIAG : localiser les gardes de GARDES_{Y} exclues du planning publié ──
+// Rejoue EXACTEMENT les règles du constructeur JSON (generatePlanningFromGardes) :
+//  - MAR absent de l'effectif MEDECINS (ACTIF=O) → ligne jamais lue ;
+//  - garde hors période d'activité (< date_debut ou ≥ date_fin) → remise à vide ;
+//  - colonne dont la date dépasse la borne de l'année → jamais construite ;
+//  - ligne en double pour un même id (le JSON ne lit que la dernière).
+// Renvoie [{id, date, cell, code, reason}] = les cases comptées « dans l'onglet »
+// mais absentes du JSON (donc de l'écart X vs Y du diagnostic).
+function _findPhantomGardes_(year) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(`GARDES_${year}`);
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  if (!data.length || !data[0]) return [];
+
+  const DOCTORS = getDoctorsFromMedecins();
+  const effectif = {}; DOCTORS.forEach(d => { effectif[d.id] = true; });
+  const FLAGS = getMedecinFlags();
+
+  const dateToCol = buildDateToCol(data, year);
+  const colToDate = {}; Object.keys(dateToCol).forEach(ds => { colToDate[dateToCol[ds]] = ds; });
+
+  const start = getPremierJourPlanning(year);
+  const nextStart = getPremierJourPlanning(year + 1);
+  const endD = new Date(nextStart); endD.setDate(nextStart.getDate() - 1);
+  const fmt = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  const startStr = fmt(start), endStr = fmt(endD);
+
+  // Ligne retenue par id (la DERNIÈRE gagne, comme le JSON)
+  const doctorRow = {};
+  for (let r = 3; r < data.length; r++) { const id = String(data[r][0]).trim(); if (id) doctorRow[id] = r; }
+
+  // Cases G/G2 réellement INCLUSES dans le JSON : clé `${id}|${date}`
+  const included = {};
+  DOCTORS.forEach(doc => {
+    const rr = doctorRow[doc.id]; if (rr == null) return;
+    const dd0 = FLAGS.dateDebut[doc.id], df0 = FLAGS.dateFin[doc.id];
+    for (let c = 1; c < data[0].length; c++) {
+      const ds = colToDate[c];
+      if (!ds || ds < startStr || ds > endStr) continue;
+      if ((dd0 && ds < dd0) || (df0 && ds >= df0)) continue;
+      const v = String(data[rr][c] || '').trim().toUpperCase();
+      if (v === 'G' || v === 'G2') included[`${doc.id}|${ds}`] = true;
+    }
+  });
+
+  // Toutes les cases G/G2 de l'onglet ; phantom = non incluse dans le JSON
+  const phantoms = [];
+  for (let r = 3; r < data.length; r++) {
+    const id = String(data[r][0]).trim();
+    for (let c = 1; c < data[0].length; c++) {
+      const v = String(data[r][c] || '').trim().toUpperCase();
+      if (v !== 'G' && v !== 'G2') continue;
+      const ds = colToDate[c];
+      if (id && ds && included[`${id}|${ds}`]) continue;   // bien publiée
+      const dateLabel = ds || `colonne ${c + 1}`;
+      let reason;
+      if (!id) reason = 'ligne sans identifiant MAR';
+      else if (!effectif[id]) reason = `MAR « ${id} » absent de l'effectif MEDECINS (inactif ou id modifié)`;
+      else if (!ds || ds < startStr || ds > endStr) reason = 'colonne hors année (date au-delà de la borne du planning)';
+      else {
+        const dd0 = FLAGS.dateDebut[id], df0 = FLAGS.dateFin[id];
+        if (dd0 && ds < dd0) reason = `avant l'arrivée de ${id} (date_debut ${dd0})`;
+        else if (df0 && ds >= df0) reason = `après le départ de ${id} (date_fin ${df0})`;
+        else reason = `ligne en double pour ${id} dans GARDES_${year}`;
+      }
+      phantoms.push({ id: id || '—', date: dateLabel, cell: `L${r + 1}C${c + 1}`, code: v, reason });
+    }
+  }
+  return phantoms;
+}
+
 // ── VÉRIFIER CODE ACCÈS ───────────────────────────────────────────────
 function checkCode(code) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1561,7 +1633,22 @@ if (!affSheet) {
           const nsheet = countGardesSheet(`GARDES_${y}`);
           if (nsheet === null) info(`${name} publié (${njson} gardes, il y a ${ageJ} j) — onglet GARDES_${y} absent, cohérence non vérifiable`);
           else if (njson === nsheet) check(`${name} à jour, cohérent avec GARDES_${y} (${njson} gardes, publié il y a ${ageJ} j)`, R.OK);
-          else check(`${name} DÉSYNCHRONISÉ : ${njson} gardes publiées vs ${nsheet} dans l'onglet — republier`, R.WARN);
+          else {
+            check(`${name} DÉSYNCHRONISÉ : ${njson} gardes publiées vs ${nsheet} dans l'onglet`, R.WARN);
+            let ph = [];
+            try { ph = _findPhantomGardes_(y); } catch (e) { info(`Détail des gardes en écart indisponible : ${e.message}`); }
+            if (ph.length) {
+              info(`${ph.length} garde(s) présente(s) dans GARDES_${y} mais exclue(s) du planning publié :`);
+              ph.slice(0, 15).forEach(p => info(`   • ${p.id} — ${p.date} (${p.code}, ${p.cell}) → ${p.reason}`));
+              if (ph.length > 15) info(`   … et ${ph.length - 15} autre(s), voir le journal d'exécution.`);
+              info(`Si ces gardes sont légitimes : rien à faire, le planning publié est correct. Sinon, corrigez GARDES_${y} puis republiez.`);
+              Logger.log(`[diag] ${name} désync ${njson} vs ${nsheet} — ${ph.length} garde(s) fantôme :\n` +
+                         ph.map(p => `   ${p.id} | ${p.date} | ${p.code} | ${p.cell} | ${p.reason}`).join('\n'));
+            } else {
+              info(`Écart de ${nsheet - njson} garde(s) non localisé (override de statut ou cas particulier) — republiez ; si l'écart persiste, signalez-le.`);
+              Logger.log(`[diag] ${name} désync ${njson} vs ${nsheet} — aucune garde fantôme localisée`);
+            }
+          }
         };
         const auditAff = y => {
           const name = `affectations_${y}.json`;
