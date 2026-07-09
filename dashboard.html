@@ -257,6 +257,7 @@ a.tile:hover, .tile.clickable:hover {
 .vc-badge.general{background:var(--amber-soft);color:var(--amber)}
 .vc-badge.new{background:var(--red-soft);color:var(--red)}
 .vc-badge.pubtype{background:var(--surface-2);color:var(--ink-3)}
+.vc-themes{font-size:12px;color:var(--viol);font-weight:600;margin-top:3px}
 .vc-score{font-size:12px;font-weight:800;color:var(--ok);background:var(--ok-soft);border-radius:8px;padding:2px 8px}
 .vc-date{font-size:12px;color:var(--ink-4);font-weight:600}
 .vc-title{display:block;font-size:15px;font-weight:700;color:var(--ink);line-height:1.4;text-decoration:none}
@@ -366,6 +367,9 @@ a.tile:hover, .tile.clickable:hover {
         <option value="REVUE">Revues cœur</option>
         <option value="GENERAL">Généralistes</option>
         <option value="THEME">Thèmes</option>
+      </select>
+      <select class="vsel" id="vThemeSel" onchange="onVTheme(this.value)">
+        <option value="">Tous thèmes</option>
       </select>
       <select class="vsel" onchange="onVSort(this.value)">
         <option value="recent">Plus récents</option>
@@ -693,6 +697,7 @@ function renderStaffsList(data){
 let VEILLE_ITEMS = [];
 let V_FILTER = 'unread';   // unread | all | star
 let V_SOURCE = '';
+let V_THEME  = '';
 let V_SORT   = 'recent';   // recent | relevance
 let V_SEARCH = '';
 let V_SEEN   = '';         // dernière visite (yyyy-MM-dd) → badge "nouveau"
@@ -715,6 +720,7 @@ async function openVeille(){
     if(r && r.success){
       VEILLE_ITEMS = r.items||[];
       document.getElementById('veilleToolbar').style.display = VEILLE_ITEMS.length ? 'flex' : 'none';
+      populateThemeSelect();
       renderVeille();
       try{ localStorage.setItem('chpgVeilleSeen', new Date().toISOString().slice(0,10)); }catch(e){}
     } else {
@@ -729,6 +735,15 @@ function setVFilter(f, el){
   renderVeille();
 }
 function onVSource(v){ V_SOURCE=v; renderVeille(); }
+function onVTheme(v){ V_THEME=v; renderVeille(); }
+function populateThemeSelect(){
+  const sel=document.getElementById('vThemeSel'); if(!sel) return;
+  const set={}; VEILLE_ITEMS.forEach(function(it){ (it.themes||[]).forEach(function(t){ set[t]=true; }); });
+  const list=Object.keys(set).sort(function(a,b){ return a.localeCompare(b,'fr'); });
+  sel.innerHTML='<option value="">Tous thèmes</option>'+list.map(function(t){
+    return '<option value="'+esc(t)+'"'+(t===V_THEME?' selected':'')+'>'+esc(t)+'</option>';
+  }).join('');
+}
 function onVSort(v){ V_SORT=v; renderVeille(); }
 function onVSearch(v){ V_SEARCH=String(v||'').trim().toLowerCase(); renderVeille(); }
 
@@ -736,6 +751,7 @@ function _vMatch(it){
   if(V_FILTER==='unread' && it.lu) return false;
   if(V_FILTER==='star'   && !it.star) return false;
   if(V_SOURCE && it.source!==V_SOURCE) return false;
+  if(V_THEME && (!it.themes || it.themes.indexOf(V_THEME)===-1)) return false;
   if(V_SEARCH){
     const hay=(it.titre+' '+it.auteurs+' '+it.revue).toLowerCase();
     if(hay.indexOf(V_SEARCH)===-1) return false;
@@ -767,7 +783,7 @@ function renderVeille(){
       ? '<span class="vc-badge theme">Thème</span>'
       : (it.source==='GENERAL'
           ? '<span class="vc-badge general">Généraliste</span>'
-          : '<span class="vc-badge revue">Revue cœur</span>');
+          : '<span class="vc-badge revue">Revue spécialisée</span>');
     const ptBadge = PUBTYPE_FR[it.pubtype] ? '<span class="vc-badge pubtype">'+PUBTYPE_FR[it.pubtype]+'</span>' : '';
     const right = (it.score!=null?'<span class="vc-score">'+it.score+'</span>':'')
                 + '<span class="vc-date">'+fmtDate(it.date)+'</span>';
@@ -778,6 +794,7 @@ function renderVeille(){
       + '<a class="vc-title" href="'+pub+'" target="_blank" rel="noopener">'+esc(it.titre)+'</a>'
       + (it.resume?'<div class="vc-resume">'+esc(it.resume)+'</div>':'')
       + (it.revue?'<div class="vc-journal">'+esc(it.revue)+'</div>':'')
+      + (it.themes&&it.themes.length?'<div class="vc-themes">'+it.themes.map(esc).join(' · ')+'</div>':'')
       + (it.auteurs?'<div class="vc-authors">'+esc(it.auteurs)+'</div>':'')
       + '<div class="vc-actions">'
         + '<button class="vc-act'+(it.lu?' on':'')+'" onclick="toggleV(\''+it.pmid+'\',\'lu\')">'+(it.lu?'✓ Lu':'Marquer lu')+'</button>'
