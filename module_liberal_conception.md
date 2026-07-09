@@ -15,6 +15,10 @@
 ***v3.5 — 08/07/2026** : correction schéma `LIBERAL_CA_{Y}` — colonnes EXCÉDENT **recopiées** (6*
 *nombres/MAR), pas dérivées : validé sur le relevé réel (checksum 44 170,30 € exact ; recalcul depuis*
 *le % à 2 décimales = 44 103,59 €, faux). Checksum = somme des excédents recopiés.*
+***v3.6 — 08/07/2026** : §8.1 refondu — **V1 = compteur de marge sur données réelles** (`marge =*
+*(3/7)·P − L`), sans extrapolation « au rythme » (jugée trompeuse sur une activité saisonnière :*
+*congés, gardes, blocs fermés) ; la projection d'un montant à fin décembre, fondée sur l'activité*
+*planifiée, passe en V2. §13.10 aligné.*
 *Calendrier inchangé : construction APRÈS le go-live d'octobre 2026 et APRÈS « secteurs étape 2 ».*
 *Rien ne part en prod tant que ce plan n'est pas clair et précis. On ne code pas encore.*
 
@@ -222,10 +226,24 @@ Une **action API commune** couvre la saisie groupée et (accessoirement) une sai
 
 ### 8.1 Projection
 
-**V1 = rythme constaté** (extrapolation du cumul + tendance du flux récent). Affectations
-prévues → V2. Recale à chaque relevé. Afficher pour **chaque MAR sa marge par axe** (combien de
-libéral en plus/moins pour viser 30 % sur CCAM et sur NGAP) — c'est le carburant de la
-réallocation.
+**V1 ne projette pas — elle mesure.** Sur une activité libérale hospitalière (congés, gardes, blocs
+fermés, saisonnalité), extrapoler le cumul « au rythme » produit un chiffre faux qui **induit en
+erreur** ; on y renonce. V1 se limite au **certain** : à chaque relevé, pour **chaque MAR et chaque
+axe**, elle affiche l'**état** (`T`, `%`) et la **marge encore permise avant 30 %**, ou l'**excédent**
+(recopié) si le plafond est déjà franchi.
+
+Marge, à public constant (`P = T·(1−%)`, `L = %·T`) : `marge = (3/7)·P − L = (T/7)·(3 − 10·%)`
+(nulle à 30 %, négative = excédent). Vérifiée sur le relevé réel jan→juin 2026 : ~45 000 € de marge
+CCAM disponible dans le groupe face à ~31 000 € déjà en excédent — le carburant de la réallocation.
+
+Vue groupe = Σ des marges (capacité libérale inexploitée) vs Σ des excédents (reversé si rien ne
+change), par axe. On peut afficher le **flux du mois** (`cumul_M − cumul_{M−1}`) comme **tendance**,
+jamais comme prévision. La marge est **prudente** (elle grossit quand le public rentre) ; un excédent
+de mi-année reste **corrigible** en montant le public (§5).
+
+**La projection d'un montant à fin décembre est repoussée à la V2**, appuyée sur l'**activité déjà
+planifiée** (vacations bloquées, interventions déclarées) — du réel à venir ajouté au dernier cumul
+certifié — et non sur une extrapolation.
 
 ### 8.2 Leviers — spécifiques à l'axe
 
@@ -327,7 +345,7 @@ go-live octobre 2026.
 7. **`RENDEMENT_LIB` à 4 valeurs** (FORT / MOYEN / NUL / REA).
 8. **`CCAM` collecté en V1, non exploité** ; jamais de grille tarifaire devinée.
 9. **Équité = le désagrément** (frigo/réa), pas l'argent (mutualisé).
-10. **Projection V1 = rythme constaté** ; affectations prévues = V2.
+10. **V1 = compteur de marge sur données réelles** (pas d'extrapolation ; `marge = (3/7)·P − L`) ; la **projection** à fin décembre, fondée sur l'**activité planifiée**, est repoussée à la V2.
 11. **Saisie groupée mensuelle depuis PDF** (référent), sécurisée par checksum sur le total du
     document + contrôle de monotonie du cumul.
 
