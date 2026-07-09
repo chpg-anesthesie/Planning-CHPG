@@ -1029,6 +1029,12 @@ if (sessionStorage.getItem('adminCode')) {
     <span class="status-label">Semaine</span>
     <span class="status-value" id="statusWeek">—</span>
   </div>
+  <div class="status-sep"></div>
+  <div class="status-item" id="pubIndicator" title="Vert : l'équipe voit exactement ce que vous voyez. Orange : des modifications ne sont pas encore publiées." style="cursor:default">
+    <div class="status-dot green" id="dotPub"></div>
+    <span class="status-label">Vue équipe</span>
+    <span class="status-value" id="statusPub">—</span>
+  </div>
 </div>
 
 <!-- NAV TABS -->
@@ -1547,10 +1553,50 @@ function resetLocalEdits() {
   _localOverrides = {}; _localVides = {};
   try { localStorage.removeItem(_editsKey()); } catch(e) {}
   renderWeek();
+  pubRecompute();
   if (typeof toast === 'function') toast('Modifications locales réinitialisées', 'success');
 }
 // ── P15 · Bannière rassurante après publication ──
+// ── Voyant « Vue équipe » (barre d'état) ──────────────────────────────
+// Vert  = la vue publiée (ce que voit l'équipe) est identique à la vôtre.
+// Orange = des modifications ne sont pas encore publiées.
+// Vérité : à l'ouverture, reconcileOverrides() purge les overrides déjà
+// reflétés par le publié → ce qui reste = le vrai écart. En session :
+// toute modif (markPending) rallume l'orange ; toute publication réussie
+// (showPublishReassurance) repasse au vert.
+let _pubSynced = null; // null = calculer depuis les overrides · true/false = forcé en session
+function _countLocalDiff() {
+  let n = 0;
+  try {
+    Object.keys(_localOverrides || {}).forEach(d => {
+      const dd = _localOverrides[d] || {};
+      Object.keys(dd).forEach(m => {
+        const o = dd[m]; if (!o) return;
+        if (o.am != null) n++;
+        if (o.pm != null) n++;
+      });
+    });
+  } catch (e) {}
+  return n;
+}
+function renderPubIndicator() {
+  const dot = document.getElementById('dotPub'), val = document.getElementById('statusPub');
+  if (!dot || !val) return;
+  if (typeof ADMIN_YEAR_READONLY !== 'undefined' && ADMIN_YEAR_READONLY) {
+    dot.className = 'status-dot'; dot.style.background = '#94A3B8';
+    val.textContent = 'Archivé'; return;
+  }
+  dot.style.background = '';
+  const synced = (_pubSynced !== null) ? _pubSynced : (_countLocalDiff() === 0);
+  if (synced) { dot.className = 'status-dot green'; val.textContent = 'À jour ✓'; }
+  else { dot.className = 'status-dot orange'; val.textContent = 'À publier'; }
+}
+function pubMarkDirty()  { _pubSynced = false; renderPubIndicator(); }
+function pubMarkSynced() { _pubSynced = true;  renderPubIndicator(); }
+function pubRecompute()  { _pubSynced = null;  renderPubIndicator(); }
+
 function showPublishReassurance() {
+  pubMarkSynced();
   let el = document.getElementById('pubReassure');
   if (!el) {
     el = document.createElement('div');
@@ -2200,6 +2246,7 @@ function renderWeek() {
   if (!window._closesLoaded) { loadCloses(); window._closesLoaded = true; }
   if (!window._editsLoaded) { loadLocalEdits(); window._editsLoaded = true; }
   if (DATA) reconcileOverrides();
+  pubRecompute();
   const weeks = getAllWeeks(); if (!weeks.length) return;
   const wk = weeks[currentWeekIdx]; if (!wk) return;
   const daySlots = getWeekDays(wk.weekNum);
@@ -5719,7 +5766,7 @@ async function runDiag() {
   }
 }
 
-function markPending() { _pendingChanges++; renderPublishBtn(); }
+function markPending() { _pendingChanges++; renderPublishBtn(); pubMarkDirty(); }
 function renderPublishBtn() {
   const b = document.getElementById('btnPublier');
   if (!b) return;
