@@ -400,6 +400,35 @@ function archiveYear(year, moveSheets) {
     }
   } else if (moveSheets) results.push(`⏸️ Transfert suspendu (archivage incomplet)`);
 
+  // ── 4. Écrémage : purger PLANNING_OVERRIDES des dates de l'année archivée ──
+  // Ces retouches quotidiennes ne servent plus une fois l'année close (elles ne sont
+  // relues que pour leurs propres dates). On retire l'année ${year} ET les antérieures
+  // (auto-nettoyant même si une clôture passée a été manquée). Lignes futures conservées.
+  // Réécriture en un bloc (pas de deleteRow en boucle). Gardé sur archiveOk par prudence.
+  if (archiveOk) {
+    try {
+      const po = ss.getSheetByName('PLANNING_OVERRIDES');
+      if (po && po.getLastRow() > 1) {
+        const pd = po.getDataRange().getValues();
+        const width = pd[0].length;
+        const yrOf = raw => {
+          if (raw instanceof Date) return raw.getFullYear();
+          const m = String(raw || '').trim().match(/^(\d{4})-/);
+          return m ? Number(m[1]) : null;
+        };
+        const keep = pd.slice(1).filter(row => { const y = yrOf(row[0]); return y === null || y > year; });
+        const removed = (pd.length - 1) - keep.length;
+        if (removed > 0) {
+          po.getRange(2, 1, pd.length - 1, width).clearContent();
+          if (keep.length) po.getRange(2, 1, keep.length, width).setValues(keep);
+          results.push(`🧹 PLANNING_OVERRIDES : ${removed} ligne(s) ≤ ${year} purgée(s)`);
+        } else {
+          results.push(`ℹ️ PLANNING_OVERRIDES : aucune ligne ≤ ${year} à purger`);
+        }
+      }
+    } catch (e) { results.push(`⚠️ Purge PLANNING_OVERRIDES échouée : ${e.message}`); }
+  }
+
   const rapport = results.join('\n');
   Logger.log(`\n── Archivage ${year} ──\n${rapport}`);
   try{ SpreadsheetApp.getUi().alert(`Archivage ${year}\n\n${rapport}`); }catch(e){}
