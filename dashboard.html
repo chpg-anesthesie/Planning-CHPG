@@ -640,7 +640,7 @@ function renderMesGardes(){
 
 // ── MES CONGÉS (perso — à venir) ──
 const CONGE_TYPES = {
-  V:  { label:'Vacances',      bg:'#EEF4FB', fg:'#1D6FB8' },
+  A:  { label:'Vacances',      bg:'#EEF4FB', fg:'#1D6FB8' },
   F:  { label:'Formation',     bg:'#FDF3E3', fg:'#B45309' },
   TP: { label:'Temps partiel', bg:'#FEF3C7', fg:'#92400E' },
   R:  { label:'Récupération',  bg:'#E7F6F3', fg:'#0F766E' },
@@ -701,7 +701,7 @@ function renderMesConges(){
   }
   const total=MY_CONGES.days.length;
   if(cnt) cnt.textContent = total+(total>1?' jours à venir':' jour à venir');
-  const order=['V','F','TP','R','CL'];
+  const order=['A','F','TP','R','CL'];
   let chips='<div class="cg-counts">';
   order.forEach(function(t){
     const n=MY_CONGES.counts[t]||0; if(!n) return;
