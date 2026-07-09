@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guide du comité — Interface d'administration · Planning-CHPG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#CE1126; --red-soft:#FDECEF; --red-deep:#9E0C1D;
+    --blue:#1D6FB8; --blue-soft:#EAF3FB;
+    --amber:#B45309; --amber-soft:#FDF3E3;
+    --teal:#0F766E; --teal-soft:#E6F5F2;
+    --viol:#6D28D9; --viol-soft:#F5F3FF;
+    --green:#166534; --green-soft:#DCFCE7;
+    --ink:#0F172A; --ink-2:#475569; --ink-3:#7A8699;
+    --line:#E2E8F0; --bg:#F6F8FB; --white:#fff;
+    --mono:'DM Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+    line-height:1.6; font-size:15px; padding:36px 20px 80px}
+  .wrap{max-width:860px; margin:0 auto}
+
+  .flag{display:inline-flex; border-radius:4px; overflow:hidden; vertical-align:middle; margin-right:10px; box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .flag i{display:block; width:15px; height:21px}
+  .flag .r{background:var(--red)} .flag .w{background:#fff}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--red); font-weight:500}
+  h1{font-size:30px; font-weight:800; letter-spacing:-.02em; margin:8px 0 4px; line-height:1.2}
+  .subtitle{color:var(--ink-2); font-size:15px; margin:0 0 4px}
+  .maj{font-family:var(--mono); font-size:12px; color:var(--ink-3); margin-top:10px}
+
+  .toc{background:var(--white); border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin:26px 0 34px}
+  .toc h2{margin:0 0 10px; font-size:13px; font-family:var(--mono); font-weight:500; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); border:none; padding:0}
+  .toc ol{margin:0; padding-left:0; list-style:none; columns:2; column-gap:32px}
+  .toc li{margin:4px 0; break-inside:avoid}
+  .toc a{color:var(--ink); text-decoration:none; font-weight:500; font-size:14px}
+  .toc a:hover{color:var(--red)}
+  .toc .n{font-family:var(--mono); font-size:12px; color:var(--red); margin-right:7px}
+  @media (max-width:600px){ .toc ol{columns:1} }
+
+  section{margin-top:44px}
+  h2{font-size:21px; font-weight:800; letter-spacing:-.015em; margin:0 0 14px; padding-top:8px; display:flex; align-items:baseline; gap:12px}
+  h2 .n{font-family:var(--mono); font-size:14px; font-weight:500; color:#fff; background:var(--red); border-radius:8px; padding:3px 9px; flex-shrink:0}
+  h3{font-size:15.5px; font-weight:700; margin:22px 0 8px; color:var(--ink)}
+  p{margin:0 0 12px; color:var(--ink-2)}
+  strong{color:var(--ink)}
+  ul{margin:0 0 14px; padding-left:22px; color:var(--ink-2)}
+  li{margin:5px 0}
+  .kbd{font-family:var(--mono); font-size:12.5px; background:var(--white); border:1px solid var(--line); border-bottom-width:2px; border-radius:6px; padding:1px 7px; color:var(--ink); white-space:nowrap}
+  .tag{font-family:var(--mono); font-size:12.5px; background:#EEF1F5; border-radius:5px; padding:1px 6px; color:var(--ink)}
+  .btn-ex{display:inline-block; font-size:12.5px; font-weight:700; border-radius:8px; padding:2px 10px; background:var(--white); border:1px solid var(--line); color:var(--ink-2); white-space:nowrap}
+  .btn-ex.green{background:var(--green-soft); border-color:#86EFAC; color:var(--green)}
+  .btn-ex.red{background:var(--red-soft); border-color:#F5B9C2; color:var(--red)}
+
+  .callout{border-radius:12px; padding:14px 18px; margin:16px 0; border:1px solid var(--line); border-left-width:4px; background:var(--white)}
+  .callout p:last-child{margin-bottom:0}
+  .callout .ct{font-family:var(--mono); font-size:11.5px; font-weight:500; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px}
+  .callout.rule{border-left-color:var(--red); background:var(--red-soft)}
+  .callout.rule .ct{color:var(--red)}
+  .callout.tip{border-left-color:var(--blue); background:var(--blue-soft)}
+  .callout.tip .ct{color:var(--blue)}
+  .callout.warn{border-left-color:var(--amber); background:var(--amber-soft)}
+  .callout.warn .ct{color:var(--amber)}
+
+  table{width:100%; border-collapse:collapse; margin:14px 0 18px; background:var(--white); border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:14px}
+  th{background:#F1F4F8; text-align:left; font-size:12px; font-family:var(--mono); font-weight:500; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-2); padding:9px 14px; border-bottom:1px solid var(--line)}
+  td{padding:9px 14px; border-bottom:1px solid #F1F5F9; color:var(--ink-2); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td:first-child{font-weight:600; color:var(--ink); white-space:nowrap}
+  .sig td:first-child{font-family:var(--mono); font-weight:500}
+
+  .steps{counter-reset:step; margin:12px 0 16px; padding:0; list-style:none}
+  .steps li{counter-increment:step; position:relative; padding:8px 0 8px 40px; margin:0; color:var(--ink-2)}
+  .steps li::before{content:counter(step); position:absolute; left:0; top:7px; width:26px; height:26px; border-radius:8px; background:var(--white); border:1.5px solid var(--red); color:var(--red); font-family:var(--mono); font-size:13px; display:flex; align-items:center; justify-content:center}
+  .steps li + li{border-top:1px dashed var(--line)}
+
+  .faq{background:var(--white); border:1px solid var(--line); border-radius:12px; margin:12px 0; overflow:hidden}
+  .faq .q{padding:12px 18px; font-weight:700; color:var(--ink); background:#FBFCFE; border-bottom:1px solid var(--line); font-size:14.5px}
+  .faq .a{padding:12px 18px; color:var(--ink-2); font-size:14.5px}
+  .faq .a::before{content:"➡ "; color:var(--red); font-weight:700}
+
+  .backtop{display:inline-block; margin-top:14px; font-size:12.5px; font-family:var(--mono); color:var(--ink-3); text-decoration:none}
+  .backtop:hover{color:var(--red)}
+  .foot{margin-top:56px; padding-top:18px; border-top:1px solid var(--line); font-size:12px; color:var(--ink-3); font-family:var(--mono); text-align:center}
+
+  @media print{
+    body{background:#fff; padding:0; font-size:12.5px}
+    .toc ol{columns:2}
+    .backtop{display:none}
+    section{break-inside:avoid-page; margin-top:28px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header id="top">
+  <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
+  <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
+  <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
+  <div class="maj">Dernière mise à jour : 9 juillet 2026 — aligné sur l'interface en service (6 onglets, dont Maintenance).</div>
+</header>
+
+<nav class="toc">
+  <h2>Sommaire</h2>
+  <ol>
+    <li><a href="#c1"><span class="n">01</span>Le principe en une page</a></li>
+    <li><a href="#c2"><span class="n">02</span>Se connecter &amp; choisir l'année</a></li>
+    <li><a href="#c3"><span class="n">03</span>Les 6 onglets</a></li>
+    <li><a href="#c4"><span class="n">04</span>Le cycle d'une année : trois assistants</a></li>
+    <li><a href="#c5"><span class="n">05</span>Lire le planning quotidien</a></li>
+    <li><a href="#c6"><span class="n">06</span>Modifier le planning au quotidien</a></li>
+    <li><a href="#c7"><span class="n">07</span>Les consultations</a></li>
+    <li><a href="#c8"><span class="n">08</span>La consultation libérale d'endoscopie</a></li>
+    <li><a href="#c9"><span class="n">09</span>Onglet Affectations</a></li>
+    <li><a href="#c10"><span class="n">10</span>Onglet Équipe</a></li>
+    <li><a href="#c11"><span class="n">11</span>Onglet Statuts — absences</a></li>
+    <li><a href="#c12"><span class="n">12</span>Onglet Équité et contrôles</a></li>
+    <li><a href="#c13"><span class="n">13</span>Onglet Maintenance</a></li>
+    <li><a href="#c14"><span class="n">14</span>Publier &amp; valider une semaine</a></li>
+    <li><a href="#c15"><span class="n">15</span>Dépannage</a></li>
+    <li><a href="#c16"><span class="n">16</span>Glossaire des sigles</a></li>
+  </ol>
+</nav>
+
+<!-- 1 -->
+<section id="c1">
+  <h2><span class="n">01</span>Le principe en une page</h2>
+  <p>Cette interface sert à <strong>préparer, ajuster et publier</strong> le planning de l'équipe d'anesthésie. Elle couvre trois choses : les <strong>gardes</strong>, le <strong>planning quotidien</strong> par secteur, et les <strong>consultations</strong>.</p>
+  <div class="callout tip">
+    <div class="ct">Deux réflexes permanents</div>
+    <p><strong>Je modifie</strong> le planning dans l'interface (placer un MAR, poser une absence, générer les gardes…). <strong>Rien n'est visible par l'équipe</strong> tant que je n'ai pas cliqué sur <span class="btn-ex green">⬆️ Publier</span>.</p>
+  </div>
+  <div class="callout rule">
+    <div class="ct">Règle d'or du dépannage</div>
+    <p>Si un changement « ne se voit pas », c'est presque toujours qu'il <strong>n'a pas été publié</strong>, ou qu'il faut recharger la page avec <span class="kbd">Ctrl + Maj + R</span>. En cas de doute plus général : lancer le <strong>Diagnostic système</strong> (onglet Maintenance). Voir le chapitre 15.</p>
+  </div>
+</section>
+
+<!-- 2 -->
+<section id="c2">
+  <h2><span class="n">02</span>Se connecter &amp; choisir l'année</h2>
+  <ul>
+    <li>Ouvrir l'adresse de l'interface dans un navigateur (<strong>Chrome</strong> de préférence).</li>
+    <li>Saisir le <strong>code admin</strong> dans le champ « CODE ADMIN ».</li>
+  </ul>
+  <h3>Le sélecteur d'année (pilule en haut de page)</h3>
+  <p>L'année affichée se choisit via la <strong>pilule</strong> à côté du titre « Administration ». Chaque année porte un badge :</p>
+  <ul>
+    <li><strong>Année active</strong> : l'année en cours, celle du quotidien.</li>
+    <li><strong>N+1</strong> : l'année suivante, pendant sa préparation (indispos, génération).</li>
+    <li><strong>Archivée</strong> : une année clôturée. Elle s'ouvre en <strong>lecture seule</strong> — un bandeau jaune 🔒 le rappelle, et toute modification est désactivée.</li>
+  </ul>
+  <p>Sous l'en-tête, la <strong>barre d'état</strong> affiche en permanence : Système · MARs actifs · Semaine courante.</p>
+  <div class="callout warn">
+    <div class="ct">Confidentialité</div>
+    <p>Le code admin est partagé par le comité. Toute personne qui l'a peut ouvrir <em>et modifier</em> le planning : à ne pas diffuser au-delà des membres concernés.</p>
+  </div>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 3 -->
+<section id="c3">
+  <h2><span class="n">03</span>Les 6 onglets</h2>
+  <p>La barre du haut donne accès à six espaces de travail :</p>
+  <table>
+    <tr><th>Onglet</th><th>À quoi il sert</th></tr>
+    <tr><td>📅 Planning</td><td>Le planning quotidien : qui est dans quel secteur, les consultations, et les cartes « Opérations annuelles » (les trois assistants). C'est là que l'on passe le plus de temps.</td></tr>
+    <tr><td>👥 Équipe</td><td>La liste des MAR, leurs emails, leur dect, leur groupe de vacances ; l'ajout, le départ et l'absence longue d'un MAR.</td></tr>
+    <tr><td>📋 Affectations</td><td>Les secteurs « de base » de chaque MAR, mois par mois : le socle sur lequel le planning quotidien est construit.</td></tr>
+    <tr><td>📊 Équité</td><td>Les compteurs de gardes (qui a fait combien, écart à la cible), en vue « Initiale » ou « Instantané », et la validation des vacances.</td></tr>
+    <tr><td>✏️ Statuts</td><td>Pour poser les absences et statuts d'un MAR : vacances, formation, temps partiel, congé long, 8h–18h — avec son propre bouton Publier.</td></tr>
+    <tr><td>🔧 Maintenance</td><td>Le diagnostic système (tout est-il en ordre ?) et le renvoi groupé des codes d'accès. Voir le chapitre 13.</td></tr>
+  </table>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 4 -->
+<section id="c4">
+  <h2><span class="n">04</span>Le cycle d'une année : trois assistants</h2>
+  <p>La préparation d'une année se fait en trois temps, à des moments différents. Les trois assistants sont accessibles depuis l'onglet Planning, dans le bloc <strong>« 🗓️ Opérations annuelles »</strong> — trois cartes numérotées, à dérouler <strong>dans l'ordre</strong> : <strong>1 · 🚀 Démarrer</strong>, <strong>2 · ⚡ Générer les gardes</strong>, <strong>3 · 📦 Clôturer l'année</strong>. Chaque assistant enchaîne ses actions et affiche une barre de progression.</p>
+
+  <h3>4.1 · En octobre — Étape 1 : Démarrer l'année suivante</h3>
+  <ol class="steps">
+    <li>Saisie des périodes de vacances scolaires (Zone B).</li>
+    <li>Définition des groupes de rotation vacances (A / B / C) et de leur ordre de priorité par période.</li>
+    <li>Création de la feuille d'indisponibilités de l'année suivante.</li>
+    <li>Activation de la saisie des indispos pour les MAR.</li>
+    <li>Écriture au journal.</li>
+  </ol>
+  <p>Il propose ensuite l'étape « Réunion staff vacances » puis l'envoi des codes d'accès par email à chaque MAR.</p>
+  <div class="callout tip">
+    <div class="ct">À l'issue de cette étape</div>
+    <p>Les MAR peuvent saisir leurs indisponibilités pour l'année suivante. Les MAR <strong>sans email</strong> sont signalés : ils ne recevront pas leur code automatiquement.</p>
+  </div>
+
+  <h3>4.2 · En novembre — Étape 2 : Générer les gardes</h3>
+  <ol class="steps">
+    <li>Vérification des indispos collectées et des cibles.</li>
+    <li>Génération des gardes de l'année suivante, de façon équitable (une dizaine de secondes).</li>
+    <li>Publication du planning et envoi d'un récapitulatif à chaque MAR.</li>
+  </ol>
+  <p>Avant de valider, examiner les deux contrôles affichés : le <strong>certificat d'équité</strong> (chacun a-t-il une charge juste) et l'<strong>audit de couverture</strong> (toutes les gardes sont-elles pourvues). Voir le chapitre 12.</p>
+  <div class="callout warn">
+    <div class="ct">Avant de générer</div>
+    <p>Vérifier la colonne « quotité » de chaque MAR <strong>avant</strong> de générer : certaines quotités changent au 1<sup>er</sup> janvier. Une quotité fausse fausse la répartition.</p>
+  </div>
+  <div class="callout tip">
+    <div class="ct">À partir de la génération 2028</div>
+    <p>L'assistant affichera aussi le <strong>report de dette</strong> : l'écart de chaque MAR à sa cible de l'année précédente, reporté (plafonné et amorti) sur la nouvelle année. C'est ce qui compense d'une année sur l'autre les petits écarts inévitables d'arrondi.</p>
+  </div>
+
+  <h3>4.3 · En janvier — Étape 3 : Clôturer l'année écoulée</h3>
+  <ol class="steps">
+    <li>Vérification que la nouvelle année est prête.</li>
+    <li>Récapitulatif d'équité et archivage (statistiques figées).</li>
+    <li>Basculement vers la nouvelle année et nettoyage de la configuration.</li>
+  </ol>
+
+  <h3>4.4 · Ajouter ou faire partir un MAR (en cours d'année)</h3>
+  <p><strong>Ajouter un MAR</strong> : bouton « + Ajouter un MAR » de l'onglet Équipe. L'assistant crée le MAR, enregistre ses affectations et son groupe de vacances, lui envoie son code d'accès, puis republie le planning.</p>
+  <p><strong>Départ d'un MAR</strong> : depuis la <strong>ligne du MAR</strong> dans l'onglet Équipe (icône en bout de ligne). L'assistant gère la redistribution de ses gardes, le désactive (il disparaît du planning quotidien) puis republie. Le MAR reste dans l'historique.</p>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 5 -->
+<section id="c5">
+  <h2><span class="n">05</span>Lire le planning quotidien</h2>
+  <ul>
+    <li>Chaque <strong>colonne</strong> est un jour ; chaque <strong>ligne</strong> est un secteur ou un type de consultation.</li>
+    <li><strong>Les gardes</strong> (garde réa, garde mater, sortie de garde) sont <strong>verrouillées</strong> : elles viennent de la génération et ne se modifient pas à la main ici.</li>
+    <li>Les lignes de secteurs correspondent aux blocs et à la réa ; les lignes « CS-… » aux consultations (voir le glossaire).</li>
+    <li>On se déplace de semaine en semaine avec les flèches <span class="kbd">←</span> <span class="kbd">→</span>.</li>
+    <li>Une case vide se remplit en cliquant dessus ; une case laissée volontairement vide affiche le symbole <span class="tag">∅</span>.</li>
+  </ul>
+  <h3>La barre de la semaine</h3>
+  <p>À droite du nom de la semaine :</p>
+  <ul>
+    <li><span class="btn-ex">↓ Excel</span> — exporte la semaine affichée en fichier Excel (pratique pour imprimer ou diffuser).</li>
+    <li><span class="btn-ex green">✅ Valider la semaine</span> — marque la semaine comme vérifiée par le comité ; un badge <strong>✅ Validée</strong> apparaît alors à côté du nom de la semaine (voir chapitre 14).</li>
+    <li><span class="btn-ex green">⬆️ Publier</span> — met en ligne les modifications pour l'équipe.</li>
+    <li><span class="tag">↺ réinit.</span> — petit lien discret qui réinitialise les modifications locales de l'écran, si l'affichage semble figé sur d'anciennes modifs.</li>
+  </ul>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 6 -->
+<section id="c6">
+  <h2><span class="n">06</span>Modifier le planning au quotidien</h2>
+
+  <h3>6.1 · Placer un MAR dans un secteur ou une consultation</h3>
+  <ol class="steps">
+    <li>Cliquer sur une case vide (ou sur « + ouvrir » pour créer une consultation là où il n'y en avait pas).</li>
+    <li>Un panneau s'ouvre sur le côté avec la liste des MAR disponibles ce jour-là.</li>
+    <li>Cliquer sur le MAR à placer.</li>
+  </ol>
+  <div class="callout tip">
+    <div class="ct">Bon à savoir</div>
+    <p>Pour les consultations, le panneau propose d'abord les MAR affectés au secteur concerné et présents, puis les volants, puis le reste — cela évite de chercher.</p>
+  </div>
+
+  <h3>6.2 · Déplacer ou retirer un MAR déjà placé</h3>
+  <p>Cliquer sur la pastille du MAR ouvre un petit menu :</p>
+  <ul>
+    <li><strong>« Déplacer vers … »</strong> pour le changer de secteur ;</li>
+    <li><strong>« ↩ Retirer de … »</strong> pour l'enlever de ce secteur / cette consultation.</li>
+  </ul>
+
+  <h3>6.3 · Retirer UN SEUL MAR d'une consultation qui en compte deux</h3>
+  <p>Survoler la pastille du MAR : un petit <strong style="color:var(--red)">× rouge</strong> apparaît à côté de ses initiales. Cliquer dessus retire ce seul MAR — l'autre reste en place.</p>
+  <div class="callout warn">
+    <div class="ct">À ne pas confondre</div>
+    <p>Le <strong>×</strong> situé à droite de la case (dans les outils du créneau) ferme <strong>toute</strong> la consultation et libère tout le monde d'un coup. Le × collé aux initiales ne retire que ce MAR.</p>
+  </div>
+
+  <h3>6.4 · Enregistrement</h3>
+  <p>Chaque modification est enregistrée automatiquement en arrière-plan (message « Enregistré »). Mais elle n'est visible par l'équipe qu'après <strong>publication</strong> (chapitre 14).</p>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 7 -->
+<section id="c7">
+  <h2><span class="n">07</span>Les consultations</h2>
+  <ul>
+    <li><strong>« à pourvoir »</strong> : une consultation est requise ce jour-là mais pas encore attribuée.</li>
+    <li><strong>Compteur d'équité</strong> : au moment de placer quelqu'un, un badge indique combien de consultations chaque MAR a déjà faites dans le mois (▼ vert = à privilégier, ▲ = en a déjà beaucoup). Il se met à jour en direct au fil des placements, même avant publication.</li>
+    <li><strong>Miroir maternité</strong> : le mardi et le jeudi matin, le MAR affecté à la MAT apparaît automatiquement en consultation maternité — inutile de le placer.</li>
+    <li><strong>+ ouvrir</strong> ajoute un créneau ; le <strong>× du créneau</strong> le ferme (libère le MAR) ; <strong>rouvrir</strong> réaffiche un créneau fermé.</li>
+  </ul>
+
+  <h3>7.1 · Consultations requises par jour</h3>
+  <p>Le nombre de consultations attendues est prédéfini selon le jour de la semaine :</p>
+  <table>
+    <tr><th>Jour</th><th>Matin</th><th>Après-midi</th></tr>
+    <tr><td>Lundi</td><td>—</td><td>CS Viscéral ×2 · CS Endoscopies ×2</td></tr>
+    <tr><td>Mardi</td><td>CS ORL ×1 · CS Maternité ×1</td><td>CS Viscéral ×1 · CS Endoscopies ×1 · CS Ortho ×1</td></tr>
+    <tr><td>Mercredi</td><td>CS ORL ×1 · CS Polyvalente ×1</td><td>CS Viscéral ×1 · CS Endoscopies ×1 · CS Ortho ×1 · CS Interventionnel ×1</td></tr>
+    <tr><td>Jeudi</td><td>CS ORL ×1 · CS Maternité ×1</td><td>CS Viscéral ×1 · CS Endoscopies ×2 · CS Interventionnel ×1</td></tr>
+    <tr><td>Vendredi</td><td>CS Ortho ×1 · CS ORL ×1</td><td>—</td></tr>
+  </table>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 8 -->
+<section id="c8">
+  <h2><span class="n">08</span>La consultation libérale d'endoscopie</h2>
+  <p>C'est une consultation particulière (mardi et jeudi après-midi), faite par un seul MAR — le « soliste » (GR en pratique), qui doit en assurer environ un tiers.</p>
+  <ul>
+    <li>Elle s'affiche dans une case violette <span class="tag" style="background:var(--viol-soft); color:var(--viol)">[LIB · initiales]</span> : on voit tout de suite qui fait la libérale, même s'il y a deux MAR sur le créneau.</li>
+    <li>Un créneau libéral non encore attribué affiche un marqueur <strong>« LIB »</strong> seul.</li>
+  </ul>
+
+  <h3>8.1 · La règle à comprendre</h3>
+  <div class="callout rule">
+    <div class="ct">Semaine N → semaine N+1</div>
+    <p>La consultation libérale de la semaine N crée des patients opérés au bloc endoscopie le <strong>lundi et le mardi après-midi de la semaine N+1</strong>. Le MAR qui a consulté doit donc être présent ces jours-là pour endormir ses propres patients.</p>
+  </div>
+
+  <h3>8.2 · Répartir la rotation (bouton ⟳ Rotation libérale, onglet Affectations)</h3>
+  <ol class="steps">
+    <li>Ouvrir l'assistant.</li>
+    <li>Choisir le soliste (GR), sa part (1/3 par défaut) et la période.</li>
+    <li>L'assistant répartit les créneaux en ne proposant que les MAR présents au bloc de la semaine suivante (lundi ou mardi après-midi).</li>
+    <li>Un créneau sans MAR possible reste « à pourvoir » : le comité l'attribue à la main. Ces créneaux ne doivent pas rester vides.</li>
+    <li>Cliquer sur « Appliquer » : c'est enregistré et le planning est republié.</li>
+  </ol>
+  <div class="callout warn">
+    <div class="ct">Attribution à la main</div>
+    <p>Quand on attribue soi-même un créneau libéral (hors assistant), penser à vérifier que le MAR choisi sera bien <strong>présent au bloc la semaine suivante</strong> — seul l'assistant fait ce contrôle automatiquement aujourd'hui.</p>
+  </div>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 9 -->
+<section id="c9">
+  <h2><span class="n">09</span>Onglet Affectations</h2>
+  <p>Cet onglet définit, pour chaque MAR et chaque mois, son secteur « de base ». C'est le socle : le planning quotidien part de ces affectations, puis on l'ajuste au jour le jour dans l'onglet Planning.</p>
+  <ul>
+    <li>Cliquer une cellule pour changer le secteur d'un MAR sur un mois.</li>
+    <li><strong>« 💾 Enregistrer tout »</strong> sauvegarde les affectations et republie automatiquement le planning.</li>
+    <li>Un <strong>point orange</strong> sur l'onglet signale des modifications non encore enregistrées.</li>
+    <li>Le bouton <strong>« ⟳ Rotation libérale »</strong> (chapitre 8) se trouve ici.</li>
+  </ul>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 10 -->
+<section id="c10">
+  <h2><span class="n">10</span>Onglet Équipe</h2>
+  <p>Cet onglet gère les membres et leurs coordonnées.</p>
+  <ul>
+    <li><strong>Ajouter un MAR</strong> : bouton « + Ajouter un MAR » — identifiant (ex. DUPONT), nom (ex. DR DUPONT), initiales (ex. MD), email, dect, groupe de vacances.</li>
+    <li><strong>Modifier</strong> un email, un dect, un groupe : via le crayon ✏️ en face du MAR.</li>
+    <li><strong>Départ d'un MAR</strong> : icône en bout de ligne du MAR concerné — ouvre l'assistant de départ (chapitre 4.4).</li>
+    <li><strong>🏖️ Absence longue</strong> : pose une longue période d'absence (ex. congé maternité) d'un coup, avec libération des gardes concernées.</li>
+    <li><strong>Codes d'accès</strong> : renvoi individuel possible ici ; pour un envoi groupé, préférer l'onglet Maintenance (chapitre 13).</li>
+  </ul>
+  <div class="callout tip">
+    <div class="ct">Le bon endroit</div>
+    <p>Pour ajouter ou retirer un MAR, passer par cet onglet Équipe (pas par les autres écrans). Un email valide est nécessaire pour l'envoi automatique du code.</p>
+  </div>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 11 -->
+<section id="c11">
+  <h2><span class="n">11</span>Onglet Statuts — poser absences et statuts</h2>
+  <p>Cet onglet sert à marquer les jours d'absence ou de statut particulier d'un MAR. Deux vues, au choix : <strong>Vue MAR</strong> (le calendrier d'un MAR) ou <strong>Vue Année</strong> (tous les MAR d'un coup).</p>
+  <ol class="steps">
+    <li>Choisir la vue, et le MAR le cas échéant.</li>
+    <li>Sélectionner les jours : clic pour cocher/décocher. Pour une période continue, activer <strong>« ↔ Plage »</strong>, puis cliquer le premier jour puis le dernier.</li>
+    <li>Appliquer un statut aux jours sélectionnés : <strong>Vacances (V)</strong>, <strong>Formation (F)</strong>, <strong>Temps partiel (TP)</strong>, <strong>Congé long (CL)</strong>, <strong>8h–18h (18)</strong>. Le bouton « Effacer statut » remet le jour à « présent ».</li>
+  </ol>
+  <p>Le compteur « X jours sélectionnés » et le bouton « Vider la sélection » aident à ne pas se tromper. Pour une <strong>absence longue</strong>, le bouton dédié « 🏖️ Absence longue (CL) » pose toute une période d'un coup.</p>
+  <div class="callout tip">
+    <div class="ct">Le Publier de l'onglet</div>
+    <p>L'onglet a son propre bouton <span class="btn-ex green">⬆ Publier</span>, avec un <strong>compteur</strong> des modifications en attente. Tant qu'il reste des modifications non publiées, le bouton devient <span class="btn-ex red">rouge et clignote</span> — impossible d'oublier.</p>
+  </div>
+  <div class="callout warn">
+    <div class="ct">Les gardes ne se posent pas ici</div>
+    <p>Garde réa, garde mater et sortie de garde proviennent de la génération et sont <strong>verrouillées</strong>.</p>
+  </div>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 12 -->
+<section id="c12">
+  <h2><span class="n">12</span>Onglet Équité et contrôles de génération</h2>
+  <ul>
+    <li>Affiche, pour chaque MAR, le nombre de gardes de chaque type et l'écart à la cible.</li>
+    <li>Deux lectures, via l'interrupteur en haut à droite : <strong>« Initiale »</strong> = la répartition figée au moment de la génération (la référence d'équité) ; <strong>« Instantané »</strong> = l'état réel du planning aujourd'hui, échanges et dons de gardes inclus.</li>
+    <li>Le <strong>certificat d'équité</strong> (dans l'assistant de génération) résume si tout le monde est dans les clous. Les profils particuliers (temps partiel, arrangements fixes, pas de week-end…) sont jugés sur des critères adaptés — un écart apparent peut être normal. Un petit écart résiduel est d'ailleurs <strong>inévitable</strong> (les cibles sont fractionnaires, les gardes entières) et se compense l'année suivante.</li>
+    <li>L'<strong>audit de couverture</strong> signale les semaines où, à cause de trop d'absences simultanées, des gardes risquent de ne pas être pourvues. <strong style="color:var(--red)">Rouge</strong> = capacité insuffisante ; <strong style="color:var(--amber)">orange</strong> = tendu mais faisable.</li>
+    <li>L'onglet permet aussi de <strong>valider les vacances</strong>.</li>
+  </ul>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 13 -->
+<section id="c13">
+  <h2><span class="n">13</span>Onglet Maintenance</h2>
+  <p>Deux outils d'entretien, à utiliser sans crainte : ils ne modifient pas le planning.</p>
+
+  <h3>13.1 · 🔍 Diagnostic système</h3>
+  <p>Le bouton <strong>« Lancer le diagnostic »</strong> vérifie que tout est en ordre pour le quotidien et les assistants :</p>
+  <ul>
+    <li>les onglets du classeur et les réglages attendus ;</li>
+    <li>les MAR <strong>sans email</strong> ou <strong>sans code</strong> d'accès ;</li>
+    <li>les MAR actifs <strong>sans affectation</strong> ;</li>
+    <li>la clé de publication et les <strong>fichiers publiés</strong> (leur présence et leur cohérence avec le planning).</li>
+  </ul>
+  <p>Le résultat s'affiche ligne par ligne : ce qui va bien, ce qui manque, ce qu'il faut corriger. <strong>Réflexe conseillé</strong> : le lancer avant chaque assistant annuel, et dès qu'un comportement semble anormal.</p>
+
+  <h3>13.2 · ✉️ Renvoyer les codes d'accès</h3>
+  <ol class="steps">
+    <li>Cocher les MAR concernés (par défaut, tous les MAR actifs le sont). Boutons « Tout cocher » / « Tout décocher » et compteur de sélection.</li>
+    <li>Cliquer « Envoyer aux MARs sélectionnés » : chacun reçoit son code individuel par email.</li>
+  </ol>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 14 -->
+<section id="c14">
+  <h2><span class="n">14</span>Publier &amp; valider une semaine</h2>
+  <h3>Publier (rendre visible à l'équipe)</h3>
+  <p>Les modifications ne sont visibles par l'équipe qu'après avoir cliqué sur <span class="btn-ex green">⬆️ Publier</span> (barre de la semaine, onglet Planning — l'onglet Statuts a le sien, chapitre 11). Ce bouton reconstruit le planning et le met en ligne. Côté équipe, le nouveau planning apparaît au prochain rechargement de leur page, généralement en moins d'une minute.</p>
+  <h3>Valider une semaine</h3>
+  <p>Le bouton <span class="btn-ex green">✅ Valider la semaine</span> marque la semaine affichée comme <strong>vérifiée par le comité</strong> : le badge <strong>✅ Validée</strong> apparaît à côté du nom de la semaine. Re-cliquer retire la validation. C'est le repère qui distingue une semaine simplement remplie d'une semaine relue et validée.</p>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 15 -->
+<section id="c15">
+  <h2><span class="n">15</span>Dépannage</h2>
+
+  <div class="faq">
+    <div class="q">« J'ai modifié, mais le changement ne se voit pas. »</div>
+    <div class="a">Le plus souvent, ce n'est pas publié. Cliquer sur <strong>⬆️ Publier</strong> (attention : l'onglet Statuts a son propre Publier). Puis, sur mon écran, recharger en vidant le cache : <span class="kbd">Ctrl + Maj + R</span>.</div>
+  </div>
+  <div class="faq">
+    <div class="q">« En fermant un créneau, ça retire les deux MAR d'un coup. »</div>
+    <div class="a">Normal : le × du créneau ferme tout. Pour n'en retirer qu'un seul, survoler sa pastille et cliquer le petit × collé à ses initiales (voir 6.3).</div>
+  </div>
+  <div class="faq">
+    <div class="q">« Une consultation reste remplie alors que je l'ai vidée. »</div>
+    <div class="a">Republier, puis <span class="kbd">Ctrl + Maj + R</span>. Vérifier aussi si le créneau est fermé plutôt que vidé (le rouvrir pour voir).</div>
+  </div>
+  <div class="faq">
+    <div class="q">« Mon écran semble figé sur d'anciennes modifications. »</div>
+    <div class="a">Utiliser le petit lien <strong>↺ réinit.</strong> à droite de la barre de la semaine : il efface les modifications locales de l'écran et repart des données publiées.</div>
+  </div>
+  <div class="faq">
+    <div class="q">« La page ne se met pas du tout à jour. »</div>
+    <div class="a"><span class="kbd">Ctrl + Maj + R</span>. Si une mise en ligne est en cours, patienter 1 à 5 minutes. Toujours bloqué au-delà de 10–15 minutes : lancer le <strong>Diagnostic système</strong> (onglet Maintenance) pour repérer ce qui coince.</div>
+  </div>
+  <div class="faq">
+    <div class="q">« Un MAR n'arrive pas à se connecter / n'a pas reçu son code. »</div>
+    <div class="a">Onglet Maintenance → vérifier au diagnostic qu'il a bien un email et un code, corriger dans l'onglet Équipe si besoin, puis « Renvoyer les codes » en le sélectionnant.</div>
+  </div>
+  <div class="faq">
+    <div class="q">« La génération des gardes semble injuste pour quelqu'un. »</div>
+    <div class="a">Vérifier sa quotité et ses indispos, puis relancer la génération. Comparer avec le certificat d'équité, en tenant compte des profils particuliers — et de l'écart d'arrondi normal, compensé l'année suivante.</div>
+  </div>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- 16 -->
+<section id="c16">
+  <h2><span class="n">16</span>Glossaire des sigles</h2>
+
+  <h3>16.1 · Statuts / présence</h3>
+  <table class="sig">
+    <tr><th>Sigle</th><th>Signification</th></tr>
+    <tr><td>(vide)</td><td>Présent</td></tr>
+    <tr><td>V</td><td>Vacances</td></tr>
+    <tr><td>I</td><td>Indispo garde</td></tr>
+    <tr><td>F</td><td>Formation</td></tr>
+    <tr><td>TP</td><td>Temps partiel</td></tr>
+    <tr><td>CL</td><td>Congé long</td></tr>
+    <tr><td>A</td><td>Absent (cycle)</td></tr>
+    <tr><td>R</td><td>Récup</td></tr>
+    <tr><td>18</td><td>Présent 8h–18h</td></tr>
+    <tr><td>G</td><td>Garde réanimation (verrouillé)</td></tr>
+    <tr><td>G2</td><td>Garde maternité (verrouillé)</td></tr>
+    <tr><td>RG</td><td>Sortie de garde (verrouillé)</td></tr>
+  </table>
+
+  <h3>16.2 · Secteurs (bloc / réa)</h3>
+  <table class="sig">
+    <tr><th>Sigle</th><th>Signification</th></tr>
+    <tr><td>VIS</td><td>Bloc viscéral</td></tr>
+    <tr><td>ORT</td><td>Orthopédie</td></tr>
+    <tr><td>ORL</td><td>ORL</td></tr>
+    <tr><td>REA</td><td>Réanimation</td></tr>
+    <tr><td>END</td><td>Endoscopies</td></tr>
+    <tr><td>CI</td><td>Cardio interventionnelle</td></tr>
+    <tr><td>MAT</td><td>Maternité</td></tr>
+    <tr><td>RI</td><td>Radiologie interventionnelle</td></tr>
+    <tr><td>VOLANT</td><td>Sans secteur fixe (renfort)</td></tr>
+  </table>
+
+  <h3>16.3 · Consultations</h3>
+  <table class="sig">
+    <tr><th>Sigle</th><th>Signification</th></tr>
+    <tr><td>CS-VIS</td><td>Consultation viscéral</td></tr>
+    <tr><td>CS-END</td><td>Consultation endoscopies</td></tr>
+    <tr><td>CS-ORL</td><td>Consultation ORL</td></tr>
+    <tr><td>CS-ORT</td><td>Consultation orthopédie</td></tr>
+    <tr><td>CS-MAT</td><td>Consultation maternité</td></tr>
+    <tr><td>CS-POLY</td><td>Consultation polyvalente</td></tr>
+    <tr><td>CS-INTER</td><td>Consultation interventionnel</td></tr>
+    <tr><td>LIB</td><td>Consultation libérale d'endoscopie (soliste)</td></tr>
+  </table>
+
+  <h3>16.4 · Gardes (répartition / équité)</h3>
+  <table>
+    <tr><th>Terme</th><th>Signification</th></tr>
+    <tr><td>VD</td><td>Paire vendredi–dimanche (un week-end de garde)</td></tr>
+    <tr><td>Samedi</td><td>Garde du samedi</td></tr>
+    <tr><td>Jeudi</td><td>Garde du jeudi</td></tr>
+    <tr><td>JF</td><td>Jour férié</td></tr>
+  </table>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<div class="foot">Planning-CHPG · guide du comité — mis à jour au fil des évolutions de l'interface (dernier audit du code : 9 juillet 2026).</div>
+
+</div>
+</body>
+</html>
