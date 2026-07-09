@@ -307,11 +307,11 @@ function getOrCreateVeilleTabs() {
   let v = ss.getSheetByName(VEILLE_TAB);
   if (!v) {
     v = ss.insertSheet(VEILLE_TAB);
-    v.getRange(1, 1, 1, 13).setValues([[
+    v.getRange(1, 1, 1, 14).setValues([[
       'PMID', 'DATE_PUB', 'TITRE', 'AUTEURS', 'REVUE', 'DOI',
-      'SOURCE', 'SCORE', 'RESUME', 'LU', 'STAR', 'AJOUTE_LE', 'PUBTYPE',
+      'SOURCE', 'SCORE', 'RESUME', 'LU', 'STAR', 'AJOUTE_LE', 'PUBTYPE', 'THEMES',
     ]]);
-    v.getRange(1, 1, 1, 13).setFontWeight('bold');
+    v.getRange(1, 1, 1, 14).setFontWeight('bold');
     v.setFrozenRows(1);
     v.setColumnWidth(3, 420);
   } else {
@@ -320,13 +320,19 @@ function getOrCreateVeilleTabs() {
   return { cfg: cfg, veille: v };
 }
 
-// Migre un onglet VEILLE préexistant (12 col) vers 13 : ajoute PUBTYPE en fin
-// sans décaler LU/STAR (référencés en dur par markVeille).
+// Migre un onglet VEILLE préexistant : ajoute en fin les colonnes manquantes
+// (PUBTYPE, THEMES) sans décaler LU/STAR (référencés en dur par markVeille).
 function _ensureVeilleColumns(v) {
-  const lastCol = Math.max(v.getLastColumn(), 1);
-  const hdr = v.getRange(1, 1, 1, lastCol).getValues()[0];
-  if (hdr.indexOf('PUBTYPE') !== -1) return;
-  v.getRange(1, lastCol + 1).setValue('PUBTYPE').setFontWeight('bold');
+  const need = ['PUBTYPE', 'THEMES'];
+  let lastCol = Math.max(v.getLastColumn(), 1);
+  const hdr = v.getRange(1, 1, 1, lastCol).getValues()[0].map(function (x) { return String(x || '').trim(); });
+  need.forEach(function (name) {
+    if (hdr.indexOf(name) === -1) {
+      lastCol += 1;
+      v.getRange(1, lastCol).setValue(name).setFontWeight('bold');
+      hdr.push(name);
+    }
+  });
 }
 
 // Ajoute les lignes de config par défaut manquantes (clé = TYPE|CLE), sans
@@ -348,7 +354,7 @@ function _ensureVeilleCfgRows(cfg) {
 function _readVeilleCfg() {
   const cfg = getOrCreateVeilleTabs().cfg;
   const data = cfg.getDataRange().getValues();
-  const revues = [], general = [], themes = [], pubtypes = [], params = {};
+  const revues = [], general = [], themes = [], themesFull = [], pubtypes = [], params = {};
   for (let r = 1; r < data.length; r++) {
     const type   = String(data[r][0] || '').trim().toUpperCase();
     const cle    = String(data[r][1] || '').trim();
@@ -359,10 +365,10 @@ function _readVeilleCfg() {
     if (!actif || !valeur) continue;
     if (type === 'REVUE')   revues.push(valeur);
     if (type === 'GENERAL') general.push(valeur);
-    if (type === 'THEME')   themes.push(valeur);
+    if (type === 'THEME')   { themes.push(valeur); themesFull.push({ cle: cle, valeur: valeur }); }
     if (type === 'PUBTYPE') pubtypes.push(valeur);
   }
-  return { revues: revues, general: general, themes: themes, pubtypes: pubtypes, params: params };
+  return { revues: revues, general: general, themes: themes, themesFull: themesFull, pubtypes: pubtypes, params: params };
 }
 
 // ── Appels PubMed ────────────────────────────────────────────────────────
@@ -448,6 +454,20 @@ function _pickPubType(list) {
   return '';
 }
 
+// Une cellule DATE_PUB peut avoir été convertie en objet Date par Sheets :
+// on renormalise systématiquement en 'yyyy-MM-dd' (sinon String(Date) = texte long).
+function _isoDate(v) {
+  if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v)) {
+    return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  const s = String(v || '').trim();
+  const m = s.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})/);
+  return m ? (m[1] + '-' + m[2] + '-' + m[3]) : s;
+}
+
+function _joinThemes(obj) { return obj ? Object.keys(obj).join('; ') : ''; }
+function _splitThemes(v) { return String(v || '').split(';').map(function (s) { return s.trim(); }).filter(Boolean); }
+
 // ── RUN hebdo : 3 requêtes → dédoublonnage → append ─────────────────────
 function runVeille() {
   const tabs  = getOrCreateVeilleTabs();
@@ -464,6 +484,7 @@ function runVeille() {
   for (let r = 1; r < cur.length; r++) { const p = String(cur[r][0] || '').trim(); if (p) existing[p] = true; }
 
   const source = {};   // pmid → REVUE | GENERAL | THEME (premier tag gagne)
+  const themesByPmid = {};   // pmid → { libellé de thème: true }
   function collect(term, tag) {
     if (!term) return;
     _esearch(term, jours).forEach(function (id) { if (!source[id]) source[id] = tag; });
@@ -472,7 +493,15 @@ function runVeille() {
   if (cfg.revues.length) collect(withFilt(orJournals(cfg.revues)), 'REVUE');
   if (cfg.general.length && cfg.themes.length)
     collect(withFilt('(' + orJournals(cfg.general) + ') AND (' + orThemes(cfg.themes) + ')'), 'GENERAL');
-  if (cfg.themes.length) collect(withFilt(orThemes(cfg.themes)), 'THEME');
+  // Thèmes : une requête PAR thème → tag source THEME (si nouveau) + tag du sujet.
+  cfg.themesFull.forEach(function (th) {
+    if (!th.valeur) return;
+    _esearch(withFilt(th.valeur), jours).forEach(function (id) {
+      if (!source[id]) source[id] = 'THEME';
+      (themesByPmid[id] = themesByPmid[id] || {})[th.cle] = true;
+    });
+    Utilities.sleep(400);
+  });
 
   const nouveaux = Object.keys(source).filter(function (id) { return !existing[id]; });
   if (!nouveaux.length) return { success: true, added: 0, scanned: Object.keys(source).length };
@@ -488,12 +517,12 @@ function runVeille() {
       rows.push([
         pmid, _fmtPubDate(o), String(o.title || '').replace(/\.$/, ''), _fmtAuthors(o.authors),
         String(o.source || o.fulljournalname || '').trim(), _extractDoi(o), source[pmid],
-        '', '', 'N', 'N', today, _pickPubType(o.pubtype),
+        '', '', 'N', 'N', today, _pickPubType(o.pubtype), _joinThemes(themesByPmid[pmid]),
       ]);
     });
     Utilities.sleep(400);
   }
-  if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, 13).setValues(rows);
+  if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, 14).setValues(rows);
   return { success: true, added: rows.length, scanned: Object.keys(source).length };
 }
 
@@ -507,12 +536,12 @@ function getVeille() {
     const pmid = String(data[r][0] || '').trim();
     if (!pmid) continue;
     items.push({
-      pmid: pmid, date: String(data[r][1] || ''), titre: String(data[r][2] || ''),
+      pmid: pmid, date: _isoDate(data[r][1]), titre: String(data[r][2] || ''),
       auteurs: String(data[r][3] || ''), revue: String(data[r][4] || ''), doi: String(data[r][5] || ''),
       source: String(data[r][6] || ''), score: data[r][7] === '' ? null : Number(data[r][7]),
       resume: String(data[r][8] || ''), lu: String(data[r][9] || 'N').toUpperCase() === 'O',
-      star: String(data[r][10] || 'N').toUpperCase() === 'O', ajoute: String(data[r][11] || ''),
-      pubtype: String(data[r][12] || ''),
+      star: String(data[r][10] || 'N').toUpperCase() === 'O', ajoute: _isoDate(data[r][11]),
+      pubtype: String(data[r][12] || ''), themes: _splitThemes(data[r][13]),
     });
   }
   items.sort(function (a, b) {
@@ -566,6 +595,38 @@ function backfillPubTypes() {
   }
   Logger.log('PUBTYPE complété : ' + updated + ' / ' + todo.length + ' scannés.');
   return { success: true, updated: updated, scanned: todo.length };
+}
+
+// ── One-shot : renseigne THEMES sur les articles déjà en cache ───────────
+// Relance une recherche par thème (fenêtre large) et tague les PMID en cache.
+// À lancer une fois à la main. Idempotent (réécrit la colonne THEMES).
+function backfillThemes() {
+  const tabs = getOrCreateVeilleTabs();
+  const sh   = tabs.veille;
+  const cfg  = _readVeilleCfg();
+  const filt = _veilleFilters(cfg);
+  const withFilt = function (b) { return filt ? '(' + b + ') AND ' + filt : b; };
+  const data = sh.getDataRange().getValues();
+  const rowByPmid = {}, inCache = {};
+  for (let r = 1; r < data.length; r++) {
+    const p = String(data[r][0] || '').trim();
+    if (p) { rowByPmid[p] = r + 1; inCache[p] = true; }
+  }
+  const themesByPmid = {};
+  cfg.themesFull.forEach(function (th) {
+    if (!th.valeur) return;
+    _esearch(withFilt(th.valeur), 400).forEach(function (id) {
+      if (inCache[id]) (themesByPmid[id] = themesByPmid[id] || {})[th.cle] = true;
+    });
+    Utilities.sleep(400);
+  });
+  let updated = 0;
+  Object.keys(themesByPmid).forEach(function (pmid) {
+    sh.getRange(rowByPmid[pmid], 14).setValue(_joinThemes(themesByPmid[pmid]));
+    updated++;
+  });
+  Logger.log('THEMES complété : ' + updated + ' articles tagués.');
+  return { success: true, updated: updated };
 }
 
 // ── Trigger hebdomadaire (idempotent) : lundi ~06h ──────────────────────
