@@ -1059,6 +1059,7 @@ if (sessionStorage.getItem('adminCode')) {
       <button class="week-nav-btn" onclick="prevWeek()">←</button>
       <span class="week-label" id="weekLabel">Chargement…</span>
       <button class="week-nav-btn" onclick="nextWeek()">→</button>
+      <button class="week-nav-btn" onclick="gotoToday()" title="Revenir à la semaine en cours" style="width:auto;padding:0 12px;font-size:11px;font-weight:700;white-space:nowrap;">Aujourd'hui</button>
             <span id="validatedBadge" style="display:none;align-items:center;gap:5px;background:#DCFCE7;border:1px solid #86EFAC;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#166534;">✅ Validée</span>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -2750,6 +2751,18 @@ function renderWeek() {
 
 function prevWeek(){if(currentWeekIdx>0){currentWeekIdx--;renderWeek();}}
 function nextWeek(){const w=getAllWeeks();if(currentWeekIdx<w.length-1){currentWeekIdx++;renderWeek();}}
+// Recaler sur la semaine qui contient la date du jour (même logique qu'au chargement).
+function gotoToday(){
+  const t = todayStr();
+  const weeks = getAllWeeks();
+  const idx = weeks.findIndex(w =>
+    ((DATA && DATA.months) || []).some(month =>
+      month.days.some(day => day.date === t && isoWeek(day.date) === w.weekNum && (day.year||month.year) === w.year)
+    )
+  );
+  if (idx >= 0){ currentWeekIdx = idx; renderWeek(); }
+  else if (typeof toast === 'function') toast("La date du jour n'est pas dans l'année affichée", 'error');
+}
 
 // ── FLASH BADGE ───────────────────────────────────────────────────────
 function updateFlashBadge() {
