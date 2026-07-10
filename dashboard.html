@@ -227,11 +227,19 @@ a.tile:hover, .tile.clickable:hover {
 
 /* ── VUE PROTOCOLES ── */
 .protos-search { margin-bottom:14px; }
-.proto-group { margin-bottom:20px; }
-.proto-spec { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--viol); margin:0 0 8px 4px; }
-.proto-spec span { background:var(--viol-soft); color:var(--viol); border-radius:999px; padding:1px 8px; font-size:11px; letter-spacing:0; }
-.proto-group .doc-row { background:var(--white); border:1px solid var(--line); border-radius:12px; margin-bottom:8px; border-top:1px solid var(--line); }
-.proto-group .doc-row svg { color:var(--viol); }
+.proto-group { margin-bottom:10px; }
+.proto-spec { display:flex; align-items:center; gap:10px; width:100%; text-align:left; cursor:pointer;
+  background:var(--white); border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+  font-size:13px; font-weight:700; color:var(--viol); letter-spacing:.01em; transition:border-color .15s; }
+.proto-spec:hover { border-color:var(--viol); }
+.proto-spec .chev { transition:transform .18s; display:inline-flex; color:var(--ink-3); }
+.proto-group.open .proto-spec .chev { transform:rotate(90deg); }
+.proto-spec .spec-name { flex:1; }
+.proto-spec .count { background:var(--viol-soft); color:var(--viol); border-radius:999px; padding:1px 9px; font-size:12px; font-weight:700; }
+.proto-docs { display:none; padding:8px 0 4px 6px; }
+.proto-group.open .proto-docs { display:block; }
+.proto-docs .doc-row { background:var(--white); border:1px solid var(--line); border-radius:12px; margin-bottom:8px; }
+.proto-docs .doc-row svg { color:var(--viol); }
 
 /* ── VUE ANNUAIRE ── */
 .annu-search { margin-bottom:14px; }
@@ -1005,15 +1013,20 @@ function renderProtocoles(data, q){
     return;
   }
   let html='';
+  const searching = !!q;
   data.groups.forEach(function(g){
     const protos = q ? g.protocoles.filter(function(p){ return _norm(p.title).indexOf(q)>=0 || _norm(g.specialite).indexOf(q)>=0; }) : g.protocoles;
     if(!protos.length) return;
-    html += '<div class="proto-group"><div class="proto-spec">'+esc(g.specialite)+' <span>'+protos.length+'</span></div>';
-    html += protos.map(function(p){
+    html += '<div class="proto-group'+(searching?' open':'')+'">'
+      + '<button type="button" class="proto-spec" onclick="this.parentNode.classList.toggle(\'open\')">'
+      + '<span class="chev"><i data-lucide="chevron-right"></i></span>'
+      + '<span class="spec-name">'+esc(g.specialite)+'</span>'
+      + '<span class="count">'+protos.length+'</span></button>';
+    html += '<div class="proto-docs">' + protos.map(function(p){
       return '<div class="doc-row" onclick="openDoc(\''+p.id+'\', this, \'getProtocole\')">'
         + '<i data-lucide="file-text"></i><span class="doc-title">'+esc(p.title)+'</span>'
         + '<span class="doc-size">'+fmtSize(p.size)+'</span></div>';
-    }).join('');
+    }).join('') + '</div>';
     html += '</div>';
   });
   box.innerHTML = html || '<div class="topos-empty">Aucun résultat.</div>';
