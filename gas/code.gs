@@ -418,7 +418,7 @@ function loadPlanningOverrides() {
     const aprem  = String(data[r][3] || '').trim().toUpperCase();
     if (!date || !docId) continue;
     if (!overrides[date]) overrides[date] = {};
-    overrides[date][docId] = { morning: matin, afternoon: aprem || matin, tag: String(data[r][4] || '').trim().toUpperCase() };
+    overrides[date][docId] = { morning: matin, afternoon: aprem, tag: String(data[r][4] || '').trim().toUpperCase() };
   }
   return overrides;
 }
@@ -1081,6 +1081,11 @@ function savePlanningOverride(date, marId, morning, afternoon, comment) {
     sheet.setColumnWidth(3,80); sheet.setColumnWidth(4,80); sheet.setColumnWidth(5,200);
   }
   const data = sheet.getDataRange().getValues();
+  // Un demi-jour vaut null OU '' → « non modifié » : on NE touche PAS cette colonne.
+  // (Le frontend n'envoie jamais '' comme valeur réelle : un retrait envoie 'VOLANT'.)
+  // Plus aucune recopie matin→après-midi : les deux demi-journées sont indépendants.
+  const setM = (morning != null && morning !== '');
+  const setA = (afternoon != null && afternoon !== '');
   // Mise à jour si ligne existante pour ce MAR/date
   for (let r = 1; r < data.length; r++) {
     const rawDate = data[r][0];
@@ -1088,15 +1093,15 @@ function savePlanningOverride(date, marId, morning, afternoon, comment) {
       ? `${rawDate.getFullYear()}-${String(rawDate.getMonth()+1).padStart(2,'0')}-${String(rawDate.getDate()).padStart(2,'0')}`
       : String(rawDate).trim();
     if (existDate === date && String(data[r][1]).trim().toUpperCase() === marId.toUpperCase()) {
-      sheet.getRange(r+1, 3).setValue(morning || '');
-      sheet.getRange(r+1, 4).setValue(afternoon || morning || '');
-      sheet.getRange(r+1, 5).setValue(comment || '');
-      Logger.log(`✅ Override mis à jour : ${marId} le ${date} → ${morning}`);
+      if (setM) sheet.getRange(r+1, 3).setValue(morning);
+      if (setA) sheet.getRange(r+1, 4).setValue(afternoon);
+      if (comment) sheet.getRange(r+1, 5).setValue(comment);
+      Logger.log(`✅ Override mis à jour : ${marId} le ${date} → M:${setM?morning:'(inchangé)'} A:${setA?afternoon:'(inchangé)'}`);
       return;
     }
   }
-  sheet.appendRow([date, marId.toUpperCase(), morning || '', afternoon || morning || '', comment || '']);
-  Logger.log(`✅ Override ajouté : ${marId} le ${date} → ${morning}`);
+  sheet.appendRow([date, marId.toUpperCase(), setM ? morning : '', setA ? afternoon : '', comment || '']);
+  Logger.log(`✅ Override ajouté : ${marId} le ${date} → M:${setM?morning:'—'} A:${setA?afternoon:'—'}`);
 }
 
 // ── SUPPRIMER UN PLANNING OVERRIDE ───────────────────────────────────
