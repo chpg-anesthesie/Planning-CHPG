@@ -1001,7 +1001,7 @@ function renderProtocoles(data, q){
   document.querySelector('.protos-search').style.display = (data.count>8) ? 'block' : 'none';
   const box=document.getElementById('protocolesList');
   if(!data.groups || !data.groups.length){
-    box.innerHTML='<div class="topos-empty">Aucun protocole pour l\'instant.<br><span>Crée des sous-dossiers par spécialité dans le dossier Drive et dépose les PDF.</span></div>';
+    box.innerHTML='<div class="topos-empty">Aucun protocole pour l\'instant.<br><span>Range tes PDF dans le dossier Drive : un sous-dossier par spécialité, et au besoin un sous-sous-dossier par thème.</span></div>';
     return;
   }
   let html='';
