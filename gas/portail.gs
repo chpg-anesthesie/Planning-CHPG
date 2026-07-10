@@ -701,14 +701,23 @@ function _getProtosFolder() {
 
 // Vrai si le fichier est dans le dossier donné (racine ou sous-dossier direct).
 function _fileWithinFolder(file, folderId) {
-  const parents = file.getParents();
-  while (parents.hasNext()) {
-    const p = parents.next();
-    if (p.getId() === folderId) return true;
-    const grand = p.getParents();
-    while (grand.hasNext()) {
-      if (grand.next().getId() === folderId) return true;
+  // Remonte toute la chaîne de dossiers parents (profondeur quelconque).
+  const seen = {};
+  let level = [file];
+  let depth = 0;
+  while (level.length && depth < 12) {
+    const next = [];
+    for (let i = 0; i < level.length; i++) {
+      const parents = level[i].getParents();
+      while (parents.hasNext()) {
+        const p = parents.next();
+        const id = p.getId();
+        if (id === folderId) return true;
+        if (!seen[id]) { seen[id] = true; next.push(p); }
+      }
     }
+    level = next;
+    depth++;
   }
   return false;
 }
