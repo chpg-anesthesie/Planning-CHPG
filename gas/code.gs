@@ -1080,28 +1080,41 @@ function savePlanningOverride(date, marId, morning, afternoon, comment) {
     sheet.setColumnWidth(1,100); sheet.setColumnWidth(2,100);
     sheet.setColumnWidth(3,80); sheet.setColumnWidth(4,80); sheet.setColumnWidth(5,200);
   }
-  const data = sheet.getDataRange().getValues();
   // Un demi-jour vaut null OU '' → « non modifié » : on NE touche PAS cette colonne.
   // (Le frontend n'envoie jamais '' comme valeur réelle : un retrait envoie 'VOLANT'.)
   // Plus aucune recopie matin→après-midi : les deux demi-journées sont indépendants.
   const setM = (morning != null && morning !== '');
   const setA = (afternoon != null && afternoon !== '');
-  // Mise à jour si ligne existante pour ce MAR/date
-  for (let r = 1; r < data.length; r++) {
-    const rawDate = data[r][0];
-    const existDate = rawDate instanceof Date
-      ? `${rawDate.getFullYear()}-${String(rawDate.getMonth()+1).padStart(2,'0')}-${String(rawDate.getDate()).padStart(2,'0')}`
-      : String(rawDate).trim();
-    if (existDate === date && String(data[r][1]).trim().toUpperCase() === marId.toUpperCase()) {
-      if (setM) sheet.getRange(r+1, 3).setValue(morning);
-      if (setA) sheet.getRange(r+1, 4).setValue(afternoon);
-      if (comment) sheet.getRange(r+1, 5).setValue(comment);
-      Logger.log(`✅ Override mis à jour : ${marId} le ${date} → M:${setM?morning:'(inchangé)'} A:${setA?afternoon:'(inchangé)'}`);
-      return;
+  // Verrou : évite que deux poses quasi simultanées créent DEUX lignes pour le même (date, MAR)
+  // (cause des doublons type "ORT/REA" + "VOLANT/VOLANT" où la 2e écrasait la 1re à la lecture).
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch(e) { Logger.log('savePlanningOverride : verrou indisponible, on continue'); }
+  try {
+    const data = sheet.getDataRange().getValues();
+    // Toutes les lignes existantes pour ce (date, MAR)
+    const rows = [];
+    for (let r = 1; r < data.length; r++) {
+      const rawDate = data[r][0];
+      const existDate = rawDate instanceof Date
+        ? `${rawDate.getFullYear()}-${String(rawDate.getMonth()+1).padStart(2,'0')}-${String(rawDate.getDate()).padStart(2,'0')}`
+        : String(rawDate).trim();
+      if (existDate === date && String(data[r][1]).trim().toUpperCase() === marId.toUpperCase()) rows.push(r);
     }
+    if (rows.length) {
+      const keep = rows[0];                     // on met à jour la 1re ligne
+      if (setM) sheet.getRange(keep+1, 3).setValue(morning);
+      if (setA) sheet.getRange(keep+1, 4).setValue(afternoon);
+      if (comment) sheet.getRange(keep+1, 5).setValue(comment);
+      // Déduplication : supprimer les éventuelles lignes en trop (de la fin vers le début)
+      for (let i = rows.length - 1; i >= 1; i--) sheet.deleteRow(rows[i] + 1);
+      Logger.log(`✅ Override MAJ : ${marId} le ${date}${rows.length>1?` — ${rows.length-1} doublon(s) supprimé(s)`:''}`);
+    } else {
+      sheet.appendRow([date, marId.toUpperCase(), setM ? morning : '', setA ? afternoon : '', comment || '']);
+      Logger.log(`✅ Override ajouté : ${marId} le ${date} → M:${setM?morning:'—'} A:${setA?afternoon:'—'}`);
+    }
+  } finally {
+    try { lock.releaseLock(); } catch(e) {}
   }
-  sheet.appendRow([date, marId.toUpperCase(), setM ? morning : '', setA ? afternoon : '', comment || '']);
-  Logger.log(`✅ Override ajouté : ${marId} le ${date} → M:${setM?morning:'—'} A:${setA?afternoon:'—'}`);
 }
 
 // ── SUPPRIMER UN PLANNING OVERRIDE ───────────────────────────────────
