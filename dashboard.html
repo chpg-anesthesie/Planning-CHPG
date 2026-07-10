@@ -79,6 +79,9 @@ body {
 .header-sub { font-size: 11px; color: var(--ink-4); margin-top: 1px; }
 .header-right { display: flex; align-items: center; gap: 8px; }
 
+.header-btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:5px 12px;text-decoration:none;transition:border-color .15s,box-shadow .15s,color .15s}
+.header-btn:hover{border-color:var(--red);color:var(--red);box-shadow:0 1px 5px rgba(15,23,42,.08)}
+.header-btn .hb-ico{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--red);color:#fff;font-size:11px;font-weight:800;line-height:1}
 .theme-btn{width:34px;height:34px;border:1px solid var(--line);background:var(--white);border-radius:10px;cursor:pointer;font-size:15px;line-height:1;transition:background .15s ease}
 .theme-btn:hover{background:var(--line-light)}
 .me-pill{display:inline-flex;align-items:center;gap:6px;background:var(--me-soft);color:var(--me);border:1px solid var(--me-border);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:700;white-space:nowrap}
@@ -332,6 +335,7 @@ a.tile:hover, .tile.clickable:hover {
     </div>
   </div>
   <div class="header-right">
+    <a href="./docs/guide-mar.html" target="_blank" rel="noopener" class="header-btn" title="Guide du MAR — mode d'emploi du portail et du planning"><span class="hb-ico">?</span> Aide</a>
     <button id="themeBtn" class="theme-btn" onclick="cycleTheme()" title="Thème">🌗</button>
     <span id="mePill" class="me-pill" style="display:none"></span>
   </div>
