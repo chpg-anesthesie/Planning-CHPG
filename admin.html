@@ -3013,8 +3013,12 @@ function renderSidePanelContent(dispo, sector) {
       <div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">${g.label}</div>
       <div style="display:flex;flex-direction:column;gap:5px;">`;
     mars.forEach(m => {
-      html += `<button onclick="placeMAR('${m.id}','${m.init}')"
-        style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--white);cursor:pointer;font-family:inherit;text-align:left;transition:all .12s;"
+      // Pastille « ＋ aussi » : double poste volontaire (garder le poste actuel) pour un MAR déjà placé.
+      const _aussiBtn = (m.role === 'PRESENT')
+        ? `<button onclick="event.stopPropagation();placeMAR('${m.id}','${m.init}','add')" title="Le placer ici SANS le retirer de ${m.secteur} (double poste — ex. consult courte / mater)" style="flex-shrink:0;display:flex;align-items:center;gap:4px;padding:0 10px;border:1px solid #FCD34D;border-radius:10px;background:#FFFBEB;color:#92400E;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">＋ aussi</button>`
+        : '';
+      html += `<div style="display:flex;gap:5px;align-items:stretch;"><button onclick="placeMAR('${m.id}','${m.init}')"
+        style="flex:1;display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--white);cursor:pointer;font-family:inherit;text-align:left;transition:all .12s;"
         onmouseover="this.style.borderColor='#CE1126';this.style.background='#FFF8F8'"
         onmouseout="this.style.borderColor='var(--line)';this.style.background='var(--white)'">
         <span style="font-family:var(--mono);font-size:11px;font-weight:700;background:${g.bg};color:${g.fg};padding:3px 7px;border-radius:5px;flex-shrink:0;">${m.id.length<=6?m.id:m.id.slice(0,6)}</span>
@@ -3028,7 +3032,7 @@ function renderSidePanelContent(dispo, sector) {
           const tag=trop?' ⚠':(haut?' ▲':' ▼');
           return `<span title="${c} consultation(s) réalisée(s) depuis le 1er du mois — moyenne équipe ${av.toFixed(1)}" style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;background:${bg};color:${fg};padding:${_isCS?'4px 11px':'3px 8px'};border-radius:12px;line-height:1.05;font-weight:800;"><span style="font-size:${_isCS?'14px':'11px'};">${c}${tag}</span>${_isCS?'<span style="font-size:8px;font-weight:700;opacity:.8;text-transform:uppercase;letter-spacing:.03em;">consult. ce mois</span>':'<span style="font-size:8px;font-weight:700;opacity:.7;">cs</span>'}</span>`;})()}
         <span style="font-size:13px;color:#CBD5E1;">→</span>
-      </button>`;
+      </button>${_aussiBtn}</div>`;
     });
     html += '</div></div>';
   });
@@ -3056,12 +3060,13 @@ async function placeMAR(marId, marInit, mode) {
   if (!_localOverrides[date]) _localOverrides[date] = {};
   if (!_localOverrides[date][marId]) _localOverrides[date][marId] = {am:null, pm:null};
 
-  // En remplissage de case : si le MAR est DÉJÀ posté quelque part ce demi-jour (secteur bloc
-  // OU consultation), on l'AJOUTE — on ne le retire jamais de son premier poste (le comité pose
-  // où il veut ; la double affectation est signalée par un liseré ambré). En mode 'move'
-  // (déplacer / retirer depuis le menu), on remplace par la valeur fournie telle quelle.
+  // Pose PAR DÉFAUT = DÉPLACEMENT : value = sector → l'application des overrides retire le MAR
+  // de tout autre secteur/consultation ce demi-jour, puis le pose ici (un seul endroit).
+  // Mode 'add' (bouton « ＋ aussi ») = DOUBLE POSTE volontaire : on garde ses autres postes
+  // (secteur bloc + consultations) et on ajoute celui-ci — ex. consult courte / mater où le MAR
+  // reste aussi au bloc.
   let value = sector;
-  if (mode !== 'move' && sector !== 'VOLANT' && sector !== 'VIDE') {
+  if (mode === 'add' && sector !== 'VOLANT' && sector !== 'VIDE') {
     const cur = (window._marPlaces && window._marPlaces[`${date}|${marId}|${slotKey}`]) || [];
     const extra = [...new Set(cur.filter(s => s && s !== sector))];
     if (extra.length) value = extra.concat(sector).join('+');
