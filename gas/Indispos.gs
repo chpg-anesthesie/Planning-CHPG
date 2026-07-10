@@ -2175,7 +2175,9 @@ if (action === 'savePlanningOverride') {
   const { date, marId, morning, afternoon, comment } = payload;
   if (!date || !marId) return _error('date et marId requis');
   try {
-    savePlanningOverride(date, marId, morning || '', afternoon || morning || '', comment || '');
+    // Passer morning/afternoon TELS QUELS : null ou '' = « demi-jour non modifié »
+    // (savePlanningOverride ne touchera alors pas cette colonne). Plus de recopie matin→aprem.
+    savePlanningOverride(date, marId, morning, afternoon, comment || '');
     logAction(`savePlanningOverride — ${marId} le ${date} → ${morning}`);
     return ContentService.createTextOutput(JSON.stringify({success: true}))
       .setMimeType(ContentService.MimeType.JSON);
