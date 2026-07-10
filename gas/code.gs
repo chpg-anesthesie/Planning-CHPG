@@ -855,7 +855,7 @@ function generatePlanningFromGardes(year) {
         if (!DOCTORS.find(d => d.id === docId)) return;
         if (ov.morning)   result[docId][dayIdx].morning   = ov.morning;
         if (ov.afternoon) result[docId][dayIdx].afternoon = ov.afternoon;
-        if (ov.tag === 'ROT-LIB') result[docId][dayIdx].lib = true;   // marque le soliste de la consult libérale endo
+        if (ov.tag === 'ROT-LIB' || ov.tag === 'LIB') result[docId][dayIdx].lib = true;   // consult libérale endo (rotation OU affectation manuelle du comité)
       });
     });
 
