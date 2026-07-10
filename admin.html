@@ -2591,9 +2591,9 @@ function renderWeek() {
     const _open = !!(_localOpens[date] && _localOpens[date].has(`${type}|${slotKey}`));
     const openable = CS_OPENABLE.includes(type);
     const _lib = (type === 'CS-END' && slotKey === 'pm' && [2,4].includes(new Date(date+'T12:00:00').getDay()));
-    const _hasLib = items.some(p => p && p.lib);
+    const _hasLib = _lib && items.length > 0;   // en créneau libéral, tout MAR affecté remplit la case
     // Marqueur "LIB" autonome uniquement si le créneau libéral existe mais n'est pas encore attribué
-    const _libTag = (_lib && !_hasLib) ? `<span class="cs-lib" title="Créneau consultation libérale endo (rotation GR) — non attribué">LIB</span>` : '';
+    const _libTag = (_lib && !_hasLib) ? `<span class="cs-lib" onclick="openSidePanel('${type}','${date}','Consultation libérale endo','${slotKey}')" title="Consultation libérale endo — cliquer pour affecter un MAR" style="cursor:pointer">LIB</span>` : '';
 
     if (_closed) {
       return `<div class="cs-cell">${_libTag}<span class="cs-fermee" title="Consultation fermée par le comité">fermée</span><span class="cs-ouvrir" onclick="reopenConsult('${type}','${date}','${slotKey}')" title="Rouvrir la consultation">rouvrir</span></div>`;
