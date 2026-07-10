@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L'algorithme des gardes, expliqué · Planning-CHPG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#CE1126; --red-soft:#FDECEF; --red-deep:#9E0C1D;
+    --blue:#1D6FB8; --blue-soft:#EAF3FB;
+    --amber:#B45309; --amber-soft:#FDF3E3;
+    --teal:#0F766E; --teal-soft:#E6F5F2;
+    --viol:#6D28D9; --viol-soft:#F5F3FF;
+    --green:#166534; --green-soft:#DCFCE7;
+    --ink:#0F172A; --ink-2:#475569; --ink-3:#7A8699;
+    --line:#E2E8F0; --bg:#F6F8FB; --white:#fff;
+    --mono:'DM Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+    line-height:1.6; font-size:15px; padding:36px 20px 80px}
+  .wrap{max-width:860px; margin:0 auto}
+
+  .flag{display:inline-flex; border-radius:4px; overflow:hidden; vertical-align:middle; margin-right:10px; box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .flag i{display:block; width:15px; height:21px}
+  .flag .r{background:var(--red)} .flag .w{background:#fff}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--red); font-weight:500}
+  h1{font-size:30px; font-weight:800; letter-spacing:-.02em; margin:8px 0 4px; line-height:1.2}
+  .subtitle{color:var(--ink-2); font-size:15px; margin:0 0 4px}
+  .maj{font-family:var(--mono); font-size:12px; color:var(--ink-3); margin-top:10px}
+
+  .toc{background:var(--white); border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin:26px 0 34px}
+  .toc h2{margin:0 0 10px; font-size:13px; font-family:var(--mono); font-weight:500; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); border:none; padding:0}
+  .toc ol{margin:0; padding-left:0; list-style:none; columns:2; column-gap:32px}
+  .toc li{margin:4px 0; break-inside:avoid}
+  .toc a{color:var(--ink); text-decoration:none; font-weight:500; font-size:14px}
+  .toc a:hover{color:var(--red)}
+  .toc .n{font-family:var(--mono); font-size:12px; color:var(--red); margin-right:7px}
+  @media (max-width:600px){ .toc ol{columns:1} }
+
+  section{margin-top:44px}
+  h2{font-size:21px; font-weight:800; letter-spacing:-.015em; margin:0 0 14px; padding-top:8px; display:flex; align-items:baseline; gap:12px}
+  h2 .n{font-family:var(--mono); font-size:14px; font-weight:500; color:#fff; background:var(--red); border-radius:8px; padding:3px 9px; flex-shrink:0}
+  h3{font-size:15.5px; font-weight:700; margin:22px 0 8px; color:var(--ink)}
+  p{margin:0 0 12px; color:var(--ink-2)}
+  strong{color:var(--ink)}
+  ul{margin:0 0 14px; padding-left:22px; color:var(--ink-2)}
+  li{margin:5px 0}
+  .kbd{font-family:var(--mono); font-size:12.5px; background:var(--white); border:1px solid var(--line); border-bottom-width:2px; border-radius:6px; padding:1px 7px; color:var(--ink); white-space:nowrap}
+  .tag{font-family:var(--mono); font-size:12.5px; background:#EEF1F5; border-radius:5px; padding:1px 6px; color:var(--ink)}
+  .btn-ex{display:inline-block; font-size:12.5px; font-weight:700; border-radius:8px; padding:2px 10px; background:var(--white); border:1px solid var(--line); color:var(--ink-2); white-space:nowrap}
+  .btn-ex.green{background:var(--green-soft); border-color:#86EFAC; color:var(--green)}
+  .btn-ex.red{background:var(--red-soft); border-color:#F5B9C2; color:var(--red)}
+
+  .callout{border-radius:12px; padding:14px 18px; margin:16px 0; border:1px solid var(--line); border-left-width:4px; background:var(--white)}
+  .callout p:last-child{margin-bottom:0}
+  .callout .ct{font-family:var(--mono); font-size:11.5px; font-weight:500; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px}
+  .callout.rule{border-left-color:var(--red); background:var(--red-soft)}
+  .callout.rule .ct{color:var(--red)}
+  .callout.tip{border-left-color:var(--blue); background:var(--blue-soft)}
+  .callout.tip .ct{color:var(--blue)}
+  .callout.warn{border-left-color:var(--amber); background:var(--amber-soft)}
+  .callout.warn .ct{color:var(--amber)}
+
+  table{width:100%; border-collapse:collapse; margin:14px 0 18px; background:var(--white); border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:14px}
+  th{background:#F1F4F8; text-align:left; font-size:12px; font-family:var(--mono); font-weight:500; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-2); padding:9px 14px; border-bottom:1px solid var(--line)}
+  td{padding:9px 14px; border-bottom:1px solid #F1F5F9; color:var(--ink-2); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td:first-child{font-weight:600; color:var(--ink); white-space:nowrap}
+
+  .steps{counter-reset:step; margin:12px 0 16px; padding:0; list-style:none}
+  .steps li{counter-increment:step; position:relative; padding:8px 0 8px 40px; margin:0; color:var(--ink-2)}
+  .steps li::before{content:counter(step); position:absolute; left:0; top:7px; width:26px; height:26px; border-radius:8px; background:var(--white); border:1.5px solid var(--red); color:var(--red); font-family:var(--mono); font-size:13px; display:flex; align-items:center; justify-content:center}
+  .steps li + li{border-top:1px dashed var(--line)}
+
+  .faq{background:var(--white); border:1px solid var(--line); border-radius:12px; margin:12px 0; overflow:hidden}
+  .faq .q{padding:12px 18px; font-weight:700; color:var(--ink); background:#FBFCFE; border-bottom:1px solid var(--line); font-size:14.5px}
+  .faq .a{padding:12px 18px; color:var(--ink-2); font-size:14.5px}
+  .faq .a::before{content:"➡ "; color:var(--red); font-weight:700}
+
+  .backtop{display:inline-block; margin-top:14px; font-size:12.5px; font-family:var(--mono); color:var(--ink-3); text-decoration:none}
+  .backtop:hover{color:var(--red)}
+  .foot{margin-top:56px; padding-top:18px; border-top:1px solid var(--line); font-size:12px; color:var(--ink-3); font-family:var(--mono); text-align:center}
+
+  @media print{
+    body{background:#fff; padding:0; font-size:12.5px}
+    .toc ol{columns:2}
+    .backtop{display:none}
+    section{break-inside:avoid-page; margin-top:28px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header id="top">
+  <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document équipe</div>
+  <h1>L'algorithme des gardes,<br>expliqué de A à Z</h1>
+  <p class="subtitle">Comment votre planning annuel de gardes est calculé : la juste part de chacun, les règles de protection, la rotation de Noël, et ce qui se passe quand l'année ne tombe pas juste.</p>
+  <div class="maj">Dernière mise à jour : 11 juillet 2026 — aligné sur l'algorithme en service.</div>
+</header>
+
+<nav class="toc">
+  <h2>Sommaire</h2>
+  <ol>
+    <li><a href="#a1"><span class="n">01</span>Le principe en une page</a></li>
+    <li><a href="#a2"><span class="n">02</span>Votre cible : la juste part</a></li>
+    <li><a href="#a3"><span class="n">03</span>L'ordre des priorités : les week-ends d'abord</a></li>
+    <li><a href="#a4"><span class="n">04</span>Les protections : ce qui ne vous arrivera jamais</a></li>
+    <li><a href="#a5"><span class="n">05</span>Vos indisponibilités et vos souhaits</a></li>
+    <li><a href="#a6"><span class="n">06</span>Noël et le Nouvel An : la rotation</a></li>
+    <li><a href="#a7"><span class="n">07</span>Les jours fériés et les ponts</a></li>
+    <li><a href="#a8"><span class="n">08</span>Garde Réa et garde Mater-Bloc : qui prend quoi</a></li>
+    <li><a href="#a9"><span class="n">09</span>Les récupérations de samedi</a></li>
+    <li><a href="#a10"><span class="n">10</span>Le 18h</a></li>
+    <li><a href="#a11"><span class="n">11</span>La touche finale : l'optimiseur</a></li>
+    <li><a href="#a12"><span class="n">12</span>D'une année à l'autre : la dette d'équité</a></li>
+    <li><a href="#a13"><span class="n">13</span>Vérifier par vous-même</a></li>
+  </ol>
+</nav>
+
+<!-- ============ 01 ============ -->
+<section id="a1">
+  <h2><span class="n">01</span>Le principe en une page</h2>
+  <p>Chaque année en novembre, l'algorithme construit le planning de gardes de l'année suivante en une quinzaine de secondes. Il ne tire pas au sort : il <strong>calcule pour chacun une cible</strong> — sa juste part de la charge — puis remplit les 365 jours en choisissant, jour après jour, les MARs les plus « en retard » sur leur cible, sans jamais violer une règle de protection (jamais deux gardes d'affilée, jamais une garde sur une indisponibilité, etc.).</p>
+  <p>Trois idées résument tout :</p>
+  <ol class="steps">
+    <li><strong>Proportionnalité</strong> : votre part est proportionnelle à votre quotité de temps de travail et à votre présence réelle dans l'année.</li>
+    <li><strong>Les charges lourdes d'abord</strong> : les week-ends sont équilibrés en priorité, avant les samedis, avant les jeudis, avant le total.</li>
+    <li><strong>Transparence</strong> : les compteurs de chacun sont publics (vue Équité du planning) et le planning généré est figé — personne ne peut le regénérer discrètement.</li>
+  </ol>
+  <div class="callout tip">
+    <div class="ct">La machine calcule, les humains décident</div>
+    <p>L'algorithme produit une proposition vérifiée par le comité avant publication. Ensuite, la vie reprend ses droits : les échanges entre collègues restent libres, et sont enregistrés « au réel ».</p>
+  </div>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- ============ 02 ============ -->
+<section id="a2">
+  <h2><span class="n">02</span>Votre cible : la juste part</h2>
+  <p>Avant de placer la moindre garde, l'algorithme calcule pour chaque MAR une <strong>cible</strong> — le nombre de gardes qu'il devrait faire dans l'année — et pas une seule cible globale, mais une cible <strong>par type de jour</strong> : week-ends, samedis, jeudis, veilles de férié, fériés, et total.</p>
+  <h3>Ce qui fait varier votre cible</h3>
+  <ul>
+    <li><strong>Votre quotité de gardes</strong> : un MAR à 80 % a une cible égale à 80 % de celle d'un temps plein. C'est la règle de base.</li>
+    <li><strong>Votre présence réelle dans l'année</strong> : une arrivée en cours d'année, un départ, ou un congé long réduisent la cible au prorata des jours réellement couverts. Un MAR qui arrive en juillet ne doit que la moitié d'une part.</li>
+    <li><strong>Vos jours fixes non travaillés</strong> (temps partiel) : si vous ne travaillez jamais le jeudi, votre cible « jeudis » est nulle — mais votre cible totale n'est pas réduite une deuxième fois, la quotité couvre déjà le volume.</li>
+    <li><strong>Les statuts particuliers</strong> : un MAR dispensé de week-ends a une cible nulle sur les samedis, week-ends et fériés ; sa part est redistribuée aux autres.</li>
+  </ul>
+  <div class="callout warn">
+    <div class="ct">Les vacances ne réduisent pas la cible</div>
+    <p>Seules les absences <strong>structurelles</strong> (arrivée, départ, congé long) réduisent la part due. Les indisponibilités volontaires, vacances et formations ne la réduisent pas : elles concentrent simplement vos gardes sur vos périodes de présence. Sinon, il suffirait de poser beaucoup d'indisponibilités pour faire moins de gardes que les autres.</p>
+  </div>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- ============ 03 ============ -->
+<section id="a3">
+  <h2><span class="n">03</span>L'ordre des priorités : les week-ends d'abord</h2>
+  <p>Tous les jours de garde ne se valent pas. L'algorithme équilibre les écarts entre MARs dans cet ordre strict :</p>
+  <ol class="steps">
+    <li><strong>VD — le week-end vendredi + dimanche</strong> : la charge la plus lourde. Le même binôme assure le vendredi <em>et</em> le dimanche, avec les mêmes rôles : un week-end compte pour une unité indivisible.</li>
+    <li><strong>Samedi</strong> : équilibré ensuite (et chaque samedi de garde ouvre droit à une récupération, voir section 09).</li>
+    <li><strong>Jeudi</strong>, puis les <strong>veilles de férié</strong> et les <strong>fériés</strong>.</li>
+    <li><strong>Total de gardes</strong> : équilibré en dernier — les lundis, mardis et mercredis servent de variable d'ajustement.</li>
+  </ol>
+  <p>Concrètement, à chaque jour à pourvoir, l'algorithme classe les MARs disponibles selon leur « retard » sur l'axe du jour (par exemple : qui est le plus loin de sa cible de samedis, pour un samedi), puis départage par le retard sur le total. Les deux premiers du classement prennent la garde.</p>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- ============ 04 ============ -->
+<section id="a4">
+  <h2><span class="n">04</span>Les protections : ce qui ne vous arrivera jamais</h2>
+  <p>Avant même de parler d'équité, certaines situations sont <strong>interdites</strong> — l'algorithme ne les propose jamais, même si cela arrangeait les compteurs :</p>
+  <ul>
+    <li><strong>Jamais deux gardes deux jours de suite</strong> : le lendemain d'une garde est un repos de garde, intouchable.</li>
+    <li><strong>Jamais jeudi et samedi de la même semaine</strong> : ce combo épuisant est bloqué (sauf le cas particulier du jeudi férié faisant pont, voir section 07).</li>
+    <li><strong>Jamais de garde sur une indisponibilité</strong>, des vacances, une formation, un jour de temps partiel ou un congé.</li>
+    <li><strong>Jamais de garde une semaine « off »</strong> pour les MARs en rythme deux semaines sur deux.</li>
+    <li><strong>Jamais deux week-ends de garde consécutifs</strong>.</li>
+  </ul>
+  <p>Au-delà des interdits, l'algorithme <strong>espace</strong> vos gardes : une garde à deux jours d'une autre est fortement pénalisée, à trois ou quatre jours légèrement ; une troisième garde dans la même semaine est évitée. Il <strong>lisse aussi sur l'année</strong> : vos gardes sont réparties au fil des mois en proportion de votre présence, plutôt qu'entassées sur une période.</p>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- ============ 05 ============ -->
+<section id="a5">
+  <h2><span class="n">05</span>Vos indisponibilités et vos souhaits</h2>
+  <p>À l'automne, chacun saisit ses indisponibilités et, s'il le veut, des <strong>souhaits de garde</strong> (des dates où il préférerait être de garde). Les deux sont respectés, avec une nuance importante pour les souhaits :</p>
+  <ul>
+    <li>Un souhait est honoré <strong>dans votre part</strong>, pas en plus : il oriente le placement de gardes que vous auriez faites de toute façon.</li>
+    <li>Les souhaits ne sont honorés que sur les jours « libres » (lundi, mardi, mercredi). Un souhait sur un samedi ou un week-end est ignoré : ces jours à forte charge sont réservés au calcul d'équité, personne ne peut se les réserver — ni s'en décharger — par ce biais.</li>
+    <li>Si plusieurs MARs souhaitent la même date, le moins servi jusque-là passe en premier ; l'algorithme essaie de mettre deux souhaiteurs ensemble sur le même binôme.</li>
+    <li>Un budget protège l'équité : vos souhaits ne peuvent pas « remplir » votre cible au point d'évincer la part de samedis, jeudis et week-ends que vous devez à l'équipe.</li>
+  </ul>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- ============ 06 ============ -->
+<section id="a6">
+  <h2><span class="n">06</span>Noël et le Nouvel An : la rotation</h2>
+  <p>Les quatre dates sensibles — 24 et 25 décembre, 31 décembre et 1er janvier — sont placées <strong>avant tout le reste</strong>, selon une rotation pluriannuelle :</p>
+  <ul>
+    <li><strong>Priorité à qui ne les a jamais faites</strong>, puis à celui qui les a faites il y a le plus longtemps.</li>
+    <li><strong>Au plus un de ces quatre jours par MAR et par an</strong> : personne n'enchaîne Noël et le Nouvel An la même année.</li>
+    <li>La mémoire des années passées est tenue <strong>au réel</strong> : si vous avez échangé votre 25 décembre avec un collègue, c'est lui qui est enregistré comme l'ayant fait — la rotation reste juste.</li>
+    <li>Les couplages sont respectés : si le 25 décembre tombe un vendredi, le binôme prend le week-end entier ; s'il tombe un jeudi, le binôme enchaîne avec le samedi (voir section 07).</li>
+  </ul>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- ============ 07 ============ -->
+<section id="a7">
+  <h2><span class="n">07</span>Les jours fériés et les ponts</h2>
+  <p>Un férié isolé en semaine (un mardi ou un mercredi) est compté à part, avec sa propre cible d'équité. Mais un férié qui <strong>touche un week-end</strong> forme un bloc :</p>
+  <ul>
+    <li><strong>Jeudi férié</strong> → le même binôme assure le jeudi férié et le samedi qui suit.</li>
+    <li><strong>Lundi férié</strong> → le même binôme assure le samedi qui précède et le lundi férié.</li>
+  </ul>
+  <p>Cela évite qu'un MAR se retrouve « coincé » un jour isolé au milieu d'un pont où tout le monde est parti, et cela concentre la contrainte du pont sur un seul binôme, compté équitablement : le bloc est rattaché à l'axe « samedi » (avec sa récupération), et le jour férié abonde aussi le compteur de fériés.</p>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- ============ 08 ============ -->
+<section id="a8">
+  <h2><span class="n">08</span>Garde Réa et garde Mater-Bloc : qui prend quoi</h2>
+  <p>Chaque jour de garde mobilise un binôme : une garde <strong>Réa (G)</strong> et une garde <strong>Mater-Bloc (G2)</strong>. L'algorithme choisit d'abord <em>les deux personnes</em> par équité, puis répartit <em>les rôles</em> : celui des deux qui a le plus grand déséquilibre G/G2 en sa faveur prend l'autre rôle. Sur un week-end VD, chacun garde le même rôle le vendredi et le dimanche.</p>
+  <p>Résultat : au fil de l'année, chacun fait à peu près autant de gardes Réa que de gardes Mater-Bloc.</p>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- ============ 09 ============ -->
+<section id="a9">
+  <h2><span class="n">09</span>Les récupérations de samedi</h2>
+  <p>Chaque samedi de garde (y compris les samedis pris dans un pont) ouvre droit à une <strong>récupération (R)</strong>, placée automatiquement par l'algorithme selon des règles simples :</p>
+  <ul>
+    <li>Un jour de <strong>semaine</strong>, jamais un férié, au plus tôt <strong>deux semaines après</strong> le samedi travaillé.</li>
+    <li><strong>Hors vacances scolaires</strong> : la récupération ne tombe pas sur les périodes où l'effectif est déjà réduit.</li>
+    <li><strong>Espacée de vos autres récupérations</strong> (au moins trois jours d'écart) et jamais sur une de vos gardes ou indisponibilités.</li>
+    <li><strong>Sans dégarnir le service</strong> : la récupération n'est posée que si l'effectif présent ce jour-là reste au-dessus du seuil minimal.</li>
+  </ul>
+  <p>Si aucune date ne satisfait toutes les règles, l'algorithme relâche progressivement l'espacement pour garantir que chaque récupération due soit bien posée.</p>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- ============ 10 ============ -->
+<section id="a10">
+  <h2><span class="n">10</span>Le 18h</h2>
+  <p>Le 18h de chaque jour de semaine est réparti sur l'ensemble des MARs, avec la même logique de proportionnalité :</p>
+  <ul>
+    <li><strong>Cible proportionnelle à la quotité</strong> ; les MARs qui ne font que le 18h (sans garde) en portent une part majorée.</li>
+    <li><strong>Au plus un 18h par semaine</strong> et jamais deux jours de suite (règles relâchées uniquement en tout dernier recours si personne d'autre n'est disponible).</li>
+    <li>Le <strong>vendredi</strong>, le 18h revient en priorité au MAR de garde Réa du samedi : il enchaîne naturellement sur son week-end.</li>
+    <li>Jamais de 18h un jour de garde, de repos de garde, de récupération, d'absence, ni une semaine « off ».</li>
+  </ul>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- ============ 11 ============ -->
+<section id="a11">
+  <h2><span class="n">11</span>La touche finale : l'optimiseur</h2>
+  <p>Une fois les 365 jours remplis, un dernier passage <strong>peaufine</strong> le résultat : l'algorithme cherche des transferts de gardes d'un MAR légèrement au-dessus de sa cible vers un MAR légèrement en dessous, et ne les applique que s'ils améliorent l'équité globale — sans jamais casser une règle de protection, un souhait honoré, un week-end VD ou une attribution de Noël.</p>
+  <p>Ce polissage prend une fraction de seconde et donne le résultat final : <strong>chacun termine à moins d'une garde et demie de sa cible</strong>, sur chaque axe. Personne ne tombe jamais exactement pile — un planning est fait de jours entiers — mais l'écart résiduel est minime, et il est traité (section 12).</p>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- ============ 12 ============ -->
+<section id="a12">
+  <h2><span class="n">12</span>D'une année à l'autre : la dette d'équité</h2>
+  <p>Que devient le petit écart de fin d'année ? À partir de la génération du planning <strong>2028</strong>, il est <strong>reporté</strong> : un MAR qui a fait un peu plus que sa part une année en fera un peu moins la suivante, et inversement — axe par axe (celui qui a fait trop de samedis en fera moins, celui qui a fait trop de week-ends aussi).</p>
+  <ul>
+    <li>Le report est <strong>plafonné à ±2</strong> par axe et <strong>amorti</strong> (seuls 60 % de l'écart sont reportés) : la dette corrige en douceur, elle ne bouleverse jamais une année ni ne crée d'oscillations.</li>
+    <li>L'écart mesuré est celui du <strong>planning généré</strong>, figé au moment de la génération — pas de l'état au 31 décembre. Vos échanges de gré à gré en cours d'année sont votre affaire : ils ne créent ni ne remboursent de dette.</li>
+    <li>Un MAR absent de l'année précédente démarre à dette neutre.</li>
+  </ul>
+  <div class="callout tip">
+    <div class="ct">Pourquoi 2028 seulement ?</div>
+    <p>2027 est la première année entièrement générée par l'algorithme : c'est la première année dont les statistiques sont exploitables comme référence. Le premier report se fait donc à la génération de 2028.</p>
+  </div>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<!-- ============ 13 ============ -->
+<section id="a13">
+  <h2><span class="n">13</span>Vérifier par vous-même</h2>
+  <p>La transparence n'est pas une promesse, c'est une fonctionnalité :</p>
+  <ul>
+    <li>La vue <strong>📊 Équité</strong> de la page Planning affiche les compteurs de chacun par rapport à sa cible, pour tous les axes — en lecture <strong>Initiale</strong> (le planning tel que généré) ou <strong>Instantané</strong> (l'état actuel, échanges compris).</li>
+    <li>Le planning généré est <strong>verrouillé</strong> : une fois publié, il ne peut pas être discrètement regénéré. Les statistiques de génération sont figées et servent de preuve d'équité.</li>
+    <li>Les imprévus (départ d'un collègue, absence longue) sont gérés par une redistribution assistée qui préserve l'équité — jamais par une régénération sauvage.</li>
+  </ul>
+  <div class="callout tip">
+    <div class="ct">Une question sur vos compteurs ?</div>
+    <p>Ouvrez la vue Équité, comparez votre réel à votre cible. Si quelque chose vous semble anormal, parlez-en à un membre du comité : tout est vérifiable, chiffres à l'appui.</p>
+  </div>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<div class="foot">Planning-CHPG · L'algorithme des gardes · CHPG Monaco — document équipe · docs/guide-algo-gardes.html</div>
+
+</div>
+</body>
+</html>
