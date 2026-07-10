@@ -732,8 +732,24 @@ function listProtocoles() {
   while (subs.hasNext()) {
     const sub = subs.next();
     const docs = [];
+    // PDF directement dans la spécialité
     const sf = sub.getFiles();
     while (sf.hasNext()) { const f = sf.next(); if (_isPdf(f)) docs.push(_fileMeta(f)); }
+    // PDF dans les sous-sous-dossiers (thèmes) → titre préfixé "Thème \u203a "
+    const deep = sub.getFolders();
+    while (deep.hasNext()) {
+      const d = deep.next();
+      const theme = d.getName();
+      const df = d.getFiles();
+      while (df.hasNext()) {
+        const f = df.next();
+        if (!_isPdf(f)) continue;
+        const meta = _fileMeta(f);
+        meta.theme = theme;
+        meta.title = theme + ' \u203a ' + meta.title;
+        docs.push(meta);
+      }
+    }
     if (!docs.length) continue;
     docs.sort(function (a, b) { return a.title.localeCompare(b.title, 'fr'); });
     subGroups.push({ specialite: sub.getName(), protocoles: docs });
