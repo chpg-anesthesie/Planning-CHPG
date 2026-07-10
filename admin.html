@@ -3063,8 +3063,10 @@ async function placeMAR(marId, marInit, mode) {
     const res = await api({
       action: 'savePlanningOverride',
       date, marId,
-      morning:   _localOverrides[date][marId].am || '',
-      afternoon: _localOverrides[date][marId].pm || '',
+      // N'envoyer QUE le demi-jour réellement modifié ; l'autre = null = « ne pas toucher »
+      // (empêche le serveur de recopier/effacer l'autre demi-jour).
+      morning:   slotKey === 'am' ? (_localOverrides[date][marId].am || '') : null,
+      afternoon: slotKey === 'pm' ? (_localOverrides[date][marId].pm || '') : null,
       comment:   `Comité — ${value} ${slotKey.toUpperCase()}`
     });
     if (!res.success) throw new Error(res.error);
@@ -3160,8 +3162,8 @@ async function _saveOverrideBg(marId, date, slotKey, why) {
   try {
     await api({
       action: 'savePlanningOverride', date, marId,
-      morning:   _localOverrides[date][marId].am || '',
-      afternoon: _localOverrides[date][marId].pm || '',
+      morning:   slotKey === 'am' ? (_localOverrides[date][marId].am || '') : null,
+      afternoon: slotKey === 'pm' ? (_localOverrides[date][marId].pm || '') : null,
       comment:   `Comité — ${why} ${slotKey.toUpperCase()}`
     });
     markPending();
