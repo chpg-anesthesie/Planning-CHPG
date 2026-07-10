@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planning-CHPG — Staff du 4 septembre 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800;9..40,900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#CE1126; --red-soft:#FDECEE;
+  --ink:#0F172A; --ink-2:#334155; --ink-3:#64748B; --ink-4:#94A3B8;
+  --paper:#FFFFFF; --surface:#F8FAFC; --line:#E2E8F0;
+  --dark-1:#1E293B; --dark-2:#0F172A;
+  --sans:'DM Sans',system-ui,sans-serif; --mono:'DM Mono',ui-monospace,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:var(--dark-2)}
+body{font-family:var(--sans);color:var(--ink)}
+
+/* ── Scène ── */
+.slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
+  padding:7vh 9vw;background:var(--paper);overflow:hidden}
+.slide.on{display:flex;animation:fadeIn .35s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.slide.on{animation:none}.live-dot{animation:none}}
+
+/* ── Slides sombres (titre + sections) ── */
+.slide.dark{background:linear-gradient(135deg,var(--dark-1),var(--dark-2));color:#fff}
+
+/* ── Typo ── */
+.eyebrow{font-size:clamp(13px,1.3vw,17px);font-weight:700;text-transform:uppercase;
+  letter-spacing:.14em;color:var(--red);margin-bottom:2.2vh}
+.slide.dark .eyebrow{color:#FCA5A5}
+h1{font-size:clamp(44px,7vw,96px);font-weight:900;letter-spacing:-.03em;line-height:1.02}
+h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-height:1.08;margin-bottom:3.5vh}
+.sub{font-size:clamp(17px,1.9vw,26px);color:var(--ink-3);line-height:1.5;max-width:34em}
+.slide.dark .sub{color:#CBD5E1}
+.num{font-family:var(--mono)}
+
+/* ── Chiffres géants ── */
+.stats{display:flex;gap:5vw;margin:4.5vh 0;flex-wrap:wrap}
+.stat .n{font-family:var(--mono);font-size:clamp(48px,7.5vw,104px);font-weight:500;
+  color:var(--red);letter-spacing:-.04em;line-height:1}
+.stat .l{font-size:clamp(14px,1.5vw,20px);font-weight:600;color:var(--ink-2);margin-top:1vh;max-width:11em;line-height:1.35}
+
+/* ── Cartes ── */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:1.6vw;margin-top:1vh}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:3vh 1.8vw}
+.card .t{font-size:clamp(16px,1.7vw,23px);font-weight:800;letter-spacing:-.01em;margin-bottom:1vh}
+.card .d{font-size:clamp(13.5px,1.35vw,18px);color:var(--ink-3);line-height:1.5}
+.card .k{font-family:var(--mono);color:var(--red);font-weight:500}
+
+/* ── Timeline ── */
+.tl{display:flex;flex-direction:column;gap:2.6vh;margin-top:1vh}
+.tl-row{display:flex;gap:2.4vw;align-items:flex-start}
+.tl-when{flex-shrink:0;width:11em;font-family:var(--mono);font-size:clamp(15px,1.6vw,22px);
+  font-weight:500;color:var(--red);padding-top:.15em}
+.tl-what .t{font-size:clamp(17px,1.9vw,25px);font-weight:700;letter-spacing:-.01em}
+.tl-what .d{font-size:clamp(13.5px,1.4vw,18px);color:var(--ink-3);line-height:1.5;margin-top:.4vh;max-width:30em}
+
+/* ── Badge EN DIRECT ── */
+.live-chip{display:inline-flex;align-items:center;gap:.6em;background:var(--red);color:#fff;
+  font-size:clamp(13px,1.3vw,17px);font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  border-radius:999px;padding:.55em 1.2em;margin-bottom:3vh;width:fit-content}
+.live-dot{width:.6em;height:.6em;border-radius:50%;background:#fff;animation:pulse 1.2s ease infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+
+/* ── Chrono ── */
+.chrono{font-family:var(--mono);font-size:clamp(64px,11vw,150px);font-weight:500;
+  letter-spacing:-.02em;color:var(--ink);line-height:1;margin:2vh 0}
+.chrono.go{color:var(--red)}
+.chrono-btns{display:flex;gap:12px}
+.cbtn{font:700 clamp(14px,1.4vw,18px) var(--sans);border:2px solid var(--ink);background:transparent;
+  color:var(--ink);border-radius:12px;padding:.7em 1.6em;cursor:pointer;transition:all .15s}
+.cbtn:hover{background:var(--ink);color:#fff}
+.cbtn.primary{background:var(--red);border-color:var(--red);color:#fff}
+.cbtn.primary:hover{filter:brightness(.9)}
+
+/* ── QR ── */
+.qr-wrap{display:flex;align-items:center;gap:6vw;flex-wrap:wrap}
+.qr-box{flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:24px;
+  padding:2.5vh;box-shadow:0 20px 60px rgba(15,23,42,.12)}
+.qr-box svg{display:block;width:min(38vh,34vw);height:min(38vh,34vw);fill:var(--ink)}
+.qr-url{font-family:var(--mono);font-size:clamp(13px,1.4vw,18px);color:var(--ink-3);margin-top:2vh;word-break:break-all;max-width:22em}
+
+/* ── Slide relais (bascule doc externe) ── */
+.relay{display:inline-flex;align-items:center;gap:.7em;background:var(--ink);color:#fff;
+  text-decoration:none;font-size:clamp(17px,2vw,26px);font-weight:700;border-radius:16px;
+  padding:.85em 1.5em;margin-top:3.5vh;width:fit-content;transition:transform .15s,box-shadow .15s}
+.relay:hover{transform:translateY(-3px);box-shadow:0 14px 34px rgba(15,23,42,.25)}
+.relay .arr{font-family:var(--mono)}
+
+/* ── Tuiles dashboard ── */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:1.3vw;margin-top:1vh}
+.dtile{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:2.4vh 1.5vw}
+.dtile .t{font-size:clamp(15px,1.55vw,21px);font-weight:800;letter-spacing:-.01em}
+.dtile .d{font-size:clamp(12.5px,1.2vw,16px);color:var(--ink-3);line-height:1.45;margin-top:.5vh}
+
+/* ── Numéro de section géant ── */
+.secnum{font-family:var(--mono);font-size:clamp(90px,16vw,220px);font-weight:500;
+  color:rgba(255,255,255,.08);position:absolute;right:6vw;bottom:2vh;line-height:1;user-select:none}
+
+/* ── Chrome (barre, compteur, flèches) ── */
+#bar{position:fixed;top:0;left:0;height:4px;background:var(--red);z-index:50;transition:width .3s ease}
+#hud{position:fixed;bottom:2.4vh;right:2.4vw;z-index:50;display:flex;align-items:center;gap:14px}
+#count{font-family:var(--mono);font-size:14px;color:var(--ink-4)}
+.dark-hud #count{color:rgba(255,255,255,.45)}
+.nav{display:flex;gap:6px}
+.nav button{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);
+  background:var(--paper);color:var(--ink-2);font-size:17px;cursor:pointer;transition:all .15s}
+.nav button:hover{border-color:var(--ink-3)}
+.dark-hud .nav button{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#fff}
+#hint{position:fixed;bottom:2.4vh;left:2.4vw;z-index:50;font-family:var(--mono);font-size:12.5px;
+  color:var(--ink-4);opacity:.85}
+.dark-hud #hint{color:rgba(255,255,255,.4)}
+
+/* ── Notes présentateur ── */
+#notes{position:fixed;left:2vw;bottom:8vh;max-width:34em;background:rgba(15,23,42,.92);color:#E2E8F0;
+  border-radius:14px;padding:14px 18px;font-size:14.5px;line-height:1.55;z-index:60;display:none}
+#notes.on{display:block}
+#notes b{color:#FCA5A5}
+
+:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+@media(max-width:700px){.slide{padding:6vh 7vw}.tl-when{width:auto}}
+</style>
+</head>
+<body>
+
+<div id="bar"></div>
+
+<!-- 1 · TITRE -->
+<section class="slide dark" data-notes="Accueil. Annoncer le menu : les gardes, l'année au quotidien, le portail, la suite. Les codes d'accès ont été envoyés hier — gardez vos téléphones à portée.">
+  <div class="eyebrow">Staff MAR · vendredi 4 septembre 2026</div>
+  <h1>Planning-CHPG</h1>
+  <p class="sub" style="margin-top:2.5vh">Le planning du service, enfin outillé.<br>Gardes · planning quotidien · portail personnel.</p>
+</section>
+
+<!-- 2 · LE PROBLÈME -->
+<section class="slide" data-notes="Poser le problème sans accabler personne : c'est le volume qui rend la main impossible, pas les gens.">
+  <div class="eyebrow">Le point de départ</div>
+  <h2>Un casse-tête à 730 gardes</h2>
+  <div class="stats">
+    <div class="stat"><div class="n">23</div><div class="l">MARs, avec des quotités différentes</div></div>
+    <div class="stat"><div class="n">2</div><div class="l">lignes de garde chaque nuit : Réa et Mater-Bloc</div></div>
+    <div class="stat"><div class="n">730</div><div class="l">gardes par an à répartir équitablement</div></div>
+  </div>
+  <p class="sub">Réparties à la main, c'est un travail considérable — et impossible à garder parfaitement équilibré sur autant de gardes, avec des congés sur papier et tout à recalculer au moindre imprévu.</p>
+</section>
+
+<!-- 3 · LA RÉPONSE -->
+<section class="slide" data-notes="Un seul outil, trois usages. Insister : accessible depuis le téléphone, rien à installer.">
+  <div class="eyebrow">La réponse</div>
+  <h2>Un outil web unique, dans votre poche</h2>
+  <div class="cards">
+    <div class="card"><div class="t">Les gardes</div><div class="d">Générées par un algorithme d'équité, vérifiables par tous, publiées en ligne.</div></div>
+    <div class="card"><div class="t">Le planning quotidien</div><div class="d">Affectations de bloc, consultations, échanges — tenu à jour en continu par le comité.</div></div>
+    <div class="card"><div class="t">Votre portail personnel</div><div class="d">Vos gardes, vos congés, les protocoles, l'annuaire, la veille biblio — sur votre téléphone.</div></div>
+  </div>
+</section>
+
+<!-- 4 · SECTION 1 -->
+<section class="slide dark" data-notes="Section gardes : la promesse d'équité d'abord, la mécanique ensuite (bascule vers le document algorithme).">
+  <div class="eyebrow">Partie 1</div>
+  <h1>Les gardes</h1>
+  <p class="sub" style="margin-top:2vh">Ce que l'algorithme vous garantit.</p>
+  <div class="secnum">01</div>
+</section>
+
+<!-- 5 · LES GARANTIES -->
+<section class="slide" data-notes="4 garanties. VD = vendredi–dimanche, les gardes les plus lourdes sont équilibrées en premier. La quotité : un 80 % fait 80 % des gardes d'un temps plein.">
+  <div class="eyebrow">Les garanties de l'algorithme</div>
+  <h2>L'équité d'abord, dans cet ordre</h2>
+  <div class="cards">
+    <div class="card"><div class="t"><span class="k">1.</span> Week-ends d'abord</div><div class="d">Priorité d'équilibrage : <b>VD &gt; Samedi &gt; Jeudi &gt; Total</b>. Les gardes les plus lourdes sont réparties en premier.</div></div>
+    <div class="card"><div class="t"><span class="k">2.</span> Proportionnel à votre quotité</div><div class="d">Un temps partiel à 80 % reçoit 80 % des gardes d'un temps plein. Ni plus, ni moins.</div></div>
+    <div class="card"><div class="t"><span class="k">3.</span> Noël &amp; Nouvel An tournants</div><div class="d">Rotation pluriannuelle avec mémoire des années passées — échanges inclus.</div></div>
+    <div class="card"><div class="t"><span class="k">4.</span> Généré en <span class="k">~15 s</span></div><div class="d">Le comité peut regénérer, comparer, vérifier — la machine fait le calcul, les humains décident.</div></div>
+  </div>
+</section>
+
+<!-- 6 · RELAIS DOC ALGO -->
+<section class="slide" data-notes="Bascule vers le document algorithme (Alt+Tab). Y passer 5-7 min max, puis revenir ici.">
+  <div class="eyebrow">Pour les curieux</div>
+  <h2>Comment ça marche, exactement&nbsp;?</h2>
+  <p class="sub">Le détail complet — cibles, compteurs, rotation, dette d'équité — est dans le document dédié.</p>
+  <a class="relay" id="relayAlgo" href="#" target="_blank" rel="noopener"><span class="arr">→</span> Ouvrir le document Algorithme</a>
+</section>
+
+<!-- 7 · CE QUE ÇA CHANGE -->
+<section class="slide" data-notes="Retour du doc algo. Message clé : la transparence protège tout le monde, y compris le comité.">
+  <div class="eyebrow">Concrètement, pour vous</div>
+  <h2>Personne ne peut être lésé</h2>
+  <div class="cards">
+    <div class="card"><div class="t">Compteurs publics</div><div class="d">Les statistiques d'équité de chacun sont consultables par tous, toute l'année.</div></div>
+    <div class="card"><div class="t">Les échanges restent libres</div><div class="d">Vous vous arrangez entre vous comme avant — l'outil enregistre le réel.</div></div>
+    <div class="card"><div class="t">Les imprévus sont gérés</div><div class="d">Départ d'un collègue, absence longue : redistribution assistée, équité préservée.</div></div>
+  </div>
+</section>
+
+<!-- 8 · SECTION 2 -->
+<section class="slide dark" data-notes="Section 2 : le cycle annuel puis la démo live indispo, puis le comité.">
+  <div class="eyebrow">Partie 2</div>
+  <h1>L'année au quotidien</h1>
+  <p class="sub" style="margin-top:2vh">Ce que vous faites, ce que le comité fait.</p>
+  <div class="secnum">02</div>
+</section>
+
+<!-- 9 · LE CYCLE -->
+<section class="slide" data-notes="3 temps. Octobre : leur seule action obligatoire de l'année (vœux + indispos). Le reste est automatique ou géré par le comité.">
+  <div class="eyebrow">Le cycle de l'année</div>
+  <h2>Votre part : 10 minutes en octobre</h2>
+  <div class="tl">
+    <div class="tl-row"><div class="tl-when">Octobre</div><div class="tl-what"><div class="t">Vous saisissez vos vœux</div><div class="d">Périodes de vacances et indisponibilités, depuis votre téléphone. C'est votre seule action obligatoire de l'année.</div></div></div>
+    <div class="tl-row"><div class="tl-when">Novembre</div><div class="tl-what"><div class="t">Le comité génère l'année suivante</div><div class="d">L'algorithme calcule, le comité vérifie et publie. Vos gardes sont connues avec 13 mois d'avance.</div></div></div>
+    <div class="tl-row"><div class="tl-when">Toute l'année</div><div class="tl-what"><div class="t">Un planning vivant</div><div class="d">Échanges, imprévus, absences : le planning publié reste la référence, toujours à jour.</div></div></div>
+  </div>
+</section>
+
+<!-- 10 · DÉMO LIVE 1 -->
+<section class="slide" data-notes="Demander un volontaire AVEC son téléphone. Lui faire déclarer une vraie indisponibilité pendant que le chrono tourne. Cible : moins d'une minute.">
+  <div class="live-chip"><span class="live-dot"></span> En direct</div>
+  <h2>Déclarer une indisponibilité,<br>chrono en main</h2>
+  <p class="sub">Un volontaire, son téléphone. On dit que ça prend moins d'une minute — vérifions.</p>
+  <div class="chrono num" id="chrono">00:00.0</div>
+  <div class="chrono-btns">
+    <button class="cbtn primary" id="chronoGo">Démarrer</button>
+    <button class="cbtn" id="chronoReset">Remettre à zéro</button>
+  </div>
+</section>
+
+<!-- 11 · LE COMITÉ -->
+<section class="slide" data-notes="Le comité n'est pas remplacé, il est outillé. Les 3 assistants correspondent aux 3 moments de l'année. Diagnostic = santé du système en 1 clic.">
+  <div class="eyebrow">Côté comité</div>
+  <h2>Moins de bureau, plus de transparence</h2>
+  <div class="cards">
+    <div class="card"><div class="t">3 assistants guidés</div><div class="d">Ouverture de l'année, génération des gardes, clôture : chaque étape est balisée, avec garde-fous.</div></div>
+    <div class="card"><div class="t">Diagnostic en 1 clic</div><div class="d">L'état de santé complet du système est audité automatiquement — plus de mauvaise surprise.</div></div>
+    <div class="card"><div class="t">L'équité, vérifiable</div><div class="d">Les mêmes compteurs que vous : le comité rend des comptes avec les chiffres sous les yeux.</div></div>
+  </div>
+</section>
+
+<!-- 12 · SECTION 3 -->
+<section class="slide dark" data-notes="Section 3 : le portail. La partie la plus concrète pour eux — QR code au prochain slide.">
+  <div class="eyebrow">Partie 3</div>
+  <h1>Votre portail</h1>
+  <p class="sub" style="margin-top:2vh">Sortez vos téléphones.</p>
+  <div class="secnum">03</div>
+</section>
+
+<!-- 13 · QR CODE -->
+<section class="slide" data-notes="Laisser 2 bonnes minutes. Aider les voisins. Chacun se connecte avec le code reçu par mail hier. Faire remarquer le bandeau « Mes gardes » personnalisé.">
+  <div class="qr-wrap">
+    <div class="qr-box" id="qrBox"><!--QR--></div>
+    <div>
+      <div class="eyebrow">À vous de jouer</div>
+      <h2 style="margin-bottom:1.5vh">Ouvrez votre portail</h2>
+      <p class="sub">Scannez, connectez-vous avec le code reçu par mail hier.<br>Première chose que vous voyez : <b>vos prochaines gardes</b>.</p>
+      <div class="qr-url" id="qrUrl"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 14 · LES TUILES -->
+<section class="slide" data-notes="Tour rapide des tuiles, en montrant sur l'écran projeté. Mes congés : compteurs par type. Annuaire : les DECT enfin à jour.">
+  <div class="eyebrow">Dans votre portail</div>
+  <h2>Tout le service au même endroit</h2>
+  <div class="tiles">
+    <div class="dtile"><div class="t">Mes gardes</div><div class="d">Vos prochaines gardes Réa et Mater-Bloc, en bandeau dès l'accueil.</div></div>
+    <div class="dtile"><div class="t">Mes congés</div><div class="d">Vos compteurs et périodes posées, par type de congé.</div></div>
+    <div class="dtile"><div class="t">Topos / biblio</div><div class="d">Les présentations et documents du service.</div></div>
+    <div class="dtile"><div class="t">Staffs à venir</div><div class="d">Dates, thèmes et intervenants des prochains staffs.</div></div>
+    <div class="dtile"><div class="t">Protocoles</div><div class="d">Les protocoles du service, classés par spécialité, avec recherche.</div></div>
+    <div class="dtile"><div class="t">Annuaire</div><div class="d">L'équipe et les numéros utiles — enfin à jour.</div></div>
+    <div class="dtile"><div class="t">Veille biblio</div><div class="d">La littérature qui compte, triée pour vous. Détail au slide suivant.</div></div>
+  </div>
+</section>
+
+<!-- 15 · VEILLE BIBLIO -->
+<section class="slide" data-notes="La veille tourne toute seule chaque lundi. Filtrage sévère : on ne garde que le solide (essais randomisés, méta-analyses, recos).">
+  <div class="eyebrow">Veille bibliographique</div>
+  <h2>PubMed trié, chaque lundi, tout seul</h2>
+  <div class="stats">
+    <div class="stat"><div class="n">14</div><div class="l">revues suivies : 10 d'anesthésie-réa + NEJM, JAMA, Lancet, BMJ</div></div>
+    <div class="stat"><div class="n">8</div><div class="l">thèmes du métier : sepsis, voies aériennes, SDRA, ALR…</div></div>
+    <div class="stat"><div class="n">1</div><div class="l">scan automatique par semaine, filtré sur le solide</div></div>
+  </div>
+  <p class="sub">Ne passent que les essais randomisés, méta-analyses et recommandations. Filtres par thème et par type d'article — démonstration.</p>
+</section>
+
+<!-- 16 · DÉMO LIVE 2 -->
+<section class="slide" data-notes="Basculer sur le dashboard projeté, tuile Veille : filtrer par thème (badges violets), montrer un badge « méta-analyse », ouvrir un article sur PubMed.">
+  <div class="live-chip"><span class="live-dot"></span> En direct</div>
+  <h2>La veille, en vrai</h2>
+  <p class="sub">Sur l'écran : filtrer par thème, repérer les badges de type d'article, ouvrir un papier dans PubMed. Et chacun peut le refaire depuis son téléphone, tout de suite.</p>
+</section>
+
+<!-- 17 · LA SUITE -->
+<section class="slide dark" data-notes="Teaser sobre. Le module libéral servira le groupe (optimisation collective). Le déménagement 2027 est déjà anticipé côté outil.">
+  <div class="eyebrow">Partie 4 · La suite</div>
+  <h1>Ça ne fait que commencer</h1>
+  <div class="cards" style="margin-top:4vh">
+    <div class="card" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)"><div class="t" style="color:#fff">Activité libérale</div><div class="d" style="color:#CBD5E1">Un pilotage collectif pour optimiser l'activité du groupe, en toute transparence.</div></div>
+    <div class="card" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)"><div class="t" style="color:#fff">Nouvelles tuiles</div><div class="d" style="color:#CBD5E1">Le portail s'enrichit régulièrement — d'autres services arrivent.</div></div>
+    <div class="card" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)"><div class="t" style="color:#fff">Déménagement 2027</div><div class="d" style="color:#CBD5E1">Le nouvel hôpital est déjà anticipé : les secteurs de bloc seront reconfigurables sans toucher au moteur.</div></div>
+  </div>
+  <div class="secnum">04</div>
+</section>
+
+<!-- 18 · MERCI -->
+<section class="slide" data-notes="Laisser ce slide affiché pendant les questions. Rappeler que le lien est aussi dans le mail d'hier.">
+  <div class="qr-wrap">
+    <div class="qr-box" id="qrBox2"><!--QR--></div>
+    <div>
+      <div class="eyebrow">Questions</div>
+      <h2 style="margin-bottom:1.5vh">Merci</h2>
+      <p class="sub">Le portail reste ouvert — le lien est aussi dans le mail d'hier.<br>Vos retours feront l'outil.</p>
+      <div class="qr-url" id="qrUrl2"></div>
+    </div>
+  </div>
+</section>
+
+<div id="notes"></div>
+
+<div id="hud">
+  <span id="count" class="num"></span>
+  <div class="nav">
+    <button id="prev" aria-label="Slide précédent">←</button>
+    <button id="next" aria-label="Slide suivant">→</button>
+  </div>
+</div>
+<div id="hint">F plein écran · N notes</div>
+
+<script>
+/* ══ CONFIG — à ajuster si besoin ══ */
+var CONFIG = {
+  DASHBOARD_URL: 'https://chpg-anesthesie.github.io/Planning-CHPG/dashboard.html',
+  DOC_ALGO_URL: 'https://chpg-anesthesie.github.io/Planning-CHPG/docs/Presentation-gardes-staff.html'   /* ← URL du document Algorithme (bascule du slide 6) */
+};
+
+/* ══ QR code (SVG généré hors-ligne, encode DASHBOARD_URL) ══ */
+var QR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37 37" shape-rendering="crispEdges"><path d="M2 2h7v1H2zM11 2h7v1H11zM20 2h2v1H20zM23 2h3v1H23zM28 2h7v1H28zM2 3h1v1H2zM8 3h1v1H8zM11 3h1v1H11zM16 3h2v1H16zM22 3h5v1H22zM28 3h1v1H28zM34 3h1v1H34zM2 4h1v1H2zM4 4h3v1H4zM8 4h1v1H8zM11 4h1v1H11zM13 4h2v1H13zM16 4h1v1H16zM19 4h3v1H19zM24 4h2v1H24zM28 4h1v1H28zM30 4h3v1H30zM34 4h1v1H34zM2 5h1v1H2zM4 5h3v1H4zM8 5h1v1H8zM12 5h1v1H12zM16 5h2v1H16zM20 5h2v1H20zM23 5h2v1H23zM28 5h1v1H28zM30 5h3v1H30zM34 5h1v1H34zM2 6h1v1H2zM4 6h3v1H4zM8 6h1v1H8zM13 6h1v1H13zM15 6h6v1H15zM24 6h1v1H24zM28 6h1v1H28zM30 6h3v1H30zM34 6h1v1H34zM2 7h1v1H2zM8 7h1v1H8zM10 7h1v1H10zM12 7h3v1H12zM16 7h2v1H16zM21 7h3v1H21zM26 7h1v1H26zM28 7h1v1H28zM34 7h1v1H34zM2 8h7v1H2zM10 8h1v1H10zM12 8h1v1H12zM14 8h1v1H14zM16 8h1v1H16zM18 8h1v1H18zM20 8h1v1H20zM22 8h1v1H22zM24 8h1v1H24zM26 8h1v1H26zM28 8h7v1H28zM13 9h1v1H13zM17 9h1v1H17zM19 9h2v1H19zM23 9h1v1H23zM2 10h1v1H2zM5 10h1v1H5zM7 10h2v1H7zM10 10h2v1H10zM13 10h3v1H13zM21 10h3v1H21zM25 10h3v1H25zM29 10h1v1H29zM5 11h1v1H5zM7 11h1v1H7zM9 11h2v1H9zM13 11h2v1H13zM18 11h1v1H18zM22 11h2v1H22zM27 11h3v1H27zM33 11h2v1H33zM3 12h3v1H3zM8 12h2v1H8zM11 12h3v1H11zM15 12h1v1H15zM19 12h1v1H19zM21 12h1v1H21zM29 12h2v1H29zM32 12h3v1H32zM2 13h2v1H2zM10 13h3v1H10zM15 13h3v1H15zM20 13h2v1H20zM23 13h1v1H23zM25 13h3v1H25zM30 13h2v1H30zM5 14h6v1H5zM12 14h1v1H12zM14 14h1v1H14zM16 14h2v1H16zM19 14h1v1H19zM22 14h1v1H22zM26 14h3v1H26zM31 14h1v1H31zM33 14h1v1H33zM4 15h2v1H4zM9 15h2v1H9zM15 15h1v1H15zM19 15h1v1H19zM21 15h2v1H21zM24 15h3v1H24zM28 15h1v1H28zM30 15h1v1H30zM32 15h3v1H32zM6 16h4v1H6zM14 16h1v1H14zM16 16h1v1H16zM18 16h2v1H18zM22 16h2v1H22zM25 16h1v1H25zM27 16h2v1H27zM33 16h1v1H33zM2 17h1v1H2zM5 17h2v1H5zM9 17h2v1H9zM15 17h1v1H15zM17 17h1v1H17zM19 17h2v1H19zM23 17h1v1H23zM25 17h2v1H25zM28 17h1v1H28zM30 17h1v1H30zM33 17h1v1H33zM7 18h2v1H7zM10 18h1v1H10zM13 18h1v1H13zM15 18h3v1H15zM19 18h8v1H19zM28 18h1v1H28zM30 18h4v1H30zM4 19h1v1H4zM7 19h1v1H7zM9 19h3v1H9zM14 19h1v1H14zM16 19h1v1H16zM18 19h1v1H18zM23 19h1v1H23zM25 19h3v1H25zM29 19h1v1H29zM31 19h1v1H31zM33 19h1v1H33zM5 20h1v1H5zM7 20h2v1H7zM10 20h7v1H10zM18 20h1v1H18zM20 20h1v1H20zM22 20h2v1H22zM26 20h1v1H26zM32 20h3v1H32zM3 21h2v1H3zM7 21h1v1H7zM9 21h2v1H9zM12 21h1v1H12zM14 21h1v1H14zM17 21h1v1H17zM19 21h2v1H19zM23 21h1v1H23zM25 21h1v1H25zM27 21h1v1H27zM29 21h1v1H29zM33 21h1v1H33zM2 22h1v1H2zM5 22h2v1H5zM8 22h1v1H8zM10 22h2v1H10zM13 22h2v1H13zM16 22h1v1H16zM18 22h1v1H18zM21 22h7v1H21zM34 22h1v1H34zM3 23h2v1H3zM6 23h2v1H6zM11 23h2v1H11zM14 23h1v1H14zM16 23h1v1H16zM18 23h1v1H18zM20 23h1v1H20zM22 23h2v1H22zM27 23h2v1H27zM31 23h1v1H31zM33 23h2v1H33zM2 24h4v1H2zM8 24h1v1H8zM11 24h2v1H11zM14 24h3v1H14zM19 24h1v1H19zM21 24h1v1H21zM24 24h1v1H24zM27 24h3v1H27zM32 24h1v1H32zM34 24h1v1H34zM3 25h2v1H3zM10 25h1v1H10zM15 25h1v1H15zM18 25h1v1H18zM21 25h6v1H21zM29 25h1v1H29zM31 25h1v1H31zM33 25h1v1H33zM2 26h1v1H2zM5 26h4v1H5zM10 26h2v1H10zM14 26h1v1H14zM16 26h2v1H16zM19 26h1v1H19zM22 26h2v1H22zM26 26h5v1H26zM33 26h1v1H33zM10 27h3v1H10zM14 27h1v1H14zM19 27h1v1H19zM21 27h2v1H21zM26 27h1v1H26zM30 27h2v1H30zM34 27h1v1H34zM2 28h7v1H2zM12 28h2v1H12zM16 28h1v1H16zM20 28h1v1H20zM23 28h1v1H23zM26 28h1v1H26zM28 28h1v1H28zM30 28h4v1H30zM2 29h1v1H2zM8 29h1v1H8zM10 29h1v1H10zM12 29h1v1H12zM14 29h4v1H14zM19 29h1v1H19zM21 29h4v1H21zM26 29h1v1H26zM30 29h1v1H30zM33 29h2v1H33zM2 30h1v1H2zM4 30h3v1H4zM8 30h1v1H8zM11 30h3v1H11zM17 30h1v1H17zM19 30h1v1H19zM21 30h4v1H21zM26 30h6v1H26zM2 31h1v1H2zM4 31h3v1H4zM8 31h1v1H8zM10 31h1v1H10zM12 31h1v1H12zM16 31h1v1H16zM23 31h1v1H23zM28 31h1v1H28zM30 31h3v1H30zM2 32h1v1H2zM4 32h3v1H4zM8 32h1v1H8zM11 32h1v1H11zM13 32h1v1H13zM15 32h1v1H15zM18 32h2v1H18zM22 32h3v1H22zM30 32h1v1H30zM32 32h1v1H32zM34 32h1v1H34zM2 33h1v1H2zM8 33h1v1H8zM17 33h1v1H17zM19 33h2v1H19zM22 33h2v1H22zM25 33h4v1H25zM2 34h7v1H2zM10 34h1v1H10zM15 34h1v1H15zM18 34h1v1H18zM22 34h2v1H22zM26 34h1v1H26zM28 34h1v1H28zM30 34h2v1H30zM33 34h1v1H33z"/></svg>';
+document.getElementById('qrBox').innerHTML = QR_SVG;
+document.getElementById('qrBox2').innerHTML = QR_SVG;
+document.getElementById('qrUrl').textContent = CONFIG.DASHBOARD_URL;
+document.getElementById('qrUrl2').textContent = CONFIG.DASHBOARD_URL;
+var relay = document.getElementById('relayAlgo');
+if (CONFIG.DOC_ALGO_URL) { relay.href = CONFIG.DOC_ALGO_URL; }
+else { relay.style.opacity = '.4'; relay.style.pointerEvents = 'none'; relay.setAttribute('aria-disabled', 'true'); }
+
+/* ══ Navigation ══ */
+var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+var cur = 0;
+function show(i) {
+  cur = Math.max(0, Math.min(slides.length - 1, i));
+  slides.forEach(function (s, j) { s.classList.toggle('on', j === cur); });
+  document.getElementById('bar').style.width = ((cur + 1) / slides.length * 100) + '%';
+  document.getElementById('count').textContent = (cur + 1) + ' / ' + slides.length;
+  document.body.classList.toggle('dark-hud', slides[cur].classList.contains('dark'));
+  var n = document.getElementById('notes');
+  n.innerHTML = '<b>Note</b> — ' + (slides[cur].getAttribute('data-notes') || '');
+  if (location.hash !== '#' + (cur + 1)) history.replaceState(null, '', '#' + (cur + 1));
+}
+document.getElementById('next').addEventListener('click', function () { show(cur + 1); });
+document.getElementById('prev').addEventListener('click', function () { show(cur - 1); });
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(cur + 1); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(cur - 1); }
+  else if (e.key === 'Home') show(0);
+  else if (e.key === 'End') show(slides.length - 1);
+  else if (e.key === 'f' || e.key === 'F') {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
+  }
+  else if (e.key === 'n' || e.key === 'N') document.getElementById('notes').classList.toggle('on');
+});
+/* Balayage tactile */
+var tx = null;
+document.addEventListener('touchstart', function (e) { tx = e.touches[0].clientX; }, {passive: true});
+document.addEventListener('touchend', function (e) {
+  if (tx === null) return;
+  var dx = e.changedTouches[0].clientX - tx;
+  if (Math.abs(dx) > 60) show(cur + (dx < 0 ? 1 : -1));
+  tx = null;
+}, {passive: true});
+
+/* ══ Chrono (démo live n°1) ══ */
+var t0 = null, acc = 0, tick = null;
+var cEl = document.getElementById('chrono');
+function fmt(ms) {
+  var s = ms / 1000;
+  var m = Math.floor(s / 60);
+  var r = (s - m * 60).toFixed(1);
+  return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r;
+}
+document.getElementById('chronoGo').addEventListener('click', function () {
+  if (tick) {           /* arrêt */
+    clearInterval(tick); tick = null;
+    acc += Date.now() - t0;
+    this.textContent = 'Démarrer';
+    cEl.classList.remove('go');
+  } else {              /* départ */
+    t0 = Date.now();
+    var self = this;
+    tick = setInterval(function () { cEl.textContent = fmt(acc + Date.now() - t0); }, 100);
+    self.textContent = 'Arrêter';
+    cEl.classList.add('go');
+  }
+});
+document.getElementById('chronoReset').addEventListener('click', function () {
+  clearInterval(tick); tick = null; acc = 0;
+  cEl.textContent = '00:00.0'; cEl.classList.remove('go');
+  document.getElementById('chronoGo').textContent = 'Démarrer';
+});
+
+/* Démarrage (reprise via #n) */
+var h = parseInt(location.hash.slice(1), 10);
+show(isNaN(h) ? 0 : h - 1);
+</script>
+</body>
+</html>
