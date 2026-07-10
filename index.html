@@ -182,6 +182,9 @@ body{font-variant-numeric:tabular-nums}
 .hdr-stepper button{width:28px;height:28px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-size:15px;color:var(--ink-2);line-height:1}
 .hdr-stepper button:hover{background:var(--line-light);color:var(--red)}
 .hdr-stepper button:disabled{opacity:.3;cursor:default;background:transparent;color:var(--ink-2)}
+.header-btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:5px 12px;text-decoration:none;transition:border-color .15s,box-shadow .15s,color .15s}
+.header-btn:hover{border-color:var(--red);color:var(--red);box-shadow:0 1px 5px rgba(15,23,42,.08)}
+.header-btn .hb-ico{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--red);color:#fff;font-size:11px;font-weight:800;line-height:1}
 .theme-btn{width:34px;height:34px;border:1px solid var(--line);background:var(--white);border-radius:10px;cursor:pointer;font-size:15px;line-height:1;transition:background .15s ease}
 .theme-btn:hover{background:var(--line-light)}
 .hdr-step-label{min-width:112px;text-align:center;font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;text-transform:capitalize}
@@ -722,6 +725,7 @@ body{font-variant-numeric:tabular-nums}
     </div>
   </div>
   <div class="header-right">
+    <a href="./docs/guide-mar.html" target="_blank" rel="noopener" class="header-btn" title="Guide du MAR — mode d'emploi du portail et du planning"><span class="hb-ico">?</span> Aide</a>
     <button id="themeBtn" class="theme-btn" onclick="cycleTheme()" title="Thème">🌗</button>
     <span id="mePill" class="me-pill" style="display:none"></span>
     <div class="hdr-stepper" id="monthStepper" style="display:none">
