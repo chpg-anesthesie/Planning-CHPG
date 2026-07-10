@@ -1480,6 +1480,7 @@ let DATA = null, marsData = [], gardesData = null;
 let _localOverrides = {};
 let _pendingChanges = 0;
 let _localVides = {};  // cases flash laissées volontairement vides (session)
+let _localLib = {};    // consult libérale endo affectée à la main (session, persisté) : `${date}` → Set(`${marId}|${slotKey}`)
 let _localOpens = {};  // consultations ouvertes par le comité (session) : `${csCode}|${slotKey}`
 let _localCloses = {}; // consultations FERMÉES par le comité : `${csCode}|${slotKey}` (persiste via localStorage)
 // ── Persistance des fermetures de consultations (page web réelle → localStorage OK) ──
@@ -1502,19 +1503,22 @@ function _editsKey() { return 'chpg_localEdits_' + (selectedYear || (typeof ANNE
 function loadLocalEdits() {
   try {
     const raw = localStorage.getItem(_editsKey());
-    _localOverrides = {}; _localVides = {};
+    _localOverrides = {}; _localVides = {}; _localLib = {};
     if (raw) {
       const o = JSON.parse(raw);
       _localOverrides = o.overrides || {};
       Object.keys(o.vides || {}).forEach(d => { _localVides[d] = new Set(o.vides[d]); });
+      Object.keys(o.lib || {}).forEach(d => { _localLib[d] = new Set(o.lib[d]); });
     }
-  } catch(e) { _localOverrides = {}; _localVides = {}; }
+  } catch(e) { _localOverrides = {}; _localVides = {}; _localLib = {}; }
 }
 function saveLocalEdits() {
   try {
     const vides = {};
     Object.keys(_localVides).forEach(d => { if (_localVides[d] && _localVides[d].size) vides[d] = Array.from(_localVides[d]); });
-    localStorage.setItem(_editsKey(), JSON.stringify({ overrides: _localOverrides, vides }));
+    const lib = {};
+    Object.keys(_localLib).forEach(d => { if (_localLib[d] && _localLib[d].size) lib[d] = Array.from(_localLib[d]); });
+    localStorage.setItem(_editsKey(), JSON.stringify({ overrides: _localOverrides, vides, lib }));
   } catch(e) {}
 }
 // Supprime un override dès que le planning publié (DATA) le reflète déjà : la case
@@ -2381,7 +2385,7 @@ function renderWeek() {
         tgt.split('+').forEach(raw => {
           const one = raw.trim(); if (!one) return;
           if (one.startsWith('CS-')) {
-            if (csTypeMap[one]) csTypeMap[one][dow][k].push({init: marInit, id: marId, status:'', isNew:true});
+            if (csTypeMap[one]) csTypeMap[one][dow][k].push({init: marInit, id: marId, status:'', isNew:true, lib: !!(_localLib[slot.date] && _localLib[slot.date].has(`${marId}|${k}`))});
           } else if (smap[one]) {
             smap[one][dow][k].push({init: marInit, id: marId, status:'', isNew:true});
           }
@@ -2591,9 +2595,9 @@ function renderWeek() {
     const _open = !!(_localOpens[date] && _localOpens[date].has(`${type}|${slotKey}`));
     const openable = CS_OPENABLE.includes(type);
     const _lib = (type === 'CS-END' && slotKey === 'pm' && [2,4].includes(new Date(date+'T12:00:00').getDay()));
-    const _hasLib = _lib && items.length > 0;   // en créneau libéral, tout MAR affecté remplit la case
-    // Marqueur "LIB" autonome uniquement si le créneau libéral existe mais n'est pas encore attribué
-    const _libTag = (_lib && !_hasLib) ? `<span class="cs-lib" onclick="openSidePanel('${type}','${date}','Consultation libérale endo','${slotKey}')" title="Consultation libérale endo — cliquer pour affecter un MAR" style="cursor:pointer">LIB</span>` : '';
+    const _hasLib = items.some(p => p && p.lib);   // le marqueur ne disparaît que si LA consult libérale est attribuée (pas une 2e consult normale)
+    // Marqueur "LIB" autonome : le créneau libéral existe mais n'est pas encore attribué → cliquer pour affecter
+    const _libTag = (_lib && !_hasLib) ? `<span class="cs-lib" onclick="openSidePanel('${type}','${date}','Consultation libérale endo','${slotKey}',true)" title="Consultation libérale endo — cliquer pour affecter un MAR (restera violette)" style="cursor:pointer">LIB</span>` : '';
 
     if (_closed) {
       return `<div class="cs-cell">${_libTag}<span class="cs-fermee" title="Consultation fermée par le comité">fermée</span><span class="cs-ouvrir" onclick="reopenConsult('${type}','${date}','${slotKey}')" title="Rouvrir la consultation">rouvrir</span></div>`;
@@ -2854,8 +2858,8 @@ async function toggleValiderSemaine() {
 // ── SIDE PANEL DISPO ─────────────────────────────────────────────────
 let _sideCtx = null;
 
-async function openSidePanel(sector, date, sectorLabel, slotKey) {
-  window._sideCtx = {sector, date, sectorLabel, slotKey};
+async function openSidePanel(sector, date, sectorLabel, slotKey, isLib) {
+  window._sideCtx = {sector, date, sectorLabel, slotKey, lib: !!isLib};
   const card = document.getElementById('dispoCard');
   if (!card) return;
   card.style.display = 'block';
@@ -3072,6 +3076,11 @@ async function placeMAR(marId, marInit, mode) {
     if (extra.length) value = extra.concat(sector).join('+');
   }
   _localOverrides[date][marId][slotKey] = value;
+  // Consult libérale endo : affectée via le marqueur « LIB » (ctx.lib) → on la marque localement
+  // (chip violet) et on l'enregistre avec le tag LIB. Toute autre pose la démarque.
+  if (!_localLib[date]) _localLib[date] = new Set();
+  const _libK = `${marId}|${slotKey}`;
+  if (ctx.lib) _localLib[date].add(_libK); else _localLib[date].delete(_libK);
   if (_localVides[date]) _localVides[date].delete(`${sector}|${slotKey}`);  // placer annule le vide
   saveLocalEdits();
 
@@ -3089,7 +3098,7 @@ async function placeMAR(marId, marInit, mode) {
       // (empêche le serveur de recopier/effacer l'autre demi-jour).
       morning:   slotKey === 'am' ? (_localOverrides[date][marId].am || '') : null,
       afternoon: slotKey === 'pm' ? (_localOverrides[date][marId].pm || '') : null,
-      comment:   `Comité — ${value} ${slotKey.toUpperCase()}`
+      comment:   ctx.lib ? 'LIB' : `Comité — ${value} ${slotKey.toUpperCase()}`
     });
     if (!res.success) throw new Error(res.error);
     showToast(`✅ ${marId} en ${value} — enregistré`);
