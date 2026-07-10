@@ -2329,13 +2329,26 @@ function renderWeek() {
           if (smap[key]) smap[key][dow][half].push({init:doc.initials, id:doc.id, status:st});
         });
       });
-      // Consultations détaillées par type : AM = morning CS-, PM = afternoon CS-
-      if (am.startsWith('CS-') && csTypeMap[am]) {
-        csTypeMap[am][dow].am.push({init:doc.initials, id:doc.id, status:st, lib:!!entry.lib});
-        const secMatin = pm.startsWith('CS-') ? '' : pm;   // consult du matin → aussi visible dans son secteur (=aprem)
+      // Consultations détaillées par type : chaque token CS- de morning (AM) / afternoon (PM).
+      // On DÉCOUPE par '+' (une valeur peut être "SECTEUR+CS-X" via le double poste) — sinon la
+      // consultation ne s'affiche pas côté admin alors qu'elle l'est côté index (qui, lui, découpe).
+      const _amToks = am.split('+').map(x => x.trim()).filter(Boolean);
+      const _pmToks = pm.split('+').map(x => x.trim()).filter(Boolean);
+      _amToks.forEach(tok => {
+        if (tok.startsWith('CS-') && csTypeMap[tok]) {
+          csTypeMap[tok][dow].am.push({init:doc.initials, id:doc.id, status:st, lib:!!entry.lib});
+        }
+      });
+      // consult du matin → aussi visible dans son secteur d'après-midi (miroir d'affichage)
+      if (_amToks.some(t => t.startsWith('CS-'))) {
+        const secMatin = _pmToks.find(t => !t.startsWith('CS-'));
         if (secMatin && smap[secMatin]) smap[secMatin][dow].am.push({init:doc.initials, id:doc.id, status:st});
       }
-      if (pm.startsWith('CS-') && csTypeMap[pm]) csTypeMap[pm][dow].pm.push({init:doc.initials, id:doc.id, status:st, lib:!!entry.lib});
+      _pmToks.forEach(tok => {
+        if (tok.startsWith('CS-') && csTypeMap[tok]) {
+          csTypeMap[tok][dow].pm.push({init:doc.initials, id:doc.id, status:st, lib:!!entry.lib});
+        }
+      });
     });
   });
 
@@ -2540,7 +2553,11 @@ function renderWeek() {
         const toks = [...new Set(String(v).split('+').map(x=>x.trim()).filter(Boolean))];
         if (!toks.length) return;
         curPlaces[`${slot.date}|${doc.id}|${half}`] = toks;
-        if (toks.length >= 2) {
+        // Liseré « double poste » : UNIQUEMENT si le MAR est dans ≥ 2 SECTEURS bloc le même
+        // demi-jour (vrai double-booking, où on ne peut être physiquement qu'à un endroit).
+        // Un secteur + sa consultation est normal → pas de liseré. VOLANT/VIDE ne comptent pas.
+        const blocToks = toks.filter(t => t && !t.startsWith('CS-') && t !== 'VOLANT' && t !== 'VIDE');
+        if (blocToks.length >= 2) {
           if (!dupSet[slot.date]) dupSet[slot.date] = new Set();
           dupSet[slot.date].add(`${doc.id}|${half}`);
         }
