@@ -1580,6 +1580,11 @@ function renderConsPanel(month,daySlots,today){
           cons[dow][half].push({id:doc.id,spec:_sp,lib:!!(entry.lib && _sp==='END' && half==='pm')});
         });
       });
+      // Miroir mater : le MAR en secteur MAT le matin (mardi/jeudi) fait aussi la consult mater.
+      const _jsDowMat = slot.date ? new Date(slot.date+'T12:00:00').getDay() : -1;
+      if((_jsDowMat===2||_jsDowMat===4) && String(entry.morning||'').split('+').map(x=>x.trim()).includes('MAT')){
+        cons[dow].am.push({id:doc.id,spec:'MAT',lib:false});
+      }
     });
   });
   const cols=[];
@@ -2323,6 +2328,10 @@ function renderMobileDay() {
         else if(smap[part]) smap[part][half].push(doc.initials);
       });
     });
+    const _jsDowMat = dayData.date ? new Date(dayData.date+'T12:00:00').getDay() : -1;
+    if((_jsDowMat===2||_jsDowMat===4) && String(entry.morning||'').split('+').map(x=>x.trim()).includes('MAT')){
+      (cons['MAT']=cons['MAT']||{am:[],pm:[]}).am.push({init:doc.initials,lib:false});
+    }
   });
 
   const specCol = sp => SECTOR_COLORS[sp] || (sp==='INTER'?SECTOR_COLORS.CI:sp==='POLY'?SECTOR_COLORS.VOLANT:{bg:'#F1F5F9',fg:'#64748B'});
