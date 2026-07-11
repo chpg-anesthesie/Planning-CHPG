@@ -134,11 +134,21 @@ html,body{height:100%;overflow:hidden;background:#0F172A}
 .slide{position:absolute;inset:0;display:none;background:var(--bg);overflow-y:auto;
   padding:5vh max(4vw,calc((100vw - 1124px)/2)) 9vh}
 header.slide{padding:0;background:linear-gradient(135deg,#1E293B,#0F172A)}
-header.slide.on{display:flex;flex-direction:column}   /* page de titre : contenu centré, bandeau KPI au pied */
-header.slide .wrap{margin-top:auto;margin-bottom:auto;padding:6vh 22px;width:100%}
+/* ── Page de titre : bloc central centré, bandeau KPI au pied, typo à l'échelle 16:9 ── */
+header.slide.on{display:flex;flex-direction:column}
+header.slide .wrap{margin-top:auto;margin-bottom:auto;padding:5vh 22px;width:100%;max-width:1180px}
+header.slide .flag{width:52px;height:36px;margin-bottom:3vh}
+header.slide .eyebrow{font-size:clamp(12px,1.15vw,16px)}
+header.slide h1{font-size:clamp(32px,5.4vw,68px);max-width:19em}
+header.slide .counter-row{margin:5vh 0 2vh;gap:3vw}
+header.slide .counter .n{font-size:clamp(80px,13vw,170px)}
+header.slide .counter .arrow{font-size:clamp(40px,6.5vw,84px)}
+header.slide .counter .lbl{font-size:clamp(12px,1.2vw,16px);max-width:150px}
+header.slide .hero-sub{font-size:clamp(15px,1.7vw,21px);max-width:46em;margin-top:2vh}
 header.slide .hero-kpis{flex-shrink:0;margin-top:0}
-header.slide .counter-row{margin:4.5vh 0 1.5vh}
-header.slide .hero-sub{font-size:clamp(15px,1.6vw,19px);margin-top:1.5vh}
+header.slide .hkpi{padding:2.4vh 22px}
+header.slide .hkpi .v{font-size:clamp(26px,2.6vw,38px)}
+header.slide .hkpi .l{font-size:clamp(11.5px,1vw,14px)}
 .slide.on{display:block;animation:fadeIn .35s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.slide.on{animation:none}}
