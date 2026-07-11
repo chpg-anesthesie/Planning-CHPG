@@ -103,7 +103,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
   <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
   <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
-  <div class="maj">Dernière mise à jour : 9 juillet 2026 — aligné sur l'interface en service (6 onglets, dont Maintenance).</div>
+  <div class="maj">Dernière mise à jour : 11 juillet 2026 — aligné sur l'interface en service (6 onglets, dont Maintenance).</div>
 </header>
 
 <nav class="toc">
@@ -125,6 +125,7 @@
     <li><a href="#c14"><span class="n">14</span>Publier &amp; valider une semaine</a></li>
     <li><a href="#c15"><span class="n">15</span>Dépannage</a></li>
     <li><a href="#c16"><span class="n">16</span>Glossaire des sigles</a></li>
+    <li><a href="#c17"><span class="n">17</span>Sous le capot — comment l'interface fonctionne</a></li>
   </ol>
 </nav>
 
@@ -558,7 +559,49 @@
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
-<div class="foot">Planning-CHPG · guide du comité — mis à jour au fil des évolutions de l'interface (dernier audit du code : 9 juillet 2026).</div>
+
+<!-- 17 -->
+<section id="c17">
+  <h2><span class="n">17</span>Sous le capot — comment l'interface fonctionne</h2>
+  <p>Cette section n'est pas nécessaire pour utiliser l'interface : elle explique <strong>comment elle est construite</strong>, pour ceux que ça intéresse. La comprendre aide surtout à interpréter les comportements du quotidien — pourquoi il faut publier, pourquoi rafraîchir, ce que vérifie le diagnostic.</p>
+
+  <h3>17.1 · Les trois étages</h3>
+  <p>Le système repose sur trois étages, tous hébergés chez Google :</p>
+  <ol class="steps">
+    <li><strong>La page web</strong> (admin.html, le planning de l'équipe, le portail…) : ce que vous voyez à l'écran. Elle ne contient aucune donnée — elle les demande.</li>
+    <li><strong>Le moteur</strong> : un programme qui tourne chez Google et exécute chaque action (lire le planning, poser une absence, générer les gardes, publier, envoyer les codes).</li>
+    <li><strong>Le classeur Google Sheets</strong> : la mémoire du système. Chaque onglet y joue le rôle d'une table : l'équipe, la configuration, les gardes de chaque année, les indispos, le journal des actions…</li>
+  </ol>
+  <p>Quand vous cliquez, la page envoie une demande au moteur ; le moteur lit ou écrit dans le classeur, puis renvoie le résultat à la page. <strong>Personne n'écrit directement dans le classeur depuis une page</strong> : tout passe par le moteur, qui vérifie chaque demande (dont le code d'accès de la personne connectée). C'est ce qui permet un journal complet des actions — l'onglet des logs.</p>
+
+  <h3>17.2 · Le brouillon et le publié : la cuisine et la salle</h3>
+  <p>Le tableau que le comité manipule dans admin.html vit dans le classeur : c'est <strong>la cuisine</strong>. Le bouton « Publier » fabrique un <strong>instantané</strong> du planning et le dépose dans un espace de publication ; c'est ce fichier — et lui seul — que la page Planning de l'équipe vient lire : <strong>la salle</strong>. D'où deux règles du quotidien :</p>
+  <ul>
+    <li>L'équipe voit <strong>la dernière publication</strong>, jamais le brouillon. Une modification non publiée n'existe pas pour elle.</li>
+    <li>Publier est sans risque : cela remplace simplement l'instantané précédent par un nouveau.</li>
+  </ul>
+  <div class="callout tip">
+    <div class="ct">Pourquoi Ctrl+Maj+R ?</div>
+    <p>Pour aller vite, votre navigateur garde une copie des pages qu'il a déjà affichées. Après une mise à jour de l'interface, il peut continuer à montrer l'ancienne copie. Le rafraîchissement forcé (<span class="kbd">Ctrl</span>+<span class="kbd">Maj</span>+<span class="kbd">R</span>) l'oblige à aller rechercher la dernière version. C'est le premier réflexe devant un affichage bizarre.</p>
+  </div>
+
+  <h3>17.3 · Une année = son jeu d'onglets</h3>
+  <p>Chaque année possède ses propres onglets dans le classeur (gardes, indispos, affectations, statistiques… suffixés par l'année). Le sélecteur d'année en haut d'admin.html ne fait que <strong>pointer</strong> vers le bon jeu d'onglets — il ne déplace ni ne copie rien. À la clôture, l'assistant de janvier archive l'année écoulée puis bascule le pointeur : les années archivées restent consultables, en lecture seule.</p>
+
+  <h3>17.4 · La génération : un calcul, puis un cliché figé</h3>
+  <p>Quand l'assistant de novembre lance la génération, le moteur calcule l'année complète en une quinzaine de secondes, sous toutes les contraintes (cibles, indispos, protections, rotation de Noël). Le résultat est écrit dans le classeur <strong>et photographié</strong> : ce cliché des statistiques de génération est figé une fois pour toutes. C'est lui qui sert de référence d'équité (le certificat), et c'est sur lui — pas sur l'état au 31 décembre, échanges compris — que se calcule la dette de l'année suivante.</p>
+
+  <h3>17.5 · Ce que vérifie le diagnostic</h3>
+  <p>Le diagnostic de l'onglet Maintenance relit toute la chaîne décrite ci-dessus : les onglets et réglages attendus dans le classeur, les MAR sans email ou sans code, la clé de publication, la présence des fichiers publiés et leur <strong>cohérence</strong> avec le tableau de travail (mêmes gardes des deux côtés). En un clic, il répond à la question « la cuisine et la salle racontent-elles la même histoire ? » — c'est pour cela qu'il est conseillé avant chaque assistant annuel.</p>
+
+  <div class="callout warn">
+    <div class="ct">Ce que cette architecture implique</div>
+    <p>Si Google Sheets est momentanément indisponible, l'interface d'administration l'est aussi — mais <strong>le planning publié, lui, reste consultable</strong> par l'équipe : c'est un fichier séparé. Et comme toutes les données vivent dans un classeur Google, il n'y a ni serveur à entretenir, ni base de données à sauvegarder à la main.</p>
+  </div>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<div class="foot">Planning-CHPG · guide du comité — mis à jour au fil des évolutions de l'interface (dernier audit du code : 11 juillet 2026).</div>
 
 </div>
 </body>
