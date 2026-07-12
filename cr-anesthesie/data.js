@@ -33,7 +33,9 @@ const DATA = {
   entretien: ["Sevoflurane","Propofol AIVOC"],
   
   sedationGestes: [
-  "Cataracte"
+  "Cataracte",
+  "Carcinome cutané",
+  "Blépharoplastie"
 ],
   
 ectGestes: [
