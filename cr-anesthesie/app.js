@@ -30,6 +30,18 @@ const state = {
   endoscopyIntubation: false
 };
 
+// ── Listes de chips centralisées (source unique) ──
+const CURARE_BASE = ["Aucun","Atracurium","Rocuronium"];
+const VA_STD = ["Ventilation spontanée","Masque laryngé","Intubation oro-trachéale"];
+const REVEIL_STD = ["Extubation", "Complication extubation", "Patient transféré intubé ventilé"];
+const REVEIL_SIMPLE = ["Simples", "Autre"];
+const TRANSFUSION_ITEMS = ["CGR", "PFC", "Plaquettes", "Fibrinogène", "Calcium", "Autre"];
+const DRAINS_ITEMS = ["Drain thoracique", "Redon", "Lame", "Sonde vésicale", "SNG", "Autre"];
+const ANALGESIE_STD = ["Paracétamol", "Kétoprofène", "Néfopam", "Tramadol", "Morphine"];
+const ANALGESIE_SED = ["Paracétamol", "Autre"];
+const MONITORAGE_SED = ["Scope", "SpO2", "VVP"];
+
+
 function initDate(){
   const d = new Date();
 
@@ -495,12 +507,12 @@ $("endoscopyIntubationChip")
 
   state.reveil =
     state.reveil.filter(x =>
-      ["Simples", "Autre"].includes(x)
+      REVEIL_SIMPLE.includes(x)
     );
 
   createChips(
     "reveilOptions",
-    ["Simples", "Autre"],
+    REVEIL_SIMPLE,
     "reveil"
   );
 
@@ -523,12 +535,12 @@ $("endoscopyIntubationChip")
 
     createChips(
       "monitorage",
-      ["Scope", "SpO2", "VVP"],
+      MONITORAGE_SED,
       "monitorage"
     );
 
     state.monitorage = state.monitorage.filter(x =>
-      ["Scope", "SpO2", "VVP"].includes(x)
+      MONITORAGE_SED.includes(x)
     );
 
     state.induction = state.induction.filter(x =>
@@ -538,12 +550,12 @@ $("endoscopyIntubationChip")
     renderECTMedications();
 
     state.reveil = state.reveil.filter(x =>
-    ["Simples", "Autre"].includes(x)
+    REVEIL_SIMPLE.includes(x)
     );
 
     createChips(
       "reveilOptions",
-      ["Simples", "Autre"],
+      REVEIL_SIMPLE,
       "reveil"
     );
 
@@ -565,12 +577,12 @@ $("endoscopyIntubationChip")
     
     createChips(
       "monitorage",
-      ["Scope", "SpO2", "VVP"],
+      MONITORAGE_SED,
       "monitorage"
     );
 
     state.monitorage = state.monitorage.filter(x =>
-      ["Scope", "SpO2", "VVP"].includes(x)
+      MONITORAGE_SED.includes(x)
     );
 
     state.induction = state.induction.filter(x =>
@@ -585,12 +597,12 @@ $("endoscopyIntubationChip")
     
 createChips(
   "analgesieOptions",
-  ["Paracétamol", "Autre"],
+  ANALGESIE_SED,
   "analgesie"
 );
 
 state.analgesie = state.analgesie.filter(x =>
-  ["Paracétamol", "Autre"].includes(x)
+  ANALGESIE_SED.includes(x)
 );
 
 renderAnalgesieDetails();
@@ -609,12 +621,12 @@ if(!["Aucune", "Autre"].includes(state.antibio)){
 renderAntibioDetails();
     
     state.reveil = state.reveil.filter(x =>
-  ["Simples", "Autre"].includes(x)
+  REVEIL_SIMPLE.includes(x)
 );
 
 createChips(
   "reveilOptions",
-  ["Simples", "Autre"],
+  REVEIL_SIMPLE,
   "reveil"
 );
 
@@ -642,7 +654,7 @@ renderPeropVisibility();
     
 createChips(
   "analgesieOptions",
-  ["Paracétamol", "Kétoprofène", "Néfopam", "Tramadol", "Morphine"],
+  ANALGESIE_STD,
   "analgesie"
 );
 
@@ -651,12 +663,12 @@ renderAnalgesieDetails();
     renderAntibio();
     
     state.reveil = state.reveil.filter(x =>
-  ["Extubation", "Complication extubation", "Patient transféré intubé ventilé"].includes(x)
+  REVEIL_STD.includes(x)
 );
 
 createChips(
   "reveilOptions",
-  ["Extubation", "Complication extubation", "Patient transféré intubé ventilé"],
+  REVEIL_STD,
   "reveil"
 );
 
@@ -683,7 +695,7 @@ function updateCurare(){
 
   const list = sr
     ? ["Aucun","Atracurium","Rocuronium","Célocurine"]
-    : ["Aucun","Atracurium","Rocuronium"];
+    : CURARE_BASE;
 
   state.curare = state.curare.filter(x=>list.includes(x));
 createChips("curare", list, "curare");
@@ -873,11 +885,11 @@ function initUI(){
 
   createChips("monitorage", DATA.monitorage, "monitorage");
   createChips("induction", DATA.induction, "induction");
-  createChips("curare", ["Aucun","Atracurium","Rocuronium"], "curare");
+  createChips("curare", CURARE_BASE, "curare");
 
   createChips(
     "vaOptions",
-    ["Ventilation spontanée","Masque laryngé","Intubation oro-trachéale"],
+    VA_STD,
     "va",
     true
   );
@@ -886,25 +898,25 @@ function initUI(){
 
   createChips(
     "analgesieOptions",
-    ["Paracétamol", "Kétoprofène", "Néfopam", "Tramadol", "Morphine"],
+    ANALGESIE_STD,
     "analgesie"
   );
 
   createChips(
     "reveilOptions",
-    ["Extubation", "Complication extubation", "Patient transféré intubé ventilé"],
+    REVEIL_STD,
     "reveil"
   );
 
   createChips(
     "transfusionOptions",
-    ["CGR", "PFC", "Plaquettes", "Fibrinogène", "Calcium", "Autre"],
+    TRANSFUSION_ITEMS,
     "transfusion"
   );
 
   createChips(
     "drainsOptions",
-    ["Drain thoracique", "Redon", "Lame", "Sonde vésicale", "SNG", "Autre"],
+    DRAINS_ITEMS,
     "drains"
   );
 
@@ -988,10 +1000,10 @@ function initListeners(){
       $("sequenceRapide").checked = false;
       $("sequenceRapideToggle")?.classList.remove("active");
 
-      createChips("curare", ["Aucun","Atracurium","Rocuronium"], "curare");
+      createChips("curare", CURARE_BASE, "curare");
       createChips(
         "vaOptions",
-        ["Ventilation spontanée","Masque laryngé","Intubation oro-trachéale"],
+        VA_STD,
         "va",
         true
       );
@@ -1018,7 +1030,7 @@ function initListeners(){
       state.transfusion = [];
       createChips(
         "transfusionOptions",
-        ["CGR", "PFC", "Plaquettes", "Fibrinogène", "Calcium", "Autre"],
+        TRANSFUSION_ITEMS,
         "transfusion"
       );
     }
@@ -1035,7 +1047,7 @@ function initListeners(){
       state.drains = [];
       createChips(
         "drainsOptions",
-        ["Drain thoracique", "Redon", "Lame", "Sonde vésicale", "SNG", "Autre"],
+        DRAINS_ITEMS,
         "drains"
       );
     }
