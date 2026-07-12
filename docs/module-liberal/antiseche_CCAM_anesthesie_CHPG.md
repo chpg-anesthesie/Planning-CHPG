@@ -1,8 +1,8 @@
-# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v8)
+# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v9)
 
 *Source faisant autorité : **Arrêté Ministériel n° 2005-276** régissant la CCAM à Monaco (MAJ 2018) + mémento des Caisses Sociales de Monaco. Les **valeurs monétaires sont celles fixées en France** (art. 16) → base CCAM **v80, en vigueur au 01/01/2025**. Objectif : coter **à juste titre** l'exhaustivité de ce qui est réellement fait — jamais surcoter.*
 
-*v8 — 8 juillet 2026. Ajoute la **section Réanimation** (forfaits A/B, suppléance, inclus vs facturable en sus, arbitrage forfait/actes). v7 : la redevance hôpital reste une inconnue à ne pas présenter comme acquise.*
+*v9 — 9 juillet 2026. **Structure Tarif → BR → DH** validée sur 9 feuilles réelles : la **BR = Tarif × modificateurs, carte-indépendante** ; le **coefficient de carte vit dans le DÉPASSEMENT (DH)**, pas dans la BR (correction d'une erreur des versions ≤ v8). Grille des plafonds de DH par statut, confirmée au centime. v8 : section Réanimation.*
 
 ---
 
@@ -82,19 +82,32 @@ Un acte technique CCAM **ne se cumule pas** avec les honoraires d'une **consulta
 
 ---
 
-## 5 bis. Conversion monégasque (le montant réellement facturable)
+## 5 bis. Lire une feuille : Tarif → BR → DH (validé sur dossiers réels)
 
-La **base de remboursement** = tarif conventionnel (art. 16), **identique quelle que soit la carte**. Les Caisses (CCSS / SPME / CAMTI) remboursent **80 %** (ticket modérateur 20 %), ou **100 %** si l'acte est **exonéré** (règle du seuil pour les actes coûteux, ALD…). La **couleur de carte ne change pas le remboursement** : elle fixe le **plafond de dépassement** facturable.
+Une feuille de soins monégasque porte trois montants, dans cet ordre :
 
-| Carte patient (assuré CSM) | Ce que le médecin peut facturer |
-|---|---|
-| **Verte** | tarif conventionnel (**base**, pas de dépassement) |
-| **Rose** | base **+ 20 %** (× 1,20) |
-| **Bulle** | libre entente, avec tact et mesure |
+| Colonne | Ce que c'est | Calcul |
+|---|---|---|
+| **Tarif** | tarif de base de votre ligne (activité 4) | base CCAM (art. 16 = valeurs françaises) |
+| **BR** (base de remboursement) | Tarif **× modificateurs** (7 = +6 %, A = +23 €, 8 = +20 %…) | **identique quelle que soit la carte** |
+| **DH** (dépassement d'honoraires) | supplément au-dessus de la BR | **plafonné par la carte du patient** |
 
-- **Assuré français** (pas de carte CSM) : tarif de **base français**, sans coefficient ; dépassements « avec tact et mesure » possibles si secteur 2.
-- Le remboursement se calcule **toujours sur la base** (ex. : rembours. identique pour une carte verte et une carte rose ; seul le dépassement diffère).
-- ⚠️ **Actes CCAM techniques** : la convention CCSS-CAMTI/Ordre évoque des **plafonds de dépassement plus élevés** (coefficients jusqu'à ~154-241 %) → le plafond CCAM **exact par carte reste à lire dans la table CCAM de la convention**, non confirmé ici. Le **+20 %** ci-dessus est le pas confirmé pour les actes du tableau conventionnel.
+**Honoraire facturé = BR + DH.** Vérifié au centime sur des feuilles réelles : quand seul le modificateur 7 s'applique, `BR = Tarif × 1,06` sans exception (ex. carte verte HHFA002 : 618,89 × 1,06 = 656,02 ✓ ; carte rose HHFE004 : 114,93 × 1,06 = 121,84 ✓).
+
+Le **plafond du DH** dépend du statut du patient :
+
+| Statut patient | Plafond du DH | Exemple réel observé |
+|---|---|---|
+| **Carte verte** | **0** — aucun dépassement | LMMC002, HHFA002 → DH nul |
+| **Carte rose** | **+ 20 % de la BR** | HHFE004 → DH 24,37 = 20,00 % de 121,84 |
+| **Carte bulle** | **libre entente** | LMMA012 → DH = +200 % de la BR |
+| **Assuré français, libéral** | **libre** (hors grille CSM) | HHQE002 → DH = +100 % de la BR |
+| **SPME** | (sans DH sur l'exemple) | LLMC004 → BR seule, remboursée 100 % |
+| **AME / HNP** | **à confirmer** | dossier PTG 509,34 € — probablement BR + DH fusionnés |
+
+- Le **remboursement** au patient (80 %, ou 100 % si exonéré par la règle du seuil / ALD) se calcule **toujours sur la BR**, jamais sur le DH.
+- **Correction (v9)** : le coefficient de carte ne s'applique **pas** à la BR — il vit **entièrement dans le DH**. La BR reste au tarif conventionnel strict (Tarif × modificateurs), carte-indépendante. *(Les versions ≤ v8 logeaient à tort ce coefficient dans la base.)*
+- **Pour le module libéral** : le **ratio des 30 % se calcule sur la BR** ; le **DH est hors quota** (jamais reversé au titre des 30 %).
 
 ---
 
@@ -117,13 +130,13 @@ La **base de remboursement** = tarif conventionnel (art. 16), **identique quelle
 
 **Logique :** LMMA012 **porte l'activité 4** (donc pas de ZZLP025 ici) ; comme le TAP est une ALR de paroi abdominale, on ajoute **AHQJ021 en sus** ; présence permanente → **+6 %**. **Trois éléments valorisés là où beaucoup n'en codent qu'un.**
 
-**Conversion monégasque** (§5 bis) sur la base de 138,98 € :
+**Ce que ça donne selon le patient** (BR = 138,98 €, DH plafonné par la carte — §5 bis) :
 
-| Cas | Honoraire facturé |
-|---|---|
-| **Carte verte** / assuré français secteur 1 | **≈ 139 €** (base) |
-| **Carte rose** | **≈ 167 €** (base + 20 %) — *plafond CCAM peut-être supérieur, à confirmer* |
-| **Carte bulle** | libre entente |
+| Cas | BR | DH | Facturé |
+|---|---|---|---|
+| **Carte verte** | 138,98 € | 0 | **138,98 €** |
+| **Carte rose** | 138,98 € | +20 % = 27,80 € | **166,78 €** |
+| **Carte bulle / français libéral** | 138,98 € | libre | **138,98 € + DH** |
 
 > Remboursé **80 %** de la base (ou **100 %** si exonéré : acte au-dessus du seuil / ALD), **toujours calculé sur la base** — la carte ne joue que sur le **dépassement**.
 >
