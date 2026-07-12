@@ -450,6 +450,7 @@ function buildDPIReport(){
   txt = txt.split("INTERVENTION\n").join("");
   txt = txt.split("INSTALLATION\n").join("");
   txt = txt.split("INDUCTION\n").join("");
+  txt = txt.split("SÉDATION\n").join("");
   txt = txt.split("VOIES AÉRIENNES\n").join("");
   txt = txt.split("ENTRETIEN\n").join("");
   txt = txt.split("ANALGÉSIE\n").join("");
