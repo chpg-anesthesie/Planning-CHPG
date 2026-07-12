@@ -348,16 +348,32 @@ function applySmartPreset(geste){
     state.induction = [...preset.induction];
   }
 
+  if(preset.curare){
+    state.curare = [...preset.curare];
+  }
+
   if(preset.va){
     state.va = preset.va;
+    createChips("vaOptions", VA_STD, "va", true);
+    renderVADetails();
   }
 
   if(preset.entretien !== undefined){
     state.entretien = preset.entretien;
+    createChips("entretienOptions", DATA.entretien, "entretien", true);
+  }
+
+  if(preset.analgesie){
+    state.analgesie = [...preset.analgesie];
   }
 
   if(preset.reveil){
     state.reveil = [...preset.reveil];
+  }
+
+  if(preset.sequenceRapide){
+    $("sequenceRapide").checked = true;
+    $("sequenceRapideToggle")?.classList.add("active");
   }
 }
 function isSedationMode(){
@@ -1210,9 +1226,20 @@ function restoreDraft(){
     // État complet (écrase presets/filtres de mode)
     Object.assign(state, snap.state||{});
 
-    // Interrupteurs hors state
-    $("sequenceRapide").checked = !!snap.seqRapide;
-    $("sequenceRapideToggle")?.classList.toggle("active", !!snap.seqRapide);
+    // Reconstruire les sous-champs (certains renderers RÉINITIALISENT une partie de
+    // l'état : renderVADetails remet sequenceRapide=false et state.ventilation="").
+    reRenderChipsFromState();
+    renderMonitorageDetails(); renderVADetails(); renderVentilationDetails();
+    renderNeuraxialDetails(); renderAntibioDetails(); renderALRDetails();
+    renderAnalgesieDetails(); renderTransfusionDetails(); renderDrainsDetails();
+    if(isSedationMode()||isECTMode()) renderSedationSuitesDetails(); else renderReveilDetails();
+    renderPeropVisibility();
+
+    // RE-restaurer l'état écrasé par les renderers, PUIS re-cocher les chips.
+    Object.assign(state, snap.state||{});
+    reRenderChipsFromState();
+
+    // Interrupteurs hors state (posés APRÈS les renderers, en dernier)
     $("noradToggle").classList.toggle("active", !!snap.noradActive);
     $("noradBlock").classList.toggle("hidden", !snap.noradActive);
     $("incidentToggle").classList.toggle("active", !!snap.incidentActive);
@@ -1226,13 +1253,10 @@ function restoreDraft(){
     $("drainsToggle").classList.toggle("active", !!state.drainsActive);
     $("drainsBlock").classList.toggle("hidden", !state.drainsActive);
 
-    // Re-cocher les chips depuis l'état restauré, puis reconstruire les sous-champs
-    reRenderChipsFromState();
-    renderMonitorageDetails(); renderVADetails(); renderVentilationDetails();
-    renderNeuraxialDetails(); renderAntibioDetails(); renderALRDetails();
-    renderAnalgesieDetails(); renderTransfusionDetails(); renderDrainsDetails();
-    if(isSedationMode()||isECTMode()) renderSedationSuitesDetails(); else renderReveilDetails();
-    renderPeropVisibility();
+    // Séquence rapide EN DERNIER (renderVADetails l'a remise à false) + rafraîchir le curare
+    $("sequenceRapide").checked = !!snap.seqRapide;
+    $("sequenceRapideToggle")?.classList.toggle("active", !!snap.seqRapide);
+    if(snap.seqRapide){ updateCurare(); }
 
     // Valeurs des sous-champs (après que les renderers les aient recréés)
     DETAIL_IDS.forEach(id=>{ const el=$(id); if(el && snap.details && snap.details[id]!==undefined) el.value=snap.details[id]; });
