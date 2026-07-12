@@ -880,7 +880,7 @@ function testAnnuaire() {
 //  Prompt calé sur les CR validés du service. Modèle configurable ci-dessous.
 // ══════════════════════════════════════════════════════════════════════
 
-const CRH_MODEL = 'claude-sonnet-5';   // bascule possible vers 'claude-opus-4-8' pour + de finesse
+const CRH_MODEL = 'claude-sonnet-4-6';   // aligné sur le prototype ; rebascule 'claude-sonnet-5' / 'claude-opus-4-8' si besoin
 const CRH_ALLOWED = ['FROHLICH'];      // ids MEDECINS autorisés à générer des CRH (accès nominatif)
 const CRH_MAX_TOKENS = 8192;           // plafond de sortie
 
