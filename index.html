@@ -970,16 +970,19 @@ async function viewLogin() {
 
 async function viewAutoLogin() {
   const saved = sessionStorage.getItem('chpgViewCode');
-  if (!saved) return; // écran de connexion affiché
+  if (!saved) return; // pas de code en cache → écran de connexion affiché
+  VIEW_CODE = saved;
+  document.getElementById('viewAuthOverlay').style.display = 'none'; // masqué tout de suite (code en cache) → plus de clignotement
   try {
-    VIEW_CODE = saved;
     const r = await apiPost({action: 'login'});
     if (r && r.success) {
       applyUserBadge(r);
-      document.getElementById('viewAuthOverlay').style.display = 'none';
       init();
-    } else { VIEW_CODE = ''; sessionStorage.removeItem('chpgViewCode'); }
-  } catch(e) { VIEW_CODE = ''; }
+    } else {
+      VIEW_CODE = ''; sessionStorage.removeItem('chpgViewCode');
+      document.getElementById('viewAuthOverlay').style.display = 'flex';
+    }
+  } catch(e) { VIEW_CODE = ''; document.getElementById('viewAuthOverlay').style.display = 'flex'; }
 }
 
 document.getElementById('viewAuthInput').addEventListener('keydown', e => { if (e.key === 'Enter') viewLogin(); });
