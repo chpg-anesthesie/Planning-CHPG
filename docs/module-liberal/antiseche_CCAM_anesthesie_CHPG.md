@@ -1,8 +1,8 @@
-# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v9)
+# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v10)
 
 *Source faisant autorité : **Arrêté Ministériel n° 2005-276** régissant la CCAM à Monaco (MAJ 2018) + mémento des Caisses Sociales de Monaco. Les **valeurs monétaires sont celles fixées en France** (art. 16) → base CCAM **v80, en vigueur au 01/01/2025**. Objectif : coter **à juste titre** l'exhaustivité de ce qui est réellement fait — jamais surcoter.*
 
-*v9 — 9 juillet 2026. **Structure Tarif → BR → DH** validée sur 9 feuilles réelles : la **BR = Tarif × modificateurs, carte-indépendante** ; le **coefficient de carte vit dans le DÉPASSEMENT (DH)**, pas dans la BR (correction d'une erreur des versions ≤ v8). Grille des plafonds de DH par statut, confirmée au centime. v8 : section Réanimation.*
+*v10 — 12 juillet 2026. **Chaîne de calcul corrigée** sur dossiers multi-lignes : le **coefficient monégasque ×1,95 est dans le TARIF (la base)**, pas dans le DH (corrige v5-v9). Ajout de l'**association** (acte principal 100 % · associé 50 % · geste complémentaire 100 % en sus) et de la **somme des lignes** pour la BR d'un parcours. Le modificateur A monégasque = 44,85 € (23×1,95).*
 
 ---
 
@@ -82,34 +82,35 @@ Un acte technique CCAM **ne se cumule pas** avec les honoraires d'une **consulta
 
 ---
 
-## 5 bis. Lire une feuille : Tarif → BR → DH (validé sur dossiers réels)
+## 5 bis. Lire / calculer une feuille : Tarif → BR → DH (validé au centime)
 
-Une feuille de soins monégasque porte trois montants, dans cet ordre :
+Chaîne de calcul, **par ligne de code** :
 
-| Colonne | Ce que c'est | Calcul |
+**① Tarif** (logiciel) = tarif officiel activité 4 **× coefficient de base selon l'assuré**
+- **Monégasque** (verte / rose / bulle) : **× 1,95**
+- **Français** : **× 1,00**
+> ex. NEKA014 (PTH) : 253,90 × 1,95 = **495,11 €** ✓ · assuré français HHQE002 : 52,03 × 1,00 = **52,03 €** ✓
+
+**② BR** (par ligne) = Tarif **× (1 + %modif) × taux d'association + €modif**
+- **%modif** : 7 (présence permanente) = **+6 %** · 8 (itératif) = +20 %
+- **€modif** : A (âge < 4 ou > 80 ans) = **44,85 €** chez le monégasque (23 × 1,95) · **23 €** chez le français
+- **taux d'association** : acte **principal 100 %** · acte **associé 50 %** · **geste complémentaire / supplément** (AHQJ021, YYYY041…) = **100 % en sus** (jamais décoté)
+> principal : 495,11 × 1,06 + 44,85 = **569,65 €** ✓ · associé 50 % (NEFA004) : 231,70 × 1,06 × 0,5 + 44,85 = **167,64 €** ✓
+
+**③ BR du parcours = SOMME des lignes.** C'est la réalité « lignes multiples » : acte principal + actes associés + suppléments, chacun avec son taux.
+
+**④ DH** (dépassement d'honoraires, par-dessus la BR, **hors quota 30 %**) selon l'assuré :
+
+| Statut patient | DH | Observé |
 |---|---|---|
-| **Tarif** | tarif de base de votre ligne (activité 4) | base CCAM (art. 16 = valeurs françaises) |
-| **BR** (base de remboursement) | Tarif **× modificateurs** (7 = +6 %, A = +23 €, 8 = +20 %…) | **identique quelle que soit la carte** |
-| **DH** (dépassement d'honoraires) | supplément au-dessus de la BR | **plafonné par la carte du patient** |
+| **Carte verte · SPME** | **0** (aucun dépassement) | DH nul |
+| **Carte rose** | **+ 20 % de la BR** | 24,37 = 20 % de 121,84 ✓ |
+| **Carte bulle · français · NAS · AME** | **libre** | souvent fixé pour un **total rond** (ex. honoraire à 1500 €) |
 
-**Honoraire facturé = BR + DH.** Vérifié au centime sur des feuilles réelles : quand seul le modificateur 7 s'applique, `BR = Tarif × 1,06` sans exception (ex. carte verte HHFA002 : 618,89 × 1,06 = 656,02 ✓ ; carte rose HHFE004 : 114,93 × 1,06 = 121,84 ✓).
+**Encaissé = BR + DH.** Remboursement au patient = **80 %** (ou 100 % si exonéré : seuil / ALD), **toujours sur la BR**.
 
-Le **plafond du DH** dépend du statut du patient :
-
-| Statut patient | Plafond du DH | Exemple réel observé |
-|---|---|---|
-| **Carte verte** | **0** — aucun dépassement | LMMC002, HHFA002 → DH nul |
-| **Carte rose** | **+ 20 % de la BR** | HHFE004 → DH 24,37 = 20,00 % de 121,84 |
-| **Carte bulle** | **libre entente** | LMMA012 → DH = +200 % de la BR |
-| **Assuré français, libéral** | **libre** (hors grille CSM) | HHQE002 → DH = +100 % de la BR |
-| **SPME** | (sans DH sur l'exemple) | LLMC004 → BR seule, remboursée 100 % |
-| **AME / HNP** | **à confirmer** | dossier PTG 509,34 € — probablement BR + DH fusionnés |
-
-- Le **remboursement** au patient (80 %, ou 100 % si exonéré par la règle du seuil / ALD) se calcule **toujours sur la BR**, jamais sur le DH.
-- **Correction (v9)** : le coefficient de carte ne s'applique **pas** à la BR — il vit **entièrement dans le DH**. La BR reste au tarif conventionnel strict (Tarif × modificateurs), carte-indépendante. *(Les versions ≤ v8 logeaient à tort ce coefficient dans la base.)*
-- **Pour le module libéral** : le **ratio des 30 % se calcule sur la BR** ; le **DH est hors quota** (jamais reversé au titre des 30 %).
-
----
+> ⚠️ **Correction v10** : le coefficient monégasque **×1,95 est dans le Tarif (la base)**, pas dans le DH (erreur des v5-v9). Il englobe aussi le modificateur A → **44,85 €**. Le DH reste le **dépassement**, différencié par carte (verte 0 · rose +20 % · bulle libre).
+> **Pour le module** : ratio des 30 % sur la **BR** ; **DH hors quota**.
 
 ## 6. Exemple chiffré — cure de hernie inguinale + TAP bloc échoguidé (sous AG)
 
@@ -130,13 +131,14 @@ Le **plafond du DH** dépend du statut du patient :
 
 **Logique :** LMMA012 **porte l'activité 4** (donc pas de ZZLP025 ici) ; comme le TAP est une ALR de paroi abdominale, on ajoute **AHQJ021 en sus** ; présence permanente → **+6 %**. **Trois éléments valorisés là où beaucoup n'en codent qu'un.**
 
-**Ce que ça donne selon le patient** (BR = 138,98 €, DH plafonné par la carte — §5 bis) :
+**Ce que ça donne selon l'assuré** (base française du parcours = 138,98 € — §5 bis) :
 
-| Cas | BR | DH | Facturé |
+| Cas | Base (Tarif×modif) | DH | Facturé |
 |---|---|---|---|
-| **Carte verte** | 138,98 € | 0 | **138,98 €** |
-| **Carte rose** | 138,98 € | +20 % = 27,80 € | **166,78 €** |
-| **Carte bulle / français libéral** | 138,98 € | libre | **138,98 € + DH** |
+| **Assuré français** | 138,98 € (× 1,00) | libre | 138,98 € + DH |
+| **Monégasque — verte** | 271,01 € (× 1,95) | 0 | **271,01 €** |
+| **Monégasque — rose** | 271,01 € | +20 % = 54,20 € | **325,21 €** |
+| **Monégasque — bulle** | 271,01 € | libre | 271,01 € + DH |
 
 > Remboursé **80 %** de la base (ou **100 %** si exonéré : acte au-dessus du seuil / ALD), **toujours calculé sur la base** — la carte ne joue que sur le **dépassement**.
 >
