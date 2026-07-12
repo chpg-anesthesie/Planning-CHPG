@@ -862,6 +862,7 @@ function resetForm(){
     return;
   }
   window.__crSkipUnloadWarn = true;
+  clearDraft();
   location.reload();
 }
 function initState(){
@@ -1100,10 +1101,154 @@ function initListeners(){
   document.addEventListener("input", renderReport);
 }
 
+
+// ── AUTOSAVE (brouillon local, anti-perte) ─────────────────────────────
+const DRAFT_KEY = 'cr-anesthesie-draft';
+const DRAFT_TTL_MS = 12 * 3600 * 1000; // 12 h
+let __restoring = false;
+let __initializing = true;
+const DETAIL_IDS = [
+  "scopeDerivations","ktaSite","ktcSite","mlSize","tubeSize","selectiveTubeSize",
+  "ventilationPrecision","periduraleNiveau","localAgent","localVolume",
+  "analgesieOtherText","alrOtherText","antibioOtherText","positionPatient",
+  "diurese","saignement","remplissage","noradText","incidentText",
+  "qteCGR","qtePFC","qtePlaquettes","qteFibrinogene","qteCalcium","transfusionOtherText",
+  "drainThoraciqueText","redonText","lameText","svText","drainsOtherText",
+  "sedationSuitesOtherText","complicationExtubationText","intubeVentileReason","destinationPostop"
+];
+
+function saveDraft(){
+  if(__restoring || __initializing) return;
+  try{
+    const snap = {
+      v:1, t:Date.now(),
+      date:$("date").value,
+      specialite:specialiteSelect.value,
+      anesth:[...document.querySelectorAll(".anesthesiste")].map(x=>x.value),
+      chir:[...document.querySelectorAll(".chirurgien")].map(x=>x.value),
+      gestes:[...document.querySelectorAll("#gesteContainer > .field")].map(b=>({
+        sel:b.querySelector(".geste-select")?.value||"",
+        lat:b.querySelector(".laterality-select")?.value||"",
+        approach:b.querySelector(".approach-select")?.value||"",
+        robot:!!b.querySelector(".robot-chip.active"),
+        precision:b.querySelector(".precision-input")?.value||"",
+        custom:b.querySelector(".custom-geste")?.value||""
+      })),
+      state:JSON.parse(JSON.stringify(state)),
+      seqRapide:$("sequenceRapide").checked,
+      noradActive:$("noradToggle").classList.contains("active"),
+      incidentActive:$("incidentToggle").classList.contains("active"),
+      details:{}
+    };
+    DETAIL_IDS.forEach(id=>{ const el=$(id); if(el) snap.details[id]=el.value; });
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(snap));
+  }catch(e){}
+}
+
+function clearDraft(){ try{ localStorage.removeItem(DRAFT_KEY); }catch(e){} }
+
+function reRenderChipsFromState(){
+  const groups = {
+    monitorage:["monitorage",false], induction:["induction",false], curare:["curare",false],
+    vaOptions:["va",true], entretienOptions:["entretien",true], analgesieOptions:["analgesie",false],
+    alrOptions:["alr",false], neuraxialOptions:["neuraxial",false], reveilOptions:["reveil",false],
+    transfusionOptions:["transfusion",false], drainsOptions:["drains",false],
+    antibioOptions:["antibio",true], ventilationOptions:["ventilation",true]
+  };
+  for(const cid in groups){
+    const box=$(cid); if(!box) continue;
+    const list=[...box.querySelectorAll(".chip")].map(c=>c.textContent.trim()).filter(Boolean);
+    if(list.length) createChips(cid, list, groups[cid][0], groups[cid][1]);
+  }
+}
+
+function restoreDraft(){
+  let snap;
+  try{ snap=JSON.parse(localStorage.getItem(DRAFT_KEY)); }catch(e){ return false; }
+  if(!snap || snap.v!==1) return false;
+  if(snap.t && (Date.now()-snap.t) > DRAFT_TTL_MS){ clearDraft(); return false; }
+  const hasWork = (snap.gestes||[]).some(g=>g.sel) ||
+                  (snap.anesth||[]).some(Boolean) || (snap.chir||[]).some(Boolean);
+  if(!hasWork) return false;
+
+  __restoring = true;
+  try{
+    $("date").value = snap.date || "";
+    specialiteSelect.value = snap.specialite || "";
+    specialiteSelect.dispatchEvent(new Event("change",{bubbles:true}));
+
+    // Anesthésistes
+    $("anesthContainer").innerHTML=""; addAnesth(false);
+    for(let i=1;i<(snap.anesth||[]).length;i++) addAnesth(true);
+    document.querySelectorAll(".anesthesiste").forEach((sel,i)=>{ if(snap.anesth[i]!==undefined) sel.value=snap.anesth[i]; });
+
+    // Chirurgiens
+    $("chirContainer").innerHTML=""; addChir(false);
+    for(let i=1;i<(snap.chir||[]).length;i++) addChir(true);
+    document.querySelectorAll(".chirurgien").forEach((sel,i)=>{ if(snap.chir[i]!==undefined) sel.value=snap.chir[i]; });
+
+    // Gestes
+    $("gesteContainer").innerHTML="";
+    (snap.gestes||[]).forEach((g,i)=>addGeste(i>0));
+    let blocks=[...document.querySelectorAll("#gesteContainer > .field")];
+    (snap.gestes||[]).forEach((g,i)=>{
+      const sel=blocks[i].querySelector(".geste-select");
+      sel.value=g.sel;
+      sel.dispatchEvent(new Event("change",{bubbles:true}));
+    });
+    blocks=[...document.querySelectorAll("#gesteContainer > .field")];
+    (snap.gestes||[]).forEach((g,i)=>{
+      const b=blocks[i];
+      const lat=b.querySelector(".laterality-select"); if(lat && g.lat) lat.value=g.lat;
+      const ap=b.querySelector(".approach-select");
+      if(ap && g.approach){ ap.value=g.approach; ap.dispatchEvent(new Event("change",{bubbles:true})); }
+      const robot=b.querySelector(".robot-chip"); if(robot && g.robot) robot.classList.add("active");
+      const pr=b.querySelector(".precision-input"); if(pr && g.precision) pr.value=g.precision;
+      const cu=b.querySelector(".custom-geste"); if(cu && g.custom) cu.value=g.custom;
+    });
+
+    // État complet (écrase presets/filtres de mode)
+    Object.assign(state, snap.state||{});
+
+    // Interrupteurs hors state
+    $("sequenceRapide").checked = !!snap.seqRapide;
+    $("sequenceRapideToggle")?.classList.toggle("active", !!snap.seqRapide);
+    $("noradToggle").classList.toggle("active", !!snap.noradActive);
+    $("noradBlock").classList.toggle("hidden", !snap.noradActive);
+    $("incidentToggle").classList.toggle("active", !!snap.incidentActive);
+    $("incidentBlock").classList.toggle("hidden", !snap.incidentActive);
+    $("urgenceChip")?.classList.toggle("active", !!state.urgence);
+    $("antagonisationChip")?.classList.toggle("active", !!state.antagonisation);
+    $("antagonisationBlock")?.classList.toggle("hidden",
+      !(state.curare && (state.curare.includes("Atracurium")||state.curare.includes("Rocuronium"))));
+    $("transfusionToggle").classList.toggle("active", !!state.transfusionActive);
+    $("transfusionBlock").classList.toggle("hidden", !state.transfusionActive);
+    $("drainsToggle").classList.toggle("active", !!state.drainsActive);
+    $("drainsBlock").classList.toggle("hidden", !state.drainsActive);
+
+    // Re-cocher les chips depuis l'état restauré, puis reconstruire les sous-champs
+    reRenderChipsFromState();
+    renderMonitorageDetails(); renderVADetails(); renderVentilationDetails();
+    renderNeuraxialDetails(); renderAntibioDetails(); renderALRDetails();
+    renderAnalgesieDetails(); renderTransfusionDetails(); renderDrainsDetails();
+    if(isSedationMode()||isECTMode()) renderSedationSuitesDetails(); else renderReveilDetails();
+    renderPeropVisibility();
+
+    // Valeurs des sous-champs (après que les renderers les aient recréés)
+    DETAIL_IDS.forEach(id=>{ const el=$(id); if(el && snap.details && snap.details[id]!==undefined) el.value=snap.details[id]; });
+
+    renderReport();
+  }catch(e){ __restoring=false; return false; }
+  __restoring=false;
+  return true;
+}
+
 function init(){
   initState();
   initUI();
   initListeners();
+  restoreDraft();
+  __initializing = false;
 }
 
 init();
