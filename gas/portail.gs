@@ -23,6 +23,7 @@ function portailRoute(action, payload, user) {
     case 'listAnnuaire':   return _portailJson(listAnnuaire());
     case 'getVeille':  return _portailJson(getVeille());
     case 'markVeille': return _portailJson(markVeille(payload && payload.pmid, payload && payload.field, payload && payload.value));
+    case 'genererCRH': return _portailJson(genererCRH_(payload));
     default:          return null;   // pas une action portail → doGet continue
   }
 }
@@ -867,4 +868,214 @@ function testAnnuaire() {
   Logger.log('☎️ Catégories répertoire : ' + r.categories.length);
   r.categories.forEach(function (c) { Logger.log('  ▸ ' + c.categorie + ' (' + c.entries.length + ')'); });
   Logger.log('✅ testAnnuaire OK — remplis l\'onglet ANNUAIRE (CATÉGORIE | LIBELLÉ | NUMÉRO | INFO).');
+}
+
+
+// ══════════════════════════════════════════════════════════════════════
+//  GÉNÉRATEUR DE CRH DE RÉANIMATION (V1) — crh.html
+//  Action portail `genererCRH` : synthèse d'un CR à partir des mots
+//  d'évolution collés (anonymisés), via l'API Anthropic.
+//  Auth : code-gated d'office (checkCode en amont dans doGet).
+//  Clé API : ligne ANTHROPIC_TOKEN de l'onglet CONFIG (comme GITHUB_TOKEN).
+//  Prompt calé sur les CR validés du service. Modèle configurable ci-dessous.
+// ══════════════════════════════════════════════════════════════════════
+
+const CRH_MODEL = 'claude-sonnet-5';   // bascule possible vers 'claude-opus-4-8' pour + de finesse
+
+let _anthropicTokenCache = null;
+function getAnthropicToken() {
+  if (_anthropicTokenCache !== null) return _anthropicTokenCache;
+  _anthropicTokenCache = '';
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG');
+  if (sheet) {
+    const data = sheet.getDataRange().getValues();
+    for (let r = 1; r < data.length; r++) {
+      if (String(data[r][0]).trim() === 'ANTHROPIC_TOKEN') { _anthropicTokenCache = String(data[r][1]).trim(); break; }
+    }
+  }
+  return _anthropicTokenCache;
+}
+
+const CRH_EX_FAV_COURT = `L'évolution en réanimation est rapidement favorable après mise en place de séances de VNI permettant une eupnée et un passage aux lunettes d'O2 dès J1.
+
+Introduction d'AUGMENTIN en probabiliste devant une hyperthermie à 38,5°C, pour une durée de 5 jours prévue (pas de germe retrouvé sur les différents prélèvements réalisés).
+
+Le patient reste adéfaillant par ailleurs, va au fauteuil, mange et boit sans aide.
+
+Il est transféré en pneumologie le 30/06/2026 pour la suite de la prise en charge.`;
+
+const CRH_EX_APPAREIL = `Admission d'une patiente consciente, bien orientée, normotherme à 36,4°C, normotendue à 13/9 mmHg en RRS à 82/min, eupnéique et normoxique sous O2 à 4 L/min aux lunettes.
+
+Les suites post-opératoires sont simples et marquées par :
+
+Au niveau des soins périopératoires : ablation du drain thoracique le 02/07/2026 avec contrôle radiologique satisfaisant. La cicatrice est propre. L'hémoglobine de sortie est à 12,7 g/dL.
+
+Sur le plan hémodynamique : stabilité hémodynamique, rythme régulier sinusal.
+
+Sur le plan respiratoire : sevrage de l'oxygène dans l'après-midi du 01/07/2026, la patiente restant eupnéique et normoxique en air ambiant par la suite.
+
+Sur le plan infectieux : patiente apyrétique, sans sepsis clinique. À noter un syndrome inflammatoire très lentement évolutif (CRP à 96 mg/L le 03/07) pour lequel un ECBC est demandé à titre systématique.
+
+Sur le plan neurologique : patiente bien orientée, sans signe de localisation. Ablation accidentelle du cathéter d'analgésie péridurale le 01/07/2026 (grattage sur lésion urticarienne au contact du pansement), relayée par une analgésie multimodale efficace.
+
+Sur le plan néphrologique : diurèse spontanée, sans dégradation de la fonction rénale.
+
+Sur le plan nutritionnel : reprise d'une alimentation normale à compter du 30/06/2026.
+
+Mme X est transférée le 03/07/2026 en unité de chirurgie pour la suite de la prise en charge.`;
+
+const CRH_EX_CHRONO_GRAVE = `Les 24 premières heures, la patiente reste sédatée sous ventilation protectrice devant une instabilité hémodynamique (NORADRENALINE jusqu'à 0,15 µg/kg/min, remplissage par ALBUMINE et RINGER LACTATE), avec une hyperlactatémie maximale à 3,6 mmol/L, une oligurie et une acidose (pH 7,17, HCO3 17 mmol/L) et des troubles électrolytiques. Drainage pleural bilatéral dans les 24 premières heures pour un épanchement de grande abondance.
+
+Extubation à J1, sevrage de la NORADRENALINE à J2, reprise d'une diurèse spontanée et correction des troubles hydro-électrolytiques. Transfusion d'1 CGR.
+
+Analgésie multimodale optimale avec cathéter péridural thoracique, retiré le 18/06. Ablation des drains le 18/06 avec radiographie thoracique de contrôle.
+
+Reprise du transit aux gaz et ablation de la SNG le 14/06 ; alimentation parentérale débutée à J1 puis reprise progressive per os, marquée par des nausées et vomissements cédant sous prokinétiques.
+
+Hors antibiotique, subfébrile, sans syndrome inflammatoire biologique.
+
+Transfert en service de chirurgie le 23/06 pour la suite de la prise en charge.`;
+
+const CRH_EX_CHRONO_DECES = `L'évolution en réanimation est initialement favorable, avec un patient rapidement stable hémodynamiquement sous TAZOCILLINE probabiliste introduite dans le cadre de la pose de prothèse biliaire en peropératoire.
+
+Le scanner réalisé le 26/06 pour contrôle du montage chirurgical devant un syndrome inflammatoire met en évidence fortuitement une embolie pulmonaire distale du lobe inférieur droit, bien tolérée sur les plans hémodynamique et respiratoire, motivant l'introduction d'HNF IVSE.
+
+L'antibiothérapie est adaptée aux prélèvements biliaires peropératoires (Escherichia coli, Enterobacter cloacae complex, Enterococcus faecalis, tous sensibles à la TAZOCILLINE).
+
+À J5, devant une fonction rénale normale et une tolérance satisfaisante, l'anticoagulation curative par HNF IVSE est relayée par LOVENOX 6 000 UI × 2/j en sous-cutané. L'iléus postopératoire est pris en charge par aspiration gastrique et introduction d'ERYTHROMYCINE 250 mg × 2/j. L'alimentation parentérale exclusive est maintenue tout au long du séjour.
+
+Le 30/06 à 7h15, appel pour dégradation hémodynamique brutale avec coma, tachycardie mal tolérée et hypotension, motivant une cardioversion pharmacologique par CORDARONE puis une intubation orotrachéale. Arrêt cardiaque à 7h42 sur bradycardie extrême, sans rythme choquable ; devant une suspicion d'embolie pulmonaire massive à l'échographie de débrouillage (cavités droites dilatées), injection d'ACTILYSE en cours de RCP (45 minutes, 7 mg d'ADRÉNALINE, GLUCONATE DE CALCIUM, BICARBONATE MOLAIRE). En accord avec l'équipe médicale, arrêt de la réanimation.
+
+Le patient décède le 30/06/2026 à 08h30.`;
+
+function crhSystemPrompt_() {
+  return `Tu es un assistant de rédaction médicale spécialisé en réanimation, pour un anesthésiste-réanimateur.
+
+ENTRÉE : un bloc unique de mots d'évolution quotidiens ANONYMISÉS (motif/antécédents éventuels en tête, puis les journées repérables par « J1 », « J+3 », dates type 12/06). Repère-les et ordonne-les chronologiquement.
+
+Tu produis un compte rendu d'hospitalisation (CRH) de réanimation dans le format demandé.
+
+═══ PRINCIPE DIRECTEUR — BRIÈVETÉ ET PÉRIMÈTRE ═══
+Document TRÈS SYNTHÉTIQUE, centré sur LE SÉJOUR EN RÉANIMATION. Un séjour simple tient en quelques phrases ; un séjour grave/complexe peut être un peu plus développé, mais reste synthétique.
+- Le motif d'admission/transfert en réa tient en une phrase ou est intégré à la synthèse. Ne reprends pas l'histoire ni les soins antérieurs à la réa, ni les découvertes incidentes de bilan (sauf si elles conditionnent le suivi — une demi-phrase).
+- Une phrase par plan, uniquement pour les plans ayant présenté un événement notable EN réa. Omets les autres — n'écris JAMAIS « non renseigné ».
+- Pas de chronique jour par jour datée. Dans le doute, COUPE.
+
+═══ RÈGLES DE STYLE AFFINÉES (issues des corrections du médecin — à respecter absolument) ═══
+1. INTRO sobre et fidèle à la chronologie : « L'évolution en réanimation est rapidement favorable. » Si le séjour se dégrade ou aboutit à un décès, écris « initialement favorable » et laisse le récit dérouler la dégradation — N'ANNONCE PAS l'issue ni le diagnostic complet dans la première phrase. N'accole pas le geste chirurgical à l'intro.
+2. ÉTAT DE SORTIE : ne le mentionne QUE s'il est EXPLICITEMENT écrit dans les notes (autonomie, alimentation, mobilisation, absence de défaillance). Dans ce cas seulement, emploie « reste adéfaillant(e), va au fauteuil, mange et boit sans aide » (adéfaillant = sans défaillance d'organe), sans le paraphraser. Sinon, N'AJOUTE RIEN sur l'état de sortie — ne l'invente jamais, ne le déduis pas d'une évolution favorable.
+3. ANTIBIOTHÉRAPIE : précise la durée (« pour une durée de X jours », « 48h ») et le résultat des prélèvements (germe identifié, ou « pas de germe retrouvé »).
+4. CHIFFRES — distingue :
+   • GARDE ceux qui justifient une décision/un geste (drain retiré devant un débit < 100 cc/j), les posologies notables (LOVENOX 6 000 UI × 2/j), les troubles électrolytiques, l'Hb de sortie, et — dans un séjour GRAVE — les marqueurs de défaillance (lactatémie, pH, dose d'amines en µg/kg/min, GDS).
+   • SUPPRIME les chiffres purement descriptifs (volume d'un redon → « peu productif ») et les détails de titration progressive.
+5. EXAMENS : ne mentionne un examen que s'il modifie la prise en charge, avec son MOTIF et le caractère de la découverte, SANS lister ses résultats exhaustifs. Exception : un examen central au motif d'hospitalisation (TDM cérébrale d'un trauma crânien) peut être décrit. Omets les examens de routine.
+6. GESTES/DÉCISIONS : justifie-les brièvement (pourquoi ce switch d'antibiotique, pourquoi ce retrait de drain).
+7. Garde les TROUBLES ÉLECTROLYTIQUES suivis (hypokaliémie, hypophosphatémie, hypomagnésémie « en cours de correction »).
+8. SERVICE D'AVAL : indique le service de destination réel tel qu'il ressort des notes (« chirurgie viscérale », « urologie », « pneumologie », ou « service de chirurgie » si non précisé), date complète JJ/MM/AAAA. Ne l'invente pas, ne le sur-spécifie pas.
+9. Pour un séjour simple, FUSIONNE admission et évolution initiale ; n'ouvre pas chaque segment par « À l'admission (date)… Dès J1 (date)… ».
+
+═══ ÉLÉMENTS RÉCURRENTS (à inclure seulement s'ils sont documentés, jamais à inventer) ═══
+- ANALGÉSIE : « Analgésie multimodale optimale / adaptée / efficace », avec le dispositif si présent (péridurale, cathéter de paroi/nerveux) et sa date d'ablation.
+- RÉHABILITATION précoce / retour en service, quand mentionnée.
+- Pour le format par appareil, si l'état et les constantes d'admission sont fournis, tu PEUX ouvrir par une phrase d'admission : « Admission d'un(e) patient(e) conscient(e), bien orienté(e), [température], [TA] en [rythme], eupnéique/normoxique sous [support O2] ».
+- Intitulés d'appareils usuels (adapte à ceux qui sont actifs) : neurologique, respiratoire, hémodynamique, infectieux, rénal (ou rénal/métabolique, néphrologique), digestif (ou digestif/chirurgical), chirurgical, métabolique, nutritionnel.
+
+═══ STYLE MAISON ═══
+- Médicaments/molécules/antibiotiques TOUJOURS EN MAJUSCULES (NORADRENALINE, TAZOCILLINE, LINEZOLIDE, LOVENOX).
+- Germes nommés précisément (genre + espèce) quand décisifs.
+- Dates réelles JJ/MM (JJ/MM/AAAA entrée/sortie) si présentes ; sinon repères Jn. N'INVENTE aucune date.
+- Patient : « Mr X » / « Mme X » (ou « le patient »/« la patiente » si genre indéterminable). Aucun identifiant.
+- Abréviations médicales conservées (OHDN, VNI, FiO2, SpO2, NAD, KDIGO, IVSE, HNF, RRS, GDS, SNG, ECBU…).
+- Phrases denses et causales (« motivant », « permettant », « devant »), 3e personne.
+- Conclusion : devenir daté (domicile / transfert / décès daté avec heure si mentionnée), suivi et reprise du traitement personnel éventuels.
+
+═══ FORMAT « PAR APPAREIL » (courts/simples) ═══
+Intro brève (ou phrase d'admission si constantes fournies), puis « Sur le plan [appareil], … » pour les seuls plans actifs, puis état de sortie éventuel et conclusion datée.
+═══ FORMAT « CHRONOLOGIQUE » (longs/complexes) ═══
+Récit synthétique daté regroupé par fil narratif, puis état de sortie éventuel et conclusion datée.
+
+═══ SÉCURITÉ ═══
+N'invente AUCUNE donnée absente. Ne réintroduis aucun identifiant. Brouillon destiné à être relu et validé par le médecin. Ne produis que le compte rendu, sans préambule ni commentaire.
+
+═══ EXEMPLES DE RÉFÉRENCE (calque le ton, la longueur et le niveau ; ne réutilise JAMAIS leur contenu clinique) ═══
+
+[Favorable court — transfert]
+${CRH_EX_FAV_COURT}
+
+[Par appareil complet — post-op, transfert]
+${CRH_EX_APPAREIL}
+
+[Chronologique — séjour grave, évolution favorable]
+${CRH_EX_CHRONO_GRAVE}
+
+[Chronologique — décès]
+${CRH_EX_CHRONO_DECES}`;
+}
+
+function genererCRH_(payload) {
+  const texte  = String((payload && payload.texte)  || '').trim();
+  const format = String((payload && payload.format) || 'appareil').trim();
+  if (!texte) return { success: false, error: 'Aucun texte fourni.' };
+
+  const token = getAnthropicToken();
+  if (!token) return { success: false, error: "Cle API absente : ajoute une ligne ANTHROPIC_TOKEN dans l'onglet CONFIG." };
+
+  const fmt = (format === 'chrono')
+    ? 'CHRONOLOGIQUE (recit date synthetique)'
+    : 'PAR APPAREIL (intro/admission breve puis « Sur le plan … », plans actifs seulement)';
+
+  const userMsg = 'Format demande : ' + fmt + '.\n\n'
+    + "Rappel : tres synthetique, centre rea ; applique les regles affinees (intro sans spoiler, "
+    + "etat de sortie UNIQUEMENT s'il est explicitement ecrit, duree d'ATB, chiffres decisionnels seulement, "
+    + "examens contextualises, service d'aval reel). N'invente rien.\n\n"
+    + "Mots d'evolution du sejour (bloc unique a segmenter puis synthetiser) :\n\n" + texte;
+
+  const body = {
+    model: CRH_MODEL,
+    max_tokens: 4096,
+    system: crhSystemPrompt_(),
+    messages: [{ role: 'user', content: userMsg }]
+  };
+
+  let res;
+  try {
+    res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'x-api-key': token, 'anthropic-version': '2023-06-01' },
+      payload: JSON.stringify(body),
+      muteHttpExceptions: true
+    });
+  } catch (e) {
+    return { success: false, error: 'Appel API impossible : ' + e };
+  }
+
+  const code = res.getResponseCode();
+  if (code !== 200) {
+    let msg = 'Erreur API (' + code + ')';
+    if (code === 401)      msg = "Cle API invalide : verifie ANTHROPIC_TOKEN dans l'onglet CONFIG.";
+    else if (code === 429) msg = 'Credit epuise ou limite atteinte — recharge le compte API.';
+    return { success: false, error: msg };
+  }
+
+  let data;
+  try { data = JSON.parse(res.getContentText()); }
+  catch (e) { return { success: false, error: 'Reponse illisible du serveur.' }; }
+
+  const cr = (data.content || [])
+    .filter(function (b) { return b.type === 'text'; })
+    .map(function (b) { return b.text; })
+    .join('\n').trim();
+
+  if (!cr) return { success: false, error: 'Reponse vide du modele.' };
+  return { success: true, cr: cr, truncated: data.stop_reason === 'max_tokens' };
+}
+
+// ── À exécuter UNE FOIS après recopie : vérifie la clé + un CR de test ──
+function testCRH() {
+  const t = getAnthropicToken();
+  Logger.log(t ? '🔑 ANTHROPIC_TOKEN présent (longueur ' + t.length + ')' : '❌ ANTHROPIC_TOKEN absent — ajoute-le dans CONFIG.');
+  if (!t) return;
+  const r = genererCRH_({ texte: 'J1 : patient stable, eupnéique en air ambiant. Transfert en chirurgie le 10/07.', format: 'appareil' });
+  Logger.log(r.success ? ('✅ CR de test :\n' + r.cr) : ('❌ ' + r.error));
 }
