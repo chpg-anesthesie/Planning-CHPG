@@ -375,6 +375,24 @@ function applySmartPreset(geste){
     $("sequenceRapide").checked = true;
     $("sequenceRapideToggle")?.classList.add("active");
   }
+
+  showPresetToast();
+}
+
+// Petit retour visuel quand un préréglage est appliqué (jamais pendant init/restauration).
+function showPresetToast(){
+  if(__restoring || __initializing) return;
+  let t = $("presetToast");
+  if(!t){
+    t = document.createElement("div");
+    t.id = "presetToast";
+    t.textContent = "Préréglage appliqué";
+    t.style.cssText = "position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1f4e79;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transition:opacity .2s ease;z-index:9999;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.22)";
+    document.body.appendChild(t);
+  }
+  t.style.opacity = "1";
+  clearTimeout(t.__timer);
+  t.__timer = setTimeout(()=>{ t.style.opacity = "0"; }, 1400);
 }
 function isSedationMode(){
   const gestes = getSelectedGestesRaw();
