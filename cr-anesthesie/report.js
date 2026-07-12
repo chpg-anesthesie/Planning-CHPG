@@ -442,7 +442,6 @@ txt += "Transfert en service pour suite de la prise en charge.\n";
   txt += "\n";
 }
     report.value = txt;
-    if(typeof renderFormattedPreview === "function") renderFormattedPreview(txt);
     if(typeof saveDraft === "function") saveDraft();
 }
 
