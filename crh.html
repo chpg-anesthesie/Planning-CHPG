@@ -245,13 +245,19 @@ async function viewLogin(){
 }
 async function viewAutoLogin(){
   let saved=''; try{ saved = sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
-  if(!saved) return;
+  if(!saved) return; // pas de code en cache → écran de connexion affiché
+  // Affichage optimiste : le code étant en cache, on montre l'interface tout de suite
+  // et on revalide en arrière-plan — plus de clignotement de la page d'authentification.
+  VIEW_CODE = saved; showPortal();
   try{
-    VIEW_CODE = saved;
     const r = await apiPost({action:'login'});
-    if(r && r.success){ applyUserBadge(r); showPortal(); }
-    else { VIEW_CODE=''; try{ sessionStorage.removeItem('chpgViewCode'); }catch(e){} }
-  } catch(e){ VIEW_CODE=''; }
+    if(r && r.success){ applyUserBadge(r); }
+    else {
+      VIEW_CODE=''; try{ sessionStorage.removeItem('chpgViewCode'); }catch(e){}
+      document.getElementById('viewAuthOverlay').style.display='flex';
+      document.getElementById('portal').style.display='none';
+    }
+  } catch(e){ /* réseau indisponible : on conserve l'affichage optimiste */ }
 }
 document.getElementById('viewAuthInput').addEventListener('keydown', e => { if(e.key==='Enter') viewLogin(); });
 
