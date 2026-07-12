@@ -350,8 +350,15 @@
     </section>
 
     <section class="panel report-panel">
-      <div class="panel-title">Compte-rendu généré</div>
-      <textarea id="report"></textarea>
+      <div class="report-head">
+        <div class="panel-title">Compte-rendu généré</div>
+        <div class="report-view-toggle">
+          <button type="button" id="viewFormatted" class="active">Formaté</button>
+          <button type="button" id="viewRaw">Brut</button>
+        </div>
+      </div>
+      <div id="reportFormatted"></div>
+      <textarea id="report" class="hidden"></textarea>
     </section>
 
   </main>
