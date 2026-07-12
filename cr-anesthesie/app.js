@@ -387,36 +387,6 @@ function applySmartPreset(geste){
   showPresetToast();
 }
 
-// Aperçu formaté du CR (lecture) — la copie reste le texte DPI brut.
-const CR_SECTION_TITLES = new Set([
-  "INTERVENTION","INSTALLATION","INDUCTION","SÉDATION","VOIES AÉRIENNES","ENTRETIEN",
-  "ANALGÉSIE","ALR PÉRIPHÉRIQUE","ALR NEURAXIALE","PER-OPÉRATOIRE","ANTIBIOPROPHYLAXIE","SUITES IMMÉDIATES"
-]);
-function escapeHtml(s){
-  return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
-}
-function renderFormattedPreview(txt){
-  const box = document.getElementById("reportFormatted");
-  if(!box) return;
-  let html = "";
-  for(const raw of String(txt||"").split("\n")){
-    const line = raw.trim();
-    if(!line){ html += '<div class="cr-gap"></div>'; continue; }
-    if(CR_SECTION_TITLES.has(line)) html += '<div class="cr-section">' + escapeHtml(line) + '</div>';
-    else html += '<div class="cr-line">' + escapeHtml(line) + '</div>';
-  }
-  box.innerHTML = html;
-}
-function setReportView(mode){
-  const f = $("reportFormatted"), r = $("report"), bf = $("viewFormatted"), br = $("viewRaw");
-  if(!f || !r) return;
-  const raw = (mode === "raw");
-  f.classList.toggle("hidden", raw);
-  r.classList.toggle("hidden", !raw);
-  bf.classList.toggle("active", !raw);
-  br.classList.toggle("active", raw);
-}
-
 // Petit retour visuel quand un préréglage est appliqué (jamais pendant init/restauration).
 function showPresetToast(){
   if(__restoring || __initializing) return;
@@ -1000,9 +970,6 @@ function initUI(){
 }
 
 function initListeners(){
-  $("viewFormatted").onclick = ()=>setReportView("formatted");
-  $("viewRaw").onclick = ()=>setReportView("raw");
-
   window.addEventListener("beforeunload", (e)=>{
     if(window.__crSkipUnloadWarn) return;
     const hasWork =
