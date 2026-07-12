@@ -2,7 +2,7 @@
 
 *Source faisant autorité : **Arrêté Ministériel n° 2005-276** régissant la CCAM à Monaco (MAJ 2018) + mémento des Caisses Sociales de Monaco. Les **valeurs monétaires sont celles fixées en France** (art. 16) → base CCAM **v80, en vigueur au 01/01/2025**. Objectif : coter **à juste titre** l'exhaustivité de ce qui est réellement fait — jamais surcoter.*
 
-*v10 — 12 juillet 2026. **Chaîne de calcul corrigée** sur dossiers multi-lignes : le **coefficient monégasque ×1,95 est dans le TARIF (la base)**, pas dans le DH (corrige v5-v9). Ajout de l'**association** (acte principal 100 % · associé 50 % · geste complémentaire 100 % en sus) et de la **somme des lignes** pour la BR d'un parcours. Le modificateur A monégasque = 44,85 € (23×1,95).*
+*v11 — 12 juillet 2026. **Axe NGAP (consultations) ajouté et validé au centime** sur 8 feuilles réelles (§5 ter) : BR = lettre-clé × coefficient, **sans** coefficient monégasque ×1,95 et **sans** modificateur ; la carte ne joue que sur le DH (verte/SPME 0 · rose +20 % · bulle/français/NAS/AME libre). v10 : chaîne CCAM multi-lignes — coefficient monégasque ×1,95 dans le TARIF (pas le DH), association (principal 100 % · associé 50 % · complément 100 % en sus), somme des lignes ; A monégasque = 44,85 €.*
 
 ---
 
@@ -111,6 +111,44 @@ Chaîne de calcul, **par ligne de code** :
 
 > ⚠️ **Correction v10** : le coefficient monégasque **×1,95 est dans le Tarif (la base)**, pas dans le DH (erreur des v5-v9). Il englobe aussi le modificateur A → **44,85 €**. Le DH reste le **dépassement**, différencié par carte (verte 0 · rose +20 % · bulle libre).
 > **Pour le module** : ratio des 30 % sur la **BR** ; **DH hors quota**.
+
+## 5 ter. Consultations NGAP : Tarif → BR → DH (validé au centime)
+
+L'**axe NGAP** (consultations pré-anesthésiques) obéit à une règle **différente** du CCAM. Validé sur 8 feuilles réelles :
+
+**BR = valeur de la lettre-clé × coefficient.** **Pas** de coefficient monégasque ×1,95, **pas** de modificateur 7/A.
+
+| Lettre-clé | Valeur | Exemple |
+|---|---|---|
+| **C** | **34,40 €** | C 2 → 68,80 € |
+| **CS** | **46,00 €** | CS 1 → 46,00 € |
+| **APC** | **60,00 €** | APC 1 → 60,00 € *(avis ponctuel de consultant, a priori coeff. 1)* |
+
+> **La carte ne change PAS la BR.** Verte, bulle, français, SPME → une CS reste à 46 €. C'est l'inverse du CCAM (où la carte pilote le coefficient de base). Sur le NGAP, **la carte ne joue que sur le DH.**
+
+**DH par carte** (par-dessus la BR, **hors quota 30 %**) :
+
+| Statut patient | DH | Observé |
+|---|---|---|
+| **Carte verte · SPME** | **0** | net = BR |
+| **Carte rose** | **+ 20 % de la BR** | CS 1 : 9,20 = 20 % de 46 ✓ |
+| **Carte bulle · français · NAS · AME** | **libre** | fixé pour un net rond (ex. CS 1 + 64 = 110) |
+
+**8 feuilles réelles reproduites au centime :**
+
+| Carte | Code | BR | DH | Net |
+|---|---|---|---|---|
+| bulle | C 2 | 68,80 | 0 | 68,80 |
+| SPME | CS 1 | 46,00 | 0 | 46,00 |
+| français | APC 1 | 60,00 | 25,00 | 85,00 |
+| français | CS 1 | 46,00 | 64,00 | 110,00 |
+| verte | CS 1 | 46,00 | 0 | 46,00 |
+| bulle | CS 1 | 46,00 | 64,00 | 110,00 |
+| rose | CS 1 | 46,00 | 9,20 | 55,20 |
+
+> **Pour le module** : ratio des 30 % sur la **BR** (comme le CCAM) ; **DH hors quota**. Les deux axes se calculent séparément, chacun avec sa règle.
+
+---
 
 ## 6. Exemple chiffré — cure de hernie inguinale + TAP bloc échoguidé (sous AG)
 
