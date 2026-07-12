@@ -1,7 +1,7 @@
 // Service worker CR d'anesthésie — stratégie RÉSEAU D'ABORD.
 // En ligne : on sert toujours la dernière version (et on rafraîchit le cache).
 // Hors ligne : on bascule sur le cache. Aucune version périmée servie tant qu'il y a du réseau.
-const CACHE = 'cr-anesthesie-v5';
+const CACHE = 'cr-anesthesie-v6';
 const ASSETS = [
   './', './index.html', './style.css',
   './data.js', './rules.js', './ui.js', './report.js', './app.js',
