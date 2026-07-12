@@ -371,6 +371,14 @@ function applySmartPreset(geste){
     state.reveil = [...preset.reveil];
   }
 
+  if(preset.alr){
+    state.alr = [...preset.alr];
+  }
+
+  if(preset.neuraxial){
+    state.neuraxial = [...preset.neuraxial];
+  }
+
   if(preset.sequenceRapide){
     $("sequenceRapide").checked = true;
     $("sequenceRapideToggle")?.classList.add("active");
