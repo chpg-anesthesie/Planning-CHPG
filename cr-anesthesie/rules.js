@@ -187,33 +187,96 @@ const CONTINUOUS_ALR = [
 ];
 
 const SMART_PRESETS = {
-
-  "Cataracte": {
-    monitorage: ["Scope", "SpO2", "VVP"],
-    va: "Ventilation spontanée",
-    entretien: "",
-    induction: ["Midazolam"],
-    reveil: ["Simples"]
-  },
-
-  "Electroconvulsivothérapie": {
-    monitorage: ["Scope", "SpO2", "VVP"],
-    induction: ["Propofol", "Célocurine"],
-    reveil: ["Simples"]
-  },
-
-  "Œsophagectomie Lewis-Santy": {
-    monitorage: ["Scope", "SpO2", "VVP", "KTA", "KTC", "BIS", "TOF"]
-  },
-
-  "Duodénopancréatectomie céphalique": {
-    monitorage: ["Scope", "SpO2", "VVP", "KTA", "KTC", "BIS", "TOF"]
-  },
-
-  "Lobectomie pulmonaire": {
-    monitorage: ["Scope", "SpO2", "VVP", "KTA", "KTC", "BIS", "TOF"]
-  }
-
+  "PTH": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "PTG": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Ostéosynthèse cheville": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Aucun"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Ostéosynthèse poignet": { monitorage: ["Scope", "SpO2", "VVP"], curare: ["Aucun"], va: "Ventilation spontanée", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Recalibrage": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Canal carpien": { monitorage: ["Scope", "SpO2", "VVP"], curare: ["Aucun"], va: "Ventilation spontanée", analgesie: ["Paracétamol", "Kétoprofène"] },
+  "Hallux valgus": { monitorage: ["Scope", "SpO2", "VVP"], curare: ["Aucun"], va: "Ventilation spontanée", analgesie: ["Paracétamol"] },
+  "Clou gamma": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Prothèse d'épaule": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Arthroscopie de genou": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Aucun"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Arthroscopie d'épaule": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Aucun"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Ostéosynthèse plateau tibial": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Aucun"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Arthroscopie cheville": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Aucun"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Duodénopancréatectomie céphalique": { monitorage: ["Scope", "SpO2", "VVP", "KTA", "KTC", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Œsophagectomie Lewis-Santy": { monitorage: ["Scope", "SpO2", "VVP", "KTA", "KTC", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Appendicectomie": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Hernie inguinale": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Hernie ombilicale": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Hémorroïdectomie": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Colectomie": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Coelioscopie exploratrice": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Cholécystectomie": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Promontofixation": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Mastectomie partielle": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Mastectomie totale": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Injection Bulkamide": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol"], curare: ["Aucun"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol"] },
+  "Annexectomie": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Hystérectomie": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "CHIP": { monitorage: ["Scope", "SpO2", "VVP", "KTA", "KTC", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Kystectomie ovarienne": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Segmentectomie hépatique": { monitorage: ["Scope", "SpO2", "VVP", "KTA", "KTC", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Amputation abdomino-périnéale": { monitorage: ["Scope", "SpO2", "VVP", "KTA", "KTC", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Sigmoïdectomie": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Résection grêlique": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Rocuronium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Rétablissement de continuité": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Cure d’éventration": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Cure de hernie hiatale": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Rocuronium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"], sequenceRapide: true },
+  "Sleeve gastrectomie": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol"], curare: ["Rocuronium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"], sequenceRapide: true },
+  "Bypass gastrique": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol"], curare: ["Rocuronium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"], sequenceRapide: true },
+  "Splénectomie": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Surrénalectomie": { monitorage: ["Scope", "SpO2", "VVP", "KTA", "BIS", "TOF"], induction: ["Sufentanil", "Propofol"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Thyroïdectomie totale": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Rocuronium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Parathyroïdectomie": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Lobectomie pulmonaire": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Propofol AIVOC", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Segmentectomie": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Propofol AIVOC", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Talcage pleural": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Propofol AIVOC", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Médiastinoscopie": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Propofol AIVOC", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Gastroscopie": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Propofol"], va: "Ventilation spontanée" },
+  "Coloscopie": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Propofol"], va: "Ventilation spontanée" },
+  "Echo-endoscopie haute": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Propofol"], va: "Ventilation spontanée" },
+  "RSF": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Propofol"], va: "Ventilation spontanée" },
+  "ERCP": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol"], curare: ["Rocuronium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "Pose de prothèse biliaire": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol"], curare: ["Rocuronium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "Dissection sous-muqueuse": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "Mucosectomie": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol"], curare: ["Rocuronium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "POEM": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol"], curare: ["Rocuronium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "Ablation de FA": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Rocuronium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "Ablation de flutter": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Rocuronium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "Vertébroplastie": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Propofol", "Kétamine"], curare: ["Aucun"], va: "Ventilation spontanée", analgesie: ["Paracétamol", "Néfopam"] },
+  "Embolisation": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Propofol", "Kétamine"], curare: ["Aucun"], va: "Ventilation spontanée", analgesie: ["Paracétamol", "Néfopam"] },
+  "Césarienne": { monitorage: ["Scope", "SpO2", "VVP"], curare: ["Aucun"], va: "Ventilation spontanée", analgesie: ["Paracétamol"] },
+  "Conisation": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol"], curare: ["Aucun"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Nymphoplastie de réduction": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Curetage": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol"], curare: ["Aucun"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Cerclage": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol"], curare: ["Aucun"], va: "Masque laryngé", analgesie: ["Paracétamol"] },
+  "Prostatectomie totale": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "Biopsies de prostate": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Propofol", "Kétamine"], curare: ["Aucun"], va: "Ventilation spontanée", analgesie: ["Paracétamol"] },
+  "REP HOLEP": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "REV": { monitorage: ["Scope", "SpO2", "VVP", "BIS"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Aucun"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "URS + Laser": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Aucun"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "Montée de JJ": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Aucun"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "Néphrectomie": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "Posthectomie": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol"], curare: ["Aucun"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "UPR": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol"], curare: ["Aucun"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "Cystectomie totale": { monitorage: ["Scope", "SpO2", "VVP", "KTA", "KTC", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam"] },
+  "Septoplastie": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam", "Kétoprofène"] },
+  "Rhinoplastie": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam", "Kétoprofène"] },
+  "Thyroïdectomie partielle": { monitorage: ["Scope", "SpO2", "VVP", "BIS", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Rocuronium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Néfopam", "Kétoprofène"] },
+  "Extraction DDS": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Carcinome cutané": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Propofol", "Midazolam"], va: "Ventilation spontanée", analgesie: ["Paracétamol"] },
+  "Cholestéatome": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Adénoidectomie": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "DTT": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Turbinoplastie": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Ethmoïdectomie": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Adénoamygdalectomie": { monitorage: ["Scope", "SpO2", "VVP", "TOF"], induction: ["Sufentanil", "Propofol", "Kétamine"], curare: ["Atracurium"], va: "Intubation oro-trachéale", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Varices": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Sufentanil", "Propofol"], va: "Masque laryngé", entretien: "Sevoflurane", analgesie: ["Paracétamol", "Kétoprofène", "Néfopam"] },
+  "Electroconvulsivothérapie": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Propofol", "Célocurine"], va: "Ventilation spontanée" },
+  "Cataracte": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Midazolam"], va: "Ventilation spontanée", analgesie: ["Paracétamol"] },
+  "Blépharoplastie": { monitorage: ["Scope", "SpO2", "VVP"], induction: ["Propofol", "Midazolam"], va: "Ventilation spontanée", analgesie: ["Paracétamol"] }
 };
 
 const ENDOSCOPY_GESTES = [
