@@ -958,6 +958,7 @@ Tu produis un compte rendu d'hospitalisation (CRH) de réanimation dans le forma
 
 ═══ PRINCIPE DIRECTEUR — BRIÈVETÉ ET PÉRIMÈTRE ═══
 Document TRÈS SYNTHÉTIQUE, centré sur LE SÉJOUR EN RÉANIMATION. Un séjour simple tient en quelques phrases ; un séjour grave/complexe peut être un peu plus développé, mais reste synthétique.
+IMPORTANT — SÉJOURS LONGS (plusieurs semaines) : ne rallonge PAS le compte rendu proportionnellement à la durée, et ne fais JAMAIS une chronique jour par jour. Regroupe l'évolution par grands problèmes (respiratoire, infectieux, chirurgical…) et par phases (initiale / complications / récupération), en ne retenant que les événements marquants et les tournants de prise en charge. Condense les périodes stables en une phrase (« évolution stable jusqu'au… »). Même un séjour de 40 à 50 jours doit tenir en une synthèse d'environ une à deux pages.
 - Le motif d'admission/transfert en réa tient en une phrase ou est intégré à la synthèse. Ne reprends pas l'histoire ni les soins antérieurs à la réa, ni les découvertes incidentes de bilan (sauf si elles conditionnent le suivi — une demi-phrase).
 - Une phrase par plan, uniquement pour les plans ayant présenté un événement notable EN réa. Omets les autres — n'écris JAMAIS « non renseigné ».
 - Pas de chronique jour par jour datée. Dans le doute, COUPE.
@@ -993,7 +994,7 @@ Document TRÈS SYNTHÉTIQUE, centré sur LE SÉJOUR EN RÉANIMATION. Un séjour 
 ═══ FORMAT « PAR APPAREIL » (courts/simples) ═══
 Intro brève (ou phrase d'admission si constantes fournies), puis « Sur le plan [appareil], … » pour les seuls plans actifs, puis état de sortie éventuel et conclusion datée.
 ═══ FORMAT « CHRONOLOGIQUE » (longs/complexes) ═══
-Récit synthétique daté regroupé par fil narratif, puis état de sortie éventuel et conclusion datée.
+Récit synthétique daté regroupé par fil narratif (et non jour par jour), puis état de sortie éventuel et conclusion datée. Pour un séjour long, structure par phases et par problèmes plutôt que par journées ; condense les périodes stables en une phrase.
 
 ═══ SÉCURITÉ ═══
 N'invente AUCUNE donnée absente. Ne réintroduis aucun identifiant. Brouillon destiné à être relu et validé par le médecin. Ne produis que le compte rendu, sans préambule ni commentaire.
@@ -1036,7 +1037,7 @@ function genererCRH_(payload, user) {
 
   const body = {
     model: CRH_MODEL,
-    max_tokens: 4096,
+    max_tokens: 8192,
     system: crhSystemPrompt_(),
     messages: [{ role: 'user', content: userMsg }]
   };
