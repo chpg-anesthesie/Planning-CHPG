@@ -880,7 +880,11 @@ function testAnnuaire() {
 //  Prompt calé sur les CR validés du service. Modèle configurable ci-dessous.
 // ══════════════════════════════════════════════════════════════════════
 
-const CRH_MODEL = 'claude-opus-4-8';   // validé en prod (sort complet et synthétique) ; rebascule sonnet si besoin
+const CRH_MODELS = {                     // choix manuel depuis l'interface
+  sonnet: { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
+  opus:   { id: 'claude-opus-4-8',   label: 'Opus 4.8' }
+};
+const CRH_MODEL_DEFAULT = 'sonnet';      // par défaut ; Opus réservé aux séjours longs/complexes
 const CRH_ALLOWED = ['FROHLICH'];      // ids MEDECINS autorisés à générer des CRH (accès nominatif)
 const CRH_MAX_TOKENS = 8192;           // plafond de sortie
 
@@ -1036,8 +1040,11 @@ function genererCRH_(payload, user) {
     + "examens contextualises, service d'aval reel). N'invente rien.\n\n"
     + "Mots d'evolution du sejour (bloc unique a segmenter puis synthetiser) :\n\n" + texte;
 
+  const mkey = (payload && payload.model === 'opus') ? 'opus' : CRH_MODEL_DEFAULT;
+  const chosen = CRH_MODELS[mkey] || CRH_MODELS[CRH_MODEL_DEFAULT];
+
   const body = {
-    model: CRH_MODEL,
+    model: chosen.id,
     max_tokens: CRH_MAX_TOKENS,
     system: crhSystemPrompt_(),
     messages: [{ role: 'user', content: userMsg }]
@@ -1079,7 +1086,8 @@ function genererCRH_(payload, user) {
     return { success: false, error: 'Reponse sans texte (raison : ' + sr + '). Detail dans les logs Apps Script (Executions).' };
   }
   return { success: true, cr: cr, truncated: data.stop_reason === 'max_tokens',
-           out_tokens: (data.usage && data.usage.output_tokens) || null, cap: CRH_MAX_TOKENS };
+           out_tokens: (data.usage && data.usage.output_tokens) || null, cap: CRH_MAX_TOKENS,
+           model_used: chosen.label };
 }
 
 // ── À exécuter UNE FOIS après recopie : vérifie la clé + un CR de test ──
