@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estimateur libéral V3 — lignes multiples</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EAEEF1;--panel:#fff;--ink:#16222C;--muted:#5B6C76;--line:#DBE1E6;--track:#E6EBEE;
+    --ccam:#24697F;--ccam-bg:#E5F0F3;--ngap:#A9762E;--ngap-bg:#F7EEDF;
+    --room:#2C8564;--over:#B23A2A;--dh:#6D28D9;--dh-bg:#F1ECFB;
+    --shadow:0 1px 2px rgba(22,34,44,.06),0 6px 20px rgba(22,34,44,.05);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;line-height:1.4;padding:24px 14px 60px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto}
+  .mono{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ccam);font-weight:500}
+  h1{font-size:24px;font-weight:700;letter-spacing:-.02em;margin:6px 0 3px}
+  .sub{color:var(--muted);font-size:13px}
+  header{margin-bottom:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+  .card h2{font-size:11.5px;font-family:'IBM Plex Mono',monospace;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+  label{display:block;font-size:11px;color:var(--muted);margin:0 0 3px;font-weight:500}
+  input,select{width:100%;font:inherit;font-size:13.5px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  input:focus,select:focus{outline:2px solid var(--ccam);outline-offset:-1px;border-color:var(--ccam)}
+
+  .socles{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+  @media(max-width:760px){.socles{grid-template-columns:1fr}}
+  .axhead{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;margin-bottom:8px}
+  .dot{width:10px;height:10px;border-radius:50%}.dot.c{background:var(--ccam)}.dot.n{background:var(--ngap)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+  .seg{display:inline-flex;background:#EEF1F4;border-radius:8px;padding:3px}
+  .seg button{border:0;background:transparent;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;border-radius:6px}
+  .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+  .coefbadge{font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--ccam-bg);color:var(--ccam);padding:4px 9px;border-radius:7px;font-weight:600}
+
+  table.lines{width:100%;border-collapse:collapse;margin-top:8px;font-size:12.5px}
+  table.lines th{font-size:10px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;color:var(--muted);text-align:left;padding:4px 6px;font-weight:500}
+  table.lines td{padding:3px 6px;vertical-align:middle}
+  table.lines input,table.lines select{padding:5px 7px;font-size:12.5px}
+  .chkcell{text-align:center}.chkcell input{width:auto}
+  .brcell{font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--ccam);text-align:right;white-space:nowrap}
+  .rm{background:none;border:0;color:var(--muted);cursor:pointer;font-size:15px}.rm:hover{color:var(--over)}
+  .addline{margin-top:6px;background:none;border:1px dashed var(--line);border-radius:8px;padding:7px;width:100%;font:inherit;font-size:12.5px;color:var(--ccam);cursor:pointer}
+  .addline:hover{border-color:var(--ccam)}
+
+  .parcfoot{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:12px;flex-wrap:wrap}
+  .brtot{font-size:12px;color:var(--muted)}.brtot b{font-size:18px;color:var(--ccam);font-family:'IBM Plex Mono',monospace}
+  .dhbox{display:flex;align-items:flex-end;gap:8px}
+  .dhbox .field{width:120px}
+  button.add{background:var(--ccam);color:#fff;border:0;border-radius:9px;padding:10px 16px;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer}
+  button.add:hover{background:#1d5a6c}
+  .hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4}
+
+  .summary{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+  @media(max-width:760px){.summary{grid-template-columns:1fr}}
+  .axcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .axcard .top{padding:13px 16px}
+  .figs{display:flex;justify-content:space-between;margin-top:6px}
+  .fig .l{font-size:10px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;color:var(--muted)}
+  .fig .b{font-size:21px;font-weight:700}.fig .b.room{color:var(--room)}.fig .b.over{color:var(--over)}
+  .trk{position:relative;height:11px;background:var(--track);border-radius:6px;overflow:hidden;margin:10px 16px 5px}
+  .fl{position:absolute;left:0;top:0;height:100%}.fl.room{background:var(--room)}.fl.over{background:var(--over)}
+  .mk{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);left:50%}
+  .cap{font-size:9.5px;color:var(--muted);text-align:center;padding:0 0 11px;font-family:'IBM Plex Mono',monospace}
+  .totbar{margin-top:14px;background:#16222C;color:#fff;border-radius:12px;padding:13px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  .totbar .l{font-size:10.5px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;opacity:.7}
+  .totbar .v{font-size:19px;font-weight:700}.totbar .dh{color:#C4B5FD}
+
+  .list{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .list h2{padding:11px 16px;font-size:11px;font-family:'IBM Plex Mono',monospace;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--line)}
+  .pitem{padding:11px 16px;border-bottom:1px solid #F1F5F9;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px}
+  .pitem:last-child{border-bottom:0}
+  .pill{font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;padding:2px 7px;border-radius:20px}
+  .pill.c{background:var(--ccam-bg);color:var(--ccam)}.pill.n{background:var(--ngap-bg);color:var(--ngap)}
+  .pitem .d{flex:1}.pitem .d small{display:block;color:var(--muted);font-size:11px}
+  .pitem .amt{text-align:right;font-family:'IBM Plex Mono',monospace}
+  .pitem .amt .br{color:var(--ccam);font-weight:600}.pitem .amt .dh{color:var(--dh);font-size:11px}
+  .empty{padding:20px;text-align:center;color:var(--muted);font-size:13px}
+  footer{margin-top:16px;font-size:11px;color:#8A6516;background:#FDF3E3;border:1px solid #EAD9B4;border-radius:12px;padding:11px 14px;line-height:1.5}
+  footer b{color:#6b4e10}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Module libéral · V3.1 — estimateur multi-lignes</div>
+    <h1>Estimateur temps réel du libéral</h1>
+    <div class="sub">Un parcours = une ou plusieurs lignes de code (principal + associés + suppléments). L'outil calcule la BR, projette le ratio 30 %, et somme l'encaissé. <b>Estimateur, pas décompte.</b></div>
+  </header>
+
+  <div class="socles">
+    <div class="card"><div class="axhead"><span class="dot c"></span>Socle CCAM</div>
+      <div class="row2"><div><label>T_ccam (€)</label><input id="Tc" class="mono" type="number" value="50000"></div>
+      <div><label>% libéral CCAM</label><input id="Pc" class="mono" type="number" step="0.01" value="25.00"></div></div></div>
+    <div class="card"><div class="axhead"><span class="dot n"></span>Socle NGAP</div>
+      <div class="row2"><div><label>T_ngap (€)</label><input id="Tn" class="mono" type="number" value="15000"></div>
+      <div><label>% libéral NGAP</label><input id="Pn" class="mono" type="number" step="0.01" value="25.00"></div></div></div>
+  </div>
+
+  <!-- PARCOURS BUILDER -->
+  <div class="card">
+    <h2>Nouveau parcours</h2>
+    <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px">
+      <div><label>Axe</label><div class="seg"><button id="axC" class="on" onclick="setAxe('CCAM')">Bloc · CCAM</button><button id="axN" onclick="setAxe('NGAP')">Consult · NGAP</button></div></div>
+      <div style="flex:1;min-width:180px"><label>Statut / carte du patient</label>
+        <select id="statut" onchange="onStatut()">
+          <option value="verte">Carte verte (monég. · DH 0)</option>
+          <option value="rose">Carte rose (monég. · DH +20 %)</option>
+          <option value="bulle">Carte bulle (monég. · DH libre)</option>
+          <option value="fr">Assuré français (DH libre)</option>
+          <option value="nas">NAS / non assuré (DH libre)</option>
+          <option value="spme">SPME (DH 0)</option>
+          <option value="ame">AME (DH libre)</option>
+        </select></div>
+      <div><label id="coefLbl">Coeff. CCAM</label><span class="coefbadge" id="coefBadge">× 1,95</span></div>
+    </div>
+
+    <!-- CCAM : actes techniques -->
+    <div id="blocCCAM">
+      <table class="lines">
+        <thead><tr><th style="width:30%">Ligne (code / libellé)</th><th style="width:15%">Tarif off. act.4 (€)</th><th class="chkcell">7</th><th class="chkcell">A</th><th style="width:24%">Rôle</th><th style="width:14%;text-align:right">BR</th><th></th></tr></thead>
+        <tbody id="linesBody"></tbody>
+      </table>
+      <button class="addline" onclick="addLine()">＋ ajouter une ligne de code</button>
+    </div>
+
+    <!-- NGAP : consultations (lettre-clé × coefficient) -->
+    <div id="blocNGAP" style="display:none">
+      <table class="lines">
+        <thead><tr><th style="width:34%">Lettre-clé</th><th style="width:18%">Valeur (€)</th><th style="width:18%">Coefficient</th><th style="width:16%;text-align:right">BR</th><th></th></tr></thead>
+        <tbody id="ngapBody"></tbody>
+      </table>
+      <button class="addline" onclick="addNgap()">＋ ajouter une consultation</button>
+    </div>
+
+    <div class="parcfoot">
+      <div class="brtot">BR du parcours (somme des lignes) : <b id="parcBR">0 €</b></div>
+      <div class="dhbox">
+        <div class="field"><label>DH (€)</label><input id="dh" class="mono" type="number" step="0.01" value="0"></div>
+        <div class="field" id="cibleWrap" style="display:none"><label>ou total cible (€)</label><input id="cible" class="mono" type="number" step="0.01" placeholder="ex. 1500" onchange="fromCible()"></div>
+        <button class="add" onclick="addParcours()">Ajouter le parcours</button>
+      </div>
+    </div>
+    <div class="hint" id="hintCCAM">Rôle : <b>principal</b> 100 % · <b>associé</b> 50 % (2ᵉ acte) · <b>complément</b> 100 % en sus (AHQJ021, YYYY041…). Le modificateur A vaut +23 € (français) ou +44,85 € (monégasque). Tarif officiel : à lire dans le classeur Excel des codes.</div>
+    <div class="hint" id="hintNGAP" style="display:none"><b>NGAP = lettre-clé × coefficient</b>, sans coefficient monégasque (verte, bulle, français… même BR) et sans modificateur 7/A. Valeurs : <b>C 34,40 €</b> · <b>CS 46 €</b> · <b>APC 60 €</b>. La carte ne joue que sur le <b>DH</b> : verte/SPME 0 · rose +20 % · bulle/français/NAS/AME libre.</div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary">
+    <div class="axcard"><div class="top"><div class="axhead"><span class="dot c"></span>CCAM — projeté</div>
+      <div class="figs"><div class="fig"><div class="l">% projeté</div><div class="b" id="pctC">25,0 %</div></div>
+      <div class="fig" style="text-align:right"><div class="l">marge / déficit</div><div class="b room mono" id="mrgC">—</div></div></div></div>
+      <div class="trk"><div class="fl room" id="flC" style="width:41.6%"></div><div class="mk"></div></div><div class="cap">seuil 30 % · 0-60 %</div></div>
+    <div class="axcard"><div class="top"><div class="axhead"><span class="dot n"></span>NGAP — projeté</div>
+      <div class="figs"><div class="fig"><div class="l">% projeté</div><div class="b" id="pctN">25,0 %</div></div>
+      <div class="fig" style="text-align:right"><div class="l">marge / déficit</div><div class="b room mono" id="mrgN">—</div></div></div></div>
+      <div class="trk"><div class="fl room" id="flN" style="width:41.6%"></div><div class="mk"></div></div><div class="cap">seuil 30 % · 0-60 %</div></div>
+  </div>
+
+  <div class="totbar">
+    <div><div class="l">Libéral empilé (BR, charge le quota)</div><div class="v mono" id="totBR">0 €</div></div>
+    <div style="text-align:right"><div class="l">Encaissé estimé (BR + DH)</div><div class="v"><span class="mono" id="totEnc">0 €</span> <span class="dh mono" style="font-size:12px" id="totDH"></span></div></div>
+  </div>
+
+  <div class="list"><h2 id="listTitle">Parcours déclarés — 0</h2><div id="rows"><div class="empty">Builder pré-rempli. Bascule l’axe (Bloc CCAM / Consult NGAP), ajuste, puis « Ajouter le parcours ».</div></div></div>
+
+  <footer><b>Estimateur, pas décompte.</b> Calcul : BR = coefficient × (tarif officiel × (1+%mod) × taux d'association + €mod). Le tarif officiel a une petite incertitude (à fiabiliser via tes feuilles vertes) ; le DH « libre » se saisit. Le code réel peut différer du prévu ; le relevé officiel recale tout.</footer>
+</div>
+
+<script>
+const STATUTS={
+ verte:{coeff:1.95,dh:'0'}, rose:{coeff:1.95,dh:'0.20'}, bulle:{coeff:1.95,dh:'libre'},
+ fr:{coeff:1.00,dh:'libre'}, nas:{coeff:1.00,dh:'libre'}, spme:{coeff:1.95,dh:'0'}, ame:{coeff:1.95,dh:'libre'}
+};
+const ROLES={principal:{lab:'Principal (100 %)',rate:1.0}, associe:{lab:'Associé (50 %)',rate:0.5}, complement:{lab:'Complément (100 % en sus)',rate:1.0}};
+// NGAP : lettre-clé × coefficient, sans coeff monégasque ni modificateur
+const LC={C:34.40, CS:46.00, APC:60.00, AUTRE:0};
+let axe='CCAM';
+let builder=[
+  {lib:'PTH — NEKA014',tarif:253.90,m7:true,mA:true,role:'principal'},
+  {lib:'Synovectomie — NEFA004',tarif:118.82,m7:true,mA:true,role:'associe'},
+];
+let ngap=[ {lc:'CS', val:46.00, coef:1} ];
+let parcours=[];
+const eur=n=>Math.round(n).toLocaleString('fr-FR')+' €';
+const eur2=n=>n.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+
+function coeff(){return STATUTS[document.getElementById('statut').value].coeff;}
+// CCAM : coeff monégasque × (tarif ×(1+%mod) × taux assoc + €mod)
+function lineBR(l){const c=coeff();const pct=l.m7?0.06:0;const rate=ROLES[l.role].rate;const A=l.mA?23:0;
+  return c*((l.tarif||0)*(1+pct)*rate + A);}
+// NGAP : valeur de la lettre-clé × coefficient — AUCUN coeff monégasque, aucun modificateur
+function ngapBR(n){return (n.val||0)*(n.coef||0);}
+function parcoursBR(){
+  return axe==='NGAP'
+    ? ngap.reduce((s,n)=>s+ngapBR(n),0)
+    : builder.reduce((s,l)=>s+lineBR(l),0);
+}
+
+function setAxe(a){axe=a;
+  document.getElementById('axC').classList.toggle('on',a==='CCAM');
+  document.getElementById('axN').classList.toggle('on',a==='NGAP');
+  const n=(a==='NGAP');
+  document.getElementById('blocCCAM').style.display=n?'none':'block';
+  document.getElementById('blocNGAP').style.display=n?'block':'none';
+  document.getElementById('hintCCAM').style.display=n?'none':'block';
+  document.getElementById('hintNGAP').style.display=n?'block':'none';
+  onStatut();
+}
+function onStatut(){const st=STATUTS[document.getElementById('statut').value];
+  const badge=document.getElementById('coefBadge'), lbl=document.getElementById('coefLbl');
+  if(axe==='NGAP'){ badge.textContent='× 1,00'; lbl.textContent='Coeff. NGAP'; badge.title='Le NGAP n’applique pas le coefficient monégasque'; }
+  else { badge.textContent='× '+st.coeff.toLocaleString('fr-FR',{minimumFractionDigits:2}); lbl.textContent='Coeff. CCAM'; badge.title=''; }
+  document.getElementById('cibleWrap').style.display = st.dh==='libre'?'block':'none';
+  renderBuilder();}
+function addLine(){builder.push({lib:'',tarif:0,m7:false,mA:false,role:'complement'});renderBuilder();}
+function rmLine(i){builder.splice(i,1);renderBuilder();}
+function upd(i,f,v){builder[i][f]=v;renderBuilder();}
+
+// --- NGAP ---
+function addNgap(){ngap.push({lc:'CS',val:LC.CS,coef:1});renderBuilder();}
+function rmNgap(i){ngap.splice(i,1);renderBuilder();}
+function updNgap(i,f,v){
+  ngap[i][f]=v;
+  if(f==='lc' && v!=='AUTRE') ngap[i].val=LC[v]; // valeur auto-remplie depuis la lettre-clé
+  renderBuilder();
+}
+
+function renderBuilder(){
+  if(axe==='NGAP') return renderNgap();
+  const tb=document.getElementById('linesBody');
+  tb.innerHTML=builder.map((l,i)=>`<tr>
+    <td><input value="${l.lib.replace(/"/g,'&quot;')}" onchange="upd(${i},'lib',this.value)"></td>
+    <td><input class="mono" type="number" step="0.01" value="${l.tarif||''}" onchange="upd(${i},'tarif',parseFloat(this.value)||0)"></td>
+    <td class="chkcell"><input type="checkbox" ${l.m7?'checked':''} onchange="upd(${i},'m7',this.checked)"></td>
+    <td class="chkcell"><input type="checkbox" ${l.mA?'checked':''} onchange="upd(${i},'mA',this.checked)"></td>
+    <td><select onchange="upd(${i},'role',this.value)">${Object.keys(ROLES).map(k=>`<option value="${k}" ${l.role===k?'selected':''}>${ROLES[k].lab}</option>`).join('')}</select></td>
+    <td class="brcell">${eur2(lineBR(l))}</td>
+    <td><button class="rm" onclick="rmLine(${i})" title="Retirer">✕</button></td></tr>`).join('');
+  applyDH();
+}
+
+// DH commun CCAM/NGAP : verte/SPME=0 · rose=+20 % BR · sinon libre
+function applyDH(){
+  const br=parcoursBR();
+  document.getElementById('parcBR').textContent=eur2(br);
+  const st=STATUTS[document.getElementById('statut').value];
+  const dhIn=document.getElementById('dh');
+  if(st.dh==='0'){dhIn.value='0';dhIn.disabled=true;}
+  else if(st.dh==='0.20'){dhIn.value=(Math.round(br*0.20*100)/100).toFixed(2);dhIn.disabled=true;}
+  else{dhIn.disabled=false;}
+  renderSummary();
+}
+
+function renderNgap(){
+  const tb=document.getElementById('ngapBody');
+  const opts=k=>Object.keys(LC).map(x=>`<option value="${x}" ${k===x?'selected':''}>${x==='AUTRE'?'Autre…':x}</option>`).join('');
+  tb.innerHTML=ngap.map((n,i)=>`<tr>
+    <td><select onchange="updNgap(${i},'lc',this.value)">${opts(n.lc)}</select></td>
+    <td><input class="mono" type="number" step="0.01" value="${n.val||''}" ${n.lc!=='AUTRE'?'readonly style=background:#F1F5F9':''} onchange="updNgap(${i},'val',parseFloat(this.value)||0)"></td>
+    <td><input class="mono" type="number" step="1" min="1" value="${n.coef||''}" onchange="updNgap(${i},'coef',parseFloat(this.value)||0)"></td>
+    <td class="brcell">${eur2(ngapBR(n))}</td>
+    <td><button class="rm" onclick="rmNgap(${i})" title="Retirer">✕</button></td></tr>`).join('');
+  applyDH();
+}
+function fromCible(){const c=parseFloat(document.getElementById('cible').value)||0;const br=parcoursBR();
+  document.getElementById('dh').value=(Math.max(0,Math.round((c-br)*100)/100)).toFixed(2);renderSummary();}
+
+function addParcours(){
+  const br=parcoursBR();
+  if(br<=0){alert(axe==='NGAP'?'Ajoute au moins une consultation avec une valeur.':'Ajoute au moins une ligne avec un tarif.');return;}
+  const dh=parseFloat(document.getElementById('dh').value)||0;
+  const desc = axe==='NGAP'
+    ? ngap.map(n=>`${n.lc==='AUTRE'?'NGAP':n.lc}${(n.coef&&n.coef!==1)?' '+n.coef:''}`).join(' + ')
+    : builder.map(l=>l.lib||'ligne').join(' + ');
+  const cnt = axe==='NGAP'?ngap.length:builder.length;
+  parcours.push({axe,statut:document.getElementById('statut').value,desc,cnt,br,dh});
+  renderRows();renderSummary();
+}
+function delP(i){parcours.splice(i,1);renderRows();renderSummary();}
+
+function projAxis(T0,p0,sumBR){const L0=T0*p0/100,P0=T0-L0,L=L0+sumBR,T=T0+sumBR,pct=T>0?L/T*100:0;
+  return {pct,marge:(3/7)*P0-L,publicReq:(7/3)*L-P0};}
+function paint(sfx,r){document.getElementById('pct'+sfx).textContent=r.pct.toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1})+' %';
+  const m=document.getElementById('mrg'+sfx);
+  if(r.marge>=0){m.textContent='+'+eur(r.marge);m.className='b room mono';}else{m.textContent='pub.+'+eur(r.publicReq);m.className='b over mono';}
+  const f=document.getElementById('fl'+sfx);f.style.width=Math.min(100,r.pct/60*100)+'%';f.className='fl '+(r.pct>30?'over':'room');}
+
+function renderSummary(){
+  const Tc=+document.getElementById('Tc').value||0,Pc=+document.getElementById('Pc').value||0;
+  const Tn=+document.getElementById('Tn').value||0,Pn=+document.getElementById('Pn').value||0;
+  const brC=parcours.filter(p=>p.axe==='CCAM').reduce((s,p)=>s+p.br,0);
+  const brN=parcours.filter(p=>p.axe==='NGAP').reduce((s,p)=>s+p.br,0);
+  paint('C',projAxis(Tc,Pc,brC));paint('N',projAxis(Tn,Pn,brN));
+  const sumBR=parcours.reduce((s,p)=>s+p.br,0),sumDH=parcours.reduce((s,p)=>s+p.dh,0);
+  document.getElementById('totBR').textContent=eur(sumBR);
+  document.getElementById('totEnc').textContent=eur(sumBR+sumDH);
+  document.getElementById('totDH').textContent=sumDH?('· dont '+eur(sumDH)+' hors quota'):'';
+}
+function renderRows(){
+  document.getElementById('listTitle').textContent='Parcours déclarés — '+parcours.length;
+  const rows=document.getElementById('rows');
+  if(!parcours.length){rows.innerHTML='<div class="empty">Aucun parcours.</div>';return;}
+  rows.innerHTML=parcours.map((p,i)=>{const c=p.axe==='CCAM'?'c':'n';
+    const unit=p.axe==='NGAP'?'consult':'ligne';
+    return `<div class="pitem"><span class="pill ${c}">${p.axe}</span>
+      <div class="d">${p.desc} <small>${p.statut} · ${p.cnt} ${unit}(s)</small></div>
+      <div class="amt"><span class="br">${eur2(p.br)}</span> BR<br><span class="dh">${p.dh?'+'+eur2(p.dh)+' DH':'DH 0'}</span></div>
+      <button class="rm" onclick="delP(${i})">✕</button></div>`;}).join('');
+}
+['Tc','Pc','Tn','Pn'].forEach(id=>document.getElementById(id).addEventListener('input',renderSummary));
+setAxe('CCAM');renderRows();
+</script>
+</body>
+</html>
