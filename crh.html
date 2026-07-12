@@ -293,7 +293,10 @@ async function genererCRH(){
     if(r && r.success){
       out.value=r.cr||'';
       if(r.cr) copy.style.display='inline-flex';
-      if(r.truncated){ err.textContent='Le compte rendu est peut-être incomplet (limite de longueur atteinte). Relance si la fin manque.'; err.style.display='block'; }
+      if(r.truncated){
+        const info = (r.out_tokens && r.cap) ? ' — ' + r.out_tokens + ' tokens générés / plafond ' + r.cap : '';
+        err.textContent='Compte rendu peut-être incomplet (limite de longueur atteinte' + info + '). Relance si la fin manque.'; err.style.display='block';
+      }
     } else { err.textContent=(r && r.error) ? r.error : 'Échec de la génération.'; err.style.display='block'; }
   }catch(e){ err.textContent='Erreur réseau — réessayez.'; err.style.display='block'; }
   btn.disabled=false; btn.textContent='Générer le compte rendu';
