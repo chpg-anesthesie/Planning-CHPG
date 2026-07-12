@@ -126,6 +126,13 @@ body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;backgroun
     </div>
     <div class="crh-hint" id="fmtHint">Séjours courts/simples — intro/admission puis « Sur le plan … ».</div>
 
+    <div class="crh-label" style="margin-top:16px">Modèle</div>
+    <div class="crh-seg-wrap">
+      <button class="crh-seg on" data-m="sonnet" onclick="setModel('sonnet')">Sonnet 4.6</button>
+      <button class="crh-seg" data-m="opus" onclick="setModel('opus')">Opus 4.8</button>
+    </div>
+    <div class="crh-hint" id="mdlHint">Standard — convient à la plupart des séjours.</div>
+
     <div class="crh-row">
       <span class="crh-label">Mots d'évolution du séjour</span>
       <span class="crh-badge" id="joursBadge"></span>
@@ -148,12 +155,13 @@ J3 …"></textarea>
       <button class="crh-copy" id="copyBtn" onclick="copierCRH()">Copier</button>
     </div>
     <textarea class="crh-out" id="crhOut" placeholder="Le compte rendu apparaîtra ici, éditable avant copie."></textarea>
+    <div class="crh-hint" id="mdlUsed" style="margin-top:8px"></div>
   </div>
 </div>
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
-let VIEW_CODE = ''; let MY_ID = null; let MY_ROLE = null; let FMT = 'appareil';
+let VIEW_CODE = ''; let MY_ID = null; let MY_ROLE = null; let FMT = 'appareil'; let MODEL = 'sonnet';
 
 function esc(s){ return String(s||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function _meName(id){ return (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase(); }
@@ -277,10 +285,17 @@ function majBadge(){
 }
 function setFormat(f){
   FMT=f;
-  document.querySelectorAll('.crh-seg').forEach(el=>el.classList.toggle('on', el.dataset.f===f));
+  document.querySelectorAll('.crh-seg[data-f]').forEach(el=>el.classList.toggle('on', el.dataset.f===f));
   document.getElementById('fmtHint').textContent = f==='appareil'
     ? 'Séjours courts/simples — intro/admission puis « Sur le plan … ».'
     : 'Séjours longs/complexes — récit chronologique daté.';
+}
+function setModel(m){
+  MODEL=m;
+  document.querySelectorAll('.crh-seg[data-m]').forEach(el=>el.classList.toggle('on', el.dataset.m===m));
+  document.getElementById('mdlHint').textContent = m==='opus'
+    ? 'Modèle le plus capable — à réserver aux séjours longs ou complexes (coût un peu supérieur).'
+    : 'Standard — convient à la plupart des séjours.';
 }
 async function genererCRH(){
   const bloc=document.getElementById('crhBloc').value.trim();
@@ -289,10 +304,12 @@ async function genererCRH(){
   err.style.display='none'; out.value=''; copy.style.display='none';
   btn.disabled=true; btn.textContent='Génération en cours…';
   try{
-    const r=await apiPost({action:'genererCRH', texte:bloc, format:FMT});
+    const r=await apiPost({action:'genererCRH', texte:bloc, format:FMT, model:MODEL});
     if(r && r.success){
       out.value=r.cr||'';
       if(r.cr) copy.style.display='inline-flex';
+      const mu=document.getElementById('mdlUsed');
+      mu.textContent = r.model_used ? ('Généré avec ' + r.model_used + (r.out_tokens ? ' · ' + r.out_tokens + ' tokens' : '')) : '';
       if(r.truncated){
         const info = (r.out_tokens && r.cap) ? ' — ' + r.out_tokens + ' tokens générés / plafond ' + r.cap : '';
         err.textContent='Compte rendu peut-être incomplet (limite de longueur atteinte' + info + '). Relance si la fin manque.'; err.style.display='block';
