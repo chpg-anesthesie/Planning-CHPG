@@ -1071,7 +1071,11 @@ function genererCRH_(payload, user) {
     .map(function (b) { return b.text; })
     .join('\n').trim();
 
-  if (!cr) return { success: false, error: 'Reponse vide du modele.' };
+  if (!cr) {
+    var sr = data.stop_reason || '(non precise)';
+    Logger.log('CRH reponse sans texte — stop_reason=' + sr + ' — brut(700c): ' + String(res.getContentText() || '').slice(0, 700));
+    return { success: false, error: 'Reponse sans texte (raison : ' + sr + '). Detail dans les logs Apps Script (Executions).' };
+  }
   return { success: true, cr: cr, truncated: data.stop_reason === 'max_tokens' };
 }
 
