@@ -23,7 +23,7 @@ function portailRoute(action, payload, user) {
     case 'listAnnuaire':   return _portailJson(listAnnuaire());
     case 'getVeille':  return _portailJson(getVeille());
     case 'markVeille': return _portailJson(markVeille(payload && payload.pmid, payload && payload.field, payload && payload.value));
-    case 'genererCRH': return _portailJson(genererCRH_(payload));
+    case 'genererCRH': return _portailJson(genererCRH_(payload, user));
     default:          return null;   // pas une action portail → doGet continue
   }
 }
@@ -881,6 +881,7 @@ function testAnnuaire() {
 // ══════════════════════════════════════════════════════════════════════
 
 const CRH_MODEL = 'claude-sonnet-5';   // bascule possible vers 'claude-opus-4-8' pour + de finesse
+const CRH_ALLOWED = ['FROHLICH'];      // ids MEDECINS autorisés à générer des CRH (accès nominatif)
 
 let _anthropicTokenCache = null;
 function getAnthropicToken() {
@@ -1012,7 +1013,10 @@ ${CRH_EX_CHRONO_GRAVE}
 ${CRH_EX_CHRONO_DECES}`;
 }
 
-function genererCRH_(payload) {
+function genererCRH_(payload, user) {
+  if (!user || CRH_ALLOWED.indexOf(String(user.id)) === -1) {
+    return { success: false, error: 'Accès réservé.' };
+  }
   const texte  = String((payload && payload.texte)  || '').trim();
   const format = String((payload && payload.format) || 'appareil').trim();
   if (!texte) return { success: false, error: 'Aucun texte fourni.' };
