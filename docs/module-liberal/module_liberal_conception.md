@@ -19,6 +19,11 @@
 *(3/7)·P − L`), sans extrapolation « au rythme » (jugée trompeuse sur une activité saisonnière :*
 *congés, gardes, blocs fermés) ; la projection d'un montant à fin décembre, fondée sur l'activité*
 *planifiée, passe en V2. §13.10 aligné.*
+***v3.7 — 12/07/2026** : **règle de calcul de la BR NGAP figée et validée au centime** (8 feuilles*
+*réelles) — BR = lettre-clé × coefficient (`C 34,40 · CS 46 · APC 60`), **sans** coefficient*
+*monégasque ×1,95 ni modificateur ; la carte ne joue que sur le DH (verte/SPME 0 · rose +20 % ·*
+*bulle/français/NAS/AME libre). Chaîne complète dans l'antisèche §5 ter. Maquette estimateur*
+*(`maquette_estimateur_liberal.html`) mise à jour : axe NGAP doté d'un builder dédié. §14 précisé.*
 *Calendrier inchangé : construction APRÈS le go-live d'octobre 2026 et APRÈS « secteurs étape 2 ».*
 *Rien ne part en prod tant que ce plan n'est pas clair et précis. On ne code pas encore.*
 
@@ -358,7 +363,10 @@ go-live octobre 2026.
   une marge par axe (le NGAP semble plus volatil dans le CR réel).
 - **V2 — estimateur temps réel du libéral (indicateur avancé).** Dès la saisie d'une consult, on
   peut estimer le **numérateur** à venir : `Σ actes libéraux déclarés × montant CCAM` (+ le NGAP
-  de la consult). Le **dénominateur (public)** échappe au module (l'activité publique n'y est pas
+  de la consult). **Chiffrage par axe (validé §5 ter de l'antisèche)** : côté **CCAM**, BR = coeff.
+  carte (monég. ×1,95 / français ×1,00) × (tarif act.4 ×(1+%mod) × taux d'association + €mod) ;
+  côté **NGAP**, BR = **lettre-clé × coefficient** (`C 34,40 · CS 46 · APC 60`), sans ×1,95 ni
+  modificateur — la carte n'y touche que le DH, **hors quota**. Le **dénominateur (public)** échappe au module (l'activité publique n'y est pas
   saisie acte par acte) → on n'obtient pas le ratio complet en temps réel, seulement le libéral
   accumulé. Montage utile : **partir du dernier relevé cumulé (socle certifié)** et poser
   par-dessus l'**incrément estimé** des actes déclarés depuis → projection du numérateur bien plus
