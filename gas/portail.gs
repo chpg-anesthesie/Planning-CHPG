@@ -882,6 +882,7 @@ function testAnnuaire() {
 
 const CRH_MODEL = 'claude-sonnet-5';   // bascule possible vers 'claude-opus-4-8' pour + de finesse
 const CRH_ALLOWED = ['FROHLICH'];      // ids MEDECINS autorisés à générer des CRH (accès nominatif)
+const CRH_MAX_TOKENS = 8192;           // plafond de sortie
 
 let _anthropicTokenCache = null;
 function getAnthropicToken() {
@@ -1037,7 +1038,7 @@ function genererCRH_(payload, user) {
 
   const body = {
     model: CRH_MODEL,
-    max_tokens: 8192,
+    max_tokens: CRH_MAX_TOKENS,
     system: crhSystemPrompt_(),
     messages: [{ role: 'user', content: userMsg }]
   };
@@ -1077,7 +1078,8 @@ function genererCRH_(payload, user) {
     Logger.log('CRH reponse sans texte — stop_reason=' + sr + ' — brut(700c): ' + String(res.getContentText() || '').slice(0, 700));
     return { success: false, error: 'Reponse sans texte (raison : ' + sr + '). Detail dans les logs Apps Script (Executions).' };
   }
-  return { success: true, cr: cr, truncated: data.stop_reason === 'max_tokens' };
+  return { success: true, cr: cr, truncated: data.stop_reason === 'max_tokens',
+           out_tokens: (data.usage && data.usage.output_tokens) || null, cap: CRH_MAX_TOKENS };
 }
 
 // ── À exécuter UNE FOIS après recopie : vérifie la clé + un CR de test ──
