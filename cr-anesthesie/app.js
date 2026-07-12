@@ -379,6 +379,36 @@ function applySmartPreset(geste){
   showPresetToast();
 }
 
+// Aperçu formaté du CR (lecture) — la copie reste le texte DPI brut.
+const CR_SECTION_TITLES = new Set([
+  "INTERVENTION","INSTALLATION","INDUCTION","SÉDATION","VOIES AÉRIENNES","ENTRETIEN",
+  "ANALGÉSIE","ALR PÉRIPHÉRIQUE","ALR NEURAXIALE","PER-OPÉRATOIRE","ANTIBIOPROPHYLAXIE","SUITES IMMÉDIATES"
+]);
+function escapeHtml(s){
+  return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+}
+function renderFormattedPreview(txt){
+  const box = document.getElementById("reportFormatted");
+  if(!box) return;
+  let html = "";
+  for(const raw of String(txt||"").split("\n")){
+    const line = raw.trim();
+    if(!line){ html += '<div class="cr-gap"></div>'; continue; }
+    if(CR_SECTION_TITLES.has(line)) html += '<div class="cr-section">' + escapeHtml(line) + '</div>';
+    else html += '<div class="cr-line">' + escapeHtml(line) + '</div>';
+  }
+  box.innerHTML = html;
+}
+function setReportView(mode){
+  const f = $("reportFormatted"), r = $("report"), bf = $("viewFormatted"), br = $("viewRaw");
+  if(!f || !r) return;
+  const raw = (mode === "raw");
+  f.classList.toggle("hidden", raw);
+  r.classList.toggle("hidden", !raw);
+  bf.classList.toggle("active", !raw);
+  br.classList.toggle("active", raw);
+}
+
 // Petit retour visuel quand un préréglage est appliqué (jamais pendant init/restauration).
 function showPresetToast(){
   if(__restoring || __initializing) return;
@@ -387,7 +417,7 @@ function showPresetToast(){
     t = document.createElement("div");
     t.id = "presetToast";
     t.textContent = "Préréglage appliqué";
-    t.style.cssText = "position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1f4e79;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transition:opacity .2s ease;z-index:9999;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.22)";
+    t.style.cssText = "position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;opacity:0;transition:opacity .2s ease;z-index:9999;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.22)";
     document.body.appendChild(t);
   }
   t.style.opacity = "1";
@@ -962,6 +992,9 @@ function initUI(){
 }
 
 function initListeners(){
+  $("viewFormatted").onclick = ()=>setReportView("formatted");
+  $("viewRaw").onclick = ()=>setReportView("raw");
+
   window.addEventListener("beforeunload", (e)=>{
     if(window.__crSkipUnloadWarn) return;
     const hasWork =
