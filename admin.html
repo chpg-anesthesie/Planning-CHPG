@@ -4918,6 +4918,63 @@ async function renderWizGStep() {
         html += '<div style="font-size:12px;color:var(--ink-3);padding:8px 0">Aucun souhait posé sur un jour d\'équité — rien à signaler.</div>';
       }
 
+      // ── Audit COUVERTURE jour par jour : jours à risque de trou + leviers ──
+      // Calibré sur 20 années simulées : aucun trou n'est jamais survenu un jour à
+      // ≥ 6 MARs statiquement disponibles ; tous les trous sont survenus entre 1 et 5.
+      // 🔴 < 4 = trou quasi certain · 🟠 4-5 = possible (contraintes dynamiques : RG de
+      // la veille, binôme VD, combos) · objectif : ≥ 6 partout ⇒ 0 trou.
+      {
+        const _blkJ = new Set(['INDISPO','VAC','FORM','CL','CTP','TP']);
+        const _gMarsJ = actifs.filter(m => !m.noGarde);
+        const _anc22 = Date.UTC(2026,5,1); // rythme 2/2 : ancre semaine ISO 23/2026 (= generateur_gardes.gs)
+        const _off22 = ds => { const dt=new Date(ds+'T12:00:00');
+          const mo=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate()));
+          mo.setUTCDate(mo.getUTCDate()-((mo.getUTCDay()+6)%7));
+          return ((Math.round((mo-_anc22)/(7*86400000))%4)+4)%4>=2; };
+        const _TPJ={LUN:1,MAR:2,MER:3,JEU:4,VEN:5,SAM:6,DIM:0};
+        const _JN=['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'];
+        const _dayRisk=[];
+        for (let dt=new Date(_y,0,1); dt<=new Date(_y,11,31); dt.setDate(dt.getDate()+1)) {
+          const ds=_dstr(dt), dow=dt.getDay(), fer=_fer.has(ds), we=(dow===0||dow===6||fer);
+          let n=0; const leviers=[];
+          _gMarsJ.forEach(m => {
+            if (m.dateDebut && ds < m.dateDebut) return;
+            if (m.dateFin && ds >= m.dateFin) return;
+            if (m.rythme2sur2 && _off22(ds)) return;
+            if (m.tpJoursFixes) { const js=String(m.tpJoursFixes).split(/[,;\s]+/); if(js.some(t=>_TPJ[t]===dow)) return; }
+            if ((we||dow===5) && m.souhaitPlafond) return;  // souhaits garantis : jamais ven/sam/dim/férié
+            if (we && m.noWeekend) return;
+            const ind = wizGIndisposData[m.id]||wizGIndisposData[m.initiales]||{};
+            const c=ind[ds];
+            if (c && _blkJ.has(c)) { if(c==='VAC'||c==='INDISPO'||c==='FORM') leviers.push(m.initiales+' <span style="opacity:.55">'+c+'</span>'); return; }
+            n++;
+          });
+          if (n < 6) _dayRisk.push({ds,dow,n,red:n<4,leviers});
+        }
+        const _fmtJ = o => { const d=new Date(o.ds+'T12:00:00'); return _JN[o.dow]+' '+d.getDate()+'/'+(d.getMonth()+1); };
+        html += '<div class="wizard-section-title" style="margin-top:16px">Couverture — jours à risque de trou</div>';
+        if (!_dayRisk.length) {
+          html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534;margin-top:4px">✅ <strong>Aucun jour sous 6 MARs disponibles</strong> — aucun trou de couverture attendu.</div>';
+        } else {
+          const nbRedJ=_dayRisk.filter(x=>x.red).length;
+          if (nbRedJ) html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b;margin-top:4px">🔴 <strong>'+nbRedJ+' jour(s) à trou quasi certain</strong> (moins de 4 MARs disponibles) — sans libérations ciblées, ces gardes resteront vides.<br><small>Repère (20 années simulées) : aucun trou n\'est jamais survenu un jour à 6 disponibles ou plus. Objectif : remonter chaque jour listé à ≥ 6 en demandant les libérations indiquées. Ceci ne bloque pas la génération.</small></div>';
+          else html += '<div class="wizard-warning" style="background:#FEF3C7;border-left:3px solid #F59E0B;color:#92400E;margin-top:4px">🟠 <strong>'+_dayRisk.length+' jour(s) sous la marge de sécurité</strong> (4-5 disponibles : un trou reste possible selon l\'enchaînement des gardes). Objectif : ≥ 6 partout.</div>';
+          html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'
+            +'<th style="text-align:left;padding:5px 6px;border-bottom:2px solid var(--line);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">Jour</th>'
+            +_thH('Dispo')+_thH('À libérer')
+            +'<th style="text-align:left;padding:5px 6px;border-bottom:2px solid var(--line);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">Absents modifiables (VAC / INDISPO / FORM)</th></tr></thead><tbody>';
+          _dayRisk.sort((a,b)=>a.n-b.n || (a.ds<b.ds?-1:1)).forEach(o => {
+            const bg=o.red?'#FEE2E2':'#FEF3C7', fg=o.red?'#991B1B':'#92400E';
+            const lev = o.leviers.length>10 ? (o.leviers.slice(0,10).join(', ')+' +'+(o.leviers.length-10)) : (o.leviers.join(', ')||'—');
+            html += '<tr><td style="text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);font-weight:700">'+_fmtJ(o)+'</td>'
+              +'<td style="text-align:center;padding:5px 6px;border-bottom:1px solid var(--line);background:'+bg+';color:'+fg+';font-weight:800">'+o.n+'</td>'
+              +'<td style="text-align:center;padding:5px 6px;border-bottom:1px solid var(--line);font-weight:700;color:'+fg+'">≥ '+(6-o.n)+'</td>'
+              +'<td style="text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);font-size:11px;color:var(--ink-3)">'+lev+'</td></tr>';
+          });
+          html += '</tbody></table></div>';
+        }
+      }
+
       // ── Audit COUVERTURE : assez de MAR dispo chaque semaine pour pourvoir les gardes ? ──
       // Capacité hebdo = Σ min(jours libres, 2) par MAR de garde (un MAR couvre ~2 gardes/sem. avec
       // les espacements). Requis = jours de la semaine × 2. Seuil calibré en simulation : les trous
