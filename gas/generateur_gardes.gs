@@ -397,6 +397,17 @@ function generateGardes(year){
     return n;
   };
   function spacingPenalty(id, date){
+    // (VDM) dimanche→mardi non souhaité = DERNIER RECOURS : pénalité écrasante,
+    // le candidat ne passe que si la couverture du jour l'exige (la couverture prime tout).
+    let vdm=0;
+    { const _dw=new Date(date+'T12:00:00').getDay();
+      if(_dw===2&&!isSouhaitDe(id,date)){
+        const dim=toDateStr(new Date(new Date(date+'T12:00:00').getTime()-2*86400000));
+        if(gSet[id]?.has(dim)||g2Set[id]?.has(dim)) vdm=5000;
+      } else if(_dw===0){
+        const mar=toDateStr(new Date(new Date(date+'T12:00:00').getTime()+2*86400000));
+        if((gSet[id]?.has(mar)||g2Set[id]?.has(mar))&&!isSouhaitDe(id,mar)) vdm=5000;
+      } }
     const has = n => {
       const x = new Date(date + 'T12:00:00'); x.setDate(x.getDate() + n);
       const ds = toDateStr(x);
@@ -408,6 +419,7 @@ function generateGardes(year){
     let v=lv(-2,2); if(v===1)p+=100; else if(v===2)p+=10;
     v=lv(-3,3);     if(v===1)p+=10;  else if(v===2)p+=2;
     v=lv(-4,4);     if(v===1)p+=1;
+    p+=vdm; // (VDM)
     const wl=weekLoad(id,date);      // >2 gardes/semaine à éviter (souple)
     if(wl>=2) p+=80;                 // ce serait la 3e (ou +)
     if(wl>=3) p+=200;
@@ -424,7 +436,10 @@ function generateGardes(year){
     return [space].concat(prim).concat([Math.round(monthOver(id,date)*100)/100,ratioTotal(id),cnt[id].total]);
   }
   function scoreVD(id,fri,sun){
-    const wpen=(weekLoad(id,fri)>=1||weekLoad(id,sun)>=1)?80:0; // VD = ven+dim : éviter une 3e garde la même semaine
+    let wpen=(weekLoad(id,fri)>=1||weekLoad(id,sun)>=1)?80:0; // VD = ven+dim : éviter une 3e garde la même semaine
+    // (VDM) mardi non souhaité déjà en garde à J+2 du dimanche → dernier recours
+    { const mar=toDateStr(new Date(new Date(sun+'T12:00:00').getTime()+2*86400000));
+      if((gSet[id]?.has(mar)||g2Set[id]?.has(mar))&&!isSouhaitDe(id,mar)) wpen+=5000; }
     return [wpen,ratio(id,'vd'),ratioTotal(id),cnt[id].g+cnt[id].g2];
   }
   function cmp(a,b){for(let i=0;i<a.length;i++){if(a[i]!==b[i])return a[i]-b[i];}return 0;}
@@ -719,6 +734,11 @@ function generateGardes(year){
           if(days_.indexOf(thu)<0&&tdi&&!tdi.isFerie&&(gSet[B].has(thu)||g2Set[B].has(thu)))return false;}
         if(dow===4&&!di.isFerie){const sat=shift(dd,2);
           if(days_.indexOf(sat)<0&&(gSet[B].has(sat)||g2Set[B].has(sat)))return false;}
+        // (VDM) un transfert ne crée JAMAIS de dimanche→mardi non souhaité
+        if(dow===2&&!isSouhaitDe(B,dd)){const dim=shift(dd,-2);
+          if(days_.indexOf(dim)<0&&(gSet[B].has(dim)||g2Set[B].has(dim)))return false;}
+        if(dow===0){const mar=shift(dd,2);
+          if(days_.indexOf(mar)<0&&(gSet[B].has(mar)||g2Set[B].has(mar))&&!isSouhaitDe(B,mar))return false;}
       }
       return true;
     };
