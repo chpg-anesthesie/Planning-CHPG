@@ -914,19 +914,17 @@ const CRH_EX_APPAREIL = `Admission d'une patiente consciente, bien orientée, no
 
 Les suites post-opératoires sont simples et marquées par :
 
-Au niveau des soins périopératoires : ablation du drain thoracique le 02/07/2026 avec contrôle radiologique satisfaisant. La cicatrice est propre. L'hémoglobine de sortie est à 12,7 g/dL.
+  - Sur le plan hémodynamique : stabilité hémodynamique, rythme régulier sinusal.
 
-Sur le plan hémodynamique : stabilité hémodynamique, rythme régulier sinusal.
+  - Sur le plan respiratoire : sevrage de l'oxygène dans l'après-midi du 01/07/2026, la patiente restant eupnéique et normoxique en air ambiant par la suite.
 
-Sur le plan respiratoire : sevrage de l'oxygène dans l'après-midi du 01/07/2026, la patiente restant eupnéique et normoxique en air ambiant par la suite.
+  - Sur le plan infectieux : patiente apyrétique, sans sepsis clinique. À noter un syndrome inflammatoire très lentement évolutif (CRP à 96 mg/L le 03/07) pour lequel un ECBC est demandé à titre systématique.
 
-Sur le plan infectieux : patiente apyrétique, sans sepsis clinique. À noter un syndrome inflammatoire très lentement évolutif (CRP à 96 mg/L le 03/07) pour lequel un ECBC est demandé à titre systématique.
+  - Sur le plan neurologique : patiente bien orientée, sans signe de localisation. Ablation accidentelle du cathéter d'analgésie péridurale le 01/07/2026 (grattage sur lésion urticarienne au contact du pansement), relayée par une analgésie multimodale efficace.
 
-Sur le plan neurologique : patiente bien orientée, sans signe de localisation. Ablation accidentelle du cathéter d'analgésie péridurale le 01/07/2026 (grattage sur lésion urticarienne au contact du pansement), relayée par une analgésie multimodale efficace.
+  - Sur le plan néphrologique : diurèse spontanée, sans dégradation de la fonction rénale.
 
-Sur le plan néphrologique : diurèse spontanée, sans dégradation de la fonction rénale.
-
-Sur le plan nutritionnel : reprise d'une alimentation normale à compter du 30/06/2026.
+  - Sur le plan nutritionnel : reprise d'une alimentation normale à compter du 30/06/2026.
 
 Mme X est transférée le 03/07/2026 en unité de chirurgie pour la suite de la prise en charge.`;
 
@@ -997,7 +995,7 @@ IMPORTANT — SÉJOURS LONGS (plusieurs semaines) : ne rallonge PAS le compte re
 - Conclusion : devenir daté (domicile / transfert / décès daté avec heure si mentionnée), suivi et reprise du traitement personnel éventuels.
 
 ═══ FORMAT « PAR APPAREIL » (courts/simples) ═══
-Intro brève (ou phrase d'admission si constantes fournies), puis « Sur le plan [appareil], … » pour les seuls plans actifs, puis état de sortie éventuel et conclusion datée.
+Intro brève (ou phrase d'admission si constantes fournies), puis la liste des plans, chacun sur sa propre ligne au format EXACT «   - Sur le plan [appareil] : … » (deux espaces, un tiret, une espace, l'intitulé, puis « : » avant le contenu), pour les seuls plans actifs, puis état de sortie éventuel et conclusion datée.
 ═══ FORMAT « CHRONOLOGIQUE » (longs/complexes) ═══
 Récit synthétique daté regroupé par fil narratif (et non jour par jour), puis état de sortie éventuel et conclusion datée. Pour un séjour long, structure par phases et par problèmes plutôt que par journées ; condense les périodes stables en une phrase.
 
@@ -1032,7 +1030,7 @@ function genererCRH_(payload, user) {
 
   const fmt = (format === 'chrono')
     ? 'CHRONOLOGIQUE (recit date synthetique)'
-    : 'PAR APPAREIL (intro/admission breve puis « Sur le plan … », plans actifs seulement)';
+    : 'PAR APPAREIL (intro/admission breve puis liste «   - Sur le plan … : … », plans actifs seulement)';
 
   const userMsg = 'Format demande : ' + fmt + '.\n\n'
     + "Rappel : tres synthetique, centre rea ; applique les regles affinees (intro sans spoiler, "
