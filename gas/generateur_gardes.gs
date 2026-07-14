@@ -115,6 +115,10 @@ function generateGardes(year){
     });
   }
 
+  // (Fix A3) une garde posée sur un jour que le MAR a lui-même souhaité est
+  // « assumée » : elle ne compte pas dans SES pénalités d'espacement.
+  const isSouhaitDe=(id,date)=>!!(souhaits[date]&&souhaits[date].indexOf(id)>=0);
+
   // ── 2. Médecins ──────────────────────────────────────────────────────
   const medData=ss.getSheetByName('MEDECINS').getDataRange().getValues();
   const allDoctors=[],gardeDoctors=[],pct={},quot={};
@@ -209,15 +213,16 @@ function generateGardes(year){
       totSam+=rs; totJeu+=rj; totVd+=rv; totVjf+=rvj; totJf+=rjf; totTot+=rt;
     }
     const sumP=gardeDoctors.reduce((s,id)=>s+pct[id]/100,0);
-    const sumPWE=gardeDoctors.reduce((s,id)=>NO_WEEKEND.has(id)?s:s+pct[id]/100,0);
+    const _horsWE=id=>NO_WEEKEND.has(id)||FLAGS.souhaitPlafond.has(id); // (Fix A2) plafonné hors axes WE
+    const sumPWE=gardeDoctors.reduce((s,id)=>_horsWE(id)?s:s+pct[id]/100,0);
     gardeDoctors.forEach(id=>{
       if(!reel[id]) return; // MAR absent de N-1 → dette neutre
       const p=pct[id]/100;
-      const fairS=(NO_WEEKEND.has(id)||!sumPWE)?0:totSam*p/sumPWE;
-      const fairV=(NO_WEEKEND.has(id)||!sumPWE)?0:totVd *p/sumPWE;
+      const fairS=(_horsWE(id)||!sumPWE)?0:totSam*p/sumPWE;
+      const fairV=(_horsWE(id)||!sumPWE)?0:totVd *p/sumPWE;
       const fairJ=sumP?totJeu*p/sumP:0;
       const fairVj=sumP?totVjf*p/sumP:0;
-      const fairJf=(NO_WEEKEND.has(id)||!sumPWE)?0:totJf*p/sumPWE;
+      const fairJf=(_horsWE(id)||!sumPWE)?0:totJf*p/sumPWE;
       const fairT=sumP?totTot*p/sumP:0;
       dette[id].sam=reel[id].sam-fairS;
       dette[id].jeu=reel[id].jeu-fairJ;
@@ -261,7 +266,8 @@ function generateGardes(year){
   const nFerieAll=allDays.filter(d=>d.isFerie).length;
   const SLOTS={total:nDays*2, sam:nSam*2, jeu:nJeu*2, vd:nVen*2, vjf:nVjf*2, ferie:nFerie*2, jf:nFerieAll*2};
   function axisEligible(axis,id){
-    if((axis==='sam'||axis==='vd'||axis==='ferie'||axis==='jf')&&NO_WEEKEND.has(id)) return false;
+    if((axis==='sam'||axis==='vd'||axis==='ferie'||axis==='jf')&&(NO_WEEKEND.has(id)||FLAGS.souhaitPlafond.has(id))) return false; // (Fix A2) plafonné : aucun axe WE/férié
+    if(axis==='jeu'&&FLAGS.souhaitPlafond.has(id)) return false; // (Fix A2) plafonné hors axe jeudi : sa cible fantôme gonflait les jeudis des autres ; ses compensations vont sur lun/mar/mer
     if(axis==='vjf'&&FLAGS.souhaitPlafond.has(id)) return false; // PRUNET hors VJF
     return true;
   }
@@ -332,6 +338,7 @@ function generateGardes(year){
   allDoctors.forEach(id=>{if(!rSet[id])rSet[id]=new Set();if(!rgSet[id])rgSet[id]=new Set();});
   const recupDue={}; gardeDoctors.forEach(id=>{recupDue[id]=[];}); // (R fix) #R ≡ #samedis (couplages inclus)
   const weekCnt={}; gardeDoctors.forEach(id=>{weekCnt[id]={};}); // gardes par semaine ISO (espacement O(1))
+  const weekCntS={}; gardeDoctors.forEach(id=>{weekCntS[id]={};}); // (Fix A3) dont gardes-souhaits
   const monthCnt={}; gardeDoctors.forEach(id=>{monthCnt[id]={};}); // gardes par mois (lissage annuel)
 
   function blocked(id,date){
@@ -360,6 +367,10 @@ function generateGardes(year){
     const di=dayByDate[date];
     if(NO_WEEKEND.has(id)&&di?.isFerie) return true;
     if(SOUHAIT_PLAFOND.has(id)&&di?.isVjf) return true; // PRUNET : complément cible hors VJF
+    // (Fix A2) souhait_plafond : JAMAIS de week-end ni de férié — le complément des
+    // mardis perdus (VJF, Noël/An) ne peut tomber qu'en semaine (lun→jeu non férié).
+    // Le vendredi est bloqué aussi : sa garde engage le dimanche (unité VD).
+    if(SOUHAIT_PLAFOND.has(id)&&(dow===0||dow===5||dow===6||di?.isFerie)) return true;
     // Plafond souhaits : un MAR plafonné ne dépasse jamais sa cible totale
     if(SOUHAIT_PLAFOND.has(id) && cnt[id] && cnt[id].total >= cible[id].total) return true;
     return false;
@@ -381,20 +392,22 @@ function generateGardes(year){
   // clé de semaine = lundi ISO, PRÉ-CALCULÉE dans dayByDate[date].wk (zéro parsing Date)
   const weekKey = ds => dayByDate[ds]?.wk;
   const weekLoad = (id,date) => {                       // O(1) via compteur incrémental
-    let n=weekCnt[id][dayByDate[date].wk]||0;
-    if(gSet[id]?.has(date)||g2Set[id]?.has(date)) n--;  // exclure la date elle-même si déjà posée
+    let n=(weekCnt[id][dayByDate[date].wk]||0)-(weekCntS[id][dayByDate[date].wk]||0); // (Fix A3) hors souhaits
+    if((gSet[id]?.has(date)||g2Set[id]?.has(date))&&!isSouhaitDe(id,date)) n--;  // exclure la date elle-même si déjà posée
     return n;
   };
   function spacingPenalty(id, date){
     const has = n => {
       const x = new Date(date + 'T12:00:00'); x.setDate(x.getDate() + n);
       const ds = toDateStr(x);
-      return (gSet[id] && gSet[id].has(ds)) || (g2Set[id] && g2Set[id].has(ds));
+      if(!((gSet[id] && gSet[id].has(ds)) || (g2Set[id] && g2Set[id].has(ds)))) return 0;
+      return isSouhaitDe(id,ds) ? 2 : 1; // (Fix A3) voisin souhaité = pénalité réduite, pas nulle
     };
     let p=0;
-    if (has(-2) || has(2)) p+=100;
-    if (has(-3) || has(3)) p+=10;
-    if (has(-4) || has(4)) p+=1;
+    const lv=(a,b)=>Math.max(has(a),has(b)); // 1=garde normale, 2=garde-souhait
+    let v=lv(-2,2); if(v===1)p+=100; else if(v===2)p+=10;
+    v=lv(-3,3);     if(v===1)p+=10;  else if(v===2)p+=2;
+    v=lv(-4,4);     if(v===1)p+=1;
     const wl=weekLoad(id,date);      // >2 gardes/semaine à éviter (souple)
     if(wl>=2) p+=80;                 // ce serait la 3e (ou +)
     if(wl>=3) p+=200;
@@ -442,7 +455,8 @@ function generateGardes(year){
       if(dayByDate[date]?.isFerie&&(_rdow===2||_rdow===3))cnt[id].ferie++;
       if(dayByDate[date]?.isFerie)cnt[id].jf++; // total fériés (couplages inclus)
       const _wk=dayByDate[date]?.wk;
-      if(_wk!==undefined) weekCnt[id][_wk]=(weekCnt[id][_wk]||0)+1;
+      if(_wk!==undefined){weekCnt[id][_wk]=(weekCnt[id][_wk]||0)+1;
+        if(isSouhaitDe(id,date)) weekCntS[id][_wk]=(weekCntS[id][_wk]||0)+1;} // (Fix A3)
       const _m=Number(date.slice(5,7)); monthCnt[id][_m]=(monthCnt[id][_m]||0)+1;
     });
   }
@@ -695,6 +709,7 @@ function generateGardes(year){
         if(ddg&&dd<ddg)return false; if(dfg&&dd>=dfg)return false;
         if(NO_WEEKEND.has(B)&&(dow===0||dow===6||di.isFerie))return false;
         if(SOUHAIT_PLAFOND.has(B)&&di.isVjf)return false;
+        if(SOUHAIT_PLAFOND.has(B)&&(dow===0||dow===5||dow===6||di.isFerie))return false; // (Fix A2)
         const gg=gardes[dd]; if(B===gg.g||B===gg.g2)return false;
         const adj=[shift(dd,-1),shift(dd,1)];
         for(let a=0;a<2;a++){if(days_.indexOf(adj[a])>=0)continue;
@@ -729,6 +744,8 @@ function generateGardes(year){
         else{gardes[dd].g2=B;g2Set[A].delete(dd);g2Set[B].add(dd);}
         const _wk=dayByDate[dd].wk;
         weekCnt[A][_wk]=(weekCnt[A][_wk]||0)-1; weekCnt[B][_wk]=(weekCnt[B][_wk]||0)+1;
+        if(isSouhaitDe(A,dd)) weekCntS[A][_wk]=(weekCntS[A][_wk]||0)-1; // (Fix A3)
+        if(isSouhaitDe(B,dd)) weekCntS[B][_wk]=(weekCntS[B][_wk]||0)+1;
         const _m=Number(dd.slice(5,7));
         monthCnt[A][_m]=(monthCnt[A][_m]||0)-1; monthCnt[B][_m]=(monthCnt[B][_m]||0)+1;});
       Object.keys(c).forEach(ax=>{cnt[A][ax]-=c[ax];cnt[B][ax]+=c[ax];});
@@ -758,8 +775,12 @@ function generateGardes(year){
         for(const n of [-4,-3,-2,2,3,4]){
           const x=new Date(b);x.setDate(b.getDate()+n);const xs=toDateStr(x);
           if(days_.indexOf(xs)>=0)continue;
-          if((gSet[id]&&gSet[id].has(xs))||(g2Set[id]&&g2Set[id].has(xs)))
-            p+=Math.abs(n)===2?250:(Math.abs(n)===3?40:6);
+          if((gSet[id]&&gSet[id].has(xs))||(g2Set[id]&&g2Set[id].has(xs))){
+            const sw=isSouhaitDe(id,xs); // (Fix A3) voisin souhaité : pénalité réduite —
+            // assez faible pour qu'un déficit d'équité VD la surpasse, assez forte
+            // pour préférer, à équité égale, un MAR sans mardi souhaité adjacent.
+            p+=Math.abs(n)===2?(sw?5:250):(Math.abs(n)===3?(sw?2:40):(sw?0:6));
+          }
         }
       }
       return p;
@@ -793,7 +814,7 @@ function generateGardes(year){
           if(SOUHAIT_PLAFOND.has(B)&&cnt[B].total+slot.contrib.total>cible[B].total)continue;
           if(!canHold(B,days_))continue;
           let dd_=delta(A,B,slot.contrib,role);
-          let wkPen=0; days_.forEach(dd=>{ if((weekCnt[B][dayByDate[dd].wk]||0)>=2) wkPen+=30; });
+          let wkPen=0; days_.forEach(dd=>{ if(((weekCnt[B][dayByDate[dd].wk]||0)-(weekCntS[B][dayByDate[dd].wk]||0))>=2) wkPen+=30; }); // (Fix A3)
           dd_+=wkPen;
           const WM=2; days_.forEach(dd=>{ const m=dayByDate[dd].month;
             const cb=monthCnt[B][m]||0, ca=monthCnt[A][m]||0, eb=monthExp[B][m]||0, ea=monthExp[A][m]||0;
