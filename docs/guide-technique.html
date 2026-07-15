@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guide technique personnel — Planning-CHPG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#CE1126; --red-soft:#FDECEF; --red-deep:#9E0C1D;
+    --blue:#1D6FB8; --blue-soft:#EAF3FB;
+    --amber:#B45309; --amber-soft:#FDF3E3;
+    --teal:#0F766E; --teal-soft:#E6F5F2;
+    --viol:#6D28D9; --viol-soft:#F5F3FF;
+    --green:#166534; --green-soft:#DCFCE7;
+    --ink:#0F172A; --ink-2:#475569; --ink-3:#7A8699;
+    --line:#E2E8F0; --bg:#F6F8FB; --white:#fff;
+    --mono:'DM Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+    line-height:1.6; font-size:15px; padding:36px 20px 80px}
+  .wrap{max-width:860px; margin:0 auto}
+
+  .flag{display:inline-flex; border-radius:4px; overflow:hidden; vertical-align:middle; margin-right:10px; box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .flag i{display:block; width:15px; height:21px}
+  .flag .r{background:var(--red)} .flag .w{background:#fff}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--red); font-weight:500}
+  h1{font-size:30px; font-weight:800; letter-spacing:-.02em; margin:8px 0 4px; line-height:1.2}
+  .subtitle{color:var(--ink-2); font-size:15px; margin:0 0 4px}
+  .maj{font-family:var(--mono); font-size:12px; color:var(--ink-3); margin-top:10px}
+
+  .toc{background:var(--white); border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin:26px 0 34px}
+  .toc h2{margin:0 0 10px; font-size:13px; font-family:var(--mono); font-weight:500; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); border:none; padding:0}
+  .toc ol{margin:0; padding-left:0; list-style:none; columns:2; column-gap:32px}
+  .toc li{margin:4px 0; break-inside:avoid}
+  .toc a{color:var(--ink); text-decoration:none; font-weight:500; font-size:14px}
+  .toc a:hover{color:var(--red)}
+  .toc .n{font-family:var(--mono); font-size:12px; color:var(--red); margin-right:7px}
+  @media (max-width:600px){ .toc ol{columns:1} }
+
+  section{margin-top:44px}
+  h2{font-size:21px; font-weight:800; letter-spacing:-.015em; margin:0 0 14px; padding-top:8px; display:flex; align-items:baseline; gap:12px}
+  h2 .n{font-family:var(--mono); font-size:14px; font-weight:500; color:#fff; background:var(--red); border-radius:8px; padding:3px 9px; flex-shrink:0}
+  h3{font-size:15.5px; font-weight:700; margin:22px 0 8px; color:var(--ink)}
+  p{margin:0 0 12px; color:var(--ink-2)}
+  strong{color:var(--ink)}
+  ul{margin:0 0 14px; padding-left:22px; color:var(--ink-2)}
+  li{margin:5px 0}
+  .kbd{font-family:var(--mono); font-size:12.5px; background:var(--white); border:1px solid var(--line); border-bottom-width:2px; border-radius:6px; padding:1px 7px; color:var(--ink); white-space:nowrap}
+  .tag{font-family:var(--mono); font-size:12.5px; background:#EEF1F5; border-radius:5px; padding:1px 6px; color:var(--ink)}
+  .btn-ex{display:inline-block; font-size:12.5px; font-weight:700; border-radius:8px; padding:2px 10px; background:var(--white); border:1px solid var(--line); color:var(--ink-2); white-space:nowrap}
+  .btn-ex.green{background:var(--green-soft); border-color:#86EFAC; color:var(--green)}
+  .btn-ex.red{background:var(--red-soft); border-color:#F5B9C2; color:var(--red)}
+
+  .callout{border-radius:12px; padding:14px 18px; margin:16px 0; border:1px solid var(--line); border-left-width:4px; background:var(--white)}
+  .callout p:last-child{margin-bottom:0}
+  .callout .ct{font-family:var(--mono); font-size:11.5px; font-weight:500; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px}
+  .callout.rule{border-left-color:var(--red); background:var(--red-soft)}
+  .callout.rule .ct{color:var(--red)}
+  .callout.tip{border-left-color:var(--blue); background:var(--blue-soft)}
+  .callout.tip .ct{color:var(--blue)}
+  .callout.warn{border-left-color:var(--amber); background:var(--amber-soft)}
+  .callout.warn .ct{color:var(--amber)}
+
+  table{width:100%; border-collapse:collapse; margin:14px 0 18px; background:var(--white); border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:14px}
+  th{background:#F1F4F8; text-align:left; font-size:12px; font-family:var(--mono); font-weight:500; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-2); padding:9px 14px; border-bottom:1px solid var(--line)}
+  td{padding:9px 14px; border-bottom:1px solid #F1F5F9; color:var(--ink-2); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td:first-child{font-weight:600; color:var(--ink); white-space:nowrap}
+  .sig td:first-child{font-family:var(--mono); font-weight:500}
+
+  .steps{counter-reset:step; margin:12px 0 16px; padding:0; list-style:none}
+  .steps li{counter-increment:step; position:relative; padding:8px 0 8px 40px; margin:0; color:var(--ink-2)}
+  .steps li::before{content:counter(step); position:absolute; left:0; top:7px; width:26px; height:26px; border-radius:8px; background:var(--white); border:1.5px solid var(--red); color:var(--red); font-family:var(--mono); font-size:13px; display:flex; align-items:center; justify-content:center}
+  .steps li + li{border-top:1px dashed var(--line)}
+
+  .faq{background:var(--white); border:1px solid var(--line); border-radius:12px; margin:12px 0; overflow:hidden}
+  .faq .q{padding:12px 18px; font-weight:700; color:var(--ink); background:#FBFCFE; border-bottom:1px solid var(--line); font-size:14.5px}
+  .faq .a{padding:12px 18px; color:var(--ink-2); font-size:14.5px}
+  .faq .a::before{content:"➡ "; color:var(--red); font-weight:700}
+
+  .backtop{display:inline-block; margin-top:14px; font-size:12.5px; font-family:var(--mono); color:var(--ink-3); text-decoration:none}
+  .backtop:hover{color:var(--red)}
+  .foot{margin-top:56px; padding-top:18px; border-top:1px solid var(--line); font-size:12px; color:var(--ink-3); font-family:var(--mono); text-align:center}
+
+  @media print{
+    body{background:#fff; padding:0; font-size:12.5px}
+    .toc ol{columns:2}
+    .backtop{display:none}
+    section{break-inside:avoid-page; margin-top:28px}
+  }
+</style>
+<style>
+  /* compléments guide technique */
+  .arch{background:var(--white);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:16px 0;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--ink-2);overflow-x:auto}
+  .arch b{color:var(--ink)}
+  .step-chain{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}
+  .step-chain .s{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12.5px;font-weight:600}
+  .step-chain .s .n{font-family:var(--mono);color:var(--red);font-weight:700;margin-right:6px}
+  .step-chain .arrow{align-self:center;color:var(--ink-3)}
+  code{font-family:var(--mono);font-size:12.5px;background:#EEF1F5;border-radius:5px;padding:1px 6px;color:var(--red-deep)}
+  .lbl-red{color:var(--red)} .lbl-teal{color:var(--teal)} .lbl-viol{color:var(--viol)} .lbl-amber{color:var(--amber)} .lbl-blue{color:var(--blue)}
+  h2 .n{font-family:var(--mono);font-size:14px;color:var(--red);font-weight:700;background:var(--red-soft);border-radius:7px;padding:2px 9px;margin-right:12px}
+  ul.tight li{margin:5px 0}
+  .warn-strong{border-left-color:var(--red);background:var(--red-soft)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header id="top">
+  <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document personnel</div>
+  <h1>Guide technique personnel<br>Architecture, workflows &amp; internals</h1>
+  <p class="subtitle">Le fonctionnement profond du portail — pour toi, responsable et seul décideur : dépôt, backend GAS, assistants pas à pas, algorithme, publication. Niveau technique assumé.</p>
+  <div class="maj">Établi le 15 juillet 2026 — aligné sur le code en production (dépôt <span class="tag">chpg-anesthesie/Planning-CHPG</span>).</div>
+</header>
+
+<nav class="toc">
+  <h2>Sommaire</h2>
+  <ol>
+    <li><a href="#c1"><span class="n">01</span>Vue d’ensemble : les trois couches</a></li>
+    <li><a href="#c2"><span class="n">02</span>Le dépôt GitHub, source de vérité</a></li>
+    <li><a href="#c3"><span class="n">03</span>Le backend Apps Script (les 4 fichiers .gs)</a></li>
+    <li><a href="#c4"><span class="n">04</span>Le stockage : Google Sheets + Drive privé</a></li>
+    <li><a href="#c5"><span class="n">05</span>L’API Web App : requête → réponse</a></li>
+    <li><a href="#c6"><span class="n">06</span>Le cycle annuel : W1 → W2 → W3</a></li>
+    <li><a href="#c7"><span class="n">07</span>W1 — Initialiser l’année N+1 (6 étapes)</a></li>
+    <li><a href="#c8"><span class="n">08</span>W2 — Générer les gardes (3 étapes)</a></li>
+    <li><a href="#c9"><span class="n">09</span>W3 — Clôturer l’année (2 étapes)</a></li>
+    <li><a href="#c10"><span class="n">10</span>L’algorithme de gardes, sous le capot</a></li>
+    <li><a href="#c11"><span class="n">11</span>La publication : Drive privé & rendu MAR</a></li>
+    <li><a href="#c12"><span class="n">12</span>Les 6 onglets d’admin.html</a></li>
+    <li><a href="#c13"><span class="n">13</span>Le pipeline de déploiement du code</a></li>
+    <li><a href="#c14"><span class="n">14</span>Dépannage &amp; pièges connus</a></li>
+  </ol>
+</nav>
+
+<section id="c1">
+  <h2><span class="n">01</span>Vue d’ensemble : les trois couches</h2>
+
+  <p>Le portail repose sur trois couches nettement séparées. Comprendre où vit chaque chose évite 90 % des erreurs de maintenance.</p>
+  <div class="arch">
+    <b>1. Frontend</b> (pages statiques, servies par GitHub Pages depuis <code>docs/</code> et la racine)<br>
+    &nbsp;&nbsp;├─ <b>admin.html</b> — ton poste de pilotage (PC) : planning quotidien, wizards, équité<br>
+    &nbsp;&nbsp;├─ <b>index.html</b> — le portail des MARs : planning, équité, année<br>
+    &nbsp;&nbsp;├─ <b>indispos.html / staff.html / dashboard.html</b> — saisie indispos, portail perso, accueil<br>
+    &nbsp;&nbsp;└─ <b>docs/*.html</b> — guides &amp; présentations<br><br>
+    <b>2. Backend</b> (Google Apps Script, déployé en Web App)<br>
+    &nbsp;&nbsp;└─ 4 fichiers <code>.gs</code> exposant une API <code>doGet</code>/<code>doPost</code><br><br>
+    <b>3. Données</b><br>
+    &nbsp;&nbsp;├─ <b>Google Sheets</b> — la base : MEDECINS, INDISPOS_YYYY, GARDES_YYYY, STATS_GARDES_YYYY, PERIODES_VAC, GROUPES_VAC, PLANNING_OVERRIDES, CONFIG…<br>
+    &nbsp;&nbsp;└─ <b>Drive privé</b> « Planning-CHPG-JSON » — les JSON publiés (planning_YYYY.json, affectations_YYYY.json)
+  </div>
+  <div class="callout tip"><div class="ct">Le flux, en une phrase</div><p>Le frontend (admin ou MAR) appelle l’<b>API Web App</b> ; celle-ci lit/écrit dans <b>Google Sheets</b> ; à la publication, le planning est figé en <b>JSON sur Drive privé</b>, que le portail MAR relit pour l’affichage. Le code lui-même vit dans le <b>dépôt GitHub</b>, recopié dans l’éditeur Apps Script pour le backend.</p></div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c2">
+  <h2><span class="n">02</span>Le dépôt GitHub, source de vérité</h2>
+
+  <p>Règle cardinale : <b>le dépôt <code>chpg-anesthesie/Planning-CHPG</code> (branche <code>main</code>) contient 100 % du code de production</b>, frontend <em>et</em> backend. Toute modification faite ailleurs sans être committée est perdue.</p>
+  <h3>Où trouver quoi</h3>
+  <table>
+    <thead><tr><th>Chemin</th><th>Contenu</th></tr></thead>
+    <tbody>
+      <tr><td><code>/</code> (racine)</td><td>Pages frontend : admin.html, index.html, staff.html, indispos.html, dashboard.html</td></tr>
+      <tr><td><code>/docs</code></td><td>Servi par GitHub Pages : guides, présentations, ce document</td></tr>
+      <tr><td><code>/docs/module-liberal</code></td><td>Le chantier module libéral (estimateur, antisèche, conception)</td></tr>
+      <tr><td><code>/gas</code></td><td>Copie du code Apps Script : code.gs, Indispos.gs, generateur_gardes.gs, setup_annee.gs, portail.gs</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><div class="ct">Frontend vs backend : deux circuits de livraison</div><p><b>Frontend</b> (HTML/JS/docs) : le push GitHub suffit — GitHub Pages sert la nouvelle version, tu fais <span class="kbd">Ctrl+Maj+R</span> pour vider le cache. <b>Backend</b> (fichiers <code>.gs</code>) : le push GitHub ne suffit pas — il faut <b>recopier</b> le fichier dans l’éditeur Apps Script, puis souvent <b>redéployer</b> la Web App (voir §13).</p></div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c3">
+  <h2><span class="n">03</span>Le backend Apps Script (les 4 fichiers .gs)</h2>
+
+  <p>Le backend est un projet Apps Script lié au Google Sheet de production, déployé comme application Web. Cinq fichiers se partagent le travail :</p>
+  <table>
+    <thead><tr><th>Fichier</th><th>Responsabilité</th></tr></thead>
+    <tbody>
+      <tr><td><code>Indispos.gs</code></td><td>Le cœur de l’API : <code>doGet</code>/<code>doPost</code> et la totalité des actions (getMedecins, getVacValidation, generateGardes, initYear, archiveYear, publishPlanning, sendCodes…). C’est le plus gros fichier.</td></tr>
+      <tr><td><code>generateur_gardes.gs</code></td><td>L’algorithme <code>generateGardes(year)</code> : cibles, placement, équité par axe, dette inter-annuelle, souhaits, VDM. Détaillé au §10.</td></tr>
+      <tr><td><code>code.gs</code></td><td>Placement des secteurs du bloc (<code>generatePlanningFromGardes</code>), gestion des overrides (<code>PLANNING_OVERRIDES</code>), <code>getJoursFeries</code>, <code>pushFileToGitHub</code>, <code>onEdit</code>, reconstruction 2026, <code>buildStats2026</code>.</td></tr>
+      <tr><td><code>setup_annee.gs</code></td><td><code>setupAnnee</code> (crée INDISPOS/AFFECTATIONS de N+1), <code>archiveYear</code> (archive stats/indispos).</td></tr>
+      <tr><td><code>portail.gs</code></td><td>Logique du portail perso / dashboard (données agrégées par MAR).</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn warn-strong"><div class="ct">Piège classique</div><p>Symptôme « <b>Action inconnue</b> » ou « <b>fonction introuvable</b> » après une recopie = le dépôt était incomplet, ou un fichier n’a pas été recopié. Le dépôt doit toujours refléter l’intégralité du code en service.</p></div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c4">
+  <h2><span class="n">04</span>Le stockage : Google Sheets + Drive privé</h2>
+
+  <p>Toute la donnée vivante est dans le Google Sheet lié. Les onglets structurants :</p>
+  <table>
+    <thead><tr><th>Onglet</th><th>Rôle</th></tr></thead>
+    <tbody>
+      <tr><td><code>MEDECINS</code></td><td>Le référentiel : id, nom, initiales, actif, quotité, %gardes, email, dect, dates début/fin, et les flags de statut (colonnes) : <code>no_garde</code>, <code>only_18</code>, <code>no_weekend</code>, <code>rythme_2sur2</code>, <code>souhait_plafond</code> (col P), <code>tp_jours_fixes</code> (col Q).</td></tr>
+      <tr><td><code>INDISPOS_YYYY</code></td><td>Grille par MAR × jour : VAC, INDISPO, FORM, SOUHAIT… Base de l’algorithme.</td></tr>
+      <tr><td><code>GARDES_YYYY</code></td><td>Le planning de gardes généré (G = réa, G2 = mater/bloc).</td></tr>
+      <tr><td><code>STATS_GARDES_YYYY</code></td><td>La preuve d’équité : cible et réel par axe, par MAR. Sert aussi de base à la <b>dette</b> de l’année N+1.</td></tr>
+      <tr><td><code>PERIODES_VAC</code> / <code>GROUPES_VAC</code></td><td>Périodes de vacances (dates, seuil de présence) et groupes de priorité A/B/C.</td></tr>
+      <tr><td><code>PLANNING_OVERRIDES</code></td><td>Retouches manuelles du comité au planning quotidien, indexées par date.</td></tr>
+      <tr><td><code>CONFIG</code></td><td>Paramètres, dont le token GitHub côté serveur (<code>getGithubToken</code>).</td></tr>
+    </tbody>
+  </table>
+  <div class="callout tip"><div class="ct">Confidentialité du planning</div><p>Depuis le durcissement RGPD, les JSON du planning ne sont <b>plus publiés sur GitHub</b> : ils vivent uniquement dans le dossier Drive <b>privé</b> « Planning-CHPG-JSON ». Un échec d’écriture Drive fait échouer la publication (volontaire : pas de planning à moitié publié).</p></div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c5">
+  <h2><span class="n">05</span>L’API Web App : requête → réponse</h2>
+
+  <p>Le frontend ne touche jamais le Sheet directement : il passe par des appels HTTP à la Web App, chacun portant une <code>action</code>. Le routeur (<code>doGet</code>/<code>doPost</code> dans <code>Indispos.gs</code>) lit <code>action</code>, vérifie le rôle (<code>user.role === 'admin'</code> pour les actions sensibles), exécute, et renvoie du JSON.</p>
+  <h3>Familles d’actions</h3>
+  <ul class="tight">
+    <li><b>Lecture</b> : <code>getMedecins</code>, <code>getGardes</code>, <code>getStats</code>, <code>getStatsLive</code>, <code>getVacValidation</code>, <code>getAllIndispos</code>, <code>getConflitsAll</code>, <code>getJoursFeries</code>, <code>getPlanningJson</code>…</li>
+    <li><b>Écriture planning/équipe</b> : <code>saveMedecin</code>, <code>saveIndispos</code>, <code>savePeriodes</code>, <code>saveGroupes</code>, <code>savePlanningOverride</code>, <code>setDailyStatus</code>, <code>saveAffectations</code>…</li>
+    <li><b>Cycle annuel</b> : <code>initYear</code>, <code>setActiveYear</code>, <code>generateGardes</code>, <code>publishPlanning</code>, <code>archiveYear</code>, <code>validerSemaine</code>.</li>
+    <li><b>Communication</b> : <code>sendCodes</code>, <code>sendCodesMar</code>, <code>envoyerRecapIndispos</code>, <code>notifierConflits</code>.</li>
+  </ul>
+  <div class="callout"><div class="ct">Authentification</div><p>À la connexion, <code>login</code> renvoie un rôle. L’<b>admin</b> (toi/le comité) a accès à tout ; un <b>MAR</b> n’a que la lecture de son périmètre et la saisie de ses indispos. Les actions de génération/archivage sont refusées (<code>_deny()</code>) hors admin.</p></div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c6">
+  <h2><span class="n">06</span>Le cycle annuel : W1 → W2 → W3</h2>
+
+  <p>Une année de planning se pilote par trois assistants (« wizards »), à lancer dans l’ordre depuis l’accueil d’admin.html. Ils encadrent les opérations irréversibles pour éviter les fausses manœuvres.</p>
+  <div class="step-chain">
+    <div class="s"><span class="n">W1</span>Initialiser N+1</div>
+    <div class="arrow">→</div>
+    <div class="s"><span class="n">W2</span>Générer les gardes N+1</div>
+    <div class="arrow">→</div>
+    <div class="s"><span class="n">W3</span>Clôturer N</div>
+  </div>
+  <p>Chronologie réelle : à l’automne de l’année N, on prépare N+1 (W1 en octobre → staff vacances → indispos → W2 en novembre). W3 clôture l’année N une fois que N+1 est prête — un garde-fou empêche de clôturer N si N+1 n’est pas générée.</p>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c7">
+  <h2><span class="n">07</span>W1 — Initialiser l’année N+1 <span style="font-weight:500;color:var(--ink-3);font-size:14px">(6 étapes)</span></h2>
+
+  <p>Fonction <code>openWizard</code> (le wizard d’initialisation, à ne pas confondre avec <code>openWizardGardes</code> qui est W2). Il prépare tout le terrain de l’année suivante. Les six étapes :</p>
+  <table>
+    <thead><tr><th>#</th><th>Étape</th><th>Ce qui se passe / se contrôle</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>Équipe</b></td><td>Revue des MARs actifs, quotités, emails. Alerte si un MAR actif n’a pas d’email (il ne recevra pas son code). Sauvegarde des quotités (<code>saveWizQuotites</code>).</td></tr>
+      <tr><td>2</td><td><b>Périodes vacances</b></td><td>Saisie des fenêtres de congés scolaires (Zone B) de N+1. Elles bornent les congés MARs et bloquent le placement des récupérations (R). <code>collectPeriodes</code>.</td></tr>
+      <tr><td>3</td><td><b>Groupes A/B/C</b></td><td>Ordre de priorité par période avec rotation annuelle. La base <code>ORDRE_BASE</code> (ex. HIVER:CAB, ETE:ABC) subit un décalage <code>offset = (N+1 − 2026) % 3</code>. <code>collectGroupes</code>.</td></tr>
+      <tr><td>4</td><td><b>Initialisation GSheet</b></td><td>Création des onglets INDISPOS_{N+1} et AFFECTATIONS_{N+1} (<code>launchWizInit</code> → action <code>initYear</code>). Garde-fou si l’onglet existe déjà.</td></tr>
+      <tr><td>5</td><td><b>Staff physique</b></td><td>Rappel de la réunion de pose des vacances : c’est là que les seuils de présence sont respectés à la source.</td></tr>
+      <tr><td>6</td><td><b>Envoi des codes</b></td><td>Envoi des codes d’accès + du lien de saisie des indispos aux MARs (<code>launchWizardSendCodes</code>).</td></tr>
+    </tbody>
+  </table>
+  <div class="callout tip"><div class="ct">Point technique — la rotation A/B/C</div><p>L’<code>offset</code> fait tourner l’ordre de priorité chaque année, pour qu’aucun groupe ne soit systématiquement servi en premier. Le rang qui en résulte est <b>exactement</b> celui que l’audit couverture de W2 réutilise pour désigner le MAR le moins prioritaire à qui demander de décaler ses vacances.</p></div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c8">
+  <h2><span class="n">08</span>W2 — Générer les gardes <span style="font-weight:500;color:var(--ink-3);font-size:14px">(3 étapes)</span></h2>
+
+  <p>Fonction <code>openWizardGardes</code>. C’est l’assistant le plus contrôlé : il vérifie la faisabilité <b>avant</b> de lancer l’algorithme, pour ne jamais générer un planning bancal.</p>
+  <h3>Étape 0 — Indispos &amp; contrôles pré-génération</h3>
+  <p>Charge en parallèle (<code>Promise.all</code>) : indispos (<code>getAllIndispos</code>), conflits vacances (<code>getConflitsAll</code>), fériés N et N+1 (<code>getJoursFeries</code>), et validation des vacances (<code>getVacValidation</code>, qui porte les <b>rangs</b> de priorité). Puis il affiche, dans l’ordre :</p>
+  <ul class="tight">
+    <li><b>Récapitulatif des indispos</b> : bloque si un MAR n’a pas saisi. </li>
+    <li><b>Conflits vacances</b> : bloque s’il reste des conflits de seuil non arbitrés.</li>
+    <li><b>Audit équité indispos &amp; souhaits</b> : pour chaque axe (samedi/VD/jeudi/férié), calcule la cible exacte et vérifie qu’un MAR ne s’est pas rendu indisponible au point de ne plus pouvoir porter sa part. <b>Bloque</b> avec un message d’action ciblé.</li>
+    <li><b>Couverture jour par jour</b> : liste chaque jour à moins de 6 MARs disponibles (🔴 &lt;4, 🟠 4-5), le nombre de libérations à obtenir, et — nouveauté — <b>le MAR le moins prioritaire</b> (rang vacances) à solliciter en premier. Informe, ne bloque pas.</li>
+    <li><b>Couverture par semaine</b> : capacité vs requis, semaines tendues.</li>
+  </ul>
+  <h3>Étape 1 — Validation des vacances</h3>
+  <p>Tableau des périodes avec statut agrégé (✅ validé / ⚠️ partiel / ❌ conflits), lu depuis <code>getVacValidation</code>.</p>
+  <h3>Étape 2 — Lancement</h3>
+  <p>Récapitulatif final (nombre de MARs inclus, éventuels sans indispos) puis bouton <span class="kbd">⚡ Générer les gardes</span> → <code>launchWizardGardes</code> → action <code>generateGardes(N+1)</code>. La génération prend 30–60 s, publie le planning et notifie les MARs.</p>
+  <div class="callout warn warn-strong"><div class="ct">Verrous</div><p>W2 est <b>désactivé</b> si N+1 ≤ 2026 (2026 sanctuarisé, saisi à la main) ou si <code>GARDES_{N+1}</code> existe déjà (protection anti-régénération : régénérer écraserait la preuve d’équité figée). Pour forcer : supprimer manuellement l’onglet GARDES_{N+1} dans le Sheet.</p></div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c9">
+  <h2><span class="n">09</span>W3 — Clôturer l’année <span style="font-weight:500;color:var(--ink-3);font-size:14px">(2 étapes)</span></h2>
+
+  <p>Fonction <code>openWizardCloture</code>. Archive proprement l’année écoulée.</p>
+  <table>
+    <thead><tr><th>#</th><th>Étape</th><th>Détail</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>Vérification</b></td><td>Contrôle que l’année <b>suivante</b> est prête (W1 + W2 faits). Garde-fou : impossible de clôturer N si N+1 n’existe pas — sinon on se retrouverait sans planning au 1er janvier.</td></tr>
+      <tr><td>2</td><td><b>Archivage</b></td><td>Récapitule l’équité finale et archive (<code>archiveYear</code>) : push des stats/indispos vers l’archive. Suppression d’onglets <b>commentée</b> (non destructif par sécurité).</td></tr>
+    </tbody>
+  </table>
+  <div class="callout"><div class="ct">Note sur les overrides</div><p><code>setActiveYear</code> archive/vide l’onglet <code>OVERRIDES</code> (hérité, ancien système) mais <b>ne touche pas</b> à <code>PLANNING_OVERRIDES</code> (les vraies retouches comité). Ne pas confondre les deux.</p></div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c10">
+  <h2><span class="n">10</span>L’algorithme de gardes, sous le capot</h2>
+
+  <p><code>generateGardes(year)</code> dans <code>generateur_gardes.gs</code>. Le pipeline interne, dans l’ordre d’exécution :</p>
+  <ol>
+    <li><b>Cibles</b> — pour chaque MAR et chaque axe (total, samedi, jeudi, VD, VJF, férié) : règle de trois sur la quotité (<code>pctGardes</code>), ajustée par la <b>dette</b> lue dans <code>STATS_GARDES_{year-1}</code> (amortie 60 %, plafond ±2).</li>
+    <li><b>Souhaits garantis</b> (<code>placeSouhait</code>, profil <code>souhait_plafond</code>) : placés en premier, jours de semaine uniquement, jamais WE/férié, avec <code>freeBudget</code> comme plafond.</li>
+    <li><b>Placement chronologique</b> (<code>assign</code>) : jour après jour, on classe les candidats via <code>scoreSelect</code> — d’abord <code>blocked</code> (règles dures : pas 2 jours de suite, pas sur absence, pas jeudi→samedi, VDM interdit hors souhait), puis <code>spacingPenalty</code> (espacement, semaine chargée, VDM en dernier recours = +5000), puis l’équité de l’axe (<code>ratio</code>/<code>ratioTotal</code>). Les rôles G/G2 sont attribués par <code>assignRoles</code>. Le week-end est une unité ven+dim (<code>scoreVD</code>).</li>
+    <li><b>Rééquilibrage</b> (l’optimiseur) : micro-échanges qui réduisent les écarts pondérés (VD &gt; sam &gt; jeu &gt; total), sans casser une règle dure ni toucher un souhait honoré ; <code>canHold</code> interdit de créer un VDM par transfert.</li>
+    <li><b>Récupérations</b> : une R par samedi, hors périodes de vacances scolaires.</li>
+    <li><b>Écriture</b> : GARDES_{year} + STATS_GARDES_{year} (colonne MEDECIN = id).</li>
+  </ol>
+  <div class="callout tip"><div class="ct">Repères validés en simulation (20 ans)</div><p>0 violation de règle dure sur 14 580 gardes, installés entre 98,7 % et 102,2 % de leur juste part, écart individuel annuel 1–2 gardes (pire 2,7). Ces chiffres sont ta référence de non-régression : si une modif du générateur les dégrade, c’est un signal.</p></div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c11">
+  <h2><span class="n">11</span>La publication : Drive privé &amp; rendu MAR</h2>
+
+  <p>À la fin de <code>generateGardes</code> (ou via <code>publishPlanning</code>), le planning est sérialisé et écrit sur Drive :</p>
+  <div class="arch">
+    generateGardes / publishPlanning<br>
+    &nbsp;&nbsp;└─ <b>savePlanningToDrive</b>(planning_{year}.json) &nbsp;→ dossier privé « Planning-CHPG-JSON »<br>
+    &nbsp;&nbsp;└─ <b>savePlanningToDrive</b>(affectations_{year}.json)<br>
+    <br>
+    Portail MAR (index.html, dashboard.html)<br>
+    &nbsp;&nbsp;└─ lit ces JSON via l’API Drive (getPlanningJson) — <b>pas</b> via des URL GitHub brutes
+  </div>
+  <p>Conséquence pratique : après une génération, le planning est visible côté MAR sans aucun push GitHub. À l’inverse, modifier un JSON à la main dans le dépôt n’a aucun effet — la source est le Drive.</p>
+  <div class="callout warn"><div class="ct">Échec de publication = échec total (voulu)</div><p>Si l’écriture Drive de <code>planning_{year}.json</code> échoue, la publication lève une erreur et s’arrête. Choix délibéré : mieux vaut pas de planning qu’un planning partiellement publié.</p></div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c12">
+  <h2><span class="n">12</span>Les 6 onglets d’admin.html</h2>
+
+  <table>
+    <thead><tr><th>Onglet</th><th>Usage</th></tr></thead>
+    <tbody>
+      <tr><td><b class="lbl-red">Planning</b></td><td>Le planning quotidien : secteurs du bloc, réa, mater, consultations, gardes. Retouches → <code>PLANNING_OVERRIDES</code> via <code>savePlanningOverride</code>. Validation de semaine (<code>validerSemaine</code>).</td></tr>
+      <tr><td><b class="lbl-teal">Équipe</b></td><td>Le référentiel MARs : ajout, quotités, emails, statuts (no_garde, no_weekend, rythme 2/2, souhait_plafond, tp_jours_fixes), absence longue. <code>saveMedecin</code>.</td></tr>
+      <tr><td><b class="lbl-viol">Statuts</b></td><td>Absences ponctuelles du jour (<code>setDailyStatus</code>).</td></tr>
+      <tr><td><b class="lbl-amber">Affectations</b></td><td>Répartition nominative des secteurs.</td></tr>
+      <tr><td><b class="lbl-blue">Équité</b></td><td>Le certificat d’équité + les barres par MAR (§ certificat). Deux vues : <b>Initiale</b> (généré) et <b>Instantané</b> (échanges inclus — le certificat y est masqué à dessein). Bouton Générer (W2).</td></tr>
+      <tr><td><b>Maintenance</b></td><td>Diagnostics (<code>diagComplet</code>), logs (<code>getLogs</code>), outils ponctuels.</td></tr>
+    </tbody>
+  </table>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c13">
+  <h2><span class="n">13</span>Le pipeline de déploiement du code</h2>
+
+  <h3>Frontend (HTML / JS / docs)</h3>
+  <div class="step-chain">
+    <div class="s"><span class="n">1</span>Push GitHub (API Contents)</div><div class="arrow">→</div>
+    <div class="s"><span class="n">2</span>GitHub Pages sert la version</div><div class="arrow">→</div>
+    <div class="s"><span class="n">3</span>Ctrl+Maj+R</div>
+  </div>
+  <p>Immédiat. La règle d’or côté push : <b>GET du SHA du fichier juste avant le PUT</b> (plusieurs conversations écrivent sur le même dépôt), <code>node --check</code> sur tout JS, vérification de l’équilibre des balises.</p>
+  <h3>Backend (fichiers .gs)</h3>
+  <div class="step-chain">
+    <div class="s"><span class="n">1</span>Push GitHub (copie du dépôt)</div><div class="arrow">→</div>
+    <div class="s"><span class="n">2</span>Recopie manuelle dans l’éditeur Apps Script</div><div class="arrow">→</div>
+    <div class="s"><span class="n">3</span>Nouveau déploiement Web App</div><div class="arrow">→</div>
+    <div class="s"><span class="n">4</span>Hard-refresh</div>
+  </div>
+  <p>Le push GitHub ne fait que <b>documenter/sauvegarder</b> le code backend. Pour qu’il s’exécute, il faut le <b>coller dans l’éditeur Apps Script</b>, puis <b>redéployer</b> la Web App comme nouvelle version (sinon l’ancienne reste servie). Certains changements ne servant qu’à la génération (comme <code>generateur_gardes.gs</code>) n’exigent pas de redéploiement Web App, juste la recopie avant la prochaine génération.</p>
+  <div class="callout warn warn-strong"><div class="ct">La règle qui sauve</div><p>Ne jamais modifier un <code>.gs</code> directement dans l’éditeur sans committer aussitôt dans le dépôt : à la prochaine recopie <em>dépôt → éditeur</em>, ta modif non commitée serait écrasée.</p></div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c14">
+  <h2><span class="n">14</span>Dépannage &amp; pièges connus</h2>
+
+  <table>
+    <thead><tr><th>Symptôme</th><th>Cause probable / action</th></tr></thead>
+    <tbody>
+      <tr><td>« Action inconnue » / « fonction introuvable »</td><td>Dépôt/éditeur incomplet ou fichier non recopié. Vérifier que les 5 .gs sont à jour dans l’éditeur, redéployer.</td></tr>
+      <tr><td>Une modif backend n’a aucun effet</td><td>Web App pas redéployée (nouvelle version), ou modif faite dans l’éditeur puis écrasée par une recopie du dépôt.</td></tr>
+      <tr><td>Le planning MAR ne se met pas à jour</td><td>C’est le Drive qui fait foi, pas GitHub. Vérifier que la publication (écriture Drive) a réussi ; côté MAR, Ctrl+Maj+R.</td></tr>
+      <tr><td>Un profil « souhait garanti » (Prunet) sort en rouge au certificat</td><td>Le flag <code>souhait_plafond</code> (col P de MEDECINS) n’est pas coché : le code ne peut pas le reconnaître et l’exclure.</td></tr>
+      <tr><td>W2 refuse de générer</td><td>N+1 ≤ 2026 (sanctuarisé) ou GARDES_{N+1} déjà présent. Voir les verrous du §8.</td></tr>
+      <tr><td>Trou de couverture à la génération</td><td>Trop d’absences simultanées non détectées. L’audit de W2 (§8) les signale <b>avant</b> ; suivre la suggestion du MAR le moins prioritaire.</td></tr>
+      <tr><td>Modif du générateur qui dégrade l’équité</td><td>Comparer aux repères de non-régression du §10 (98,7–102,2 %, 0 violation). Le banc d’essai 20 ans est l’outil de contrôle.</td></tr>
+    </tbody>
+  </table>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<div class="foot">Planning-CHPG · Anesthésie-Réanimation CHPG Monaco — guide technique personnel · établi à partir du code en production, 15 juillet 2026</div>
+
+</div>
+</body>
+</html>
