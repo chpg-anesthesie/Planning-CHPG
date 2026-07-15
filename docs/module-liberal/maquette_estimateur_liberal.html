@@ -604,28 +604,38 @@ const SYN={
   'cec':'circulation extracorporelle', 'vvc':'catheter veineux central', 'cataracte':'cristallin'
 };
 function norm(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+let ccamLoadError='';
 async function loadCcam(){
   const urls=[
     'ccam_actes.json',
     'https://raw.githubusercontent.com/chpg-anesthesie/Planning-CHPG/main/docs/module-liberal/ccam_actes.json'
   ];
+  const errs=[];
   for(const u of urls){
     try{
-      const r=await fetch(u,{cache:'no-store'}); if(!r.ok) continue;
+      const r=await fetch(u,{cache:'no-store'});
+      if(!r.ok){ errs.push(u.split('/').pop()+' → HTTP '+r.status); continue; }
       const j=await r.json();
       const arr=(j.actes||[]).map(a=>({c:a.c,l:a.l,n:norm(a.l),t:a.t}));
-      if(arr.length){ CCAM_INDEX=arr; ccamLoaded=true;
+      if(arr.length){ CCAM_INDEX=arr; ccamLoaded=true; ccamLoadError='';
         const q=document.getElementById('ccamq'); if(q&&q.value.trim().length>=2) ccamSearch();
         return; }
-    }catch(e){}
+      errs.push(u.split('/').pop()+' → fichier vide');
+    }catch(e){ errs.push(u.split('/').pop()+' → '+(e&&e.message||e)); }
   }
   ccamLoaded=false;
+  ccamLoadError=errs.join(' · ');
 }
 function ccamSearch(){
   const box=document.getElementById('ccamResults');
   const raw=document.getElementById('ccamq').value.trim();
   if(raw.length<2){box.innerHTML='';return;}
-  if(!ccamLoaded){box.innerHTML='<div class="info">Référentiel en cours de chargement — réessaie dans quelques secondes.</div>';return;}
+  if(!ccamLoaded){
+    box.innerHTML = ccamLoadError
+      ? `<div class="info">⚠️ Référentiel CCAM non chargé — <b>${ccamLoadError}</b> <a href="#" onclick="loadCcam();return false" style="color:var(--ccam)">réessayer</a></div>`
+      : '<div class="info">Référentiel en cours de chargement — réessaie dans quelques secondes.</div>';
+    return;
+  }
   const q=norm(raw);
   const syn=SYN[q]?norm(SYN[q]):null;
   const tokens=(syn||q).split(/\s+/).filter(Boolean);
