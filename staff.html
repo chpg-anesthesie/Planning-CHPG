@@ -238,8 +238,15 @@ function showAuthErr(msg){const el=document.getElementById('authErr');el.textCon
 async function apiCall(payload,overrideCode){
   // (F4) POST : le code ne transite plus dans l'URL.
   payload.code=overrideCode||adminCode;
-  const res=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});
-  return res.json();
+  const _ctrl=new AbortController();
+  const _timer=setTimeout(()=>_ctrl.abort(),120000);
+  try{
+    const res=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow',signal:_ctrl.signal});
+    return await res.json();
+  }catch(e){
+    if(e&&e.name==='AbortError') throw new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable, réessayez');
+    throw e;
+  }finally{clearTimeout(_timer);}
 }
 
 async function loadData(){
