@@ -3638,39 +3638,94 @@ function renderStats(stats){
   document.getElementById('gardesEmpty').style.display='none';
 }
 
-// ── CERTIFICAT D'ÉQUITÉ : prouve, après génération, que le planning est juste ──
-// Lit réel vs cible par axe (STATS_GARDES). Verdict : conforme si tous les MAR
-// sont à < 2 de leur cible sur chaque axe (l'écart résiduel = plancher arithmétique :
-// cibles fractionnaires, gardes entières). Au-delà de 2 = à examiner.
+// ── CERTIFICAT D'ÉQUITÉ : synthèse visuelle qui prouve, après génération, que le
+// planning est juste. Réutilise EXACTEMENT la logique des barres (écart réel−cible
+// par axe). Verdict conforme si tous les MAR < 2 de leur cible sur chaque axe
+// (résidu = plancher arithmétique : cibles fractionnaires, gardes entières).
 function renderCertificat(list){
-  const AXfull=[['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],['vd','cVd','VD'],['vjf','cVjf','veilles fériés']];
-  // Profils fixes (plafond de souhaits / jours fixes) : concentration voulue → jugés sur le TOTAL seul
+  const AXfull=[['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],['vd','cVd','week-ends'],['vjf','cVjf','veilles fériés']];
   const _spec = name => { const x=(typeof marsData!=='undefined'?marsData:[]).find(d=>d.initiales===name||d.nom===name||d.id===name); return !!(x&&(x.souhaitPlafond||x.tpJoursFixes)); };
-  const SEUIL=2.0; // au-delà = au-dessus du plancher arithmétique → à examiner
-  let maxEc=0, maxWho='', maxAx='', maxVal=0; const flag=[];
+  const SEUIL=2.0;
+  let maxEc=0, maxWho='', maxAx='', maxVal=0;
+  const flag=[]; const worstList=[];
+  let within1=0, within2=0, nEval=0;
   list.forEach(m=>{
     const AX = _spec(m.name) ? [['total','cTot','total']] : AXfull;
     let worst=0, wax='';
     AX.forEach(([rk,ck,lab])=>{ const cb=m[ck]||0; if(cb<=0) return;
       const ec=(m[rk]||0)-cb; if(Math.abs(ec)>Math.abs(worst)){ worst=ec; wax=lab; } });
-    if(Math.abs(worst)>maxEc){ maxEc=Math.abs(worst); maxWho=m.name; maxAx=wax; maxVal=worst; }
-    if(Math.abs(worst)>=SEUIL) flag.push({name:m.name,worst,wax});
+    nEval++; const aw=Math.abs(worst);
+    if(aw<1) within1++; if(aw<2) within2++;
+    worstList.push({name:m.name, worst, wax});
+    if(aw>maxEc){ maxEc=aw; maxWho=m.name; maxAx=wax; maxVal=worst; }
+    if(aw>=SEUIL) flag.push({name:m.name,worst,wax});
   });
-  const conforme=flag.length===0, parfait=maxEc<1;
+  const conforme=flag.length===0;
+  const pct1 = nEval? Math.round(within1/nEval*100):0;
+  const pct2 = nEval? Math.round(within2/nEval*100):0;
+
+  // mini-distribution des écarts (buckets d'un demi-écart absolu) — "preuve" que la masse est près de 0
+  const buckets=[0,0,0,0,0]; // [<0.5],[0.5-1],[1-1.5],[1.5-2],[≥2]
+  worstList.forEach(w=>{const a=Math.abs(w.worst);
+    buckets[a<0.5?0:a<1?1:a<1.5?2:a<2?3:4]++;});
+  const maxB=Math.max(1,...buckets);
+  const bLabels=['0–0,5','0,5–1','1–1,5','1,5–2','≥ 2'];
+  const bColors=['#15803D','#15803D','#65A30D','#D97706','#CE1126'];
+  const spark = buckets.map((n,idx)=>{
+    const hpc=Math.round(n/maxB*100);
+    return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
+      +'<div style="font-size:10px;font-weight:800;color:'+bColors[idx]+'">'+n+'</div>'
+      +'<div style="width:100%;height:46px;display:flex;align-items:flex-end"><div style="width:100%;height:'+Math.max(6,hpc)+'%;background:'+bColors[idx]+';opacity:'+(n?0.9:0.18)+';border-radius:4px 4px 0 0"></div></div>'
+      +'<div style="font-size:9.5px;color:var(--ink-4)">'+bLabels[idx]+'</div></div>';
+  }).join('');
+
+  const chip=(big,lbl,col)=> '<div style="flex:1;min-width:120px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 13px">'
+    +'<div style="font-size:23px;font-weight:800;color:'+col+';line-height:1">'+big+'</div>'
+    +'<div style="font-size:11px;color:var(--ink-3);margin-top:4px;line-height:1.35">'+lbl+'</div></div>';
+
   let h='';
+  const headBg = conforme?'linear-gradient(135deg,#ecfdf5,#f0fdf4)':'#fef2f2';
+  const headBd = conforme?'#a7f3d0':'#fecaca';
+  h+='<div style="border-radius:14px;padding:16px 18px;background:'+headBg+';border:1px solid '+headBd+'">';
+
+  // ligne verdict
   if(conforme){
-    h+='<div style="border-radius:12px;padding:16px 18px;background:'+(parfait?'#dcfce7':'#ecfdf5')+';border:1px solid '+(parfait?'#86efac':'#a7f3d0')+'">';
-    h+='<div style="font-size:15px;font-weight:800;color:#166534">✅ Planning équitable — certifié</div>';
-    h+='<div style="font-size:12.5px;color:#15803d;margin-top:6px;line-height:1.55">Tous les MAR sont à <strong>moins de 2 gardes</strong> de leur cible sur chaque axe'+(parfait?', et même à moins de 1':'')+'. Écart maximum : <strong>'+(maxVal>=0?'+':'')+maxVal.toFixed(1)+'</strong> ('+maxWho+', '+maxAx+'). Cet écart résiduel est le <strong>plancher arithmétique</strong> — les cibles sont fractionnaires (ex. 4,8 samedis) mais les gardes entières, l\'égalité stricte au chiffre près est donc impossible. Il est <strong>compensé l\'année suivante</strong> par la dette inter-annuelle.</div>';
-    h+='</div>';
+    h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+      +'<span style="font-size:16px;font-weight:800;color:#166534">✅ Planning équitable — certifié</span>'
+      +'<span style="font-size:11.5px;color:#15803d;background:#dcfce7;border-radius:999px;padding:3px 10px;font-weight:700">écart max '+(maxVal>=0?'+':'')+maxVal.toFixed(1)+' garde · '+maxWho+' · '+maxAx+'</span>'
+      +'</div>';
   } else {
-    h+='<div style="border-radius:12px;padding:16px 18px;background:#fef2f2;border:1px solid #fecaca">';
-    h+='<div style="font-size:15px;font-weight:800;color:#991b1b">🔴 À examiner — '+flag.length+' écart(s) au-delà du plancher</div>';
-    h+='<div style="font-size:12.5px;color:#b91c1c;margin-top:6px;line-height:1.55">Ces MAR dépassent <strong>2 gardes d\'écart</strong> sur un axe, au-delà du simple arrondi. À vérifier avant publication (causes fréquentes : dette de total non activée, ou contrainte individuelle non déclarée).</div>';
-    h+='<div style="margin-top:8px;font-size:12.5px;color:#7f1d1d">';
-    flag.forEach(f=>{ h+='<div style="padding:2px 0"><strong>'+f.name+'</strong> : '+(f.worst>=0?'+':'')+f.worst.toFixed(1)+' sur '+f.wax+'</div>'; });
-    h+='</div></div>';
+    h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+      +'<span style="font-size:16px;font-weight:800;color:#991b1b">🔴 À examiner — '+flag.length+' écart(s) au-delà de 2 gardes</span>'
+      +'<span style="font-size:11.5px;color:#b91c1c;background:#fee2e2;border-radius:999px;padding:3px 10px;font-weight:700">écart max '+(maxVal>=0?'+':'')+maxVal.toFixed(1)+' · '+maxWho+' · '+maxAx+'</span>'
+      +'</div>';
   }
+
+  // trois indicateurs
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:13px">'
+    + chip(pct2+'\u202f%', 'des MAR à <b>moins de 2 gardes</b> de leur juste part, sur chacun de leurs axes', conforme?'#166534':'#991b1b')
+    + chip(pct1+'\u202f%', 'à <b>moins d\u2019une garde</b> — au plus près possible, gardes entières obligent', '#166534')
+    + chip((maxVal>=0?'+':'')+maxVal.toFixed(1), 'écart le plus élevé du service (<b>'+maxWho+'</b>, '+maxAx+') — rattrapé l\u2019an prochain', conforme?'#65A30D':'#CE1126')
+    + '</div>';
+
+  // distribution
+  h+='<div style="margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:12px 14px">'
+    +'<div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">Répartition des MAR par <b>écart maximal à la cible</b> (en gardes) — la masse doit être à gauche, près de zéro</div>'
+    +'<div style="display:flex;gap:8px;align-items:flex-end">'+spark+'</div>'
+    +'</div>';
+
+  // note explicative (plancher arithmétique + dette)
+  h+='<div style="font-size:11.5px;color:'+(conforme?'#15803d':'#7f1d1d')+';margin-top:11px;line-height:1.55">';
+  if(conforme){
+    h+='L\u2019écart résiduel est le <b>plancher arithmétique</b> : les cibles sont fractionnaires (ex. 4,8 samedis) mais les gardes entières — l\u2019égalité au chiffre près est impossible. Il devient une <b>dette</b>, compensée l\u2019année suivante. Le détail par MAR est ci-dessous.';
+  } else {
+    h+='Ces MAR dépassent <b>2 gardes d\u2019écart</b> sur un axe, au-delà du simple arrondi (causes fréquentes : dette de total non activée, ou contrainte individuelle non déclarée) : ';
+    h+=flag.map(f=>'<b>'+f.name+'</b> '+(f.worst>=0?'+':'')+f.worst.toFixed(1)+'\u202f('+f.wax+')').join(' · ');
+    h+='.';
+  }
+  h+='</div>';
+
+  h+='</div>';
   const el=document.getElementById('equiteCertificat'); if(el) el.innerHTML=h;
 }
 
