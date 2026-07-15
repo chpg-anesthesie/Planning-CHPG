@@ -6106,6 +6106,7 @@ async function publishPlanning() {
   // par semaine). Le comité peut corriger ou publier quand même.
   try {
     const _wkMod = _semainesModifiees();
+    console.log('[filet] semaines modifiées :', [..._wkMod]);
     if (_wkMod.size) {
       const holesByWeek = {};
       const feries = (window.STAT && STAT.feries) || new Set();
@@ -6127,12 +6128,13 @@ async function publishPlanning() {
           });
         });
       });
+      console.log('[filet] trous détectés :', JSON.stringify(holesByWeek));
       if (Object.keys(holesByWeek).length && !(await confirmPublishNonPlaces(holesByWeek))) return;
     }
   } catch(e) {
     // Le filet ne doit JAMAIS bloquer la publication : en cas d'anomalie de calcul,
     // on logge et on publie quand même (l'essentiel est de ne pas figer le bouton).
-    console.error('Filet de complétude ignoré :', e);
+    console.error('[filet] EXCEPTION — filet ignoré :', e);
   }
   const b = document.getElementById('btnPublier');
   if (b) { b.disabled = true; b.textContent = '⏳ Publication…'; }
