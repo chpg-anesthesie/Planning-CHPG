@@ -930,15 +930,21 @@ function _apiBar(on) {
 async function apiPost(payload) {
   payload.code = VIEW_CODE;
   _apiBar(true);
+  const _ctrl = new AbortController();
+  const _timer = setTimeout(() => _ctrl.abort(), 120000);
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload),
       redirect: 'follow',
+      signal: _ctrl.signal,
     });
     return await res.json();
-  } finally { _apiBar(false); }
+  } catch (e) {
+    if (e && e.name === 'AbortError') throw new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable, réessayez');
+    throw e;
+  } finally { clearTimeout(_timer); _apiBar(false); }
 }
 
 function _authErr(msg) {
