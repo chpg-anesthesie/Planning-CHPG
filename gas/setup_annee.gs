@@ -1,3 +1,8 @@
+// ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
+// à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
+// version déployée ici avec celle du dépôt et signale toute recopie oubliée.
+const GAS_VERSION_SETUP = '2026-07-15.1';
+
 // ═══ Détection du "concept" d'une période d'après son nom ═══
 function conceptDe(s){
   s = String(s||'');
