@@ -93,6 +93,73 @@
   .calerbtn:disabled{opacity:.35;cursor:default}
   .rachint{font-size:10.5px;color:var(--muted);margin-top:7px;line-height:1.4}
   footer{margin-top:16px;font-size:11px;color:#8A6516;background:#FDF3E3;border:1px solid #EAD9B4;border-radius:12px;padding:11px 14px;line-height:1.5}
+  .devisbtn{background:var(--dh);color:#fff;border:0;border-radius:8px;padding:6px 10px;font:inherit;font-weight:600;font-size:11.5px;cursor:pointer;white-space:nowrap}
+  .devisbtn:hover{background:#5b21b6}
+  .pratbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 12px}
+  .pratbar .pblab{color:var(--muted);font-weight:600;font-size:12px;white-space:nowrap}
+  .pratbar input{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font:inherit;font-size:12px;background:#fff}
+  .pratbar #cfgPrat{flex:1;min-width:150px}
+  .pratbar #cfgRPPS,.pratbar #cfgADELI{width:120px}
+
+  /* ---- OVERLAY DEVIS (généré depuis un parcours ; aucune donnée patient stockée) ---- */
+  #devisOverlay{position:fixed;inset:0;background:#E7ECEF;overflow:auto;z-index:1000;padding:16px 12px 50px;display:none}
+  #devisOverlay .dvbar{max-width:800px;margin:0 auto 12px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+  #devisOverlay .dvbar button{border:0;border-radius:8px;padding:9px 16px;font:inherit;font-weight:600;font-size:13px;cursor:pointer}
+  #devisOverlay .dvprint{background:var(--ccam);color:#fff}
+  #devisOverlay .dvclose{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  #devisOverlay .dvnote{max-width:800px;margin:0 auto 12px;font-size:11px;color:#5B6C76;text-align:center}
+  #devisOverlay .sheet{max-width:800px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 10px 30px rgba(22,34,44,.10);padding:34px 38px 30px;color:#16222C}
+  #devisOverlay .head{display:flex;justify-content:space-between;gap:18px;border-bottom:2px solid #16222C;padding-bottom:14px}
+  #devisOverlay .prat .name{font-size:16px;font-weight:700}
+  #devisOverlay .prat .role{font-size:12px;color:#5B6C76;margin-top:1px}
+  #devisOverlay .prat .meta{font-size:11px;color:#5B6C76;margin-top:7px;line-height:1.5}
+  #devisOverlay .estab{text-align:right;font-size:11px;color:#5B6C76;line-height:1.5}
+  #devisOverlay .estab .e1{font-weight:600;color:#16222C;font-size:12px}
+  #devisOverlay .doctitle{text-align:center;margin:16px 0 4px}
+  #devisOverlay .doctitle h1{font-size:15px;font-weight:700;text-transform:uppercase}
+  #devisOverlay .doctitle .st{font-size:11px;color:#5B6C76;margin-top:2px}
+  #devisOverlay .refline{display:flex;justify-content:space-between;font-size:11px;color:#5B6C76;margin:12px 0 4px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:7px 0}
+  #devisOverlay .who{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0 4px}
+  #devisOverlay .box{border:1px solid var(--line);border-radius:7px;padding:11px 13px;background:#F3F6F8}
+  #devisOverlay .box h2{font-size:9.5px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:#5B6C76;margin-bottom:6px}
+  #devisOverlay .box .l{font-size:12.5px;line-height:1.7}
+  #devisOverlay .tag{display:inline-block;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;padding:2px 8px;border-radius:20px;background:var(--dh);color:#fff;margin-top:5px}
+  #devisOverlay h3.sec{font-size:10.5px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.07em;color:var(--ccam);margin:20px 0 8px}
+  #devisOverlay table.acts{width:100%;border-collapse:collapse;font-size:12px}
+  #devisOverlay table.acts th{font-size:9.5px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;color:#5B6C76;text-align:right;padding:6px 8px;border-bottom:1.5px solid #16222C;font-weight:600}
+  #devisOverlay table.acts th.l,#devisOverlay table.acts td.l{text-align:left}
+  #devisOverlay table.acts td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:right}
+  #devisOverlay table.acts td.l .lib{font-weight:600}
+  #devisOverlay table.acts td.l .code{font-size:10.5px;color:#5B6C76;font-family:'IBM Plex Mono',monospace;margin-top:1px}
+  #devisOverlay table.acts .num{font-family:'IBM Plex Mono',monospace}
+  #devisOverlay table.acts .dhcol{color:var(--dh);font-weight:600}
+  #devisOverlay .rac{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+  #devisOverlay .racb{border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  #devisOverlay .racb.mut{background:#E9F1F4;border-color:#CFE0E6}
+  #devisOverlay .racb .k{font-size:10px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;color:#5B6C76}
+  #devisOverlay .racb .v{font-size:21px;font-weight:700;font-family:'IBM Plex Mono',monospace;margin-top:3px}
+  #devisOverlay .racb .v.zero{color:var(--room)} #devisOverlay .racb .v.pos{color:var(--over)}
+  #devisOverlay .racb .note{font-size:10.5px;color:#5B6C76;margin-top:5px;line-height:1.4}
+  #devisOverlay .engage{margin-top:16px;font-size:11.5px;line-height:1.55;background:#F3F6F8;border:1px solid var(--line);border-radius:7px;padding:12px 14px}
+  #devisOverlay .sign{display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:20px}
+  #devisOverlay .sig .lab{font-size:10.5px;color:#5B6C76;font-family:'IBM Plex Mono',monospace;text-transform:uppercase}
+  #devisOverlay .sig .bp{font-size:11px;margin-top:2px}
+  #devisOverlay .sig .line{margin-top:38px;border-top:1px solid #16222C}
+  #devisOverlay .legalblk{margin-top:20px;border-top:1px solid var(--line);padding-top:12px}
+  #devisOverlay .legalblk p{font-size:10.5px;color:#3D4B54;line-height:1.5;margin-bottom:6px}
+  #devisOverlay .legalblk .imp{background:#FBF4F2;border-left:3px solid var(--over);padding:7px 10px;border-radius:0 6px 6px 0;color:#7a2c20}
+  #devisOverlay .dvfoot{margin-top:18px;text-align:center;font-size:9.5px;color:#5B6C76;border-top:1px solid var(--line);padding-top:8px}
+  #devisOverlay .ed{border-bottom:1px dashed #9AA7AF;padding:0 3px;min-width:70px;display:inline-block;outline:none}
+  #devisOverlay .ed:empty::before{content:attr(data-ph);color:#AEB8BF}
+  #devisOverlay .ed:focus{border-bottom-color:var(--ccam);background:#F1F8FA}
+  @media(max-width:640px){#devisOverlay .who,#devisOverlay .rac,#devisOverlay .sign{grid-template-columns:1fr}#devisOverlay .head{flex-direction:column}#devisOverlay .estab{text-align:left}}
+  @media print{
+    body>.wrap{display:none!important}
+    #devisOverlay{position:static;background:#fff;padding:0;display:block}
+    #devisOverlay .dvbar,#devisOverlay .dvnote{display:none!important}
+    #devisOverlay .sheet{box-shadow:none;border:0;border-radius:0;max-width:none;padding:0}
+    #devisOverlay .ed{border-bottom:1px solid #16222C}
+  }
   footer b{color:#6b4e10}
 </style>
 </head>
@@ -103,6 +170,13 @@
     <h1>Estimateur temps réel du libéral</h1>
     <div class="sub">Un parcours = une ou plusieurs lignes de code (principal + associés + suppléments). L'outil calcule la BR, projette le ratio 30 %, et <b>calibre le dépassement sur la mutuelle du patient pour minimiser son reste à charge</b>. <b>Estimateur, pas décompte.</b></div>
   </header>
+
+  <div class="pratbar">
+    <span class="pblab">Praticien (à saisir une fois) :</span>
+    <input id="cfgPrat" placeholder="Dr Nom Prénom">
+    <input id="cfgRPPS" placeholder="N° RPPS">
+    <input id="cfgADELI" placeholder="N° ADELI">
+  </div>
 
   <div class="socles">
     <div class="card"><div class="axhead"><span class="dot c"></span>Socle CCAM</div>
@@ -448,10 +522,144 @@ function renderRows(){
     return `<div class="pitem"><span class="pill ${c}">${p.axe}</span>
       <div class="d">${p.desc} <small>${p.statut}${mutLine} · ${p.cnt} ${unit}(s)</small></div>
       <div class="amt"><span class="br">${eur2(p.br)}</span> BR<br><span class="dh">${p.dh?'+'+eur2(p.dh)+' DH':'DH 0'}</span>${racLine}</div>
+      <button class="devisbtn" onclick="openDevis(${i})" title="Générer le devis">📄 Devis</button>
       <button class="rm" onclick="delP(${i})">✕</button></div>`;}).join('');
 }
 ['Tc','Pc','Tn','Pn'].forEach(id=>document.getElementById(id).addEventListener('input',renderSummary));
+// ---- GÉNÉRATEUR DE DEVIS (client-side, zéro persistance patient) ----
+const ST_LABELS={verte:'Carte verte (CCSS Monaco)',rose:'Carte rose (CCSS Monaco)',bulle:'Carte bulle (CCSS Monaco)',fr:'Assuré français (secteur 2)',nas:'NAS — non assuré social',spme:'SPME (Monaco)',ame:'AME'};
+let dvHonoraire=0;
+const RO_RATE={verte:0.80,rose:0.80,bulle:0.80,spme:0.80,fr:0.70,ame:1.00,nas:0.00};
+function eText(id,v){document.getElementById(id).textContent=v;}
+function fmtDate(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+function openDevis(i){
+  const p=parcours[i]; if(!p) return;
+  dvHonoraire=p.br+p.dh;
+  // Praticien (config saisie une fois en haut de page)
+  eText('dvPratName', document.getElementById('cfgPrat').value.trim()||'[Nom Prénom]');
+  eText('dvRPPS', document.getElementById('cfgRPPS').value.trim()||'—');
+  eText('dvADELI', document.getElementById('cfgADELI').value.trim()||'—');
+  // N° de devis + dates (auto)
+  const today=new Date(), valid=new Date(); valid.setMonth(valid.getMonth()+6);
+  const p2=n=>String(n).padStart(2,'0');
+  eText('dvNum', today.getFullYear()+'-'+p2(today.getMonth()+1)+p2(today.getDate())+'-'+p2(today.getHours())+p2(today.getMinutes()));
+  eText('dvDateEtabli', fmtDate(today));
+  eText('dvDateValid', fmtDate(valid));
+  document.getElementById('dvDatePrevue').textContent=fmtDate(today);
+  // Acte + statut + mutuelle + montants
+  eText('dvStatut', ST_LABELS[p.statut]||p.statut);
+  eText('dvActe', p.desc||'Acte'); eText('dvActe2', p.desc||'Acte');
+  eText('dvBR', eur2(p.br)); eText('dvHon', eur2(dvHonoraire)); eText('dvDH', eur2(p.dh));
+  eText('dvMut', p.mut||'non renseignée');
+  const ra=document.getElementById('dvRacAfter');
+  ra.textContent = p.rac!=null?eur2(p.rac):'—';
+  ra.className='v '+((p.rac!=null&&p.rac<=0.005)?'zero':'pos');
+  document.getElementById('dvTag').style.display=(p.statut==='bulle')?'inline-block':'none';
+  // Remboursement assurance maladie pré-calculé (hypothèse de taux, ajustable)
+  const rate = (RO_RATE[p.statut]!=null?RO_RATE[p.statut]:0.80);
+  document.getElementById('dvRRO').textContent = eur2(rate*p.br);
+  recalcDevisRac();
+  // seul champ à taper : le nom du patient
+  document.getElementById('dvPatient').textContent='';
+  document.getElementById('devisOverlay').style.display='block';
+  window.scrollTo(0,0);
+  document.getElementById('dvPatient').focus();
+}
+function parseEur(t){return parseFloat((t||'').replace(/[^0-9.,-]/g,'').replace(',','.'))||0;}
+function recalcDevisRac(){
+  const rro=parseEur(document.getElementById('dvRRO').textContent);
+  const el=document.getElementById('dvRacBefore');
+  if(rro>0){const rac=Math.max(0,dvHonoraire-rro);el.textContent=eur2(rac);el.className='v '+(rac<=0.005?'zero':'pos');}
+  else{el.textContent='—';el.className='v pos';}
+}
+function printDevis(){window.print();}
+function closeDevis(){
+  document.querySelectorAll('#devisOverlay .ed').forEach(e=>e.textContent='');   // rien ne persiste
+  document.getElementById('devisOverlay').style.display='none';
+}
 populateMut();setAxe('CCAM');renderRows();
 </script>
+<div id="devisOverlay">
+  <div class="dvbar">
+    <button class="dvprint" onclick="printDevis()">Imprimer / PDF</button>
+    <button class="dvclose" onclick="closeDevis()">Fermer</button>
+  </div>
+  <div class="dvnote">Champs bleus éditables (patient, dates, remboursement) — saisis à l'écran, <b>jamais enregistrés</b>, effacés à la fermeture. À défaut, laisse-les vides et complète à la main après impression.</div>
+  <div class="sheet">
+    <div class="head">
+      <div class="prat">
+        <div class="name">Dr <span id="dvPratName">—</span></div>
+        <div class="role">Médecin anesthésiste-réanimateur — secteur 2 (honoraires libres, non-OPTAM)</div>
+        <div class="meta">N° RPPS <span id="dvRPPS">—</span> · N° ADELI <span id="dvADELI">—</span><br>Activité libérale au sein du Centre Hospitalier Princesse Grace</div>
+      </div>
+      <div class="estab">
+        <div class="e1">Centre Hospitalier Princesse Grace</div>
+        1 avenue Pasteur — 98000 Monaco<br>Activité libérale intra-hospitalière
+      </div>
+    </div>
+    <div class="doctitle">
+      <h1>Information écrite préalable — Devis d'honoraires</h1>
+      <div class="st">Remis au patient avant la réalisation de l'acte · à conserver</div>
+    </div>
+    <div class="refline">
+      <span>Devis n° <b id="dvNum">—</b></span>
+      <span>Établi le <b id="dvDateEtabli">—</b></span>
+      <span>Valable jusqu'au <b id="dvDateValid">—</b></span>
+    </div>
+    <div class="who">
+      <div class="box">
+        <h2>Patient</h2>
+        <div class="l"><b><span class="ed" id="dvPatient" contenteditable="true" data-ph="Nom Prénom du patient"></span></b><br>
+        Régime : <b id="dvStatut">—</b></div>
+        <span class="tag" id="dvTag" style="display:none">Honoraires libres · entente préalable</span>
+      </div>
+      <div class="box">
+        <h2>Intervention prévue</h2>
+        <div class="l"><b id="dvActe">—</b><br>
+        Date prévue : <span class="ed" id="dvDatePrevue" contenteditable="true" data-ph="JJ/MM/AAAA"></span><br>
+        Établissement : CHPG — secteur libéral</div>
+      </div>
+    </div>
+    <h3 class="sec">Détail des actes et des honoraires</h3>
+    <table class="acts">
+      <thead><tr><th class="l">Acte — code</th><th>Base rembt (BR)</th><th>Honoraires</th><th>dont dépassement</th><th>Rembt assur. maladie</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="l"><div class="lib" id="dvActe2">—</div><div class="code">CCAM / NGAP · <span class="ed" contenteditable="true" data-ph="code">code</span></div></td>
+          <td class="num" id="dvBR">—</td>
+          <td class="num" id="dvHon">—</td>
+          <td class="num dhcol" id="dvDH">—</td>
+          <td class="num"><span class="ed" contenteditable="true" data-ph="0,00 €" id="dvRRO" oninput="recalcDevisRac()"></span></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="rac">
+      <div class="racb">
+        <div class="k">Reste à charge avant complémentaire</div>
+        <div class="v pos" id="dvRacBefore">—</div>
+        <div class="note">Honoraires − remboursement assurance maladie. Renseigne le remboursement dans le tableau pour l'afficher.</div>
+      </div>
+      <div class="racb mut">
+        <div class="k">Reste à charge estimé après mutuelle</div>
+        <div class="v zero" id="dvRacAfter">—</div>
+        <div class="note"><b>Estimation</b> — mutuelle : <span id="dvMut">—</span>. Sous réserve du contrat réel du patient.</div>
+      </div>
+    </div>
+    <div class="engage">
+      Je soussigné(e), patient(e) désigné(e) ci-dessus, <b>demande à bénéficier d'une prise en charge en activité libérale</b> au sein du Centre Hospitalier Princesse Grace, déclare avoir reçu la présente information <b>avant</b> la réalisation de l'acte, en avoir compris le contenu, et <b>m'engage à régler les honoraires</b> indiqués. Le dépassement est fixé avec tact et mesure et calibré, dans la mesure du possible, pour minimiser mon reste à charge.
+    </div>
+    <div class="sign">
+      <div class="sig"><div class="lab">Le praticien</div><div class="bp">Signature</div><div class="line"></div></div>
+      <div class="sig"><div class="lab">Le patient — « Bon pour accord »</div><div class="bp">Date et signature</div><div class="line"></div></div>
+    </div>
+    <div class="legalblk">
+      <p><b>Statut.</b> Le praticien exerce en secteur 2 à honoraires libres (non adhérent OPTAM), déterminés avec tact et mesure (art. R.4127-53 du code de la santé publique).</p>
+      <p><b>Information préalable.</b> Information écrite remise avant l'acte dès lors que le montant des dépassements atteint 70 €. Le paiement n'intervient qu'après réalisation de l'acte ; aucun chèque de caution n'est exigé.</p>
+      <p><b>Remboursement complémentaire.</b> La prise en charge par la mutuelle dépend du contrat du patient ; le « reste à charge estimé après mutuelle » est indicatif et ne vaut pas engagement de l'organisme.</p>
+      <p class="imp"><b>Bénéficiaires protégés.</b> Aucun dépassement n'est facturé aux bénéficiaires d'une couverture protégée (carte verte, SPME, AME, C2S) : seul le tarif conventionnel s'applique.</p>
+    </div>
+    <div class="dvfoot">Document remis en deux exemplaires. Modèle de maquette ; génération sans conservation de donnée patient.</div>
+  </div>
+</div>
 </body>
 </html>
