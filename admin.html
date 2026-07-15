@@ -3649,10 +3649,14 @@ function renderCertificat(list){
   let maxEc=0, maxWho='', maxAx='', maxVal=0;
   const flag=[]; const worstList=[];
   let within1=0, within2=0, nEval=0;
+  let nExcl=0;
   list.forEach(m=>{
-    const AX = _spec(m.name) ? [['total','cTot','total']] : AXfull;
+    // Profils « souhaits garantis » (ex. Prunet) : leurs jours choisis SONT leur cible,
+    // ils ne relèvent d'aucun axe d'équité (total compris — les mardis s'ajoutent).
+    // Exclus du certificat : ni comptés, ni éligibles au rouge. Visibles dans les barres.
+    if(_spec(m.name)){ nExcl++; return; }
     let worst=0, wax='';
-    AX.forEach(([rk,ck,lab])=>{ const cb=m[ck]||0; if(cb<=0) return;
+    AXfull.forEach(([rk,ck,lab])=>{ const cb=m[ck]||0; if(cb<=0) return;
       const ec=(m[rk]||0)-cb; if(Math.abs(ec)>Math.abs(worst)){ worst=ec; wax=lab; } });
     nEval++; const aw=Math.abs(worst);
     if(aw<1) within1++; if(aw<2) within2++;
@@ -3686,7 +3690,7 @@ function renderCertificat(list){
   let h='';
   const headBg = conforme?'linear-gradient(135deg,#ecfdf5,#f0fdf4)':'#fef2f2';
   const headBd = conforme?'#a7f3d0':'#fecaca';
-  h+='<div style="border-radius:14px;padding:16px 18px;background:'+headBg+';border:1px solid '+headBd+'">';
+  h+='<div style="position:relative;border-radius:14px;padding:16px 18px;background:'+headBg+';border:1px solid '+headBd+'">';
 
   // ligne verdict
   if(conforme){
@@ -3717,7 +3721,7 @@ function renderCertificat(list){
   // note explicative (plancher arithmétique + dette)
   h+='<div style="font-size:11.5px;color:'+(conforme?'#15803d':'#7f1d1d')+';margin-top:11px;line-height:1.55">';
   if(conforme){
-    h+='L\u2019écart résiduel est le <b>plancher arithmétique</b> : les cibles sont fractionnaires (ex. 4,8 samedis) mais les gardes entières — l\u2019égalité au chiffre près est impossible. Il devient une <b>dette</b>, compensée l\u2019année suivante. Le détail par MAR est ci-dessous.';
+    h+='L\u2019écart résiduel est le <b>plancher arithmétique</b> : les cibles sont fractionnaires (ex. 4,8 samedis) mais les gardes entières — l\u2019égalité au chiffre près est impossible. Il devient une <b>dette</b>, compensée l\u2019année suivante.'+(nExcl?' <span style=\"opacity:.8\">('+nExcl+' profil'+(nExcl>1?'s':'')+' à souhaits garantis exclu'+(nExcl>1?'s':'')+' du calcul — jours choisis = cible.)</span>':'')+' Le détail par MAR est ci-dessous.';
   } else {
     h+='Ces MAR dépassent <b>2 gardes d\u2019écart</b> sur un axe, au-delà du simple arrondi (causes fréquentes : dette de total non activée, ou contrainte individuelle non déclarée) : ';
     h+=flag.map(f=>'<b>'+f.name+'</b> '+(f.worst>=0?'+':'')+f.worst.toFixed(1)+'\u202f('+f.wax+')').join(' · ');
@@ -3725,6 +3729,9 @@ function renderCertificat(list){
   }
   h+='</div>';
 
+  if(conforme){
+    h+='<div aria-hidden="true" style="position:absolute;right:16px;bottom:14px;transform:rotate(-11deg);border:2.5px solid #15803D;color:#15803D;border-radius:10px;padding:5px 12px 4px;font-weight:900;letter-spacing:.12em;font-size:14px;text-transform:uppercase;opacity:.62;font-family:\'DM Sans\',system-ui,sans-serif;box-shadow:inset 0 0 0 2px rgba(21,128,61,.12)">Certifié<div style="font-size:8.5px;letter-spacing:.06em;font-weight:700;text-align:center;margin-top:1px;opacity:.85">ÉQUITÉ CHPG</div></div>';
+  }
   h+='</div>';
   const el=document.getElementById('equiteCertificat'); if(el) el.innerHTML=h;
 }
