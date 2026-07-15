@@ -294,6 +294,35 @@ function archiveYear(year, moveSheets) {
   const GITHUB_USER='chpg-anesthesie', GITHUB_REPO='Planning-CHPG', GITHUB_BRANCH='main';
   const results = [];
 
+  // ── Garde d'idempotence (15/07/2026) : année déjà archivée ? ──
+  // Cas visé : la réponse d'un archivage précédent s'est perdue en transit
+  // (ou navigateur fermé en pleine clôture) → le wizard rejoue archiveYear
+  // alors que les onglets ont déjà été déplacés. Sans cette garde, l'absence
+  // de STATS_GARDES_{year} produirait un « ❌ archivage interrompu » définitif.
+  // Détection stricte (les 3 conditions ensemble, sinon on laisse le ❌ normal
+  // signaler un vrai problème) :
+  //   1. STATS_GARDES_{year} absent du classeur maître
+  //   2. l'année figure dans HISTORIQUE
+  //   3. STATS_GARDES_{year} présent dans le classeur d'archive
+  if (!ss.getSheetByName(`STATS_GARDES_${year}`)) {
+    let enHisto = false, enArchive = false;
+    try {
+      const h0 = ss.getSheetByName('HISTORIQUE');
+      if (h0) {
+        const hv = h0.getDataRange().getValues();
+        for (let r = 1; r < hv.length; r++) {
+          if (Number(hv[r][1]) === Number(year)) { enHisto = true; break; }
+        }
+      }
+    } catch (e) {}
+    try { enArchive = !!SpreadsheetApp.openById(ARCHIVE_SS_ID).getSheetByName(`STATS_GARDES_${year}`); } catch (e) {}
+    if (enHisto && enArchive) {
+      const msg = `ℹ️ Année ${year} déjà archivée (HISTORIQUE alimenté, onglets dans le classeur d'archive) — rien à refaire.`;
+      Logger.log(msg);
+      return msg; // pas de « ❌ » → le dispatcher renvoie success:true → le wizard enchaîne sur la bascule
+    }
+  }
+
   function pushFile(path, content){
     const apiUrl=`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${path}`;
     let sha='';
