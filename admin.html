@@ -6104,28 +6104,35 @@ async function publishPlanning() {
   // Filet de complétude : avant de rendre le planning visible aux MARs, on liste
   // les présents non placés dans les SEMAINES MODIFIÉES cette session (regroupé
   // par semaine). Le comité peut corriger ou publier quand même.
-  const _wkMod = _semainesModifiees();
-  if (_wkMod.size) {
-    const holesByWeek = {};
-    const allWeeks = getAllWeeks();
-    allWeeks.forEach(wk => {
-      if (!_wkMod.has(wk.weekNum)) return;
-      const daySlots = getWeekDays(wk.weekNum);
-      daySlots.forEach((slot, i) => {
-        if (!slot || slot.isWeekend || slot.isFerie) return;
-        const np = nonPlacesJour(slot.date);
-        [...new Set([...np.am, ...np.pm].map(x => x.id))].forEach(id => {
-          const a = np.am.find(x => x.id === id), p = np.pm.find(x => x.id === id);
-          const m = a || p;
-          (holesByWeek[wk.weekNum] = holesByWeek[wk.weekNum] || []).push({
-            label: JOURS_ABR[i] + ' ' + slot.day,
-            halves: a && p ? 'AM + PM' : (a ? 'AM' : 'PM'),
-            init: m.init + (m.motif && m.motif.startsWith('retiré') ? ' (' + m.motif + ')' : '')
+  try {
+    const _wkMod = _semainesModifiees();
+    if (_wkMod.size) {
+      const holesByWeek = {};
+      const feries = (window.STAT && STAT.feries) || new Set();
+      getAllWeeks().forEach(wk => {
+        if (!_wkMod.has(wk.weekNum)) return;
+        const daySlots = getWeekDays(wk.weekNum);
+        daySlots.forEach((slot, dow) => {
+          // getWeekDays : index 0-4 = lun→ven, 5-6 = week-end ; fériés via STAT.feries
+          if (!slot || dow >= 5 || feries.has(slot.date)) return;
+          const np = nonPlacesJour(slot.date);
+          [...new Set([...np.am, ...np.pm].map(x => x.id))].forEach(id => {
+            const a = np.am.find(x => x.id === id), p = np.pm.find(x => x.id === id);
+            const m = a || p;
+            (holesByWeek[wk.weekNum] = holesByWeek[wk.weekNum] || []).push({
+              label: JOURS_ABR[dow] + ' ' + (slot.day || slot.date.slice(8)),
+              halves: a && p ? 'AM + PM' : (a ? 'AM' : 'PM'),
+              init: m.init + (m.motif && m.motif.startsWith('retiré') ? ' (' + m.motif + ')' : '')
+            });
           });
         });
       });
-    });
-    if (Object.keys(holesByWeek).length && !(await confirmPublishNonPlaces(holesByWeek))) return;
+      if (Object.keys(holesByWeek).length && !(await confirmPublishNonPlaces(holesByWeek))) return;
+    }
+  } catch(e) {
+    // Le filet ne doit JAMAIS bloquer la publication : en cas d'anomalie de calcul,
+    // on logge et on publie quand même (l'essentiel est de ne pas figer le bouton).
+    console.error('Filet de complétude ignoré :', e);
   }
   const b = document.getElementById('btnPublier');
   if (b) { b.disabled = true; b.textContent = '⏳ Publication…'; }
