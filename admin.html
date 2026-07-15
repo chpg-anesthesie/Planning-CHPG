@@ -3165,17 +3165,238 @@ function renderSidePanelContent(dispo, sector) {
   if (!html) html = '<div style="color:var(--ink-4);font-size:13px;padding:8px 0;">Aucun MAR disponible ce jour</div>';
   // Rappel des présents encore à poster ce demi-jour : volants ET retirés de leur secteur (hors BP)
   const _ctx = window._sideCtx || {};
-  const _npAll = nonPlacesJour(_ctx.date);
-  const _vap = _npAll[_ctx.slotKey] || [];
+  const _vap = nonPlacesJour(_ctx.date)[_ctx.slotKey] || [];
   const _sl = (_ctx.slotKey||'').toUpperCase();
   const _banner = _vap.length
     ? `<div style="margin-bottom:14px;padding:8px 10px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;">
         <div style="font-size:10px;font-weight:700;color:#9A3412;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">À poster — ${_sl}</div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;">${_vap.map(m => m.volant
-          ? `<span style="font-size:10px;font-weight:700;font-family:var(--mono);background:#FFEDD5;color:#9A3412;padding:2px 7px;border-radius:5px;">${m.init}</span>`
-          : `<span style="font-size:10px;font-weight:700;font-family:var(--mono);background:#FEE2E2;color:#991B1B;padding:2px 7px;border-radius:5px;">${m.init} · ${m.motif}</span>`).join('')}</div>
+          ? `<span style="font-size:11px;font-weight:700;font-family:var(--mono);background:#FFEDD5;color:#9A3412;border:1px solid #FED7AA;padding:2px 7px;border-radius:6px;">${m.init}</span>`
+          : `<span style="font-size:11px;font-weight:700;font-family:var(--mono);background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;padding:2px 7px;border-radius:6px;">${m.init} · ${m.motif}</span>`).join('')}</div>
       </div>`
-    : '';
+    : `<div style="margin-bottom:14px;padding:7px 10px;background:#ECFDF5;border:1px solid #A7F3D0;border-radius:10px;font-size:11px;font-weight:600;color:#166534;">✓ Tous les présents ${_sl} sont placés</div>`;
+  document.getElementById('pspContent').innerHTML = _banner + _csHeader + html;
+}
+
+async function placeMAR(marId, marInit, mode) {
+  const ctx = window._sideCtx;
+  if (!ctx) return;
+  const {sector, date, slotKey} = ctx;
+
+  // 1. Stocker dans _localOverrides (couche locale persistante dans la session)
+  if (!_localOverrides[date]) _localOverrides[date] = {};
+  if (!_localOverrides[date][marId]) _localOverrides[date][marId] = {am:null, pm:null};
+
+  // Pose PAR DÉFAUT = DÉPLACEMENT : value = sector → l'application des overrides retire le MAR
+  // de tout autre secteur/consultation ce demi-jour, puis le pose ici (un seul endroit).
+  // Mode 'add' (bouton « ＋ aussi ») = DOUBLE POSTE volontaire : on garde ses autres postes
+  // (secteur bloc + consultations) et on ajoute celui-ci — ex. consult courte / mater où le MAR
+  // reste aussi au bloc.
+  let value = sector;
+  if (mode === 'add' && sector !== 'VOLANT' && sector !== 'VIDE') {
+    const cur = (window._marPlaces && window._marPlaces[`${date}|${marId}|${slotKey}`]) || [];
+    const extra = [...new Set(cur.filter(s => s && s !== sector))];
+    if (extra.length) value = extra.concat(sector).join('+');
+  }
+  _localOverrides[date][marId][slotKey] = value;
+  // Consult libérale endo : affectée via le marqueur « LIB » (ctx.lib) → on la marque localement
+  // (chip violet) et on l'enregistre avec le tag LIB. Toute autre pose la démarque.
+  if (!_localLib[date]) _localLib[date] = new Set();
+  const _libK = `${marId}|${slotKey}`;
+  if (ctx.lib) _localLib[date].add(_libK); else _localLib[date].delete(_libK);
+  if (_localVides[date]) _localVides[date].delete(`${sector}|${slotKey}`);  // placer annule le vide
+  saveLocalEdits();
+
+  // 2. Re-render immédiat depuis smap + _localOverrides (pas de rechargement JSON)
+  closeSidePanel();
+  renderWeek();  // applique automatiquement _localOverrides via PATCH 2
+
+  // 3. Appel API en arrière-plan → GAS écrit dans PLANNING_OVERRIDES et push JSON
+  showToast('⏳ Enregistrement…');
+  try {
+    const res = await api({
+      action: 'savePlanningOverride',
+      date, marId,
+      // N'envoyer QUE le demi-jour réellement modifié ; l'autre = null = « ne pas toucher »
+      // (empêche le serveur de recopier/effacer l'autre demi-jour).
+      morning:   slotKey === 'am' ? (_localOverrides[date][marId].am || '') : null,
+      afternoon: slotKey === 'pm' ? (_localOverrides[date][marId].pm || '') : null,
+      comment:   ctx.lib ? 'LIB' : `Comité — ${value} ${slotKey.toUpperCase()}`
+    });
+    if (!res.success) throw new Error(res.error);
+    showToast(`✅ ${marId} en ${value} — enregistré`);
+    markPending();
+  } catch(e) {
+    showToast('Erreur API : ' + e.message);
+    // Rollback local si l'API a échoué
+    if (_localOverrides[date]?.[marId]) {
+      _localOverrides[date][marId][slotKey] = null;
+    }
+    saveLocalEdits();
+    renderWeek();
+  }
+}
+
+// ── Menu déplacer / retirer un MAR déjà posté (clic sur sa pastille) ──
+function openMarMenu(marId, marInit, currentSector, date, slotKey) {
+  const card = document.getElementById('dispoCard');
+  if (!card) return;
+  window._sideCtx = {date, slotKey};
+  card.style.display = 'block';
+  document.getElementById('pspTitle').textContent = `Déplacer ${marId}`;
+  document.getElementById('pspSub').innerHTML =
+    `<span style="background:${getSectorBg(currentSector)};color:${getSectorFg(currentSector)};padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-right:6px;">${currentSector}</span>`
+    + `<span style="background:${slotKey==='am'?'#CE1126':'#64748B'};color:#fff;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-right:6px;">${slotKey.toUpperCase()}</span>`
+    + new Date(date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  const targets = ['VIS','REA','ORT','ORL','END','CI','MAT'].filter(s => s !== currentSector);
+  let html = `<div style="font-size:10px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Déplacer vers</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">`;
+  targets.forEach(s => {
+    html += `<button onclick="moveMARTo('${marId}','${marInit}','${s}')"
+      style="font-family:var(--mono);font-size:12px;font-weight:700;background:${getSectorBg(s)};color:${getSectorFg(s)};border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;">${s}</button>`;
+  });
+  html += `</div>
+    <button onclick="removeMARFromSector('${marId}','${marInit}','${currentSector}')"
+      style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid #FCA5A5;border-radius:10px;background:#FEF2F2;color:#B91C1C;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">↩ Retirer de ${currentSector}</button>`;
+  document.getElementById('pspContent').innerHTML = html;
+  card.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function leaveCaseVide() {
+  const ctx = window._sideCtx; if (!ctx) return;
+  const {sector, date, slotKey} = ctx;
+  if (!_localVides[date]) _localVides[date] = new Set();
+  _localVides[date].add(`${sector}|${slotKey}`);
+  saveLocalEdits();
+  const c = document.getElementById('dispoCard'); if (c) c.style.display = 'none';
+  renderWeek();
+  if (typeof showToast === 'function') showToast('Case laissée vide');
+}function unleaveCaseVide() {
+  const ctx = window._sideCtx; if (!ctx) return;
+  const {sector, date, slotKey} = ctx;
+  if (_localVides[date]) _localVides[date].delete(`${sector}|${slotKey}`);
+  saveLocalEdits();
+  const c = document.getElementById('dispoCard'); if (c) c.style.display = 'none';
+  renderWeek();
+}
+// Retirer UN SEUL MAR d'une consultation (le × sur sa puce), sans fermer le créneau
+// ni toucher aux autres occupants. Conserve ses éventuels autres secteurs du demi-jour.
+function removeOneCs(marId, marInit, type, date, slotKey) {
+  const cur = (window._marPlaces && window._marPlaces[`${date}|${marId}|${slotKey}`]) || [];
+  const remaining = cur.filter(s => s && s !== type);
+  window._sideCtx = {date, slotKey, sector: remaining.length ? remaining.join('+') : 'VOLANT'};
+  placeMAR(marId, marInit, 'move');
+}
+function closeConsult(type, date, slotKey) {
+  // 1) marquer fermée (persiste pour ne plus réafficher "à pourvoir")
+  if (_localOpens[date]) _localOpens[date].delete(`${type}|${slotKey}`);
+  if (!_localCloses[date]) _localCloses[date] = new Set();
+  _localCloses[date].add(`${type}|${slotKey}`);
+  saveCloses();
+  // 2) libérer le(s) MAR qui faisai(en)t cette consult (override VOLANT, persiste)
+  const occ = (window._csOccupants && window._csOccupants[`${date}|${type}|${slotKey}`]) || [];
+  occ.forEach(marId => {
+    if (!_localOverrides[date]) _localOverrides[date] = {};
+    if (!_localOverrides[date][marId]) _localOverrides[date][marId] = {am:null, pm:null};
+    _localOverrides[date][marId][slotKey] = 'VOLANT';
+  });
+  renderWeek();
+  occ.forEach(marId => _saveOverrideBg(marId, date, slotKey, 'consult fermée'));
+  if (typeof showToast === 'function') showToast(occ.length ? `Consultation fermée — ${occ.length} MAR libéré(s)` : 'Consultation fermée');
+}
+function reopenConsult(type, date, slotKey) {
+  if (_localCloses[date]) { _localCloses[date].delete(`${type}|${slotKey}`); saveCloses(); }
+  if (!_localOpens[date]) _localOpens[date] = new Set();
+  _localOpens[date].add(`${type}|${slotKey}`);   // rouvre directement en "à pourvoir"
+  renderWeek();
+  if (typeof showToast === 'function') showToast('Consultation rouverte');
+}
+// Sauvegarde d'un override en arrière-plan (sans bloquer le rendu)
+async function _saveOverrideBg(marId, date, slotKey, why) {
+  try {
+    await api({
+      action: 'savePlanningOverride', date, marId,
+      morning:   slotKey === 'am' ? (_localOverrides[date][marId].am || '') : null,
+      afternoon: slotKey === 'pm' ? (_localOverrides[date][marId].pm || '') : null,
+      comment:   `Comité — ${why} ${slotKey.toUpperCase()}`
+    });
+    markPending();
+  } catch(e) {}
+}
+
+function moveMARTo(marId, marInit, targetSector) {
+  window._sideCtx = Object.assign({}, window._sideCtx, {sector: targetSector});
+  placeMAR(marId, marInit, 'move');
+}
+
+// Retirer le MAR d'UN secteur seulement (s'il est dans 2, l'autre est conservé)
+function removeMARFromSector(marId, marInit, currentSector) {
+  const ctx = window._sideCtx; if (!ctx) return;
+  const {date, slotKey} = ctx;
+  const cur = (window._marPlaces && window._marPlaces[`${date}|${marId}|${slotKey}`]) || [];
+  const remaining = cur.filter(s => s && s !== currentSector);
+  window._sideCtx = Object.assign({}, ctx, {sector: remaining.length ? remaining.join('+') : 'VOLANT'});
+  placeMAR(marId, marInit, 'move');
+}
+
+function closeSidePanel() {
+  const card = document.getElementById('dispoCard');
+  if (card) card.style.display = 'none';
+  window._sideCtx = null;
+}
+
+function closeDispoPopup() { closeSidePanel(); }
+
+
+
+// ── OVERRIDES ──────────────────────────────────────────────────────────
+async function loadOverrides() {
+  try {
+    const data=await api({action:'getOverrides'});
+    if(!data.success) throw new Error(data.error);
+    if(data.upcoming>5) document.getElementById('dotStatus').className='status-dot orange';
+    const futures=data.overrides.filter(o=>o.isFuture).slice(0,8);
+    const body=document.getElementById('overridesBody');
+    if(!futures.length){body.innerHTML='<div style="text-align:center;color:var(--green);padding:16px;font-size:12px">✅ Aucune modification en attente</div>';return;}
+    body.innerHTML=futures.map(o=>`
+      <div class="override-item">
+        <span class="override-date">${o.date.slice(5)}</span>
+        <span class="override-doc">${o.doctorId}</span>
+        <span class="override-val">${o.morning||''}${o.afternoon&&o.afternoon!==o.morning?'/'+o.afternoon:''}</span>
+        <button class="override-del" onclick="cancelOverride(${o.rowIndex},'${o.date}','${o.doctorId}')">×</button>
+      </div>`).join('');
+  } catch(e){}
+}
+
+async function cancelOverride(rowIndex,date,doctorId){
+  if(!confirm(`Annuler la modification du ${date} pour ${doctorId} ?`)) return;
+  try{const d=await api({action:'deleteOverride',rowIndex});if(!d.success)throw new Error(d.error);toast('✅ Modification annulée','success');loadOverrides();loadPlanningData();}
+  catch(e){toast('Erreur : '+e.message,'error');}
+}
+
+// ── WORKFLOW ───────────────────────────────────────────────────────────
+// ── PANNEAU ────────────────────────────────────────────────────────────
+function openPanel(type, prefillDocId='', prefillDate=''){
+  if (ADMIN_YEAR_READONLY) {
+    toast('🔒 Année ' + ADMIN_YEAR + ' archivée — modifications désactivées', 'error');
+    return;
+  }
+  panelType=type;
+  const titles={secteur:'🔄 Changer de secteur',garde:'🔁 Modifier une garde'};
+  document.getElementById('panelTitle').textContent=titles[type]||'Modification';
+  document.getElementById('panelResult').style.display='none';
+  const marOpts=marsData.filter(m=>m.actif).map(m=>`<option value="${m.id}"${m.id===prefillDocId?' selected':''}>${m.id}</option>`).join('');
+  // Sélecteur d'année si période double
+  const yearSelectorHtml = nextYearAvailable ? `
+    <div class="form-field" style="margin-bottom:12px">
+      <label class="form-label">Année concernée</label>
+      <div style="display:flex;gap:8px">
+        <button type="button" id="btnYearN" onclick="setPanelYear(${YEAR})"
+          class="btn-year ${selectedYear===YEAR+1?'':'active'}">${YEAR}</button>
+        <button type="button" id="btnYearN1" onclick="setPanelYear(${YEAR+1})"
+          class="btn-year ${selectedYear===YEAR+1?'active':''}">${YEAR+1} ✨</button>
+      </div>
+    </div>` : '';
   const SECTEURS = SECTEURS_ACTIFS.map(s => s.code);
   const sectOpts=SECTEURS.map(s=>`<option value="${s}">${s}</option>`).join('');
   let body='';
