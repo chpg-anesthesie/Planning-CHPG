@@ -100,6 +100,17 @@
   .pratbar input{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font:inherit;font-size:12px;background:#fff}
   .pratbar #cfgPrat{flex:1;min-width:150px}
   .pratbar #cfgRPPS,.pratbar #cfgADELI{width:120px}
+  .ccamsearch{position:relative;margin:0 0 8px}
+  .ccamsearch input{width:100%;border:1px solid var(--ccam);border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;background:#fff}
+  .ccamsearch input::placeholder{color:#9fb0b6}
+  .ccamresults{position:absolute;left:0;right:0;top:calc(100% + 3px);background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:300px;overflow:auto;z-index:50}
+  .ccamresults:empty{display:none}
+  .ccamitem{padding:7px 11px;border-bottom:1px solid var(--track);cursor:pointer;font-size:12.5px;line-height:1.35}
+  .ccamitem:last-child{border-bottom:0}
+  .ccamitem:hover{background:var(--ccam-bg)}
+  .ccamitem b{font-family:'IBM Plex Mono',monospace;color:var(--ccam);margin-right:7px}
+  .ccamresults .info{color:var(--muted);padding:9px 11px;font-size:11.5px}
+  .codetag{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ccam);font-weight:600;margin-bottom:2px}
 
   /* ---- OVERLAY DEVIS (généré depuis un parcours ; aucune donnée patient stockée) ---- */
   #devisOverlay{position:fixed;inset:0;background:#E7ECEF;overflow:auto;z-index:1000;padding:16px 12px 50px;display:none}
@@ -215,6 +226,10 @@
 
     <!-- CCAM : actes techniques -->
     <div id="blocCCAM">
+      <div class="ccamsearch">
+        <input id="ccamq" autocomplete="off" placeholder="🔍 Rechercher un acte : code, libellé ou abréviation (ex. NEKA014, hernie, PTH)…" oninput="ccamSearch()">
+        <div class="ccamresults" id="ccamResults"></div>
+      </div>
       <table class="lines">
         <thead><tr><th style="width:30%">Ligne (code / libellé)</th><th style="width:15%">Tarif off. act.4 (€)</th><th class="chkcell">7</th><th class="chkcell">A</th><th style="width:24%">Rôle</th><th style="width:14%;text-align:right">BR</th><th></th></tr></thead>
         <tbody id="linesBody"></tbody>
@@ -311,8 +326,8 @@ const FORMULES=[
 let lastRac=0, lastMut=null;
 let axe='CCAM';
 let builder=[
-  {lib:'PTH — NEKA014',tarif:253.90,m7:true,mA:true,role:'principal'},
-  {lib:'Synovectomie — NEFA004',tarif:118.82,m7:true,mA:true,role:'associe'},
+  {code:'NEKA014',lib:'Prothèse totale de hanche (PTH)',tarif:253.90,m7:true,mA:true,role:'principal'},
+  {code:'NEFA004',lib:'Synovectomie',tarif:118.82,m7:true,mA:true,role:'associe'},
 ];
 let ngap=[ {lc:'CS', val:46.00, coef:1} ];
 let parcours=[];
@@ -411,7 +426,7 @@ function onStatut(){const st=STATUTS[document.getElementById('statut').value];
   document.getElementById('cibleWrap').style.display = st.dh==='libre'?'block':'none';
   document.getElementById('mutRow').style.display = st.dh==='0'?'none':'flex';
   renderBuilder();}
-function addLine(){builder.push({lib:'',tarif:0,m7:false,mA:false,role:'complement'});renderBuilder();}
+function addLine(){builder.push({code:'',lib:'',tarif:0,m7:false,mA:false,role:'complement'});renderBuilder();}
 function rmLine(i){builder.splice(i,1);renderBuilder();}
 function upd(i,f,v){builder[i][f]=v;renderBuilder();}
 
@@ -428,7 +443,7 @@ function renderBuilder(){
   if(axe==='NGAP') return renderNgap();
   const tb=document.getElementById('linesBody');
   tb.innerHTML=builder.map((l,i)=>`<tr>
-    <td><input value="${l.lib.replace(/"/g,'&quot;')}" onchange="upd(${i},'lib',this.value)"></td>
+    <td><div class="codetag">${l.code||'—'}</div><input value="${(l.lib||'').replace(/"/g,'&quot;')}" onchange="upd(${i},'lib',this.value)"></td>
     <td><input class="mono" type="number" step="0.01" value="${l.tarif||''}" onchange="upd(${i},'tarif',parseFloat(this.value)||0)"></td>
     <td class="chkcell"><input type="checkbox" ${l.m7?'checked':''} onchange="upd(${i},'m7',this.checked)"></td>
     <td class="chkcell"><input type="checkbox" ${l.mA?'checked':''} onchange="upd(${i},'mA',this.checked)"></td>
@@ -476,7 +491,7 @@ function addParcours(){
   const dh=parseFloat(document.getElementById('dh').value)||0;
   const desc = axe==='NGAP'
     ? ngap.map(n=>`${n.lc==='AUTRE'?'NGAP':n.lc}${(n.coef&&n.coef!==1)?' '+n.coef:''}`).join(' + ')
-    : builder.map(l=>l.lib||'ligne').join(' + ');
+    : builder.map(l=>((l.code?l.code+' ':'')+(l.lib||'ligne'))).join(' + ');
   const cnt = axe==='NGAP'?ngap.length:builder.length;
   const st=document.getElementById('statut').value, pct=currentMutPct();
   let rac=null, mut=null;
@@ -577,6 +592,51 @@ function closeDevis(){
   document.querySelectorAll('#devisOverlay .ed').forEach(e=>e.textContent='');   // rien ne persiste
   document.getElementById('devisOverlay').style.display='none';
 }
+// ---- RECHERCHE CCAM (référentiel v83, chargé depuis ccam_actes.json) ----
+let CCAM_INDEX=[], ccamLoaded=false, lastCcam=[];
+// couche synonymes/abréviations → termes présents dans les libellés officiels (extensible)
+const SYN={
+  'pth':'coxofemoral', 'ptg':'femorotibial', 'ptt':'talocrural',
+  'tap':'paroi abdominale', 'alr':'locoregionale', 'rachi':'rachidienne',
+  'apd':'peridurale', 'peri':'peridurale', 'coelio':'videochirurgie',
+  'coelioscopie':'videochirurgie', 'cesar':'cesarienne', 'cesarienne':'cesarienne',
+  'chole':'cholecystectomie', 'appendice':'appendicectomie', 'amygdales':'amygdalectomie',
+  'cec':'circulation extracorporelle', 'vvc':'catheter veineux central', 'cataracte':'cristallin'
+};
+function norm(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
+async function loadCcam(){
+  try{
+    const r=await fetch('ccam_actes.json'); if(!r.ok) throw 0;
+    const j=await r.json();
+    CCAM_INDEX=(j.actes||[]).map(a=>({c:a.c,l:a.l,n:norm(a.l)}));
+    ccamLoaded=CCAM_INDEX.length>0;
+  }catch(e){ ccamLoaded=false; }
+}
+function ccamSearch(){
+  const box=document.getElementById('ccamResults');
+  const raw=document.getElementById('ccamq').value.trim();
+  if(raw.length<2){box.innerHTML='';return;}
+  if(!ccamLoaded){box.innerHTML='<div class="info">Référentiel CCAM non chargé (il se charge en ligne sur le portail).</div>';return;}
+  const q=norm(raw);
+  const syn=SYN[q]?norm(SYN[q]):null;
+  const tokens=(syn||q).split(/\s+/).filter(Boolean);
+  const codeHits=[], libHits=[];
+  for(const a of CCAM_INDEX){
+    if(a.c.toLowerCase().startsWith(q)) codeHits.push(a);
+    else if(tokens.every(t=>a.n.includes(t))) libHits.push(a);
+  }
+  lastCcam=codeHits.concat(libHits).slice(0,30);
+  if(!lastCcam.length){box.innerHTML='<div class="info">Aucun acte trouvé.</div>';return;}
+  box.innerHTML=lastCcam.map((a,i)=>`<div class="ccamitem" onclick="pickCcam(${i})"><b>${a.c}</b>${a.l}</div>`).join('');
+}
+function pickCcam(i){
+  const a=lastCcam[i]; if(!a)return;
+  builder.push({code:a.c,lib:a.l,tarif:0,m7:false,mA:false,role:builder.length?'complement':'principal'});
+  document.getElementById('ccamq').value='';
+  document.getElementById('ccamResults').innerHTML='';
+  renderBuilder();
+}
+loadCcam();
 populateMut();setAxe('CCAM');renderRows();
 </script>
 <div id="devisOverlay">
