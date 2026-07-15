@@ -122,7 +122,7 @@
     <li><a href="#c11"><span class="n">11</span>Onglet Statuts — absences</a></li>
     <li><a href="#c12"><span class="n">12</span>Onglet Équité et contrôles</a></li>
     <li><a href="#c13"><span class="n">13</span>Onglet Maintenance</a></li>
-    <li><a href="#c14"><span class="n">14</span>Publier &amp; valider une semaine</a></li>
+    <li><a href="#c14"><span class="n">14</span>Publier le planning</a></li>
     <li><a href="#c15"><span class="n">15</span>Dépannage</a></li>
     <li><a href="#c16"><span class="n">16</span>Glossaire des sigles</a></li>
     <li><a href="#c17"><span class="n">17</span>Sous le capot — comment l'interface fonctionne</a></li>
@@ -268,8 +268,7 @@
   <p>À droite du nom de la semaine :</p>
   <ul>
     <li><span class="btn-ex">↓ Excel</span> — exporte la semaine affichée en fichier Excel (pratique pour imprimer ou diffuser). Les jours y sont séparés par un <strong>trait noir épais</strong> pour bien les distinguer, et le <strong>staff du vendredi</strong> (heure et thème) apparaît automatiquement dans la case <em>Informations</em> du vendredi.</li>
-    <li><span class="btn-ex green">✅ Valider la semaine</span> — marque la semaine comme vérifiée par le comité ; un badge <strong>✅ Validée</strong> apparaît alors à côté du nom de la semaine (voir chapitre 14).</li>
-    <li><span class="btn-ex green">⬆️ Publier</span> — met en ligne les modifications pour l'équipe.</li>
+    <li><span class="btn-ex green">⬆️ Publier</span> — met en ligne les modifications pour l'équipe (voir chapitre 14). Le compteur entre parenthèses indique le nombre de modifications non encore publiées.</li>
     <li><span class="tag">↺ réinit.</span> — petit lien discret qui réinitialise les modifications locales de l'écran, si l'affichage semble figé sur d'anciennes modifs.</li>
   </ul>
   <a class="backtop" href="#top">↑ Sommaire</a>
@@ -312,7 +311,19 @@
     <p>Le <strong>×</strong> situé à droite de la case (dans les outils du créneau) ferme <strong>toute</strong> la consultation et libère tout le monde d'un coup. Le × collé aux initiales ne retire que ce MAR.</p>
   </div>
 
-  <h3>6.5 · Enregistrement</h3>
+  <h3>6.5 · Ne pas oublier de placer quelqu'un</h3>
+  <p>Une journée n'est complète que si <strong>tous les MARs présents sont placés</strong>, matin et après-midi (le Pr Prunet fait exception, il peut ne pas l'être). Pour éviter qu'un médecin disponible soit oublié — et se retrouve sans poste alors qu'il est là — trois repères vous aident, sans jamais alourdir l'écran quand tout va bien :</p>
+  <ul>
+    <li><strong>Dans l'en-tête de chaque jour</strong> : une pastille <span class="tag" style="background:#FFFBEB;border-color:#FCD34D;color:#B45309">⚠ N à placer</span> apparaît <em>seulement</em> s'il reste des présents non placés ce jour-là. Cliquez dessus pour voir qui, quelles demi-journées, et pourquoi (volant, ou retiré d'un secteur). Elle disparaît dès que le jour est complet.</li>
+    <li><strong>Dans le panneau de sélection</strong> : les MARs que vous venez de <strong>retirer</strong> de leur secteur (et qui flottent sans poste) remontent en tête, dans une section <span style="color:#991B1B;font-weight:700">⚠ Retirés à replacer</span>, au lieu de se perdre dans la liste. La bannière « À poster » du haut les rappelle aussi.</li>
+    <li><strong>À la publication</strong> : si des trous subsistent dans les semaines modifiées, un message les liste avant de publier (chapitre 14).</li>
+  </ul>
+  <div class="callout tip">
+    <div class="ct">Pourquoi c'est utile</div>
+    <p>Quand vous retirez un MAR de son secteur, il disparaît de sa case et rejoint la liste des MARs à placer — il est alors facile d'oublier de le remettre ailleurs. Ces repères rendent cet oubli visible immédiatement.</p>
+  </div>
+
+  <h3>6.6 · Enregistrement</h3>
   <p>Chaque modification est enregistrée automatiquement en arrière-plan (message « Enregistré »). Mais elle n'est visible par l'équipe qu'après <strong>publication</strong> (chapitre 14).</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
@@ -464,11 +475,14 @@
 
 <!-- 14 -->
 <section id="c14">
-  <h2><span class="n">14</span>Publier &amp; valider une semaine</h2>
+  <h2><span class="n">14</span>Publier le planning</h2>
   <h3>Publier (rendre visible à l'équipe)</h3>
   <p>Les modifications ne sont visibles par l'équipe qu'après avoir cliqué sur <span class="btn-ex green">⬆️ Publier</span> (barre de la semaine, onglet Planning — l'onglet Statuts a le sien, chapitre 11). Ce bouton reconstruit le planning et le met en ligne. Côté équipe, le nouveau planning apparaît au prochain rechargement de leur page, généralement en moins d'une minute.</p>
-  <h3>Valider une semaine</h3>
-  <p>Le bouton <span class="btn-ex green">✅ Valider la semaine</span> marque la semaine affichée comme <strong>vérifiée par le comité</strong> : le badge <strong>✅ Validée</strong> apparaît à côté du nom de la semaine. Re-cliquer retire la validation. C'est le repère qui distingue une semaine simplement remplie d'une semaine relue et validée.</p>
+  <p>Un seul geste suffit désormais : <strong>il n'y a plus d'étape « valider la semaine »</strong>. Les MARs voient en permanence les semaines déjà passées ainsi que les <strong>quatre prochaines semaines</strong> (semaine en cours jusqu'à trois semaines plus tard). Les semaines plus lointaines restent visibles mais portent un badge <strong>🚧 provisoire</strong> : le comité peut encore les ajuster. La référence qui fait foi pour l'équipe reste le <strong>fichier Excel envoyé par mail chaque vendredi</strong> pour la semaine suivante.</p>
+  <div class="callout tip">
+    <div class="ct">Contrôle avant publication</div>
+    <p>Si, au moment de publier, des MARs présents ne sont <strong>pas placés</strong> (ni le matin ni l'après-midi) dans une des semaines que vous avez modifiées, un message les liste, regroupés par semaine. Vous pouvez <strong>corriger d'abord</strong> ou <strong>publier quand même</strong> (une demi-journée volontairement laissée libre est un cas légitime). Le but : éviter qu'un médecin disponible soit oublié — voir chapitre 6 sur les repères « à placer ».</p>
+  </div>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
