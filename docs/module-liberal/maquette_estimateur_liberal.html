@@ -605,18 +605,27 @@ const SYN={
 };
 function norm(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 async function loadCcam(){
-  try{
-    const r=await fetch('ccam_actes.json'); if(!r.ok) throw 0;
-    const j=await r.json();
-    CCAM_INDEX=(j.actes||[]).map(a=>({c:a.c,l:a.l,n:norm(a.l),t:a.t}));
-    ccamLoaded=CCAM_INDEX.length>0;
-  }catch(e){ ccamLoaded=false; }
+  const urls=[
+    'ccam_actes.json',
+    'https://raw.githubusercontent.com/chpg-anesthesie/Planning-CHPG/main/docs/module-liberal/ccam_actes.json'
+  ];
+  for(const u of urls){
+    try{
+      const r=await fetch(u,{cache:'no-store'}); if(!r.ok) continue;
+      const j=await r.json();
+      const arr=(j.actes||[]).map(a=>({c:a.c,l:a.l,n:norm(a.l),t:a.t}));
+      if(arr.length){ CCAM_INDEX=arr; ccamLoaded=true;
+        const q=document.getElementById('ccamq'); if(q&&q.value.trim().length>=2) ccamSearch();
+        return; }
+    }catch(e){}
+  }
+  ccamLoaded=false;
 }
 function ccamSearch(){
   const box=document.getElementById('ccamResults');
   const raw=document.getElementById('ccamq').value.trim();
   if(raw.length<2){box.innerHTML='';return;}
-  if(!ccamLoaded){box.innerHTML='<div class="info">Référentiel CCAM non chargé (il se charge en ligne sur le portail).</div>';return;}
+  if(!ccamLoaded){box.innerHTML='<div class="info">Référentiel en cours de chargement — réessaie dans quelques secondes.</div>';return;}
   const q=norm(raw);
   const syn=SYN[q]?norm(SYN[q]):null;
   const tokens=(syn||q).split(/\s+/).filter(Boolean);
