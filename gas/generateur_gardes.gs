@@ -1,3 +1,8 @@
+// ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
+// à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
+// version déployée ici avec celle du dépôt et signale toute recopie oubliée.
+const GAS_VERSION_GENERATEUR = '2026-07-15.1';
+
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
 // → inexploitables. La dette ne lit qu'à partir de cette année (2027 = 1re année
