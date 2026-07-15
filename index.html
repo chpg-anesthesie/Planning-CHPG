@@ -2128,7 +2128,10 @@ function renderCertificatMAR(list){
   return h;
 }
 function paintEquite(wrap, headHtml, list){
-  const certHtml = renderCertificatMAR(list);
+  // Le certificat n'a de sens que sur la répartition INITIALE (générée). En « Instantané »,
+  // les échanges/dons volontaires modifient les compteurs : l'écart affiché ne refléterait
+  // plus l'équité de l'algorithme mais des choix personnels — on n'affiche donc pas de verdict.
+  const certHtml = (EQ_SRC_IDX==='live') ? '' : renderCertificatMAR(list);
   const grid = wrap.querySelector('.eqv-grid');
   const gridHtml = renderEquiteCards(list);
   if(grid && morphGrid(grid, gridHtml)){
