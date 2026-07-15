@@ -196,18 +196,24 @@ function _apiBar(on){
   _apiBusy = Math.max(0, _apiBusy + (on?1:-1));
   if(_apiBusy>0){ el.style.opacity='1'; el.style.width='75%'; } else { el.style.width='100%'; setTimeout(()=>{el.style.opacity='0';el.style.width='0';},250); }
 }
-async function apiPost(payload){
+async function apiPost(payload) {
   payload.code = VIEW_CODE;
   _apiBar(true);
-  try{
+  const _ctrl = new AbortController();
+  const _timer = setTimeout(() => _ctrl.abort(), 120000);
+  try {
     const res = await fetch(API_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload),
-      redirect:'follow',
+      redirect: 'follow',
+      signal: _ctrl.signal,
     });
     return await res.json();
-  } finally { _apiBar(false); }
+  } catch (e) {
+    if (e && e.name === 'AbortError') throw new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable, réessayez');
+    throw e;
+  } finally { clearTimeout(_timer); _apiBar(false); }
 }
 
 // ── BADGE UTILISATEUR + DÉCONNEXION ──
