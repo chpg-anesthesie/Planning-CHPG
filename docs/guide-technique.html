@@ -229,7 +229,7 @@
     <li><b>Lecture</b> : <code>getMedecins</code>, <code>getGardes</code>, <code>getStats</code>, <code>getStatsLive</code>, <code>getVacValidation</code>, <code>getAllIndispos</code>, <code>getConflitsAll</code>, <code>getJoursFeries</code>, <code>getPlanningJson</code>…</li>
     <li><b>Écriture planning/équipe</b> : <code>saveMedecin</code>, <code>saveIndispos</code>, <code>savePeriodes</code>, <code>saveGroupes</code>, <code>savePlanningOverride</code>, <code>setDailyStatus</code>, <code>saveAffectations</code>…</li>
     <li><b>Cycle annuel</b> : <code>initYear</code>, <code>setActiveYear</code>, <code>generateGardes</code>, <code>publishPlanning</code>, <code>archiveYear</code>, <code>validerSemaine</code>.</li>
-    <li><b>Communication</b> : <code>sendCodes</code>, <code>sendCodesMar</code>, <code>envoyerRecapIndispos</code>, <code>notifierConflits</code>.</li>
+    <li><b>Communication</b> : <code>sendCodes</code>, <code>sendCodesMar</code>, <code>envoyerRecapIndispos</code>.</li>
   </ul>
   <div class="callout"><div class="ct">Authentification</div><p>À la connexion, <code>login</code> renvoie un rôle. L’<b>admin</b> (toi/le comité) a accès à tout ; un <b>MAR</b> n’a que la lecture de son périmètre et la saisie de ses indispos. Les actions de génération/archivage sont refusées (<code>_deny()</code>) hors admin.</p></div>
 
@@ -356,7 +356,7 @@
       <tr><td><b class="lbl-viol">Statuts</b></td><td>Absences ponctuelles du jour (<code>setDailyStatus</code>).</td></tr>
       <tr><td><b class="lbl-amber">Affectations</b></td><td>Répartition nominative des secteurs.</td></tr>
       <tr><td><b class="lbl-blue">Équité</b></td><td>Le certificat d’équité + les barres par MAR (§ certificat). Deux vues : <b>Initiale</b> (généré) et <b>Instantané</b> (échanges inclus — le certificat y est masqué à dessein). Bouton Générer (W2).</td></tr>
-      <tr><td><b>Maintenance</b></td><td>Diagnostics (<code>diagComplet</code>), logs (<code>getLogs</code>), outils ponctuels.</td></tr>
+      <tr><td><b>Maintenance</b></td><td>Diagnostics (<code>diagComplet</code>), outils ponctuels.</td></tr>
     </tbody>
   </table>
 
