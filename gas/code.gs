@@ -1,3 +1,8 @@
+// ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
+// à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
+// version déployée ici avec celle du dépôt et signale toute recopie oubliée.
+const GAS_VERSION_CODE = '2026-07-15.1';
+
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 function buildStats2026() {
   const year = 2026;
@@ -1328,4 +1333,44 @@ function debugLCstatus() {
   const lc = jul.doctors.find(d => d.id === 'COPELOVICI');
   if (!lc) { Logger.log('✅ COPELOVICI absente de juillet (filtre mensuel OK → patchs en place)'); return; }
   Logger.log('COPELOVICI juillet : ' + lc.days.map(d => d.status || '·').join(' '));
+}
+
+
+// ═════════════════════════════════════════════════════════════════════
+// SAUVEGARDE AUTOMATIQUE DU CLASSEUR (assurance-vie du système)
+// Copie hebdomadaire du Google Sheet maître dans un dossier Drive dédié,
+// avec rotation (8 copies conservées ≈ 2 mois d'historique).
+// Installation (une seule fois) : exécuter installBackupTrigger() ci-dessous.
+// ═════════════════════════════════════════════════════════════════════
+const BACKUP_FOLDER_NAME = 'Planning-CHPG-Backups';
+const BACKUP_KEEP = 8;
+
+function backupHebdo() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const it = DriveApp.getFoldersByName(BACKUP_FOLDER_NAME);
+  const folder = it.hasNext() ? it.next() : DriveApp.createFolder(BACKUP_FOLDER_NAME);
+  const stamp = Utilities.formatDate(new Date(), 'Europe/Paris', 'yyyy-MM-dd');
+  const name = 'Backup ' + stamp + ' — ' + ss.getName();
+  DriveApp.getFileById(ss.getId()).makeCopy(name, folder);
+
+  // Rotation : ne garder que les BACKUP_KEEP copies les plus récentes
+  const files = [];
+  const fit = folder.getFiles();
+  while (fit.hasNext()) { const f = fit.next(); if (f.getName().indexOf('Backup ') === 0) files.push(f); }
+  files.sort((a, b) => b.getDateCreated() - a.getDateCreated());
+  const purged = files.slice(BACKUP_KEEP);
+  purged.forEach(f => f.setTrashed(true));
+
+  const msg = `backupHebdo — ${name}` + (purged.length ? ` (${purged.length} ancienne(s) copie(s) purgée(s))` : '');
+  Logger.log(msg);
+  try { logAction(msg); } catch (e) {}
+}
+
+function installBackupTrigger() {
+  // Idempotent : supprime les déclencheurs existants puis (ré)installe — lundi ~4 h.
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'backupHebdo') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('backupHebdo').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(4).create();
+  Logger.log('✅ Déclencheur backupHebdo installé (lundi ~4 h, rotation ' + BACKUP_KEEP + ' copies)');
 }
