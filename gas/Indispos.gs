@@ -1,3 +1,8 @@
+// ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
+// à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
+// version déployée ici avec celle du dépôt et signale toute recopie oubliée.
+const GAS_VERSION_INDISPOS = '2026-07-15.1';
+
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
 const GITHUB_REPO_INDISPOS = 'Planning-CHPG';
@@ -1506,6 +1511,55 @@ if (!affSheet) {
       } catch (e) {
         check('Connexion GitHub impossible : ' + e.message, R.WARN);
       }
+
+      // ── 3bis. Synchronisation dépôt ↔ Apps Script (détecteur de dérive) ──
+      // Compare la version des constantes GAS_VERSION_* déployées ici avec
+      // celles du dépôt GitHub : toute recopie oubliée est signalée.
+      hdr('Code déployé vs dépôt');
+      try {
+        const deployed = {};
+        try { deployed['code.gs'] = GAS_VERSION_CODE; } catch (e) { deployed['code.gs'] = null; }
+        try { deployed['Indispos.gs'] = GAS_VERSION_INDISPOS; } catch (e) { deployed['Indispos.gs'] = null; }
+        try { deployed['generateur_gardes.gs'] = GAS_VERSION_GENERATEUR; } catch (e) { deployed['generateur_gardes.gs'] = null; }
+        try { deployed['setup_annee.gs'] = GAS_VERSION_SETUP; } catch (e) { deployed['setup_annee.gs'] = null; }
+        try { deployed['portail.gs'] = GAS_VERSION_PORTAIL; } catch (e) { deployed['portail.gs'] = null; }
+        const tokSync = getGithubToken();
+        Object.keys(deployed).forEach(fn => {
+          let repoV = null;
+          try {
+            const r = UrlFetchApp.fetch(
+              `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/gas/${fn}?ref=${GITHUB_BRANCH}`,
+              { headers: { Authorization: 'token ' + tokSync, Accept: 'application/vnd.github.raw' }, muteHttpExceptions: true });
+            if (r.getResponseCode() === 200) {
+              const m = r.getContentText().match(/GAS_VERSION_\w+\s*=\s*'([^']+)'/);
+              repoV = m ? m[1] : '(sans version)';
+            }
+          } catch (e) {}
+          if (repoV === null) check(`${fn} : dépôt illisible (réseau/clé)`, R.WARN);
+          else if (!deployed[fn]) check(`${fn} : version déployée absente — recopier le fichier depuis le dépôt`, R.WARN);
+          else if (repoV === deployed[fn]) check(`${fn} : à jour (v${repoV})`, R.OK);
+          else check(`${fn} : DÉRIVE — dépôt v${repoV}, déployé v${deployed[fn]} → recopier + redéployer`, R.ERR);
+        });
+      } catch (e) { check('Contrôle de synchronisation impossible : ' + e.message, R.WARN); }
+
+      // ── 3ter. Sauvegarde automatique du classeur ──
+      hdr('Sauvegarde automatique');
+      try {
+        const trigOk = ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'backupHebdo');
+        if (trigOk) check('Déclencheur hebdomadaire installé (lundi ~4 h)', R.OK);
+        else check("Déclencheur hebdomadaire absent — exécuter installBackupTrigger() dans Apps Script", R.WARN);
+        let last = null;
+        const bIt = DriveApp.getFoldersByName('Planning-CHPG-Backups');
+        if (bIt.hasNext()) {
+          const bFiles = bIt.next().getFiles();
+          while (bFiles.hasNext()) { const bf = bFiles.next(); const dc = bf.getDateCreated(); if (!last || dc > last) last = dc; }
+        }
+        if (!last) info('Aucune copie de sauvegarde encore créée' + (trigOk ? ' (la première viendra lundi)' : ''));
+        else {
+          const bDays = Math.round((new Date() - last) / 86400000);
+          check(`Dernière sauvegarde il y a ${bDays} j`, bDays <= 10 ? R.OK : R.WARN);
+        }
+      } catch (e) { check('Contrôle de sauvegarde impossible : ' + e.message, R.WARN); }
 
       // ── 4. Équipe (MEDECINS) ──
       hdr('Équipe');
