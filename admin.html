@@ -1735,13 +1735,35 @@ async function authenticate() {
 
 async function api(payload) {
   payload.code = ADMIN_CODE;
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload),
-    redirect: 'follow',
-  });
-  return res.json();
+  _apiBar(true);
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      redirect: 'follow',
+    });
+    if (!res.ok) throw new Error('Serveur indisponible (HTTP ' + res.status + ')');
+    return await res.json();
+  } finally { _apiBar(false); }
+}
+// Barre de chargement globale (même pattern qu'index/dashboard) : feedback
+// visuel sur TOUT appel API — plus aucun clic « muet ». Compteur : gère les
+// appels parallèles (Promise.all).
+function _apiBar(on) {
+  let b = document.getElementById('apiBar');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'apiBar';
+    b.style.cssText = 'position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,#3B82F6,#8B5CF6);z-index:99999;transition:width .4s ease,opacity .3s;pointer-events:none;opacity:0';
+    document.body.appendChild(b);
+  }
+  b._n = Math.max(0, (b._n || 0) + (on ? 1 : -1));
+  if (b._n > 0) { b.style.opacity = '1'; b.style.width = '70%'; }
+  else {
+    b.style.width = '100%';
+    setTimeout(() => { if (!b._n) { b.style.opacity = '0'; setTimeout(() => { if (!b._n) b.style.width = '0'; }, 300); } }, 150);
+  }
 }
 // Fetch avec timeout — évite les blocages sur Safari iOS
 async function fetchTimeout(url, options={}, ms=8000) {
@@ -3224,9 +3246,7 @@ function closeSidePanel() {
 
 function closeDispoPopup() { closeSidePanel(); }
 
-function closeDispoPopup() {
-  closeSidePanel();
-}
+
 
 // ── OVERRIDES ──────────────────────────────────────────────────────────
 async function loadOverrides() {
@@ -4006,6 +4026,7 @@ async function exportWeekExcel(){
   if(!DATA){toast('Planning non chargé','error');return;}
   if(typeof ExcelJS==='undefined'){toast('ExcelJS non disponible','error');return;}
   const weeks=getAllWeeks(); const wk=weeks[currentWeekIdx]; if(!wk) return;
+  toast('📊 Export Excel en cours…');
   const daySlots=getWeekDays(wk.weekNum);
   // Staff du vendredi (onglet STAFFS) → affiché dans la case Info du vendredi.
   // On lit TOUS les staffs (variante non filtrée) pour couvrir n'importe quelle semaine.
@@ -4570,6 +4591,7 @@ async function launchWizInit() {
   for (const step of steps) {
     const el = document.getElementById(step.id);
     if (!el) continue;
+    if (el.classList.contains('done')) continue; // reprise : étape déjà réussie, on ne la rejoue pas
     el.classList.add('running');
     el.style.opacity = '1';
     el.textContent = '⏳ ' + el.textContent.replace('○ ', '');
@@ -4696,6 +4718,7 @@ function wizardLockedHTML(title, msg, hint) {
 
 async function openWizardGardes() {
   wizGCurrentStep = 0;
+  window._wizGDone = new Set(); // suivi de reprise : étapes du lancement déjà réussies
   wizGIndisposData = null;
   wizGVacData = null;
   wizGConflitsData = null;
@@ -5183,7 +5206,15 @@ async function launchWizardGardes() {
   const nextBtn = document.getElementById('wizGNextBtn');
   nextBtn.disabled = true;
   document.getElementById('wizGBackBtn').style.visibility = 'hidden';
-  document.getElementById('wizGBody').innerHTML = '<div class="wiz-progress"><div class="wiz-progress-item" id="wizg-p1">⏳ Génération des gardes ' + (YEAR+1) + '…</div><div class="wiz-progress-item" id="wizg-p2" style="opacity:.4">○ Publication sur GitHub Pages…</div><div class="wiz-progress-item" id="wizg-p3" style="opacity:.4">○ Envoi récapitulatifs aux MARs…</div></div>';
+  const _gDone = window._wizGDone || (window._wizGDone = new Set());
+  const _gItem = (id, done, pending) => _gDone.has(id)
+    ? '<div class="wiz-progress-item done" id="' + id + '">✓ ' + done + '</div>'
+    : '<div class="wiz-progress-item" id="' + id + '" style="opacity:.4">○ ' + pending + '</div>';
+  document.getElementById('wizGBody').innerHTML = '<div class="wiz-progress">'
+    + _gItem('wizg-p1', 'Gardes générées', 'Génération des gardes ' + (YEAR+1) + '…')
+    + _gItem('wizg-p2', 'Planning publié', 'Publication du planning…')
+    + _gItem('wizg-p3', 'Récapitulatifs envoyés', 'Envoi récapitulatifs aux MARs…')
+    + '</div>';
 
   const steps = [
     {id:'wizg-p1', label:'Gardes générées',  action: () => {
@@ -5201,20 +5232,31 @@ async function launchWizardGardes() {
   let allOk = true;
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
+    if (_gDone.has(step.id)) continue; // reprise : étape déjà réussie, on ne la rejoue pas
     const el = document.getElementById(step.id);
     el.classList.add('running'); el.style.opacity = '1';
+    el.textContent = '⏳ ' + el.textContent.replace(/^[○⏳✓✕] /, '');
     try {
       const res = await step.action();
       if (!res || !res.success) throw new Error(res?.error || 'Erreur');
+      _gDone.add(step.id);
       el.classList.remove('running'); el.classList.add('done');
       const extra = step.id === 'wizg-p3' && res.sent !== undefined ? ` (${res.sent} envoyé(s)${res.skipped ? ', ' + res.skipped + ' sans email' : ''})` : '';
       el.textContent = '✓ ' + step.label + extra;
     } catch(e) {
-      el.classList.remove('running'); el.classList.add('error');
-      el.textContent = '✕ Erreur : ' + e.message;
-      // Étape 3 non bloquante — on continue quand même
-      if (step.id === 'wizg-p3') { allOk = true; }
-      else { allOk = false; break; }
+      if (step.id === 'wizg-p1' && /existe déjà/i.test(String(e.message || ''))) {
+        // Réponse perdue lors d'un essai précédent : le verrou GAS confirme que
+        // GARDES_{Y} existe → l'étape est acquise, on enchaîne sur la publication.
+        _gDone.add(step.id);
+        el.classList.remove('running'); el.classList.add('done');
+        el.textContent = '✓ ' + step.label + ' (déjà générées)';
+      } else {
+        el.classList.remove('running'); el.classList.add('error');
+        el.textContent = '✕ Erreur : ' + e.message;
+        // Étape 3 non bloquante — on continue quand même
+        if (step.id === 'wizg-p3') { allOk = true; }
+        else { allOk = false; break; }
+      }
     }
     const next = document.getElementById(steps[i+1]?.id);
     if (next) { next.style.opacity = '1'; next.textContent = next.textContent.replace('○','⏳'); }
@@ -5238,6 +5280,7 @@ let wizCPlanningOk = false;
 
 async function openWizardCloture() {
   wizCCurrentStep = 0; wizCStatsData = null; wizCPlanningOk = false;
+  window._wizCDone = new Set(); // suivi de reprise : étapes de clôture déjà réussies
   document.getElementById('wizClotureYear').textContent = YEAR;
   document.getElementById('wizCNextBtn').disabled = false;
   document.getElementById('wizCNextBtn').style.display = '';
@@ -5312,11 +5355,15 @@ async function launchWizardCloture() {
   const nextBtn = document.getElementById('wizCNextBtn');
   nextBtn.disabled = true;
   document.getElementById('wizCBackBtn').style.visibility = 'hidden';
-  document.getElementById('wizCBody').innerHTML = '<div class="wiz-progress">' +
-'<div class="wiz-progress-item" id="wizc-p1">⏳ Archivage année ' + YEAR + '…</div>' +
-'<div class="wiz-progress-item" id="wizc-p2" style="opacity:.4">○ Basculement vers ' + (YEAR+1) + '…</div>' +
-'<div class="wiz-progress-item" id="wizc-p3" style="opacity:.4">○ Nettoyage configuration…</div>' +
-'</div>';
+  const _cDone = window._wizCDone || (window._wizCDone = new Set());
+  const _cItem = (id, done, pending) => _cDone.has(id)
+    ? '<div class="wiz-progress-item done" id="' + id + '">✓ ' + done + '</div>'
+    : '<div class="wiz-progress-item" id="' + id + '" style="opacity:.4">○ ' + pending + '</div>';
+  document.getElementById('wizCBody').innerHTML = '<div class="wiz-progress">'
+    + _cItem('wizc-p1', 'Année ' + YEAR + ' archivée', 'Archivage année ' + YEAR + '…')
+    + _cItem('wizc-p2', 'Année active → ' + (YEAR+1), 'Basculement vers ' + (YEAR+1) + '…')
+    + _cItem('wizc-p3', 'Configuration nettoyée', 'Nettoyage configuration…')
+    + '</div>';
 
   const stepsC = [
     {id:'wizc-p1', label:'Année ' + YEAR + ' archivée',        action: () => api({action:'archiveYear', year: YEAR})},
@@ -5327,11 +5374,14 @@ async function launchWizardCloture() {
   let allOkC = true;
   for (let i = 0; i < stepsC.length; i++) {
     const step = stepsC[i];
+    if (_cDone.has(step.id)) continue; // reprise : étape déjà réussie (ex. archivage), on ne la rejoue pas
     const el = document.getElementById(step.id);
     el.classList.add('running'); el.style.opacity = '1';
+    el.textContent = '⏳ ' + el.textContent.replace(/^[○⏳✓✕] /, '');
     try {
       const res = await step.action();
       if (!res || !res.success) throw new Error(res?.error || 'Erreur');
+      _cDone.add(step.id);
       el.classList.remove('running'); el.classList.add('done');
       el.textContent = '✓ ' + step.label;
     } catch(e) {
@@ -6598,14 +6648,17 @@ async function sendCodesSelected() {
 }
 
 async function sendCodeToMAR(marId, marNom) {
+  if (window._sendCodeBusy) return; // anti double-clic : évite un double email
   if (!confirm(`Renvoyer le code d'accès à ${marNom} ?`)) return;
+  window._sendCodeBusy = true;
+  toast(`📧 Envoi du code à ${marNom}…`);
   try {
     const data = await api({action: 'sendCodesMar', medecin: marId});
     if (!data.success) throw new Error(data.error);
     toast(`✅ Code envoyé à ${marNom}`, 'success');
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
-  }
+  } finally { window._sendCodeBusy = false; }
 }
 </script>
 
