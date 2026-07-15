@@ -612,13 +612,21 @@ async function apiCall(action, extra = {}) {
   // (F4) POST : le code et les indispos voyagent dans le corps de la
   // requête, plus jamais dans l'URL (historique navigateur, logs proxy).
   // Supprime aussi la limite de taille d'URL (longues absences).
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({action, code: currentCode, ...extra}),
-    redirect: 'follow',
-  });
-  return res.json();
+  const _ctrl = new AbortController();
+  const _timer = setTimeout(() => _ctrl.abort(), 120000);
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({action, code: currentCode, ...extra}),
+      redirect: 'follow',
+      signal: _ctrl.signal,
+    });
+    return await res.json();
+  } catch (e) {
+    if (e && e.name === 'AbortError') throw new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable, réessayez');
+    throw e;
+  } finally { clearTimeout(_timer); }
 }
 
 // ── LOAD / SAVE ───────────────────────────────────────────────────────
