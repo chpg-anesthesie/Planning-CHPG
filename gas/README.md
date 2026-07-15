@@ -1,9 +1,18 @@
 # Code Google Apps Script — Planning-CHPG (carte du code)
 
-⚠️ La **source vivante** du code GAS est l'**éditeur Apps Script** lié au Google Sheet de prod.
-Ce dossier documente la structure ; il n'héberge pas (encore) le code complet.
+⚠️ **Le dépôt fait foi à 100 %** : ce dossier contient le code GAS complet de prod.
+Workflow : Claude pousse ici → Arthur recopie dans l'éditeur Apps Script → **nouvelle version de déploiement**.
+Ne jamais modifier un `.gs` directement dans Apps Script sans le committer aussitôt : la modif serait écrasée à la prochaine recopie.
 
-## Les 4 fichiers de l'éditeur
+## Versionnage (détecteur de dérive, 15/07/2026)
+Chaque fichier commence par une constante `GAS_VERSION_*` (format `AAAA-MM-JJ.n`), **à incrémenter à CHAQUE push** du fichier.
+Le 🔍 Diagnostic (admin → onglet Maintenance) compare les versions déployées avec celles du dépôt et signale toute recopie oubliée (« DÉRIVE »).
+
+## Sauvegarde automatique (15/07/2026)
+`backupHebdo()` (code.gs) copie le classeur maître chaque lundi ~4 h dans le dossier Drive `Planning-CHPG-Backups` (rotation : 8 copies ≈ 2 mois).
+Installation une seule fois : exécuter `installBackupTrigger()` dans l'éditeur. Le diagnostic vérifie la présence du déclencheur et la fraîcheur de la dernière copie.
+
+## Les 5 fichiers de l'éditeur
 
 | Fichier | Rôle |
 |---------|------|
