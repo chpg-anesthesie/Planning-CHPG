@@ -3633,7 +3633,10 @@ function renderStats(stats){
     cSa:s.cSat||0, cJe:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0,
   }));
   (function(){ const cont=document.getElementById('statsCards'); const grid=cont.querySelector('.eqv-grid'); const gh=renderEquiteCards(list); if(!(grid && morphGrid(grid, gh))) cont.innerHTML = gh; })();
-  renderCertificat(list);
+  // Certificat : uniquement sur la répartition initiale. En « Instantané » (échanges/dons
+  // inclus), l'équité peut être volontairement rompue — pas de verdict qui prêterait à confusion.
+  const _certEl=document.getElementById('equiteCertificat');
+  if(EQ_SRC==='live'){ if(_certEl) _certEl.innerHTML=''; } else { renderCertificat(list); }
   document.getElementById('statsCard').style.display='block';
   document.getElementById('gardesEmpty').style.display='none';
 }
