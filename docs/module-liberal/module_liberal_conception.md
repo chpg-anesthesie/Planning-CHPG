@@ -86,8 +86,12 @@ Conséquences structurantes :
 
 ## 3. Principes non négociables
 
-1. **Zéro donnée patient.** Le module manipule (date, MAR, secteur, éventuel code sur sa propre
-   activité). Jamais de nom de patient, jamais d'acte rattaché à un patient.
+1. **Zéro donnée patient *persistée*.** Les couches Pilotage et Placement ne manipulent que (date,
+   MAR, secteur, éventuel code sur sa propre activité) — jamais de nom de patient, jamais d'acte
+   rattaché à un patient. Le sous-module **estimateur / devis** (axe RAC) affiche transitoirement un
+   nom de patient à l'écran pour produire le devis, mais **ne le persiste jamais** : calculette sans
+   mémoire, aucune écriture serveur (GitHub / Sheets / Drive) ni navigateur, champ effacé à la
+   fermeture. Voir la note « Sécurité des données » ci-dessous.
 2. **Chiffres officiels recopiés, jamais calculés.** L'administration communique **chaque mois**
    un tableau **cumulé depuis janvier**, par MAR : `T_ccam`, `T_ngap`, `%_ccam`, `%_ngap` (+ les
    excédents). Le module **recopie** ; il n'estime pas, il ne certifie pas. Mention permanente :
@@ -99,6 +103,20 @@ Conséquences structurantes :
 5. **Aucune grille tarifaire devinée ni en dur.** La source de vérité reste le relevé. Une table
    tarifaire (cf. V2, §8) ne vivrait qu'en CONFIG paramétrable, maintenue depuis la source
    officielle (ameli).
+
+**Note — Sécurité des données.** La sécurité du module ne repose pas sur un cadenas mais sur une
+discipline architecturale : classer la donnée, puis appliquer à chacune le bon régime. Quatre
+natures : (a) **donnée patient sensible** (garanties mutuelle, n° AMC, RAC nominatif) → **jamais
+persistée**, principe stateless ci-dessus ; (b) **donnée praticien** (nom, RPPS, ADELI) → profil MAR
+(`MEDECINS`), jamais dans un JSON publié ; (c) **donnée financière du groupement** (ratios, revenus,
+excédents) → non médicale mais confidentielle : c'est là que le contrôle d'accès a un vrai sens
+(cloisonnement membre `LIBERAL O/N` / non-membre), avec des données **agrégées** uniquement ; (d)
+**référentiel non-patient** (CCAM→BR, formules mutuelle) → technique, sourcé et versionné, sans lien
+patient. Un « code perso » sur GitHub Pages + GAS est de l'**identification de confort**, pas une
+barrière cryptographique : suffisant pour personnaliser le devis (rien de patient stocké), mais la
+vraie protection du financier est qu'il **ne contienne aucune donnée patient**. Un suivi patient
+réellement persistant sortirait de cette stack (hébergement agréé, consentement, DPO) — décision
+hôpital, pas évolution du module. Détail dans `guide_module_liberal.md`, §6.
 
 ---
 
