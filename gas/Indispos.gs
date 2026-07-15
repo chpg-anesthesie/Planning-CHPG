@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-15.1';
+const GAS_VERSION_INDISPOS = '2026-07-15.2';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1357,22 +1357,7 @@ if (!affSheet) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    if (action === 'getConfig') {
-      if (user.role !== 'admin') return _deny();
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const sheet = ss.getSheetByName('CONFIG');
-      if (!sheet) return _error('Onglet CONFIG introuvable');
-      const data = sheet.getDataRange().getValues();
-      const config = [];
-      for (let r = 1; r < data.length; r++) {
-        const key = String(data[r][0]).trim();
-        if (key) config.push({key, value:String(data[r][1]).trim()});
-      }
-      return ContentService.createTextOutput(JSON.stringify({success:true, config}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
-    if (action === 'saveConfig') {
+        if (action === 'saveConfig') {
       if (user.role !== 'admin') return _deny();
       const key = String(payload.key||'').trim();
       const value = String(payload.value||'').trim();
@@ -1392,28 +1377,7 @@ if (!affSheet) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    if (action === 'getLogs') {
-      if (user.role !== 'admin') return _deny();
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const sheet = ss.getSheetByName('LOGS');
-      if (!sheet || sheet.getLastRow() < 2) return ContentService.createTextOutput(JSON.stringify({
-        success:true, logs:['Aucun log disponible.']
-      })).setMimeType(ContentService.MimeType.JSON);
-      const data = sheet.getDataRange().getValues();
-      const logs = [];
-      const start = Math.max(1, data.length - 50);
-      for (let r = data.length - 1; r >= start; r--) {
-        const ts = data[r][0];
-        const msg = data[r][1]!==undefined ? String(data[r][1]).trim() : String(data[r][0]).trim();
-        if (!msg) continue;
-        const tsStr = ts instanceof Date ? `[${ts.toLocaleString('fr-FR')}] ` : '';
-        logs.push(tsStr + msg);
-      }
-      return ContentService.createTextOutput(JSON.stringify({success:true, logs}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
-    if (action === 'sendCodes') {
+        if (action === 'sendCodes') {
       if (user.role !== 'admin') return _deny();
       const ss = SpreadsheetApp.getActiveSpreadsheet();
       const medSheet = ss.getSheetByName('MEDECINS');
@@ -1887,132 +1851,7 @@ if (action === 'getConflitsAll') {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    if (action === 'notifierConflits') {
-      if (user.role !== 'admin') return _deny();
-      const year = Number(payload.year) || getIndisposYear();
-      const jfY = getJoursFeries(year), jfYn = getJoursFeries(year + 1);  // exempter WE/fériés du seuil
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-      // ── Charger toutes les données une seule fois ──
-      const medSheet = ss.getSheetByName('MEDECINS');
-      if (!medSheet) return _error('Onglet MEDECINS introuvable');
-      const medData = medSheet.getDataRange().getValues();
-
-      const perSheet = ss.getSheetByName('PERIODES_VAC');
-      if (!perSheet) return _error('PERIODES_VAC introuvable');
-      const perData = perSheet.getDataRange().getValues();
-
-      const groupSheet = ss.getSheetByName('GROUPES_VAC');
-      if (!groupSheet) return _error('GROUPES_VAC introuvable');
-      const groupData = groupSheet.getDataRange().getValues();
-
-      const indSheet = ss.getSheetByName(`INDISPOS_${year}`);
-      if (!indSheet) return _error(`INDISPOS_${year} introuvable`);
-      const indData = indSheet.getDataRange().getValues();
-
-      // Reconstruire les dates
-      const dates = reconstruireDatesHeaders(indData, year); // (C3b) helper unifié
-
-      // Construire vacByDoc
-      const vacByDoc = {};
-      for (let r = 3; r < indData.length; r++) {
-        const id = String(indData[r][0]).trim();
-        if (!id) continue;
-        vacByDoc[id] = new Set();
-        dates.forEach((date, i) => {
-          if (!date) return;
-          const val = String(indData[r][i+1]||'').trim();
-          if (val === 'VAC' || val === 'FORM') vacByDoc[id].add(date);
-        });
-      }
-
-      // Groupes + ordre
-      const groups = {A:[],B:[],C:[]}, ordre2026 = {A:{},B:{},C:{}};
-      for (let r = 1; r < groupData.length; r++) {
-        const grp = String(groupData[r][0]).trim(), id = String(groupData[r][1]).trim(), ord = Number(groupData[r][2]);
-        if (!id || !groups[grp]) continue;
-        groups[grp].push(id); ordre2026[grp][id] = ord;
-      }
-      const offset = year - 2026;
-      function getOrd(grp) {
-        const sorted = [...groups[grp]].sort((a,b) => ordre2026[grp][a] - ordre2026[grp][b]);
-        const sh = offset % sorted.length;
-        return [...sorted.slice(sh), ...sorted.slice(0, sh)];
-      }
-      const ordA = getOrd('A'), ordB = getOrd('B'), ordC = getOrd('C');
-
-      // Périodes
-      const ORDRE_BASE = {HIVER:'CAB',PRINTEMPS:'ABC',ETE:'ABC',TOUSSAINT:'BCA',NOEL:'CAB'};
-      function normP(s) { return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim(); }
-      function premierJour(y) { const j = new Date(y,0,1); const d = j.getDay(); const o = d===1?7:d===0?1:8-d; const r = new Date(y,0,1+o); return `${r.getFullYear()}-${String(r.getMonth()+1).padStart(2,'0')}-${String(r.getDate()).padStart(2,'0')}`; }
-      const debutAnnee = premierJour(year), finAnnee = premierJour(year+1);
-
-      const periodes = [];
-      for (let r = 1; r < perData.length; r++) {
-        const nom = String(perData[r][0]).trim();
-        if (!nom) continue;
-        const dr = perData[r][1], fr = perData[r][2];
-        const debut = dr instanceof Date ? `${dr.getFullYear()}-${String(dr.getMonth()+1).padStart(2,'0')}-${String(dr.getDate()).padStart(2,'0')}` : String(dr).trim();
-        const fin = fr instanceof Date ? `${fr.getFullYear()}-${String(fr.getMonth()+1).padStart(2,'0')}-${String(fr.getDate()).padStart(2,'0')}` : String(fr).trim();
-        if (debut < debutAnnee || debut >= finAnnee) continue;
-        const base = ORDRE_BASE[normP(nom)] || 'ABC';
-        const ga = base.split(''); const gs = offset % 3;
-        const og = [...ga.slice(gs), ...ga.slice(0, gs)];
-        const ol = []; og.forEach(g => { if (g==='A') ol.push(...ordA); else if (g==='B') ol.push(...ordB); else ol.push(...ordC); });
-        periodes.push({nom, debut, fin, seuil: Number(perData[r][3])||8, orderedList: ol});
-      }
-
-      // Calculer conflits par MAR
-      const actifs = [];
-      for (let r = 1; r < medData.length; r++) {
-        const id = String(medData[r][0]).trim();
-        if (!id || String(medData[r][3]).trim().toUpperCase() !== 'O') continue;
-        actifs.push({id, nom: String(medData[r][1]).trim(), email: String(medData[r][7]).trim(), code: String(medData[r][6]).trim()});
-      }
-
-      let sent = 0, skipped = 0;
-      const errors = [];
-
-      actifs.forEach(mar => {
-        const periodesConflits = [];
-        periodes.forEach(p => {
-          const joursBloqués = [];
-          const joursDisponibles = [];
-          const dt = new Date(p.debut + 'T12:00:00');
-          const dtFin = new Date(p.fin + 'T12:00:00');
-          while (dt <= dtFin) {
-            const ds = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-            const _dow = dt.getDay();
-            if (_dow === 0 || _dow === 6 || jfY.has(ds) || jfYn.has(ds)) { joursDisponibles.push(ds); dt.setDate(dt.getDate()+1); continue; }
-            const marEnVac = p.orderedList.filter(id => vacByDoc[id]?.has(ds));
-            const rang = marEnVac.indexOf(mar.id) + 1;
-            if (rang > 0 && rang > p.seuil) joursBloqués.push(ds);
-            else joursDisponibles.push(ds);
-            dt.setDate(dt.getDate() + 1);
-          }
-          if (joursBloqués.length > 0) periodesConflits.push({periode: p.nom, debut: p.debut, fin: p.fin, joursBloqués, joursDisponibles});
-        });
-        if (periodesConflits.length === 0) return;
-        if (!mar.email) { skipped++; return; }
-        let body = `Bonjour ${mar.nom},\n\nCertaines de vos demandes de vacances pour ${year} sont en conflit.\n\n`;
-        periodesConflits.forEach(p => {
-          body += `── ${p.periode} (${p.debut} → ${p.fin}) ──\n`;
-          body += `Jours en conflit : ${p.joursBloqués.join(', ')}\n`;
-          if (p.joursDisponibles.length > 0) body += `Jours disponibles : ${p.joursDisponibles.join(', ')}\n`;
-          body += '\n';
-        });
-        body += `Code d'accès : ${mar.code}\nIndispos : https://chpg-anesthesie.github.io/Planning-CHPG/indispos.html\n\nLe Comité Planning CHPG Monaco`;
-        try {
-          MailApp.sendEmail({to: mar.email, subject: `[Planning CHPG Monaco ${year}] Conflits vacances`, body});
-          sent++;
-        } catch(err) { errors.push(`${mar.nom} : ${err.message}`); }
-      });
-
-      logAction(`notifierConflits ${year} — ${sent} emails, ${skipped} sans email, ${errors.length} erreur(s)`);
-      return ContentService.createTextOutput(JSON.stringify({success: true, sent, skipped, errors}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-    if (action === 'envoyerRecapIndispos') {
+        if (action === 'envoyerRecapIndispos') {
       // (Remplace l'ancien récap indispos) — Récapitulatif des GARDES attribuées (G réa / G2 mat).
       if (user.role !== 'admin') return _deny();
       const year = Number(payload.year) || TEST_YEAR;
@@ -2240,23 +2079,6 @@ if (action === 'savePlanningOverride') {
   }
 }
 
-// ── ACTION : deletePlanningOverride ───────────────────────────────────
-// Appelé pour supprimer un override (comité retire un MAR placé manuellement)
-// payload : { action, code, date, marId }
-if (action === 'deletePlanningOverride') {
-  if (user.role !== 'admin') return _deny();
-  const { date, marId } = payload;
-  if (!date || !marId) return _error('date et marId requis');
-  try {
-    deletePlanningOverride(date, marId);
-    logAction(`deletePlanningOverride — ${marId} le ${date}`);
-    return ContentService.createTextOutput(JSON.stringify({success: true}))
-      .setMimeType(ContentService.MimeType.JSON);
-  } catch(e) {
-    return _error(e.message);
-  }
-}
-
 // ── ACTION : applyRotationLib (rotation consultations libérales endo) ──
 if (action === 'applyRotationLib') {
   if (user.role !== 'admin') return _deny();
@@ -2288,35 +2110,6 @@ if (action === 'applyRotationLib') {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// ── ACTION : getPlanningOverrides ─────────────────────────────────────
-// Retourne tous les overrides pour une année donnée
-// payload : { action, code, year? }
-if (action === 'getPlanningOverrides') {
-  if (user.role !== 'admin') return _deny();
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('PLANNING_OVERRIDES');
-  if (!sheet) return ContentService.createTextOutput(JSON.stringify({success: true, overrides: []}))
-    .setMimeType(ContentService.MimeType.JSON);
-  const data = sheet.getDataRange().getValues();
-  const overrides = [];
-  for (let r = 1; r < data.length; r++) {
-    const raw = data[r][0];
-    if (!raw) continue;
-    const date = raw instanceof Date
-      ? `${raw.getFullYear()}-${String(raw.getMonth()+1).padStart(2,'0')}-${String(raw.getDate()).padStart(2,'0')}`
-      : String(raw).trim();
-    overrides.push({
-      date,
-      marId:    String(data[r][1] || '').trim().toUpperCase(),
-      morning:  String(data[r][2] || '').trim().toUpperCase(),
-      afternoon:String(data[r][3] || '').trim().toUpperCase(),
-      comment:  String(data[r][4] || '').trim(),
-    });
-  }
-  return ContentService.createTextOutput(JSON.stringify({success: true, overrides}))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
 // ── ACTION : validerSemaine ───────────────────────────────────────────
 // Valide ou dévalide une semaine → mise à jour SEMAINES_VALIDEES + push JSON
 // payload : { action, code, year, isoWeek, valide (true/false) }
@@ -2336,30 +2129,6 @@ if (action === 'validerSemaine') {
   } catch(e) {
     return _error(e.message);
   }
-}
-
-// ── ACTION : getSemainesValidees ──────────────────────────────────────
-// Retourne la liste des semaines validées pour une année
-// payload : { action, code, year? }
-if (action === 'getSemainesValidees') {
-  if (user.role !== 'admin') return _deny();
-  const yearVal = Number(payload.year) || TEST_YEAR;
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('SEMAINES_VALIDEES');
-  if (!sheet) return ContentService.createTextOutput(JSON.stringify({success: true, semaines: []}))
-    .setMimeType(ContentService.MimeType.JSON);
-  const data = sheet.getDataRange().getValues();
-  const semaines = [];
-  for (let r = 1; r < data.length; r++) {
-    if (Number(data[r][0]) !== yearVal) continue;
-    semaines.push({
-      isoWeek:       Number(data[r][1]),
-      validated:     String(data[r][2]).trim().toUpperCase() === 'O',
-      dateValidation:data[r][3] ? String(data[r][3]) : '',
-    });
-  }
-  return ContentService.createTextOutput(JSON.stringify({success: true, semaines, year: yearVal}))
-    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ── ACTION : getMARsDispoJour ─────────────────────────────────────────
