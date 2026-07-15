@@ -17,6 +17,7 @@ Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`.
 - **`node --check`** sur tout JS livré (pour un `.gs`, le copier en `.js` d'abord) ; pour un refacto, **vérifier l'équivalence par script** AVANT de pousser.
 - Modèle : Opus pour le complexe, Haiku/Sonnet pour le simple, afin d'économiser.
 - **Vérifier l'état RÉEL du dépôt** (les fichiers en ligne font foi) plutôt que se fier à un souvenir.
+- **Versionner chaque `.gs` poussé** : incrémenter la constante `GAS_VERSION_*` en tête du fichier à chaque push — le 🔍 Diagnostic compare dépôt vs déployé et signale les recopies oubliées.
 
 ## Structure du dépôt (rangé)
 - **Racine** : les `.html` (dont `dashboard.html` — coquille portail en cours, projet dédié en parallèle), `manifest.webmanifest` (PWA, doit rester racine — `scope`/`start_url`), `CONTEXTE-Planning-CHPG.md`.
