@@ -167,7 +167,57 @@ répartition, pas un garde-fou anti-dépassement.
 
 ---
 
-## 6. Ce qui existe, ce qui reste
+## 6. Sécurité des données
+
+C'est le sujet le plus sensible du module : c'est le seul endroit où l'on approche du secret médical.
+La sécurité ne repose pas sur un cadenas, mais sur une **discipline architecturale** — d'abord
+classer la donnée, puis appliquer à chacune le bon régime.
+
+**Quatre natures de données, quatre régimes.**
+
+- **Donnée patient sensible** (garanties mutuelle, n° AMC, RAC nominatif, lien patient ↔
+  intervention) → **jamais persistée**. Le meilleur moyen de la sécuriser est de ne pas la détenir.
+- **Donnée praticien** (nom, RPPS, ADELI du MAR) → personnelle mais non médicale ; vit dans le
+  **profil MAR** (onglet `MEDECINS`), jamais dans un JSON publié.
+- **Donnée financière du groupement** (ratios, revenus, excédents) → non médicale mais
+  **confidentielle entre membres et non-membres** : c'est là que le contrôle d'accès a un vrai sens.
+- **Référentiel non-patient** (table CCAM→BR, formules mutuelle) → technique/public, aucune
+  contrainte, mais **sourcé et versionné**.
+
+**Le principe « stateless » comme garde-fou.** Le calibrage du dépassement est une calculette sans
+mémoire : on saisit, on lit, on imprime, **rien ne persiste**. Ce qui doit rester vrai en
+permanence :
+
+- Aucune écriture patient côté serveur (ni GitHub, ni Sheets, ni Drive — supports partagés, **pas des
+  hébergeurs de données de santé**).
+- Aucune persistance côté navigateur non plus : pas de `localStorage`/`sessionStorage`, pas
+  d'autosave sur les champs patient. Le nom du patient vit dans la page le temps de l'impression et
+  est **effacé à la fermeture**.
+- Aucune donnée patient dans une URL (fuite via historique, logs, referer) : c'est pourquoi le devis
+  est **intégré à la page** de l'estimateur, sans passage de paramètres.
+- Le PDF/impression sort par le **circuit médical normal**, jamais par un canal du module.
+
+**Point de vigilance permanent :** toute future fonction « pratique » qui voudrait mémoriser
+(historique de devis, « reprendre le dernier patient », autosave) **casserait ce principe** — à
+refuser par défaut. Contrairement au CR d'anesthésie, le module libéral **n'a pas d'autosave** sur
+les champs patient.
+
+**Le contrôle d'accès porte sur le financier, pas sur le devis.** Un « code perso » sur GitHub Pages
++ GAS est de l'**identification de confort**, pas une barrière cryptographique. Pour l'estimateur/le
+devis, c'est suffisant : comme rien de patient n'est stocké, la connexion sert seulement à
+**personnaliser** le pré-remplissage (nom/RPPS/ADELI du MAR), pas à protéger quoi que ce soit. Pour
+le volet financier, en revanche, la connexion doit réellement **cloisonner** membre du groupement
+(colonne `LIBERAL O/N`) et non-membre. La vraie protection du financier, ce n'est pas le login :
+c'est qu'il ne contienne **que des données agrégées, aucune donnée patient**.
+
+**La zone à ne pas bricoler.** Un suivi patient réellement persistant (tracer des prises en charge
+nominatives) sort de cette stack : ce serait un chantier à part (hébergement agréé, consentement,
+DPO, registre de traitement) — décision hôpital, pas évolution du module. En attendant, on reste
+stateless.
+
+---
+
+## 7. Ce qui existe, ce qui reste
 
 **Déjà en ligne** — l'estimateur (`maquette_estimateur_liberal.html`) : saisie multi-lignes CCAM
 (principal / associé / complément, modificateurs), axe NGAP indépendant, calibrage mutuelle → RAC,
@@ -189,7 +239,7 @@ de « secteurs étape 2 ») :
 
 ---
 
-## 7. Comment ça s'utilisera (workflow cible)
+## 8. Comment ça s'utilisera (workflow cible)
 
 **Le MAR, à la consultation d'anesthésie (≈ 30 s).** Il saisit le codage de l'acte prévu et le
 statut / la mutuelle du patient. L'outil affiche le dépassement optimal et le RAC estimé, et — à
@@ -203,7 +253,7 @@ contraintes de présence au bloc. Le relevé suivant recale la projection : bouc
 
 ---
 
-## 8. Résumé
+## 9. Résumé
 
 En connaissant, pour chaque acte, **son codage** et **la mutuelle du patient**, le module permet de
 **moduler le dépassement finement** pour minimiser le reste à charge du patient. En agrégeant
