@@ -23,7 +23,7 @@ body{font-family:var(--sans);color:var(--ink)}
 
 /* ── Scène (moteur identique à presentation-staff) ── */
 .slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
-  padding:7vh 9vw;background:var(--paper);overflow-y:auto}
+  padding:7vh 9vw;background:var(--paper);overflow:hidden}
 .slide.on{display:flex;animation:fadeIn .35s ease}
 .slide.top{justify-content:flex-start}
 .slide.alt{background:var(--surface)}
@@ -197,6 +197,11 @@ h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-
   .ym{grid-template-columns:34px repeat(31,1fr)}
   .slide{padding:6vh 7vw}
 }
+
+/* ── Auto-fit : le contenu d'un slide ne déborde jamais (scale si nécessaire) ── */
+.slide{padding-top:4.5vh;padding-bottom:4.5vh}
+.fitwrap{width:100%;transform-origin:center center;will-change:transform}
+.slide.top .fitwrap{transform-origin:top center}
 </style>
 </head>
 <body>
@@ -548,9 +553,35 @@ h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-
 'use strict';
 var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
 var cur = 0;
+// enveloppe le contenu de chaque slide pour pouvoir le mettre à l'échelle
+slides.forEach(function(sl){
+  if(sl.querySelector(':scope > .fitwrap')) return;
+  var w=document.createElement('div'); w.className='fitwrap';
+  while(sl.firstChild){ w.appendChild(sl.firstChild); }
+  sl.appendChild(w);
+});
+function fitSlide(sl){
+  var w=sl.querySelector(':scope > .fitwrap'); if(!w) return;
+  // reset complet
+  w.style.transform='none'; w.style.height='';
+  var cs=getComputedStyle(sl);
+  var availH=sl.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  var availW=sl.clientWidth  - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  var needH=w.scrollHeight, needW=w.scrollWidth;
+  if(needH<=0) return;
+  var scale=Math.min(1, availH/needH, availW/needW);
+  if(scale>=1) return;
+  scale=scale*0.97;                          // marge de sécurité
+  w.style.transformOrigin='top center';
+  w.style.transform='scale('+scale.toFixed(4)+')';
+  // fixer la hauteur à la taille APRÈS scale : le layout ne réserve plus que ça,
+  // donc plus aucun scroll fantôme, et le contenu reste centré par le flex parent.
+  w.style.height=(needH*scale)+'px';
+}
 function show(i) {
   cur = Math.max(0, Math.min(slides.length - 1, i));
   slides.forEach(function (s, j) { s.classList.toggle('on', j === cur); });
+  fitSlide(slides[cur]);
   document.getElementById('bar').style.width = ((cur + 1) / slides.length * 100) + '%';
   document.getElementById('count').textContent = (cur + 1) + ' / ' + slides.length;
   document.body.classList.toggle('dark-hud', slides[cur].classList.contains('dark'));
@@ -558,6 +589,7 @@ function show(i) {
   n.innerHTML = '<b>Note</b> — ' + (slides[cur].getAttribute('data-notes') || '');
   if (location.hash !== '#' + (cur + 1)) history.replaceState(null, '', '#' + (cur + 1));
 }
+window.addEventListener('resize', function(){ if(slides[cur]) fitSlide(slides[cur]); });
 document.getElementById('next').addEventListener('click', function () { show(cur + 1); });
 document.getElementById('prev').addEventListener('click', function () { show(cur - 1); });
 document.addEventListener('keydown', function (e) {
