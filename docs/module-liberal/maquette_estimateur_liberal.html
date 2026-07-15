@@ -174,8 +174,9 @@
         <div class="racfig"><div class="l">DH optimal (RAC 0)</div><div class="v" id="rOpt">—</div></div>
         <div class="racfig"><div class="l">RAC au DH saisi</div><div class="v" id="rRac">—</div></div>
       </div>
+      <div class="rachint" id="rCapNote" style="display:none;color:#8A6516;background:#FDF3E3;border:1px solid #EAD9B4;border-radius:8px;padding:7px 10px;margin-top:8px"><b>Plafond non-OPTAM.</b> Assuré français, contrat responsable, praticien secteur 2 non-OPTAM : la mutuelle ne peut absorber que <b>100 % BR de dépassement</b> (200 % BR total, part Sécu incluse), même si la ligne affiche davantage. Le % au-delà de 200 correspond en principe à la colonne <b>OPTAM</b> — vérifie que tu lis bien la colonne <b>non-OPTAM</b>.</div>
       <button class="calerbtn" id="calerBtn" onclick="caler()" disabled>Caler le DH sur l'optimal</button>
-      <div class="rachint">DH optimal = min( plafond réglementaire de la carte/secteur , dépassement absorbé par la mutuelle ). Absorbé = (%&nbsp;BR&nbsp;−&nbsp;100)&nbsp;× BR. Mal couvert ⇒ optimal bas, voire nul : l'outil recommande alors de <b>facturer moins</b>.</div>
+      <div class="rachint">DH optimal = min( plafond réglementaire de la carte/secteur , dépassement absorbé par la mutuelle ). Absorbé = (%&nbsp;BR&nbsp;−&nbsp;100)&nbsp;× BR, plafonné à 100&nbsp;% BR côté français non-OPTAM. Mal couvert ⇒ optimal bas, voire nul : l'outil recommande alors de <b>facturer moins</b>.</div>
     </div>
 
     <div class="hint" id="hintCCAM">Rôle : <b>principal</b> 100 % · <b>associé</b> 50 % (2ᵉ acte) · <b>complément</b> 100 % en sus (AHQJ021, YYYY041…). Le modificateur A vaut +23 € (français) ou +44,85 € (monégasque). Tarif officiel : à lire dans le classeur Excel des codes.</div>
@@ -217,16 +218,20 @@ const LC={C:34.40, CS:46.00, APC:60.00, AUTRE:0};
 // À enrichir au fil de la collecte des tableaux de garanties. p=0 → non renseignée ; p=-1 → saisie manuelle.
 const FORMULES=[
   {n:'— mutuelle non renseignée', p:0},
-  {n:'CCSP Génium 100 % BR', p:100},
-  {n:'CCSP Génium 200 % BR', p:200},
-  {n:'CCSP Génium 300 % BR', p:300},
-  {n:'Cegema — 150 % BR', p:150},
-  {n:'100 % BR (plancher, aucun DH absorbé)', p:100},
-  {n:'125 % BR', p:125},
-  {n:'150 % BR', p:150},
-  {n:'200 % BR', p:200},
-  {n:'300 % BR', p:300},
-  {n:'400 % BR', p:400},
+  // CCSP Mutuelle Monaco (Groupama Gan Vie) — honoraires chirurgie ET consult spécialiste,
+  // même échelle par formule. Source : Notice CG déc. 2025, art. 10. Contrat monégasque : pas de plafond OPTAM.
+  {n:'CCSP Monaco — Formule 1 (100 % BR)', p:100},
+  {n:'CCSP Monaco — Formule 2 (120 % BR)', p:120},
+  {n:'CCSP Monaco — Formule 3 (150 % BR)', p:150},
+  {n:'CCSP Monaco — Formule 4 (200 % BR)', p:200},
+  {n:'CCSP Monaco — Formule 5 (300 % BR)', p:300},
+  {n:'CCSP Monaco — Formule 6 (400 % BR)', p:400},
+  {n:'Générique 100 % BR (aucun DH absorbé)', p:100},
+  {n:'Générique 125 % BR', p:125},
+  {n:'Générique 150 % BR', p:150},
+  {n:'Générique 200 % BR', p:200},
+  {n:'Générique 300 % BR', p:300},
+  {n:'Générique 400 % BR', p:400},
   {n:'Autre / saisie manuelle…', p:-1},
 ];
 let lastRac=0, lastMut=null;
@@ -264,6 +269,14 @@ function currentMut(){
 }
 function currentMutPct(){return currentMut().p;}
 function dhEditable(st){return STATUTS[st].dh==='libre';}     // libre = DH ajustable ; rose/verte = auto
+// Plafond de prise en charge total (Sécu + mutuelle), en €. Branche française : contrat responsable
+// non-OPTAM → plafonné à 200 % BR (soit 100 % BR de DH absorbé). Monaco (CCSS) : pas de plafond OPTAM.
+function coverageCeiling(st,pct,br){
+  let c = pct/100*br;
+  if(st==='fr') c = Math.min(c, 2.0*br);   // secteur 2 non-OPTAM, contrat responsable
+  return c;
+}
+function capNonOptam(st,pct){ return st==='fr' && pct>200; }  // le plafond mord
 function onMut(){
   const f=FORMULES[+document.getElementById('mut').value]||FORMULES[0];
   document.getElementById('mutManWrap').style.display=f.p===-1?'block':'none';
@@ -280,9 +293,10 @@ function updateRac(){
   const mut=currentMut(), pct=mut.p, dh=parseFloat(document.getElementById('dh').value)||0;
   let absTxt='—',optTxt='—',racTxt='—',dhOpt=null,racVal=null,cls='';
   if(pct>0){
-    const absorp=Math.max(0,(pct-100)/100*br);
+    const ceil=coverageCeiling(st,pct,br);             // plafond de prise en charge total (fr : ≤ 200 % BR)
+    const absorp=Math.max(0,ceil-br);                  // DH réellement absorbable
     dhOpt=Math.min(cap===Infinity?absorp:cap, absorp);
-    const reimb=Math.min(pct/100*br, br+dh);
+    const reimb=Math.min(ceil, br+dh);
     racVal=Math.max(0,(br+dh)-reimb);
     absTxt=eur2(absorp); optTxt=eur2(dhOpt); racTxt=eur2(racVal);
     cls = racVal<=0.005?'zero':'pos';
@@ -290,6 +304,10 @@ function updateRac(){
   document.getElementById('rAbs').textContent=absTxt;
   document.getElementById('rOpt').textContent=optTxt;
   const rv=document.getElementById('rRac'); rv.textContent=racTxt; rv.className='v '+cls;
+  // note plafond non-OPTAM (branche française)
+  const note=document.getElementById('rCapNote');
+  if(capNonOptam(st,pct)){ note.style.display='block'; }
+  else { note.style.display='none'; }
   const btn=document.getElementById('calerBtn');
   btn.disabled=!(pct>0 && dhEditable(st));
   btn.dataset.opt = dhOpt==null?'':dhOpt;
@@ -389,7 +407,7 @@ function addParcours(){
   const st=document.getElementById('statut').value, pct=currentMutPct();
   let rac=null, mut=null;
   if(pct>0 && STATUTS[st].dh!=='0'){
-    const reimb=Math.min(pct/100*br, br+dh);
+    const reimb=Math.min(coverageCeiling(st,pct,br), br+dh);
     rac=Math.max(0,(br+dh)-reimb); mut=currentMut().n;
   }
   parcours.push({axe,statut:st,desc,cnt,br,dh,rac,mut});
