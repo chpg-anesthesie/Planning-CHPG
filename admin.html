@@ -2479,6 +2479,12 @@ function renderWeek() {
       const extraPm = cell.pm.filter(p => affOf(p.id, m) !== s.code).length;
       cell.flash_am = Math.max(0, absent.length + removed('am') - extraAm);
       cell.flash_pm = Math.max(0, absent.length + removed('pm') - extraPm);
+      // Plancher anti-blocage : un secteur de couverture VIDE ce demi-jour doit
+      // TOUJOURS proposer au moins un « + » — même quand personne n'y est affecté
+      // au mois (ex. la seule personne postée, venue d'un autre secteur ou volante,
+      // vient d'être retirée). Sans ce plancher, la cellule se fige sans flash.
+      if (!cell.am.length) cell.flash_am = Math.max(cell.flash_am, 1);
+      if (!cell.pm.length) cell.flash_pm = Math.max(cell.flash_pm, 1);
     });
   });
 
