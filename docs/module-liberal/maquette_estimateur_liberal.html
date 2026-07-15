@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Estimateur libéral V3 — lignes multiples</title>
+<title>Estimateur libéral V3.2 — calibrage mutuelle / RAC</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -82,6 +82,16 @@
   .pitem .amt{text-align:right;font-family:'IBM Plex Mono',monospace}
   .pitem .amt .br{color:var(--ccam);font-weight:600}.pitem .amt .dh{color:var(--dh);font-size:11px}
   .empty{padding:20px;text-align:center;color:var(--muted);font-size:13px}
+  .racbox{margin-top:12px;background:var(--dh-bg);border:1px solid #E2D4FA;border-radius:10px;padding:11px 13px}
+  .racbox .hd{font-weight:600;color:var(--dh);font-size:11px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.05em}
+  .racgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+  @media(max-width:640px){.racgrid{grid-template-columns:1fr 1fr}}
+  .racfig .l{font-size:9.5px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;color:var(--muted)}
+  .racfig .v{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:15px;color:var(--dh);white-space:nowrap}
+  .racfig .v.zero{color:var(--room)}.racfig .v.pos{color:var(--over)}
+  .calerbtn{margin-top:9px;background:var(--dh);color:#fff;border:0;border-radius:8px;padding:7px 13px;font:inherit;font-weight:600;font-size:12px;cursor:pointer}
+  .calerbtn:disabled{opacity:.35;cursor:default}
+  .rachint{font-size:10.5px;color:var(--muted);margin-top:7px;line-height:1.4}
   footer{margin-top:16px;font-size:11px;color:#8A6516;background:#FDF3E3;border:1px solid #EAD9B4;border-radius:12px;padding:11px 14px;line-height:1.5}
   footer b{color:#6b4e10}
 </style>
@@ -89,9 +99,9 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">Module libéral · V3.1 — estimateur multi-lignes</div>
+    <div class="eyebrow">Module libéral · V3.2 — calibrage mutuelle / RAC</div>
     <h1>Estimateur temps réel du libéral</h1>
-    <div class="sub">Un parcours = une ou plusieurs lignes de code (principal + associés + suppléments). L'outil calcule la BR, projette le ratio 30 %, et somme l'encaissé. <b>Estimateur, pas décompte.</b></div>
+    <div class="sub">Un parcours = une ou plusieurs lignes de code (principal + associés + suppléments). L'outil calcule la BR, projette le ratio 30 %, et <b>calibre le dépassement sur la mutuelle du patient pour minimiser son reste à charge</b>. <b>Estimateur, pas décompte.</b></div>
   </header>
 
   <div class="socles">
@@ -121,6 +131,14 @@
       <div><label id="coefLbl">Coeff. CCAM</label><span class="coefbadge" id="coefBadge">× 1,95</span></div>
     </div>
 
+    <!-- MUTUELLE : ligne « honoraires » en % BR (nourrit le calibrage RAC) -->
+    <div id="mutRow" style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin:2px 0 6px">
+      <div style="flex:1;min-width:220px"><label>Mutuelle du patient — ligne « honoraires » (% BR)</label>
+        <select id="mut" onchange="onMut()"></select></div>
+      <div class="field" id="mutManWrap" style="display:none;width:140px"><label>% BR (saisie)</label>
+        <input id="mutMan" class="mono" type="number" step="1" value="200" oninput="applyDH()"></div>
+    </div>
+
     <!-- CCAM : actes techniques -->
     <div id="blocCCAM">
       <table class="lines">
@@ -142,11 +160,24 @@
     <div class="parcfoot">
       <div class="brtot">BR du parcours (somme des lignes) : <b id="parcBR">0 €</b></div>
       <div class="dhbox">
-        <div class="field"><label>DH (€)</label><input id="dh" class="mono" type="number" step="0.01" value="0"></div>
+        <div class="field"><label>DH (€)</label><input id="dh" class="mono" type="number" step="0.01" value="0" oninput="updateRac()"></div>
         <div class="field" id="cibleWrap" style="display:none"><label>ou total cible (€)</label><input id="cible" class="mono" type="number" step="0.01" placeholder="ex. 1500" onchange="fromCible()"></div>
         <button class="add" onclick="addParcours()">Ajouter le parcours</button>
       </div>
     </div>
+    <!-- CALIBRAGE MUTUELLE → RAC -->
+    <div class="racbox" id="racBox" style="display:none">
+      <div class="hd">Calibrage sur la mutuelle — objectif : reste à charge patient minimal</div>
+      <div class="racgrid">
+        <div class="racfig"><div class="l">Plafond carte</div><div class="v" id="rCap">—</div></div>
+        <div class="racfig"><div class="l">Absorbé mutuelle</div><div class="v" id="rAbs">—</div></div>
+        <div class="racfig"><div class="l">DH optimal (RAC 0)</div><div class="v" id="rOpt">—</div></div>
+        <div class="racfig"><div class="l">RAC au DH saisi</div><div class="v" id="rRac">—</div></div>
+      </div>
+      <button class="calerbtn" id="calerBtn" onclick="caler()" disabled>Caler le DH sur l'optimal</button>
+      <div class="rachint">DH optimal = min( plafond réglementaire de la carte/secteur , dépassement absorbé par la mutuelle ). Absorbé = (%&nbsp;BR&nbsp;−&nbsp;100)&nbsp;× BR. Mal couvert ⇒ optimal bas, voire nul : l'outil recommande alors de <b>facturer moins</b>.</div>
+    </div>
+
     <div class="hint" id="hintCCAM">Rôle : <b>principal</b> 100 % · <b>associé</b> 50 % (2ᵉ acte) · <b>complément</b> 100 % en sus (AHQJ021, YYYY041…). Le modificateur A vaut +23 € (français) ou +44,85 € (monégasque). Tarif officiel : à lire dans le classeur Excel des codes.</div>
     <div class="hint" id="hintNGAP" style="display:none"><b>NGAP = lettre-clé × coefficient</b>, sans coefficient monégasque (verte, bulle, français… même BR) et sans modificateur 7/A. Valeurs : <b>C 34,40 €</b> · <b>CS 46 €</b> · <b>APC 60 €</b>. La carte ne joue que sur le <b>DH</b> : verte/SPME 0 · rose +20 % · bulle/français/NAS/AME libre.</div>
   </div>
@@ -165,6 +196,7 @@
 
   <div class="totbar">
     <div><div class="l">Libéral empilé (BR, charge le quota)</div><div class="v mono" id="totBR">0 €</div></div>
+    <div style="text-align:center"><div class="l">RAC patient estimé</div><div class="v mono" id="totRac">0 €</div></div>
     <div style="text-align:right"><div class="l">Encaissé estimé (BR + DH)</div><div class="v"><span class="mono" id="totEnc">0 €</span> <span class="dh mono" style="font-size:12px" id="totDH"></span></div></div>
   </div>
 
@@ -181,6 +213,23 @@ const STATUTS={
 const ROLES={principal:{lab:'Principal (100 %)',rate:1.0}, associe:{lab:'Associé (50 %)',rate:0.5}, complement:{lab:'Complément (100 % en sus)',rate:1.0}};
 // NGAP : lettre-clé × coefficient, sans coeff monégasque ni modificateur
 const LC={C:34.40, CS:46.00, APC:60.00, AUTRE:0};
+// Bibliothèque de formules mutuelle — SEULE la ligne « honoraires » (en % BR) compte.
+// À enrichir au fil de la collecte des tableaux de garanties. p=0 → non renseignée ; p=-1 → saisie manuelle.
+const FORMULES=[
+  {n:'— mutuelle non renseignée', p:0},
+  {n:'CCSP Génium 100 % BR', p:100},
+  {n:'CCSP Génium 200 % BR', p:200},
+  {n:'CCSP Génium 300 % BR', p:300},
+  {n:'Cegema — 150 % BR', p:150},
+  {n:'100 % BR (plancher, aucun DH absorbé)', p:100},
+  {n:'125 % BR', p:125},
+  {n:'150 % BR', p:150},
+  {n:'200 % BR', p:200},
+  {n:'300 % BR', p:300},
+  {n:'400 % BR', p:400},
+  {n:'Autre / saisie manuelle…', p:-1},
+];
+let lastRac=0, lastMut=null;
 let axe='CCAM';
 let builder=[
   {lib:'PTH — NEKA014',tarif:253.90,m7:true,mA:true,role:'principal'},
@@ -203,6 +252,56 @@ function parcoursBR(){
     : builder.reduce((s,l)=>s+lineBR(l),0);
 }
 
+// ---- MOTEUR MUTUELLE ----
+function populateMut(){
+  document.getElementById('mut').innerHTML=FORMULES.map((f,i)=>`<option value="${i}">${f.n}</option>`).join('');
+}
+function currentMut(){
+  const sel=document.getElementById('mut'); if(!sel) return {n:null,p:0};
+  const f=FORMULES[+sel.value]||FORMULES[0];
+  if(f.p===-1){const p=parseFloat(document.getElementById('mutMan').value)||0;return {n:'manuel '+p+' % BR',p};}
+  return f;
+}
+function currentMutPct(){return currentMut().p;}
+function dhEditable(st){return STATUTS[st].dh==='libre';}     // libre = DH ajustable ; rose/verte = auto
+function onMut(){
+  const f=FORMULES[+document.getElementById('mut').value]||FORMULES[0];
+  document.getElementById('mutManWrap').style.display=f.p===-1?'block':'none';
+  applyDH();
+}
+// RAC = (BR + DH) − min( %BR×BR , BR+DH ). Absorbé = (%BR−100)×BR. DH optimal = min(plafond carte, absorbé).
+function updateRac(){
+  const st=document.getElementById('statut').value, S=STATUTS[st], br=parcoursBR();
+  const box=document.getElementById('racBox');
+  if(S.dh==='0'){box.style.display='none';lastRac=0;lastMut=null;return;}   // verte/SPME : pas de calibrage
+  box.style.display='block';
+  const cap = S.dh==='0.20' ? 0.20*br : Infinity;                            // plafond réglementaire €
+  document.getElementById('rCap').textContent = cap===Infinity?'libre':eur2(cap);
+  const mut=currentMut(), pct=mut.p, dh=parseFloat(document.getElementById('dh').value)||0;
+  let absTxt='—',optTxt='—',racTxt='—',dhOpt=null,racVal=null,cls='';
+  if(pct>0){
+    const absorp=Math.max(0,(pct-100)/100*br);
+    dhOpt=Math.min(cap===Infinity?absorp:cap, absorp);
+    const reimb=Math.min(pct/100*br, br+dh);
+    racVal=Math.max(0,(br+dh)-reimb);
+    absTxt=eur2(absorp); optTxt=eur2(dhOpt); racTxt=eur2(racVal);
+    cls = racVal<=0.005?'zero':'pos';
+  }
+  document.getElementById('rAbs').textContent=absTxt;
+  document.getElementById('rOpt').textContent=optTxt;
+  const rv=document.getElementById('rRac'); rv.textContent=racTxt; rv.className='v '+cls;
+  const btn=document.getElementById('calerBtn');
+  btn.disabled=!(pct>0 && dhEditable(st));
+  btn.dataset.opt = dhOpt==null?'':dhOpt;
+  lastRac = racVal||0; lastMut = pct>0?mut.n:null;
+}
+function caler(){
+  const opt=parseFloat(document.getElementById('calerBtn').dataset.opt);
+  if(isNaN(opt))return;
+  document.getElementById('dh').value=(Math.round(opt*100)/100).toFixed(2);
+  updateRac(); renderSummary();
+}
+
 function setAxe(a){axe=a;
   document.getElementById('axC').classList.toggle('on',a==='CCAM');
   document.getElementById('axN').classList.toggle('on',a==='NGAP');
@@ -218,6 +317,7 @@ function onStatut(){const st=STATUTS[document.getElementById('statut').value];
   if(axe==='NGAP'){ badge.textContent='× 1,00'; lbl.textContent='Coeff. NGAP'; badge.title='Le NGAP n’applique pas le coefficient monégasque'; }
   else { badge.textContent='× '+st.coeff.toLocaleString('fr-FR',{minimumFractionDigits:2}); lbl.textContent='Coeff. CCAM'; badge.title=''; }
   document.getElementById('cibleWrap').style.display = st.dh==='libre'?'block':'none';
+  document.getElementById('mutRow').style.display = st.dh==='0'?'none':'flex';
   renderBuilder();}
 function addLine(){builder.push({lib:'',tarif:0,m7:false,mA:false,role:'complement'});renderBuilder();}
 function rmLine(i){builder.splice(i,1);renderBuilder();}
@@ -252,9 +352,15 @@ function applyDH(){
   document.getElementById('parcBR').textContent=eur2(br);
   const st=STATUTS[document.getElementById('statut').value];
   const dhIn=document.getElementById('dh');
+  const pct=currentMutPct();
   if(st.dh==='0'){dhIn.value='0';dhIn.disabled=true;}
-  else if(st.dh==='0.20'){dhIn.value=(Math.round(br*0.20*100)/100).toFixed(2);dhIn.disabled=true;}
-  else{dhIn.disabled=false;}
+  else if(st.dh==='0.20'){                                   // rose : plafond +20 %, mais calé sur l'absorbé si mutuelle connue
+    const cap=0.20*br;
+    const opt = pct>0 ? Math.min(cap, Math.max(0,(pct-100)/100*br)) : cap;
+    dhIn.value=(Math.round(opt*100)/100).toFixed(2);dhIn.disabled=true;
+  }
+  else{dhIn.disabled=false;}                                 // libre : ajustable (bouton « caler » propose l'optimal)
+  updateRac();
   renderSummary();
 }
 
@@ -270,7 +376,7 @@ function renderNgap(){
   applyDH();
 }
 function fromCible(){const c=parseFloat(document.getElementById('cible').value)||0;const br=parcoursBR();
-  document.getElementById('dh').value=(Math.max(0,Math.round((c-br)*100)/100)).toFixed(2);renderSummary();}
+  document.getElementById('dh').value=(Math.max(0,Math.round((c-br)*100)/100)).toFixed(2);updateRac();renderSummary();}
 
 function addParcours(){
   const br=parcoursBR();
@@ -280,7 +386,13 @@ function addParcours(){
     ? ngap.map(n=>`${n.lc==='AUTRE'?'NGAP':n.lc}${(n.coef&&n.coef!==1)?' '+n.coef:''}`).join(' + ')
     : builder.map(l=>l.lib||'ligne').join(' + ');
   const cnt = axe==='NGAP'?ngap.length:builder.length;
-  parcours.push({axe,statut:document.getElementById('statut').value,desc,cnt,br,dh});
+  const st=document.getElementById('statut').value, pct=currentMutPct();
+  let rac=null, mut=null;
+  if(pct>0 && STATUTS[st].dh!=='0'){
+    const reimb=Math.min(pct/100*br, br+dh);
+    rac=Math.max(0,(br+dh)-reimb); mut=currentMut().n;
+  }
+  parcours.push({axe,statut:st,desc,cnt,br,dh,rac,mut});
   renderRows();renderSummary();
 }
 function delP(i){parcours.splice(i,1);renderRows();renderSummary();}
@@ -299,9 +411,12 @@ function renderSummary(){
   const brN=parcours.filter(p=>p.axe==='NGAP').reduce((s,p)=>s+p.br,0);
   paint('C',projAxis(Tc,Pc,brC));paint('N',projAxis(Tn,Pn,brN));
   const sumBR=parcours.reduce((s,p)=>s+p.br,0),sumDH=parcours.reduce((s,p)=>s+p.dh,0);
+  const sumRac=parcours.reduce((s,p)=>s+(p.rac||0),0);
   document.getElementById('totBR').textContent=eur(sumBR);
   document.getElementById('totEnc').textContent=eur(sumBR+sumDH);
   document.getElementById('totDH').textContent=sumDH?('· dont '+eur(sumDH)+' hors quota'):'';
+  const rc=document.getElementById('totRac'); rc.textContent=eur(sumRac);
+  rc.style.color = sumRac<=0.005?'#8AE0BE':'#F3B0A6';
 }
 function renderRows(){
   document.getElementById('listTitle').textContent='Parcours déclarés — '+parcours.length;
@@ -309,13 +424,16 @@ function renderRows(){
   if(!parcours.length){rows.innerHTML='<div class="empty">Aucun parcours.</div>';return;}
   rows.innerHTML=parcours.map((p,i)=>{const c=p.axe==='CCAM'?'c':'n';
     const unit=p.axe==='NGAP'?'consult':'ligne';
+    const racLine = p.rac!=null
+      ? `<br><span style="font-size:10.5px;color:${p.rac<=0.005?'var(--room)':'var(--over)'}">RAC ${eur2(p.rac)}</span>` : '';
+    const mutLine = p.mut ? ' · '+p.mut : '';
     return `<div class="pitem"><span class="pill ${c}">${p.axe}</span>
-      <div class="d">${p.desc} <small>${p.statut} · ${p.cnt} ${unit}(s)</small></div>
-      <div class="amt"><span class="br">${eur2(p.br)}</span> BR<br><span class="dh">${p.dh?'+'+eur2(p.dh)+' DH':'DH 0'}</span></div>
+      <div class="d">${p.desc} <small>${p.statut}${mutLine} · ${p.cnt} ${unit}(s)</small></div>
+      <div class="amt"><span class="br">${eur2(p.br)}</span> BR<br><span class="dh">${p.dh?'+'+eur2(p.dh)+' DH':'DH 0'}</span>${racLine}</div>
       <button class="rm" onclick="delP(${i})">✕</button></div>`;}).join('');
 }
 ['Tc','Pc','Tn','Pn'].forEach(id=>document.getElementById(id).addEventListener('input',renderSummary));
-setAxe('CCAM');renderRows();
+populateMut();setAxe('CCAM');renderRows();
 </script>
 </body>
 </html>
