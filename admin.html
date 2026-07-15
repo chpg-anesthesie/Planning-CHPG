@@ -1073,11 +1073,9 @@ if (sessionStorage.getItem('adminCode')) {
       <span class="week-label" id="weekLabel">Chargement…</span>
       <button class="week-nav-btn" onclick="nextWeek()">→</button>
       <button class="week-nav-btn" onclick="gotoToday()" title="Revenir à la semaine en cours" style="width:auto;padding:0 12px;font-size:11px;font-weight:700;white-space:nowrap;">Aujourd'hui</button>
-            <span id="validatedBadge" style="display:none;align-items:center;gap:5px;background:#DCFCE7;border:1px solid #86EFAC;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:#166534;">✅ Validée</span>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
-      <button class="week-validate-btn" id="btnValiderSemaine" onclick="toggleValiderSemaine()">✅ Valider la semaine</button>
       <button class="week-validate-btn" id="btnPublier" onclick="publishPlanning()">⬆️ Publier</button>
 <span onclick="resetLocalEdits()" title="Réinitialiser les modifications locales de cette année (si l'affichage semble figé sur d'anciennes modifs)" style="font-size:11px;color:var(--ink-4,#94A3B8);cursor:pointer;margin-left:10px;white-space:nowrap">↺ réinit.</span>
     </div>
@@ -2833,7 +2831,6 @@ function renderWeek() {
 
   if (window.lucide) lucide.createIcons();
   updateFlashBadge();
-  updateValidationBadge();
 }
 
 function prevWeek(){if(currentWeekIdx>0){currentWeekIdx--;renderWeek();}}
@@ -2862,78 +2859,6 @@ function updateFlashBadge() {
       document.getElementById('flashCount').textContent = n;
       document.getElementById('flashWord').textContent = n > 1 ? 'cases' : 'case';
     }
-  }
-  const btnVal = document.getElementById('btnValiderSemaine');
-  if (btnVal) btnVal.style.display = 'inline-block';
-}
-
-// ── BADGE VALIDATION ──────────────────────────────────────────────────
-function updateValidationBadge() {
-  if (!DATA) return;
-  const weeks = getAllWeeks();
-  const wk = weeks[currentWeekIdx];
-  if (!wk) return;
-  let validated = false;
-  for (const month of DATA.months) {
-    if (!month.weeks) continue;
-    const wkInfo = month.weeks.find(w => w.isoWeek === wk.weekNum);
-    if (wkInfo) { validated = wkInfo.validated; break; }
-  }
-  const vBadge = document.getElementById('validatedBadge');
-  const btn    = document.getElementById('btnValiderSemaine');
-  if (vBadge) vBadge.style.display = validated ? 'inline-flex' : 'none';
-  if (btn) {
-    btn.textContent  = validated ? '↩ Dé-valider' : '✅ Valider la semaine';
-    btn.className    = validated ? 'week-validate-btn validated' : 'week-validate-btn';
-  }
-}
-
-// ── VALIDER / DÉVALIDER UNE SEMAINE ──────────────────────────────────
-async function toggleValiderSemaine() {
-  if (!DATA) return;
-  const weeks = getAllWeeks();
-  const wk = weeks[currentWeekIdx];
-  if (!wk) return;
-  let validated = false;
-  for (const month of DATA.months) {
-    if (!month.weeks) continue;
-    const wkInfo = month.weeks.find(w => w.isoWeek === wk.weekNum);
-    if (wkInfo) { validated = wkInfo.validated; break; }
-  }
-  const newVal = !validated;
-  // Filet de complétude : on ne valide pas une semaine avec des présents non placés
-  // sans le dire explicitement au comité (jours ouvrés hors fériés ; BP exclu).
-  if (newVal) {
-    const daySlots = getWeekDays(wk.weekNum);
-    const holes = [];
-    daySlots.forEach((slot, i) => {
-      if (!slot || slot.isWeekend || slot.isFerie) return;
-      const np = nonPlacesJour(slot.date);
-      [...new Set([...np.am, ...np.pm].map(x => x.id))].forEach(id => {
-        const a = np.am.find(x => x.id === id), p = np.pm.find(x => x.id === id);
-        const m = a || p;
-        holes.push({label: JOURS_ABR[i] + ' ' + slot.day, halves: a && p ? 'AM + PM' : (a ? 'AM' : 'PM'), init: m.init});
-      });
-    });
-    if (holes.length && !(await confirmNonPlaces(holes))) return;
-  }
-  const btn = document.getElementById('btnValiderSemaine');
-  if (btn) { btn.disabled = true; btn.textContent = '…'; }
-  try {
-    const res = await api({action:'validerSemaine', year: ADMIN_YEAR, isoWeek: wk.weekNum, valide: newVal});
-    if (!res.success) throw new Error(res.error);
-    for (const month of DATA.months) {
-      if (!month.weeks) continue;
-      const wkInfo = month.weeks.find(w => w.isoWeek === wk.weekNum);
-      if (wkInfo) wkInfo.validated = newVal;
-    }
-    showToast(newVal ? `✅ Semaine ${wk.weekNum} validée` : `↩ Semaine ${wk.weekNum} dévalidée`);
-    markPending();
-  } catch(e) {
-    showToast('Erreur : ' + e.message, true);
-  } finally {
-    if (btn) { btn.disabled = false; }
-    updateValidationBadge();
   }
 }
 
@@ -3063,18 +2988,22 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.np-badge') && !e.target.closest('.np-pop'))
     document.querySelectorAll('.np-pop.open').forEach(p => p.classList.remove('open'));
 });
-// Dialogue de la validation de semaine : liste des non-placés, choix corriger / valider quand même.
-function confirmNonPlaces(holes) {
+// Dialogue du filet de complétude à la PUBLICATION : non-placés regroupés par semaine.
+function confirmPublishNonPlaces(holesByWeek) {
   return new Promise(resolve => {
     const ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
-    const rows = holes.map(h => `<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:3px 0"><span>${h.label} — ${h.halves}</span><b style="font-family:var(--mono);font-size:11px;color:#92400E">${h.init}</b></div>`).join('');
-    ov.innerHTML = `<div style="max-width:430px;width:100%;border:1px solid var(--line);border-radius:14px;background:var(--white);box-shadow:0 10px 34px rgba(15,23,42,.16);padding:20px">
+    const weeks = Object.keys(holesByWeek).sort((a,b) => a - b);
+    const body = weeks.map(wn => {
+      const rows = holesByWeek[wn].map(h => `<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:2px 0"><span>${h.label} — ${h.halves}</span><b style="font-family:var(--mono);font-size:11px;color:#92400E">${h.init}</b></div>`).join('');
+      return `<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#92400E;margin:8px 0 3px">Semaine ${wn}</div>${rows}`;
+    }).join('');
+    ov.innerHTML = `<div style="max-width:450px;width:100%;border:1px solid var(--line);border-radius:14px;background:var(--white);box-shadow:0 10px 34px rgba(15,23,42,.16);padding:20px">
       <h3 style="font-size:14px;font-weight:800;margin:0 0 6px">⚠️ Des MARs présents ne sont pas placés</h3>
-      <p style="font-size:12px;color:var(--ink-3);line-height:1.55;margin:0 0 12px">Valider cette semaine alors que des médecins disponibles n'ont pas d'affectation les exposerait à venir travailler sans poste. Vérifiez :</p>
-      <div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:10px;padding:10px 12px;margin-bottom:16px">${rows}</div>
+      <p style="font-size:12px;color:var(--ink-3);line-height:1.55;margin:0 0 12px">Publier maintenant rendra ce planning visible aux MARs. Des médecins disponibles n'ont pas d'affectation dans les semaines que vous avez modifiées :</p>
+      <div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:10px;padding:8px 12px;margin-bottom:16px">${body}</div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button id="npForce" style="border-radius:9px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--line);background:var(--white);color:var(--ink-3)">Valider quand même</button>
+        <button id="npForce" style="border-radius:9px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--line);background:var(--white);color:var(--ink-3)">Publier quand même</button>
         <button id="npFix" style="border-radius:9px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--red);background:var(--red);color:#fff">Corriger d'abord</button>
       </div></div>`;
     document.body.appendChild(ov);
@@ -6164,7 +6093,40 @@ function renderPublishBtn() {
     b.style.background = ''; b.style.color = ''; b.style.borderColor = '';
   }
 }
+// Semaines ISO touchées pendant la session (overrides de placement + cases laissées vides).
+function _semainesModifiees() {
+  const dates = new Set([...Object.keys(_localOverrides || {}), ...Object.keys(_localVides || {})]);
+  const nums = new Set();
+  dates.forEach(d => { if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) nums.add(isoWeek(d)); });
+  return nums;
+}
 async function publishPlanning() {
+  // Filet de complétude : avant de rendre le planning visible aux MARs, on liste
+  // les présents non placés dans les SEMAINES MODIFIÉES cette session (regroupé
+  // par semaine). Le comité peut corriger ou publier quand même.
+  const _wkMod = _semainesModifiees();
+  if (_wkMod.size) {
+    const holesByWeek = {};
+    const allWeeks = getAllWeeks();
+    allWeeks.forEach(wk => {
+      if (!_wkMod.has(wk.weekNum)) return;
+      const daySlots = getWeekDays(wk.weekNum);
+      daySlots.forEach((slot, i) => {
+        if (!slot || slot.isWeekend || slot.isFerie) return;
+        const np = nonPlacesJour(slot.date);
+        [...new Set([...np.am, ...np.pm].map(x => x.id))].forEach(id => {
+          const a = np.am.find(x => x.id === id), p = np.pm.find(x => x.id === id);
+          const m = a || p;
+          (holesByWeek[wk.weekNum] = holesByWeek[wk.weekNum] || []).push({
+            label: JOURS_ABR[i] + ' ' + slot.day,
+            halves: a && p ? 'AM + PM' : (a ? 'AM' : 'PM'),
+            init: m.init + (m.motif && m.motif.startsWith('retiré') ? ' (' + m.motif + ')' : '')
+          });
+        });
+      });
+    });
+    if (Object.keys(holesByWeek).length && !(await confirmPublishNonPlaces(holesByWeek))) return;
+  }
   const b = document.getElementById('btnPublier');
   if (b) { b.disabled = true; b.textContent = '⏳ Publication…'; }
   try {
