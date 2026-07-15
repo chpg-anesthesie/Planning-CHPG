@@ -608,7 +608,7 @@ async function loadCcam(){
   try{
     const r=await fetch('ccam_actes.json'); if(!r.ok) throw 0;
     const j=await r.json();
-    CCAM_INDEX=(j.actes||[]).map(a=>({c:a.c,l:a.l,n:norm(a.l)}));
+    CCAM_INDEX=(j.actes||[]).map(a=>({c:a.c,l:a.l,n:norm(a.l),t:a.t}));
     ccamLoaded=CCAM_INDEX.length>0;
   }catch(e){ ccamLoaded=false; }
 }
@@ -627,11 +627,11 @@ function ccamSearch(){
   }
   lastCcam=codeHits.concat(libHits).slice(0,30);
   if(!lastCcam.length){box.innerHTML='<div class="info">Aucun acte trouvé.</div>';return;}
-  box.innerHTML=lastCcam.map((a,i)=>`<div class="ccamitem" onclick="pickCcam(${i})"><b>${a.c}</b>${a.l}</div>`).join('');
+  box.innerHTML=lastCcam.map((a,i)=>`<div class="ccamitem" onclick="pickCcam(${i})"><b>${a.c}</b>${a.l}${a.t?` <span class="mono" style="color:var(--room);font-size:11px">· ${a.t.toFixed(2)} € act.4</span>`:''}</div>`).join('');
 }
 function pickCcam(i){
   const a=lastCcam[i]; if(!a)return;
-  builder.push({code:a.c,lib:a.l,tarif:0,m7:false,mA:false,role:builder.length?'complement':'principal'});
+  builder.push({code:a.c,lib:a.l,tarif:a.t||0,m7:false,mA:false,role:builder.length?'complement':'principal'});
   document.getElementById('ccamq').value='';
   document.getElementById('ccamResults').innerHTML='';
   renderBuilder();
