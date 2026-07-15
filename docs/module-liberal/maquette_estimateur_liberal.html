@@ -126,7 +126,7 @@
           <option value="fr">Assuré français (DH libre)</option>
           <option value="nas">NAS / non assuré (DH libre)</option>
           <option value="spme">SPME (DH 0)</option>
-          <option value="ame">AME (DH libre)</option>
+          <option value="ame">AME (DH 0)</option>
         </select></div>
       <div><label id="coefLbl">Coeff. CCAM</label><span class="coefbadge" id="coefBadge">× 1,95</span></div>
     </div>
@@ -209,7 +209,7 @@
 <script>
 const STATUTS={
  verte:{coeff:1.95,dh:'0'}, rose:{coeff:1.95,dh:'0.20'}, bulle:{coeff:1.95,dh:'libre'},
- fr:{coeff:1.00,dh:'libre'}, nas:{coeff:1.00,dh:'libre'}, spme:{coeff:1.95,dh:'0'}, ame:{coeff:1.95,dh:'libre'}
+ fr:{coeff:1.00,dh:'libre'}, nas:{coeff:1.00,dh:'libre'}, spme:{coeff:1.95,dh:'0'}, ame:{coeff:1.95,dh:'0'}
 };
 const ROLES={principal:{lab:'Principal (100 %)',rate:1.0}, associe:{lab:'Associé (50 %)',rate:0.5}, complement:{lab:'Complément (100 % en sus)',rate:1.0}};
 // NGAP : lettre-clé × coefficient, sans coeff monégasque ni modificateur
