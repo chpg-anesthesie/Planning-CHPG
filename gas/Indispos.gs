@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-16.3';
+const GAS_VERSION_INDISPOS = '2026-07-16.4';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1589,8 +1589,12 @@ if (!affSheet) {
           if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) emailKO.push(id);
           if (!String(md[r][7]).trim()) sansEmail.push(id);            // email col 7
           if (!String(md[r][6]).trim()) sansCode.push(id);             // code col 6
-          const q = Number(md[r][2]);                                  // quotité col 2
-          if (!(q > 0 && q <= 100)) quotiteKO.push(id);
+          // Quotité col 4 et PCT_GARDES col 5 (mêmes colonnes que generateGardes).
+          // Cellule vide tolérée : le générateur applique 100 par défaut.
+          const rawQ = String(md[r][4]).trim(), rawP = String(md[r][5]).trim();
+          const q = Number(rawQ), p = Number(rawP);
+          if (rawQ && !(q > 0 && q <= 100)) quotiteKO.push(`${id} (quotité « ${rawQ} »)`);
+          else if (rawP && !(p > 0 && p <= 100)) quotiteKO.push(`${id} (PCT_GARDES « ${rawP} »)`);
           const dd = md[r][9], df = md[r][10];                         // arrivée / départ
           if (dd && df) {
             const a = dd instanceof Date ? dd : new Date(String(dd) + 'T00:00:00');
