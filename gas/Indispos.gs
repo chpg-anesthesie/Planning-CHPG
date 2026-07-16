@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-15.2';
+const GAS_VERSION_INDISPOS = '2026-07-16.1';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1524,6 +1524,37 @@ if (!affSheet) {
           check(`Dernière sauvegarde il y a ${bDays} j`, bDays <= 10 ? R.OK : R.WARN);
         }
       } catch (e) { check('Contrôle de sauvegarde impossible : ' + e.message, R.WARN); }
+
+      // ── 3quater. Cohérence de la version du site (4 fichiers) ──
+      // Chaque fichier porte un marqueur « SITE_VERSION: vX.Y ». Ils doivent être
+      // identiques (pages web + guides). Toute divergence = un oubli d'alignement.
+      hdr('Version du site');
+      try {
+        const vFiles = ['dashboard.html', 'admin.html', 'docs/guide-mar.html', 'docs/guide-comite.html'];
+        const tokV = getGithubToken();
+        const versions = {};
+        vFiles.forEach(fn => {
+          try {
+            const r = UrlFetchApp.fetch(
+              `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${fn}?ref=${GITHUB_BRANCH}`,
+              { headers: { Authorization: 'token ' + tokV, Accept: 'application/vnd.github.raw' }, muteHttpExceptions: true });
+            if (r.getResponseCode() === 200) {
+              const m = r.getContentText().match(/SITE_VERSION:\s*(v[\d.]+)/);
+              versions[fn] = m ? m[1] : '(absente)';
+            } else versions[fn] = '(illisible)';
+          } catch (e) { versions[fn] = '(illisible)'; }
+        });
+        const vals = vFiles.map(fn => versions[fn]);
+        const ref = vals.find(v => v && v[0] === 'v');
+        const allSame = ref && vals.every(v => v === ref);
+        if (allSame) check(`Les 4 fichiers sont alignés (${ref})`, R.OK);
+        else {
+          vFiles.forEach(fn => {
+            if (versions[fn] === ref) check(`${fn} : ${versions[fn]}`, R.OK);
+            else check(`${fn} : ${versions[fn]}${ref ? ' (attendu ' + ref + ')' : ''} → réaligner`, R.ERR);
+          });
+        }
+      } catch (e) { check('Contrôle de version impossible : ' + e.message, R.WARN); }
 
       // ── 4. Équipe (MEDECINS) ──
       hdr('Équipe');
