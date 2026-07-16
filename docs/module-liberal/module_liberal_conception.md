@@ -29,6 +29,12 @@
 *(≠ française) = résident sans autre couverture, sous condition de ressources → remboursé sur le tarif*
 *de responsabilité monégasque (**coeff ×1,95**), **DH 0** (indigent, logique carte verte). Libellé et*
 *coefficient confirmés dans la maquette ; question AME close au §14.*
+***v3.9 — 16/07/2026** : flux de déclaration acté. **Page du module libéral = point d'entrée unique***
+*(devis à l'écran + déclaration écrivante) ; payload `LIBERAL_{Y}` **FERMÉ et sans CCAM** (date_bloc ·*
+*MAR · secteur · chirurgie libre optionnelle) ; **tuile Dashboard conditionnée `LIBERAL O/N`** ;*
+*ergonomie admin validée sur maquette conditions réelles (volet « ◆ Libéral » gauche par MAR,*
+*vert/orange, toast si aucune intervention, grille intacte). indispos.html sort du périmètre libéral.*
+*§6.2–6.4, 11, 12, 13 mis à jour.*
 *Rien ne part en prod tant que ce plan n'est pas clair et précis. On ne code pas encore.*
 
 ---
@@ -183,29 +189,55 @@ alimente le NGAP, le J+X qui alimente le CCAM et fait tomber la contrainte de pl
 déclarée (date bloc connue, hors horizon)  ──►  active (semaine planifiée)  ──►  OK / conflit  ──►  réalisée
 ```
 
-### 6.2 Schéma `LIBERAL_{Y}`
+### 6.2 Schéma `LIBERAL_{Y}` — payload FERMÉ
 
-`DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | CCAM (optionnel) | COMMENTAIRE`
+`DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | CHIRURGIE (texte libre court, optionnel)`
 
 - **`DATE_CONSULT`** = J0, moment de la consultation libérale (déclencheur, informatif).
 - **`DATE_BLOC`** = J+X, jour de l'acte : **toujours renseignée dès la déclaration**, c'est là que
   tombe la contrainte de présence.
 - **`SECTEUR`** référence `SECTEURS_CFG` (→ Lot 0). Le comité doit savoir que Dr X doit être à
   **ORTHO**, pas seulement « au bloc ». Info **logistique**, pas médicale.
-- **`CCAM` optionnel** : collecté dès la V1, **non exploité en V1** (gratuit à prévoir, coûteux à
-  reconstituer). Curseur à bouger consciemment (cf. §3.1).
+- **`CHIRURGIE`** : libellé libre court (« PTH », « hernie cœlio »), **optionnel** — sert uniquement
+  à donner au comité une idée de la durée du bloc. **Pas de code CCAM** : le code n'apporte rien au
+  placement et son niveau de précision est inutile ici (minimisation). Pré-rempli depuis le libellé
+  court du parcours coté dans l'estimateur, modifiable, effaçable.
 - **Granularité : une ligne = une journée-bloc, pas un patient.**
+- **Ce payload est FERMÉ** : ces cinq champs, rien d'autre, jamais. Aucune donnée patient ne
+  transite par la déclaration — le nom du patient n'existe que sur le devis, tapé à la main à
+  l'écran, imprimé, effacé (cf. note Sécurité §3).
 
-### 6.3 Workflow MAR (~20 s, indispos.html → « Activité libérale »)
+### 6.3 Workflow MAR (~20 s, depuis la PAGE DU MODULE LIBÉRAL)
 
-Après la consult (J0), le MAR **déclare** : date de bloc + secteur + commentaire optionnel. Aucun
-patient, aucun acte. Le module range dans `LIBERAL_{Y}` et affecte l'état selon l'horizon.
+**La page du module libéral est le point d'entrée unique** : le MAR y cote son parcours, y génère
+le devis (à l'écran, sans écriture), et **y déclare l'intervention** — bouton « 📅 Déclarer »
+sur le parcours → formulaire pré-rempli (secteur, chirurgie déduite du parcours) → saisie de la
+date de bloc → écriture `LIBERAL_{Y}` via l'API GAS. Aucun patient, aucun acte codé. Le module
+range et affecte l'état selon l'horizon.
 
-### 6.4 Côté comité (admin.html) — AFFICHAGE SEUL
+**Prérequis** : l'estimateur doit être **intégré au portail** (MAR identifié à la connexion) pour
+que la déclaration porte le bon `MAR_ID` — et pour pré-remplir le praticien sur les devis.
+L'ancienne option « onglet Activité libérale dans indispos.html » est **abandonnée** : tout vit sur
+la page du module.
 
-Flux **descendant** (le 12/01, marqueur « Dr X → ORTHO (libéral) » au moment où le comité
-planifie) + **remontant** (badge de conflit si l'affectation contredit l'intervention). **Pas de
-pré-placement** : le comité place à la main. On ne touche pas à `generatePlanningFromGardes`.
+### 6.4 Côté comité (admin.html) — AFFICHAGE SEUL, ergonomie actée
+
+**La grille ne change pas d'un pixel** (aucune pastille permanente — à ~20 MARs, tout marquage
+dans la grille sature). L'ergonomie validée sur maquette (conditions réelles, juillet 2026) :
+
+- Au clic sur une **case flash** (comportement existant), le panneau d'affectation s'ouvre comme
+  aujourd'hui **et**, si des interventions libérales existent ce jour-là, un **volet « ◆ Libéral »
+  s'ouvre à gauche** : liste **par MAR** des interventions du jour, chaque ligne colorée —
+  **vert** « ✓ déjà en ORT » si le placement satisfait l'intervention, **orange** « ⚠ à replacer →
+  ORT (est en ORL) » ou « ⚠ en garde — à arbitrer » sinon. Lecture en check-list de placement.
+- **S'il n'y a pas de libéral ce jour** : le volet ne s'ouvre pas et un **toast** le confirme
+  (« Aucune intervention libérale ce jour ») — pas de doute de bug, pas de panneau vide.
+- Style : vocabulaire visuel existant d'admin (violet `cs-lib` déjà en place pour les consults
+  libérales endo).
+
+**Pas de pré-placement** : le comité place à la main. On ne touche pas à
+`generatePlanningFromGardes` ; la greffe = `openLibForDay(date)` appelé dans `openSidePanel` +
+le volet + la lecture de `LIBERAL_{Y}`. Chirurgicale.
 
 ---
 
@@ -326,17 +358,23 @@ coups.
 
 ## 11. Interfaces
 
-### Côté membre (indispos.html) — onglet « Activité libérale »
-- Déclarer une intervention bloc (date + secteur).
-- Consulter les relevés du groupe (visibilité totale).
-- Vue convergence **par axe** : T, %, marge à la cible, projection 31/12 (CCAM et NGAP).
+### Côté membre — PAGE DU MODULE LIBÉRAL (point d'entrée unique)
+- Accessible via une **tuile « Libéral » du Dashboard, visible uniquement pour les MARs membres du
+  groupement** (colonne `LIBERAL (O/N)` de `MEDECINS`) ; MAR identifié à la connexion.
+- Coter un parcours (recherche CCAM, tarif act. 4 auto), calibrer le DH sur la mutuelle, générer le
+  **devis** (à l'écran, nom du patient tapé à la main, rien de stocké).
+- **Déclarer une intervention bloc** (date + secteur + chirurgie libre optionnelle) → `LIBERAL_{Y}`.
+- Consulter les relevés du groupe (visibilité totale) ; vue convergence **par axe** : T, %, marge à
+  la cible, projection 31/12 (CCAM et NGAP).
+- *(indispos.html n'a plus de rôle libéral.)*
 
 ### Côté comité (admin.html)
+- **Volet « ◆ Libéral »** au clic sur une case flash (cf. §6.4) : interventions du jour par MAR,
+  vert/orange ; toast si aucune. Grille intacte.
 - Vue convergence du groupe, **deux axes**, tri par risque, projections.
 - **Réallocation** : marge de chacun par axe → orienter les vacations libérales.
 - Recommandations mensuelles (frigo / réa pour CCAM ; consult publiques pour NGAP).
 - Compteur d'équité des affectations contraintes.
-- Badges de conflit « intervention sans présence bloc » (affichage seul).
 - Saisie/rattrapage des relevés.
 
 ---
@@ -348,12 +386,15 @@ go-live octobre 2026.
 
 - **Lot 0 — Secteurs étape 2.** `SECTEURS_CFG` → onglet `SECTEURS` + `RENDEMENT_LIB`. Débloque le
   libéral ET le déménagement 2027. Seul lot à faire tôt.
-- **Lot 1 — Fondations données.** Colonne `LIBERAL (O/N)` ; onglets `LIBERAL_{Y}` et
-  `LIBERAL_CA_{Y}` auto-créés ; actions API dans `WRITE_ACTIONS` ; visibilité groupement.
+- **Lot 1 — Fondations données + portail.** Colonne `LIBERAL (O/N)` ; onglets `LIBERAL_{Y}` et
+  `LIBERAL_CA_{Y}` auto-créés ; actions API dans `WRITE_ACTIONS` (payload `declareLiberal` FERMÉ :
+  date_bloc, secteur, chirurgie? — le MAR_ID vient de la session) ; **intégration de l'estimateur au
+  portail** (identité MAR à la connexion, tuile Dashboard conditionnée `LIBERAL O/N`) ; visibilité
+  groupement.
 - **Lot 2 — Convergence (cœur métier).** Saisie relevés (6 nombres/mois + total de contrôle) ; vue **deux axes** :
   marge + projection ; membre + comité. Ne dépend pas du Lot 0.
-- **Lot 3 — Placement bloc.** Saisie interventions → `LIBERAL_{Y}` ; badge de conflit. Dépend du
-  Lot 1 seul.
+- **Lot 3 — Placement bloc.** Bouton « 📅 Déclarer » dans la page libéral → `LIBERAL_{Y}` ; volet
+  « ◆ Libéral » + toast dans admin (greffe `openSidePanel`, cf. §6.4). Dépend du Lot 1 seul.
 - **Lot 4 — Réallocation + équité.** Reco par axe (nécessite `RENDEMENT_LIB` → Lot 0) ; compteur
   d'équité. Dépend Lot 0 + Lot 2.
 
@@ -370,11 +411,20 @@ go-live octobre 2026.
 5. **Relevé mensuel cumulé** → dériver le flux ; corriger tôt >> corriger tard.
 6. **Affichage seul** côté comité (pas de pré-placement).
 7. **`RENDEMENT_LIB` à 4 valeurs** (FORT / MOYEN / NUL / REA).
-8. **`CCAM` collecté en V1, non exploité** ; jamais de grille tarifaire devinée.
+8. **Payload de déclaration FERMÉ, sans CCAM** : `DATE_BLOC · MAR_ID · SECTEUR · CHIRURGIE (libellé
+   libre optionnel)` — le code n'apporte rien au placement (minimisation) ; jamais de donnée
+   patient ; jamais de grille tarifaire devinée.
 9. **Équité = le désagrément** (frigo/réa), pas l'argent (mutualisé).
 10. **V1 = compteur de marge sur données réelles** (pas d'extrapolation ; `marge = (3/7)·P − L`) ; la **projection** à fin décembre, fondée sur l'**activité planifiée**, est repoussée à la V2.
 11. **Saisie groupée mensuelle depuis PDF** (référent), sécurisée par checksum sur le total du
     document + contrôle de monotonie du cumul.
+12. **La page du module libéral est le point d'entrée unique** côté MAR : devis (à l'écran, sans
+    écriture) ET déclaration d'intervention (écriture au payload fermé). indispos.html n'a plus de
+    rôle libéral. Accès par **tuile Dashboard visible seulement si `LIBERAL (O/N) = O`**.
+13. **Ergonomie admin actée sur maquette** : grille intacte, volet « ◆ Libéral » à gauche ouvert
+    avec le panneau d'affectation (liste par MAR, vert/orange), toast si aucune intervention.
+    Stratégie : développer le module jusqu'à ce que le branchement au planning se fasse
+    naturellement — la greffe finale reste chirurgicale.
 
 ---
 
