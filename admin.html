@@ -59,6 +59,8 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .header-right { display:flex; align-items:center; gap:10px; }
 .header-year { background:var(--line-light); color:var(--ink-2); border:1px solid var(--line); border-radius:8px; padding:5px 12px; font-size:13px; font-weight:700; font-family:var(--mono); }
 .header-link { font-size:12px; color:var(--ink-3); text-decoration:none; transition:color .15s; }
+.ver-badge { display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:11px; font-weight:600; color:var(--ink-4); background:var(--line-light); border:1px solid var(--line); border-radius:20px; padding:4px 10px; letter-spacing:.02em; }
+.ver-dot { width:5px; height:5px; border-radius:50%; background:#22C55E; flex:none; }
 .header-link:hover { color:var(--ink); }
 .header-btn { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:999px; padding:5px 12px; text-decoration:none; transition:border-color .15s, box-shadow .15s, color .15s; }
 .header-btn:hover { border-color:var(--red); color:var(--red); box-shadow:0 1px 5px rgba(15,23,42,.08); }
@@ -920,6 +922,8 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .bt-cell.today { background:#FFF8F8; }
 </style>
 <script>
+// Version du site (source unique — tenue à la main, alignée sur les guides).
+const SITE_VERSION = 'v1.0'; // SITE_VERSION: v1.0
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1012,6 +1016,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.0</span></span>
     <a href="./docs/guide-comite.html" target="_blank" class="header-btn" title="Guide du comité — mode d'emploi de cette interface"><span class="hb-ico">?</span> Aide</a>
     
   </div>
@@ -2184,6 +2189,7 @@ async function checkNextYearAvailable() {
 }
 
 async function initDashboard() {
+  { const vb = document.getElementById('verBadge'); if (vb) vb.textContent = SITE_VERSION; }
   await new Promise(r => setTimeout(r, 50));
   ADMIN_YEAR = YEAR;
   // Démarrer tout de suite les chargements lourds (indépendants de la détection d'années)
