@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-16.1';
+const GAS_VERSION_INDISPOS = '2026-07-16.2';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1419,6 +1419,29 @@ if (!affSheet) {
       const rows = n => { const sh = ss.getSheetByName(n); return sh ? sh.getLastRow() : 0; };
       const Y  = getActiveYear();
       const N1 = Y + 1;
+      const t0 = Date.now();
+
+      // ── 0. Environnement d'exécution ──
+      hdr('Environnement');
+      try {
+        const tzS = Session.getScriptTimeZone(), tzC = ss.getSpreadsheetTimeZone();
+        if (tzS === tzC) check(`Fuseau horaire cohérent (${tzS})`, R.OK);
+        else check(`Fuseaux DIFFÉRENTS : script « ${tzS} » vs classeur « ${tzC} » — risque de décalage de dates (à aligner dans les paramètres)`, R.ERR);
+      } catch (e) { check('Fuseau horaire illisible : ' + e.message, R.WARN); }
+      try {
+        const q = MailApp.getRemainingDailyQuota();
+        if (q >= 40) check(`Quota email restant : ${q} envois aujourd'hui`, R.OK);
+        else check(`Quota email presque épuisé (${q} restants) — l'envoi des codes peut échouer, réessayer demain`, R.WARN);
+      } catch (e) { info('Quota email non consultable : ' + e.message); }
+      try {
+        const lk = LockService.getScriptLock();
+        if (lk.tryLock(3000)) { lk.releaseLock(); check('Verrou de script disponible (enregistrements protégés)', R.OK); }
+        else check('Verrou de script occupé — une exécution longue est en cours, relancer dans une minute', R.WARN);
+      } catch (e) { check('Verrou de script indisponible : ' + e.message, R.WARN); }
+      try {
+        const trigs = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
+        info(`Déclencheur(s) installé(s) : ${trigs.length ? trigs.join(', ') : 'aucun'}`);
+      } catch (e) {}
 
       // ── 1. Onglets de base (toujours requis) ──
       hdr('Onglets de base');
@@ -1559,14 +1582,21 @@ if (!affSheet) {
       // ── 4. Équipe (MEDECINS) ──
       hdr('Équipe');
       let actifs = [];
+      const tousIds = new Set();
       const medSheet = ss.getSheetByName('MEDECINS');
       if (medSheet) {
         const md = medSheet.getDataRange().getValues();
         const sansEmail = [], sansCode = [], quotiteKO = [], datesKO = [];
+        const idDup = [], codeMap = {}, emailKO = [];
         for (let r = 1; r < md.length; r++) {
           const id = String(md[r][0]).trim(); if (!id) continue;
+          if (tousIds.has(id)) idDup.push(id); else tousIds.add(id);
           if (String(md[r][3]).trim().toUpperCase() !== 'O') continue; // ACTIF = O
           actifs.push(id);
+          const cAcc = String(md[r][6]).trim();
+          if (cAcc) (codeMap[cAcc] = codeMap[cAcc] || []).push(id);
+          const em = String(md[r][7]).trim();
+          if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) emailKO.push(id);
           if (!String(md[r][7]).trim()) sansEmail.push(id);            // email col 7
           if (!String(md[r][6]).trim()) sansCode.push(id);             // code col 6
           const q = Number(md[r][2]);                                  // quotité col 2
@@ -1583,6 +1613,10 @@ if (!affSheet) {
         check(`MARs actifs sans code d'accès : ${sansCode.length || 'aucun'}${sansCode.length ? ' (' + sansCode.join(', ') + ')' : ''}`, sansCode.length ? R.WARN : R.OK);
         check(`Quotité manquante ou hors bornes : ${quotiteKO.length || 'aucun'}${quotiteKO.length ? ' (' + quotiteKO.join(', ') + ')' : ''}`, quotiteKO.length ? R.WARN : R.OK);
         check(`Dates arrivée/départ incohérentes : ${datesKO.length || 'aucun'}${datesKO.length ? ' (' + datesKO.join(', ') + ')' : ''}`, datesKO.length ? R.WARN : R.OK);
+        check(`Identifiants en double dans MEDECINS : ${idDup.length || 'aucun'}${idDup.length ? ' (' + idDup.join(', ') + ') — CORROMPT tout le système' : ''}`, idDup.length ? R.ERR : R.OK);
+        const codeDup = Object.keys(codeMap).filter(c => codeMap[c].length > 1).map(c => codeMap[c].join('+'));
+        check(`Codes d'accès partagés par plusieurs MARs actifs : ${codeDup.length || 'aucun'}${codeDup.length ? ' (' + codeDup.join(', ') + ') — connexions ambiguës' : ''}`, codeDup.length ? R.ERR : R.OK);
+        check(`Emails au format douteux : ${emailKO.length || 'aucun'}${emailKO.length ? ' (' + emailKO.join(', ') + ')' : ''}`, emailKO.length ? R.WARN : R.OK);
       } else {
         check('Onglet MEDECINS', R.ERR);
       }
@@ -1602,6 +1636,56 @@ if (!affSheet) {
       } else {
         check(`AFFECTATIONS_${Y} présent`, affSheet ? R.OK : R.WARN);
       }
+
+      // ── 5bis. Intégrité GARDES (couverture 1 G + 1 G2 par jour, IDs orphelins) ──
+      const auditGardesIntegrite = y => {
+        hdr(`Intégrité GARDES_${y}`);
+        try {
+          const gSheet = ss.getSheetByName(`GARDES_${y}`);
+          if (!gSheet || gSheet.getLastRow() <= 3) { info('Onglet absent ou vide — contrôle sans objet'); return; }
+          const gd = gSheet.getDataRange().getValues();
+          const orphelins = new Set();
+          for (let r = 3; r < gd.length; r++) {
+            const id = String(gd[r][0]).trim();
+            if (id && tousIds.size && !tousIds.has(id)) orphelins.add(id);
+          }
+          check(`Lignes avec identifiant inconnu de MEDECINS : ${orphelins.size || 'aucune'}${orphelins.size ? ' (' + [...orphelins].join(', ') + ') — leurs gardes sont IGNORÉES à la publication' : ''}`, orphelins.size ? R.WARN : R.OK);
+          const d2c = buildDateToCol(gd, y);
+          const sansG = [], multiG = [], g2KO = [];
+          Object.keys(d2c).sort().forEach(ds => {
+            const c = d2c[ds];
+            let nG = 0, nG2 = 0;
+            for (let r = 3; r < gd.length; r++) {
+              const v = String(gd[r][c] || '').trim().toUpperCase();
+              if (v === 'G') nG++; else if (v === 'G2') nG2++;
+            }
+            if (nG === 0) sansG.push(ds); else if (nG > 1) multiG.push(`${ds} (×${nG})`);
+            if (nG2 === 0) g2KO.push(ds); else if (nG2 > 1) g2KO.push(`${ds} (×${nG2})`);
+          });
+          const liste = arr => arr.slice(0, 10).join(', ') + (arr.length > 10 ? ` … et ${arr.length - 10} autre(s)` : '');
+          check(`Jours SANS garde G : ${sansG.length || 'aucun'}${sansG.length ? ' → ' + liste(sansG) : ''}`, sansG.length ? R.ERR : R.OK);
+          check(`Jours avec PLUSIEURS gardes G : ${multiG.length || 'aucun'}${multiG.length ? ' → ' + liste(multiG) : ''}`, multiG.length ? R.WARN : R.OK);
+          check(`Jours sans exactement une G2 : ${g2KO.length || 'aucun'}${g2KO.length ? ' → ' + liste(g2KO) : ''}`, g2KO.length ? R.WARN : R.OK);
+        } catch (e) { check(`Contrôle GARDES_${y} impossible : ` + e.message, R.WARN); }
+      };
+      auditGardesIntegrite(Y);
+      if (rows(`GARDES_${N1}`) > 3) auditGardesIntegrite(N1);
+
+      // ── 5ter. Indisponibilités : lignes orphelines ──
+      hdr(`Indisponibilités ${Y}`);
+      try {
+        const indS = ss.getSheetByName(`INDISPOS_${Y}`);
+        if (!indS || indS.getLastRow() <= 3) info('Onglet absent ou vide — contrôle sans objet');
+        else {
+          const idd = indS.getDataRange().getValues();
+          const inc = new Set();
+          for (let r = 3; r < idd.length; r++) {
+            const id = String(idd[r][0]).trim();
+            if (id && tousIds.size && !tousIds.has(id)) inc.add(id);
+          }
+          check(`Lignes avec identifiant inconnu de MEDECINS : ${inc.size || 'aucune'}${inc.size ? ' (' + [...inc].join(', ') + ') — leurs indispos sont IGNORÉES' : ''}`, inc.size ? R.WARN : R.OK);
+        }
+      } catch (e) { check('Contrôle INDISPOS impossible : ' + e.message, R.WARN); }
 
       // ── 6. Année en préparation {N+1} (état du cycle) ──
       hdr('Préparation ' + N1);
@@ -1630,12 +1714,24 @@ if (!affSheet) {
       if (ov && ov.getLastRow() > 1) {
         const od = ov.getDataRange().getValues();
         const seen = new Set(), dup = [];
+        const ovIdKO = new Set(); let ovHorsAnnee = 0, ovDateKO = 0;
+        const fmtOv = v => {
+          if (v instanceof Date) return `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`;
+          return String(v || '').trim();
+        };
         for (let r = 1; r < od.length; r++) {
-          const key = `${od[r][0]}_${od[r][1]}`;
+          const ds = fmtOv(od[r][0]), id = String(od[r][1] || '').trim();
+          const key = `${ds}_${id}`;
           if (seen.has(key)) dup.push(key); else seen.add(key);
+          if (id && tousIds.size && !tousIds.has(id)) ovIdKO.add(id);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(ds)) ovDateKO++;
+          else if (!ds.startsWith(String(Y) + '-')) ovHorsAnnee++;
         }
         info(`${od.length - 1} placement(s) manuel(s) enregistré(s)`);
         check(`Doublons (même date + MAR) : ${dup.length || 'aucun'}`, dup.length ? R.WARN : R.OK);
+        check(`Placements sur MAR inconnu de MEDECINS : ${ovIdKO.size || 'aucun'}${ovIdKO.size ? ' (' + [...ovIdKO].join(', ') + ')' : ''}`, ovIdKO.size ? R.WARN : R.OK);
+        check(`Placements avec date illisible : ${ovDateKO || 'aucun'}`, ovDateKO ? R.WARN : R.OK);
+        check(`Placements hors année active ${Y} : ${ovHorsAnnee || 'aucun'}${ovHorsAnnee ? ' — reliquat à purger (clôture W3)' : ''}`, ovHorsAnnee ? R.WARN : R.OK);
       } else {
         info('Aucun placement manuel enregistré');
       }
@@ -1714,10 +1810,24 @@ if (!affSheet) {
         check('Audit Drive impossible : ' + e.message, R.WARN);
       }
 
+      // ── 10. Santé du classeur ──
+      hdr('Santé du classeur');
+      try {
+        const shts = ss.getSheets();
+        let cells = 0; shts.forEach(sh => cells += sh.getMaxRows() * sh.getMaxColumns());
+        check(`${shts.length} onglets, ~${Math.round(cells / 1000)} k cellules (limite Google : 10 000 k)`, cells > 8000000 ? R.WARN : R.OK);
+        ['LOGS', 'CONNEXIONS'].forEach(n => {
+          const nr = rows(n);
+          if (nr > 20000) check(`Onglet ${n} volumineux (${nr} lignes) — purge des anciennes lignes conseillée`, R.WARN);
+          else if (nr > 1) info(`Onglet ${n} : ${nr - 1} ligne(s)`);
+        });
+      } catch (e) { check('Contrôle du classeur impossible : ' + e.message, R.WARN); }
+
       results.push('────────────────────────────────────');
       const nbErr = results.filter(l => l.startsWith('❌')).length;
       const nbWarn = results.filter(l => l.startsWith('⚠️')).length;
       results.push(ok ? `✅ Tout est en ordre${nbWarn ? ` (${nbWarn} point(s) de vigilance)` : ''}` : `❌ ${nbErr} problème(s) à corriger${nbWarn ? `, ${nbWarn} avertissement(s)` : ''}`);
+      results.push(`ℹ️ Diagnostic exécuté en ${((Date.now() - t0) / 1000).toFixed(1)} s — ${Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'dd/MM/yyyy HH:mm')} (v${GAS_VERSION_INDISPOS})`);
       logAction(`diagComplet — ${ok ? 'OK' : 'ERREURS'} (${nbErr} err, ${nbWarn} warn)`);
       return ContentService.createTextOutput(JSON.stringify({ success:true, ok, results }))
         .setMimeType(ContentService.MimeType.JSON);
