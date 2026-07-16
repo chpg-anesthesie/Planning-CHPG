@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-07-15.1';
+const GAS_VERSION_CODE = '2026-07-16.1';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 function buildStats2026() {
@@ -330,6 +330,76 @@ function getJoursFeries(year) {
     addDays(paques,1), addDays(paques,39), addDays(paques,50),
     feteDieu,
   ]);
+}
+
+// ── EN-TÊTES DE MOIS « ANTI-SCROLL » (GARDES / INDISPOS) ─────────────────
+// Problème : un mois fusionné en un seul bloc n'affiche son libellé qu'à sa
+// première colonne → dès qu'on scrolle horizontalement, l'en-tête paraît vide.
+// Solution : fusion par TRANCHES hebdomadaires (coupure à chaque lundi et à
+// chaque changement de mois) ; chaque tranche répète le NOM COMPLET du mois.
+// ⚠️ Nom complet OBLIGATOIRE : reconstruireDatesHeaders() parse la ligne 1
+// par inclusion du nom de mois — une abréviation casserait la lecture des dates.
+// Deux teintes alternées par mois pour matérialiser les frontières au scroll.
+// `jours` = [{month:1-12, dow:0-6}, …] dans l'ordre des colonnes (col 2 = jours[0]).
+function ecrireEntetesMois(sheet, jours) {
+  const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  const T1 = '#C0392B', T2 = '#922B21';
+  const chunks = [];
+  let cs = 0;
+  for (let i = 1; i <= jours.length; i++) {
+    if (i === jours.length || jours[i].month !== jours[cs].month || jours[i].dow === 1) {
+      chunks.push({ from: cs, to: i - 1, month: jours[cs].month });
+      cs = i;
+    }
+  }
+  // Libellés écrits en UN appel (le libellé au début de chaque tranche), puis fusions.
+  const row1vals = new Array(jours.length).fill('');
+  chunks.forEach(ch => { row1vals[ch.from] = MOIS_FR[ch.month - 1]; });
+  sheet.getRange(1, 2, 1, jours.length).setValues([row1vals]);
+  sheet.getRange(1, 2, 1, jours.length).setBackgrounds([jours.map(j => (j.month % 2 ? T1 : T2))]);
+  chunks.forEach(ch => {
+    const n = ch.to - ch.from + 1;
+    if (n > 1) sheet.getRange(1, ch.from + 2, 1, n).merge();
+  });
+  sheet.getRange(1, 2, 1, jours.length)
+    .setFontColor('#FFFFFF').setFontWeight('bold').setFontSize(9)
+    .setHorizontalAlignment('center').setVerticalAlignment('middle');
+}
+
+// Reformate les en-têtes de mois d'un onglet EXISTANT (GARDES_{Y} / INDISPOS_{Y})
+// sans toucher aux données. Garde-fou : le nombre de colonnes de jours doit
+// correspondre exactement au calendrier de l'année, sinon reformatage annulé.
+function reformatEntetesMois_(sheetName, year, labelA1) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(sheetName);
+  if (!sh) { Logger.log('⏭️ ' + sheetName + ' absent'); return '⏭️ ' + sheetName + ' absent'; }
+  const start = getPremierJourPlanning(year);
+  const end = new Date(getPremierJourPlanning(year + 1).getTime() - 86400000);
+  const jours = [];
+  for (const dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1))
+    jours.push({ month: dt.getMonth() + 1, dow: dt.getDay() });
+  if (sh.getLastColumn() - 1 !== jours.length) {
+    const msg = '⚠️ ' + sheetName + ' : ' + (sh.getLastColumn() - 1) + ' colonnes de jours ≠ ' + jours.length + ' attendues — reformatage ANNULÉ';
+    Logger.log(msg); return msg;
+  }
+  sh.getRange(1, 1, 1, sh.getLastColumn()).breakApart();
+  sh.getRange(1, 1).setValue(labelA1).setFontWeight('bold').setBackground('#C0392B').setFontColor('#FFFFFF');
+  ecrireEntetesMois(sh, jours);
+  const msg = '✅ ' + sheetName + ' : en-têtes de mois reformatés (' + jours.length + ' jours)';
+  Logger.log(msg); return msg;
+}
+
+// Lanceur manuel (éditeur Apps Script → Exécuter) : reformate l'année active
+// et, s'ils existent déjà, les onglets de l'année suivante.
+function reformatEntetesAnneeActive() {
+  const Y = getActiveYear();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const out = [];
+  out.push(reformatEntetesMois_('GARDES_' + Y, Y, 'MEDECIN'));
+  out.push(reformatEntetesMois_('INDISPOS_' + Y, Y, 'MÉDECIN'));
+  if (ss.getSheetByName('GARDES_' + (Y + 1)))   out.push(reformatEntetesMois_('GARDES_' + (Y + 1), Y + 1, 'MEDECIN'));
+  if (ss.getSheetByName('INDISPOS_' + (Y + 1))) out.push(reformatEntetesMois_('INDISPOS_' + (Y + 1), Y + 1, 'MÉDECIN'));
+  try { SpreadsheetApp.getUi().alert('Reformatage des en-têtes\n\n' + out.join('\n')); } catch (e) {}
 }
 
 // ── LIRE LES AFFECTATIONS SECTEUR ─────────────────────────────────────
