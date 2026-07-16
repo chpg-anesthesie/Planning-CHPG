@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-16.2';
+const GAS_VERSION_INDISPOS = '2026-07-16.3';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -975,8 +975,6 @@ try {
 
       const ROUGE = '#C0392B', GRIS_WE = '#CFD8DC', BLANC = '#FFFFFF';
       const JOURS_ABR = ['D','L','M','M','J','V','S'];
-      const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin',
-                       'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
       const nCols = days.length + 1;
       indSheet.setFrozenRows(3);
 
@@ -984,17 +982,9 @@ try {
       indSheet.getRange(1, 1, 1, nCols).setValues([row1]);
       indSheet.getRange(1, 1).setFontWeight('bold').setBackground(ROUGE).setFontColor(BLANC);
 
-      let mStart = 2, prevMonth = days[0].getMonth();
-      days.forEach((day, i) => {
-        const col = i + 2, isLast = i === days.length - 1;
-        if (day.getMonth() !== prevMonth || isLast) {
-          const mEnd = day.getMonth() !== prevMonth ? col - 1 : col;
-          if (mEnd > mStart) indSheet.getRange(1, mStart, 1, mEnd - mStart + 1).merge();
-          indSheet.getRange(1, mStart).setValue(MOIS_FR[prevMonth])
-            .setBackground(ROUGE).setFontColor(BLANC).setFontWeight('bold').setHorizontalAlignment('center');
-          mStart = col; prevMonth = day.getMonth();
-        }
-      });
+      // (UX) En-têtes de mois par tranches hebdomadaires : le mois reste visible
+      // à toute position de scroll (helper partagé ecrireEntetesMois, code.gs).
+      ecrireEntetesMois(indSheet, days.map(d => ({ month: d.getMonth() + 1, dow: d.getDay() })));
 
       const row2 = ['JOUR']; days.forEach(d => row2.push(JOURS_ABR[d.getDay()]));
       indSheet.getRange(2, 1, 1, nCols).setValues([row2]);
@@ -1031,7 +1021,7 @@ try {
         const col = i + 2, isWE = day.getDay() === 0 || day.getDay() === 6;
         const ds = `${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`;
         const isFerie = jfY.has(ds) || jfYn.has(ds);
-        if (isWE || isFerie) indSheet.getRange(1, col, 3 + medRows.length, 1).setBackground(GRIS_WE);
+        if (isWE || isFerie) indSheet.getRange(2, col, 2 + medRows.length, 1).setBackground(GRIS_WE); // ligne 1 = bandeau des mois, préservé
         const nextDay = days[i + 1];
         if (!nextDay || nextDay.getMonth() !== day.getMonth()) {
           indSheet.getRange(1, col, 3 + medRows.length, 1)
