@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guide du module libéral · Planning-CHPG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#CE1126; --red-soft:#FDECEF; --red-deep:#9E0C1D;
+    --blue:#1D6FB8; --blue-soft:#EAF3FB;
+    --amber:#B45309; --amber-soft:#FDF3E3;
+    --teal:#0F766E; --teal-soft:#E6F5F2;
+    --viol:#6D28D9; --viol-soft:#F5F3FF;
+    --green:#166534; --green-soft:#DCFCE7;
+    --ink:#0F172A; --ink-2:#475569; --ink-3:#7A8699;
+    --line:#E2E8F0; --bg:#F6F8FB; --white:#fff;
+    --mono:'DM Mono',ui-monospace,monospace;
+    /* accent du module libéral : violet */
+    --acc:var(--viol); --acc-soft:var(--viol-soft);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+    line-height:1.6; font-size:15px; padding:36px 20px 80px}
+  .wrap{max-width:860px; margin:0 auto}
+
+  .flag{display:inline-flex; border-radius:4px; overflow:hidden; vertical-align:middle; margin-right:10px; box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .flag i{display:block; width:15px; height:21px}
+  .flag .r{background:var(--red)} .flag .w{background:#fff}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--acc); font-weight:500}
+  h1{font-size:30px; font-weight:800; letter-spacing:-.02em; margin:8px 0 4px; line-height:1.2}
+  .subtitle{color:var(--ink-2); font-size:15px; margin:0 0 4px}
+  .maj{font-family:var(--mono); font-size:12px; color:var(--ink-3); margin-top:10px}
+
+  .proto{margin:22px 0 4px; border-radius:14px; border:1px solid #E9D5FF; background:linear-gradient(180deg,#FAF5FF,#F5F3FF); padding:16px 20px}
+  .proto .pt{font-family:var(--mono); font-size:11.5px; font-weight:500; text-transform:uppercase; letter-spacing:.08em; color:var(--acc); margin-bottom:5px}
+  .proto p{margin:0; color:#4C1D95}
+  .proto strong{color:#3B0764}
+
+  .toc{background:var(--white); border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin:26px 0 34px}
+  .toc h2{margin:0 0 10px; font-size:13px; font-family:var(--mono); font-weight:500; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); border:none; padding:0}
+  .toc ol{margin:0; padding-left:0; list-style:none; columns:2; column-gap:32px}
+  .toc li{margin:4px 0; break-inside:avoid}
+  .toc a{color:var(--ink); text-decoration:none; font-weight:500; font-size:14px}
+  .toc a:hover{color:var(--acc)}
+  .toc .n{font-family:var(--mono); font-size:12px; color:var(--acc); margin-right:7px}
+  @media (max-width:600px){ .toc ol{columns:1} }
+
+  section{margin-top:44px}
+  h2{font-size:21px; font-weight:800; letter-spacing:-.015em; margin:0 0 14px; padding-top:8px; display:flex; align-items:baseline; gap:12px}
+  h2 .n{font-family:var(--mono); font-size:14px; font-weight:500; color:#fff; background:var(--acc); border-radius:8px; padding:3px 9px; flex-shrink:0}
+  h3{font-size:15.5px; font-weight:700; margin:22px 0 8px; color:var(--ink)}
+  p{margin:0 0 12px; color:var(--ink-2)}
+  strong{color:var(--ink)}
+  ul{margin:0 0 14px; padding-left:22px; color:var(--ink-2)}
+  li{margin:5px 0}
+  code,.kbd{font-family:var(--mono); font-size:12.5px; background:var(--white); border:1px solid var(--line); border-radius:6px; padding:1px 7px; color:var(--ink); white-space:nowrap}
+  .tag{font-family:var(--mono); font-size:12.5px; background:#EEF1F5; border-radius:5px; padding:1px 6px; color:var(--ink)}
+
+  .callout{border-radius:12px; padding:14px 18px; margin:16px 0; border:1px solid var(--line); border-left-width:4px; background:var(--white)}
+  .callout p:last-child{margin-bottom:0}
+  .callout .ct{font-family:var(--mono); font-size:11.5px; font-weight:500; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px}
+  .callout.rule{border-left-color:var(--acc); background:var(--acc-soft)}
+  .callout.rule .ct{color:var(--acc)}
+  .callout.tip{border-left-color:var(--blue); background:var(--blue-soft)}
+  .callout.tip .ct{color:var(--blue)}
+  .callout.warn{border-left-color:var(--amber); background:var(--amber-soft)}
+  .callout.warn .ct{color:var(--amber)}
+  .callout.safe{border-left-color:var(--green); background:var(--green-soft)}
+  .callout.safe .ct{color:var(--green)}
+
+  table{width:100%; border-collapse:collapse; margin:14px 0 18px; background:var(--white); border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:14px}
+  th{background:#F1F4F8; text-align:left; font-size:12px; font-family:var(--mono); font-weight:500; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-2); padding:9px 14px; border-bottom:1px solid var(--line)}
+  td{padding:9px 14px; border-bottom:1px solid #F1F5F9; color:var(--ink-2); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td:first-child{font-weight:600; color:var(--ink); white-space:nowrap}
+
+  .steps{counter-reset:step; margin:12px 0 16px; padding:0; list-style:none}
+  .steps li{counter-increment:step; position:relative; padding:8px 0 8px 40px; margin:0; color:var(--ink-2)}
+  .steps li::before{content:counter(step); position:absolute; left:0; top:7px; width:26px; height:26px; border-radius:8px; background:var(--white); border:1.5px solid var(--acc); color:var(--acc); font-family:var(--mono); font-size:13px; display:flex; align-items:center; justify-content:center}
+  .steps li + li{border-top:1px dashed var(--line)}
+
+  .faq{background:var(--white); border:1px solid var(--line); border-radius:12px; margin:12px 0; overflow:hidden}
+  .faq .q{padding:12px 18px; font-weight:700; color:var(--ink); background:#FBFCFE; border-bottom:1px solid var(--line); font-size:14.5px}
+  .faq .a{padding:12px 18px; color:var(--ink-2); font-size:14.5px}
+  .faq .a::before{content:"➡ "; color:var(--acc); font-weight:700}
+
+  .backtop{display:inline-block; margin-top:14px; font-size:12.5px; font-family:var(--mono); color:var(--ink-3); text-decoration:none}
+  .backtop:hover{color:var(--acc)}
+  .foot{margin-top:56px; padding-top:18px; border-top:1px solid var(--line); font-size:12px; color:var(--ink-3); font-family:var(--mono); text-align:center}
+
+  @media print{
+    body{background:#fff; padding:0; font-size:12.5px}
+    .toc ol{columns:2}
+    .backtop{display:none}
+    section{break-inside:avoid-page; margin-top:28px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header id="top">
+  <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — module libéral</div>
+  <h1>Module libéral<br>Guide d'utilisation</h1>
+  <p class="subtitle">Estimer le libéral, calibrer le dépassement sur la mutuelle du patient, générer le devis — et piloter la charge libéral / public.</p>
+  <div class="maj">Dernière mise à jour : 16 juillet 2026</div>
+</header>
+
+<div class="proto">
+  <div class="pt">⚗ Prototype — en cours d'élaboration</div>
+  <p><strong>Ce module et ce guide sont un prototype.</strong> Rien n'est en production : le module libéral se construit progressivement, et ce guide évolue avec lui. Les écrans, chiffres et règles décrits ici peuvent changer. À relire à chaque étape.</p>
+</div>
+
+<nav class="toc">
+  <h2>Sommaire</h2>
+  <ol>
+    <li><a href="#c1"><span class="n">01</span>À quoi sert le module</a></li>
+    <li><a href="#c2"><span class="n">02</span>L'estimateur, pas à pas</a></li>
+    <li><a href="#c3"><span class="n">03</span>Statut du patient &amp; dépassement</a></li>
+    <li><a href="#c4"><span class="n">04</span>Le calibrage mutuelle → reste à charge</a></li>
+    <li><a href="#c5"><span class="n">05</span>Générer le devis</a></li>
+    <li><a href="#c6"><span class="n">06</span>Le pilotage libéral / public (30 %)</a></li>
+    <li><a href="#c7"><span class="n">07</span>Sécurité des données</a></li>
+    <li><a href="#c8"><span class="n">08</span>Ce qui reste à construire</a></li>
+  </ol>
+</nav>
+
+<section id="c1">
+  <h2><span class="n">01</span>À quoi sert le module</h2>
+  <p>Le module libéral aide le groupement à exercer son activité libérale intra-hospitalière <strong>dans les règles et sans perte</strong>. Il tient sur trois briques, qui partagent le codage des actes mais répondent à trois questions différentes.</p>
+  <table>
+    <tr><th>Brique</th><th>Question</th><th>État</th></tr>
+    <tr><td>Calibrage du dépassement</td><td>Combien facturer pour que le reste à charge du patient soit minimal&nbsp;?</td><td>Maquette en ligne</td></tr>
+    <tr><td>Placement bloc</td><td>Qui doit être présent, dans quel secteur, le jour de l'intervention&nbsp;?</td><td>À construire</td></tr>
+    <tr><td>Pilotage 30 %</td><td>Chacun est-il sous 30 % de libéral, par axe&nbsp;? Le groupe perd-il de l'argent&nbsp;?</td><td>À construire</td></tr>
+  </table>
+  <div class="callout rule">
+    <div class="ct">Principe directeur</div>
+    <p>Le module <strong>éclaire, le comité décide</strong>. Aucune affectation automatique, aucun engagement à la place de l'administration. Et pour le patient : on cherche à <strong>minimiser son reste à charge</strong>, pas à maximiser l'honoraire.</p>
+  </div>
+</section>
+
+<section id="c2">
+  <h2><span class="n">02</span>L'estimateur, pas à pas</h2>
+  <p>L'estimateur est la brique déjà utilisable. Il enchaîne, pour un parcours, de l'acte au devis.</p>
+  <ol class="steps">
+    <li><strong>Chercher l'acte.</strong> Dans le bloc CCAM, tape un <strong>code</strong> (<code>NEKA014</code>), un <strong>mot</strong> (<code>hernie</code>, <code>échoguidage</code>) ou une <strong>abréviation</strong> (<code>PTH</code>, <code>TAP</code>, <code>cœlio</code>). La liste sort dans les deux sens ; un clic remplit la ligne.</li>
+    <li><strong>Le tarif se pré-remplit.</strong> Le tarif d'anesthésie (activité 4) est repris automatiquement du référentiel officiel. Tu n'as qu'à cocher les modificateurs (7, A) et choisir le rôle (principal / associé / complément).</li>
+    <li><strong>La BR se calcule.</strong> ×1,95 monégasque, modificateurs, décote d'association — tout est appliqué derrière. L'axe NGAP (consultations) se saisit séparément.</li>
+    <li><strong>Renseigner la mutuelle.</strong> On sélectionne la formule du patient (sa ligne « honoraires » en % BR). L'outil affiche le dépassement optimal et le reste à charge.</li>
+    <li><strong>Générer le devis.</strong> Bouton <span class="tag">📄 Devis</span> sur le parcours : tout est pré-rempli, il ne reste que le nom du patient à taper.</li>
+  </ol>
+  <div class="callout tip">
+    <div class="ct">Bon à savoir</div>
+    <p>Le référentiel CCAM (8 257 actes, libellés officiels) et les tarifs d'anesthésie (4 356 actes) sont chargés depuis un fichier tenu à jour&nbsp;: pas de saisie de tarifs à la main. Les abréviations maison (PTH, PTG, TAP…) s'ajoutent au fil de l'eau.</p>
+  </div>
+</section>
+
+<section id="c3">
+  <h2><span class="n">03</span>Statut du patient &amp; dépassement</h2>
+  <p>C'est le <strong>statut du patient</strong> qui ouvre le droit de facturer un dépassement&nbsp;; la mutuelle ne fait ensuite que déterminer le remboursement. L'outil applique cette règle dans cet ordre.</p>
+  <table>
+    <tr><th>Statut</th><th>Plafond du dépassement</th><th>Calage mutuelle</th></tr>
+    <tr><td>Carte verte (monég.)</td><td>0 — tarif conventionnel strict</td><td>non</td></tr>
+    <tr><td>SPME (monég.)</td><td>0</td><td>non</td></tr>
+    <tr><td>Carte rose (monég.)</td><td>+20 % de la BR</td><td>oui, plafonné à +20 %</td></tr>
+    <tr><td>Carte bulle (monég.)</td><td>libre — entente préalable</td><td>oui</td></tr>
+    <tr><td>Assuré français</td><td>libre (secteur 2 non-OPTAM)</td><td>oui, plafond non-OPTAM</td></tr>
+    <tr><td>NAS</td><td>libre</td><td>oui</td></tr>
+    <tr><td>AME</td><td>0 — pas de dépassement</td><td>non</td></tr>
+  </table>
+  <div class="callout warn">
+    <div class="ct">AME — Aide Médicale de l'État (monégasque)</div>
+    <p>À ne pas confondre avec l'AME française. Dispositif propre à Monaco (Ordonnance souveraine 5.743 du 03/03/2016) pour les résidents <strong>sans autre couverture maladie</strong> et <strong>sous condition de ressources</strong>. Le remboursement se fait sur le <strong>tarif de responsabilité monégasque</strong> (coefficient ×1,95, comme les autres régimes), et le bénéficiaire étant indigent, <strong>aucun dépassement</strong> n'est facturé — logique « carte verte ». En pratique, un patient AME relève du secteur public&nbsp;: cas-limite dans l'estimateur, où <span class="tag">DH 0</span> est la bonne garde.</p>
+  </div>
+</section>
+
+<section id="c4">
+  <h2><span class="n">04</span>Le calibrage mutuelle → reste à charge</h2>
+  <p>Là où le dépassement est libre, l'outil le règle sur la mutuelle du patient. Une seule valeur compte&nbsp;: la ligne <strong>« honoraires » en % de la BR</strong> du tableau de garanties.</p>
+  <ul>
+    <li><strong>Absorbé par la mutuelle</strong> = (% BR affiché − 100) × BR. Une formule « 200 % BR » absorbe jusqu'à 100 % de BR de dépassement&nbsp;; « 300 % BR » jusqu'à 200 %&nbsp;; « 100 % BR » n'absorbe <strong>rien</strong>.</li>
+    <li><strong>Dépassement optimal</strong> = le plus petit des deux&nbsp;: ce que la carte autorise, et ce que la mutuelle absorbe. À ce montant, le reste à charge est <strong>nul</strong>.</li>
+    <li>Patient mal couvert (formule 100 % BR)&nbsp;? L'optimal tombe à zéro&nbsp;: l'outil recommande alors de <strong>facturer moins, voire rien</strong>.</li>
+  </ul>
+  <div class="callout warn">
+    <div class="ct">Piège — colonne OPTAM vs non-OPTAM (patients français)</div>
+    <p>Pour un assuré français avec contrat responsable, vu par un praticien <strong>secteur 2 non-OPTAM</strong>, la mutuelle n'absorbe au maximum que <strong>100 % BR de dépassement</strong> (200 % BR au total), quel que soit le pourcentage affiché. Lis bien la <strong>colonne non-OPTAM</strong> du tableau&nbsp;: l'outil plafonne et t'alerte si le % saisi trahit une lecture de la colonne OPTAM.</p>
+  </div>
+</section>
+
+<section id="c5">
+  <h2><span class="n">05</span>Générer le devis</h2>
+  <p>Le devis est une <strong>information écrite préalable</strong> conforme, pré-remplie depuis le calcul. Un clic sur <span class="tag">📄 Devis</span> ouvre un document prêt à imprimer.</p>
+  <div class="callout safe">
+    <div class="ct">Un seul champ à taper</div>
+    <p>Praticien, n° de devis, dates, tarifs, remboursement, reste à charge&nbsp;: tout est pré-rempli. Il ne reste que le <strong>nom du patient</strong>. Le curseur y est déjà placé.</p>
+  </div>
+  <p>Le devis rappelle les mentions obligatoires&nbsp;: statut secteur 2 honoraires libres (tact et mesure), information préalable dès 70 € de dépassement, paiement après l'acte, remboursement mutuelle dépendant du contrat, et l'exclusion de tout dépassement pour les bénéficiaires protégés (verte, SPME, AME, C2S).</p>
+  <div class="callout tip">
+    <div class="ct">Champs saisis à l'écran, jamais enregistrés</div>
+    <p>Le nom du patient et les quelques champs éditables vivent dans la page le temps de l'impression&nbsp;: ils sont <strong>effacés à la fermeture</strong>, rien n'est stocké. À défaut, on peut laisser vide et compléter à la main après impression.</p>
+  </div>
+  <div class="callout warn">
+    <div class="ct">À valider avant tout usage réel</div>
+    <p>Le cadre du devis s'appuie aujourd'hui sur le droit français&nbsp;; pour un patient CCSS (carte bulle/rose), l'entente préalable et les mentions relèvent du droit monégasque. À faire valider par l'administration / la CSM avant emploi.</p>
+  </div>
+</section>
+
+<section id="c6">
+  <h2><span class="n">06</span>Le pilotage libéral / public (30 %)</h2>
+  <p>Le seuil de 30 % s'applique <strong>séparément sur deux axes</strong>&nbsp;: le CCAM (actes techniques au bloc) et le NGAP (consultations). Les deux plafonds sont indépendants&nbsp;: on peut être large sur un axe et en excédent sur l'autre.</p>
+  <p>Comme les revenus sont mutualisés et l'excédent reversé à l'hôpital au 31/12, le groupe perd de deux façons&nbsp;: un praticien <strong>au-dessus</strong> de 30 % (surplus reversé) ou <strong>sous-employé</strong> (marge non réalisée). Le module projette, par MAR et par axe, la marge à la cible et guide la réallocation des vacations.</p>
+  <div class="callout rule">
+    <div class="ct">À retenir</div>
+    <p>Le <strong>dépassement d'honoraires est hors quota 30 %</strong>. Le même acte se lit deux fois, indépendamment&nbsp;: le dépassement et le RAC pour le patient, la BR pour le ratio du groupe. Régler l'un ne touche pas l'autre.</p>
+  </div>
+</section>
+
+<section id="c7">
+  <h2><span class="n">07</span>Sécurité des données</h2>
+  <p>Le module approche du secret médical&nbsp;: sa sécurité repose sur une discipline, pas sur un cadenas.</p>
+  <ul>
+    <li><strong>Zéro donnée patient stockée.</strong> Le calibrage et le devis se font à l'écran, sans persistance — ni serveur (GitHub / Sheets / Drive), ni navigateur. Le nom du patient est effacé à la fermeture.</li>
+    <li><strong>Données praticien</strong> (nom, RPPS, ADELI) → profil MAR, jamais dans un fichier publié.</li>
+    <li><strong>Volet financier</strong> → cloisonné entre membres et non-membres du groupement, et <strong>agrégé</strong> (aucune donnée patient).</li>
+    <li><strong>Référentiels</strong> (CCAM, formules mutuelle) → publics, sourcés, sans lien à un patient.</li>
+  </ul>
+  <div class="callout warn">
+    <div class="ct">Vigilance permanente</div>
+    <p>Toute fonction « pratique » qui voudrait <strong>mémoriser</strong> un patient (historique, autosave) casserait ce principe&nbsp;: à refuser par défaut.</p>
+  </div>
+</section>
+
+<section id="c8">
+  <h2><span class="n">08</span>Ce qui reste à construire</h2>
+  <p>Le module est un prototype&nbsp;; ce guide grandira avec lui. Restent notamment&nbsp;:</p>
+  <ul>
+    <li>Devis <strong>monégasque</strong> validé (entente préalable CCSS, mentions CSM).</li>
+    <li>Enrichissement de la <strong>bibliothèque de formules mutuelle</strong> au fil de la collecte.</li>
+    <li>Brique <strong>placement bloc</strong> (parcours consult → bloc, badges de conflit).</li>
+    <li>Brique <strong>pilotage 30 %</strong> (relevés mensuels, projection par axe, réallocation).</li>
+    <li><strong>Intégration au portail</strong> avec l'identité du MAR connecté (pré-remplissage automatique du praticien).</li>
+  </ul>
+  <a class="backtop" href="#top">↑ Haut de page</a>
+</section>
+
+<div class="foot">Planning-CHPG · Monaco — Guide du module libéral (prototype) · évolue avec le module en cours d'élaboration</div>
+
+</div>
+</body>
+</html>
