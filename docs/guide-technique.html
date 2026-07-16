@@ -444,7 +444,8 @@
     <tr><td>⚠️ MARs actifs sans affectation</td><td>Compléter AFFECTATIONS_{Y} (onglet Affectations d'admin). Normal pour une arrivée en cours d'année.</td></tr>
     <tr><th colspan="2">Intégrité GARDES_{Y}</th></tr>
     <tr><td>⚠️ Lignes avec identifiant inconnu de MEDECINS</td><td>Renommer la ligne avec l'ID exact ou la supprimer : ses gardes sont ignorées par <code>generatePlanningFromGardes</code>.</td></tr>
-    <tr><td>❌ Jours SANS garde G</td><td>Échange incomplet le plus souvent : réattribuer un G à ces dates dans l'onglet, puis republier. Priorité absolue aux dates futures.</td></tr>
+    <tr><td>❌ Jours FUTURS sans garde G</td><td>Jour à venir sans médecin de garde : réattribuer un G à ces dates dans l'onglet, puis republier. À traiter immédiatement.</td></tr>
+    <tr><td>⚠️ Jours passés sans garde G (historique)</td><td>Tableau non tenu à jour à l'époque (redistribution manuelle, départ d'un MAR). Sans impact : compléter l'historique si connu, sinon laisser.</td></tr>
     <tr><td>⚠️ Plusieurs G · G2 ≠ 1 par jour</td><td>Effacer la cellule excédentaire (invariant : 1 G + 1 G2 par jour), republier.</td></tr>
     <tr><th colspan="2">Overrides &amp; indispos</th></tr>
     <tr><td>⚠️ Doublons · MAR inconnu · date illisible (PLANNING_OVERRIDES)</td><td>Supprimer les lignes fautives dans l'onglet — souvent une ligne d'en-tête égarée dans les données (règle les 3 alertes d'un coup).</td></tr>
