@@ -103,7 +103,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
   <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
   <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.0</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.0 -->
+  <div class="maj">Version <strong>v1.0</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.1 -->
 </header>
 
 <nav class="toc">
@@ -452,14 +452,21 @@
   <p>Deux outils d'entretien, à utiliser sans crainte : ils ne modifient pas le planning.</p>
 
   <h3>13.1 · 🔍 Diagnostic système</h3>
-  <p>Le bouton <strong>« Lancer le diagnostic »</strong> vérifie que tout est en ordre pour le quotidien et les assistants :</p>
+  <p>Le bouton <strong>« Lancer le diagnostic »</strong> passe en revue <strong>toute la chaîne</strong>, de l'environnement technique jusqu'aux fichiers publiés :</p>
   <ul>
+    <li>l'<strong>environnement</strong> : fuseaux horaires (une divergence décale les dates), quota d'envoi d'emails du jour, verrou de protection des enregistrements ;</li>
     <li>les onglets du classeur et les réglages attendus ;</li>
-    <li>les MAR <strong>sans email</strong> ou <strong>sans code</strong> d'accès ;</li>
-    <li>les MAR actifs <strong>sans affectation</strong> ;</li>
-    <li>la clé de publication et les <strong>fichiers publiés</strong> (leur présence et leur cohérence avec le planning).</li>
+    <li>l'<strong>équipe</strong> : MAR sans email ou sans code, identifiants en double, codes d'accès partagés par erreur, emails mal formés, MAR actifs sans affectation ;</li>
+    <li>l'<strong>intégrité des gardes, jour par jour</strong> : chaque jour de l'année doit avoir exactement une garde G et une garde G2 — un trou ou un doublon (échange mal reporté, par exemple) est listé avec sa date ;</li>
+    <li>les <strong>lignes orphelines</strong> : gardes, indisponibilités ou placements manuels rattachés à un identifiant qui n'existe plus dans l'équipe (ces données seraient silencieusement ignorées) ;</li>
+    <li>la clé de publication, la <strong>synchronisation du code</strong> déployé avec le dépôt, les <strong>fichiers publiés</strong> (présence et cohérence avec le planning) ;</li>
+    <li>la <strong>santé du classeur</strong> : taille par rapport aux limites Google, onglets de journalisation qui enflent.</li>
   </ul>
-  <p>Le résultat s'affiche ligne par ligne : ce qui va bien, ce qui manque, ce qu'il faut corriger. <strong>Réflexe conseillé</strong> : le lancer avant chaque assistant annuel, et dès qu'un comportement semble anormal.</p>
+  <p>Le résultat s'ouvre par un <strong>résumé</strong> (nombre d'erreurs et d'avertissements), puis le détail ligne par ligne : ce qui va bien, ce qui manque, ce qu'il faut corriger. <strong>Réflexe conseillé</strong> : le lancer avant chaque assistant annuel, et dès qu'un comportement semble anormal.</p>
+  <div class="callout tip">
+    <div class="ct">Le bouton « 📋 Copier le rapport »</div>
+    <p>Après un diagnostic, ce bouton copie le rapport complet dans le presse-papiers. C'est la <strong>première chose à faire</strong> quand quelque chose ne va pas : collez le rapport tel quel dans une demande d'aide — il contient tout le contexte nécessaire pour localiser le problème sans allers-retours.</p>
+  </div>
   <div class="callout tip">
     <div class="ct">Si le diagnostic signale un planning « désynchronisé »</div>
     <p>Cela signifie que le planning <strong>mis en ligne</strong> pour l'équipe ne comporte pas exactement le même nombre de gardes que le tableau de travail. Le diagnostic <strong>liste alors les gardes concernées</strong> (qui, quel jour) et la raison — le plus souvent une garde qui tombe <strong>avant l'arrivée</strong> ou <strong>après le départ</strong> d'un MAR, ou un MAR qui n'est plus dans l'équipe active. Si ces gardes sont normales, il n'y a <strong>rien à faire</strong>, le planning publié est correct ; sinon, corrigez-les dans le tableau puis republiez.</p>
@@ -613,7 +620,7 @@
   <p>Quand l'assistant de novembre lance la génération, le moteur calcule l'année complète en une quinzaine de secondes, sous toutes les contraintes (cibles, indispos, protections, rotation de Noël). Le résultat est écrit dans le classeur <strong>et photographié</strong> : ce cliché des statistiques de génération est figé une fois pour toutes. C'est lui qui sert de référence d'équité (le certificat), et c'est sur lui — pas sur l'état au 31 décembre, échanges compris — que se calcule la dette de l'année suivante.</p>
 
   <h3>17.5 · Ce que vérifie le diagnostic</h3>
-  <p>Le diagnostic de l'onglet Maintenance relit toute la chaîne décrite ci-dessus : les onglets et réglages attendus dans le classeur, les MAR sans email ou sans code, la clé de publication, la présence des fichiers publiés et leur <strong>cohérence</strong> avec le tableau de travail (mêmes gardes des deux côtés). En un clic, il répond à la question « la cuisine et la salle racontent-elles la même histoire ? » — c'est pour cela qu'il est conseillé avant chaque assistant annuel.</p>
+  <p>Le diagnostic de l'onglet Maintenance relit toute la chaîne décrite ci-dessus : l'environnement technique (fuseaux horaires, quotas), les onglets et réglages attendus dans le classeur, l'équipe (doublons, codes, emails), l'<strong>intégrité du tableau de gardes jour par jour</strong> (une garde G et une G2 chaque jour, ni trou ni doublon), les lignes orphelines, la clé de publication, la synchronisation du code déployé avec le dépôt, la présence des fichiers publiés et leur <strong>cohérence</strong> avec le tableau de travail (mêmes gardes des deux côtés). En un clic, il répond à la question « la cuisine et la salle racontent-elles la même histoire ? » — c'est pour cela qu'il est conseillé avant chaque assistant annuel, et dès qu'un comportement semble anormal.</p>
 
   <div class="callout warn">
     <div class="ct">Ce que cette architecture implique</div>
