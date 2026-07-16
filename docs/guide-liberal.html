@@ -108,7 +108,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — module libéral</div>
   <h1>Module libéral<br>Guide d'utilisation</h1>
   <p class="subtitle">Estimer le libéral, calibrer le dépassement sur la mutuelle du patient, générer le devis — et piloter la charge libéral / public.</p>
-  <div class="maj">Dernière mise à jour : 16 juillet 2026</div>
+  <div class="maj">Dernière mise à jour : 16 juillet 2026 · rév. 2 (déclaration &amp; placement)</div>
 </header>
 
 <div class="proto">
@@ -124,9 +124,10 @@
     <li><a href="#c3"><span class="n">03</span>Statut du patient &amp; dépassement</a></li>
     <li><a href="#c4"><span class="n">04</span>Le calibrage mutuelle → reste à charge</a></li>
     <li><a href="#c5"><span class="n">05</span>Générer le devis</a></li>
-    <li><a href="#c6"><span class="n">06</span>Le pilotage libéral / public (30 %)</a></li>
-    <li><a href="#c7"><span class="n">07</span>Sécurité des données</a></li>
-    <li><a href="#c8"><span class="n">08</span>Ce qui reste à construire</a></li>
+    <li><a href="#c6"><span class="n">06</span>Le placement au bloc (comité)</a></li>
+    <li><a href="#c7"><span class="n">07</span>Le pilotage libéral / public (30 %)</a></li>
+    <li><a href="#c8"><span class="n">08</span>Sécurité des données</a></li>
+    <li><a href="#c9"><span class="n">09</span>Ce qui reste à construire</a></li>
   </ol>
 </nav>
 
@@ -136,7 +137,7 @@
   <table>
     <tr><th>Brique</th><th>Question</th><th>État</th></tr>
     <tr><td>Calibrage du dépassement</td><td>Combien facturer pour que le reste à charge du patient soit minimal&nbsp;?</td><td>Maquette en ligne</td></tr>
-    <tr><td>Placement bloc</td><td>Qui doit être présent, dans quel secteur, le jour de l'intervention&nbsp;?</td><td>À construire</td></tr>
+    <tr><td>Placement bloc</td><td>Qui doit être présent, dans quel secteur, le jour de l'intervention&nbsp;?</td><td>Ergonomie validée (maquette)</td></tr>
     <tr><td>Pilotage 30 %</td><td>Chacun est-il sous 30 % de libéral, par axe&nbsp;? Le groupe perd-il de l'argent&nbsp;?</td><td>À construire</td></tr>
   </table>
   <div class="callout rule">
@@ -154,7 +155,12 @@
     <li><strong>La BR se calcule.</strong> ×1,95 monégasque, modificateurs, décote d'association — tout est appliqué derrière. L'axe NGAP (consultations) se saisit séparément.</li>
     <li><strong>Renseigner la mutuelle.</strong> On sélectionne la formule du patient (sa ligne « honoraires » en % BR). L'outil affiche le dépassement optimal et le reste à charge.</li>
     <li><strong>Générer le devis.</strong> Bouton <span class="tag">📄 Devis</span> sur le parcours : tout est pré-rempli, il ne reste que le nom du patient à taper.</li>
+    <li><strong>Déclarer l'intervention</strong> <em>(à venir)</em>. Bouton <span class="tag">📅 Déclarer</span> sur le parcours : date de bloc + secteur + chirurgie en clair (« PTH », pré-remplie depuis le parcours, modifiable). C'est ce qui alimentera le volet ◆ Libéral du comité dans la vue admin — <strong>rien d'autre ne part</strong> : ni patient, ni code CCAM.</li>
   </ol>
+  <div class="callout rule">
+    <div class="ct">Point d'entrée unique</div>
+    <p>Tout se fait sur cette page&nbsp;: la cotation, le devis <em>et</em> la déclaration. Le devis reste une opération d'écran (rien n'est stocké)&nbsp;; seule la déclaration écrit — et son contenu est <strong>fermé</strong>&nbsp;: date de bloc · MAR · secteur · chirurgie en clair (optionnelle). Jamais de donnée patient, jamais de code d'acte.</p>
+  </div>
   <div class="callout tip">
     <div class="ct">Bon à savoir</div>
     <p>Le référentiel CCAM (8 257 actes, libellés officiels) et les tarifs d'anesthésie (4 356 actes) sont chargés depuis un fichier tenu à jour&nbsp;: pas de saisie de tarifs à la main. Les abréviations maison (PTH, PTG, TAP…) s'ajoutent au fil de l'eau.</p>
@@ -213,7 +219,21 @@
 </section>
 
 <section id="c6">
-  <h2><span class="n">06</span>Le pilotage libéral / public (30 %)</h2>
+  <h2><span class="n">06</span>Le placement au bloc (côté comité)</h2>
+  <p>Une intervention déclarée crée une <strong>contrainte de présence</strong>&nbsp;: le MAR doit être dans le bon secteur le jour du bloc. Le module la montre au comité <strong>au moment où il place</strong> — sans jamais rien placer lui-même, et <strong>sans toucher un pixel de la grille</strong>.</p>
+  <ul>
+    <li>Au clic sur une <strong>case flash</strong> (le « + » orange existant), le panneau d'affectation s'ouvre comme aujourd'hui <em>et</em>, s'il y a du libéral ce jour-là, un <strong>volet « ◆ Libéral » s'ouvre à gauche</strong>.</li>
+    <li>Le volet liste les interventions du jour <strong>par MAR</strong>, en check-list&nbsp;: <span style="color:var(--green);font-weight:700">✓ vert</span> si le MAR est déjà bien placé, <span style="color:var(--amber);font-weight:700">⚠ orange</span> « à replacer → ORT » ou « en garde — à arbitrer » sinon. La chirurgie en clair (« PTH ») donne l'idée de la durée du bloc.</li>
+    <li>S'il n'y a <strong>aucune</strong> intervention ce jour, le volet ne s'ouvre pas et un <strong>toast</strong> le confirme — pas de doute, pas de panneau vide.</li>
+  </ul>
+  <div class="callout rule">
+    <div class="ct">Le module éclaire, le comité décide</div>
+    <p>Aucun pré-placement automatique. L'ergonomie a été validée sur une maquette en conditions réelles (grille et panneau d'affectation identiques à l'admin)&nbsp;; la greffe finale sera chirurgicale, sans modifier le moteur du planning.</p>
+  </div>
+</section>
+
+<section id="c7">
+  <h2><span class="n">07</span>Le pilotage libéral / public (30 %)</h2>
   <p>Le seuil de 30 % s'applique <strong>séparément sur deux axes</strong>&nbsp;: le CCAM (actes techniques au bloc) et le NGAP (consultations). Les deux plafonds sont indépendants&nbsp;: on peut être large sur un axe et en excédent sur l'autre.</p>
   <p>Comme les revenus sont mutualisés et l'excédent reversé à l'hôpital au 31/12, le groupe perd de deux façons&nbsp;: un praticien <strong>au-dessus</strong> de 30 % (surplus reversé) ou <strong>sous-employé</strong> (marge non réalisée). Le module projette, par MAR et par axe, la marge à la cible et guide la réallocation des vacations.</p>
   <div class="callout rule">
@@ -222,8 +242,8 @@
   </div>
 </section>
 
-<section id="c7">
-  <h2><span class="n">07</span>Sécurité des données</h2>
+<section id="c8">
+  <h2><span class="n">08</span>Sécurité des données</h2>
   <p>Le module approche du secret médical&nbsp;: sa sécurité repose sur une discipline, pas sur un cadenas.</p>
   <ul>
     <li><strong>Zéro donnée patient stockée.</strong> Le calibrage et le devis se font à l'écran, sans persistance — ni serveur (GitHub / Sheets / Drive), ni navigateur. Le nom du patient est effacé à la fermeture.</li>
@@ -237,15 +257,15 @@
   </div>
 </section>
 
-<section id="c8">
-  <h2><span class="n">08</span>Ce qui reste à construire</h2>
+<section id="c9">
+  <h2><span class="n">09</span>Ce qui reste à construire</h2>
   <p>Le module est un prototype&nbsp;; ce guide grandira avec lui. Restent notamment&nbsp;:</p>
   <ul>
     <li>Devis <strong>monégasque</strong> validé (entente préalable CCSS, mentions CSM).</li>
     <li>Enrichissement de la <strong>bibliothèque de formules mutuelle</strong> au fil de la collecte.</li>
-    <li>Brique <strong>placement bloc</strong> (parcours consult → bloc, badges de conflit).</li>
+    <li><strong>Intégration au portail</strong>&nbsp;: tuile « Libéral » sur le Dashboard, <strong>visible uniquement pour les MARs membres du groupement</strong> (onglet MEDECINS)&nbsp;; MAR identifié à la connexion → praticien pré-rempli sur les devis, déclaration au bon nom.</li>
+    <li>Bouton <strong>📅 Déclarer</strong> dans la page (écriture de la déclaration) et <strong>volet ◆ Libéral</strong> côté admin — l'ergonomie est validée, le branchement se fera quand le module sera mûr, naturellement et sans toucher au moteur du planning.</li>
     <li>Brique <strong>pilotage 30 %</strong> (relevés mensuels, projection par axe, réallocation).</li>
-    <li><strong>Intégration au portail</strong> avec l'identité du MAR connecté (pré-remplissage automatique du praticien).</li>
   </ul>
   <a class="backtop" href="#top">↑ Haut de page</a>
 </section>
