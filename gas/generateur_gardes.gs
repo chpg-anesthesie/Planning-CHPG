@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-07-15.1';
+const GAS_VERSION_GENERATEUR = '2026-07-16.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -966,21 +966,14 @@ function generateGardes(year){
   gs=ss.insertSheet(`GARDES_${year}`);gs.setFrozenRows(3);
   const ROUGE='#C0392B',GRIS='#CFD8DC',BLANC='#FFFFFF';
   const JOURS=['D','L','M','M','J','V','S'];
-  const MOIS_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
   const nCols=allDays.length+1;
   const row1=['MEDECIN'];allDays.forEach(()=>row1.push(''));
   gs.getRange(1,1,1,nCols).setValues([row1]);
   gs.getRange(1,1).setFontWeight('bold').setBackground(ROUGE).setFontColor('#FFFFFF');
-  let mStart=1,prevMonth=allDays[0].month;
-  allDays.forEach((day,i)=>{
-    const col=i+2;
-    if(day.month!==prevMonth||i===allDays.length-1){
-      const mEnd=day.month!==prevMonth?col-1:col;
-      if(mEnd>mStart)gs.getRange(1,mStart,1,mEnd-mStart+1).merge();
-      gs.getRange(1,mStart).setValue(MOIS_FR[prevMonth-1]).setBackground(ROUGE).setFontColor('#FFFFFF').setFontWeight('bold').setHorizontalAlignment('center');
-      mStart=col;prevMonth=day.month;
-    }
-  });
+  // (UX) En-têtes de mois par tranches hebdomadaires : le mois reste visible à
+  // toute position de scroll (helper partagé ecrireEntetesMois, code.gs).
+  // Corrige aussi l'ancien bug mStart=1 : la fusion « Janvier » avalait A1 (MEDECIN).
+  ecrireEntetesMois(gs, allDays);
   const row2=['JOUR'];allDays.forEach(d=>row2.push(JOURS[d.dow]));
   gs.getRange(2,1,1,nCols).setValues([row2]);gs.getRange(2,1).setFontWeight('bold').setBackground(ROUGE).setFontColor('#FFFFFF');
   const row3=['N°'];allDays.forEach(d=>row3.push(d.date.slice(-2)));
@@ -1002,13 +995,15 @@ function generateGardes(year){
   gs.getRange(4,1,dRows.length,nCols).setValues(dRows);
   // OPTIM : construire la matrice de fonds et l'appliquer en UN appel (setBackgrounds)
   const nRows=3+dRows.length;
+  // Grisage WE/fériés : lignes 2..nRows uniquement — la ligne 1 (bandeau des mois)
+  // garde ses teintes alternées posées par ecrireEntetesMois.
   const bgMatrix=[];
-  for(let r=0;r<nRows;r++){
+  for(let r=1;r<nRows;r++){
     const rowBg=[];
     allDays.forEach(day=>{rowBg.push((day.dow===0||day.dow===6||day.isFerie)?GRIS:BLANC);});
     bgMatrix.push(rowBg);
   }
-  gs.getRange(1,2,nRows,allDays.length).setBackgrounds(bgMatrix);
+  gs.getRange(2,2,nRows-1,allDays.length).setBackgrounds(bgMatrix);
   // Bordures de fin de mois : un seul passage, regroupé
   allDays.forEach((day,i)=>{
     if(!allDays[i+1]||allDays[i+1].month!==day.month){
