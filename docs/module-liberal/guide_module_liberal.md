@@ -48,7 +48,15 @@ remboursement** :
 | Carte **bulle** (monégasque) | libre — **entente préalable obligatoire** | oui |
 | **Assuré français** (secteur 2 non-OPTAM) | libre | oui, **plafond non-OPTAM** (voir plus bas) |
 | **NAS** (non assuré social) | libre | oui |
-| **AME** | 0 — pas de dépassement | non |
+| **AME** — Aide Médicale de l'État (Ord. 5.743 du 03/03/2016) | 0 — pas de dépassement | non |
+
+> **AME monégasque** — à ne pas confondre avec l'AME française. Dispositif de Monaco (Ordonnance
+> souveraine 5.743) pour les résidents (Monégasques ou ≥ 5 ans de résidence) **sans autre couverture
+> maladie** et **sous condition de ressources**. Le remboursement se fait sur le **tarif de
+> responsabilité monégasque** (donc coefficient **×1,95** comme les autres régimes de Monaco), et le
+> bénéficiaire étant indigent, **aucun dépassement** n'est facturé — logique « carte verte ». En
+> pratique, un patient AME relève du secteur public, pas du libéral : c'est un cas-limite dans
+> l'estimateur, où `DH 0` est la bonne garde.
 
 Le calcul, identique partout où le dépassement est libre :
 
