@@ -73,9 +73,6 @@
   tr:last-child td{border-bottom:none}
   td:first-child{font-weight:600; color:var(--ink); white-space:nowrap}
   .sig td:first-child{font-family:var(--mono); font-weight:500}
-  .diagref{font-size:12.5px}
-  .diagref td:first-child{white-space:normal; font-family:var(--mono); font-size:11.5px; font-weight:500}
-  .diagref th[colspan]{background:#FBEAE8; color:var(--red); font-weight:600}
 
   .steps{counter-reset:step; margin:12px 0 16px; padding:0; list-style:none}
   .steps li{counter-increment:step; position:relative; padding:8px 0 8px 40px; margin:0; color:var(--ink-2)}
@@ -106,7 +103,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
   <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
   <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.0</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.2 -->
+  <div class="maj">Version <strong>v1.0</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.3 -->
 </header>
 
 <nav class="toc">
@@ -472,55 +469,13 @@
   </div>
   <div class="callout tip">
     <div class="ct">Si le diagnostic signale un planning « désynchronisé »</div>
-    <p>Cela signifie que le planning <strong>mis en ligne</strong> pour l'équipe ne comporte pas exactement le même nombre de gardes que le tableau de travail. Le diagnostic <strong>liste alors les gardes concernées</strong> (qui, quel jour) et la raison — le plus souvent une garde qui tombe <strong>avant l'arrivée</strong> ou <strong>après le départ</strong> d'un MAR, ou un MAR qui n'est plus dans l'équipe active. Si ces gardes sont normales, il n'y a <strong>rien à faire</strong>, le planning publié est correct ; sinon, corrigez-les dans le tableau puis republiez.</p>
+    <p>Cela signifie que le planning <strong>mis en ligne</strong> pour l'équipe ne comporte pas exactement le même nombre de gardes que le tableau de travail. Le diagnostic <strong>liste alors les gardes concernées</strong> (qui, quel jour) et la raison — le plus souvent une garde qui tombe <strong>avant l'arrivée</strong> ou <strong>après le départ</strong> d'un MAR, ou un MAR qui n'est plus dans l'équipe active. Si ces gardes sont normales, il n'y a <strong>rien à faire</strong>, le planning publié est correct ; sinon, copiez le rapport et transmettez-le au référent technique.</p>
   </div>
 
-  <h3>13.1 bis · Tous les messages ❌ / ⚠️ et leur remède</h3>
-  <p>Référence rapide : chaque message que le diagnostic peut afficher, et le geste qui le corrige. Les ✅ et ℹ️ ne demandent rien.</p>
-  <table class="diagref">
-    <tr><th style="width:46%">Message</th><th>Que faire</th></tr>
-    <tr><th colspan="2">Environnement</th></tr>
-    <tr><td>❌ Fuseaux DIFFÉRENTS script vs classeur</td><td>Dans le classeur : Fichier → Paramètres → Fuseau horaire « Paris » → Enregistrer.</td></tr>
-    <tr><td>⚠️ Quota email presque épuisé</td><td>Reporter l'envoi des codes au lendemain — le quota Google se recharge chaque jour.</td></tr>
-    <tr><td>⚠️ Verrou de script occupé</td><td>Une opération longue est en cours : relancer le diagnostic dans une minute.</td></tr>
-    <tr><th colspan="2">Onglets &amp; configuration</th></tr>
-    <tr><td>❌ Onglet … (manquant)</td><td>Restaurer l'onglet depuis la dernière copie du dossier Drive « Planning-CHPG-Backups » — ne pas le recréer à la main.</td></tr>
-    <tr><td>❌ ANNEE_ACTIVE / ADMIN_CODE / GITHUB_TOKEN absent</td><td>Rétablir la ligne dans l'onglet CONFIG (clé en colonne A, valeur en colonne B).</td></tr>
-    <tr><td>⚠️ ANNEE_ACTIVE incohérente</td><td>Corriger la valeur dans CONFIG : c'est l'année en cours d'exploitation.</td></tr>
-    <tr><th colspan="2">Publication GitHub</th></tr>
-    <tr><td>❌ Token invalide / expiré (401) · ⚠️ expire dans X j</td><td>Générer une nouvelle clé sur GitHub et la coller dans CONFIG → GITHUB_TOKEN.</td></tr>
-    <tr><td>⚠️ Réponse GitHub inattendue / connexion impossible</td><td>Souvent passager : relancer plus tard. Si ça persiste, demander de l'aide.</td></tr>
-    <tr><th colspan="2">Code déployé vs dépôt</th></tr>
-    <tr><td>❌ fichier : DÉRIVE — dépôt vX, déployé vY · ⚠️ version déployée absente</td><td>Recopier ce fichier depuis le dépôt dans Apps Script, puis créer une <strong>nouvelle version de déploiement</strong>.</td></tr>
-    <tr><th colspan="2">Sauvegarde &amp; version du site</th></tr>
-    <tr><td>⚠️ Déclencheur hebdomadaire absent · dernière sauvegarde &gt; 10 j</td><td>Dans Apps Script, exécuter une fois <span class="kbd">installBackupTrigger()</span>, puis vérifier le dossier « Planning-CHPG-Backups ».</td></tr>
-    <tr><td>❌ fichier : vX (attendu vY) → réaligner</td><td>Anomalie de livraison du site : à signaler au développeur (réalignement des 4 fichiers).</td></tr>
-    <tr><th colspan="2">Équipe</th></tr>
-    <tr><td>⚠️ MARs sans email / sans code d'accès</td><td>Compléter dans l'onglet Équipe, puis « Renvoyer les codes » (13.2).</td></tr>
-    <tr><td>⚠️ Quotité ou PCT_GARDES hors bornes</td><td>Corriger dans MEDECINS. Piège : « 0 » est traité comme 100 par le générateur — pour exempter un MAR de gardes, utiliser la colonne NO_GARDE, jamais 0.</td></tr>
-    <tr><td>⚠️ Dates arrivée/départ incohérentes</td><td>Corriger date_debut / date_fin (le début doit précéder la fin).</td></tr>
-    <tr><td>❌ Identifiants en double dans MEDECINS</td><td>Supprimer ou fusionner la ligne dupliquée <strong>avant toute génération</strong> — un doublon corrompt tout.</td></tr>
-    <tr><td>❌ Codes d'accès partagés par plusieurs MARs</td><td>Attribuer un code unique à chacun, puis renvoyer les codes concernés.</td></tr>
-    <tr><td>⚠️ Emails au format douteux</td><td>Corriger la faute de frappe dans l'onglet Équipe.</td></tr>
-    <tr><th colspan="2">Année active</th></tr>
-    <tr><td>⚠️ INDISPOS / GARDES / STATS manquant</td><td>Normal en début de cycle ; sinon, relancer l'assistant concerné (étape 1 ou 2).</td></tr>
-    <tr><td>⚠️ MARs actifs sans affectation</td><td>Compléter l'onglet Affectations (normal pour une arrivée en cours d'année).</td></tr>
-    <tr><th colspan="2">Intégrité du tableau de gardes</th></tr>
-    <tr><td>⚠️ Lignes avec identifiant inconnu de MEDECINS</td><td>Renommer la ligne avec l'identifiant exact (ou la supprimer) : ses gardes sont <strong>ignorées</strong> à la publication.</td></tr>
-    <tr><td>❌ Jours SANS garde G</td><td>Échange incomplet le plus souvent : réattribuer une garde à ces dates dans GARDES_{année}, puis republier. Traiter en priorité les dates futures.</td></tr>
-    <tr><td>⚠️ Jours avec plusieurs G · sans exactement une G2</td><td>Effacer la cellule en trop — chaque jour doit avoir un seul G et un seul G2 — puis republier.</td></tr>
-    <tr><th colspan="2">Placements manuels &amp; indisponibilités</th></tr>
-    <tr><td>⚠️ Doublons · MAR inconnu · date illisible (overrides)</td><td>Ouvrir PLANNING_OVERRIDES et supprimer les lignes fautives (souvent une ligne d'en-tête égarée dans les données).</td></tr>
-    <tr><td>⚠️ Placements hors année active</td><td>Reliquat d'une année close : supprimer ces lignes (la clôture les purge normalement).</td></tr>
-    <tr><td>⚠️ INDISPOS : identifiant inconnu</td><td>Corriger l'identifiant de la ligne — ses indisponibilités sont ignorées sinon.</td></tr>
-    <tr><th colspan="2">Fichiers publiés (Drive)</th></tr>
-    <tr><td>❌ planning_….json absent / vide / illisible</td><td>Republier depuis l'onglet Planning (bouton Publier), puis relancer le diagnostic.</td></tr>
-    <tr><td>⚠️ Doublon : N × fichier</td><td>Dans le dossier Drive « Planning-CHPG-JSON », mettre à la corbeille les copies excédentaires.</td></tr>
-    <tr><td>⚠️ planning DÉSYNCHRONISÉ : X vs Y gardes</td><td>Lire la liste des gardes en écart : raison légitime (avant l'arrivée / après le départ d'un MAR) → rien à faire ; sinon corriger GARDES puis republier. Voir l'encadré ci-dessus.</td></tr>
-    <tr><th colspan="2">Santé du classeur</th></tr>
-    <tr><td>⚠️ Cellules proches de la limite · LOGS/CONNEXIONS volumineux</td><td>Supprimer les vieilles lignes de LOGS et CONNEXIONS ; si la limite approche encore, demander un archivage.</td></tr>
-  </table>
-  <p style="font-size:13px;color:var(--ink-3)">En cas de doute, ou si un message ne figure pas ici : bouton <strong>« 📋 Copier le rapport »</strong> et coller le rapport tel quel dans une demande d'aide.</p>
+  <div class="callout rule">
+    <div class="ct">Si le diagnostic affiche des ❌ ou des ⚠️</div>
+    <p>La plupart des remèdes passent par le classeur de données ou par le code — hors du périmètre du comité. Le bon réflexe tient en deux gestes : bouton <strong>« 📋 Copier le rapport »</strong>, puis <strong>transmettre le rapport tel quel au référent technique</strong>. Il contient tout le contexte nécessaire, sans allers-retours.</p>
+  </div>
 
   <h3>13.2 · ✉️ Renvoyer les codes d'accès</h3>
   <ol class="steps">
