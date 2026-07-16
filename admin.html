@@ -923,7 +923,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.0'; // SITE_VERSION: v1.0
+const SITE_VERSION = 'v1.0'; // SITE_VERSION: v1.1
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1401,8 +1401,11 @@ if (sessionStorage.getItem('adminCode')) {
 
     <div class="maint-action">
       <div class="maint-title">🔍 Diagnostic système</div>
-      <div class="maint-desc">Vérifie que tout est en ordre pour le quotidien et les assistants : onglets du classeur, réglages, MARs sans email ou sans code, MARs actifs sans affectation, clé de publication.</div>
-      <button class="btn-primary" onclick="runDiag()" id="btnDiagSys">Lancer le diagnostic</button>
+      <div class="maint-desc">Passe en revue toute la chaîne : environnement (fuseaux, quota email, verrou), onglets et réglages, équipe (doublons, codes, emails), intégrité des gardes jour par jour (1 G + 1 G2), indisponibilités et placements orphelins, clé de publication, synchronisation du code, fichiers publiés et santé du classeur.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-primary" onclick="runDiag()" id="btnDiagSys">Lancer le diagnostic</button>
+        <button class="btn-secondary" onclick="copyDiag()" id="btnDiagCopy" style="display:none">📋 Copier le rapport</button>
+      </div>
       <div id="diagSysResult" style="display:none;margin-top:12px;font-size:12px;font-family:var(--mono,monospace);background:#F8FAFC;border:1px solid var(--line);border-radius:10px;padding:12px;max-height:340px;overflow-y:auto;line-height:1.85"></div>
     </div>
 
@@ -6064,6 +6067,21 @@ async function sendCodes() {
 }
 
 // ── MAINTENANCE ──────────────────────────────────────────────────────────
+let _diagRapport = '';
+async function copyDiag() {
+  if (!_diagRapport) { toast('Lancez d\'abord le diagnostic', 'error'); return; }
+  const txt = `Diagnostic Planning-CHPG — copié le ${new Date().toLocaleString('fr-FR')}\n\n${_diagRapport}`;
+  try {
+    await navigator.clipboard.writeText(txt);
+    toast('📋 Rapport copié — collez-le tel quel pour le faire analyser', 'success');
+  } catch (e) {
+    // Repli si le presse-papiers est bloqué
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+    toast('📋 Rapport copié', 'success');
+  }
+}
 async function runDiag() {
   const btn = document.getElementById('btnDiagSys');
   const out = document.getElementById('diagSysResult');
@@ -6071,13 +6089,24 @@ async function runDiag() {
   try {
     const data = await api({action: 'diagComplet'});
     if (!data.success) throw new Error(data.error || 'Diagnostic indisponible');
+    const lignes = data.results || [];
+    _diagRapport = lignes.join('\n');
+    const nbE = lignes.filter(l => l.startsWith('❌')).length;
+    const nbW = lignes.filter(l => l.startsWith('⚠️')).length;
     if (out) {
       out.style.display = 'block';
-      out.innerHTML = (data.results || []).map(line => {
+      const resume = nbE
+        ? `<div class="diag-err" style="font-weight:700">❌ ${nbE} erreur(s) · ⚠️ ${nbW} avertissement(s) — détail ci-dessous</div>`
+        : nbW
+          ? `<div class="diag-warn" style="font-weight:700">⚠️ ${nbW} avertissement(s), aucune erreur bloquante</div>`
+          : `<div class="diag-ok" style="font-weight:700">✅ Aucune anomalie détectée</div>`;
+      out.innerHTML = resume + lignes.map(line => {
         const cls = line.startsWith('✅') ? 'diag-ok' : line.startsWith('❌') ? 'diag-err' : line.startsWith('⚠️') ? 'diag-warn' : 'diag-info';
         return `<div class="${cls}">${line}</div>`;
       }).join('');
     }
+    const bc = document.getElementById('btnDiagCopy');
+    if (bc) bc.style.display = '';
     toast(data.ok ? '✅ Tout est en ordre' : '⚠️ Points à vérifier — voir le détail', data.ok ? 'success' : 'error');
   } catch(e) {
     if (out) { out.style.display = 'block'; out.innerHTML = '<div class="diag-err">❌ ' + e.message + '</div>'; }
