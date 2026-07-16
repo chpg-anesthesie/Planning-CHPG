@@ -22,9 +22,13 @@
 ***v3.7 — 12/07/2026** : **règle de calcul de la BR NGAP figée et validée au centime** (8 feuilles*
 *réelles) — BR = lettre-clé × coefficient (`C 34,40 · CS 46 · APC 60`), **sans** coefficient*
 *monégasque ×1,95 ni modificateur ; la carte ne joue que sur le DH (verte/SPME 0 · rose +20 % ·*
-*bulle/français/NAS/AME libre). Chaîne complète dans l'antisèche §5 ter. Maquette estimateur*
+*bulle/français/NAS libre ; **AME 0**). Chaîne complète dans l'antisèche §5 ter. Maquette estimateur*
 *(`maquette_estimateur_liberal.html`) mise à jour : axe NGAP doté d'un builder dédié. §14 précisé.*
 *Calendrier inchangé : construction APRÈS le go-live d'octobre 2026 et APRÈS « secteurs étape 2 ».*
+***v3.8 — 16/07/2026** : statut **AME tranché** (Ord. souveraine 5.743 du 03/03/2016). AME monégasque*
+*(≠ française) = résident sans autre couverture, sous condition de ressources → remboursé sur le tarif*
+*de responsabilité monégasque (**coeff ×1,95**), **DH 0** (indigent, logique carte verte). Libellé et*
+*coefficient confirmés dans la maquette ; question AME close au §14.*
 *Rien ne part en prod tant que ce plan n'est pas clair et précis. On ne code pas encore.*
 
 ---
