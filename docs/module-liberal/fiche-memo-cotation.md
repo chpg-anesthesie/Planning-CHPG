@@ -35,4 +35,4 @@ Verte **0** · SPME **0** · Rose **+20 % de la BR** · Bulle **libre** · Assur
 - Mieux coder (exhaustivité + réa) monte le **T_ccam public** → **dilue** le ratio → **plus de marge libérale**.
 
 ## Encore à confirmer (administration)
-Redevance hôpital (taux/assiette) · code BAMA004 (hors anesthésie).
+Redevance hôpital — taux et assiette du reversement.
