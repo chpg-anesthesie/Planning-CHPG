@@ -68,6 +68,9 @@
   .callout.warn .ct{color:var(--amber)}
 
   table{width:100%; border-collapse:collapse; margin:14px 0 18px; background:var(--white); border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:14px}
+  .diagref{font-size:12.5px}
+  .diagref td:first-child{white-space:normal; font-family:var(--mono); font-size:11.5px; font-weight:500}
+  .diagref th[colspan]{background:#FBEAE8; color:var(--red); font-weight:600}
   th{background:#F1F4F8; text-align:left; font-size:12px; font-family:var(--mono); font-weight:500; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-2); padding:9px 14px; border-bottom:1px solid var(--line)}
   td{padding:9px 14px; border-bottom:1px solid #F1F5F9; color:var(--ink-2); vertical-align:top}
   tr:last-child td{border-bottom:none}
@@ -137,6 +140,7 @@
     <li><a href="#c12"><span class="n">12</span>Les 6 onglets d’admin.html</a></li>
     <li><a href="#c13"><span class="n">13</span>Le pipeline de déploiement du code</a></li>
     <li><a href="#c14"><span class="n">14</span>Dépannage &amp; pièges connus</a></li>
+    <li><a href="#c15"><span class="n">15</span>Les messages du diagnostic (Maintenance)</a></li>
   </ol>
 </nav>
 
@@ -405,7 +409,60 @@
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
-<div class="foot">Planning-CHPG · Anesthésie-Réanimation CHPG Monaco — guide technique personnel · établi à partir du code en production, 15 juillet 2026</div>
+<section id="c15">
+  <h2><span class="n">15</span>Les messages du diagnostic (Maintenance)</h2>
+  <p>Référence complète des ❌/⚠️ que peut émettre <code>diagComplet</code> (admin → Maintenance), avec le remède technique. Les ✅ et ℹ️ ne demandent rien. Le comité n'a pas accès au classeur ni au dépôt : quand un membre transmet un rapport (bouton « 📋 Copier le rapport »), c'est cette table qui s'applique.</p>
+  <table class="diagref">
+    <tr><th style="width:44%">Message</th><th>Remède</th></tr>
+    <tr><th colspan="2">Environnement</th></tr>
+    <tr><td>❌ Fuseaux DIFFÉRENTS script vs classeur</td><td>Classeur : Fichier → Paramètres → Fuseau horaire « Paris ». Aligner aussi le classeur d'archives.</td></tr>
+    <tr><td>⚠️ Quota email presque épuisé</td><td>Quota Google journalier (100/j) : reporter l'envoi des codes au lendemain.</td></tr>
+    <tr><td>⚠️ Verrou de script occupé / indisponible</td><td>Exécution longue en cours (génération, publication) : relancer dans une minute.</td></tr>
+    <tr><th colspan="2">Onglets &amp; configuration</th></tr>
+    <tr><td>❌ Onglet … (CONFIG, MEDECINS, …) manquant</td><td>Restaurer l'onglet depuis la dernière copie « Planning-CHPG-Backups » (copier-coller l'onglet entier). Ne pas recréer à la main.</td></tr>
+    <tr><td>❌ ANNEE_ACTIVE / ADMIN_CODE / GITHUB_TOKEN absent</td><td>Rétablir la ligne dans CONFIG (clé col. A, valeur col. B).</td></tr>
+    <tr><td>⚠️ ANNEE_ACTIVE incohérente</td><td>Corriger la valeur dans CONFIG — c'est l'année d'exploitation courante ; la bascule normale passe par W3.</td></tr>
+    <tr><th colspan="2">Publication GitHub</th></tr>
+    <tr><td>❌ Token invalide/expiré (401) · ⚠️ expire dans X j</td><td>GitHub → Settings → Developer settings → générer un fine-grained token (scope contents:write sur le dépôt) → coller dans CONFIG → GITHUB_TOKEN.</td></tr>
+    <tr><td>❌ Dépôt/branche introuvable (404)</td><td>Constantes GITHUB_USER/REPO/BRANCH de code.gs à vérifier — ne survient qu'après renommage du dépôt.</td></tr>
+    <tr><td>⚠️ Réponse GitHub inattendue / connexion impossible</td><td>Souvent passager (réseau, GitHub). Persistant : vérifier le statut GitHub et le token.</td></tr>
+    <tr><th colspan="2">Code déployé vs dépôt</th></tr>
+    <tr><td>❌ fichier : DÉRIVE — dépôt vX, déployé vY · ⚠️ version déployée absente</td><td>Recopier le fichier depuis <code>gas/</code> du dépôt dans l'éditeur Apps Script, puis Déployer → Gérer les déploiements → nouvelle version (§13).</td></tr>
+    <tr><td>⚠️ fichier : dépôt illisible (réseau/clé)</td><td>Le contrôle n'a pas pu lire GitHub : voir « Publication GitHub » ci-dessus.</td></tr>
+    <tr><th colspan="2">Sauvegarde &amp; version du site</th></tr>
+    <tr><td>⚠️ Déclencheur hebdomadaire absent · dernière sauvegarde &gt; 10 j</td><td>Éditeur Apps Script : exécuter <code>installBackupTrigger()</code> ; vérifier le dossier Drive « Planning-CHPG-Backups ».</td></tr>
+    <tr><td>❌ fichier : vX (attendu vY) → réaligner</td><td>Un push a oublié le bump SITE_VERSION sur un des 4 fichiers (dashboard, admin, 2 guides) : réaligner et pousser.</td></tr>
+    <tr><th colspan="2">Équipe (MEDECINS)</th></tr>
+    <tr><td>⚠️ MARs sans email / sans code d'accès</td><td>Compléter les colonnes email (H) / code (G), puis « Renvoyer les codes ».</td></tr>
+    <tr><td>⚠️ Quotité ou PCT_GARDES hors bornes</td><td>Corriger cols E/F. ⚠️ Piège : le générateur fait <code>Number(x)||100</code> → « 0 » vaut 100 ; pour exempter de gardes, flag NO_GARDE, jamais 0.</td></tr>
+    <tr><td>⚠️ Dates arrivée/départ incohérentes</td><td>Corriger date_debut/date_fin (début &lt; fin).</td></tr>
+    <tr><td>❌ Identifiants en double</td><td>Fusionner/supprimer la ligne dupliquée AVANT toute génération : le doublon rend la lecture des données ambiguë (la dernière ligne gagne).</td></tr>
+    <tr><td>❌ Codes d'accès partagés</td><td>Attribuer un code unique par MAR (col G), renvoyer les codes concernés.</td></tr>
+    <tr><td>⚠️ Emails au format douteux</td><td>Corriger la saisie col H.</td></tr>
+    <tr><th colspan="2">Année active</th></tr>
+    <tr><td>⚠️ INDISPOS / GARDES / STATS manquant</td><td>Normal selon le point du cycle ; sinon relancer W1 (INDISPOS) ou W2 (GARDES + STATS).</td></tr>
+    <tr><td>⚠️ MARs actifs sans affectation</td><td>Compléter AFFECTATIONS_{Y} (onglet Affectations d'admin). Normal pour une arrivée en cours d'année.</td></tr>
+    <tr><th colspan="2">Intégrité GARDES_{Y}</th></tr>
+    <tr><td>⚠️ Lignes avec identifiant inconnu de MEDECINS</td><td>Renommer la ligne avec l'ID exact ou la supprimer : ses gardes sont ignorées par <code>generatePlanningFromGardes</code>.</td></tr>
+    <tr><td>❌ Jours SANS garde G</td><td>Échange incomplet le plus souvent : réattribuer un G à ces dates dans l'onglet, puis republier. Priorité absolue aux dates futures.</td></tr>
+    <tr><td>⚠️ Plusieurs G · G2 ≠ 1 par jour</td><td>Effacer la cellule excédentaire (invariant : 1 G + 1 G2 par jour), republier.</td></tr>
+    <tr><th colspan="2">Overrides &amp; indispos</th></tr>
+    <tr><td>⚠️ Doublons · MAR inconnu · date illisible (PLANNING_OVERRIDES)</td><td>Supprimer les lignes fautives dans l'onglet — souvent une ligne d'en-tête égarée dans les données (règle les 3 alertes d'un coup).</td></tr>
+    <tr><td>⚠️ Placements hors année active</td><td>Reliquat d'une année close : supprimer (W3 les purge normalement).</td></tr>
+    <tr><td>⚠️ INDISPOS : identifiant inconnu</td><td>Corriger l'ID de la ligne, sinon ses indispos sont ignorées par le générateur.</td></tr>
+    <tr><th colspan="2">Publication JSON (Drive)</th></tr>
+    <tr><td>❌ Dossier « Planning-CHPG-JSON » introuvable</td><td>Republier (la publication recrée le dossier) ; vérifier le compte Drive du script.</td></tr>
+    <tr><td>❌ planning_….json absent / vide / illisible</td><td>Republier depuis l'onglet Planning. Persistant : voir le journal d'exécution de <code>savePlanningToDrive</code>.</td></tr>
+    <tr><td>⚠️ Doublon : N × fichier / N dossiers</td><td>Mettre à la corbeille les copies excédentaires dans le Drive (la publication garde normalement une seule copie).</td></tr>
+    <tr><td>⚠️ planning DÉSYNCHRONISÉ : X vs Y gardes</td><td>Lire la liste des gardes fantômes (qui, quand, pourquoi) : cause légitime (date_debut/date_fin, MAR retiré) → rien à faire ; sinon corriger GARDES puis republier. Écart non localisé persistant → <code>_findPhantomGardes_</code> et journal.</td></tr>
+    <tr><th colspan="2">Santé du classeur</th></tr>
+    <tr><td>⚠️ Cellules proches de la limite (&gt; 8 000 k)</td><td>Purger LOGS/CONNEXIONS, déplacer les vieilles années vers le classeur d'archives (archiveMoveTabs_).</td></tr>
+    <tr><td>⚠️ Onglet LOGS/CONNEXIONS volumineux (&gt; 20 000 lignes)</td><td>Supprimer les lignes anciennes (garder les en-têtes).</td></tr>
+  </table>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<div class="foot">Planning-CHPG · Anesthésie-Réanimation CHPG Monaco — guide technique personnel · établi à partir du code en production, 16 juillet 2026</div>
 
 </div>
 </body>
