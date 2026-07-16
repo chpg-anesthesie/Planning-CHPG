@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-16.4';
+const GAS_VERSION_INDISPOS = '2026-07-16.5';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1591,10 +1591,13 @@ if (!affSheet) {
           if (!String(md[r][6]).trim()) sansCode.push(id);             // code col 6
           // Quotité col 4 et PCT_GARDES col 5 (mêmes colonnes que generateGardes).
           // Cellule vide tolérée : le générateur applique 100 par défaut.
+          // NO_GARDE (col 11) posé → PCT_GARDES non contrôlé : le MAR est exclu de
+          // gardeDoctors, son pct n'est jamais lu (un « 0 » y est expressif, pas une erreur).
+          const estNoGarde = String(md[r][11]).trim().toUpperCase() === 'O';
           const rawQ = String(md[r][4]).trim(), rawP = String(md[r][5]).trim();
           const q = Number(rawQ), p = Number(rawP);
           if (rawQ && !(q > 0 && q <= 100)) quotiteKO.push(`${id} (quotité « ${rawQ} »)`);
-          else if (rawP && !(p > 0 && p <= 100)) quotiteKO.push(`${id} (PCT_GARDES « ${rawP} »)`);
+          else if (!estNoGarde && rawP && !(p > 0 && p <= 100)) quotiteKO.push(`${id} (PCT_GARDES « ${rawP} »)`);
           const dd = md[r][9], df = md[r][10];                         // arrivée / départ
           if (dd && df) {
             const a = dd instanceof Date ? dd : new Date(String(dd) + 'T00:00:00');
@@ -1645,7 +1648,11 @@ if (!affSheet) {
           }
           check(`Lignes avec identifiant inconnu de MEDECINS : ${orphelins.size || 'aucune'}${orphelins.size ? ' (' + [...orphelins].join(', ') + ') — leurs gardes sont IGNORÉES à la publication' : ''}`, orphelins.size ? R.WARN : R.OK);
           const d2c = buildDateToCol(gd, y);
-          const sansG = [], multiG = [], g2KO = [];
+          // Passé vs futur : un trou PASSÉ est de l'histoire (redistribution manuelle
+          // non reportée, ex. départ d'un MAR) → ⚠️ ; un trou FUTUR = jour sans
+          // médecin de garde → ❌ à traiter immédiatement.
+          const aujd = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+          const sansGFut = [], sansGPas = [], multiG = [], g2KO = [];
           Object.keys(d2c).sort().forEach(ds => {
             const c = d2c[ds];
             let nG = 0, nG2 = 0;
@@ -1653,11 +1660,13 @@ if (!affSheet) {
               const v = String(gd[r][c] || '').trim().toUpperCase();
               if (v === 'G') nG++; else if (v === 'G2') nG2++;
             }
-            if (nG === 0) sansG.push(ds); else if (nG > 1) multiG.push(`${ds} (×${nG})`);
+            if (nG === 0) (ds >= aujd ? sansGFut : sansGPas).push(ds);
+            else if (nG > 1) multiG.push(`${ds} (×${nG})`);
             if (nG2 === 0) g2KO.push(ds); else if (nG2 > 1) g2KO.push(`${ds} (×${nG2})`);
           });
           const liste = arr => arr.slice(0, 10).join(', ') + (arr.length > 10 ? ` … et ${arr.length - 10} autre(s)` : '');
-          check(`Jours SANS garde G : ${sansG.length || 'aucun'}${sansG.length ? ' → ' + liste(sansG) : ''}`, sansG.length ? R.ERR : R.OK);
+          check(`Jours FUTURS sans garde G : ${sansGFut.length || 'aucun'}${sansGFut.length ? ' → ' + liste(sansGFut) + ' — À TRAITER IMMÉDIATEMENT' : ''}`, sansGFut.length ? R.ERR : R.OK);
+          check(`Jours passés sans garde G (historique, tableau non tenu à jour) : ${sansGPas.length || 'aucun'}${sansGPas.length ? ' → ' + liste(sansGPas) : ''}`, sansGPas.length ? R.WARN : R.OK);
           check(`Jours avec PLUSIEURS gardes G : ${multiG.length || 'aucun'}${multiG.length ? ' → ' + liste(multiG) : ''}`, multiG.length ? R.WARN : R.OK);
           check(`Jours sans exactement une G2 : ${g2KO.length || 'aucun'}${g2KO.length ? ' → ' + liste(g2KO) : ''}`, g2KO.length ? R.WARN : R.OK);
         } catch (e) { check(`Contrôle GARDES_${y} impossible : ` + e.message, R.WARN); }
