@@ -20,7 +20,9 @@
 - **En sus du forfait** : échoguidage ALR **AHQJ021** (29,12 €) · récupération de sang **YYYY041**
 
 ## Plafond du DH selon le patient
-Verte **0** · Rose **+20 % de la BR** · Bulle **libre** · Assuré français libéral **libre** · SPME (selon) · **AME/HNP à confirmer**
+Verte **0** · SPME **0** · Rose **+20 % de la BR** · Bulle **libre** · Assuré français libéral **libre** · NAS **libre** · **AME 0** (Ord. souveraine 5.743 : bénéficiaire indigent → tarif conventionnel strict, comme la verte).
+
+> **HNP** = *Honoraires Non Perçus* — **modalité de perception**, pas un statut de carte : honoraires réglés via la Caisse (tiers payant / dispense d'avance) plutôt qu'encaissés du patient. **Sans effet sur le calcul BR/DH** ; relève du circuit de facturation (télé-service CCSS « prestations HNP »).
 
 ## Réanimation (100 % public)
 - Forfait **A = YYYY015 (96 €)** / **B = YYYY020 (160 €)** par patient/24 h. **Niveau B dès qu'il y a une suppléance** (ventilation, amines à haut débit, EER, transfusion massive…).
@@ -33,4 +35,4 @@ Verte **0** · Rose **+20 % de la BR** · Bulle **libre** · Assuré français l
 - Mieux coder (exhaustivité + réa) monte le **T_ccam public** → **dilue** le ratio → **plus de marge libérale**.
 
 ## Encore à confirmer (administration)
-Redevance hôpital (taux/assiette) · cas **AME/HNP** (dossier PTG 509,34 €) · code BAMA004 (hors anesthésie).
+Redevance hôpital (taux/assiette) · code BAMA004 (hors anesthésie).
