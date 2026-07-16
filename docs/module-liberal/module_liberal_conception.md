@@ -35,6 +35,11 @@
 *ergonomie admin validée sur maquette conditions réelles (volet « ◆ Libéral » gauche par MAR,*
 *vert/orange, toast si aucune intervention, grille intacte). indispos.html sort du périmètre libéral.*
 *§6.2–6.4, 11, 12, 13 mis à jour.*
+***v3.10 — 16/07/2026** : contrainte **non-persistance des champs patient du devis** gravée comme*
+*NON NÉGOCIABLE (§3.bis) + **livrable de preuve obligatoire** (test anti-persistance jsdom, scan*
+*statique, preuve réseau) exécuté à chaque déploiement et archivable pour audit CCIN / loi 1.565.*
+*Périmètre de responsabilité clarifié (technique = module ; conformité = établissement/DPO ; le devis*
+*imprimé remplace un papier existant, circuit inchangé). Décision 14 ajoutée.*
 *Rien ne part en prod tant que ce plan n'est pas clair et précis. On ne code pas encore.*
 
 ---
@@ -127,6 +132,45 @@ barrière cryptographique : suffisant pour personnaliser le devis (rien de patie
 vraie protection du financier est qu'il **ne contienne aucune donnée patient**. Un suivi patient
 réellement persistant sortirait de cette stack (hébergement agréé, consentement, DPO) — décision
 hôpital, pas évolution du module. Détail dans `guide_module_liberal.md`, §6.
+
+### 3.bis Contrainte NON NÉGOCIABLE — non-persistance des champs patient du devis
+
+**La règle.** Aucun champ patient saisi à l'ouverture du devis (nom, prénom, mutuelle, RAC nominatif,
+date de naissance…) ne doit **JAMAIS** être écrit dans un quelconque stockage :
+- **navigateur** — `localStorage`, `sessionStorage`, `IndexedDB`, cookies, cache : interdits sur tout
+  champ patient (c'est la fuite n°1 : ça survit à la fermeture de l'onglet) ;
+- **réseau** — le remplissage du devis ne déclenche **aucune** requête sortante portant un champ
+  patient ;
+- **URL / hash** — jamais un nom en paramètre (fuite via historique, logs, referer) ;
+- **pas d'autosave, pas de brouillon, pas d'historique de devis.**
+
+Les champs sont vidés par **effacement actif à la fermeture**. Le seul canal écrivant du module est la
+**déclaration d'intervention**, dont le payload est **fermé** (`DATE_BLOC · MAR_ID · SECTEUR ·
+CHIRURGIE`) — sans aucune donnée patient.
+
+**Pourquoi c'est central.** On ne peut pas voler ce qui n'existe pas. Tant que rien n'est stocké, le
+module ne peut pas être la source d'une **fuite** de données patient (risque de confidentialité nul) ;
+il ne reste qu'un risque d'**intégrité** (qu'on abîme le planning / les déclarations), qui se gère par
+l'hygiène des accès. Le jour où une évolution ajouterait un stockage patient « pour le confort », le
+module basculerait de l'autre côté — d'où le verrou ci-dessous.
+
+**Livrable de preuve OBLIGATOIRE (code de production).** La contrainte doit être **démontrée, pas
+déclarée**. Le code de production livre, et exécute à chaque déploiement (au même titre que
+`node --check` et la validation `JSON.parse`) :
+1. un **test anti-persistance** (jsdom) qui ouvre le devis, le remplit avec un patient fictif, ferme
+   la page, puis **inspecte** `localStorage`, `sessionStorage`, `IndexedDB`, cookies, variables et DOM,
+   et **échoue** si la moindre trace subsiste ;
+2. un **scan statique** interdisant toute référence à un stockage navigateur sur les champs devis ;
+3. la **preuve réseau** qu'aucune requête sortante ne contient de champ patient.
+Le résultat est **archivable** comme preuve reproductible pour un audit (CCIN / loi n° 1.565).
+
+**Périmètre de responsabilité (à ne pas confondre).** Ce dispositif couvre le **numérique**. Le devis
+**imprimé** porte un nom : sa manipulation, sa conservation et sa destruction relèvent du **circuit
+documentaire de l'établissement** — étant entendu qu'il **remplace un papier déjà existant** (devis
+actuel), à circuit inchangé, et qu'il est mieux fait (mentions conformes, aucune trace numérique). La
+**conformité** à la loi monégasque **n° 1.565** sur la protection des données personnelles relève de
+l'**établissement / DPO / CCIN**, pas d'une garantie technique ni d'une certification par l'assistant :
+le module fournit la **preuve technique** (tests ci-dessus), l'établissement porte la conformité.
 
 ---
 
@@ -425,6 +469,11 @@ go-live octobre 2026.
     avec le panneau d'affectation (liste par MAR, vert/orange), toast si aucune intervention.
     Stratégie : développer le module jusqu'à ce que le branchement au planning se fasse
     naturellement — la greffe finale reste chirurgicale.
+14. **Non-persistance des champs patient du devis = contrainte NON NÉGOCIABLE** (cf. §3.bis) :
+    aucun stockage navigateur / réseau / URL, pas d'autosave, effacement à la fermeture. **Preuve
+    obligatoire** (test anti-persistance jsdom + scan statique + preuve réseau) exécutée à chaque
+    déploiement du code de production et archivable pour audit (CCIN / loi 1.565). La conformité
+    juridique relève de l'établissement/DPO, jamais d'une garantie de l'assistant.
 
 ---
 
