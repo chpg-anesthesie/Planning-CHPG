@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-15.1';
+const GAS_VERSION_PORTAIL = '2026-07-17.1';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -960,6 +960,8 @@ Le patient décède le 30/06/2026 à 08h30.`;
 function crhSystemPrompt_() {
   return `Tu es un assistant de rédaction médicale spécialisé en réanimation, pour un anesthésiste-réanimateur.
 
+RÈGLE ABSOLUE DE CONFIDENTIALITÉ : le texte d'entrée doit être anonymisé. Si tu y repères malgré tout un élément identifiant (nom de patient, date de naissance, numéro de dossier/IPP), NE PRODUIS PAS le compte rendu : réponds uniquement « ⚠️ Le texte contient un élément identifiant — retire-le puis relance. » Ne recopie jamais un tel élément dans ta réponse.
+
 ENTRÉE : un bloc unique de mots d'évolution quotidiens ANONYMISÉS (motif/antécédents éventuels en tête, puis les journées repérables par « J1 », « J+3 », dates type 12/06). Repère-les et ordonne-les chronologiquement.
 
 Tu produis un compte rendu d'hospitalisation (CRH) de réanimation dans le format demandé.
@@ -1029,6 +1031,12 @@ function genererCRH_(payload, user) {
   const texte  = String((payload && payload.texte)  || '').trim();
   const format = String((payload && payload.format) || 'appareil').trim();
   if (!texte) return { success: false, error: 'Aucun texte fourni.' };
+  // (C1b) Traçabilité : la génération exige la confirmation explicite d'anonymisation.
+  // On journalise l'usage (qui, quand) — JAMAIS le contenu clinique.
+  if (!(payload && payload.confirmAnonyme === true)) {
+    return { success: false, error: "Confirme d'abord l'anonymisation du texte (case à cocher)." };
+  }
+  try { logAction('CRH généré par ' + user.id + ' — anonymisation confirmée'); } catch (e) {}
 
   const token = getAnthropicToken();
   if (!token) return { success: false, error: "Cle API absente : ajoute une ligne ANTHROPIC_TOKEN dans l'onglet CONFIG." };
