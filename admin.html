@@ -1648,7 +1648,7 @@ const ABSENT = new Set(['G','G2','RG','A','V','F','CTP','R','I','E']);
 // en dérivent. Champs : code, label (long), court (grille), aff (libellé affectations),
 // icon, bg/fg (couleurs affectations ; null = pas de couleur propre → gris volant),
 // cs (consultation miroir ; null = aucune), actif.
-const SECTEURS_CFG = [
+let SECTEURS_CFG = [
   {code:'VIS', label:'Bloc viscéral',            court:'Viscéral',  aff:'Viscéral',    icon:'Activity',   bg:'#EFF6FF', fg:'#1D4ED8', cs:'CS-VIS',   actif:true},
   {code:'REA', label:'Réanimation',              court:'Réa',       aff:'Réanimation', icon:'HeartPulse', bg:'#FFF1F2', fg:'#BE123C', cs:null,       actif:true},
   {code:'ORT', label:'Orthopédie',               court:'Ortho',     aff:'Ortho',       icon:'Bone',       bg:'#FFF7ED', fg:'#C2410C', cs:'CS-ORT',   actif:true},
@@ -1659,17 +1659,29 @@ const SECTEURS_CFG = [
   {code:'RI',  label:'Radio interventionnelle',  court:'Radio',     aff:'Radio/Inter', icon:'Zap',        bg:'#FFFBEB', fg:'#92400E', cs:null,       actif:true},
   {code:'MAT', label:'Maternité',                court:'Maternité', aff:'Maternité',   icon:'Baby',       bg:'#FDF2F8', fg:'#9D174D', cs:'CS-MAT',   actif:true},
 ];
-// ── Dérivations automatiques (ne pas éditer : tout vient de SECTEURS_CFG) ──
-const SECTEURS_ACTIFS  = SECTEURS_CFG.filter(s => s.actif);
-const CS_SECTOR_MIRROR = Object.fromEntries(SECTEURS_CFG.filter(s => s.cs).map(s => [s.cs, s.code]));
-const SECTOR_COLORS_AFF = Object.assign(
-  Object.fromEntries(SECTEURS_CFG.filter(s => s.bg).map(s => [s.code, {bg:s.bg, fg:s.fg}])),
-  { VOLANT:{bg:'#F1F5F9',fg:'#64748B'} }
-);
-const SECTOR_LABELS_AFF = Object.assign(
-  Object.fromEntries(SECTEURS_CFG.filter(s => s.aff).map(s => [s.code, s.aff])),
-  { VOLANT:'Volant' }
-);
+// ── Dérivations automatiques (reconstruites depuis l'onglet SECTEURS via getSecteurs) ──
+let SECTEURS_ACTIFS, CS_SECTOR_MIRROR, SECTOR_COLORS_AFF, SECTOR_LABELS_AFF;
+function rebuildSecteursDerivations() {
+  SECTEURS_ACTIFS  = SECTEURS_CFG.filter(s => s.actif);
+  CS_SECTOR_MIRROR = Object.fromEntries(SECTEURS_CFG.filter(s => s.cs).map(s => [s.cs, s.code]));
+  SECTOR_COLORS_AFF = Object.assign(
+    Object.fromEntries(SECTEURS_CFG.filter(s => s.bg).map(s => [s.code, {bg:s.bg, fg:s.fg}])),
+    { VOLANT:{bg:'#F1F5F9',fg:'#64748B'} }
+  );
+  SECTOR_LABELS_AFF = Object.assign(
+    Object.fromEntries(SECTEURS_CFG.filter(s => s.aff).map(s => [s.code, s.aff])),
+    { VOLANT:'Volant' }
+  );
+}
+rebuildSecteursDerivations();  // amorçage synchrone depuis le fallback en dur
+// Source unique : charge les secteurs depuis l'onglet SECTEURS (via getSecteurs).
+// Échec réseau / action absente → on garde silencieusement SECTEURS_CFG en dur.
+async function loadSecteurs() {
+  try {
+    const arr = await api({action:'getSecteurs'});
+    if (Array.isArray(arr) && arr.length >= 1) { SECTEURS_CFG = arr; rebuildSecteursDerivations(); }
+  } catch(e) { /* fallback : SECTEURS_CFG en dur conservé */ }
+}
 const DAYS_FR = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
 // INITIALS_MAP construit dynamiquement depuis marsData (chargé via API)
 function getInitials(id) { const m = marsData.find(x => x.id === id); return m ? m.initiales : id; }
@@ -2204,6 +2216,7 @@ async function checkNextYearAvailable() {
 async function initDashboard() {
   { const vb = document.getElementById('verBadge'); if (vb) vb.textContent = SITE_VERSION; }
   await new Promise(r => setTimeout(r, 50));
+  await loadSecteurs();            // secteurs depuis l'onglet SECTEURS (fallback = SECTEURS_CFG en dur)
   ADMIN_YEAR = YEAR;
   // (perf) BOOTSTRAP : un SEUL aller-retour GAS livre planning + affectations + médecins
   // + overrides. Repli automatique sur les appels unitaires si le GAS déployé ne connaît
