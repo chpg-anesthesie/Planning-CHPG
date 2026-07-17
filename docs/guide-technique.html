@@ -128,7 +128,7 @@
   <ol>
     <li><a href="#c1"><span class="n">01</span>Vue d’ensemble : les trois couches</a></li>
     <li><a href="#c2"><span class="n">02</span>Le dépôt GitHub, source de vérité</a></li>
-    <li><a href="#c3"><span class="n">03</span>Le backend Apps Script (les 4 fichiers .gs)</a></li>
+    <li><a href="#c3"><span class="n">03</span>Le backend Apps Script (les 5 fichiers .gs)</a></li>
     <li><a href="#c4"><span class="n">04</span>Le stockage : Google Sheets + Drive privé</a></li>
     <li><a href="#c5"><span class="n">05</span>L’API Web App : requête → réponse</a></li>
     <li><a href="#c6"><span class="n">06</span>Le cycle annuel : W1 → W2 → W3</a></li>
@@ -142,6 +142,7 @@
     <li><a href="#c14"><span class="n">14</span>Dépannage &amp; pièges connus</a></li>
     <li><a href="#c15"><span class="n">15</span>Les messages du diagnostic (Maintenance)</a></li>
     <li><a href="#c16"><span class="n">16</span>Sécurité &amp; confidentialité (le modèle réel)</a></li>
+    <li><a href="#c17"><span class="n">17</span>Roadmap — cadrage du reste à faire</a></li>
   </ol>
 </nav>
 
@@ -186,7 +187,7 @@
 </section>
 
 <section id="c3">
-  <h2><span class="n">03</span>Le backend Apps Script (les 4 fichiers .gs)</h2>
+  <h2><span class="n">03</span>Le backend Apps Script (les 5 fichiers .gs)</h2>
 
   <p>Le backend est un projet Apps Script lié au Google Sheet de production, déployé comme application Web. Cinq fichiers se partagent le travail :</p>
   <table>
@@ -520,7 +521,72 @@
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
-<div class="foot">Planning-CHPG · Anesthésie-Réanimation CHPG Monaco — guide technique personnel · établi à partir du code en production, 16 juillet 2026</div>
+
+<section id="c17">
+  <h2><span class="n">17</span>Roadmap — cadrage du reste à faire</h2>
+
+  <p>Photo au 17 juillet 2026. Le socle est <b>terminé et en production</b> : algorithme de gardes (équité, dette, Noël/An au réel, wizards W1–W3 testés), planning quotidien (placement additif, overrides verrouillés, export Excel), portail à 9 tuiles, veille bibliographique pilotée par <code>VEILLE_CFG</code>, CR d'anesthésie. Ce qui suit est la liste ordonnée de ce qui reste, avec l'état exact de chaque chantier. Le détail vit dans <code>docs/ROADMAP-Planning-CHPG.md</code> (et la conception libérale dans <code>docs/module-liberal/</code>) — cette section n'en est que le cadrage.</p>
+
+  <h3>Chantier A — Secteurs étape 2 (en cours, moitié faite)</h3>
+  <p>Objectif : redéfinir les secteurs <b>sans toucher au code</b> (déménagement 2027) et fournir <code>RENDEMENT_LIB</code> au module libéral.</p>
+  <table>
+    <thead><tr><th>Étape</th><th>Contenu</th><th>État</th></tr></thead>
+    <tbody>
+      <tr><td>0a/0b</td><td>Onglet <code>SECTEURS</code> (11 colonnes, dont <code>RENDEMENT_LIB</code> FORT/MOYEN/NUL/REA) auto-créé + amorcé ; action lecture <code>getSecteurs</code> dans <code>portail.gs</code>.</td><td>✅ En prod</td></tr>
+      <tr><td>0c</td><td><code>admin.html</code> lit l'onglet au boot (fallback <code>SECTEURS_CFG</code> en dur si échec réseau). Équivalence prouvée.</td><td>✅ En prod</td></tr>
+      <tr><td>0d</td><td><code>index.html</code> idem (<code>SECTORS_DEF</code> + <code>_SECTOR_BASE</code> reconstruits, thème sombre ré-appliqué).</td><td>✅ En prod</td></tr>
+      <tr><td>Règles GAS</td><td>4 points encore <b>en dur</b> (voir tableau ci-dessous).</td><td>⏸ Gelé volontairement</td></tr>
+    </tbody>
+  </table>
+  <p><b>Acquis :</b> éditer couleurs, libellés, icônes, ordre, actif et rendement d'un secteur = une cellule dans l'onglet, répercutée sur admin et index au rechargement. <b>Limite :</b> ajouter/renommer/supprimer un <i>code</i> secteur touche encore la logique métier GAS :</p>
+  <table>
+    <thead><tr><th>Point dur</th><th>Où</th><th>Effet</th></tr></thead>
+    <tbody>
+      <tr><td>Trame des consultations <code>CS_RULES</code></td><td><code>code.gs</code></td><td>jour → [secteur, CS] ; dormante (<code>GENERER_CONSULTATIONS=false</code>), à refaire pour le nouveau bloc si réactivée.</td></tr>
+      <tr><td>Garde → secteur</td><td><code>code.gs</code></td><td><code>G→REA</code>, <code>G2→MAT</code> : renommer REA ou MAT casse l'auto-placement du gardien.</td></tr>
+      <tr><td>Règles jour-spécifiques</td><td><code>code.gs</code></td><td>jeudi matin <code>CI→RI</code> ; placement <code>DVI</code>.</td></tr>
+      <tr><td>Normalisation des affectations</td><td><code>code.gs</code> <b>et</b> <code>setup_annee.gs</code></td><td>dictionnaire de synonymes (VISC→VIS…) <b>dupliqué</b> — à dédupliquer puis externaliser.</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><div class="ct">Décision actée</div><p>Ces 4 points sont <b>gelés tant que le plan du nouvel hôpital n'est pas connu</b> : les externaliser à l'aveugle serait concevoir dans le brouillard. L'audit ci-dessus donne la carte exacte le jour venu. Périmètre garanti : le générateur de gardes contient <b>zéro</b> référence secteur — l'équité est intouchable par ce chantier.</p></div>
+
+  <h3>Chantier B — Module libéral (conception figée v3.10, construction à venir)</h3>
+  <p>Règle des 30&nbsp;% <b>par axe</b> (CCAM technique / NGAP consultations, plafonds indépendants), objectif = optimiser le pot commun mutualisé. La <b>page du module libéral</b> (issue de l'estimateur) est le point d'entrée unique côté MAR : cotation → devis (écran seul) → déclaration (payload fermé : date bloc · MAR · secteur · chirurgie libre). Accès par tuile Dashboard conditionnée <code>LIBERAL&nbsp;O/N</code>. Côté comité : affichage seul (volet ◆ Libéral, ergonomie validée sur maquette).</p>
+  <table>
+    <thead><tr><th>Lot</th><th>Contenu</th><th>Dépend de</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>Secteurs étape 2 (source des secteurs + <code>RENDEMENT_LIB</code>)</td><td>— <i>(fait pour la partie utile : l'onglet existe)</i></td></tr>
+      <tr><td>1</td><td>Fondations données : colonne <code>LIBERAL</code> (MEDECINS), onglets <code>LIBERAL_{Y}</code> / <code>LIBERAL_CA_{Y}</code>, actions API</td><td>—</td></tr>
+      <tr><td>2</td><td><b>Convergence (cœur métier)</b> : saisie relevés mensuels (checksum + monotonie), vue T/%/marge par axe</td><td>Lot 1</td></tr>
+      <tr><td>3</td><td>Placement bloc : déclaration → <code>LIBERAL_{Y}</code>, volet comité</td><td>Lot 1</td></tr>
+      <tr><td>4</td><td>Réallocation + équité du désagrément (consomme <code>RENDEMENT_LIB</code>)</td><td>Lots 0 + 2</td></tr>
+    </tbody>
+  </table>
+  <p><b>Calendrier acté :</b> rien en production avant le go-live d'octobre 2026. La construction et les tests à blanc (relevé réel jan→juin comme jeu d'essai) peuvent avancer avant.</p>
+
+  <h3>Chantier C — Dashboard / portail</h3>
+  <ul class="tight">
+    <li><b>Tuile Module libéral</b> : guide + estimateur d'abord, visible <code>LIBERAL=O</code> uniquement (mécanisme <code>only:</code> existant).</li>
+    <li><b>Tuile CRH</b> : aujourd'hui restreinte à un MAR — généraliser ou non, à décider quand le générateur sera jugé mûr.</li>
+    <li>Autres tuiles de contenu : à la demande.</li>
+  </ul>
+
+  <h3>Finitions &amp; maintenance</h3>
+  <ul class="tight">
+    <li>Picker manuel des consult libérales endo : filtrer/avertir sur la présence N+1 (la rotation auto le fait déjà).</li>
+    <li>Libellé hérité dans l'assistant Départ (« onglet Modifications de comite.html », page inexistante).</li>
+    <li>Généraliser service worker / icônes locales aux autres points d'entrée (index, admin…).</li>
+    <li>Veille : option <code>ENRICH</code> (résumé + score IA) quand la clé API sera posée.</li>
+    <li>Sécurité (à l'appréciation) : rotation du token GitHub ; évaluation zéro-rétention/UE pour le CRH (référent RGPD).</li>
+  </ul>
+
+  <h3>Horizon 2027 (déménagement)</h3>
+  <p>Quand le plan du nouveau bloc sera connu : reprendre les 4 points durs du chantier A (externaliser garde→secteur et règles jour en CONFIG, refaire <code>CS_RULES</code>, dédupliquer la normalisation), puis ré-agencer les secteurs <b>depuis l'onglet</b>. Les affectations (<code>AFFECTATIONS_{Y}</code>) sont de la donnée, re-saisies pour le nouveau découpage — le code n'a rien à y prévoir.</p>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<div class="foot">Planning-CHPG · Anesthésie-Réanimation CHPG Monaco — guide technique personnel · établi à partir du code en production, mis à jour le 17 juillet 2026</div>
 
 </div>
 </body>
