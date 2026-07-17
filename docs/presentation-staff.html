@@ -254,6 +254,24 @@ h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-
 .secnum{font-family:var(--mono);font-size:clamp(90px,16vw,220px);font-weight:500;
   color:rgba(255,255,255,.08);position:absolute;right:6vw;bottom:2vh;line-height:1;user-select:none;z-index:0}
 @media(max-width:700px){.tl-when{width:auto}}
+
+/* ══ Transitions & animations d'entrée (ajout staff 04/09) ══ */
+.slide.on{animation:slideEnter .5s cubic-bezier(.22,.61,.36,1)}
+@keyframes slideEnter{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.slide.on .fitwrap>*{animation:riseIn .55s cubic-bezier(.22,.61,.36,1) both}
+.slide.on .fitwrap>*:nth-child(1){animation-delay:.05s}
+.slide.on .fitwrap>*:nth-child(2){animation-delay:.12s}
+.slide.on .fitwrap>*:nth-child(3){animation-delay:.19s}
+.slide.on .fitwrap>*:nth-child(4){animation-delay:.26s}
+.slide.on .fitwrap>*:nth-child(n+5){animation-delay:.31s}
+@keyframes riseIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.cib .fl{transition:width .8s cubic-bezier(.22,.61,.36,1)}
+.bars .fill{transition:height .8s cubic-bezier(.22,.61,.36,1)}
+.stairs .stair{transition:min-height .7s cubic-bezier(.22,.61,.36,1)}
+@media(prefers-reduced-motion:reduce){
+  .slide.on,.slide.on .fitwrap>*{animation:none}
+  .cib .fl,.bars .fill,.stairs .stair{transition:none}
+}
 </style>
 </head>
 <body>
@@ -419,7 +437,7 @@ h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-
   <h2>Mis à l'épreuve sur 20 années simulées</h2>
   <p class="lead">Avant de répartir une seule vraie garde, l'algorithme a tourné sur <b>vingt années fictives mais réalistes</b>&nbsp;: notre équipe et ses âges, les départs à la retraite et les arrivées, ~35 jours d'absence par personne et par an, des congés longs, des souhaits de jours fixes.</p>
   <div class="grid g4">
-    <div class="card"><div class="big num">14 580</div><div class="lbl"><b>gardes placées</b> sur les vingt années (2027 → 2046), enchaînées comme en vrai&nbsp;: chaque année hérite de la précédente.</div></div>
+    <div class="card"><div class="big num" data-count="14580">14 580</div><div class="lbl"><b>gardes placées</b> sur les vingt années (2027 → 2046), enchaînées comme en vrai&nbsp;: chaque année hérite de la précédente.</div></div>
     <div class="card"><div class="big num">0</div><div class="lbl"><b>violation des règles dures</b>&nbsp;: jamais deux jours de suite, jamais sur une absence, jamais jeudi puis samedi — sur les vingt années.</div></div>
     <div class="card"><div class="big num">99–102&nbsp;%</div><div class="lbl">Sur la durée, chacun réalise <b>entre 98,7 et 102,2&nbsp;% de sa juste part</b>. Les petits écarts d'une année se compensent l'année suivante.</div></div>
     <div class="card"><div class="big num">2038</div><div class="lbl">Même au <b>creux démographique</b> (quinze gardeurs autour de 2038-2041), la répartition reste proportionnelle&nbsp;: la charge monte pour tous, pareil pour tous.</div></div>
@@ -787,6 +805,8 @@ document.getElementById('qrUrl2').textContent = CONFIG.DASHBOARD_URL;
 document.getElementById('qrUrlSultan').textContent = CONFIG.INDISPOS_URL;
 document.getElementById('sultanCode').textContent = CONFIG.SULTAN_CODE;
 
+var REDUCE = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
 /* ══ Auto-fit : le contenu d'un slide ne déborde jamais ══ */
 var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
 var cur = 0;
@@ -817,11 +837,56 @@ function fitSlide(sl){
   w.style.height=(needH*scale)+'px';
 }
 
+/* ══ Compteurs qui défilent (0 → valeur) ══ */
+function animateCounts(sl){
+  sl.querySelectorAll('.stat .n, [data-count]').forEach(function(el){
+    if(el._init===undefined){
+      el._init = true;
+      el._orig = el.textContent;
+      var m = el.textContent.trim();
+      el._ok = /^\d[\d  \u202f\u00a0]*$/.test(m);   /* entier simple, espaces de milliers tolérés */
+      el._target = el._ok ? parseInt(m.replace(/[^\d]/g,''),10) : 0;
+      el._space = /[  \u202f\u00a0]/.test(m);
+      el._c = 0;
+    }
+    if(!el._ok) return;
+    if(REDUCE){ el.textContent = el._orig; return; }
+    var tok = ++el._c, t0=null, dur=1000, target=el._target;
+    el.textContent = '0';
+    requestAnimationFrame(function step(ts){
+      if(tok!==el._c) return;                 /* une nouvelle animation a pris la main */
+      if(t0===null) t0=ts;
+      var p=Math.min(1,(ts-t0)/dur), e=1-Math.pow(1-p,3), v=Math.round(e*target);
+      el.textContent = el._space ? v.toLocaleString('fr-FR').replace(/[\u202f,\u00a0]/g,' ') : String(v);
+      if(p<1) requestAnimationFrame(step);
+      else el.textContent = el._orig;         /* restaure le texte exact (≈, plages, %…) */
+    });
+  });
+}
+
+/* ══ Barres qui montent (cibles, dette, escalier) ══ */
+function animateBars(sl){
+  if(REDUCE) return;
+  var fls = sl.querySelectorAll('.cib .fl');            /* barres horizontales des cibles */
+  fls.forEach(function(el){ if(!el.dataset.w) el.dataset.w=el.style.width||'0%'; el.style.transitionDelay='0ms'; el.style.width='0'; });
+  if(fls.length){ void sl.offsetWidth; fls.forEach(function(el,i){ el.style.transitionDelay=(i*16)+'ms'; el.style.width=el.dataset.w; }); }
+
+  var fills = sl.querySelectorAll('.bars .fill');       /* histogrammes verticaux (dette) */
+  fills.forEach(function(el){ if(!el.dataset.h) el.dataset.h=el.style.height||'0'; el.style.height='0'; });
+  if(fills.length){ void sl.offsetWidth; fills.forEach(function(el){ el.style.height=el.dataset.h; }); }
+
+  var st = sl.querySelectorAll('.stairs .stair');       /* escalier des priorités */
+  st.forEach(function(el){ if(!el.dataset.mh) el.dataset.mh=el.style.minHeight||''; if(el.dataset.mh){ el.style.transitionDelay='0ms'; el.style.minHeight='36px'; } });
+  if(st.length){ void sl.offsetWidth; st.forEach(function(el,i){ if(el.dataset.mh){ el.style.transitionDelay=(i*70)+'ms'; el.style.minHeight=el.dataset.mh; } }); }
+}
+
 /* ══ Navigation ══ */
 function show(i) {
   cur = Math.max(0, Math.min(slides.length - 1, i));
   slides.forEach(function (s, j) { s.classList.toggle('on', j === cur); });
   fitSlide(slides[cur]);
+  animateCounts(slides[cur]);
+  animateBars(slides[cur]);
   document.getElementById('bar').style.width = ((cur + 1) / slides.length * 100) + '%';
   document.getElementById('count').textContent = (cur + 1) + ' / ' + slides.length;
   document.body.classList.toggle('dark-hud', slides[cur].classList.contains('dark'));
