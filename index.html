@@ -15,7 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+/* polices chargées via <link> (perf : @import bloquant supprimé) */
 
 :root {
   --red: #CE1126;
@@ -965,7 +965,7 @@ async function viewLogin() {
       sessionStorage.setItem('chpgViewCode', code);
       applyUserBadge(r);
       document.getElementById('viewAuthOverlay').style.display = 'none';
-      init();
+      init(r.year);   // (perf) l'année active arrive avec le login — pas de 2e appel
     } else {
       VIEW_CODE = '';
       _authErr(r && r.error ? r.error : 'Code incorrect');
@@ -983,7 +983,7 @@ async function viewAutoLogin() {
     const r = await apiPost({action: 'login'});
     if (r && r.success) {
       applyUserBadge(r);
-      init();
+      init(r.year);   // (perf) idem : année fournie par le login
     } else {
       VIEW_CODE = ''; sessionStorage.removeItem('chpgViewCode');
       document.getElementById('viewAuthOverlay').style.display = 'flex';
@@ -1086,20 +1086,26 @@ function weekDaysFull(weekInfo){
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────
-async function init(){
-  // 1. Récupérer l'année active depuis l'API
-  activeYear = new Date().getFullYear();
-  try {
-    const yearData = await apiPost({action:'getActiveYear'});
-    if(yearData.success && yearData.year) activeYear = yearData.year;
-  } catch(e){}
+async function init(loginYear){
+  // 1. Année active : fournie par la réponse du login (perf : plus d'appel getActiveYear).
+  //    Repli sur l'API uniquement si absente (ancienne version GAS).
+  activeYear = Number(loginYear) || new Date().getFullYear();
+  if (!loginYear) {
+    try {
+      const yearData = await apiPost({action:'getActiveYear'});
+      if(yearData.success && yearData.year) activeYear = yearData.year;
+    } catch(e){}
+  }
 
-  // 2. Détecter les années disponibles via l'API protégée (Étape 2) :
-  //    sonde getAffectationsJson (fichier léger ~4 Ko) pour chaque année,
-  //    et met le résultat en cache pour éviter un second appel dans loadYear.
+  // 2. (perf) Lancer EN PARALLÈLE :
+  //    a) le chargement du planning de l'année active (affiché dès qu'il arrive),
+  //    b) les sondes des AUTRES années (sélecteur), l'année active étant couverte par (a).
+  currentYear = activeYear;
+  const planP = loadYear(activeYear);   // rend le planning sans attendre les sondes
+
   const thisYear = new Date().getFullYear();
   const yearsToCheck = [];
-  for(let y = 2026; y <= thisYear + 1; y++) yearsToCheck.push(y);
+  for(let y = 2026; y <= thisYear + 1; y++) if(y !== activeYear) yearsToCheck.push(y);
 
   const availableYears = [];
   await Promise.all(yearsToCheck.map(async y => {
@@ -1111,6 +1117,10 @@ async function init(){
       }
     } catch(e){}
   }));
+
+  // 3. Résultat du chargement de l'année active
+  const planOk = (await planP) !== false;
+  if (planOk) availableYears.push(activeYear);
   availableYears.sort((a, b) => a - b);
 
   if(!availableYears.length) {
@@ -1118,14 +1128,13 @@ async function init(){
     return;
   }
 
-  // 3. Sélectionner l'année par défaut : active si disponible, sinon la plus récente
-  currentYear = availableYears.includes(activeYear) ? activeYear : availableYears[availableYears.length - 1];
-
   // 4. Construire le sélecteur d'année
+  currentYear = availableYears.includes(activeYear) ? activeYear : availableYears[availableYears.length - 1];
   buildYearSelect(availableYears);
 
-  // 5. Charger le planning de l'année sélectionnée
-  if ((await loadYear(currentYear)) === false) return;
+  // 5. Si l'année active n'était pas disponible, charger la plus récente
+  if (currentYear !== activeYear) { if ((await loadYear(currentYear)) === false) return; }
+  else if (!planOk) return;
 
   document.getElementById('btnPlanning').onclick = () => setMainView('planning');
   document.getElementById('btnMedecins').onclick = () => setMainView('medecins');
@@ -1228,7 +1237,53 @@ function showSkeleton(){
   const tc=document.getElementById('tonightCard'); if(tc) tc.style.display='none';
 }
 
+// (perf) Cache persistant du planning entre deux visites (sessionStorage, cle partagee
+// avec dashboard.html). Rendu immediat depuis le cache + rafraichissement silencieux.
+const _SS_PLAN_KEY = y => 'chpgPlan:' + y;
+function _ssPlanRead(year){
+  try { const c = JSON.parse(sessionStorage.getItem(_SS_PLAN_KEY(year))); return (c && c.p) ? c : null; } catch(e){ return null; }
+}
+function _ssPlanWrite(year, planning, affectations){
+  try {
+    const prev = _ssPlanRead(year) || {};
+    const obj = { p: planning, a: (affectations !== undefined ? affectations : prev.a), t: Date.now() };
+    sessionStorage.setItem(_SS_PLAN_KEY(year), JSON.stringify(obj));
+  } catch(e){ /* quota plein : on vit sans cache */ }
+}
+async function _refreshYearSilently(year){
+  try {
+    const [res, affRes] = await Promise.all([
+      apiPost({action:'getPlanningJson', year}),
+      apiPost({action:'getAffectationsJson', year}),
+    ]);
+    if (!res || !res.success || !res.planning) return;
+    const fresh = res.planning;
+    const freshAff = (affRes && affRes.success && affRes.affectations && affRes.affectations.affectations) || {};
+    const changed = JSON.stringify(fresh) !== JSON.stringify(PLANNING_CACHE[year] || null)
+                 || JSON.stringify(freshAff) !== JSON.stringify(AFF_CACHE[year] || null);
+    PLANNING_CACHE[year] = fresh; AFF_CACHE[year] = freshAff;
+    _ssPlanWrite(year, fresh, freshAff);
+    if (changed && currentYear === year) {
+      DATA = fresh; AFFECTATIONS_DATA = freshAff;
+      const keep = DATA.months.find(m => m.id === currentMonthId);
+      if (!keep) {
+        const now = new Date();
+        const found = DATA.months.find(m => m.year === now.getFullYear() && m.month === now.getMonth() + 1);
+        currentMonthId = found ? found.id : DATA.months[0].id;
+      }
+      buildMonthSelect(); buildWeekNav(); render();
+      if (typeof isMobile !== 'undefined' && isMobile) { buildMobileDayList(); renderMobileDay(); }
+    }
+  } catch(e){ /* silencieux */ }
+}
+
 async function loadYear(year) {
+  // (perf) rehydratation depuis sessionStorage : affichage immediat + refresh derriere
+  let fromSS = false;
+  if (!PLANNING_CACHE[year]) {
+    const c = _ssPlanRead(year);
+    if (c) { PLANNING_CACHE[year] = c.p; if (c.a !== undefined) AFF_CACHE[year] = c.a; fromSS = true; }
+  }
   if (!PLANNING_CACHE[year]) showSkeleton();
   try {
     if (PLANNING_CACHE[year]) {
@@ -1238,6 +1293,7 @@ async function loadYear(year) {
       if (!res || !res.success || !res.planning) throw new Error((res && res.error) || 'réponse API invalide');
       DATA = res.planning;
       PLANNING_CACHE[year] = DATA;
+      _ssPlanWrite(year, DATA);
     }
   } catch(e) {
     const msg = String((e && e.message) || e || '');
@@ -1265,8 +1321,12 @@ async function loadYear(year) {
       const affRes = await apiPost({action: 'getAffectationsJson', year});
       AFFECTATIONS_DATA = (affRes && affRes.success && affRes.affectations && affRes.affectations.affectations) || {};
       AFF_CACHE[year] = AFFECTATIONS_DATA;
+      _ssPlanWrite(year, DATA, AFFECTATIONS_DATA);
     }
   } catch(e) { AFFECTATIONS_DATA = {}; }
+
+  // (perf) si on a servi le cache de la visite precedente : rafraichir en arriere-plan
+  if (fromSS) _refreshYearSilently(year);
 
   // Aller au mois actuel si disponible dans cette année, sinon premier mois
   const now = new Date();
