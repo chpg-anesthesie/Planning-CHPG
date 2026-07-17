@@ -15,7 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="assets/vendor/lucide-icons.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+/* polices chargees via <link> (perf : @import bloquant supprime) */
 
 :root {
   --red: #CE1126;
@@ -567,14 +567,56 @@ let MY_GARDES = null;          // [{date:'YYYY-MM-DD', type:'G'|'G2'}] triées
 let _mgLoading = false;
 const _planCache = {};         // year -> planning JSON (mémoire)
 
+// (perf) Année active : UNE seule promesse partagée (loadMyGardes + loadMyConges),
+// pré-alimentée par la réponse du login quand elle contient l'année.
+let _activeYearP = null;
+function seedActiveYear(y){ if(y) _activeYearP = Promise.resolve(Number(y)); }
+function getActiveYearOnce(){
+  if(_activeYearP) return _activeYearP;
+  _activeYearP = apiPost({action:'getActiveYear'})
+    .then(function(r){ return (r && r.success && r.year) ? Number(r.year) : new Date().getFullYear(); })
+    .catch(function(){ _activeYearP = null; return new Date().getFullYear(); });
+  return _activeYearP;
+}
+
+// (perf) Cache sessionStorage du planning, clé partagée avec index.html ({p, a, t}).
+// Le dashboard ne lit/écrit que p ; il préserve a pour ne pas écraser le cache d'index.
+function _ssPlanGet(year){
+  try{ const c=JSON.parse(sessionStorage.getItem('chpgPlan:'+year)); return (c&&c.p)?c:null; }catch(e){ return null; }
+}
+function _ssPlanSet(year, planning){
+  try{
+    const prev=_ssPlanGet(year)||{};
+    sessionStorage.setItem('chpgPlan:'+year, JSON.stringify({p:planning, a:prev.a, t:Date.now()}));
+  }catch(e){}
+}
+async function _refreshPlanSilently(year){
+  try{
+    const r=await apiPost({action:'getPlanningJson', year});
+    if(r && r.success && r.planning){
+      const changed = JSON.stringify(r.planning)!==JSON.stringify(_planCache[year]||null);
+      _planCache[year]=r.planning; _ssPlanSet(year, r.planning);
+      if(changed && MY_ID){
+        // recalcul silencieux du bandeau « prochaine garde »
+        const today=_todayStr();
+        let list=_extractMyGardes(r.planning, today);
+        MY_GARDES=list.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:0; });
+        renderMyGardesHero();
+      }
+    }
+  }catch(e){ /* silencieux */ }
+}
+
 function _todayStr(){ const d=new Date(), p=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
 function _daysUntil(dateStr){ const t=new Date(_todayStr()+'T00:00:00'), d=new Date(dateStr+'T00:00:00'); return Math.round((d-t)/86400000); }
 function _mgCap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
 
 async function _fetchPlanning(year){
   if(_planCache[year]) return _planCache[year];
+  const c=_ssPlanGet(year);                       // (perf) cache de la visite précédente
+  if(c){ _planCache[year]=c.p; _refreshPlanSilently(year); return c.p; }
   const r = await apiPost({action:'getPlanningJson', year});
-  if(r && r.success && r.planning){ _planCache[year]=r.planning; return r.planning; }
+  if(r && r.success && r.planning){ _planCache[year]=r.planning; _ssPlanSet(year, r.planning); return r.planning; }
   return null;
 }
 function _extractMyGardes(planning, today){
@@ -599,7 +641,7 @@ async function loadMyGardes(){
   try{
     const today=_todayStr();
     let year=new Date().getFullYear();
-    try{ const y=await apiPost({action:'getActiveYear'}); if(y && y.success && y.year) year=y.year; }catch(e){}
+    try{ year = await getActiveYearOnce(); }catch(e){}
     let list=_extractMyGardes(await _fetchPlanning(year), today);
     if(new Date().getMonth()>=9){   // dès octobre : transition déc.→janv. (N+1 silencieux)
       try{ list=list.concat(_extractMyGardes(await _fetchPlanning(year+1), today)); }catch(e){}
@@ -702,7 +744,7 @@ function _buildConges(days){
 async function loadMyConges(){
   const today=_todayStr();
   let year=new Date().getFullYear();
-  try{ const y=await apiPost({action:'getActiveYear'}); if(y && y.success && y.year) year=y.year; }catch(e){}
+  try{ year = await getActiveYearOnce(); }catch(e){}
   let days=_extractMyConges(await _fetchPlanning(year), today);
   if(new Date().getMonth()>=9){ try{ days=days.concat(_extractMyConges(await _fetchPlanning(year+1), today)); }catch(e){} }
   MY_CONGES=_buildConges(days);
@@ -1112,6 +1154,7 @@ async function viewLogin(){
     const r = await apiPost({action:'login'});
     if(r && r.success){
       try{ sessionStorage.setItem('chpgViewCode', code); }catch(e){}
+      seedActiveYear(r.year);   // (perf) évite un getActiveYear ultérieur
       applyUserBadge(r);
       showPortal();
     } else {
@@ -1129,7 +1172,7 @@ async function viewAutoLogin(){
   VIEW_CODE = saved; showPortal();
   try{
     const r = await apiPost({action:'login'});
-    if(r && r.success){ applyUserBadge(r); showPortal(); }
+    if(r && r.success){ seedActiveYear(r.year); applyUserBadge(r); showPortal(); }
     else {
       VIEW_CODE=''; try{ sessionStorage.removeItem('chpgViewCode'); }catch(e){}
       document.getElementById('viewAuthOverlay').style.display='flex';
