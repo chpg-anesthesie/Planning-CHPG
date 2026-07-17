@@ -1,6 +1,8 @@
-# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v10)
+# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v12)
 
 *Source faisant autorité : **Arrêté Ministériel n° 2005-276** régissant la CCAM à Monaco (MAJ 2018) + mémento des Caisses Sociales de Monaco. Les **valeurs monétaires sont celles fixées en France** (art. 16) → base CCAM **v80, en vigueur au 01/01/2025**. Objectif : coter **à juste titre** l'exhaustivité de ce qui est réellement fait — jamais surcoter.*
+
+*v12 — 17 juillet 2026. §7 enrichi : anesthésie indexée sur l'acte chirurgical pivot (à vérifier si plusieurs gestes) ; CS/APC pré-anesthésique systématiquement cotée (point d'entrée NGAP du parcours).*
 
 *v11 — 12 juillet 2026. **Axe NGAP (consultations) ajouté et validé au centime** sur 8 feuilles réelles (§5 ter) : BR = lettre-clé × coefficient, **sans** coefficient monégasque ×1,95 et **sans** modificateur ; la carte ne joue que sur le DH (verte/SPME 0 · rose +20 % · bulle/français/NAS/AME libre). v10 : chaîne CCAM multi-lignes — coefficient monégasque ×1,95 dans le TARIF (pas le DH), association (principal 100 % · associé 50 % · complément 100 % en sus), somme des lignes ; A monégasque = 44,85 €.*
 
@@ -230,6 +232,8 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 ## 7. Checklist anti-perte (garde + bloc)
 
 - [ ] **Ligne activité 4** sur CHAQUE intervention sous AG/ALR (ou **ZZLP025** si l'acte ne porte pas d'anesthésie native).
+- [ ] **Plusieurs gestes chir. ?** Vérifier que la ligne d'anesthésie porte sur l'**acte pivot** attendu (l'anesthésie s'indexe sur l'acte chirurgical) — *applicabilité Monaco à confirmer*.
+- [ ] **CS / APC pré-anesthésique** systématiquement cotée (axe **NGAP**, point d'entrée du parcours — CS 46 € / APC 60 € selon critères).
 - [ ] **Échoguidage d'ALR** (TAP, bloc de membre…) → **AHQJ021** (29,12 €) en sus.
 - [ ] **Récupération de sang** peropératoire → **YYYY041**.
 - [ ] Modificateur **7** (+6 %) — présence permanente attestée sur la fiche.
