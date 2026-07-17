@@ -1,12 +1,11 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-17.1';
+const GAS_VERSION_INDISPOS = '2026-07-17.2';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
 const GITHUB_REPO_INDISPOS = 'Planning-CHPG';
-const ADMIN_CODE = 'CHPG2026ADMIN';
 const TEST_YEAR = getActiveYear();
 
 function getIndisposYear() {
@@ -2826,7 +2825,7 @@ function testNotifierConflits() {
   }
 }
 function testSetDailyStatusWrite() {
-  const ADMIN = 'ADMINPLANNING';   // ← ton code admin (CONFIG ▸ ADMIN_CODE)
+  const ADMIN = 'METS_TON_CODE_ICI';   // ← code admin (CONFIG ▸ ADMIN_CODE) — JAMAIS de vrai code committé
   const payload = {
     action: 'setDailyStatus', code: ADMIN,
     year: 2027, marId: 'FROHLICH', statut: 'CL',
