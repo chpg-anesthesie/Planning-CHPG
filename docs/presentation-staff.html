@@ -189,15 +189,41 @@ h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-
 </section>
 
 <!-- 10 · DÉMO LIVE 1 -->
-<section class="slide" data-notes="Demander un volontaire AVEC son téléphone. Lui faire déclarer une vraie indisponibilité pendant que le chrono tourne. Cible : moins d'une minute.">
+<section class="slide" data-notes="ACTE 1 de la grande démo. Un volontaire AVEC son téléphone (prévenu à l'avance de préférence). Projeter sa saisie : il déclare ses indisponibilités 2027 pendant que le chrono tourne. Rappeler : les 22 autres profils ont été remplis arbitrairement pour l'exercice. Quand il valide → enchaîner sur le slide suivant et basculer vers admin.html pour lancer la génération.">
   <div class="live-chip"><span class="live-dot"></span> En direct</div>
-  <h2>Déclarer une indisponibilité,<br>chrono en main</h2>
-  <p class="sub">Un volontaire, son téléphone. On dit que ça prend moins d'une minute — vérifions.</p>
+  <h2>Déclarer ses indisponibilités,<br>chrono en main</h2>
+  <p class="sub">Un volontaire, son téléphone, ses indisponibilités 2027. On dit que ça prend moins d'une minute par semaine concernée — vérifions.</p>
   <div class="chrono num" id="chrono">00:00.0</div>
   <div class="chrono-btns">
     <button class="cbtn primary" id="chronoGo">Démarrer</button>
     <button class="cbtn" id="chronoReset">Remettre à zéro</button>
   </div>
+</section>
+
+
+<!-- 10b · DÉMO LIVE 2 — GÉNÉRATION -->
+<section class="slide" data-notes="ACTE 2. Basculer sur admin.html projeté → assistant Génération (W2) → lancer. REVENIR SUR CE SLIDE pendant les ~15 secondes de calcul et dérouler les 4 étapes à voix haute. C'est le moment de narration : le temps de calcul devient l'explication.">
+  <div class="live-chip"><span class="live-dot"></span> En direct</div>
+  <h2>730 gardes, 23 MARs, 15 secondes</h2>
+  <p class="sub">Pendant que l'algorithme travaille, voilà ce qu'il fait — dans l'ordre.</p>
+  <div class="cards" style="margin-top:3vh">
+    <div class="card"><div class="t">1 · Il charge</div><div class="d">Les indisponibilités des 23 MARs — dont celles saisies il y a une minute —, les quotités, les vœux.</div></div>
+    <div class="card"><div class="t">2 · Il calcule les cibles</div><div class="d">La juste part de chacun, proportionnelle à sa quotité.</div></div>
+    <div class="card"><div class="t">3 · Il place</div><div class="d">Dans l'ordre d'équité : week-ends d'abord, puis samedis, jeudis, total.</div></div>
+    <div class="card"><div class="t">4 · Il vérifie</div><div class="d">Couverture de chaque jour, respect des contraintes, certificat d'équité.</div></div>
+  </div>
+</section>
+
+<!-- 10c · DÉMO LIVE 3 — LE VERDICT -->
+<section class="slide" data-notes="ACTE 3. Basculer sur le planning généré (index.html ou admin). Zoomer sur la ligne du volontaire : zéro garde sur ses indispos, compteurs à la cible. Puis lancer l'envoi des récaps — annoncer clairement à l'oral : « le mail que vous recevez est FICTIF, supprimez-le, le vrai arrive en novembre ». Laisser les téléphones vibrer, montrer le mail du volontaire si possible.">
+  <div class="live-chip"><span class="live-dot"></span> En direct</div>
+  <h2>Le verdict</h2>
+  <div class="cards" style="margin-top:3vh">
+    <div class="card"><div class="t">Ses indispos, respectées</div><div class="d">Zéro garde sur les jours que notre volontaire vient de bloquer.</div></div>
+    <div class="card"><div class="t">Sa juste part</div><div class="d">Ses compteurs — week-ends, samedis, jeudis, total — à la cible, comme tout le monde.</div></div>
+    <div class="card"><div class="t">Vos téléphones vibrent</div><div class="d">Chacun reçoit son récapitulatif par mail, séance tenante.</div></div>
+  </div>
+  <div style="margin-top:3vh;padding:12px 16px;border:1.5px solid #D7A548;background:rgba(215,165,72,.10);border-radius:10px;font-size:.92em"><b>Planning d'entraînement — données fictives.</b> Ce planning sera effacé après le staff&nbsp;; le mail reçu est à supprimer. Le vrai&nbsp;: <b>vos saisies en octobre, la génération en novembre.</b></div>
 </section>
 
 <!-- 11 · LE COMITÉ -->
