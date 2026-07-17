@@ -1754,24 +1754,11 @@ async function authenticate() {
 }
 
 const API_TIMEOUT_MS = 120000; // 2 min : couvre la génération des gardes (~15 s) et le diagnostic, coupe les vrais blocages
-// (PERF-TEMP) Instrumentation temporaire : chronomètre chaque appel API et la taille
-// de la réponse. Résultats dans la console (F12) : lignes ⏱ + tableau récapitulatif
-// via __perfTable(). À RETIRER une fois le diagnostic posé.
-window.__PERF = [];
-window.__perfTable = function(){
-  const rows = window.__PERF.slice();
-  const total = rows.reduce((a,r)=>a+r.ms,0);
-  console.table(rows);
-  console.log('⏱ TOTAL cumulé: ' + Math.round(total) + ' ms sur ' + rows.length + ' appel(s)' +
-              ' — démarré il y a ' + Math.round(performance.now()) + ' ms');
-};
 async function api(payload) {
   payload.code = ADMIN_CODE;
   _apiBar(true);
   const _ctrl = new AbortController();
   const _timer = setTimeout(() => _ctrl.abort(), API_TIMEOUT_MS);
-  const _t0 = performance.now();                                   // (PERF-TEMP)
-  const _act = payload.action + (payload.year ? ' ' + payload.year : ''); // (PERF-TEMP)
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
@@ -1781,14 +1768,9 @@ async function api(payload) {
       signal: _ctrl.signal,
     });
     if (!res.ok) throw new Error('Serveur indisponible (HTTP ' + res.status + ')');
-    const _txt = await res.text();                                 // (PERF-TEMP)
-    const _ms = performance.now() - _t0;                           // (PERF-TEMP)
-    window.__PERF.push({action:_act, ms:Math.round(_ms), ko:Math.round(_txt.length/1024), t_debut:Math.round(_t0)}); // (PERF-TEMP)
-    console.log('⏱ ' + _act + ' : ' + Math.round(_ms) + ' ms · ' + Math.round(_txt.length/1024) + ' Ko'); // (PERF-TEMP)
-    return JSON.parse(_txt);                                       // (PERF-TEMP: remplace res.json())
+    return await res.json();
   } catch (e) {
     if (e && e.name === 'AbortError') throw new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable, réessayez');
-    window.__PERF.push({action:_act, ms:Math.round(performance.now()-_t0), ko:-1, t_debut:Math.round(_t0)}); // (PERF-TEMP)
     throw e;
   } finally { clearTimeout(_timer); _apiBar(false); }
 }
@@ -2220,14 +2202,16 @@ async function initDashboard() {
     loadStatusBar().catch(()=>{}),
     loadOverrides().catch(()=>{}),
   ]);
-  // Détection des années en parallèle — le sélecteur se remplit dès qu'elle est prête, sans retarder le planning
-  const yearDetect = (async () => {
+  // (perf) Détection des années : ne bloque PAS l'affichage du planning. On attend
+  // uniquement mainLoads (planning + statuts + overrides) ; la détection N+1 et le
+  // sélecteur d'années se complètent en arrière-plan (getPlanningJson N+1 retiré du
+  // chemin critique — il ne sert qu'au flag N+1 des wizards/sélecteur).
+  (async () => {
     try { await checkNextYearAvailable(); } catch(e) {}
     try { await detectAvailableYears(); } catch(e) {}
   })();
-  await Promise.allSettled([mainLoads, yearDetect]);
+  await mainLoads;
   try { updatePlanningIndisposVisibility(); } catch(e) {}
-  console.log('⏱ BOOT admin terminé à ' + Math.round(performance.now()) + ' ms — tape __perfTable() pour le récap'); // (PERF-TEMP)
 }
 
 // ── STATUS ─────────────────────────────────────────────────────────────
@@ -2247,7 +2231,9 @@ async function loadPlanningData() {
   const grid = document.getElementById('planTable');
   if(grid) grid.innerHTML = '<tbody><tr><td colspan="8" style="padding:40px;text-align:center;color:var(--ink-4);"><div class="spinner" style="margin:0 auto 10px;"></div>Chargement…</td></tr></tbody>';
   try {
-    // Lecture via l'API (JSON servis depuis le Drive) — retry jusqu'à 3 fois si erreur réseau
+    // (perf) Planning ET affectations lancés EN PARALLÈLE (avant : en série → ~4 s perdues).
+    // Le planning garde son retry x3 ; les affectations sont accessoires (échec toléré).
+    const _affP = api({action:'getAffectationsJson', year: ADMIN_YEAR}).catch(()=>null);
     let res = null, attempts = 0;
     while (attempts < 3) {
       try {
@@ -2261,9 +2247,9 @@ async function loadPlanningData() {
     DATA = res.planning;
       // _localOverrides CONSERVÉS : ils restent appliqués tant que le JSON
       // régénéré n'est pas propagé. Application idempotente.
-    // Affectations du mois (pour les cases flash basées sur l'effectif attendu)
+    // Affectations du mois (résolues en parallèle, lancées plus haut)
     try {
-      const ra = await api({action:'getAffectationsJson', year: ADMIN_YEAR});
+      const ra = await _affP;
       window.AFFM = (ra && ra.success && ra.affectations && ra.affectations.affectations) || {};
     } catch(e) { window.AFFM = {}; }
     if (!DATA || !DATA.months) throw new Error('Structure JSON invalide');
