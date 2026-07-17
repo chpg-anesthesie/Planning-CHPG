@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-16.5';
+const GAS_VERSION_INDISPOS = '2026-07-17.1';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -191,7 +191,7 @@ function _findPhantomGardes_(year) {
 function checkCode(code) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName('CONFIG');
-  let adminCode = 'CHPG2026ADMIN';
+  let adminCode = null;   // AUCUN code par défaut : ADMIN_CODE doit exister dans CONFIG
   if (configSheet) {
     const configData = configSheet.getDataRange().getValues();
     for (let r = 1; r < configData.length; r++) {
@@ -201,7 +201,7 @@ function checkCode(code) {
       }
     }
   }
-  if (code === adminCode) return {role: 'admin', id: 'ADMIN'};
+  if (adminCode && code === adminCode) return {role: 'admin', id: 'ADMIN'};
 
   const sheet = ss.getSheetByName('MEDECINS');
   if (!sheet) return null;
@@ -756,6 +756,13 @@ function doGet(e) {
         success: true, year: TEST_YEAR
       })).setMimeType(ContentService.MimeType.JSON);
     }
+    const user = checkCode(code);
+    if (!user) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false, error: 'Code invalide'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    // (B1 sécurité) getStatus / getStatsLive : désormais code-gated (données nominatives)
     if (action === 'getStatus') {
       return ContentService.createTextOutput(JSON.stringify({
         success: true, status: getPlanningStatus()
@@ -767,12 +774,6 @@ function doGet(e) {
         return ContentService.createTextOutput(JSON.stringify({success:true, stats:computeStatsLive(statsYear)}))
           .setMimeType(ContentService.MimeType.JSON);
       } catch (err) { return _error(err.message); }
-    }
-    const user = checkCode(code);
-    if (!user) {
-      return ContentService.createTextOutput(JSON.stringify({
-        success: false, error: 'Code invalide'
-      })).setMimeType(ContentService.MimeType.JSON);
     }
     if (action === 'login') {
       logConnexion(user);
@@ -1151,7 +1152,7 @@ if (!affSheet) {
         medecins.push({id:String(data[r][0]).trim(), nom:String(data[r][1]).trim(),
           initiales:String(data[r][2]).trim(), actif:isO(data[r][3]),
           quotite:Number(data[r][4])||100, pctGardes:Number(data[r][5])||100,
-          codeAcces:String(data[r][6]).trim(), email:String(data[r][7]).trim(), dect:String(data[r][8]).trim(),
+          hasCode:!!String(data[r][6]).trim(), email:String(data[r][7]).trim(), dect:String(data[r][8]).trim(),
           dateDebut:toDate(data[r][9]), dateFin:toDate(data[r][10]),
           noGarde:isO(data[r][11]), only18:isO(data[r][12]), noWeekend:isO(data[r][13]),
           rythme2sur2:isO(data[r][14]), souhaitPlafond:isO(data[r][15]),
@@ -1188,7 +1189,7 @@ if (!affSheet) {
         yn('actif', 3),            // D actif
         num('quotite', 4, 100),    // E quotité
         num('pctGardes', 5, 100),  // F % gardes
-        str('codeAcces', 6),       // G code
+        (m.codeAcces ? String(m.codeAcces).trim() : old(6)),  // G code — vide = inchangé (jamais effacé)
         str('email', 7),           // H email
         str('dect', 8),            // I dect
         str('dateDebut', 9),       // J date_debut
