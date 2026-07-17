@@ -1754,11 +1754,24 @@ async function authenticate() {
 }
 
 const API_TIMEOUT_MS = 120000; // 2 min : couvre la génération des gardes (~15 s) et le diagnostic, coupe les vrais blocages
+// (PERF-TEMP) Instrumentation temporaire : chronomètre chaque appel API et la taille
+// de la réponse. Résultats dans la console (F12) : lignes ⏱ + tableau récapitulatif
+// via __perfTable(). À RETIRER une fois le diagnostic posé.
+window.__PERF = [];
+window.__perfTable = function(){
+  const rows = window.__PERF.slice();
+  const total = rows.reduce((a,r)=>a+r.ms,0);
+  console.table(rows);
+  console.log('⏱ TOTAL cumulé: ' + Math.round(total) + ' ms sur ' + rows.length + ' appel(s)' +
+              ' — démarré il y a ' + Math.round(performance.now()) + ' ms');
+};
 async function api(payload) {
   payload.code = ADMIN_CODE;
   _apiBar(true);
   const _ctrl = new AbortController();
   const _timer = setTimeout(() => _ctrl.abort(), API_TIMEOUT_MS);
+  const _t0 = performance.now();                                   // (PERF-TEMP)
+  const _act = payload.action + (payload.year ? ' ' + payload.year : ''); // (PERF-TEMP)
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
@@ -1768,9 +1781,14 @@ async function api(payload) {
       signal: _ctrl.signal,
     });
     if (!res.ok) throw new Error('Serveur indisponible (HTTP ' + res.status + ')');
-    return await res.json();
+    const _txt = await res.text();                                 // (PERF-TEMP)
+    const _ms = performance.now() - _t0;                           // (PERF-TEMP)
+    window.__PERF.push({action:_act, ms:Math.round(_ms), ko:Math.round(_txt.length/1024), t_debut:Math.round(_t0)}); // (PERF-TEMP)
+    console.log('⏱ ' + _act + ' : ' + Math.round(_ms) + ' ms · ' + Math.round(_txt.length/1024) + ' Ko'); // (PERF-TEMP)
+    return JSON.parse(_txt);                                       // (PERF-TEMP: remplace res.json())
   } catch (e) {
     if (e && e.name === 'AbortError') throw new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable, réessayez');
+    window.__PERF.push({action:_act, ms:Math.round(performance.now()-_t0), ko:-1, t_debut:Math.round(_t0)}); // (PERF-TEMP)
     throw e;
   } finally { clearTimeout(_timer); _apiBar(false); }
 }
@@ -2209,6 +2227,7 @@ async function initDashboard() {
   })();
   await Promise.allSettled([mainLoads, yearDetect]);
   try { updatePlanningIndisposVisibility(); } catch(e) {}
+  console.log('⏱ BOOT admin terminé à ' + Math.round(performance.now()) + ' ms — tape __perfTable() pour le récap'); // (PERF-TEMP)
 }
 
 // ── STATUS ─────────────────────────────────────────────────────────────
