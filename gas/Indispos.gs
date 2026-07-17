@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-17.2';
+const GAS_VERSION_INDISPOS = '2026-07-17.3';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -744,6 +744,60 @@ try {
   return { indisposN1Exists, indisposN1Complete, marsManquants, gardesN1Generated, gardesNClosed, year, nextYear };
 }
 // ── API WEB APP — doGet ───────────────────────────────────────────────
+// ── Builders partagés (handlers unitaires + getAdminBootstrap) ──
+function _buildMedecins_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('MEDECINS');
+  if (!sheet) return { error: 'Onglet MEDECINS introuvable' };
+  const data = sheet.getDataRange().getValues();
+  const isO = v => String(v).trim().toUpperCase() === 'O';
+  const toDate = v => {
+    if (!v) return '';
+    if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    return String(v).trim();
+  };
+  const medecins = [];
+  for (let r = 1; r < data.length; r++) {
+    if (!data[r][0]) continue;
+    medecins.push({id:String(data[r][0]).trim(), nom:String(data[r][1]).trim(),
+      initiales:String(data[r][2]).trim(), actif:isO(data[r][3]),
+      quotite:Number(data[r][4])||100, pctGardes:Number(data[r][5])||100,
+      hasCode:!!String(data[r][6]).trim(), email:String(data[r][7]).trim(), dect:String(data[r][8]).trim(),
+      dateDebut:toDate(data[r][9]), dateFin:toDate(data[r][10]),
+      noGarde:isO(data[r][11]), only18:isO(data[r][12]), noWeekend:isO(data[r][13]),
+      rythme2sur2:isO(data[r][14]), souhaitPlafond:isO(data[r][15]),
+      tpJoursFixes:String(data[r][16]||'').trim().toUpperCase()});
+  }
+  return { medecins };
+}
+
+function _buildOverrides_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('OVERRIDES');
+  if (!sheet) return { success:true, overrides:[], total:0, passed:0, upcoming:0 };
+  const data = sheet.getDataRange().getValues();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const overrides = [];
+  for (let r = 1; r < data.length; r++) {
+    const raw = data[r][0];
+    if (!raw) continue;
+    let dateStr = raw instanceof Date
+      ? `${raw.getFullYear()}-${String(raw.getMonth()+1).padStart(2,'00')}-${String(raw.getDate()).padStart(2,'00')}`
+      : String(raw).trim();
+    if (!dateStr) continue;
+    const isFuture = new Date(dateStr + 'T00:00:00') >= today;
+    overrides.push({rowIndex:r+1, date:dateStr,
+      doctorId:String(data[r][1]||'').trim().toUpperCase(),
+      morning:String(data[r][2]||'').trim().toUpperCase(),
+      afternoon:String(data[r][3]||'').trim().toUpperCase(),
+      comment:String(data[r][4]||'').trim(), isFuture});
+  }
+  return { success:true, overrides,
+    total:overrides.length,
+    passed:overrides.filter(o=>!o.isFuture).length,
+    upcoming:overrides.filter(o=>o.isFuture).length };
+}
+
 function doGet(e) {
   try {
     const payload = JSON.parse(e.parameter.payload || '{}');
@@ -1090,34 +1144,8 @@ if (!affSheet) {
 
     if (action === 'getOverrides') {
       if (user.role !== 'admin') return _deny();
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const sheet = ss.getSheetByName('OVERRIDES');
-      if (!sheet) return ContentService.createTextOutput(JSON.stringify({
-        success:true, overrides:[], total:0, passed:0, upcoming:0
-      })).setMimeType(ContentService.MimeType.JSON);
-      const data = sheet.getDataRange().getValues();
-      const today = new Date(); today.setHours(0,0,0,0);
-      const overrides = [];
-      for (let r = 1; r < data.length; r++) {
-        const raw = data[r][0];
-        if (!raw) continue;
-        let dateStr = raw instanceof Date
-          ? `${raw.getFullYear()}-${String(raw.getMonth()+1).padStart(2,'00')}-${String(raw.getDate()).padStart(2,'00')}`
-          : String(raw).trim();
-        if (!dateStr) continue;
-        const isFuture = new Date(dateStr + 'T00:00:00') >= today;
-        overrides.push({rowIndex:r+1, date:dateStr,
-          doctorId:String(data[r][1]||'').trim().toUpperCase(),
-          morning:String(data[r][2]||'').trim().toUpperCase(),
-          afternoon:String(data[r][3]||'').trim().toUpperCase(),
-          comment:String(data[r][4]||'').trim(), isFuture});
-      }
-      return ContentService.createTextOutput(JSON.stringify({
-        success:true, overrides,
-        total:overrides.length,
-        passed:overrides.filter(o=>!o.isFuture).length,
-        upcoming:overrides.filter(o=>o.isFuture).length,
-      })).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify(_buildOverrides_()))
+        .setMimeType(ContentService.MimeType.JSON);
     }
 
     if (action === 'deleteOverride') {
@@ -1133,31 +1161,35 @@ if (!affSheet) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    // ── (perf) BOOTSTRAP ADMIN : tout le boot en UN aller-retour ──
+    // Regroupe planning + affectations + medecins + overrides. Les handlers unitaires
+    // (getMedecins, getOverrides, getPlanningJson, getAffectationsJson) restent inchangés
+    // et partagent les mêmes builders → réponse identique champ à champ.
+    if (action === 'getAdminBootstrap') {
+      if (user.role !== 'admin') return _deny();
+      const jy = parseInt(payload.year) || getActiveYear();
+      const out = { success: true, year: jy };
+      try {
+        const rawP = readPlanningFromDrive(`planning_${jy}.json`);
+        out.planning = rawP ? JSON.parse(rawP) : null;
+        if (!rawP) out.planningError = `planning_${jy}.json introuvable dans le Drive`;
+      } catch (e) { out.planning = null; out.planningError = e.message; }
+      try {
+        const rawA = readPlanningFromDrive(`affectations_${jy}.json`);
+        out.affectations = rawA ? JSON.parse(rawA) : null;
+      } catch (e) { out.affectations = null; }
+      const _m = _buildMedecins_();
+      out.medecins = _m.error ? [] : _m.medecins;
+      out.overrides = _buildOverrides_();
+      return ContentService.createTextOutput(JSON.stringify(out))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (action === 'getMedecins') {
       if (user.role !== 'admin') return _deny();
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const sheet = ss.getSheetByName('MEDECINS');
-      if (!sheet) return _error('Onglet MEDECINS introuvable');
-      const data = sheet.getDataRange().getValues();
-      const isO = v => String(v).trim().toUpperCase() === 'O';
-      const toDate = v => {
-        if (!v) return '';
-        if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-        return String(v).trim();
-      };
-      const medecins = [];
-      for (let r = 1; r < data.length; r++) {
-        if (!data[r][0]) continue;
-        medecins.push({id:String(data[r][0]).trim(), nom:String(data[r][1]).trim(),
-          initiales:String(data[r][2]).trim(), actif:isO(data[r][3]),
-          quotite:Number(data[r][4])||100, pctGardes:Number(data[r][5])||100,
-          hasCode:!!String(data[r][6]).trim(), email:String(data[r][7]).trim(), dect:String(data[r][8]).trim(),
-          dateDebut:toDate(data[r][9]), dateFin:toDate(data[r][10]),
-          noGarde:isO(data[r][11]), only18:isO(data[r][12]), noWeekend:isO(data[r][13]),
-          rythme2sur2:isO(data[r][14]), souhaitPlafond:isO(data[r][15]),
-          tpJoursFixes:String(data[r][16]||'').trim().toUpperCase()});
-      }
-      return ContentService.createTextOutput(JSON.stringify({success:true, medecins}))
+      const _m = _buildMedecins_();
+      if (_m.error) return _error(_m.error);
+      return ContentService.createTextOutput(JSON.stringify({success:true, medecins:_m.medecins}))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
