@@ -993,7 +993,7 @@ async function viewAutoLogin() {
 
 document.getElementById('viewAuthInput').addEventListener('keydown', e => { if (e.key === 'Enter') viewLogin(); });
 
-const SECTORS_DEF = [
+let SECTORS_DEF = [
   { code:'VIS', label:'Bloc viscéral',              icon:'Activity'    },
   { code:'REA', label:'Réanimation',                icon:'HeartPulse'  },
   { code:'ORT', label:'Orthopédie',                 icon:'Bone'        },
@@ -1087,6 +1087,7 @@ function weekDaysFull(weekInfo){
 
 // ── INIT ───────────────────────────────────────────────────────────────
 async function init(loginYear){
+  await loadSecteurs();   // secteurs depuis l'onglet SECTEURS (fallback = définitions en dur)
   // 1. Année active : fournie par la réponse du login (perf : plus d'appel getActiveYear).
   //    Repli sur l'API uniquement si absente (ancienne version GAS).
   activeYear = Number(loginYear) || new Date().getFullYear();
@@ -1755,7 +1756,7 @@ function TCC(bg,fg){
 }
 function _themeMap(base){const o={};for(const k in base)o[k]=TCC(base[k].bg,base[k].fg);return o;}
 
-const _SECTOR_BASE = {
+let _SECTOR_BASE = {
   VIS:{bg:'#EFF6FF',fg:'#1D4ED8'},REA:{bg:'#FFF1F2',fg:'#BE123C'},
   ORT:{bg:'#FFF7ED',fg:'#C2410C'},ORL:{bg:'#FDF4FF',fg:'#7E22CE'},
   END:{bg:'#F0FDF4',fg:'#166534'},CI:{bg:'#ECFDF5',fg:'#065F46'},
@@ -1763,6 +1764,26 @@ const _SECTOR_BASE = {
   CS:{bg:'#F0FDF4',fg:'#166534'},VOLANT:{bg:'#F1F5F9',fg:'#64748B'},
 };
 let SECTOR_COLORS = {..._SECTOR_BASE};
+
+// ── Source unique : secteurs depuis l'onglet SECTEURS (via getSecteurs) ──
+// Échec réseau / action absente → on garde silencieusement les définitions en dur.
+async function loadSecteurs(){
+  try{
+    const arr = await apiPost({action:'getSecteurs'});
+    if(Array.isArray(arr) && arr.length){
+      const actifs = arr.filter(s=>s.actif);
+      // Grille : mêmes champs qu'avant ; l'entrée CS (hors onglet) est conservée.
+      SECTORS_DEF = actifs.map(s=>({code:s.code, label:s.label, icon:s.icon}))
+                          .concat([{code:'CS', label:'Consultation', icon:'Stethoscope'}]);
+      // Couleurs : codes de l'onglet + extras CS/VOLANT conservés.
+      const base = {};
+      actifs.forEach(s=>{ if(s.bg) base[s.code] = {bg:s.bg, fg:s.fg}; });
+      base.CS = _SECTOR_BASE.CS; base.VOLANT = _SECTOR_BASE.VOLANT;
+      _SECTOR_BASE = base;
+      SECTOR_COLORS = _themeMap(_SECTOR_BASE);   // ré-applique le thème (clair/sombre)
+    }
+  }catch(e){ /* fallback : définitions en dur conservées */ }
+}
 
 function getThemePref(){ try{return localStorage.getItem('chpgTheme')||'auto';}catch(e){return 'auto';} }
 function resolveTheme(pref){ return pref==='auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light') : pref; }
