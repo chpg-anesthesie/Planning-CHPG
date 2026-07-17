@@ -13,8 +13,8 @@
 ***v3.4 — 07/07/2026** : la date opératoire est toujours connue dès la consultation → suppression*
 *de l'état « à programmer sans date » du cycle de vie de l'intervention.*
 ***v3.5 — 08/07/2026** : correction schéma `LIBERAL_CA_{Y}` — colonnes EXCÉDENT **recopiées** (6*
-*nombres/MAR), pas dérivées : validé sur le relevé réel (checksum 44 170,30 € exact ; recalcul depuis*
-*le % à 2 décimales = 44 103,59 €, faux). Checksum = somme des excédents recopiés.*
+*nombres/MAR), pas dérivées : validé sur le relevé réel (checksum illustratif 37 890,45 € exact ; recalcul depuis*
+*le % à 2 décimales = 37 824,12 €, faux). Checksum = somme des excédents recopiés.*
 ***v3.6 — 08/07/2026** : §8.1 refondu — **V1 = compteur de marge sur données réelles** (`marge =*
 *(3/7)·P − L`), sans extrapolation « au rythme » (jugée trompeuse sur une activité saisonnière :*
 *congés, gardes, blocs fermés) ; la projection d'un montant à fin décembre, fondée sur l'activité*
@@ -41,6 +41,10 @@
 *Périmètre de responsabilité clarifié (technique = module ; conformité = établissement/DPO ; le devis*
 *imprimé remplace un papier existant, circuit inchangé). Décision 14 ajoutée.*
 *Rien ne part en prod tant que ce plan n'est pas clair et précis. On ne code pas encore.*
+
+> **Confidentialité** : tous les montants et pourcentages cités dans ce document sont des
+> **valeurs illustratives** (ordres de grandeur réalistes), pas les chiffres réels des relevés
+> administratifs. Aucun praticien n'y est identifiable.
 
 ---
 
@@ -72,7 +76,7 @@ réallocation**, pas un garde-fou anti-dépassement.
 ## 2. L'invariant central : DEUX fractions, DEUX plafonds
 
 Le CR administratif réel (jan→juin 2026, décodé et validé au centime : la somme reconstruite des
-excédents = 44170,30 €, exactement la ligne « ACTIVITÉ LIBÉRALE ») établit que le seuil de 30 %
+excédents = 37 890,45 € [valeur illustrative], exactement la ligne « ACTIVITÉ LIBÉRALE ») établit que le seuil de 30 %
 s'applique **indépendamment sur deux axes** :
 
 ```
@@ -84,8 +88,8 @@ axe NGAP  (consultations pré-anesth., CS)  :  L_ngap / T_ngap  ≤ 30 %
 - Les deux `%` du document = **parts libérales** de chaque axe.
 - `excédent_axe = T_axe × (%_axe − 30)` si `%_axe > 30`, sinon 0. Vérifié à l'euro près.
 - **Les deux plafonds sont indépendants** : on peut être conforme sur un axe et en excédent sur
-  l'autre. Exemple réel : un praticien à `23,52 % CCAM` (large marge) mais `48,66 % NGAP`
-  (excédent de 554 €).
+  l'autre. Exemple réel : un praticien à `24,1 % CCAM` (large marge) mais `47,2 % NGAP`
+  (excédent d'environ 610 €) [valeurs illustratives].
 
 Conséquences structurantes :
 
@@ -294,8 +298,8 @@ Recopie du relevé mensuel **cumulé**, par MAR et par mois, des **6 nombres** d
 `MOIS | MAR_ID | T_CCAM | PCT_CCAM | EXC_CCAM | T_NGAP | PCT_NGAP | EXC_NGAP`
 
 Les colonnes **EXCÉDENT sont recopiées, pas dérivées** — validé sur le relevé réel (jan→juin 2026) :
-recalculer `T × (%−30)` depuis les % affichés à 2 décimales donne **44 103,59 €** au lieu de
-**44 170,30 €** (−66,71 €), donc le « tombe pile » du checksum est impossible sans les excédents
+recalculer `T × (%−30)` depuis les % affichés à 2 décimales donne **37 824,12 €** au lieu de
+**37 890,45 €** (−66,33 €) [valeurs illustratives], donc le « tombe pile » du checksum est impossible sans les excédents
 recopiés. Le module ne **dérive** que le **flux du mois** (différence de cumuls). Le `%` reste
 recopié : c'est le ratio du pilotage, seul moyen de connaître la marge d'un MAR **sous 30 %** (où
 l'excédent = 0). On stocke ce que dit la source (`T`, `%`, `excédent`) ; on ne recalcule jamais
@@ -312,10 +316,10 @@ référent du groupe, à définir) : les ~17 lignes × 4 nombres (`T_ccam`, `%_c
 deux garde-fous **gratuits** offerts par le document :
 
 1. **Checksum de bout en bout.** La ligne du bas du PDF (« ACTIVITÉ LIBÉRALE » — le total de tous
-   les excédents, ex. 44170,3 €) est un total de contrôle. Le référent le saisit ; le module
+   les excédents, ex. 37 890,45 € [illustratif]) est un total de contrôle. Le référent le saisit ; le module
    somme les **colonnes EXCÉDENT recopiées** (`Σ EXC_CCAM + EXC_NGAP`) et **valide en vert si ça
    tombe pile à 0,00 près, rouge sinon** (coquille à localiser). Vérifié au centime sur le relevé réel
-   (Σ = 44 170,30 €). Ne **jamais** recalculer depuis le % affiché (2 décimales → écart de plusieurs
+   (Σ exact, valeur non reproduite ici). Ne **jamais** recalculer depuis le % affiché (2 décimales → écart de plusieurs
    dizaines d'euros). Une saisie validée d'un coup, sans relecture ligne à ligne.
 2. **Monotonie du cumul.** Le relevé étant cumulé, chaque total (`T_CCAM`, `T_NGAP`, `EXC_CCAM`,
    `EXC_NGAP`) ne peut que **croître** d'un mois sur l'autre → une valeur qui régresse déclenche une
