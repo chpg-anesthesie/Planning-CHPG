@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-17.1';
+const GAS_VERSION_PORTAIL = '2026-07-17.2';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -26,6 +26,7 @@ function portailRoute(action, payload, user) {
     case 'listProtocoles': return _portailJson(listProtocoles());
     case 'getProtocole':   return _portailJson(getProtocole(payload && payload.id));
     case 'listAnnuaire':   return _portailJson(listAnnuaire());
+    case 'getSecteurs':    return _portailJson(getSecteurs());
     case 'getVeille':  return _portailJson(getVeille());
     case 'markVeille': return _portailJson(markVeille(payload && payload.pmid, payload && payload.field, payload && payload.value));
     case 'genererCRH': return _portailJson(genererCRH_(payload, user));
@@ -1108,4 +1109,85 @@ function testCRH() {
   if (!t) return;
   const r = genererCRH_({ texte: 'J1 : patient stable, eupnéique en air ambiant. Transfert en chirurgie le 10/07.', format: 'appareil' });
   Logger.log(r.success ? ('✅ CR de test :\n' + r.cr) : ('❌ ' + r.error));
+}
+
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTEURS — source unique externalisée (étape 2).
+   Onglet 'SECTEURS' : redéfinir les secteurs sans toucher au code.
+   Colonnes : ORDRE | CODE | LABEL | COURT | AFF | ICON | BG | FG | CS | ACTIF | RENDEMENT_LIB
+   RENDEMENT_LIB (FORT/MOYEN/NUL/REA) : attribut de rendement libéral,
+   consommé plus tard par le module libéral (réallocation). Éditable en cellule.
+   ════════════════════════════════════════════════════════════════════ */
+const SECTEURS_TAB = 'SECTEURS';
+
+// En-tête + valeurs d'amorçage = les 9 secteurs actuels, à l'identique.
+// (Les 4 valeurs RENDEMENT_LIB sont des défauts éditables : rien ne les
+//  consomme encore. REA→REA et ORL→FORT sont établis ; le reste à ajuster.)
+const _SECTEURS_HEADER = ['ORDRE','CODE','LABEL','COURT','AFF','ICON','BG','FG','CS','ACTIF','RENDEMENT_LIB'];
+const _SECTEURS_SEED = [
+  [1,'VIS','Bloc viscéral',            'Viscéral', 'Viscéral',    'Activity',   '#EFF6FF','#1D4ED8','CS-VIS',   'O','MOYEN'],
+  [2,'REA','Réanimation',              'Réa',      'Réanimation', 'HeartPulse', '#FFF1F2','#BE123C','',         'O','REA'  ],
+  [3,'ORT','Orthopédie',               'Ortho',    'Ortho',       'Bone',       '#FFF7ED','#C2410C','CS-ORT',   'O','FORT' ],
+  [4,'DVI','Pose DVI',                 'DVI',      '',            'Syringe',    '',       '',       '',         'O','NUL'  ],
+  [5,'ORL','ORL / Ophtalmologie',      'ORL',      'ORL',         'Eye',        '#FDF4FF','#7E22CE','CS-ORL',   'O','FORT' ],
+  [6,'END','Endoscopies',              'Endo',     'Endoscopies', 'Microscope', '#F0FDF4','#166534','CS-END',   'O','MOYEN'],
+  [7,'CI', 'Cardio interventionnelle', 'Cardio',   'Cardio/Inter','Heart',      '#ECFDF5','#065F46','CS-INTER', 'O','MOYEN'],
+  [8,'RI', 'Radio interventionnelle',  'Radio',    'Radio/Inter', 'Zap',        '#FFFBEB','#92400E','',         'O','MOYEN'],
+  [9,'MAT','Maternité',                'Maternité','Maternité',   'Baby',       '#FDF2F8','#9D174D','CS-MAT',   'O','NUL'  ],
+];
+
+// Crée l'onglet s'il manque, l'amorce s'il est vide. N'écrase JAMAIS des
+// lignes existantes (les éditions manuelles font foi).
+function getOrCreateSecteursTab() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(SECTEURS_TAB);
+  if (!sh) {
+    sh = ss.insertSheet(SECTEURS_TAB);
+    sh.getRange(1, 1, 1, _SECTEURS_HEADER.length).setValues([_SECTEURS_HEADER]).setFontWeight('bold');
+    sh.getRange(2, 1, _SECTEURS_SEED.length, _SECTEURS_HEADER.length).setValues(_SECTEURS_SEED);
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(3, 220);
+  } else if (sh.getLastRow() < 2) {
+    // Onglet présent mais vide (en-tête seul ou rien) → on amorce.
+    sh.getRange(1, 1, 1, _SECTEURS_HEADER.length).setValues([_SECTEURS_HEADER]).setFontWeight('bold');
+    sh.getRange(2, 1, _SECTEURS_SEED.length, _SECTEURS_HEADER.length).setValues(_SECTEURS_SEED);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+// One-shot manuel : à lancer une fois dans l'éditeur Apps Script.
+function initSecteurs() {
+  const sh = getOrCreateSecteursTab();
+  Logger.log('Onglet SECTEURS prêt : ' + (sh.getLastRow() - 1) + ' secteurs.');
+  return sh.getLastRow() - 1;
+}
+
+// Lecture → tableau d'objets (miroir de l'ancien SECTEURS_CFG + rendement).
+// '' → null pour aff/bg/fg/cs ; ACTIF 'O' → actif:true.
+function getSecteurs() {
+  const sh = getOrCreateSecteursTab();
+  const rows = sh.getDataRange().getValues();
+  const out = [];
+  for (let r = 1; r < rows.length; r++) {
+    const code = String(rows[r][1] || '').trim();
+    if (!code) continue;
+    const nn = v => { const s = String(v == null ? '' : v).trim(); return s ? s : null; };
+    out.push({
+      ordre:     Number(rows[r][0]) || (r),
+      code:      code,
+      label:     String(rows[r][2] || '').trim(),
+      court:     String(rows[r][3] || '').trim(),
+      aff:       nn(rows[r][4]),
+      icon:      String(rows[r][5] || '').trim(),
+      bg:        nn(rows[r][6]),
+      fg:        nn(rows[r][7]),
+      cs:        nn(rows[r][8]),
+      actif:     String(rows[r][9] || '').trim().toUpperCase() === 'O',
+      rendement: String(rows[r][10] || '').trim().toUpperCase() || null,
+    });
+  }
+  out.sort((a, b) => a.ordre - b.ordre);
+  return out;
 }
