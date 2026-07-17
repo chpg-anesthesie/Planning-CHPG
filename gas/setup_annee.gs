@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_SETUP = '2026-07-15.1';
+const GAS_VERSION_SETUP = '2026-07-17.1';
 
 // ═══ Détection du "concept" d'une période d'après son nom ═══
 function conceptDe(s){
@@ -296,7 +296,6 @@ function archiveYear(year, moveSheets) {
   if (!year) { try{SpreadsheetApp.getUi().alert("❌ Préciser l'année. Ex : archiveYear(2026)");}catch(e){} return "❌ année manquante"; }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const GITHUB_USER='chpg-anesthesie', GITHUB_REPO='Planning-CHPG', GITHUB_BRANCH='main';
   const results = [];
 
   // ── Garde d'idempotence (15/07/2026) : année déjà archivée ? ──
@@ -328,18 +327,11 @@ function archiveYear(year, moveSheets) {
     }
   }
 
-  function pushFile(path, content){
-    const apiUrl=`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${path}`;
-    let sha='';
-    try{ const g=UrlFetchApp.fetch(apiUrl,{headers:{Authorization:`token ${getGithubToken()}`},muteHttpExceptions:true});
-      if(g.getResponseCode()===200) sha=JSON.parse(g.getContentText()).sha; }catch(e){}
-    const body={message:`Archive ${year} — ${path} — ${new Date().toISOString()}`,
-      content:Utilities.base64Encode(Utilities.newBlob(content).getBytes()), branch:GITHUB_BRANCH};
-    if(sha) body.sha=sha;
-    const r=UrlFetchApp.fetch(apiUrl,{method:'PUT',headers:{Authorization:`token ${getGithubToken()}`,'Content-Type':'application/json'},payload:JSON.stringify(body),muteHttpExceptions:true});
-    const c=r.getResponseCode();
-    if(c===200||c===201){Logger.log(`✅ ${path} poussé`);return true;}
-    Logger.log(`❌ GitHub ${c} ${path}: ${r.getContentText().slice(0,200)}`); return false;
+  // Archivage local : les JSON nominatifs (stats, indispos) sont rangés dans le
+  // dossier Drive Planning-CHPG-JSON (jamais sur GitHub — dépôt public).
+  function saveArchiveToDrive(fileName, content){
+    try { savePlanningToDrive(fileName, content); return true; }
+    catch(e){ Logger.log(`❌ Drive ${fileName}: ${e.message}`); return false; }
   }
 
   // ── 1. STATS_GARDES_N → HISTORIQUE (append idempotent) + sauvegarde JSON ──
@@ -401,8 +393,8 @@ function archiveYear(year, moveSheets) {
 
     // b) Sauvegarde JSON (rangée dans archives/)
     const statsObj = d.slice(1).filter(row=>String(row[0]).trim()).map(row=>{ const o={}; Hd.forEach((hn,i)=>o[hn]=row[i]); return o; });
-    const ok1 = pushFile(`archives/stats_${year}.json`, JSON.stringify({year, stats:statsObj}, null, 2));
-    results.push(ok1?`✅ archives/stats_${year}.json`:`❌ push stats échoué`);
+    const ok1 = saveArchiveToDrive(`archives_stats_${year}.json`, JSON.stringify({year, stats:statsObj}, null, 2));
+    results.push(ok1?`✅ archives_stats_${year}.json → Drive`:`❌ archivage stats échoué`);
   }
 
   // ── 2. INDISPOS_N → sauvegarde JSON ──
@@ -413,8 +405,8 @@ function archiveYear(year, moveSheets) {
     const indispos={};
     for (let r=3;r<idd.length;r++){ const id=String(idd[r][0]).trim(); if(!id) continue; indispos[id]={};
       dates.forEach((dt,i)=>{ if(!dt) return; const v=String(idd[r][i+1]||'').trim(); if(v) indispos[id][dt]=v; }); }
-    const ok2 = pushFile(`archives/indispos_${year}.json`, JSON.stringify({year, indispos}, null, 2));
-    results.push(ok2?`✅ archives/indispos_${year}.json`:`❌ push indispos échoué`);
+    const ok2 = saveArchiveToDrive(`archives_indispos_${year}.json`, JSON.stringify({year, indispos}, null, 2));
+    results.push(ok2?`✅ archives_indispos_${year}.json → Drive`:`❌ archivage indispos échoué`);
   } else results.push(`⚠️ INDISPOS_${year} introuvable — ignoré`);
 
   // ── 3. Déplacer les onglets de l'année vers le classeur d'archive ──
