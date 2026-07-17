@@ -120,7 +120,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document personnel</div>
   <h1>Guide technique personnel<br>Architecture, workflows &amp; internals</h1>
   <p class="subtitle">Le fonctionnement profond du portail — pour toi, responsable et seul décideur : dépôt, backend GAS, assistants pas à pas, algorithme, publication. Niveau technique assumé.</p>
-  <div class="maj">Établi le 15 juillet 2026 — aligné sur le code en production (dépôt <span class="tag">chpg-anesthesie/Planning-CHPG</span>).</div>
+  <div class="maj">Établi le 15 juillet 2026 — aligné sur le code en production (dépôt <span class="tag">chpg-anesthesie/Planning-CHPG</span>).</div><!-- SITE_VERSION: v1.4 -->
 </header>
 
 <nav class="toc">
@@ -141,6 +141,7 @@
     <li><a href="#c13"><span class="n">13</span>Le pipeline de déploiement du code</a></li>
     <li><a href="#c14"><span class="n">14</span>Dépannage &amp; pièges connus</a></li>
     <li><a href="#c15"><span class="n">15</span>Les messages du diagnostic (Maintenance)</a></li>
+    <li><a href="#c16"><span class="n">16</span>Sécurité &amp; confidentialité (le modèle réel)</a></li>
   </ol>
 </nav>
 
@@ -219,7 +220,7 @@
       <tr><td><code>CONFIG</code></td><td>Paramètres, dont le token GitHub côté serveur (<code>getGithubToken</code>).</td></tr>
     </tbody>
   </table>
-  <div class="callout tip"><div class="ct">Confidentialité du planning</div><p>Depuis le durcissement RGPD, les JSON du planning ne sont <b>plus publiés sur GitHub</b> : ils vivent uniquement dans le dossier Drive <b>privé</b> « Planning-CHPG-JSON ». Un échec d’écriture Drive fait échouer la publication (volontaire : pas de planning à moitié publié).</p></div>
+  <div class="callout warn"><div class="ct">Public vs privé — la ligne de partage</div><p>Le <b>dépôt GitHub est public</b> (Pages gratuit l'exige) : n'importe qui connaissant l'adresse peut lire son contenu — code, guides, et les noms de l'équipe (déjà publics par l'annuaire du CHPG). En revanche, <b>aucune donnée nominative sensible n'y est committée</b> : les JSON de planning (<code>planning_YYYY.json</code>, <code>affectations_YYYY.json</code>) et les archives de clôture (<code>archives_stats/indispos_YYYY.json</code>) vivent <b>uniquement</b> dans le dossier Drive <b>non partagé</b> « Planning-CHPG-JSON », lus/écrits via <code>savePlanningToDrive</code> / <code>readPlanningFromDrive</code>. Un échec d'écriture Drive fait échouer la publication (volontaire : pas de planning à moitié publié). Voir §16 pour le modèle complet.</p></div>
 
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
@@ -460,6 +461,62 @@
     <tr><td>⚠️ Cellules proches de la limite (&gt; 8 000 k)</td><td>Purger LOGS/CONNEXIONS, déplacer les vieilles années vers le classeur d'archives (archiveMoveTabs_).</td></tr>
     <tr><td>⚠️ Onglet LOGS/CONNEXIONS volumineux (&gt; 20 000 lignes)</td><td>Supprimer les lignes anciennes (garder les en-têtes).</td></tr>
   </table>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c16">
+  <h2><span class="n">16</span>Sécurité &amp; confidentialité (le modèle réel)</h2>
+
+  <p>Cette section décrit ce qui est protégé, à quel niveau, et où sont les limites assumées. Principe directeur : <b>tout ce qui est nominatif et sensible est verrouillé côté serveur ; ce qui est exposé publiquement ne contient rien qu'on ne trouve déjà ailleurs.</b></p>
+
+  <h3>Les deux périmètres</h3>
+  <table>
+    <thead><tr><th>Périmètre</th><th>Visibilité</th><th>Contenu</th></tr></thead>
+    <tbody>
+      <tr><td><b>Dépôt GitHub + Pages</b></td><td>🌐 <b>Public</b> (adresse = accès)</td><td>Code HTML/JS/GAS, guides, <code>cr-anesthesie/data.js</code> (noms MAR &amp; chirurgiens), présentations avec cibles nominatives. <b>Aucune</b> absence, coordonnée, ni donnée patient.</td></tr>
+      <tr><td><b>Google Sheet + Drive</b></td><td>🔒 <b>Privé</b> (compte comité, 2FA)</td><td>Le vrai référentiel : MEDECINS (codes, emails, DECT, quotités, flags de statut), INDISPOS, GARDES, STATS, JSON de planning, archives de clôture.</td></tr>
+    </tbody>
+  </table>
+  <p>La bascule entre les deux est nette : le frontend public ne détient <b>aucune</b> donnée sensible en dur ; il ne les obtient qu'en appelant la Web App <i>avec un code valide</i>, et la réponse vient du Sheet privé. Un visiteur du dépôt voit le code de l'app, pas les données qu'elle manipule.</p>
+
+  <h3>Authentification &amp; contrôle d'accès</h3>
+  <ul class="tight">
+    <li><b>Code-gating d'office.</b> <code>doGet</code>/<code>doPost</code> appellent <code>checkCode(code)</code> ; sans code valide → <code>{success:false,error:'Code invalide'}</code>. Toutes les actions sont derrière cette porte, à <b>trois exceptions</b> volontairement ouvertes car non sensibles : <code>getActiveYear</code> (un numéro d'année), <code>getStatus</code> et <code>getStatsLive</code> — <b>ces deux dernières ont été refermées</b> (elles renvoyaient des stats nominatives sans code) et sont désormais <i>post-checkCode</i>.</li>
+    <li><b>Deux rôles.</b> <code>checkCode</code> renvoie <code>admin</code> (code CONFIG ▸ ADMIN_CODE) ou <code>mar</code> (code personnel, col G de MEDECINS). Les actions d'écriture globale et de cycle annuel refusent tout non-admin via <code>_deny()</code>.</li>
+    <li><b>Cloisonnement MAR.</b> Un MAR ne lit/écrit que <i>son</i> périmètre : <code>getIndispos</code>/<code>saveIndispos</code> forcent <code>targetId = user.id</code> (seul l'admin peut viser un autre <code>doctorId</code>). Impossible pour un MAR d'atteindre la saisie d'un collègue.</li>
+    <li><b>Code jamais renvoyé au client.</b> <code>getMedecins</code> expose <code>hasCode:true/false</code>, pas le code lui-même ; <code>saveMedecin</code> traite un code vide comme « inchangé » (un code ne peut pas être effacé par accident depuis le navigateur).</li>
+    <li><b>Transport.</b> HTTPS partout ; les <code>login</code> passent en <b>POST</b> (corps), plus jamais en URL — évite que le code se retrouve dans un historique ou un log de proxy.</li>
+  </ul>
+
+  <h3>Où sont les secrets</h3>
+  <p>Aucun secret n'est committé dans le dépôt. Le token GitHub (<code>GITHUB_TOKEN</code>) et la clé API Anthropic (<code>ANTHROPIC_TOKEN</code>) vivent dans l'onglet <code>CONFIG</code> du Sheet privé, lus à la volée (<code>getGithubToken</code>, <code>getAnthropicToken</code>). Le code d'accès admin est dans <code>CONFIG ▸ ADMIN_CODE</code> — <b>plus aucun code de secours en dur</b> dans le code (si la ligne manque, le login admin échoue, c'est volontaire).</p>
+  <div class="callout warn"><div class="ct">Règle absolue du dépôt public</div><p>Ne jamais committer de valeur réelle : ni token, ni code d'accès, ni donnée nominative sensible. Un secret poussé même une fois reste dans l'<b>historique git</b> et doit être considéré comme grillé (→ le régénérer/changer). Les fonctions de test ne contiennent que des placeholders.</p></div>
+
+  <h3>Le CRH et le transfert vers Anthropic</h3>
+  <p>Le générateur de CRH (<code>crh.html</code> → <code>genererCRH_</code> dans <code>portail.gs</code>) est le <b>seul</b> point où du texte clinique quitte l'environnement Google, vers l'API Anthropic (hors UE). Garde-fous en place :</p>
+  <ul class="tight">
+    <li><b>Accès nominatif restreint</b> : <code>CRH_ALLOWED</code> (liste blanche d'IDs).</li>
+    <li><b>Confirmation obligatoire</b> : le bouton reste grisé tant que la case « texte anonymisé » n'est pas cochée ; le serveur refuse sans <code>confirmAnonyme:true</code>.</li>
+    <li><b>Pré-filtre client</b> : <code>detecteIdentifiant()</code> bloque l'envoi si le texte contient un signal clair (« né(e) le », date de naissance, IPP/NIP, n° dossier, civilité + NOM). Volontairement conservateur (zéro faux positif sur un texte clinique normal).</li>
+    <li><b>Garde côté modèle</b> : le prompt système refuse de produire un CR si un identifiant subsiste.</li>
+    <li><b>Traçabilité sans contenu</b> : <code>logAction</code> note « CRH généré par X — anonymisation confirmée » ; <b>jamais</b> le texte clinique.</li>
+  </ul>
+  <p>Le brouillon local du second outil (<code>cr-anesthesie</code>) est purgé du <code>localStorage</code> après copie du CR (PC partagés du bloc). Point encore ouvert (§backlog audit) : évaluer une option zéro-rétention / hébergement UE pour le CRH — décision à porter avec le référent RGPD du CHPG.</p>
+
+  <h3>Journalisation &amp; rétention</h3>
+  <ul class="tight">
+    <li><code>CONNEXIONS</code> : horodatage + nom + rôle à chaque <code>login</code>. Auto-purge au-delà de <b>2 000</b> lignes.</li>
+    <li><code>LOGS</code> : événements techniques. Auto-purge au-delà de <b>500</b> lignes.</li>
+    <li>Aucun de ces journaux ne contient de motif d'absence ni de donnée patient.</li>
+  </ul>
+
+  <h3>Ce qui reste des limites assumées</h3>
+  <ul class="tight">
+    <li>Le dépôt <b>public</b> expose noms d'équipe et cibles de gardes nominatives — jugé acceptable (noms déjà publics), non corrigé par choix (pas de plan payant).</li>
+    <li>Les <b>codes MAR</b> sont stockés en clair dans MEDECINS (pas de hachage) : protégés par l'accès 2FA au Sheet, pas cryptographiquement. Entropie 32⁸ ≈ 10¹², le brute-force via l'API reste non pratique, mais l'admin doit rester un code fort (plus de secours en dur).</li>
+    <li>Le CRH repose sur une <b>discipline</b> d'anonymisation (filtres + confirmation), pas sur une impossibilité technique de coller un identifiant.</li>
+  </ul>
+
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
