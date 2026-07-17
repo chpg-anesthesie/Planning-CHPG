@@ -890,6 +890,11 @@ async function copyReport(){
     report.value = old;
   }
 
+  // (E1 confidentialité) CR copié dans le DPI → purge du brouillon local :
+  // sur un PC partagé, le contenu clinique ne doit pas rester lisible par le
+  // prochain utilisateur. Toute saisie ultérieure re-sauvegarde automatiquement.
+  clearDraft();
+
   $("copyBtn").textContent = "Copié ✓";
   $("copyBtn").classList.add("copied");
 
