@@ -145,7 +145,11 @@ J1 …
 J2 …
 J3 …"></textarea>
 
-    <button class="crh-btn" id="genBtn" onclick="genererCRH()">Générer le compte rendu</button>
+    <label style="display:flex;align-items:flex-start;gap:8px;margin-top:12px;font-size:13px;cursor:pointer">
+      <input type="checkbox" id="anonChk" style="margin-top:2px" onchange="document.getElementById('genBtn').disabled=!this.checked">
+      <span>Je confirme que ce texte est <b>anonymisé</b> : aucun nom, aucune date de naissance, aucun numéro de dossier ou identifiant.</span>
+    </label>
+    <button class="crh-btn" id="genBtn" onclick="genererCRH()" disabled>Générer le compte rendu</button>
     <div class="crh-err" id="crhErr"></div>
   </div>
 
@@ -303,14 +307,36 @@ function setModel(m){
     ? 'Modèle le plus capable — à réserver aux séjours longs ou complexes (coût un peu supérieur).'
     : 'Standard — convient à la plupart des séjours.';
 }
+// (C1a) Pré-filtre : signaux clairs d'identifiants patient. Volontairement
+// conservateur (aucun faux positif sur un texte clinique normal).
+function detecteIdentifiant(t){
+  const regles=[
+    [/\bn[ée]e?\s+le\b/i,               'mention « né(e) le »'],
+    [/\bdate\s+de\s+naissance\b/i,      'mention « date de naissance »'],
+    [/\b(IPP|NIP)\b\s*[:\s]*\d/i,       'numéro IPP/NIP'],
+    [/\bn[°o]\s*(de\s*)?dossier\b/i,    'numéro de dossier'],
+    [/\bnom\s+du\s+patient\b/i,         'mention « nom du patient »'],
+    [/\b(M\.|Mr|Mme|Madame|Monsieur)\s+[A-ZÉÈÀ]{2,}\b/, 'civilité + NOM en capitales'],
+  ];
+  for(const [re,label] of regles){ if(re.test(t)) return label; }
+  return null;
+}
 async function genererCRH(){
   const bloc=document.getElementById('crhBloc').value.trim();
   if(!bloc) return;
+  if(!document.getElementById('anonChk').checked) return;
+  const err0=document.getElementById('crhErr');
+  const hit=detecteIdentifiant(bloc);
+  if(hit){
+    err0.textContent='Envoi bloqué : le texte semble contenir un identifiant patient ('+hit+'). Retire-le puis relance.';
+    err0.style.display='block';
+    return;
+  }
   const btn=document.getElementById('genBtn'), err=document.getElementById('crhErr'), out=document.getElementById('crhOut'), copy=document.getElementById('copyBtn');
   err.style.display='none'; out.value=''; copy.style.display='none';
   btn.disabled=true; btn.textContent='Génération en cours…';
   try{
-    const r=await apiPost({action:'genererCRH', texte:bloc, format:FMT, model:MODEL});
+    const r=await apiPost({action:'genererCRH', texte:bloc, format:FMT, model:MODEL, confirmAnonyme:true});
     if(r && r.success){
       out.value=r.cr||'';
       if(r.cr) copy.style.display='inline-flex';
