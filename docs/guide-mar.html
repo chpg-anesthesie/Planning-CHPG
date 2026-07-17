@@ -102,7 +102,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document équipe</div>
   <h1>Vos outils au quotidien<br>Guide du médecin anesthésiste-réanimateur</h1>
   <p class="subtitle">Portail · Planning · Indisponibilités · Vacances — le mode d'emploi de vos quatre pages, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.0</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.3 -->
+  <div class="maj">Version <strong>v1.4</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.4 -->
 </header>
 
 <nav class="toc">
@@ -386,18 +386,37 @@
   <p>Seul le <strong>comité</strong> (accès administrateur) voit l'ensemble : c'est indispensable pour construire les gardes et le planning quotidien, poser les absences validées et gérer l'équité. C'est le même principe qu'un secrétariat de planning — la personne qui fait le tableau doit voir tout le monde.</p>
 
   <h3>Où vivent vos données, et comment elles sont protégées</h3>
-  <p>Toutes les communications entre votre navigateur et l'outil passent par une connexion <strong>chiffrée (HTTPS)</strong>. Vos données (nom, email professionnel, DECT, quotité, indisponibilités, gardes) sont hébergées dans l'environnement <strong>Google</strong> du <strong>compte professionnel du comité planning</strong>, protégé par la <strong>double authentification</strong> (chaque connexion doit être validée sur un second appareil) : même quelqu'un qui devinerait le mot de passe ne pourrait pas entrer.</p>
-  <p><strong>En toute transparence, voici où vivent les données :</strong> Google héberge le fichier de travail et le planning (c'est le prestataire technique, comme pour une boîte Gmail professionnelle). Le site lui-même (les pages que vous ouvrez) est publié via GitHub Pages — il ne contient <strong>que du code, jamais vos données personnelles</strong> : celles-ci ne sont chargées qu'après saisie de votre code d'accès. Vos données servent <strong>uniquement</strong> à l'organisation du service : elles ne sont jamais vendues ni utilisées à d'autres fins.</p>
-  <p><strong>Journal de connexion</strong> : à chaque connexion au portail, la date et votre nom sont enregistrés dans un journal technique (limité aux 2&nbsp;000 dernières connexions, les plus anciennes s'effacent automatiquement). Il sert au dépannage, pas à la surveillance.</p>
-  <p><strong>Vos droits</strong> : vous pouvez à tout moment demander au comité planning de consulter, corriger ou supprimer les informations vous concernant (coordonnées, indisponibilités passées…). Une simple demande orale ou par email suffit.</p>
-  <p><strong>Un réflexe à garder</strong> : dans toutes vos saisies (indisponibilités, commentaires), n'indiquez <strong>jamais de motif médical ou personnel</strong> — seules les dates comptent, le comité n'a pas besoin du pourquoi.</p>
+  <p>Pour être parfaitement clair, il faut distinguer <strong>deux endroits différents</strong> : le coffre-fort où sont rangées vos vraies données, et le site web que vous ouvrez dans votre navigateur. Les deux n'ont pas le même niveau de protection — et c'est normal, parce qu'ils ne contiennent pas les mêmes choses.</p>
+
+  <h3>🔒 Ce qui est protégé « en béton »</h3>
+  <p>Tout ce qui est <strong>vraiment personnel</strong> — vos indisponibilités, vos congés, votre email, votre DECT, votre code d'accès, le détail de vos gardes — est rangé dans un <strong>coffre-fort numérique</strong> : le compte Google professionnel du comité planning. Pour y entrer, il faut le mot de passe <em>et</em> une validation sur un second appareil (la double authentification). Personne ne peut y accéder sans passer votre code d'accès personnel, et les échanges entre votre navigateur et ce coffre sont chiffrés (le petit cadenas HTTPS). C'est le même niveau de protection qu'une messagerie professionnelle. <strong>Ces données-là ne sont jamais exposées publiquement.</strong></p>
+
+  <h3>🌐 Ce qui l'est moins — et pourquoi ce n'est pas grave</h3>
+  <p>Le site web que vous ouvrez (les pages, les boutons, la mise en page) est publié via un hébergeur de sites appelé GitHub. Techniquement, <strong>ces pages sont accessibles à quiconque en connaît l'adresse</strong> — c'est le principe d'un site web. Nous en sommes conscients, et <strong>tout est fait pour que ces pages ne contiennent que des informations peu sensibles</strong> :</p>
+  <ul>
+    <li>Elles renferment surtout du <strong>code</strong> (l'aspect du site, la logique des menus), qui n'a aucune valeur personnelle.</li>
+    <li>On y trouve aussi la <strong>liste des noms de l'équipe</strong> — mais ce n'est pas une information confidentielle : le nom des médecins du CHPG est déjà public (annuaire de l'hôpital, plaques, site du Centre Hospitalier). Savoir qui travaille dans le service n'apprend rien de sensible.</li>
+    <li>En revanche, ce qui est réellement personnel — <strong>vos absences, vos congés, vos coordonnées</strong> — ne s'y trouve <strong>jamais</strong>. Ces données ne sont chargées qu'après la saisie de votre code, et arrivent directement du coffre-fort, pas des pages publiques.</li>
+  </ul>
+  <p>Autrement dit : la partie « ouverte » ne contient rien qu'un visiteur ne pourrait déjà trouver ailleurs. La partie « fermée » contient tout le reste, et elle, est verrouillée.</p>
+
+  <h3>Le journal de connexion</h3>
+  <p>À chaque fois que vous vous connectez, la date et votre nom sont notés dans un petit registre technique (les 2 000 dernières connexions ; les plus anciennes s'effacent toutes seules). Ça sert uniquement à dépanner en cas de souci — pas à surveiller qui se connecte quand.</p>
+
+  <h3>Vos droits</h3>
+  <p>Vous pouvez à tout moment demander au comité planning de <strong>consulter, corriger ou supprimer</strong> les informations qui vous concernent. Une simple demande, à l'oral ou par email, suffit.</p>
+
+  <div class="callout warn">
+    <div class="ct">Un réflexe à garder</div>
+    <p>Dans vos saisies (indisponibilités, commentaires), n'indiquez <strong>jamais de motif médical ou personnel</strong> — seules les dates comptent. Le comité a besoin de savoir <em>quand</em> vous êtes absent, jamais <em>pourquoi</em>.</p>
+  </div>
 
   <div class="callout tip">
     <div class="ct">Bonnes pratiques de votre côté</div>
     <p>Votre code est personnel : ne le partagez pas. Si vous pensez qu'il a été vu par quelqu'un, demandez au comité de vous en renvoyer un nouveau (chapitre 2) — c'est immédiat.</p>
   </div>
 
-  <p><em>En résumé : des données minimales, pas de patient, un accès cloisonné par code personnel, une connexion chiffrée, et un hébergement sur le compte Google du comité protégé par double authentification.</em></p>
+  <p><em>En résumé : vos données sensibles (absences, congés, coordonnées) sont dans un coffre-fort verrouillé par code et double authentification ; les pages web publiques ne contiennent que du code et des noms déjà publics ; aucune donnée de patient nulle part.</em></p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
