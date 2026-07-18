@@ -1,6 +1,8 @@
-# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v13)
+# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v14)
 
 *Source faisant autorité : **Arrêté Ministériel n° 2005-276** régissant la CCAM à Monaco (MAJ 2018) + mémento des Caisses Sociales de Monaco. Les **valeurs monétaires sont celles fixées en France** (art. 16) → base CCAM **v80, en vigueur au 01/01/2025**. Objectif : coter **à juste titre** l'exhaustivité de ce qui est réellement fait — jamais surcoter.*
+
+*v14 — 18 juillet 2026. Nouveau §10 « Apports externes à confirmer » (doc d'un MAR libéral, France) : main 100/75/50, MCS, VVC/transfusion exclues si USC, DEQP007+YYYY015, AHQJ021 ×2, exécutant ≠ chirurgien, CPA ophtalmo, Kt BIS à 2 MARs, APC=ASA≥3. Rien de validé CSM : aucune valeur existante modifiée.*
 
 *v13 — 17 juillet 2026. §7 : POCUS péri-anesthésique (écho gastrique d'induction, repérage veineux…) = inclus dans l'acte d'anesthésie, aucun code CCAM dédié ; ne pas coter une écho abdominale complète (HZQM001) pour un balayage ciblé (surcotation).*
 
@@ -248,6 +250,7 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 - [ ] Ne pas croiser à tort **CCAM technique + consultation NGAP** (art. 20 A).
 - [ ] **Réa** : forfait **B (160 €)** dès qu'il y a une **suppléance**, **chaque jour** ; **EER / fibro diagnostique** en sus ; ne pas coter VVC/drain/écho/artériel à part (inclus).
 - [ ] **Récupérer les rejets** de facturation.
+- [ ] *(cf. **§10** — pistes externes non validées CSM : chirurgie de la main, MCS, USC…)*
 
 ---
 
@@ -273,9 +276,60 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 
 ---
 
+## 10. Apports externes — à confirmer CSM (NON validé)
+
+> ⚠️ **Statut : aucune de ces règles n'est vérifiée pour Monaco.** Source unique = document de travail
+> d'un MAR exerçant en **clinique privée en France** (CPAM, secteur 1/OPTAM). Le cadre monégasque
+> (Arrêté 2005-276, convention CSM) est **différent**. Rien ici ne remplace une valeur des §1 à §9,
+> qui restent la référence validée. À trancher avec la **CSM** avant toute mise en pratique.
+
+### 10.1 Contradictions avec nos règles validées — ne rien changer sans arbitrage
+
+| Point | Notre règle (validée) | Version externe | Statut |
+|---|---|---|---|
+| **Chirurgie de la main** | 2 actes max : 100 % + 50 %, 3ᵉ à **0 %** (§4, §6 ter) | **3 actes** : 100 / **75** / 50 % | ❓ dérogation CSM ? **Enjeu réel** : un 3ᵉ acte perdu à chaque main |
+| **APC vs CS** | APC = avis ponctuel de consultant (patient adressé, CR, sans suivi) — doctrine NGAP | **APC si ASA ≥ 3** · **CS + MCS si ASA 1-2** | ❓ critère pratique vs doctrine — trancher |
+
+### 10.2 Ajouts possibles (aucun équivalent chez nous)
+
+- **MCS** (majoration de coordination spécialiste) — **absente de notre §5 ter**. Aucune valeur € connue
+  pour Monaco. Si elle existe à la CSM, **manque à gagner NGAP récurrent**.
+- **USC / lit scopé** : **YYYY015 + DEQP007** (ECG). Le couple n'est pas documenté chez nous.
+- **VVC (EPLF002) et transfusion (FELF011) interdites** le même jour qu'un code **USC ou réa**
+  (YYYY015 / YYYY020) — considérées incluses dans le forfait. *Cohérent avec notre §6 ter, qui ne
+  visait que la réa : l'extension à l'**USC** est l'apport.*
+- **AHQJ021 ×2** si TAP **bilatéral** avec 2 codes chirurgicaux (l'auteur note lui-même « à vérifier »).
+- **Ophtalmo** : dupliquer la CPA à la 1ʳᵉ consultation pour le 2ᵉ œil, coter **CS + MCS**.
+  Reprise chirurgicale → CS + MCS envisageable.
+- **Kt BIS, répartition à 2 praticiens** : **ZZLP025** (sédation, MAR1) / **AHLB001 + AHQJ021 +
+  acte chirurgical** (MAR2).
+- **Pas d'APC/CS le jour même d'un acte anesthésique — sauf urgence.** L'exception « urgence »
+  complète notre §7 (art. 20 A).
+
+### 10.3 Contrôle administratif à retenir (indépendant du pays)
+
+- **Vérifier que l'exécutant n'est pas le nom du chirurgien.** Cause classique de perte **totale**
+  d'une ligne d'anesthésie, purement administrative.
+
+### 10.4 Écarté — non transposable à Monaco
+
+- **Modificateur 3** (secteur 1 / **OPTAM**) : dispositif conventionnel **français**, sans équivalent CSM.
+- Références **CPAM** et manipulations du logiciel **HM** (« + » devant le montant pour un DH) :
+  propres à son établissement.
+
+### 10.5 Coquille relevée dans la source
+
+- Le document externe écrit **YYYY401** pour le cell-saver. Le code correct est **YYYY041**
+  (« Supplément pour récupération peropératoire de sang »), déjà exact dans notre §2 et §8.
+  Facturation : volume récupéré **≥ 15 % de la volémie**, retransfusé **dans les 6 h** ;
+  peropératoire et postopératoire **non cumulables**.
+
+---
+
 ## 9. Sources & limites
 
 - **Arrêté Ministériel n° 2005-276** (CCAM Monaco, MAJ 2018) : https://www.caisses-sociales.mc — codage (art. 3), anesthésie (art. 7), association (art. 6/11/12/20), modificateurs (art. 19 + Annexe I), tarifs (art. 16-17).
 - **Base CCAM v80** (ameli / aideaucodage / ATIH) pour les tarifs unitaires activité 1 **et 4**.
 - **Convention CCSS-CAMTI / Ordre des Médecins de Monaco** (caisses-sociales.mc, page « Adhésion à nos Conventions ») pour les coefficients par carte.
+- **À confirmer (liste CSM)** : dérogation **3 actes** en chirurgie de la main (100/75/50) ; existence et valeur de la **MCS** ; critère **APC = ASA ≥ 3** ou doctrine « avis ponctuel » ; exclusion **VVC/transfusion** en **USC** (YYYY015) ; couple **YYYY015 + DEQP007** ; **AHQJ021 ×2** en TAP bilatéral. *(cf. §10)*
 - **À confirmer** : convention tarifaire CHPG public (art. 17) ; présence/valeur des modificateurs 4-5 (analgésie postop) dans la version CSM ; valeurs à reconfirmer périodiquement (CCAM révisée 1-2×/an).
