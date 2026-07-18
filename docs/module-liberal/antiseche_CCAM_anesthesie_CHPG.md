@@ -1,6 +1,8 @@
-# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v12)
+# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v13)
 
 *Source faisant autorité : **Arrêté Ministériel n° 2005-276** régissant la CCAM à Monaco (MAJ 2018) + mémento des Caisses Sociales de Monaco. Les **valeurs monétaires sont celles fixées en France** (art. 16) → base CCAM **v80, en vigueur au 01/01/2025**. Objectif : coter **à juste titre** l'exhaustivité de ce qui est réellement fait — jamais surcoter.*
+
+*v13 — 17 juillet 2026. §7 : POCUS péri-anesthésique (écho gastrique d'induction, repérage veineux…) = inclus dans l'acte d'anesthésie, aucun code CCAM dédié ; ne pas coter une écho abdominale complète (HZQM001) pour un balayage ciblé (surcotation).*
 
 *v12 — 17 juillet 2026. §7 enrichi : anesthésie indexée sur l'acte chirurgical pivot (à vérifier si plusieurs gestes) ; CS/APC pré-anesthésique systématiquement cotée (point d'entrée NGAP du parcours).*
 
@@ -235,6 +237,7 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 - [ ] **Plusieurs gestes chir. ?** Vérifier que la ligne d'anesthésie porte sur l'**acte pivot** attendu (l'anesthésie s'indexe sur l'acte chirurgical) — *applicabilité Monaco à confirmer*.
 - [ ] **CS / APC pré-anesthésique** systématiquement cotée (axe **NGAP**, point d'entrée du parcours — CS 46 € / APC 60 € selon critères).
 - [ ] **Échoguidage d'ALR** (TAP, bloc de membre…) → **AHQJ021** (29,12 €) en sus.
+- [ ] **POCUS péri-anesthésique** (écho gastrique d'induction, repérage veineux…) → **inclus** dans l'acte d'anesthésie, **pas de code CCAM dédié** ; ne pas coter une écho abdominale complète (**HZQM001**, 56,70 €) pour un balayage ciblé — *surcotation*.
 - [ ] **Récupération de sang** peropératoire → **YYYY041**.
 - [ ] Modificateur **7** (+6 %) — présence permanente attestée sur la fiche.
 - [ ] **Analgésie post-op LR** → modificateur **4** (sans cathéter) / **5** (avec) — *à confirmer CSM*.
