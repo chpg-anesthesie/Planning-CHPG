@@ -1,8 +1,8 @@
 /**
  * Générateur du « Guide d'aide au codage — CHPG Anesthésie-Réanimation »
- * Version du guide produit : v1.1 (18 juillet 2026)
+ * Version du guide produit : v1.2 (19 juillet 2026)
  *
- * Source de vérité du contenu : docs/module-liberal/antiseche_CCAM_anesthesie_CHPG.md (v14)
+ * Source de vérité du contenu : docs/module-liberal/antiseche_CCAM_anesthesie_CHPG.md (v15.2)
  * À régénérer à chaque évolution de l'antisèche, puis repousser le .docx.
  *
  * Usage :
@@ -158,8 +158,8 @@ ch.push(new Paragraph({
   children: [new TextRun({ text: 'CCAM \u00B7 NGAP \u00B7 R\u00E9animation — cadre mon\u00E9gasque (CSM)', color: GREY, size: 23, font: F })]
 }));
 ch.push(PR([
-  { t: 'v1.1 — 18 juillet 2026', b: true, s: 18, c: GREY },
-  { t: '   \u00B7   fusionne l\u2019antis\u00E8che v14, la fiche m\u00E9mo et le m\u00E9mo 1 page — valid\u00E9 au centime sur feuilles r\u00E9elles', s: 18, c: GREY }
+  { t: 'v1.2 — 19 juillet 2026', b: true, s: 18, c: GREY },
+  { t: '   \u00B7   align\u00E9 sur l\u2019antis\u00E8che v15.2 (confront\u00E9e \u00E0 l\u2019addendum conventionnel du 01/10/2025) — valid\u00E9 au centime sur feuilles r\u00E9elles', s: 18, c: GREY }
 ], { after: 230, align: AlignmentType.CENTER }));
 
 ch.push(WARN([
@@ -277,7 +277,7 @@ ch.push(mkTable(
   [
     ['C', '34,40 \u20AC', 'C 2 \u2192 68,80 \u20AC'],
     ['CS', '46,00 \u20AC', 'CS 1 \u2192 46,00 \u20AC'],
-    ['APC', '60,00 \u20AC', 'APC 1 \u2192 60,00 \u20AC \u00B7 avis ponctuel de consultant (coeff. 1 suppos\u00E9, \u00E0 confirmer)']
+    ['APC \u2753', '60,00 \u20AC (observ\u00E9)', 'absent du tableau conventionnel publi\u00E9 (Annexe III, 01/10/2025) — \u00E0 confirmer CSM, cf. \u00A78']
   ],
   [1500, 1600, 6260]
 ));
@@ -294,7 +294,7 @@ ch.push(mkTable(
   ['Statut patient', 'DH', 'Exemple (CS 1)'],
   [
     ['Carte verte \u00B7 SPME', '0 — net = BR', '46,00 \u20AC'],
-    ['Carte rose', '+ 20 % de la BR', '46,00 + 9,20 = 55,20 \u20AC'],
+    ['Carte rose', '+ 20 % de la BR (pratique CHPG act\u00E9e)', '46,00 + 9,20 = 55,20 \u20AC'],
     ['Carte bulle \u00B7 fran\u00E7ais \u00B7 NAS', 'libre', 'souvent fix\u00E9 pour un net rond (46 + 64 = 110 \u20AC)'],
     ['AME', '0 — tarif conventionnel strict (Ord. souv. 5.743)', '46,00 \u20AC']
   ],
@@ -312,6 +312,12 @@ ch.push(TIP([
   { t: ' le ratio : plus de marge lib\u00E9rale.' }
 ]));
 ch.push(P('HNP (\u00AB honoraires non per\u00E7us \u00BB) = modalit\u00E9 de perception via la Caisse (tiers payant), pas un statut de carte : aucun effet sur le calcul BR/DH.', { italics: true, color: GREY }));
+ch.push(NOTE([
+  { t: 'Cadre conventionnel (addendum du 01/10/2025).  ', b: true },
+  { t: 'Coefficient maximal carte rose en CCAM : 241 % contre une BR \u00E0 195 %, soit un plafond de DH \u00E0 +23,59 % de la BR. La pratique CHPG reste \u00E0 ' },
+  { t: '+20 %', b: true },
+  { t: ' (d\u00E9cision du 19/07/2026) ; l\u2019\u00E9cart n\u2019est pas expliqu\u00E9 et ne doit pas \u00EAtre lu comme une marge \u00E0 r\u00E9cup\u00E9rer. En NGAP, le +20 % rose est le plafond l\u00E9gal. Seuil de l\u2019article 14 (HNP rose/bulle) : 177,45 \u20AC.' }
+]));
 
 // ===== 6. Réa =====
 ch.push(H1('6', 'R\u00E9animation et USC'));
@@ -329,6 +335,7 @@ ch.push(SP());
 ch.push(BUL([{ t: 'Un forfait par patient et par 24 h', b: true }, { t: ' — jours d\u2019admission, week-ends et transferts compris. Une journ\u00E9e oubli\u00E9e = forfait perdu, et du public en moins au d\u00E9nominateur lib\u00E9ral.' }]));
 ch.push(BUL([{ t: 'Facturable en sus', b: true }, { t: ' : \u00E9puration extrar\u00E9nale (JVJF\u2026), \u00E9change plasmatique, fibroscopie diagnostique.' }]));
 ch.push(BUL([{ t: 'Inclus — ne pas facturer \u00E0 part', b: true }, { t: ' : \u00E9cho c\u0153ur (DZQM006), VVC (EPLF002), KT art\u00E9riel, Swan-Ganz, drain pleural, gazom\u00E9trie, intubation (GELD004). Rejet garanti.' }]));
+ch.push(BUL([{ t: 'USC / lit scop\u00E9', b: true }, { t: ' : en g\u00E9n\u00E9ral le forfait ' }, { t: 'niveau A', b: true }, { t: ' (la suppl\u00E9ance qui d\u00E9bloque le B y est rare — ne pas coter B par r\u00E9flexe de gravit\u00E9). L\u2019exclusion VVC / transfusion le m\u00EAme jour s\u2019\u00E9tend \u00E0 l\u2019USC. DEQP007 (ECG) : statut non tranch\u00E9 — risque de rejet si inclus, \u00E0 confirmer CSM avant usage.' }]));
 ch.push(SP(60));
 ch.push(TIP([
   { t: 'Arbitrage chiffr\u00E9 :  ', b: true },
@@ -370,9 +377,9 @@ ch.push(mkTable(
     ['Chirurgie de la main', '2 actes max (100 / 50 %)', '3 actes : 100 / 75 / 50 % — un 3\u1D49 acte r\u00E9cup\u00E9r\u00E9 \u00E0 chaque main si confirm\u00E9'],
     ['APC ou CS ?', 'APC = avis ponctuel de consultant', 'APC si ASA \u2265 3 \u00B7 CS + MCS si ASA 1-2'],
     ['MCS', 'absente de notre grille', 'majoration de coordination — valeur inconnue \u00E0 Monaco'],
-    ['USC', 'non document\u00E9', 'YYYY015 + DEQP007 \u00B7 VVC et transfusion exclues le m\u00EAme jour'],
-    ['TAP bilat\u00E9ral', 'AHQJ021 \u00D7 1', '\u00D7 2 si deux codes chirurgicaux (\u00E0 v\u00E9rifier)'],
-    ['Redevance h\u00F4pital', '\u2014', 'taux et assiette du reversement \u00E0 pr\u00E9ciser (administration)']
+    ['USC — DEQP007', 'niveau A par d\u00E9faut \u00B7 exclusions \u00E9tendues (act\u00E9)', 'seul point ouvert : DEQP007 en sus du forfait ? (risque de rejet si inclus)'],
+    ['Redevance h\u00F4pital', '\u2014', 'taux et assiette du reversement \u00E0 pr\u00E9ciser (administration)'],
+    ['TAP bilat\u00E9ral', 'AHQJ021 \u00D7 1', '\u00E9cart\u00E9 le 19/07/2026 — un seul AHQJ021 par intervention, question close']
   ],
   [1950, 3100, 4310]
 ));
@@ -382,7 +389,7 @@ ch.push(SP());
 ch.push(H1('9', 'Sources'));
 ch.push(BUL([{ t: 'Arr\u00EAt\u00E9 Minist\u00E9riel n\u00B0 2005-276 (CCAM Monaco, MAJ 2018) — caisses-sociales.mc \u00B7 codage art. 3, anesth\u00E9sie art. 7, associations art. 6/11/12/20, modificateurs art. 19 + Annexe I.' }]));
 ch.push(BUL([{ t: 'Base CCAM v80 (01/01/2025, ameli / ATIH) — tarifs unitaires activit\u00E9s 1 et 4.' }]));
-ch.push(BUL([{ t: 'Convention CCSS-CAMTI / Ordre des M\u00E9decins de Monaco — coefficients par carte.' }]));
+ch.push(BUL([{ t: 'Convention CCSS-CAMTI / Ordre des M\u00E9decins de Monaco du 01/04/2023 (\u2192 31/03/2028) et addendum Annexe III/IV du 02/09/2025 (effet 01/10/2025) — lettres-cl\u00E9s NGAP, coefficients par carte (verte 195 % \u00B7 rose 241 %), seuil art. 14. Valeurs dat\u00E9es : \u00E0 reconfronter \u00E0 chaque addendum.' }]));
 ch.push(BUL([{ t: 'Relev\u00E9s de facturation internes — axes CCAM et NGAP valid\u00E9s au centime (8 feuilles r\u00E9elles).' }]));
 ch.push(SP(70));
 ch.push(P('La CCAM est r\u00E9vis\u00E9e 1 \u00E0 2 fois par an : valeurs \u00E0 reconfirmer p\u00E9riodiquement. R\u00E9f\u00E9rence d\u00E9taill\u00E9e : antis\u00E8che v14 (d\u00E9p\u00F4t Planning-CHPG).', { italics: true, color: GREY }));
@@ -403,7 +410,7 @@ const doc = new Document({
       alignment: AlignmentType.CENTER,
       border: { top: { style: BorderStyle.SINGLE, size: 4, color: 'D0D6DD', space: 4 } },
       children: [new TextRun({
-        children: ['Guide d\u2019aide au codage \u00B7 CHPG Anesth\u00E9sie-R\u00E9animation \u00B7 v1.1 \u00B7 p. ', PageNumber.CURRENT],
+        children: ['Guide d\u2019aide au codage \u00B7 CHPG Anesth\u00E9sie-R\u00E9animation \u00B7 v1.2 \u00B7 p. ', PageNumber.CURRENT],
         size: 15, color: GREY, font: F })]
     })]})},
     children: ch
