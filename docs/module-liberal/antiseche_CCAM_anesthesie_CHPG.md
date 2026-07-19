@@ -1,6 +1,13 @@
-# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v14)
+# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v15)
 
 *Source faisant autorité : **Arrêté Ministériel n° 2005-276** régissant la CCAM à Monaco (MAJ 2018) + mémento des Caisses Sociales de Monaco. Les **valeurs monétaires sont celles fixées en France** (art. 16) → base CCAM **v80, en vigueur au 01/01/2025**. Objectif : coter **à juste titre** l'exhaustivité de ce qui est réellement fait — jamais surcoter.*
+
+*v15 — 19 juillet 2026. **Confrontation au texte conventionnel officiel** (Annexe III de
+l'addendum du 02/09/2025, en vigueur au 01/10/2025). Confirmé : ×1,95 verte (195 %), C 34,40 €,
+CS 46,00 €, DH rose NGAP +20 %, et surtout **la BR est celle de la carte verte pour toutes les
+cartes** (validation directe de la correction v10). Corrigé : **plafond DH rose en CCAM = +23,59 %
+de la BR** (241 % vs 195 %), pas +20 % → manque à gagner. Dégradé : **APC 60 € absent de
+l'Annexe III monégasque** → passe en « à confirmer CSM ». Nouveau : **seuil art. 14 = 177,45 €**.*
 
 *v14 — 18 juillet 2026. Nouveau §10 « Apports externes à confirmer » (doc d'un MAR libéral, France) : main 100/75/50, MCS, VVC/transfusion exclues si USC, DEQP007+YYYY015, AHQJ021 ×2, exécutant ≠ chirurgien, CPA ophtalmo, Kt BIS à 2 MARs, APC=ASA≥3. Rien de validé CSM : aucune valeur existante modifiée.*
 
@@ -110,10 +117,25 @@ Chaîne de calcul, **par ligne de code** :
 | Statut patient | DH | Observé |
 |---|---|---|
 | **Carte verte · SPME** | **0** (aucun dépassement) | DH nul |
-| **Carte rose** | **+ 20 % de la BR** | 24,37 = 20 % de 121,84 ✓ |
+| **Carte rose** | appliqué **+ 20 %** · **plafond conventionnel + 23,59 %** ⚠️ | 24,37 = 20 % de 121,84 ✓ |
 | **Carte bulle · français · NAS · AME** | **libre** | souvent fixé pour un **total rond** (ex. honoraire à 1500 €) |
 
 **Encaissé = BR + DH.** Remboursement au patient = **80 %** (ou 100 % si exonéré : seuil / ALD), **toujours sur la BR**.
+
+> 💰 **Plafond DH rose en CCAM — manque à gagner (v15).** L'addendum du 02/09/2025 fixe les
+> coefficients maximaux applicables au tarif conventionnel français : **verte 195 % · rose 241 %**,
+> « la base de remboursement correspondant au tarif carte verte ». La **BR reste donc à 195 %**
+> pour toutes les cartes ; le 241 % est un **plafond d'honoraires**, pas une base.
+> ```
+> DH rose max = (241 − 195) / 195 = +23,59 % de la BR
+> ```
+> Le **+20 % observé est conforme mais sous le plafond de 3,59 points de BR**.
+> Ex. §6 (BR 271,01 €) : DH appliqué 54,20 € · DH autorisé **63,93 €** → **+9,73 € par acte**.
+> ⚠️ Ne concerne **que le CCAM** : sur l'axe NGAP, le +20 % rose **est** le plafond légal.
+
+> 📌 **Seuil de l'article 14 = 177,45 €** (Annexe IV, au 01/10/2025). Pour les assurés **rose ou
+> bulle**, la procédure **HNP** ne s'applique pas si les honoraires facturés sur une même feuille
+> de soins sont **inférieurs** à ce seuil. Revalorisé comme les honoraires CCAM.
 
 > ⚠️ **Correction v10** : le coefficient monégasque **×1,95 est dans le Tarif (la base)**, pas dans le DH (erreur des v5-v9). Il englobe aussi le modificateur A → **44,85 €**. Le DH reste le **dépassement**, différencié par carte (verte 0 · rose +20 % · bulle libre).
 > **Pour le module** : ratio des 30 % sur la **BR** ; **DH hors quota**.
@@ -128,7 +150,14 @@ L'**axe NGAP** (consultations pré-anesthésiques) obéit à une règle **diffé
 |---|---|---|
 | **C** | **34,40 €** | C 2 → 68,80 € |
 | **CS** | **46,00 €** | CS 1 → 46,00 € |
-| **APC** | **60,00 €** | APC 1 → 60,00 € *(avis ponctuel de consultant, a priori coeff. 1)* |
+| **APC** ❓ | **60,00 €** *(observé)* | APC 1 → 60,00 € — ⚠️ **absent de l'Annexe III monégasque** (v15) : voir §9 |
+
+> ⚠️ **APC — fondement conventionnel non retrouvé (v15).** L'Annexe III de l'addendum au
+> 01/10/2025 liste C, CPN, CS, CSPN, CP3, CPSY, CSC, CALD, CDE, V, VS, VPSY, K, KC/KCC, SPM/SCP —
+> **ni APC, ni MCS, ni MPC**. Les 60,00 € sont **observés sur feuille réelle** mais sans base
+> publiée. Enjeu : **14 € par consultation** (60 vs 46) sur tout l'axe NGAP du parcours libéral.
+> **Question n°1 à poser à la CSM.** En attendant : continuer à coter comme aujourd'hui, ne pas
+> câbler 60 € en dur dans l'estimateur sans le marquer « non confirmé ».
 
 > **La carte ne change PAS la BR.** Verte, bulle, français, SPME → une CS reste à 46 €. C'est l'inverse du CCAM (où la carte pilote le coefficient de base). Sur le NGAP, **la carte ne joue que sur le DH.**
 
@@ -264,7 +293,7 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 | LMMA017 | Cure hernie unilat. **sans** prothèse sous AG/ALR, abord inguinal | 1 (chir) | 201,87 € |
 | AHQJ021 | Échoguidage d'ALR périph. de membre / paroi abdominale | **4** | **29,12 €** |
 
-**Carte du patient (assuré CSM)** : verte = base · rose = base **+20 %** · bulle = libre. Remboursement **80 %** (ou 100 % si exonéré) **calculé sur la base**. Plafond de dépassement CCAM spécifique (>+20 % possible) à confirmer dans la convention.
+**Carte du patient (assuré CSM)** : verte = base · rose = base **+20 %** · bulle = libre. Remboursement **80 %** (ou 100 % si exonéré) **calculé sur la base**. Plafond de dépassement CCAM **confirmé (v15)** : coefficient maximal **rose 241 %** contre une BR à **195 %** → **DH rose jusqu'à +23,59 % de la BR** (addendum du 02/09/2025, effet 01/10/2025). Cf. §5 bis.
 | ZZLP025 | AG/ALR complémentaire niveau 1 (si pas d'activité 4 native) | 4 | *à lire dans la base* |
 | YYYY041 | Supplément récupération peropératoire de sang | 4 | *à lire dans la base* |
 | YYYY015 | Forfait de réanimation **niveau A** | 1 | **96,00 €** |
@@ -330,6 +359,7 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 
 - **Arrêté Ministériel n° 2005-276** (CCAM Monaco, MAJ 2018) : https://www.caisses-sociales.mc — codage (art. 3), anesthésie (art. 7), association (art. 6/11/12/20), modificateurs (art. 19 + Annexe I), tarifs (art. 16-17).
 - **Base CCAM v80** (ameli / aideaucodage / ATIH) pour les tarifs unitaires activité 1 **et 4**.
-- **Convention CCSS-CAMTI / Ordre des Médecins de Monaco** (caisses-sociales.mc, page « Adhésion à nos Conventions ») pour les coefficients par carte.
+- **Convention CCSS-CAMTI / Ordre des Médecins de Monaco** du **1er avril 2023** (durée 5 ans → **31/03/2028**), et son **addendum Annexe III/IV signé le 02/09/2025, en vigueur au 01/10/2025** : lettres-clés NGAP, coefficients CCAM par carte (verte 195 % · rose 241 %), seuil art. 14 (177,45 €). PDF « Tarification conventionnelle au 1er octobre 2025 — Médecins » sur caisses-sociales.mc. **Ces valeurs sont datées : à reconfronter à chaque nouvel addendum.**
+- **À confirmer (liste CSM) — priorité 1** : **existence et valeur de l'APC à Monaco** (60 € observé, absent de l'Annexe III) ; **exploitation du plafond DH rose à +23,59 %** au lieu de +20 % (décision de groupe, pas de contrainte réglementaire).
 - **À confirmer (liste CSM)** : dérogation **3 actes** en chirurgie de la main (100/75/50) ; existence et valeur de la **MCS** ; critère **APC = ASA ≥ 3** ou doctrine « avis ponctuel » ; exclusion **VVC/transfusion** en **USC** (YYYY015) ; couple **YYYY015 + DEQP007** ; **AHQJ021 ×2** en TAP bilatéral. *(cf. §10)*
 - **À confirmer** : convention tarifaire CHPG public (art. 17) ; présence/valeur des modificateurs 4-5 (analgésie postop) dans la version CSM ; valeurs à reconfirmer périodiquement (CCAM révisée 1-2×/an).
