@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-19.1';
+const GAS_VERSION_INDISPOS = '2026-07-19.2';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -2751,6 +2751,114 @@ if (action === 'setDailyStatus') {
       freed.sort((a,b) => a.date < b.date ? -1 : 1);
       logAction(`poserAbsenceLongue — ${marId} ${d1} -> ${d2} : ${nbCL} j CL, ${freed.length} garde(s) liberee(s)${deferred.length ? ', reporté: ' + deferred.join('/') : ''}`);
       return ContentService.createTextOutput(JSON.stringify({ success: true, marId, nbCL, freed, touched, deferred }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ── (RH-2) Lister le registre des absences longues ──────────────────
+    if (action === 'getAbsencesLongues') {
+      if (user.role !== 'admin') return _deny();
+      const absSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ABSENCES_LONGUES');
+      const absences = [];
+      if (absSheet) {
+        const adata = absSheet.getDataRange().getValues();
+        for (let r = 1; r < adata.length; r++) {
+          const id = String(adata[r][0]).trim().toUpperCase();
+          if (!id) continue;
+          absences.push({ marId: id, dateDebut: _isoDate(adata[r][1]), dateFin: _isoDate(adata[r][2]) });
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({ success: true, absences }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ── (RH-2) Annuler ou raccourcir une absence longue ─────────────────
+    // Sans nouvelleFin : annulation totale (efface les CL de [d1,d2] + supprime
+    // la ligne du registre). Avec nouvelleFin : retour anticipé (efface les CL
+    // de ]nouvelleFin, d2] + met à jour la ligne du registre).
+    // SÉCURITÉ : on n'efface QUE les cases valant exactement 'CL' — jamais une
+    // garde, un statut ou toute autre valeur. Les gardes libérées à la pose ne
+    // sont PAS restaurées (redistribution par don/échange/garde exceptionnelle).
+    if (action === 'annulerAbsenceLongue') {
+      if (user.role !== 'admin') return _deny();
+      const marId = String(payload.marId || '').trim().toUpperCase();
+      const d1 = String(payload.dateDebut || '').trim();
+      const d2 = String(payload.dateFin   || '').trim();
+      const nf = String(payload.nouvelleFin || '').trim();   // optionnel
+      if (!marId || !d1 || !d2) return _error('marId, dateDebut et dateFin requis');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d1) || !/^\d{4}-\d{2}-\d{2}$/.test(d2)) return _error('Dates au format YYYY-MM-DD');
+      if (nf && !/^\d{4}-\d{2}-\d{2}$/.test(nf)) return _error('nouvelleFin au format YYYY-MM-DD');
+      if (nf && (nf < d1 || nf >= d2)) return _error('La nouvelle fin doit être dans la plage (≥ début, < fin actuelle)');
+
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+      // 1) Retrouver la ligne EXACTE du registre (marId + début + fin)
+      const absSheet = ss.getSheetByName('ABSENCES_LONGUES');
+      if (!absSheet) return _error('Registre ABSENCES_LONGUES introuvable');
+      const adata = absSheet.getDataRange().getValues();
+      let regRow = -1;
+      for (let r = 1; r < adata.length; r++) {
+        if (String(adata[r][0]).trim().toUpperCase() === marId
+            && _isoDate(adata[r][1]) === d1 && _isoDate(adata[r][2]) === d2) { regRow = r; break; }
+      }
+      if (regRow < 0) return _error(`Absence introuvable au registre : ${marId} ${d1} -> ${d2}`);
+
+      // 2) Plage à effacer : totale (annulation) ou queue (retour anticipé)
+      const clearStart = nf ? (function(){ const x = new Date(nf + 'T12:00:00'); x.setDate(x.getDate()+1);
+        return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; })() : d1;
+      const clearEnd = d2;
+      const allDates = [];
+      { const cur = new Date(clearStart + 'T12:00:00'), end = new Date(clearEnd + 'T12:00:00');
+        while (cur <= end) {
+          allDates.push(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`);
+          cur.setDate(cur.getDate() + 1);
+        } }
+
+      // 3) Effacer les CL année par année (miroir exact de poserAbsenceLongue)
+      let nbEfface = 0;
+      const touched = [];
+      const years = [];
+      for (let y = Number(clearStart.slice(0,4)); y <= Number(clearEnd.slice(0,4)); y++) years.push(y);
+      years.forEach(year => {
+        const gSheet = ss.getSheetByName(`GARDES_${year}`);
+        if (gSheet) {
+          // Année générée : effacer les CL de GARDES + miroir INDISPOS
+          const data = gSheet.getDataRange().getValues();
+          const dateToCol = buildDateToCol(data, year);
+          let row = -1;
+          for (let r = 3; r < data.length; r++)
+            if (String(data[r][0]).trim().toUpperCase() === marId) { row = r; break; }
+          if (row < 0) return;
+          const inYear = allDates.filter(dt => dateToCol[dt] !== undefined);
+          if (!inYear.length) return;
+          const indMap = getIndisposForDoctor(marId, year);
+          let n = 0;
+          inYear.forEach(dt => {
+            const col = dateToCol[dt];
+            if (String(data[row][col] || '').trim().toUpperCase() !== 'CL') return; // on ne touche QUE les CL
+            gSheet.getRange(row + 1, col + 1).setValue('');
+            if (indMap[dt] === 'CL') delete indMap[dt];
+            n++;
+          });
+          if (n) { saveIndisposForDoctor(marId, indMap, year); nbEfface += n; touched.push(`${year} (générée)`); }
+        } else {
+          // Année non générée : effacer les CL d'INDISPOS seulement
+          const iSheet = ss.getSheetByName(`INDISPOS_${year}`);
+          if (!iSheet) return; // année pas créée : rien à effacer, la purge du registre suffit
+          const idata = iSheet.getDataRange().getValues();
+          const dset = new Set(reconstruireDatesHeaders(idata, year).filter(Boolean));
+          const inYear = allDates.filter(dt => dset.has(dt));
+          if (!inYear.length) return;
+          const indMap = getIndisposForDoctor(marId, year);
+          let n = 0;
+          inYear.forEach(dt => { if (indMap[dt] === 'CL') { delete indMap[dt]; n++; } });
+          if (n) { saveIndisposForDoctor(marId, indMap, year); nbEfface += n; touched.push(`${year} (préparation)`); }
+        }
+      });
+
+      // 4) Registre : mise à jour (raccourci) ou suppression (annulation)
+      if (nf) absSheet.getRange(regRow + 1, 3).setValue(nf);
+      else    absSheet.deleteRow(regRow + 1);
+
+      logAction(`annulerAbsenceLongue — ${marId} ${d1} -> ${d2}${nf ? ' raccourcie au ' + nf : ' ANNULEE'} : ${nbEfface} CL effacé(s)`);
+      return ContentService.createTextOutput(JSON.stringify({ success: true, marId, nbEfface, touched, nouvelleFin: nf || null }))
         .setMimeType(ContentService.MimeType.JSON);
     }
     // ── JSON du planning (Drive) — consommés par index.html / dashboard.html ──
