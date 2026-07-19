@@ -160,6 +160,13 @@
   #devisOverlay .legalblk p{font-size:10.5px;color:#3D4B54;line-height:1.5;margin-bottom:6px}
   #devisOverlay .legalblk .imp{background:#FBF4F2;border-left:3px solid var(--over);padding:7px 10px;border-radius:0 6px 6px 0;color:#7a2c20}
   #devisOverlay .dvfoot{margin-top:18px;text-align:center;font-size:9.5px;color:#5B6C76;border-top:1px solid var(--line);padding-top:8px}
+  #devisOverlay .hand{display:inline-block;min-width:220px;border-bottom:1px dotted #16222C;height:14px;vertical-align:bottom}
+  #devisOverlay .sheet.decl{margin-top:18px}
+  #devisOverlay .decl p{font-size:12px;line-height:1.65;margin:10px 0;text-align:justify}
+  #devisOverlay .decl .fld{font-size:12px;line-height:2.1}
+  #devisOverlay .decl table.des{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
+  #devisOverlay .decl table.des th{background:#E7ECEF;font-size:10px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.06em;padding:7px;border:1px solid #16222C}
+  #devisOverlay .decl table.des td{padding:14px 10px;border:1px solid #16222C;vertical-align:top;height:52px}
   #devisOverlay .ed{border-bottom:1px dashed #9AA7AF;padding:0 3px;min-width:70px;display:inline-block;outline:none}
   #devisOverlay .ed:empty::before{content:attr(data-ph);color:#AEB8BF}
   #devisOverlay .ed:focus{border-bottom-color:var(--ccam);background:#F1F8FA}
@@ -169,6 +176,7 @@
     #devisOverlay{position:static;background:#fff;padding:0;display:block}
     #devisOverlay .dvbar,#devisOverlay .dvnote{display:none!important}
     #devisOverlay .sheet{box-shadow:none;border:0;border-radius:0;max-width:none;padding:0}
+    #devisOverlay .sheet.decl{page-break-before:always;margin-top:0}
     #devisOverlay .ed{border-bottom:1px solid #16222C}
   }
   footer b{color:#6b4e10}
@@ -209,6 +217,7 @@
           <option value="rose">Carte rose (monég. · DH +20 %)</option>
           <option value="bulle">Carte bulle (monég. · DH libre)</option>
           <option value="fr">Assuré français (DH libre)</option>
+          <option value="frc2s">Français — AME / C2S (précarité · DH 0)</option>
           <option value="nas">NAS / non assuré (DH libre)</option>
           <option value="spme">SPME (DH 0)</option>
           <option value="ame">AME — Aide Médicale de l'État (DH 0)</option>
@@ -269,7 +278,7 @@
     </div>
 
     <div class="hint" id="hintCCAM">Rôle : <b>principal</b> 100 % · <b>associé</b> 50 % (2ᵉ acte) · <b>complément</b> 100 % en sus (AHQJ021, YYYY041…). Le modificateur A vaut +23 € (français) ou +44,85 € (monégasque). Tarif officiel : à lire dans le classeur Excel des codes.</div>
-    <div class="hint" id="hintNGAP" style="display:none"><b>NGAP = lettre-clé × coefficient</b>, sans coefficient monégasque (verte, bulle, français… même BR) et sans modificateur 7/A. Valeurs : <b>C 34,40 €</b> · <b>CS 46 €</b> · <b>APC 60 €</b>. La carte ne joue que sur le <b>DH</b> : verte/SPME 0 · rose +20 % · bulle/français/NAS/AME libre.</div>
+    <div class="hint" id="hintNGAP" style="display:none"><b>NGAP = lettre-clé × coefficient</b>, sans coefficient monégasque (verte, bulle, français… même BR) et sans modificateur 7/A. Valeurs : <b>C 34,40 €</b> · <b>CS 46 €</b> · <b>APC 60 €</b>. La carte ne joue que sur le <b>DH</b> : verte/SPME/AME/C2S 0 · rose +20 % · bulle/français/NAS libre.</div>
   </div>
 
   <!-- SUMMARY -->
@@ -298,7 +307,7 @@
 <script>
 const STATUTS={
  verte:{coeff:1.95,dh:'0'}, rose:{coeff:1.95,dh:'0.20'}, bulle:{coeff:1.95,dh:'libre'},
- fr:{coeff:1.00,dh:'libre'}, nas:{coeff:1.00,dh:'libre'}, spme:{coeff:1.95,dh:'0'}, ame:{coeff:1.95,dh:'0'}
+ fr:{coeff:1.00,dh:'libre'}, frc2s:{coeff:1.00,dh:'0'}, nas:{coeff:1.00,dh:'libre'}, spme:{coeff:1.95,dh:'0'}, ame:{coeff:1.95,dh:'0'}
 };
 const ROLES={principal:{lab:'Principal (100 %)',rate:1.0}, associe:{lab:'Associé (50 %)',rate:0.5}, complement:{lab:'Complément (100 % en sus)',rate:1.0}};
 // NGAP : lettre-clé × coefficient, sans coeff monégasque ni modificateur
@@ -542,9 +551,9 @@ function renderRows(){
 }
 ['Tc','Pc','Tn','Pn'].forEach(id=>document.getElementById(id).addEventListener('input',renderSummary));
 // ---- GÉNÉRATEUR DE DEVIS (client-side, zéro persistance patient) ----
-const ST_LABELS={verte:'Carte verte (CCSS Monaco)',rose:'Carte rose (CCSS Monaco)',bulle:'Carte bulle (CCSS Monaco)',fr:'Assuré français (secteur 2)',nas:'NAS — non assuré social',spme:'SPME (Monaco)',ame:'AME'};
+const ST_LABELS={verte:'Carte verte (CCSS Monaco)',rose:'Carte rose (CCSS Monaco)',bulle:'Carte bulle (CCSS Monaco)',fr:'Assuré français (secteur 2)',frc2s:'Assuré français — AME / C2S (précarité)',nas:'NAS — non assuré social',spme:'SPME (Monaco)',ame:'AME'};
 let dvHonoraire=0;
-const RO_RATE={verte:0.80,rose:0.80,bulle:0.80,spme:0.80,fr:0.70,ame:1.00,nas:0.00};
+const RO_RATE={verte:0.80,rose:0.80,bulle:0.80,spme:0.80,fr:0.70,frc2s:1.00,ame:1.00,nas:0.00};
 function eText(id,v){document.getElementById(id).textContent=v;}
 function fmtDate(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
 function openDevis(i){
@@ -574,11 +583,10 @@ function openDevis(i){
   const rate = (RO_RATE[p.statut]!=null?RO_RATE[p.statut]:0.80);
   document.getElementById('dvRRO').textContent = eur2(rate*p.br);
   recalcDevisRac();
-  // seul champ à taper : le nom du patient
-  document.getElementById('dvPatient').textContent='';
+  // aucun champ patient : le nom est écrit à la main par le patient après impression
+  eText('dcPratName', document.getElementById('cfgPrat').value.trim()||'[Nom Prénom]');
   document.getElementById('devisOverlay').style.display='block';
   window.scrollTo(0,0);
-  document.getElementById('dvPatient').focus();
 }
 function parseEur(t){return parseFloat((t||'').replace(/[^0-9.,-]/g,'').replace(',','.'))||0;}
 function recalcDevisRac(){
@@ -587,7 +595,12 @@ function recalcDevisRac(){
   if(rro>0){const rac=Math.max(0,dvHonoraire-rro);el.textContent=eur2(rac);el.className='v '+(rac<=0.005?'zero':'pos');}
   else{el.textContent='—';el.className='v pos';}
 }
-function printDevis(){window.print();}
+function printDevis(withDecl){
+  const d=document.getElementById('declSheet');
+  d.style.display=withDecl?'block':'none';
+  window.print();
+  d.style.display='block';
+}
 function closeDevis(){
   document.querySelectorAll('#devisOverlay .ed').forEach(e=>e.textContent='');   // rien ne persiste
   document.getElementById('devisOverlay').style.display='none';
@@ -660,10 +673,11 @@ populateMut();setAxe('CCAM');renderRows();
 </script>
 <div id="devisOverlay">
   <div class="dvbar">
-    <button class="dvprint" onclick="printDevis()">Imprimer / PDF</button>
+    <button class="dvprint" onclick="printDevis(false)">Imprimer le devis</button>
+    <button class="dvprint" onclick="printDevis(true)">Imprimer devis + déclaration de choix</button>
     <button class="dvclose" onclick="closeDevis()">Fermer</button>
   </div>
-  <div class="dvnote">Champs bleus éditables (patient, dates, remboursement) — saisis à l'écran, <b>jamais enregistrés</b>, effacés à la fermeture. À défaut, laisse-les vides et complète à la main après impression.</div>
+  <div class="dvnote">Aucun champ patient : <b>le nom est écrit à la main par le patient</b> sur le devis et la déclaration imprimés — aucune donnée patient ne transite par l'outil. Champs bleus restants (dates, remboursement) : saisis à l'écran, jamais enregistrés, effacés à la fermeture. <b>Hospitalisation :</b> la déclaration ci-dessous vaut pour les soins externes ; en hospitalisation, utiliser la liasse officielle (5 feuillets) du Bureau des Entrées.</div>
   <div class="sheet">
     <div class="head">
       <div class="prat">
@@ -677,7 +691,7 @@ populateMut();setAxe('CCAM');renderRows();
       </div>
     </div>
     <div class="doctitle">
-      <h1>Information écrite préalable — Devis d'honoraires</h1>
+      <h1>Estimation de frais — Information écrite préalable</h1>
       <div class="st">Remis au patient avant la réalisation de l'acte · à conserver</div>
     </div>
     <div class="refline">
@@ -688,7 +702,7 @@ populateMut();setAxe('CCAM');renderRows();
     <div class="who">
       <div class="box">
         <h2>Patient</h2>
-        <div class="l"><b><span class="ed" id="dvPatient" contenteditable="true" data-ph="Nom Prénom du patient"></span></b><br>
+        <div class="l">Nom Prénom : <span class="hand" style="min-width:230px"></span><br>
         Régime : <b id="dvStatut">—</b></div>
         <span class="tag" id="dvTag" style="display:none">Honoraires libres · entente préalable</span>
       </div>
@@ -738,6 +752,40 @@ populateMut();setAxe('CCAM');renderRows();
       <p class="imp"><b>Bénéficiaires protégés.</b> Aucun dépassement n'est facturé aux bénéficiaires d'une couverture protégée (carte verte, SPME, AME, C2S) : seul le tarif conventionnel s'applique.</p>
     </div>
     <div class="dvfoot">Document remis en deux exemplaires. Modèle de maquette ; génération sans conservation de donnée patient.</div>
+  </div>
+
+  <!-- DÉCLARATION DE CHOIX — modèle CHPG soins externes, praticien pré-rempli, patient manuscrit -->
+  <div class="sheet decl" id="declSheet">
+    <div class="head">
+      <div class="prat">
+        <div class="name">Centre Hospitalier Princesse Grace</div>
+        <div class="meta">1 avenue Pasteur, BP 489, 98012 MONACO Cedex<br>Tél. +377 97 98 99 00 — courrier@chpg.mc — www.chpg.mc</div>
+      </div>
+    </div>
+    <div class="doctitle">
+      <h1>Déclaration de choix de prise en charge<br>à titre libéral en soins externes</h1>
+    </div>
+    <div class="fld">
+      M., Mme*, NOM : <span class="hand" style="min-width:250px"></span> &nbsp;Prénom : <span class="hand" style="min-width:180px"></span><br>
+      Agissant au nom de : <span class="hand" style="min-width:420px"></span><br>
+      <span style="font-size:10px;color:#5B6C76">(Le cas échéant, mineur ou personne dans l'incapacité d'effectuer les formalités d'admission)</span><br>
+      Né(e) le : <span class="hand" style="min-width:220px"></span><br>
+      Demeurant : <span class="hand" style="min-width:520px"></span><br>
+      <span class="hand" style="min-width:620px"></span>
+    </div>
+    <p>Je soussigné(e), ci-dessus désigné(e) déclare souhaiter être pris(e) en charge au sein du Centre Hospitalier Princesse Grace à titre libéral, par le praticien ci-après désigné, sous réserve de son acceptation expresse.</p>
+    <p>J'ai également pris bonne note que tout praticien agissant dans le cadre de son activité libérale est habilité à m'adresser ses honoraires, sachant que leur remboursement sera subordonné aux conditions de prise en charge de mon organisme d'assurance maladie, dont je déclare avoir connaissance. Ceci peut éventuellement impliquer qu'une partie desdits honoraires soit à ma charge.</p>
+    <p>En conséquence, je désigne ci-dessous le praticien intervenant à titre libéral :</p>
+    <table class="des">
+      <tr><th style="width:45%">Discipline</th><th>Praticien</th></tr>
+      <tr><td>Anesthésie-Réanimation</td><td>Docteur <b id="dcPratName">—</b></td></tr>
+    </table>
+    <div style="text-align:right;font-size:12px;margin:14px 0 4px">Fait à Monaco, le <span class="hand" style="min-width:150px"></span></div>
+    <div class="sign">
+      <div class="sig"><div class="lab">Signature du praticien choisi</div><div class="bp">valant acceptation</div><div class="line"></div></div>
+      <div class="sig"><div class="lab">Signature du patient</div><div class="bp">valant acceptation</div><div class="line"></div></div>
+    </div>
+    <div class="dvfoot">* Rayer les mentions inutiles · Modèle conforme au protocole de gestion de l'activité libérale (DAM) — soins externes uniquement ; en hospitalisation, utiliser la liasse officielle du Bureau des Entrées.</div>
   </div>
 </div>
 </body>
