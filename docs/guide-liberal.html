@@ -108,7 +108,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — module libéral</div>
   <h1>Module libéral<br>Guide d'utilisation</h1>
   <p class="subtitle">Estimer le libéral, calibrer le dépassement sur la mutuelle du patient, générer le devis — et piloter la charge libéral / public.</p>
-  <div class="maj">Dernière mise à jour : 16 juillet 2026 · rév. 2 (déclaration &amp; placement)</div>
+  <div class="maj">Dernière mise à jour : 19 juillet 2026 · rév. 3 (V3.2 — nom manuscrit, déclaration de choix, statut AME/C2S français)</div>
 </header>
 
 <div class="proto">
@@ -155,7 +155,7 @@
     <li><strong>Le tarif se pré-remplit.</strong> Le tarif d'anesthésie (activité 4) est repris automatiquement du référentiel officiel. Tu n'as qu'à cocher les modificateurs (7, A) et choisir le rôle (principal / associé / complément).</li>
     <li><strong>La BR se calcule.</strong> ×1,95 monégasque, modificateurs, décote d'association — tout est appliqué derrière. L'axe NGAP (consultations) se saisit séparément.</li>
     <li><strong>Renseigner la mutuelle.</strong> On sélectionne la formule du patient (sa ligne « honoraires » en % BR). L'outil affiche le dépassement optimal et le reste à charge.</li>
-    <li><strong>Générer le devis.</strong> Bouton <span class="tag">📄 Devis</span> sur le parcours : tout est pré-rempli, il ne reste que le nom du patient à taper.</li>
+    <li><strong>Générer les documents.</strong> Bouton <span class="tag">📄 Devis</span> sur le parcours : l'estimation de frais est entièrement pré-remplie, et un second bouton imprime <strong>devis + déclaration de choix</strong> (modèle CHPG soins externes, nom du MAR pré-rempli). <strong>Aucun nom de patient à taper</strong> : le patient l'écrit à la main sur les documents imprimés.</li>
     <li><strong>Déclarer l'intervention</strong> <em>(à venir)</em>. Bouton <span class="tag">📅 Déclarer</span> sur le parcours : date de bloc + secteur + chirurgie en clair (« PTH », pré-remplie depuis le parcours, modifiable). C'est ce qui alimentera le volet ◆ Libéral du comité dans la vue admin — <strong>rien d'autre ne part</strong> : ni patient, ni code CCAM.</li>
   </ol>
   <div class="callout rule">
@@ -178,6 +178,7 @@
     <tr><td>Carte rose (monég.)</td><td>+20 % de la BR</td><td>oui, plafonné à +20 %</td></tr>
     <tr><td>Carte bulle (monég.)</td><td>libre — entente préalable</td><td>oui</td></tr>
     <tr><td>Assuré français</td><td>libre (secteur 2 non-OPTAM)</td><td>oui, plafond non-OPTAM</td></tr>
+    <tr><td>Français — AME / C2S (précarité)</td><td>0 — pas de dépassement <em>(à confirmer DAM)</em></td><td>non</td></tr>
     <tr><td>NAS</td><td>libre</td><td>oui</td></tr>
     <tr><td>AME</td><td>0 — pas de dépassement</td><td>non</td></tr>
   </table>
@@ -203,15 +204,15 @@
 
 <section id="c5">
   <h2><span class="n">05</span>Générer le devis</h2>
-  <p>Le devis est une <strong>information écrite préalable</strong> conforme, pré-remplie depuis le calcul. Un clic sur <span class="tag">📄 Devis</span> ouvre un document prêt à imprimer.</p>
+  <p>Le devis est une <strong>« Estimation de frais — information écrite préalable »</strong> (vocabulaire du règlement CHPG ENR/QUA/1086/001), pré-remplie depuis le calcul. Un clic sur <span class="tag">📄 Devis</span> ouvre les documents prêts à imprimer, avec deux boutons&nbsp;: <strong>« Imprimer le devis »</strong> seul, ou <strong>« Imprimer devis + déclaration de choix »</strong> — la déclaration nominative que le patient doit signer pour que la prise en charge libérale existe (un imprimé par praticien&nbsp;; sans elle, patient réputé public et honoraires récupérables en indu).</p>
   <div class="callout safe">
     <div class="ct">Un seul champ à taper</div>
-    <p>Praticien, n° de devis, dates, tarifs, remboursement, reste à charge&nbsp;: tout est pré-rempli. Il ne reste que le <strong>nom du patient</strong>. Le curseur y est déjà placé.</p>
+    <p>Praticien, n° de devis, dates, tarifs, remboursement, reste à charge&nbsp;: tout est pré-rempli. <strong>Le nom du patient n'est jamais saisi dans l'outil</strong>&nbsp;: le devis comme la déclaration sortent avec des lignes en pointillés que le patient remplit <strong>à la main</strong>. La déclaration imprimée vaut pour les <strong>soins externes</strong>&nbsp;; en hospitalisation, utiliser la liasse officielle (5 feuillets) du Bureau des Entrées.</p>
   </div>
   <p>Le devis rappelle les mentions obligatoires&nbsp;: statut secteur 2 honoraires libres (tact et mesure), information préalable dès 70 € de dépassement, paiement après l'acte, remboursement mutuelle dépendant du contrat, et l'exclusion de tout dépassement pour les bénéficiaires protégés (verte, SPME, AME, C2S).</p>
   <div class="callout tip">
     <div class="ct">Champs saisis à l'écran, jamais enregistrés</div>
-    <p>Le nom du patient et les quelques champs éditables vivent dans la page le temps de l'impression&nbsp;: ils sont <strong>effacés à la fermeture</strong>, rien n'est stocké. À défaut, on peut laisser vide et compléter à la main après impression.</p>
+    <p>Les quelques champs encore éditables (dates, remboursement) vivent dans la page le temps de l'impression&nbsp;: ils sont <strong>effacés à la fermeture</strong>, rien n'est stocké. Le nom du patient, lui, ne transite <strong>jamais</strong> par l'outil — manuscrit uniquement.</p>
   </div>
   <div class="callout warn">
     <div class="ct">À valider avant tout usage réel</div>
@@ -247,7 +248,7 @@
   <h2><span class="n">08</span>Sécurité des données</h2>
   <p>Le module approche du secret médical&nbsp;: sa sécurité repose sur une discipline, pas sur un cadenas.</p>
   <ul>
-    <li><strong>Zéro donnée patient stockée.</strong> Le calibrage et le devis se font à l'écran, sans persistance — ni serveur (GitHub / Sheets / Drive), ni navigateur. Le nom du patient est effacé à la fermeture.</li>
+    <li><strong>Zéro donnée patient — jamais saisie.</strong> Le calibrage et les documents se font à l'écran, sans persistance — ni serveur (GitHub / Sheets / Drive), ni navigateur. Depuis la V3.2, le nom du patient n'est même plus tapé&nbsp;: il est écrit à la main par le patient sur les documents imprimés.</li>
     <li><strong>Données praticien</strong> (nom, RPPS, ADELI) → profil MAR, jamais dans un fichier publié.</li>
     <li><strong>Volet financier</strong> → cloisonné entre membres et non-membres du groupement, et <strong>agrégé</strong> (aucune donnée patient).</li>
     <li><strong>Référentiels</strong> (CCAM, formules mutuelle) → publics, sourcés, sans lien à un patient.</li>
