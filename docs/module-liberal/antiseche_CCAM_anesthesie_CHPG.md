@@ -1,6 +1,11 @@
-# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v15)
+# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v15.2)
 
 *Source faisant autorité : **Arrêté Ministériel n° 2005-276** régissant la CCAM à Monaco (MAJ 2018) + mémento des Caisses Sociales de Monaco. Les **valeurs monétaires sont celles fixées en France** (art. 16) → base CCAM **v80, en vigueur au 01/01/2025**. Objectif : coter **à juste titre** l'exhaustivité de ce qui est réellement fait — jamais surcoter.*
+
+*v15.2 — 19 juillet 2026. §6 ter : nouveau bloc **USC / lit scopé** — exclusion VVC/transfusion
+étendue à l'USC (validé), **forfait niveau A en règle générale**, et **DEQP007 laissé non tranché**
+(risque de rejet si inclus). §10.2 : **AHQJ021 ×2 en TAP bilatéral écarté**. v15.1 : plafond DH rose
+reformulé en écart non expliqué, pratique CHPG maintenue à **+20 %**.*
 
 *v15 — 19 juillet 2026. **Confrontation au texte conventionnel officiel** (Annexe III de
 l'addendum du 02/09/2025, en vigueur au 01/10/2025). Confirmé : ×1,95 verte (195 %), C 34,40 €,
@@ -244,6 +249,19 @@ L'**axe NGAP** (consultations pré-anesthésiques) obéit à une règle **diffé
 
 Écho cœur ETT (**DZQM006**, 96,25 €) · pose de VVC (**EPLF002**, 61,72 €) · Swan-Ganz / pressions droites (**EQLF004**) · **cathéter artériel** (ENLF001, même famille) · drain pleural (**GGJB001**) · gazométrie (**GLHF001/002**) · intubation (**GELD004**, 19,20 €) · adaptation de ventilation (**GLMF001**). Les facturer en plus du forfait = **rejet**.
 
+### USC / lit scopé
+
+- **VVC (EPLF002) et transfusion (FELF011) : non facturables** le même jour qu'un code
+  **USC ou réa**. L'exclusion documentée ci-dessus pour la réa **s'étend à l'USC**
+  (validé Arthur, 19/07/2026).
+- **En USC, c'est en général le forfait niveau A (YYYY015)**, pas le B : la suppléance
+  d'organe qui débloque le B est par définition rare en soins continus. Ne pas coter B
+  par réflexe de gravité — le critère reste la **suppléance documentée**.
+- ❓ **DEQP007 (ECG 12 dérivations) : statut non tranché.** Ne figure ni dans les inclus
+  ni dans les en-sus ci-dessus. Argument pour l'inclusion : le forfait rémunère la
+  **surveillance**, dont l'ECG fait partie. **Risque asymétrique** — si inclus, la ligne
+  est **rejetée**, pas seulement non payée. **À confirmer CSM avant tout usage.**
+
 ### Facturables EN SUS du forfait
 
 Épuration extrarénale pour IRA (**JVJF005** et famille) · échange plasmatique (**FEJF002**) · ultrafiltration (**FEJF009**) · épuration en cascade (**FEJF001**) · **fibroscopie bronchique diagnostique** chez l'intubé/trachéotomisé (**GEQE012 = 96 €** ; avec LBA **GEQE009 = 110,40 €**). *(La fibro-aspiration thérapeutique de routine GEJE003 est, elle, incluse.)*
@@ -327,11 +345,12 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 
 - **MCS** (majoration de coordination spécialiste) — **absente de notre §5 ter**. Aucune valeur € connue
   pour Monaco. Si elle existe à la CSM, **manque à gagner NGAP récurrent**.
-- **USC / lit scopé** : **YYYY015 + DEQP007** (ECG). Le couple n'est pas documenté chez nous.
+- **USC / lit scopé** : **YYYY015 + DEQP007** (ECG) → traité désormais au **§6 ter, bloc « USC / lit scopé »** (statut non tranché, risque de rejet).
 - **VVC (EPLF002) et transfusion (FELF011) interdites** le même jour qu'un code **USC ou réa**
   (YYYY015 / YYYY020) — considérées incluses dans le forfait. *Cohérent avec notre §6 ter, qui ne
   visait que la réa : l'extension à l'**USC** est l'apport.*
-- **AHQJ021 ×2** si TAP **bilatéral** avec 2 codes chirurgicaux (l'auteur note lui-même « à vérifier »).
+- ~~**AHQJ021 ×2** si TAP bilatéral~~ — **écarté (Arthur, 19/07/2026)**. Non retenu ; la source
+  externe doutait elle-même. **Un seul AHQJ021 par intervention.**
 - **Ophtalmo** : dupliquer la CPA à la 1ʳᵉ consultation pour le 2ᵉ œil, coter **CS + MCS**.
   Reprise chirurgicale → CS + MCS envisageable.
 - **Kt BIS, répartition à 2 praticiens** : **ZZLP025** (sédation, MAR1) / **AHLB001 + AHQJ021 +
