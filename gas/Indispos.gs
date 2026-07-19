@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-19.2';
+const GAS_VERSION_INDISPOS = '2026-07-19.3';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -845,6 +845,28 @@ function _buildOverrides_() {
     upcoming:overrides.filter(o=>o.isFuture).length };
 }
 
+// ── (RH-C) ACTIONS D'ÉCRITURE SÉRIALISÉES PAR VERROU ─────────────────
+// Toute action de cette liste prend le verrou de script avant de s'exécuter :
+// les écritures se font une par une, jamais entremêlées. Élimine les courses
+// « lire-modifier-écrire » (écrasement de ligne d'indispos, don de garde
+// dupliqué, suppression de la mauvaise ligne après décalage).
+// EXCLUS volontairement :
+//  - savePlanningOverride : verrou dédié déjà en place (même verrou de script
+//    → exclusion mutuelle assurée avec deleteOverride et les autres écritures) ;
+//  - markVeille : écriture d'une cellule ciblée, lignes jamais supprimées ;
+//  - genererCRH : aucune écriture de données ;
+//  - sendCodes* / envoyerRecapIndispos : emails (lents, pas d'écriture à risque).
+// NB : pas de releaseLock explicite — Google libère le verrou automatiquement
+// à la fin de chaque exécution.
+const WRITE_ACTIONS_LOCK = new Set([
+  'addMedecinToGroupe', 'annulerAbsenceLongue', 'applyModification',
+  'applyRotationLib', 'archiveYear', 'clearIndisposYear', 'deleteOverride',
+  'generateGardes', 'initYear', 'poserAbsenceLongue', 'publishPlanning',
+  'saveAffectations', 'saveAffectationsMar', 'saveConfig', 'saveGroupes',
+  'saveIndispos', 'saveMedecin', 'savePeriodes', 'setActiveYear',
+  'setDailyStatus', 'setIndisposYear', 'validerSemaine',
+]);
+
 function doGet(e) {
   try {
     const payload = JSON.parse(e.parameter.payload || '{}');
@@ -861,6 +883,16 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify({
         success: false, error: 'Code invalide'
       })).setMimeType(ContentService.MimeType.JSON);
+    }
+    // (RH-C) Verrou d'écriture global : sérialise les actions qui modifient
+    // les données. Les lectures ne prennent jamais le verrou (dashboard fluide).
+    if (WRITE_ACTIONS_LOCK.has(action)) {
+      const _wl = LockService.getScriptLock();
+      if (!_wl.tryLock(20000)) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false,
+          error: 'Une autre opération d\'écriture est en cours — réessayez dans quelques secondes.' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
     }
     // (B1 sécurité) getStatus / getStatsLive : désormais code-gated (données nominatives)
     if (action === 'getStatus') {
