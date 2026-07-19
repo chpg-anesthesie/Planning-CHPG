@@ -108,7 +108,8 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — module libéral</div>
   <h1>Module libéral<br>Guide d'utilisation</h1>
   <p class="subtitle">Estimer le libéral, calibrer le dépassement sur la mutuelle du patient, générer le devis — et piloter la charge libéral / public.</p>
-  <div class="maj">Dernière mise à jour : 19 juillet 2026 · rév. 4 (V3.3 — mentions légales renforcées, déclaration valable en hospitalisation)</div>
+  <div class="maj">Dernière mise à jour : 19 juillet 2026 · rév. 5 (V3.3 — mentions légales renforcées, déclaration valable en hospitalisation)</div>
+  <p style="margin-top:10px"><a href="module-liberal/maquette_estimateur_liberal.html" style="display:inline-block;background:var(--acc);color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">→ Ouvrir l'estimateur</a></p>
 </header>
 
 <div class="proto">
@@ -203,6 +204,11 @@
 </section>
 
 <section id="c5">
+  <div class="callout">
+    <div class="ct">Fiche praticien — à ressaisir à chaque ouverture</div>
+    <p>Les trois champs en haut de page (nom, identifiants) alimentent le devis et la déclaration de choix. <strong>Ils ne sont pas mémorisés</strong>&nbsp;: il faut les retaper à chaque ouverture de l'outil. C'est volontaire — le pré-remplissage automatique se fera lors du <strong>branchement au portail</strong> (le MAR étant identifié à la connexion, ses informations viendront de l'onglet <code>MEDECINS</code>). Aucune solution intermédiaire n'a été codée, pour ne pas construire quelque chose qui serait jeté ensuite. La nature exacte des identifiants à retenir pour Monaco (n° d'inscription à l'Ordre, n° praticien CCSS) sera tranchée à ce moment-là.</p>
+  </div>
+
   <h2><span class="n">05</span>Générer le devis</h2>
   <p>Le devis est une <strong>« Estimation de frais — information écrite préalable »</strong> (vocabulaire du règlement CHPG ENR/QUA/1086/001), pré-remplie depuis le calcul. Un clic sur <span class="tag">📄 Devis</span> ouvre les documents prêts à imprimer, avec deux boutons&nbsp;: <strong>« Imprimer le devis »</strong> seul, ou <strong>« Imprimer devis + déclaration de choix »</strong> — la déclaration nominative que le patient doit signer pour que la prise en charge libérale existe (un imprimé par praticien&nbsp;; sans elle, patient réputé public et honoraires récupérables en indu).</p>
   <div class="callout safe">
