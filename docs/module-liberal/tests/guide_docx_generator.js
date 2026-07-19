@@ -1,8 +1,8 @@
 /**
  * Générateur du « Guide d'aide au codage — CHPG Anesthésie-Réanimation »
- * Version du guide produit : v1.2 (19 juillet 2026)
+ * Version du guide produit : v1.3 (19 juillet 2026)
  *
- * Source de vérité du contenu : docs/module-liberal/antiseche_CCAM_anesthesie_CHPG.md (v15.2)
+ * Source de vérité du contenu : docs/module-liberal/antiseche_CCAM_anesthesie_CHPG.md (v15.3)
  * À régénérer à chaque évolution de l'antisèche, puis repousser le .docx.
  *
  * Usage :
@@ -158,7 +158,7 @@ ch.push(new Paragraph({
   children: [new TextRun({ text: 'CCAM \u00B7 NGAP \u00B7 R\u00E9animation — cadre mon\u00E9gasque (CSM)', color: GREY, size: 23, font: F })]
 }));
 ch.push(PR([
-  { t: 'v1.2 — 19 juillet 2026', b: true, s: 18, c: GREY },
+  { t: 'v1.3 — 19 juillet 2026', b: true, s: 18, c: GREY },
   { t: '   \u00B7   align\u00E9 sur l\u2019antis\u00E8che v15.2 (confront\u00E9e \u00E0 l\u2019addendum conventionnel du 01/10/2025) — valid\u00E9 au centime sur feuilles r\u00E9elles', s: 18, c: GREY }
 ], { after: 230, align: AlignmentType.CENTER }));
 
@@ -277,14 +277,22 @@ ch.push(mkTable(
   [
     ['C', '34,40 \u20AC', 'C 2 \u2192 68,80 \u20AC'],
     ['CS', '46,00 \u20AC', 'CS 1 \u2192 46,00 \u20AC'],
-    ['APC \u2753', '60,00 \u20AC (observ\u00E9)', 'absent du tableau conventionnel publi\u00E9 (Annexe III, 01/10/2025) — \u00E0 confirmer CSM, cf. \u00A78']
+    ['APC', '60,00 \u20AC (tarif fran\u00E7ais en vigueur)', 'deux voies : avis \u00E9tages hors chirurgie programm\u00E9e \u00B7 CPA si ASA \u2265 3 (art. 18B) — d\u00E9tail ci-dessous']
   ],
   [1500, 1600, 6260]
 ));
 ch.push(SP());
 ch.push(NOTE([
-  { t: 'Pas de consultation (APC ou CS) le jour m\u00EAme d\u2019un acte anesth\u00E9sique — sauf urgence', b: true },
-  { t: ' (art. 20 A). Les axes CCAM et NGAP sont deux mondes s\u00E9par\u00E9s : formules, modificateurs et quotas ne se croisent jamais.' }
+  { t: 'Pas de consultation (APC ou CS) le jour m\u00EAme d\u2019un acte anesth\u00E9sique — sauf urgence (art. 20 A).', b: true },
+]));
+ch.push(NOTE([
+  { t: 'APC — les deux voies (v1.3).  ', b: true },
+  { t: '\u2460 Avis ponctuel dans les \u00E9tages, hors chirurgie programm\u00E9e (patient adress\u00E9, CR au demandeur, ASA indiff\u00E9rent). \u2461 CPA d\u2019un patient ' },
+  { t: 'ASA \u2265 3', b: true },
+  { t: ' (d\u00E9rogation anesth\u00E9siste, art. 18B NGAP) : \u00E9l\u00E9ments ASA document\u00E9s au dossier, CR \u00E9crit au MAR op\u00E9rateur + \u00E0 l\u2019op\u00E9rateur + au m\u00E9decin traitant, non-cumul surveillance/CCAM hors acte d\u2019anesth\u00E9sie. Ouvre aussi la 1\u02B3\u1D49 consultation en urgence non programm\u00E9e avec hospitalisation. Une CPA ASA 1-2 reste une CS (46 \u20AC). R\u00E9serve : transposition mon\u00E9gasque \u00E0 confirmer CSM (APC absente de l\u2019Annexe III).' }
+]));
+ch.push(CHK([
+  { t: 'Les axes CCAM et NGAP sont deux mondes s\u00E9par\u00E9s : formules, modificateurs et quotas ne se croisent jamais.' }
 ]));
 
 // ===== 5. DH =====
@@ -375,7 +383,7 @@ ch.push(mkTable(
   ['Question', 'Notre r\u00E8gle actuelle', 'Piste externe (France)'],
   [
     ['Chirurgie de la main', '2 actes max (100 / 50 %)', '3 actes : 100 / 75 / 50 % — un 3\u1D49 acte r\u00E9cup\u00E9r\u00E9 \u00E0 chaque main si confirm\u00E9'],
-    ['APC ou CS ?', 'APC = avis ponctuel de consultant', 'APC si ASA \u2265 3 \u00B7 CS + MCS si ASA 1-2'],
+    ['APC ou CS ?', 'deux voies act\u00E9es : avis \u00E9tages + CPA ASA \u2265 3 (art. 18B)', 'r\u00E9solu (19/07/2026) — reste la transposition mon\u00E9gasque \u00E0 confirmer'],
     ['MCS', 'absente de notre grille', 'majoration de coordination — valeur inconnue \u00E0 Monaco'],
     ['USC — DEQP007', 'niveau A par d\u00E9faut \u00B7 exclusions \u00E9tendues (act\u00E9)', 'seul point ouvert : DEQP007 en sus du forfait ? (risque de rejet si inclus)'],
     ['Redevance h\u00F4pital', '\u2014', 'taux et assiette du reversement \u00E0 pr\u00E9ciser (administration)'],
@@ -389,6 +397,9 @@ ch.push(SP());
 ch.push(H1('9', 'Sources'));
 ch.push(BUL([{ t: 'Arr\u00EAt\u00E9 Minist\u00E9riel n\u00B0 2005-276 (CCAM Monaco, MAJ 2018) — caisses-sociales.mc \u00B7 codage art. 3, anesth\u00E9sie art. 7, associations art. 6/11/12/20, modificateurs art. 19 + Annexe I.' }]));
 ch.push(BUL([{ t: 'Base CCAM v80 (01/01/2025, ameli / ATIH) — tarifs unitaires activit\u00E9s 1 et 4.' }]));
+ch.push(BUL([{ t: 'NGAP fran\u00E7aise art. 18B + d\u00E9rogation anesth\u00E9siste CPA ASA \u2265 3 (d\u00E9cision UNCAM du 03/10/2019 \u00B7 avenant 6 \u00B7 convention m\u00E9dicale 2024-2026) — tarif APC en vigueur 60 \u20AC. Transposition mon\u00E9gasque non prouv\u00E9e (A.M. 84-688 ant\u00E9rieur).' }]));
+ch.push(BUL([{ t: 'A.M. 84-688 du 30/11/1984 (NGAP mon\u00E9gasque) \u00B7 Ordonnance souveraine 5.743 du 03/03/2016 (AME mon\u00E9gasque).' }]));
+ch.push(BUL([{ t: 'Antis\u00E8che de cotation v15.3 et guide MAR \u00AB Comment fonctionne notre activit\u00E9 lib\u00E9rale \u00BB v0.3 — docs/module-liberal/ du portail.' }]));
 ch.push(BUL([{ t: 'Convention CCSS-CAMTI / Ordre des M\u00E9decins de Monaco du 01/04/2023 (\u2192 31/03/2028) et addendum Annexe III/IV du 02/09/2025 (effet 01/10/2025) — lettres-cl\u00E9s NGAP, coefficients par carte (verte 195 % \u00B7 rose 241 %), seuil art. 14. Valeurs dat\u00E9es : \u00E0 reconfronter \u00E0 chaque addendum.' }]));
 ch.push(BUL([{ t: 'Relev\u00E9s de facturation internes — axes CCAM et NGAP valid\u00E9s au centime (8 feuilles r\u00E9elles).' }]));
 ch.push(SP(70));
@@ -410,7 +421,7 @@ const doc = new Document({
       alignment: AlignmentType.CENTER,
       border: { top: { style: BorderStyle.SINGLE, size: 4, color: 'D0D6DD', space: 4 } },
       children: [new TextRun({
-        children: ['Guide d\u2019aide au codage \u00B7 CHPG Anesth\u00E9sie-R\u00E9animation \u00B7 v1.2 \u00B7 p. ', PageNumber.CURRENT],
+        children: ['Guide d\u2019aide au codage \u00B7 CHPG Anesth\u00E9sie-R\u00E9animation \u00B7 v1.3 \u00B7 p. ', PageNumber.CURRENT],
         size: 15, color: GREY, font: F })]
     })]})},
     children: ch
