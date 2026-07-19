@@ -5618,6 +5618,7 @@ async function launchWizardCloture() {
       <div class="form-field"><label class="form-label">Au</label><input class="form-input" type="date" id="clFin"/></div>
     </div>
     <div id="clResult" style="display:none;margin:4px 0 12px"></div>
+    <div id="clListe" style="margin:4px 0 12px"></div>
     <div style="text-align:right">
       <button class="btn-secondary" onclick="closeModal('modalCL')">Fermer</button>
       <button class="btn-primary" id="clBtn" onclick="poserCL()">Poser l'absence</button>
@@ -5818,6 +5819,60 @@ function openCL() {
   document.getElementById('clFin').value = '';
   const res = document.getElementById('clResult'); res.style.display='none'; res.innerHTML='';
   document.getElementById('modalCL').classList.add('open');
+  loadAbsencesCL();
+}
+
+// ── (RH-2) Absences enregistrées : liste + annuler / raccourcir ──────
+async function loadAbsencesCL() {
+  const box = document.getElementById('clListe');
+  box.innerHTML = '<div style="font-size:12px;color:var(--ink-3)">⏳ Chargement des absences enregistrées…</div>';
+  try {
+    const data = await api({ action:'getAbsencesLongues' });
+    if (!data.success) throw new Error(data.error);
+    const abs = data.absences || [];
+    if (!abs.length) { box.innerHTML = '<div style="font-size:12px;color:var(--ink-3)">Aucune absence longue enregistrée.</div>'; return; }
+    const nomDe = id => (marData.find(m=>m.id===id)?.nom) || id;
+    box.innerHTML = '<div style="font-size:12px;font-weight:700;margin-bottom:6px">Absences enregistrées</div>'
+      + abs.map((a,i) => `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;font-size:12.5px">
+        <div><strong>${nomDe(a.marId)}</strong> · du ${a.dateDebut} au ${a.dateFin}</div>
+        <div id="clAbsBtns${i}" style="display:flex;gap:5px;flex-shrink:0">
+          <button class="btn-secondary" style="font-size:11px;padding:4px 9px" onclick="clRaccourcirUI(${i},'${a.marId}','${a.dateDebut}','${a.dateFin}')">Raccourcir</button>
+          <button class="btn-secondary" style="font-size:11px;padding:4px 9px;color:var(--red)" onclick="clAnnuler('${a.marId}','${a.dateDebut}','${a.dateFin}')">Annuler</button>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    box.innerHTML = '<div style="font-size:12px;color:var(--red)">Erreur : ' + e.message + '</div>';
+  }
+}
+
+function clRaccourcirUI(i, marId, d1, d2) {
+  const el = document.getElementById('clAbsBtns'+i);
+  el.innerHTML = `Présent dès le lendemain de : <input type="date" id="clNf${i}" class="form-input" style="width:140px;font-size:12px;padding:4px 6px" min="${d1}" max="${d2}"/>
+    <button class="btn-primary" style="font-size:11px;padding:4px 9px" onclick="clRaccourcir(${i},'${marId}','${d1}','${d2}')">✓</button>
+    <button class="btn-secondary" style="font-size:11px;padding:4px 9px" onclick="loadAbsencesCL()">✗</button>`;
+}
+
+async function clRaccourcir(i, marId, d1, d2) {
+  const nf = document.getElementById('clNf'+i).value;
+  if (!nf) { toast('Choisis la nouvelle date de fin', 'error'); return; }
+  if (nf < d1 || nf >= d2) { toast('La nouvelle fin doit être entre le début et la fin actuelle', 'error'); return; }
+  try {
+    const data = await api({ action:'annulerAbsenceLongue', marId, dateDebut:d1, dateFin:d2, nouvelleFin:nf });
+    if (!data.success) throw new Error(data.error);
+    toast(`✅ Absence raccourcie au ${nf} · ${data.nbEfface} jour(s) CL effacé(s)`, 'success');
+    loadAbsencesCL();
+  } catch(e) { toast('Erreur : ' + e.message, 'error'); }
+}
+
+async function clAnnuler(marId, d1, d2) {
+  if (!confirm(`Annuler complètement l'absence de ${marId} (${d1} → ${d2}) ?\nLes jours CL seront effacés. Les gardes libérées à la pose ne sont pas restaurées.`)) return;
+  try {
+    const data = await api({ action:'annulerAbsenceLongue', marId, dateDebut:d1, dateFin:d2 });
+    if (!data.success) throw new Error(data.error);
+    toast(`✅ Absence annulée · ${data.nbEfface} jour(s) CL effacé(s)`, 'success');
+    loadAbsencesCL();
+  } catch(e) { toast('Erreur : ' + e.message, 'error'); }
 }
 
 async function poserCL() {
