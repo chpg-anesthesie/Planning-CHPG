@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-07-16.1';
+const GAS_VERSION_GENERATEUR = '2026-07-19.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -205,9 +205,16 @@ function generateGardes(year){
     const ps=prevStats.getDataRange().getValues();
     const hdr=ps[0].map(h=>String(h).trim());
     const iSam=hdr.indexOf('SAM'), iJeu=hdr.indexOf('JEU'), iVd=hdr.indexOf('VD'), iVjf=hdr.indexOf('VEILLE JF'), iJf=hdr.indexOf('JF'), iTot=hdr.indexOf('TOTAL G');
-    // (dette) on lit les NOMBRES RÉELS affectés en N-1 (pas la colonne CIBLE, ~uniforme),
-    // puis on recompose la part juste proportionnelle à la quotité à partir de ces réels.
-    const reel={}; let totSam=0,totJeu=0,totVd=0,totVjf=0,totJf=0,totTot=0;
+    // (RH-3) Colonnes CIBLE de N-1 : déjà pro-ratées par la présence structurelle
+    // (arrivée/départ, congés longs, TP, no_weekend) au moment de la génération N-1.
+    const iCbT=hdr.indexOf('CIBLE'), iCbS=hdr.indexOf('CIBLE SAM'), iCbJ=hdr.indexOf('CIBLE JEU'),
+          iCbV=hdr.indexOf('CIBLE VD'), iCbVj=hdr.indexOf('CIBLE VJF'), iCbJf=hdr.indexOf('CIBLE JF');
+    // (dette) on lit les NOMBRES RÉELS affectés en N-1, puis on recompose la part
+    // juste en redistribuant ces réels au prorata des CIBLES N-1 stockées (RH-3) —
+    // et non plus de la seule quotité, qui créait une fausse dette « négative »
+    // pour un MAR légitimement absent une partie de N-1 (maternité, arrivée tardive).
+    const reel={}, cibN1={}; let totSam=0,totJeu=0,totVd=0,totVjf=0,totJf=0,totTot=0;
+    const _num=v=>Number(String(v).replace(/^'/,''))||0; // CIBLE totale stockée en texte
     for(let r=1;r<ps.length;r++){
       const id=String(ps[r][0]).trim();
       if(!id||!dette[id]) continue;
@@ -216,25 +223,40 @@ function generateGardes(year){
             rjf=iJf>=0?Number(ps[r][iJf])||0:0,  rt=iTot>=0?Number(ps[r][iTot])||0:0;
       reel[id]={sam:rs,jeu:rj,vd:rv,vjf:rvj,jf:rjf,total:rt};
       totSam+=rs; totJeu+=rj; totVd+=rv; totVjf+=rvj; totJf+=rjf; totTot+=rt;
+      const cbS=iCbS>=0?_num(ps[r][iCbS]):0;
+      cibN1[id]={
+        total: iCbT>=0?_num(ps[r][iCbT]):0,
+        sam: cbS,
+        jeu: iCbJ>=0?_num(ps[r][iCbJ]):0,
+        vd:  iCbV>=0?_num(ps[r][iCbV]):0,
+        vjf: iCbVj>=0?_num(ps[r][iCbVj]):0,
+        jf:  iCbJf>=0?_num(ps[r][iCbJf]):cbS, // pas de CIBLE JF en N-1 → repli CIBLE SAM (même pool WE)
+      };
     }
     const sumP=gardeDoctors.reduce((s,id)=>s+pct[id]/100,0);
     const _horsWE=id=>NO_WEEKEND.has(id)||FLAGS.souhaitPlafond.has(id); // (Fix A2) plafonné hors axes WE
     const sumPWE=gardeDoctors.reduce((s,id)=>_horsWE(id)?s:s+pct[id]/100,0);
+    // (RH-3) fair(axe) = totalRéel(axe) × cibleN1(id,axe) / Σ cibleN1(axe).
+    // Propriétés : Σdette = 0 par axe ; cibles ∝ quotité quand tout le monde est
+    // à temps plein toute l'année → identique à l'ancienne formule dans ce cas.
+    // Repli intégral sur l'ancienne formule (quotité) si les cibles N-1 manquent.
+    const sumCb={}; ['sam','jeu','vd','vjf','jf','total'].forEach(k=>{
+      sumCb[k]=gardeDoctors.reduce((s,id)=>s+(cibN1[id]?cibN1[id][k]:0),0);
+    });
+    const fairOf=(id,k,totReel)=>{
+      if(sumCb[k]>0) return totReel*(cibN1[id]?cibN1[id][k]:0)/sumCb[k];
+      const p=pct[id]/100; // repli : ancienne part au prorata de la quotité
+      if(k==='jeu'||k==='vjf'||k==='total') return sumP?totReel*p/sumP:0;
+      return (_horsWE(id)||!sumPWE)?0:totReel*p/sumPWE;
+    };
     gardeDoctors.forEach(id=>{
       if(!reel[id]) return; // MAR absent de N-1 → dette neutre
-      const p=pct[id]/100;
-      const fairS=(_horsWE(id)||!sumPWE)?0:totSam*p/sumPWE;
-      const fairV=(_horsWE(id)||!sumPWE)?0:totVd *p/sumPWE;
-      const fairJ=sumP?totJeu*p/sumP:0;
-      const fairVj=sumP?totVjf*p/sumP:0;
-      const fairJf=(_horsWE(id)||!sumPWE)?0:totJf*p/sumPWE;
-      const fairT=sumP?totTot*p/sumP:0;
-      dette[id].sam=reel[id].sam-fairS;
-      dette[id].jeu=reel[id].jeu-fairJ;
-      dette[id].vd =reel[id].vd -fairV;
-      dette[id].vjf=reel[id].vjf-fairVj;
-      dette[id].jf =reel[id].jf -fairJf;
-      dette[id].total=reel[id].total-fairT;
+      dette[id].sam=reel[id].sam-fairOf(id,'sam',totSam);
+      dette[id].jeu=reel[id].jeu-fairOf(id,'jeu',totJeu);
+      dette[id].vd =reel[id].vd -fairOf(id,'vd',totVd);
+      dette[id].vjf=reel[id].vjf-fairOf(id,'vjf',totVjf);
+      dette[id].jf =reel[id].jf -fairOf(id,'jf',totJf);
+      dette[id].total=reel[id].total-fairOf(id,'total',totTot);
     });
     // (équité annuelle = dogme) plafond ±2 par axe : la dette nudge, ne bouleverse pas l'année
     gardeDoctors.forEach(id=>['sam','jeu','vd','vjf','jf','total'].forEach(k=>{dette[id][k]=DETTE_AMORTI*Math.max(-2,Math.min(2,dette[id][k]));}));
@@ -1018,16 +1040,17 @@ function generateGardes(year){
   // ── 13. STATS ─────────────────────────────────────────────────────────
   let st=ss.getSheetByName(`STATS_GARDES_${year}`);if(st)ss.deleteSheet(st);
   st=ss.insertSheet(`STATS_GARDES_${year}`);
-  st.getRange(1,1,1,22).setValues([['MEDECIN','CIBLE','TOTAL G','G (REA)','G2 (MAT)','LUN','MAR','MER','JEU','VEN','SAM','DIM','RECUP R','18H','JF','VEILLE JF','NOEL/AN','CIBLE SAM','CIBLE JEU','CIBLE VD','VD','CIBLE VJF']]).setFontWeight('bold');
+  st.getRange(1,1,1,23).setValues([['MEDECIN','CIBLE','TOTAL G','G (REA)','G2 (MAT)','LUN','MAR','MER','JEU','VEN','SAM','DIM','RECUP R','18H','JF','VEILLE JF','NOEL/AN','CIBLE SAM','CIBLE JEU','CIBLE VD','VD','CIBLE VJF','CIBLE JF']]).setFontWeight('bold');
   const sRows=allDoctors.map(id=>{
     const cbT=cible[id]?cible[id].total:0;
     const cbS=cible[id]?cible[id].sam:0, cbJ=cible[id]?cible[id].jeu:0, cbV=cible[id]?cible[id].vd:0, cbVjf=cible[id]?cible[id].vjf:0;
+    const cbJf=cible[id]?cible[id].jf:0; // (RH-3) exploité par la dette de N+1
     const c=cnt[id]||{total:0,g:0,g2:0,lun:0,mar:0,mer:0,jeu:0,ven:0,sam:0,dim:0,recupR:0,vd:0,vjf:0};
     return[id,"'"+cbT.toFixed(1),c.total,c.g,c.g2,c.lun,c.mar,c.mer,c.jeu,c.ven,c.sam,c.dim,c.recupR,
       h18cnt[id]||0,jfCnt[id]||0,c.vjf||0,noelAnCnt[id]||0,
-      +cbS.toFixed(1),+cbJ.toFixed(1),+cbV.toFixed(1),c.vd||0,+cbVjf.toFixed(1)];
+      +cbS.toFixed(1),+cbJ.toFixed(1),+cbV.toFixed(1),c.vd||0,+cbVjf.toFixed(1),+cbJf.toFixed(1)];
   });
-  st.getRange(2,1,sRows.length,22).setValues(sRows);
+  st.getRange(2,1,sRows.length,23).setValues(sRows);
   st.getRange(2,2,sRows.length,1).setNumberFormat('@STRING@');
   st.setColumnWidth(1,140);
 
