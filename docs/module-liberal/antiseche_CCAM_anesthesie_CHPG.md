@@ -1,6 +1,14 @@
-# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v15.3)
+# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v15.4)
 
 *Source faisant autorité : **Arrêté Ministériel n° 2005-276** régissant la CCAM à Monaco (MAJ 2018) + mémento des Caisses Sociales de Monaco. Les **valeurs monétaires sont celles fixées en France** (art. 16) → base CCAM **v80, en vigueur au 01/01/2025**. Objectif : coter **à juste titre** l'exhaustivité de ce qui est réellement fait — jamais surcoter.*
+
+*v15.4 — 19 juillet 2026. **Documents CHPG intégrés** (courrier DG 17/12/2019, protocole de
+gestion AL 2019, ENR/QUA/1086/001 du 26/03/2026, note DAM) : base légale du 30 % **par
+catégorie d'actes** = OS n° 7.766 du 06/11/2019 modifiant l'OS n° 13.839 (effet 01/01/2020) ;
+redevance = retenue mensuelle à la source sur les honoraires reversés (taux à préciser) ;
+**déclaration de choix nominative obligatoire par praticien** (sinon indu récupérable) ;
+estimation de frais systématique en hospitalisation avec DH ; pas de libéral post-urgence ni
+pour personnels/retraités CHPG ; point ouvert : bénéficiaires PUMA/C2S français → DH 0.*
 
 *v15.3 — 19 juillet 2026. **APC : le biais est identifié** — dérogation NGAP art. 18B (droit
 français) : la CPA d'un patient **ASA ≥ 3** peut être cotée APC (CR écrit au MAR opérateur +
@@ -246,7 +254,7 @@ L'**axe NGAP** (consultations pré-anesthésiques) obéit à une règle **diffé
 >
 > **Reversement de l'excédent 30 %** : porte sur la **base uniquement**. Les **dépassements ne comptent pas** dans le ratio (confirmé) → revenu **hors quota**, jamais reversé au titre des 30 %.
 >
-> **Redevance hôpital** (activité libérale intra-hospitalière) : **inconnue à ce stade** — son existence, son taux et son assiette (base seule ? dépassements inclus ?) ne sont pas documentés ici. À clarifier auprès de l'administration ; ne rien supposer.
+> **Redevance hôpital** — **mécanisme confirmé (v15.4)** par la note DAM : le CHPG facture l'activité libérale et **reverse mensuellement les honoraires après déduction de la redevance** (retenue à la source). Restent à préciser : le **taux** et l'**assiette** (base seule ou DH inclus) — question DAM/administration, pas CSM.
 >
 > Réflexe d'optimisation : facturer le **dépassement au plafond de carte** (revenu hors quota, n'entame pas la marge de 30 %) ; optimiser la **base** par réallocation + exhaustivité du codage.
 
@@ -402,8 +410,10 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 
 - **Arrêté Ministériel n° 2005-276** (CCAM Monaco, MAJ 2018) : https://www.caisses-sociales.mc — codage (art. 3), anesthésie (art. 7), association (art. 6/11/12/20), modificateurs (art. 19 + Annexe I), tarifs (art. 16-17).
 - **Base CCAM v80** (ameli / aideaucodage / ATIH) pour les tarifs unitaires activité 1 **et 4**.
+- **OS n° 13.839 du 29/12/1998 modifiée** (statut PH, activité libérale au CHPG) et **OS n° 7.766 du 06/11/2019** — contrôle du plafond de 30 % **par catégorie d'actes** depuis le 01/01/2020 (base légale du bi-axial CCAM/NGAP). **A.M. n° 98-631** et **A.M. n° 2000-295** (textes d'application). Protocole de gestion AL (DAM, 2019) et **ENR/QUA/1086/001** (26/03/2026) : déclaration de choix nominative par praticien (indu récupérable à défaut), estimation de frais en hospitalisation avec DH, exclusions (urgence, personnels/retraités).
 - **NGAP française, art. 18B** (avis ponctuel de consultant) + **dérogation anesthésiste** CPA ASA ≥ 3 (décision UNCAM du 03/10/2019 ; avenant 6 pour la cotation en établissement ; reprise dans la convention médicale 2024-2026). Tarif APC en vigueur : 60 €. Transposition monégasque non prouvée (A.M. 84-688 antérieur).
 - **Convention CCSS-CAMTI / Ordre des Médecins de Monaco** du **1er avril 2023** (durée 5 ans → **31/03/2028**), et son **addendum Annexe III/IV signé le 02/09/2025, en vigueur au 01/10/2025** : lettres-clés NGAP, coefficients CCAM par carte (verte 195 % · rose 241 %), seuil art. 14 (177,45 €). PDF « Tarification conventionnelle au 1er octobre 2025 — Médecins » sur caisses-sociales.mc. **Ces valeurs sont datées : à reconfronter à chaque nouvel addendum.**
+- **À confirmer (DAM/administration)** : taux et assiette de la **redevance** ; portée exacte de la règle « bénéficiaires **PUMA** français → tarif de remboursement » (ENR/QUA/1086/001) — lecture probable : **C2S/ex-CMU-C → DH 0**, à valider avant câblage estimateur.
 - **À confirmer (liste CSM) — priorité 1** : **existence et valeur de l'APC à Monaco** (60 € observé, absent de l'Annexe III) . *(Le plafond DH rose à 23,59 % n'est plus une question ouverte : pratique CHPG maintenue à +20 %, cf. §5 bis.)*
 - **À confirmer (liste CSM)** : dérogation **3 actes** en chirurgie de la main (100/75/50) ; existence et valeur de la **MCS** ; exclusion **VVC/transfusion** en **USC** (YYYY015) ; couple **YYYY015 + DEQP007** ; **AHQJ021 ×2** en TAP bilatéral. *(cf. §10)*
 - **À confirmer** : convention tarifaire CHPG public (art. 17) ; présence/valeur des modificateurs 4-5 (analgésie postop) dans la version CSM ; valeurs à reconfirmer périodiquement (CCAM révisée 1-2×/an).
