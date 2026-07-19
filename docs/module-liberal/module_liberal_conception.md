@@ -35,6 +35,12 @@
 *ergonomie admin validée sur maquette conditions réelles (volet « ◆ Libéral » gauche par MAR,*
 *vert/orange, toast si aucune intervention, grille intacte). indispos.html sort du périmètre libéral.*
 *§6.2–6.4, 11, 12, 13 mis à jour.*
+***v3.11 — 19/07/2026** : base légale du seuil par axe identifiée — **OS n° 7.766 du 06/11/2019***
+*(modifiant l'OS n° 13.839) : contrôle du 30 % **par catégorie d'actes** depuis le 01/01/2020.*
+*Redevance : mécanisme confirmé (retenue mensuelle à la source sur les honoraires reversés ; taux/assiette à préciser).*
+*Nouvelle exigence intégrée au devis/déclaration (note DAM + ENR/QUA/1086/001) : déclaration de*
+*choix **nominative par praticien**, estimation de frais systématique en hospitalisation avec DH.*
+
 ***v3.10 — 16/07/2026** : contrainte **non-persistance des champs patient du devis** gravée comme*
 *NON NÉGOCIABLE (§3.bis) + **livrable de preuve obligatoire** (test anti-persistance jsdom, scan*
 *statique, preuve réseau) exécuté à chaque déploiement et archivable pour audit CCIN / loi 1.565.*
@@ -74,6 +80,11 @@ réallocation**, pas un garde-fou anti-dépassement.
 ---
 
 ## 2. L'invariant central : DEUX fractions, DEUX plafonds
+
+**Base légale (v3.11)** : OS n° 7.766 du 06/11/2019 modifiant l'OS n° 13.839 du 29/12/1998 —
+le contrôle de la limitation à 30 % s'opère **par catégorie d'actes** depuis le 01/01/2020 et
+« ne se mesure plus globalement » (courrier DG CHPG du 17/12/2019). La règle bi-axiale n'est
+donc pas une pratique administrative : c'est le texte.
 
 Le CR administratif réel (jan→juin 2026, décodé et validé au centime : la somme reconstruite des
 excédents = 37 890,45 € [valeur illustrative], exactement la ligne « ACTIVITÉ LIBÉRALE ») établit que le seuil de 30 %
