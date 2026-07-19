@@ -35,6 +35,13 @@
 *ergonomie admin validée sur maquette conditions réelles (volet « ◆ Libéral » gauche par MAR,*
 *vert/orange, toast si aucune intervention, grille intacte). indispos.html sort du périmètre libéral.*
 *§6.2–6.4, 11, 12, 13 mis à jour.*
+***v3.12 — 19/07/2026** : **décision** — le pré-remplissage de la fiche praticien sur les devis*
+*et déclarations se fera **uniquement via le branchement au portail** (MAR identifié à la connexion*
+*→ colonnes dédiées dans `MEDECINS`). **Aucune solution intermédiaire** (localStorage, paramètre*
+*d'URL) : elle serait jetée au branchement. La nature des identifiants à stocker pour Monaco*
+*(n° d'inscription à l'Ordre, n° praticien CCSS — les champs RPPS/ADELI actuels sont hérités du*
+*modèle français) sera tranchée au moment de créer les colonnes.*
+
 ***v3.11 — 19/07/2026** : base légale du seuil par axe identifiée — **OS n° 7.766 du 06/11/2019***
 *(modifiant l'OS n° 13.839) : contrôle du 30 % **par catégorie d'actes** depuis le 01/01/2020.*
 *Redevance : mécanisme confirmé (retenue mensuelle à la source sur les honoraires reversés ; taux/assiette à préciser).*
