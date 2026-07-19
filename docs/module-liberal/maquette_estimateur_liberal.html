@@ -677,7 +677,7 @@ populateMut();setAxe('CCAM');renderRows();
     <button class="dvprint" onclick="printDevis(true)">Imprimer devis + déclaration de choix</button>
     <button class="dvclose" onclick="closeDevis()">Fermer</button>
   </div>
-  <div class="dvnote">Aucun champ patient : <b>le nom est écrit à la main par le patient</b> sur le devis et la déclaration imprimés — aucune donnée patient ne transite par l'outil. Champs bleus restants (dates, remboursement) : saisis à l'écran, jamais enregistrés, effacés à la fermeture. <b>Hospitalisation :</b> la déclaration ci-dessous vaut pour les soins externes ; en hospitalisation, utiliser la liasse officielle (5 feuillets) du Bureau des Entrées.</div>
+  <div class="dvnote">Aucun champ patient : <b>le nom est écrit à la main par le patient</b> sur le devis et la déclaration imprimés — aucune donnée patient ne transite par l'outil. Champs bleus restants (dates, remboursement) : saisis à l'écran, jamais enregistrés, effacés à la fermeture. La déclaration de choix est un <b>document autonome</b> : l'imprimer, la faire signer et la verser au dossier vaut aussi bien en soins externes qu'en hospitalisation.</div>
   <div class="sheet">
     <div class="head">
       <div class="prat">
@@ -749,9 +749,12 @@ populateMut();setAxe('CCAM');renderRows();
       <p><b>Statut.</b> Le praticien exerce en secteur 2 à honoraires libres (non adhérent OPTAM), déterminés avec tact et mesure (art. R.4127-53 du code de la santé publique).</p>
       <p><b>Information préalable.</b> Information écrite remise avant l'acte dès lors que le montant des dépassements atteint 70 €. Le paiement n'intervient qu'après réalisation de l'acte ; aucun chèque de caution n'est exigé.</p>
       <p><b>Remboursement complémentaire.</b> La prise en charge par la mutuelle dépend du contrat du patient ; le « reste à charge estimé après mutuelle » est indicatif et ne vaut pas engagement de l'organisme.</p>
+      <p><b>Contenu du devis.</b> Conformément à l'article L.1111-3-2 du code de la santé publique et à l'arrêté du 2 octobre 2008, le présent document mentionne : l'identité et le numéro d'identification du praticien, la description de l'acte avec son code, le tarif servant de base au remboursement de l'assurance maladie, le montant total des honoraires demandés, le montant du dépassement et sa part non remboursée, ainsi que la date d'établissement et la durée de validité.</p>
+      <p><b>Consentement.</b> La prise en charge à titre libéral suppose la signature préalable, par le patient et le praticien, d'une déclaration de choix nominative (un imprimé par praticien), versée au dossier. À défaut, le patient est réputé pris en charge au titre de l'activité publique.</p>
+      <p><b>Rétractation.</b> Ce document est une estimation : le patient reste libre de renoncer à la prise en charge libérale et d'opter pour le secteur public, sans conséquence sur la qualité ni le délai des soins.</p>
       <p class="imp"><b>Bénéficiaires protégés.</b> Aucun dépassement n'est facturé aux bénéficiaires d'une couverture protégée (carte verte, SPME, AME, C2S) : seul le tarif conventionnel s'applique.</p>
     </div>
-    <div class="dvfoot">Document remis en deux exemplaires. Modèle de maquette ; génération sans conservation de donnée patient.</div>
+    <div class="dvfoot">Document établi en deux exemplaires, un pour le patient, un pour le dossier. Mentions alignées sur le droit français (validation en droit monégasque en cours). Génération sans conservation d'aucune donnée patient.</div>
   </div>
 
   <!-- DÉCLARATION DE CHOIX — modèle CHPG soins externes, praticien pré-rempli, patient manuscrit -->
@@ -785,7 +788,7 @@ populateMut();setAxe('CCAM');renderRows();
       <div class="sig"><div class="lab">Signature du praticien choisi</div><div class="bp">valant acceptation</div><div class="line"></div></div>
       <div class="sig"><div class="lab">Signature du patient</div><div class="bp">valant acceptation</div><div class="line"></div></div>
     </div>
-    <div class="dvfoot">* Rayer les mentions inutiles · Modèle conforme au protocole de gestion de l'activité libérale (DAM) — soins externes uniquement ; en hospitalisation, utiliser la liasse officielle du Bureau des Entrées.</div>
+    <div class="dvfoot">* Rayer les mentions inutiles · Modèle conforme au protocole de gestion de l'activité libérale (DAM). Un imprimé par praticien ; à verser au dossier du patient.</div>
   </div>
 </div>
 </body>
