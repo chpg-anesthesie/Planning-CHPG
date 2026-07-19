@@ -6,7 +6,7 @@
 l'addendum du 02/09/2025, en vigueur au 01/10/2025). Confirmé : ×1,95 verte (195 %), C 34,40 €,
 CS 46,00 €, DH rose NGAP +20 %, et surtout **la BR est celle de la carte verte pour toutes les
 cartes** (validation directe de la correction v10). Corrigé : **plafond DH rose en CCAM = +23,59 %
-de la BR** (241 % vs 195 %), pas +20 % → manque à gagner. Dégradé : **APC 60 € absent de
+de la BR** (241 % vs 195 %), pas +20 % → **écart non expliqué, non exploité** (pratique CHPG = 20 %). Dégradé : **APC 60 € absent de
 l'Annexe III monégasque** → passe en « à confirmer CSM ». Nouveau : **seuil art. 14 = 177,45 €**.*
 
 *v14 — 18 juillet 2026. Nouveau §10 « Apports externes à confirmer » (doc d'un MAR libéral, France) : main 100/75/50, MCS, VVC/transfusion exclues si USC, DEQP007+YYYY015, AHQJ021 ×2, exécutant ≠ chirurgien, CPA ophtalmo, Kt BIS à 2 MARs, APC=ASA≥3. Rien de validé CSM : aucune valeur existante modifiée.*
@@ -122,15 +122,19 @@ Chaîne de calcul, **par ligne de code** :
 
 **Encaissé = BR + DH.** Remboursement au patient = **80 %** (ou 100 % si exonéré : seuil / ALD), **toujours sur la BR**.
 
-> 💰 **Plafond DH rose en CCAM — manque à gagner (v15).** L'addendum du 02/09/2025 fixe les
+> 📊 **Plafond DH rose en CCAM — écart non expliqué (v15).** L'addendum du 02/09/2025 fixe les
 > coefficients maximaux applicables au tarif conventionnel français : **verte 195 % · rose 241 %**,
 > « la base de remboursement correspondant au tarif carte verte ». La **BR reste donc à 195 %**
 > pour toutes les cartes ; le 241 % est un **plafond d'honoraires**, pas une base.
 > ```
 > DH rose max = (241 − 195) / 195 = +23,59 % de la BR
 > ```
-> Le **+20 % observé est conforme mais sous le plafond de 3,59 points de BR**.
-> Ex. §6 (BR 271,01 €) : DH appliqué 54,20 € · DH autorisé **63,93 €** → **+9,73 € par acte**.
+> Le **+20 % appliqué au CHPG est conforme**, et se situe 3,59 points de BR sous le plafond.
+> **La raison de cet écart n'est pas connue** : il peut recouvrir une composante du 241 % qui ne
+> concerne pas l'anesthésie, une règle interne au CHPG ou au groupement, ou simplement l'usage
+> de la place. **Ne pas le lire comme une marge à récupérer.**
+> **Décision Arthur du 19/07/2026 : on s'en tient à +20 %.** Sujet clos, l'information est
+> conservée ici uniquement pour mémoire si le contexte évolue.
 > ⚠️ Ne concerne **que le CCAM** : sur l'axe NGAP, le +20 % rose **est** le plafond légal.
 
 > 📌 **Seuil de l'article 14 = 177,45 €** (Annexe IV, au 01/10/2025). Pour les assurés **rose ou
@@ -360,6 +364,6 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 - **Arrêté Ministériel n° 2005-276** (CCAM Monaco, MAJ 2018) : https://www.caisses-sociales.mc — codage (art. 3), anesthésie (art. 7), association (art. 6/11/12/20), modificateurs (art. 19 + Annexe I), tarifs (art. 16-17).
 - **Base CCAM v80** (ameli / aideaucodage / ATIH) pour les tarifs unitaires activité 1 **et 4**.
 - **Convention CCSS-CAMTI / Ordre des Médecins de Monaco** du **1er avril 2023** (durée 5 ans → **31/03/2028**), et son **addendum Annexe III/IV signé le 02/09/2025, en vigueur au 01/10/2025** : lettres-clés NGAP, coefficients CCAM par carte (verte 195 % · rose 241 %), seuil art. 14 (177,45 €). PDF « Tarification conventionnelle au 1er octobre 2025 — Médecins » sur caisses-sociales.mc. **Ces valeurs sont datées : à reconfronter à chaque nouvel addendum.**
-- **À confirmer (liste CSM) — priorité 1** : **existence et valeur de l'APC à Monaco** (60 € observé, absent de l'Annexe III) ; **exploitation du plafond DH rose à +23,59 %** au lieu de +20 % (décision de groupe, pas de contrainte réglementaire).
+- **À confirmer (liste CSM) — priorité 1** : **existence et valeur de l'APC à Monaco** (60 € observé, absent de l'Annexe III) . *(Le plafond DH rose à 23,59 % n'est plus une question ouverte : pratique CHPG maintenue à +20 %, cf. §5 bis.)*
 - **À confirmer (liste CSM)** : dérogation **3 actes** en chirurgie de la main (100/75/50) ; existence et valeur de la **MCS** ; critère **APC = ASA ≥ 3** ou doctrine « avis ponctuel » ; exclusion **VVC/transfusion** en **USC** (YYYY015) ; couple **YYYY015 + DEQP007** ; **AHQJ021 ×2** en TAP bilatéral. *(cf. §10)*
 - **À confirmer** : convention tarifaire CHPG public (art. 17) ; présence/valeur des modificateurs 4-5 (analgésie postop) dans la version CSM ; valeurs à reconfirmer périodiquement (CCAM révisée 1-2×/an).
