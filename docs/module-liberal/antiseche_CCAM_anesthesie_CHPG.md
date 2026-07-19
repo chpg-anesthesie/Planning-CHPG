@@ -1,6 +1,14 @@
-# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v15.4)
+# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v15.5)
 
 *Source faisant autorité : **Arrêté Ministériel n° 2005-276** régissant la CCAM à Monaco (MAJ 2018) + mémento des Caisses Sociales de Monaco. Les **valeurs monétaires sont celles fixées en France** (art. 16) → base CCAM **v80, en vigueur au 01/01/2025**. Objectif : coter **à juste titre** l'exhaustivité de ce qui est réellement fait — jamais surcoter.*
+
+*v15.5 — 19 juillet 2026. Trois questions **fermées** : **DEQP007 = INCLUS** dans le forfait
+YYYY015 (liste des actes compris, texte CCAM) et **DEQP003 explicitement non facturable** avec le
+forfait → notre pratique (ne pas coter) est la bonne ; **AME France / C2S → DH 0 confirmé**
+(Arthur : DH bien pratiqué sur les assurés français ordinaires) ; **déclaration de choix =
+document autonome**, l'impression A4 signée et versée au dossier vaut aussi en hospitalisation.
+Devis : mentions alignées sur le **droit français** (L.1111-3-2 CSP + arrêté du 02/10/2008),
+validation monégasque différée.*
 
 *v15.4 — 19 juillet 2026. **Documents CHPG intégrés** (courrier DG 17/12/2019, protocole de
 gestion AL 2019, ENR/QUA/1086/001 du 26/03/2026, note DAM) : base légale du 30 % **par
@@ -285,10 +293,13 @@ L'**axe NGAP** (consultations pré-anesthésiques) obéit à une règle **diffé
 - **En USC, c'est en général le forfait niveau A (YYYY015)**, pas le B : la suppléance
   d'organe qui débloque le B est par définition rare en soins continus. Ne pas coter B
   par réflexe de gravité — le critère reste la **suppléance documentée**.
-- ❓ **DEQP007 (ECG 12 dérivations) : statut non tranché.** Ne figure ni dans les inclus
-  ni dans les en-sus ci-dessus. Argument pour l'inclusion : le forfait rémunère la
-  **surveillance**, dont l'ECG fait partie. **Risque asymétrique** — si inclus, la ligne
-  est **rejetée**, pas seulement non payée. **À confirmer CSM avant tout usage.**
+- ✅ **ECG et forfait de réanimation : PAS de cotation en sus (tranché v15.5).** Le
+  **DEQP007** (surveillance continue de l'ECG par oscilloscopie, par 24 h) figure dans la
+  **liste des actes compris** dans YYYY015 ; et le **DEQP003** (ECG 12 dérivations) porte la
+  mention explicite « ne peut pas être facturé avec un forfait de réanimation (YYYY015,
+  YYYY020) ». Le DEQP007 sert à **justifier** le forfait, pas à s'y ajouter.
+  *Exception utile* : un **autre praticien** (cardiologue appelé en USC) peut coter son
+  DEQP003 — l'interdiction porte sur le cumul par le **même** médecin.
 
 ### Facturables EN SUS du forfait
 
@@ -373,7 +384,7 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 
 - **MCS** (majoration de coordination spécialiste) — **absente de notre §5 ter**. Aucune valeur € connue
   pour Monaco. Si elle existe à la CSM, **manque à gagner NGAP récurrent**.
-- **USC / lit scopé** : **YYYY015 + DEQP007** (ECG) → traité désormais au **§6 ter, bloc « USC / lit scopé »** (statut non tranché, risque de rejet).
+- **USC / lit scopé** : **YYYY015 + DEQP007** → ~~à vérifier~~ **écarté (v15.5)** : le DEQP007 est inclus dans le forfait, le DEQP003 est explicitement exclu. Cf. §6 ter. La proposition externe était erronée.
 - **VVC (EPLF002) et transfusion (FELF011) interdites** le même jour qu'un code **USC ou réa**
   (YYYY015 / YYYY020) — considérées incluses dans le forfait. *Cohérent avec notre §6 ter, qui ne
   visait que la réa : l'extension à l'**USC** est l'apport.*
@@ -413,7 +424,7 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 - **OS n° 13.839 du 29/12/1998 modifiée** (statut PH, activité libérale au CHPG) et **OS n° 7.766 du 06/11/2019** — contrôle du plafond de 30 % **par catégorie d'actes** depuis le 01/01/2020 (base légale du bi-axial CCAM/NGAP). **A.M. n° 98-631** et **A.M. n° 2000-295** (textes d'application). Protocole de gestion AL (DAM, 2019) et **ENR/QUA/1086/001** (26/03/2026) : déclaration de choix nominative par praticien (indu récupérable à défaut), estimation de frais en hospitalisation avec DH, exclusions (urgence, personnels/retraités).
 - **NGAP française, art. 18B** (avis ponctuel de consultant) + **dérogation anesthésiste** CPA ASA ≥ 3 (décision UNCAM du 03/10/2019 ; avenant 6 pour la cotation en établissement ; reprise dans la convention médicale 2024-2026). Tarif APC en vigueur : 60 €. Transposition monégasque non prouvée (A.M. 84-688 antérieur).
 - **Convention CCSS-CAMTI / Ordre des Médecins de Monaco** du **1er avril 2023** (durée 5 ans → **31/03/2028**), et son **addendum Annexe III/IV signé le 02/09/2025, en vigueur au 01/10/2025** : lettres-clés NGAP, coefficients CCAM par carte (verte 195 % · rose 241 %), seuil art. 14 (177,45 €). PDF « Tarification conventionnelle au 1er octobre 2025 — Médecins » sur caisses-sociales.mc. **Ces valeurs sont datées : à reconfronter à chaque nouvel addendum.**
-- **À confirmer (DAM/administration)** : taux et assiette de la **redevance** ; portée exacte de la règle « bénéficiaires **PUMA** français → tarif de remboursement » (ENR/QUA/1086/001) — lecture probable : **C2S/ex-CMU-C → DH 0**, lecture actée par Arthur (AME France / C2S → DH 0, statut dédié dans l'estimateur V3.2), à valider ; **déclaration de choix** : une impression A4 signée puis scannée au DPI vaut-elle aussi en **hospitalisation**, ou la liasse 5 feuillets reste-t-elle obligatoire ?
+- **À confirmer (DAM/administration)** : taux et assiette de la **redevance** ; portée exacte de la règle « bénéficiaires **PUMA** français → tarif de remboursement » (ENR/QUA/1086/001) — lecture **confirmée par Arthur (19/07/2026)** : cible = précarité, **AME France / C2S → DH 0** (le DH est bien pratiqué sur les assurés français ordinaires) — statut dédié figé dans l'estimateur V3.3, lecture actée par Arthur (AME France / C2S → DH 0, statut dédié dans l'estimateur V3.2), à valider ; **déclaration de choix** : ~~impression A4 valable en hospitalisation ?~~ → **oui, tranché (Arthur, 19/07/2026)** : document **autonome**, l'impression signée et versée au dossier vaut quel que soit le mode de prise en charge.
 - **À confirmer (liste CSM) — priorité 1** : **existence et valeur de l'APC à Monaco** (60 € observé, absent de l'Annexe III) . *(Le plafond DH rose à 23,59 % n'est plus une question ouverte : pratique CHPG maintenue à +20 %, cf. §5 bis.)*
-- **À confirmer (liste CSM)** : dérogation **3 actes** en chirurgie de la main (100/75/50) ; existence et valeur de la **MCS** ; exclusion **VVC/transfusion** en **USC** (YYYY015) ; couple **YYYY015 + DEQP007** ; **AHQJ021 ×2** en TAP bilatéral. *(cf. §10)*
+- **À confirmer (liste CSM)** : dérogation **3 actes** en chirurgie de la main (100/75/50) ; existence et valeur de la **MCS** . *(Sont désormais fermés : exclusion VVC/transfusion en USC — actée ; couple YYYY015 + DEQP007 — écarté par le texte CCAM ; AHQJ021 ×2 — écarté. Cf. §10.)*
 - **À confirmer** : convention tarifaire CHPG public (art. 17) ; présence/valeur des modificateurs 4-5 (analgésie postop) dans la version CSM ; valeurs à reconfirmer périodiquement (CCAM révisée 1-2×/an).
