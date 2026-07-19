@@ -1,6 +1,14 @@
-# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v15.2)
+# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v15.3)
 
 *Source faisant autorité : **Arrêté Ministériel n° 2005-276** régissant la CCAM à Monaco (MAJ 2018) + mémento des Caisses Sociales de Monaco. Les **valeurs monétaires sont celles fixées en France** (art. 16) → base CCAM **v80, en vigueur au 01/01/2025**. Objectif : coter **à juste titre** l'exhaustivité de ce qui est réellement fait — jamais surcoter.*
+
+*v15.3 — 19 juillet 2026. **APC : le biais est identifié** — dérogation NGAP art. 18B (droit
+français) : la CPA d'un patient **ASA ≥ 3** peut être cotée APC (CR écrit au MAR opérateur +
+opérateur + médecin traitant, éléments ASA au dossier, non-cumul surveillance/CCAM hors acte
+d'anesthésie) ; APC aussi pour la 1ʳᵉ consultation en intervention urgente non programmée avec
+hospitalisation. S'ajoute (et ne remplace pas) la doctrine locale « avis dans les étages ».
+Le 60 € = tarif APC français en vigueur. Reste à confirmer : la transposition monégasque
+(A.M. 84-688 antérieur à ces textes). §10.1 : question APC vs CS **résolue**.*
 
 *v15.2 — 19 juillet 2026. §6 ter : nouveau bloc **USC / lit scopé** — exclusion VVC/transfusion
 étendue à l'USC (validé), **forfait niveau A en règle générale**, et **DEQP007 laissé non tranché**
@@ -159,14 +167,26 @@ L'**axe NGAP** (consultations pré-anesthésiques) obéit à une règle **diffé
 |---|---|---|
 | **C** | **34,40 €** | C 2 → 68,80 € |
 | **CS** | **46,00 €** | CS 1 → 46,00 € |
-| **APC** ❓ | **60,00 €** *(observé)* | APC 1 → 60,00 € — ⚠️ **absent de l'Annexe III monégasque** (v15) : voir §9 |
+| **APC** | **60,00 €** *(tarif français en vigueur)* | deux voies d'accès — voir encadré ci-dessous. Absente de l'Annexe III monégasque : transposition à confirmer CSM |
 
-> ⚠️ **APC — fondement conventionnel non retrouvé (v15).** L'Annexe III de l'addendum au
-> 01/10/2025 liste C, CPN, CS, CSPN, CP3, CPSY, CSC, CALD, CDE, V, VS, VPSY, K, KC/KCC, SPM/SCP —
-> **ni APC, ni MCS, ni MPC**. Les 60,00 € sont **observés sur feuille réelle** mais sans base
-> publiée. Enjeu : **14 € par consultation** (60 vs 46) sur tout l'axe NGAP du parcours libéral.
-> **Question n°1 à poser à la CSM.** En attendant : continuer à coter comme aujourd'hui, ne pas
-> câbler 60 € en dur dans l'estimateur sans le marquer « non confirmé ».
+> ✅ **APC — les deux voies (v15.3).** En droit français, l'APC s'ouvre par deux portes qui se
+> **cumulent** :
+> 1. **Avis ponctuel classique** (art. 18B NGAP) : patient adressé, avis sans prise en charge
+>    continue, CR au demandeur — c'est la voie « **avis dans les étages, hors chirurgie
+>    programmée** » (doctrine CHPG, Arthur 19/07/2026). ASA indifférent.
+> 2. **Dérogation anesthésiste** (art. 18B, dérogation à l'art. 22 DG NGAP ; convention
+>    médicale 2024-2026) : la **CPA d'un patient ASA ≥ 3** peut être cotée APC. Conditions
+>    strictes : **éléments ASA documentés au dossier** d'anesthésie ; **CR écrit** au MAR qui
+>    fera l'anesthésie + à l'opérateur + au médecin traitant ; **non-cumul** avec l'honoraire
+>    de surveillance ou un acte CCAM autre que l'acte d'anesthésie. Ouvre aussi la **1ʳᵉ
+>    consultation** en intervention **urgente non programmée avec hospitalisation** (majorations
+>    nuit/D/JF possibles).
+> Une CPA d'un **ASA 1-2 reste une CS** (46 €).
+> ⚠️ **Réserve monégasque** : ces textes (2017-2019, avenant 6) sont **postérieurs** à la NGAP
+> monégasque (A.M. 84-688) et l'APC est **absente de l'Annexe III** de l'addendum du 01/10/2025.
+> Le 60 € observé sur feuilles CSM = le tarif français en vigueur, ce qui suggère une application
+> de fait — **transposition et valeur à confirmer CSM** avant de câbler 60 € en dur dans
+> l'estimateur.
 
 > **La carte ne change PAS la BR.** Verte, bulle, français, SPME → une CS reste à 46 €. C'est l'inverse du CCAM (où la carte pilote le coefficient de base). Sur le NGAP, **la carte ne joue que sur le DH.**
 
@@ -339,7 +359,7 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 | Point | Notre règle (validée) | Version externe | Statut |
 |---|---|---|---|
 | **Chirurgie de la main** | 2 actes max : 100 % + 50 %, 3ᵉ à **0 %** (§4, §6 ter) | **3 actes** : 100 / **75** / 50 % | ❓ dérogation CSM ? **Enjeu réel** : un 3ᵉ acte perdu à chaque main |
-| **APC vs CS** | APC = avis ponctuel de consultant (patient adressé, CR, sans suivi) — doctrine NGAP | **APC si ASA ≥ 3** · **CS + MCS si ASA 1-2** | ❓ critère pratique vs doctrine — trancher |
+| **APC vs CS** | deux voies cumulatives : avis étages (doctrine CHPG) **et** CPA ASA ≥ 3 (art. 18B, dérogation anesthésiste) — cf. §5 ter | **APC si ASA ≥ 3** : fondé en droit français, intégré | ✅ **résolu (v15.3)** — reste la transposition monégasque (CSM) |
 
 ### 10.2 Ajouts possibles (aucun équivalent chez nous)
 
@@ -382,7 +402,8 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 
 - **Arrêté Ministériel n° 2005-276** (CCAM Monaco, MAJ 2018) : https://www.caisses-sociales.mc — codage (art. 3), anesthésie (art. 7), association (art. 6/11/12/20), modificateurs (art. 19 + Annexe I), tarifs (art. 16-17).
 - **Base CCAM v80** (ameli / aideaucodage / ATIH) pour les tarifs unitaires activité 1 **et 4**.
+- **NGAP française, art. 18B** (avis ponctuel de consultant) + **dérogation anesthésiste** CPA ASA ≥ 3 (décision UNCAM du 03/10/2019 ; avenant 6 pour la cotation en établissement ; reprise dans la convention médicale 2024-2026). Tarif APC en vigueur : 60 €. Transposition monégasque non prouvée (A.M. 84-688 antérieur).
 - **Convention CCSS-CAMTI / Ordre des Médecins de Monaco** du **1er avril 2023** (durée 5 ans → **31/03/2028**), et son **addendum Annexe III/IV signé le 02/09/2025, en vigueur au 01/10/2025** : lettres-clés NGAP, coefficients CCAM par carte (verte 195 % · rose 241 %), seuil art. 14 (177,45 €). PDF « Tarification conventionnelle au 1er octobre 2025 — Médecins » sur caisses-sociales.mc. **Ces valeurs sont datées : à reconfronter à chaque nouvel addendum.**
 - **À confirmer (liste CSM) — priorité 1** : **existence et valeur de l'APC à Monaco** (60 € observé, absent de l'Annexe III) . *(Le plafond DH rose à 23,59 % n'est plus une question ouverte : pratique CHPG maintenue à +20 %, cf. §5 bis.)*
-- **À confirmer (liste CSM)** : dérogation **3 actes** en chirurgie de la main (100/75/50) ; existence et valeur de la **MCS** ; critère **APC = ASA ≥ 3** ou doctrine « avis ponctuel » ; exclusion **VVC/transfusion** en **USC** (YYYY015) ; couple **YYYY015 + DEQP007** ; **AHQJ021 ×2** en TAP bilatéral. *(cf. §10)*
+- **À confirmer (liste CSM)** : dérogation **3 actes** en chirurgie de la main (100/75/50) ; existence et valeur de la **MCS** ; exclusion **VVC/transfusion** en **USC** (YYYY015) ; couple **YYYY015 + DEQP007** ; **AHQJ021 ×2** en TAP bilatéral. *(cf. §10)*
 - **À confirmer** : convention tarifaire CHPG public (art. 17) ; présence/valeur des modificateurs 4-5 (analgésie postop) dans la version CSM ; valeurs à reconfirmer périodiquement (CCAM révisée 1-2×/an).
