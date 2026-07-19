@@ -5927,6 +5927,8 @@ async function saveMAR() {
     const data = await api({action: 'saveMedecin', medecin});
     if (!data.success) throw new Error(data.error);
     toast(data.created ? '✅ MAR créé' : '✅ MAR mis à jour', 'success');
+    if (data.rowsCreated && data.rowsCreated.length)
+      toast('📋 Lignes ajoutées : ' + data.rowsCreated.join(', '), 'success');
     closeModal('modalMAR');
     await loadEquipe();
   } catch(e) {
@@ -5946,6 +5948,8 @@ async function toggleActif(id) {
     const data = await api({action: 'saveMedecin', medecin: {...m, actif: newActif}});
     if (!data.success) throw new Error(data.error);
     toast(`✅ ${m.nom} ${newActif ? 'activé' : 'désactivé'}`, 'success');
+    if (data.rowsCreated && data.rowsCreated.length)
+      toast('📋 Lignes ajoutées : ' + data.rowsCreated.join(', '), 'success');
     await loadEquipe();
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
