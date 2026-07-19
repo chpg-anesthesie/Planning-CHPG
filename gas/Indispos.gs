@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-17.3';
+const GAS_VERSION_INDISPOS = '2026-07-19.1';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -112,6 +112,53 @@ function saveIndisposForDoctor(doctorId, indisposMap, year) {
     }
   }
   return false;
+}
+
+// ── (RH-1) GARANTIR LES LIGNES D'UN MAR DANS LES ONGLETS ANNUELS ──────
+// Un MAR créé/réactivé APRÈS l'init d'une année n'a de ligne ni dans
+// INDISPOS_{Y}, ni dans GARDES_{Y}, ni dans AFFECTATIONS_{Y} → indispos
+// impossibles à saisir (échec silencieux), don/échange/garde exceptionnelle
+// en erreur « introuvable », affectations sautées. Ce helper ajoute les
+// lignes manquantes (année active et suivantes) ; idempotent, n'écrase rien.
+function ensureMarRows(marId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const id = String(marId).trim().toUpperCase();
+  const created = [];
+  if (!id) return created;
+  const activeYear = getActiveYear();
+  const years = [];
+  ss.getSheets().forEach(sh => {
+    const m = sh.getName().match(/^INDISPOS_(\d{4})$/);
+    if (m && Number(m[1]) >= activeYear) years.push(Number(m[1]));
+  });
+  years.sort();
+  years.forEach(y => {
+    _ensureRowInSheet_(ss, `INDISPOS_${y}`, id, 4, created);      // MARs dès la ligne 4
+    _ensureRowInSheet_(ss, `GARDES_${y}`, id, 4, created);        // idem (si année générée)
+    _ensureRowInSheet_(ss, `AFFECTATIONS_${y}`, id, 2, created);  // MARs dès la ligne 2
+  });
+  return created;
+}
+
+// Ajoute une ligne [id] en bas de sheetName si l'id n'y figure pas déjà.
+// firstDataRow = première ligne de données MAR (1-indexé). Copie le format
+// de la dernière ligne existante (zébrures WE, bordures) pour rester lisible.
+function _ensureRowInSheet_(ss, sheetName, id, firstDataRow, created) {
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return;                                  // onglet absent → rien à faire
+  const last = sheet.getLastRow();
+  if (last >= firstDataRow) {
+    const ids = sheet.getRange(firstDataRow, 1, last - firstDataRow + 1, 1).getValues();
+    for (let i = 0; i < ids.length; i++)
+      if (String(ids[i][0]).trim().toUpperCase() === id) return;  // déjà présent
+  }
+  const newRow = Math.max(last, firstDataRow - 1) + 1;
+  if (last >= firstDataRow) {
+    const nCols = sheet.getLastColumn();
+    sheet.getRange(last, 1, 1, nCols).copyTo(sheet.getRange(newRow, 1, 1, nCols), {formatOnly: true});
+  }
+  sheet.getRange(newRow, 1).setValue(id);
+  created.push(sheetName);
 }
 
 // ── DIAG : localiser les gardes de GARDES_{Y} exclues du planning publié ──
@@ -1236,7 +1283,15 @@ if (!affSheet) {
       else             sheet.appendRow(row);
 
       _medFlagsCache = null;  // invalider le cache des particularités
-      return ContentService.createTextOutput(JSON.stringify({success:true, created: rowIdx < 0}))
+      // (RH-1) MAR actif → garantir ses lignes dans les onglets annuels
+      // (couvre création tardive ET réactivation après une init/génération).
+      let rowsCreated = [];
+      if (row[3] === 'O') {
+        try { rowsCreated = ensureMarRows(id); }
+        catch(e) { Logger.log('ensureMarRows: ' + e.message); }
+        if (rowsCreated.length) logAction(`ensureMarRows — ${id} : ${rowsCreated.join(', ')}`);
+      }
+      return ContentService.createTextOutput(JSON.stringify({success:true, created: rowIdx < 0, rowsCreated}))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
