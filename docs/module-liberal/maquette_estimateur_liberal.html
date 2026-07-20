@@ -172,35 +172,12 @@
   #devisOverlay .ed:focus{border-bottom-color:var(--ccam);background:#F1F8FA}
   @media(max-width:640px){#devisOverlay .who,#devisOverlay .rac,#devisOverlay .sign{grid-template-columns:1fr}#devisOverlay .head{flex-direction:column}#devisOverlay .estab{text-align:left}}
   @media print{
-    @page{size:A4;margin:11mm 13mm}
-    body{font-size:11px}
     body>.wrap{display:none!important}
     #devisOverlay{position:static;background:#fff;padding:0;display:block}
     #devisOverlay .dvbar,#devisOverlay .dvnote{display:none!important}
     #devisOverlay .sheet{box-shadow:none;border:0;border-radius:0;max-width:none;padding:0}
     #devisOverlay .sheet.decl{page-break-before:always;margin-top:0}
     #devisOverlay .ed{border-bottom:1px solid #16222C}
-    /* --- compactage : le devis doit tenir sur UNE page --- */
-    #devisOverlay .head{margin-bottom:10px;padding-bottom:8px}
-    #devisOverlay .doctitle{margin:10px 0 8px}
-    #devisOverlay .doctitle h1{font-size:16px}
-    #devisOverlay .box,#devisOverlay .patbox{margin:8px 0;padding:8px 10px}
-    #devisOverlay table{margin:8px 0;font-size:10.5px}
-    #devisOverlay table th,#devisOverlay table td{padding:4px 7px}
-    #devisOverlay .tot{margin:8px 0;padding:8px 10px}
-    #devisOverlay .legalblk{margin-top:10px;padding-top:8px}
-    #devisOverlay .legalblk p{font-size:8.6px;line-height:1.35;margin-bottom:3.5px}
-    #devisOverlay .legalblk .imp{padding:5px 8px}
-    #devisOverlay .sign{margin-top:12px}
-    #devisOverlay .sign .line{margin-top:26px}
-    #devisOverlay .dvfoot{margin-top:9px;padding-top:6px;font-size:8px}
-    /* rien ne doit se couper au milieu */
-    #devisOverlay .box,#devisOverlay .patbox,#devisOverlay .tot,
-    #devisOverlay table,#devisOverlay .legalblk,#devisOverlay .sign{page-break-inside:avoid}
-    /* la déclaration : une page à elle seule */
-    #devisOverlay .decl p{font-size:10.5px;line-height:1.5;margin:7px 0}
-    #devisOverlay .decl .fld{font-size:11px;line-height:1.95}
-    #devisOverlay .decl table.des td{height:42px;padding:10px}
   }
   footer b{color:#6b4e10}
 </style>
@@ -777,7 +754,7 @@ populateMut();setAxe('CCAM');renderRows();
       <p><b>Rétractation.</b> Ce document est une estimation : le patient reste libre de renoncer à la prise en charge libérale et d'opter pour le secteur public, sans conséquence sur la qualité ni le délai des soins.</p>
       <p class="imp"><b>Bénéficiaires protégés.</b> Aucun dépassement n'est facturé aux bénéficiaires d'une couverture protégée (carte verte, SPME, AME, C2S) : seul le tarif conventionnel s'applique.</p>
     </div>
-    <div class="dvfoot">Document établi en deux exemplaires, un pour le patient, un pour le dossier. Mentions alignées sur le droit français (validation en droit monégasque en cours). Génération sans conservation d'aucune donnée patient.</div>
+    <div class="dvfoot">Document établi en deux exemplaires : un pour le patient, un pour le dossier.</div>
   </div>
 
   <!-- DÉCLARATION DE CHOIX — modèle CHPG soins externes, praticien pré-rempli, patient manuscrit -->
