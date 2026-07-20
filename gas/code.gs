@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-07-20.2';
+const GAS_VERSION_CODE = '2026-07-20.3';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 function buildStats2026() {
@@ -251,7 +251,7 @@ const DVI_ALLOWED = ['BONNET','WIDEHEM','LEVASSEUR'];
 // ── CS PAR JOUR (après-midi) ───────────────────────────────────────────
 // Format : jour_semaine → [ [secteur_affilié, code_cs], ... ]
 // Consultations : FALSE = créneaux vides par défaut, placés à la main par le comité
-// (rotation libérale endo + placements comité passent par les overrides). TRUE = auto-affectation.
+// (les placements comité passent par les overrides). TRUE = auto-affectation.
 const GENERER_CONSULTATIONS = false;
 const CS_RULES = {
   1: { am: [],                                      pm: [['VIS','CS-VIS'],['VIS','CS-VIS'],['END','CS-END'],['END','CS-END']] },
@@ -869,8 +869,8 @@ function generatePlanningFromGardes(year) {
       }
 // ── 3b-bis + 3c. Auto-affectation des consultations ─────────────
       // DÉSACTIVÉE par défaut (GENERER_CONSULTATIONS=false) : le comité place chaque
-      // MAR à la main sur des créneaux vides « à pourvoir ». La rotation libérale endo
-      // (ROT-LIB) et les placements comité arrivent via les overrides (§4 ci-dessous).
+      // MAR à la main sur des créneaux vides « à pourvoir ». Les placements comité
+      // (dont la consult libérale endo, tag LIB) arrivent via les overrides (§4 ci-dessous).
       if (GENERER_CONSULTATIONS) {
       const csAmRules = (CS_RULES[dow] || {am: []}).am || [];
       const csAmUsed = new Set();
@@ -930,7 +930,7 @@ function generatePlanningFromGardes(year) {
         if (!DOCTORS.find(d => d.id === docId)) return;
         if (ov.morning)   result[docId][dayIdx].morning   = ov.morning;
         if (ov.afternoon) result[docId][dayIdx].afternoon = ov.afternoon;
-        if (ov.tag === 'ROT-LIB' || ov.tag === 'LIB') result[docId][dayIdx].lib = true;   // consult libérale endo (rotation OU affectation manuelle du comité)
+        if (ov.tag === 'LIB') result[docId][dayIdx].lib = true;   // consult libérale endo (affectation manuelle du comité)
       });
     });
 
@@ -1443,60 +1443,4 @@ function installBackupTrigger() {
   });
   ScriptApp.newTrigger('backupHebdo').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(4).create();
   Logger.log('✅ Déclencheur backupHebdo installé (lundi ~4 h, rotation ' + BACKUP_KEEP + ' copies)');
-}
-
-// ── ONE-SHOT : ROT-LIB → LIB (juillet 2026) ───────────────────────────
-// Retrait de la machinerie de rotation libérale, en PRÉSERVANT les créneaux
-// déjà attribués. Le code actuel reconnaît les deux tags (ROT-LIB et LIB) pour
-// poser le badge violet : convertir MAINTENANT, avant toute suppression de code,
-// ne change donc STRICTEMENT RIEN au planning affiché.
-// À lancer depuis l'éditeur Apps Script, puis lire le journal (Ctrl+Entrée).
-//   convertirRotLibEnLib()      → SIMULATION : compte et liste, n'écrit rien
-//   convertirRotLibEnLib(true)  → ÉCRITURE réelle
-function convertirRotLibEnLib(ecrire) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('PLANNING_OVERRIDES');
-  if (!sheet) { Logger.log('❌ PLANNING_OVERRIDES introuvable'); return; }
-  const data = sheet.getDataRange().getValues();
-  const tz = Session.getScriptTimeZone();
-  const today = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
-
-  const lignes = [];
-  for (let r = 1; r < data.length; r++) {
-    if (String(data[r][4]).trim() !== 'ROT-LIB') continue;
-    let d = data[r][0];
-    if (d instanceof Date) d = Utilities.formatDate(d, tz, 'yyyy-MM-dd');
-    d = String(d).trim();
-    lignes.push({ row: r + 1, date: d, mar: String(data[r][1]).trim(),
-                  pm: String(data[r][3]).trim(), futur: d >= today });
-  }
-
-  if (!lignes.length) { Logger.log('✅ Aucune ligne ROT-LIB — rien à convertir.'); return; }
-
-  const futurs = lignes.filter(function (l) { return l.futur; });
-  Logger.log(lignes.length + ' ligne(s) ROT-LIB — dont ' + futurs.length + ' sur des dates à venir.');
-  if (futurs.length) {
-    Logger.log('── Créneaux à venir (préservés à l\'identique) ──');
-    futurs.forEach(function (l) {
-      Logger.log('   ' + l.date + '  ' + l.mar + '  ' + l.pm + '  (ligne ' + l.row + ')');
-    });
-  }
-
-  if (!ecrire) {
-    Logger.log('\n🔎 SIMULATION — rien n\'a été modifié.');
-    Logger.log('   Pour convertir réellement : convertirRotLibEnLib(true)');
-    return;
-  }
-  lignes.forEach(function (l) { sheet.getRange(l.row, 5).setValue('LIB'); });
-  SpreadsheetApp.flush();
-  try { logAction('convertirRotLibEnLib — ' + lignes.length + ' ligne(s) ROT-LIB retaguées LIB'); } catch (e) {}
-  Logger.log('\n✅ ' + lignes.length + ' ligne(s) converties en LIB. Le planning est inchangé.');
-  Logger.log('   Relancer convertirRotLibEnLib() doit maintenant afficher « Aucune ligne ROT-LIB ».');
-}
-
-// Écriture réelle — à sélectionner dans le menu déroulant de l'éditeur Apps Script.
-// (L'éditeur ne permet pas de passer un argument à la main : cette fonction existe
-//  uniquement pour lancer convertirRotLibEnLib(true) sans rien avoir à taper.)
-function convertirRotLibEnLib_ECRIRE() {
-  convertirRotLibEnLib(true);
 }
