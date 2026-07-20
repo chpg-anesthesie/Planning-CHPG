@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-20.7';
+const GAS_VERSION_INDISPOS = '2026-07-20.8';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -252,6 +252,44 @@ function _findPhantomGardes_(year) {
     }
   }
   return phantoms;
+}
+
+// ── GARDE-FOU QUOTA D'ENVOI ───────────────────────────────────────────
+// Le compte Google est un compte GRATUIT : 100 emails/jour, pas 1500.
+// Avec ~23 MAR, un envoi groupé consomme un quart du quota ; trois envois dans
+// la même journée (codes + récap congés + récap gardes) frôlent la limite.
+// Sans contrôle, MailApp échoue EN COURS d'envoi : la moitié des MAR reçoit son
+// mail, l'autre non, et rien ne dit où ça s'est arrêté. On refuse donc AVANT
+// d'envoyer quoi que ce soit, plutôt que de laisser un envoi à moitié fait.
+function _marsAvecEmail_() {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('MEDECINS');
+    if (!sheet) return 0;
+    const data = sheet.getDataRange().getValues();
+    let n = 0;
+    for (let r = 1; r < data.length; r++) {
+      if (!String(data[r][0]).trim()) continue;                          // ligne vide
+      if (String(data[r][3]).trim().toUpperCase() !== 'O') continue;     // inactif
+      if (!String(data[r][7]).trim()) continue;                          // sans email
+      n++;
+    }
+    return n;
+  } catch (e) { return 0; }
+}
+
+// Renvoie un message d'erreur si le quota ne suffit pas, sinon null.
+// Quota illisible (API indisponible) → on N'EMPÊCHE PAS l'envoi : mieux vaut
+// tenter que bloquer le comité sur une lecture qui a échoué.
+function _quotaEmailInsuffisant_(besoin) {
+  if (!besoin) return null;
+  try {
+    const reste = MailApp.getRemainingDailyQuota();
+    if (reste >= besoin) return null;
+    logAction(`Envoi REFUSÉ — besoin ${besoin} emails, quota restant ${reste}`);
+    return `Envoi annulé : ${besoin} email(s) à envoyer, il n'en reste que ${reste} aujourd'hui `
+         + `(compte Google gratuit, 100/jour). Le quota se réinitialise chaque nuit — réessayez demain. `
+         + `AUCUN email n'a été envoyé.`;
+  } catch (e) { return null; }
 }
 
 // ── MODÈLE UNIQUE DES EMAILS DE CODE D'ACCÈS ──────────────────────────
@@ -1636,6 +1674,7 @@ if (!affSheet) {
 
         if (action === 'sendCodes') {
       if (user.role !== 'admin') return _deny();
+      { const _q = _quotaEmailInsuffisant_(_marsAvecEmail_()); if (_q) return _error(_q); }
       const ss = SpreadsheetApp.getActiveSpreadsheet();
       const medSheet = ss.getSheetByName('MEDECINS');
       if (!medSheet) return _error('Onglet MEDECINS introuvable');
@@ -1698,8 +1737,12 @@ if (!affSheet) {
       } catch (e) { check('Fuseau horaire illisible : ' + e.message, R.WARN); }
       try {
         const q = MailApp.getRemainingDailyQuota();
-        if (q >= 40) check(`Quota email restant : ${q} envois aujourd'hui`, R.OK);
-        else check(`Quota email presque épuisé (${q} restants) — l'envoi des codes peut échouer, réessayer demain`, R.WARN);
+        // Seuil calé sur l'effectif RÉEL (compte gratuit = 100 emails/jour) :
+        // en dessous d'un envoi complet, un groupé serait refusé.
+        const besoin = _marsAvecEmail_();
+        if (q >= besoin * 2) check(`Quota email : ${q} envois restants aujourd'hui (un envoi groupé en demande ${besoin})`, R.OK);
+        else if (q >= besoin) check(`Quota email : ${q} restants — de quoi faire UN seul envoi groupé (${besoin}) aujourd'hui`, R.WARN);
+        else check(`Quota email insuffisant : ${q} restants pour ${besoin} destinataires — tout envoi groupé sera refusé jusqu'à demain`, R.ERR);
       } catch (e) { info('Quota email non consultable : ' + e.message); }
       try {
         const lk = LockService.getScriptLock();
@@ -2332,6 +2375,7 @@ if (action === 'getConflitsAll') {
         if (action === 'envoyerRecapIndispos') {
       // (Remplace l'ancien récap indispos) — Récapitulatif des GARDES attribuées (G réa / G2 mat).
       if (user.role !== 'admin') return _deny();
+      { const _q = _quotaEmailInsuffisant_(_marsAvecEmail_()); if (_q) return _error(_q); }
       const year = Number(payload.year) || TEST_YEAR;
       const ss = SpreadsheetApp.getActiveSpreadsheet();
       const medSheet = ss.getSheetByName('MEDECINS');
@@ -2673,6 +2717,7 @@ if (action === 'getMARsDispoJour') {
 }
 if (action === 'sendCodesWithRecap') {
   if (user.role !== 'admin') return _deny();
+  { const _q = _quotaEmailInsuffisant_(_marsAvecEmail_()); if (_q) return _error(_q); }
   const indYear = Number(payload.year) || getIndisposYear();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
