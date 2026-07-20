@@ -5811,7 +5811,7 @@ function renderEquipe() {
           <button class="btn-icon" onclick="${m.actif ? `openWizardDepart('${m.id}')` : `toggleActif('${m.id}')`}" title="${m.actif ? 'Gérer le départ' : 'Activer'}">
             ${m.actif ? '⏸' : '▶'}
           </button>
-          ${m.email ? `<button class="btn-icon" onclick="sendCodeToMAR('${m.id}','${m.nom}')" title="Renvoyer le code d'accès">✉️</button>` : ''}
+          ${m.email ? `<button class="btn-icon" onclick="resetCodeMAR('${m.id}','${m.nom}')" title="Générer un nouveau code et l'envoyer par email">🔄</button>` : ''}
         </div>
       </td>
     </tr>
@@ -6855,7 +6855,7 @@ function codesUpdateCount() {
 async function sendCodesSelected() {
   const ids = [...document.querySelectorAll('#codesList .code-cb:checked')].map(cb => cb.value);
   if (!ids.length) { toast('Aucun MAR sélectionné', 'error'); return; }
-  if (!confirm(`Renvoyer le code d'accès à ${ids.length} MAR${ids.length>1?'s':''} ?\nLeur ancien code sera invalidé.`)) return;
+  if (!confirm(`Renvoyer leur code ACTUEL par email à ${ids.length} MAR${ids.length>1?'s':''} ?\nLes codes ne sont pas modifiés.`)) return;
   const btn = document.getElementById('btnSendCodes');
   const out = document.getElementById('codesResult');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Envoi…'; }
@@ -6875,16 +6875,19 @@ async function sendCodesSelected() {
   if (btn) { btn.disabled = false; btn.textContent = 'Envoyer aux MARs sélectionnés'; }
 }
 
-async function sendCodeToMAR(marId, marNom) {
-  if (window._sendCodeBusy) return; // anti double-clic : évite un double email
-  if (!confirm(`Renvoyer le code d'accès à ${marNom} ?`)) return;
+async function resetCodeMAR(marId, marNom) {
+  if (window._sendCodeBusy) return; // anti double-clic : évite un double changement de code
+  if (!confirm(`Générer un NOUVEAU code d'accès pour ${marNom} ?\n\n⚠️ Son code actuel cessera immédiatement de fonctionner.\nLe nouveau lui sera envoyé par email.`)) return;
   window._sendCodeBusy = true;
-  toast(`📧 Envoi du code à ${marNom}…`);
+  toast(`🔄 Génération du nouveau code pour ${marNom}…`);
   try {
-    const data = await api({action: 'sendCodesMar', medecin: marId});
+    const data = await api({action: 'resetCodeMar', medecin: marId});
     if (!data.success) throw new Error(data.error);
-    toast(`✅ Code envoyé à ${marNom}`, 'success');
+    toast(`✅ Nouveau code envoyé à ${marNom}`, 'success');
   } catch(e) {
+    // Le message serveur distingue « code inchangé » de « code changé mais email non parti » :
+    // on l'affiche tel quel, et en alerte s'il contient le nouveau code à transmettre.
+    if (String(e.message).indexOf('Nouveau code') >= 0) alert(e.message);
     toast('Erreur : ' + e.message, 'error');
   } finally { window._sendCodeBusy = false; }
 }
