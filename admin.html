@@ -4263,10 +4263,16 @@ async function exportWeekExcel(){
   // ajouter ou retirer un bloc décale automatiquement la suite.
   const R_CS   = row;        // bandeau CONSULTATIONS
   const R_CSR  = row + 1;    // 7 lignes de consultations
-  const R_ABS  = row + 8;    // ABSENCES (2 lignes)
-  const R_FN   = row + 10;   // GARDE REA, GARDE ANESTH, 8H/18H, SORTIES (4 lignes)
-  const R_INFO = row + 14;   // INFORMATIONS (3 lignes)
-  const R_LAST = row + 17;   // dernière ligne du tableau
+  // (07/2026) La zone ABSENCES était figée à 2 lignes x 4 cases = 8 places, et la
+  // boucle s'arrêtait à 8 : au-delà, les absents étaient perdus SANS AUCUN signe.
+  // Fréquent l'été (23 MAR, congés). Le nombre de lignes suit désormais le pic réel
+  // de la semaine, avec un plancher de 2 pour ne pas déformer la mise en page.
+  const ABS_MAX = Math.max(0, ...absents.slice(0,5).map(a => a.length));
+  const ABS_ROWS = Math.max(2, Math.ceil(ABS_MAX / 4));
+  const R_ABS  = row + 8;    // ABSENCES (ABS_ROWS lignes)
+  const R_FN   = R_ABS + ABS_ROWS;   // GARDE REA, GARDE ANESTH, 8H/18H, SORTIES (4 lignes)
+  const R_INFO = R_FN + 4;   // INFORMATIONS (3 lignes)
+  const R_LAST = R_INFO + 3; // dernière ligne du tableau
   mc(R_CS,1,R_CS,21);setCell(R_CS,1," CONSULTATIONS D'ANESTHESIE",font(true,10),fill(C.hd),align('center','middle'),bAll);
   // consult (1 ligne, cases colorées par spécialité)
   CSROWS.forEach((cr,i)=>{const rr=R_CSR+i;const bg=cr.bg||'FFFFFF';
@@ -4279,10 +4285,11 @@ async function exportWeekExcel(){
     }
   });
   // L30-31 ABSENCES — une initiale par case
-  mc(R_ABS,1,R_ABS+1,1);setCell(R_ABS,1,'ABSENCES',font(true,10),fill(C.white),align('center','middle'),bAll);
+  mc(R_ABS,1,R_ABS+ABS_ROWS-1,1);setCell(R_ABS,1,'ABSENCES',font(true,10),fill(C.white),align('center','middle'),bAll);
   for(let dow=0;dow<5;dow++){const cs=colStart(dow);const list=absents[dow];
-    const cells=[[R_ABS,cs],[R_ABS,cs+1],[R_ABS,cs+2],[R_ABS,cs+3],[R_ABS+1,cs],[R_ABS+1,cs+1],[R_ABS+1,cs+2],[R_ABS+1,cs+3]];
-    for(let i=0;i<8;i++){const v=list[i]||'';setCell(cells[i][0],cells[i][1],v,font(!!v,10),fill(C.white),align('center','middle'),bAll);}
+    const cells=[];
+    for(let k=0;k<ABS_ROWS;k++) for(let j=0;j<4;j++) cells.push([R_ABS+k, cs+j]);
+    for(let i=0;i<cells.length;i++){const v=list[i]||'';setCell(cells[i][0],cells[i][1],v,font(!!v,10),fill(C.white),align('center','middle'),bAll);}
   }
   // L32-34 fonctions (Astreinte supprimée → décalage vers le haut)
   function fnRow(rr,label,vals){setCell(rr,1,label,font(true,10),fill(C.grey),align('left','middle'),bAll);
@@ -4310,7 +4317,15 @@ async function exportWeekExcel(){
   }
   // ── Roster droite depuis MEDECINS ──
   mc(8,22,9,29);setCell(8,22,'ANESTHESISTES ET N° DE POSTES',font(true,11),fill(C.white),align('center','middle',true),bAll);
-  const roster=(Array.isArray(marsData)?marsData:[]).filter(m=>m.actif).slice().sort((a,b)=>(a.nom||'').localeCompare(b.nom||''));
+  // (07/2026) L'annuaire listait TOUS les MAR actifs, y compris ceux qui n'ont pas
+  // encore pris leurs fonctions (d'où des lignes sans DECT) ou déjà partis. On ne
+  // garde que ceux réellement en poste AU MOINS UN JOUR de la semaine affichée.
+  // statActive() (global) applique déjà la convention du reste de l'appli :
+  // date < dateDebut = pas encore arrivé ; date >= dateFin = déjà parti.
+  const _semDates = daySlots.filter(Boolean).map(sl => sl.date);
+  const roster=(Array.isArray(marsData)?marsData:[])
+    .filter(m => m.actif && (!_semDates.length || _semDates.some(d => statActive(m, d))))
+    .slice().sort((a,b)=>(a.nom||'').localeCompare(b.nom||''));
   let rr=10;
   roster.forEach(m=>{const pre=(m.initiales==='BP')?'PR':'DR';const dect=m.dect||DECTFB[m.initiales]||'';
     const nom=(m.nom||'').replace(/^\s*(DR|PR)\s+/i,'');
