@@ -62,6 +62,17 @@ Cycle annuel = 3 assistants dans admin.html, **tous testés en réel** :
 ## Robustesse d'affichage (équité)
 - Toute cible non plausible (date parasite dans une cellule, valeur aberrante type timestamp) est lue comme **« pas de cible » (`—`)** — garde `_cib`/`_cibNum` (admin + index, initiale + instantané). N'invente pas une cible : si une cellule CIBLE de `STATS_GARDES` contient une date, corriger la donnée dans le Sheet (ou régénérer).
 
+## Secteurs : la source est l'onglet `SECTEURS`
+
+L'onglet **pilote réellement** `admin.html` et `index.html` (vérifié le 20/07/2026 : une édition
+du tableau remonte à l'écran). Colonnes : `ORDRE | CODE | LABEL | COURT | AFF | ICON | BG | FG |
+CS | ACTIF | RENDEMENT_LIB`. `getOrCreateSecteursTab()` **n'écrase jamais** une ligne existante.
+⚠️ Le repli sur les définitions en dur est **silencieux** : en cas d'échec de lecture, les pages
+tournent sur le code sans le dire. `VOLANT` et `CS` sont des pseudo-secteurs, hors onglet.
+⚠️ `assets/vendor/lucide-icons.js` ne contient que **17 icônes** : aucune icône de secteur
+(Activity, HeartPulse, Bone…) n'y est. `admin.html` **ne charge aucune bibliothèque lucide** —
+d'où l'absence d'icônes de secteur sur cette page, contrairement à `index.html` (CDN unpkg).
+
 ## Consultation libérale endoscopie
 - La consultation libérale d'endoscopie (mardi/jeudi PM) est marquée **`entry.lib=true`** côté GAS, via le tag **`LIB`** en **colonne E (COMMENTAIRE)** de `PLANNING_OVERRIDES`. Dans `index.html`, la puce Endoscopies porte un **badge « LIB »** violet (desktop + mobile) + légende conditionnelle. Cohérent avec le rendu admin.
 - **Attribution 100 % manuelle** : le comité clique le marqueur LIB dans l'onglet Planning → l'override est écrit avec le commentaire `LIB`. Les créneaux `CS-END` eux-mêmes viennent de `CS_TEMPLATE` (`code.gs`) et ne dépendent d'aucun override.
@@ -85,6 +96,48 @@ Le 🔍 Diagnostic (section « Version du site ») compare **toutes** ces formes
 entre fichiers, et signale `INCOHÉRENT (…)` en listant les valeurs divergentes.
 ⚠️ Avant le 20/07/2026 il ne lisait que le **marqueur en commentaire** : il annonçait « alignés (v1.4) »
 alors que 3 fichiers sur 4 affichaient v1.0 aux utilisateurs. Ne pas revenir à ce contrôle partiel.
+
+## Export Excel hebdomadaire (`exportWeekExcel` dans `admin.html`)
+
+Le fichier envoyé chaque vendredi à l'équipe. Reproduit un **gabarit historique** (l'ancien
+tableau papier). ⚠️ Le gabarit de référence d'Arthur contient encore une ligne `PEDIATRIE` et
+fusionne `CARDIO/RADIO`, que le code ne génère pas : ce n'est donc PAS une sortie de l'appli.
+
+**⚠️ PIÈGE ExcelJS — a cassé la production le 20/07/2026.** Écrire dans une cellule **esclave**
+d'une fusion écrit en réalité dans la **cellule maître**. Un `mergeCells` suivi d'un
+`cell(droite).value = ''` **efface la valeur de gauche**. Règle : **écrire les deux cellules,
+PUIS fusionner** (préserve aussi bordures et remplissage).
+👉 ExcelJS s'installe en local (`npm i exceljs`) : **tester le rendu d'un vrai classeur**,
+`node --check` ne prouve rien sur ce terrain.
+
+**Mise en page — ne pas se tromper de contrainte.** L'échelle d'impression retenue par Excel est
+la **plus petite** entre celle imposée par la largeur et celle imposée par la hauteur. Ici c'est
+la **largeur** qui commande (29 colonnes). Toucher à `fitToHeight` n'a aucun effet tant que la
+largeur est le facteur limitant — erreur commise et poussée en production avant d'être corrigée.
+Valeurs actuelles : col. 1 = 17, col. 2-21 (planning, initiales) = **4.5**, col. 22-29
+(annuaire) = **7** ; lignes 14 pt ; `fitToWidth:1` + `fitToHeight:0` ; `printArea` explicite.
+→ ~30 cm de large, **échelle ~95 %**.
+
+**Structure verticale ancrée sur le compteur de blocs**, plus sur des numéros en dur :
+`R_CS` (bandeau consultations) → `R_CSR` (7 lignes) → `R_ABS` (**ABS_ROWS** lignes, calculées sur
+le pic d'absents de la semaine) → `R_FN` (GARDE REA, GARDE ANESTH, 8H/18H, SORTIES) → `R_INFO`
+(3 lignes) → `R_LAST`. **Ajouter un bloc ne casse plus rien.**
+
+**Limites connues et assumées** : les SORTIES de garde ne distinguent pas réa/anesthésie (statut
+`RG` unique) ; au-delà de **13 absents** le tableau passe sur 2 pages (préféré à des noms perdus).
+
+## Consultations : où vit la vérité
+
+- **`CS_REQUIRED`** (`admin.html`) = la table **ACTIVE** : effectifs requis par jour et
+  demi-journée. **GLOBALE depuis le 20/07/2026** (elle était locale à `renderWeek`), car
+  l'export Excel en a besoin pour fusionner les cases à créneau unique. Une seule table.
+- **`CS_RULES`** (`code.gs`) = **CODE MORT** : enfermé dans `if (GENERER_CONSULTATIONS)` qui vaut
+  `false` depuis que le comité place les MAR à la main. Contenu **identique** à `CS_REQUIRED`
+  (vérifié créneau par créneau). Ne pas le modifier en croyant agir sur l'affichage.
+- Les **fermetures de consultation** du comité (`_localCloses`) vivent en **`localStorage`**, donc
+  **dans le navigateur d'Arthur seulement** : invisibles pour les autres membres du comité, perdues
+  si le cache est vidé. Seule la libération des MAR (override VOLANT) est persistée côté serveur.
+  C'est un **pansement ponctuel**, pas un réglage structurel — d'où le chantier `CS_TEMPLATE`.
 
 ## Emails du système (5 envois, tous dans `Indispos.gs`)
 
