@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-20.1';
+const GAS_VERSION_INDISPOS = '2026-07-20.2';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -863,6 +863,7 @@ const WRITE_ACTIONS_LOCK = new Set([
   'applyRotationLib', 'archiveYear', 'clearIndisposYear', 'deleteOverride',
   'generateGardes', 'initYear', 'poserAbsenceLongue', 'publishPlanning',
   'saveAffectations', 'saveAffectationsMar', 'saveConfig', 'saveGroupes',
+  'resetCodeMar',
   'saveIndispos', 'saveMedecin', 'savePeriodes', 'setActiveYear',
   'setDailyStatus', 'setIndisposYear', 'validerSemaine',
 ]);
@@ -2071,6 +2072,66 @@ if (action === 'addMedecinToGroupe') {
   return ContentService.createTextOutput(JSON.stringify({success: true, created: true}))
     .setMimeType(ContentService.MimeType.JSON);
 }
+if (action === 'resetCodeMar') {
+  if (user.role !== 'admin') return _deny();
+  const medecinId = String(payload.medecin || '').trim().toUpperCase();
+  if (!medecinId) return _error('Médecin manquant');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const medSheet = ss.getSheetByName('MEDECINS');
+  if (!medSheet) return _error('Onglet MEDECINS introuvable');
+  const data = medSheet.getDataRange().getValues();
+
+  // Codes déjà pris (autres MARs + code admin) : le nouveau doit être unique,
+  // sinon deux personnes partageraient un accès — ou un MAR hériterait du rôle admin.
+  const pris = new Set();
+  for (let r = 1; r < data.length; r++) {
+    const c = String(data[r][6]).trim();
+    if (c) pris.add(c.toUpperCase());
+  }
+  const cfgSheet = ss.getSheetByName('CONFIG');
+  if (cfgSheet) {
+    const cfg = cfgSheet.getDataRange().getValues();
+    for (let r = 1; r < cfg.length; r++) {
+      if (String(cfg[r][0]).trim() === 'ADMIN_CODE') { pris.add(String(cfg[r][1]).trim().toUpperCase()); break; }
+    }
+  }
+
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][0]).trim().toUpperCase() !== medecinId) continue;
+    const nom = String(data[r][1]).trim();
+    const ancien = String(data[r][6]).trim();
+    const email = String(data[r][7]).trim();
+    // Email vérifié AVANT toute écriture : sans lui, on n'invalide rien.
+    if (!email) return _error(`Pas d'email pour ${nom} — code inchangé.`);
+
+    let nouveau = '';
+    for (let essai = 0; essai < 50; essai++) {
+      const c = generateCode();
+      if (!pris.has(c.toUpperCase())) { nouveau = c; break; }
+    }
+    if (!nouveau) return _error('Génération impossible (collision) — code inchangé.');
+
+    // Trace de l'ancien code AVANT écrasement (filet si l'email n'arrive pas).
+    logAction(`resetCodeMar — ${nom} (${medecinId}) : ancien code ${ancien || '(vide)'} remplacé`);
+    medSheet.getRange(r + 1, 7).setValue(nouveau);
+    SpreadsheetApp.flush();
+
+    try {
+      MailApp.sendEmail({to: email,
+        subject: `[Planning CHPG Monaco ${TEST_YEAR}] Votre nouveau code d'accès`,
+        body: `Bonjour ${nom},\n\nVotre code d'accès personnel a été renouvelé. Le précédent n'est plus valable.\n\nVotre nouveau code :\n\n    ${nouveau}\n\nIl vous permet de saisir vos indisponibilités et congés sur :\nhttps://chpg-anesthesie.github.io/Planning-CHPG/indispos.html\n\nConservez ce code confidentiel.\n\nBonne journée,\nLe Comité Planning CHPG Monaco`});
+      logAction(`resetCodeMar — nouveau code envoyé à ${nom} (${email})`);
+      return ContentService.createTextOutput(JSON.stringify({success: true, nom: nom}))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch(err) {
+      // Le code EST déjà changé : le dire franchement plutôt que laisser croire à un échec sans conséquence.
+      logAction(`resetCodeMar — ECHEC EMAIL ${nom} : ${err.message} — nouveau code ${nouveau}`);
+      return _error(`Code changé pour ${nom} MAIS email non parti (${err.message}). Nouveau code : ${nouveau} — transmets-le en main propre.`);
+    }
+  }
+  return _error(`Médecin ${medecinId} introuvable`);
+}
+
 if (action === 'sendCodesMar') {
   if (user.role !== 'admin') return _deny();
   const medecinId = String(payload.medecin || '').trim().toUpperCase();
