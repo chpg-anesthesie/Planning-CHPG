@@ -2346,6 +2346,18 @@ function getWeekDays(weekNum) {
 }
 
 // ── WEEK RENDER ────────────────────────────────────────────────────────
+// Effectifs de consultation requis par jour (index lundi=0) et par demi-journée.
+// GLOBAL depuis 07/2026 : utilisé par renderWeek() ET par exportWeekExcel() (fusion
+// des cases quand un seul créneau est prévu). Une seule table, pas de copie.
+// (Sera remplacé par l'onglet CS_TEMPLATE lors du chantier secteurs étape 2.)
+const CS_REQUIRED = {
+  0:{am:{}, pm:{'CS-VIS':2,'CS-END':2}},                                              // Lundi
+  1:{am:{'CS-ORL':1,'CS-MAT':1}, pm:{'CS-VIS':1,'CS-END':1,'CS-ORT':1}},               // Mardi
+  2:{am:{'CS-ORL':1,'CS-POLY':1}, pm:{'CS-VIS':1,'CS-END':1,'CS-ORT':1,'CS-INTER':1}}, // Mercredi
+  3:{am:{'CS-ORL':1,'CS-MAT':1}, pm:{'CS-VIS':1,'CS-END':2,'CS-INTER':1}},             // Jeudi
+  4:{am:{'CS-ORT':1,'CS-ORL':1}, pm:{}},                                              // Vendredi
+};
+
 function renderWeek() {
   if (!DATA) return;
   if (!window._closesLoaded) { loadCloses(); window._closesLoaded = true; }
@@ -2386,14 +2398,8 @@ function renderWeek() {
   ];
   const csTypeMap = {};
   CS_TYPES.forEach(t => { csTypeMap[t.code] = Array(7).fill(null).map(() => ({am:[], pm:[], flash_am:0, flash_pm:0})); });
-  // Effectifs requis par jour (index lundi=0) et créneau. Source : CS_RULES (code.gs)
-  const CS_REQUIRED = {
-    0:{am:{}, pm:{'CS-VIS':2,'CS-END':2}},                                              // Lundi
-    1:{am:{'CS-ORL':1,'CS-MAT':1}, pm:{'CS-VIS':1,'CS-END':1,'CS-ORT':1}},               // Mardi
-    2:{am:{'CS-ORL':1,'CS-POLY':1}, pm:{'CS-VIS':1,'CS-END':1,'CS-ORT':1,'CS-INTER':1}}, // Mercredi
-    3:{am:{'CS-ORL':1,'CS-MAT':1}, pm:{'CS-VIS':1,'CS-END':2,'CS-INTER':1}},             // Jeudi
-    4:{am:{'CS-ORT':1,'CS-ORL':1}, pm:{}},                                              // Vendredi
-  };
+  // Effectifs requis : CS_REQUIRED est désormais GLOBAL (voir sa déclaration plus haut),
+  // car l'export Excel en a besoin lui aussi pour fusionner les cases à créneau unique.
   // Consults toujours affichées (ouvrables à la demande) + miroir « le MAR du secteur fait sa consult »
   const CS_OPENABLE = ['CS-VIS','CS-END','CS-ORL','CS-ORT'];
   // CS_SECTOR_MIRROR : désormais global, dérivé de SECTEURS_CFG.
@@ -4275,13 +4281,29 @@ async function exportWeekExcel(){
   const R_LAST = R_INFO + 3; // dernière ligne du tableau
   mc(R_CS,1,R_CS,21);setCell(R_CS,1," CONSULTATIONS D'ANESTHESIE",font(true,10),fill(C.hd),align('center','middle'),bAll);
   // consult (1 ligne, cases colorées par spécialité)
+  // Nombre de créneaux prévus pour une ligne CSROWS (qui peut couvrir plusieurs codes).
+  const csReq=(i,dow,half)=>(CSROWS[i].subs||[]).reduce((n,sub)=>{
+    const d=CS_REQUIRED[dow]; if(!d||!d[half]) return n;
+    return n + (d[half]['CS-'+sub]||0);
+  },0);
   CSROWS.forEach((cr,i)=>{const rr=R_CSR+i;const bg=cr.bg||'FFFFFF';
     setCell(rr,1,cr.label,font(true,10),fill(bg),align('left','middle'),bAll);
     for(let dow=0;dow<5;dow++){const cs=colStart(dow);const cell=csb[i][dow];const am=cell.am,pm=cell.pm;
-      setCell(rr,cs,am[0]||'',font(!!am[0],10),fill(bg),align('center','middle'),bAll);
-      setCell(rr,cs+1,am[1]||'',font(!!am[1],10),fill(bg),align('center','middle'),bAll);
-      setCell(rr,cs+2,pm[0]||'',font(!!pm[0],10),fill(bg),align('center','middle'),bAll);
-      setCell(rr,cs+3,pm[1]||'',font(!!pm[1],10),fill(bg),align('center','middle'),bAll);
+      // Un seul créneau prévu -> les 2 colonnes de la demi-journée sont FUSIONNÉES
+      // (une case large, comme le tableau manuel). Deux créneaux -> deux cases.
+      // Sécurité : si plus de MAR que de créneaux prévus, on ne fusionne pas, sinon
+      // le second nom serait masqué par la fusion.
+      [['am',am,cs],['pm',pm,cs+2]].forEach(([half,list,c0])=>{
+        const fusion = csReq(i,dow,half) <= 1 && list.length <= 1;
+        if(fusion){
+          mc(rr,c0,rr,c0+1);
+          setCell(rr,c0,list[0]||'',font(!!list[0],10),fill(bg),align('center','middle'),bAll);
+          setCell(rr,c0+1,'',font(false,10),fill(bg),align('center','middle'),bAll);
+        } else {
+          setCell(rr,c0,list[0]||'',font(!!list[0],10),fill(bg),align('center','middle'),bAll);
+          setCell(rr,c0+1,list[1]||'',font(!!list[1],10),fill(bg),align('center','middle'),bAll);
+        }
+      });
     }
   });
   // L30-31 ABSENCES — une initiale par case
