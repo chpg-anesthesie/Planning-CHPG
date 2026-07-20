@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-17.2';
+const GAS_VERSION_PORTAIL = '2026-07-20.1';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -27,6 +27,7 @@ function portailRoute(action, payload, user) {
     case 'getProtocole':   return _portailJson(getProtocole(payload && payload.id));
     case 'listAnnuaire':   return _portailJson(listAnnuaire());
     case 'getSecteurs':    return _portailJson(getSecteurs());
+    case 'getCsTemplate':  return _portailJson(getCsTemplate());
     case 'getVeille':  return _portailJson(getVeille());
     case 'markVeille': return _portailJson(markVeille(payload && payload.pmid, payload && payload.field, payload && payload.value));
     case 'genererCRH': return _portailJson(genererCRH_(payload, user));
@@ -1139,6 +1140,117 @@ const _SECTEURS_SEED = [
 
 // Crée l'onglet s'il manque, l'amorce s'il est vide. N'écrase JAMAIS des
 // lignes existantes (les éditions manuelles font foi).
+// ══════════════════════════════════════════════════════════════════════
+//  ONGLET CS_TEMPLATE — créneaux de consultation de la semaine type
+// ══════════════════════════════════════════════════════════════════════
+// ÉTAPE 2a du chantier « secteurs » : on CRÉE l'onglet, on ne le consomme
+// pas encore. `admin.html` continue d'utiliser sa table `CS_REQUIRED` : tant
+// que l'étape 2c n'est pas faite, éditer cet onglet ne change RIEN à l'écran.
+//
+// Forme choisie : 1 ligne par type de consultation, 1 colonne par demi-journée
+// — la semaine se lit d'un coup d'œil, et LABEL/OUVRABLE/ACTIF ne sont écrits
+// qu'une fois (pas de répétition qui pourrait diverger).
+//
+// CODE     = clé TECHNIQUE. Écrite dans PLANNING_OVERRIDES et le planning publié :
+//            ne JAMAIS la renommer sur un onglet en service (les affectations déjà
+//            posées deviendraient orphelines). Pour changer d'organisation, ajouter
+//            de nouvelles lignes et passer les anciennes à ACTIF=N.
+// LABEL    = affichage seul, librement modifiable.
+// OUVRABLE = O : le comité peut ouvrir ce créneau à la demande.
+// ACTIF    = N : la ligne est ignorée sans être supprimée (garde l'historique).
+//            C'est le mécanisme prévu pour le futur passage par secteur
+//            (bloc court / bloc long) au lieu de par spécialité.
+const CS_TEMPLATE_TAB = 'CS_TEMPLATE';
+
+const _CS_TEMPLATE_HEADER = ['CODE','LABEL','OUVRABLE','ACTIF',
+  'LUN_AM','LUN_PM','MAR_AM','MAR_PM','MER_AM','MER_PM','JEU_AM','JEU_PM','VEN_AM','VEN_PM'];
+
+// Amorçage = les 23 créneaux actuels, repris À L'IDENTIQUE de CS_REQUIRED
+// (admin.html), qui est la table réellement active aujourd'hui.
+const _CS_TEMPLATE_SEED = [
+  ['CS-VIS',   'CS Viscéral',        'O','O', 0,2, 0,1, 0,1, 0,1, 0,0],
+  ['CS-END',   'CS Endoscopies',     'O','O', 0,2, 0,1, 0,1, 0,2, 0,0],
+  ['CS-ORL',   'CS ORL',             'O','O', 0,0, 1,0, 1,0, 1,0, 1,0],
+  ['CS-ORT',   'CS Orthopédie',      'O','O', 0,0, 0,1, 0,1, 0,0, 1,0],
+  ['CS-MAT',   'CS Maternité',       'O','O', 0,0, 1,0, 0,0, 1,0, 0,0],
+  ['CS-POLY',  'CS Polyvalente',     'O','O', 0,0, 0,0, 1,0, 0,0, 0,0],
+  ['CS-INTER', 'CS Interventionnel', 'O','O', 0,0, 0,0, 0,1, 0,1, 0,0],
+];
+
+// Crée l'onglet s'il manque, l'amorce s'il est vide. N'écrase JAMAIS de lignes
+// existantes : une fois l'onglet rempli, les éditions manuelles font foi.
+function getOrCreateCsTemplateTab() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(CS_TEMPLATE_TAB);
+  const amorcer = () => {
+    sh.getRange(1, 1, 1, _CS_TEMPLATE_HEADER.length).setValues([_CS_TEMPLATE_HEADER]).setFontWeight('bold');
+    sh.getRange(2, 1, _CS_TEMPLATE_SEED.length, _CS_TEMPLATE_HEADER.length).setValues(_CS_TEMPLATE_SEED);
+    sh.setFrozenRows(1);
+    sh.setFrozenColumns(2);
+    sh.setColumnWidth(1, 90);
+    sh.setColumnWidth(2, 170);
+  };
+  if (!sh) { sh = ss.insertSheet(CS_TEMPLATE_TAB); amorcer(); }
+  else if (sh.getLastRow() < 2) { amorcer(); }
+  return sh;
+}
+
+// One-shot manuel : à lancer une fois dans l'éditeur Apps Script.
+// Affiche le récapitulatif pour contrôle visuel avant toute bascule.
+function initCsTemplate() {
+  const sh = getOrCreateCsTemplateTab();
+  const t = getCsTemplate();
+  const JOURS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi'];
+  let total = 0;
+  Logger.log('Onglet ' + CS_TEMPLATE_TAB + ' prêt : ' + t.types.length + ' type(s) de consultation.');
+  Logger.log('── Semaine type ──');
+  for (let d = 0; d < 5; d++) {
+    ['am','pm'].forEach(function (half) {
+      const m = t.required[d][half], codes = Object.keys(m);
+      if (!codes.length) return;
+      const txt = codes.map(function (c) {
+        total += m[c];
+        return c.replace('CS-', '') + (m[c] > 1 ? '×' + m[c] : '');
+      }).join(', ');
+      Logger.log('  ' + JOURS[d] + ' ' + (half === 'am' ? 'matin     ' : 'après-midi') + ' : ' + txt);
+    });
+  }
+  Logger.log('── TOTAL : ' + total + ' créneaux/semaine (doit valoir 23 au premier amorçage) ──');
+  Logger.log('ℹ️ Cet onglet n\'est PAS encore consommé : le modifier ne change rien à l\'écran.');
+  return t.types.length;
+}
+
+// Lecture → { types:[{code,label,ouvrable,actif}], required:{0..4:{am:{},pm:{}}} }
+// `required` a EXACTEMENT la forme de CS_REQUIRED (admin.html) pour que la
+// bascule de l'étape 2c soit un simple remplacement de source.
+// Les lignes ACTIF=N sont ignorées ; les effectifs à 0 ne sont pas écrits.
+function getCsTemplate() {
+  const sh = getOrCreateCsTemplateTab();
+  const rows = sh.getDataRange().getValues();
+  const types = [];
+  const required = {};
+  for (let d = 0; d < 5; d++) required[d] = { am: {}, pm: {} };
+
+  for (let r = 1; r < rows.length; r++) {
+    const code = String(rows[r][0] || '').trim();
+    if (!code) continue;
+    if (String(rows[r][3] || '').trim().toUpperCase() !== 'O') continue;   // ACTIF=N → ignoré
+    types.push({
+      code:     code,
+      label:    String(rows[r][1] || '').trim(),
+      ouvrable: String(rows[r][2] || '').trim().toUpperCase() === 'O',
+      actif:    true,
+    });
+    for (let d = 0; d < 5; d++) {
+      ['am', 'pm'].forEach(function (half, hi) {
+        const n = Number(rows[r][4 + d * 2 + hi]) || 0;   // col. 5 = LUN_AM, puis 2 par jour
+        if (n > 0) required[d][half][code] = n;
+      });
+    }
+  }
+  return { types: types, required: required };
+}
+
 function getOrCreateSecteursTab() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sh = ss.getSheetByName(SECTEURS_TAB);
