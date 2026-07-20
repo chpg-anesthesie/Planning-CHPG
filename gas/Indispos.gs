@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-20.8';
+const GAS_VERSION_INDISPOS = '2026-07-20.9';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1860,8 +1860,12 @@ if (!affSheet) {
       } catch (e) { check('Contrôle de sauvegarde impossible : ' + e.message, R.WARN); }
 
       // ── 3quater. Cohérence de la version du site (4 fichiers) ──
-      // Chaque fichier porte un marqueur « SITE_VERSION: vX.Y ». Ils doivent être
-      // identiques (pages web + guides). Toute divergence = un oubli d'alignement.
+      // (Corrigé 20/07/2026) Ce contrôle ne lisait que le MARQUEUR en commentaire
+      // « SITE_VERSION: vX.Y » — jamais la valeur réellement AFFICHÉE. Résultat : il
+      // annonçait « les 4 fichiers sont alignés (v1.4) » alors que 3 sur 4 affichaient
+      // v1.0 depuis plusieurs itérations. On compare désormais TOUTES les occurrences
+      // de version d'un fichier (constante JS, badge HTML en dur, ligne des guides,
+      // marqueur) : elles doivent être identiques DANS chaque fichier ET entre fichiers.
       hdr('Version du site');
       try {
         const vFiles = ['dashboard.html', 'admin.html', 'docs/guide-mar.html', 'docs/guide-comite.html'];
@@ -1873,13 +1877,23 @@ if (!affSheet) {
               `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${fn}?ref=${GITHUB_BRANCH}`,
               { headers: { Authorization: 'token ' + tokV, Accept: 'application/vnd.github.raw' }, muteHttpExceptions: true });
             if (r.getResponseCode() === 200) {
-              const m = r.getContentText().match(/SITE_VERSION:\s*(v[\d.]+)/);
-              versions[fn] = m ? m[1] : '(absente)';
+              const txt = r.getContentText();
+              // Toutes les formes de version présentes dans le fichier.
+              const vus = [];
+              const push_ = re => { const m = txt.match(re); if (m) vus.push(m[1]); };
+              push_(/SITE_VERSION\s*=\s*'(v[\d.]+)'/);            // constante JS (dashboard/admin)
+              push_(/id="verBadge">(v[\d.]+)</);                    // badge HTML en dur (visible avant login)
+              push_(/Version <strong>(v[\d.]+)<\/strong>/);         // ligne d'en-tête des guides
+              push_(/SITE_VERSION:\s*(v[\d.]+)/);                  // marqueur en commentaire
+              if (!vus.length) versions[fn] = '(absente)';
+              else if (vus.some(v => v !== vus[0])) versions[fn] = 'INCOHÉRENT (' + vus.join(' / ') + ')';
+              else versions[fn] = vus[0];
             } else versions[fn] = '(illisible)';
           } catch (e) { versions[fn] = '(illisible)'; }
         });
         const vals = vFiles.map(fn => versions[fn]);
-        const ref = vals.find(v => v && v[0] === 'v');
+        // Référence = première valeur PROPRE (un fichier incohérent ne fait pas foi).
+        const ref = vals.find(v => v && v[0] === 'v' && v.indexOf('INCOHÉRENT') < 0);
         const allSame = ref && vals.every(v => v === ref);
         if (allSame) check(`Les 4 fichiers sont alignés (${ref})`, R.OK);
         else {
