@@ -4170,12 +4170,14 @@ async function exportWeekExcel(){
   const csb={};CSROWS.forEach((r,i)=>{csb[i]=Array(7).fill(null).map(()=>({am:[],pm:[]}));});
   const subToRow={};CSROWS.forEach((r,i)=>r.subs.forEach(s=>subToRow[s]=i));
   const POLYI=CSROWS.findIndex(r=>r.subs.indexOf('POLY')>=0);
-  const guards=Array(7).fill(null).map(()=>[]);const astr=Array(7).fill(null).map(()=>[]);const h18=Array(7).fill('');const sorties=Array(7).fill(null).map(()=>[]);const absents=Array(7).fill(null).map(()=>[]);
+  const guards=Array(7).fill(null).map(()=>[]);const gardesRea=Array(7).fill(null).map(()=>[]);const gardesAn=Array(7).fill(null).map(()=>[]);const astr=Array(7).fill(null).map(()=>[]);const h18=Array(7).fill('');const sorties=Array(7).fill(null).map(()=>[]);const absents=Array(7).fill(null).map(()=>[]);
   const ABSENT_S=new Set(['RG','CP','A','F','R','TP','V','I','E']);
   function pushCS(code,dow,half,init){const raw=code.includes('-')?code.split('-')[1]:code;let idx=subToRow[raw];if(idx==null)idx=POLYI;if(idx>=0&&!csb[idx][dow][half].includes(init))csb[idx][dow][half].push(init);}
   month.doctors.forEach(doc=>{
     daySlots.forEach((slot,dow)=>{
       if(!slot)return;const entry=doc.days[slot.dayIdx]||{};const st=entry.status||'';const am=entry.morning||'';const pm=entry.afternoon||'';
+      if(st==='G')  gardesRea[dow].push(doc.initials);      // garde réanimation
+      if(st==='G2') gardesAn[dow].push(doc.initials);       // garde anesthésie (mater/bloc)
       if(st==='G'||st==='G2')guards[dow].push(doc.initials);
       if(st==='18')h18[dow]=doc.initials;
       if(st==='RG')sorties[dow].push(doc.initials);
@@ -4206,7 +4208,14 @@ async function exportWeekExcel(){
   // choisie pour que la LARGEUR tienne, sans écrasement vertical.
   const ws=wb.addWorksheet(`Semaine ${wk.weekNum}`,{pageSetup:{orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0,footer:0}}});
   ws.views=[{showGridLines:false}];
-  ws.getColumn(1).width=15.7;for(let c=2;c<=29;c++)ws.getColumn(c).width=8.43;
+  // (07/2026) Le texte imprimé était minuscule : 29 colonnes à 8.43 = 46,6 cm de large
+  // pour 28,7 cm utiles en A4 paysage, soit une réduction à 62 %. Or les cases du
+  // planning ne contiennent que des initiales (2-3 lettres) : 4.5 suffit largement.
+  // L'annuaire (col. 22-29) garde des colonnes plus larges pour les noms fusionnés.
+  // Résultat : ~30 cm de large -> échelle ~96 % au lieu de 62 %.
+  ws.getColumn(1).width=17;                                    // libellés de ligne
+  for(let c=2;c<=21;c++)ws.getColumn(c).width=4.5;             // 5 jours x 4 colonnes
+  for(let c=22;c<=29;c++)ws.getColumn(c).width=7;              // annuaire / DECT
   const thin={style:'thin',color:{argb:'FF000000'}};
   const bAll={top:thin,bottom:thin,left:thin,right:thin};
   const fill=hex=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+hex}});
@@ -4255,9 +4264,9 @@ async function exportWeekExcel(){
   const R_CS   = row;        // bandeau CONSULTATIONS
   const R_CSR  = row + 1;    // 7 lignes de consultations
   const R_ABS  = row + 8;    // ABSENCES (2 lignes)
-  const R_FN   = row + 10;   // 8H/18H, GARDES, SORTIES (3 lignes)
-  const R_INFO = row + 13;   // INFORMATIONS (3 lignes)
-  const R_LAST = row + 16;   // dernière ligne du tableau
+  const R_FN   = row + 10;   // GARDE REA, GARDE ANESTH, 8H/18H, SORTIES (4 lignes)
+  const R_INFO = row + 14;   // INFORMATIONS (3 lignes)
+  const R_LAST = row + 17;   // dernière ligne du tableau
   mc(R_CS,1,R_CS,21);setCell(R_CS,1," CONSULTATIONS D'ANESTHESIE",font(true,10),fill(C.hd),align('center','middle'),bAll);
   // consult (1 ligne, cases colorées par spécialité)
   CSROWS.forEach((cr,i)=>{const rr=R_CSR+i;const bg=cr.bg||'FFFFFF';
@@ -4278,9 +4287,12 @@ async function exportWeekExcel(){
   // L32-34 fonctions (Astreinte supprimée → décalage vers le haut)
   function fnRow(rr,label,vals){setCell(rr,1,label,font(true,10),fill(C.grey),align('left','middle'),bAll);
     for(let dow=0;dow<5;dow++){const cs=colStart(dow);mc(rr,cs,rr,cs+3);const v=vals[dow]||'';setCell(rr,cs,v,font(!!v,10),fill(C.grey),align('center','middle',true),bAll);}}
-  fnRow(R_FN,' 8H / 18H',h18);
-  fnRow(R_FN+1,' GARDES',guards.map(g=>g.join(' / ')));
-  fnRow(R_FN+2,' SORTIES DE GARDE',sorties.map(s=>s.join(' / ')));
+  // Gardes détaillées (comme le gabarit manuel) : réa et anesthésie sur deux lignes.
+  // Les SORTIES restent groupées : le statut RG ne dit pas de quelle garde on sort.
+  fnRow(R_FN,' GARDE REA',gardesRea.map(g=>g.join(' / ')));
+  fnRow(R_FN+1,' GARDE ANESTH',gardesAn.map(g=>g.join(' / ')));
+  fnRow(R_FN+2,' 8H / 18H',h18);
+  fnRow(R_FN+3,' SORTIES DE GARDE',sorties.map(s=>s.join(' / ')));
   // L35-37 INFORMATIONS — une case éditable par jour (lun→ven, pas le WE)
   mc(R_INFO,1,R_INFO+2,1);setCell(R_INFO,1,' INFORMATIONS ',font(true,10),fill(C.white),align('center','middle',true),bAll);
   for(let dow=0;dow<5;dow++){const cs=colStart(dow);mc(R_INFO,cs,R_INFO+2,cs+3);setCell(R_INFO,cs,'',font(false,10),fill(C.white),align('left','top',true),bAll);}
@@ -4316,7 +4328,7 @@ async function exportWeekExcel(){
   ws.pageSetup.printArea = 'A1:AC' + Math.max(R_LAST, rr);
 
   // hauteurs
-  for(let r=8;r<=R_LAST;r++)ws.getRow(r).height=16;
+  for(let r=8;r<=R_LAST;r++)ws.getRow(r).height=14;   // 14 pt : tient sur une page malgré DVI + garde séparée
   ws.getRow(4).height=18;ws.getRow(5).height=14;ws.getRow(6).height=16;ws.getRow(7).height=18;
   // ── Séparateurs journaliers : barre noire épaisse à gauche de chaque jour + fermeture du vendredi ──
   const THK={style:'thick',color:{argb:'FF000000'}};
