@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-07-20.1';
+const GAS_VERSION_CODE = '2026-07-20.2';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 function buildStats2026() {
@@ -1492,4 +1492,11 @@ function convertirRotLibEnLib(ecrire) {
   try { logAction('convertirRotLibEnLib — ' + lignes.length + ' ligne(s) ROT-LIB retaguées LIB'); } catch (e) {}
   Logger.log('\n✅ ' + lignes.length + ' ligne(s) converties en LIB. Le planning est inchangé.');
   Logger.log('   Relancer convertirRotLibEnLib() doit maintenant afficher « Aucune ligne ROT-LIB ».');
+}
+
+// Écriture réelle — à sélectionner dans le menu déroulant de l'éditeur Apps Script.
+// (L'éditeur ne permet pas de passer un argument à la main : cette fonction existe
+//  uniquement pour lancer convertirRotLibEnLib(true) sans rien avoir à taper.)
+function convertirRotLibEnLib_ECRIRE() {
+  convertirRotLibEnLib(true);
 }
