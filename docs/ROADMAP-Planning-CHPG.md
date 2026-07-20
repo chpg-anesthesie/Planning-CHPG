@@ -252,7 +252,11 @@ AVANT de fusionner** (préserve aussi bordures et remplissage). Vérifié sur 5 
 classeur. *Leçon : ExcelJS s'installe en local (`npm i exceljs`) — tester le rendu réel, ne pas
 se contenter de `node --check`.*
 
-### Secteurs étape 2 — TERMINÉE (20 juillet 2026) · site v1.6
+### Secteurs étape 2 — consultations OK, création d'un secteur INCOMPLÈTE (20 juillet 2026)
+
+⚠️ **Cette section a d'abord été écrite « TERMINÉE » : c'était FAUX.** Vérifié après coup, le trajet
+complet d'un secteur NOUVEAU n'était pas couvert — seul l'affichage suivait. Corrigé depuis, mais
+2 maillons restent ouverts (voir « Créer un secteur de bout en bout » plus bas).
 
 Le chantier « externaliser les secteurs » est **bouclé** : secteurs ET consultations sont pilotés
 depuis deux onglets du classeur, sans passer par le code.
@@ -286,6 +290,78 @@ classe, colore et masque : **16 visibles au lieu de 22**.
 - `PLANNING_OVERRIDES` laissé **visible** (dépannage). Les onglets annuels se trient
   automatiquement, année la plus récente en tête — 2027 se placera devant 2026.
 - Retour en arrière : `afficherTousLesOnglets()`.
+
+### Créer un secteur de bout en bout — état au 20/07/2026
+
+Objectif : créer un secteur dans l'onglet `SECTEURS` → l'affecter à un MAR → le voir sur le planning.
+
+| Maillon | État |
+|---|---|
+| 1. Créer la ligne dans l'onglet | ✅ |
+| 2. Le choisir dans le sélecteur d'admin | ✅ (vient de l'onglet) |
+| 3. Couleur de la cellule d'affectation | ✅ |
+| 4. **Légende de l'onglet Affectations** | ⬜ **liste en dur** `['VIS','REA',…]` (admin.html ~4080) |
+| 5. Enregistrement dans `AFFECTATIONS_{Y}` | ✅ |
+| 6. Génération du planning | ✅ **corrigé** (voir ci-dessous) |
+| 7. Nouvelle ligne sur le planning | ✅ (index.html dérive déjà de l'onglet) |
+| 8. **Export Excel** | ⬜ `BLOCS` / `SX` / `CSROWS` en dur (données prêtes, branchement à faire) |
+
+**Le verrou levé (maillon 6).** `normalizeAffectation` (`code.gs`) ne connaissait que 9 codes en dur :
+tout autre code devenait `VOLANT` **en silence**. Un secteur créé dans l'onglet était donc affectable,
+coloré, enregistré… puis effacé à la publication. Elle lit désormais les codes de l'onglet.
+- **Critère d'affectabilité = colonne `AFF` remplie.** Un secteur sans `AFF` n'est pas une affectation
+  mensuelle : c'est le cas de **DVI**, qui est une *vacation* du mardi matin réservée aux MAR habilités
+  (`DVI_ALLOWED`), posée directement par la génération. Ne pas le traiter comme un secteur.
+- Un code vraiment inconnu tombe toujours sur `VOLANT` mais est **journalisé** (1 ligne par code).
+
+**Préparé pour le maillon 8** : l'onglet `SECTEURS` a 3 colonnes de plus — `XL_LABEL`, `XL_BG`,
+`XL_ROWS` — car l'Excel n'écrit pas la même chose que le web (majuscules, couleurs franches, 1 ou 2
+lignes) et **aucune conversion automatique ne donnerait les couleurs actuelles** (`#EFF6FF` web vs
+`FFE699` Excel). Migration douce de l'onglet existant, valeurs des 9 secteurs pré-remplies, et
+**défauts si laissées vides** (`COURT` en majuscules / gris `F2F2F2` / 2 lignes) → un secteur créé sans
+les remplir apparaît quand même dans le fichier du vendredi.
+
+### Cases du planning : signal ≠ action (20/07/2026) · site v1.6.1
+
+**Le « + » orange était le SEUL moyen de placer quelqu'un.** Il portait deux rôles à la fois : un
+signal (« il manque quelqu'un ») et une action (« cliquer pour placer »). Conséquence : impossible
+d'ajouter un MAR sur une case sans écart détecté, ni sur une case déjà occupée — le tiret `—` était
+une impasse non cliquable.
+
+- **Le flash orange est inchangé** : un ou plusieurs MAR affectés à ce secteur ce mois-ci sont absents
+  aujourd'hui et non remplacés. C'est un écart mesurable — **pas** un besoin réel : le système ignore
+  la programmation opératoire, et 3 MAR au viscéral suffisent parfois là où il en faut 4.
+- **Ajout libre partout** : au survol d'une case, un « + » **gris** apparaît (y compris sur une case
+  déjà occupée) ; le tiret devient cliquable. Jamais de gris en même temps qu'un orange.
+- Au repos l'écran est **identique** à avant : seules les vraies alertes attirent l'œil.
+- **Week-ends et fériés NON cliquables** — voulu : ces jours-là il n'y a que les 2 gardes. Ils passent
+  par un rendu séparé (`isWe = isWeekend || isFerie`), makeSlot ne les touche pas.
+
+### Secteur interventionnel — règle métier à ne pas « simplifier » (20/07/2026)
+
+**Un seul MAR est affecté au secteur interventionnel pour le mois.** RI (radio) n'existe que
+**mercredi et jeudi matin** ; CI (cardio) est présent le mercredi.
+
+| Situation | CI | RI |
+|---|---|---|
+| Mercredi, MAR présent (placé en CI par défaut) | — | 🔶 |
+| Mercredi, MAR absent | 🔶 | 🔶 |
+| Jeudi matin, MAR présent (bascule en RI) | — | — |
+| Jeudi matin, MAR absent | — | 🔶 |
+
+Le mercredi il y a **2 postes pour 1 personne** : la radio flashe **normalement et en permanence**,
+même quand tout va bien. Le jeudi, le MAR bascule sur la radio.
+
+⚠️ **`RI` ne doit PAS rejoindre `COVERAGE`.** Sa règle (`RI_REQ_AM = {mercredi:1, jeudi:1}`) est plus
+fine que la couverture ordinaire : elle dépend du **jour**, pas de la présence d'un titulaire. Idem
+pour l'exclusion `if (s.code === 'CI' && dow === 3)` (jeudi = radio seule). Ces exceptions encodent
+des faits d'organisation qu'une colonne générique ne capterait pas → **projet de colonne `COUVERTURE`
+ÉCARTÉ**.
+
+**Bug corrigé le jeudi après-midi** : le MAR interventionnel restait affiché en `CI` « pour justifier
+la consult CS-INTER » — or **il n'y a jamais de bloc cardio le jeudi**. Il était donc montré dans un
+bloc fermé. Son secteur est désormais **vidé** l'après-midi (aucune ligne de bloc) : il est en
+consultation, il ne peut pas être au bloc.
 
 ### Documentation (docs/)
 - Guides : `guide-mar.html`, `guide-comite.html`, `guide-algo-gardes.html`, `guide-liberal.html`, `guide-technique.html`.
