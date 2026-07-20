@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-20.1';
+const GAS_VERSION_PORTAIL = '2026-07-20.2';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1125,17 +1125,38 @@ const SECTEURS_TAB = 'SECTEURS';
 // En-tête + valeurs d'amorçage = les 9 secteurs actuels, à l'identique.
 // (Les 4 valeurs RENDEMENT_LIB sont des défauts éditables : rien ne les
 //  consomme encore. REA→REA et ORL→FORT sont établis ; le reste à ajuster.)
-const _SECTEURS_HEADER = ['ORDRE','CODE','LABEL','COURT','AFF','ICON','BG','FG','CS','ACTIF','RENDEMENT_LIB'];
+// XL_* (07/2026) : ce que l'EXPORT EXCEL doit écrire, qui diffère du web —
+// le fichier reprend l'ancien tableau papier (noms courts en MAJUSCULES, couleurs
+// franches, certains secteurs sur 1 seule ligne). Ajoutées EN FIN : les index de
+// colonne 0-10 utilisés par getSecteurs() restent inchangés.
+// Laisser vide = valeur par défaut (voir getSecteurs) : rien ne casse.
+const _SECTEURS_HEADER = ['ORDRE','CODE','LABEL','COURT','AFF','ICON','BG','FG','CS','ACTIF','RENDEMENT_LIB',
+                          'XL_LABEL','XL_BG','XL_ROWS'];
+
+// Valeurs Excel des 9 secteurs actuels, pour l'amorçage et la migration.
+const _SECTEURS_XL = {
+  VIS: ['VISCERAL',        'FFE699', 2],
+  REA: ['REANIMATION',     '9DC3E6', 2],
+  ORT: ['ORTHO',           'F4B183', 2],
+  DVI: ['DVI',             'F4B183', 1],
+  ORL: ['ORL  OPHTALMO',   'FFF2CC', 2],
+  END: ['ENDOSCOPIES',     'C6E0B4', 2],
+  CI:  ['CARDIO INTERV.',  'E7E6E6', 1],
+  RI:  ['RADIO / INTERV.', 'E7E6E6', 1],
+  MAT: ['MATERNITE',       'FFA7A9', 2],
+};
+const _XL_BG_DEFAUT = 'F2F2F2';   // gris clair, pour un secteur sans couleur choisie
+const _XL_ROWS_DEFAUT = 2;
 const _SECTEURS_SEED = [
-  [1,'VIS','Bloc viscéral',            'Viscéral', 'Viscéral',    'Activity',   '#EFF6FF','#1D4ED8','CS-VIS',   'O','MOYEN'],
-  [2,'REA','Réanimation',              'Réa',      'Réanimation', 'HeartPulse', '#FFF1F2','#BE123C','',         'O','REA'  ],
-  [3,'ORT','Orthopédie',               'Ortho',    'Ortho',       'Bone',       '#FFF7ED','#C2410C','CS-ORT',   'O','FORT' ],
-  [4,'DVI','Pose DVI',                 'DVI',      '',            'Syringe',    '',       '',       '',         'O','NUL'  ],
-  [5,'ORL','ORL / Ophtalmologie',      'ORL',      'ORL',         'Eye',        '#FDF4FF','#7E22CE','CS-ORL',   'O','FORT' ],
-  [6,'END','Endoscopies',              'Endo',     'Endoscopies', 'Microscope', '#F0FDF4','#166534','CS-END',   'O','MOYEN'],
-  [7,'CI', 'Cardio interventionnelle', 'Cardio',   'Cardio/Inter','Heart',      '#ECFDF5','#065F46','CS-INTER', 'O','MOYEN'],
-  [8,'RI', 'Radio interventionnelle',  'Radio',    'Radio/Inter', 'Zap',        '#FFFBEB','#92400E','',         'O','MOYEN'],
-  [9,'MAT','Maternité',                'Maternité','Maternité',   'Baby',       '#FDF2F8','#9D174D','CS-MAT',   'O','NUL'  ],
+  [1,'VIS','Bloc viscéral',            'Viscéral', 'Viscéral',    'Activity',   '#EFF6FF','#1D4ED8','CS-VIS',   'O','MOYEN', 'VISCERAL'        , 'FFE699'  , 2],
+  [2,'REA','Réanimation',              'Réa',      'Réanimation', 'HeartPulse', '#FFF1F2','#BE123C','',         'O','REA'  , 'REANIMATION'     , '9DC3E6'  , 2],
+  [3,'ORT','Orthopédie',               'Ortho',    'Ortho',       'Bone',       '#FFF7ED','#C2410C','CS-ORT',   'O','FORT' , 'ORTHO'           , 'F4B183'  , 2],
+  [4,'DVI','Pose DVI',                 'DVI',      '',            'Syringe',    '',       '',       '',         'O','NUL'  , 'DVI'             , 'F4B183'  , 1],
+  [5,'ORL','ORL / Ophtalmologie',      'ORL',      'ORL',         'Eye',        '#FDF4FF','#7E22CE','CS-ORL',   'O','FORT' , 'ORL  OPHTALMO'   , 'FFF2CC'  , 2],
+  [6,'END','Endoscopies',              'Endo',     'Endoscopies', 'Microscope', '#F0FDF4','#166534','CS-END',   'O','MOYEN', 'ENDOSCOPIES'     , 'C6E0B4'  , 2],
+  [7,'CI', 'Cardio interventionnelle', 'Cardio',   'Cardio/Inter','Heart',      '#ECFDF5','#065F46','CS-INTER', 'O','MOYEN', 'CARDIO INTERV.'  , 'E7E6E6'  , 1],
+  [8,'RI', 'Radio interventionnelle',  'Radio',    'Radio/Inter', 'Zap',        '#FFFBEB','#92400E','',         'O','MOYEN', 'RADIO / INTERV.' , 'E7E6E6'  , 1],
+  [9,'MAT','Maternité',                'Maternité','Maternité',   'Baby',       '#FDF2F8','#9D174D','CS-MAT',   'O','NUL'  , 'MATERNITE'       , 'FFA7A9'  , 2],
 ];
 
 // Crée l'onglet s'il manque, l'amorce s'il est vide. N'écrase JAMAIS des
@@ -1265,8 +1286,37 @@ function getOrCreateSecteursTab() {
     sh.getRange(1, 1, 1, _SECTEURS_HEADER.length).setValues([_SECTEURS_HEADER]).setFontWeight('bold');
     sh.getRange(2, 1, _SECTEURS_SEED.length, _SECTEURS_HEADER.length).setValues(_SECTEURS_SEED);
     sh.setFrozenRows(1);
+  } else {
+    _migrerColonnesXL_(sh);   // onglet déjà rempli → compléter si besoin
   }
   return sh;
+}
+
+// Migration douce (07/2026) : l'onglet SECTEURS passe de 11 à 14 colonnes
+// (XL_LABEL / XL_BG / XL_ROWS). Ajoute les colonnes à un onglet DÉJÀ REMPLI et
+// pré-remplit les 9 secteurs connus avec leurs valeurs Excel actuelles.
+// Idempotente, et n'écrase JAMAIS une cellule déjà saisie.
+function _migrerColonnesXL_(sh) {
+  try {
+    if (sh.getLastColumn() < _SECTEURS_HEADER.length) {
+      sh.getRange(1, 1, 1, _SECTEURS_HEADER.length)
+        .setValues([_SECTEURS_HEADER]).setFontWeight('bold');
+      Logger.log('Onglet SECTEURS : colonnes XL_LABEL / XL_BG / XL_ROWS ajoutées.');
+    }
+    // Remplir les cellules VIDES des codes connus (une saisie manuelle fait foi).
+    const rows = sh.getDataRange().getValues();
+    for (let r = 1; r < rows.length; r++) {
+      const code = String(rows[r][1] || '').trim().toUpperCase();
+      const vals = _SECTEURS_XL[code];
+      if (!code || !vals) continue;          // secteur créé par Arthur → défauts de getSecteurs
+      for (let k = 0; k < 3; k++) {
+        const cur = rows[r][11 + k];
+        if (cur === '' || cur == null) sh.getRange(r + 1, 12 + k).setValue(vals[k]);
+      }
+    }
+  } catch (e) {
+    Logger.log('_migrerColonnesXL_ : ' + e.message);
+  }
 }
 
 // One-shot manuel : à lancer une fois dans l'éditeur Apps Script.
@@ -1298,6 +1348,13 @@ function getSecteurs() {
       cs:        nn(rows[r][8]),
       actif:     String(rows[r][9] || '').trim().toUpperCase() === 'O',
       rendement: String(rows[r][10] || '').trim().toUpperCase() || null,
+      // Colonnes EXCEL. Vides = défauts, pour qu'un secteur créé sans les remplir
+      // apparaisse quand même dans le fichier du vendredi.
+      xlLabel:   String(rows[r][11] || '').trim()
+                 || String(rows[r][3] || code).trim().toUpperCase(),   // défaut : COURT en majuscules
+      xlBg:      String(rows[r][12] || '').trim().replace(/^#/, '').toUpperCase()
+                 || _XL_BG_DEFAUT,                                     // défaut : gris clair
+      xlRows:    Math.max(1, Math.min(3, Number(rows[r][13]) || _XL_ROWS_DEFAUT)),
     });
   }
   out.sort((a, b) => a.ordre - b.ordre);
