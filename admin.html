@@ -4139,9 +4139,13 @@ async function exportWeekExcel(){
   // ── Skin gabarit historique ──
   const C={hd:'D9D9D9',grey:'DBDBDB',white:'FFFFFF',we:'F2F2F2'};
   const BLOCS=[
-    {label:'VISCERAL',codes:['VIS','DVI'],bg:'FFE699',rows:2},
+    {label:'VISCERAL',codes:['VIS'],bg:'FFE699',rows:2},
     {label:'REANIMATION',codes:['REA'],bg:'9DC3E6',rows:2},
     {label:'ORTHO',codes:['ORT'],bg:'F4B183',rows:2},
+    // DVI : bloc distinct depuis 07/2026 (il était fondu dans VISCERAL, ce qui
+    // affichait le MAR du mardi matin comme viscéral). Placé sous ORTHO et de la
+    // même couleur : physiquement au même endroit dans le service. 1 seule ligne.
+    {label:'DVI',codes:['DVI'],bg:'F4B183',rows:1},
     {label:'ORL  OPHTALMO',codes:['ORL'],bg:'FFF2CC',rows:2},
     {label:'ENDOSCOPIES',codes:['END'],bg:'C6E0B4',rows:2},
     {label:'CARDIO INTERV.',codes:['CI'],bg:'E7E6E6',rows:1},
@@ -4240,10 +4244,19 @@ async function exportWeekExcel(){
     }
     row+=nr;
   });
-  // L22 section consult
-  mc(22,1,22,21);setCell(22,1," CONSULTATIONS D'ANESTHESIE",font(true,10),fill(C.hd),align('center','middle'),bAll);
-  // L23-29 consult (1 ligne, cases colorées par spécialité)
-  CSROWS.forEach((cr,i)=>{const rr=23+i;const bg=cr.bg||'FFFFFF';
+  // (07/2026) Le bas du tableau était calé sur des numéros de ligne EN DUR (22, 23+i,
+  // 30, 32, 35, 38). Ajouter un bloc au-dessus les faisait entrer en collision.
+  // Tout est désormais ancré sur 'row', que la boucle BLOCS vient d'incrémenter :
+  // ajouter ou retirer un bloc décale automatiquement la suite.
+  const R_CS   = row;        // bandeau CONSULTATIONS
+  const R_CSR  = row + 1;    // 7 lignes de consultations
+  const R_ABS  = row + 8;    // ABSENCES (2 lignes)
+  const R_FN   = row + 10;   // 8H/18H, GARDES, SORTIES (3 lignes)
+  const R_INFO = row + 13;   // INFORMATIONS (3 lignes)
+  const R_LAST = row + 16;   // dernière ligne du tableau
+  mc(R_CS,1,R_CS,21);setCell(R_CS,1," CONSULTATIONS D'ANESTHESIE",font(true,10),fill(C.hd),align('center','middle'),bAll);
+  // consult (1 ligne, cases colorées par spécialité)
+  CSROWS.forEach((cr,i)=>{const rr=R_CSR+i;const bg=cr.bg||'FFFFFF';
     setCell(rr,1,cr.label,font(true,10),fill(bg),align('left','middle'),bAll);
     for(let dow=0;dow<5;dow++){const cs=colStart(dow);const cell=csb[i][dow];const am=cell.am,pm=cell.pm;
       setCell(rr,cs,am[0]||'',font(!!am[0],10),fill(bg),align('center','middle'),bAll);
@@ -4253,20 +4266,20 @@ async function exportWeekExcel(){
     }
   });
   // L30-31 ABSENCES — une initiale par case
-  mc(30,1,31,1);setCell(30,1,'ABSENCES',font(true,10),fill(C.white),align('center','middle'),bAll);
+  mc(R_ABS,1,R_ABS+1,1);setCell(R_ABS,1,'ABSENCES',font(true,10),fill(C.white),align('center','middle'),bAll);
   for(let dow=0;dow<5;dow++){const cs=colStart(dow);const list=absents[dow];
-    const cells=[[30,cs],[30,cs+1],[30,cs+2],[30,cs+3],[31,cs],[31,cs+1],[31,cs+2],[31,cs+3]];
+    const cells=[[R_ABS,cs],[R_ABS,cs+1],[R_ABS,cs+2],[R_ABS,cs+3],[R_ABS+1,cs],[R_ABS+1,cs+1],[R_ABS+1,cs+2],[R_ABS+1,cs+3]];
     for(let i=0;i<8;i++){const v=list[i]||'';setCell(cells[i][0],cells[i][1],v,font(!!v,10),fill(C.white),align('center','middle'),bAll);}
   }
   // L32-34 fonctions (Astreinte supprimée → décalage vers le haut)
   function fnRow(rr,label,vals){setCell(rr,1,label,font(true,10),fill(C.grey),align('left','middle'),bAll);
     for(let dow=0;dow<5;dow++){const cs=colStart(dow);mc(rr,cs,rr,cs+3);const v=vals[dow]||'';setCell(rr,cs,v,font(!!v,10),fill(C.grey),align('center','middle',true),bAll);}}
-  fnRow(32,' 8H / 18H',h18);
-  fnRow(33,' GARDES',guards.map(g=>g.join(' / ')));
-  fnRow(34,' SORTIES DE GARDE',sorties.map(s=>s.join(' / ')));
+  fnRow(R_FN,' 8H / 18H',h18);
+  fnRow(R_FN+1,' GARDES',guards.map(g=>g.join(' / ')));
+  fnRow(R_FN+2,' SORTIES DE GARDE',sorties.map(s=>s.join(' / ')));
   // L35-37 INFORMATIONS — une case éditable par jour (lun→ven, pas le WE)
-  mc(35,1,37,1);setCell(35,1,' INFORMATIONS ',font(true,10),fill(C.white),align('center','middle',true),bAll);
-  for(let dow=0;dow<5;dow++){const cs=colStart(dow);mc(35,cs,37,cs+3);setCell(35,cs,'',font(false,10),fill(C.white),align('left','top',true),bAll);}
+  mc(R_INFO,1,R_INFO+2,1);setCell(R_INFO,1,' INFORMATIONS ',font(true,10),fill(C.white),align('center','middle',true),bAll);
+  for(let dow=0;dow<5;dow++){const cs=colStart(dow);mc(R_INFO,cs,R_INFO+2,cs+3);setCell(R_INFO,cs,'',font(false,10),fill(C.white),align('left','top',true),bAll);}
   // Staff du vendredi dans sa case INFORMATIONS (vendredi = dow 4 → colonne colStart(4))
   if (_staffFri && _staffFri.length) {
     const csFri = colStart(4);
@@ -4277,7 +4290,7 @@ async function exportWeekExcel(){
       rt.push({ text: head + (s.theme ? ' — ' : ''), font: font(true,10) });
       if (s.theme) rt.push({ text: s.theme, font: font(false,10) });
     });
-    ws.getCell(35, csFri).value = { richText: rt };
+    ws.getCell(R_INFO, csFri).value = { richText: rt };
   }
   // ── Roster droite depuis MEDECINS ──
   mc(8,22,9,29);setCell(8,22,'ANESTHESISTES ET N° DE POSTES',font(true,11),fill(C.white),align('center','middle',true),bAll);
@@ -4293,7 +4306,7 @@ async function exportWeekExcel(){
   rr++;
   FIXED.forEach(function(p){const lbl=p[0],num=p[1];mc(rr,22,rr,26);setCell(rr,22,' '+lbl,font(true,9),fill(C.hd),align('left','middle'),bAll);mc(rr,27,rr,29);setCell(rr,27,num,font(false,9),fill(C.white),align('center','middle'),bAll);rr++;});
   // hauteurs
-  for(let r=8;r<=38;r++)ws.getRow(r).height=16;
+  for(let r=8;r<=R_LAST;r++)ws.getRow(r).height=16;
   ws.getRow(4).height=18;ws.getRow(5).height=14;ws.getRow(6).height=16;ws.getRow(7).height=18;
   // ── Séparateurs journaliers : barre noire épaisse à gauche de chaque jour + fermeture du vendredi ──
   const THK={style:'thick',color:{argb:'FF000000'}};
