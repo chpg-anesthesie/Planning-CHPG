@@ -252,6 +252,41 @@ AVANT de fusionner** (préserve aussi bordures et remplissage). Vérifié sur 5 
 classeur. *Leçon : ExcelJS s'installe en local (`npm i exceljs`) — tester le rendu réel, ne pas
 se contenter de `node --check`.*
 
+### Secteurs étape 2 — TERMINÉE (20 juillet 2026) · site v1.6
+
+Le chantier « externaliser les secteurs » est **bouclé** : secteurs ET consultations sont pilotés
+depuis deux onglets du classeur, sans passer par le code.
+
+- **2a — onglet `CS_TEMPLATE` créé et amorcé** (`portail.gs`) : 1 ligne par type, 1 colonne par
+  demi-journée. `getOrCreateCsTemplateTab()` / `initCsTemplate()` / `getCsTemplate()`, action API
+  routée. Amorçage prouvé **strictement identique** à `CS_REQUIRED` (comparaison clé par clé,
+  23 créneaux), puis relu et validé par Arthur.
+- **2c — `admin.html` consomme l'onglet** (frontend pur, aucune recopie GAS). `CS_TYPES` et
+  `CS_OPENABLE`, jusque-là **locaux à `renderWeek`**, sont devenus globaux comme `CS_REQUIRED`.
+  Repli conservé sur les tables en dur si la réponse est nulle, vide ou incomplète (3 cas testés).
+  **Testé en production** : affichage inchangé, puis un `0` passé à `1` dans l'onglet fait bien
+  apparaître le créneau.
+  - Effet visible immédiat : `CS_OPENABLE` passe de **4 à 7** codes (décision d'Arthur, tout ouvrable).
+- **2b sautée**, à dessein : elle devait vérifier que l'onglet correspond à la table en dur, or
+  c'était déjà prouvé deux fois (simulation + relecture). Une recopie GAS de plus n'aurait rien appris.
+- ⬜ **Reste l'étape 3** (non urgente) : retirer les tables en dur et rendre le repli **visible**.
+  Aujourd'hui il est silencieux — une panne de lecture ferait tourner les pages sur le code sans
+  le dire. Inoffensif tant qu'on ne compte pas dessus.
+
+### Rangement du classeur (20 juillet 2026)
+
+22 onglets, difficiles à parcourir. `organiserOnglets()` (`setup_annee.gs`, one-shot réversible)
+classe, colore et masque : **16 visibles au lieu de 22**.
+
+- 4 familles colorées : configuration courante (bleu foncé, `CONFIG`/`MEDECINS` désormais en tête),
+  configuration annuelle (bleu clair), portail (violet), données de l'année (vert).
+- 6 onglets **masqués** car jamais édités à la main : `SEMAINES_VALIDEES`, `ABSENCES_LONGUES`,
+  `HISTORIQUE`, `VEILLE`, `LOGS`, `CONNEXIONS`. ⚠️ **Masquer ne casse rien** : `getSheetByName()`
+  lit et écrit un onglet masqué à l'identique.
+- `PLANNING_OVERRIDES` laissé **visible** (dépannage). Les onglets annuels se trient
+  automatiquement, année la plus récente en tête — 2027 se placera devant 2026.
+- Retour en arrière : `afficherTousLesOnglets()`.
+
 ### Documentation (docs/)
 - Guides : `guide-mar.html`, `guide-comite.html`, `guide-algo-gardes.html`, `guide-liberal.html`, `guide-technique.html`.
 - Présentations staff, démographie.
