@@ -1,0 +1,7 @@
+# Planning-CHPG — outil interne du service d'anesthésie-réanimation, CHPG Monaco.
+# Cet outil n'a pas vocation à être référencé : il s'adresse aux 23 MAR du service,
+# qui y accèdent par un lien reçu par email et un code personnel.
+# Rien n'est confidentiel ici (les données nominatives sont hors du dépôt public),
+# mais un outil de service n'a pas sa place dans des résultats de recherche.
+User-agent: *
+Disallow: /
