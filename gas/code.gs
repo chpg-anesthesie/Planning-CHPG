@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-07-20.3';
+const GAS_VERSION_CODE = '2026-07-20.4';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 function buildStats2026() {
@@ -457,20 +457,66 @@ function loadAffectations(yearArg) {
 }
 
 // ── NORMALISER SECTEUR ────────────────────────────────────────────────
+// (07/2026) Cette fonction ne connaissait QUE 9 codes en dur : tout autre code
+// devenait 'VOLANT' **en silence**. Conséquence : un secteur créé dans l'onglet
+// SECTEURS était affectable et coloré à l'écran, puis effacé à la publication.
+// Elle accepte désormais TOUT code actif de l'onglet. Les alias historiques
+// (VISCERAL→VIS…) restent gérés pour les anciennes saisies libres.
+// Un code vraiment inconnu tombe toujours sur VOLANT — mais il est JOURNALISÉ.
+
+// Alias hérités des saisies manuelles d'avant l'onglet SECTEURS.
+const _AFF_ALIAS = {
+  'VISC':'VIS','VISCERAL':'VIS',
+  'ENDO':'END','ENDOSCOPIES':'END',
+  'REANIMATION':'REA',
+  'ORTH':'ORT','ORTHO':'ORT',
+  'CARDIO/INTER':'CI','CARDIO':'CI',
+  'RADIO/INTER':'RI',
+  'MATER':'MAT','MATERNITE':'MAT',
+};
+
+// Codes AFFECTABLES au mois = secteurs de l'onglet SECTEURS qui sont ACTIFS **et
+// qui portent un libellé dans la colonne AFF**, + VOLANT.
+// La colonne AFF est le discriminant : elle donne le libellé de la vue Affectations.
+// Un secteur SANS AFF n'est pas une affectation mensuelle — c'est le cas de DVI,
+// qui est une VACATION du mardi matin réservée aux MAR habilités (DVI_ALLOWED),
+// posée directement par la génération et non via l'affectation du mois.
+// Cache par exécution : getSecteurs() lit l'onglet, on ne le fait qu'une fois.
+// Repli sur les 8 codes historiques si l'onglet est illisible → jamais bloquant.
+var _AFF_CODES_CACHE = null;
+function _affCodesValides_() {
+  if (_AFF_CODES_CACHE) return _AFF_CODES_CACHE;
+  var codes = {};
+  try {
+    (getSecteurs() || []).forEach(function (s) {
+      if (s && s.actif && s.code && String(s.aff || '').trim()) {
+        codes[String(s.code).trim().toUpperCase()] = true;
+      }
+    });
+  } catch (e) { /* onglet illisible → repli ci-dessous */ }
+  if (!Object.keys(codes).length) {
+    ['VIS','REA','ORT','ORL','END','CI','RI','MAT'].forEach(function (c) { codes[c] = true; });
+  }
+  codes['VOLANT'] = true;   // pseudo-secteur, jamais dans l'onglet
+  _AFF_CODES_CACHE = codes;
+  return codes;
+}
+
+var _AFF_INCONNUS_VUS = {};   // pour ne journaliser qu'une fois par code
 function normalizeAffectation(aff) {
   if (!aff) return 'VOLANT';
-  const map = {
-    'VISC':'VIS','VISCERAL':'VIS','VIS':'VIS',
-    'ENDO':'END','END':'END','ENDOSCOPIES':'END',
-    'ORL':'ORL',
-    'REA':'REA','REANIMATION':'REA',
-    'ORTH':'ORT','ORTHO':'ORT','ORT':'ORT',
-    'CARDIO/INTER':'CI','CARDIO':'CI','CI':'CI',
-    'RADIO/INTER':'RI','RI':'RI',
-    'MATER':'MAT','MAT':'MAT','MATERNITE':'MAT',
-    'VOLANT':'VOLANT',
-  };
-  return map[aff] || 'VOLANT';
+  var v = String(aff).trim().toUpperCase();
+  if (_AFF_ALIAS[v]) v = _AFF_ALIAS[v];
+  if (_affCodesValides_()[v]) return v;
+  // Code inconnu : on retombe sur VOLANT (comportement inchangé) MAIS on le dit.
+  if (!_AFF_INCONNUS_VUS[v]) {
+    _AFF_INCONNUS_VUS[v] = true;
+    var msg = 'normalizeAffectation — code secteur inconnu « ' + v + ' » → VOLANT. '
+            + 'Ajouter ce code dans l\'onglet SECTEURS (ACTIF=O), ou corriger la saisie.';
+    Logger.log('⚠️ ' + msg);
+    try { logAction('⚠️ ' + msg); } catch (e) {}
+  }
+  return 'VOLANT';
 }
 
 // ── LIRE LES PLANNING OVERRIDES ───────────────────────────────────────
