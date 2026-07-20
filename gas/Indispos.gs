@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-20.6';
+const GAS_VERSION_INDISPOS = '2026-07-20.7';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1025,6 +1025,9 @@ function doGet(e) {
         success: true, role: user.role, id: user.id,
         name: user.name, initials: user.initials, 
         year: TEST_YEAR, indisposYear: getIndisposYear(),
+        // Campagne de saisie en cours ? Pilote l'affichage de la tuile
+        // « Mes indisponibilités » du dashboard (masquée hors campagne).
+        indisposOuverte: _indisposOuverte_(),
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
