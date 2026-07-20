@@ -68,6 +68,24 @@ Cycle annuel = 3 assistants dans admin.html, **tous testés en réel** :
 - ⚠️ **La rotation automatique a été SUPPRIMÉE (20/07/2026)** — objet `ROT`, assistant « ⟳ Rotation libérale », overlay et action `applyRotationLib` retirés, faute d'usage réel. Le tag `ROT-LIB` n'existe plus : les lignes existantes ont été converties en `LIB` par la fonction one-shot `convertirRotLibEnLib()` (elle-même retirée après usage), ce qui a préservé à l'identique les créneaux déjà attribués. **Ne pas reproposer d'automatisation de cette rotation.**
 - ⚠️ **`setLibSoliste` n'a jamais existé** dans le dépôt : cette doc l'a longtemps annoncée comme « à recopier », mais aucune trace dans les `.gs` ni dans `admin.html`. Mention supprimée le 20/07/2026. Rappel : **le dépôt fait foi**, pas ce fichier.
 
+## Version du site (badge `vX.Y`) — actuellement **v1.5**
+
+**5 fichiers, 9 emplacements.** Deux fichiers la portent DEUX fois : penser au badge HTML **en dur**,
+visible avant connexion tant que le JS ne l'a pas remplacé.
+
+| Fichier | Emplacements |
+|---|---|
+| `dashboard.html` | `const SITE_VERSION = 'vX.Y'` · `id="verBadge">vX.Y<` · `// SITE_VERSION: vX.Y` |
+| `admin.html` | idem (3) |
+| `docs/guide-mar.html` | `Version <strong>vX.Y</strong>` · `<!-- SITE_VERSION: vX.Y -->` |
+| `docs/guide-comite.html` | idem (2) |
+| `docs/guide-technique.html` | marqueur seul |
+
+Le 🔍 Diagnostic (section « Version du site ») compare **toutes** ces formes, dans chaque fichier et
+entre fichiers, et signale `INCOHÉRENT (…)` en listant les valeurs divergentes.
+⚠️ Avant le 20/07/2026 il ne lisait que le **marqueur en commentaire** : il annonçait « alignés (v1.4) »
+alors que 3 fichiers sur 4 affichaient v1.0 aux utilisateurs. Ne pas revenir à ce contrôle partiel.
+
 ## Emails du système (5 envois, tous dans `Indispos.gs`)
 
 | Action GAS | Contenu | Volume |
