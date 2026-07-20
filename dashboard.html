@@ -447,6 +447,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-2
 let VIEW_CODE = '';
 let MY_ID = null;
 let MY_ROLE = null;
+let INDISPOS_OUVERTE = false;   // campagne de saisie en cours (renvoyé par login)
+let INDISPOS_YEAR = null;       // année concernée par la saisie
 
 function esc(s){ return String(s||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function _meName(id){ return (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase(); }
@@ -504,6 +506,9 @@ async function apiPost(payload) {
 function applyUserBadge(r){
   MY_ROLE = r.role;
   MY_ID = (r.role==='mar') ? r.id : null;
+  // État de la campagne de saisie (pilote la tuile « Mes indisponibilités »).
+  INDISPOS_OUVERTE = !!r.indisposOuverte;
+  INDISPOS_YEAR = r.indisposYear || null;
   const pill = document.getElementById('mePill');
   if(!pill) return;
   const label = MY_ID ? _meName(MY_ID) : 'Admin';
@@ -526,6 +531,11 @@ function logout(){
 // ── TUILES ──
 const TILES = [
   { key:'planning', title:'Planning', sub:'Gardes, secteurs, consultations et équité.', icon:'calendar-days', href:'index.html', ready:true },
+  // Tuile de CAMPAGNE : visible uniquement pendant la saisie des indispos
+  // (octobre → clôture). Hors campagne, indispos.html ne sert à rien : la tuile
+  // disparaît plutôt que d'encombrer le portail 10 mois par an.
+  // Le drapeau vient du serveur (présence de INDISPOS_ACTIVE dans CONFIG).
+  { key:'indispos', title:'Mes indisponibilités', sub:'Déclarez vos souhaits et vos congés {AN}.', icon:'clock', href:'indispos.html', ready:true, campagne:true, tint:'viol' },
   { key:'conges', title:'Mes congés', sub:'Vacances, formation, TP, récup et congés à venir.', icon:'calendar-off', view:'conges', ready:true },
   { key:'topos',    title:'Topos / biblio', sub:'Documents et présentations du service.', icon:'book-open', view:'topos', ready:true },
   { key:'protocoles', title:'Protocoles', sub:'Procédures du service, classées par spécialité.', icon:'clipboard-list', view:'protocoles', tint:'viol', ready:true },
@@ -537,7 +547,7 @@ const TILES = [
 ];
 function renderTiles(){
   const box = document.getElementById('tiles');
-  box.innerHTML = TILES.filter(t => !t.only || t.only === MY_ID).map(t => {
+  box.innerHTML = TILES.filter(t => (!t.only || t.only === MY_ID) && (!t.campagne || INDISPOS_OUVERTE)).map(t => {
     const soon = t.ready ? '' : ' soon';
     const tag  = t.ready ? '' : '<span class="badge-soon">Bientôt</span>';
     const arrow = t.ready ? '<div class="tile-arrow">Ouvrir <i data-lucide="arrow-right" style="width:15px;height:15px"></i></div>' : '';
@@ -545,7 +555,7 @@ function renderTiles(){
       tag +
       '<div class="tile-ico'+(t.tint?' '+t.tint:'')+'"><i data-lucide="'+t.icon+'"></i></div>' +
       '<div class="tile-title">'+esc(t.title)+'</div>' +
-      '<div class="tile-sub">'+esc(t.sub)+'</div>' +
+      '<div class="tile-sub">'+esc(String(t.sub).replace(' {AN}', INDISPOS_YEAR ? (' pour ' + INDISPOS_YEAR) : ''))+'</div>' +
       arrow;
     if (t.ready && t.href) return '<a class="tile" href="'+t.href+'">'+inner+'</a>';
     if (t.ready && t.view) return '<div class="tile clickable" onclick="openView(\''+t.view+'\')">'+inner+'</div>';
