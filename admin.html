@@ -5338,7 +5338,13 @@ async function launchWizardGardes() {
       if (!res || !res.success) throw new Error(res?.error || 'Erreur');
       _gDone.add(step.id);
       el.classList.remove('running'); el.classList.add('done');
-      const extra = step.id === 'wizg-p3' && res.sent !== undefined ? ` (${res.sent} envoyé(s)${res.skipped ? ', ' + res.skipped + ' sans email' : ''})` : '';
+      // (W2-R) p1 : reprise propre après réponse perdue (aucune régénération).
+      // p3 : on affiche AUSSI les échecs d'envoi, jusqu'ici masqués par le ✓ vert.
+      const extra = step.id === 'wizg-p1' && res.alreadyDone
+        ? ' (déjà générées — rien à refaire)'
+        : step.id === 'wizg-p3' && res.sent !== undefined
+          ? ` (${res.sent} envoyé(s)${res.skipped ? ', ' + res.skipped + ' sans email' : ''}${res.errors && res.errors.length ? ', ⚠️ ' + res.errors.length + ' en échec' : ''})`
+          : '';
       el.textContent = '✓ ' + step.label + extra;
     } catch(e) {
       if (step.id === 'wizg-p1' && /existe déjà/i.test(String(e.message || ''))) {
