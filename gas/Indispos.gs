@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-20.3';
+const GAS_VERSION_INDISPOS = '2026-07-20.4';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -231,6 +231,70 @@ function _findPhantomGardes_(year) {
     }
   }
   return phantoms;
+}
+
+// ── MODÈLE UNIQUE DES EMAILS DE CODE D'ACCÈS ──────────────────────────
+// SOURCE UNIQUE pour les trois envois (sendCodes, sendCodesMar, resetCodeMar).
+// Avant (07/2026) le texte était dupliqué à l'identique dans sendCodes et
+// sendCodesMar : la correction d'année n'avait été appliquée qu'à un seul
+// endroit. Toute évolution du message se fait DÉSORMAIS ICI, et nulle part ailleurs.
+//
+// Année : getIndisposYear() (= INDISPOS_ACTIVE, l'année RÉELLEMENT ouverte à la
+// saisie), et non TEST_YEAR/getActiveYear qui est l'année du planning en cours.
+// Les deux diffèrent pendant le Wizard 1 (octobre) — exactement quand ces emails
+// partent en masse.
+//   renouvele = true  → formulation « nouveau code, l'ancien ne marche plus »
+function _mailCodeAcces_(nom, code, renouvele) {
+  const an = getIndisposYear();
+  const link = 'https://chpg-anesthesie.github.io/Planning-CHPG/indispos.html';
+  const esc = v => String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const nomE = esc(nom), codeE = esc(code);
+
+  const titre = renouvele ? "Votre nouveau code d'accès" : "Votre code d'accès";
+  const introHtml = renouvele
+    ? "Votre code d'accès personnel a été renouvelé. <strong>Le précédent n'est plus valable.</strong>"
+    : "Voici votre code d'accès personnel au planning du service.";
+  const introText = renouvele
+    ? "Votre code d'accès personnel a été renouvelé. Le précédent n'est plus valable."
+    : "Voici votre code d'accès personnel au planning du service.";
+
+  const html =
+    '<div style="background:#f4f6f9;padding:0;margin:0">' +
+    '<div style="max-width:560px;margin:0 auto;padding:24px 14px;font-family:Arial,Helvetica,sans-serif">' +
+      '<div style="background:#ffffff;border:1px solid #e3e8ef;border-radius:14px;overflow:hidden">' +
+        '<div style="background:#ce1126;padding:18px 22px">' +
+          '<div style="color:#ffffff;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">CHPG Monaco &middot; Anesthésie-Réanimation</div>' +
+          '<div style="color:#ffffff;font-size:19px;font-weight:700;margin-top:4px">' + titre + '</div>' +
+        '</div>' +
+        '<div style="padding:22px">' +
+          '<p style="margin:0 0 16px;font-size:14px;color:#3a4759">Bonjour <strong>' + nomE + '</strong>,</p>' +
+          '<p style="margin:0 0 16px;font-size:13px;color:#3a4759">' + introHtml + '</p>' +
+          '<div style="background:#f4f6f9;border:1px solid #e3e8ef;border-radius:10px;padding:12px 16px;margin-bottom:18px">' +
+            '<div style="font-size:11px;color:#697789;text-transform:uppercase;letter-spacing:.5px">Votre code d\'accès</div>' +
+            '<div style="font-size:22px;font-weight:700;letter-spacing:2px;color:#ce1126;font-family:monospace">' + codeE + '</div>' +
+          '</div>' +
+          '<p style="margin:0 0 14px;font-size:13px;color:#3a4759">Il vous permet de saisir vos indisponibilités et vos congés pour <strong>' + an + '</strong>.</p>' +
+          '<a href="' + link + '" style="display:inline-block;background:#15803d;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:10px">Ouvrir la saisie &rarr;</a>' +
+          '<p style="margin:18px 0 0;font-size:12px;color:#9aa4b2">Conservez ce code confidentiel. En cas de difficulté, contactez le comité planning.</p>' +
+        '</div>' +
+      '</div>' +
+      '<div style="text-align:center;font-size:11px;color:#9aa4b2;margin-top:14px">Le Comité Planning CHPG Monaco</div>' +
+    '</div>' +
+    '</div>';
+
+  const body =
+    'Bonjour ' + nom + ',\n\n' + introText + '\n\n' +
+    '    ' + code + '\n\n' +
+    'Il vous permet de saisir vos indisponibilités et vos congés pour ' + an + ' :\n' + link + '\n\n' +
+    'Conservez ce code confidentiel.\n\nBonne journée,\nLe Comité Planning CHPG Monaco';
+
+  return {
+    subject: '[Planning CHPG Monaco ' + an + '] ' + titre,
+    htmlBody: html,
+    body: body,
+    name: 'Comité Planning CHPG',
+  };
 }
 
 // ── VÉRIFIER CODE ACCÈS ───────────────────────────────────────────────
@@ -1534,9 +1598,7 @@ if (!affSheet) {
         const code = String(data[r][6]).trim(), email = String(data[r][7]).trim();
         if (!id || !actif || !email || !code) continue;
         try {
-          MailApp.sendEmail({to:email,
-            subject:`[Planning CHPG Monaco ${TEST_YEAR}] Votre code d'accès`,
-            body:`Bonjour ${nom},\n\nVoici votre code d'accès personnel pour le planning ${TEST_YEAR} :\n\n    ${code}\n\nCe code vous permettra de saisir vos indisponibilités et congés sur :\nhttps://chpg-anesthesie.github.io/Planning-CHPG/indispos.html\n\nConservez ce code confidentiel.\n\nBonne journée,\nLe Comité Planning CHPG Monaco`});
+          MailApp.sendEmail(Object.assign({to: email}, _mailCodeAcces_(nom, code, false)));
           sent++;
         } catch(err) { errors.push(`${nom} (${email}) : ${err.message}`); }
       }
@@ -2117,9 +2179,7 @@ if (action === 'resetCodeMar') {
     SpreadsheetApp.flush();
 
     try {
-      MailApp.sendEmail({to: email,
-        subject: `[Planning CHPG Monaco ${TEST_YEAR}] Votre nouveau code d'accès`,
-        body: `Bonjour ${nom},\n\nVotre code d'accès personnel a été renouvelé. Le précédent n'est plus valable.\n\nVotre nouveau code :\n\n    ${nouveau}\n\nIl vous permet de saisir vos indisponibilités et congés sur :\nhttps://chpg-anesthesie.github.io/Planning-CHPG/indispos.html\n\nConservez ce code confidentiel.\n\nBonne journée,\nLe Comité Planning CHPG Monaco`});
+      MailApp.sendEmail(Object.assign({to: email}, _mailCodeAcces_(nom, nouveau, true)));
       logAction(`resetCodeMar — nouveau code envoyé à ${nom} (${email})`);
       return ContentService.createTextOutput(JSON.stringify({success: true, nom: nom}))
         .setMimeType(ContentService.MimeType.JSON);
@@ -2149,9 +2209,7 @@ if (action === 'sendCodesMar') {
     if (!email) return _error(`Pas d'email pour ${nom}`);
     if (!code) return _error(`Pas de code pour ${nom}`);
     try {
-      MailApp.sendEmail({to: email,
-        subject: `[Planning CHPG Monaco ${TEST_YEAR}] Votre code d'accès`,
-        body: `Bonjour ${nom},\n\nVoici votre code d'accès personnel pour le planning ${TEST_YEAR} :\n\n    ${code}\n\nCe code vous permettra de saisir vos indisponibilités et congés sur :\nhttps://chpg-anesthesie.github.io/Planning-CHPG/indispos.html\n\nConservez ce code confidentiel.\n\nBonne journée,\nLe Comité Planning CHPG Monaco`});
+      MailApp.sendEmail(Object.assign({to: email}, _mailCodeAcces_(nom, code, false)));
       logAction(`sendCodesMar — email envoyé à ${nom} (${email})`);
       return ContentService.createTextOutput(JSON.stringify({success: true, sent: 1}))
         .setMimeType(ContentService.MimeType.JSON);
