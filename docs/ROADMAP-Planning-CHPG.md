@@ -185,6 +185,33 @@ Cinq emails partent du système, tous depuis `Indispos.gs` : trois portent un co
 17 icônes seulement** (liste dans son en-tête). Toute nouvelle tuile doit utiliser une icône
 présente — `calendar-plus` n'existe pas et se serait affichée vide.
 
+### Version du site — v1.5 (20 juillet 2026)
+
+**Le badge affichait `v1.0` depuis plusieurs itérations sans que rien ne le signale.** Chaque fichier
+porte la version à plusieurs endroits, et le diagnostic « Version du site » ne lisait que **le
+marqueur en commentaire** — jamais la valeur affichée. Il concluait donc « les 4 fichiers sont
+alignés (v1.4) » pendant que 3 sur 4 montraient v1.0 aux utilisateurs.
+
+- **Tout est aligné sur `v1.5`**, valeur affichée ET marqueur.
+- **Le diagnostic lit désormais TOUTES les formes de version** d'un fichier (constante JS, badge HTML
+  en dur, ligne d'en-tête des guides, marqueur) et exige qu'elles soient identiques **dans** chaque
+  fichier et **entre** fichiers. Un fichier divergent est signalé `INCOHÉRENT (v1.0 / v1.4)` avec le
+  détail. Vérifié en rejouant le nouveau contrôle sur les fichiers d'avant patch : il aurait bien
+  signalé les 3 fichiers fautifs.
+
+⚠️ **Pour bumper la version : 5 fichiers, 9 emplacements.** Deux d'entre eux la portent DEUX fois.
+
+| Fichier | Emplacements |
+|---|---|
+| `dashboard.html` | `const SITE_VERSION = 'vX.Y'` · badge `id="verBadge"` en dur · marqueur `// SITE_VERSION:` |
+| `admin.html` | idem (3 emplacements) |
+| `docs/guide-mar.html` | `Version <strong>vX.Y</strong>` · marqueur `<!-- SITE_VERSION: -->` |
+| `docs/guide-comite.html` | idem (2 emplacements) |
+| `docs/guide-technique.html` | marqueur seul |
+
+Le **badge HTML en dur** compte : il est visible *avant* connexion, jusqu'à ce que le JS le remplace.
+Le diagnostic signale tout oubli — c'est précisément ce qu'il ne savait pas faire.
+
 ### Documentation (docs/)
 - Guides : `guide-mar.html`, `guide-comite.html`, `guide-algo-gardes.html`, `guide-liberal.html`, `guide-technique.html`.
 - Présentations staff, démographie.
@@ -210,13 +237,6 @@ présente — `calendar-plus` n'existe pas et se serait affichée vide.
 - [ ] 📚 **Veille bibliographique** — enrichissements (option `ENRICH` IA quand clé API dispo).
 
 ### Finitions & maintenance
-- [ ] **Version du site affichée : `v1.0` alors que le marqueur dit `v1.4`.** Chaque fichier porte
-  DEUX versions : la valeur affichée (`const SITE_VERSION = 'v1.0'`) et un marqueur en commentaire
-  (`// SITE_VERSION: v1.4`). Le diagnostic « Version du site » ne contrôle que **le marqueur** — il
-  conclut « les 4 fichiers sont alignés » alors que 3 sur 4 affichent une version périmée.
-  État au 20/07/2026 : `dashboard.html`, `admin.html` et `docs/guide-comite.html` affichent v1.0 ;
-  seul `docs/guide-mar.html` affiche v1.4. À corriger en deux temps : aligner les valeurs
-  (v1.5 ?) **et** faire porter le contrôle sur la valeur réelle, pas sur le commentaire.
 - [ ] Picker des consult libérales endo : filtrer/avertir sur la présence au bloc en semaine N+1. **Plus aucun contrôle automatique depuis le retrait de la rotation (20/07/2026)** — l'attribution est 100 % manuelle et la règle du 8.1 est à vérifier de tête par le comité (documenté dans `guide-comite.html` § 8.2).
 - [ ] Corriger un libellé hérité dans l'assistant Départ (« onglet Modifications de comite.html », page inexistante).
 - [ ] Généraliser SW/icônes locales aux autres points d'entrée (index, admin…) pour que l'install profite partout.
