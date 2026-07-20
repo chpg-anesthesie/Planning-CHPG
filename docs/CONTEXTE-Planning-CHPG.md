@@ -65,8 +65,26 @@ Cycle annuel = 3 assistants dans admin.html, **tous testés en réel** :
 ## Secteurs : la source est l'onglet `SECTEURS`
 
 L'onglet **pilote réellement** `admin.html` et `index.html` (vérifié le 20/07/2026 : une édition
-du tableau remonte à l'écran). Colonnes : `ORDRE | CODE | LABEL | COURT | AFF | ICON | BG | FG |
-CS | ACTIF | RENDEMENT_LIB`. `getOrCreateSecteursTab()` **n'écrase jamais** une ligne existante.
+du tableau remonte à l'écran). **14 colonnes** :
+`ORDRE | CODE | LABEL | COURT | AFF | ICON | BG | FG | CS | ACTIF | RENDEMENT_LIB | XL_LABEL | XL_BG | XL_ROWS`.
+`getOrCreateSecteursTab()` **n'écrase jamais** une ligne existante.
+
+**Trois colonnes décident du comportement d'un secteur — à connaître avant d'en créer un :**
+
+| Colonne | Rôle |
+|---|---|
+| `ACTIF` | `N` = ignoré partout, sans être supprimé (garde l'historique) |
+| `AFF` | **rempli = affectable au mois** et apparaît dans la vue Affectations ; **vide = secteur d'affichage seul** (cas de `DVI`). C'est ce que lit `normalizeAffectation` pour accepter un code |
+| `RENDEMENT_LIB` | socle du futur pilotage libéral (FORT / MOYEN / NUL / REA) |
+
+**Colonnes `XL_*` (07/2026) : ce que l'EXPORT EXCEL doit écrire.** Le fichier du vendredi reprend
+l'ancien tableau papier et n'affiche PAS la même chose que le web — majuscules, couleurs franches,
+1 ou 2 lignes selon le secteur. **Aucune conversion automatique ne donnerait les couleurs actuelles**
+(`#EFF6FF` côté web contre `FFE699` côté Excel : aucune parenté). D'où trois colonnes saisies,
+ajoutées **en fin de tableau** pour ne pas décaler les index 0-10 que `getSecteurs()` lit.
+Laissées **vides** → défauts appliqués : `COURT` en majuscules, gris `F2F2F2`, 2 lignes. Un secteur
+créé sans les remplir apparaît donc quand même dans l'Excel. Les 9 secteurs actuels sont pré-remplis
+par `_migrerColonnesXL_()` (idempotente, n'écrase jamais une saisie).
 ⚠️ Le repli sur les définitions en dur est **silencieux** : en cas d'échec de lecture, les pages
 tournent sur le code sans le dire. `VOLANT` et `CS` sont des pseudo-secteurs, hors onglet.
 ⚠️ `assets/vendor/lucide-icons.js` ne contient que **17 icônes** : aucune icône de secteur
