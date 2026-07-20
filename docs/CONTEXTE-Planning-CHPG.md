@@ -24,7 +24,7 @@ Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`.
 
 ## Structure du dépôt (rangé)
 - **Racine** : les `.html` (`index.html`, `admin.html`, `staff.html`, `indispos.html`, `dashboard.html`, `crh.html`), `manifest.webmanifest` (PWA, doit rester racine — `scope`/`start_url`), `sw.js`.
-- **`assets/`** : `favicon.svg`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`. Référencés par les `<link>` des HTML et par le manifest (`assets/icon-*.png`).
+- **`assets/`** : ⚠️ `vendor/lucide-icons.js` est un mini-bundle LOCAL de **17 icônes seulement** (liste dans son en-tête) — une tuile qui demande une icône absente s'affiche vide ; pour en ajouter une, copier son tableau `children` depuis le paquet lucide. `favicon.svg`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`. Référencés par les `<link>` des HTML et par le manifest (`assets/icon-*.png`).
 - **`docs/`** : la documentation vivante — `CONTEXTE-Planning-CHPG.md` (ce fichier) et `ROADMAP-Planning-CHPG.md` ; guides `guide-technique.html` (référence interne : architecture, wizards, déploiement, dépannage), `guide-comite.html`, `guide-mar.html`, `guide-algo-gardes.html`, `guide-liberal.html` ; `reprise.md` (continuité : propriété, accès, sauvegardes) ; `VEILLE_CFG-mode-emploi.md` ; présentations staff (⚠️ `presentation-staff.html` : le code de démo se saisit **par prompt au clic**, ne jamais l'écrire en dur — dépôt public, historique permanent) ; `module-liberal/` (conception, antisèche cotation, estimateur).
 - **`gas/`** : les **5** fichiers Apps Script (`code.gs`, `Indispos.gs`, `generateur_gardes.gs`, `setup_annee.gs`, `portail.gs`) + `README.md`.
 - **`simulateur/`** : batterie de tests Python (non-régression de l'algo) + `experiences/`.
@@ -67,6 +67,33 @@ Cycle annuel = 3 assistants dans admin.html, **tous testés en réel** :
 - **Attribution 100 % manuelle** : le comité clique le marqueur LIB dans l'onglet Planning → l'override est écrit avec le commentaire `LIB`. Les créneaux `CS-END` eux-mêmes viennent de `CS_TEMPLATE` (`code.gs`) et ne dépendent d'aucun override.
 - ⚠️ **La rotation automatique a été SUPPRIMÉE (20/07/2026)** — objet `ROT`, assistant « ⟳ Rotation libérale », overlay et action `applyRotationLib` retirés, faute d'usage réel. Le tag `ROT-LIB` n'existe plus : les lignes existantes ont été converties en `LIB` par la fonction one-shot `convertirRotLibEnLib()` (elle-même retirée après usage), ce qui a préservé à l'identique les créneaux déjà attribués. **Ne pas reproposer d'automatisation de cette rotation.**
 - ⚠️ **`setLibSoliste` n'a jamais existé** dans le dépôt : cette doc l'a longtemps annoncée comme « à recopier », mais aucune trace dans les `.gs` ni dans `admin.html`. Mention supprimée le 20/07/2026. Rappel : **le dépôt fait foi**, pas ce fichier.
+
+## Emails du système (5 envois, tous dans `Indispos.gs`)
+
+| Action GAS | Contenu | Volume |
+|---|---|---|
+| `sendCodes` | code d'accès, à TOUS les MAR actifs | ~23 |
+| `sendCodesMar` | code d'accès, ciblé | 1 |
+| `resetCodeMar` | NOUVEAU code (bouton 🔄) | 1 |
+| `envoyerRecapIndispos` | récap des gardes (HTML) | ~23 |
+| `sendCodesWithRecap` | congés + ouverture indispos (W1, HTML) | ~23 |
+
+- **Source unique pour les 3 mails de code** : `_mailCodeAcces_(nom, code, renouvele)`. Toute
+  évolution du texte, du style ou de l'année se fait **LÀ, et nulle part ailleurs** — le corps était
+  auparavant dupliqué mot pour mot, ce qui avait produit une divergence d'année non détectée.
+- **Année** : toujours `getIndisposYear()` (année de la SAISIE), jamais `TEST_YEAR`/`getActiveYear()`
+  (année du planning en cours). Les deux divergent pendant le W1, en octobre.
+- **`_indisposOuverte_()`** : la campagne est-elle en cours ? Testée sur la **présence** de la ligne
+  `INDISPOS_ACTIVE` dans CONFIG — créée par le W1, supprimée par le W3. Aucun réglage à tenir à jour.
+  ⚠️ `getIndisposYear()` ne répond PAS à cette question : il se replie silencieusement sur
+  `getActiveYear()` quand la ligne est absente. Ce drapeau pilote le contenu des mails **et** la
+  tuile « Mes indisponibilités » du portail (remonté par `login` sous le nom `indisposOuverte`).
+- **⚠️ QUOTA : compte Google GRATUIT = 100 emails/jour** (pas 1500). Un envoi groupé ≈ 23. Les trois
+  envois groupés appellent `_quotaEmailInsuffisant_(_marsAvecEmail_())` et **refusent avant tout
+  envoi** si le compte n'y est pas — sans quoi `MailApp` échoue en cours de route et laisse la moitié
+  des MAR non servis, sans trace. Si le quota est illisible, l'envoi est autorisé (choix assumé :
+  ne pas bloquer le comité sur une lecture ratée).
+- **Toute nouvelle action d'envoi groupé doit poser ce garde-fou.**
 
 ## État : fonctionnellement terminé
 **Ne PAS reproposer** : `config.html` (abandonné — couvert par les 5 onglets d'admin.html) ; **optimisation perf** du JSON (déjà minifié/gzip) ; patch GAS de robustesse cible (le garde frontend suffit).
