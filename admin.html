@@ -4295,14 +4295,13 @@ async function exportWeekExcel(){
       // le second nom serait masqué par la fusion.
       [['am',am,cs],['pm',pm,cs+2]].forEach(([half,list,c0])=>{
         const fusion = csReq(i,dow,half) <= 1 && list.length <= 1;
-        if(fusion){
-          mc(rr,c0,rr,c0+1);
-          setCell(rr,c0,list[0]||'',font(!!list[0],10),fill(bg),align('center','middle'),bAll);
-          setCell(rr,c0+1,'',font(false,10),fill(bg),align('center','middle'),bAll);
-        } else {
-          setCell(rr,c0,list[0]||'',font(!!list[0],10),fill(bg),align('center','middle'),bAll);
-          setCell(rr,c0+1,list[1]||'',font(!!list[1],10),fill(bg),align('center','middle'),bAll);
-        }
+        // ORDRE CRITIQUE : écrire les DEUX cellules (valeur + style + bordures) PUIS
+        // fusionner. Dans ExcelJS, écrire dans une cellule ESCLAVE d'une fusion écrit
+        // en réalité dans la MAÎTRE : mettre '' à droite après un mergeCells effaçait
+        // le nom (bug 07/2026 — toutes les consultations fusionnées sont sorties vides).
+        setCell(rr,c0,list[0]||'',font(!!list[0],10),fill(bg),align('center','middle'),bAll);
+        setCell(rr,c0+1,fusion?'':(list[1]||''),font(!fusion&&!!list[1],10),fill(bg),align('center','middle'),bAll);
+        if(fusion) mc(rr,c0,rr,c0+1);
       });
     }
   });
