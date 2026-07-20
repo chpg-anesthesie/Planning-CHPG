@@ -4200,7 +4200,11 @@ async function exportWeekExcel(){
   });
   // ── Feuille ──
   const wb=new ExcelJS.Workbook();
-  const ws=wb.addWorksheet(`Semaine ${wk.weekNum}`,{pageSetup:{orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0,footer:0}}});
+  // (07/2026) fitToHeight vaut 1 PAR DÉFAUT dans ExcelJS dès que fitToPage est vrai :
+  // Excel comprimait donc 29 colonnes x ~39 lignes sur UNE SEULE page, d'où un texte
+  // illisible. fitToHeight:0 = « autant de pages qu'il faut en hauteur » : l'échelle est
+  // choisie pour que la LARGEUR tienne, sans écrasement vertical.
+  const ws=wb.addWorksheet(`Semaine ${wk.weekNum}`,{pageSetup:{orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:0.2,right:0.2,top:0.3,bottom:0.3,header:0,footer:0}}});
   ws.views=[{showGridLines:false}];
   ws.getColumn(1).width=15.7;for(let c=2;c<=29;c++)ws.getColumn(c).width=8.43;
   const thin={style:'thin',color:{argb:'FF000000'}};
@@ -4305,6 +4309,12 @@ async function exportWeekExcel(){
   });
   rr++;
   FIXED.forEach(function(p){const lbl=p[0],num=p[1];mc(rr,22,rr,26);setCell(rr,22,' '+lbl,font(true,9),fill(C.hd),align('left','middle'),bAll);mc(rr,27,rr,29);setCell(rr,27,num,font(false,9),fill(C.white),align('center','middle'),bAll);rr++;});
+  // Zone d'impression explicite (absente jusqu'ici) : sans elle Excel embarque les
+  // colonnes/lignes vides au-delà du contenu et réduit encore l'échelle.
+  // Bas = le plus bas des deux colonnes : tableau (R_LAST) ou annuaire (rr, qui suit
+  // l'effectif réel et pourrait le dépasser si l'équipe s'agrandit).
+  ws.pageSetup.printArea = 'A1:AC' + Math.max(R_LAST, rr);
+
   // hauteurs
   for(let r=8;r<=R_LAST;r++)ws.getRow(r).height=16;
   ws.getRow(4).height=18;ws.getRow(5).height=14;ws.getRow(6).height=16;ws.getRow(7).height=18;
