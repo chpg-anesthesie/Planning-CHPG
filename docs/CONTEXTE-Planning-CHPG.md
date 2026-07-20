@@ -38,7 +38,7 @@ Google Sheets (onglets clés : `MEDECINS`, `CONFIG`, `HISTORIQUE`, `GARDES_{Y}`,
 Cycle annuel = 3 assistants dans admin.html, **tous testés en réel** :
 - **Wizard 1** — init de l'année N+1 (réunion staff, octobre) : effectif, quotités, vacances.
 - **Wizard 2** — génération des gardes (novembre), après collecte des indispos. La génération publie aussi le planning (Drive).
-- **Wizard 3** — clôture/archivage de l'année N : STATS→HISTORIQUE, `stats_{Y}.json`+`indispos_{Y}.json` dans le Drive, **déplacement** des onglets `*_{Y}` vers `ARCHIVE_SS_ID` (`Planning_CHPG_Archives`), bascule année active → N+1, nettoyage indispos. **Testé en réel (archivage de 2026, 07/2026)** : HISTORIQUE 2026 OK, année active → 2027, 2026 consultable en lecture seule.
+- **Wizard 3** — clôture/archivage de l'année N : STATS→HISTORIQUE, `stats_{Y}.json`+`indispos_{Y}.json` dans le Drive, **déplacement** des onglets `*_{Y}` vers `ARCHIVE_SS_ID` (`Planning_CHPG_Archives`), bascule année active → N+1, nettoyage indispos. **Éprouvé sur un archivage de test de 2026 (07/2026)** — mais ⚠️ **l'archivage réel n'a PAS eu lieu** : au 20/07/2026 l'année active est toujours **2026** et les onglets `*_2026` sont bien dans le classeur. Le vrai W3 se tiendra en janvier 2027.
 
 ## Accès nominatif (index.html)
 - **Code d'accès perso = colonne G (7ᵉ colonne) de la ligne du MAR dans `MEDECINS`** (`checkCode` lit `data[r][6]`). Code admin = clé `ADMIN_CODE` de `CONFIG`.
@@ -128,7 +128,15 @@ le pic d'absents de la semaine) → `R_FN` (GARDE REA, GARDE ANESTH, 8H/18H, SOR
 
 ## Consultations : où vit la vérité
 
-- **`CS_REQUIRED`** (`admin.html`) = la table **ACTIVE** : effectifs requis par jour et
+- **✅ SOURCE = onglet `CS_TEMPLATE`** depuis le 20/07/2026 (testé en production). `admin.html`
+  appelle `getCsTemplate` au chargement et remplace ses 3 tables. Éditer l'onglet suffit à
+  ouvrir/fermer un créneau. Colonnes : `CODE | LABEL | OUVRABLE | ACTIF | LUN_AM … VEN_PM`.
+  `CODE` = clé technique (écrite dans `PLANNING_OVERRIDES` et le planning publié) : **ne jamais la
+  renommer** ; pour changer d'organisation, ajouter des lignes et passer les anciennes à `ACTIF=N`.
+  `LABEL` est libre (affichage seul).
+- **`CS_TYPES`, `CS_OPENABLE`, `CS_REQUIRED`** (`admin.html`) = valeurs de **REPLI** uniquement,
+  désormais toutes **globales** (`let`). Repli **silencieux** si l'onglet est illisible.
+- **`CS_REQUIRED`** (`admin.html`) = anciennement la table **ACTIVE** : effectifs requis par jour et
   demi-journée. **GLOBALE depuis le 20/07/2026** (elle était locale à `renderWeek`), car
   l'export Excel en a besoin pour fusionner les cases à créneau unique. Une seule table.
 - **`CS_RULES`** (`code.gs`) = **CODE MORT** : enfermé dans `if (GENERER_CONSULTATIONS)` qui vaut
@@ -138,6 +146,15 @@ le pic d'absents de la semaine) → `R_FN` (GARDE REA, GARDE ANESTH, 8H/18H, SOR
   **dans le navigateur d'Arthur seulement** : invisibles pour les autres membres du comité, perdues
   si le cache est vidé. Seule la libération des MAR (override VOLANT) est persistée côté serveur.
   C'est un **pansement ponctuel**, pas un réglage structurel — d'où le chantier `CS_TEMPLATE`.
+
+## Onglets du classeur (rangés le 20/07/2026)
+
+22 onglets, dont **6 MASQUÉS** car jamais édités à la main : `SEMAINES_VALIDEES`,
+`ABSENCES_LONGUES`, `HISTORIQUE`, `VEILLE`, `LOGS`, `CONNEXIONS`.
+⚠️ **Un onglet masqué se lit et s'écrit normalement** (`getSheetByName()` ne fait pas de
+différence) — ne pas s'inquiéter de ne pas le voir. Menu Affichage ▸ Feuilles masquées, ou
+`afficherTousLesOnglets()`. Rangement/couleurs : `organiserOnglets()` (`setup_annee.gs`),
+one-shot réversible, à relancer après ajout d'un onglet.
 
 ## Emails du système (5 envois, tous dans `Indispos.gs`)
 
@@ -171,7 +188,17 @@ le pic d'absents de la semaine) → `R_FN` (GARDE REA, GARDE ANESTH, 8H/18H, SOR
 
 **Restant / à surveiller (non urgent)** :
 - **`Indispos.gs`** (version dépôt **`2026-07-20.3`**) — action **`resetCodeMar`** (bouton 🔄) et retrait d'`applyRotationLib`. **Recopié et testé en production le 20/07/2026.** **`code.gs` également à recopier** (version **`2026-07-20.3`** : retrait du tag `ROT-LIB` et des fonctions one-shot de conversion). Le 🔍 Diagnostic signale l'écart dépôt/déployé.
-- **Années archivées — RÉSOLU (07/2026, 1ᵉʳ archivage réel de 2026).** `archiveYear` écrit `stats_{Y}.json` dans le **Drive** et **déplace** les onglets `*_{Y}` vers le classeur d'archive `ARCHIVE_SS_ID` (`Planning_CHPG_Archives`). Détection des années archivées via l'action GAS **`getArchivedYears`** (scan Drive des `stats_YYYY.json`) — `detectAvailableYears()` ne sonde plus Pages. Lecture des stats archivées via le helper **`_ssWithSheet()`** (classeur actif sinon `ARCHIVE_SS_ID`) appliqué à `computeStatsLive` (Équité Instantané) et `getStats` (Initiale). Une année clôturée réapparaît en « archivé » (lecture seule) et son équité Initiale/Instantané reste consultable. Rappel : Initiale = équité figée à la génération, Instantané = équité réelle finale (intègre les échanges) — les deux diffèrent légitimement.
+- **⚠️ ÉTAT RÉEL AU 20/07/2026 : l'année active est 2026, PAS 2027.** Ce fichier a longtemps
+  affirmé « archivage de 2026 testé en réel, année active → 2027 » : **c'est FAUX**. Le classeur
+  contient `GARDES_2026` / `INDISPOS_2026` / `AFFECTATIONS_2026` / `STATS_GARDES_2026`, et **aucun
+  onglet 2027** — 2027 n'a pas encore été généré (ce sera le Wizard 2, en novembre). Vérifier
+  l'état réel du classeur plutôt que de se fier à cette ligne.
+- **Mécanique d'archivage (quand elle servira, en janvier 2027)** : `archiveYear` écrit
+  `stats_{Y}.json` dans le **Drive** et **déplace** les onglets `*_{Y}` vers `ARCHIVE_SS_ID`
+  (`Planning_CHPG_Archives`). Détection via l'action GAS `getArchivedYears` (scan Drive des
+  `stats_YYYY.json`) ; lecture des stats archivées via `_ssWithSheet()` (classeur actif sinon
+  `ARCHIVE_SS_ID`), appliqué à `computeStatsLive` et `getStats`. Rappel : Initiale = équité figée
+  à la génération, Instantané = équité réelle finale (les deux diffèrent légitimement).
 - **Secteurs étape 2 — plan validé, à exécuter plus tard (avant déménagement NCHPG/2027).** Objectif : bascule secteurs en quelques minutes dans un onglet, pas de hardcode. Constat : la config secteurs est **triplée et non synchronisée** — `admin.html` (`SECTEURS_CFG`, source riche), `index.html` (copie en dur `_SECTOR_BASE` + `SECLABELS`), `gas/code.gs` (`CS_TEMPLATE` par jour + règles CI→RI/`csAmRules`). `staff.html` n'a pas de secteurs. **Périmètre décidé : complet** (définitions + consultations). **On ne modélise PAS encore les secteurs NCHPG** — on construit le mécanisme rempli à l'identique de l'existant ; la bascule sera une simple édition d'onglet.
   - **Schéma validé — onglet `SECTEURS`** (1 ligne/secteur) : `ORDRE | CODE | LABEL | COURT | AFF | ICON | BG | FG | CS | ACTIF`.
   - **Schéma validé — onglet `CS_TEMPLATE`** (1 ligne/créneau conso) : `JOUR(1-5) | DEMI(AM/PM) | SECTEUR_AFFIL | CODE_CS | NB`.
