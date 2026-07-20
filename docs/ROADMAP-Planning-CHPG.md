@@ -168,11 +168,6 @@ pour éviter tout biais de confirmation). Conclusions :
 - [ ] Picker **manuel** des consult libérales endo : filtrer/avertir sur la présence N+1 (aujourd'hui seule la rotation auto le fait).
 - [ ] Corriger un libellé hérité dans l'assistant Départ (« onglet Modifications de comite.html », page inexistante).
 - [ ] Généraliser SW/icônes locales aux autres points d'entrée (index, admin…) pour que l'install profite partout.
-- [ ] 🔐 **Limiter les tentatives de connexion (anti-force brute)** — `checkCode()` accepte aujourd'hui
-  un nombre **illimité** d'essais, sans délai ni compteur. Le risque réel reste faible (URL `/exec` non
-  publiée, codes 8 caractères sur alphabet de 32 ≈ 1 100 milliards de combinaisons), mais la protection
-  est absente. Piste retenue : temporisation courte sur échec + compteur par IP en `CacheService`.
-  **À traiter après confirmation en production de `resetCodeMar`** (les deux touchent la gestion des codes).
 - [ ] *(Sécurité, à l'appréciation d'Arthur)* rotation du token GitHub.
 
 ### Pour 2027 (déménagement) — **prérequis du module libéral**
@@ -184,3 +179,8 @@ pour éviter tout biais de confirmation). Conclusions :
 ## 🚫 Écarté (ne pas reproposer)
 - `config.html` (couvert par les onglets d'admin.html).
 - Optimisation perf du JSON (déjà minifié + gzip).
+- **Protection anti-force-brute sur `checkCode()`** — étudiée puis **écartée le 20/07/2026**, décision d'Arthur, après chiffrage. Ne pas reproposer sans élément nouveau. Trois raisons :
+  1. **Le brute-force exhaustif est déjà hors de portée.** 32⁸ ≈ 1 100 milliards de combinaisons ; Apps Script plafonne à 30 exécutions simultanées et chaque tentative lit deux onglets (~50 essais/s au mieux) → **~350 ans** pour parcourir la moitié de l'espace. Aucune protection supplémentaire ne change cet ordre de grandeur.
+  2. **Un disjoncteur global couperait le service.** `checkCode()` n'est PAS appelé qu'au login : il tourne à **chaque requête**, pour les 50 actions de `doGet`. Bloquer les tentatives au-delà d'un seuil aurait rendu l'outil indisponible pour les 23 MARs — un attaquant coupait le service avec 30 essais ratés, sans jamais trouver de code. Piège identifié en cours d'implémentation.
+  3. **`Utilities.sleep()` aggrave le quota.** Le temps d'attente compte dans le temps d'exécution Apps Script : une temporisation censée protéger le quota l'épuise plus vite sous charge.
+  - *(Note : la piste « compteur par IP » évoquée lors de l'audit initial était de toute façon irréalisable — Apps Script ne donne pas accès à l'IP du client.)*
