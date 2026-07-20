@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-07-20.4';
+const GAS_VERSION_CODE = '2026-07-20.5';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 function buildStats2026() {
@@ -896,12 +896,21 @@ function generatePlanningFromGardes(year) {
         result[doc.id][dayIdx].morning   = secteur;
         result[doc.id][dayIdx].afternoon = secteur;
       });
-// ── 3a-bis. Secteur interventionnel : le MAR affecté CI bascule en RI
-      // le JEUDI matin (jeudi = radio inter). L'après-midi reste CI → consult CS-INTER.
+// ── 3a-bis. Secteur interventionnel, le JEUDI ────────────────────
+      // MATIN  : le MAR affecté CI bascule en RI (jeudi = radio interventionnelle).
+      // APRÈS-MIDI : il n'y a JAMAIS de bloc cardio le jeudi. Le code le laissait
+      // pourtant en 'CI' « pour justifier la consult CS-INTER » — ce qui affichait
+      // quelqu'un dans un bloc fermé (corrigé 07/2026). Il fait sa consultation,
+      // il ne peut pas être au bloc en même temps : on vide le secteur de ce
+      // demi-jour. Une valeur vide est ignorée au rendu → aucune ligne de bloc.
       if (dow === 4) {
         presentsPool.forEach(doc => {
-          if (getSecteur(doc.id) === 'CI' && result[doc.id][dayIdx].morning === 'CI') {
+          if (getSecteur(doc.id) !== 'CI') return;
+          if (result[doc.id][dayIdx].morning === 'CI') {
             result[doc.id][dayIdx].morning = 'RI';
+          }
+          if (result[doc.id][dayIdx].afternoon === 'CI') {
+            result[doc.id][dayIdx].afternoon = '';
           }
         });
       }
