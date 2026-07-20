@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-19.3';
+const GAS_VERSION_INDISPOS = '2026-07-20.1';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -995,6 +995,39 @@ function doGet(e) {
   logAction('DEBUG yearToGenerate=' + yearToGenerate);
   if (yearToGenerate === 2026) return _error('Génération désactivée — GARDES_2026 est sanctuarisé');
 if (yearToGenerate === 2026) return _error('Génération désactivée — GARDES_2026 est sanctuarisé');
+      // ── (W2-R) Garde d'idempotence — même principe que archiveYear (15/07/2026).
+      // Cas visé : la génération a RÉUSSI côté serveur mais la réponse s'est
+      // perdue (réseau, onglet fermé, veille) → au réessai, generateGardes()
+      // lèverait « GARDES_{Y} existe déjà — supprimez d'abord l'onglet », un
+      // message que l'utilisateur pourrait suivre et DÉTRUIRE un planning valide.
+      // Ici : si l'année est déjà générée ET cohérente, on ne régénère pas, on
+      // renvoie les stats existantes et le wizard enchaîne sur publication/récaps.
+      // Le verrou de generateGardes() reste intact (appel direct depuis l'éditeur).
+      {
+        const ssChk = SpreadsheetApp.getActiveSpreadsheet();
+        const gChk = ssChk.getSheetByName(`GARDES_${yearToGenerate}`);
+        const sChk = ssChk.getSheetByName(`STATS_GARDES_${yearToGenerate}`);
+        // Cohérence stricte : les DEUX onglets présents et STATS non vide
+        // (au moins une ligne de données sous l'en-tête). Sinon → génération
+        // réellement incomplète : on laisse le flux normal remonter l'erreur.
+        if (gChk && sChk && sChk.getLastRow() > 1) {
+          const dChk = sChk.getDataRange().getValues();
+          const statsChk = [];
+          for (let r = 1; r < dChk.length; r++) {
+            if (!dChk[r][0]) continue;
+            statsChk.push({medecin:dChk[r][0], cible:dChk[r][1], total:dChk[r][2],
+              g:dChk[r][3], g2:dChk[r][4], lun:dChk[r][5], mar:dChk[r][6], mer:dChk[r][7],
+              jeu:dChk[r][8], ven:dChk[r][9], sat:dChk[r][10], dim:dChk[r][11],
+              recupR:dChk[r][12], h18:dChk[r][13],
+              jf:dChk[r][14], vjf:dChk[r][15], vd:dChk[r][20], cSat:dChk[r][17],
+              cJeu:dChk[r][18], cVd:dChk[r][19], cVjf:dChk[r][21]});
+          }
+          logAction(`generateGardes — ${yearToGenerate} déjà générée : reprise sans régénération (${statsChk.length} MARs)`);
+          return ContentService.createTextOutput(JSON.stringify({
+            success: true, alreadyDone: true, stats: statsChk
+          })).setMimeType(ContentService.MimeType.JSON);
+        }
+      }
 try {
   generateGardes(yearToGenerate);
   generatePlanning(yearToGenerate);
