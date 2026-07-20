@@ -6172,11 +6172,27 @@ function previewCodes() {
 }
 
 async function sendCodes() {
-  if (!confirm('Envoyer les codes d\'accès à tous les MARs avec email ?\nLes anciens codes seront invalidés.')) return;
+  if (!confirm('Renvoyer leur code ACTUEL par email à tous les MARs actifs ?\nLes codes ne sont pas modifiés.')) return;
   try {
     const data = await api({action: 'sendCodes'});
     if (!data.success) throw new Error(data.error);
-    toast(`✅ Codes envoyés à ${data.sent} MARs`, 'success');
+    const nonServis = [].concat(data.sansEmail || [], data.sansCode || []);
+    toast(`✅ ${data.sent} code${data.sent>1?'s':''} envoyé${data.sent>1?'s':''}`
+      + (nonServis.length ? ` · ${nonServis.length} non servi${nonServis.length>1?'s':''}` : ''),
+      nonServis.length ? 'error' : 'success');
+    // Les MAR non servis sont NOMMÉS : un compteur seul laisserait croire que tout est parti.
+    if (nonServis.length || (data.errors && data.errors.length)) {
+      let msg = `${data.sent} code(s) envoyé(s).\n`;
+      if (data.sansEmail && data.sansEmail.length)
+        msg += `\n${data.sansEmail.length} sans email (renseigner l'email dans l'onglet Équipe) :\n• `
+             + data.sansEmail.join('\n• ') + '\n';
+      if (data.sansCode && data.sansCode.length)
+        msg += `\n⚠️ ${data.sansCode.length} SANS CODE — anomalie, utiliser le bouton 🔄 de leur ligne :\n• `
+             + data.sansCode.join('\n• ') + '\n';
+      if (data.errors && data.errors.length)
+        msg += `\n${data.errors.length} échec(s) d'envoi :\n• ` + data.errors.join('\n• ');
+      alert(msg);
+    }
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
   }
