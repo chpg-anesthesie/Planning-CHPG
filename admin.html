@@ -878,6 +878,23 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 }
 .slot-pair { display: grid; grid-template-columns: 1fr 1fr; height: 100%; }
 .slot-dash { color: var(--ink-4); font-size: 12px; text-align: center; margin-top: 4px; }
+/* ── AJOUT LIBRE (07/2026) ────────────────────────────────────────────
+   Avant, le « + » orange était le SEUL point d'entrée pour placer quelqu'un :
+   impossible d'ajouter un MAR sur une case sans écart détecté, ni sur une case
+   déjà occupée. On sépare donc le SIGNAL (flash orange = un MAR affecté est
+   absent) de l'ACTION (ajouter, possible partout).
+   Le « + » d'ajout est gris et n'apparaît qu'au SURVOL de la case : au repos
+   l'écran reste identique à avant, seules les vraies alertes attirent l'œil. */
+.slot-add {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:20px; min-height:18px; border-radius:4px; font-size:13px;
+  border:1.5px dashed #CBD5E1; background:transparent; color:#94A3B8;
+  cursor:pointer; opacity:0; transition:opacity .12s;
+}
+.slot:hover .slot-add { opacity:1; }
+.slot-add:hover { background:#F1F5F9; border-color:#94A3B8; color:#475569; }
+.slot-dash.slot-dash-click { cursor:pointer; }
+.slot:hover .slot-dash.slot-dash-click { color:#64748B; text-decoration:underline dotted; }
 .chip-guard { background: #EFF6FF; color: #1D4ED8; }
 .chip-h18   { background: #F0FDF4; color: #166534; }
 .th-sector {
@@ -2739,7 +2756,18 @@ function renderWeek() {
     for (let i = 0; i < flash; i++) {
       html += `<span class="slot-flash" onclick="openSidePanel('${sector}','${date}','${sectorLabel}','${slotKey}')">+</span>`;
     }
-    if (!items.length && !flash) html += '<span class="slot-dash">—</span>';
+    // Case vide sans écart : le tiret devient cliquable (c'était une impasse).
+    if (!items.length && !flash) {
+      html += `<span class="slot-dash slot-dash-click" title="Placer un MAR"`
+            + ` onclick="openSidePanel('${sector}','${date}','${sectorLabel}','${slotKey}')">—</span>`;
+    }
+    // Ajout libre : « + » gris au survol, MÊME si la case est déjà occupée.
+    // Pas affiché quand un « + » orange est déjà là (il fait déjà le travail),
+    // ni sur une case volontairement laissée vide (traitée plus haut, qui sort).
+    if (!flash) {
+      html += `<span class="slot-add" title="Ajouter un MAR"`
+            + ` onclick="openSidePanel('${sector}','${date}','${sectorLabel}','${slotKey}')">+</span>`;
+    }
     return html;
   }
   function makeCsSlot(items, flash, type, label, date, slotKey) {
