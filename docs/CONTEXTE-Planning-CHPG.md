@@ -23,14 +23,14 @@ Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`.
 - **Versionner chaque `.gs` poussé** : incrémenter la constante `GAS_VERSION_*` en tête du fichier à chaque push — le 🔍 Diagnostic compare dépôt vs déployé et signale les recopies oubliées.
 
 ## Structure du dépôt (rangé)
-- **Racine** : les `.html` (dont `dashboard.html` — coquille portail en cours, projet dédié en parallèle), `manifest.webmanifest` (PWA, doit rester racine — `scope`/`start_url`), `CONTEXTE-Planning-CHPG.md`.
+- **Racine** : les `.html` (`index.html`, `admin.html`, `staff.html`, `indispos.html`, `dashboard.html`, `crh.html`), `manifest.webmanifest` (PWA, doit rester racine — `scope`/`start_url`), `sw.js`.
 - **`assets/`** : `favicon.svg`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`. Référencés par les `<link>` des HTML et par le manifest (`assets/icon-*.png`).
-- **`docs/`** : `module_liberal_conception.md` (conception du futur module libéral).
-- **`gas/`** : les 4 fichiers Apps Script + `README.md`.
+- **`docs/`** : la documentation vivante — `CONTEXTE-Planning-CHPG.md` (ce fichier) et `ROADMAP-Planning-CHPG.md` ; guides `guide-technique.html` (référence interne : architecture, wizards, déploiement, dépannage), `guide-comite.html`, `guide-mar.html`, `guide-algo-gardes.html`, `guide-liberal.html` ; `reprise.md` (continuité : propriété, accès, sauvegardes) ; `VEILLE_CFG-mode-emploi.md` ; présentations staff ; `module-liberal/` (conception, antisèche cotation, estimateur).
+- **`gas/`** : les **5** fichiers Apps Script (`code.gs`, `Indispos.gs`, `generateur_gardes.gs`, `setup_annee.gs`, `portail.gs`) + `README.md`.
 - **`simulateur/`** : batterie de tests Python (non-régression de l'algo) + `experiences/`.
 
 ## Architecture
-Google Sheets (onglets clés : `MEDECINS`, `CONFIG`, `HISTORIQUE`, `GARDES_{Y}`, `STATS_GARDES_{Y}`, `AFFECTATIONS_{Y}`, `INDISPOS_{Y}`, `PLANNING_OVERRIDES`, `LOGS`, `CONNEXIONS`) → **4 fichiers GAS** → **web app Apps Script** (`API_URL` `/exec`) → **GitHub Pages** (les HTML).
+Google Sheets (onglets clés : `MEDECINS`, `CONFIG`, `HISTORIQUE`, `GARDES_{Y}`, `STATS_GARDES_{Y}`, `AFFECTATIONS_{Y}`, `INDISPOS_{Y}`, `PLANNING_OVERRIDES`, `LOGS`, `CONNEXIONS`) → **5 fichiers GAS** → **web app Apps Script** (`API_URL` `/exec`) → **GitHub Pages** (les HTML).
 
 **Données de planning servies depuis le Drive PRIVÉ** (confidentialité) : `planning_{Y}.json` et `affectations_{Y}.json` (et `stats_{Y}.json` des archives) vivent dans le dossier Drive **`Planning-CHPG-JSON`**, écrits par `generatePlanning()` via `savePlanningToDrive()` et lus via les actions API `getPlanningJson` / `getAffectationsJson` (plus de fichier statique sur Pages). **Conséquence** : une année N+1 n'apparaît dans le sélecteur admin que si `affectations_{N+1}.json` existe dans le Drive (= planning publié) — avoir seulement l'onglet `GARDES_{N+1}` ne suffit pas ; si un contrôle échoue alors que les onglets existent, **republier** l'année (admin → sélectionner l'année → ⬆️ Publier, qui relance `generatePlanning`).
 **Piège Drive résolu (07/2026)** : Drive autorise des **doublons** de fichier/dossier de même nom. `readPlanningFromDrive`/`savePlanningToDrive` ciblent désormais le fichier **le plus récent** (dans tout dossier `Planning-CHPG-JSON`) et l'écriture **dédoublonne** (anciens → corbeille). Fonction de diagnostic **`diagDriveJson()`** (à lancer dans Apps Script) : liste dossiers/fichiers, dates, tailles et nombre de gardes par copie. Un W3 qui bloquait « planning N+1 non généré » alors que le JSON avait des gardes venait d'une **copie périmée lue** — corrigé.
@@ -75,6 +75,39 @@ Cycle annuel = 3 assistants dans admin.html, **tous testés en réel** :
   - **Schéma validé — onglet `CS_TEMPLATE`** (1 ligne/créneau conso) : `JOUR(1-5) | DEMI(AM/PM) | SECTEUR_AFFIL | CODE_CS | NB`.
   - **Workflow d'exécution** (après synchro des 4 `.gs`), chaque étape validée avant la suivante, **repli systématique sur les valeurs actuelles** à chaque étape (jamais de casse) : (1) `setupSecteursTab()` GAS — crée+remplit les 2 onglets à l'identique, idempotente ; (2) lecteur GAS `getSecteursConfig()` (caché) + injection d'un bloc `secteurs` dans les JSON publiés + action API `getSecteursConfig` ; contrôle non-régression = JSON identique + ce bloc ; (3) `admin.html` lit la config au chargement (repli sur `SECTEURS_CFG` actuel si l'API échoue) ; (4) `index.html` consomme le bloc `secteurs` du JSON au lieu de ses copies en dur. Bascule 2027 = éditer l'onglet (nouveaux codes BLOC CENTRAL, anciens en `ACTIF=N`), regénérer. La bascule CI→RI restera du code paramétré (logique, pas donnée).
 - **Module libéral** (règle des 30 %, voir `docs/module_liberal_conception.md`).
+
+## Robustesse — invariants acquis (audit des 19–20/07/2026)
+
+Cinq axes éprouvés (cycle de vie RH, charge, concurrence, résilience, continuité).
+Détail dans `ROADMAP-Planning-CHPG.md`. Ce qu'il faut **savoir avant de coder** :
+
+- **Un MAR actif a toujours ses lignes annuelles.** `ensureMarRows()` (dans `Indispos.gs`) est
+  appelée par `saveMedecin` à chaque création **et réactivation** : elle crée les lignes manquantes
+  dans `INDISPOS_{Y}`, `GARDES_{Y}` et `AFFECTATIONS_{Y}` (année active + suivantes). Idempotente,
+  n'écrase rien. Ne plus supposer qu'un MAR présent dans `MEDECINS` existe dans les onglets annuels
+  *sans* être passé par là — c'était la cause d'échecs **silencieux** (saisie d'indispos, dons,
+  affectations). Positions à respecter : MARs dès la **ligne 4** (INDISPOS/GARDES), **ligne 2**
+  (AFFECTATIONS).
+- **Les absences longues sont réversibles.** `annulerAbsenceLongue` annule ou raccourcit
+  (`nouvelleFin`) : efface **uniquement** les cases valant exactement `CL`, met à jour ou supprime
+  la ligne du registre `ABSENCES_LONGUES` — sans quoi `initYear` rejouait l'absence sur les années
+  futures. Les gardes libérées à la pose ne sont **pas** restaurées (don/échange manuel).
+- **La dette d'équité est pondérée par la présence réelle.** La part juste de N-1 se calcule à
+  partir des **colonnes `CIBLE*` du snapshot `STATS_GARDES_{N-1}`** (déjà pro-ratées par
+  `structAvail()` : arrivée/départ, CL, TP, no_weekend), plus au prorata de la seule quotité.
+  Invariants préservés : `Σ dette = 0` par axe, résultat identique à l'ancienne formule quand tout
+  le monde est présent toute l'année, repli automatique si les cibles manquent. Le snapshot écrit
+  désormais **23 colonnes** (ajout de `CIBLE JF`). **Ne jamais dériver la dette des réels seuls.**
+- **Les écritures sont sérialisées.** `WRITE_ACTIONS_LOCK` (en tête de `Indispos.gs`) liste les
+  **22 actions d'écriture** ; le point d'entrée prend `LockService.getScriptLock()` (20 s) avant de
+  router. **Toute nouvelle action qui écrit doit être ajoutée à ce Set.** Les lectures n'en prennent
+  jamais (fluidité du dashboard). Pas de `releaseLock` explicite : Google libère en fin d'exécution.
+- **Reprise des wizards.** Les étapes réussies ne sont pas rejouées ; `initYear` refuse d'écraser,
+  `archiveYear` et `generateGardes` détectent « déjà fait » et renvoient un succès (avec les stats
+  pour la génération) au lieu d'une erreur. Le verrou anti-régénération de `generateGardes()` reste
+  intact pour les appels directs depuis l'éditeur : **ne jamais le contourner**.
+- **Charge** : marge ×3 sur la limite des 30 exécutions simultanées au pic réaliste — pas
+  d'optimisation nécessaire (ne pas reproposer de cache serveur).
 
 ## Pour retrouver le contexte détaillé
 Tu disposes d'une **mémoire** de nos sessions et des **transcripts** dans `/mnt/transcripts/` (voir `journal.txt` pour le catalogue). Consulte-les si tu as besoin d'un détail précis (code exact, décisions passées).
