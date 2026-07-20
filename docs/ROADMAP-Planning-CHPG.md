@@ -372,6 +372,32 @@ consultation, il ne peut pas être au bloc.
 
 ## 🔜 À faire
 
+### ⏳ EN ATTENTE DE TEST — 4 recopies Apps Script (au 20/07/2026, 20 h)
+
+Rien n'a été testé après ces pushs : Arthur n'avait plus accès à son PC. **À faire avant toute
+nouvelle livraison**, et de préférence une par une pour savoir laquelle casse en cas de souci.
+
+| Fichier | Version dépôt | Apporte |
+|---|---|---|
+| `gas/code.gs` | `2026-07-20.5` | nouveaux secteurs acceptés (`normalizeAffectation`) **+** jeudi après-midi sans bloc cardio |
+| `gas/portail.gs` | `2026-07-20.2` | colonnes `XL_*` dans l'onglet SECTEURS (migration auto) |
+| `gas/setup_annee.gs` | `2026-07-20.1` | `organiserOnglets()` — rangement du classeur |
+| `gas/Indispos.gs` | `2026-07-20.6` | emails (modèle unique, quota, `skipped` nominatif) |
+
+Frontend déjà en ligne, à vérifier au même moment : cases cliquables partout (v1.6.1), légende
+et libellés dérivés de l'onglet, export Excel (DVI, impression, gardes, absences, annuaire, fusions).
+
+### ⬜ Les 2 derniers maillons du chantier secteurs
+
+- [ ] **Légende de l'onglet Affectations** (`admin.html` ~4080) : `legendOrder` est encore une liste
+  figée `['VIS','REA','ORT','ORL','END','CI','RI','MAT','VOLANT']` → un secteur créé ne s'y affiche
+  pas. Même défaut que celui corrigé dans `index.html` le 20/07 — corrigé d'un côté seulement.
+- [ ] **Export Excel piloté par l'onglet** : `BLOCS`, `SX` (et `CSROWS` pour les consultations)
+  restent en dur dans `admin.html`. Les colonnes `XL_LABEL` / `XL_BG` / `XL_ROWS` existent déjà côté
+  GAS pour ça — il ne reste qu'à les consommer. ⚠️ `CSROWS` utilise des sous-codes (`URO`, `OPH`,
+  `INTER`) qui n'existent ni dans SECTEURS ni dans CS_TEMPLATE : correspondance à établir.
+
+
 ### Axes de développement (un fil de conversation chacun)
 
 - [ ] 🔬 **Module libéral (règle des 30 % par axe)** — le plus gros morceau. Voir `docs/module-liberal/module_liberal_conception.md`.
