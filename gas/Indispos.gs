@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-20.2';
+const GAS_VERSION_INDISPOS = '2026-07-20.3';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -860,7 +860,7 @@ function _buildOverrides_() {
 // à la fin de chaque exécution.
 const WRITE_ACTIONS_LOCK = new Set([
   'addMedecinToGroupe', 'annulerAbsenceLongue', 'applyModification',
-  'applyRotationLib', 'archiveYear', 'clearIndisposYear', 'deleteOverride',
+  'archiveYear', 'clearIndisposYear', 'deleteOverride',
   'generateGardes', 'initYear', 'poserAbsenceLongue', 'publishPlanning',
   'saveAffectations', 'saveAffectationsMar', 'saveConfig', 'saveGroupes',
   'resetCodeMar',
@@ -2436,36 +2436,6 @@ if (action === 'savePlanningOverride') {
   }
 }
 
-// ── ACTION : applyRotationLib (rotation consultations libérales endo) ──
-if (action === 'applyRotationLib') {
-  if (user.role !== 'admin') return _deny();
-  const year = Number(payload.year) || TEST_YEAR;
-  const assignments = Array.isArray(payload.assignments) ? payload.assignments : [];
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName('PLANNING_OVERRIDES');
-  if (!sheet) {
-    sheet = ss.insertSheet('PLANNING_OVERRIDES');
-    sheet.getRange(1,1,1,5).setValues([['DATE','MAR_ID','MATIN','APREM','COMMENTAIRE']]);
-    sheet.getRange(1,1,1,5).setFontWeight('bold');
-  }
-  const data = sheet.getDataRange().getValues();
-  // 1) retirer les anciennes lignes de rotation (tag ROT-LIB), du bas vers le haut
-  for (let r = data.length - 1; r >= 1; r--) {
-    if (String(data[r][4]).trim() === 'ROT-LIB') sheet.deleteRow(r + 1);
-  }
-  // 2) écrire les nouvelles attributions : 1 MAR / date, consult endo l'après-midi
-  const add = assignments
-    .filter(a => a && a.date && a.marId)
-    .map(a => [String(a.date), String(a.marId).toUpperCase(), '', 'CS-END', 'ROT-LIB']);
-  if (add.length) {
-    sheet.getRange(sheet.getLastRow() + 1, 1, add.length, 5).setValues(add);
-  }
-  // 3) republier le planning
-  try { generatePlanning(year); } catch(e) { Logger.log('applyRotationLib generatePlanning: ' + e.message); }
-  logAction(`applyRotationLib ${year} — ${add.length} créneaux libéraux endo`);
-  return ContentService.createTextOutput(JSON.stringify({ success: true, count: add.length }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
 
 // ── ACTION : validerSemaine ───────────────────────────────────────────
 // Valide ou dévalide une semaine → mise à jour SEMAINES_VALIDEES + push JSON
