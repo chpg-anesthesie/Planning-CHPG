@@ -1,7 +1,112 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_SETUP = '2026-07-17.1';
+const GAS_VERSION_SETUP = '2026-07-20.1';
+
+
+// ══════════════════════════════════════════════════════════════════════
+//  RANGEMENT DES ONGLETS  (one-shot, réversible)
+// ══════════════════════════════════════════════════════════════════════
+// 22 onglets, c'est beaucoup pour s'y retrouver. On les range en 4 familles,
+// on les colore, et on MASQUE ceux que personne n'édite à la main.
+//
+// ⚠️ Masquer ne casse RIEN : getSheetByName() lit et écrit un onglet masqué
+// exactement comme un onglet visible. Aucun code n'est concerné.
+// Pour tout revoir : menu Affichage ▸ Feuilles masquées, ou lancer
+// afficherTousLesOnglets().
+//
+// Un onglet absent est simplement ignoré (pas d'erreur).
+
+// Ordre + couleur. Les onglets ANNUELS (GARDES_2026…) sont insérés
+// automatiquement après cette liste, du plus récent au plus ancien.
+const _ONGLETS_PLAN = [
+  // ── Configuration courante — bleu foncé
+  { n:'CONFIG',             c:'#1D4ED8' },
+  { n:'MEDECINS',           c:'#1D4ED8' },
+  { n:'SECTEURS',           c:'#1D4ED8' },
+  { n:'CS_TEMPLATE',        c:'#1D4ED8' },
+  { n:'ANNUAIRE',           c:'#1D4ED8' },
+  // ── Configuration annuelle (staff d'octobre) — bleu clair
+  { n:'GROUPES_VAC',        c:'#60A5FA' },
+  { n:'PERIODES_VAC',       c:'#60A5FA' },
+  { n:'CONFIG_CONGES',      c:'#60A5FA' },
+  { n:'CONFIG_TRANSITION',  c:'#60A5FA' },
+  // ── Contenu du portail — violet
+  { n:'VEILLE_CFG',         c:'#7E22CE' },
+  { n:'STAFFS',             c:'#7E22CE' },
+  // ── Technique mais consultable en dépannage — orange (VISIBLE)
+  { n:'PLANNING_OVERRIDES', c:'#C2410C' },
+];
+
+// Écrits et lus par le code seul : masqués.
+const _ONGLETS_MASQUES = [
+  'SEMAINES_VALIDEES', 'ABSENCES_LONGUES', 'HISTORIQUE',
+  'VEILLE', 'LOGS', 'CONNEXIONS',
+];
+
+const _ONGLET_ANNUEL_RE = /^(GARDES|INDISPOS|AFFECTATIONS|STATS_GARDES)_(\d{4})$/;
+
+function organiserOnglets() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const toutes = ss.getSheets();
+
+  // 1) Tout afficher d'abord : un onglet masqué ne peut pas être déplacé.
+  toutes.forEach(function (sh) { try { sh.showSheet(); } catch (e) {} });
+
+  // 2) Onglets annuels, groupés par année décroissante (l'année en cours en tête).
+  const annuels = [];
+  toutes.forEach(function (sh) {
+    const m = _ONGLET_ANNUEL_RE.exec(sh.getName());
+    if (m) annuels.push({ n: sh.getName(), an: Number(m[2]), fam: m[1] });
+  });
+  const ordreFam = { GARDES:1, INDISPOS:2, AFFECTATIONS:3, STATS_GARDES:4 };
+  annuels.sort(function (a, b) {
+    return (b.an - a.an) || ((ordreFam[a.fam] || 9) - (ordreFam[b.fam] || 9));
+  });
+
+  // 3) Ordre final : plan → annuels (vert) → masqués (gris)
+  const plan = _ONGLETS_PLAN.slice();
+  annuels.forEach(function (x) { plan.push({ n: x.n, c: '#166534' }); });
+  _ONGLETS_MASQUES.forEach(function (n) { plan.push({ n: n, c: '#9CA3AF', cacher: true } ); });
+
+  let pos = 0, rangés = 0, cachés = 0;
+  const absents = [];
+  plan.forEach(function (item) {
+    const sh = ss.getSheetByName(item.n);
+    if (!sh) { absents.push(item.n); return; }
+    pos++;
+    ss.setActiveSheet(sh);
+    ss.moveActiveSheet(pos);
+    try { sh.setTabColor(item.c); } catch (e) {}
+    rangés++;
+    if (item.cacher) { try { sh.hideSheet(); cachés++; } catch (e) {} }
+  });
+
+  // 4) Tout onglet non prévu reste visible, à la fin, sans couleur imposée.
+  const prévus = {};
+  plan.forEach(function (i) { prévus[i.n] = true; });
+  const orphelins = ss.getSheets().map(function (s) { return s.getName(); })
+                      .filter(function (n) { return !prévus[n]; });
+
+  ss.setActiveSheet(ss.getSheets()[0]);
+  Logger.log('✅ ' + rangés + ' onglet(s) rangé(s), ' + cachés + ' masqué(s).');
+  Logger.log('   Visibles : ' + (rangés - cachés + orphelins.length));
+  if (absents.length)   Logger.log('   ℹ️ Prévus mais absents : ' + absents.join(', '));
+  if (orphelins.length) Logger.log('   ⚠️ Non prévus, laissés à la fin : ' + orphelins.join(', '));
+  Logger.log('   Pour tout revoir : afficherTousLesOnglets()');
+  return rangés;
+}
+
+// Réaffiche TOUS les onglets (annule le masquage, garde l'ordre et les couleurs).
+function afficherTousLesOnglets() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let n = 0;
+  ss.getSheets().forEach(function (sh) {
+    if (sh.isSheetHidden()) { sh.showSheet(); n++; }
+  });
+  Logger.log('✅ ' + n + ' onglet(s) réaffiché(s) — ' + ss.getSheets().length + ' au total.');
+  return n;
+}
 
 // ═══ Détection du "concept" d'une période d'après son nom ═══
 function conceptDe(s){
