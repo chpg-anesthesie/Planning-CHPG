@@ -482,6 +482,24 @@
     <li>Cocher les MAR concernés (par défaut, tous les MAR actifs le sont). Boutons « Tout cocher » / « Tout décocher » et compteur de sélection.</li>
     <li>Cliquer « Envoyer aux MARs sélectionnés » : chacun reçoit son code individuel par email.</li>
   </ol>
+  <p><strong>Cet envoi ne change aucun code</strong> : il se contente de rappeler par email le code déjà en place. C'est le bon geste quand quelqu'un a simplement égaré son email.</p>
+
+  <h3>13.3 · 🔄 Donner un nouveau code à un MAR</h3>
+  <p>Pour <strong>remplacer</strong> le code d'un MAR — code vu par d'autres, départ d'un remplaçant, doute sur sa confidentialité — utiliser le bouton <span class="btn-ex">🔄</span> sur sa ligne dans l'onglet Équipe.</p>
+  <ol class="steps">
+    <li>Cliquer <span class="btn-ex">🔄</span> sur la ligne du MAR, puis confirmer.</li>
+    <li>Un nouveau code est tiré au sort et remplace l'ancien.</li>
+    <li>Le MAR reçoit ce nouveau code par email.</li>
+  </ol>
+  <div class="callout warn">
+    <div class="ct">L'ancien code meurt immédiatement</div>
+    <div>Dès la confirmation, l'ancien code ne fonctionne plus. Le MAR ne pourra plus se connecter tant qu'il n'aura pas lu son email. À n'utiliser que sur demande ou après avoir prévenu la personne.</div>
+  </div>
+  <div class="callout tip">
+    <div class="ct">Si l'email ne part pas</div>
+    <div>Le code a malgré tout été changé. Un message affiche alors <strong>le nouveau code à l'écran</strong> : notez-le et transmettez-le en main propre. Il est aussi tracé dans le journal des actions (onglet des logs), qui ne conserve que les 500 dernières lignes — ne remettez donc pas à plus tard.</div>
+  </div>
+  <p>Un MAR <strong>sans email</strong> ne peut pas voir son code changé : le bouton refuse l'opération avant toute modification, pour ne pas l'enfermer dehors.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
@@ -524,7 +542,7 @@
   </div>
   <div class="faq">
     <div class="q">« Un MAR n'arrive pas à se connecter / n'a pas reçu son code. »</div>
-    <div class="a">Onglet Maintenance → vérifier au diagnostic qu'il a bien un email et un code, corriger dans l'onglet Équipe si besoin, puis « Renvoyer les codes » en le sélectionnant.</div>
+    <div class="a">Onglet Maintenance → vérifier au diagnostic qu'il a bien un email et un code, corriger dans l'onglet Équipe si besoin, puis « Renvoyer les codes » en le sélectionnant : il recevra son code actuel, inchangé. Si son code doit au contraire être <em>remplacé</em> (il a été vu par d'autres), utiliser le bouton 🔄 de sa ligne dans l'onglet Équipe — chapitre 13.3.</div>
   </div>
   <div class="faq">
     <div class="q">« La génération des gardes semble injuste pour quelqu'un. »</div>
