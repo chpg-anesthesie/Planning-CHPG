@@ -1681,6 +1681,20 @@ async function loadSecteurs() {
     if (Array.isArray(arr) && arr.length >= 1) { SECTEURS_CFG = arr; rebuildSecteursDerivations(); }
   } catch(e) { /* fallback : SECTEURS_CFG en dur conservé */ }
 }
+
+// Consultations depuis l'onglet CS_TEMPLATE (getCsTemplate). Alimente les 3 tables.
+// Repli silencieux sur les valeurs en dur si l'onglet est illisible.
+// Garde-fou : on n'écrase QUE si la réponse est exploitable (au moins un type actif),
+// sinon un onglet vidé par erreur ferait disparaître toutes les consultations.
+async function loadCsTemplate() {
+  try {
+    const t = await api({action:'getCsTemplate'});
+    if (!t || !Array.isArray(t.types) || !t.types.length || !t.required) return;
+    CS_TYPES    = t.types.map(x => ({code:x.code, label:x.label || x.code}));
+    CS_OPENABLE = t.types.filter(x => x.ouvrable).map(x => x.code);
+    CS_REQUIRED = t.required;
+  } catch(e) { /* fallback : tables en dur conservées */ }
+}
 const DAYS_FR = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
 // INITIALS_MAP construit dynamiquement depuis marsData (chargé via API)
 function getInitials(id) { const m = marsData.find(x => x.id === id); return m ? m.initiales : id; }
@@ -2216,6 +2230,7 @@ async function initDashboard() {
   { const vb = document.getElementById('verBadge'); if (vb) vb.textContent = SITE_VERSION; }
   await new Promise(r => setTimeout(r, 50));
   await loadSecteurs();            // secteurs depuis l'onglet SECTEURS (fallback = SECTEURS_CFG en dur)
+  await loadCsTemplate();          // consultations depuis l'onglet CS_TEMPLATE (fallback = tables en dur)
   ADMIN_YEAR = YEAR;
   // (perf) BOOTSTRAP : un SEUL aller-retour GAS livre planning + affectations + médecins
   // + overrides. Repli automatique sur les appels unitaires si le GAS déployé ne connaît
@@ -2350,7 +2365,22 @@ function getWeekDays(weekNum) {
 // GLOBAL depuis 07/2026 : utilisé par renderWeek() ET par exportWeekExcel() (fusion
 // des cases quand un seul créneau est prévu). Une seule table, pas de copie.
 // (Sera remplacé par l'onglet CS_TEMPLATE lors du chantier secteurs étape 2.)
-const CS_REQUIRED = {
+// ── CONSULTATIONS : source unique = onglet CS_TEMPLATE ────────────────
+// Les 3 tables ci-dessous sont les valeurs de REPLI. loadCsTemplate() les
+// remplace au chargement par le contenu de l'onglet. Si l'onglet est illisible
+// (réseau, GAS pas recopié), on garde ces valeurs : jamais bloquant.
+// Éditer l'onglet suffit donc à ouvrir/fermer un créneau — sans toucher au code.
+let CS_TYPES = [
+  {code:'CS-VIS',   label:'CS Viscéral'},
+  {code:'CS-END',   label:'CS Endoscopies'},
+  {code:'CS-ORL',   label:'CS ORL'},
+  {code:'CS-ORT',   label:'CS Orthopédie'},
+  {code:'CS-MAT',   label:'CS Maternité'},
+  {code:'CS-POLY',  label:'CS Polyvalente'},
+  {code:'CS-INTER', label:'CS Interventionnel'},
+];
+let CS_OPENABLE = ['CS-VIS','CS-END','CS-ORL','CS-ORT'];
+let CS_REQUIRED = {
   0:{am:{}, pm:{'CS-VIS':2,'CS-END':2}},                                              // Lundi
   1:{am:{'CS-ORL':1,'CS-MAT':1}, pm:{'CS-VIS':1,'CS-END':1,'CS-ORT':1}},               // Mardi
   2:{am:{'CS-ORL':1,'CS-POLY':1}, pm:{'CS-VIS':1,'CS-END':1,'CS-ORT':1,'CS-INTER':1}}, // Mercredi
@@ -2387,21 +2417,13 @@ function renderWeek() {
     smap[s.code] = Array(7).fill(null).map(() => ({am:[], pm:[], flash_am:false, flash_pm:false}));
   });
   // Consultations détaillées par type (une sous-ligne chacune)
-  const CS_TYPES = [
-    {code:'CS-VIS',   label:'CS Viscéral'},
-    {code:'CS-END',   label:'CS Endoscopies'},
-    {code:'CS-ORL',   label:'CS ORL'},
-    {code:'CS-ORT',   label:'CS Orthopédie'},
-    {code:'CS-MAT',   label:'CS Maternité'},
-    {code:'CS-POLY',  label:'CS Polyvalente'},
-    {code:'CS-INTER', label:'CS Interventionnel'},
-  ];
+  // CS_TYPES : désormais GLOBAL (alimenté par l'onglet CS_TEMPLATE) — voir plus haut.
   const csTypeMap = {};
   CS_TYPES.forEach(t => { csTypeMap[t.code] = Array(7).fill(null).map(() => ({am:[], pm:[], flash_am:0, flash_pm:0})); });
   // Effectifs requis : CS_REQUIRED est désormais GLOBAL (voir sa déclaration plus haut),
   // car l'export Excel en a besoin lui aussi pour fusionner les cases à créneau unique.
   // Consults toujours affichées (ouvrables à la demande) + miroir « le MAR du secteur fait sa consult »
-  const CS_OPENABLE = ['CS-VIS','CS-END','CS-ORL','CS-ORT'];
+  // CS_OPENABLE : désormais GLOBAL (colonne OUVRABLE de CS_TEMPLATE) — voir plus haut.
   // CS_SECTOR_MIRROR : désormais global, dérivé de SECTEURS_CFG.
   // gardes[dow] = {g:init, g2:init}
   const gardes = Array(7).fill(null).map(() => ({g:null, g2:null}));
