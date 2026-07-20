@@ -140,6 +140,51 @@ pour éviter tout biais de confirmation). Conclusions :
 - Tagging **par thème** (colonne `THEMES`), sélecteur de thème + filtrage dans le Dashboard.
 - Normalisation des dates ISO au read time.
 
+### Audit des emails (20 juillet 2026)
+
+Cinq emails partent du système, tous depuis `Indispos.gs` : trois portent un code d'accès
+(`sendCodes`, `sendCodesMar`, `resetCodeMar`), deux sont des récapitulatifs HTML
+(`envoyerRecapIndispos` = gardes, `sendCodesWithRecap` = congés + ouverture W1).
+
+**Ce qui a été corrigé :**
+
+- **Année erronée dans les mails de code.** Ils annonçaient `TEST_YEAR` (année du planning
+  en cours) tout en pointant vers `indispos.html`, qui ouvre `INDISPOS_ACTIVE`. Les deux
+  divergent **précisément pendant le Wizard 1**, en octobre — quand ces mails partent en masse :
+  « votre code pour le planning 2027 » menant à la saisie 2028. Corrigé via `getIndisposYear()`.
+- **Redondance à l'origine du bug.** Le corps du mail était dupliqué **à l'identique**
+  (321 caractères) entre `sendCodes` et `sendCodesMar` ; la correction d'année n'avait été
+  appliquée qu'à un seul. Remplacé par une **source unique `_mailCodeAcces_(nom, code, renouvele)`** —
+  texte, style et année en un seul endroit.
+- **Lien inadapté.** Le mail envoyait vers `indispos.html`, utile ~6 semaines par an, alors que
+  le code sert toute l'année pour le portail. Le bouton principal mène désormais à
+  `dashboard.html` ; la saisie n'est mise en avant que **pendant la campagne**.
+- **Détection de campagne, sans nouveau réglage.** La ligne `INDISPOS_ACTIVE` de CONFIG n'existe
+  QUE pendant la campagne (créée par le W1, supprimée par le W3) : sa présence est l'indicateur.
+  Nouvelle fonction `_indisposOuverte_()`. ⚠️ `getIndisposYear()` ne permet PAS de le savoir
+  (repli silencieux sur `getActiveYear()`).
+- **Tuile de campagne.** « Mes indisponibilités » apparaît sur le portail pendant la campagne et
+  disparaît après la clôture — `indispos.html` n'était atteignable que par un lien reçu par mail
+  (page orpheline). Drapeau remonté par `login` (`indisposOuverte`).
+- **MAR non servis, nommés.** `sendCodes` sautait silencieusement les MAR sans email **ou sans
+  code** et affichait « codes envoyés » : on ignorait que 2 ou 3 n'avaient rien reçu. Ils sont
+  désormais listés nominativement, en distinguant « sans email » (donnée manquante) de
+  « SANS CODE » (anomalie).
+- **Garde-fou quota.** Le compte Google est **GRATUIT : 100 emails/jour**, pas 1500. Avec ~23 MAR,
+  un envoi groupé consomme un quart du quota et trois envois dans la journée (codes + congés +
+  gardes) frôlent la limite. Sans contrôle, `MailApp` échouait **en cours d'envoi** : la moitié
+  servie, l'autre non, sans trace du point d'arrêt. Les trois envois groupés refusent désormais
+  **avant tout envoi** si le quota est insuffisant. Seuil du diagnostic recalé sur l'effectif réel
+  (`_marsAvecEmail_()`) au lieu d'un `40` arbitraire.
+- **Deux messages d'interface mensongers** supprimés : « les anciens codes seront invalidés » sur
+  les deux boutons d'envoi groupé, alors qu'aucun ne modifie de code.
+- **Confort** : expéditeur nommé (`name: 'Comité Planning CHPG'`), accents rétablis, échappement
+  HTML du nom, version texte de secours pour chaque mail.
+
+**Piège d'environnement relevé** : `assets/vendor/lucide-icons.js` est un mini-bundle **local de
+17 icônes seulement** (liste dans son en-tête). Toute nouvelle tuile doit utiliser une icône
+présente — `calendar-plus` n'existe pas et se serait affichée vide.
+
 ### Documentation (docs/)
 - Guides : `guide-mar.html`, `guide-comite.html`, `guide-algo-gardes.html`, `guide-liberal.html`, `guide-technique.html`.
 - Présentations staff, démographie.
@@ -165,7 +210,14 @@ pour éviter tout biais de confirmation). Conclusions :
 - [ ] 📚 **Veille bibliographique** — enrichissements (option `ENRICH` IA quand clé API dispo).
 
 ### Finitions & maintenance
-- [ ] Picker **manuel** des consult libérales endo : filtrer/avertir sur la présence N+1 (aujourd'hui seule la rotation auto le fait).
+- [ ] **Version du site affichée : `v1.0` alors que le marqueur dit `v1.4`.** Chaque fichier porte
+  DEUX versions : la valeur affichée (`const SITE_VERSION = 'v1.0'`) et un marqueur en commentaire
+  (`// SITE_VERSION: v1.4`). Le diagnostic « Version du site » ne contrôle que **le marqueur** — il
+  conclut « les 4 fichiers sont alignés » alors que 3 sur 4 affichent une version périmée.
+  État au 20/07/2026 : `dashboard.html`, `admin.html` et `docs/guide-comite.html` affichent v1.0 ;
+  seul `docs/guide-mar.html` affiche v1.4. À corriger en deux temps : aligner les valeurs
+  (v1.5 ?) **et** faire porter le contrôle sur la valeur réelle, pas sur le commentaire.
+- [ ] Picker des consult libérales endo : filtrer/avertir sur la présence au bloc en semaine N+1. **Plus aucun contrôle automatique depuis le retrait de la rotation (20/07/2026)** — l'attribution est 100 % manuelle et la règle du 8.1 est à vérifier de tête par le comité (documenté dans `guide-comite.html` § 8.2).
 - [ ] Corriger un libellé hérité dans l'assistant Départ (« onglet Modifications de comite.html », page inexistante).
 - [ ] Généraliser SW/icônes locales aux autres points d'entrée (index, admin…) pour que l'install profite partout.
 - [ ] *(Sécurité, à l'appréciation d'Arthur)* rotation du token GitHub.
