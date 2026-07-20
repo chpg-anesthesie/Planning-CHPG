@@ -2,6 +2,10 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+  <!-- Outil interne du service : ne pas referencer dans les moteurs de recherche.
+       Complete robots.txt (racine du depot). N'empeche AUCUN acces : qui a
+       l'adresse entre normalement, et se heurte au code personnel. -->
+  <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Administration · Planning CHPG Monaco</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -940,7 +944,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.6.2'; // SITE_VERSION: v1.6.2
+const SITE_VERSION = 'v1.6.3'; // SITE_VERSION: v1.6.3
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1033,7 +1037,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.6.2</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.6.3</span></span>
     <a href="./docs/guide-comite.html" target="_blank" class="header-btn" title="Guide du comité — mode d'emploi de cette interface"><span class="hb-ico">?</span> Aide</a>
     
   </div>
