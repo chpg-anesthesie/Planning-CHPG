@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-20.4';
+const GAS_VERSION_INDISPOS = '2026-07-20.5';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -20,6 +20,27 @@ function getIndisposYear() {
     }
   }
   return getActiveYear();
+}
+
+// La campagne de saisie des indispos est-elle EN COURS ?
+// La ligne INDISPOS_ACTIVE de CONFIG n'existe que pendant la campagne :
+//   - Wizard 1 (octobre)  → setIndisposYear() la CRÉE
+//   - Wizard 3 (clôture)  → clearIndisposYear() la SUPPRIME
+// Sa seule présence est donc l'indicateur — aucun réglage supplémentaire à tenir
+// à jour. Attention : getIndisposYear() ne permet PAS de le savoir, car il se
+// replie silencieusement sur getActiveYear() quand la ligne est absente.
+function _indisposOuverte_() {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG');
+    if (!sheet) return false;
+    const data = sheet.getDataRange().getValues();
+    for (let r = 1; r < data.length; r++) {
+      if (String(data[r][0]).trim() === 'INDISPOS_ACTIVE') {
+        return !isNaN(parseInt(String(data[r][1]).trim()));
+      }
+    }
+  } catch (e) {}
+  return false;
 }
 
 // (C3) MEDECINS_LIST supprimé — l'effectif vient de l'onglet MEDECINS.
@@ -245,8 +266,11 @@ function _findPhantomGardes_(year) {
 // partent en masse.
 //   renouvele = true  → formulation « nouveau code, l'ancien ne marche plus »
 function _mailCodeAcces_(nom, code, renouvele) {
-  const an = getIndisposYear();
-  const link = 'https://chpg-anesthesie.github.io/Planning-CHPG/indispos.html';
+  const ouvert = _indisposOuverte_();          // campagne en cours ?
+  const an     = getIndisposYear();
+  const base   = 'https://chpg-anesthesie.github.io/Planning-CHPG/';
+  const portail  = base + 'dashboard.html';
+  const saisie   = base + 'indispos.html';
   const esc = v => String(v == null ? '' : v)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const nomE = esc(nom), codeE = esc(code);
@@ -254,10 +278,27 @@ function _mailCodeAcces_(nom, code, renouvele) {
   const titre = renouvele ? "Votre nouveau code d'accès" : "Votre code d'accès";
   const introHtml = renouvele
     ? "Votre code d'accès personnel a été renouvelé. <strong>Le précédent n'est plus valable.</strong>"
-    : "Voici votre code d'accès personnel au planning du service.";
+    : "Voici votre code d'accès personnel au portail du service.";
   const introText = renouvele
     ? "Votre code d'accès personnel a été renouvelé. Le précédent n'est plus valable."
-    : "Voici votre code d'accès personnel au planning du service.";
+    : "Voici votre code d'accès personnel au portail du service.";
+
+  // Appel à l'action : pendant la campagne la saisie prime, sinon le portail.
+  const btn = (href, txt) =>
+    '<a href="' + href + '" style="display:inline-block;background:#15803d;color:#ffffff;'
+    + 'text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:10px">'
+    + txt + ' &rarr;</a>';
+
+  const corpsHtml = ouvert
+    ? '<p style="margin:0 0 14px;font-size:13px;color:#3a4759">Il vous ouvre le portail du service : planning, gardes, congés, protocoles et annuaire.</p>'
+      + '<div style="background:#fff8e6;border:1px solid #f3e0b0;border-radius:10px;padding:13px 16px;margin-bottom:16px">'
+        + '<div style="font-size:13px;font-weight:700;color:#8a5a00;margin-bottom:4px">Saisie des indisponibilités ' + an + ' ouverte</div>'
+        + '<div style="font-size:12.5px;color:#6b5320">C\'est le moment de déclarer vos souhaits et vos congés.</div>'
+      + '</div>'
+      + btn(saisie, 'Saisir mes indisponibilités')
+      + '<p style="margin:16px 0 0;font-size:12.5px;color:#697789">Portail du service : <a href="' + portail + '" style="color:#1d4ed8">' + portail + '</a></p>'
+    : '<p style="margin:0 0 16px;font-size:13px;color:#3a4759">Il vous ouvre le portail du service : planning, gardes, congés, protocoles et annuaire.</p>'
+      + btn(portail, 'Ouvrir le portail');
 
   const html =
     '<div style="background:#f4f6f9;padding:0;margin:0">' +
@@ -274,8 +315,7 @@ function _mailCodeAcces_(nom, code, renouvele) {
             '<div style="font-size:11px;color:#697789;text-transform:uppercase;letter-spacing:.5px">Votre code d\'accès</div>' +
             '<div style="font-size:22px;font-weight:700;letter-spacing:2px;color:#ce1126;font-family:monospace">' + codeE + '</div>' +
           '</div>' +
-          '<p style="margin:0 0 14px;font-size:13px;color:#3a4759">Il vous permet de saisir vos indisponibilités et vos congés pour <strong>' + an + '</strong>.</p>' +
-          '<a href="' + link + '" style="display:inline-block;background:#15803d;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:10px">Ouvrir la saisie &rarr;</a>' +
+          corpsHtml +
           '<p style="margin:18px 0 0;font-size:12px;color:#9aa4b2">Conservez ce code confidentiel. En cas de difficulté, contactez le comité planning.</p>' +
         '</div>' +
       '</div>' +
@@ -283,14 +323,21 @@ function _mailCodeAcces_(nom, code, renouvele) {
     '</div>' +
     '</div>';
 
+  const corpsText = ouvert
+    ? 'Il vous ouvre le portail du service : planning, gardes, congés, protocoles et annuaire.\n\n'
+      + 'SAISIE DES INDISPONIBILITÉS ' + an + ' OUVERTE\n'
+      + 'C\'est le moment de déclarer vos souhaits et vos congés :\n' + saisie + '\n\n'
+      + 'Portail du service : ' + portail + '\n'
+    : 'Il vous ouvre le portail du service : planning, gardes, congés, protocoles et annuaire.\n\n'
+      + portail + '\n';
+
   const body =
     'Bonjour ' + nom + ',\n\n' + introText + '\n\n' +
-    '    ' + code + '\n\n' +
-    'Il vous permet de saisir vos indisponibilités et vos congés pour ' + an + ' :\n' + link + '\n\n' +
-    'Conservez ce code confidentiel.\n\nBonne journée,\nLe Comité Planning CHPG Monaco';
+    '    ' + code + '\n\n' + corpsText +
+    '\nConservez ce code confidentiel.\n\nBonne journée,\nLe Comité Planning CHPG Monaco';
 
   return {
-    subject: '[Planning CHPG Monaco ' + an + '] ' + titre,
+    subject: '[Planning CHPG Monaco] ' + titre,
     htmlBody: html,
     body: body,
     name: 'Comité Planning CHPG',
