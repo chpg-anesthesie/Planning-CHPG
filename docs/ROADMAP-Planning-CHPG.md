@@ -1,7 +1,7 @@
 # Roadmap — Planning-CHPG
 
 Système web : **planning des gardes** (équité annuelle) + **planning quotidien** + **consultations** + **portail/Dashboard** + **veille biblio** + **CR d'anesthésie**, pour ~23 MARs au CHPG (Monaco).
-Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 20 juillet 2026.*
+Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 20 juillet 2026 (session audit externe + codes d'accès).*
 
 > Le dépôt en ligne fait foi. Cette roadmap est un repère de pilotage, pas la source de vérité du code.
 
@@ -95,6 +95,45 @@ précision des années générées et des jours fériés), cinq nouveaux angles 
   du classeur (1er oct/jan/avr/juil). Limite assumée et documentée : les copies vivent dans le
   Drive personnel d'Arthur — elles protègent de l'erreur de manipulation, pas de la perte du compte.
 
+### Audit externe & codes d'accès (20 juillet 2026)
+
+**Relecture à froid du dépôt entier** (lecture du code sans consulter les instructions du projet,
+pour éviter tout biais de confirmation). Conclusions :
+
+- **Confidentialité : conforme.** Vérifié en direct que `planning_{Y}.json` / `affectations_{Y}.json`
+  renvoient **404** en accès public (migration Drive effective). Les lectures nominatives sont toutes
+  derrière `checkCode()`. `_buildMedecins_` ne renvoie jamais le code en clair (`hasCode` booléen).
+  Le token GitHub est absent du dépôt **et de l'historique git**.
+- **Générateur de gardes : déterministe** (aucun `Math.random`) → l'équité est reproductible et
+  auditable. Garde-fou anti-régénération et verrou d'écriture jugés bien dimensionnés.
+- **CRH : traitement RGPD solide** — double filet anti-identifiant (regex client + règle dans le
+  system prompt serveur) et journalisation « qui/quand » **sans jamais le contenu clinique**.
+- **Contrôles machine passés** : `node --check` OK sur les 5 `.gs` et les 17 `.js` ; `<div>` équilibrés
+  sur les 6 HTML principaux.
+
+**Corrections livrées :**
+
+- **Code de démo du staff (04/09)** — `docs/presentation-staff.html` invitait à écrire en dur le vrai
+  code perso d'un MAR pour la démo live. Sur un dépôt public, un code committé reste **dans
+  l'historique à vie** même après rotation. Le code se saisit désormais **par `prompt()` au clic**
+  sur le bloc affiché (mémorisé en `sessionStorage` le temps de la session) : démo identique côté
+  salle, plus rien dans le dépôt.
+- **`resetCodeMar` (nouvelle action GAS)** — la régénération de code n'existait pas, **et l'interface
+  prétendait le contraire** : la confirmation d'envoi groupé annonçait « leur ancien code sera
+  invalidé » alors que `sendCodesMar` se contentait de renvoyer le code existant par email. On pouvait
+  donc croire un code renouvelé alors qu'il ne l'était pas. Désormais :
+  - bouton **🔄 par MAR** (onglet Équipe) = tire un nouveau code, l'écrit en colonne G, l'envoie ;
+  - **unicité garantie** : le nouveau code est comparé aux codes des autres MARs **et à `ADMIN_CODE`**
+    (une collision aurait donné à un MAR le rôle admin) ;
+  - **email vérifié AVANT toute écriture** — pas d'email, pas de changement, personne enfermé dehors ;
+  - ancien code tracé dans `LOGS` avant écrasement, et si l'envoi échoue le **nouveau code s'affiche
+    à l'écran** pour transmission en main propre ;
+  - les envois **groupés restent non destructifs** (sélection, « envoyer à tous », wizard W3, wizard
+    nouveau MAR) — décision assumée : impossible de casser 23 codes d'un clic. Leur message de
+    confirmation a été corrigé.
+  - `guide-comite.html` § 13.3 documente la différence entre *renvoyer* et *renouveler*.
+  - *Non testé en production à ce stade : recopie `Indispos.gs` + redéploiement requis.*
+
 ### Veille bibliographique (juillet 2026)
 - Scan PubMed hebdomadaire (lundi) piloté 100 % depuis l'onglet `VEILLE_CFG` (voir `docs/VEILLE_CFG-mode-emploi.md`).
 - Tri « best match » + badge type de publication (`PUBTYPE`).
@@ -129,6 +168,11 @@ précision des années générées et des jours fériés), cinq nouveaux angles 
 - [ ] Picker **manuel** des consult libérales endo : filtrer/avertir sur la présence N+1 (aujourd'hui seule la rotation auto le fait).
 - [ ] Corriger un libellé hérité dans l'assistant Départ (« onglet Modifications de comite.html », page inexistante).
 - [ ] Généraliser SW/icônes locales aux autres points d'entrée (index, admin…) pour que l'install profite partout.
+- [ ] 🔐 **Limiter les tentatives de connexion (anti-force brute)** — `checkCode()` accepte aujourd'hui
+  un nombre **illimité** d'essais, sans délai ni compteur. Le risque réel reste faible (URL `/exec` non
+  publiée, codes 8 caractères sur alphabet de 32 ≈ 1 100 milliards de combinaisons), mais la protection
+  est absente. Piste retenue : temporisation courte sur échec + compteur par IP en `CacheService`.
+  **À traiter après confirmation en production de `resetCodeMar`** (les deux touchent la gestion des codes).
 - [ ] *(Sécurité, à l'appréciation d'Arthur)* rotation du token GitHub.
 
 ### Pour 2027 (déménagement) — **prérequis du module libéral**
