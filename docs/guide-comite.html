@@ -354,7 +354,7 @@
 <!-- 8 -->
 <section id="c8">
   <h2><span class="n">08</span>La consultation libérale d'endoscopie</h2>
-  <p>C'est une consultation particulière (mardi et jeudi après-midi), faite par un seul MAR — le « soliste » (GR en pratique), qui doit en assurer environ un tiers.</p>
+  <p>C'est une consultation particulière (mardi et jeudi après-midi), attribuée à un seul MAR sur le créneau. <strong>Le comité l'attribue à la main</strong>, créneau par créneau.</p>
   <ul>
     <li>Elle s'affiche dans une case violette <span class="tag" style="background:var(--viol-soft); color:var(--viol)">[LIB · initiales]</span> : on voit tout de suite qui fait la libérale, même s'il y a deux MAR sur le créneau.</li>
     <li>Un créneau libéral non encore attribué affiche un marqueur <strong>« LIB »</strong> violet seul. <strong>Cliquez dessus</strong> pour affecter un MAR à la main : la consultation reste alors <strong>violette (libérale)</strong> partout, y compris dans la vue des MAR. Une <em>seconde</em> consultation d'endoscopie ajoutée le même après-midi reste, elle, normale (verte).</li>
@@ -366,17 +366,19 @@
     <p>La consultation libérale de la semaine N crée des patients opérés au bloc endoscopie le <strong>lundi et le mardi après-midi de la semaine N+1</strong>. Le MAR qui a consulté doit donc être présent ces jours-là pour endormir ses propres patients.</p>
   </div>
 
-  <h3>8.2 · Répartir la rotation (bouton ⟳ Rotation libérale, onglet Affectations)</h3>
+  <h3>8.2 · Attribuer un créneau libéral</h3>
   <ol class="steps">
-    <li>Ouvrir l'assistant.</li>
-    <li>Choisir le soliste (GR), sa part (1/3 par défaut) et la période.</li>
-    <li>L'assistant répartit les créneaux en ne proposant que les MAR présents au bloc de la semaine suivante (lundi ou mardi après-midi).</li>
-    <li>Un créneau sans MAR possible reste « à pourvoir » : le comité l'attribue à la main. Ces créneaux ne doivent pas rester vides.</li>
-    <li>Cliquer sur « Appliquer » : c'est enregistré et le planning est republié.</li>
+    <li>Dans l'onglet <strong>Planning</strong>, repérer le marqueur <strong>« LIB »</strong> violet du mardi ou jeudi après-midi.</li>
+    <li>Cliquer dessus, choisir le MAR.</li>
+    <li>C'est enregistré et le planning republié automatiquement.</li>
   </ol>
   <div class="callout warn">
-    <div class="ct">Attribution à la main</div>
-    <p>Quand on attribue soi-même un créneau libéral (hors assistant), penser à vérifier que le MAR choisi sera bien <strong>présent au bloc la semaine suivante</strong> — seul l'assistant fait ce contrôle automatiquement aujourd'hui.</p>
+    <div class="ct">Le contrôle est à faire vous-même</div>
+    <p>Vérifiez que le MAR choisi sera bien <strong>présent au bloc endoscopie la semaine suivante</strong> (lundi ou mardi après-midi) pour endormir ses propres patients — c'est la règle du 8.1. Aucun contrôle automatique ne le fait.</p>
+  </div>
+  <div class="callout tip">
+    <div class="ct">Il n'y a plus d'assistant de rotation</div>
+    <p>Un assistant répartissait autrefois ces créneaux automatiquement (bouton « ⟳ Rotation libérale »). Il a été retiré en juillet 2026, faute d'usage réel : l'attribution se fait désormais uniquement à la main, créneau par créneau. Les créneaux déjà attribués par l'assistant ont été conservés à l'identique.</p>
   </div>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
@@ -389,7 +391,6 @@
     <li>Cliquer une cellule pour changer le secteur d'un MAR sur un mois.</li>
     <li><strong>« 💾 Enregistrer tout »</strong> sauvegarde les affectations et republie automatiquement le planning.</li>
     <li>Un <strong>point orange</strong> sur l'onglet signale des modifications non encore enregistrées.</li>
-    <li>Le bouton <strong>« ⟳ Rotation libérale »</strong> (chapitre 8) se trouve ici.</li>
   </ul>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
@@ -596,7 +597,7 @@
     <tr><td>CS-MAT</td><td>Consultation maternité</td></tr>
     <tr><td>CS-POLY</td><td>Consultation polyvalente</td></tr>
     <tr><td>CS-INTER</td><td>Consultation interventionnel</td></tr>
-    <tr><td>LIB</td><td>Consultation libérale d'endoscopie (soliste)</td></tr>
+    <tr><td>LIB</td><td>Consultation libérale d'endoscopie</td></tr>
   </table>
 
   <h3>16.4 · Gardes (répartition / équité)</h3>
