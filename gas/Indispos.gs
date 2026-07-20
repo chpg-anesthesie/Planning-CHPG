@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-20.5';
+const GAS_VERSION_INDISPOS = '2026-07-20.6';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1639,19 +1639,32 @@ if (!affSheet) {
       const data = medSheet.getDataRange().getValues();
       let sent = 0;
       const errors = [];
+      // (07/2026) Les MAR non servis étaient sautés SILENCIEUSEMENT : l'écran
+      // annonçait « codes envoyés » sans dire que 2 ou 3 n'avaient rien reçu.
+      // On les nomme désormais, en distinguant les deux causes — « sans code »
+      // est une anomalie (un MAR actif doit toujours en avoir un), « sans email »
+      // est une donnée manquante connue. Les INACTIFS restent ignorés en silence.
+      const sansEmail = [], sansCode = [];
       for (let r = 1; r < data.length; r++) {
         const id = String(data[r][0]).trim(), nom = String(data[r][1]).trim();
         const actif = String(data[r][3]).trim().toUpperCase() === 'O';
         const code = String(data[r][6]).trim(), email = String(data[r][7]).trim();
-        if (!id || !actif || !email || !code) continue;
+        if (!id || !actif) continue;
+        if (!email) { sansEmail.push(nom || id); continue; }
+        if (!code)  { sansCode.push(nom || id);  continue; }
         try {
           MailApp.sendEmail(Object.assign({to: email}, _mailCodeAcces_(nom, code, false)));
           sent++;
         } catch(err) { errors.push(`${nom} (${email}) : ${err.message}`); }
       }
-      logAction(`sendCodes — ${sent} emails envoyés${errors.length?', '+errors.length+' erreur(s)':''}`);
-      return ContentService.createTextOutput(JSON.stringify({success:true, sent, errors}))
-        .setMimeType(ContentService.MimeType.JSON);
+      const skipped = sansEmail.length + sansCode.length;
+      logAction(`sendCodes — ${sent} envoyés`
+        + (sansEmail.length ? `, ${sansEmail.length} sans email (${sansEmail.join(', ')})` : '')
+        + (sansCode.length  ? `, ${sansCode.length} SANS CODE (${sansCode.join(', ')})`   : '')
+        + (errors.length    ? `, ${errors.length} erreur(s)` : ''));
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, sent, skipped, sansEmail, sansCode, errors
+      })).setMimeType(ContentService.MimeType.JSON);
     }
 
     if (action === 'diagComplet') {
