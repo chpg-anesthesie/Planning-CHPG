@@ -79,7 +79,22 @@ d'où l'absence d'icônes de secteur sur cette page, contrairement à `index.htm
 - ⚠️ **La rotation automatique a été SUPPRIMÉE (20/07/2026)** — objet `ROT`, assistant « ⟳ Rotation libérale », overlay et action `applyRotationLib` retirés, faute d'usage réel. Le tag `ROT-LIB` n'existe plus : les lignes existantes ont été converties en `LIB` par la fonction one-shot `convertirRotLibEnLib()` (elle-même retirée après usage), ce qui a préservé à l'identique les créneaux déjà attribués. **Ne pas reproposer d'automatisation de cette rotation.**
 - ⚠️ **`setLibSoliste` n'a jamais existé** dans le dépôt : cette doc l'a longtemps annoncée comme « à recopier », mais aucune trace dans les `.gs` ni dans `admin.html`. Mention supprimée le 20/07/2026. Rappel : **le dépôt fait foi**, pas ce fichier.
 
-## Version du site (badge `vX.Y`) — actuellement **v1.5**
+## Version du site (badge `vX.Y.Z`) — actuellement **v1.6.1**
+
+### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
+
+**Toute modification d'une page visible — `admin.html`, `index.html`, `dashboard.html`,
+`indispos.html`, `staff.html` — DOIT s'accompagner d'une montée de version, dans le même push.**
+Ne jamais livrer un changement d'interface sans incrémenter : le badge doit toujours dire la vérité.
+
+| Nature du changement | Incrément | Exemple |
+|---|---|---|
+| Petit patch, correction, ajustement visuel | **3ᵉ chiffre** — `1.6` → `1.6.1` | cases cliquables au survol |
+| Fonctionnalité notable, changement de comportement | **2ᵉ chiffre** — `1.6.1` → `1.7` | bascule des consultations sur l'onglet |
+| Refonte majeure | **1ᵉʳ chiffre** — `1.x` → `2.0` | branchement du module libéral |
+
+Une modification purement GAS (sans page touchée) ne change PAS la version du site : elle a ses
+propres constantes `GAS_VERSION_*`.
 
 **5 fichiers, 9 emplacements.** Deux fichiers la portent DEUX fois : penser au badge HTML **en dur**,
 visible avant connexion tant que le JS ne l'a pas remplacé.
