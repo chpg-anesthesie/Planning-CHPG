@@ -141,6 +141,42 @@ le pic d'absents de la semaine) → `R_FN` (GARDE REA, GARDE ANESTH, 8H/18H, SOR
 **Limites connues et assumées** : les SORTIES de garde ne distinguent pas réa/anesthésie (statut
 `RG` unique) ; au-delà de **13 absents** le tableau passe sur 2 pages (préféré à des noms perdus).
 
+## Règles métier à NE PAS « simplifier »
+
+Ces règles encodent l'organisation réelle du service. Elles ont l'air d'incohérences dans le code ;
+elles n'en sont pas.
+
+- **Secteur interventionnel** : UN SEUL MAR affecté au mois. `RI` (radio) n'existe que **mercredi et
+  jeudi matin** ; `CI` (cardio) est présent le mercredi. Le mercredi = **2 postes pour 1 personne**,
+  donc la radio flashe **en permanence, même quand tout va bien** (le MAR tient la cardio par
+  convention). Le jeudi il bascule en radio.
+  - ⚠️ **`RI` n'est PAS dans `COVERAGE` et ne doit pas y entrer** : sa règle `RI_REQ_AM =
+    {mercredi:1, jeudi:1}` dépend du JOUR, pas de la présence d'un titulaire — c'est plus fin.
+  - ⚠️ L'exclusion `if (s.code === 'CI' && dow === 3)` (jeudi) est **volontaire**.
+  - ⚠️ **Jeudi APRÈS-MIDI : aucun bloc pour lui** (`afternoon = ''`). Il n'y a jamais de cardio le
+    jeudi ; il est en consultation, il ne peut pas être au bloc. Le code le laissait en `CI` « pour
+    justifier la consult » — corrigé le 20/07/2026, ne pas rétablir.
+  - Projet de colonne `COUVERTURE` dans l'onglet SECTEURS : **ÉTUDIÉ PUIS ÉCARTÉ** pour ces raisons.
+- **`DVI` n'est PAS un secteur** : c'est une **vacation du mardi matin** réservée aux MAR habilités
+  (`DVI_ALLOWED`), posée directement par la génération. Discriminant technique : sa colonne `AFF` est
+  **vide** dans l'onglet SECTEURS → il n'est pas affectable au mois.
+- **Aucune consultation n'est attribuée automatiquement** (`GENERER_CONSULTATIONS = false`) : **le
+  comité place chaque créneau à la main**, et c'est une volonté explicite d'Arthur.
+  - **Seule exception : la consultation MATERNITÉ** (mardi/jeudi matin). Qui est sur la ligne MAT est
+    reporté automatiquement sur `CS-MAT` — c'est la même personne. **Sens unique** : une consult
+    CS-MAT remplie ne force personne dans MAT (MAT flashe, le comité choisit).
+- **Le flash n'est PAS un besoin réel** : il dit « un MAR affecté ici est absent aujourd'hui », pas
+  « il manque quelqu'un ». Le système ignore la programmation opératoire — 3 MAR au viscéral suffisent
+  parfois là où il en faut 4. C'est au comité de juger.
+
+## Cases du planning (admin) : signal ≠ action
+
+- **« + » ORANGE clignotant = SIGNAL** : écart détecté (MAR affecté absent, non remplacé). Inchangé.
+- **« + » GRIS au survol = ACTION** : placer quelqu'un, **partout**, y compris sur une case déjà
+  occupée. Le tiret `—` des cases vides est cliquable. Jamais de gris en même temps qu'un orange.
+- **Week-ends et fériés : NON cliquables**, volontairement (seules les 2 gardes y figurent). Ils
+  passent par un rendu séparé — `makeSlot` ne les traite pas.
+
 ## Consultations : où vit la vérité
 
 - **✅ SOURCE = onglet `CS_TEMPLATE`** depuis le 20/07/2026 (testé en production). `admin.html`
