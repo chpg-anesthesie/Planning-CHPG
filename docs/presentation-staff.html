@@ -772,7 +772,7 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
 var CONFIG = {
   DASHBOARD_URL: 'https://chpg-anesthesie.github.io/Planning-CHPG/dashboard.html',
   INDISPOS_URL: 'https://chpg-anesthesie.github.io/Planning-CHPG/indispos.html',
-  SULTAN_CODE: 'À_REMPLACER'   /* ← code perso indispos du Dr Sultan pour la démo — À SAISIR avant le staff (sera changé après, donc peu importe qu'il soit vu) */
+  SULTAN_CODE: 'À_REMPLACER'   /* Placeholder. Le vrai code se saisit LE JOUR J en cliquant sur le bloc code du slide Sultan. Ne JAMAIS le committer ici. */
 };
 
 /* ══ QR code (SVG généré hors-ligne, encode DASHBOARD_URL) ══ */
@@ -782,7 +782,22 @@ document.getElementById('qrBox2').innerHTML = QR_SVG;
 document.getElementById('qrUrl').textContent = CONFIG.DASHBOARD_URL;
 document.getElementById('qrUrl2').textContent = CONFIG.DASHBOARD_URL;
 document.getElementById('qrUrlSultan').textContent = CONFIG.INDISPOS_URL;
-document.getElementById('sultanCode').textContent = CONFIG.SULTAN_CODE;
+/* Code demo saisi le jour J (clic sur le bloc) - jamais stocke dans le depot. */
+(function(){
+  var el = document.getElementById('sultanCode');
+  var saved = '';
+  try { saved = sessionStorage.getItem('chpgSultanCode') || ''; } catch(e){}
+  el.textContent = saved || CONFIG.SULTAN_CODE;
+  el.style.cursor = 'pointer';
+  el.title = 'Cliquer pour saisir le code de demo';
+  el.addEventListener('click', function(){
+    var v = prompt('Code perso du Dr Sultan (demo) :', '');
+    if (v === null) return;
+    v = v.trim().toUpperCase();
+    el.textContent = v || CONFIG.SULTAN_CODE;
+    try { sessionStorage.setItem('chpgSultanCode', v); } catch(e){}
+  });
+})();
 
 var REDUCE = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
 
