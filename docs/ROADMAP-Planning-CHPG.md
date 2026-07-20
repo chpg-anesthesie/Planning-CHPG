@@ -212,6 +212,46 @@ alignés (v1.4) » pendant que 3 sur 4 montraient v1.0 aux utilisateurs.
 Le **badge HTML en dur** compte : il est visible *avant* connexion, jusqu'à ce que le JS le remplace.
 Le diagnostic signale tout oubli — c'est précisément ce qu'il ne savait pas faire.
 
+### Export Excel hebdomadaire — 6 correctifs (20 juillet 2026)
+
+Le fichier envoyé chaque vendredi aux 23 MAR. Aucun de ces défauts n'était dans une
+demande initiale : tous repérés par Arthur en relisant le fichier produit.
+
+- **DVI fondu dans VISCERAL.** Le bloc `VISCERAL` agrégeait `['VIS','DVI']` : le MAR posté
+  en DVI le mardi matin s'affichait comme viscéral. Bloc **DVI distinct** créé, sous ORTHO
+  et de sa couleur (même lieu physique dans le service), 1 ligne.
+- **Bas du tableau ancré sur le compteur de blocs.** Les sections sous les blocs utilisaient
+  des numéros de ligne EN DUR (22, 23+i, 30, 32, 35, 38) : ajouter DVI les faisait entrer en
+  collision. Remplacés par `R_CS / R_CSR / R_ABS / R_FN / R_INFO / R_LAST`, dérivés de `row`.
+  Équivalence prouvée avant push (mêmes valeurs qu'avant sur la config d'alors).
+- **Texte illisible à l'impression.** *Première analyse FAUSSE de ma part* : j'ai incriminé
+  `fitToHeight` et poussé un patch sans effet. Le calcul (fait après) montre que la
+  **largeur** était la contrainte dominante — 29 colonnes à 8.43 = 46,6 cm pour 28,7 cm
+  utiles, soit une réduction à **62 %**. Colonnes ramenées à 4.5 (planning, qui ne contient
+  que des initiales) et 7 (annuaire) : **échelle 95 %**, texte ×1,5. Hauteurs 16 → 14 pt.
+- **Gardes réa / anesthésie confondues.** Les statuts `G` et `G2` existaient mais étaient
+  fusionnés sur une ligne « GARDES ». Deux lignes désormais : `GARDE REA` puis `GARDE ANESTH`.
+  ⚠️ Les **SORTIES restent groupées** : le statut `RG` est unique, rien ne dit de quelle garde
+  on sort (déduire depuis la veille échouerait le lundi, dont le dimanche est hors semaine).
+- **Absents perdus au-delà de 8.** Zone figée à 2 lignes × 4 cases, boucle `i<8` : le 9ᵉ absent
+  disparaissait **sans aucun signe** — fréquent l'été. Le nombre de lignes suit désormais le pic
+  de la semaine (`ABS_ROWS`). Au-delà de 13 absents le tableau passe sur 2 pages : compromis
+  assumé, mieux vaut une 2ᵉ page que des noms manquants.
+- **Annuaire affichant des MAR pas encore arrivés** (lignes sans DECT). Filtré via
+  `statActive(m, date)` — fonction **déjà existante**, réutilisée plutôt que réécrite — sur les
+  dates de la semaine affichée. Repli : si aucune date, on affiche tout.
+- **Cases de consultation fusionnées** quand un seul créneau est prévu, comme le tableau manuel
+  (2 créneaux → 2 cases). A nécessité de **promouvoir `CS_REQUIRED` en global** (il était local à
+  `renderWeek`) plutôt que d'en faire une copie — voir le CONTEXTE.
+
+**⚠️ Piège ExcelJS à retenir — a cassé la production.** Écrire dans une cellule **esclave**
+d'une fusion écrit en réalité dans la **maître**. Le code faisait `mergeCells` → écrire le nom
+à gauche → écrire `''` à droite « pour nettoyer » : cette dernière écriture **effaçait le nom**.
+Toutes les consultations fusionnées sont sorties vides. Règle : **écrire les deux cellules
+AVANT de fusionner** (préserve aussi bordures et remplissage). Vérifié sur 5 cas avec un vrai
+classeur. *Leçon : ExcelJS s'installe en local (`npm i exceljs`) — tester le rendu réel, ne pas
+se contenter de `node --check`.*
+
 ### Documentation (docs/)
 - Guides : `guide-mar.html`, `guide-comite.html`, `guide-algo-gardes.html`, `guide-liberal.html`, `guide-technique.html`.
 - Présentations staff, démographie.
@@ -237,14 +277,23 @@ Le diagnostic signale tout oubli — c'est précisément ce qu'il ne savait pas 
 - [ ] 📚 **Veille bibliographique** — enrichissements (option `ENRICH` IA quand clé API dispo).
 
 ### Finitions & maintenance
+- [ ] **Sorties de garde réa / anesthésie non distinguées** dans l'Excel (une seule ligne « SORTIES DE GARDE »). Le statut `RG` est unique : impossible de savoir de quelle garde sort la personne. Piste : un second statut (`RG2`), ou déduire depuis la veille — mais le lundi renverrait au dimanche de la semaine précédente, hors `daySlots`.
 - [ ] Picker des consult libérales endo : filtrer/avertir sur la présence au bloc en semaine N+1. **Plus aucun contrôle automatique depuis le retrait de la rotation (20/07/2026)** — l'attribution est 100 % manuelle et la règle du 8.1 est à vérifier de tête par le comité (documenté dans `guide-comite.html` § 8.2).
 - [ ] Corriger un libellé hérité dans l'assistant Départ (« onglet Modifications de comite.html », page inexistante).
 - [ ] Généraliser SW/icônes locales aux autres points d'entrée (index, admin…) pour que l'install profite partout.
 - [ ] *(Sécurité, à l'appréciation d'Arthur)* rotation du token GitHub.
 
 ### Pour 2027 (déménagement) — **prérequis du module libéral**
-- [ ] **Secteurs étape 2 (Lot 0)** : externaliser les définitions de secteurs dans un onglet Google Sheet `SECTEURS`, pour redéfinir les secteurs **sans toucher au code** (crucial avant le déménagement, BLOC CENTRAL) **et** poser la colonne `RENDEMENT_LIB` (FORT / MOYEN / NUL / REA) dont dépend le pilotage libéral.
-  - État réel : **deux sources en dur, non consolidées entre elles** — `SECTEURS_CFG` dans admin.html (9 secteurs, champs code/label/court/aff/icon/bg/fg/cs/actif) **et** `SECTORS_DEF` + `_SECTOR_BASE` dans index.html (liste + couleurs séparées). Elles ont déjà divergé (ex. icône `RI` = `Zap` dans admin, `Scan` dans index). L'externalisation doit alimenter **les deux pages** depuis une source unique.
+- [ ] **Secteurs étape 2 (Lot 0)** — ⚠️ **DÉJÀ FAIT AUX 2/3** (cette entrée le décrivait à tort comme entièrement à faire, constaté le 20/07/2026).
+  - ✅ **Fait** : onglet `SECTEURS` (11 colonnes, dont `RENDEMENT_LIB`), `getOrCreateSecteursTab()` / `initSecteurs()` / `getSecteurs()` dans `portail.gs`, action API routée, `admin.html` **et** `index.html` chargent depuis l'onglet avec repli sur leurs définitions en dur.
+  - ✅ **Étape 1 (20/07, testée)** : suppression des dernières copies figées d'`index.html` — `SECLABELS` et l'ordre de légende viennent maintenant de l'onglet (via `SECTOR_AFF` / `SECTORS_DEF`) ; icône `RI` du repli alignée (`Scan` → `Zap`). Vérifié en renommant un secteur dans l'onglet : le changement remonte à l'écran.
+  - ⬜ **Étape 2 — externaliser les CONSULTATIONS**. Attention : `CS_RULES` (`code.gs`) est **du code MORT**, enfermé dans `if (GENERER_CONSULTATIONS)` qui vaut `false`. La table active est **`CS_REQUIRED`**, désormais **globale** dans `admin.html` (promue le 20/07 pour l'export Excel). Les deux tables avaient un contenu **identique** — vérifié créneau par créneau.
+    - **Schéma d'onglet `CS_TEMPLATE` validé** (1 ligne par type, 1 colonne par demi-journée — la semaine lisible d'un coup d'œil) : `CODE | LABEL | OUVRABLE | ACTIF | LUN_AM | LUN_PM | MAR_AM | MAR_PM | MER_AM | MER_PM | JEU_AM | JEU_PM | VEN_AM | VEN_PM`.
+    - **Décisions d'Arthur** : `OUVRABLE = O` pour les **7** types (plus seulement 4) ; colonne `ACTIF` pour désactiver un type sans supprimer sa ligne — c'est le mécanisme du futur passage **par secteur (bloc court / bloc long)** au lieu de par spécialité : on ajoutera `CS-BC` / `CS-BL` et on passera les anciens à `N`, sans jamais renommer un CODE (clé technique écrite dans `PLANNING_OVERRIDES` et le planning publié). Le **LABEL** est libre : il ne sert qu'à l'affichage (vérifié).
+    - **Contenu de départ (23 créneaux/semaine)** : LUN pm VIS×2 END×2 · MAR am ORL MAT, pm VIS END ORT · MER am ORL POLY, pm VIS END ORT INTER · JEU am ORL MAT, pm VIS END×2 INTER · VEN am ORT ORL.
+    - Absorbe **3 tables** aujourd'hui séparées : `CS_TYPES`, `CS_REQUIRED`, `CS_OPENABLE`.
+    - Décidé : `VOLANT` et `CS` restent en code (pseudo-secteurs, pas des lieux).
+  - ⬜ **Étape 3** : retirer les définitions en dur et rendre le repli **visible** (aujourd'hui silencieux : une panne de lecture passerait inaperçue).
 
 ---
 
