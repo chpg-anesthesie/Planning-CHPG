@@ -1001,7 +1001,7 @@ let SECTORS_DEF = [
   { code:'ORL', label:'ORL / Ophtalmologie',        icon:'Eye'         },
   { code:'END', label:'Endoscopies',                icon:'Microscope'  },
   { code:'CI',  label:'Cardio interventionnelle',   icon:'Heart'       },
-  { code:'RI',  label:'Radio interventionnelle',    icon:'Scan'        },
+  { code:'RI',  label:'Radio interventionnelle',    icon:'Zap'         },   // aligné sur l'onglet SECTEURS (était 'Scan' : divergence historique)
   { code:'MAT', label:'Maternité',                  icon:'Baby'        },
   { code:'CS',  label:'Consultation',               icon:'Stethoscope' },
 ];
@@ -1764,6 +1764,13 @@ let _SECTOR_BASE = {
   CS:{bg:'#F0FDF4',fg:'#166534'},VOLANT:{bg:'#F1F5F9',fg:'#64748B'},
 };
 let SECTOR_COLORS = {..._SECTOR_BASE};
+// Libellés courts d'affectation (colonne AFF de l'onglet SECTEURS).
+// Valeurs de REPLI uniquement : alimentées par loadSecteurs() au chargement.
+// VOLANT n'est pas un secteur de l'onglet (pseudo-secteur) → toujours en dur.
+let SECTOR_AFF = {
+  VIS:'Viscéral', REA:'Réanimation', ORT:'Ortho', ORL:'ORL', END:'Endoscopies',
+  CI:'Cardio/Inter', RI:'Radio/Inter', MAT:'Maternité', VOLANT:'Volant',
+};
 
 // ── Source unique : secteurs depuis l'onglet SECTEURS (via getSecteurs) ──
 // Échec réseau / action absente → on garde silencieusement les définitions en dur.
@@ -1781,6 +1788,11 @@ async function loadSecteurs(){
       base.CS = _SECTOR_BASE.CS; base.VOLANT = _SECTOR_BASE.VOLANT;
       _SECTOR_BASE = base;
       SECTOR_COLORS = _themeMap(_SECTOR_BASE);   // ré-applique le thème (clair/sombre)
+      // Libellés d'affectation : colonne AFF, secteurs sans AFF ignorés (ex. DVI).
+      const aff = {};
+      actifs.forEach(s=>{ if(s.aff) aff[s.code] = s.aff; });
+      aff.VOLANT = SECTOR_AFF.VOLANT;            // pseudo-secteur, hors onglet
+      SECTOR_AFF = aff;
     }
   }catch(e){ /* fallback : définitions en dur conservées */ }
 }
@@ -2316,10 +2328,15 @@ function renderAffectations(){
   const nameOf = id => (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
   const secOf = (id,m) => { const a = AFFECTATIONS_DATA[id]||{}; return a[m] || a[String(m)] || 'VOLANT'; };
   const abbr = s => s==='VOLANT' ? 'VOL' : s;
-  const SECLABELS = {VIS:'Viscéral',REA:'Réanimation',ORT:'Ortho',ORL:'ORL',END:'Endoscopies',CI:'Cardio/Inter',RI:'Radio/Inter',MAT:'Maternité',VOLANT:'Volant'};
+  // (07/2026) SECLABELS et l'ordre de légende étaient FIGÉS ici : ils ne suivaient
+  // pas l'onglet SECTEURS. Renommer un secteur dans le tableau laissait donc deux
+  // libellés différents selon la vue. Tout vient désormais de SECTOR_AFF / SECTORS_DEF.
+  const SECLABELS = SECTOR_AFF;
   const present = new Set();
   docs.forEach(d => { for(let m=1;m<=12;m++) present.add(secOf(d.id,m)); });
-  const legendOrder = ['VIS','REA','ORT','ORL','END','CI','RI','MAT','VOLANT'].filter(s=>present.has(s));
+  // Ordre = celui de l'onglet (SECTORS_DEF est trié par ORDRE), VOLANT en dernier.
+  const legendOrder = SECTORS_DEF.map(s=>s.code).filter(c=>c!=='CS')
+                        .concat(['VOLANT']).filter(s=>present.has(s));
 
   let legend = `<div class="aff-legend">`;
   legendOrder.forEach(s=>{ const sc=SECTOR_COLORS[s]||SECTOR_COLORS.VOLANT; legend += `<span class="aff-legend-item"><span class="aff-legend-dot" style="background:${sc.fg}"></span>${SECLABELS[s]||s}</span>`; });
