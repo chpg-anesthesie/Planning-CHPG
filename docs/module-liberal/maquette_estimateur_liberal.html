@@ -104,7 +104,11 @@
   .pratbar .pblab{color:var(--muted);font-weight:600;font-size:12px;white-space:nowrap}
   .pratbar input{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font:inherit;font-size:12px;background:#fff}
   .pratbar #cfgPrat{flex:1;min-width:150px}
-  .pratbar #cfgRPPS,.pratbar #cfgADELI{width:120px}
+  .pratbar #cfgRPPS{width:140px}
+  .pratbar.lie{background:#EAF4EE;border-color:#BEDCC9}
+  .pratbar .pbetat{font-size:11.5px;font-weight:600;white-space:nowrap}
+  .pratbar .pbetat.ok{color:#2F6B47}
+  .pratbar .pbetat.ko{color:#8A6516}
   .ccamsearch{position:relative;margin:0 0 8px}
   .ccamsearch input{width:100%;border:1px solid var(--ccam);border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;background:#fff}
   .ccamsearch input::placeholder{color:#9fb0b6}
@@ -220,17 +224,17 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">Module libéral · V3.7 — recherche obstétricale (AFLB010) · devis détaillé (un acte par ligne) · calibrage mutuelle / RAC</div>
+    <div class="eyebrow">Module libéral · V3.8 — identité praticien pré-remplie depuis le portail · recherche obstétricale (AFLB010) · devis détaillé</div>
     <h1>Estimateur temps réel du libéral</h1>
     <div class="sub">Un parcours = une ou plusieurs lignes de code (principal + associés + suppléments). L'outil calcule la BR, projette le ratio 30 %, et <b>calibre le dépassement sur la mutuelle du patient pour minimiser son reste à charge</b>. <b>Estimateur, pas décompte.</b></div>
     <a class="guidelink" href="../guide-liberal.html">📘 Guides du libéral — cotation, règle des 30 %, antisèche</a>
   </header>
 
   <div class="pratbar">
-    <span class="pblab">Praticien (à ressaisir à chaque ouverture — pré-remplissage prévu lors du branchement au portail) :</span>
+    <span class="pblab">Praticien :</span>
     <input id="cfgPrat" placeholder="Dr Nom Prénom">
     <input id="cfgRPPS" placeholder="N° RPPS">
-    <input id="cfgADELI" placeholder="N° ADELI">
+    <span class="pbetat" id="pbEtat"></span>
   </div>
 
   <div class="socles">
@@ -548,6 +552,43 @@ function renderNgap(){
 function fromCible(){const c=parseFloat(document.getElementById('cible').value)||0;const br=parcoursBR();
   document.getElementById('dh').value=(Math.max(0,Math.round((c-br)*100)/100)).toFixed(2);updateRac();renderSummary();}
 
+// ---- BRANCHEMENT AU PORTAIL ----------------------------------------------
+// La page est servie depuis la MEME origine que dashboard.html (GitHub Pages), et la
+// tuile l'ouvre dans le MEME onglet : le code d'acces range par le portail dans
+// sessionStorage('chpgViewCode') est donc lisible ici, sans rien redemander au MAR.
+// Aucune ecriture : on appelle uniquement l'action 'login', en lecture.
+// L'URL ci-dessous est deja publique dans dashboard.html (depot public) : rien de neuf.
+const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
+
+function pbSetEtat(txt, ok){
+  const e=document.getElementById('pbEtat'); if(!e) return;
+  e.textContent=txt; e.className='pbetat '+(ok?'ok':'ko');
+  document.querySelector('.pratbar').classList.toggle('lie', !!ok);
+}
+
+// Repli VISIBLE : si le code manque ou si l'API ne repond pas, on le DIT et on laisse
+// la saisie manuelle. Jamais de degradation silencieuse -- c'est le defaut qu'on a
+// deja paye ailleurs (tables en dur, icone manquante).
+async function chargerPraticien(){
+  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  if(!code){ pbSetEtat('hors portail — à saisir', false); return; }
+  pbSetEtat('connexion…', true);
+  try{
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 20000);
+    const r=await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'login', code:code}), redirect:'follow', signal:ctrl.signal});
+    clearTimeout(to);
+    const j=await r.json();
+    if(!j || !j.success || j.role!=='mar'){ pbSetEtat('non identifié — à saisir', false); return; }
+    const nom=String(j.name||'').trim(), rpps=String(j.rpps||'').trim();
+    if(nom)  document.getElementById('cfgPrat').value=nom;
+    if(rpps) document.getElementById('cfgRPPS').value=rpps;
+    pbSetEtat(rpps ? 'pré-rempli depuis le portail' : 'nom pré-rempli · RPPS à compléter', !!rpps);
+  }catch(e){
+    pbSetEtat('portail injoignable — à saisir', false);
+  }
+}
+
 // ---- DATES ----------------------------------------------------------------
 // Format ISO (AAAA-MM-JJ) : c'est ce que rend <input type=date>, et il se trie
 // alphabetiquement dans l'ordre chronologique -- d'ou le tri simple de renderRows().
@@ -670,7 +711,6 @@ function openDevis(i){
   // Praticien (config saisie une fois en haut de page)
   eText('dvPratName', document.getElementById('cfgPrat').value.trim()||'[Nom Prénom]');
   eText('dvRPPS', document.getElementById('cfgRPPS').value.trim()||'—');
-  eText('dvADELI', document.getElementById('cfgADELI').value.trim()||'—');
   // N° de devis + dates (auto)
   // Le devis est etabli le jour de la CONSULTATION, pas le jour ou on l'imprime, et
   // sa validite de 6 mois court a partir de la. La date prevue est celle de
@@ -796,6 +836,7 @@ function pickCcam(i){
 }
 loadCcam();
 document.getElementById('dCs').value=isoToday();
+chargerPraticien();
 populateMut();setAxe('CCAM');renderRows();
 </script>
 <div id="devisOverlay">
@@ -810,7 +851,7 @@ populateMut();setAxe('CCAM');renderRows();
       <div class="prat">
         <div class="name">Dr <span id="dvPratName">—</span></div>
         <div class="role">Médecin anesthésiste-réanimateur — secteur 2 (honoraires libres, non-OPTAM)</div>
-        <div class="meta">N° RPPS <span id="dvRPPS">—</span> · N° ADELI <span id="dvADELI">—</span><br>Activité libérale au sein du Centre Hospitalier Princesse Grace</div>
+        <div class="meta">N° RPPS <span id="dvRPPS">—</span><br>Activité libérale au sein du Centre Hospitalier Princesse Grace</div>
       </div>
       <div class="estab">
         <div class="e1">Centre Hospitalier Princesse Grace</div>
