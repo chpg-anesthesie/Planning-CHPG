@@ -224,7 +224,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">Module libéral · V3.8 — identité praticien pré-remplie depuis le portail · recherche obstétricale (AFLB010) · devis détaillé</div>
+    <div class="eyebrow">Module libéral · V3.9 — identité praticien (prénom, nom, RPPS) pré-remplie depuis le portail · recherche obstétricale (AFLB010)</div>
     <h1>Estimateur temps réel du libéral</h1>
     <div class="sub">Un parcours = une ou plusieurs lignes de code (principal + associés + suppléments). L'outil calcule la BR, projette le ratio 30 %, et <b>calibre le dépassement sur la mutuelle du patient pour minimiser son reste à charge</b>. <b>Estimateur, pas décompte.</b></div>
     <a class="guidelink" href="../guide-liberal.html">📘 Guides du libéral — cotation, règle des 30 %, antisèche</a>
@@ -560,6 +560,15 @@ function fromCible(){const c=parseFloat(document.getElementById('cible').value)|
 // L'URL ci-dessous est deja publique dans dashboard.html (depot public) : rien de neuf.
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
+// Le classeur stocke le nom sous la forme "Dr X" ; les gabarits du devis et de la
+// declaration de choix ecrivent DEJA "Dr" / "Docteur" devant. On retire donc la
+// civilite du nom pre-rempli, sinon le document imprime "Dr Dr X".
+// La civilite n'est retiree que si elle est SUIVIE D'UNE ESPACE : Drouot, Dreyfus
+// et Prunet ne sont pas touches.
+function sansCivilite(n){
+  return String(n||'').replace(/^\s*(?:(?:M\.|Mme|Dr\.?|Docteur|Pr\.?|Professeur)\s+)+/i,'').trim();
+}
+
 function pbSetEtat(txt, ok){
   const e=document.getElementById('pbEtat'); if(!e) return;
   e.textContent=txt; e.className='pbetat '+(ok?'ok':'ko');
@@ -580,10 +589,14 @@ async function chargerPraticien(){
     clearTimeout(to);
     const j=await r.json();
     if(!j || !j.success || j.role!=='mar'){ pbSetEtat('non identifié — à saisir', false); return; }
-    const nom=String(j.name||'').trim(), rpps=String(j.rpps||'').trim();
-    if(nom)  document.getElementById('cfgPrat').value=nom;
-    if(rpps) document.getElementById('cfgRPPS').value=rpps;
-    pbSetEtat(rpps ? 'pré-rempli depuis le portail' : 'nom pré-rempli · RPPS à compléter', !!rpps);
+    const nom=sansCivilite(j.name), prenom=String(j.prenom||'').trim(), rpps=String(j.rpps||'').trim();
+    // "Prénom Nom" ; sans prénom renseigne, le nom seul (le gabarit ajoute "Dr").
+    const complet=[prenom, nom].filter(Boolean).join(' ');
+    if(complet) document.getElementById('cfgPrat').value=complet;
+    if(rpps)    document.getElementById('cfgRPPS').value=rpps;
+    const manque=[!prenom?'prénom':null, !rpps?'RPPS':null].filter(Boolean);
+    pbSetEtat(manque.length ? ('pré-rempli · '+manque.join(' et ')+' à compléter')
+                            : 'pré-rempli depuis le portail', !manque.length);
   }catch(e){
     pbSetEtat('portail injoignable — à saisir', false);
   }
