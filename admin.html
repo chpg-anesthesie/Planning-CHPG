@@ -944,7 +944,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.7'; // SITE_VERSION: v1.7
+const SITE_VERSION = 'v1.7.1'; // SITE_VERSION: v1.7.1
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1037,7 +1037,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.7</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.7.1</span></span>
     <a href="./docs/guide-comite.html" target="_blank" class="header-btn" title="Guide du comité — mode d'emploi de cette interface"><span class="hb-ico">?</span> Aide</a>
     
   </div>
@@ -1482,15 +1482,12 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
     <div style="margin-bottom:16px">
       <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-4);display:block;margin-bottom:6px">Secteur</label>
+      <!-- (07/2026) Cette liste était ECRITE EN DUR ici : un secteur créé dans
+           l'onglet SECTEURS ne pouvait pas être affecté, donc n'apparaissait nulle
+           part ensuite (planning, légende, Excel). Elle est désormais remplie par
+           rebuildSecteursDerivations() depuis l'onglet. Le contenu ci-dessous
+           n'est qu'un repli, affiché si le chargement échoue. -->
       <select class="form-select" id="secteurAffSelect">
-        <option value="VIS">VIS — Viscéral</option>
-        <option value="END">END — Endoscopies</option>
-        <option value="ORL">ORL</option>
-        <option value="REA">REA — Réanimation</option>
-        <option value="ORT">ORT — Orthopédie</option>
-        <option value="CI">CI — Cardio/Interv.</option>
-        <option value="RI">RI — Radio/Interv.</option>
-        <option value="MAT">MAT — Maternité</option>
         <option value="VOLANT">VOLANT</option>
       </select>
     </div>
@@ -1692,6 +1689,22 @@ function rebuildSecteursDerivations() {
     Object.fromEntries(SECTEURS_CFG.filter(s => s.aff).map(s => [s.code, s.aff])),
     { VOLANT:'Volant' }
   );
+  _remplirSelecteurAffectation();
+}
+
+// Remplit le menu de choix du secteur (grille des Affectations) depuis l'onglet.
+// Seuls les secteurs AFFECTABLES au mois y figurent : ceux qui portent un libellé
+// dans la colonne AFF. Un secteur sans AFF (ex. DVI, vacation du mardi matin)
+// n'est pas une affectation mensuelle. VOLANT est ajouté en dernier.
+function _remplirSelecteurAffectation() {
+  const sel = document.getElementById('secteurAffSelect');
+  if (!sel) return;                       // appelé avant que le DOM existe
+  const prev = sel.value;
+  const opts = (SECTEURS_ACTIFS || []).filter(s => s.aff)
+    .map(s => `<option value="${s.code}">${s.code} — ${s.aff}</option>`)
+    .join('') + '<option value="VOLANT">VOLANT</option>';
+  sel.innerHTML = opts;
+  if (prev) sel.value = prev;             // conserve la sélection en cours
 }
 rebuildSecteursDerivations();  // amorçage synchrone depuis le fallback en dur
 // Source unique : charge les secteurs depuis l'onglet SECTEURS (via getSecteurs).
