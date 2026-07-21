@@ -633,6 +633,22 @@
     </tbody>
   </table>
 
+  <p><b>La position de la ligne fixe l'ordre d'affichage</b>, dans l'admin comme dans l'Excel.
+  Placez-la où vous voulez la voir apparaître.</p>
+
+  <div class="callout">
+    <div class="ct">Exemple — ouvrir une consultation vasculaire le mardi après-midi</div>
+    <p>Dans <code>CS_TEMPLATE</code>, une ligne :
+    <code>CS-VASC</code> · <code>CS Vasculaire</code> · <code>O</code> · <code>O</code> ·
+    <code>MAR_PM = 1</code> · toutes les autres demi-journées à <code>0</code> ·
+    <code>XL_LABEL = « ␣VASCULAIRE »</code> · <code>XL_BG = D9E1F2</code>.</p>
+    <p>Puis <span class="kbd">Ctrl+Maj+R</span> : une case « à pourvoir » apparaît le mardi après-midi
+    dans l'onglet Planning, le comité clique dessus pour placer quelqu'un, et une ligne VASCULAIRE
+    sort dans l'Excel du vendredi. Avec <code>1</code> seul créneau, les deux cellules de la
+    demi-journée fusionnent ; avec <code>2</code>, deux cases distinctes sont à pourvoir chaque
+    semaine (c'est le cas du lundi après-midi en viscéral et en endoscopie).</p>
+  </div>
+
   <div class="callout tip">
     <div class="ct">Ne pas oublier le lien vers le secteur</div>
     <p>Dans l'onglet <code>SECTEURS</code>, renseigner la colonne <code>CS</code> du secteur concerné
