@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-20.2';
+const GAS_VERSION_PORTAIL = '2026-07-21.1';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1184,18 +1184,33 @@ const _SECTEURS_SEED = [
 const CS_TEMPLATE_TAB = 'CS_TEMPLATE';
 
 const _CS_TEMPLATE_HEADER = ['CODE','LABEL','OUVRABLE','ACTIF',
-  'LUN_AM','LUN_PM','MAR_AM','MAR_PM','MER_AM','MER_PM','JEU_AM','JEU_PM','VEN_AM','VEN_PM'];
+  'LUN_AM','LUN_PM','MAR_AM','MAR_PM','MER_AM','MER_PM','JEU_AM','JEU_PM','VEN_AM','VEN_PM',
+  'XL_LABEL','XL_BG'];
+
+// Libellés et couleurs de l'EXPORT EXCEL, qui diffèrent du web (le fichier reprend
+// l'ancien tableau papier). Les mentions « / URO. » et « / OPHTALMO. » sont des
+// abus de langage assumés : le bloc viscéral couvre viscéral ET uro, le bloc ORL
+// couvre ORL ET ophtalmo — il n'existe PAS de code distinct pour ces spécialités.
+const _CS_TEMPLATE_XL = {
+  'CS-VIS':   [' VISC. / URO.',     'FFE699'],
+  'CS-END':   [' ENDOSCOPIES',      'C6E0B4'],
+  'CS-ORL':   [' ORL / OPHTALMO.',  'FFF2CC'],
+  'CS-ORT':   [' ORTHO.',           'F4B183'],
+  'CS-MAT':   [' MATERNITE',        'FFA7A9'],
+  'CS-POLY':  [' POLYVALENT',       'F2F2F2'],
+  'CS-INTER': [' INTERVENTIONNEL',  'E7E6E6'],
+};
 
 // Amorçage = les 23 créneaux actuels, repris À L'IDENTIQUE de CS_REQUIRED
 // (admin.html), qui est la table réellement active aujourd'hui.
 const _CS_TEMPLATE_SEED = [
-  ['CS-VIS',   'CS Viscéral',        'O','O', 0,2, 0,1, 0,1, 0,1, 0,0],
-  ['CS-END',   'CS Endoscopies',     'O','O', 0,2, 0,1, 0,1, 0,2, 0,0],
-  ['CS-ORL',   'CS ORL',             'O','O', 0,0, 1,0, 1,0, 1,0, 1,0],
-  ['CS-ORT',   'CS Orthopédie',      'O','O', 0,0, 0,1, 0,1, 0,0, 1,0],
-  ['CS-MAT',   'CS Maternité',       'O','O', 0,0, 1,0, 0,0, 1,0, 0,0],
-  ['CS-POLY',  'CS Polyvalente',     'O','O', 0,0, 0,0, 1,0, 0,0, 0,0],
-  ['CS-INTER', 'CS Interventionnel', 'O','O', 0,0, 0,0, 0,1, 0,1, 0,0],
+  ['CS-VIS',   'CS Viscéral',        'O','O', 0,2, 0,1, 0,1, 0,1, 0,0, ' VISC. / URO.'     , 'FFE699'],
+  ['CS-END',   'CS Endoscopies',     'O','O', 0,2, 0,1, 0,1, 0,2, 0,0, ' ENDOSCOPIES'      , 'C6E0B4'],
+  ['CS-ORL',   'CS ORL',             'O','O', 0,0, 1,0, 1,0, 1,0, 1,0, ' ORL / OPHTALMO.'  , 'FFF2CC'],
+  ['CS-ORT',   'CS Orthopédie',      'O','O', 0,0, 0,1, 0,1, 0,0, 1,0, ' ORTHO.'           , 'F4B183'],
+  ['CS-MAT',   'CS Maternité',       'O','O', 0,0, 1,0, 0,0, 1,0, 0,0, ' MATERNITE'        , 'FFA7A9'],
+  ['CS-POLY',  'CS Polyvalente',     'O','O', 0,0, 0,0, 1,0, 0,0, 0,0, ' POLYVALENT'       , 'F2F2F2'],
+  ['CS-INTER', 'CS Interventionnel', 'O','O', 0,0, 0,0, 0,1, 0,1, 0,0, ' INTERVENTIONNEL'  , 'E7E6E6'],
 ];
 
 // Crée l'onglet s'il manque, l'amorce s'il est vide. N'écrase JAMAIS de lignes
@@ -1213,7 +1228,32 @@ function getOrCreateCsTemplateTab() {
   };
   if (!sh) { sh = ss.insertSheet(CS_TEMPLATE_TAB); amorcer(); }
   else if (sh.getLastRow() < 2) { amorcer(); }
+  else _migrerColonnesXlCs_(sh);   // onglet déjà rempli → compléter si besoin
   return sh;
+}
+
+// Migration douce (07/2026) : CS_TEMPLATE passe de 14 à 16 colonnes (XL_LABEL / XL_BG).
+// Idempotente, n'écrase jamais une cellule déjà saisie.
+function _migrerColonnesXlCs_(sh) {
+  try {
+    if (sh.getLastColumn() < _CS_TEMPLATE_HEADER.length) {
+      sh.getRange(1, 1, 1, _CS_TEMPLATE_HEADER.length)
+        .setValues([_CS_TEMPLATE_HEADER]).setFontWeight('bold');
+      Logger.log('Onglet CS_TEMPLATE : colonnes XL_LABEL / XL_BG ajoutées.');
+    }
+    const rows = sh.getDataRange().getValues();
+    for (let r = 1; r < rows.length; r++) {
+      const code = String(rows[r][0] || '').trim().toUpperCase();
+      const vals = _CS_TEMPLATE_XL[code];
+      if (!code || !vals) continue;
+      for (let k = 0; k < 2; k++) {
+        const cur = rows[r][14 + k];
+        if (cur === '' || cur == null) sh.getRange(r + 1, 15 + k).setValue(vals[k]);
+      }
+    }
+  } catch (e) {
+    Logger.log('_migrerColonnesXlCs_ : ' + e.message);
+  }
 }
 
 // One-shot manuel : à lancer une fois dans l'éditeur Apps Script.
@@ -1261,6 +1301,13 @@ function getCsTemplate() {
       label:    String(rows[r][1] || '').trim(),
       ouvrable: String(rows[r][2] || '').trim().toUpperCase() === 'O',
       actif:    true,
+      // Colonnes EXCEL. Vides = défauts, pour qu'une consultation créée sans les
+      // remplir apparaisse quand même dans le fichier du vendredi.
+      // PAS de .trim() sur le libellé : l'espace initial est VOULU, il décale le
+      // texte dans la cellule Excel (' VISC. / URO.'). On ne nettoie qu'à droite.
+      xlLabel:  String(rows[r][14] || '').replace(/\s+$/, '')
+                || ' ' + String(rows[r][1] || code).replace(/^CS[- ]*/i, '').trim().toUpperCase(),
+      xlBg:     String(rows[r][15] || '').trim().replace(/^#/, '').toUpperCase() || 'F2F2F2',
     });
     for (let d = 0; d < 5; d++) {
       ['am', 'pm'].forEach(function (half, hi) {
