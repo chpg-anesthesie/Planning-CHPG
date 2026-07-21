@@ -1,6 +1,9 @@
-# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v15.5)
+# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v15.6)
 
 *Source faisant autorité : **Arrêté Ministériel n° 2005-276** régissant la CCAM à Monaco (MAJ 2018) + mémento des Caisses Sociales de Monaco. Les **valeurs monétaires sont celles fixées en France** (art. 16) → base CCAM **v80, en vigueur au 01/01/2025**. Objectif : coter **à juste titre** l'exhaustivité de ce qui est réellement fait — jamais surcoter.*
+
+*v15.6 — 21 juillet 2026. Ajout de l'alerte **AFLB010** (péridurale obstétricale) en tête de
+la checklist anti-perte : code fréquemment oublié, et introuvable en cherchant « péridurale ».*
 
 *v15.5 — 19 juillet 2026. Trois questions **fermées** : **DEQP007 = INCLUS** dans le forfait
 YYYY015 (liste des actes compris, texte CCAM) et **DEQP003 explicitement non facturable** avec le
@@ -325,6 +328,7 @@ Coder les gestes **à la place** du forfait est presque toujours **perdant** :
 
 ## 7. Checklist anti-perte (garde + bloc)
 
+- [ ] **⚠️ Obstétrique — AFLB010, le code qui saute le plus souvent.** Anesthésie péridurale (ou rachianesthésie) pour accouchement par voie basse. Libellé officiel : *« Anesthésie rachidienne au cours d'un accouchement par voie basse »*, **209,00 €** en activité 4. **Le mot « péridurale » n'apparaît pas dans le libellé** : une recherche sur « péridurale » ne le trouve pas (elle ramène 12 autres actes). Chercher **« accouchement voie basse »**, qui ne ramène que lui. À vérifier systématiquement sur toute prise en charge obstétricale.
 - [ ] **Ligne activité 4** sur CHAQUE intervention sous AG/ALR (ou **ZZLP025** si l'acte ne porte pas d'anesthésie native).
 - [ ] **Plusieurs gestes chir. ?** Vérifier que la ligne d'anesthésie porte sur l'**acte pivot** attendu (l'anesthésie s'indexe sur l'acte chirurgical) — *applicabilité Monaco à confirmer*.
 - [ ] **CS / APC pré-anesthésique** systématiquement cotée (axe **NGAP**, point d'entrée du parcours — CS 46 € / APC 60 € selon critères).
