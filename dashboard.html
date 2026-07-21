@@ -350,7 +350,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.7.1</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.8</span></span></p>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
@@ -444,12 +444,13 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.7.1'; // SITE_VERSION: v1.7.1
+const SITE_VERSION = 'v1.8'; // SITE_VERSION: v1.8
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
 let MY_ID = null;
 let MY_ROLE = null;
+let MY_LIBERAL = false;      // membre du groupement liberal (colonne LIBERAL de MEDECINS)
 let INDISPOS_OUVERTE = false;   // campagne de saisie en cours (renvoyé par login)
 let INDISPOS_YEAR = null;       // année concernée par la saisie
 
@@ -511,6 +512,8 @@ function applyUserBadge(r){
   MY_ID = (r.role==='mar') ? r.id : null;
   // État de la campagne de saisie (pilote la tuile « Mes indisponibilités »).
   INDISPOS_OUVERTE = !!r.indisposOuverte;
+  // Membre du groupement liberal : pilote la tuile Module liberal.
+  MY_LIBERAL = !!r.liberal;
   INDISPOS_YEAR = r.indisposYear || null;
   const pill = document.getElementById('mePill');
   if(!pill) return;
@@ -527,7 +530,7 @@ function applyUserBadge(r){
 function logout(){
   if(!confirm('Se déconnecter et changer d\'utilisateur ?')) return;
   try{ sessionStorage.removeItem('chpgViewCode'); }catch(e){}
-  VIEW_CODE=''; MY_ID=null; MY_ROLE=null;
+  VIEW_CODE=''; MY_ID=null; MY_ROLE=null; MY_LIBERAL=false;
   location.reload();
 }
 
@@ -546,11 +549,15 @@ const TILES = [
   { key:'veille',   title:'Veille biblio', sub:'Nouveaux articles PubMed en anesthésie-réanimation.', icon:'radar', view:'veille', ready:true },
   { key:'annuaire', title:'Annuaire', sub:'Numéros de l\'hôpital et DECT de l\'équipe.', icon:'phone', view:'annuaire', ready:true },
   { key:'cr-anesth', title:'CR d\'anesthésie', sub:'Générateur de comptes-rendus d\'anesthésie.', icon:'file-text', href:'./cr-anesthesie/index.html', ready:true },
+  // Tuile RESERVEE aux membres du groupement liberal (colonne LIBERAL = O dans
+  // MEDECINS). La page pointee est le hub : elle renvoie vers l'estimateur et le
+  // guide MAR. Colonne absente ou vide => tuile invisible pour tout le monde.
+  { key:'liberal',  title:'Module libéral', sub:'Guide de cotation et estimateur d\'honoraires.', icon:'calculator', href:'docs/guide-liberal.html', ready:true, tint:'viol', liberal:true },
   { key:'crh',      title:'CRH', sub:'Comptes rendus de réanimation.', icon:'file-text', href:'crh.html', ready:true, only:'FROHLICH' },
 ];
 function renderTiles(){
   const box = document.getElementById('tiles');
-  box.innerHTML = TILES.filter(t => (!t.only || t.only === MY_ID) && (!t.campagne || INDISPOS_OUVERTE)).map(t => {
+  box.innerHTML = TILES.filter(t => (!t.only || t.only === MY_ID) && (!t.campagne || INDISPOS_OUVERTE) && (!t.liberal || MY_LIBERAL)).map(t => {
     const soon = t.ready ? '' : ' soon';
     const tag  = t.ready ? '' : '<span class="badge-soon">Bientôt</span>';
     const arrow = t.ready ? '<div class="tile-arrow">Ouvrir <i data-lucide="arrow-right" style="width:15px;height:15px"></i></div>' : '';
