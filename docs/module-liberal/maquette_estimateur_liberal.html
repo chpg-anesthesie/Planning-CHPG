@@ -76,6 +76,9 @@
 
   .list{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
   .list h2{padding:11px 16px;font-size:11px;font-family:'IBM Plex Mono',monospace;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--line)}
+  .datehint{font-size:11.5px;color:var(--muted);flex:1;min-width:210px;padding-bottom:8px;line-height:1.35}
+  .dchip{font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:20px;background:var(--track);color:var(--muted);margin-right:6px;white-space:nowrap}
+  .dchip.past{background:#FDF3E3;color:#8A6516}
   .pitem{padding:11px 16px;border-bottom:1px solid #F1F5F9;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px}
   .pitem:last-child{border-bottom:0}
   .pill{font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;padding:2px 7px;border-radius:20px}
@@ -208,7 +211,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">Module libéral · V3.3 — calibrage mutuelle / RAC · devis + déclaration de choix</div>
+    <div class="eyebrow">Module libéral · V3.4 — dates consultation / intervention · calibrage mutuelle / RAC · devis + déclaration de choix</div>
     <h1>Estimateur temps réel du libéral</h1>
     <div class="sub">Un parcours = une ou plusieurs lignes de code (principal + associés + suppléments). L'outil calcule la BR, projette le ratio 30 %, et <b>calibre le dépassement sur la mutuelle du patient pour minimiser son reste à charge</b>. <b>Estimateur, pas décompte.</b></div>
     <a class="guidelink" href="../guide-liberal.html">📘 Guides du libéral — cotation, règle des 30 %, antisèche</a>
@@ -247,6 +250,19 @@
           <option value="ame">AME — Aide Médicale de l'État (DH 0)</option>
         </select></div>
       <div><label id="coefLbl">Coeff. CCAM</label><span class="coefbadge" id="coefBadge">× 1,95</span></div>
+    </div>
+
+    <!-- DATES. Deux dates distinctes, deux usages :
+         - date de consultation = codage NGAP + date d'etablissement du devis ;
+         - date d'intervention  = jour ou l'alerte remonte au comite sur le planning.
+         L'intervention n'existe que sur l'axe CCAM (bloc) et n'est JAMAIS pre-remplie :
+         une case vide se voit, une date fausse ne se voit pas. -->
+    <div id="dateRow" style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin:2px 0 6px">
+      <div class="field" style="width:180px"><label>Date de consultation</label>
+        <input id="dCs" type="date" onchange="renderDateHint()"></div>
+      <div class="field" id="dIntWrap" style="width:180px"><label>Date d'intervention</label>
+        <input id="dInt" type="date" onchange="renderDateHint()"></div>
+      <div class="datehint" id="dateHint"></div>
     </div>
 
     <!-- MUTUELLE : ligne « honoraires » en % BR (nourrit le calibrage RAC) -->
@@ -450,6 +466,9 @@ function setAxe(a){axe=a;
   document.getElementById('blocNGAP').style.display=n?'block':'none';
   document.getElementById('hintCCAM').style.display=n?'none':'block';
   document.getElementById('hintNGAP').style.display=n?'block':'none';
+  // La date d'intervention n'a de sens que sur l'axe bloc (CCAM).
+  document.getElementById('dIntWrap').style.display=n?'none':'block';
+  renderDateHint();
   onStatut();
 }
 function onStatut(){const st=STATUTS[document.getElementById('statut').value];
@@ -518,6 +537,21 @@ function renderNgap(){
 function fromCible(){const c=parseFloat(document.getElementById('cible').value)||0;const br=parcoursBR();
   document.getElementById('dh').value=(Math.max(0,Math.round((c-br)*100)/100)).toFixed(2);updateRac();renderSummary();}
 
+// ---- DATES ----------------------------------------------------------------
+// Format ISO (AAAA-MM-JJ) : c'est ce que rend <input type=date>, et il se trie
+// alphabetiquement dans l'ordre chronologique -- d'ou le tri simple de renderRows().
+function isoToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function fmtI(iso){if(!iso)return '\u2014';const q=String(iso).split('-');return q.length===3?(q[2]+'/'+q[1]+'/'+q[0]):iso;}
+function renderDateHint(){
+  const h=document.getElementById('dateHint'); if(!h)return;
+  const dInt=document.getElementById('dInt').value;
+  if(axe==='NGAP'){h.innerHTML="La consultation est l'acte : c'est cette date qui remonte au comit\u00e9 et qui \u00e9tablit le devis.";return;}
+  if(!dInt){h.innerHTML="<b>Date d'intervention requise</b> \u2014 c'est elle qui pose l'alerte du comit\u00e9 sur le planning.";return;}
+  h.innerHTML = (dInt<isoToday())
+    ? "<b style=\"color:#8A6516\">Intervention d\u00e9j\u00e0 pass\u00e9e</b> \u2014 accept\u00e9 (codage r\u00e9trospectif), signal\u00e9 en orange dans la liste."
+    : "L'alerte du comit\u00e9 se posera le <b>"+fmtI(dInt)+"</b>.";
+}
+
 function addParcours(){
   const br=parcoursBR();
   if(br<=0){alert(axe==='NGAP'?'Ajoute au moins une consultation avec une valeur.':'Ajoute au moins une ligne avec un tarif.');return;}
@@ -526,13 +560,19 @@ function addParcours(){
     ? ngap.map(n=>`${n.lc==='AUTRE'?'NGAP':n.lc}${(n.coef&&n.coef!==1)?' '+n.coef:''}`).join(' + ')
     : builder.map(l=>((l.code?l.code+' ':'')+(l.lib||'ligne'))).join(' + ');
   const cnt = axe==='NGAP'?ngap.length:builder.length;
+  const dCs=document.getElementById('dCs').value;
+  const dInt=document.getElementById('dInt').value;
+  if(!dCs){alert("Renseigne la date de consultation.");return;}
+  if(axe==='CCAM' && !dInt){alert("Renseigne la date d'intervention : c'est elle qui pose l'alerte du comit\u00e9 sur le planning.");return;}
+  // Date de l'acte = celle qui remonte au comite : intervention en CCAM, consultation en NGAP.
+  const dActe = (axe==='CCAM') ? dInt : dCs;
   const st=document.getElementById('statut').value, pct=currentMutPct();
   let rac=null, mut=null;
   if(pct>0 && STATUTS[st].dh!=='0'){
     const reimb=Math.min(coverageCeiling(st,pct,br), br+dh);
     rac=Math.max(0,(br+dh)-reimb); mut=currentMut().n;
   }
-  parcours.push({axe,statut:st,desc,cnt,br,dh,rac,mut});
+  parcours.push({axe,statut:st,desc,cnt,br,dh,rac,mut,dCs,dInt:(axe==='CCAM'?dInt:''),dActe});
   renderRows();renderSummary();
 }
 function delP(i){parcours.splice(i,1);renderRows();renderSummary();}
@@ -562,13 +602,19 @@ function renderRows(){
   document.getElementById('listTitle').textContent='Parcours déclarés — '+parcours.length;
   const rows=document.getElementById('rows');
   if(!parcours.length){rows.innerHTML='<div class="empty">Aucun parcours.</div>';return;}
-  rows.innerHTML=parcours.map((p,i)=>{const c=p.axe==='CCAM'?'c':'n';
+  // Tri par date d'acte. On trie une COPIE porteuse de l'index d'origine : delP(i) et
+  // openDevis(i) indexent le tableau parcours, pas l'ordre affiche.
+  const ord=parcours.map((p,i)=>({p,i})).sort((x,y)=>String(x.p.dActe||'').localeCompare(String(y.p.dActe||'')));
+  const tdy=isoToday();
+  rows.innerHTML=ord.map(o=>{const p=o.p,i=o.i;const c=p.axe==='CCAM'?'c':'n';
+    const past=p.dActe&&p.dActe<tdy;
+    const chip=`<span class="dchip${past?' past':''}" title="${p.axe==='CCAM'?"Date d'intervention":'Date de consultation'}">${fmtI(p.dActe)}</span>`;
     const unit=p.axe==='NGAP'?'consult':'ligne';
     const racLine = p.rac!=null
       ? `<br><span style="font-size:10.5px;color:${p.rac<=0.005?'var(--room)':'var(--over)'}">RAC ${eur2(p.rac)}</span>` : '';
     const mutLine = p.mut ? ' · '+p.mut : '';
     return `<div class="pitem"><span class="pill ${c}">${p.axe}</span>
-      <div class="d">${p.desc} <small>${p.statut}${mutLine} · ${p.cnt} ${unit}(s)</small></div>
+      <div class="d">${chip}${p.desc} <small>${p.statut}${mutLine} · ${p.cnt} ${unit}(s)${(p.axe==='CCAM'&&p.dCs)?' · consult '+fmtI(p.dCs):''}</small></div>
       <div class="amt"><span class="br">${eur2(p.br)}</span> BR<br><span class="dh">${p.dh?'+'+eur2(p.dh)+' DH':'DH 0'}</span>${racLine}</div>
       <button class="devisbtn" onclick="openDevis(${i})" title="Générer le devis">📄 Devis</button>
       <button class="rm" onclick="delP(${i})">✕</button></div>`;}).join('');
@@ -588,12 +634,16 @@ function openDevis(i){
   eText('dvRPPS', document.getElementById('cfgRPPS').value.trim()||'—');
   eText('dvADELI', document.getElementById('cfgADELI').value.trim()||'—');
   // N° de devis + dates (auto)
-  const today=new Date(), valid=new Date(); valid.setMonth(valid.getMonth()+6);
-  const p2=n=>String(n).padStart(2,'0');
-  eText('dvNum', today.getFullYear()+'-'+p2(today.getMonth()+1)+p2(today.getDate())+'-'+p2(today.getHours())+p2(today.getMinutes()));
-  eText('dvDateEtabli', fmtDate(today));
+  // Le devis est etabli le jour de la CONSULTATION, pas le jour ou on l'imprime, et
+  // sa validite de 6 mois court a partir de la. La date prevue est celle de
+  // l'intervention ; sur un parcours NGAP l'acte EST la consultation.
+  const base = p.dCs ? new Date(p.dCs+'T12:00:00') : new Date();
+  const valid = new Date(base.getTime()); valid.setMonth(valid.getMonth()+6);
+  const now=new Date(), p2=n=>String(n).padStart(2,'0');
+  eText('dvNum', base.getFullYear()+'-'+p2(base.getMonth()+1)+p2(base.getDate())+'-'+p2(now.getHours())+p2(now.getMinutes()));
+  eText('dvDateEtabli', fmtDate(base));
   eText('dvDateValid', fmtDate(valid));
-  document.getElementById('dvDatePrevue').textContent=fmtDate(today);
+  document.getElementById('dvDatePrevue').textContent=fmtI(p.dInt||p.dCs);
   // Acte + statut + mutuelle + montants
   eText('dvStatut', ST_LABELS[p.statut]||p.statut);
   eText('dvActe', p.desc||'Acte'); eText('dvActe2', p.desc||'Acte');
@@ -693,6 +743,7 @@ function pickCcam(i){
   renderBuilder();
 }
 loadCcam();
+document.getElementById('dCs').value=isoToday();
 populateMut();setAxe('CCAM');renderRows();
 </script>
 <div id="devisOverlay">
