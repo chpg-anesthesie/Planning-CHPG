@@ -1,7 +1,7 @@
 # Roadmap — Planning-CHPG
 
 Système web : **planning des gardes** (équité annuelle) + **planning quotidien** + **consultations** + **portail/Dashboard** + **veille biblio** + **CR d'anesthésie**, pour ~23 MARs au CHPG (Monaco).
-Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 21 juillet 2026 (chantier secteurs terminé + tuile Module libéral).*
+Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 21 juillet 2026 (chantier secteurs terminé, tuile Module libéral, estimateur V3.6).*
 
 > Le dépôt en ligne fait foi. Cette roadmap est un repère de pilotage, pas la source de vérité du code.
 
@@ -407,12 +407,38 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
   - Ordre des lots : **0 → 1 → 2 → 4**, Lot 3 parallélisable après Lot 1.
 
 - [ ] 🖥️ **Dashboard / portail**
-  - [x] **Tuile Module libéral** — **EN PRODUCTION, testée le 21/07/2026** (site v1.8).
-    Pointe sur `docs/guide-liberal.html` (le hub : guide de cotation + estimateur + guide MAR).
+  - [x] **Tuile Module libéral** — **EN PRODUCTION, testée le 21/07/2026** (site v1.8.1).
+    Ouvre **directement l'estimateur** ; celui-ci porte en tête un lien vers `docs/guide-liberal.html`
+    (cotation, règle des 30 %, antisèche), qui renvoie lui-même vers l'estimateur — la boucle ferme.
     Visible pour les seuls MAR ayant `O` dans la colonne **`LIBERAL`** de `MEDECINS` (ajoutée en
     **fin** d'onglet). `checkCode` lit la colonne **par son en-tête** et renvoie `liberal`, l'action
     `login` le transmet, `dashboard.html` filtre sur `MY_LIBERAL`. Colonne vide → tuile invisible
     pour tout le monde. Aucune lecture de classeur supplémentaire.
+
+- [x] 🧾 **Estimateur — V3.4 à V3.6, EN PRODUCTION, rendu et impression validés le 21/07/2026.**
+  Quatre incréments successifs, chacun testé avant le suivant :
+  - **V3.4 — les deux dates.** Modèle acté : un parcours **NGAP** porte une seule date, la
+    **consultation** ; un parcours **CCAM** en porte deux, **consultation** (= date d'établissement
+    du devis, pré-remplie à aujourd'hui) et **intervention** (**jamais pré-remplie**, obligatoire,
+    l'ajout est refusé sans elle). Règle unique qui en découle : **la date qui remonte au comité est
+    la date de l'acte** — intervention en CCAM, consultation en NGAP. Le tiroir « ◆ Libéral » du
+    planning admin n'aura donc qu'un seul champ à lire. Liste triée par date d'acte, dates passées
+    en orange (codage rétrospectif accepté, jamais bloqué). Le devis n'affiche plus la date du jour :
+    « Établi le » = date de consultation, validité 6 mois comptée depuis elle.
+    *Principe retenu : une case vide se voit, une date fausse ne se voit pas.*
+  - **V3.5 — devis détaillé acte par acte**, sur le modèle de la note préalable du CNOM (secteur 2),
+    qui impose de mentionner chaque acte selon les mêmes modalités. La mention `CCAM / NGAP` en dur
+    et le champ « code » à recopier à la main ont disparu : le code était déjà dans le libellé.
+    **La BR se décompose ligne par ligne, le DH non** — il est saisi pour l'intervention entière et
+    il n'existe aucune clé de répartition : il reste sur la ligne de total, avec les honoraires et le
+    remboursement. Ne pas « améliorer » ce point en inventant une répartition.
+  - **V3.6 — un acte par ligne.** Le libellé et son code cohabitent sur la même ligne : chaque acte
+    coûte une ligne de tableau, plus deux. C'est ce qui fait tenir un devis à 3 actes sur une A4.
+  - ⚠️ **Point ouvert, à porter au CHPG / DAM** : le modèle du CNOM porte la mention que
+    l'information sur les actes pratiqués est destinée **au seul patient** et n'a pas à être
+    communiquée à des tiers, **y compris les assureurs complémentaires**. Le détail par acte reste
+    justifié pour la clarté du patient, mais la question de faire circuler les **codes** jusqu'à la
+    mutuelle n'est pas tranchée pour Monaco (cadre DAM / convention CCSS-CAMTI distinct du français).
 
 **⚠️ Deux pièges payés comptant ce jour-là.**
 
@@ -451,6 +477,7 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
 ---
 
 ## 🚫 Écarté (ne pas reproposer)
+- **Réduction automatique du devis à l'impression** — étudiée puis **écartée le 21/07/2026**, décision d'Arthur. Le projet était de mesurer la hauteur de la feuille, de sortir les règles de compactage de `@media print` sous une classe `body.dvfit` pour qu'elles soient visibles à la mesure, et d'appliquer un `zoom` plancher 0,75. **Abandonné parce que le cas réel ne le justifie pas** : 95 % des dossiers font 2 actes, 3 au grand maximum. Le problème a été réglé par la mise en page seule (V3.6, un acte par ligne), rendu et impression validés. Ne pas reproposer sans un cas réel de débordement à 3 actes.
 - `config.html` (couvert par les onglets d'admin.html).
 - Optimisation perf du JSON (déjà minifié + gzip).
 - **Protection anti-force-brute sur `checkCode()`** — étudiée puis **écartée le 20/07/2026**, décision d'Arthur, après chiffrage. Ne pas reproposer sans élément nouveau. Trois raisons :
