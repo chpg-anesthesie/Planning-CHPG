@@ -363,6 +363,32 @@ la consult CS-INTER » — or **il n'y a jamais de bloc cardio le jeudi**. Il é
 bloc fermé. Son secteur est désormais **vidé** l'après-midi (aucune ligne de bloc) : il est en
 consultation, il ne peut pas être au bloc.
 
+### Chantier secteurs — TERMINÉ de bout en bout (21 juillet 2026) · site v1.7.1
+
+Un secteur ou une consultation se crée désormais **dans un onglet du classeur**, et va jusqu'au
+fichier Excel du vendredi. Aucun code, aucune recopie Apps Script. Documenté au **§ 18 du
+guide technique** (marche à suivre complète, colonne par colonne, avec exemple).
+
+- **Légende des Affectations** dérivée de l'onglet (elle était figée sur 9 codes).
+- **Export Excel piloté par les onglets** : `BLOCS` et `SX` viennent de `SECTEURS` (colonnes
+  `XL_LABEL` / `XL_BG` / `XL_ROWS`), `CSROWS` de `CS_TEMPLATE` (`XL_LABEL` / `XL_BG`).
+  Équivalence prouvée avant push : libellés, couleurs, hauteurs et ordre **identiques** à l'existant.
+- **Les sous-codes `URO` et `OPH` ont disparu** : ce n'étaient pas des codes mais des mentions de
+  libellé (le bloc viscéral couvre viscéral ET uro). Confirmé par Arthur.
+- **Ordre unifié** : `CS_TEMPLATE` a été réordonné à la main pour que l'admin et l'Excel affichent
+  la même séquence (VIS, ORT, ORL, END, INTER, MAT, POLY).
+
+**⚠️ La leçon de la journée — une 4ᵉ liste en dur, invisible aux recherches.**
+Trois patchs successifs (légende, blocs Excel, consultations) étaient corrects mais **sans effet** :
+le sélecteur de secteur de la grille des Affectations était une suite de balises `<option>` **écrite
+en dur dans le HTML**, à 2 700 lignes du code qui l'utilise. Impossible d'affecter un secteur créé,
+donc rien n'apparaissait ensuite — ni légende, ni planning, ni Excel. Trouvée uniquement par le
+**test de bout en bout d'Arthur**. → Chercher les listes figées dans le HTML autant que dans le JS.
+
+**Nouveau contrôle du diagnostic** : les affectations pointant vers un secteur supprimé, inactif ou
+sans `AFF` sont signalées **en erreur**, avec le code et les MAR concernés. Sans lui, ces MAR
+basculaient en VOLANT à la publication sans que personne ne le voie.
+
 ### Documentation (docs/)
 - Guides : `guide-mar.html`, `guide-comite.html`, `guide-algo-gardes.html`, `guide-liberal.html`, `guide-technique.html`.
 - Présentations staff, démographie.
@@ -386,16 +412,6 @@ nouvelle livraison**, et de préférence une par une pour savoir laquelle casse 
 
 Frontend déjà en ligne, à vérifier au même moment : cases cliquables partout (v1.6.1), légende
 et libellés dérivés de l'onglet, export Excel (DVI, impression, gardes, absences, annuaire, fusions).
-
-### ⬜ Les 2 derniers maillons du chantier secteurs
-
-- [ ] **Légende de l'onglet Affectations** (`admin.html` ~4080) : `legendOrder` est encore une liste
-  figée `['VIS','REA','ORT','ORL','END','CI','RI','MAT','VOLANT']` → un secteur créé ne s'y affiche
-  pas. Même défaut que celui corrigé dans `index.html` le 20/07 — corrigé d'un côté seulement.
-- [ ] **Export Excel piloté par l'onglet** : `BLOCS`, `SX` (et `CSROWS` pour les consultations)
-  restent en dur dans `admin.html`. Les colonnes `XL_LABEL` / `XL_BG` / `XL_ROWS` existent déjà côté
-  GAS pour ça — il ne reste qu'à les consommer. ⚠️ `CSROWS` utilise des sous-codes (`URO`, `OPH`,
-  `INTER`) qui n'existent ni dans SECTEURS ni dans CS_TEMPLATE : correspondance à établir.
 
 
 ### Axes de développement (un fil de conversation chacun)
