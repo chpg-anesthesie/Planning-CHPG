@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-21.1';
+const GAS_VERSION_INDISPOS = '2026-07-21.2';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -401,9 +401,19 @@ function checkCode(code) {
   const sheet = ss.getSheetByName('MEDECINS');
   if (!sheet) return null;
   const data = sheet.getDataRange().getValues();
+  // Colonne LIBERAL (O/N) : reperee par son EN-TETE, jamais par un index fige --
+  // elle peut donc etre ajoutee n'importe ou dans MEDECINS sans toucher au code.
+  // Absente ou vide => liberal false (personne ne voit la tuile du module liberal).
+  let colLib = -1;
+  if (data.length) {
+    for (let c = 0; c < data[0].length; c++) {
+      if (String(data[0][c]).trim().toUpperCase() === 'LIBERAL') { colLib = c; break; }
+    }
+  }
   for (let r = 1; r < data.length; r++) {
     if (String(data[r][6]).trim() === String(code).trim()) {
-      return {role:'mar', id:data[r][0], name:data[r][1], initials:data[r][2]};
+      return {role:'mar', id:data[r][0], name:data[r][1], initials:data[r][2],
+              liberal: colLib >= 0 && String(data[r][colLib]).trim().toUpperCase() === 'O'};
     }
   }
   return null;
@@ -1061,6 +1071,9 @@ function doGet(e) {
       logConnexion(user);
       return ContentService.createTextOutput(JSON.stringify({
         success: true, role: user.role, id: user.id,
+        // Membre du groupement liberal (colonne LIBERAL de MEDECINS) : pilote
+        // l'affichage de la tuile Module liberal du dashboard.
+        liberal: !!user.liberal,
         name: user.name, initials: user.initials, 
         year: TEST_YEAR, indisposYear: getIndisposYear(),
         // Campagne de saisie en cours ? Pilote l'affichage de la tuile
