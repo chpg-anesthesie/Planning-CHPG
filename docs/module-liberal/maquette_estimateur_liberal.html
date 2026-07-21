@@ -220,7 +220,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">Module libéral · V3.6 — dates consultation / intervention · devis détaillé (un acte par ligne) · calibrage mutuelle / RAC</div>
+    <div class="eyebrow">Module libéral · V3.7 — recherche obstétricale (AFLB010) · devis détaillé (un acte par ligne) · calibrage mutuelle / RAC</div>
     <h1>Estimateur temps réel du libéral</h1>
     <div class="sub">Un parcours = une ou plusieurs lignes de code (principal + associés + suppléments). L'outil calcule la BR, projette le ratio 30 %, et <b>calibre le dépassement sur la mutuelle du patient pour minimiser son reste à charge</b>. <b>Estimateur, pas décompte.</b></div>
     <a class="guidelink" href="../guide-liberal.html">📘 Guides du libéral — cotation, règle des 30 %, antisèche</a>
@@ -724,10 +724,22 @@ let CCAM_INDEX=[], ccamLoaded=false, lastCcam=[];
 const SYN={
   'pth':'coxofemoral', 'ptg':'femorotibial', 'ptt':'talocrural',
   'tap':'paroi abdominale', 'alr':'locoregionale', 'rachi':'rachidienne',
-  'apd':'peridurale', 'peri':'peridurale', 'coelio':'videochirurgie',
+  'coelio':'videochirurgie',
   'coelioscopie':'videochirurgie', 'cesar':'cesarienne', 'cesarienne':'cesarienne',
   'chole':'cholecystectomie', 'appendice':'appendicectomie', 'amygdales':'amygdalectomie',
-  'cec':'circulation extracorporelle', 'vvc':'catheter veineux central', 'cataracte':'cristallin'
+  'cec':'circulation extracorporelle', 'vvc':'catheter veineux central', 'cataracte':'cristallin',
+  // OBSTETRIQUE. Le libelle officiel d'AFLB010 est "Anesthesie rachidienne au cours d'un
+  // accouchement par voie basse" : le mot "peridurale" n'y figure PAS. Chercher "peridurale"
+  // ramenait 6 actes sans jamais celui-la -- cause materielle d'oubli de cotation, identifiee
+  // le 21/07/2026. Une entree peut porter PLUSIEURS pistes (tableau) : les resultats sont alors
+  // l'union des deux, on n'echange pas un manque contre un autre.
+  'peridurale':['peridurale','accouchement voie basse'],
+  'apd':['peridurale','accouchement voie basse'],
+  'peri':['peridurale','accouchement voie basse'],
+  'peridurale obstetricale':'accouchement voie basse', 'apd obstetricale':'accouchement voie basse',
+  'peridurale accouchement':'accouchement voie basse', 'obstetricale':'accouchement voie basse',
+  'obstetrique':'accouchement voie basse', 'accouchement':'accouchement voie basse',
+  'peridurale obstetrique':'accouchement voie basse', 'travail':'accouchement voie basse'
 };
 function norm(s){return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');}
 let ccamLoadError='';
@@ -763,12 +775,13 @@ function ccamSearch(){
     return;
   }
   const q=norm(raw);
-  const syn=SYN[q]?norm(SYN[q]):null;
-  const tokens=(syn||q).split(/\s+/).filter(Boolean);
+  // Une entree SYN peut valoir une chaine ou un TABLEAU de pistes : on retient l'UNION.
+  const raw2=SYN[q], pistes=(raw2==null) ? [q] : (Array.isArray(raw2)?raw2:[raw2]).map(norm);
+  const jeux=pistes.map(p=>p.split(/\s+/).filter(Boolean));
   const codeHits=[], libHits=[];
   for(const a of CCAM_INDEX){
     if(a.c.toLowerCase().startsWith(q)) codeHits.push(a);
-    else if(tokens.every(t=>a.n.includes(t))) libHits.push(a);
+    else if(jeux.some(tk=>tk.every(t=>a.n.includes(t)))) libHits.push(a);
   }
   lastCcam=codeHits.concat(libHits).slice(0,30);
   if(!lastCcam.length){box.innerHTML='<div class="info">Aucun acte trouvé.</div>';return;}
