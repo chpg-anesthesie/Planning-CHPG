@@ -944,7 +944,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.6.4'; // SITE_VERSION: v1.6.4
+const SITE_VERSION = 'v1.7'; // SITE_VERSION: v1.7
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1037,7 +1037,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.6.4</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.7</span></span>
     <a href="./docs/guide-comite.html" target="_blank" class="header-btn" title="Guide du comité — mode d'emploi de cette interface"><span class="hb-ico">?</span> Aide</a>
     
   </div>
@@ -1711,7 +1711,9 @@ async function loadCsTemplate() {
   try {
     const t = await api({action:'getCsTemplate'});
     if (!t || !Array.isArray(t.types) || !t.types.length || !t.required) return;
-    CS_TYPES    = t.types.map(x => ({code:x.code, label:x.label || x.code}));
+    // xlLabel / xlBg conservés : l'export Excel en a besoin (ils étaient perdus ici).
+    CS_TYPES    = t.types.map(x => ({code:x.code, label:x.label || x.code,
+                                     xlLabel:x.xlLabel, xlBg:x.xlBg}));
     CS_OPENABLE = t.types.filter(x => x.ouvrable).map(x => x.code);
     CS_REQUIRED = t.required;
   } catch(e) { /* fallback : tables en dur conservées */ }
@@ -4207,13 +4209,21 @@ async function exportWeekExcel(){
   const month=DATA.months.find(m=>m.id===wk.monthId)||DATA.months[0];
   // ── Skin gabarit historique ──
   const C={hd:'D9D9D9',grey:'DBDBDB',white:'FFFFFF',we:'F2F2F2'};
-  const BLOCS=[
+  // (07/2026) Les lignes de secteur de l'Excel viennent désormais de l'onglet
+  // SECTEURS (colonnes XL_LABEL / XL_BG / XL_ROWS), dans l'ordre de sa colonne
+  // ORDRE. Créer un secteur dans le tableau suffit à le voir apparaître ici.
+  // Repli sur les 9 lignes historiques si l'onglet n'a pas été chargé.
+  const BLOCS = (Array.isArray(SECTEURS_ACTIFS) && SECTEURS_ACTIFS.length)
+    ? SECTEURS_ACTIFS.map(x => ({
+        label: x.xlLabel || String(x.court || x.code).toUpperCase(),
+        codes: [x.code],
+        bg:    x.xlBg   || 'F2F2F2',
+        rows:  x.xlRows || 2,
+      }))
+    : [
     {label:'VISCERAL',codes:['VIS'],bg:'FFE699',rows:2},
     {label:'REANIMATION',codes:['REA'],bg:'9DC3E6',rows:2},
     {label:'ORTHO',codes:['ORT'],bg:'F4B183',rows:2},
-    // DVI : bloc distinct depuis 07/2026 (il était fondu dans VISCERAL, ce qui
-    // affichait le MAR du mardi matin comme viscéral). Placé sous ORTHO et de la
-    // même couleur : physiquement au même endroit dans le service. 1 seule ligne.
     {label:'DVI',codes:['DVI'],bg:'F4B183',rows:1},
     {label:'ORL  OPHTALMO',codes:['ORL'],bg:'FFF2CC',rows:2},
     {label:'ENDOSCOPIES',codes:['END'],bg:'C6E0B4',rows:2},
@@ -4221,17 +4231,29 @@ async function exportWeekExcel(){
     {label:'RADIO / INTERV.',codes:['RI'],bg:'E7E6E6',rows:1},
     {label:'MATERNITE',codes:['MAT'],bg:'FFA7A9',rows:2},
   ];
-  const CSROWS=[
-    {label:' VISC. / URO.',subs:['VIS','URO'],bg:'FFE699'},
+  // (07/2026) Lignes de consultation dérivées de l'onglet CS_TEMPLATE
+  // (colonnes XL_LABEL / XL_BG), dans son ordre. Les anciens sous-codes 'URO' et
+  // 'OPH' ont disparu : ce n'étaient PAS des codes mais des mentions de libellé
+  // (le bloc viscéral couvre viscéral ET uro, le bloc ORL couvre ORL ET ophtalmo).
+  // `subs` garde le suffixe du code, seul utilisé par subToRow (CS-VIS -> 'VIS').
+  const CSROWS = (Array.isArray(CS_TYPES) && CS_TYPES.length)
+    ? CS_TYPES.map(t => ({
+        label: t.xlLabel || ' ' + String(t.label || t.code).replace(/^CS[- ]*/i, '').toUpperCase(),
+        subs:  [String(t.code).replace(/^CS-/, '')],
+        bg:    t.xlBg || 'F2F2F2',
+      }))
+    : [
+    {label:' VISC. / URO.',subs:['VIS'],bg:'FFE699'},
     {label:' ORTHO.',subs:['ORT'],bg:'F4B183'},
-    {label:' ORL / OPHTALMO.',subs:['ORL','OPH'],bg:'FFF2CC'},
+    {label:' ORL / OPHTALMO.',subs:['ORL'],bg:'FFF2CC'},
     {label:' ENDOSCOPIES',subs:['END'],bg:'C6E0B4'},
-    {label:' INTERVENTIONNEL',subs:['INTER','CI'],bg:'E7E6E6'},
+    {label:' INTERVENTIONNEL',subs:['INTER'],bg:'E7E6E6'},
     {label:' MATERNITE',subs:['MAT'],bg:'FFA7A9'},
     {label:' POLYVALENT',subs:['POLY'],bg:'F2F2F2'},
   ];
   const DFX=['LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI','DIMANCHE'];
-  const SX=['VIS','REA','ORT','DVI','ORL','END','CI','RI','MAT'];
+  // Codes de secteur collectés : exactement ceux des lignes ci-dessus.
+  const SX = BLOCS.reduce((a, b2) => a.concat(b2.codes), []);
   const DECTFB={BP:'81409',SA:'85019',GA:'81867',LB:'81322',MB:'81859',JC:'81268',AFR:'82616',AF:'82565',SG:'81809',JPG:'82022',LUL:'82558',LL:'82132',RM:'81378',NO:'82188',NP:'81806',GR:'81860',CS:'82578',MS:'82401',WS:'81348',DT:'83783',FZ:'82481',RW:'82101',NS:'81397'};
   const FIXED=[['Garde réa','83636'],['Garde bloc / mater','82103'],['Secrétariat Tamaris','81380'],['Secrétariat réa','89819']];
   // ── Collecte ──
