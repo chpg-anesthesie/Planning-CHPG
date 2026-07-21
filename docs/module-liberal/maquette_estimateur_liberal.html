@@ -149,6 +149,8 @@
   #devisOverlay table.acts td.l .code{font-size:10.5px;color:#5B6C76;font-family:'IBM Plex Mono',monospace;margin-top:1px}
   #devisOverlay table.acts .num{font-family:'IBM Plex Mono',monospace}
   #devisOverlay table.acts .dhcol{color:var(--dh);font-weight:600}
+  #devisOverlay table.acts tr.tot td{border-top:1.5px solid #16222C;border-bottom:none;font-weight:700;padding-top:10px}
+  #devisOverlay table.acts tr.tot td.l{font-weight:700}
   #devisOverlay .rac{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
   #devisOverlay .racb{border:1px solid var(--line);border-radius:8px;padding:12px 14px}
   #devisOverlay .racb.mut{background:#E9F1F4;border-color:#CFE0E6}
@@ -211,7 +213,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">Module libéral · V3.4 — dates consultation / intervention · calibrage mutuelle / RAC · devis + déclaration de choix</div>
+    <div class="eyebrow">Module libéral · V3.5 — dates consultation / intervention · devis détaillé acte par acte · calibrage mutuelle / RAC</div>
     <h1>Estimateur temps réel du libéral</h1>
     <div class="sub">Un parcours = une ou plusieurs lignes de code (principal + associés + suppléments). L'outil calcule la BR, projette le ratio 30 %, et <b>calibre le dépassement sur la mutuelle du patient pour minimiser son reste à charge</b>. <b>Estimateur, pas décompte.</b></div>
     <a class="guidelink" href="../guide-liberal.html">📘 Guides du libéral — cotation, règle des 30 %, antisèche</a>
@@ -352,6 +354,8 @@ const STATUTS={
 const ROLES={principal:{lab:'Principal (100 %)',rate:1.0}, associe:{lab:'Associé (50 %)',rate:0.5}, complement:{lab:'Complément (100 % en sus)',rate:1.0}};
 // NGAP : lettre-clé × coefficient, sans coeff monégasque ni modificateur
 const LC={C:34.40, CS:46.00, APC:60.00, AUTRE:0};
+// Libelles en clair des lettres-cles, pour le detail acte par acte du devis.
+const LC_LAB={C:'Consultation', CS:'Consultation de sp\u00e9cialiste', APC:'Avis ponctuel de consultant', AUTRE:'Acte NGAP'};
 // Bibliothèque de formules mutuelle — SEULE la ligne « honoraires » (en % BR) compte.
 // À enrichir au fil de la collecte des tableaux de garanties. p=0 → non renseignée ; p=-1 → saisie manuelle.
 const FORMULES=[
@@ -572,7 +576,16 @@ function addParcours(){
     const reimb=Math.min(coverageCeiling(st,pct,br), br+dh);
     rac=Math.max(0,(br+dh)-reimb); mut=currentMut().n;
   }
-  parcours.push({axe,statut:st,desc,cnt,br,dh,rac,mut,dCs,dInt:(axe==='CCAM'?dInt:''),dActe});
+  // Detail acte par acte, memorise pour le devis (modele CNOM : un bloc par acte).
+  // La BR se repartit ligne par ligne ; le DH, saisi pour l'intervention entiere, NON.
+  // Il n'existe pas de cle de repartition du DH : il reste donc sur la ligne de total.
+  const lines = (axe==='CCAM')
+    ? builder.map(l=>({code:l.code||'', lib:l.lib||'Acte', br:lineBR(l),
+        mods:[l.m7?'7':null, l.mA?'A':null].filter(Boolean), role:l.role}))
+    : ngap.map(n=>{const k=(n.lc==='AUTRE'?'NGAP':n.lc);
+        return {code:k+((n.coef&&n.coef!==1)?' \u00d7 '+n.coef:''), lib:LC_LAB[n.lc]||'Acte NGAP',
+                br:ngapBR(n), mods:[]};});
+  parcours.push({axe,statut:st,desc,cnt,br,dh,rac,mut,dCs,dInt:(axe==='CCAM'?dInt:''),dActe,lines});
   renderRows();renderSummary();
 }
 function delP(i){parcours.splice(i,1);renderRows();renderSummary();}
@@ -626,6 +639,24 @@ let dvHonoraire=0;
 const RO_RATE={verte:0.80,rose:0.80,bulle:0.80,spme:0.80,fr:0.70,frc2s:1.00,ame:1.00,nas:0.00};
 function eText(id,v){document.getElementById(id).textContent=v;}
 function fmtDate(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// Un bloc par acte, comme le modele de note prealable du CNOM (secteur 2), qui demande
+// de mentionner chaque acte selon les memes modalites. Les modificateurs sont portes par
+// LEUR ligne : ils s'appliquent acte par acte, pas au parcours.
+function renderDevisActes(p){
+  const tb=document.getElementById('dvActes'); if(!tb) return;
+  const nom = (p.axe==='CCAM') ? 'Nomenclature CCAM' : 'Nomenclature NGAP';
+  const lines = (p.lines && p.lines.length) ? p.lines
+              : [{code:'', lib:p.desc||'Acte', br:p.br, mods:[]}];   // filet : parcours sans detail
+  tb.innerHTML = lines.map(l=>{
+    const m=(l.mods&&l.mods.length) ? ' \u00b7 modificateur'+(l.mods.length>1?'s':'')+' '+l.mods.join(', ') : '';
+    const c=l.code ? esc(l.code)+' \u00b7 ' : '';
+    return `<tr>
+      <td class="l"><div class="lib">${esc(l.lib||'Acte')}</div><div class="code">${c}${nom}${m}</div></td>
+      <td class="num">${eur2(l.br)}</td>
+      <td class="num"></td><td class="num"></td><td class="num"></td></tr>`;
+  }).join('');
+}
 function openDevis(i){
   const p=parcours[i]; if(!p) return;
   dvHonoraire=p.br+p.dh;
@@ -646,7 +677,8 @@ function openDevis(i){
   document.getElementById('dvDatePrevue').textContent=fmtI(p.dInt||p.dCs);
   // Acte + statut + mutuelle + montants
   eText('dvStatut', ST_LABELS[p.statut]||p.statut);
-  eText('dvActe', p.desc||'Acte'); eText('dvActe2', p.desc||'Acte');
+  eText('dvActe', p.desc||'Acte');
+  renderDevisActes(p);
   eText('dvBR', eur2(p.br)); eText('dvHon', eur2(dvHonoraire)); eText('dvDH', eur2(p.dh));
   eText('dvMut', p.mut||'non renseignée');
   const ra=document.getElementById('dvRacAfter');
@@ -790,10 +822,13 @@ populateMut();setAxe('CCAM');renderRows();
     </div>
     <h3 class="sec">Détail des actes et des honoraires</h3>
     <table class="acts">
-      <thead><tr><th class="l">Acte — code</th><th>Base rembt (BR)</th><th>Honoraires</th><th>dont dépassement</th><th>Rembt assur. maladie</th></tr></thead>
+      <thead><tr><th class="l">Acte — Code</th><th>Base rembt (BR)</th><th>Honoraires</th><th>dont dépassement</th><th>Rembt assur. maladie</th></tr></thead>
+      <!-- Une ligne par acte (rempli par renderDevisActes). Seule la BR se decompose ;
+           honoraires, depassement et remboursement sont portes par la ligne de total. -->
+      <tbody id="dvActes"></tbody>
       <tbody>
-        <tr>
-          <td class="l"><div class="lib" id="dvActe2">—</div><div class="code">CCAM / NGAP · <span class="ed" contenteditable="true" data-ph="code">code</span></div></td>
+        <tr class="tot">
+          <td class="l">Total</td>
           <td class="num" id="dvBR">—</td>
           <td class="num" id="dvHon">—</td>
           <td class="num dhcol" id="dvDH">—</td>
