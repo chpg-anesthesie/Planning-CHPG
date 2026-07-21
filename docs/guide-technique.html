@@ -143,6 +143,7 @@
     <li><a href="#c15"><span class="n">15</span>Les messages du diagnostic (Maintenance)</a></li>
     <li><a href="#c16"><span class="n">16</span>Sécurité &amp; confidentialité (le modèle réel)</a></li>
     <li><a href="#c17"><span class="n">17</span>Roadmap — cadrage du reste à faire</a></li>
+    <li><a href="#c18"><span class="n">18</span>Créer un secteur ou une consultation</a></li>
   </ol>
 </nav>
 
@@ -582,6 +583,81 @@
 
   <h3>Horizon 2027 (déménagement)</h3>
   <p>Quand le plan du nouveau bloc sera connu : reprendre les 4 points durs du chantier A (externaliser garde→secteur et règles jour en CONFIG, refaire <code>CS_RULES</code>, dédupliquer la normalisation), puis ré-agencer les secteurs <b>depuis l'onglet</b>. Les affectations (<code>AFFECTATIONS_{Y}</code>) sont de la donnée, re-saisies pour le nouveau découpage — le code n'a rien à y prévoir.</p>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c18">
+  <h2><span class="n">18</span>Créer un secteur ou une consultation</h2>
+
+  <p>Depuis juillet 2026, tout se règle dans <b>deux onglets du classeur</b> — aucun code à toucher,
+  aucune recopie Apps Script. Les changements sont visibles après un <span class="kbd">Ctrl+Maj+R</span>.</p>
+
+  <div class="callout warn">
+    <div class="ct">Réservé à l'administrateur</div>
+    <p>Le comité n'a pas accès au classeur : ces manipulations ne figurent pas dans le guide comité.</p>
+  </div>
+
+  <h3>Ajouter un secteur — onglet <code>SECTEURS</code></h3>
+  <table>
+    <thead><tr><th>Colonne</th><th>Rôle</th></tr></thead>
+    <tbody>
+      <tr><td><code>ORDRE</code></td><td>Position partout : légende, planning, lignes de l'Excel.</td></tr>
+      <tr><td><code>CODE</code></td><td><b>Clé technique</b>, écrite dans <code>AFFECTATIONS_{Y}</code> et le planning publié. <b>Ne jamais la renommer</b> une fois en service : les affectations existantes deviendraient orphelines.</td></tr>
+      <tr><td><code>LABEL</code> · <code>COURT</code></td><td>Libellés d'affichage (long et abrégé).</td></tr>
+      <tr><td><code>AFF</code></td><td><b>Le plus important.</b> Rempli = le secteur devient <b>affectable au mois</b> : il apparaît dans le sélecteur des Affectations et dans la légende. <b>Vide</b> = secteur d'affichage seul, non affectable (cas de <code>DVI</code>, vacation du mardi matin).</td></tr>
+      <tr><td><code>ICON</code></td><td>Nom d'icône Lucide. ⚠️ <code>index.html</code> charge la bibliothèque complète, <code>admin.html</code> n'en charge aucune : les icônes de secteur n'y apparaissent pas.</td></tr>
+      <tr><td><code>BG</code> · <code>FG</code></td><td>Couleurs web (fond, texte), format <code>#RRGGBB</code>.</td></tr>
+      <tr><td><code>CS</code></td><td>Code de la consultation rattachée (ex. <code>CS-VIS</code>). Sert à proposer <b>en premier</b> les MAR affectés à ce secteur quand le comité place cette consultation.</td></tr>
+      <tr><td><code>ACTIF</code></td><td><code>O</code> / <code>N</code>. <code>N</code> = ignoré partout, sans perdre la ligne.</td></tr>
+      <tr><td><code>RENDEMENT_LIB</code></td><td>FORT / MOYEN / NUL / REA — socle du futur module libéral.</td></tr>
+      <tr><td><code>XL_LABEL</code><br><code>XL_BG</code><br><code>XL_ROWS</code></td><td>Ce qu'écrit l'<b>export Excel</b>, qui diffère du web (majuscules, couleurs franches, 1 ou 2 lignes). <b>Laissées vides</b> → défauts : <code>COURT</code> en majuscules, gris <code>F2F2F2</code>, 2 lignes. Le secteur apparaît quand même dans le fichier.</td></tr>
+    </tbody>
+  </table>
+
+  <p><b>Un secteur n'apparaît sur le planning que si quelqu'un y est affecté</b> — la légende, les lignes
+  du planning et celles de l'Excel sont construites à partir des secteurs <i>réellement utilisés</i>.
+  Après avoir affecté un MAR, <b>recharger la page</b> : la légende n'est recalculée qu'au rendu complet.</p>
+
+  <h3>Ajouter une consultation — onglet <code>CS_TEMPLATE</code></h3>
+  <p>Une ligne par type, une colonne par demi-journée : la semaine se lit d'un coup d'œil.</p>
+  <table>
+    <thead><tr><th>Colonne</th><th>Rôle</th></tr></thead>
+    <tbody>
+      <tr><td><code>CODE</code></td><td>Clé technique, forme <code>CS-XXX</code>. Écrite dans <code>PLANNING_OVERRIDES</code> : <b>ne jamais la renommer</b>.</td></tr>
+      <tr><td><code>LABEL</code></td><td>Libellé affiché dans l'admin. Librement modifiable.</td></tr>
+      <tr><td><code>OUVRABLE</code></td><td><code>O</code> = le comité peut ouvrir ce créneau à la demande.</td></tr>
+      <tr><td><code>ACTIF</code></td><td><code>N</code> = ligne ignorée, conservée.</td></tr>
+      <tr><td><code>LUN_AM</code> … <code>VEN_PM</code></td><td>Nombre de créneaux par demi-journée. <code>0</code> = aucun. <b>Un seul créneau → les 2 cellules Excel fusionnent</b> ; deux créneaux → deux cases.</td></tr>
+      <tr><td><code>XL_LABEL</code> · <code>XL_BG</code></td><td>Libellé et couleur dans l'Excel. L'<b>espace initial</b> du libellé est voulu (il décale le texte dans la cellule). Vides → défauts.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <div class="ct">Ne pas oublier le lien vers le secteur</div>
+    <p>Dans l'onglet <code>SECTEURS</code>, renseigner la colonne <code>CS</code> du secteur concerné
+    avec le nouveau code. Sans ce lien, le panneau de placement proposera les MAR dans l'ordre habituel
+    au lieu de mettre en tête ceux qui sont affectés au secteur.</p>
+  </div>
+
+  <p>⚠️ Les mentions <b>« / URO. »</b> et <b>« / OPHTALMO. »</b> des libellés Excel sont des abus de
+  langage : le bloc viscéral couvre viscéral <i>et</i> uro, le bloc ORL couvre ORL <i>et</i> ophtalmo.
+  Il n'existe <b>pas</b> de code distinct pour ces spécialités.</p>
+
+  <h3>Retirer un secteur ou une consultation</h3>
+  <div class="callout warn">
+    <div class="ct">Passer ACTIF à N, plutôt que supprimer la ligne</div>
+    <p>Supprimer une ligne ne touche <b>pas</b> les affectations déjà saisies : elles gardent l'ancien
+    code. À la publication, <code>normalizeAffectation</code> ne le reconnaît plus et le MAR bascule en
+    <b>VOLANT</b> — rien n'est perdu (la donnée reste dans <code>AFFECTATIONS_{Y}</code>), mais il quitte
+    son secteur, et le code disparaît du sélecteur : impossible de le rechoisir.</p>
+    <p><b>Marche à suivre :</b> réaffecter d'abord les MAR concernés, republier, <i>puis</i> passer
+    <code>ACTIF</code> à <code>N</code>. C'est le mécanisme prévu pour le déménagement : anciens secteurs
+    à <code>N</code>, nouveaux ajoutés, aucune ligne effacée.</p>
+    <p>Le 🔍 <b>Diagnostic</b> signale en erreur toute affectation pointant vers un secteur inexistant,
+    inactif ou sans <code>AFF</code>, en nommant les MAR concernés. Un code inconnu est aussi tracé dans
+    <code>LOGS</code> à la publication.</p>
+  </div>
 
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
