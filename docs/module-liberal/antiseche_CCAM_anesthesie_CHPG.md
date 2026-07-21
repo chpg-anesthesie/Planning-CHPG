@@ -1,6 +1,9 @@
-# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v15.6)
+# Antisèche cotation CCAM — Anesthésie & Réanimation CHPG (v15.7)
 
 *Source faisant autorité : **Arrêté Ministériel n° 2005-276** régissant la CCAM à Monaco (MAJ 2018) + mémento des Caisses Sociales de Monaco. Les **valeurs monétaires sont celles fixées en France** (art. 16) → base CCAM **v80, en vigueur au 01/01/2025**. Objectif : coter **à juste titre** l'exhaustivité de ce qui est réellement fait — jamais surcoter.*
+
+*v15.7 — 21 juillet 2026. Double échelle des modificateurs d'urgence **vérifiée sur feuille réelle**
+(§3) et exemple chiffré de la péridurale obstétricale de nuit (§5 bis ③).*
 
 *v15.6 — 21 juillet 2026. Ajout de l'alerte **AFLB010** (péridurale obstétricale) en tête de
 la checklist anti-perte : code fréquemment oublié, et introuvable en cherchant « péridurale ».*
@@ -106,6 +109,18 @@ Facultatifs : **X** (remboursement exceptionnel / entente préalable), **modific
 | **S** | Urgence entre **0h et 8h** | **80 €** |
 | **F** | Urgence un **dimanche ou jour férié** | **40 €** |
 
+> ✅ **Double échelle vérifiée sur feuille réelle (21/07/2026).** Un accouchement de nuit, deux lignes
+> sur la même feuille, **le même modificateur `S`** :
+>
+> | Ligne | Acte | Tarif | BR | Écart dû à `S` |
+> |---|---|---|---|---|
+> | Obstétricien | `JQGD012.1.0 S___` | 313,50 € | 353,50 € | **+ 40 €** |
+> | Anesthésiste | `AFLB010.4.0 S7__` | 209,00 € | 301,54 € | **+ 80 €** |
+>
+> Même nuit, même acte, même code de modificateur : **40 € pour le chirurgien, 80 € pour nous.**
+> La valeur anesthésiste ci-dessus est donc bien la bonne — ne jamais recopier la table « médecins »
+> générale. *(Détail de la ligne d'anesthésie au §5 bis, exemple ③.)*
+
 > Jusqu'à **4 modificateurs** codés ; chaque **%** s'applique sur le tarif de l'acte, indépendamment. **Un seul** modificateur d'urgence (O/U/S/F), exclusifs. **À vérifier au CHPG (public)** : l'applicabilité de **O** et les conditions « délai 6 h après admission » sont libellées pour l'établissement **privé** avec autorisation d'urgence.
 
 ---
@@ -139,8 +154,19 @@ Chaîne de calcul, **par ligne de code** :
 **② BR** (par ligne) = Tarif **× (1 + %modif) × taux d'association + €modif**
 - **%modif** : 7 (présence permanente) = **+6 %** · 8 (itératif) = +20 %
 - **€modif** : A (âge < 4 ou > 80 ans) = **44,85 €** chez le monégasque (23 × 1,95) · **23 €** chez le français
+  · **urgence** O 80 € · U 50 € · S 80 € · F 40 € (**valeurs anesthésiste**, cf. §3) — un seul à la fois
 - **taux d'association** : acte **principal 100 %** · acte **associé 50 %** · **geste complémentaire / supplément** (AHQJ021, YYYY041…) = **100 % en sus** (jamais décoté)
 > principal : 495,11 × 1,06 + 44,85 = **569,65 €** ✓ · associé 50 % (NEFA004) : 231,70 × 1,06 × 0,5 + 44,85 = **167,64 €** ✓
+>
+> **③ Exemple garde — péridurale obstétricale de nuit, assurée française** (feuille réelle, 21/07/2026)
+> `AFLB010.4.0 S7__` : tarif act. 4 **209,00** × 1,06 *(modif. 7, présence)* = **221,54** puis
+> **+ 80,00** *(modif. S, urgence 0 h–8 h, valeur anesthésiste)* = **BR 301,54 €** ✓
+> Le **`.4.0`** est l'activité 4 / phase 0 ; le **`S7__`** les quatre emplacements de modificateurs,
+> deux servis. **Ordre imposé : les % sur le tarif d'abord, les € à plat ensuite.**
+> Ici **pas de × 1,95** : assurée française. Sur une carte monégasque la même ligne ferait **588,00 €**.
+> ⚠️ Une urgence n'est **jamais** un parcours libéral (circuit programmé uniquement) : cet exemple
+> relève du codage public. L'estimateur, qui ne traite que le libéral, ne connaît donc **pas** les
+> modificateurs d'urgence — c'est volontaire, ne pas le « corriger ».
 
 **③ BR du parcours = SOMME des lignes.** C'est la réalité « lignes multiples » : acte principal + actes associés + suppléments, chacun avec son taux.
 
