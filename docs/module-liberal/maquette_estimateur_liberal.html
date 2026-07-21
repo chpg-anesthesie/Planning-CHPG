@@ -224,7 +224,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">Module libéral · V3.9 — identité praticien (prénom, nom, RPPS) pré-remplie depuis le portail · recherche obstétricale (AFLB010)</div>
+    <div class="eyebrow">Module libéral · V4.0 — identité praticien et secteurs tirés du portail · recherche obstétricale (AFLB010) · devis détaillé</div>
     <h1>Estimateur temps réel du libéral</h1>
     <div class="sub">Un parcours = une ou plusieurs lignes de code (principal + associés + suppléments). L'outil calcule la BR, projette le ratio 30 %, et <b>calibre le dépassement sur la mutuelle du patient pour minimiser son reste à charge</b>. <b>Estimateur, pas décompte.</b></div>
     <a class="guidelink" href="../guide-liberal.html">📘 Guides du libéral — cotation, règle des 30 %, antisèche</a>
@@ -275,6 +275,12 @@
         <input id="dCs" type="date" onchange="renderDateHint()"></div>
       <div class="field" id="dIntWrap" style="width:180px"><label>Date d'intervention</label>
         <input id="dInt" type="date" onchange="renderDateHint()"></div>
+      <!-- SECTEUR : parcours bloc uniquement. Sert au placement par le comite,
+           n'apparait PAS sur le devis. Facultatif tant que la declaration
+           d'intervention n'existe pas. -->
+      <div class="field" id="secWrap" style="width:200px"><label>Secteur (placement comité)</label>
+        <select id="secSel"><option value="">— chargement…</option></select>
+        <input id="secLibre" placeholder="Secteur" style="display:none"></div>
       <div class="datehint" id="dateHint"></div>
     </div>
 
@@ -483,6 +489,8 @@ function setAxe(a){axe=a;
   document.getElementById('hintNGAP').style.display=n?'block':'none';
   // La date d'intervention n'a de sens que sur l'axe bloc (CCAM).
   document.getElementById('dIntWrap').style.display=n?'none':'block';
+  // Le secteur ne concerne que les parcours bloc (decision actee) : masque en NGAP.
+  document.getElementById('secWrap').style.display=n?'none':'block';
   renderDateHint();
   onStatut();
 }
@@ -602,6 +610,57 @@ async function chargerPraticien(){
   }
 }
 
+// ---- SECTEURS -------------------------------------------------------------
+// Liste tiree de l'onglet SECTEURS via l'action 'getSecteurs' (lecture, deja routee,
+// accessible a tout MAR connecte). AUCUNE liste en dur ici : le jour ou un secteur
+// change, c'est une cellule du classeur qu'on modifie, pas ce fichier.
+// Filtre : ACTIF, porteur d'une AFFECTATION, et rendement liberal ni NUL ni REA.
+//   -> un secteur SANS rendement renseigne est PROPOSE : un secteur neuf est presume
+//      productif jusqu'a classement. Mieux vaut le retirer que le voir disparaitre.
+// Repli VISIBLE : si le portail est injoignable, on bascule sur une saisie libre et
+// on le dit. Jamais de liste vide silencieuse.
+let SECTEURS=[];
+function secteurValue(){
+  const sel=document.getElementById('secSel'), lib=document.getElementById('secLibre');
+  return (lib && lib.style.display!=='none') ? lib.value.trim() : (sel ? sel.value : '');
+}
+function secteurReplLibre(msg){
+  const sel=document.getElementById('secSel'), lib=document.getElementById('secLibre');
+  if(sel) sel.style.display='none';
+  if(lib){ lib.style.display=''; lib.placeholder=msg; }
+}
+async function chargerSecteurs(){
+  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  if(!code){ secteurReplLibre('Secteur (hors portail — à saisir)'); return; }
+  // Cache de session : la liste bouge rarement, inutile de la redemander a chaque ouverture.
+  try{
+    const c=JSON.parse(sessionStorage.getItem('chpgSecteursLib')||'null');
+    if(c && c.length){ SECTEURS=c; remplirSecteurs(); return; }
+  }catch(e){}
+  try{
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 20000);
+    const r=await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'getSecteurs', code:code}), redirect:'follow', signal:ctrl.signal});
+    clearTimeout(to);
+    const j=await r.json();
+    const brut=(j && (j.data || j.secteurs || j)) || [];
+    const list=(Array.isArray(brut)?brut:[]).filter(x=>{
+      const rend=String(x.rendement||'').trim().toUpperCase();
+      return x && x.actif && x.aff && rend!=='NUL' && rend!=='REA';
+    }).sort((a,b)=>(a.ordre||0)-(b.ordre||0));
+    if(!list.length){ secteurReplLibre('Secteur (liste vide — à saisir)'); return; }
+    SECTEURS=list; remplirSecteurs();
+    try{ sessionStorage.setItem('chpgSecteursLib', JSON.stringify(list)); }catch(e){}
+  }catch(e){
+    secteurReplLibre('Secteur (portail injoignable — à saisir)');
+  }
+}
+function remplirSecteurs(){
+  const sel=document.getElementById('secSel'); if(!sel) return;
+  sel.innerHTML='<option value="">— non précisé —</option>'
+    + SECTEURS.map(x=>`<option value="${esc(x.code)}">${esc(x.label||x.court||x.code)}</option>`).join('');
+}
+
 // ---- DATES ----------------------------------------------------------------
 // Format ISO (AAAA-MM-JJ) : c'est ce que rend <input type=date>, et il se trie
 // alphabetiquement dans l'ordre chronologique -- d'ou le tri simple de renderRows().
@@ -631,6 +690,8 @@ function addParcours(){
   if(axe==='CCAM' && !dInt){alert("Renseigne la date d'intervention : c'est elle qui pose l'alerte du comit\u00e9 sur le planning.");return;}
   // Date de l'acte = celle qui remonte au comite : intervention en CCAM, consultation en NGAP.
   const dActe = (axe==='CCAM') ? dInt : dCs;
+  // Secteur : bloc uniquement, facultatif tant que la declaration d'intervention n'existe pas.
+  const secteur = (axe==='CCAM') ? secteurValue() : '';
   const st=document.getElementById('statut').value, pct=currentMutPct();
   let rac=null, mut=null;
   if(pct>0 && STATUTS[st].dh!=='0'){
@@ -646,7 +707,7 @@ function addParcours(){
     : ngap.map(n=>{const k=(n.lc==='AUTRE'?'NGAP':n.lc);
         return {code:k+((n.coef&&n.coef!==1)?' \u00d7 '+n.coef:''), lib:LC_LAB[n.lc]||'Acte NGAP',
                 br:ngapBR(n), mods:[]};});
-  parcours.push({axe,statut:st,desc,cnt,br,dh,rac,mut,dCs,dInt:(axe==='CCAM'?dInt:''),dActe,lines});
+  parcours.push({axe,statut:st,desc,cnt,br,dh,rac,mut,dCs,dInt:(axe==='CCAM'?dInt:''),dActe,secteur,lines});
   renderRows();renderSummary();
 }
 function delP(i){parcours.splice(i,1);renderRows();renderSummary();}
@@ -688,7 +749,7 @@ function renderRows(){
       ? `<br><span style="font-size:10.5px;color:${p.rac<=0.005?'var(--room)':'var(--over)'}">RAC ${eur2(p.rac)}</span>` : '';
     const mutLine = p.mut ? ' · '+p.mut : '';
     return `<div class="pitem"><span class="pill ${c}">${p.axe}</span>
-      <div class="d">${chip}${p.desc} <small>${p.statut}${mutLine} · ${p.cnt} ${unit}(s)${(p.axe==='CCAM'&&p.dCs)?' · consult '+fmtI(p.dCs):''}</small></div>
+      <div class="d">${chip}${p.desc} <small>${p.statut}${mutLine} · ${p.cnt} ${unit}(s)${(p.axe==='CCAM'&&p.dCs)?' · consult '+fmtI(p.dCs):''}${p.secteur?' · '+esc(secteurLabel(p.secteur)):''}</small></div>
       <div class="amt"><span class="br">${eur2(p.br)}</span> BR<br><span class="dh">${p.dh?'+'+eur2(p.dh)+' DH':'DH 0'}</span>${racLine}</div>
       <button class="devisbtn" onclick="openDevis(${i})" title="Générer le devis">📄 Devis</button>
       <button class="rm" onclick="delP(${i})">✕</button></div>`;}).join('');
@@ -700,6 +761,11 @@ let dvHonoraire=0;
 const RO_RATE={verte:0.80,rose:0.80,bulle:0.80,spme:0.80,fr:0.70,frc2s:1.00,ame:1.00,nas:0.00};
 function eText(id,v){document.getElementById(id).textContent=v;}
 function fmtDate(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+// Libelle lisible d'un code secteur ; a defaut, le code lui-meme.
+function secteurLabel(code){
+  const x=SECTEURS.find(s=>s.code===code);
+  return x ? (x.court||x.label||x.code) : code;
+}
 function esc(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 // Un bloc par acte, comme le modele de note prealable du CNOM (secteur 2), qui demande
 // de mentionner chaque acte selon les memes modalites. Les modificateurs sont portes par
@@ -850,6 +916,7 @@ function pickCcam(i){
 loadCcam();
 document.getElementById('dCs').value=isoToday();
 chargerPraticien();
+chargerSecteurs();
 populateMut();setAxe('CCAM');renderRows();
 </script>
 <div id="devisOverlay">
