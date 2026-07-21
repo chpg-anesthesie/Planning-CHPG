@@ -1,7 +1,7 @@
 # Roadmap — Planning-CHPG
 
 Système web : **planning des gardes** (équité annuelle) + **planning quotidien** + **consultations** + **portail/Dashboard** + **veille biblio** + **CR d'anesthésie**, pour ~23 MARs au CHPG (Monaco).
-Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 21 juillet 2026 (chantier secteurs terminé, tuile Module libéral, estimateur V3.6).*
+Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 21 juillet 2026 (chantier secteurs terminé, tuile Module libéral, estimateur V4.0 branché au portail).*
 
 > Le dépôt en ligne fait foi. Cette roadmap est un repère de pilotage, pas la source de vérité du code.
 
@@ -406,6 +406,15 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
   - **Calendrier acté : rien en prod avant le go-live d'octobre 2026 et avant le Lot 0 (secteurs étape 2).**
   - Ordre des lots : **0 → 1 → 2 → 4**, Lot 3 parallélisable après Lot 1.
 
+- [ ] 📅 **Déclaration d'intervention — LE prochain morceau du module libéral.**
+  Quatre des cinq champs du payload sont désormais disponibles dans l'estimateur :
+  `DATE_CONSULT` (= `dCs`), `DATE_BLOC` (= `dInt`/`dActe`), `MAR_ID` (login), `SECTEUR` (C2).
+  Il ne manque que `CHIRURGIE`, qui se déduira du libellé court du parcours.
+  ⚠️ **Ne pas confondre les deux « déclarations »** : la *déclaration de choix* est le document que
+  le patient signe (exigence DAM, déjà imprimé par l'estimateur) ; la *déclaration d'intervention*
+  est l'écriture dans `LIBERAL_{Y}` qui fait remonter la présence au comité. Les nommer en entier.
+  C'est la **première écriture** du module : action à ajouter au Set `WRITE_ACTIONS_LOCK`.
+
 - [ ] 🖥️ **Dashboard / portail**
   - [x] **Tuile Module libéral** — **EN PRODUCTION, testée le 21/07/2026** (site v1.8.1).
     Ouvre **directement l'estimateur** ; celui-ci porte en tête un lien vers `docs/guide-liberal.html`
@@ -439,6 +448,36 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
     communiquée à des tiers, **y compris les assureurs complémentaires**. Le détail par acte reste
     justifié pour la clarté du patient, mais la question de faire circuler les **codes** jusqu'à la
     mutuelle n'est pas tranchée pour Monaco (cadre DAM / convention CCSS-CAMTI distinct du français).
+
+- [x] 🔌 **Lot C — l'estimateur est branché au portail. EN PRODUCTION, testé le 21/07/2026 (V3.7 → V4.0).**
+  L'estimateur n'est plus une page isolée : c'est une page du portail. **Aucune écriture** — il
+  n'appelle que `login` et `getSecteurs`, deux actions de lecture déjà routées.
+  - **Mécanique** : la tuile ouvre l'estimateur **dans le même onglet**, donc le code d'accès rangé
+    par le dashboard dans `sessionStorage('chpgViewCode')` est lisible tel quel. Même origine
+    (GitHub Pages), rien à redemander au MAR. `API_URL` était déjà publique dans `dashboard.html`.
+  - **C1 — identité praticien** : nom, prénom et RPPS pré-remplis. Trois colonnes de `MEDECINS`,
+    toutes **en fin d'onglet** et toutes lues **par leur en-tête** : `LIBERAL`, `RPPS`, `PRENOM`.
+    Les données nominatives vivent **uniquement dans le classeur privé**, jamais dans le dépôt, et
+    ne sont renvoyées qu'au MAR identifié par son propre code, pour sa seule ligne.
+  - **Civilité** : le classeur stocke « Dr X » et les gabarits écrivent déjà « Dr » / « Docteur ».
+    `sansCivilite()` retire la civilité au pré-remplissage — uniquement si elle est **suivie d'une
+    espace**, donc Drouot, Dreyfus et Prunet ne sont pas rognés. Sans ça : « Dr Dr X ».
+  - **ADELI supprimé** partout (champ, devis, en-tête) : le RPPS seul suffit. Un champ vide sur un
+    document imprimé finit toujours par être rempli par quelqu'un.
+  - **C2 — sélecteur de secteur**, parcours **bloc uniquement**, **facultatif** tant que la
+    déclaration n'existe pas, **absent du devis** (il sert au placement par le comité, pas à
+    informer le patient). Liste tirée de l'onglet `SECTEURS` — **aucune liste en dur**.
+    Filtre : `ACTIF` **et** `AFF` renseigné **et** rendement ni `NUL` ni `REA`, trié par `ORDRE`.
+    ⚠️ **Un secteur sans rendement renseigné est PROPOSÉ** : un secteur neuf est présumé productif
+    jusqu'à classement. Mieux vaut le retirer que le voir disparaître sans explication.
+    *(La colonne `RENDEMENT_LIB` de la réa est passée de `REA` à `NUL` le 21/07 ; le filtre exclut
+    les deux valeurs, les deux écritures fonctionnent. Rien d'autre ne consomme cette colonne.)*
+  - **Replis VISIBLES partout** — hors portail, portail injoignable, liste vide, RPPS ou prénom
+    manquant : chaque cas a son message à l'écran et retombe sur la saisie manuelle. Jamais de
+    dégradation silencieuse.
+  - ⚠️ **Point ouvert** : le devis affiche « secteur 2 (honoraires libres, non-OPTAM) » **en dur**.
+    Exact pour Arthur, potentiellement faux pour un autre MAR du groupe — et invisible si ça l'est.
+    À traiter le jour où un autre praticien imprime un devis.
 
 **⚠️ Deux pièges payés comptant ce jour-là.**
 
