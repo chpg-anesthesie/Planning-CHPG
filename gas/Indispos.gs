@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-21.2';
+const GAS_VERSION_INDISPOS = '2026-07-21.3';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -401,19 +401,31 @@ function checkCode(code) {
   const sheet = ss.getSheetByName('MEDECINS');
   if (!sheet) return null;
   const data = sheet.getDataRange().getValues();
-  // Colonne LIBERAL (O/N) : reperee par son EN-TETE, jamais par un index fige --
-  // elle peut donc etre ajoutee n'importe ou dans MEDECINS sans toucher au code.
-  // Absente ou vide => liberal false (personne ne voit la tuile du module liberal).
-  let colLib = -1;
-  if (data.length) {
+  // Colonnes reperees par leur EN-TETE et non par un index fige : leur position peut
+  // donc changer sans toucher au code.
+  // ⚠️ Cela ne vaut QUE pour ces colonnes-ci. Toutes les autres lectures de MEDECINS
+  // utilisent des index FIGES ([0] id, [1] nom, [2] initiales, [3] actif, [6] code,
+  // [8] dect, [9..16] gardes). Consequence : une NOUVELLE colonne s'ajoute TOUJOURS
+  // EN FIN d'onglet. Une insertion au milieu decale tout et rend les codes d'acces
+  // inoperants -- constate en reel le 21/07/2026 (checkCode lisait la colonne voisine,
+  // symptome : « code refuse » alors que le code est correct dans le classeur).
+  const _colParTitre = function (titre) {
+    if (!data.length) return -1;
     for (let c = 0; c < data[0].length; c++) {
-      if (String(data[0][c]).trim().toUpperCase() === 'LIBERAL') { colLib = c; break; }
+      if (String(data[0][c]).trim().toUpperCase() === titre) return c;
     }
-  }
+    return -1;
+  };
+  const colLib  = _colParTitre('LIBERAL');   // O/N : membre du groupement liberal
+  const colRpps = _colParTitre('RPPS');      // n° RPPS, pre-remplissage des devis
   for (let r = 1; r < data.length; r++) {
     if (String(data[r][6]).trim() === String(code).trim()) {
       return {role:'mar', id:data[r][0], name:data[r][1], initials:data[r][2],
-              liberal: colLib >= 0 && String(data[r][colLib]).trim().toUpperCase() === 'O'};
+              liberal: colLib >= 0 && String(data[r][colLib]).trim().toUpperCase() === 'O',
+              // DONNEE NOMINATIVE. Le RPPS vit UNIQUEMENT dans le classeur prive, jamais
+              // dans le depot (public). Il n'est renvoye qu'au MAR identifie par SON code
+              // personnel, et pour sa seule ligne : personne ne recoit le RPPS d'un autre.
+              rpps: colRpps >= 0 ? String(data[r][colRpps] == null ? '' : data[r][colRpps]).trim() : ''};
     }
   }
   return null;
@@ -1074,6 +1086,9 @@ function doGet(e) {
         // Membre du groupement liberal (colonne LIBERAL de MEDECINS) : pilote
         // l'affichage de la tuile Module liberal du dashboard.
         liberal: !!user.liberal,
+        // N° RPPS du MAR connecte (colonne RPPS de MEDECINS) : pre-remplit l'identite
+        // du praticien sur les devis du module liberal. Chaine vide si non renseigne.
+        rpps: user.rpps || '',
         name: user.name, initials: user.initials, 
         year: TEST_YEAR, indisposYear: getIndisposYear(),
         // Campagne de saisie en cours ? Pilote l'affichage de la tuile
