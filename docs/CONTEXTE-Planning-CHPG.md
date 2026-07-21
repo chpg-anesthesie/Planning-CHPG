@@ -130,6 +130,29 @@ entre fichiers, et signale `INCOHÉRENT (…)` en listant les valeurs divergente
 ⚠️ Avant le 20/07/2026 il ne lisait que le **marqueur en commentaire** : il annonçait « alignés (v1.4) »
 alors que 3 fichiers sur 4 affichaient v1.0 aux utilisateurs. Ne pas revenir à ce contrôle partiel.
 
+## Créer un secteur / une consultation → **§ 18 du guide technique**
+
+La marche à suivre complète (colonne par colonne, avec exemple) est dans
+`docs/guide-technique.html`, chapitre 18. **Ne pas la dupliquer ici.** L'essentiel :
+
+- Tout se règle dans **2 onglets** : `SECTEURS` et `CS_TEMPLATE`. Aucun code, aucune recopie.
+- **`AFF` est le pivot** : rempli = secteur affectable au mois (sélecteur + légende) ; vide =
+  secteur d'affichage seul (cas de `DVI`).
+- **`CODE` ne se renomme JAMAIS** une fois en service (écrit dans `AFFECTATIONS_{Y}` et
+  `PLANNING_OVERRIDES`). Pour changer d'organisation : ajouter des lignes, passer les anciennes
+  à `ACTIF=N`.
+- Colonne **`CS`** de `SECTEURS` = lien vers la consultation rattachée. Sert à proposer en tête les
+  MAR du bon secteur dans le panneau de placement. Facile à oublier en créant une consultation.
+- Un secteur **n'apparaît que s'il est utilisé** (légende, planning, Excel sont construits sur les
+  secteurs réellement affectés). Après une affectation, **recharger la page** : la légende n'est
+  recalculée qu'au rendu complet — `applySecteurAff()` ne la rafraîchit pas (défaut ancien, assumé).
+- **Supprimer une ligne ≠ neutre** : les affectations gardent l'ancien code et basculent en VOLANT
+  à la publication. Le diagnostic le signale en erreur, et `LOGS` trace le code inconnu.
+
+⚠️ **Chercher les listes figées dans le HTML autant que dans le JS.** Le sélecteur de secteur des
+Affectations était une suite de `<option>` en dur (corrigé le 21/07/2026) : trois patchs corrects
+sont restés sans effet tant qu'il bloquait. Seul un test de bout en bout l'a révélé.
+
 ## Export Excel hebdomadaire (`exportWeekExcel` dans `admin.html`)
 
 Le fichier envoyé chaque vendredi à l'équipe. Reproduit un **gabarit historique** (l'ancien
@@ -150,6 +173,8 @@ largeur est le facteur limitant — erreur commise et poussée en production ava
 Valeurs actuelles : col. 1 = 17, col. 2-21 (planning, initiales) = **4.5**, col. 22-29
 (annuaire) = **7** ; lignes 14 pt ; `fitToWidth:1` + `fitToHeight:0` ; `printArea` explicite.
 → ~30 cm de large, **échelle ~95 %**.
+
+**Lignes pilotées par les onglets** (depuis le 21/07/2026) : `BLOCS`/`SX` ← `SECTEURS`, `CSROWS` ← `CS_TEMPLATE`, via les colonnes `XL_*`. Repli sur les valeurs historiques si les onglets ne sont pas chargés.
 
 **Structure verticale ancrée sur le compteur de blocs**, plus sur des numéros en dur :
 `R_CS` (bandeau consultations) → `R_CSR` (7 lignes) → `R_ABS` (**ABS_ROWS** lignes, calculées sur
