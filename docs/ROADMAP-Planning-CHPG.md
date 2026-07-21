@@ -1,7 +1,7 @@
 # Roadmap — Planning-CHPG
 
 Système web : **planning des gardes** (équité annuelle) + **planning quotidien** + **consultations** + **portail/Dashboard** + **veille biblio** + **CR d'anesthésie**, pour ~23 MARs au CHPG (Monaco).
-Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 20 juillet 2026 (session audit externe + codes d'accès).*
+Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 21 juillet 2026 (chantier secteurs terminé + tuile Module libéral).*
 
 > Le dépôt en ligne fait foi. Cette roadmap est un repère de pilotage, pas la source de vérité du code.
 
@@ -398,22 +398,6 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
 
 ## 🔜 À faire
 
-### ⏳ EN ATTENTE DE TEST — 4 recopies Apps Script (au 20/07/2026, 20 h)
-
-Rien n'a été testé après ces pushs : Arthur n'avait plus accès à son PC. **À faire avant toute
-nouvelle livraison**, et de préférence une par une pour savoir laquelle casse en cas de souci.
-
-| Fichier | Version dépôt | Apporte |
-|---|---|---|
-| `gas/code.gs` | `2026-07-20.5` | nouveaux secteurs acceptés (`normalizeAffectation`) **+** jeudi après-midi sans bloc cardio |
-| `gas/portail.gs` | `2026-07-20.2` | colonnes `XL_*` dans l'onglet SECTEURS (migration auto) |
-| `gas/setup_annee.gs` | `2026-07-20.1` | `organiserOnglets()` — rangement du classeur |
-| `gas/Indispos.gs` | `2026-07-20.6` | emails (modèle unique, quota, `skipped` nominatif) |
-
-Frontend déjà en ligne, à vérifier au même moment : cases cliquables partout (v1.6.1), légende
-et libellés dérivés de l'onglet, export Excel (DVI, impression, gardes, absences, annuaire, fusions).
-
-
 ### Axes de développement (un fil de conversation chacun)
 
 - [ ] 🔬 **Module libéral (règle des 30 % par axe)** — le plus gros morceau. Voir `docs/module-liberal/module_liberal_conception.md`.
@@ -423,7 +407,16 @@ et libellés dérivés de l'onglet, export Excel (DVI, impression, gardes, absen
   - Ordre des lots : **0 → 1 → 2 → 4**, Lot 3 parallélisable après Lot 1.
 
 - [ ] 🖥️ **Dashboard / portail**
-  - **Tuile Module libéral** (guide + estimateur), réservée aux membres du groupement (colonne `LIBERAL O/N`, même mécanisme `only:` que CRH). L'estimateur/guide peuvent sortir avant le volet pilotage.
+  - **Tuile Module libéral** — ⏳ **POUSSÉE le 21/07/2026 (site v1.8), PAS ENCORE TESTÉE EN PRODUCTION.**
+    Pointe sur `docs/guide-liberal.html` (le hub : guide de cotation + estimateur + guide MAR).
+    Visible pour les seuls MAR ayant `O` dans la colonne **`LIBERAL`** de l'onglet `MEDECINS`.
+    - La colonne est repérée **par son en-tête**, pas par un index figé (`checkCode`, `Indispos.gs`) :
+      elle peut être placée n'importe où. **Absente ou vide → tuile invisible pour tout le monde**,
+      y compris l'admin — c'est le comportement voulu, et le premier test.
+    - `checkCode` renvoie `liberal`, l'action `login` le transmet, `dashboard.html` filtre sur
+      `MY_LIBERAL`. Aucune lecture de classeur supplémentaire (`MEDECINS` était déjà lu).
+    - ⚠️ Reste à faire : créer la colonne `LIBERAL` dans `MEDECINS` et y mettre `O`, puis recopier
+      `gas/Indispos.gs` (`2026-07-21.2`) et redéployer.
   - **CRH** : aujourd'hui codée en dur pour un seul MAR (`only:'FROHLICH'`) — décider si on la garde mono-utilisateur ou on l'ouvre (construction dans une conversation dédiée, entraînement sur CRH réels).
   - Nouvelles tuiles de contenu : à cadrer au besoin.
 
@@ -436,17 +429,13 @@ et libellés dérivés de l'onglet, export Excel (DVI, impression, gardes, absen
 - [ ] Généraliser SW/icônes locales aux autres points d'entrée (index, admin…) pour que l'install profite partout.
 - [ ] *(Sécurité, à l'appréciation d'Arthur)* rotation du token GitHub.
 
-### Pour 2027 (déménagement) — **prérequis du module libéral**
-- [ ] **Secteurs étape 2 (Lot 0)** — ⚠️ **DÉJÀ FAIT AUX 2/3** (cette entrée le décrivait à tort comme entièrement à faire, constaté le 20/07/2026).
-  - ✅ **Fait** : onglet `SECTEURS` (11 colonnes, dont `RENDEMENT_LIB`), `getOrCreateSecteursTab()` / `initSecteurs()` / `getSecteurs()` dans `portail.gs`, action API routée, `admin.html` **et** `index.html` chargent depuis l'onglet avec repli sur leurs définitions en dur.
-  - ✅ **Étape 1 (20/07, testée)** : suppression des dernières copies figées d'`index.html` — `SECLABELS` et l'ordre de légende viennent maintenant de l'onglet (via `SECTOR_AFF` / `SECTORS_DEF`) ; icône `RI` du repli alignée (`Scan` → `Zap`). Vérifié en renommant un secteur dans l'onglet : le changement remonte à l'écran.
-  - ⬜ **Étape 2 — externaliser les CONSULTATIONS**. Attention : `CS_RULES` (`code.gs`) est **du code MORT**, enfermé dans `if (GENERER_CONSULTATIONS)` qui vaut `false`. La table active est **`CS_REQUIRED`**, désormais **globale** dans `admin.html` (promue le 20/07 pour l'export Excel). Les deux tables avaient un contenu **identique** — vérifié créneau par créneau.
-    - **Schéma d'onglet `CS_TEMPLATE` validé** (1 ligne par type, 1 colonne par demi-journée — la semaine lisible d'un coup d'œil) : `CODE | LABEL | OUVRABLE | ACTIF | LUN_AM | LUN_PM | MAR_AM | MAR_PM | MER_AM | MER_PM | JEU_AM | JEU_PM | VEN_AM | VEN_PM`.
-    - **Décisions d'Arthur** : `OUVRABLE = O` pour les **7** types (plus seulement 4) ; colonne `ACTIF` pour désactiver un type sans supprimer sa ligne — c'est le mécanisme du futur passage **par secteur (bloc court / bloc long)** au lieu de par spécialité : on ajoutera `CS-BC` / `CS-BL` et on passera les anciens à `N`, sans jamais renommer un CODE (clé technique écrite dans `PLANNING_OVERRIDES` et le planning publié). Le **LABEL** est libre : il ne sert qu'à l'affichage (vérifié).
-    - **Contenu de départ (23 créneaux/semaine)** : LUN pm VIS×2 END×2 · MAR am ORL MAT, pm VIS END ORT · MER am ORL POLY, pm VIS END ORT INTER · JEU am ORL MAT, pm VIS END×2 INTER · VEN am ORT ORL.
-    - Absorbe **3 tables** aujourd'hui séparées : `CS_TYPES`, `CS_REQUIRED`, `CS_OPENABLE`.
-    - Décidé : `VOLANT` et `CS` restent en code (pseudo-secteurs, pas des lieux).
-  - ⬜ **Étape 3** : retirer les définitions en dur et rendre le repli **visible** (aujourd'hui silencieux : une panne de lecture passerait inaperçue).
+### Pour 2027 (déménagement)
+- [x] **Secteurs (Lot 0)** — **TERMINÉ le 21/07/2026**, de la ligne d'onglet jusqu'au fichier Excel du
+  vendredi. Détail dans « Chantier secteurs — TERMINÉ de bout en bout » plus haut, marche à suivre au
+  § 18 du guide technique. Le prérequis du module libéral est levé.
+- [ ] **Étape 3 (non urgente)** : retirer les tables en dur (`SECTEURS`, `CS_TYPES`, `CS_REQUIRED`,
+  `CS_OPENABLE`) et rendre le **repli visible**. Aujourd'hui il est silencieux : une panne de lecture
+  ferait tourner les pages sur le code en dur sans le dire. Inoffensif tant qu'on ne compte pas dessus.
 
 ---
 
