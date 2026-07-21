@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-20.9';
+const GAS_VERSION_INDISPOS = '2026-07-21.1';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1965,6 +1965,46 @@ if (!affSheet) {
         for (let r = 1; r < ad.length; r++) { const id = String(ad[r][0]).trim(); if (id) affIds.add(id); }
         const sansAff = actifs.filter(id => !affIds.has(id));
         check(`MARs actifs sans affectation : ${sansAff.length || 'aucun'}${sansAff.length ? ' (' + sansAff.join(', ') + ')' : ''}`, sansAff.length ? R.WARN : R.OK);
+
+        // ── Affectations pointant vers un secteur qui n'existe plus ──
+        // (07/2026) Supprimer une ligne de l'onglet SECTEURS — ou la passer à
+        // ACTIF=N, ou vider sa colonne AFF — ne touche PAS les affectations déjà
+        // saisies : elles gardent l'ancien code. À la publication, ce code devient
+        // VOLANT (normalizeAffectation). Le MAR n'est pas perdu, mais il quitte
+        // silencieusement son secteur. Ce contrôle le dit AVANT qu'on le découvre
+        // sur le planning. Rappel : préférer ACTIF=N à la suppression d'une ligne.
+        try {
+          const codesOk = new Set(['VOLANT']);
+          (getSecteurs() || []).forEach(sec => {
+            if (sec && sec.actif && String(sec.aff || '').trim()) {
+              codesOk.add(String(sec.code).trim().toUpperCase());
+            }
+          });
+          const orphelinsSect = {};   // code inconnu -> Set(MAR)
+          for (let r = 1; r < ad.length; r++) {
+            const id = String(ad[r][0]).trim();
+            if (!id) continue;
+            for (let c = 1; c < ad[r].length; c++) {
+              const v = String(ad[r][c] || '').trim().toUpperCase();
+              if (!v || codesOk.has(v)) continue;
+              if (!orphelinsSect[v]) orphelinsSect[v] = new Set();
+              orphelinsSect[v].add(id);
+            }
+          }
+          const codesKo = Object.keys(orphelinsSect);
+          if (!codesKo.length) {
+            check('Affectations pointant toutes vers un secteur valide', R.OK);
+          } else {
+            codesKo.forEach(code => {
+              const qui = Array.from(orphelinsSect[code]);
+              check(`Secteur « ${code} » absent de l'onglet SECTEURS (ou inactif / sans AFF) `
+                  + `— ${qui.length} MAR concerné(s) : ${qui.join(', ')} → passeront en VOLANT à la publication`,
+                  R.ERR);
+            });
+          }
+        } catch (e) {
+          info('Contrôle des secteurs affectés impossible : ' + e.message);
+        }
       } else {
         check(`AFFECTATIONS_${Y} présent`, affSheet ? R.OK : R.WARN);
       }
