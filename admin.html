@@ -944,7 +944,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.6.3'; // SITE_VERSION: v1.6.3
+const SITE_VERSION = 'v1.6.4'; // SITE_VERSION: v1.6.4
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1037,7 +1037,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.6.3</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.6.4</span></span>
     <a href="./docs/guide-comite.html" target="_blank" class="header-btn" title="Guide du comité — mode d'emploi de cette interface"><span class="hb-ico">?</span> Aide</a>
     
   </div>
@@ -4109,7 +4109,16 @@ function renderAffectations() {
   // Légende (secteurs présents)
   const present = new Set();
   actifs.forEach(d => { for (let m = 1; m <= 12; m++) present.add(secOf(d.id, m)); });
-  const legendOrder = ['VIS','REA','ORT','ORL','END','CI','RI','MAT','VOLANT'].filter(x => present.has(x));
+  // (07/2026) Cette liste était FIGÉE : un secteur créé dans l'onglet SECTEURS
+  // s'affectait et se colorait, mais restait absent de la légende. Même défaut que
+  // celui corrigé la veille dans index.html — appliqué à un seul des deux endroits.
+  // L'ordre vient désormais de la colonne ORDRE de l'onglet (SECTEURS_ACTIFS est
+  // déjà trié). Filtré sur `aff` : un secteur sans libellé d'affectation n'est pas
+  // affectable au mois (cas de DVI), il n'a rien à faire dans cette légende.
+  // VOLANT est un pseudo-secteur, hors onglet : ajouté en dernier.
+  const legendOrder = SECTEURS_ACTIFS.filter(x => x.aff).map(x => x.code)
+                        .concat(['VOLANT'])
+                        .filter(x => present.has(x));
   let legend = '<div class="aff-legend">';
   legendOrder.forEach(x => { const sc = SECTOR_COLORS_AFF[x] || SECTOR_COLORS_AFF.VOLANT; legend += `<span class="aff-legend-item"><span class="aff-legend-dot" style="background:${sc.fg}"></span>${SECTOR_LABELS_AFF[x] || x}</span>`; });
   legend += '</div>';
