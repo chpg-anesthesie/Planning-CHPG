@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-21.3';
+const GAS_VERSION_INDISPOS = '2026-07-21.4';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -418,6 +418,10 @@ function checkCode(code) {
   };
   const colLib  = _colParTitre('LIBERAL');   // O/N : membre du groupement liberal
   const colRpps = _colParTitre('RPPS');      // n° RPPS, pre-remplissage des devis
+  // PRENOM : colonne DEDIEE, ajoutee en fin d'onglet. Surtout NE PAS mettre le prenom
+  // dans la colonne NOM : celle-ci alimente le planning, le dashboard et l'export Excel,
+  // ou un nom rallonge deborderait partout.
+  const colPre  = _colParTitre('PRENOM');
   for (let r = 1; r < data.length; r++) {
     if (String(data[r][6]).trim() === String(code).trim()) {
       return {role:'mar', id:data[r][0], name:data[r][1], initials:data[r][2],
@@ -425,7 +429,10 @@ function checkCode(code) {
               // DONNEE NOMINATIVE. Le RPPS vit UNIQUEMENT dans le classeur prive, jamais
               // dans le depot (public). Il n'est renvoye qu'au MAR identifie par SON code
               // personnel, et pour sa seule ligne : personne ne recoit le RPPS d'un autre.
-              rpps: colRpps >= 0 ? String(data[r][colRpps] == null ? '' : data[r][colRpps]).trim() : ''};
+              rpps: colRpps >= 0 ? String(data[r][colRpps] == null ? '' : data[r][colRpps]).trim() : '',
+              // DONNEE NOMINATIVE, meme regime que le RPPS : classeur prive uniquement,
+              // renvoyee au seul MAR identifie par son propre code.
+              prenom: colPre >= 0 ? String(data[r][colPre] == null ? '' : data[r][colPre]).trim() : ''};
     }
   }
   return null;
@@ -1089,6 +1096,9 @@ function doGet(e) {
         // N° RPPS du MAR connecte (colonne RPPS de MEDECINS) : pre-remplit l'identite
         // du praticien sur les devis du module liberal. Chaine vide si non renseigne.
         rpps: user.rpps || '',
+        // Prenom (colonne PRENOM de MEDECINS) : complete le nom sur les devis du
+        // module liberal. Chaine vide si la colonne est absente ou non renseignee.
+        prenom: user.prenom || '',
         name: user.name, initials: user.initials, 
         year: TEST_YEAR, indisposYear: getIndisposYear(),
         // Campagne de saisie en cours ? Pilote l'affichage de la tuile
