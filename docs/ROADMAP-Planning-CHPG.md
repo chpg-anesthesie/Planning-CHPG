@@ -407,16 +407,27 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
   - Ordre des lots : **0 → 1 → 2 → 4**, Lot 3 parallélisable après Lot 1.
 
 - [ ] 🖥️ **Dashboard / portail**
-  - **Tuile Module libéral** — ⏳ **POUSSÉE le 21/07/2026 (site v1.8), PAS ENCORE TESTÉE EN PRODUCTION.**
+  - [x] **Tuile Module libéral** — **EN PRODUCTION, testée le 21/07/2026** (site v1.8).
     Pointe sur `docs/guide-liberal.html` (le hub : guide de cotation + estimateur + guide MAR).
-    Visible pour les seuls MAR ayant `O` dans la colonne **`LIBERAL`** de l'onglet `MEDECINS`.
-    - La colonne est repérée **par son en-tête**, pas par un index figé (`checkCode`, `Indispos.gs`) :
-      elle peut être placée n'importe où. **Absente ou vide → tuile invisible pour tout le monde**,
-      y compris l'admin — c'est le comportement voulu, et le premier test.
-    - `checkCode` renvoie `liberal`, l'action `login` le transmet, `dashboard.html` filtre sur
-      `MY_LIBERAL`. Aucune lecture de classeur supplémentaire (`MEDECINS` était déjà lu).
-    - ⚠️ Reste à faire : créer la colonne `LIBERAL` dans `MEDECINS` et y mettre `O`, puis recopier
-      `gas/Indispos.gs` (`2026-07-21.2`) et redéployer.
+    Visible pour les seuls MAR ayant `O` dans la colonne **`LIBERAL`** de `MEDECINS` (ajoutée en
+    **fin** d'onglet). `checkCode` lit la colonne **par son en-tête** et renvoie `liberal`, l'action
+    `login` le transmet, `dashboard.html` filtre sur `MY_LIBERAL`. Colonne vide → tuile invisible
+    pour tout le monde. Aucune lecture de classeur supplémentaire.
+
+**⚠️ Deux pièges payés comptant ce jour-là.**
+
+1. **Une colonne insérée au MILIEU de `MEDECINS` casse les codes d'accès.** 22 lectures de l'onglet
+   utilisent des index de colonne **figés** ; l'insertion décale tout et `checkCode` lit la colonne
+   voisine. La roadmap et le contexte affirmaient que la colonne « pouvait être placée n'importe où » :
+   c'était vrai de la lecture de `LIBERAL`, **faux de l'onglet**. Règle désormais écrite dans le
+   CONTEXTE : **nouvelle colonne = toujours à la fin**.
+2. **Une icône absente du mini-bundle ne s'affiche pas, en silence.** `dashboard.html` charge
+   `assets/vendor/lucide-icons.js`, un fichier **local de 18 icônes**, pas le CDN Lucide. `calculator`
+   n'y était pas : tuile correcte, carré vide, aucune erreur. Tracé officiel ajouté (lucide 1.23.0),
+   liste d'en-tête du fichier mise à jour, et un `console.warn` remplace le `return` muet.
+   → **Même réflexe manqué que la 4ᵉ liste en dur de la veille : vérifier l'inventaire réel du dépôt,
+   pas la disponibilité théorique de la ressource.**
+
   - **CRH** : aujourd'hui codée en dur pour un seul MAR (`only:'FROHLICH'`) — décider si on la garde mono-utilisateur ou on l'ouvre (construction dans une conversation dédiée, entraînement sur CRH réels).
   - Nouvelles tuiles de contenu : à cadrer au besoin.
 
