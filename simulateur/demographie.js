@@ -1,10 +1,16 @@
 // ═══ SIMULATION DÉMOGRAPHIQUE 2027→2046 — le VRAI algo, année par année ═══
 const H=require('./harness.js'), A=require('./analyse.js');
 
-const NAISSANCE={SULTAN:1961,MENADE:1967,GUERIN:1969,CATINEAU:1974,ARMANDO:1975,ROUSSEAU:1976,
+const NAISSANCE={NONTIT:1990,SULTAN:1961,MENADE:1967,GUERIN:1969,CATINEAU:1974,ARMANDO:1975,ROUSSEAU:1976,
   ALBOUY:1977,PRUNET:1977,GHIGLIONE:1978,LEY:1981,OPPRECHT:1982,ZAMARON:1986,SEVERAC:1986,
   SALA:1986,LEVASSEUR:1987,SUPLY:1990,WIDEHEM:1991,FROHLICH:1992,PARTOUCHE:1992,ARMAND:1993};
-const PCT={LEY:90,SEVERAC:80}; // défaut 100
+const PCT={LEY:90,SEVERAC:80,NONTIT:50}; // défaut 100
+// NONTIT = le poste NON TITULAIRE conservé. Deux non-titulaires cohabitent d'octobre 2026
+// à mars 2027 (1,5 ETP au total) ; à partir de mars 2027 il n'en reste qu'UN, à 0,5 ETP,
+// qui prend donc 50 % de gardes. Nés en 1990-1991, ils sortent du pool de garde vers
+// 2050 et partent en retraite vers 2057 : sur la fenêtre 2027-2046, ce demi-poste est
+// donc présent en continu, quel que soit celui des deux qui le récupère.
+// ⚠️ L'oublier surestime la charge d'environ 4 gardes/an au creux (57 au lieu de 53).
 const FLAGS0={PRUNET:{noWeekend:1,souhaitPlafond:1}};
 
 function buildRoster(year,{ageExempt=60,ageRetraite=67}){
