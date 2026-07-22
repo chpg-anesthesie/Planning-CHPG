@@ -246,7 +246,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">Module libéral · V4.1 — déclaration d'intervention au comité · identité et secteurs du portail · devis détaillé</div>
+    <div class="eyebrow">Module libéral · V4.2 — déclaration d'intervention au comité (secteur saisi une seule fois) · identité du portail · devis détaillé</div>
     <h1>Estimateur temps réel du libéral</h1>
     <div class="sub">Un parcours = une ou plusieurs lignes de code (principal + associés + suppléments). L'outil calcule la BR, projette le ratio 30 %, et <b>calibre le dépassement sur la mutuelle du patient pour minimiser son reste à charge</b>. <b>Estimateur, pas décompte.</b></div>
     <a class="guidelink" href="../guide-liberal.html">📘 Guides du libéral — cotation, règle des 30 %, antisèche</a>
@@ -300,9 +300,6 @@
       <!-- SECTEUR : parcours bloc uniquement. Sert au placement par le comite,
            n'apparait PAS sur le devis. Facultatif tant que la declaration
            d'intervention n'existe pas. -->
-      <div class="field" id="secWrap" style="width:200px"><label>Secteur (placement comité)</label>
-        <select id="secSel"><option value="">— chargement…</option></select>
-        <input id="secLibre" placeholder="Secteur" style="display:none"></div>
       <div class="datehint" id="dateHint"></div>
     </div>
 
@@ -387,11 +384,11 @@
        le placement. Aucune donnée patient, aucun code d'acte. -->
   <div class="declbox">
     <h2>Déclarer une intervention libérale</h2>
-    <div class="sub2">Le comité vous placera dans ce secteur ce jour-là. Aucune donnée patient, aucun code d'acte.</div>
+    <div class="sub2">Le comité verra cette intervention lors du placement du jour. Aucune donnée patient, aucun code d'acte.</div>
     <div class="declgrid">
-      <div class="field"><label>Jour du bloc</label><input id="dclBloc" type="date" onchange="dclPreview()"></div>
+      <div class="field"><label>Jour du bloc</label><input id="dclBloc" type="date" onchange="dclTouche('bloc');dclPreview()"></div>
       <div class="field"><label>Secteur</label><select id="dclSec" onchange="dclPreview()"><option value="">— chargement…</option></select></div>
-      <div class="field"><label>Chirurgie <span style="color:var(--muted)">— facultatif</span></label><input id="dclChir" placeholder="PTH, hernie cœlio…" oninput="dclPreview()"></div>
+      <div class="field"><label>Chirurgie <span style="color:var(--muted)">— facultatif</span></label><input id="dclChir" placeholder="PTH, hernie cœlio…" oninput="dclTouche('chir');dclPreview()"></div>
     </div>
     <div class="row2">
       <div class="declpreview" id="dclPrev">Renseignez le jour et le secteur.</div>
@@ -534,8 +531,6 @@ function setAxe(a){axe=a;
   document.getElementById('hintNGAP').style.display=n?'block':'none';
   // La date d'intervention n'a de sens que sur l'axe bloc (CCAM).
   document.getElementById('dIntWrap').style.display=n?'none':'block';
-  // Le secteur ne concerne que les parcours bloc (decision actee) : masque en NGAP.
-  document.getElementById('secWrap').style.display=n?'none':'block';
   renderDateHint();
   onStatut();
 }
@@ -665,16 +660,10 @@ async function chargerPraticien(){
 // Repli VISIBLE : si le portail est injoignable, on bascule sur une saisie libre et
 // on le dit. Jamais de liste vide silencieuse.
 let SECTEURS=[];
-function secteurValue(){
-  const sel=document.getElementById('secSel'), lib=document.getElementById('secLibre');
-  return (lib && lib.style.display!=='none') ? lib.value.trim() : (sel ? sel.value : '');
-}
+// Le secteur ne se saisit QU'A UN SEUL ENDROIT : la declaration. Il ne peut pas se
+// rabattre sur du texte libre (le comite a besoin d'un code exploitable) : hors portail,
+// on neutralise le select avec un message clair plutot que de laisser une liste vide.
 function secteurReplLibre(msg){
-  const sel=document.getElementById('secSel'), lib=document.getElementById('secLibre');
-  if(sel) sel.style.display='none';
-  if(lib){ lib.style.display=''; lib.placeholder=msg; }
-  // Le select de declaration ne peut pas se rabattre sur du texte libre (secteur = code
-  // exploitable par le comite) : hors portail, on le neutralise avec un message clair.
   const dcl=document.getElementById('dclSec');
   if(dcl) dcl.innerHTML='<option value="">'+(msg||'secteurs indisponibles')+'</option>';
 }
@@ -705,12 +694,8 @@ async function chargerSecteurs(){
   }
 }
 function remplirSecteurs(){
-  const opts='<option value="">— non précisé —</option>'
-    + SECTEURS.map(x=>`<option value="${esc(x.code)}">${esc(x.label||x.court||x.code)}</option>`).join('');
-  const sel=document.getElementById('secSel'); if(sel) sel.innerHTML=opts;
-  // Le meme referentiel alimente le select de DECLARATION (1re option neutre differente).
-  const dcl=document.getElementById('dclSec');
-  if(dcl) dcl.innerHTML='<option value="">— choisir —</option>'
+  const dcl=document.getElementById('dclSec'); if(!dcl) return;
+  dcl.innerHTML='<option value="">— choisir —</option>'
     + SECTEURS.map(x=>`<option value="${esc(x.code)}">${esc(x.label||x.court||x.code)}</option>`).join('');
 }
 
@@ -719,6 +704,22 @@ function remplirSecteurs(){
 // Le MAR_ID n'est JAMAIS envoye par la page : le serveur le prend du code d'acces.
 // listLiberal ne renvoie que MES lignes. Toutes passent par le code de session.
 let MES_DECL=[];        // cache des declarations de l'annee, rempli par chargerDecl()
+// Le secteur ne se saisit qu'ICI (plus sur le parcours) : une seule source, pas de
+// synchronisation a maintenir. Le jour et la chirurgie se PRE-REMPLISSENT depuis le
+// dernier parcours bloc ajoute -- mais UNIQUEMENT tant que l'utilisateur n'y a pas
+// touche, sinon une correction saisie ici sauterait a la prochaine cotation.
+const DCL_TOUCHE={bloc:false, chir:false};
+function dclTouche(champ){ DCL_TOUCHE[champ]=true; }
+function dclPreRemplir(p){
+  if(!p || p.axe!=='CCAM') return;
+  const b=document.getElementById('dclBloc'), c=document.getElementById('dclChir');
+  if(b && !DCL_TOUCHE.bloc && p.dInt) b.value=p.dInt;
+  if(c && !DCL_TOUCHE.chir){
+    const lib=(p.lines && p.lines.length) ? (p.lines[0].lib||'') : '';
+    if(lib) c.value=lib;
+  }
+  dclPreview();
+}
 let DECL_ALL=false;     // false = fenetre (futur + 7 j) ; true = toute l'annee depliee
 
 async function apiLib(action, extra){
@@ -843,8 +844,6 @@ function addParcours(){
   if(axe==='CCAM' && !dInt){alert("Renseigne la date d'intervention : c'est elle qui pose l'alerte du comit\u00e9 sur le planning.");return;}
   // Date de l'acte = celle qui remonte au comite : intervention en CCAM, consultation en NGAP.
   const dActe = (axe==='CCAM') ? dInt : dCs;
-  // Secteur : bloc uniquement, facultatif tant que la declaration d'intervention n'existe pas.
-  const secteur = (axe==='CCAM') ? secteurValue() : '';
   const st=document.getElementById('statut').value, pct=currentMutPct();
   let rac=null, mut=null;
   if(pct>0 && STATUTS[st].dh!=='0'){
@@ -860,7 +859,8 @@ function addParcours(){
     : ngap.map(n=>{const k=(n.lc==='AUTRE'?'NGAP':n.lc);
         return {code:k+((n.coef&&n.coef!==1)?' \u00d7 '+n.coef:''), lib:LC_LAB[n.lc]||'Acte NGAP',
                 br:ngapBR(n), mods:[]};});
-  parcours.push({axe,statut:st,desc,cnt,br,dh,rac,mut,dCs,dInt:(axe==='CCAM'?dInt:''),dActe,secteur,lines});
+  parcours.push({axe,statut:st,desc,cnt,br,dh,rac,mut,dCs,dInt:(axe==='CCAM'?dInt:''),dActe,lines});
+  dclPreRemplir(parcours[parcours.length-1]);
   renderRows();renderSummary();
 }
 function delP(i){parcours.splice(i,1);renderRows();renderSummary();}
@@ -902,7 +902,7 @@ function renderRows(){
       ? `<br><span style="font-size:10.5px;color:${p.rac<=0.005?'var(--room)':'var(--over)'}">RAC ${eur2(p.rac)}</span>` : '';
     const mutLine = p.mut ? ' · '+p.mut : '';
     return `<div class="pitem"><span class="pill ${c}">${p.axe}</span>
-      <div class="d">${chip}${p.desc} <small>${p.statut}${mutLine} · ${p.cnt} ${unit}(s)${(p.axe==='CCAM'&&p.dCs)?' · consult '+fmtI(p.dCs):''}${p.secteur?' · '+esc(secteurLabel(p.secteur)):''}</small></div>
+      <div class="d">${chip}${p.desc} <small>${p.statut}${mutLine} · ${p.cnt} ${unit}(s)${(p.axe==='CCAM'&&p.dCs)?' · consult '+fmtI(p.dCs):''}</small></div>
       <div class="amt"><span class="br">${eur2(p.br)}</span> BR<br><span class="dh">${p.dh?'+'+eur2(p.dh)+' DH':'DH 0'}</span>${racLine}</div>
       <button class="devisbtn" onclick="openDevis(${i})" title="Générer le devis">📄 Devis</button>
       <button class="rm" onclick="delP(${i})">✕</button></div>`;}).join('');
