@@ -31,6 +31,12 @@ function portailRoute(action, payload, user) {
     case 'getVeille':  return _portailJson(getVeille());
     case 'markVeille': return _portailJson(markVeille(payload && payload.pmid, payload && payload.field, payload && payload.value));
     case 'genererCRH': return _portailJson(genererCRH_(payload, user));
+    // Declaration d'intervention liberale (onglet LIBERAL_{Y}). declareLiberal et
+    // deleteLiberal ECRIVENT : elles sont dans WRITE_ACTIONS_LOCK (Indispos.gs), le
+    // verrou etant pris AVANT cette delegation. listLiberal est une lecture.
+    case 'declareLiberal': return _portailJson(declareLiberal(payload, user));
+    case 'deleteLiberal':  return _portailJson(deleteLiberal(payload, user));
+    case 'listLiberal':    return _portailJson(listLiberal(payload, user));
     default:          return null;   // pas une action portail → doGet continue
   }
 }
@@ -1112,6 +1118,154 @@ function testCRH() {
   Logger.log(r.success ? ('✅ CR de test :\n' + r.cr) : ('❌ ' + r.error));
 }
 
+
+
+// ════════════════════════════════════════════════════════════════════
+//  DÉCLARATION D'INTERVENTION LIBÉRALE — onglet LIBERAL_{Y}
+//  (à distinguer de la « déclaration de choix », le document signé par le
+//   patient : ici il s'agit de la présence au bloc annoncée AU COMITÉ.)
+//
+//  Payload FERMÉ, 6 colonnes, AUCUNE donnée patient, AUCUN code CCAM :
+//    ID | DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | CHIRURGIE
+//  - ID          : poignée aléatoire, pour cibler une ligne (suppression / fusion)
+//                  sans dépendre du numéro de ligne (fragile si l'onglet est trié).
+//  - DATE_CONSULT: J0, informatif (suivi NGAP plus tard) — pris à aujourd'hui.
+//  - DATE_BLOC   : jour de l'acte, ce que lit le comité. Détermine l'ANNÉE de l'onglet.
+//  - MAR_ID      : TOUJOURS celui du code d'accès (user.id), jamais une valeur cliente.
+//  - SECTEUR     : code SECTEURS, obligatoire (sans lui, rien à placer).
+//  - CHIRURGIE   : libellé court libre, facultatif (idée de durée pour le comité).
+//
+//  Granularité : une ligne = une journée-bloc DANS UN SECTEUR pour un MAR.
+//  Même MAR + même jour + même secteur => la ligne existante est MISE À JOUR
+//  (libellé chirurgie cumulé), pas dupliquée. Deux secteurs le même jour => 2 lignes.
+// ════════════════════════════════════════════════════════════════════
+const LIBERAL_HEADER = ['ID', 'DATE_CONSULT', 'DATE_BLOC', 'MAR_ID', 'SECTEUR', 'CHIRURGIE'];
+
+// Aujourd'hui en 'yyyy-MM-dd', fuseau du script.
+function _todayISO_() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+function _libSheetName(year) { return 'LIBERAL_' + year; }
+
+// Onglet de l'année du JOUR DE BLOC, créé à la volée (comme SECTEURS).
+function _getOrCreateLiberalTab(year) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const name = _libSheetName(year);
+  let sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.getRange(1, 1, 1, LIBERAL_HEADER.length).setValues([LIBERAL_HEADER]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  } else if (sh.getLastRow() < 1) {
+    sh.getRange(1, 1, 1, LIBERAL_HEADER.length).setValues([LIBERAL_HEADER]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+// 'yyyy-MM-dd' → année (nombre). Rejette tout ce qui n'est pas une date ISO.
+function _libYearOf(dateBloc) {
+  const s = String(dateBloc || '').trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function _libNewId() {
+  return 'L-' + Utilities.getUuid().replace(/-/g, '').slice(0, 10);
+}
+
+// ── ÉCRITURE : déclarer (ou compléter) une intervention ──────────────
+function declareLiberal(payload, user) {
+  if (!user || user.role !== 'mar') return { success: false, error: 'Réservé aux MAR identifiés.' };
+  const marId  = user.id;                                    // JAMAIS payload : anti-usurpation
+  // _isoDate() vit dans Indispos.gs (meme projet GAS). Attention : _isoDate(undefined)
+  // renvoie la chaine "undefined" -> on ne l'appelle que si la valeur est presente.
+  const dateBloc = (payload && payload.dateBloc) ? _isoDate(payload.dateBloc) : '';
+  const secteur  = String((payload && payload.secteur) || '').trim().toUpperCase();
+  const chir     = String((payload && payload.chirurgie) || '').trim().slice(0, 80);
+  // _isoDate(undefined) renvoie la CHAINE "undefined" (String(undefined)), pas '' :
+  // on ne lui passe donc que des valeurs presentes, sinon on prend aujourd'hui.
+  const dateCons = (payload && payload.dateConsult) ? _isoDate(payload.dateConsult) : _todayISO_();
+
+  if (!dateBloc)  return { success: false, error: 'Jour du bloc manquant ou invalide.' };
+  const year = _libYearOf(dateBloc);
+  if (!year)      return { success: false, error: 'Jour du bloc invalide.' };
+  if (!secteur)   return { success: false, error: 'Secteur obligatoire.' };
+
+  const sh = _getOrCreateLiberalTab(year);
+  const data = sh.getDataRange().getValues();
+
+  // Fusion : même MAR + même jour + même secteur → on complète la ligne existante.
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][3]).trim() === marId
+        && _isoDate(data[r][2]) === dateBloc
+        && String(data[r][4]).trim().toUpperCase() === secteur) {
+      if (chir) {
+        const prev = String(data[r][5] || '').trim();
+        const parts = prev ? prev.split(' + ') : [];
+        if (parts.indexOf(chir) === -1) {
+          const merged = prev ? (prev + ' + ' + chir) : chir;
+          sh.getRange(r + 1, 6).setValue(merged.slice(0, 120));
+        }
+      }
+      return { success: true, merged: true, id: String(data[r][0]) };
+    }
+  }
+
+  const id = _libNewId();
+  sh.appendRow([id, dateCons, dateBloc, marId, secteur, chir]);
+  return { success: true, merged: false, id: id };
+}
+
+// ── ÉCRITURE : supprimer une de SES lignes ───────────────────────────
+function deleteLiberal(payload, user) {
+  if (!user || user.role !== 'mar') return { success: false, error: 'Réservé aux MAR identifiés.' };
+  const marId = user.id;
+  const id    = String((payload && payload.id) || '').trim();
+  const year  = parseInt(payload && payload.year, 10);
+  if (!id)   return { success: false, error: 'Identifiant manquant.' };
+  if (!year) return { success: false, error: 'Année manquante.' };
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(_libSheetName(year));
+  if (!sh) return { success: false, error: 'Aucune déclaration cette année.' };
+  const data = sh.getDataRange().getValues();
+
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][0]).trim() === id) {
+      // On ne supprime QUE si la ligne appartient au MAR connecté.
+      if (String(data[r][3]).trim() !== marId) return { success: false, error: 'Cette déclaration n\'est pas la vôtre.' };
+      sh.deleteRow(r + 1);
+      return { success: true, id: id };
+    }
+  }
+  return { success: false, error: 'Déclaration introuvable (déjà supprimée ?).' };
+}
+
+// ── LECTURE : MES déclarations de l'année (filtrées sur MON id) ───────
+function listLiberal(payload, user) {
+  if (!user || user.role !== 'mar') return { success: false, error: 'Réservé aux MAR identifiés.' };
+  const marId = user.id;
+  const year  = parseInt(payload && payload.year, 10) || _libYearOf(_todayISO_());
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(_libSheetName(year));
+  if (!sh) return { success: true, year: year, items: [] };
+
+  const data = sh.getDataRange().getValues();
+  const items = [];
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][3]).trim() !== marId) continue;       // JAMAIS les lignes d'un autre
+    items.push({
+      id:        String(data[r][0]),
+      dateBloc:  _isoDate(data[r][2]),
+      secteur:   String(data[r][4]).trim().toUpperCase(),
+      chirurgie: String(data[r][5] || '').trim(),
+    });
+  }
+  items.sort((a, b) => String(a.dateBloc).localeCompare(String(b.dateBloc)));
+  return { success: true, year: year, items: items };
+}
 
 /* ════════════════════════════════════════════════════════════════════
    SECTEURS — source unique externalisée (étape 2).
