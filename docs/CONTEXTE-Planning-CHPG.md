@@ -57,6 +57,11 @@ Cycle annuel = 3 assistants dans admin.html, **tous testés en réel** :
   - ⚠️ **Piège de vocabulaire** : *déclaration de choix* (document signé par le patient) ≠ *déclaration d'intervention* (ligne lue par le comité).
   - `_isoDate()` vit dans `Indispos.gs` et est appelée depuis `portail.gs` (projet GAS unique). ⚠️ `_isoDate(undefined)` renvoie la **chaîne** `"undefined"`, pas `''` — ne l'appeler que sur une valeur présente (bug attrapé en test le 22/07).
 
+- **Volet « ◆ Libéral » du comité** (`admin.html`, depuis le 22/07/2026). Action `listLiberalJour(date)` dans `portail.gs`, **réservée à l'admin**, lecture seule (absente du `WRITE_ACTIONS_LOCK`). Tiroir `#liberalCard` à **gauche**, symétrique de `#dispoCard`. Cache par date `_libJourCache`. Noms résolus par `_nm()`, secteurs par `SECTEURS_CFG` — rien de plus n'est transporté.
+  - ⚠️ **Aucun jugement de placement n'est calculé** (ni « déjà en X », ni « à replacer ») : décision d'Arthur, le comité décide seul. Ne pas "améliorer".
+  - ⚠️ **`#dispoCard` est un tiroir flottant à DROITE** (`position:fixed; right:16px; width:360px`) : son attribut `style=` inline dit le contraire, une règle CSS plus bas l'écrase. **Toujours lire la feuille de style avant de conclure sur la mise en page.**
+  - Jour sans déclaration : tiroir masqué, **pas de toast**.
+
 - **Estimateur libéral — modèle de données d'un parcours.** `docs/module-liberal/maquette_estimateur_liberal.html` (V3.6). Un parcours stocke : `axe` (CCAM ou NGAP), `statut`, `desc`, `br`, `dh`, `rac`, `mut`, **`dCs`** (date de consultation), **`dInt`** (date d'intervention, vide en NGAP), **`dActe`** (date de l'acte = `dInt` en CCAM, `dCs` en NGAP) et **`lines`** (détail acte par acte : `code`, `lib`, `br`, `mods`). Rien n'est persisté : tout vit en mémoire de page, un rechargement remet à zéro — pas de migration à prévoir.
   - **`dActe` est le champ pivot** : c'est lui, et lui seul, que lira le futur tiroir « ◆ Libéral » du planning admin pour poser l'alerte du comité au bon jour.
   - **La date d'intervention n'est jamais pré-remplie** et l'ajout d'un parcours CCAM est refusé sans elle. Une case vide se voit, une date fausse ne se voit pas.
