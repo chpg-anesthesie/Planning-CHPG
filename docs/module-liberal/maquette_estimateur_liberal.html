@@ -87,6 +87,28 @@
   .pitem .amt{text-align:right;font-family:'IBM Plex Mono',monospace}
   .pitem .amt .br{color:var(--ccam);font-weight:600}.pitem .amt .dh{color:var(--dh);font-size:11px}
   .empty{padding:20px;text-align:center;color:var(--muted);font-size:13px}
+  .declbox{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 18px}
+  .declbox h2{font-size:15px;font-weight:600;margin:0 0 2px}
+  .declbox .sub2{font-size:12px;color:var(--muted);margin-bottom:14px}
+  .declgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:12px}
+  .declbox .row2{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .declpreview{flex:1;min-width:210px;background:var(--track);border-radius:9px;padding:8px 11px;font-size:11px;color:var(--muted)}
+  .declpreview .mono{color:var(--ink)}
+  .declbtn{border:1px solid var(--ccam);color:var(--ccam);background:#fff;border-radius:9px;padding:8px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .declbtn:hover{background:var(--ccam-bg)}
+  .decllist{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px 18px 14px}
+  .decllist h3{font-size:13px;font-weight:600;margin:8px 0 4px}
+  .declrow{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .declrow:last-child{border-bottom:none}
+  .declrow .dday{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--track);color:var(--muted);padding:2px 8px;border-radius:20px;white-space:nowrap}
+  .declrow.past .dday{background:#FAEEDA;color:#8A6516}
+  .declrow .dmain{flex:1;font-size:13px}
+  .declrow .dmain small{color:var(--muted)}
+  .declrow .ddel{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 8px;cursor:pointer;color:var(--muted);font-size:12px}
+  .declrow .ddel:hover{border-color:var(--over);color:var(--over)}
+  .declmore{padding:9px 0 2px;font-size:12px;color:var(--ccam);cursor:pointer}
+  .declmsg{font-size:12px;padding:8px 0}
+  .declmsg.ok{color:#2F6B47}.declmsg.ko{color:#8A6516}
   .racbox{margin-top:12px;background:var(--dh-bg);border:1px solid #E2D4FA;border-radius:10px;padding:11px 13px}
   .racbox .hd{font-weight:600;color:var(--dh);font-size:11px;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.05em}
   .racgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
@@ -224,7 +246,7 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="eyebrow">Module libéral · V4.0 — identité praticien et secteurs tirés du portail · recherche obstétricale (AFLB010) · devis détaillé</div>
+    <div class="eyebrow">Module libéral · V4.1 — déclaration d'intervention au comité · identité et secteurs du portail · devis détaillé</div>
     <h1>Estimateur temps réel du libéral</h1>
     <div class="sub">Un parcours = une ou plusieurs lignes de code (principal + associés + suppléments). L'outil calcule la BR, projette le ratio 30 %, et <b>calibre le dépassement sur la mutuelle du patient pour minimiser son reste à charge</b>. <b>Estimateur, pas décompte.</b></div>
     <a class="guidelink" href="../guide-liberal.html">📘 Guides du libéral — cotation, règle des 30 %, antisèche</a>
@@ -359,6 +381,29 @@
   </div>
 
   <div class="list"><h2 id="listTitle">Parcours déclarés — 0</h2><div id="rows"><div class="empty">Builder pré-rempli. Bascule l’axe (Bloc CCAM / Consult NGAP), ajuste, puis « Ajouter le parcours ».</div></div></div>
+
+  <!-- DÉCLARATION D'INTERVENTION LIBÉRALE — geste AUTONOME (rien à voir avec les parcours
+       de cotation ci-dessus). Écrit une ligne dans LIBERAL_{Y}, lue par le comité pour
+       le placement. Aucune donnée patient, aucun code d'acte. -->
+  <div class="declbox">
+    <h2>Déclarer une intervention libérale</h2>
+    <div class="sub2">Le comité vous placera dans ce secteur ce jour-là. Aucune donnée patient, aucun code d'acte.</div>
+    <div class="declgrid">
+      <div class="field"><label>Jour du bloc</label><input id="dclBloc" type="date" onchange="dclPreview()"></div>
+      <div class="field"><label>Secteur</label><select id="dclSec" onchange="dclPreview()"><option value="">— chargement…</option></select></div>
+      <div class="field"><label>Chirurgie <span style="color:var(--muted)">— facultatif</span></label><input id="dclChir" placeholder="PTH, hernie cœlio…" oninput="dclPreview()"></div>
+    </div>
+    <div class="row2">
+      <div class="declpreview" id="dclPrev">Renseignez le jour et le secteur.</div>
+      <button class="declbtn" id="dclBtn" onclick="declarer()">📅 Déclarer</button>
+    </div>
+    <div class="declmsg" id="dclMsg" style="display:none"></div>
+  </div>
+
+  <div class="decllist" id="dclListWrap" style="display:none">
+    <h3>Mes interventions déclarées</h3>
+    <div id="dclRows"></div>
+  </div>
 
   <footer><b>Estimateur, pas décompte.</b> Calcul : BR = coefficient × (tarif officiel × (1+%mod) × taux d'association + €mod). Le tarif officiel a une petite incertitude (à fiabiliser via tes feuilles vertes) ; le DH « libre » se saisit. Le code réel peut différer du prévu ; le relevé officiel recale tout.</footer>
 </div>
@@ -628,6 +673,10 @@ function secteurReplLibre(msg){
   const sel=document.getElementById('secSel'), lib=document.getElementById('secLibre');
   if(sel) sel.style.display='none';
   if(lib){ lib.style.display=''; lib.placeholder=msg; }
+  // Le select de declaration ne peut pas se rabattre sur du texte libre (secteur = code
+  // exploitable par le comite) : hors portail, on le neutralise avec un message clair.
+  const dcl=document.getElementById('dclSec');
+  if(dcl) dcl.innerHTML='<option value="">'+(msg||'secteurs indisponibles')+'</option>';
 }
 async function chargerSecteurs(){
   let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
@@ -656,9 +705,113 @@ async function chargerSecteurs(){
   }
 }
 function remplirSecteurs(){
-  const sel=document.getElementById('secSel'); if(!sel) return;
-  sel.innerHTML='<option value="">— non précisé —</option>'
+  const opts='<option value="">— non précisé —</option>'
     + SECTEURS.map(x=>`<option value="${esc(x.code)}">${esc(x.label||x.court||x.code)}</option>`).join('');
+  const sel=document.getElementById('secSel'); if(sel) sel.innerHTML=opts;
+  // Le meme referentiel alimente le select de DECLARATION (1re option neutre differente).
+  const dcl=document.getElementById('dclSec');
+  if(dcl) dcl.innerHTML='<option value="">— choisir —</option>'
+    + SECTEURS.map(x=>`<option value="${esc(x.code)}">${esc(x.label||x.court||x.code)}</option>`).join('');
+}
+
+// ---- DÉCLARATION D'INTERVENTION LIBÉRALE ----------------------------------
+// Trois actions serveur (portail.gs) : declareLiberal / deleteLiberal / listLiberal.
+// Le MAR_ID n'est JAMAIS envoye par la page : le serveur le prend du code d'acces.
+// listLiberal ne renvoie que MES lignes. Toutes passent par le code de session.
+let MES_DECL=[];        // cache des declarations de l'annee, rempli par chargerDecl()
+let DECL_ALL=false;     // false = fenetre (futur + 7 j) ; true = toute l'annee depliee
+
+async function apiLib(action, extra){
+  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  if(!code) return {success:false, error:'hors portail'};
+  const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 20000);
+  try{
+    const r=await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify(Object.assign({action:action, code:code}, extra||{})),
+      redirect:'follow', signal:ctrl.signal});
+    clearTimeout(to);
+    return await r.json();
+  }catch(e){ clearTimeout(to); return {success:false, error:'réseau'}; }
+}
+
+function dclPreview(){
+  const bloc=document.getElementById('dclBloc').value;
+  const sec=document.getElementById('dclSec').value;
+  const chir=document.getElementById('dclChir').value.trim();
+  const prev=document.getElementById('dclPrev'), btn=document.getElementById('dclBtn');
+  if(!bloc || !sec){
+    prev.innerHTML='Renseignez le jour et le secteur.';
+    btn.disabled=true; btn.style.opacity=.5; return;
+  }
+  btn.disabled=false; btn.style.opacity=1;
+  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  // Apercu de ce qui sera ecrit ; le MAR_ID reel est mis par le serveur.
+  prev.innerHTML='Sera écrit : <span class="mono">'+isoToday()+' · '+esc(bloc)+' · [vous] · '+esc(sec)+(chir?' · '+esc(chir):'')+'</span>';
+}
+
+function dclFlash(txt, ok){
+  const m=document.getElementById('dclMsg');
+  m.textContent=txt; m.className='declmsg '+(ok?'ok':'ko'); m.style.display='';
+  if(ok) setTimeout(()=>{ m.style.display='none'; }, 4000);
+}
+
+async function declarer(){
+  const bloc=document.getElementById('dclBloc').value;
+  const sec=document.getElementById('dclSec').value;
+  const chir=document.getElementById('dclChir').value.trim();
+  if(!bloc){ dclFlash('Renseignez le jour du bloc.', false); return; }
+  if(!sec){ dclFlash('Le secteur est obligatoire — c\'est ce que le comité doit savoir.', false); return; }
+  const btn=document.getElementById('dclBtn'); btn.disabled=true; btn.style.opacity=.5;
+  const r=await apiLib('declareLiberal', {dateBloc:bloc, secteur:sec, chirurgie:chir});
+  btn.disabled=false; btn.style.opacity=1;
+  if(!r || !r.success){ dclFlash('Échec : '+((r&&r.error)||'portail injoignable')+'.', false); return; }
+  dclFlash(r.merged ? 'Complétée (une intervention existait déjà ce jour dans ce secteur).' : 'Intervention déclarée.', true);
+  document.getElementById('dclChir').value='';
+  await chargerDecl();          // recharge la liste depuis le serveur (source de verite)
+}
+
+async function supprimerDecl(id, year){
+  if(!confirm('Retirer cette intervention déclarée ?')) return;
+  const r=await apiLib('deleteLiberal', {id:id, year:year});
+  if(!r || !r.success){ dclFlash('Suppression impossible : '+((r&&r.error)||'réseau')+'.', false); return; }
+  await chargerDecl();
+}
+
+async function chargerDecl(){
+  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  if(!code){ document.getElementById('dclListWrap').style.display='none'; return; }
+  const r=await apiLib('listLiberal', {year:(new Date().getFullYear())});
+  MES_DECL=(r && r.success && Array.isArray(r.items)) ? r.items : [];
+  renderDecl();
+}
+
+function renderDecl(){
+  const wrap=document.getElementById('dclListWrap'), box=document.getElementById('dclRows');
+  if(!MES_DECL.length){ wrap.style.display='none'; return; }
+  wrap.style.display='';
+  const today=isoToday();
+  // Fenetre par defaut : futur + 7 derniers jours (encore corrigeable). Le reste est
+  // masque mais JAMAIS supprime cote serveur — depliable via « voir toute l'année ».
+  const il7=new Date(Date.now()-7*86400000);
+  const seuil=il7.getFullYear()+'-'+String(il7.getMonth()+1).padStart(2,'0')+'-'+String(il7.getDate()).padStart(2,'0');
+  const visibles = DECL_ALL ? MES_DECL : MES_DECL.filter(d=>d.dateBloc>=seuil);
+  const caches = MES_DECL.length - visibles.length;
+  const year=new Date().getFullYear();
+  let html = visibles.map(d=>{
+    const past=d.dateBloc<today;
+    return '<div class="declrow'+(past?' past':'')+'">'
+      +'<span class="dday">'+fmtI(d.dateBloc)+'</span>'
+      +'<span class="dmain">'+esc(secteurLabel(d.secteur))+(d.chirurgie?' <small>— '+esc(d.chirurgie)+'</small>':'')+'</span>'
+      +'<button class="ddel" onclick="supprimerDecl(\''+d.id+'\','+year+')" aria-label="Retirer">🗑</button>'
+      +'</div>';
+  }).join('');
+  if(!DECL_ALL && caches>0){
+    html += '<div class="declmore" onclick="DECL_ALL=true;renderDecl()">▾ voir mes '+MES_DECL.length+' interventions de l\'année</div>';
+  }
+  if(DECL_ALL){
+    html += '<div class="declmore" onclick="DECL_ALL=false;renderDecl()">▴ réduire aux prochaines</div>';
+  }
+  box.innerHTML=html;
 }
 
 // ---- DATES ----------------------------------------------------------------
@@ -917,6 +1070,8 @@ loadCcam();
 document.getElementById('dCs').value=isoToday();
 chargerPraticien();
 chargerSecteurs();
+chargerDecl();
+dclPreview();
 populateMut();setAxe('CCAM');renderRows();
 </script>
 <div id="devisOverlay">
