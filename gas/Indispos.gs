@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-21.4';
+const GAS_VERSION_INDISPOS = '2026-07-21.5';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1032,6 +1032,10 @@ function _buildOverrides_() {
 //  - savePlanningOverride : verrou dédié déjà en place (même verrou de script
 //    → exclusion mutuelle assurée avec deleteOverride et les autres écritures) ;
 //  - markVeille : écriture d'une cellule ciblée, lignes jamais supprimées ;
+// INCLUS (routées par portail.gs mais écrivantes — le verrou est vérifié AVANT
+// la délégation, par nom d'action) :
+//  - declareLiberal : lire-modifier-écrire avec fusion sur LIBERAL_{Y} ;
+//  - deleteLiberal  : supprime une ligne (décalage → ciblage par ID, pas par n° de ligne).
 //  - genererCRH : aucune écriture de données ;
 //  - sendCodes* / envoyerRecapIndispos : emails (lents, pas d'écriture à risque).
 // NB : pas de releaseLock explicite — Google libère le verrou automatiquement
@@ -1044,6 +1048,7 @@ const WRITE_ACTIONS_LOCK = new Set([
   'resetCodeMar',
   'saveIndispos', 'saveMedecin', 'savePeriodes', 'setActiveYear',
   'setDailyStatus', 'setIndisposYear', 'validerSemaine',
+  'declareLiberal', 'deleteLiberal',
 ]);
 
 function doGet(e) {
