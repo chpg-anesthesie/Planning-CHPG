@@ -32,7 +32,20 @@ function makeSheet(name, rows) {
     autoResizeColumns: chain, hideSheet: chain, appendRow: (r)=>{self._rows.push(r);return chain();},
     clear: () => { self._rows = []; return chain(); },
   };
-  function chain(){ return self.getRange ? {setFontWeight:chain,setBackground:chain,setFontColor:chain,setHorizontalAlignment:chain,setNumberFormat:chain,setBorder:chain,setFontSize:chain,setWrap:chain,setValues:chain,setValue:chain} : {}; }
+  // Chainage tolerant : le generateur enchaine les appels cosmetiques
+  // (setFontColor().setFontWeight().setFontSize().setVerticalAlignment()...).
+  // Lister ces methodes une par une condamnait le banc d'essai a casser des qu'une
+  // nouvelle etait utilisee — c'est arrive avec setVerticalAlignment (16/07/2026),
+  // et PLUS AUCUN scenario ne tournait. Le Proxy accepte n'importe quel nom et se
+  // rechaine : la mise en forme n'a de toute facon aucun effet sur les resultats.
+  function chain(){
+    return new Proxy({}, { get: (t, p) => {
+      if (p === 'getValues') return () => [[]];
+      if (p === 'getValue')  return () => '';
+      if (typeof p === 'symbol') return undefined;
+      return () => chain();
+    }});
+  }
   return self;
 }
 
