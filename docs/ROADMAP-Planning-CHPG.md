@@ -1,7 +1,7 @@
 # Roadmap — Planning-CHPG
 
 Système web : **planning des gardes** (équité annuelle) + **planning quotidien** + **consultations** + **portail/Dashboard** + **veille biblio** + **CR d'anesthésie**, pour ~23 MARs au CHPG (Monaco).
-Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 22 juillet 2026 (module libéral complet de bout en bout : déclaration MAR + volet comité, site v1.9).*
+Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 22 juillet 2026 (module libéral complet de bout en bout, site v1.9 — roadmap rangée : les blocs terminés sont passés en section Fait).*
 
 > Le dépôt en ligne fait foi. Cette roadmap est un repère de pilotage, pas la source de vérité du code.
 
@@ -389,24 +389,10 @@ donc rien n'apparaissait ensuite — ni légende, ni planning, ni Excel. Trouvé
 sans `AFF` sont signalées **en erreur**, avec le code et les MAR concernés. Sans lui, ces MAR
 basculaient en VOLANT à la publication sans que personne ne le voie.
 
-### Documentation (docs/)
-- Guides : `guide-mar.html`, `guide-comite.html`, `guide-algo-gardes.html`, `guide-liberal.html`, `guide-technique.html`.
-- Présentations staff, démographie.
-- Conception module libéral + antisèche cotation (voir ci-dessous).
+### Module libéral — chaîne complète (21–22 juillet 2026) · site v1.9
 
----
+*Le MAR cote, édite un devis, déclare son intervention ; le comité la voit au placement.*
 
-## 🔜 À faire
-
-### Axes de développement (un fil de conversation chacun)
-
-- [ ] 🔬 **Module libéral (règle des 30 % par axe)** — le plus gros morceau. Voir `docs/module-liberal/module_liberal_conception.md`.
-  - Conception figée : seuil **30 % par axe** (CCAM technique **et** NGAP consultations, indépendants), objectif = optimiser le pot commun mutualisé, affichage seul côté comité.
-  - Assets déjà dans le repo : conception, antisèche cotation CCAM/NGAP, `ccam_actes.json`, `maquette_estimateur_liberal.html`, guide. **Les 3 `.docx` ont été supprimés le 21/07/2026** (décision d'Arthur) : le HTML et le Markdown font foi, trois copies d'un même contenu étant trois occasions de se contredire. Contenu conservé dans `antiseche_CCAM_anesthesie_CHPG.md` et `guide_liberal_MAR.html`. Seul le **mémo de poche 1 page** n'a plus d'équivalent **de format** (son contenu est aux §3 et §5 bis de l'antisèche) — à refaire en HTML si le besoin revient. Récupérables dans l'historique git.
-  - **Calendrier acté : rien en prod avant le go-live d'octobre 2026 et avant le Lot 0 (secteurs étape 2).**
-  - Ordre des lots : **0 → 1 → 2 → 4**, Lot 3 parallélisable après Lot 1.
-
-- [ ] 🖥️ **Dashboard / portail**
   - [x] **Tuile Module libéral** — **EN PRODUCTION, testée le 21/07/2026** (site v1.8.1).
     Ouvre **directement l'estimateur** ; celui-ci porte en tête un lien vers `docs/guide-liberal.html`
     (cotation, règle des 30 %, antisèche), qui renvoie lui-même vers l'estimateur — la boucle ferme.
@@ -537,6 +523,27 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
    → **Même réflexe manqué que la 4ᵉ liste en dur de la veille : vérifier l'inventaire réel du dépôt,
    pas la disponibilité théorique de la ressource.**
 
+### Documentation (docs/)
+- Guides : `guide-mar.html`, `guide-comite.html`, `guide-algo-gardes.html`, `guide-liberal.html`, `guide-technique.html`.
+- Présentations staff, démographie.
+- Conception module libéral + antisèche cotation (voir ci-dessous).
+
+---
+
+## 🔜 À faire
+
+### Axes de développement (un fil de conversation chacun)
+
+- [ ] 🔬 **Module libéral — brique CONVERGENCE 30 % (lots 2 et 4)**, seul morceau restant. Voir `docs/module-liberal/module_liberal_conception.md`.
+  - ✅ **Déjà en production** (détail dans « Module libéral — chaîne complète » de la section Fait) : estimateur, devis, branchement au portail, déclaration d'intervention, volet comité. **Ne pas les reconstruire.**
+  - Reste : saisie des **relevés mensuels** (checksum + monotonie), vue **T / % / marge** par axe, puis **réallocation** + équité du désagrément (consomme `RENDEMENT_LIB`).
+  - Chantier de **conception**, pas de code : mérite un fil de conversation dédié. Jeu d'essai disponible : le relevé réel janvier→juin.
+  - Conception figée : seuil **30 % par axe** (CCAM technique **et** NGAP consultations, indépendants), objectif = optimiser le pot commun mutualisé, affichage seul côté comité.
+  - Assets déjà dans le repo : conception, antisèche cotation CCAM/NGAP, `ccam_actes.json`, `maquette_estimateur_liberal.html`, guide. **Les 3 `.docx` ont été supprimés le 21/07/2026** (décision d'Arthur) : le HTML et le Markdown font foi, trois copies d'un même contenu étant trois occasions de se contredire. Contenu conservé dans `antiseche_CCAM_anesthesie_CHPG.md` et `guide_liberal_MAR.html`. Seul le **mémo de poche 1 page** n'a plus d'équivalent **de format** (son contenu est aux §3 et §5 bis de l'antisèche) — à refaire en HTML si le besoin revient. Récupérables dans l'historique git.
+  - **Lots 0, 1 et 3 terminés** (secteurs, fondations données, placement bloc). **Ordre restant : 2 → 4.**
+  - **Calendrier acté : la brique convergence ne passe pas en prod avant le go-live d'octobre 2026.** Construction et tests à blanc possibles dès maintenant.
+
+- [ ] 🖥️ **Dashboard / portail**
   - **CRH** : aujourd'hui codée en dur pour un seul MAR (`only:'FROHLICH'`) — décider si on la garde mono-utilisateur ou on l'ouvre (construction dans une conversation dédiée, entraînement sur CRH réels).
   - Nouvelles tuiles de contenu : à cadrer au besoin.
 
@@ -550,9 +557,11 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
 - [ ] *(Sécurité, à l'appréciation d'Arthur)* rotation du token GitHub.
 
 ### Pour 2027 (déménagement)
-- [x] **Secteurs (Lot 0)** — **TERMINÉ le 21/07/2026**, de la ligne d'onglet jusqu'au fichier Excel du
-  vendredi. Détail dans « Chantier secteurs — TERMINÉ de bout en bout » plus haut, marche à suivre au
-  § 18 du guide technique. Le prérequis du module libéral est levé.
+
+*Rappel : le chantier **Secteurs (Lot 0)** est terminé depuis le 21/07/2026, de la ligne d'onglet
+jusqu'au fichier Excel du vendredi (détail en section Fait, marche à suivre au § 18 du guide
+technique). Seule l'étape 3 ci-dessous reste ouverte.*
+
 - [ ] **Étape 3 (non urgente)** : retirer les tables en dur (`SECTEURS`, `CS_TYPES`, `CS_REQUIRED`,
   `CS_OPENABLE`) et rendre le **repli visible**. Aujourd'hui il est silencieux : une panne de lecture
   ferait tourner les pages sur le code en dur sans le dire. Inoffensif tant qu'on ne compte pas dessus.
