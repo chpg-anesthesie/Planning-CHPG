@@ -1,7 +1,7 @@
 # Roadmap — Planning-CHPG
 
 Système web : **planning des gardes** (équité annuelle) + **planning quotidien** + **consultations** + **portail/Dashboard** + **veille biblio** + **CR d'anesthésie**, pour ~23 MARs au CHPG (Monaco).
-Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 21 juillet 2026 (chantier secteurs terminé, tuile Module libéral, estimateur V4.0 branché au portail).*
+Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 22 juillet 2026 (déclaration d'intervention en production — première écriture du module libéral, estimateur V4.2).*
 
 > Le dépôt en ligne fait foi. Cette roadmap est un repère de pilotage, pas la source de vérité du code.
 
@@ -406,14 +406,15 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
   - **Calendrier acté : rien en prod avant le go-live d'octobre 2026 et avant le Lot 0 (secteurs étape 2).**
   - Ordre des lots : **0 → 1 → 2 → 4**, Lot 3 parallélisable après Lot 1.
 
-- [ ] 📅 **Déclaration d'intervention — LE prochain morceau du module libéral.**
-  Quatre des cinq champs du payload sont désormais disponibles dans l'estimateur :
-  `DATE_CONSULT` (= `dCs`), `DATE_BLOC` (= `dInt`/`dActe`), `MAR_ID` (login), `SECTEUR` (C2).
-  Il ne manque que `CHIRURGIE`, qui se déduira du libellé court du parcours.
-  ⚠️ **Ne pas confondre les deux « déclarations »** : la *déclaration de choix* est le document que
-  le patient signe (exigence DAM, déjà imprimé par l'estimateur) ; la *déclaration d'intervention*
-  est l'écriture dans `LIBERAL_{Y}` qui fait remonter la présence au comité. Les nommer en entier.
-  C'est la **première écriture** du module : action à ajouter au Set `WRITE_ACTIONS_LOCK`.
+- [ ] 🩺 **Lot E — volet « ◆ Libéral » du comité (`admin.html`).** Dernier maillon.
+  Au clic sur une case du planning, un **volet à GAUCHE** (le panneau de placement existant reste à
+  droite, inchangé) liste les interventions libérales déclarées ce jour : **nom · secteur · chirurgie**.
+  ⚠️ **Aucun jugement de placement** — pas de « déjà en ORTHO », pas de « à replacer », pas de code
+  couleur d'état, aucun croisement avec le planning affecté. Le module énonce un fait, **le comité
+  décide seul** si ça mérite un changement d'affectation. Être de garde ne change rien.
+  Volet absent les jours sans libéral (+ toast). `admin.html` = PC uniquement, pas de repli mobile.
+  Nécessite une action de lecture « toutes les déclarations d'un jour » (celle du MAR est filtrée sur
+  son propre id) — réservée à l'admin.
 
 - [ ] 🖥️ **Dashboard / portail**
   - [x] **Tuile Module libéral** — **EN PRODUCTION, testée le 21/07/2026** (site v1.8.1).
@@ -478,6 +479,36 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
   - ⚠️ **Point ouvert** : le devis affiche « secteur 2 (honoraires libres, non-OPTAM) » **en dur**.
     Exact pour Arthur, potentiellement faux pour un autre MAR du groupe — et invisible si ça l'est.
     À traiter le jour où un autre praticien imprime un devis.
+
+- [x] 📅 **Lot D — DÉCLARATION D'INTERVENTION. EN PRODUCTION, testée le 22/07/2026 (estimateur V4.2,
+  `portail.gs`, `Indispos.gs` 2026-07-21.5). PREMIÈRE ÉCRITURE du module libéral.**
+  - ⚠️ **Vocabulaire — deux « déclarations » à ne jamais confondre** : la *déclaration de choix* est le
+    document que le patient signe (exigence DAM, imprimé par l'estimateur) ; la *déclaration
+    d'intervention* est la ligne écrite dans `LIBERAL_{Y}` que le comité lit au placement.
+  - **Onglet `LIBERAL_{Y}`**, créé à la volée à la première déclaration, année du **jour de bloc**
+    (consultation en décembre pour un bloc en janvier → `LIBERAL_2027`). 6 colonnes :
+    `ID · DATE_CONSULT · DATE_BLOC · MAR_ID · SECTEUR · CHIRURGIE`. Aucune donnée patient, aucun code CCAM.
+    `ID` = poignée aléatoire, pour cibler une ligne sans dépendre du n° de ligne (fragile si l'onglet est trié).
+  - **Trois actions**, routées dans `portailRoute` (`portail.gs`) : `declareLiberal`, `deleteLiberal`
+    (écritures, **ajoutées au `WRITE_ACTIONS_LOCK` d'Indispos.gs** — le verrou est vérifié AVANT la
+    délégation, par nom d'action) et `listLiberal` (lecture).
+  - 🔒 **Le `MAR_ID` écrit est TOUJOURS `user.id`, déduit du code d'accès — jamais une valeur envoyée
+    par la page.** Vérifié : le payload client ne contient que `action`, `code`, `dateBloc`, `secteur`,
+    `chirurgie`. `listLiberal` ne renvoie que les lignes du MAR connecté ; `deleteLiberal` refuse de
+    supprimer la ligne d'un autre.
+  - **Granularité : une ligne = un MAR, un jour, un secteur.** Même jour + même secteur → la ligne
+    existante est **mise à jour** (libellé cumulé « PTH + hernie »), pas dupliquée. Deux secteurs le
+    même jour → deux lignes.
+  - **Le secteur ne se saisit QU'À LA DÉCLARATION.** Le sélecteur ajouté au parcours au lot C a été
+    **supprimé** (V4.2) : il faisait double emploi et n'alimentait ni le devis ni aucun calcul.
+    Jour et chirurgie se pré-remplissent depuis le dernier parcours bloc, **et cessent de le faire dès
+    que l'utilisateur édite le champ** — sinon une correction saute à la cotation suivante.
+  - **Affichage** : « Mes interventions déclarées » montre le futur + les 7 derniers jours (fenêtre de
+    correction), passées en orange. Lien « voir mes N interventions de l'année » pour déplier.
+    ⚠️ **Rien n'est jamais supprimé automatiquement côté onglet** : c'est la trace de l'activité
+    libérale. Le masquage est un confort d'affichage, pas une purge.
+  - Chaque MAR ne voit que **ses** interventions : le classeur n'est pas accessible aux autres, la page
+    est leur seul accès.
 
 **⚠️ Deux pièges payés comptant ce jour-là.**
 
