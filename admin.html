@@ -959,7 +959,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.9'; // SITE_VERSION: v1.9
+const SITE_VERSION = 'v1.9.1'; // SITE_VERSION: v1.9.1
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1052,7 +1052,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.9</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.9.1</span></span>
     <a href="./docs/guide-comite.html" target="_blank" class="header-btn" title="Guide du comité — mode d'emploi de cette interface"><span class="hb-ico">?</span> Aide</a>
     
   </div>
@@ -6559,33 +6559,6 @@ async function archiveCurrentYear() {
     toast('Erreur : ' + e.message, 'error');
   }
 }
-// ── FICHES OPÉRATOIRES ──────────────────────────────────────────────────
-const FICHES = {
-  depart: {
-    titre: '📋 Fiche opératoire — Départ d\'un MAR',
-    steps: [
-      'Identifier les gardes restantes du MAR sur GARDES_YYYY',
-      'Redistribuer les gardes via l\'onglet Modifications de comite.html (scénario Don de garde)',
-      'Désactiver le MAR dans l\'onglet Équipe (bouton ⏸)',
-      'Mettre à jour ses affectations sectorielles si nécessaire',
-      'Republier le planning (bouton Publier)',
-      'Archiver ses indisponibilités si besoin',
-    ]
-  },
-  recrue: {
-    titre: '📋 Fiche opératoire — Nouvelle recrue',
-    steps: [
-      'Créer le MAR dans l\'onglet Équipe (bouton + Ajouter)',
-      'Renseigner l\'email pour l\'envoi du code d\'accès',
-      'Définir ses affectations sectorielles dans l\'onglet Affectations',
-      'Assigner à un groupe vacances A/B/C dans l\'onglet Vacances',
-      'Envoyer le code d\'accès depuis l\'onglet Paramètres',
-      'Republier le planning',
-    ]
-  }
-};
-
-
 // ── WIZARD DÉPART D'UN MAR ────────────────────────────────────────────────
 let wizDStep = 0, wizDMarId = null, wizDMarsData = [], wizDGardes = null, wizDFeries = null;
 function closeWizardDepart() { document.getElementById('wizardDepartOverlay').classList.remove('open'); }
