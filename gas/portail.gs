@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-21.1';
+const GAS_VERSION_PORTAIL = '2026-07-22.1';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -37,6 +37,10 @@ function portailRoute(action, payload, user) {
     case 'declareLiberal': return _portailJson(declareLiberal(payload, user));
     case 'deleteLiberal':  return _portailJson(deleteLiberal(payload, user));
     case 'listLiberal':    return _portailJson(listLiberal(payload, user));
+    // Lecture COMITE : toutes les declarations d'un jour, tous MAR confondus.
+    // Reservee a l'admin (listLiberal, elle, filtre sur le MAR connecte). Lecture
+    // seule => volontairement ABSENTE du WRITE_ACTIONS_LOCK.
+    case 'listLiberalJour': return _portailJson(listLiberalJour(payload, user));
     default:          return null;   // pas une action portail → doGet continue
   }
 }
@@ -1241,6 +1245,34 @@ function deleteLiberal(payload, user) {
     }
   }
   return { success: false, error: 'Déclaration introuvable (déjà supprimée ?).' };
+}
+
+// ── LECTURE COMITÉ : toutes les déclarations d'UN JOUR ───────────────
+// Sert au volet « Libéral » du planning (admin.html). Renvoie les MAR_ID bruts :
+// admin.html tient déjà `marsData` en mémoire pour résoudre les noms, inutile de
+// les transporter. AUCUN jugement de placement n'est calculé ici — le module
+// énonce un fait, le comité décide seul.
+function listLiberalJour(payload, user) {
+  if (!user || user.role !== 'admin') return { success: false, error: 'Réservé au comité.' };
+  const date = (payload && payload.date) ? _isoDate(payload.date) : '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, error: 'Date invalide.' };
+  const year = _libYearOf(date);
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(_libSheetName(year));
+  if (!sh) return { success: true, date: date, items: [] };   // année sans déclaration : liste vide, pas une erreur
+
+  const data = sh.getDataRange().getValues();
+  const items = [];
+  for (let r = 1; r < data.length; r++) {
+    if (_isoDate(data[r][2]) !== date) continue;
+    items.push({
+      id:        String(data[r][0]),
+      marId:     String(data[r][3]).trim(),
+      secteur:   String(data[r][4]).trim().toUpperCase(),
+      chirurgie: String(data[r][5] || '').trim(),
+    });
+  }
+  items.sort((a, b) => String(a.marId).localeCompare(String(b.marId)));
+  return { success: true, date: date, items: items };
 }
 
 // ── LECTURE : MES déclarations de l'année (filtrées sur MON id) ───────
