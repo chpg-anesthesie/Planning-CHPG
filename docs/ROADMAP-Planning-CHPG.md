@@ -1,7 +1,7 @@
 # Roadmap — Planning-CHPG
 
 Système web : **planning des gardes** (équité annuelle) + **planning quotidien** + **consultations** + **portail/Dashboard** + **veille biblio** + **CR d'anesthésie**, pour ~23 MARs au CHPG (Monaco).
-Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 22 juillet 2026 (déclaration d'intervention en production — première écriture du module libéral, estimateur V4.2).*
+Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 22 juillet 2026 (module libéral complet de bout en bout : déclaration MAR + volet comité, site v1.9).*
 
 > Le dépôt en ligne fait foi. Cette roadmap est un repère de pilotage, pas la source de vérité du code.
 
@@ -406,16 +406,6 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
   - **Calendrier acté : rien en prod avant le go-live d'octobre 2026 et avant le Lot 0 (secteurs étape 2).**
   - Ordre des lots : **0 → 1 → 2 → 4**, Lot 3 parallélisable après Lot 1.
 
-- [ ] 🩺 **Lot E — volet « ◆ Libéral » du comité (`admin.html`).** Dernier maillon.
-  Au clic sur une case du planning, un **volet à GAUCHE** (le panneau de placement existant reste à
-  droite, inchangé) liste les interventions libérales déclarées ce jour : **nom · secteur · chirurgie**.
-  ⚠️ **Aucun jugement de placement** — pas de « déjà en ORTHO », pas de « à replacer », pas de code
-  couleur d'état, aucun croisement avec le planning affecté. Le module énonce un fait, **le comité
-  décide seul** si ça mérite un changement d'affectation. Être de garde ne change rien.
-  Volet absent les jours sans libéral (+ toast). `admin.html` = PC uniquement, pas de repli mobile.
-  Nécessite une action de lecture « toutes les déclarations d'un jour » (celle du MAR est filtrée sur
-  son propre id) — réservée à l'admin.
-
 - [ ] 🖥️ **Dashboard / portail**
   - [x] **Tuile Module libéral** — **EN PRODUCTION, testée le 21/07/2026** (site v1.8.1).
     Ouvre **directement l'estimateur** ; celui-ci porte en tête un lien vers `docs/guide-liberal.html`
@@ -509,6 +499,29 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
     libérale. Le masquage est un confort d'affichage, pas une purge.
   - Chaque MAR ne voit que **ses** interventions : le classeur n'est pas accessible aux autres, la page
     est leur seul accès.
+
+- [x] 🩺 **Lot E — VOLET « ◆ LIBÉRAL » DU COMITÉ. EN PRODUCTION, testé le 22/07/2026
+  (`admin.html` site v1.9, `portail.gs` 2026-07-22.1).** La boucle du module est fermée : un MAR
+  déclare depuis l'estimateur, le comité le voit au placement.
+  - **`listLiberalJour(date)`** dans `portail.gs` : toutes les déclarations d'un jour, tous MAR
+    confondus. **Réservée à `user.role === 'admin'`** (`listLiberal`, elle, filtre sur le MAR
+    connecté). **Lecture seule → volontairement ABSENTE du `WRITE_ACTIONS_LOCK`.**
+    Onglet ou jour sans déclaration → liste vide, jamais une erreur.
+  - **Tiroir GAUCHE `#liberalCard`**, symétrique de `#dispoCard`. ⚠️ **Piège vérifié le 22/07** :
+    `#dispoCard` a un `style=` inline pleine largeur, mais une **règle CSS plus bas l'écrase** en
+    `position:fixed; top:70px; right:16px; width:360px`. C'est un tiroir flottant à droite, pas une
+    carte sous la grille. → **Lire la feuille de style, pas seulement l'attribut `style=`.**
+  - **Aucune donnée transportée en plus** : `listLiberalJour` renvoie les `MAR_ID` bruts ; `admin.html`
+    résout les noms via `_nm()` et les libellés de secteur via `SECTEURS_CFG`, déjà en mémoire.
+  - **Cache par date** (`_libJourCache`), même logique que `_dispoCache` : un seul appel API quel que
+    soit le nombre de cases cliquées le même jour.
+  - ⚠️ **AUCUN jugement de placement** — pas de « déjà en ORTHO », pas de « à replacer », aucun code
+    couleur d'état, aucun croisement avec le planning affecté. **Décision d'Arthur, à ne pas
+    "améliorer"** : le module énonce un fait, le comité décide seul. Être de garde ne change rien.
+  - **Jour sans libéral : silence total** — tiroir masqué, pas de toast (le toast prévu en conception
+    a été écarté : des dizaines de clics par séance, ça devient du bruit).
+  - Si le GAS n'est pas recopié, `api()` lève et le volet **reste simplement masqué** : ce volet est un
+    confort, il ne doit jamais bloquer le placement.
 
 **⚠️ Deux pièges payés comptant ce jour-là.**
 
