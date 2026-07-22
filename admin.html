@@ -707,6 +707,21 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 /* Sélecteur de MAR flottant : visible sans scroller */
 #dispoCard { position:fixed; top:70px; right:16px; width:360px; max-width:calc(100vw - 32px); max-height:calc(100vh - 90px); overflow-y:auto; z-index:2000; margin-bottom:0 !important; box-shadow:0 12px 40px rgba(0,0,0,.18) !important; }
 @media (max-width:720px){ #dispoCard{ top:auto; bottom:0; right:0; left:0; width:auto; max-width:none; max-height:78vh; border-radius:16px 16px 0 0 !important; } }
+/* Volet LIBÉRAL : tiroir flottant à GAUCHE, symétrique de #dispoCard (qui est à droite).
+   Volontairement séparé du panneau de placement : y empiler le libéral le rendait illisible.
+   Lecture seule — le module énonce un fait, le comité décide seul de l'affectation. */
+#liberalCard { position:fixed; top:70px; left:16px; width:300px; max-width:calc(100vw - 32px); max-height:calc(100vh - 90px); overflow-y:auto; z-index:2000; background:var(--white); border:1px solid #E9D5FF; border-radius:var(--radius); box-shadow:0 12px 40px rgba(0,0,0,.18); display:none; }
+#liberalCard .lib-head { padding:12px 14px 10px; background:#F5EDFF; border-bottom:1px solid #E9D5FF; }
+#liberalCard .lib-t { font-size:12px; font-weight:800; color:#6D28D9; letter-spacing:.03em; text-transform:uppercase; }
+#liberalCard .lib-s { font-size:11px; color:#7C3AED; opacity:.85; margin-top:2px; }
+#liberalCard .lib-body { padding:6px 14px 12px; }
+#liberalCard .lib-row { padding:8px 0; border-bottom:1px solid var(--line); }
+#liberalCard .lib-row:last-child { border-bottom:none; }
+#liberalCard .lib-n { font-size:12.5px; font-weight:700; color:#4B1B72; }
+#liberalCard .lib-m { font-size:11px; margin-top:3px; }
+#liberalCard .lib-sec { background:#EDE4F7; color:#6B21A8; padding:1px 8px; border-radius:12px; font-weight:600; }
+#liberalCard .lib-ch { color:var(--ink-3); margin-left:6px; }
+@media (max-width:720px){ #liberalCard{ top:auto; bottom:0; right:0; left:0; width:auto; max-width:none; max-height:40vh; border-radius:16px 16px 0 0; } }
 .psp-header { padding:12px 14px 10px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:flex-start; }
 .psp-title { font-size:13px; font-weight:700; color:var(--ink); }
 .psp-sub { font-size:11px; color:var(--ink-3); margin-top:2px; }
@@ -944,7 +959,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.8.1'; // SITE_VERSION: v1.8.1
+const SITE_VERSION = 'v1.9'; // SITE_VERSION: v1.9
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1037,7 +1052,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.8.1</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.9</span></span>
     <a href="./docs/guide-comite.html" target="_blank" class="header-btn" title="Guide du comité — mode d'emploi de cette interface"><span class="hb-ico">?</span> Aide</a>
     
   </div>
@@ -1118,6 +1133,16 @@ if (sessionStorage.getItem('adminCode')) {
 
   <!-- TABLE BASSE gardes/fonctions -->
   <div id="bottomSection" style="margin-bottom:20px;"></div>
+
+  <!-- VOLET LIBÉRAL (tiroir gauche) — interventions libérales déclarées ce jour.
+       Masqué s'il n'y en a aucune : pas de toast, pas de bruit visuel. -->
+  <div id="liberalCard">
+    <div class="lib-head">
+      <div class="lib-t">◆ Libéral déclaré</div>
+      <div class="lib-s" id="libSub">—</div>
+    </div>
+    <div class="lib-body" id="libBody"></div>
+  </div>
 
   <!-- DISPO PANEL (inline, affiché sous la grille au clic sur +) -->
   <div id="dispoCard" style="display:none;background:var(--white);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:0;margin-bottom:20px;">
@@ -3016,6 +3041,7 @@ async function openSidePanel(sector, date, sectorLabel, slotKey, isLib) {
     + new Date(date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})
     + ' ' + _videBtn;
   card.scrollIntoView({behavior:'smooth', block:'nearest'});
+  loadLiberalJour(date);   // volet libéral (tiroir gauche), indépendant du placement
 
   // Cache par jour : la liste des dispos d'une date est stable durant la session
   if (_dispoCache[date]) { renderSidePanelContent(_dispoCache[date], sector); return; }
@@ -3412,7 +3438,45 @@ function removeMARFromSector(marId, marInit, currentSector) {
 function closeSidePanel() {
   const card = document.getElementById('dispoCard');
   if (card) card.style.display = 'none';
+  const lib = document.getElementById('liberalCard');
+  if (lib) lib.style.display = 'none';
   window._sideCtx = null;
+}
+
+// ── VOLET LIBÉRAL (tiroir gauche) ────────────────────────────────────
+// Cache par DATE : on clique sur des dizaines de cases d'un même jour, inutile de
+// redemander la liste à chaque fois (même logique que _dispoCache).
+const _libJourCache = {};
+function _libSecteurLabel(code) {
+  const x = (typeof SECTEURS_CFG !== 'undefined' ? SECTEURS_CFG : []).find(s => s.code === code);
+  return x ? (x.court || x.label || code) : code;
+}
+function renderLiberalCard(items, date) {
+  const card = document.getElementById('liberalCard');
+  if (!card) return;
+  // Aucune déclaration ce jour → tiroir masqué, silence complet (choix acté).
+  if (!items || !items.length) { card.style.display = 'none'; return; }
+  document.getElementById('libSub').textContent =
+    new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+  document.getElementById('libBody').innerHTML = items.map(it =>
+    '<div class="lib-row">'
+    + '<div class="lib-n">' + _nm(it.marId) + '</div>'
+    + '<div class="lib-m"><span class="lib-sec">' + _libSecteurLabel(it.secteur) + '</span>'
+    + (it.chirurgie ? '<span class="lib-ch">' + it.chirurgie + '</span>' : '') + '</div>'
+    + '</div>').join('');
+  card.style.display = 'block';
+}
+function loadLiberalJour(date) {
+  if (_libJourCache[date]) { renderLiberalCard(_libJourCache[date], date); return; }
+  api({action:'listLiberalJour', date})
+    .then(res => {
+      const items = (res && res.success && Array.isArray(res.items)) ? res.items : [];
+      _libJourCache[date] = items;
+      renderLiberalCard(items, date);
+    })
+    // Échec réseau ou action absente (GAS pas encore recopié) : on masque, sans
+    // bruit ni message d'erreur — le volet est un confort, pas une donnée critique.
+    .catch(() => { renderLiberalCard([], date); });
 }
 
 function closeDispoPopup() { closeSidePanel(); }
