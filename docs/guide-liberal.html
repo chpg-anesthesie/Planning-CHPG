@@ -108,7 +108,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — module libéral</div>
   <h1>Module libéral<br>Guide d'utilisation</h1>
   <p class="subtitle">Estimer le libéral, calibrer le dépassement sur la mutuelle du patient, générer le devis — et piloter la charge libéral / public.</p>
-  <div class="maj">Dernière mise à jour : 19 juillet 2026 · rév. 5 (V3.3 — mentions légales renforcées, déclaration valable en hospitalisation)</div>
+  <div class="maj">Dernière mise à jour : 22 juillet 2026 · rév. 6 (V4.2 — module branché au portail, déclaration d'intervention et volet comité en service)</div>
   <p style="margin-top:10px"><a href="module-liberal/maquette_estimateur_liberal.html" style="display:inline-block;background:var(--acc);color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">→ Ouvrir l'estimateur</a></p>
 </header>
 
@@ -210,7 +210,9 @@
 <section id="c5">
   <div class="callout">
     <div class="ct">Fiche praticien — à ressaisir à chaque ouverture</div>
-    <p>Les trois champs en haut de page (nom, identifiants) alimentent le devis et la déclaration de choix. <strong>Ils ne sont pas mémorisés</strong>&nbsp;: il faut les retaper à chaque ouverture de l'outil. C'est volontaire — le pré-remplissage automatique se fera lors du <strong>branchement au portail</strong> (le MAR étant identifié à la connexion, ses informations viendront de l'onglet <code>MEDECINS</code>). Aucune solution intermédiaire n'a été codée, pour ne pas construire quelque chose qui serait jeté ensuite. La nature exacte des identifiants à retenir pour Monaco (n° d'inscription à l'Ordre, n° praticien CCSS) sera tranchée à ce moment-là.</p>
+    <p><strong>C'est fait&nbsp;: depuis le 22 juillet 2026, l'identité du praticien est pré-remplie.</strong> En ouvrant l'outil <strong>par la tuile du Dashboard</strong>, vous êtes déjà identifié&nbsp;: nom, prénom et n° RPPS descendent de l'onglet <code>MEDECINS</code> et alimentent le devis et la déclaration de choix. Un bandeau vert le confirme, et signale ce qui manque encore («&nbsp;prénom à compléter&nbsp;») s'il y a lieu.</p>
+    <p>Le champ <strong>ADELI a été supprimé</strong>&nbsp;: le RPPS seul suffit, et une case vide sur un document imprimé finit toujours par être remplie de travers. Ces numéros vivent <strong>uniquement dans le classeur privé</strong>, jamais dans le code de l'outil, et ne sont transmis qu'au praticien identifié par son propre code d'accès.</p>
+    <p>Si vous ouvrez la page <strong>en dehors du portail</strong> (URL directe, autre navigateur), le bandeau vous le dit clairement et vous saisissez à la main comme avant. Rien ne se dégrade en silence.</p>
   </div>
 
   <h2><span class="n">05</span>Générer le devis</h2>
@@ -235,8 +237,9 @@
   <p>Une intervention déclarée crée une <strong>contrainte de présence</strong>&nbsp;: le MAR doit être dans le bon secteur le jour du bloc. Le module la montre au comité <strong>au moment où il place</strong> — sans jamais rien placer lui-même, et <strong>sans toucher un pixel de la grille</strong>.</p>
   <ul>
     <li>Au clic sur une <strong>case flash</strong> (le « + » orange existant), le panneau d'affectation s'ouvre comme aujourd'hui <em>et</em>, s'il y a du libéral ce jour-là, un <strong>volet « ◆ Libéral » s'ouvre à gauche</strong>.</li>
-    <li>Le volet liste les interventions du jour <strong>par MAR</strong>, en check-list&nbsp;: <span style="color:var(--green);font-weight:700">✓ vert</span> si le MAR est déjà bien placé, <span style="color:var(--amber);font-weight:700">⚠ orange</span> « à replacer → ORT » ou « en garde — à arbitrer » sinon. La chirurgie en clair (« PTH ») donne l'idée de la durée du bloc.</li>
-    <li>S'il n'y a <strong>aucune</strong> intervention ce jour, le volet ne s'ouvre pas et un <strong>toast</strong> le confirme — pas de doute, pas de panneau vide.</li>
+    <li>Le volet liste, pour chaque MAR, <strong>le secteur déclaré et la chirurgie</strong> («&nbsp;Dr Menade — ORL — cataracte&nbsp;»). La chirurgie en clair donne l'idée de la durée du bloc.</li>
+    <li><strong>Le volet ne porte aucun jugement</strong>&nbsp;: il ne dit pas si le MAR est bien placé, ni s'il faut le déplacer, et ne compare rien avec l'affectation en cours. <strong>C'est le comité qui décide</strong> si l'intervention mérite un changement d'affectation. Le fait d'être de garde ne change rien.</li>
+    <li>S'il n'y a <strong>aucune</strong> intervention ce jour, le volet ne s'ouvre pas, <strong>sans message</strong>&nbsp;: sur des dizaines de clics par séance, une notification à chaque fois deviendrait du bruit.</li>
   </ul>
   <div class="callout rule">
     <div class="ct">Le module éclaire, le comité décide</div>
@@ -271,12 +274,15 @@
 
 <section id="c9">
   <h2><span class="n">09</span>Ce qui reste à construire</h2>
-  <p>Le module est un prototype&nbsp;; ce guide grandira avec lui. Restent notamment&nbsp;:</p>
+  <div class="callout tip">
+    <div class="ct">Ce qui est désormais en service</div>
+    <p>L'<strong>intégration au portail</strong> (tuile réservée aux membres du groupement, identité pré-remplie), la <strong>déclaration d'intervention</strong> et le <strong>volet ◆ Libéral côté comité</strong> sont <strong>en production depuis le 22 juillet 2026</strong> et ne figurent plus dans cette liste.</p>
+  </div>
+  <p>Restent notamment&nbsp;:</p>
   <ul>
     <li>Devis <strong>monégasque</strong> validé (entente préalable CCSS, mentions CSM).</li>
     <li>Enrichissement de la <strong>bibliothèque de formules mutuelle</strong> au fil de la collecte.</li>
-    <li><strong>Intégration au portail</strong>&nbsp;: tuile « Libéral » sur le Dashboard, <strong>visible uniquement pour les MARs membres du groupement</strong> (onglet MEDECINS)&nbsp;; MAR identifié à la connexion → praticien pré-rempli sur les devis, déclaration au bon nom.</li>
-    <li>Bouton <strong>📅 Déclarer</strong> dans la page (écriture de la déclaration) et <strong>volet ◆ Libéral</strong> côté admin — l'ergonomie est validée, le branchement se fera quand le module sera mûr, naturellement et sans toucher au moteur du planning.</li>
+    <li>Brique <strong>pilotage 30 %</strong> côté comité (relevés mensuels, projection par axe).</li>
     <li>Brique <strong>pilotage 30 %</strong> (relevés mensuels, projection par axe, réallocation).</li>
   </ul>
   <a class="backtop" href="#top">↑ Haut de page</a>
