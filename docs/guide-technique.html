@@ -551,19 +551,38 @@
   </table>
   <div class="callout warn"><div class="ct">Décision actée</div><p>Ces 4 points sont <b>gelés tant que le plan du nouvel hôpital n'est pas connu</b> : les externaliser à l'aveugle serait concevoir dans le brouillard. L'audit ci-dessus donne la carte exacte le jour venu. Périmètre garanti : le générateur de gardes contient <b>zéro</b> référence secteur — l'équité est intouchable par ce chantier.</p></div>
 
-  <h3>Chantier B — Module libéral (conception figée v3.10, construction à venir)</h3>
-  <p>Règle des 30&nbsp;% <b>par axe</b> (CCAM technique / NGAP consultations, plafonds indépendants), objectif = optimiser le pot commun mutualisé. La <b>page du module libéral</b> (issue de l'estimateur) est le point d'entrée unique côté MAR : cotation → devis (écran seul) → déclaration (payload fermé : date bloc · MAR · secteur · chirurgie libre). Accès par tuile Dashboard conditionnée <code>LIBERAL&nbsp;O/N</code>. Côté comité : affichage seul (volet ◆ Libéral, ergonomie validée sur maquette).</p>
+  <h3>Chantier B — Module libéral (conception v3.10 · chaîne MAR + volet comité EN PRODUCTION depuis le 22/07/2026)</h3>
+  <p>Règle des 30&nbsp;% <b>par axe</b> (CCAM technique / NGAP consultations, plafonds indépendants), objectif = optimiser le pot commun mutualisé. La <b>page du module libéral</b> (<code>docs/module-liberal/maquette_estimateur_liberal.html</code>) est le point d'entrée unique côté MAR : cotation → devis (écran seul) → déclaration d'intervention. Accès par tuile Dashboard conditionnée <code>LIBERAL&nbsp;O/N</code>.</p>
+
+  <h3>Ce qui tourne aujourd'hui</h3>
+  <ul>
+    <li><b>Branchement au portail (lecture seule).</b> La page est servie depuis la même origine que <code>dashboard.html</code> et la tuile l'ouvre <b>dans le même onglet</b> : le code d'accès rangé dans <code>sessionStorage('chpgViewCode')</code> est donc lisible directement. Elle appelle <code>login</code> (identité) et <code>getSecteurs</code> (liste). <code>API_URL</code> y figure en clair — elle est déjà publique dans <code>dashboard.html</code> sur ce dépôt public, rien de neuf.</li>
+    <li><b>Colonnes de <code>MEDECINS</code> consommées</b> : <code>LIBERAL</code>, <code>RPPS</code>, <code>PRENOM</code>. Toutes <b>en fin d'onglet</b>, toutes lues <b>par leur en-tête</b> (<code>_colParTitre()</code> dans <code>checkCode</code>, <code>Indispos.gs</code>). ⚠️ Les 22 autres lectures de <code>MEDECINS</code> utilisent des index figés : <b>toute nouvelle colonne s'ajoute à la fin</b>, jamais au milieu.</li>
+    <li><b>Onglet <code>LIBERAL_{Y}</code></b>, créé à la volée, année du <b>jour de bloc</b>. Payload fermé, 6 colonnes : <code>ID · DATE_CONSULT · DATE_BLOC · MAR_ID · SECTEUR · CHIRURGIE</code>. Aucune donnée patient, aucun code CCAM.</li>
+    <li><b>Quatre actions</b>, toutes routées par <code>portailRoute</code> (<code>portail.gs</code>) :
+      <code>declareLiberal</code> et <code>deleteLiberal</code> (écritures — <b>présentes dans le <code>WRITE_ACTIONS_LOCK</code> d'<code>Indispos.gs</code></b>, le verrou étant vérifié <i>avant</i> la délégation, par nom d'action) ;
+      <code>listLiberal</code> (lecture, filtrée sur le MAR connecté) ;
+      <code>listLiberalJour</code> (lecture, <b>réservée à l'admin</b>, alimente le volet comité).</li>
+    <li>🔒 <b>Le <code>MAR_ID</code> écrit est toujours <code>user.id</code></b>, déduit du code d'accès — jamais une valeur envoyée par la page. <code>deleteLiberal</code> refuse la ligne d'autrui.</li>
+    <li><b>Volet comité</b> : tiroir <code>#liberalCard</code> à <b>gauche</b>, symétrique de <code>#dispoCard</code>, cache par date (<code>_libJourCache</code>). Noms résolus par <code>_nm()</code>, secteurs par <code>SECTEURS_CFG</code> — aucune donnée supplémentaire transportée. <b>Lecture seule et sans aucun jugement de placement</b> : pas de « déjà en X », pas de « à replacer », aucun croisement avec l'affectation. Jour sans déclaration : tiroir masqué, sans message.</li>
+  </ul>
+
+  <div class="callout">
+    <div class="ct">Deux pièges de lecture, vérifiés en réel</div>
+    <p><b><code>#dispoCard</code> est un tiroir flottant à droite</b> (<code>position:fixed; top:70px; right:16px; width:360px</code>), alors que son attribut <code>style=</code> inline le décrit pleine largeur sous la grille : une règle CSS plus bas l'écrase. <b>Lire la feuille de style, pas seulement l'attribut inline.</b></p>
+    <p><b><code>_isoDate(undefined)</code> renvoie la chaîne <code>"undefined"</code></b>, pas une chaîne vide : ne l'appeler que sur une valeur présente, sinon un <code>|| valeurParDéfaut</code> ne se déclenche jamais.</p>
+  </div>
   <table>
     <thead><tr><th>Lot</th><th>Contenu</th><th>Dépend de</th></tr></thead>
     <tbody>
       <tr><td>0</td><td>Secteurs étape 2 (source des secteurs + <code>RENDEMENT_LIB</code>)</td><td>— <i>(fait pour la partie utile : l'onglet existe)</i></td></tr>
-      <tr><td>1</td><td>Fondations données : colonne <code>LIBERAL</code> (MEDECINS), onglets <code>LIBERAL_{Y}</code> / <code>LIBERAL_CA_{Y}</code>, actions API</td><td>—</td></tr>
+      <tr><td>1</td><td>Fondations données : colonne <code>LIBERAL</code> (MEDECINS), onglet <code>LIBERAL_{Y}</code>, actions API</td><td><i>fait — 22/07/2026</i></td></tr>
       <tr><td>2</td><td><b>Convergence (cœur métier)</b> : saisie relevés mensuels (checksum + monotonie), vue T/%/marge par axe</td><td>Lot 1</td></tr>
-      <tr><td>3</td><td>Placement bloc : déclaration → <code>LIBERAL_{Y}</code>, volet comité</td><td>Lot 1</td></tr>
+      <tr><td>3</td><td>Placement bloc : déclaration → <code>LIBERAL_{Y}</code>, volet comité</td><td><i>fait — 22/07/2026</i></td></tr>
       <tr><td>4</td><td>Réallocation + équité du désagrément (consomme <code>RENDEMENT_LIB</code>)</td><td>Lots 0 + 2</td></tr>
     </tbody>
   </table>
-  <p><b>Calendrier acté :</b> rien en production avant le go-live d'octobre 2026. La construction et les tests à blanc (relevé réel jan→juin comme jeu d'essai) peuvent avancer avant.</p>
+  <p><b>Calendrier acté :</b> la chaîne MAR (cotation, devis, déclaration) et le volet comité sont en service depuis le 22/07/2026 ; la brique <b>convergence 30&nbsp;%</b> (lots 2 et 4) reste à construire, rien en production avant le go-live d'octobre 2026. La construction et les tests à blanc (relevé réel jan→juin comme jeu d'essai) peuvent avancer avant.</p>
 
   <h3>Chantier C — Dashboard / portail</h3>
   <ul class="tight">
