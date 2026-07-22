@@ -536,6 +536,14 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
 
 ## 🔜 À faire
 
+- [ ] 📽️ **Présentation staff du 04/09 — reprendre début août (fil dédié).**
+  Corrections factuelles et sécurisation du code de démo faites le 22/07. Reste :
+  vérifier le slide 24 (cibles nominatives) contre `MEDECINS`, le slide 21 (simulation figée)
+  et le slide 27 (limites connues) ; **vérifier que les profils indispos 2027 des 22 autres
+  MARs sont remplis** (annoncé à la salle) ; répétition à blanc de la démo (clic sur le bloc
+  code, sessionStorage) ; écrire la **check-list de ménage post-démo** dans le dépôt
+  (onglets `_2027`, JSON Drive, vacances 2027, mails, changer le code de Sultan).
+
 ### Axes de développement (un fil de conversation chacun)
 
 - [ ] 🔬 **Module libéral — brique CONVERGENCE 30 % (lots 2 et 4)**, seul morceau restant. Voir `docs/module-liberal/module_liberal_conception.md`.
