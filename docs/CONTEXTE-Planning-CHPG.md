@@ -83,6 +83,10 @@ Cycle annuel = 3 assistants dans admin.html, **tous testés en réel** :
 - Cibles **proportionnelles à la quotité** (colonne `PCT_GARDES`).
 - **Dette inter-annuelle** dès **2028** : écart réel − cible de N-1, plafonné à ±2, amorti ×0,6.
 - Noël / Jour de l'an en **rotation pluriannuelle** via `getNoelHistory(beforeYear)`.
+- **Garantie de couverture (depuis le 23/07/2026)** : plus aucun jour sans binôme. Sept mécanismes strictement additifs, qui ne s'exécutent QUE là où le placement échouait. Le plus subtil : `assign()` **ne vérifie pas** si le jour est déjà pourvu — toujours tester `!gardes[date]` avant de (ré)assigner, sinon on écrase silencieusement l'attribution de Noël. Validé sur **140 années simulées** (7 tirages × 20 ans) : 0 jour sans binôme, 0 garde consécutive.
+- **Deux gardes d'affilée : INTERDIT, c'est illégal.** Ne jamais le proposer. **Plafonner les congés de Noël : REFUSÉ.** Seule tolérance, en ultime recours quand un jour resterait sinon découvert : le combo jeudi↔samedi (2 occurrences en 140 ans).
+- **L'espacement à 5 jours n'est PAS une règle dure** : c'est une pénalité de score (`spacingPenalty`). Blocages durs uniquement : lendemain de garde (`rgSet`), récupération (`rSet`), garde le lendemain (`gSet`), combo jeudi-samedi.
+- **Contrainte d'effectif connue** : entre 2037 et 2042 (15 gardeurs), l'écart médian entre deux gardes tombe de 7,8 à 6,2 jours et les mois à plus de 4 gardes passent de 6 % à 36 %. L'algorithme espace au mieux ; c'est un sujet de recrutement, pas un défaut de code.
 - **L'algo de gardes ne dépend PAS des secteurs** (gardes = G / G2) → réorganiser les secteurs ne touche jamais l'équité.
 - Secteurs définis dans une **source unique `SECTEURS_CFG`** en haut d'`admin.html`.
 - **PRUNET** (`souhait_plafond`) : ses souhaits sont honorés en priorité (≈ tous les mardis, ~48 gardes/an, zéro week-end) ; **il reste dans le pool proportionnel des 730** (décision assumée). Conséquence connue : les cibles des autres, calculées sur 730, sont donc **légèrement surestimées** (~+0,6 garde/100 %) puisque BP consomme plus que sa part → les autres finissent un poil sous leur cible. Normal, dans le bruit du plancher arithmétique. Dans la vue d'équité, PRUNET s'affiche en profil **« SOUHAITS · hors cible »** (barres neutres, pas de trait de cible).
@@ -359,6 +363,10 @@ Détail dans `ROADMAP-Planning-CHPG.md`. Ce qu'il faut **savoir avant de coder**
   intact pour les appels directs depuis l'éditeur : **ne jamais le contourner**.
 - **Charge** : marge ×3 sur la limite des 30 exécutions simultanées au pic réaliste — pas
   d'optimisation nécessaire (ne pas reproposer de cache serveur).
+
+## Banc d'essai du générateur (`simulateur/`)
+`node simulateur/scenarios.js` (11 scénarios, invariants + équité) · `avant_apres.js` (dépôt vs copie patchée) · `chain.js` (dette sur 4 ans). Le harnais exécute le **vrai** `generateur_gardes.gs` dans Node avec un Google Sheets simulé. `demographie.js` porte le modèle d'absences calé sur la feuille réelle 2026 (~81 j bloqués/MAR/an). Règle : **aucune métrique ne doit se dégrader** avant un push sur l'algo.
+Pièges d'outillage consignés dans `simulateur/experiences/2026-07_couverture_jours_serres.md` (portée de `shiftD`, colonnes MEDECINS, rythme 2/2 géré nativement, `pkill -f` qui tue le shell appelant, `process.chdir()` et chemins de sortie relatifs).
 
 ## Pour retrouver le contexte détaillé
 Tu disposes d'une **mémoire** de nos sessions et des **transcripts** dans `/mnt/transcripts/` (voir `journal.txt` pour le catalogue). Consulte-les si tu as besoin d'un détail précis (code exact, décisions passées).
