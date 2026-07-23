@@ -19,7 +19,7 @@ const EQUIPE=[
   ['MENADE',    100,100, 1967, {}],
   ['GUERIN',    100,100, 1969, {}],
   ['CATINEAU',  100,100, 1974, {}],
-  ['BOUREGBA',    0,100, 1975, {noGarde:1}],
+  ['BOUREGBA',    0, 60, 1975, {noGarde:1}],   // 60 % : jeudi+vendredi, ne prend pas de garde
   ['ARMANDO',   100,100, 1975, {}],
   ['ROUSSEAU',  100,100, 1976, {}],
   ['ALBOUY',    100,100, 1977, {}],
@@ -132,8 +132,11 @@ function planifierEte(year,roster){
   const occup=new Array(sams.length).fill(0), plan={};
   const gard=roster.filter(([id,p,q,f])=>!f.noGarde&&p>0).map(r=>r[0]);
   const autres=roster.map(r=>r[0]).filter(id=>gard.indexOf(id)<0);
+  const quot={}; roster.forEach(([rid,p,qu])=>quot[rid]=qu);
   [...gard,...autres].forEach((id,i)=>{
-    const dur=2+((i%3===0)?1:0);
+    const qq=quot[id]||100;
+    // Congés d'été au prorata du temps de travail.
+    const dur=(qq>=80?2:1)+((qq>=100&&i%3===0)?1:0);
     let best=-1,bestC=1e9;
     for(let st=0;st+dur<=sams.length;st++){
       let mx=0; for(let k=0;k<dur;k++) mx=Math.max(mx,occup[st+k]);
@@ -185,8 +188,28 @@ function buildAbsences(year,roster){
     };
     if(idx%2===0) auSamedi(12,18+Math.floor(R()*5),7);
     else           auSamedi(1,2+Math.floor(R()*5),7);
-    const vs=[[2,9],[4,6],[10,21]][Math.floor(R()*3)];
-    auSamedi(vs[0],vs[1]+Math.floor(R()*6),7);
+    // DEUX semaines de vacances scolaires : avec l'été et la semaine de fin d'année,
+    // on atteint ~40 jours de congés par an pour un temps plein — l'usage réel du service.
+    // ⚠️ Les congés d'un temps partiel sont PROPORTIONNELS à son temps de travail :
+    // quelqu'un déjà absent la moitié de l'année ne pose pas 5 semaines de congés EN PLUS
+    // sur ses semaines travaillées. Sans cette proportionnalité, un 50 % se retrouvait
+    // indisponible 213 j/an et n'atteignait plus sa cible (11 gardes pour 19,8) —
+    // artefact du modèle, pas une limite de l'algorithme (vérifié le 22/07/2026).
+    const VS=[[2,9],[4,6],[10,21]];
+    // Un rythme 2 semaines / 2 semaines EST déjà du temps de repos : cette personne ne
+    // pose pas en plus des semaines de congés sur ses semaines travaillées — elle les
+    // prend pendant ses semaines off. Sinon on cumule deux fois le même repos et elle
+    // n'atteint plus sa cible (85 % au lieu de 100 %), ce qui est un artefact.
+    // Un 2/2 pose la MOITIÉ des congés d'un temps plein, sur ses semaines de présence.
+    const nScol=f.r2s2?1:((q>=100)?2:(q>=80?1:0));
+    // 3 périodes × 2 semaines possibles = 6 créneaux, attribués EN ROTATION par MAR.
+    // ⚠️ Sans cet étalement, tout le monde posait la même semaine : 15 gardeurs sur 20
+    // absents le même jour de février, et 7 à 17 jours sans binôme sur 20 ans —
+    // artefact du modèle, pas une limite de l'algorithme (constaté le 22/07/2026).
+    const creneau=k=>{ const c=(idx*2+k)%6, per=VS[c%3], sem=Math.floor(c/3);
+      auSamedi(per[0], per[1]+sem*7, 7); };
+    if(nScol>=1) creneau(0);
+    if(nScol>=2) creneau(3);
     // ── FORMATION / CONGRÈS : 1 ou 2 blocs de 2 à 4 jours
     // Pas de congrès un jour férié : on décale le bloc s'il tombe dessus.
     const nf=1+(R()<0.5?1:0);
@@ -208,7 +231,7 @@ function buildAbsences(year,roster){
     // le lundi férié qui suit. Le couplage samedi→lundi ne peut donc quasiment jamais
     // être cassé par une indispo. Sans cette règle, le modèle produisait ~12 ruptures
     // de couplage sur 20 ans, toutes matériellement impossibles.
-    const ni=PLAFOND_INDISPO;
+    const ni=Math.round(PLAFOND_INDISPO*(q||100)/100);   // indispos au prorata du temps de travail
     for(let k=0;k<ni;k++){
       const mo=1+Math.floor(R()*12), jo=1+Math.floor(R()*27);
       const d=iso(year,mo,jo); if(m[d]) continue;
@@ -251,7 +274,45 @@ function buildAbsences(year,roster){
         d.setUTCDate(d.getUTCDate()+1);
       }
     }
-    im[id]=m;
+    // ── TEMPS PARTIELS : jours non travaillés, POSÉS SUR indispos.html pour l'année
+    // entière — l'algorithme les connaît donc et n'y place pas de garde.
+    // Code 'TP' : bloque la disponibilité SANS réduire la cible ; c'est la quotité
+    // (pct) qui porte la réduction du volume de gardes, sinon double peine.
+    // ⚠️ Le drapeau r2s2 (rythme 2 semaines / 2 semaines) est écrit dans MEDECINS mais
+    // n'est lu par AUCUN fichier .gs : le moteur ignore ce rythme, d'où la nécessité
+    // de poser les semaines off comme indisponibilités.
+    // ⚠️ Un jour de temps partiel ne se pose JAMAIS sur un férié : le jour est déjà
+    // chômé, on le prendrait un autre jour de la semaine. Sans cette règle, le jour off
+    // d'un 80 % ou d'un 90 % tombait parfois sur un lundi férié et cassait le couplage
+    // samedi→lundi (2 cas sur 80 en 20 ans) — artefact du modèle.
+    const poseTP=(ds)=>{ if(!m[ds] && !FER.has(ds.slice(5))) { m[ds]='TP'; return true; } return false; };
+    if(q===90){                                   // 2 jours off par mois
+      for(let mo=1;mo<=12;mo++) for(let k=0;k<2;k++){
+        let pose=false;
+        for(let t=0;t<10&&!pose;t++) pose=poseTP(iso(year,mo,1+Math.floor(R()*27))); }
+    } else if(q===80){                            // 1 jour off par semaine, jour fixe
+      const d=new Date(Date.UTC(year,0,1+Math.floor(R()*5)));
+      while(d.getUTCFullYear()===year){
+        const ds=iso(year,d.getUTCMonth()+1,d.getUTCDate());
+        if(!poseTP(ds)){                          // férié : reporté dans la même semaine
+          for(let n=1;n<=3;n++){ const x=new Date(d); x.setUTCDate(x.getUTCDate()+n);
+            if(x.getUTCFullYear()===year && poseTP(iso(year,x.getUTCMonth()+1,x.getUTCDate()))) break; } }
+        d.setUTCDate(d.getUTCDate()+7); }
+    } else if(q===60){                            // jeudi + vendredi
+      const d=new Date(Date.UTC(year,0,1));
+      while(d.getUTCFullYear()===year){
+        if(d.getUTCDay()===4||d.getUTCDay()===5){
+          const ds=iso(year,d.getUTCMonth()+1,d.getUTCDate()); if(!m[ds]) m[ds]='TP'; }
+        d.setUTCDate(d.getUTCDate()+1); }
+    }
+    // ⚠️ AUCUN jour à poser pour le rythme 2/2 : le générateur le gère NATIVEMENT via
+    // estSemaineOff() (generateur_gardes.gs l.35), ancré sur le lundi 01/06/2026 et lu
+    // depuis la colonne rythme_2sur2 de MEDECINS. Y ajouter des jours 'TP' revient à
+    // superposer DEUX blocages de phases différentes : selon l'année, l'union couvrait
+    // toute l'année et la personne obtenait 0 garde pour une cible de 19,9.
+    // Diagnostic du 22/07/2026 : en 2044 elle était disponible 0 jour sur 254 côté
+    // algorithme alors que le modèle lui laissait 159 jours libres.
+    im[id]=m;    im[id]=m;
   });
   return im;
 }
