@@ -35,6 +35,13 @@
 *ergonomie admin validée sur maquette conditions réelles (volet « ◆ Libéral » gauche par MAR,*
 *vert/orange, toast si aucune intervention, grille intacte). indispos.html sort du périmètre libéral.*
 *§6.2–6.4, 11, 12, 13 mis à jour.*
+***v3.14 — 23/07/2026** : **couche 2 du Lot 5 spécifiée** — sortie en **forme A** (deux blocs,*
+*chacun chronologique) ; **la secrétaire impose les dates, le patient s'adapte** ; critère de*
+*priorité = **marge en euros** (pas en points de %) sur **`min(marge_CCAM, marge_NGAP)`** ; le rang*
+*A/B **ne trie plus** (simple mention « sur place » / « se déplace »), il ne sert qu'à la partition.*
+*Confidentialité : **assumée** — l'ordre trahit la position financière, arbitrage acté. Partition,*
+*plancher et masquage du bloc 2 restent ouverts (§14).*
+
 ***v3.13 — 23/07/2026** : ajout de l'**interface secrétaire** (§11 ter, Lot 5) — écran d'orientation*
 *des patients libéraux vers un MAR disponible le jour de l'intervention. **Purement consultatif** :*
 *aucune écriture, la déclaration reste au MAR au moment de la consultation réelle. Fonctionne sur*
@@ -501,10 +508,44 @@ page du module libéral (payload fermé, §6.2). Corollaire à assumer : le syst
 orientations proposées, seulement les consultations effectivement réalisées — tout décompte de
 répartition accuse donc le **retard du délai de consultation**.
 
-**Couche 2 (ultérieure).** Priorisation des candidats selon la proximité du plafond par axe.
-Nécessite le compteur (Lot 2) et donc des données financières nominatives → accord du groupe requis.
-Le Lot 5 est délibérément construit **sans** cette couche : il se présente comme une amélioration
-d'organisation, sans dimension d'argent, et n'a besoin d'aucune validation du groupement.
+**Couche 2 — priorisation par la marge (ultérieure).** Nécessite le compteur (Lot 2) et donc des
+données financières nominatives.
+
+*Critère.* La **marge en euros** (§8.1, `marge = (3/7)·P − L`), et non en points de pourcentage :
+deux MARs à 25 % n'ont pas la même capacité résiduelle selon leur quotité, et c'est la capacité
+d'absorption en euros qui détermine ce qui est récupérable. Corollaire assumé : le critère avantage
+mécaniquement les temps pleins.
+
+*Axe retenu.* Un parcours libéral alimente **les deux** compteurs (consultation → NGAP, bloc →
+CCAM, cf. v3.1). Le classement se fait donc sur **`min(marge_CCAM, marge_NGAP)`** — jamais sur un
+seul axe : orienter vers un MAR qui a de la marge CCAM mais plus de marge NGAP ne rapporte rien.
+L'axe contraignant est le plus souvent le NGAP.
+
+*Effet du rang.* Le rang A/B **ne participe pas au tri** (décision Arthur : mieux vaut faire
+traverser l'hôpital à un MAR que perdre de l'argent). Il n'apparaît que comme mention à côté du nom
+(« sur place » / « se déplace »). Il ne sert plus qu'à la **partition en blocs** (ci-dessous).
+
+*Conséquence de la forme A.* Chaque bloc étant trié par **date**, le classement par marge n'ordonne
+personne : il décide seulement **dans quel bloc** chacun tombe. La priorisation se réduit donc à une
+question binaire, nettement plus simple à coder et à expliquer qu'un classement fin.
+
+*Partition proposée — À VALIDER.* Bloc 1 = les **rangs A à marge positive** ; si aucun n'existe,
+bloc 1 = les **rangs B à marge positive** ; bloc 2 = tout le reste, marges négatives comprises.
+Elle réconcilie les deux règles d'Arthur (« les affectés au secteur sont prioritaires » et « plutôt
+faire traverser que perdre de l'argent ») : tant qu'un MAR du secteur a de la marge, l'orienter vers
+lui ne perd **aucun** argent, il n'y a rien à arbitrer ; on ne fait traverser l'hôpital que lorsque
+le secteur est saturé. Les deux règles ne s'appliquent jamais simultanément.
+
+*Confidentialité — arbitrage assumé.* L'ordre d'affichage **encode la position financière** : un
+MAR systématiquement en bloc 2 est visiblement saturé, et la secrétaire finit par le déduire même
+sans qu'aucun montant ne soit affiché. On ne pourra donc pas soutenir devant le groupement
+qu'« aucune donnée financière n'est exposée » dès lors que la couche 2 est active. **Décision
+Arthur (23/07/2026) : arbitrage accepté en connaissance de cause**, pas d'obfuscation (blocs sans
+ordre interne, catégories floues). Consigné ici pour que la trace existe si la question est posée
+plus tard par le groupe.
+
+*Décalage résiduel.* Le classement s'appuie sur le dernier relevé mensuel et sur les déclarations
+MAR postérieures : la position utilisée a plusieurs jours à plusieurs semaines de retard.
 
 **Périmètre de test.** Tous les secteurs d'emblée, sur l'hôpital **actuel** (bloc éclaté). C'est le
 cas le plus contraint : au NCHPG, le bloc centralisé rend le rang A beaucoup plus fréquent. Ce qui
@@ -576,6 +617,12 @@ go-live octobre 2026.
     pour tous les secteurs) ; **code d'accès unique** pour le secrétariat ; **aucun motif
     d'indisponibilité ni aucun montant affiché**.
 
+16. **Lot 5 couche 2 — critère de priorité** : **marge en euros** sur **`min(marge_CCAM,
+    marge_NGAP)`** ; le **rang A/B ne trie pas** (mention seule) et ne sert qu'à la partition en
+    blocs ; sortie en **forme A** (bloc « à proposer en priorité » puis bloc « autres dates »,
+    chacun chronologique) ; **la secrétaire impose les dates, le patient s'adapte** ; **atteinte à
+    la confidentialité de la position financière assumée** (l'ordre la trahit — arbitrage accepté).
+
 ---
 
 ## 14. Questions encore ouvertes
@@ -619,3 +666,17 @@ go-live octobre 2026.
   décompte ne peut venir que des **déclarations MAR**, donc en retard du délai de consultation :
   juste sur la durée, potentiellement faux sur une journée (cinq orientations le même matin vers le
   même MAR resteraient invisibles). À trancher avant le développement du Lot 5.
+- **Lot 5 — trois points ouverts sur la couche 2.**
+  1. **Partition en blocs** : valider la règle proposée au §11 ter (bloc 1 = rangs A à marge
+     positive, à défaut rangs B à marge positive ; bloc 2 = le reste).
+  2. **Plancher de marge résiduelle.** Un rang A avec une marge positive mais faible (~3–4 actes)
+     resterait en bloc 1 alors qu'il va saturer aussitôt — et le compteur, en retard de plusieurs
+     jours, ne le verra pas avant que la secrétaire ne lui ait envoyé dix patients. Il faut un
+     minimum en dessous duquel on ne met plus quelqu'un en bloc 1 même s'il est du bon secteur. À
+     exprimer en **nombre d'interventions** plutôt qu'en euros (c'est ce que la secrétaire consomme
+     pendant que le compteur est aveugle). Valeur à fixer : 3 ? 5 ? 10 ?
+  3. **Masquage du bloc 2.** Le replier par défaut derrière un lien « voir d'autres dates » rendrait
+     la priorité difficile à contourner sous la pression du téléphone. À trancher.
+- **Lot 5 — zone d'indifférence (mineur, non urgent).** Un tri strict sur la marge ferait traverser
+  l'hôpital pour un écart négligeable (12 000 € contre 11 500 €). À marges proches, privilégier
+  celui qui est déjà sur place. Sans objet tant que la partition reste binaire.
