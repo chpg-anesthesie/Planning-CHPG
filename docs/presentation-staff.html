@@ -386,7 +386,7 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
 <section class="slide alt" data-notes="L'escalier des priorités : week-end > samedi > jeudi > total. La quotité : 80 % fait 80 % de la part.">
   <div class="kicker">Le principe</div>
   <h2>Chacun sa <mark class="hl">juste part</mark>.<br>Ni plus, ni moins.</h2>
-  <p class="lead">Chaque MAR a une <b>cible</b> proportionnelle à son temps de travail. L'algorithme n'a qu'un objectif : que chacun finisse l'année <b>au plus près de sa cible</b> — pas seulement sur le total, mais sur chaque type de garde. En cas de conflit, il protège d'abord les plus pénibles&nbsp;:</p>
+  <p class="lead">Une cible par MAR, proportionnelle à son temps de travail — et pas seulement sur le total, sur <b>chaque type de garde</b>. En cas de conflit, les plus pénibles d'abord&nbsp;:</p>
   <div class="stairs">
     <div class="stair" style="background:var(--red);min-height:220px"><small>PRIORITÉ 1</small><div class="t">Week-end</div><div class="s">Vendredi + dimanche, en binôme. Le plus contraignant.</div></div>
     <div class="stair" style="background:#DE4356;min-height:185px"><small>PRIORITÉ 2</small><div class="t">Samedi</div><div class="s">Réparti au plus juste — et chaque samedi donne une récupération.</div></div>
@@ -397,16 +397,16 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
 
 <section class="slide alt top" data-notes="Le déroulé octobre → janvier. Insister : vacances validées AVANT les indispos, génération en dernier.">
   <div class="kicker">Le déroulé</div>
-  <h2>De la réunion de staff au planning publié</h2>
+  <h2>Six étapes. <mark class="hl">Dix minutes</mark> pour vous.</h2>
   <div class="flow">
-    <div class="step hot"><div class="dot">1</div><div class="w">Octobre · staff</div><h4>Cadrage de l'année</h4><p>En réunion : effectif, quotités, et validation des vacances scolaires. C'est la photo de départ.</p></div>
-    <div class="step hot"><div class="dot">2</div><div class="w">Octobre</div><h4>Indispos personnelles</h4><p>Chacun saisit ses indisponibilités, congés et souhaits sur son espace personnel — <b>~10 minutes, votre seule action obligatoire de l'année</b>.</p></div>
-    <div class="step hot"><div class="dot">3</div><div class="w">Novembre</div><h4>Génération</h4><p>L'algorithme place les ≈ 730 gardes en ~15 secondes, sous toutes les contraintes.</p></div>
-    <div class="step"><div class="dot">4</div><div class="w">Contrôles</div><h4>Certificat &amp; audit</h4><p>Certificat d'équité (écarts à la cible) + audit de couverture. Rien n'est publié sans ces contrôles.</p></div>
-    <div class="step"><div class="dot">5</div><div class="w">L'année</div><h4>Vie du planning</h4><p>Les échanges de gré à gré restent possibles. La référence d'équité, elle, est <b>figée à la génération</b>.</p></div>
-    <div class="step"><div class="dot">6</div><div class="w">Janvier</div><h4>Clôture</h4><p>L'année est archivée. Les écarts <b>du planning généré</b> alimentent la dette de l'année suivante.</p></div>
+    <div class="step hot"><div class="dot">1</div><div class="w">Octobre · staff</div><h4>Cadrage de l'année</h4><p>Effectif, quotités, vacances scolaires validées ensemble.</p></div>
+    <div class="step hot"><div class="dot">2</div><div class="w">Octobre</div><h4>Indispos personnelles</h4><p>Vos indispos, congés et souhaits en ligne.<br><b>10 minutes — votre seule obligation de l'année.</b></p></div>
+    <div class="step hot"><div class="dot">3</div><div class="w">Novembre</div><h4>Génération</h4><p><b>730 gardes en 15 secondes</b>, toutes contraintes tenues.</p></div>
+    <div class="step"><div class="dot">4</div><div class="w">Contrôles</div><h4>Certificat &amp; audit</h4><p>Certificat d'équité + audit de couverture. <b>Rien ne part sans.</b></p></div>
+    <div class="step"><div class="dot">5</div><div class="w">L'année</div><h4>Vie du planning</h4><p>Échanges libres. La référence d'équité reste <b>figée</b>.</p></div>
+    <div class="step"><div class="dot">6</div><div class="w">Janvier</div><h4>Clôture</h4><p>Archivage. Les écarts nourrissent la <b>dette</b> de l'an prochain.</p></div>
   </div>
-  <p class="lead" style="margin-top:44px"><b>Point clé :</b> l'ordre du déroulé garantit que l'algorithme travaille avec des contraintes complètes. Vacances validées collectivement d'abord, indispos individuelles ensuite, génération en dernier.</p>
+  <p class="lead" style="margin-top:44px">L'ordre compte&nbsp;: vacances collectives, puis indispos individuelles, puis génération. <b>Jamais de contraintes incomplètes.</b></p>
 </section>
 
 
@@ -414,14 +414,14 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
 <section class="slide alt" data-notes="Les 4 critères de départage, dans l'ordre. Week-end : binôme ven+dim, même rôle.">
   <div class="kicker">La mécanique</div>
   <h2>Pour un jour donné, qui prend la garde&nbsp;?</h2>
-  <p class="lead">Parmi les MARs disponibles ce jour-là, l'algorithme départage les candidats <b>dans cet ordre</b> — dès qu'un critère tranche, il s'arrête :</p>
+  <p class="lead">Quatre questions, <b>dans cet ordre</b>. Dès qu'une tranche, il s'arrête.</p>
   <div class="rank">
-    <div class="rk"><div class="n">1</div><div><div class="b">L'espacement</div><div class="d">On écarte d'abord ceux qui feraient une garde trop rapprochée d'une autre.</div></div></div>
-    <div class="rk"><div class="n">2</div><div><div class="b">Le retard sur l'axe du jour</div><div class="d">Un samedi ? Le plus en retard sur ses samedis passe devant. Idem pour un jeudi.</div></div></div>
-    <div class="rk"><div class="n">3</div><div><div class="b">Le lissage du mois</div><div class="d">On évite de surcharger quelqu'un sur un même mois.</div></div></div>
-    <div class="rk"><div class="n">4</div><div><div class="b">Le retard global, puis le total</div><div class="d">En dernier recours seulement, le compteur général départage.</div></div></div>
+    <div class="rk"><div class="n">1</div><div><div class="b">Qui serait trop rapproché&nbsp;?</div><div class="d">Écarté d'emblée.</div></div></div>
+    <div class="rk"><div class="n">2</div><div><div class="b">Qui est en retard sur CE jour&nbsp;?</div><div class="d">Un samedi&nbsp;? Le plus en retard sur ses samedis passe devant.</div></div></div>
+    <div class="rk"><div class="n">3</div><div><div class="b">Qui a déjà trop donné ce mois-ci&nbsp;?</div><div class="d">On ne surcharge pas un même mois.</div></div></div>
+    <div class="rk"><div class="n">4</div><div><div class="b">Et sinon&nbsp;: qui en a le moins fait&nbsp;?</div><div class="d">Le compteur général, en dernier recours.</div></div></div>
   </div>
-  <p class="lead" style="margin-top:36px">Pour un <b>week-end</b> : le binôme du vendredi doit être libre le dimanche, garde le même rôle les deux jours, et celui qui a fait le moins de réanimations prend la réa.</p>
+  <p class="lead" style="margin-top:36px"><b>Week-end&nbsp;:</b> même binôme vendredi et dimanche, même rôle les deux jours.</p>
 </section>
 
 <section class="slide" data-notes="Ponts rattachés au samedi. Noël/An : rotation pluriannuelle, priorité à qui ne l'a jamais fait.">
@@ -499,28 +499,28 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
   <h2>Une vraie année de service,<br>pas une équipe de robots</h2>
 
   <div style="display:flex;align-items:baseline;gap:18px;margin:34px 0 6px">
-    <div class="big num" style="color:var(--red)">69</div>
-    <div style="font-size:clamp(15px,1.6vw,21px);line-height:1.3">jours d'absence <b>par personne et par an</b><br><span style="color:var(--mute);font-size:.85em">— un jour sur cinq, pour chacun des 24 MAR, pendant 20 ans</span></div>
+    <div class="big num" style="color:var(--red)">81</div>
+    <div style="font-size:clamp(15px,1.6vw,21px);line-height:1.3">jours d'absence <b>par personne et par an</b><br><span style="color:var(--mute);font-size:.85em">— plus d'un jour sur cinq, pour chacun, pendant 140 années</span></div>
   </div>
 
   <div class="grid g3" style="margin-top:30px">
     <div class="card">
       <h3>Les congés</h3>
-      <p style="line-height:1.9"><b>37 j</b> — du samedi au samedi<br>
+      <p style="line-height:1.9"><b>34 j</b> — du samedi au samedi<br>
       <b>2 ou 3 semaines</b> l'été<br>
       jusqu'à <b>10 d'entre nous</b> en même temps</p>
     </div>
     <div class="card">
       <h3>Le reste de la vie</h3>
-      <p style="line-height:1.9"><b>26 j</b> d'indisponibilités<br>
-      <b>4 j</b> de formation<br>
+      <p style="line-height:1.9"><b>34 j</b> d'indisponibilités<br>
+      <b>5 j</b> de formation<br>
       <b>1 congé long</b> tous les 2 ans</p>
     </div>
     <div class="card">
       <h3>L'équipe</h3>
       <p style="line-height:1.9">tous les <b>temps partiels</b>, jusqu'au 2 sem. / 2 sem.<br>
       arrêts de garde à <b>60 ans</b>, départs à <b>67</b><br>
-      <b>20 années</b> enchaînées</p>
+      <b>140 années</b> enchaînées</p>
     </div>
   </div>
 
