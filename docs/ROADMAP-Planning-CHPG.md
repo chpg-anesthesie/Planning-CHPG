@@ -536,6 +536,21 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
 
 ## 🔜 À faire
 
+- [ ] 🛡️ **Garantir qu'aucun jour ne reste sans binôme — chantier en cours, fil dédié.**
+  Objectif : **JAMAIS** de jour non pourvu, sans réduire les congés, sans autoriser deux
+  gardes d'affilée (illégal), sans dégrader l'équité, et **en une seule livraison**.
+  ⚠️ **`gas/generateur_gardes.gs` est INCHANGÉ** — rien n'est en production.
+  - Tout le travail est dans **`simulateur/experiences/`** :
+    `2026-07_couverture_jours_serres.md` (note de reprise : mécanismes, chiffres,
+    protocole de test, pièges) et `generateur_couverture_v1.gs.txt` (le générateur
+    modifié, en `.txt` pour qu'il ne parte jamais en production par erreur).
+  - État : **0 à 1 jour sans binôme sur 20 ans** contre 3, équité **meilleure** que la
+    référence sur 2 tirages sur 3, coût en temps **+0,5 %**.
+  - Reste : le cas du **25/12/2039 (dimanche)**, même famille que le 24/12/2038 déjà
+    traité mais sur l'autre moitié de l'unité VD.
+  - `simulateur/demographie.js` est désormais **calé sur la feuille réelle 2026**
+    (81 jours bloqués par MAR, congés échelonnés, temps partiels, rythme 2/2).
+
 - [ ] 📽️ **Présentation staff du 04/09 — reprendre début août (fil dédié).**
   Corrections factuelles et sécurisation du code de démo faites le 22/07. Reste :
   vérifier le slide 24 (cibles nominatives) contre `MEDECINS`, le slide 21 (simulation figée)
