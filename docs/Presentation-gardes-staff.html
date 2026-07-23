@@ -346,23 +346,23 @@ h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-
   <div class="grid g3">
     <div class="card"><div class="big num">± 1 à 2</div><div class="lbl">Chaque MAR termine <b>typiquement à une ou deux gardes de sa cible</b> sur chaque axe ; au pire moins de 4, sur une année à longue absence — l'écart devient une <b>dette, rattrapée l'année suivante</b>.</div></div>
     <div class="card"><div class="big num">1 = 1</div><div class="lbl"><b>Récupérations = samedis</b>, pour tout le monde, sans exception. La seule égalité stricte — et la plus simple à vérifier soi-même.</div></div>
-    <div class="card"><div class="big num">0</div><div class="lbl"><b>Zéro trou de couverture</b> : l'audit signale toute garde non pourvue avant publication. Rien ne part incomplet.</div></div>
+    <div class="card"><div class="big num">0</div><div class="lbl"><b>Zéro journée sans binôme</b> : l'algorithme traite en priorité les journées où presque personne n'est disponible, et fait alterner deux binômes sur la semaine de Noël — comme le comité le faisait à la main. Vérifié sur 140 années simulées.</div></div>
   </div>
   <p class="lead" style="margin-top:40px">Le <b>certificat d'équité</b> (écart de chacun à sa cible) et le planning complet sont consultables par tous, en permanence, sur le portail. La transparence n'est pas une promesse : c'est une page web.</p>
 </section>
 
-<!-- 10b · LA PREUVE : 20 ANNÉES SIMULÉES -->
-<section class="slide alt" data-notes="Banc d'essai : 20 années fictives mais réalistes (vraie équipe, vrais âges, retraites et arrivées, ~35 j d'absence/an, congés longs, souhaits). L'équité tient, y compris au creux démographique.">
+<!-- 10b · LA PREUVE : 140 ANNÉES SIMULÉES -->
+<section class="slide alt" data-notes="Banc d'essai : 7 scénarios d'absences différents, 20 années consécutives chacun = 140 années de planning. Vraie équipe, vrais âges, retraites et arrivées, ~35 j d'absence/an, congés longs, souhaits. Zéro journée sans binôme, y compris la semaine de Noël. L'équité tient, y compris au creux démographique.">
   <div class="kicker">La preuve</div>
-  <h2>Mis à l'épreuve sur 20 années simulées</h2>
-  <p class="lead">Avant de répartir une seule vraie garde, l'algorithme a tourné sur <b>vingt années fictives mais réalistes</b>&nbsp;: notre équipe et ses âges, les départs à la retraite et les arrivées, ~35 jours d'absence par personne et par an, des congés longs, des souhaits de jours fixes.</p>
+  <h2>Mis à l'épreuve sur 140 années simulées</h2>
+  <p class="lead">Avant de répartir une seule vraie garde, l'algorithme a tourné sur <b>sept scénarios d'absences différents, de vingt années consécutives chacun</b> — soit <b>140 années de planning</b>&nbsp;: notre équipe et ses âges, les départs à la retraite et les arrivées, ~35 jours d'absence par personne et par an, des congés longs, des souhaits de jours fixes.</p>
   <div class="grid g4">
-    <div class="card"><div class="big num">14 580</div><div class="lbl"><b>gardes placées</b> sur les vingt années (2027 → 2046), enchaînées comme en vrai&nbsp;: chaque année hérite de la précédente.</div></div>
-    <div class="card"><div class="big num">0</div><div class="lbl"><b>violation des règles dures</b>&nbsp;: jamais deux jours de suite, jamais sur une absence, jamais jeudi puis samedi — sur les vingt années.</div></div>
-    <div class="card"><div class="big num">99–102&nbsp;%</div><div class="lbl">Sur la durée, chacun réalise <b>entre 98,7 et 102,2&nbsp;% de sa juste part</b>. Les petits écarts d'une année se compensent l'année suivante.</div></div>
+    <div class="card"><div class="big num">100 000+</div><div class="lbl"><b>gardes placées</b>, en sept trajectoires de vingt ans (2027 → 2046) enchaînées comme en vrai&nbsp;: chaque année hérite de la précédente.</div></div>
+    <div class="card"><div class="big num">0</div><div class="lbl"><b>journée sans binôme</b>&nbsp;: pas une seule, sur aucun des sept scénarios — y compris la semaine de Noël, quand les trois quarts de l'équipe sont en congé.</div></div>
+    <div class="card"><div class="big num">0</div><div class="lbl"><b>garde deux jours d'affilée</b>, et aucune garde posée sur une absence déclarée. Les règles dures ne cèdent jamais, quel que soit le scénario.</div></div>
     <div class="card"><div class="big num">2038</div><div class="lbl">Même au <b>creux démographique</b> (quinze gardeurs autour de 2038-2041), la répartition reste proportionnelle&nbsp;: la charge monte pour tous, pareil pour tous.</div></div>
   </div>
-  <p class="lead" style="margin-top:40px">Vingt ans de départs, de remplaçants, de vacances et d'imprévus&nbsp;: <b>la part de chacun reste sa part.</b></p>
+  <p class="lead" style="margin-top:40px">Sept fois vingt ans de départs, de remplaçants, de vacances et d'imprévus&nbsp;: <b>aucune journée découverte, et la part de chacun reste sa part.</b></p>
 </section>
 
 <!-- 10c · SIM VISUEL 1 : ÉCART ANNUEL -->
