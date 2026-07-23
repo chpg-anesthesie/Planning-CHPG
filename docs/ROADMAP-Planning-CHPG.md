@@ -1,7 +1,7 @@
 # Roadmap — Planning-CHPG
 
 Système web : **planning des gardes** (équité annuelle) + **planning quotidien** + **consultations** + **portail/Dashboard** + **veille biblio** + **CR d'anesthésie**, pour ~23 MARs au CHPG (Monaco).
-Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 22 juillet 2026 (module libéral complet de bout en bout, site v1.9 — roadmap rangée : les blocs terminés sont passés en section Fait).*
+Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 23 juillet 2026 (couverture des jours serrés livrée en production — plus aucun jour sans binôme, validé sur 140 années simulées).*
 
 > Le dépôt en ligne fait foi. Cette roadmap est un repère de pilotage, pas la source de vérité du code.
 
@@ -527,6 +527,33 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
 - **Constante `FICHES` supprimée d'`admin.html`** (site v1.9.1) : 27 lignes de **code mort**, déclarées mais lues nulle part, remplacées de longue date par l'assistant `openWizardDepart`. Elles contenaient deux renvois vers des pages/onglets **inexistants** (« onglet Modifications de `comite.html` », « onglet Paramètres »). Le contenu utile est déjà couvert, mieux, par `guide-comite.html` (§ ajout d'un MAR).
 - **Roadmap rangée** : les lots terminés (estimateur, C, D, E) sont passés de « À faire » à « Fait ». La section « À faire » est repassée de ~12 700 à ~3 700 caractères. Une puce **CRH** orpheline de son parent « Dashboard / portail » a été recollée.
 
+### Couverture des jours serrés — TERMINÉ (23 juillet 2026) · `gas/generateur_gardes.gs` v2026-07-23.1
+**Objectif atteint : plus aucun jour sans binôme.** Sans réduire les congés, sans deux gardes d'affilée (illégal), sans dégrader l'équité, en **une seule livraison**.
+- **Sept mécanismes**, tous strictement additifs (ils ne s'exécutent que là où le code échouait) :
+  passe « jours critiques » (7ter, backtracking sur les séries de vivier ≤ 4) · anticipation d'un jour ·
+  repli VD sur la rotation de Noël · **garde-fou dimanche déjà pourvu** · anticipation du samedi dans le bloc VD ·
+  rotation de Noël sensible au voisinage · anticipation étendue au samedi pour un jeudi.
+- **Bug corrigé** : quand la rotation posait un 25/12 dimanche seul, le placement du vendredi refaisait
+  `assign(dimDate)` sans contrôle → il **écrasait l'attribution de Noël** et faussait les compteurs, silencieusement.
+- **Validation : 7 tirages d'absences × 20 ans = 140 années de planning.** 9 jours sans binôme avec l'ancienne
+  version → **0** avec la nouvelle. Zéro garde consécutive partout. Batterie des 11 scénarios **identique au bit près**.
+  Déterminisme confirmé (3 exécutions). Coût : **+0,5 %** de temps de génération.
+- **Contreparties assumées** : combo jeudi↔samedi utilisé **2 fois en 140 ans** (ultime recours autorisé) ;
+  4 unités vendredi-dimanche scindées en plus (25/12 dimanche + vendredi placés seuls = 2 jours couverts au lieu d'un trou),
+  contre 5 couplages samedi→lundi sauvés.
+- ⚠️ Prouvé **par simulation** : la génération réelle d'une année dans le classeur reste à faire.
+- Documentation mise à jour : `guide-algo-gardes.html` § 14 (« Éprouvé sur 140 années simulées ») et § 04 (nuance jeudi↔samedi) ·
+  `Presentation-gardes-staff.html` (diapo « La preuve » + 3 graphiques recalculés sur les 7 scénarios + rythme au creux).
+- `simulateur/experiences/generateur_couverture_v1.gs.txt` **supprimé** (livré en production) ; note d'expérience à jour.
+
+### Rythme des gardes au creux démographique — mesuré (23 juillet 2026)
+Constat d'**effectif**, pas un défaut de l'algorithme. À volume de congés constant, entre 2037 et 2042 (15 gardeurs) :
+écart **médian** entre deux gardes **7,8 j → 6,2 j** · gardes suivies d'une autre sous 7 jours **48 % → 59 %** ·
+mois à plus de 4 gardes **6 % → 36 %** · pire mois observé **8 gardes** · retour à la normale dès 2044.
+Chiffres affichés en une ligne sur la diapo 3/3, détail complet dans les notes de présentation.
+⚠️ La part des intervalles ≤ 4 j (21,6 % → 27,5 %) est **biaisée par l'unité vendredi-dimanche** (~15 % des intervalles
+valent 2 jours par construction) — ne pas l'utiliser telle quelle.
+
 ### Documentation (docs/)
 - Guides : `guide-mar.html`, `guide-comite.html`, `guide-algo-gardes.html`, `guide-liberal.html`, `guide-technique.html`.
 - Présentations staff, démographie.
@@ -535,21 +562,6 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
 ---
 
 ## 🔜 À faire
-
-- [ ] 🛡️ **Garantir qu'aucun jour ne reste sans binôme — chantier en cours, fil dédié.**
-  Objectif : **JAMAIS** de jour non pourvu, sans réduire les congés, sans autoriser deux
-  gardes d'affilée (illégal), sans dégrader l'équité, et **en une seule livraison**.
-  ⚠️ **`gas/generateur_gardes.gs` est INCHANGÉ** — rien n'est en production.
-  - Tout le travail est dans **`simulateur/experiences/`** :
-    `2026-07_couverture_jours_serres.md` (note de reprise : mécanismes, chiffres,
-    protocole de test, pièges) et `generateur_couverture_v1.gs.txt` (le générateur
-    modifié, en `.txt` pour qu'il ne parte jamais en production par erreur).
-  - État : **0 à 1 jour sans binôme sur 20 ans** contre 3, équité **meilleure** que la
-    référence sur 2 tirages sur 3, coût en temps **+0,5 %**.
-  - Reste : le cas du **25/12/2039 (dimanche)**, même famille que le 24/12/2038 déjà
-    traité mais sur l'autre moitié de l'unité VD.
-  - `simulateur/demographie.js` est désormais **calé sur la feuille réelle 2026**
-    (81 jours bloqués par MAR, congés échelonnés, temps partiels, rythme 2/2).
 
 - [ ] 📽️ **Présentation staff du 04/09 — reprendre début août (fil dédié).**
   Corrections factuelles et sécurisation du code de démo faites le 22/07. Reste :
