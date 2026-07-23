@@ -90,12 +90,76 @@ function bloc(im,y,mois,jour,nb,code){
     d.setUTCDate(d.getUTCDate()+1);
   }
 }
+// Plafond d'indisponibilités « INDISPO » par MAR et par an (hors VAC / FORM / CL).
+const PLAFOND_INDISPO=30;
+// Fériés de l'année : fixes + MOBILES CALCULÉS (Pâques par l'algorithme de Meeus).
+// ⚠️ Ne pas approximer les mobiles par une plage de dates : le lundi de Pâques va du
+// 23 mars au 26 avril et celui de Pentecôte du 11 mai au 14 juin. Une plage trop
+// étroite laisse poser des souhaits sur un lundi férié, ce qui préempte le couplage
+// samedi→lundi et produit de faux « COUPLAGE SL BRISÉ » (constaté le 22/07/2026).
+function paques(y){
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),
+    g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,
+    l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),
+    mo=Math.floor((h+l-7*m+114)/31),jo=((h+l-7*m+114)%31)+1;
+  return new Date(Date.UTC(y,mo-1,jo));
+}
+function feriesDe(y){
+  // Réplique EXACTE de getJoursFeries() (code.gs) : mêmes dates, MÊME report au
+  // lundi quand le férié tombe un dimanche (loi monégasque n°798) — sauf la Sainte
+  // Dévote. Sans ce report, un lundi comme le 16/08 (Assomption décalée) n'était pas
+  // reconnu comme férié par le modèle alors qu'il l'est pour le générateur.
+  const P=paques(y);
+  const mmdd=d=>String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+  const add=n=>{const d=new Date(P); d.setUTCDate(d.getUTCDate()+n); return mmdd(d);};
+  const rep=(mo,da)=>{const d=new Date(Date.UTC(y,mo-1,da));
+    if(d.getUTCDay()===0) d.setUTCDate(d.getUTCDate()+1); return mmdd(d);};
+  return new Set([rep(1,1),'01-27',rep(5,1),rep(8,15),rep(11,1),rep(11,19),rep(12,8),rep(12,25),
+                  add(1),add(39),add(50),add(60)]);
+}
+
+
+// Plafond de MAR simultanément en congé d'été (le comité arbitre les vacances avant
+// de générer). Sans ce plafond, le pic estival laisse des jours sans binôme.
+const MAX_VAC_ETE=7;
+
+function planifierEte(year,roster){
+  const sams=[]; const d=new Date(Date.UTC(year,5,15));
+  while(d.getUTCFullYear()===year && (d.getUTCMonth()<8 || d.getUTCDate()<=7)){
+    if(d.getUTCDay()===6) sams.push(new Date(d));
+    d.setUTCDate(d.getUTCDate()+1);
+  }
+  const occup=new Array(sams.length).fill(0), plan={};
+  const gard=roster.filter(([id,p,q,f])=>!f.noGarde&&p>0).map(r=>r[0]);
+  const autres=roster.map(r=>r[0]).filter(id=>gard.indexOf(id)<0);
+  [...gard,...autres].forEach((id,i)=>{
+    const dur=2+((i%3===0)?1:0);
+    let best=-1,bestC=1e9;
+    for(let st=0;st+dur<=sams.length;st++){
+      let mx=0; for(let k=0;k<dur;k++) mx=Math.max(mx,occup[st+k]);
+      if(mx>=MAX_VAC_ETE) continue;
+      const c=occup.slice(st,st+dur).reduce((a,b)=>a+b,0)*10
+              +Math.abs(st-((i*3)%Math.max(1,sams.length-dur+1)));
+      if(c<bestC){bestC=c;best=st;}
+    }
+    if(best<0) return;
+    for(let k=0;k<dur;k++) occup[best+k]++;
+    plan[id]={mois:sams[best].getUTCMonth()+1, jour:sams[best].getUTCDate(), sem:dur};
+  });
+  return plan;
+}
+
 function buildAbsences(year,roster){
-  const im={};
+  const im={}; const FER=feriesDe(year); const planningEte=planifierEte(year,roster);
   roster.forEach(([id,pct,q,f],idx)=>{
-    const R=rnd(year*1000+idx*7+1), m={};
-    // ── CONGÉ LONG : ~1 MAR sur 12 par an, 8 à 12 semaines. Seul code qui baisse la cible.
-    if(!f.noGarde && R()<1/12){
+    // Graine décorrélée : year*1000+idx*7 produisait des tirages groupés (tous les
+    // congés longs après 2037). On mélange fortement année et index.
+    const R=rnd(Math.imul(year,0x9E3779B1)^Math.imul(idx+1,0x85EBCA6B)), m={};
+    // ── CONGÉ LONG : 8 à 12 semaines (maternité, maladie). SEUL code qui baisse la cible.
+    // Fréquence RÉELLE constatée dans le service : environ un congé long tous les
+    // 2 à 3 ans pour l'ensemble de l'équipe — pas un par an. Avec ~20 gardeurs, cela
+    // fait une probabilité de l'ordre de 1/50 par MAR et par an (≈ 0,4 CL/an).
+    if(!f.noGarde && R()<1/50){
       const debut=1+Math.floor(R()*8);                 // démarre entre janvier et août
       bloc(m,year,debut,1+Math.floor(R()*20),56+Math.floor(R()*28),'CL');
     }
@@ -104,35 +168,86 @@ function buildAbsences(year,roster){
     // c'est ce que fait le comité en validant les vacances AVANT la génération, pour
     // garantir la couverture. Sans ce décalage, jusqu'à 2 MARs sur 3 sont absents le
     // même jour de juillet et le planning finit avec des jours non pourvus.
-    const semEte=2+(R()<0.45?1:0);
-    const fenetre=62-7*semEte;                        // 1er juillet → 31 août
-    const depart=1+((idx*17+Math.floor(R()*5))%fenetre);
-    const d0=new Date(Date.UTC(year,6,1)); d0.setUTCDate(d0.getUTCDate()+depart-1);
-    bloc(m,year,d0.getUTCMonth()+1,d0.getUTCDate(),7*semEte,'VAC');
-    // ── FIN D'ANNÉE : une semaine, Noël OU Nouvel An en alternance
-    if(idx%2===0) bloc(m,year,12,20+Math.floor(R()*5),7,'VAC');
-    else           bloc(m,year,1,2+Math.floor(R()*5),7,'VAC');
-    // ── VACANCES SCOLAIRES : une semaine en février, avril ou Toussaint
+    // Congés posés du SAMEDI AU SAMEDI (usage réel du service). Conséquence : qui est
+    // disponible un samedi l'est jusqu'au samedi suivant — donc aussi le lundi. Le
+    // couplage samedi→lundi férié n'est donc presque jamais cassé par un congé.
+    // Le nombre de MAR simultanément absents est plafonné par planifierEte().
+    const dep=planningEte[id];
+    if(dep) bloc(m,year,dep.mois,dep.jour,7*dep.sem,'VAC');
+    // ── FIN D'ANNÉE et VACANCES SCOLAIRES : elles aussi posées du SAMEDI AU SAMEDI.
+    // ⚠️ Ne pas les laisser démarrer un jour quelconque : une semaine commençant un
+    // dimanche rendait indisponible le lundi férié suivant quelqu'un qui était de garde
+    // le samedi — situation matériellement impossible (il aurait posé tout le week-end).
+    const auSamedi=(mo,jo,nb)=>{
+      const d=new Date(Date.UTC(year,mo-1,jo));
+      while(d.getUTCDay()!==6) d.setUTCDate(d.getUTCDate()+1);
+      bloc(m,year,d.getUTCMonth()+1,d.getUTCDate(),nb,'VAC');
+    };
+    if(idx%2===0) auSamedi(12,18+Math.floor(R()*5),7);
+    else           auSamedi(1,2+Math.floor(R()*5),7);
     const vs=[[2,9],[4,6],[10,21]][Math.floor(R()*3)];
-    bloc(m,year,vs[0],vs[1]+Math.floor(R()*6),7,'VAC');
+    auSamedi(vs[0],vs[1]+Math.floor(R()*6),7);
     // ── FORMATION / CONGRÈS : 1 ou 2 blocs de 2 à 4 jours
+    // Pas de congrès un jour férié : on décale le bloc s'il tombe dessus.
     const nf=1+(R()<0.5?1:0);
-    for(let k=0;k<nf;k++) bloc(m,year,2+Math.floor(R()*10),3+Math.floor(R()*24),2+Math.floor(R()*3),'FORM');
-    // ── INDISPO PONCTUELLES : 4 à 8 jours isolés
-    const ni=4+Math.floor(R()*5);
+    for(let k=0;k<nf;k++){
+      const mo=2+Math.floor(R()*10), jo=3+Math.floor(R()*24), nb=2+Math.floor(R()*3);
+      const d0=new Date(Date.UTC(year,mo-1,jo));
+      let ferie=false;
+      for(let j=0;j<nb;j++){ const x=new Date(d0); x.setUTCDate(x.getUTCDate()+j);
+        if(FER.has(iso(year,x.getUTCMonth()+1,x.getUTCDate()).slice(5))) ferie=true; }
+      if(!ferie) bloc(m,year,mo,jo,nb,'FORM');
+    }
+    // ── INDISPO PONCTUELLES. PLAFOND ÉTUDIÉ : 30 jours/an/MAR (statut INDISPO seul,
+    // hors VAC et FORM). On simule le PIRE CAS sous la règle : tout le monde consomme
+    // son quota entier, ce que personne ne fait en pratique (usage réel ~5 jours).
+    // ⚠️ RÈGLE DE BON SENS (corrigée le 22/07/2026) : personne ne pose un lundi férié
+    // SEUL pour s'offrir un week-end de trois jours — il poserait aussi le samedi et le
+    // dimanche, sinon il risque la garde du samedi et son week-end tombe. Conséquence :
+    // celui qui est de garde un samedi n'a PAS posé ce week-end, il est donc disponible
+    // le lundi férié qui suit. Le couplage samedi→lundi ne peut donc quasiment jamais
+    // être cassé par une indispo. Sans cette règle, le modèle produisait ~12 ruptures
+    // de couplage sur 20 ans, toutes matériellement impossibles.
+    const ni=PLAFOND_INDISPO;
     for(let k=0;k<ni;k++){
       const mo=1+Math.floor(R()*12), jo=1+Math.floor(R()*27);
-      const d=iso(year,mo,jo); if(!m[d]) m[d]='INDISPO';
+      const d=iso(year,mo,jo); if(m[d]) continue;
+      const dt=new Date(d+'T12:00:00'), dow=dt.getUTCDay(), fe=FER.has(d.slice(5));
+      m[d]='INDISPO';
+      if(fe && dow===1){                       // lundi férié → + samedi et dimanche avant
+        for(const n of [-2,-1]){ const x=new Date(dt); x.setUTCDate(x.getUTCDate()+n);
+          const ds=iso(year,x.getUTCMonth()+1,x.getUTCDate()); if(!m[ds]) m[ds]='INDISPO'; }
+      } else if(fe && dow===5){                // vendredi férié → + samedi et dimanche après
+        for(const n of [1,2]){ const x=new Date(dt); x.setUTCDate(x.getUTCDate()+n);
+          const ds=iso(year,x.getUTCMonth()+1,x.getUTCDate()); if(!m[ds]) m[ds]='INDISPO'; }
+      }
     }
-    // ── SOUHAITS de jours fixes : 3 MARs, un jour de semaine récurrent (lun/mar/mer)
-    if(idx%8===3 && !f.noGarde && !f.souhaitPlafond){
-      const jourVoulu=1+Math.floor(R()*3);             // 1=lundi 2=mardi 3=mercredi
+    // ── SOUHAITS — usage RÉEL décrit par le service :
+    //   • PRUNET (souhait_plafond, régime 1) : TOUS LES MARDIS, hors fériés et hors
+    //     ses propres congés. C'est son rythme personnel, priorité absolue.
+    //   • quelques MAR : des mardis choisis (régime 2, dans leur cible).
+    //   • lundis / mercredis : rares.
+    // ⚠️ Jamais sur un jour férié : personne ne demande une garde qui lui coûterait
+    // un week-end de trois jours (et sur un lundi férié cela préempterait le
+    // couplage samedi→lundi).
+    const poseS=(ds)=>{ if(!m[ds] && !FER.has(ds.slice(5))) m[ds]='SOUHAIT'; };
+    if(f.souhaitPlafond){                       // PRUNET : tous les mardis
       const d=new Date(Date.UTC(year,0,1));
       while(d.getUTCFullYear()===year){
-        if(d.getUTCDay()===jourVoulu){
-          const ds=iso(year,d.getUTCMonth()+1,d.getUTCDate());
-          if(!m[ds]) m[ds]='SOUHAIT';
-        }
+        if(d.getUTCDay()===2) poseS(iso(year,d.getUTCMonth()+1,d.getUTCDate()));
+        d.setUTCDate(d.getUTCDate()+1);
+      }
+    } else if(!f.noGarde && idx%5===1){          // ~4 MAR : des mardis choisis
+      const d=new Date(Date.UTC(year,0,1));
+      while(d.getUTCFullYear()===year){
+        if(d.getUTCDay()===2 && R()<0.35) poseS(iso(year,d.getUTCMonth()+1,d.getUTCDate()));
+        d.setUTCDate(d.getUTCDate()+1);
+      }
+    } else if(!f.noGarde && idx%11===4){         // ~2 MAR : quelques lundis/mercredis
+      const jour=R()<0.5?1:3;
+      const d=new Date(Date.UTC(year,0,1));
+      while(d.getUTCFullYear()===year){
+        if(d.getUTCDay()===jour && R()<0.15) poseS(iso(year,d.getUTCMonth()+1,d.getUTCDate()));
         d.setUTCDate(d.getUTCDate()+1);
       }
     }
