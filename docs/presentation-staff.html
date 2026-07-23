@@ -409,18 +409,7 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
   <p class="lead" style="margin-top:44px"><b>Point clé :</b> l'ordre du déroulé garantit que l'algorithme travaille avec des contraintes complètes. Vacances validées collectivement d'abord, indispos individuelles ensuite, génération en dernier.</p>
 </section>
 
-<section class="slide" data-notes="Les 6 interdits absolus. Aucune équité ne peut les contourner.">
-  <div class="kicker">Les règles dures</div>
-  <h2>Ce que l'algorithme ne fait <mark class="hl">jamais</mark></h2>
-  <div class="rules">
-    <div class="rule"><div class="ic">✕</div><div class="tx"><b>Deux gardes d'affilée</b><span>Jamais. Une garde la veille ou le lendemain bloque le jour.</span></div></div>
-    <div class="rule"><div class="ic">✕</div><div class="tx"><b>Garde pendant une absence</b><span>Indispo, congé, formation, semaine off (rythme 2/2), hors période d'arrivée/départ : jour exclu.</span></div></div>
-    <div class="rule"><div class="ic">✕</div><div class="tx"><b>Jeudi + samedi la même semaine</b><span>Interdit — sauf jeudi férié rattaché au samedi (un seul bloc), ou en ultime recours si un jour resterait sinon sans binôme : 2 fois en 140 années simulées.</span></div></div>
-    <div class="rule"><div class="ic">✕</div><div class="tx"><b>Oublier le repos de garde</b><span>Le lendemain d'une garde est automatiquement bloqué.</span></div></div>
-    <div class="rule"><div class="ic">✕</div><div class="tx"><b>Tasser les gardes</b><span>Une garde à 2, 3 ou 4 jours d'une autre est fortement pénalisée ; 3 gardes dans la même semaine, quasi impossible.</span></div></div>
-    <div class="rule"><div class="ic">✕</div><div class="tx"><b>Voler une récupération</b><span>Une récup par samedi effectué — c'est la seule égalité stricte du système, vérifiable par chacun.</span></div></div>
-  </div>
-</section>
+
 
 <section class="slide alt" data-notes="Les 4 critères de départage, dans l'ordre. Week-end : binôme ven+dim, même rôle.">
   <div class="kicker">La mécanique</div>
@@ -439,19 +428,19 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
   <div class="kicker">Les jours sensibles</div>
   <h2>Fériés, Noël et Jour de l'an</h2>
   <div class="grid g2" style="max-width:1020px">
-    <div class="card"><h3>Fériés rattachés au samedi</h3><p>Un <b>jeudi férié</b> entraîne le samedi qui suit (même binôme) ; un <b>lundi férié</b> reprend le binôme du samedi précédent. Ces jours comptent comme des samedis — récupération comprise.</p></div>
-    <div class="card"><h3>Noël &amp; Jour de l'an : rotation pluriannuelle</h3><p>Le binôme retenu est celui qui les a faits <b>le plus anciennement — ou jamais</b>. L'outil regarde l'historique complet, y compris l'année en cours même si elle n'est pas encore archivée : impossible d'enchaîner deux Noëls.</p></div>
+    <div class="card"><h3>Fériés rattachés au samedi</h3><p>Un <b>jeudi férié</b> entraîne le samedi qui suit ; un <b>lundi férié</b> reprend le binôme du samedi précédent. Ces jours comptent comme des samedis, récupération comprise.</p></div>
+    <div class="card"><h3>Noël &amp; Jour de l'an : rotation pluriannuelle</h3><p>Priorité à celui qui les a faits <b>le plus anciennement — ou jamais</b>. Historique complet, année en cours comprise : <b>impossible d'enchaîner deux Noëls</b>.</p></div>
   </div>
-  <p class="lead" style="margin-top:40px">La liste des MARs prioritaires pour Noël et le Jour de l'an est <b>affichée en continu</b> sur la page du staff — chacun peut vérifier où il en est.</p>
+  <p class="lead" style="margin-top:40px">La liste des prioritaires est <b>affichée en continu</b> sur la page du staff.</p>
 </section>
 
 <section class="slide alt" data-notes="Souhaits : lun/mar/mer seulement, dans le quota. Qui choisit ses jours en assume le voisinage (pas d'exonération de week-end). Régime garanti : jours de semaine uniquement, jamais WE/férié. Statuts spéciaux déclarés dans un tableau visible.">
   <div class="kicker">Les souhaits</div>
   <h2>Choisir ses jours, sans fausser l'équité</h2>
   <div class="grid g3" style="max-width:1280px">
-    <div class="card"><h3>Sur les jours « libres » uniquement</h3><p>Les souhaits sont honorés sur <b>lundi, mardi, mercredi</b>. Un souhait sur un jeudi, un samedi ou un week-end est ignoré : ces jours relèvent de l'équité, personne ne peut se les réserver.</p></div>
-    <div class="card"><h3>Dans la limite de sa part</h3><p>Les souhaits sont <b>compris dans le quota</b>, jamais en plus. Un budget de souhaits est calculé pour chacun ; au-delà, l'algorithme reprend la main.</p></div>
-    <div class="card"><h3>Choisir, c'est assumer</h3><p>Un souhait honoré <b>n'exonère de rien</b> : la part de week-ends, de samedis et de jeudis reste due — quitte à ce qu'une garde tombe <b>près d'un jour choisi</b>. L'équité passe avant le confort du calendrier.</p></div>
+    <div class="card"><h3>Sur les jours « libres » uniquement</h3><p><b>Lundi, mardi, mercredi</b> uniquement. Jeudi, samedi et week-end relèvent de l'équité — personne ne se les réserve.</p></div>
+    <div class="card"><h3>Dans la limite de sa part</h3><p><b>Compris dans le quota</b>, jamais en plus. Au-delà du budget calculé pour chacun, l'algorithme reprend la main.</p></div>
+    <div class="card"><h3>Choisir, c'est assumer</h3><p><b>N'exonère de rien</b> : la part de week-ends, de samedis et de jeudis reste due — quitte à ce qu'une garde tombe <b>près d'un jour choisi</b>.</p></div>
   </div>
   <p class="lead" style="margin-top:36px"><b>Cas particuliers assumés :</b> tous les statuts spéciaux sont <b>déclarés dans un tableau visible</b>, jamais cachés dans le code — et les cibles s'ajustent en conséquence.</p>
 </section>
@@ -459,7 +448,7 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
 <section class="slide" data-notes="Dette dès 2028 : écart du planning GÉNÉRÉ, ×60 %, plafonné ±2. Les échanges de gré à gré ne comptent pas.">
   <div class="kicker">La mémoire du système</div>
   <h2>La dette : l'équité se joue aussi<br>d'une année sur l'autre</h2>
-  <p class="lead">À partir de la génération 2028, l'algorithme compare <b>le planning tel qu'il a été généré</b> l'an passé à la juste part de chacun — et corrige en douceur. Les échanges et dons intervenus ensuite <b>ne modifient pas</b> ce calcul.</p>
+  <p class="lead">Dès 2028, l'algorithme compare <b>le planning tel qu'il a été généré</b> l'an passé à la juste part de chacun, et corrige en douceur. Les échanges intervenus ensuite <b>ne modifient pas</b> ce calcul.</p>
   <div class="dette">
     <div class="dbox">
       <div class="y">Année N — constat</div>
@@ -490,8 +479,20 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
     <div class="card"><div class="big num">1 = 1</div><div class="lbl"><b>Récupérations = samedis</b>, pour tout le monde, sans exception. La seule égalité stricte — et la plus simple à vérifier soi-même.</div></div>
     <div class="card"><div class="big num">0</div><div class="lbl"><b>Zéro journée sans binôme</b> : les journées où presque personne n'est disponible sont pourvues en priorité, et deux binômes alternent sur la semaine de Noël — comme le comité le faisait à la main. Vérifié sur <b>140 années simulées</b>.</div></div>
   </div>
+  <p class="lead" style="margin-top:36px">Et deux règles que rien ne peut contourner&nbsp;: <b>jamais deux gardes d'affilée</b> — c'est illégal — et <b>jamais de garde sur une absence déclarée</b>. Vérifié sur les 102 312 gardes simulées.</p>
 </section>
 
+
+<section class="slide s2" data-notes="Ouverture de la preuve : les 3 chiffres defilent comme les 730 du debut. 140 annees = 7 scenarios d absences differents de 20 ans chacun (2027-2046), enchaines comme en vrai, chaque annee heritant de la precedente. 102 312 gardes placees. ZERO journee sans binome sur les sept. Le point a marteler : on n a pas teste sur une annee qui tombe bien - meme volume de conges a chaque fois, mais pose differemment, sept manieres dont l equipe pourrait reellement s organiser. Enchainer sur les conditions du test.">
+  <div class="eyebrow">La preuve</div>
+  <h2>Testé sur 140 années<br>de planning</h2>
+  <div class="stats">
+    <div class="stat"><div class="n">140</div><div class="l">années simulées — 7 scénarios d'absences, 20 ans chacun</div></div>
+    <div class="stat"><div class="n">102 312</div><div class="l">gardes placées, enchaînées comme en vrai</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">journée sans binôme, sur les sept scénarios</div></div>
+  </div>
+  <p class="sub">On n'a pas testé sur une année qui tombe bien. <b>Sept fois le même volume de congés, posé autrement</b> — sept manières dont l'équipe pourrait réellement s'organiser.</p>
+</section>
 
 <section class="slide alt" data-notes="Slide de CRÉDIBILITÉ, à ne pas survoler : c'est lui qui rend les trois suivants recevables. Message : on n'a pas simulé une équipe de robots toujours disponibles. Le chiffre à marteler : 69 jours d'absence par personne et par an, soit un jour sur cinq. Développer à l'oral ce qui n'est pas écrit : congés du samedi au samedi, une semaine à Noël OU au Nouvel An, deux semaines de vacances scolaires ; le congé long c'est maternité ou maladie ; les temps partiels ont chacun leur rythme, jusqu'au 2 semaines sur 2. Terminer sur la dernière ligne : chacun consomme la TOTALITÉ de son quota d'indisponibilités, ce que personne ne fait — le test est plus dur que la réalité. Si on demande la fiabilité : refait 4 fois avec des tirages différents, les résultats bougent peu.">
   <div class="kicker">La preuve · les conditions</div>
