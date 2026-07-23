@@ -1,124 +1,136 @@
-# Couverture des jours serrés — travail en cours (22/07/2026)
+# Couverture des jours serrés — TERMINÉ (23/07/2026)
 
 **Objectif d'Arthur : il ne doit JAMAIS y avoir de jour sans binôme.**
 Sans réduire le nombre de MAR en vacances, sans autoriser deux gardes d'affilée
-(illégal), sans dégrader l'équité, et en une seule livraison — pas de push
-successifs sur l'algo de gardes, c'est ainsi qu'on introduit des erreurs.
+(illégal), sans dégrader l'équité.
 
-⚠️ **Rien n'est en production.** `gas/generateur_gardes.gs` est INCHANGÉ.
-Le générateur modifié est ici en `.gs.txt` pour qu'il ne parte jamais par erreur.
+✅ **LIVRÉ EN PRODUCTION** le 23/07/2026 — `gas/generateur_gardes.gs`,
+`GAS_VERSION_GENERATEUR = '2026-07-23.1'`. Le fichier d'expérimentation
+`generateur_couverture_v1.gs.txt` a été supprimé : le dépôt fait foi.
 
 ---
 
-## Le problème
+## Le problème (rappel)
 
 Le placement chronologique est glouton : chaque jour il choisit le meilleur binôme
-selon l'équité, et épuise ainsi le vivier du lendemain. Sur les périodes très
-tendues — essentiellement **la semaine de Noël** — il ne reste plus personne.
+selon l'équité, et épuise ainsi le vivier du lendemain. Sur la semaine de Noël,
+il ne reste plus personne.
 
 La feuille réelle 2026 le confirme : le **27/12/2026, 17 MAR sur 20 étaient
-indisponibles**, soit 3 personnes restantes. Le comité s'en est sorti en faisant
-**alterner deux binômes** : FX + NS les 24 et 26, WS + CA les 25 et 27. C'est
-exactement ce que l'algorithme ne sait pas faire seul.
+indisponibles**. Le comité s'en est sorti en faisant **alterner deux binômes**.
+C'est ce que l'algorithme ne savait pas faire seul.
 
-Contrainte mathématique à connaître : pour couvrir N jours consécutifs avec des
-binômes de 2 sans gardes consécutives, il faut **au moins 4 personnes disponibles**.
-Avec 3, on ne couvre qu'un jour sur deux.
+Contrainte mathématique : pour couvrir N jours consécutifs avec des binômes de 2
+sans gardes consécutives, il faut **au moins 4 personnes disponibles**.
 
 ---
 
-## Les trois mécanismes (dans `generateur_couverture_v1.gs.txt`)
+## Les sept mécanismes livrés
 
-Tous **strictement additifs** : ils ne s'exécutent que là où le code actuel échoue.
+Tous **strictement additifs** : ils ne s'exécutent que là où le code échouait.
 
-### 1. Passe « jours critiques » (nouvelle section 7ter)
-Placée **après** la rotation de Noël (7bis), **avant** les souhaits (8a).
-- repère les jours dont le vivier est ≤ `SEUIL_CRIT` (=4)
-- les regroupe en séries consécutives (mesuré : 1 à 3 jours, ~1,4 par an)
-- résout chaque série par **recherche exhaustive** (backtracking)
-- ordre de préférence : **les MAR les moins souvent disponibles dans l'année
-  d'abord** — c'est ce réglage qui a rendu l'équité meilleure que la référence
-- périmètre : jours SIMPLES uniquement (ni vendredi, ni dimanche, ni férié couplé),
-  pour ne pas interférer avec les unités VD et les couplages fériés
-- dernier recours : tolère le combo **jeudi↔samedi** (G-RG-G, 2 gardes en 3 jours
-  glissants — explicitement autorisé par Arthur). Utilisé **1 seule fois en 20 ans**.
+1. **Passe « jours critiques » (section 7ter)** — après la rotation de Noël (7bis),
+   avant les souhaits (8a). Repère les jours de vivier ≤ 4, les regroupe en séries
+   consécutives, résout par backtracking. Ordre de préférence : les MAR les moins
+   souvent disponibles dans l'année d'abord. Périmètre : jours SIMPLES uniquement.
+   Dernier recours : tolère le combo jeudi↔samedi.
+2. **Anticipation d'un jour** dans le placement chronologique : ne pas retenir un
+   binôme s'il ne resterait pas ≥ 2 personnes disponibles demain.
+3. **Repli VD sur la rotation de Noël (7bis)** : place la date SEULE quand aucun
+   binôme ne peut tenir l'unité complète.
+4. **Garde-fou dimanche déjà pourvu** — CORRECTION DE BUG. Quand la rotation pose
+   un 25/12 dimanche seul en repli, le placement du vendredi refaisait
+   `assign(dimDate)` sans vérifier : il ÉCRASAIT l'attribution de Noël et faussait
+   les compteurs, silencieusement. Condition ajoutée : `dimExists && !gardes[dimDate]`.
+5. **Anticipation du samedi dans le bloc VD** : le binôme vendredi-dimanche est
+   bloqué aussi le samedi. Le bloc VD sortait de la fonction (`return`) avant
+   l'anticipation du point 2. `A`/`B` passent en `let`.
+6. **Rotation de Noël sensible au voisinage** : prend, DANS L'ORDRE DE LA ROTATION,
+   la première paire qui laisse ≥ 2 disponibles sur chaque jour voisin non pourvu
+   (helpers `bloqueraitSur`, `preserveVoisins`, `choisirPaire`, déclarés APRÈS
+   `shiftD` dans le bloc 7bis). Si aucune paire ne convient : choix historique.
+7. **Anticipation étendue au samedi pour un jeudi** : placer un jeudi bloque aussi
+   le samedi via le combo. Vérification CONJOINTE lendemain + samedi.
 
-### 2. Anticipation d'un jour (dans le placement chronologique)
-Avant de retenir le meilleur binôme, vérifier qu'il resterait ≥ 2 personnes
-disponibles **demain**. Sinon, descendre dans le classement d'équité.
-Strictement conditionnel : en temps normal, RIEN ne change.
-C'est ce qui manquait au 24/12/2038, où le placement du 23 consommait les deux
-seules personnes capables de tenir le 24.
-
-### 3. Repli VD sur la rotation de Noël (7bis)
-La rotation exigeait qu'un binôme tienne l'**unité complète** (vendredi↔dimanche,
-ou couplage férié) et abandonnait sinon — laissant la date de Noël non pourvue.
-Elle place désormais la date **seule** en repli, exactement comme la
-« VD exception » déjà présente dans le placement chronologique.
-
-### Modification annexe
-`blocked(id, date, _relaxJS)` : 3ᵉ paramètre optionnel qui tolère le combo
-jeudi↔samedi. **Aucun autre appelant ne le passe** → comportement par défaut
-strictement inchangé.
+**Modification annexe** : `blocked(id, date, _relaxJS)` — 3ᵉ paramètre optionnel
+tolérant le combo jeudi↔samedi. Seule la passe 7ter le passe.
 
 ---
 
-## Résultats mesurés (20 ans, modèle calé sur la feuille réelle 2026)
+## Résultats mesurés — 7 tirages × 20 ans = 140 années de planning
 
-| Tirage | Écart max | Jours sans binôme |
+| sel | trous RÉF | trous LIVRÉ | autres erreurs RÉF → LIVRÉ | écart max RÉF → LIVRÉ |
+|---|---|---|---|---|
+| 0 | 3 | **0** | 8 → 7 | 2,30 → 2,50 |
+| 1 | 1 | **0** | 3 → 2 | 2,30 → 2,30 |
+| 2 | 1 | **0** | 5 → 5 | 1,70 → 1,70 |
+| 3 | 2 | **0** | 6 → 7 | 2,20 → 2,30 |
+| 4 | 2 | **0** | 5 → 5 | 2,20 → **2,10** |
+| 5 | 0 | **0** | 6 → 7 | 2,10 → 2,20 |
+| 6 | 0 | **0** | 5 → 6 | 2,30 → 2,30 |
+| **total** | **9** | **0** | 38 → 39 | — |
+
+Trous fermés : 2037-12-25 (ven), 2037-12-26 (sam), 2038-12-23, 2039-04-09,
+2039-12-29, 2040-02-18 (sam), 2041-12-28 — et 2039-12-25 (dim), le cas visé.
+
+**Composition des « autres erreurs »** (cumul 7 tirages) :
+
+| type | RÉF | LIVRÉ |
 |---|---|---|
-| référence actuelle | 2,30 | **3** |
-| 0 | 2,50 | **0** |
-| 1 | 1,80 | **1** |
-| 2 | 1,90 | **0** |
+| couplage samedi→lundi rompu | 21 | **16** |
+| couplage jeudi→samedi rompu | 4 | 4 |
+| unité vendredi-dimanche rompue | 13 | 17 |
+| combo jeudi↔samedi | 0 | 2 |
+| **gardes consécutives** | **0** | **0** |
 
-Équité **meilleure que la référence** sur 2 tirages sur 3.
+Les 4 unités VD rompues en plus sont le prix direct de la correction : 25/12
+dimanche placé seul + vendredi placé seul = deux jours couverts au lieu d'un trou.
+En regard, 5 couplages samedi→lundi sont sauvés.
 
-Tests déjà passés : batterie des 10 scénarios **invariants ✅ partout** ·
-déterminisme confirmé (3 exécutions identiques) · **12 années sur 20 rigoureusement
-identiques** à la version actuelle avant le premier déclenchement · coût en temps
-**+0,5 %** (3 265 → 3 281 ms).
+**Autres validations** :
+- batterie `simulateur/scenarios.js` (11 scénarios) : **sortie complète strictement
+  identique** à la référence, au caractère près
+- déterminisme : 3 exécutions rigoureusement identiques ✅
+- performance : 709,9 s contre 706,6 s sur les 140 années, soit **+0,5 %**
+- `node --check` OK, ancres uniques vérifiées, portée de `shiftD` contrôlée
+
+⚠️ **Mesure d'équivalence** : la métrique « années identiques » donne 0 à 4 sur 20
+selon le tirage, PAS les 12/20 annoncés dans la version précédente de cette note.
+Ce n'est pas comparable : dès qu'une année diffère, le report de dette fait diverger
+toutes les suivantes en cascade. Vérifié : la v1 seule donne le même 4/20. La preuve
+de non-régression est la batterie des 11 scénarios, identique au bit près.
+
+⚠️ **Tout ceci est prouvé par simulation.** Seule la génération réelle d'une année
+dans le classeur le confirmera.
 
 ---
 
-## CE QUI RESTE À FAIRE
+## Documentation mise à jour (23/07/2026)
 
-### Le dernier cas : 25/12/2039, un DIMANCHE
-`NOEL/AN 2039-12-25 : <2 dispo` puis `Manque MAR`. Vivier structurel : 4 personnes
-(LEY, LEVASSEUR, COPELOVICI, REMPL_MENADE).
-
-Même famille que le 24/12/2038 déjà corrigé, **mais sur l'autre moitié de l'unité
-VD** : le repli du mécanisme 3 traite le vendredi, pas le dimanche. Vérifier
-d'abord qu'une solution existe (force brute sur la fenêtre ±3 jours), puis étendre
-le repli au dimanche.
-
-### Puis, avant toute livraison
-1. batterie `simulateur/scenarios.js` — invariants ✅ sur les 10
-2. déterminisme : 3 exécutions identiques
-3. **équivalence** avant/après sur 20 ans : compter les années identiques
-4. performance : comparer les temps de génération
-5. 4 à 6 tirages d'absences différents (varier le sel dans `demographie.js`)
-6. patch AVANT/APRÈS présenté à Arthur, **attendre le OK**
-7. push `gas/generateur_gardes.gs` + recopie Apps Script + nouveau déploiement
+- `docs/guide-algo-gardes.html` § 14 : « Éprouvé sur 140 années simulées » ;
+  § 04 protections : nuance sur le combo jeudi↔samedi en ultime recours
+- `docs/Presentation-gardes-staff.html` : slide « La preuve » réécrite sur
+  140 années ; carte « Zéro journée sans binôme » dans les garanties
 
 ---
 
 ## Pièges rencontrés (ne pas les refaire)
 
-- **Portée** : `shiftD` est déclaré en `const` DANS le bloc de la section 7bis —
-  invisible depuis la passe 7ter. `node --check` ne le voit pas, seule l'exécution
-  le révèle. Utiliser un helper local.
-- **Colonnes MEDECINS** : le générateur lit `pct[id]=medData[r][5]` et
-  `quot[id]=medData[r][4]`. Dans le classeur, la **2ᵉ colonne chiffrée est le
-  pourcentage de GARDES**, la 1ʳᵉ la quotité de travail. Ne pas les inverser.
+- **Portée** : `shiftD` est déclaré en `const` DANS le bloc 7bis. Les helpers de
+  la rotation doivent être déclarés APRÈS lui, dans le même bloc.
+- **Colonnes MEDECINS** : `pct[id]=medData[r][5]` (% GARDES) et
+  `quot[id]=medData[r][4]` (quotité). Ne pas les inverser.
 - **Le rythme 2/2 est géré NATIVEMENT** par `estSemaineOff()` (l. 35), ancré sur le
-  lundi 01/06/2026, lu depuis la colonne `rythme_2sur2`. Chercher `r2s2` ne donne
-  rien → j'en avais conclu à tort que le moteur l'ignorait, et j'ai posé des jours
-  `TP` par-dessus : deux blocages de phases différentes, et en 2044 la personne
-  était indisponible 365 jours sur 365 **sans aucun avertissement**.
-- **L'espacement à 5 jours n'est PAS une règle dure** : c'est une pénalité de score
-  (`spacingPenalty`). Le code dit lui-même « la couverture prime tout ».
-  Les seuls blocages durs liés aux gardes : lendemain de garde (`rgSet`),
-  récupération (`rSet`), garde le lendemain (`gSet`), combo jeudi-samedi.
-- **Deux gardes d'affilée : INTERDIT, c'est illégal.** Ne jamais le proposer.
-- **Plafonner les vacances de Noël : REFUSÉ** — ce serait une régression pour les MAR.
+  lundi 01/06/2026. Ne jamais poser de jours `TP` par-dessus.
+- **L'espacement à 5 jours n'est PAS une règle dure** : c'est `spacingPenalty`.
+  Blocages durs : `rgSet`, `rSet`, `gSet`, combo jeudi-samedi.
+- **Deux gardes d'affilée : INTERDIT, c'est illégal.** Jamais proposé, jamais mesuré.
+- **Plafonner les vacances de Noël : REFUSÉ.**
+- **Un `return` masque une protection** : le bloc VD sortait avant l'anticipation
+  du point 2 — d'où le point 5. Lire le chemin réel, pas un chemin analogue.
+- **Écraser une case déjà écrite** : `assign()` ne vérifie pas si le jour est déjà
+  pourvu. Toujours tester `!gardes[date]` avant de (ré)assigner.
+- **Outillage** : `pkill -f "motif"` tue le shell appelant si sa ligne de commande
+  contient le motif (elle le contient si le script est écrit par heredoc). Utiliser
+  `pkill -x node`. Et `worker.js` fait `process.chdir()` : résoudre les chemins de
+  sortie en absolu AVANT le chdir.
