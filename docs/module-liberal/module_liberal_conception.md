@@ -35,6 +35,12 @@
 *ergonomie admin validée sur maquette conditions réelles (volet « ◆ Libéral » gauche par MAR,*
 *vert/orange, toast si aucune intervention, grille intacte). indispos.html sort du périmètre libéral.*
 *§6.2–6.4, 11, 12, 13 mis à jour.*
+***v3.13 — 23/07/2026** : ajout de l'**interface secrétaire** (§11 ter, Lot 5) — écran d'orientation*
+*des patients libéraux vers un MAR disponible le jour de l'intervention. **Purement consultatif** :*
+*aucune écriture, la déclaration reste au MAR au moment de la consultation réelle. Fonctionne sur*
+*les **seules données de planning** (aucune donnée financière) → indépendant des Lots 0 et 2.*
+*Ordre d'affichage des candidats laissé en question ouverte (§14).*
+
 ***v3.12 — 19/07/2026** : **décision** — le pré-remplissage de la fiche praticien sur les devis*
 *et déclarations se fera **uniquement via le branchement au portail** (MAR identifié à la connexion*
 *→ colonnes dédiées dans `MEDECINS`). **Aucune solution intermédiaire** (localStorage, paramètre*
@@ -443,6 +449,69 @@ coups.
 - Compteur d'équité des affectations contraintes.
 - Saisie/rattrapage des relevés.
 
+### Interface secrétaire — orientation des patients libéraux (Lot 5)
+
+**Rôle, et frontière à ne pas franchir.** L'écran ne réserve rien et ne remplace aucun logiciel de
+rendez-vous. Il répond à une seule question : *pour une intervention le 15/09 en ORL, quelles dates
+de consultation puis-je proposer à ce patient libéral pour qu'il soit endormi par un MAR
+effectivement présent ce jour-là ?* La secrétaire relève la date et le nom, puis pose le
+rendez-vous dans son outil habituel. C'est la différence entre une brique légère et un projet hors
+de portée.
+
+**Entrée.** Date d'intervention + secteur.
+
+**Sortie.** Une **liste de créneaux de consultation triés par date**, chacun portant le nom du MAR
+qui la tiendra (`mar. 08/09 — Dr X · jeu. 10/09 — Dr X · lun. 14/09 — Dr Y`). La sortie est une
+liste de **dates**, pas un classement de médecins : c'est ce dont la secrétaire a besoin au
+téléphone. Le médecin est le moyen, pas la réponse.
+
+**Deux rangs de candidature** (jamais un filtre binaire) :
+
+| Rang | Condition le jour de l'intervention | Usage |
+|------|--------------------------------------|-------|
+| **A** | affecté au **secteur** de la chirurgie | idéal — pas de déplacement |
+| **B** | **présent à l'hôpital**, quel que soit son secteur (réa comprise) | il sort endormir et revient ; vaut pour **tous** les secteurs |
+
+Un MAR **absent** n'est jamais proposé. Le rang B n'est pas un filet de secours occasionnel : le
+délai consultation → intervention descend parfois sous 7–10 jours, et la fenêtre de consultation
+se réduit alors à un ou deux jours ouvrés — le rang A y sera souvent vide. **Le rang B est un mode
+de fonctionnement courant, à traiter comme tel dès la V1.**
+
+**Règle d'affichage imposée par l'accès partagé.** L'accès se fait par un **code unique pour tout
+le secrétariat d'anesthésie** (pas de compte nominatif : l'écran n'écrit rien, il n'y a rien à
+tracer). Toute personne détenant ce code voit donc la disponibilité de l'équipe. En conséquence :
+**l'écran n'affiche jamais de motif d'indisponibilité** — ni congé, ni formation, ni maternité, ni
+maladie. Il n'affiche que du positif (les dates où quelqu'un peut) ; une indisponibilité se traduit
+par une ligne qui n'existe pas. Aucun montant, aucun pourcentage, aucune position individuelle
+n'apparaît en Lot 5.
+
+**Point technique à ne pas rater.** Le filtre doit exclure **tous** les types d'indisponibilité, pas
+seulement les congés : jour de temps partiel, repos de garde, formation, réanimation, étages,
+consultation, maternité. C'est la seule chose qui peut faire échouer l'outil en silence — proposer
+un nom valide en apparence mais indisponible en réalité. Une secrétaire à qui ça arrive deux fois
+cesse de s'en servir.
+
+**Pas de décompte de places.** Une journée de consultation est traitée comme une capacité pleine :
+le module ne raisonne que sur les patients **libéraux** et ne modélise pas l'activité publique de
+la séance (un patient public peut être vu et endormi par deux MARs différents — sans objet ici).
+
+**Consultatif seul — décision actée.** L'écran **n'écrit rien**. Le parcours n'est validé qu'au
+moment de la consultation réelle : c'est le **MAR** qui déclare ensuite l'intervention depuis la
+page du module libéral (payload fermé, §6.2). Corollaire à assumer : le système ne connaît pas les
+orientations proposées, seulement les consultations effectivement réalisées — tout décompte de
+répartition accuse donc le **retard du délai de consultation**.
+
+**Couche 2 (ultérieure).** Priorisation des candidats selon la proximité du plafond par axe.
+Nécessite le compteur (Lot 2) et donc des données financières nominatives → accord du groupe requis.
+Le Lot 5 est délibérément construit **sans** cette couche : il se présente comme une amélioration
+d'organisation, sans dimension d'argent, et n'a besoin d'aucune validation du groupement.
+
+**Périmètre de test.** Tous les secteurs d'emblée, sur l'hôpital **actuel** (bloc éclaté). C'est le
+cas le plus contraint : au NCHPG, le bloc centralisé rend le rang A beaucoup plus fréquent. Ce qui
+marche aujourd'hui marchera forcément après.
+
+---
+
 ---
 
 ## 12. Ordre de construction (lots — chacun utilisable seul)
@@ -463,6 +532,10 @@ go-live octobre 2026.
   « ◆ Libéral » + toast dans admin (greffe `openSidePanel`, cf. §6.4). Dépend du Lot 1 seul.
 - **Lot 4 — Réallocation + équité.** Reco par axe (nécessite `RENDEMENT_LIB` → Lot 0) ; compteur
   d'équité. Dépend Lot 0 + Lot 2.
+- **Lot 5 — Interface secrétaire** (cf. §11 ter). Écran d'orientation à code partagé, **lecture
+  seule**. Ne consomme que le planning (affectations sectorielles annuelles + indisponibilités) :
+  **indépendant des Lots 0 et 2**, parallélisable immédiatement. Prérequis à vérifier avant de
+  coder : la façon dont les indisponibilités sont exposées par la route GAS existante.
 
 ---
 
@@ -496,6 +569,12 @@ go-live octobre 2026.
     obligatoire** (test anti-persistance jsdom + scan statique + preuve réseau) exécutée à chaque
     déploiement du code de production et archivable pour audit (CCIN / loi 1.565). La conformité
     juridique relève de l'établissement/DPO, jamais d'une garantie de l'assistant.
+
+15. **Interface secrétaire = aide à la décision, jamais un logiciel de rendez-vous** ; **lecture
+    seule** (la déclaration reste au MAR, §11 ter) ; sortie = **liste de dates** de consultation
+    avec le nom du MAR ; **deux rangs** (A = affecté au secteur, B = présent à l'hôpital, valable
+    pour tous les secteurs) ; **code d'accès unique** pour le secrétariat ; **aucun motif
+    d'indisponibilité ni aucun montant affiché**.
 
 ---
 
@@ -531,3 +610,12 @@ go-live octobre 2026.
 - **V2 — optimiseur de réallocation** explicite : proposer au comité *quelles* vacations
   déplacer et de qui vers qui, sous les deux contraintes de plafond. La V1 se contente d'afficher
   les marges ; la V2 optimise.
+- **Lot 5 — ordre d'affichage des candidats à disponibilité égale.** Non tranché. Un ordre **fixe**
+  (alphabétique ou ordre du tableau) est simple mais **concentre** : la secrétaire est pressée et
+  propose la première date qui convient — le premier de la liste absorberait le flux, aggravant le
+  déséquilibre que l'outil vise à corriger. **Aucun ordre** reproduit le statu quo (elle propose
+  celui qu'elle connaît). L'ordre le plus utile serait **le moins sollicité depuis janvier**, qui
+  répartit sans arbitrage et sans afficher de chiffre d'argent — mais l'écran étant consultatif, ce
+  décompte ne peut venir que des **déclarations MAR**, donc en retard du délai de consultation :
+  juste sur la durée, potentiellement faux sur une journée (cinq orientations le même matin vers le
+  même MAR resteraient invisibles). À trancher avant le développement du Lot 5.
