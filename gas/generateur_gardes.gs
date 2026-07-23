@@ -1,23 +1,7 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   ⚠️  TRAVAIL EN COURS — NE PAS RECOPIER DANS APPS SCRIPT  ⚠️
-   ═══════════════════════════════════════════════════════════════════════════
-   Copie EXPÉRIMENTALE de gas/generateur_gardes.gs, avec les trois mécanismes de
-   garantie de couverture (passe 7ter « jours critiques », anticipation d'un jour,
-   repli VD de la rotation de Noël). Extension .gs.txt VOLONTAIRE : ce fichier ne
-   doit jamais être confondu avec la production.
-
-   État au 22/07/2026 : 0 à 1 jour sans binôme sur 20 ans (contre 3), équité
-   meilleure que la référence sur 2 tirages sur 3. Un cas reste ouvert :
-   le 25/12/2039 (dimanche).
-
-   Protocole de validation et pièges : voir 2026-07_couverture_jours_serres.md
-   dans le même dossier. La production reste gas/generateur_gardes.gs, INCHANGÉ.
-   ═══════════════════════════════════════════════════════════════════════════ */
-
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-07-23.1';
+const GAS_VERSION_GENERATEUR = '2026-07-19.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -384,11 +368,7 @@ function generateGardes(year){
   const weekCntS={}; gardeDoctors.forEach(id=>{weekCntS[id]={};}); // (Fix A3) dont gardes-souhaits
   const monthCnt={}; gardeDoctors.forEach(id=>{monthCnt[id]={};}); // gardes par mois (lissage annuel)
 
-  // _relaxJS : tolère le combo jeudi↔samedi (2 gardes en 3 jours glissants, G-RG-G).
-  // Utilisé UNIQUEMENT en dernier recours par la passe des jours critiques, quand un
-  // jour resterait sinon non pourvu. Aucun autre appelant ne passe ce paramètre :
-  // le comportement par défaut est strictement inchangé.
-  function blocked(id,date,_relaxJS){
+  function blocked(id,date){
     const _dd=FLAGS.dateDebut[id], _df=FLAGS.dateFin[id]; // (F3) arrivée/départ en cours d'année
     if(_dd&&date<_dd) return true;
     if(_df&&date>=_df) return true;
@@ -402,7 +382,7 @@ function generateGardes(year){
     if(gSet[id]?.has(_lend)||g2Set[id]?.has(_lend)) return true; // jamais 2 gardes d'affilée, même si la garde du lendemain est déjà posée (souhait/VD hors ordre chrono)
     // Combo jeudi-samedi interdit (hors jeudi férié couplé)
     const _di=dayByDate[date];
-    if(_di&&!_relaxJS){
+    if(_di){
       if(_di.dow===6){const thu=toDateStr(new Date(new Date(date+'T12:00:00').getTime()-2*86400000)),tdi=dayByDate[thu];
         if(tdi&&!tdi.isFerie&&(gSet[id]?.has(thu)||g2Set[id]?.has(thu))) return true;}
       if(_di.dow===4&&!_di.isFerie){const sat=toDateStr(new Date(new Date(date+'T12:00:00').getTime()+2*86400000));
@@ -574,40 +554,6 @@ function generateGardes(year){
       });
       if(hasFri){cnt[g].vd++;cnt[gg].vd++;}
     };
-    // ── (COUVERTURE) Choix sensible au voisinage ──────────────────────
-    // Poser un binôme sur une date de Noël bloque ses 2 membres la veille, le
-    // lendemain et via le combo jeudi↔samedi. Sur la semaine de Noël, le vivier
-    // des jours voisins est minuscule : consommer la mauvaise personne le 24 rend
-    // le 25 ou le 26 insolubles (constaté : 25/12/2037, 25/12/2039). On prend
-    // donc, DANS L'ORDRE DE LA ROTATION, la première paire qui laisse ≥ 2
-    // disponibles sur chaque jour voisin non encore pourvu. Si aucune paire ne
-    // convient, on garde le choix historique (comportement antérieur inchangé).
-    const bloqueraitSur=(dd,unit)=>unit.some(ud=>{
-      if(dd===ud) return true;
-      if(dd===shiftD(ud,1)||dd===shiftD(ud,-1)) return true;             // veille / lendemain
-      const dU=dayByDate[ud],dD=dayByDate[dd];
-      if(dU&&dD){
-        if(dU.dow===4&&!dU.isFerie&&dD.dow===6&&dd===shiftD(ud,2)) return true;  // jeu→sam
-        if(dU.dow===6&&dD.dow===4&&!dD.isFerie&&dd===shiftD(ud,-2)) return true; // sam→jeu
-      }
-      return false;
-    });
-    const preserveVoisins=(pair,unit)=>{
-      const d0=shiftD(unit[0],-2),d1=shiftD(unit[unit.length-1],2);
-      for(let dd=d0;dd<=d1;dd=shiftD(dd,1)){
-        if(!dayByDate[dd]||gardes[dd]||unit.indexOf(dd)>=0) continue;
-        const gene=bloqueraitSur(dd,unit);
-        const pool=gardeDoctors.filter(id=>!blocked(id,dd)&&!(gene&&pair.indexOf(id)>=0));
-        if(pool.length<2) return false;
-      }
-      return true;
-    };
-    const choisirPaire=(liste,unit)=>{
-      for(let i=0;i<liste.length;i++)
-        for(let j=i+1;j<liste.length;j++)
-          if(preserveVoisins([liste[i],liste[j]],unit)) return [liste[i],liste[j]];
-      return [liste[0],liste[1]];   // aucune paire ne préserve tout : choix antérieur
-    };
     const overdueKey=(m)=>{const ly=noelHistory[m]; return ly==null?[0,0,m]:[1,ly,m];};
     const cmpKey=(a,b)=>a[0]-b[0]||a[1]-b[1]||(a[2]<b[2]?-1:a[2]>b[2]?1:0);
 
@@ -618,111 +564,13 @@ function generateGardes(year){
       let cands=gardeDoctors.filter(m=>!SOUHAIT_PLAFOND.has(m)&&!noelDone.has(m)&&canHoldUnit(m,unit));
       if(cands.length<2) cands=gardeDoctors.filter(m=>!SOUHAIT_PLAFOND.has(m)&&canHoldUnit(m,unit));
       cands.sort((a,b)=>cmpKey(overdueKey(a),overdueKey(b)));
-      if(cands.length<2){
-        // Repli : aucun binôme ne peut tenir l'UNITÉ complète (VD vendredi↔dimanche ou
-        // couplage férié). Plutôt que de laisser la date de Noël NON POURVUE — et de
-        // laisser le placement chronologique consommer entre-temps les dernières
-        // personnes disponibles — on place la date SEULE, exactement comme la
-        // « VD exception » du placement chronologique. Le jour couplé sera pourvu
-        // normalement par la suite.
-        const seule=gardeDoctors.filter(m=>!SOUHAIT_PLAFOND.has(m)&&!blocked(m,date));
-        seule.sort((a,b)=>cmpKey(overdueKey(a),overdueKey(b)));
-        if(seule.length>=2){
-          const [sA,sB]=choisirPaire(seule,[date]);
-          const [gA,gB]=assignRoles(sA,sB);
-          assign(date,gA,gB,dayByDate[date].dow);      // pas de cnt.vd : l'unité est rompue
-          noelDatesAssigned.add(date); noelAssignees[date]=[sA,sB];
-          noelDone.add(sA); noelDone.add(sB);
-          warnings.push(`NOEL/AN ${date} : unité non tenable, date placée seule (repli)`);
-          return;
-        }
-        warnings.push(`NOEL/AN ${date} : <2 dispo`);return;}
-      const [A,B]=choisirPaire(cands,unit);
+      if(cands.length<2){warnings.push(`NOEL/AN ${date} : <2 dispo`);return;}
+      const A=cands[0],B=cands[1];
       assignUnit(unit,A,B); noelAssignees[date]=[A,B];
       noelDone.add(A);noelDone.add(B);
     });
     if(Object.keys(noelAssignees).length)
       Logger.log('Noël/An: '+Object.entries(noelAssignees).map(([d,ab])=>`${d}:${ab.join('+')}`).join(' | '));
-  }
-
-  // ── 7ter. JOURS CRITIQUES — pourvus AVANT tout le reste ───────────────
-  // Un jour non pourvu est le SEUL défaut vraiment grave : il laisse le service sans
-  // binôme. Les jours où très peu de MAR sont disponibles (semaine de Noël, ponts)
-  // sont donc résolus EN PREMIER, par recherche exhaustive sur la série, avant que le
-  // placement chronologique n'ait consommé les rares personnes disponibles.
-  //
-  // Pourquoi c'est nécessaire : sur une série de jours serrés, le placement glouton
-  // choisit chaque jour le meilleur binôme selon l'équité, et épuise ainsi le vivier
-  // du lendemain. Un humain, lui, fait alterner deux binômes sur la période — c'est
-  // exactement ce que cette passe reproduit.
-  //
-  // Périmètre volontairement étroit : uniquement les jours SIMPLES (ni vendredi, ni
-  // dimanche, ni férié couplé), pour ne pas interférer avec les unités VD et les
-  // couplages fériés, qui ont leur propre logique éprouvée. Mesuré : ~1 jour par an.
-  {
-    const SEUIL_CRIT = 4;                       // vivier au-delà duquel il n'y a pas de risque
-    // Nombre de jours de l'année où chaque MAR est structurellement disponible.
-    const dispoAn = {}; gardeDoctors.forEach(id => dispoAn[id] = 0);
-    allDays.forEach(d => gardeDoctors.forEach(id => { if (!blocked(id, d.date)) dispoAn[id]++; }));
-    const simple = d => d.dow!==5 && d.dow!==0 && !(d.isFerie && (d.dow===1||d.dow===4));
-    const poolOf = ds => gardeDoctors.filter(id => !blocked(id, ds));
-    // 1) repérer les jours critiques encore libres (Noël/An est déjà posé)
-    const crit = allDays.filter(d => !gardes[d.date] && simple(d) && poolOf(d.date).length <= SEUIL_CRIT);
-    if (crit.length) {
-      // 2) regrouper en séries de jours consécutifs
-      const series = []; let cur = [];
-      crit.forEach(d => {
-        // helper local : shiftD est déclaré en const DANS le bloc 7bis, donc hors de portée ici
-        const _j1 = ds => toDateStr(new Date(new Date(ds+'T12:00:00').getTime()+86400000));
-        if (cur.length && _j1(cur[cur.length-1].date) === d.date) cur.push(d);
-        else { if (cur.length) series.push(cur); cur = [d]; }
-      });
-      if (cur.length) series.push(cur);
-      // 3) résoudre chaque série exhaustivement : 2 MAR par jour, jamais 2 jours de suite
-      series.forEach(serie => {
-        // Ordre de préférence : les MAR les MOINS souvent disponibles dans l'année
-        // d'abord. Ils ont peu d'occasions de faire leur part ; les utiliser sur les
-        // jours tendus préserve la marge de manœuvre des autres — et donc l'équité
-        // globale, que les compteurs (encore vides à ce stade) ne peuvent pas guider.
-        const faire = relax => serie.map(d => {
-          const p = gardeDoctors.filter(id => !blocked(id, d.date, relax));
-          p.sort((a,b)=> (dispoAn[a]-dispoAn[b]) || cmp(scoreSelect(a,d.dow,d.isVjf,d.date), scoreSelect(b,d.dow,d.isVjf,d.date)));
-          return p;
-        });
-        let pools = faire(false), relache = false;
-        const sol = [];
-        const rec = (i, prev) => {
-          if (i === serie.length) return true;
-          const p = pools[i];
-          for (let a=0; a<p.length; a++) {
-            if (prev.indexOf(p[a]) >= 0) continue;
-            for (let b=a+1; b<p.length; b++) {
-              if (prev.indexOf(p[b]) >= 0) continue;
-              sol[i] = [p[a], p[b]];
-              if (rec(i+1, sol[i])) return true;
-            }
-          }
-          sol[i] = null; return false;
-        };
-        let trouve = rec(0, []);
-        if (!trouve) {
-          // Dernier recours : on tolère le combo jeudi↔samedi (G-RG-G), jamais deux
-          // gardes d'affilée. Un jour non pourvu est bien plus grave qu'une garde
-          // rapprochée, et c'est exactement l'arbitrage que fait le comité à la main.
-          pools = faire(true); relache = true; trouve = rec(0, []);
-        }
-        if (trouve) {
-          serie.forEach((d,i) => {
-            const [A,B] = sol[i];
-            const [g,g2] = assignRoles(A,B);
-            assign(d.date, g, g2, d.dow);
-          });
-          warnings.push(`Couverture : ${serie[0].date}${serie.length>1?'→'+serie[serie.length-1].date:''} pourvu en priorité${relache?' (jeudi↔samedi toléré)':''}`);
-        } else {
-          warnings.push(`Couverture : série ${serie[0].date} sans solution même en priorité`);
-        }
-      });
-    }
   }
 
   // ── 8a. SOUHAITS — deux régimes ──────────────────────────────────────
@@ -821,32 +669,13 @@ function generateGardes(year){
       // VENDREDI : VD (binôme vendredi+dimanche)
       const dimDate=toDateStr(new Date(new Date(date+'T12:00:00').getTime()+2*86400000));
       const dimExists=!!dayByDate[dimDate];
-      // (COUVERTURE) Si le dimanche est DÉJÀ pourvu (repli de la rotation de Noël :
-      // 25/12 tombant un dimanche, posé seul), ne pas reformer d'unité VD :
-      // assign(dimDate) écraserait l'attribution de Noël et corromprait les
-      // compteurs. Le vendredi est alors placé seul (« VD exception »).
-      const availVD=(dimExists&&!gardes[dimDate])?avail.filter(id=>!blocked(id,dimDate)):[];
+      const availVD=dimExists?avail.filter(id=>!blocked(id,dimDate)):[];
       if(availVD.length>=2){
         availVD.sort((a,b)=>cmp(scoreVD(a,date,dimDate),scoreVD(b,date,dimDate)));
-        let A=availVD[0],B=availVD[1];
-        // ── (COUVERTURE) Anticipation du SAMEDI intercalé ────────────────
-        // Le binôme VD est bloqué vendredi, samedi (veille/lendemain) ET dimanche.
-        // S'il ne restait plus 2 personnes disponibles le samedi, on descend dans
-        // le classement scoreVD jusqu'à une paire qui préserve la couverture.
-        // Strictement conditionnel : vivier large → RIEN ne change.
-        const _samC=addOneDay(date);
-        if(dayByDate[_samC]&&!gardes[_samC]){
-          const _poolS=gardeDoctors.filter(id=>!blocked(id,_samC));
-          if(_poolS.filter(id=>id!==A&&id!==B).length<2){
-            let _ok=false;
-            for(let i=0;i<availVD.length&&!_ok;i++)
-              for(let j=i+1;j<availVD.length&&!_ok;j++)
-                if(_poolS.filter(id=>id!==availVD[i]&&id!==availVD[j]).length>=2){
-                  A=availVD[i];B=availVD[j];_ok=true;
-                  warnings.push(`Couverture : binôme VD ${date} ajusté pour préserver le ${_samC}`);
-                }
-          }
-        }
+        const A=availVD[0];
+        const rest=availVD.filter(id=>id!==A);
+        rest.sort((a,b)=>cmp(scoreVD(a,date,dimDate),scoreVD(b,date,dimDate)));
+        const B=rest[0];
         cnt[A].vd++;cnt[B].vd++;
         // Rôles : celui qui a le moins de G prend G, et garde ce rôle vendredi ET dimanche
         const [gV,g2V]=assignRoles(A,B);
@@ -860,33 +689,7 @@ function generateGardes(year){
 
     // Génération normale : sélectionner 2 MARs par équité, puis attribuer rôles
     avail.sort((a,b)=>cmp(scoreSelect(a,dow,day.isVjf,day.date),scoreSelect(b,dow,day.isVjf,day.date)));
-    let A=avail[0],B=avail[1];
-    // ── (COUVERTURE) Anticipation d'UN jour ────────────────────────────
-    // Ne pas vider le vivier du LENDEMAIN : les deux retenus y seront bloqués (jamais
-    // deux gardes d'affilée). S'il ne resterait plus 2 personnes demain, on descend
-    // dans le classement d'équité jusqu'à une paire qui préserve la couverture.
-    // Strictement conditionnel : en temps normal le vivier est large et RIEN ne change.
-    // Jours à préserver : le lendemain, plus le SAMEDI (+2) si on place un jeudi
-    // non férié — le combo jeudi↔samedi bloque aussi le binôme du jeudi ce jour-là.
-    // Vérification CONJOINTE : la paire retenue doit préserver TOUS ces jours à la
-    // fois (ajuster pour l'un ne doit pas sacrifier l'autre).
-    const _lendC=addOneDay(date);
-    const _protC=[_lendC];
-    if(dow===4&&!day.isFerie) _protC.push(addOneDay(_lendC));
-    {
-      const _pools={};
-      _protC.forEach(_dP=>{ if(dayByDate[_dP]&&!gardes[_dP]) _pools[_dP]=gardeDoctors.filter(id=>!blocked(id,_dP)); });
-      const _pres=(x,y)=>Object.keys(_pools).every(_dP=>_pools[_dP].filter(id=>id!==x&&id!==y).length>=2);
-      if(Object.keys(_pools).length&&!_pres(A,B)){
-        let _ok=false;
-        for(let i=0;i<avail.length&&!_ok;i++)
-          for(let j=i+1;j<avail.length&&!_ok;j++)
-            if(_pres(avail[i],avail[j])){
-              A=avail[i];B=avail[j];_ok=true;
-              warnings.push(`Couverture : binôme ${date} ajusté pour préserver ${Object.keys(_pools).join(' et ')}`);
-            }
-      }
-    }
+    const A=avail[0],B=avail[1];
     const [g,g2]=assignRoles(A,B);
     assign(date,g,g2,dow);
   });
