@@ -91,7 +91,11 @@ function bloc(im,y,mois,jour,nb,code){
   }
 }
 // Plafond d'indisponibilités « INDISPO » par MAR et par an (hors VAC / FORM / CL).
-const PLAFOND_INDISPO=30;
+// Volume calé sur la FEUILLE RÉELLE 2026 (relevé du 22/07/2026) : 81 jours bloqués
+// par MAR et par an, dont ~40 de congés — le reste étant indisponibilités et formation.
+// La feuille marque « I » sur tout jour où le MAR ne peut pas prendre de garde, sans
+// distinguer les motifs ; on reconstitue ici la composition.
+const PLAFOND_INDISPO=42;
 // Fériés de l'année : fixes + MOBILES CALCULÉS (Pâques par l'algorithme de Meeus).
 // ⚠️ Ne pas approximer les mobiles par une plage de dates : le lundi de Pâques va du
 // 23 mars au 26 avril et celui de Pentecôte du 11 mai au 14 juin. Une plage trop
@@ -136,7 +140,7 @@ function planifierEte(year,roster){
   [...gard,...autres].forEach((id,i)=>{
     const qq=quot[id]||100;
     // Congés d'été au prorata du temps de travail.
-    const dur=(qq>=80?2:1)+((qq>=100&&i%3===0)?1:0);
+    const dur=(qq>=80?2:1)+((qq>=100&&i%2===0)?1:0);   // 3 semaines l'été pour la moitié des temps pleins
     let best=-1,bestC=1e9;
     for(let st=0;st+dur<=sams.length;st++){
       let mx=0; for(let k=0;k<dur;k++) mx=Math.max(mx,occup[st+k]);
@@ -186,8 +190,20 @@ function buildAbsences(year,roster){
       while(d.getUTCDay()!==6) d.setUTCDate(d.getUTCDate()+1);
       bloc(m,year,d.getUTCMonth()+1,d.getUTCDate(),nb,'VAC');
     };
-    if(idx%2===0) auSamedi(12,18+Math.floor(R()*5),7);
-    else           auSamedi(1,2+Math.floor(R()*5),7);
+    // ⚠️ La semaine de NOËL concentre les absences : sur la feuille réelle 2026, le
+    // 27/12 voit 17 gardeurs sur 20 indisponibles — c'est le point le plus tendu de
+    // l'année, bien avant l'été. On reproduit ce pic : ~2/3 posent la semaine de Noël,
+    // le tiers restant celle du Nouvel An.
+    // FIN D'ANNÉE — la seule période où les congés ne sont PAS alignés sur le samedi :
+    // chacun cale sa semaine autour du 24-25 selon ses contraintes familiales. La feuille
+    // réelle 2026 le montre : les absences montent progressivement (8, 8, 9, 12, 16, 15,
+    // puis 17 le 27/12) avant de retomber à 9 le 28. Un bloc identique pour tous créait
+    // au contraire un plateau de 6 jours à 3 disponibles — situation où AUCUNE
+    // alternance de binômes n'est mathématiquement possible (vérifié le 22/07/2026).
+    // Les départs sont donc échelonnés jour par jour sur la fenêtre 18/12 → 30/12.
+    const depNoel=18+((idx*5+Math.floor(R()*3))%13);
+    if(depNoel<=25) bloc(m,year,12,depNoel,7,'VAC');
+    else bloc(m,year,12,depNoel,32-depNoel,'VAC');   // tronqué au 31/12 (l'année suivante gère janvier)
     // DEUX semaines de vacances scolaires : avec l'été et la semaine de fin d'année,
     // on atteint ~40 jours de congés par an pour un temps plein — l'usage réel du service.
     // ⚠️ Les congés d'un temps partiel sont PROPORTIONNELS à son temps de travail :
@@ -212,7 +228,7 @@ function buildAbsences(year,roster){
     if(nScol>=2) creneau(3);
     // ── FORMATION / CONGRÈS : 1 ou 2 blocs de 2 à 4 jours
     // Pas de congrès un jour férié : on décale le bloc s'il tombe dessus.
-    const nf=1+(R()<0.5?1:0);
+    const nf=1+(R()<0.75?1:0);   // 1 ou 2 congrès dans l'année
     for(let k=0;k<nf;k++){
       const mo=2+Math.floor(R()*10), jo=3+Math.floor(R()*24), nb=2+Math.floor(R()*3);
       const d0=new Date(Date.UTC(year,mo-1,jo));
