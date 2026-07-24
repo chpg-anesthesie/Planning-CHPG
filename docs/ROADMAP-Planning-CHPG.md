@@ -1,7 +1,7 @@
 # Roadmap — Planning-CHPG
 
 Système web : **planning des gardes** (équité annuelle) + **planning quotidien** + **consultations** + **portail/Dashboard** + **veille biblio** + **CR d'anesthésie**, pour ~23 MARs au CHPG (Monaco).
-Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 23 juillet 2026 (couverture des jours serrés livrée — 13 jours sans binôme → 1 sur 140 années simulées, équité meilleure que la référence).*
+Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 23 juillet 2026 (couverture des jours serrés livrée — 13 jours sans binôme → 0 sur 140 années simulées, équité et vitesse meilleures que la référence).*
 
 > Le dépôt en ligne fait foi. Cette roadmap est un repère de pilotage, pas la source de vérité du code.
 
@@ -527,23 +527,25 @@ basculaient en VOLANT à la publication sans que personne ne le voie.
 - **Constante `FICHES` supprimée d'`admin.html`** (site v1.9.1) : 27 lignes de **code mort**, déclarées mais lues nulle part, remplacées de longue date par l'assistant `openWizardDepart`. Elles contenaient deux renvois vers des pages/onglets **inexistants** (« onglet Modifications de `comite.html` », « onglet Paramètres »). Le contenu utile est déjà couvert, mieux, par `guide-comite.html` (§ ajout d'un MAR).
 - **Roadmap rangée** : les lots terminés (estimateur, C, D, E) sont passés de « À faire » à « Fait ». La section « À faire » est repassée de ~12 700 à ~3 700 caractères. Une puce **CRH** orpheline de son parent « Dashboard / portail » a été recollée.
 
-### Couverture des jours serrés — LIVRÉ (23 juillet 2026) · `gas/generateur_gardes.gs` v2026-07-23.1
-**13 jours sans binôme → 1**, sur 140 années simulées, **sans dégrader l'équité** (meilleur que la référence sur les quatre mesures).
+### Couverture des jours serrés — LIVRÉ (23 juillet 2026) · `gas/generateur_gardes.gs` v2026-07-23.2
+**13 jours sans binôme → 0**, sur 140 années simulées, **avec une équité et une vitesse meilleures que la référence**.
 
 - **Une première version a été poussée puis retirée le même jour** : elle fermait tous les trous mais dégradait l'équité des week-ends (écart par axe 5,3 contre 3,4). Dépôt restauré, passe réécrite, aucune recopie dans Apps Script entre-temps — la production n'a jamais été touchée.
 - **Cause** : la passe « jours critiques » classait par disponibilité annuelle, ce qui écrasait l'équité. **Cause du non-détection** : la batterie ne mesurait que l'écart au *total*, jamais par axe.
 - **Moteur retenu** : l'équité pilote le choix (la disponibilité départage) · énumération des combinaisons avec sélection de **la moins coûteuse en équité**, borne dure de 20 000 essais · samedis maintenus dans le périmètre · avertissement au comité en cas de choix contraint.
+- **Passe de dernier recours (le mécanisme décisif)** : le moteur renonçait dès qu'il restait moins de deux personnes disponibles, sans essayer la tolérance qu'il avait déjà. Il retente désormais en **tolérant le combo jeudi↔samedi** — légal, ce n'est pas deux gardes d'affilée. Les deux règles dures ne bougent jamais : jamais deux gardes consécutives, jamais de garde sur une absence déclarée. Ce seul ajout fait passer de 1 trou à **0**.
 
 | | référence | livré |
 |---|---|---|
-| jours sans binôme (140 années) | 13 | **1** |
+| jours sans binôme (140 années) | 13 | **0** |
 | pire écart par axe | 3,4 | **3,3** |
-| années avec écart ≥ 3 | 4 | **3** |
+| années avec écart ≥ 2 | 45 (32 %) | **38 (27 %)** |
+| temps de génération | 7 635 ms/an | **7 456 ms/an** |
 | gardes consécutives / sur absence | 0 | **0** |
 
-- **Banc de torture** : batterie 11 scénarios identique au caractère près · déterminisme confirmé (3 exécutions) · stress +50 % d'indispos et équipe réduite → 0 trou · stress 12 congés à Noël → 14 trous, **tous avertis** · 8,4 s/an contre 7,6.
+- **Banc de torture** : batterie 11 scénarios identique au caractère près · déterminisme confirmé (3 exécutions) · stress +50 % d'indispos et équipe réduite → 0 trou · stress 12 congés à Noël → 12 trous, **tous avertis** · 7,5 s/an contre 7,6.
 - **Sur tous les tests : avertissements « Manque MAR » = trous.** Aucun jour non pourvu ne peut être publié sans être signalé.
-- **Contreparties** : 2 combos jeudi↔samedi et 2 couplages fériés dégradés sur 140 années, chacun signalé au comité.
+- **Contreparties** : 2 combos jeudi↔samedi et 4 couplages samedi→lundi dégradés sur 140 années, chacun signalé au comité.
 - ⚠️ Prouvé **par simulation**. La génération réelle d'une année dans le classeur (Wizard 2) reste à faire.
 - **`simulateur/eval.js`** : contrôle par axe, désormais obligatoire avant toute livraison du générateur.
 - **`simulateur/demographie.js` corrigé** : le MAR à 80 % avait un jour off fixe hebdomadaire, qui rendait un axe structurellement impossible (70 % d'années au rouge, artefact pur). Jours désormais dispersés.
