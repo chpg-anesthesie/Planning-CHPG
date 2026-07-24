@@ -35,6 +35,14 @@
 *ergonomie admin validée sur maquette conditions réelles (volet « ◆ Libéral » gauche par MAR,*
 *vert/orange, toast si aucune intervention, grille intacte). indispos.html sort du périmètre libéral.*
 *§6.2–6.4, 11, 12, 13 mis à jour.*
+***v3.18 — 24/07/2026** : **virage majeur du Lot 5**. Le créneau de consultation est posé par la*
+*secrétaire du **chirurgien**, à l'aveugle (premier créneau libre, sans MAR nommé) → l'écran n'est*
+*plus un outil de proposition de dates mais un outil d'**attribution au fil de l'eau** : la date ne*
+*bouge jamais, seul **qui voit le patient** change, de façon invisible pour lui. **Le prérequis*
+*d'horizon (décision 21) tombe.** Taux d'appariement révisés à la baisse : **56 / 70 / 80 %** selon*
+*2, 3 ou 4 consultants en parallèle (et non 80 % partout). Source des patients identifiée et testée.*
+*Décisions 23 à 25. **La maquette du 24/07 est périmée** (l'entrée de l'écran change).*
+
 ***v3.17 — 24/07/2026** : **audit GAS du Lot 5** (lecture réelle des 5 fichiers `gas/`). Source de*
 *données identifiée (`planning_{Y}.json` via `getPlanningJson`, code-gated non-admin) ; **prérequis*
 *d'organisation** isolé (horizon de placement des consultations 1 → 3–4 semaines) ; **piège des deux*
@@ -594,6 +602,77 @@ MAR postérieures : la position utilisée a plusieurs jours à plusieurs semaine
 cas le plus contraint : au NCHPG, le bloc centralisé rend le rang A beaucoup plus fréquent. Ce qui
 marche aujourd'hui marchera forcément après.
 
+**Virage du 24/07/2026 — attribution au fil de l'eau.**
+
+*Ce qu'on a découvert.* Le rendez-vous d'anesthésie est pris par la **secrétaire du chirurgien**,
+dès la consultation chirurgicale, sur le **premier créneau libre** compatible avec la lourdeur du
+geste (anticoagulants, etc.). Elle ne choisit **aucun MAR** — elle ne connaît pas les plannings
+d'anesthésie — et le créneau n'est **rattaché à personne**. L'appariement entre le MAR qui consulte
+et celui qui endormira est donc aujourd'hui **essentiellement aléatoire**. Conséquence : trois
+patients libéraux peuvent atterrir sur la même demi-journée avec trois dates opératoires
+différentes.
+
+*Le levier n'est pas la date, c'est l'attribution.* On ne déplace **jamais** un rendez-vous : le
+patient vient au jour et à l'heure fixés par la secrétaire du chirurgien. Ce qui change est interne
+— **lequel des MARs qui consultent cette demi-journée le voit**. Le patient n'a jamais eu de nom
+(décision : il reçoit date et heure seulement), il n'est jamais rappelé, rien n'est réorganisé pour
+lui. Aucune demande n'est faite aux secrétaires des chirurgiens : c'est ce qui permet à cette
+option de contourner le blocage.
+
+*Attribution unitaire et définitive — il n'y a rien à réorganiser.* Chaque patient est attribué
+**une fois, au moment où il est repéré**, et ne bouge plus. Traiter les nouveaux arrivants ne
+suppose pas de rejouer les précédents : c'est une **file d'attente**, pas un plan de consultation à
+refaire quotidiennement.
+
+*Le glouton est optimal (simulation, 60 000 tirages par cellule).* Les patients **ne se font pas
+concurrence** : un MAR peut en voir plusieurs sur la même demi-journée. Attribuer au fil de l'eau
+donne donc **exactement** le même résultat qu'une optimisation globale à froid — le taux est
+indépendant du nombre de patients sur la demi-journée (testé de 1 à 6).
+
+| MARs consultant en parallèle | Attribution aveugle | Attribution optimisée |
+|---|---|---|
+| 2 (cas le plus fréquent) | 33 % | **56 %** |
+| 3 | 33 % | **70 %** |
+| 4 (maximum observé) | 33 % | **80 %** |
+
+Formule : `1 − (1−p)^m`, avec `p ≈ 1/3` (probabilité qu'un MAR donné soit disponible au bloc à une
+date donnée, hôpital actuel) et `m` = nombre de consultants. ⚠️ **Correction d'une survente** : le
+chiffre de 80 % annoncé le 24/07 supposait 4 consultants partout ; la réalité étant surtout 2 ou 3,
+l'ordre de grandeur réel est **60–70 %, soit environ le double de l'existant** — pas 80 %. Sur ~40
+patients/semaine : de ~13 appariements à ~25. Sous contrainte d'horaire (deux patients au même
+créneau ne peuvent aller au même MAR), le taux ne perd que 2 à 8 points.
+
+*🟢 Le prérequis d'horizon tombe (annule la décision 21).* L'attribution se décide **quelques jours
+avant la consultation**, quand le planning de cette demi-journée est déjà posé : **une semaine
+d'horizon suffit**. La disponibilité au bloc, elle, vient de `GARDES` et `AFFECTATIONS`, connues
+**toute l'année** — savoir si le Dr X sera là le 12 mars ne dépend d'aucun horizon. Corollaire
+contre-intuitif : **les patients placés à moins d'une semaine du bloc sont les mieux renseignés**,
+pas les plus difficiles.
+
+*Source des patients — testée par Arthur le 24/07/2026.* Les secrétaires des chirurgiens utilisent
+**le même logiciel** que le service ; le **statut libéral y est visible** et les patients sont
+**flashés « Libéral »**. Il est possible de **filtrer les consultations d'une semaine sur le statut
+libéral**. Limite constatée : la **date opératoire n'apparaît pas dans la vue liste**, il faut
+ouvrir chaque patient. Coût estimé : ~20–30 s par patient, soit **15–20 min/semaine** pour ~40
+patients. Aucune notification n'existe (« nouveau patient libéral le 12/03 ») : le repérage est
+**tiré**, pas poussé. → **Optimisation à demander à la DSI** : faire remonter la date opératoire
+dans la vue liste ou dans un export. La donnée existe déjà dans le dossier ; c'est du paramétrage
+d'affichage, pas du développement. Gain : les ~40 ouvertures de dossier tombent à zéro.
+
+*Rythme.* **Deux passages hebdomadaires** (un le lundi pour la semaine suivante, un en milieu de
+semaine pour les ajouts) plutôt qu'un balayage quotidien — l'attribution étant définitive et
+unitaire, rien n'oblige à la quotidienneté.
+
+*🟢 Principe « jamais pire que l'existant ».* Un patient qui passe entre deux balayages retombe sur
+l'attribution aléatoire d'aujourd'hui. **L'outil ne peut jamais dégrader la situation**, seulement
+améliorer ce qu'il attrape. → **Aucune exigence d'exhaustivité**, aucune surveillance quotidienne,
+aucune pression opérationnelle. C'est ce qui rend le dispositif tenable dans la durée.
+
+*Qui fait le travail.* Arthur au démarrage. Cible envisagée : **répartition par secteur** — un des
+MARs affectés aux endoscopies traite les endoscopies, etc. À confirmer à l'usage.
+
+---
+
 **Audit GAS — prérequis techniques (24/07/2026).** Lecture réelle des cinq fichiers `gas/`.
 
 *Source de données.* `planning_{Y}.json` contient déjà, **pour chaque MAR et chaque jour**, quatre
@@ -735,12 +814,27 @@ go-live octobre 2026.
 20. **Lot 5 — source de données** : `planning_{Y}.json` via `getPlanningJson` (déjà code-gated,
     non-admin). **Interdiction de réutiliser `getMARsDispoJour`** : sa liste d'absence conserve
     volontairement `TP` et `R`, ce qui ferait proposer un MAR son jour de non-travail.
-21. **Lot 5 — prérequis d'organisation bloquant** : horizon de placement des consultations porté de
-    **1 à 3–4 semaines** par le comité. Sans lui l'écran ne peut proposer aucune date utile, et
-    aucun repli fiable n'existe (`CS_TEMPLATE` ne nomme personne, `CS_RULES` est gelé).
+21. **Lot 5 — ~~prérequis d'organisation bloquant~~ ANNULÉE le 24/07/2026 (v3.18).** Portait sur
+    l'extension de l'horizon de placement des consultations de 1 à 3–4 semaines. Sans objet depuis
+    le virage vers l'attribution au fil de l'eau : l'attribution se décide quelques jours avant la
+    consultation, une semaine d'horizon suffit. Conservée pour mémoire.
 22. **Lot 5 — accès** : `SECRETARIAT_CODE` dans `CONFIG` → rôle `secretariat`, avec **liste blanche
     d'actions en lecture seule** posée dans le même geste (sans quoi le code atteindrait
     `declareLiberal` et les autres écritures déléguées à `portail.gs`).
+
+23. **Lot 5 — nature de l'outil** : **attribution au fil de l'eau**, pas proposition de dates. La
+    date du rendez-vous ne bouge **jamais** ; seul change, en interne, **quel MAR voit le patient**.
+    Invisible pour le patient (il ne reçoit que date et heure). **Rien n'est demandé aux secrétaires
+    des chirurgiens.** Attribution **unitaire et définitive** : un patient attribué ne bouge plus,
+    aucun plan à rejouer. Le **glouton est optimal** (les patients ne se font pas concurrence).
+24. **Lot 5 — source des patients** : filtre hebdomadaire « statut libéral » du logiciel de
+    rendez-vous (même logiciel que le service, statut visible, patients flashés « Libéral »).
+    Repérage **tiré**, jamais poussé — aucune notification n'existe. **Deux passages hebdomadaires**
+    suffisent. Optimisation à obtenir de la DSI : date opératoire dans la vue liste ou en export.
+25. **Lot 5 — principe « jamais pire que l'existant »** : un patient non attrapé retombe sur
+    l'attribution aléatoire actuelle. **Aucune exigence d'exhaustivité** ni de surveillance
+    quotidienne. Ce principe est ce qui rend le dispositif tenable ; il doit être rappelé à toute
+    personne qui reprendra le sujet, et interdit d'en faire une astreinte.
 
 ---
 
@@ -791,3 +885,15 @@ go-live octobre 2026.
 - **Lot 5 — zone d'indifférence (mineur, non urgent).** Un tri strict sur la marge ferait traverser
   l'hôpital pour un écart négligeable (12 000 € contre 11 500 €). À marges proches, privilégier
   celui qui est déjà sur place. Sans objet tant que la partition reste binaire.
+- **Lot 5 — où écrire l'attribution ?** Point ouvert, seul reliquat structurel. Aujourd'hui le
+  créneau de consultation n'est **rattaché à aucun MAR** dans le logiciel de rendez-vous (Arthur :
+  « idéalement ça serait un MAR nommé » — c'est une cible, pas l'état actuel). Il faut donc décider
+  où vit le rattachement « le 5 mars après-midi, Dr X voit ces patients-là » : (a) dans le logiciel
+  de rendez-vous s'il accepte de nommer un praticien sur un créneau, (b) dans Planning-CHPG, ce qui
+  suppose une écriture — donc revenir sur le caractère purement consultatif acté en décision 15 —,
+  (c) hors système (liste imprimée, tableau partagé). C'est **une pratique interne à créer**, pas
+  une fonction à coder : le prérequis est chez le service, pas chez les secrétaires des chirurgiens.
+- **Lot 5 — la maquette `maquette_ecran_secretaire.html` est périmée.** Elle implémente l'écran
+  « quelles dates proposer » (entrée : date d'intervention + secteur). L'entrée devient « liste des
+  patients libéraux repérés » (date de consultation + date opératoire + secteur). Le filtre de
+  disponibilité, les deux rangs et la forme A restent valables. À refaire.
