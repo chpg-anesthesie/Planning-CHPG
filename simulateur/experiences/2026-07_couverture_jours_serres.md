@@ -109,6 +109,25 @@ Aucun jour non pourvu ne peut être publié sans être signalé.
 deux gardes d'affilée) et 4 couplages samedi→lundi dégradés de plus (21 → 25). Chacun
 est signalé au comité au moment de la génération.
 
+## Génération RÉELLE en production — 23/07/2026
+
+Au-delà des 140 années simulées et du rejeu de 2026, l'année **2027 a été générée
+pour de vrai dans le classeur du service**, avec le code déployé (`2026-07-23.3`).
+
+Conditions : 25 MAR, indisponibilités réalistes (données réelles 2026 décalées de
+364 jours, ~2 000 jours d'absence), souhaits de 3 MAR sur les mardis — dont PRUNET
+en régime plafond (44 mardis) et deux MAR en régime normal (10 mardis chacun).
+
+Résultat :
+- **Zéro jour sans binôme.**
+- **Écart maximal à la cible : 1,2 garde** (meilleur que les 1,4 du rejeu 2026 et
+  que les 3,3 des simulations).
+- Une **alerte d'effectif limite en décembre**, correctement levée par la passe des
+  jours tendus — le mécanisme a repéré la semaine de Noël et l'a traitée en priorité.
+
+C'est la validation qui manquait : mêmes conditions que la production, dans le vrai
+classeur, avec le vrai code déployé.
+
 ## Le moteur retenu
 
 1. **L'équité pilote le choix** ; la disponibilité annuelle ne sert plus qu'à départager.
