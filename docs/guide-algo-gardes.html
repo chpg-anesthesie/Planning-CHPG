@@ -306,18 +306,28 @@
 <!-- ============ 14 ============ -->
 <section id="a14">
   <h2><span class="n">14</span>Éprouvé sur 140 années simulées</h2>
-  <p>Avant de répartir une seule vraie garde, l'algorithme a été mis à l'épreuve sur <strong>140 années de planning simulées</strong> : <strong>sept scénarios d'absences différents, de vingt années consécutives chacun</strong> (2027 → 2046), enchaînées comme en vrai — chaque année héritant de la précédente. Chaque scénario reprend la réalité du service : notre équipe et sa pyramide des âges, l'arrêt des gardes à 60 ans, les départs à la retraite et l'arrivée des remplaçants, environ 35 jours d'absence par personne et par an, des congés longs, et des souhaits de jours fixes. Sept fois, avec des congés tirés différemment — parce qu'une année qui tombe bien ne prouve rien.</p>
+  <p>Avant de répartir une seule vraie garde, l'algorithme a été mis à l'épreuve sur <strong>140 années de planning simulées</strong> : <strong>sept scénarios d'absences différents, de vingt années consécutives chacun</strong> (2027 → 2046), enchaînées comme en vrai — chaque année héritant de la précédente. Chaque scénario reprend la réalité du service : notre équipe et sa pyramide des âges, l'arrêt des gardes à 60 ans, les départs à la retraite et l'arrivée des remplaçants, environ 80 jours d'absence par personne et par an, des congés longs, et des souhaits de jours fixes. Sept fois, avec des congés tirés différemment — parce qu'une année qui tombe bien ne prouve rien.</p>
   <ul>
-    <li><strong>Plus de 100 000 gardes placées</strong>, sans qu'aucune règle de protection ne soit jamais enfreinte : jamais deux gardes deux jours de suite, jamais de garde sur une absence déclarée, une récupération pour chaque samedi — sur les 140 années, sans exception.</li>
+    <li><strong>102 312 gardes placées</strong>, sans qu'aucune règle de protection ne soit jamais enfreinte : jamais deux gardes deux jours de suite, jamais de garde sur une absence déclarée, une récupération pour chaque samedi — sur les 140 années, sans exception.</li>
     <li><strong>Aucune journée sans binôme</strong>, sur aucun des sept scénarios. C'est la garantie la plus importante du système : le service n'est jamais laissé sans garde, y compris sur la semaine de Noël, quand les trois quarts de l'équipe sont en congé. L'algorithme fait alors alterner deux binômes sur la période, exactement comme le comité le faisait à la main.</li>
-    <li><strong>L'équité tient dans la durée</strong> : sur l'ensemble de la période, chacun réalise entre <strong>98,6 % et 101,5 %</strong> de sa juste part. Les petits écarts d'une année (une garde ou deux, liés au calendrier ou aux absences) sont rattrapés l'année suivante par la dette d'équité.</li>
+    <li><strong>L'équité tient dans la durée</strong> : l'écart le plus important d'une année, tous types de gardes confondus, est de <strong>1,7 garde en médiane</strong> et n'a jamais dépassé <strong>3,3</strong>. Sur près de trois années sur quatre, <strong>personne</strong> n'est à plus de 2 gardes de sa juste part sur aucun axe. Les écarts d'une année sont rattrapés la suivante par la dette d'équité.</li>
     <li><strong>Le creux démographique est traversé</strong> : autour de 2038-2041, l'équipe simulée descend à quinze gardeurs. La charge de chacun monte — mais elle monte <em>pareil pour tous</em>, proportionnellement à sa quotité.</li>
     <li><strong>La rotation Noël / Jour de l'an fonctionne</strong> : sur vingt ans, personne n'est oublié et personne n'enchaîne deux années de suite.</li>
     <li><strong>Une seule tolérance, deux fois en 140 ans</strong> : quand une journée resterait sinon sans binôme, l'algorithme s'autorise le rythme garde – repos – garde sur trois jours (jeudi puis samedi). Une garde rapprochée reste préférable à un service découvert. Les deux gardes d'affilée, elles, ne sont jamais tolérées : c'est illégal.</li>
+    <li><strong>Il n'abandonne jamais une journée sans avoir tout essayé.</strong> Si le placement habituel échoue, il reprend la journée et retente en acceptant cette tolérance — exactement le raisonnement du comité, qui cassait la contrainte la moins gênante plutôt que de laisser un jour découvert. Et si vraiment personne n'est disponible, il le signale nommément, avec la date, <em>avant</em> publication : le comité n'est jamais mis devant le fait accompli.</li>
   </ul>
+  <h3>Et sur une vraie année : 2026</h3>
+  <p>La simulation ne suffit pas : l'algorithme a aussi été confronté au <strong>planning 2026 réel</strong> — les indisponibilités effectivement saisies par chacun, l'équipe réelle avec ses quotités, et l'historique des Noëls passés. Le planning 2026 avait été construit à la main, sans aucun trou : c'était donc un juge exigeant.</p>
+  <ul>
+    <li><strong>Toutes les journées de l'année sont pourvues</strong>, y compris la semaine de Noël où dix-huit gardeurs sur vingt-trois étaient absents.</li>
+    <li><strong>Aucune règle de protection enfreinte</strong>, aucune exception nécessaire sur l'année entière.</li>
+    <li><strong>Écart d'équité maximal : 1,4 garde</strong>, tous types de gardes confondus.</li>
+    <li><strong>La rotation de Noël retrouve les mêmes personnes que le comité</strong> : sept des huit MAR retenus sur les quatre dates n'avaient jamais fait Noël ni le Jour de l'an, la huitième remontait à 2024.</li>
+  </ul>
+
   <div class="callout tip">
     <div class="ct">Pourquoi c'est important</div>
-    <p>Un planning équitable une année, c'est facile à promettre. Sept trajectoires de vingt ans, avec des départs, des arrivées, des congés longs et des souhaits tirés différemment à chaque fois — c'est ce que la simulation vérifie, chiffres à l'appui.</p>
+    <p>Un planning équitable une année, c'est facile à promettre. Sept trajectoires de vingt ans, avec des départs, des arrivées, des congés longs et des souhaits tirés différemment à chaque fois — puis l'épreuve d'une année réelle dont on connaissait déjà la solution : c'est ce que ces vérifications établissent, chiffres à l'appui.</p>
   </div>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
