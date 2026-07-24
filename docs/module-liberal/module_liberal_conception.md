@@ -35,6 +35,11 @@
 *ergonomie admin validée sur maquette conditions réelles (volet « ◆ Libéral » gauche par MAR,*
 *vert/orange, toast si aucune intervention, grille intacte). indispos.html sort du périmètre libéral.*
 *§6.2–6.4, 11, 12, 13 mis à jour.*
+***v3.17 — 24/07/2026** : **audit GAS du Lot 5** (lecture réelle des 5 fichiers `gas/`). Source de*
+*données identifiée (`planning_{Y}.json` via `getPlanningJson`, code-gated non-admin) ; **prérequis*
+*d'organisation** isolé (horizon de placement des consultations 1 → 3–4 semaines) ; **piège des deux*
+*listes d'absence** documenté ; code secrétariat + liste blanche actés. Décisions 20 à 22.*
+
 ***v3.16 — 24/07/2026** : **plancher de marge résiduelle acté** (≥ 3 patients pour rester en*
 *bloc 1 ; conversion euros → patients par **moyenne globale du groupe** en V1) et **bloc 2 replié***
 *par défaut. Arbitrage explicité : accepter un risque de dépassement borné plutôt qu'un déplacement*
@@ -589,7 +594,59 @@ MAR postérieures : la position utilisée a plusieurs jours à plusieurs semaine
 cas le plus contraint : au NCHPG, le bloc centralisé rend le rang A beaucoup plus fréquent. Ce qui
 marche aujourd'hui marchera forcément après.
 
----
+**Audit GAS — prérequis techniques (24/07/2026).** Lecture réelle des cinq fichiers `gas/`.
+
+*Source de données.* `planning_{Y}.json` contient déjà, **pour chaque MAR et chaque jour**, quatre
+champs : `status` (code GARDES), `morning`, `afternoon` (secteur) et `cs` (consultation). Tout ce
+dont la couche 1 a besoin y est **déjà calculé**. Il est servi par l'action **`getPlanningJson`**,
+protégée par un code mais **sans exigence de rôle admin** → consommable par un code secrétariat sans
+toucher à la logique d'autorisation. Aucune nouvelle donnée à produire.
+
+*⚠️ Piège des deux listes d'absence — ne pas réutiliser `getMARsDispoJour`.* La fonction
+`getMARsDispoJour` (Indispos.gs) fait déjà ~80 % du calcul rang A / rang B, mais **deux listes
+d'absence divergentes coexistent dans le code** :
+
+| Emplacement | Codes considérés absents |
+|---|---|
+| `code.gs:245` — `ABSENT_CODES` | `RG V F CTP CP R A TP CL` (9) |
+| `Indispos.gs:2773` — `ABSENT_CODES_SET` | `RG V CP F CTP A CL` (7) — **sans `R` ni `TP`** |
+
+`getMARsDispoJour` conserve **volontairement** les `TP` (jour fixe non travaillé) et les `R`, en les
+étiquetant : le comité peut vouloir les rappeler pour combler un trou. Pour le Lot 5, c'est
+exactement l'échec silencieux redouté — l'écran proposerait un MAR **son jour de non-travail**.
+**Le Lot 5 lit `planning_{Y}.json`, il ne réutilise pas `getMARsDispoJour`.**
+
+*Gardes.* `G` et `G2` ne figurent dans aucune des deux listes : un MAR de garde le jour de
+l'intervention est compté **présent**. Confirmé par Arthur — il peut endormir un patient libéral
+dans la journée, la garde commence le soir.
+
+*🔴 Prérequis d'organisation — bloquant.* `GENERER_CONSULTATIONS = false` : les consultations ne sont
+pas générées, le comité les place **à la main** via les overrides. Le champ `cs` n'est donc rempli
+que sur l'horizon déjà traité, **une semaine** aujourd'hui. Or l'écran doit proposer des dates de
+consultation à 3–4 semaines. Les deux besoins n'ont pas le même horizon : la **disponibilité au jour
+de l'intervention** est connue toute l'année (gardes et affectations annuelles), les **jours de
+consultation** ne le sont qu'à sept jours. **Passer l'horizon de placement des consultations de 1 à
+3–4 semaines est un prérequis dur du Lot 5**, à obtenir du comité avant tout développement.
+*Statut : acquis (Arthur, 24/07/2026 — « rien ne l'empêche, ça sera fait »), à confirmer en
+pratique.*
+
+*Pas de repli fiable.* `CS_TEMPLATE` ne donne que le **nombre** de créneaux par jour de semaine et
+par type (`required[dow][am|pm][code] = n`), jamais **qui** les tient — or c'est le nom qui fait
+tout l'intérêt. La logique d'attribution automatique (`CS_RULES`, qui déduit le consultant de son
+secteur du mois) existe mais est désactivée **et** fait partie des règles gelées jusqu'au plan du
+NCHPG : à ne pas mobiliser pour ça.
+
+*Accès secrétariat.* Entrée **`SECRETARIAT_CODE`** dans `CONFIG` ; `checkCode` renvoie
+`{role:'secretariat'}`. Nouveau code **et** nouveau rôle : un code doit porter un rôle, sinon il est
+indistinguable d'un MAR. **Liste blanche obligatoire dans le même geste** : aujourd'hui tout ce qui
+n'est pas explicitement réservé à l'admin est accessible dès qu'un code est valide — un code
+secrétariat atteindrait donc des actions d'écriture, `declareLiberal` en particulier (déléguée à
+`portail.gs` sans contrôle de rôle). Le rôle `secretariat` n'a droit qu'aux **lectures nécessaires**,
+tout le reste est refusé.
+
+*Déjà en place.* `declareLiberal`, `deleteLiberal`, `listLiberal`, `listLiberalJour` existent dans
+`portail.gs`, avec l'onglet `LIBERAL_{Y}`. La déclaration d'intervention est **construite**, pas
+seulement conçue → source de données déjà disponible pour le futur compteur.
 
 ---
 
@@ -674,6 +731,16 @@ go-live octobre 2026.
 19. **Lot 5 — bloc 2 replié par défaut** derrière un lien « voir d'autres dates ». Pas un verrou ;
     fait du bloc 1 le réflexe. Aucun MAR n'est jamais masqué ; si le bloc 1 est vide, le bloc 2 est
     la réponse.
+
+20. **Lot 5 — source de données** : `planning_{Y}.json` via `getPlanningJson` (déjà code-gated,
+    non-admin). **Interdiction de réutiliser `getMARsDispoJour`** : sa liste d'absence conserve
+    volontairement `TP` et `R`, ce qui ferait proposer un MAR son jour de non-travail.
+21. **Lot 5 — prérequis d'organisation bloquant** : horizon de placement des consultations porté de
+    **1 à 3–4 semaines** par le comité. Sans lui l'écran ne peut proposer aucune date utile, et
+    aucun repli fiable n'existe (`CS_TEMPLATE` ne nomme personne, `CS_RULES` est gelé).
+22. **Lot 5 — accès** : `SECRETARIAT_CODE` dans `CONFIG` → rôle `secretariat`, avec **liste blanche
+    d'actions en lecture seule** posée dans le même geste (sans quoi le code atteindrait
+    `declareLiberal` et les autres écritures déléguées à `portail.gs`).
 
 ---
 
