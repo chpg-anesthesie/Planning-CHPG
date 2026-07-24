@@ -617,12 +617,27 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
       dates début/fin d'activité, rythme 2/2 `estSemaineOff`). L'outil est le **même calcul
       retourné** : figer le MAR, boucler sur ~20–28 jours (au lieu de figer le jour et boucler
       sur les MARs). **Nouvelle action de LECTURE**, aucune écriture, aucune nouvelle donnée.
-    - 🔴 **Point à trancher avant maquette (fiabilité, non résolu) :** un congé long / des vacances
-      peuvent-ils être posés **uniquement** dans INDISPOS ou AFFECTATIONS **sans** apparaître dans
-      GARDES ? Arthur : « l'onglet GARDES est le plus important » — mais **à vérifier dans le
-      code** (ne pas conclure par analogie). Si oui → lire les 3 onglets, sinon un faux
-      « disponible » enverrait un patient un jour d'absence. C'est le seul écart entre « faisable »
-      et « faisable et sûr ».
+    - ✅ **RÉSOLU (24/07) — `GARDES_{Y}` suffit, lecture d'un seul onglet.** Vérifié sur les **deux**
+      chemins d'écriture : (a) campagne d'indispos → `generateur_gardes.gs` l.1283 recopie dans
+      GARDES en traduisant `VAC→V`, `INDISPO→I`, `FORM→F`, `CL→CL`, `TP/CTP→TP` — exactement les
+      codes de `ABSENT_CODES_SET` ; (b) absence longue → `Indispos.gs` l.3074 écrit `CL` dans
+      GARDES *et* INDISPOS (« CL écrase tout : gardes + RG »). Seule exception : année **non encore
+      générée**, où le CL ne va que dans INDISPOS — sans objet ici (fenêtre de 3–4 semaines, donc
+      toujours l'année en cours, générée).
+    - **Source de la liste des consultations : `PLANNING_OVERRIDES`** (`DATE | MAR_ID |
+      SECTEUR_MATIN | SECTEUR_AM | COMMENTAIRE`). `GENERER_CONSULTATIONS = false` (code.gs l.255) :
+      les consultations ne sont **pas** générées, le comité place chaque MAR à la main. `CS_RULES`
+      ne donne que le **gabarit** (combien de créneaux), **jamais qui les tient**.
+    - 🔴 **Seul obstacle restant — organisationnel, pas technique.** L'écran ne peut lister que les
+      consultations **déjà nommées** par le comité. Il faut donc que le comité pose les titulaires
+      **3–4 semaines à l'avance** (validé par Arthur comme cible). À 1 semaine d'horizon, l'écran
+      n'affiche qu'une semaine et le contre-check n'a pas de matière. ⚠️ Prérequis **beaucoup plus
+      léger que celui du Lot 5** : il ne demande **que** cet horizon — rien ne change pour les
+      secrétaires des chirurgiens, ni pour le flux patient. Coût réel côté comité : s'engager plus
+      tôt, et retoucher un placement posé quand une absence tombe.
+    - ❓ À regarder à la maquette : override **modifié après coup** (MAR remplacé sur son créneau) —
+      l'outil suivrait le nouveau titulaire, mais les patients déjà placés sur l'ancien ne bougent
+      pas.
     - Accès secrétaire : action de lecture appelable **sans droits MAR/comité** — point
       d'architecture à cadrer (piste : rôle `secretariat` de `CONFIG`, lecture seule).
     - ⚠️ Ne pas réutiliser tel quel `getMARsDispoJour` : sa liste d'absence garde `TP`/`R`
