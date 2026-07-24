@@ -1,12 +1,28 @@
-# Couverture des jours serrés — TERMINÉ (23/07/2026)
+# Couverture des jours serrés — LIVRÉ (23/07/2026, 2ᵉ tentative)
 
 **Objectif d'Arthur : il ne doit JAMAIS y avoir de jour sans binôme.**
 Sans réduire le nombre de MAR en vacances, sans autoriser deux gardes d'affilée
 (illégal), sans dégrader l'équité.
 
 ✅ **LIVRÉ EN PRODUCTION** le 23/07/2026 — `gas/generateur_gardes.gs`,
-`GAS_VERSION_GENERATEUR = '2026-07-23.1'`. Le fichier d'expérimentation
-`generateur_couverture_v1.gs.txt` a été supprimé : le dépôt fait foi.
+`GAS_VERSION_GENERATEUR = '2026-07-23.1'`.
+
+⚠️ **Une première version a été poussée puis RETIRÉE le même jour.** Elle fermait
+les trous mais **dégradait l'équité des week-ends** : écart par axe de 5,3 gardes
+contre 3,4 pour le moteur d'origine (ZAMARON, 2041 : 2 week-ends pour une cible
+de 7,3). Le dépôt a été restauré, puis la passe réécrite. Arthur n'avait rien
+recopié dans Apps Script : la production n'a jamais été touchée.
+
+**Cause de la régression :** la passe « jours critiques » classait les candidats
+par **disponibilité annuelle** (« les moins disponibles d'abord »), ce qui écrasait
+complètement l'équité. Elle consommait sur les jours tendus des MAR qui devaient
+faire des week-ends ; ils ne rattrapaient jamais.
+
+**Pourquoi ça n'a pas été vu :** la batterie mesurait l'écart au **total** de gardes,
+qui restait bon (2,5). Elle ne mesurait **aucun écart par axe** — or la régression
+était sur l'axe week-end, le plus prioritaire des quatre. Dix contrôles successifs
+sont passés à côté. Le contrôle par axe est désormais dans `simulateur/eval.js` et
+doit être lancé avant toute livraison du générateur.
 
 ---
 
@@ -59,19 +75,69 @@ tolérant le combo jeudi↔samedi. Seule la passe 7ter le passe.
 
 ## Résultats mesurés — 7 tirages × 20 ans = 140 années de planning
 
-| sel | trous RÉF | trous LIVRÉ | autres erreurs RÉF → LIVRÉ | écart max RÉF → LIVRÉ |
-|---|---|---|---|---|
-| 0 | 3 | **0** | 8 → 7 | 2,30 → 2,50 |
-| 1 | 1 | **0** | 3 → 2 | 2,30 → 2,30 |
-| 2 | 1 | **0** | 5 → 5 | 1,70 → 1,70 |
-| 3 | 2 | **0** | 6 → 7 | 2,20 → 2,30 |
-| 4 | 2 | **0** | 5 → 5 | 2,20 → **2,10** |
-| 5 | 0 | **0** | 6 → 7 | 2,10 → 2,20 |
-| 6 | 0 | **0** | 5 → 6 | 2,30 → 2,30 |
-| **total** | **9** | **0** | 38 → 39 | — |
+Mesures refaites après réécriture, **et après correction du modèle démographique**
+(voir plus bas) : les chiffres antérieurs à cette correction ne sont pas comparables.
 
-Trous fermés : 2037-12-25 (ven), 2037-12-26 (sam), 2038-12-23, 2039-04-09,
-2039-12-29, 2040-02-18 (sam), 2041-12-28 — et 2039-12-25 (dim), le cas visé.
+| | référence (production) | livré |
+|---|---|---|
+| jours sans binôme | 13 | **1** |
+| pire écart par axe | 3,4 | **3,3** |
+| années avec écart ≥ 2 | 45 (32 %) | **42 (30 %)** |
+| années avec écart ≥ 3 | 4 (3 %) | **3 (2 %)** |
+| médiane des écarts | 1,7 | 1,7 |
+| gardes consécutives (illégal) | 0 | **0** |
+| gardes sur absence déclarée | 0 | **0** |
+
+**Meilleur que la référence sur les quatre mesures.** Trou résiduel : 1 sur
+140 années (tirage 1, samedi de décembre 2041) — signalé par « Manque MAR » et par
+le diagnostic Maintenance **avant** publication.
+
+**Banc de torture** (23/07/2026) :
+
+| test | référence | livré |
+|---|---|---|
+| batterie 11 scénarios | — | sortie **identique au caractère près** |
+| déterminisme (3 exécutions) | — | **identiques** |
+| stress +50 % d'indispos | 0 trou | **0 trou** |
+| stress équipe réduite (retraite 63 ans) | 0 trou | **0 trou** |
+| stress 12 MAR en congé la semaine de Noël | 18 trous | **14, tous avertis** |
+| temps de génération | 7,6 s/an | 8,4 s/an |
+
+Sur **tous** les tests : nombre d'avertissements « Manque MAR » = nombre de trous.
+Aucun jour non pourvu ne peut être publié sans être signalé.
+
+**Contreparties assumées** (cumul 140 années) : 2 combos jeudi↔samedi (légal, jamais
+deux gardes d'affilée) et 2 couplages fériés dégradés de plus (21 → 23). Chacun est
+signalé au comité au moment de la génération.
+
+## Le moteur retenu
+
+1. **L'équité pilote le choix** ; la disponibilité annuelle ne sert plus qu'à départager.
+2. **La passe n'accepte plus la première solution venue** : elle énumère les
+   combinaisons possibles et retient la **moins coûteuse en équité**, sous une borne
+   dure de 20 000 essais qui interdit toute explosion combinatoire. Ce n'est pas un
+   réglage ajusté sur l'échantillon, c'est un critère : il tient à 20 000 années
+   comme à 140.
+3. **Les samedis restent dans le périmètre.** Les avoir exclus (tentative
+   intermédiaire) laissait 4 trous, tous des samedis, pour un gain d'équité nul.
+   Le danger ne venait pas du samedi mais de l'ordre de choix.
+4. **Avertissement au comité** quand la couverture a coûté cher en équité :
+   « choix contraint, équité dégradée — à anticiper sur la pose des vacances ».
+   Le levier principal reste en amont, au staff d'octobre.
+
+## Correction du modèle démographique (indispensable)
+
+`simulateur/demographie.js` donnait au MAR à 80 % un jour de repos **fixe chaque
+semaine**, tiré parmi 5 jours consécutifs à partir du 1ᵉʳ janvier. Quand il tombait
+sur un samedi ou un jeudi, ce MAR ne pouvait faire **aucune** garde de cet axe alors
+que sa cible restait à ~4,8 → écarts artefactuels de 4 à 6 gardes, et **70 % des
+années au rouge** sur le certificat d'équité.
+
+Usage réel confirmé par Arthur : les jours de temps partiel sont **dispersés**,
+parfois groupés sur une semaine ; le seul rythme fixe du service est BOUREGBA
+(60 %, jeudi + vendredi), qui ne prend pas de gardes. Modèle corrigé en volume
+équivalent (~52 j/an) posé au fil de l'eau. Après correction, le taux d'années au
+rouge tombe de 70 % à 29 % (seuil 2) et le pire écart par axe de 5,9 à 3,3.
 
 **Composition des « autres erreurs »** (cumul 7 tirages) :
 
