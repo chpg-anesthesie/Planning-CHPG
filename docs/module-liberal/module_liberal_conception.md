@@ -35,6 +35,14 @@
 *ergonomie admin validée sur maquette conditions réelles (volet « ◆ Libéral » gauche par MAR,*
 *vert/orange, toast si aucune intervention, grille intacte). indispos.html sort du périmètre libéral.*
 *§6.2–6.4, 11, 12, 13 mis à jour.*
+***v3.19 — 24/07/2026 (fin de journée)** : **scénario retenu — le service reprend le placement des*
+*consultations d'anesthésie.** Les secrétaires des chirurgiens ne donnent plus de créneau ; le*
+*secrétariat d'anesthésie le choisit avec l'écran. Le créneau est **bon dès le départ** → plus de*
+*déplacement de MAR ni de rappel de patient. **Le virage v3.18 (attribution au fil de l'eau) devient*
+*caduc** : c'était du rattrapage d'un placement aveugle. **La décision 21 (horizon 3–4 semaines) est*
+*RÉACTIVÉE.** Ajout des **mesures réelles de la semaine 25** — qui invalident `p ≈ 1/3`. Décisions*
+*26 à 28.*
+
 ***v3.18 — 24/07/2026** : **virage majeur du Lot 5**. Le créneau de consultation est posé par la*
 *secrétaire du **chirurgien**, à l'aveugle (premier créneau libre, sans MAR nommé) → l'écran n'est*
 *plus un outil de proposition de dates mais un outil d'**attribution au fil de l'eau** : la date ne*
@@ -602,7 +610,81 @@ MAR postérieures : la position utilisée a plusieurs jours à plusieurs semaine
 cas le plus contraint : au NCHPG, le bloc centralisé rend le rang A beaucoup plus fréquent. Ce qui
 marche aujourd'hui marchera forcément après.
 
-**Virage du 24/07/2026 — attribution au fil de l'eau.**
+**Mesures réelles — semaine 25 (juin 2026), relevé manuel d'Arthur.** Première mesure du
+dispositif ; elle corrige plusieurs hypothèses.
+
+| Mesure | Valeur | Ce qu'on croyait |
+|---|---|---|
+| Patients libéraux / semaine | **89** | ~40 |
+| Consultant déjà au bon secteur le jour du bloc | **75 %** (67/89) | `p ≈ 1/3` |
+| Déplacements | **22 %** (20/89) | — |
+| Pertes libérales réelles | **4** (~4,5 %) | aucune |
+| MARs consultant en parallèle | moyenne **3,35** | 2–3 |
+| Délai consultation → bloc | **médiane 6 j** ; 73 % ≤ 7 j | 2–4 semaines |
+
+*⚠️ `p ≈ 1/3` était faux d'un facteur deux.* L'appariement est structurellement élevé parce que les
+consultations sont **typées par secteur** (le MAR de l'END voit les patients d'END). Toute
+estimation de gain fondée sur `p = 1/3` est à rejeter.
+
+*Vivier par secteur (juin 2026) — le plafond de toute réattribution.* CI = **1**, MAT = 1, ORL = 2,
+ORT = 2, END = 3, VIS = 4, + 7 volants. **CARDIO I a un vivier de 1** : ses 6 déplacements
+hebdomadaires sont **structurellement irréductibles**, aucun outil n'y changera rien.
+
+*Mécanisme des 20 déplacements — deux cas.* **Cas A** : le MAR qui endormira quitte son poste pour
+venir faire la consultation (1 déplacement). **Cas B** : personne du secteur ne peut voir le patient,
+un MAR d'un autre secteur le prend pour ne pas perdre l'acte — il se déplace pour la consultation
+**puis** quitte son secteur le jour du bloc (2 déplacements, deux secteurs désorganisés).
+
+*Pourquoi le rattrapage a posteriori ne marche pas.* Trois portes essayées et fermées :
+(a) permuter le titulaire du créneau → une même consultation porte plusieurs patients libéraux avec
+**des dates de bloc différentes**, aucune permutation ne les satisfait tous ; (b) déplacer le patient
+→ possible, mais la fenêtre médiane est de **5 jours** et ne contient souvent **aucun** créneau de
+rechange du bon secteur (les 6 déplacements END du 18/06 pour un bloc le 22/06 n'avaient que le
+vendredi 19 comme alternative) ; (c) faire choisir le bon créneau à la secrétaire du chirurgien →
+suppose qu'elle voie les plannings d'anesthésie, exclu.
+
+*Règle de priorité (Arthur).* **Mieux vaut déplacer le patient que déplacer le MAR.**
+
+---
+
+**SCÉNARIO RETENU (24/07/2026) — le service reprend le placement.**
+
+Les secrétaires des chirurgiens **ne donnent plus de créneau de consultation d'anesthésie**. Le
+**secrétariat d'anesthésie** (ou un MAR) le choisit, avec l'écran du Lot 5. On cesse de rattraper un
+mauvais placement : **on ne le fait plus mal**.
+
+*Conséquence sur l'écran.* Retour exact à la spécification d'origine du §11 ter — entrée **date
+opératoire + secteur**, sortie **créneaux de consultation en forme A** (bloc prioritaire, autres
+dates repliées). La secrétaire propose, le patient s'adapte. **Ce qui change : le créneau est bon dès
+le départ** → plus aucun déplacement de MAR, plus aucun rappel de patient, plus de fenêtre de
+5 jours. Le virage v3.18 devient **caduc**.
+
+*🔴 La décision 21 redevient valable.* Pour proposer un créneau à 3 semaines, il faut que les
+consultations soient placées à 3 semaines. Le prérequis d'horizon, annulé en v3.18, est **réactivé**.
+
+*Point d'organisation à régler — le seul vrai.* Le patient repart de chez le chirurgien **sans date
+d'anesthésie**. Il doit donc passer par le secrétariat d'anesthésie avant de sortir, **ou** appeler.
+Arthur : « au choix ». C'est le changement qui porte sur le **patient**, pas sur les secrétaires des
+chirurgiens — lesquelles n'ont **aucune charge supplémentaire**, elles en ont une de moins.
+
+*Critère médical.* Le placement tenait compte de la lourdeur du geste et des anticoagulants. Ce
+critère passe au secrétariat d'anesthésie ; Arthur le juge **très grossier**, donc applicable sans
+expertise. À faire apparaître dans l'écran, sinon on gagne l'appariement et on perd le délai de
+sécurité.
+
+*Volume.* ~89 rendez-vous par semaine à poser. Viabilité conditionnée à la disponibilité réelle du
+secrétariat — hypothèse de travail : elle existe.
+
+*Interface patient — écartée.* L'idée d'un écran où le patient saisirait sa date opératoire et
+choisirait son créneau a été envisagée puis abandonnée : elle ferait sortir le module du périmètre
+interne (identification patient, données de santé, responsabilité en cas d'erreur de créneau,
+patients qui ne se connectent pas). Ce serait un service institutionnel de prise de rendez-vous en
+ligne, avec la DSI — hors de portée d'un développeur unique. **Le moteur est le même** : la version
+interne ne ferme aucune porte.
+
+---
+
+**~~Virage du 24/07/2026 — attribution au fil de l'eau~~ (CADUC depuis v3.19, conservé pour mémoire).**
 
 *Ce qu'on a découvert.* Le rendez-vous d'anesthésie est pris par la **secrétaire du chirurgien**,
 dès la consultation chirurgicale, sur le **premier créneau libre** compatible avec la lourdeur du
@@ -814,10 +896,10 @@ go-live octobre 2026.
 20. **Lot 5 — source de données** : `planning_{Y}.json` via `getPlanningJson` (déjà code-gated,
     non-admin). **Interdiction de réutiliser `getMARsDispoJour`** : sa liste d'absence conserve
     volontairement `TP` et `R`, ce qui ferait proposer un MAR son jour de non-travail.
-21. **Lot 5 — ~~prérequis d'organisation bloquant~~ ANNULÉE le 24/07/2026 (v3.18).** Portait sur
-    l'extension de l'horizon de placement des consultations de 1 à 3–4 semaines. Sans objet depuis
-    le virage vers l'attribution au fil de l'eau : l'attribution se décide quelques jours avant la
-    consultation, une semaine d'horizon suffit. Conservée pour mémoire.
+21. **Lot 5 — prérequis d'organisation : horizon de placement des consultations porté de 1 à
+    3–4 semaines.** ~~Annulée en v3.18~~ → **RÉACTIVÉE en v3.19** : dans le scénario retenu, le
+    secrétariat d'anesthésie propose lui-même les créneaux, il faut donc qu'ils soient posés à
+    l'horizon où il les propose. Sans repli (`CS_TEMPLATE` ne nomme personne, `CS_RULES` est gelé).
 22. **Lot 5 — accès** : `SECRETARIAT_CODE` dans `CONFIG` → rôle `secretariat`, avec **liste blanche
     d'actions en lecture seule** posée dans le même geste (sans quoi le code atteindrait
     `declareLiberal` et les autres écritures déléguées à `portail.gs`).
@@ -835,6 +917,18 @@ go-live octobre 2026.
     l'attribution aléatoire actuelle. **Aucune exigence d'exhaustivité** ni de surveillance
     quotidienne. Ce principe est ce qui rend le dispositif tenable ; il doit être rappelé à toute
     personne qui reprendra le sujet, et interdit d'en faire une astreinte.
+
+26. **Lot 5 — scénario retenu : le service reprend le placement des consultations d'anesthésie.**
+    Les secrétaires des chirurgiens ne donnent plus de créneau (charge en moins, pas en plus). Le
+    créneau est **bon dès le départ** → ni déplacement de MAR, ni rappel de patient. **Le virage
+    v3.18 (attribution au fil de l'eau) est caduc.** Contrepartie : le patient repart sans date et
+    doit passer au secrétariat d'anesthésie ou appeler.
+27. **Lot 5 — `p ≈ 1/3` est faux.** Mesure semaine 25 : **75 %** des patients sont déjà vus par un
+    MAR au bon secteur, l'appariement étant structurellement élevé (consultations typées par
+    secteur). Rejeter toute estimation de gain fondée sur `p = 1/3`. Le résidu est de **20
+    déplacements/semaine**, dont **6 irréductibles** (CARDIO I, vivier de 1).
+28. **Lot 5 — priorité en cas de conflit : déplacer le patient plutôt que le MAR** (Arthur). Ne
+    s'applique qu'en rattrapage ; sans objet dans le scénario retenu, où le créneau est bon d'emblée.
 
 ---
 
@@ -897,3 +991,8 @@ go-live octobre 2026.
   « quelles dates proposer » (entrée : date d'intervention + secteur). L'entrée devient « liste des
   patients libéraux repérés » (date de consultation + date opératoire + secteur). Le filtre de
   disponibilité, les deux rangs et la forme A restent valables. À refaire.
+- **Lot 5 — viabilité du scénario retenu.** Deux inconnues, aucune technique : (a) le secrétariat
+  d'anesthésie a-t-il réellement le temps de poser **~89 rendez-vous par semaine** ? (hypothèse de
+  travail : oui) ; (b) le patient passe-t-il au secrétariat en sortant de chez le chirurgien, ou
+  rappelle-t-il ? (Arthur : « au choix » — à trancher avant déploiement, c'est le seul changement
+  visible par le patient).
