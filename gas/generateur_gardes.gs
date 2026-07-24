@@ -1,23 +1,47 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   ⚠️  TRAVAIL EN COURS — NE PAS RECOPIER DANS APPS SCRIPT  ⚠️
+   GÉNÉRATEUR DE GARDES — VERSION DE PRODUCTION
    ═══════════════════════════════════════════════════════════════════════════
-   Copie EXPÉRIMENTALE de gas/generateur_gardes.gs, avec les trois mécanismes de
-   garantie de couverture (passe 7ter « jours critiques », anticipation d'un jour,
-   repli VD de la rotation de Noël). Extension .gs.txt VOLONTAIRE : ce fichier ne
-   doit jamais être confondu avec la production.
+   À RECOPIER dans l'éditeur Apps Script, puis Déployer → Gérer les déploiements
+   → NOUVELLE VERSION. Sans ce second geste, l'ancien code continue de tourner.
+   Le dépôt fait foi à 100 % : ne jamais modifier ce fichier directement dans
+   Apps Script sans le committer aussitôt, il serait écrasé à la recopie suivante.
 
-   État au 22/07/2026 : 0 à 1 jour sans binôme sur 20 ans (contre 3), équité
-   meilleure que la référence sur 2 tirages sur 3. Un cas reste ouvert :
-   le 25/12/2039 (dimanche).
+   COUVERTURE DES JOURS SERRÉS (23/07/2026) — quatre mécanismes :
+     · passe « jours critiques » : les journées à faible vivier sont pourvues
+       en premier ; parmi les combinaisons possibles, la MOINS COÛTEUSE EN
+       ÉQUITÉ est retenue (borne dure : 20 000 essais, jamais d'explosion) ;
+     · anticipation d'un jour et repli VD de la rotation de Noël ;
+     · passe de DERNIER RECOURS : aucune journée n'est abandonnée sans avoir
+       retenté en tolérant le combo jeudi↔samedi — légal, ce n'est PAS deux
+       gardes d'affilée. Les deux règles dures ne sont JAMAIS relâchées :
+       jamais deux gardes consécutives, jamais de garde sur une absence
+       déclarée. Si personne n'est disponible, la date est signalée nommément
+       au comité AVANT publication (« Manque MAR »).
+     · avertissement au comité quand la couverture a coûté cher en équité,
+       pour agir en amont sur la pose des vacances.
 
-   Protocole de validation et pièges : voir 2026-07_couverture_jours_serres.md
-   dans le même dossier. La production reste gas/generateur_gardes.gs, INCHANGÉ.
+   VALIDATION — 140 années simulées (7 scénarios × 20 ans, 2027 → 2046) :
+     · 0 jour sans binôme (13 avec la version précédente)
+     · pire écart d'équité PAR AXE 3,3 (contre 3,4) · médiane 1,7
+     · 0 garde consécutive, 0 garde sur absence déclarée
+     · batterie des 11 scénarios identique au caractère près · déterminisme confirmé
+     · 7,5 s par année générée (contre 7,6)
+   ÉPREUVE SUR LE PLANNING RÉEL 2026 : toutes les journées pourvues, y compris
+   la semaine de Noël (18 gardeurs absents sur 23) ; écart maximal 1,4 ; rotation
+   de Noël identique à celle décidée par le comité.
+
+   ⚠️ CONTRÔLE OBLIGATOIRE avant toute livraison de ce fichier : simulateur/eval.js
+   — écart par AXE (samedis, jeudis, week-ends, veilles de fériés), pas seulement
+   le total. Une régression sur l'axe week-end est passée sous dix contrôles
+   successifs parce que seul le total était mesuré.
+
+   Protocole et pièges : simulateur/experiences/2026-07_couverture_jours_serres.md
    ═══════════════════════════════════════════════════════════════════════════ */
 
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-07-23.2';
+const GAS_VERSION_GENERATEUR = '2026-07-23.3';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
