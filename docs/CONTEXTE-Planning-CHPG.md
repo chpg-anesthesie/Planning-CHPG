@@ -129,6 +129,55 @@ d'où l'absence d'icônes de secteur sur cette page, contrairement à `index.htm
 - ⚠️ **La rotation automatique a été SUPPRIMÉE (20/07/2026)** — objet `ROT`, assistant « ⟳ Rotation libérale », overlay et action `applyRotationLib` retirés, faute d'usage réel. Le tag `ROT-LIB` n'existe plus : les lignes existantes ont été converties en `LIB` par la fonction one-shot `convertirRotLibEnLib()` (elle-même retirée après usage), ce qui a préservé à l'identique les créneaux déjà attribués. **Ne pas reproposer d'automatisation de cette rotation.**
 - ⚠️ **`setLibSoliste` n'a jamais existé** dans le dépôt : cette doc l'a longtemps annoncée comme « à recopier », mais aucune trace dans les `.gs` ni dans `admin.html`. Mention supprimée le 20/07/2026. Rappel : **le dépôt fait foi**, pas ce fichier.
 
+## Interface secrétaire — placement des consultations libérales (Lot 5, conçu non codé)
+
+**Scénario retenu (24/07/2026).** Le **service reprend le placement des consultations
+d'anesthésie** : les secrétaires des chirurgiens ne donnent plus de créneau. Le secrétariat
+d'anesthésie (ou un MAR) le choisit avec un écran — entrée **date opératoire + secteur**, sortie
+**créneaux de consultation** en **forme A** (bloc « à proposer en priorité », puis « voir d'autres
+dates » **replié**). Le créneau est **bon dès le départ** : ni déplacement de MAR, ni rappel de
+patient. La secrétaire impose les dates, le patient s'adapte.
+
+- **Deux rangs.** A = affecté au **secteur** le jour du bloc ; B = **présent à l'hôpital**, tout
+  secteur (il sort endormir et revient). Un MAR **absent** n'est jamais proposé.
+- **Jamais de motif d'indisponibilité affiché** (l'accès est un **code partagé**) : l'écran n'affiche
+  que du positif, une indisponibilité = une ligne absente.
+- ⚠️ **Deux listes d'absence coexistent** — `code.gs:245` `ABSENT_CODES` (`RG V F CTP CP R A TP CL`)
+  et `Indispos.gs:2773` `ABSENT_CODES_SET` (idem **sans `R` ni `TP`**). `getMARsDispoJour` utilise la
+  seconde **volontairement** (le comité peut rappeler un `TP`). **Le Lot 5 lit `planning_{Y}.json`,
+  il ne réutilise pas `getMARsDispoJour`.**
+- `G`/`G2` ne sont dans aucune des deux listes : un MAR **de garde** le jour du bloc est **présent**.
+- 🔴 **Prérequis** : horizon de placement des consultations porté de **1 à 3–4 semaines**
+  (`GENERER_CONSULTATIONS = false`, le comité place à la main). Pas de repli : `CS_TEMPLATE` ne donne
+  que le **nombre** de créneaux, jamais **qui** les tient ; `CS_RULES` est gelé.
+- **Accès** : `SECRETARIAT_CODE` dans `CONFIG` → rôle `secretariat` + **liste blanche lecture seule**
+  (sinon le code atteindrait `declareLiberal` et les écritures déléguées à `portail.gs`).
+- ⚠️ **Contrainte 3.bis maintenue** : aucune donnée patient dans Planning-CHPG. L'écran **calcule**
+  (entrée anonyme), il **n'enregistre pas**.
+
+**Mesures réelles — semaine 25 (juin 2026), à ne pas réestimer.**
+**89 patients libéraux/semaine** (et non ~40) · **75 %** déjà vus par un MAR au bon secteur ·
+**20 déplacements** (22 %) · **4 pertes libérales** · délai consultation → bloc **médiane 6 jours**,
+73 % ≤ 7 j · MARs consultant en parallèle : moyenne 3,35.
+⚠️ **`p ≈ 1/3` était FAUX d'un facteur deux** : l'appariement est structurellement élevé parce que
+les consultations sont **typées par secteur**. **Vivier par secteur (juin)** : CI **1**, MAT 1,
+ORL 2, ORT 2, END 3, VIS 4, + 7 volants → les **6 déplacements CARDIO I/semaine sont
+irréductibles**.
+
+**Pistes abandonnées, à ne pas rouvrir.** *Attribution au fil de l'eau* (rattraper un placement
+aveugle) : une même consultation porte plusieurs patients libéraux avec **des dates de bloc
+différentes**, aucune permutation ne les satisfait tous, et la fenêtre médiane de 5 jours ne
+contient souvent aucun créneau de rechange. *Interface patient* : ferait sortir le module du
+périmètre interne (identification, données de santé, responsabilité) → projet institutionnel DSI.
+
+**Ouvert, non technique.** Le patient repart **sans date** : passe-t-il au secrétariat en sortant de
+chez le chirurgien, ou rappelle-t-il ? Le secrétariat a-t-il le temps de poser ~89 rendez-vous par
+semaine ? Le critère médical (lourdeur du geste, anticoagulants) passe au secrétariat d'anesthésie —
+jugé **très grossier** par Arthur, donc applicable sans expertise, mais à faire figurer dans l'écran.
+
+Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter, décisions 15 à 28.
+
+
 ## Version du site (badge `vX.Y.Z`) — actuellement **v1.6.1**
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
