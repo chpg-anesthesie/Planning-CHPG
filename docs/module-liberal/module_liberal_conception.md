@@ -35,6 +35,10 @@
 *ergonomie admin validée sur maquette conditions réelles (volet « ◆ Libéral » gauche par MAR,*
 *vert/orange, toast si aucune intervention, grille intacte). indispos.html sort du périmètre libéral.*
 *§6.2–6.4, 11, 12, 13 mis à jour.*
+***v3.15 — 24/07/2026** : **partition en blocs validée** (Arthur) → passe en décision 17. Le §14*
+*ne conserve plus que deux points ouverts sur la couche 2 : plancher de marge résiduelle et*
+*masquage du bloc 2.*
+
 ***v3.14 — 23/07/2026** : **couche 2 du Lot 5 spécifiée** — sortie en **forme A** (deux blocs,*
 *chacun chronologique) ; **la secrétaire impose les dates, le patient s'adapte** ; critère de*
 *priorité = **marge en euros** (pas en points de %) sur **`min(marge_CCAM, marge_NGAP)`** ; le rang*
@@ -529,7 +533,7 @@ traverser l'hôpital à un MAR que perdre de l'argent). Il n'apparaît que comme
 personne : il décide seulement **dans quel bloc** chacun tombe. La priorisation se réduit donc à une
 question binaire, nettement plus simple à coder et à expliquer qu'un classement fin.
 
-*Partition proposée — À VALIDER.* Bloc 1 = les **rangs A à marge positive** ; si aucun n'existe,
+*Partition — **actée**, cf. décision 17.* Bloc 1 = les **rangs A à marge positive** ; si aucun n'existe,
 bloc 1 = les **rangs B à marge positive** ; bloc 2 = tout le reste, marges négatives comprises.
 Elle réconcilie les deux règles d'Arthur (« les affectés au secteur sont prioritaires » et « plutôt
 faire traverser que perdre de l'argent ») : tant qu'un MAR du secteur a de la marge, l'orienter vers
@@ -623,6 +627,12 @@ go-live octobre 2026.
     chacun chronologique) ; **la secrétaire impose les dates, le patient s'adapte** ; **atteinte à
     la confidentialité de la position financière assumée** (l'ordre la trahit — arbitrage accepté).
 
+17. **Lot 5 — partition en blocs.** Bloc 1 = les **rangs A à marge positive** ; si aucun n'existe,
+    bloc 1 = les **rangs B à marge positive** ; bloc 2 = tout le reste, marges négatives comprises.
+    Justification : tant qu'un MAR du secteur a de la marge, l'orienter vers lui ne perd aucun
+    argent — il n'y a rien à arbitrer ; on ne fait traverser l'hôpital que lorsque le secteur est
+    saturé. Les deux règles d'Arthur ne s'appliquent donc jamais simultanément.
+
 ---
 
 ## 14. Questions encore ouvertes
@@ -666,16 +676,14 @@ go-live octobre 2026.
   décompte ne peut venir que des **déclarations MAR**, donc en retard du délai de consultation :
   juste sur la durée, potentiellement faux sur une journée (cinq orientations le même matin vers le
   même MAR resteraient invisibles). À trancher avant le développement du Lot 5.
-- **Lot 5 — trois points ouverts sur la couche 2.**
-  1. **Partition en blocs** : valider la règle proposée au §11 ter (bloc 1 = rangs A à marge
-     positive, à défaut rangs B à marge positive ; bloc 2 = le reste).
-  2. **Plancher de marge résiduelle.** Un rang A avec une marge positive mais faible (~3–4 actes)
+- **Lot 5 — deux points ouverts sur la couche 2.**
+  1. **Plancher de marge résiduelle.** Un rang A avec une marge positive mais faible (~3–4 actes)
      resterait en bloc 1 alors qu'il va saturer aussitôt — et le compteur, en retard de plusieurs
      jours, ne le verra pas avant que la secrétaire ne lui ait envoyé dix patients. Il faut un
      minimum en dessous duquel on ne met plus quelqu'un en bloc 1 même s'il est du bon secteur. À
      exprimer en **nombre d'interventions** plutôt qu'en euros (c'est ce que la secrétaire consomme
      pendant que le compteur est aveugle). Valeur à fixer : 3 ? 5 ? 10 ?
-  3. **Masquage du bloc 2.** Le replier par défaut derrière un lien « voir d'autres dates » rendrait
+  2. **Masquage du bloc 2.** Le replier par défaut derrière un lien « voir d'autres dates » rendrait
      la priorité difficile à contourner sous la pression du téléphone. À trancher.
 - **Lot 5 — zone d'indifférence (mineur, non urgent).** Un tri strict sur la marge ferait traverser
   l'hôpital pour un écart négligeable (12 000 € contre 11 500 €). À marges proches, privilégier
