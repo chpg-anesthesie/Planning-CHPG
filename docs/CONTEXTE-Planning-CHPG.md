@@ -129,6 +129,39 @@ d'où l'absence d'icônes de secteur sur cette page, contrairement à `index.htm
 - ⚠️ **La rotation automatique a été SUPPRIMÉE (20/07/2026)** — objet `ROT`, assistant « ⟳ Rotation libérale », overlay et action `applyRotationLib` retirés, faute d'usage réel. Le tag `ROT-LIB` n'existe plus : les lignes existantes ont été converties en `LIB` par la fonction one-shot `convertirRotLibEnLib()` (elle-même retirée après usage), ce qui a préservé à l'identique les créneaux déjà attribués. **Ne pas reproposer d'automatisation de cette rotation.**
 - ⚠️ **`setLibSoliste` n'a jamais existé** dans le dépôt : cette doc l'a longtemps annoncée comme « à recopier », mais aucune trace dans les `.gs` ni dans `admin.html`. Mention supprimée le 20/07/2026. Rappel : **le dépôt fait foi**, pas ce fichier.
 
+## Interface secrétaire — orientation des patients libéraux (Lot 5, conçu non codé)
+
+Écran d'aide à la décision pour le **secrétariat d'anesthésie** : on saisit **date d'intervention +
+secteur**, on obtient des **dates de consultation** avec le nom du MAR en face. Il ne réserve rien et
+ne remplace aucun logiciel de rendez-vous. **Lecture seule** : la déclaration reste au MAR au moment
+de la consultation réelle.
+
+- **Deux rangs.** A = affecté au **secteur** ce jour-là ; B = **présent à l'hôpital**, tout secteur
+  (il sort endormir et revient — vaut pour tous les secteurs). Un MAR **absent** n'est jamais
+  proposé. Le rang B est **courant**, pas un secours : le délai consultation→intervention descend
+  parfois sous 7–10 jours et le rang A est alors souvent vide.
+- **Sortie = forme A**, deux blocs chacun **chronologique** : « à proposer en priorité », puis
+  « voir d'autres dates » **replié par défaut**. La secrétaire impose les dates, le patient s'adapte.
+- **Jamais de motif d'indisponibilité affiché** (congé, formation, maternité, maladie) : l'accès est
+  un **code partagé**. L'écran n'affiche que du positif ; une indisponibilité = une ligne absente.
+- ⚠️ **Deux listes d'absence coexistent dans le code** — `code.gs:245` `ABSENT_CODES`
+  (`RG V F CTP CP R A TP CL`) et `Indispos.gs:2773` `ABSENT_CODES_SET` (idem **sans `R` ni `TP`**).
+  `getMARsDispoJour` utilise la seconde **volontairement** (le comité peut rappeler un `TP` pour
+  combler un trou). **Le Lot 5 lit `planning_{Y}.json`, il ne réutilise pas `getMARsDispoJour`** —
+  sinon il proposerait un MAR son jour de non-travail.
+- `G`/`G2` ne sont dans aucune des deux listes : un MAR **de garde** le jour de l'intervention est
+  compté **présent** (la garde commence le soir) — confirmé par Arthur.
+- 🔴 **Prérequis bloquant** : `GENERER_CONSULTATIONS = false`, le comité place les consultations à la
+  main, aujourd'hui à **une semaine**. Il faut **3–4 semaines**. Pas de repli : `CS_TEMPLATE` ne donne
+  que le **nombre** de créneaux par jour/type, jamais **qui** les tient ; `CS_RULES` est gelé.
+- **Couche 2** (priorité par la marge, plus tard) : marge **en euros** sur `min(marge_CCAM,
+  marge_NGAP)` ; le rang **ne trie pas**, il ne fait que la partition ; plancher **≥ 3 patients**
+  pour rester en bloc 1. L'ordre **trahit la position financière** — arbitrage **assumé** par Arthur.
+
+Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter, décisions 15 à 22.
+Maquette statique : `docs/module-liberal/maquette_ecran_secretaire.html`.
+
+
 ## Version du site (badge `vX.Y.Z`) — actuellement **v1.6.1**
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
