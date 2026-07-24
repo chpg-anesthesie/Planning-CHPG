@@ -151,9 +151,30 @@ de la consultation réelle.
   sinon il proposerait un MAR son jour de non-travail.
 - `G`/`G2` ne sont dans aucune des deux listes : un MAR **de garde** le jour de l'intervention est
   compté **présent** (la garde commence le soir) — confirmé par Arthur.
-- 🔴 **Prérequis bloquant** : `GENERER_CONSULTATIONS = false`, le comité place les consultations à la
-  main, aujourd'hui à **une semaine**. Il faut **3–4 semaines**. Pas de repli : `CS_TEMPLATE` ne donne
-  que le **nombre** de créneaux par jour/type, jamais **qui** les tient ; `CS_RULES` est gelé.
+- 🔄 **VIRAGE 24/07/2026 — l'écran est un outil d'ATTRIBUTION, pas de proposition de dates.** Le
+  rendez-vous d'anesthésie est posé par la **secrétaire du chirurgien** sur le **premier créneau
+  libre**, sans aucun MAR nommé → l'appariement est aujourd'hui **aléatoire**. On ne déplace
+  **jamais** un rendez-vous : seul change, en interne, **lequel des MARs qui consultent cette
+  demi-journée voit le patient**. Invisible pour le patient (il ne reçoit que date et heure).
+  **Rien n'est demandé aux secrétaires des chirurgiens.**
+- Attribution **unitaire et définitive**, traitée **au fil de l'eau** : rien à réorganiser, c'est une
+  file d'attente. Le **glouton est optimal** (les patients ne se font pas concurrence).
+- Taux : **33 % aveugle → 56 / 70 / 80 %** pour 2, 3 ou 4 consultants (`1−(1−p)^m`, `p≈1/3`).
+  Cas fréquent 2–3 → **60–70 % réels**, environ le double de l'existant.
+- ✅ **Le prérequis d'horizon des consultations est ANNULÉ** : une semaine suffit, l'attribution se
+  décidant quelques jours avant la consultation. Les patients placés **à moins d'une semaine du
+  bloc sont les mieux renseignés**, pas les plus difficiles.
+- **Source des patients** (testé 24/07) : même logiciel, statut libéral visible, patients flashés
+  « Libéral », filtre hebdomadaire possible. La **date opératoire n'est pas en vue liste** → un clic
+  par patient, ~15–20 min/semaine pour ~40 patients. **Demande DSI** en cours : date opératoire en
+  vue liste ou export. **Deux passages hebdomadaires** suffisent.
+- 🟢 **« Jamais pire que l'existant »** : un patient non attrapé retombe sur l'aléatoire actuel →
+  **aucune exigence d'exhaustivité**. Ne jamais transformer ce dispositif en astreinte.
+- ❓ **Point ouvert : où écrire l'attribution.** ⚠️ **Contrainte 3.bis** — aucune donnée patient dans
+  Planning-CHPG. L'outil **calcule** (entrée anonyme : date de consultation + date opératoire +
+  secteur → un nom), il **n'enregistre pas**. Le rattachement patient↔MAR doit vivre dans le
+  **logiciel de rendez-vous**, ou sur un support partagé hors système.
+- ⚠️ `maquette_ecran_secretaire.html` est **périmée** depuis le virage.
 - **Couche 2** (priorité par la marge, plus tard) : marge **en euros** sur `min(marge_CCAM,
   marge_NGAP)` ; le rang **ne trie pas**, il ne fait que la partition ; plancher **≥ 3 patients**
   pour rester en bloc 1. L'ordre **trahit la position financière** — arbitrage **assumé** par Arthur.
