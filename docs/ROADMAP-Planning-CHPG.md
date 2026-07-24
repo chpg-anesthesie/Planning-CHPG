@@ -584,6 +584,21 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
   - Conception figée : seuil **30 % par axe** (CCAM technique **et** NGAP consultations, indépendants), objectif = optimiser le pot commun mutualisé, affichage seul côté comité.
   - Assets déjà dans le repo : conception, antisèche cotation CCAM/NGAP, `ccam_actes.json`, `maquette_estimateur_liberal.html`, guide. **Les 3 `.docx` ont été supprimés le 21/07/2026** (décision d'Arthur) : le HTML et le Markdown font foi, trois copies d'un même contenu étant trois occasions de se contredire. Contenu conservé dans `antiseche_CCAM_anesthesie_CHPG.md` et `guide_liberal_MAR.html`. Seul le **mémo de poche 1 page** n'a plus d'équivalent **de format** (son contenu est aux §3 et §5 bis de l'antisèche) — à refaire en HTML si le besoin revient. Récupérables dans l'historique git.
   - **Lots 0, 1 et 3 terminés** (secteurs, fondations données, placement bloc). **Ordre restant : 2 → 4.**
+  - 🆕 **Lot 5 — Interface secrétaire (conçu 23–24/07/2026, non codé).** Écran d'orientation des
+    patients libéraux : *pour une intervention le J en secteur S, quelles dates de consultation
+    proposer pour que le patient soit endormi par un MAR présent ce jour-là ?*
+    **Couche 1** (filtre de disponibilité) ne consomme **que le planning** → **indépendante des
+    Lots 0 et 2**, développable tout de suite. **Couche 2** (priorité par la marge) dépend du Lot 2.
+    Conception complète au **§11 ter** de `module_liberal_conception.md` (v3.17) ; maquette statique
+    `maquette_ecran_secretaire.html`.
+    - Source de données : `planning_{Y}.json` via `getPlanningJson` (code-gated, non-admin).
+    - ⚠️ **Ne pas réutiliser `getMARsDispoJour`** : sa liste d'absence garde volontairement `TP` et
+      `R` → proposerait un MAR son jour de non-travail (décision 20).
+    - 🔴 **Prérequis d'organisation** : porter l'horizon de placement des consultations de **1 à
+      3–4 semaines** (comité). Acquis sur le principe (Arthur, 24/07), à confirmer en pratique.
+      Sans lui l'écran ne peut proposer aucune date utile — aucun repli fiable (décision 21).
+    - Accès : `SECRETARIAT_CODE` dans `CONFIG` → rôle `secretariat`, **avec liste blanche
+      lecture seule** posée dans le même geste (décision 22).
   - **Calendrier acté : la brique convergence ne passe pas en prod avant le go-live d'octobre 2026.** Construction et tests à blanc possibles dès maintenant.
 
 - [ ] 🖥️ **Dashboard / portail**
