@@ -594,9 +594,34 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
     - Source de données : `planning_{Y}.json` via `getPlanningJson` (code-gated, non-admin).
     - ⚠️ **Ne pas réutiliser `getMARsDispoJour`** : sa liste d'absence garde volontairement `TP` et
       `R` → proposerait un MAR son jour de non-travail (décision 20).
-    - 🔴 **Prérequis d'organisation** : porter l'horizon de placement des consultations de **1 à
-      3–4 semaines** (comité). Acquis sur le principe (Arthur, 24/07), à confirmer en pratique.
-      Sans lui l'écran ne peut proposer aucune date utile — aucun repli fiable (décision 21).
+    - 🔄 **VIRAGE 24/07/2026 (conception v3.18) — attribution au fil de l'eau.** Le rendez-vous
+      d'anesthésie est posé par la **secrétaire du chirurgien**, à l'aveugle : premier créneau libre,
+      **aucun MAR nommé**. L'appariement consultant / anesthésiste du bloc est donc aujourd'hui
+      **aléatoire**. L'écran n'est plus un outil de proposition de dates mais un outil
+      d'**attribution** : la date ne bouge **jamais**, seul change en interne **qui voit le
+      patient** — invisible pour lui, et **rien n'est demandé aux secrétaires des chirurgiens**.
+    - Attribution **unitaire et définitive** (un patient attribué ne bouge plus) ; le **glouton est
+      optimal** — les patients ne se font pas concurrence, un MAR peut en voir plusieurs.
+    - Taux d'appariement (simulation 60 000 tirages) : **33 % aveugle → 56 / 70 / 80 %** selon 2, 3
+      ou 4 consultants en parallèle. Le cas fréquent étant 2–3, l'ordre de grandeur réel est
+      **60–70 %, environ le double de l'existant**. ⚠️ Le chiffre de 80 % annoncé plus tôt supposait
+      4 consultants partout — survente corrigée.
+    - ✅ **Le prérequis d'horizon des consultations est ANNULÉ** (décision 21 caduque) : l'attribution
+      se décide quelques jours avant la consultation, **une semaine suffit**. La disponibilité au
+      bloc vient de `GARDES`/`AFFECTATIONS`, connues toute l'année.
+    - **Source des patients — testée par Arthur le 24/07** : même logiciel que le service, statut
+      libéral visible, patients flashés « Libéral », **filtre hebdomadaire possible**. Limite : la
+      date opératoire n'est pas dans la vue liste (~20–30 s/patient, **15–20 min/semaine**).
+      → **demande DSI** : faire remonter la date opératoire en vue liste ou en export.
+      **Deux passages hebdomadaires** suffisent (repérage tiré, aucune notification n'existe).
+    - 🟢 **Principe « jamais pire que l'existant »** : un patient non attrapé retombe sur
+      l'attribution aléatoire actuelle → **aucune exigence d'exhaustivité**, pas d'astreinte.
+    - ❓ **Seul point ouvert : où écrire l'attribution.** Le créneau n'est rattaché à aucun MAR.
+      ⚠️ **Contrainte 3.bis** : aucune donnée patient n'entre dans Planning-CHPG → l'outil
+      **calcule, il n'enregistre pas**. Le rattachement doit vivre dans le **logiciel de
+      rendez-vous** (si nommer un praticien y est possible) ou sur un support partagé hors système.
+    - ⚠️ `maquette_ecran_secretaire.html` est **périmée** (l'entrée de l'écran change). Filtre, deux
+      rangs et forme A restent valables.
     - Accès : `SECRETARIAT_CODE` dans `CONFIG` → rôle `secretariat`, **avec liste blanche
       lecture seule** posée dans le même geste (décision 22).
   - **Calendrier acté : la brique convergence ne passe pas en prod avant le go-live d'octobre 2026.** Construction et tests à blanc possibles dès maintenant.
