@@ -406,10 +406,16 @@ body{font-variant-numeric:tabular-nums}
 .aff-cell.cur { box-shadow:inset 0 0 0 1.5px var(--red); }
 @media (max-width:768px){ .aff-name{ min-width:76px; font-size:11px; padding:0 6px; } .aff-cell{ font-size:10px; padding:7px 2px; } .aff-mhead{ min-width:26px; } }
 
-.cons-panel { margin-top: 16px; }
+.cons-panel { margin-top: 16px; padding: 0 32px; overflow-x: auto; }
+.cons-spacer { }
 .cons-head { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; }
 .cons-head-icon { width:15px; height:15px; }
 .cons-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; }
+/* Aligné sur le tableau : le gabarit est posé en JS (alignConsGrid) car la colonne
+   SECTEUR est dimensionnée par le contenu (table-layout:auto), pas par une largeur fixe.
+   gap:0 + marge interne : les colonnes tombent alors exactement en face. */
+.cons-grid.aligned { gap:0; }
+.cons-grid.aligned .cons-day { margin:0 4px; }
 .cons-day { background:var(--white); border:1px solid var(--line); border-radius:10px; padding:9px 8px; }
 .cons-day.today { border-color:var(--red); }
 .cons-dayhead { font-size:12px; font-weight:700; color:var(--ink); margin-bottom:7px; }
@@ -422,7 +428,7 @@ body{font-variant-numeric:tabular-nums}
 .cons-spec { display:block; font-size:11px; font-weight:700; line-height:1.2; }
 .cons-mar { display:block; font-size:11px; line-height:1.3; opacity:.82; }
 .cons-empty { font-size:11px; color:var(--ink-4); padding:1px 0; }
-@media (max-width:768px){ .cons-grid { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:768px){ .cons-grid { grid-template-columns:repeat(2,1fr); } .cons-panel { padding:0 16px; } }
 
 /* ── FICHE MÉDECIN ── */
 .doc-panel-overlay {
@@ -1665,25 +1671,46 @@ function renderConsPanel(month,daySlots,today){
       }
     });
   });
+  // (Alignement) TOUJOURS 7 colonnes, comme le tableau : sans ça, une semaine
+  // ordinaire n'en produisait que 5 (les week-ends vides étaient retirés) et rien
+  // ne tombait en face des jours du planning.
   const cols=[];
-  daySlots.forEach((slot,dow)=>{
-    if(!slot) return;
-    const has=cons[dow].am.length||cons[dow].pm.length;
-    if(isWeekend(slot.weekday) && !has) return;
-    cols.push({slot,dow});
-  });
-  if(!cols.length){ panel.innerHTML=''; return; }
+  daySlots.forEach((slot,dow)=>{ cols.push({slot,dow}); });
+  const _total=cons.reduce((n,c)=>n+c.am.length+c.pm.length,0);
+  if(!_total){ panel.innerHTML=''; return; }
   let _hasLib=false;
   const chip=c=>{ const sc=csColor(c.spec), lbl=CS_LABELS[c.spec]||c.spec; const isLib=!!c.lib; if(isLib)_hasLib=true; const cls='cons-chip'+(isLib?' cons-chip-lib':''); const tag=isLib?'<span class="cons-lib">LIB</span>':''; const ttl=isLib?`${lbl} · libéral (rotation GR) · ${nameOf(c.id)}`:`${lbl} · ${nameOf(c.id)}`; return `<div class="${cls}" style="background:${sc.bg};color:${sc.fg}" title="${esc(ttl)}">${tag}<span class="cons-spec">${esc(lbl)}</span><span class="cons-mar">${esc(nameOf(c.id))}</span></div>`; };
   const half=arr=>arr.length?arr.map(chip).join(''):'<div class="cons-empty">—</div>';
   let _cols='';
   cols.forEach(function(col){
-    const slot=col.slot, dow=col.dow, isTd=slot.date===today;
+    const slot=col.slot, dow=col.dow;
+    if(!slot){ _cols+='<div class="cons-day cons-day-vide"></div>'; return; }
+    const isTd=slot.date===today;
     const dn=DAYS_FR[dow], lbl=dn.charAt(0)+dn.slice(1,3).toLowerCase();
     _cols+=`<div class="cons-day${isTd?' today':''}"><div class="cons-dayhead">${lbl} ${slot.day}</div><div class="cons-half-lbl">Matin</div>${half(cons[dow].am)}<div class="cons-half-lbl">Après-midi</div>${half(cons[dow].pm)}</div>`;
   });
   const _leg=_hasLib?`<span class="cons-legend"><span class="cons-lib">LIB</span>consultation libérale (endoscopie)</span>`:'';
-  panel.innerHTML=`<div class="cons-head"><i data-lucide="stethoscope" class="cons-head-icon"></i><span>Consultations</span>${_leg}</div><div class="cons-grid">${_cols}</div>`;
+  panel.innerHTML=`<div class="cons-head"><i data-lucide="stethoscope" class="cons-head-icon"></i><span>Consultations</span>${_leg}</div><div class="cons-grid"><div class="cons-spacer"></div>${_cols}</div>`;
+  alignConsGrid();
+}
+
+// Aligne la grille des consultations sur les colonnes du tableau du planning.
+// Les largeurs sont MESURÉES à l'exécution : la colonne SECTEUR est dimensionnée
+// par son contenu (table-layout:auto), une valeur en dur serait fausse.
+var _consResizeT=null;
+window.addEventListener('resize',function(){ clearTimeout(_consResizeT); _consResizeT=setTimeout(alignConsGrid,120); });
+function alignConsGrid(){
+  const tbl=document.getElementById('planningTable');
+  const grid=document.querySelector('#consPanel .cons-grid');
+  if(!tbl||!grid) return;
+  const ths=tbl.querySelectorAll('thead th');
+  if(window.innerWidth<=768 || ths.length!==8){
+    grid.classList.remove('aligned'); grid.style.gridTemplateColumns=''; grid.style.minWidth='';
+    return;
+  }
+  grid.style.gridTemplateColumns=[...ths].map(th=>th.getBoundingClientRect().width+'px').join(' ');
+  grid.style.minWidth=tbl.getBoundingClientRect().width+'px';
+  grid.classList.add('aligned');
 }
 
 // ── BOTTOM ─────────────────────────────────────────────────────────────
