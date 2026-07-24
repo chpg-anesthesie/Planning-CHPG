@@ -959,7 +959,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.9.2'; // SITE_VERSION: v1.9.2
+const SITE_VERSION = 'v1.9.3'; // SITE_VERSION: v1.9.3
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1052,7 +1052,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.9.2</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.9.3</span></span>
     <a href="./docs/guide-comite.html" target="_blank" class="header-btn" title="Guide du comité — mode d'emploi de cette interface"><span class="hb-ico">?</span> Aide</a>
     
   </div>
@@ -2509,7 +2509,7 @@ function renderWeek() {
       if (st==='G2') gardes[dow].g2 = doc.initials;
       if (st==='18') h18row[dow]    = doc.initials;
       if (st==='RG') sortieRow[dow].push(doc.initials);
-      if (['A','V','F','CTP','R','I','E','CP','TP'].includes(st)) absentRow[dow].push({init:doc.initials, reason:st});
+      if (['A','V','F','CTP','R','I','E','CP','TP','CL'].includes(st)) absentRow[dow].push({init:doc.initials, reason:st});
 
       if (ABSENT_V2.has(st)) return;
 
@@ -2602,7 +2602,7 @@ function renderWeek() {
   // ce mois-ci qui est absent ce jour (RG/V/F/CTP/R/A), moins les remplaçants
   // déjà placés. VOLANT / DVI / CS ne flashent jamais.
   const COVERAGE = new Set(['VIS','REA','ORT','ORL','END','CI','MAT']);
-  const ABSENT_FLASH = new Set(['RG','V','F','CTP','CP','R','A','TP']);
+  const ABSENT_FLASH = new Set(['RG','V','F','CTP','CP','R','A','TP','CL']);
   const AFF = window.AFFM || {};
   const affOf = (id, m) => (AFF[id] && AFF[id][m] ? String(AFF[id][m]).trim().toUpperCase() : '');
   SECTORS.forEach(s => {
@@ -3109,7 +3109,11 @@ function consultCountsForMonth(ym) {
 function nonPlacesJour(date) {
   const out = {am: [], pm: []};
   if (!DATA || !DATA.months || !date) return out;
-  const EXCL = new Set(['RG','V','F','CTP','R','A','TP']);
+  // (Fix 24/07/2026) CP et CL MANQUAIENT ici : un MAR en congé payé était compté
+  // comme présent, donc laissé dans sa case et réclamé par le badge « à placer »,
+  // alors qu'il figurait bien dans la ligne Absences (autre liste, elle correcte).
+  // Référence unique : ABSENT_CODES de code.gs = RG V F CTP CP R A TP CL.
+  const EXCL = new Set(['RG','V','F','CTP','CP','R','A','TP','CL']);
   const ov = _localOverrides[date] || {};
   const AFF = window.AFFM || {};
   const mIdx = parseInt(date.slice(5,7), 10);
@@ -4339,7 +4343,7 @@ async function exportWeekExcel(){
   const subToRow={};CSROWS.forEach((r,i)=>r.subs.forEach(s=>subToRow[s]=i));
   const POLYI=CSROWS.findIndex(r=>r.subs.indexOf('POLY')>=0);
   const guards=Array(7).fill(null).map(()=>[]);const gardesRea=Array(7).fill(null).map(()=>[]);const gardesAn=Array(7).fill(null).map(()=>[]);const astr=Array(7).fill(null).map(()=>[]);const h18=Array(7).fill('');const sorties=Array(7).fill(null).map(()=>[]);const absents=Array(7).fill(null).map(()=>[]);
-  const ABSENT_S=new Set(['RG','CP','A','F','R','TP','V','I','E']);
+  const ABSENT_S=new Set(['RG','CP','A','F','R','TP','V','I','E','CTP','CL']);
   function pushCS(code,dow,half,init){const raw=code.includes('-')?code.split('-')[1]:code;let idx=subToRow[raw];if(idx==null)idx=POLYI;if(idx>=0&&!csb[idx][dow][half].includes(init))csb[idx][dow][half].push(init);}
   month.doctors.forEach(doc=>{
     daySlots.forEach((slot,dow)=>{
