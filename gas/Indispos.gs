@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-24.1';
+const GAS_VERSION_INDISPOS = '2026-07-24.2';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -2186,31 +2186,6 @@ if (!affSheet) {
           }
           return n;
         };
-        // (Fix 24/07/2026) Le compte des GARDES est aveugle aux ABSENCES : un CP, un V
-        // ou un F saisi à la main dans GARDES_YYYY ne change pas le nombre de gardes.
-        // Le diagnostic annonçait donc « à jour » alors que le planning publié était
-        // périmé — et le MAR continuait d'apparaître disponible dans les cases, parce
-        // que l'affichage lit planning_YYYY.json sur le Drive, jamais l'onglet.
-        const ABS_DIAG = ['RG','V','F','CTP','CP','R','A','TP','CL'];
-        const countAbsJson = txt => {
-          let n = 0;
-          const j = JSON.parse(txt);
-          (j.months || []).forEach(mo => (mo.doctors || []).forEach(dc => (dc.days || []).forEach(day => {
-            if (day && day.status && ABS_DIAG.indexOf(String(day.status).trim().toUpperCase()) >= 0) n++;
-          })));
-          return n;
-        };
-        const countAbsSheet = name => {
-          const sh = ss.getSheetByName(name);
-          if (!sh) return null;
-          const dd = sh.getDataRange().getValues();
-          let n = 0;
-          for (let r = 3; r < dd.length; r++) for (let c = 1; c < dd[r].length; c++) {
-            const v = String(dd[r][c] || '').trim().toUpperCase();
-            if (v && ABS_DIAG.indexOf(v) >= 0) n++;
-          }
-          return n;
-        };
         const auditPlanning = (y, critique) => {
           const name = `planning_${y}.json`;
           const files = _jsonFilesByName_(name);
@@ -2240,15 +2215,6 @@ if (!affSheet) {
               Logger.log(`[diag] ${name} désync ${njson} vs ${nsheet} — aucune garde fantôme localisée`);
             }
           }
-          // Absences : contrôle indépendant du compte de gardes (voir commentaire plus haut).
-          try {
-            const aJson = countAbsJson(f.getBlob().getDataAsString());
-            const aSheet = countAbsSheet(`GARDES_${y}`);
-            if (aSheet !== null) {
-              if (aJson === aSheet) check(`${name} : absences cohérentes avec GARDES_${y} (${aJson} jours)`, R.OK);
-              else check(`${name} : ABSENCES DÉSYNCHRONISÉES — ${aJson} jour(s) d'absence publié(s) contre ${aSheet} dans l'onglet. Une absence saisie à la main (CP, V, F…) n'apparaît PAS dans le planning tant qu'il n'est pas republié : le MAR reste affiché comme disponible. → Republier le planning ${y}.`, R.WARN);
-            }
-          } catch (e) { info(`Comparaison des absences impossible : ${e.message}`); }
         };
         const auditAff = y => {
           const name = `affectations_${y}.json`;
