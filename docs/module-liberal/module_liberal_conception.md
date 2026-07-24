@@ -35,6 +35,12 @@
 *ergonomie admin validée sur maquette conditions réelles (volet « ◆ Libéral » gauche par MAR,*
 *vert/orange, toast si aucune intervention, grille intacte). indispos.html sort du périmètre libéral.*
 *§6.2–6.4, 11, 12, 13 mis à jour.*
+***v3.20 — 24/07/2026** : **maquette v2 livrée** (`maquette_ecran_secretaire.html`), alignée sur le*
+*scénario v3.19. Correction issue des tests : le **repli rang B de la décision 17 est limité aux*
+*3 MARs de plus forte marge** — sans plafond il remplissait le bloc « prioritaire » de 50 dates et*
+*d'une douzaine de médecins. Décision 29. Ajout du **délai minimum** (2 j pour END, 3 j ailleurs,*
+*modifiable) et d'un **plafond d'affichage à 5 dates par bloc**.*
+
 ***v3.19 — 24/07/2026 (fin de journée)** : **scénario retenu — le service reprend le placement des*
 *consultations d'anesthésie.** Les secrétaires des chirurgiens ne donnent plus de créneau ; le*
 *secrétariat d'anesthésie le choisit avec l'écran. Le créneau est **bon dès le départ** → plus de*
@@ -929,6 +935,24 @@ go-live octobre 2026.
     déplacements/semaine**, dont **6 irréductibles** (CARDIO I, vivier de 1).
 28. **Lot 5 — priorité en cas de conflit : déplacer le patient plutôt que le MAR** (Arthur). Ne
     s'applique qu'en rattrapage ; sans objet dans le scénario retenu, où le créneau est bon d'emblée.
+
+29. **Lot 5 — repli rang B plafonné à 3 MARs.** Quand aucun MAR du secteur n'a de marge
+    suffisante, le bloc 1 bascule sur le rang B (décision 17) — mais **limité aux 3 MARs de plus
+    forte marge**, et le bloc est alors intitulé « Aucun MAR du secteur — autres possibilités » et
+    non « À proposer en priorité ». Motif : sans plafond, le test sur le secteur CI (vivier de 1,
+    titulaire indisponible) produisait **50 dates issues d'une douzaine de médecins** dans le bloc
+    prioritaire, qui perdait tout sens.
+30. **Lot 5 — délai minimum entre consultation et intervention** : **3 jours par défaut, 2 jours
+    pour les endoscopies et la cataracte** (cataracte = secteur ORL/Ophtalmo). Pré-rempli d'après le
+    secteur, **modifiable** par la secrétaire. C'est le critère médical (lourdeur du geste,
+    anticoagulants) repris des secrétaires des chirurgiens ; Arthur le juge très grossier.
+31. **Lot 5 — plafond d'affichage : 5 dates par bloc**, le reste derrière « + N autres dates ».
+    Sans plafond, une intervention à trois semaines produit jusqu'à 28 dates — illisible au
+    téléphone. En **couche 2, l'ordre est commandé par la marge** (du plus loin au plus près du
+    plafond), la date ne départageant que les créneaux d'un même MAR : le premier proposé est donc
+    le plus logique au vu de son plafond. ⚠️ Ceci **modifie la décision 16**, qui prévoyait un tri
+    chronologique à l'intérieur de chaque bloc — le tri chronologique ne vaut plus que pour la
+    couche 1, tant que le compteur n'existe pas.
 
 ---
 
