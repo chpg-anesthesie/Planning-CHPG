@@ -229,11 +229,6 @@ h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-
 .live-dot{width:.6em;height:.6em;border-radius:50%;background:#fff;animation:pulse 1.2s ease infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
 @media(prefers-reduced-motion:reduce){.live-dot{animation:none}}
-.chrono{font-family:var(--mono);font-size:clamp(64px,11vw,150px);font-weight:500;
-  letter-spacing:-.02em;color:var(--ink);line-height:1;margin:2vh 0}
-.chrono.go{color:var(--red)}
-.chrono-btns{display:flex;gap:12px}
-.cbtn{font:700 clamp(14px,1.4vw,18px) var(--sans);border:2px solid var(--ink);background:transparent;
   color:var(--ink);border-radius:12px;padding:.7em 1.6em;cursor:pointer;transition:all .15s}
 .cbtn:hover{background:var(--ink);color:#fff}
 .cbtn.primary{background:var(--red);border-color:var(--red);color:#fff}
@@ -383,7 +378,7 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
 
 <section class="slide alt" data-notes="L'escalier des priorités : week-end > samedi > jeudi > total. La quotité : 80 % fait 80 % de la part.">
   <div class="kicker">Le principe</div>
-  <h2>Chacun sa <mark class="hl">juste part</mark>.<br>Ni plus, ni moins.</h2>
+  <h2>La juste part de chacun</h2>
   <div class="stats"><div class="stat"><div class="n">730</div><div class="l">gardes à répartir chaque année</div></div><div class="stat"><div class="n">23</div><div class="l">MAR, avec des quotités différentes</div></div><div class="stat"><div class="n">4</div><div class="l">axes d'équité, dans cet ordre</div></div></div>
   <p class="lead">Une cible par MAR, proportionnelle à son temps de travail — sur <b>chaque type de garde</b>, pas seulement sur le total. En cas de conflit, les plus pénibles d'abord&nbsp;:</p>
   <div class="stairs">
@@ -554,7 +549,7 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
 
 <section class="slide alt" data-notes="La simulation prouve que le mécanisme tient. Le certificat prouve CHAQUE planning réel. Point clé : il est publié dans l'onglet Équité, visible par TOUS — pas seulement le comité. C'est l'argument de transparence : personne n'a à me croire sur parole, chacun vérifie. Prunet est écarté du calcul (ses mardis = sa cible), c'est normal, c'est indiqué. | DÉTAIL : La simulation prouve que le mécanisme tient sur vingt ans. Le certificat, lui, accompagne chaque planning réel : en tête de l'onglet Équité, il résume en un coup d'œil si la répartition est juste — et il est visible par chacun, pas réservé au comité. / Personne n'a à me croire sur parole : le verdict, l'écart maximal et la distribution sont affichés, chiffrés, contrôlables par n'importe qui, à tout moment.">
   <div class="kicker">La preuve, à chaque planning</div>
-  <h2>Un certificat d'équité,<br>publié et vérifiable <mark class="hl">par tous</mark></h2>
+  <h2>Un certificat d'équité, publié</h2>
   <p class="lead">Le certificat accompagne <b>chaque planning réel</b>, en tête de l'onglet Équité — <b>visible par tous</b>, pas réservé au comité.</p>
   <div class="pv-graph" style="margin-top:1.5vh"><svg class="reveal-svg" viewBox="0 0 920 430" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:920px;height:auto" role="img"><rect x="8" y="8" width="904" height="414" rx="18" fill="#F0FDF4" stroke="#A7F3D0" stroke-width="2"/><text x="40" y="58" font-size="25" font-weight="800" fill="#166534" style="font-family:'DM Sans',system-ui,sans-serif">✓ Planning équitable — certifié</text><rect x="470" y="38" width="290" height="30" rx="15" fill="#DCFCE7"/><text x="485" y="58" font-size="14" font-weight="700" fill="#15803D" style="font-family:'DM Sans',system-ui,sans-serif">écart max +1,4 garde · toute l’équipe</text><rect x="40" y="86" width="260" height="96" rx="12" fill="#fff" stroke="#E2E8F0"/><text x="58" y="132" font-size="34" font-weight="800" fill="#166534" style="font-family:'DM Sans',system-ui,sans-serif">94 %</text><text x="58" y="156" font-size="12.5" fill="#64748B" style="font-family:'DM Sans',system-ui,sans-serif">des MAR à moins de 2 de</text><text x="58" y="173" font-size="12.5" fill="#64748B" style="font-family:'DM Sans',system-ui,sans-serif">gardes leur juste part</text><rect x="320" y="86" width="260" height="96" rx="12" fill="#fff" stroke="#E2E8F0"/><text x="338" y="132" font-size="34" font-weight="800" fill="#166534" style="font-family:'DM Sans',system-ui,sans-serif">79 %</text><text x="338" y="156" font-size="12.5" fill="#64748B" style="font-family:'DM Sans',system-ui,sans-serif">à moins d’une garde — au</text><text x="338" y="173" font-size="12.5" fill="#64748B" style="font-family:'DM Sans',system-ui,sans-serif">plus près possible</text><rect x="600" y="86" width="260" height="96" rx="12" fill="#fff" stroke="#E2E8F0"/><text x="618" y="132" font-size="34" font-weight="800" fill="#65A30D" style="font-family:'DM Sans',system-ui,sans-serif">+1,4</text><text x="618" y="156" font-size="12.5" fill="#64748B" style="font-family:'DM Sans',system-ui,sans-serif">écart le plus élevé du</text><text x="618" y="173" font-size="12.5" fill="#64748B" style="font-family:'DM Sans',system-ui,sans-serif">service, rattrapé l’an prochain</text><rect x="40" y="210" width="840" height="150" rx="12" fill="#fff" stroke="#E2E8F0"/><text x="58" y="236" font-size="13" fill="#334155" style="font-family:'DM Sans',system-ui,sans-serif">Répartition des MAR par écart maximal à la cible — la masse est près de zéro</text><text x="165.0" y="267" text-anchor="middle" font-size="14" font-weight="800" fill="#15803D" style="font-family:'DM Sans',system-ui,sans-serif">6</text><rect x="110" y="275" width="110" height="51" rx="5" fill="#15803D" opacity="0.9"/><text x="165.0" y="344" text-anchor="middle" font-size="12" fill="#94A3B8" style="font-family:'DM Mono',ui-monospace,monospace">0–0,5</text><text x="313.0" y="242" text-anchor="middle" font-size="14" font-weight="800" fill="#15803D" style="font-family:'DM Sans',system-ui,sans-serif">9</text><rect x="258" y="250" width="110" height="76" rx="5" fill="#15803D" opacity="0.9"/><text x="313.0" y="344" text-anchor="middle" font-size="12" fill="#94A3B8" style="font-family:'DM Mono',ui-monospace,monospace">0,5–1</text><text x="461.0" y="284" text-anchor="middle" font-size="14" font-weight="800" fill="#65A30D" style="font-family:'DM Sans',system-ui,sans-serif">4</text><rect x="406" y="292" width="110" height="34" rx="5" fill="#65A30D" opacity="0.9"/><text x="461.0" y="344" text-anchor="middle" font-size="12" fill="#94A3B8" style="font-family:'DM Mono',ui-monospace,monospace">1–1,5</text><text x="609.0" y="312" text-anchor="middle" font-size="14" font-weight="800" fill="#D97706" style="font-family:'DM Sans',system-ui,sans-serif">0</text><rect x="554" y="320" width="110" height="6" rx="5" fill="#D97706" opacity="0.18"/><text x="609.0" y="344" text-anchor="middle" font-size="12" fill="#94A3B8" style="font-family:'DM Mono',ui-monospace,monospace">1,5–2</text><text x="757.0" y="312" text-anchor="middle" font-size="14" font-weight="800" fill="#CE1126" style="font-family:'DM Sans',system-ui,sans-serif">0</text><rect x="702" y="320" width="110" height="6" rx="5" fill="#CE1126" opacity="0.18"/><text x="757.0" y="344" text-anchor="middle" font-size="12" fill="#94A3B8" style="font-family:'DM Mono',ui-monospace,monospace">≥ 2</text><g transform="rotate(-11 805 372)"><rect x="735" y="348" width="140" height="48" rx="10" fill="none" stroke="#15803D" stroke-width="2.5" opacity="0.6"/><text x="805" y="370" text-anchor="middle" font-size="17" font-weight="900" letter-spacing="3" fill="#15803D" opacity="0.6" style="font-family:'DM Sans',system-ui,sans-serif">CERTIFIÉ</text><text x="805" y="387" text-anchor="middle" font-size="9" font-weight="700" letter-spacing="1.5" fill="#15803D" opacity="0.55" style="font-family:'DM Sans',system-ui,sans-serif">ÉQUITÉ CHPG</text></g></svg></div>
   <p class="lead" style="margin-top:2vh">Verdict, écart maximal, distribution&nbsp;: <b>affichés, chiffrés, contrôlables</b> par chacun.</p>
@@ -900,34 +895,6 @@ document.addEventListener('touchend', function (e) {
   if (Math.abs(dx) > 60) show(cur + (dx < 0 ? 1 : -1));
   tx = null;
 }, {passive: true});
-
-/* ══ Chrono (démo live) ══ */
-var t0 = null, acc = 0, tick = null;
-var cEl = document.getElementById('chrono');
-function fmt(ms) {
-  var s = ms / 1000;
-  var m = Math.floor(s / 60);
-  var r = (s - m * 60).toFixed(1);
-  return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r;
-}
-document.getElementById('chronoGo').addEventListener('click', function () {
-  if (tick) {           /* arrêt */
-    clearInterval(tick); tick = null;
-    acc += Date.now() - t0;
-    this.textContent = 'Démarrer';
-    cEl.classList.remove('go');
-  } else {              /* départ */
-    t0 = Date.now();
-    tick = setInterval(function () { cEl.textContent = fmt(acc + Date.now() - t0); }, 100);
-    this.textContent = 'Arrêter';
-    cEl.classList.add('go');
-  }
-});
-document.getElementById('chronoReset').addEventListener('click', function () {
-  clearInterval(tick); tick = null; acc = 0;
-  cEl.textContent = '00:00.0'; cEl.classList.remove('go');
-  document.getElementById('chronoGo').textContent = 'Démarrer';
-});
 
 /* Démarrage (reprise via #n) */
 var h = parseInt(location.hash.slice(1), 10);
