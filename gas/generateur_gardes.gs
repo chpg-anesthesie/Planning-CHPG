@@ -17,7 +17,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-07-23.1';
+const GAS_VERSION_GENERATEUR = '2026-07-23.2';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -844,7 +844,28 @@ function generateGardes(year){
     }
 
     const avail=gardeDoctors.filter(id=>!blocked(id,date));
-    if(avail.length<2){warnings.push(`Manque MAR ${date}`);gardes[date]={g:null,g2:null};return;}
+    if(avail.length<2){
+      // ── DERNIER RECOURS : ne jamais renoncer sans avoir tout essayé ────────
+      // Un jour non pourvu est le pire résultat possible : le comité, à la main,
+      // y arrivait TOUJOURS — en cassant la contrainte la moins douloureuse et en
+      // le disant. On fait pareil, dans cet ordre :
+      //   1. tolérer le combo jeudi↔samedi (légal : ce n'est PAS deux gardes
+      //      d'affilée, et c'est exactement l'arbitrage humain) ;
+      //   2. si ça ne suffit toujours pas, alors seulement, signaler le manque.
+      // Les deux règles dures ne sont JAMAIS relâchées : jamais deux gardes
+      // consécutives, jamais de garde sur une absence déclarée.
+      const availR=gardeDoctors.filter(id=>!blocked(id,date,true));
+      if(availR.length>=2){
+        const _vjf=dayByDate[date]?dayByDate[date].isVjf:false;
+        availR.sort((a,b)=>cmp(scoreSelect(a,dow,_vjf,date),scoreSelect(b,dow,_vjf,date)));
+        const A=availR[0],B=availR[1];
+        const [g,g2]=assignRoles(A,B);
+        assign(date,g,g2,dow);
+        warnings.push(`Dernier recours : ${date} pourvu en tolérant le combo jeudi↔samedi (${A} / ${B}) — période trop chargée en congés, à anticiper au staff`);
+        return;
+      }
+      warnings.push(`Manque MAR ${date}`);gardes[date]={g:null,g2:null};return;
+    }
 
     if(dow===5){
       // VENDREDI : VD (binôme vendredi+dimanche)
