@@ -175,10 +175,25 @@ patient), pour ne créer ni donnée patient ni travail aux secrétaires des chir
   particuliers gérés (`tpJoursFixes`, dates début/fin, rythme 2/2 `estSemaineOff`). L'outil est ce
   **même calcul retourné** : figer le MAR, boucler sur ~20–28 jours. **Nouvelle action de LECTURE**,
   zéro écriture, zéro nouvelle donnée.
-- 🔴 **À trancher avant maquette (fiabilité) :** un congé long / des vacances peuvent-ils être posés
-  **uniquement** dans INDISPOS ou AFFECTATIONS **sans** apparaître dans GARDES ? Arthur : « GARDES
-  est le plus important » — **à vérifier dans le code**, ne pas conclure par analogie. Si oui, lire
-  les 3 onglets : un faux « disponible » enverrait un patient un jour d'absence.
+- ✅ **RÉSOLU (24/07) — lire `GARDES_{Y}` SEUL suffit.** Vérifié sur les **deux** chemins
+  d'écriture, pas par analogie : (a) **campagne d'indispos** → `generateur_gardes.gs` **l.1283**
+  recopie les indispos dans GARDES en les traduisant (`VAC→V`, `INDISPO→I`, `FORM→F`, `CL→CL`,
+  `TP/CTP→TP`) — exactement les codes de `ABSENT_CODES_SET` ; (b) **absence longue** →
+  `Indispos.gs` **l.3074** écrit `CL` dans GARDES *et* INDISPOS (commentaire : « CL écrase tout
+  (gardes + RG) »). Unique exception : année **non encore générée**, le CL ne va que dans INDISPOS
+  — sans objet pour cet outil (fenêtre 3–4 semaines ⇒ toujours l'année en cours, générée).
+- **Liste des consultations à venir = `PLANNING_OVERRIDES`** (`DATE | MAR_ID | SECTEUR_MATIN |
+  SECTEUR_AM | COMMENTAIRE`). `GENERER_CONSULTATIONS = false` (`code.gs` l.255) : les consultations
+  **ne sont pas générées**, le comité place chaque MAR à la main. `CS_RULES` ne fournit que le
+  **gabarit** (nombre de créneaux par jour), **jamais le nom du titulaire**.
+- 🔴 **Seul obstacle restant : ORGANISATIONNEL.** L'écran ne peut lister que les consultations
+  **déjà nommées**. Prérequis : le comité pose les titulaires **3–4 semaines à l'avance** (cible
+  validée par Arthur le 24/07). À 1 semaine, l'écran n'a pas de matière. ⚠️ Ne pas confondre avec
+  le prérequis du Lot 5, **bien plus lourd** : ici **rien ne change** pour les secrétaires des
+  chirurgiens ni pour le flux patient — c'est une seule habitude interne du comité. Coût réel :
+  s'engager plus tôt, et retoucher un placement quand une absence tombe après coup.
+- ❓ À traiter à la maquette : override **modifié après coup** (MAR remplacé sur son créneau) —
+  l'outil suit le nouveau titulaire, mais les patients déjà placés sur l'ancien ne bougent pas.
 - **Accès secrétaire** : action de lecture appelable sans droits MAR/comité — à cadrer (piste : rôle
   `secretariat` de `CONFIG`, lecture seule). ⚠️ Ne pas réutiliser `getMARsDispoJour` tel quel (garde
   `TP`/`R` dans sa liste d'absence).
