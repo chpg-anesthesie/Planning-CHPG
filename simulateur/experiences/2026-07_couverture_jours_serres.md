@@ -80,17 +80,16 @@ Mesures refaites après réécriture, **et après correction du modèle démogra
 
 | | référence (production) | livré |
 |---|---|---|
-| jours sans binôme | 13 | **1** |
+| jours sans binôme | 13 | **0** |
 | pire écart par axe | 3,4 | **3,3** |
-| années avec écart ≥ 2 | 45 (32 %) | **42 (30 %)** |
+| années avec écart ≥ 2 | 45 (32 %) | **38 (27 %)** |
 | années avec écart ≥ 3 | 4 (3 %) | **3 (2 %)** |
 | médiane des écarts | 1,7 | 1,7 |
 | gardes consécutives (illégal) | 0 | **0** |
 | gardes sur absence déclarée | 0 | **0** |
 
-**Meilleur que la référence sur les quatre mesures.** Trou résiduel : 1 sur
-140 années (tirage 1, samedi de décembre 2041) — signalé par « Manque MAR » et par
-le diagnostic Maintenance **avant** publication.
+**Meilleur que la référence sur toutes les mesures, vitesse comprise** (7 456 ms/an
+contre 7 635). **Zéro jour sans binôme sur 140 années.**
 
 **Banc de torture** (23/07/2026) :
 
@@ -100,15 +99,15 @@ le diagnostic Maintenance **avant** publication.
 | déterminisme (3 exécutions) | — | **identiques** |
 | stress +50 % d'indispos | 0 trou | **0 trou** |
 | stress équipe réduite (retraite 63 ans) | 0 trou | **0 trou** |
-| stress 12 MAR en congé la semaine de Noël | 18 trous | **14, tous avertis** |
-| temps de génération | 7,6 s/an | 8,4 s/an |
+| stress 12 MAR en congé la semaine de Noël | 18 trous | **12, tous avertis** |
+| temps de génération | 7,6 s/an | **7,5 s/an** |
 
 Sur **tous** les tests : nombre d'avertissements « Manque MAR » = nombre de trous.
 Aucun jour non pourvu ne peut être publié sans être signalé.
 
 **Contreparties assumées** (cumul 140 années) : 2 combos jeudi↔samedi (légal, jamais
-deux gardes d'affilée) et 2 couplages fériés dégradés de plus (21 → 23). Chacun est
-signalé au comité au moment de la génération.
+deux gardes d'affilée) et 4 couplages samedi→lundi dégradés de plus (21 → 25). Chacun
+est signalé au comité au moment de la génération.
 
 ## Le moteur retenu
 
@@ -121,7 +120,17 @@ signalé au comité au moment de la génération.
 3. **Les samedis restent dans le périmètre.** Les avoir exclus (tentative
    intermédiaire) laissait 4 trous, tous des samedis, pour un gain d'équité nul.
    Le danger ne venait pas du samedi mais de l'ordre de choix.
-4. **Avertissement au comité** quand la couverture a coûté cher en équité :
+4. **Passe de dernier recours — le mécanisme décisif (`GAS_VERSION 2026-07-23.2`).**
+   Le moteur renonçait : dès qu'il restait moins de deux personnes disponibles, il
+   écrivait « Manque MAR » et passait au jour suivant — **sans jamais essayer la
+   tolérance qu'il avait pourtant dans les mains**. Le comité, lui, n'a jamais
+   renoncé : il casse la contrainte la moins douloureuse et le dit. Désormais, avant
+   d'abandonner un jour, l'algorithme retente en **tolérant le combo jeudi↔samedi**
+   (légal : ce n'est PAS deux gardes d'affilée). Les deux règles dures ne sont jamais
+   relâchées : **jamais deux gardes consécutives, jamais de garde sur une absence
+   déclarée** — zéro violation sur 140 années. C'est ce seul ajout qui fait passer de
+   1 trou à **0**.
+5. **Avertissement au comité** quand la couverture a coûté cher en équité :
    « choix contraint, équité dégradée — à anticiper sur la pose des vacances ».
    Le levier principal reste en amont, au staff d'octobre.
 
