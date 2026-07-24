@@ -129,53 +129,66 @@ d'où l'absence d'icônes de secteur sur cette page, contrairement à `index.htm
 - ⚠️ **La rotation automatique a été SUPPRIMÉE (20/07/2026)** — objet `ROT`, assistant « ⟳ Rotation libérale », overlay et action `applyRotationLib` retirés, faute d'usage réel. Le tag `ROT-LIB` n'existe plus : les lignes existantes ont été converties en `LIB` par la fonction one-shot `convertirRotLibEnLib()` (elle-même retirée après usage), ce qui a préservé à l'identique les créneaux déjà attribués. **Ne pas reproposer d'automatisation de cette rotation.**
 - ⚠️ **`setLibSoliste` n'a jamais existé** dans le dépôt : cette doc l'a longtemps annoncée comme « à recopier », mais aucune trace dans les `.gs` ni dans `admin.html`. Mention supprimée le 20/07/2026. Rappel : **le dépôt fait foi**, pas ce fichier.
 
-## Interface secrétaire — placement des consultations libérales (Lot 5, conçu non codé)
+## Module libéral — pilotage 30 % : cadrage du 24/07/2026
 
-**Scénario retenu (24/07/2026).** Le **service reprend le placement des consultations
-d'anesthésie** : les secrétaires des chirurgiens ne donnent plus de créneau. Le secrétariat
-d'anesthésie (ou un MAR) le choisit avec un écran — entrée **date opératoire + secteur**, sortie
-**créneaux de consultation** en **forme A** (bloc « à proposer en priorité », puis « voir d'autres
-dates » **replié**). Le créneau est **bon dès le départ** : ni déplacement de MAR, ni rappel de
-patient. La secrétaire impose les dates, le patient s'adapte.
+### Lot 2 (compteur) — architecture actée
+Le **relevé administratif mensuel** est le **socle certifié en euros**. C'est la **seule** source
+qui connaît le **dénominateur** (activité publique du MAR), donc la seule capable de donner un
+**pourcentage** de plafond. La **déclaration d'intervention par le MAR** (Lot 3, déjà en prod) peut
+faire monter un compteur **en temps réel entre deux relevés — mais en VOLUME d'interventions
+uniquement, jamais en %.** Deux raisons : elle ignore l'activité publique (le dénominateur), et un
+acte déclaré n'est pas un euro encaissé (cotation, délais, rejets). **Afficher un % issu des seules
+déclarations donnerait un chiffre faux — et faux dans le sens dangereux** (dirait « vas-y » à qui
+doit s'arrêter). Modèle retenu : *position certifiée au dernier relevé (en €, avec %) + tendance en
+volume accumulée depuis*. L'arbitrage pouvant être mensuel, le relevé est mensuel → l'écran de
+saisie garde son sens (17 lignes × 6 nombres, checksum sur Σ des excédents **recopiés**, monotonie
+du cumul). Maquette de saisie explorée, non poussée.
 
-- **Deux rangs.** A = affecté au **secteur** le jour du bloc ; B = **présent à l'hôpital**, tout
-  secteur (il sort endormir et revient). Un MAR **absent** n'est jamais proposé.
-- **Jamais de motif d'indisponibilité affiché** (l'accès est un **code partagé**) : l'écran n'affiche
-  que du positif, une indisponibilité = une ligne absente.
-- ⚠️ **Deux listes d'absence coexistent** — `code.gs:245` `ABSENT_CODES` (`RG V F CTP CP R A TP CL`)
-  et `Indispos.gs:2773` `ABSENT_CODES_SET` (idem **sans `R` ni `TP`**). `getMARsDispoJour` utilise la
-  seconde **volontairement** (le comité peut rappeler un `TP`). **Le Lot 5 lit `planning_{Y}.json`,
-  il ne réutilise pas `getMARsDispoJour`.**
-- `G`/`G2` ne sont dans aucune des deux listes : un MAR **de garde** le jour du bloc est **présent**.
-- 🔴 **Prérequis** : horizon de placement des consultations porté de **1 à 3–4 semaines**
-  (`GENERER_CONSULTATIONS = false`, le comité place à la main). Pas de repli : `CS_TEMPLATE` ne donne
-  que le **nombre** de créneaux, jamais **qui** les tient ; `CS_RULES` est gelé.
-- **Accès** : `SECRETARIAT_CODE` dans `CONFIG` → rôle `secretariat` + **liste blanche lecture seule**
-  (sinon le code atteindrait `declareLiberal` et les écritures déléguées à `portail.gs`).
-- ⚠️ **Contrainte 3.bis maintenue** : aucune donnée patient dans Planning-CHPG. L'écran **calcule**
-  (entrée anonyme), il **n'enregistre pas**.
+### Lot 5 (orientation financière par la secrétaire) — GELÉ
+L'idée initiale : router chaque patient vers le MAR le plus loin de son plafond. **Gelée**, pas
+abandonnée. Raisons : (1) elle dépend du Lot 2 (le plafond n'existe pas encore) et d'un horizon de
+placement porté à 3–4 semaines ; (2) le dépassement du groupe s'efface **arithmétiquement** avec les
+deux entrants (Arthur oct. 2026 + un autre janv. 2027 ≈ 82 k€ de plafond libre, vs ≈ 44 k€ reversés
+au S1) ; (3) au-dessus de 30 %, un acte parti en public **n'est pas une perte** — il gonfle le
+dénominateur et libère du plafond. Le Lot 5 optimiserait un problème en voie de disparition.
+**Règle : ne pas le coder tant que le Lot 2 n'a pas prouvé, sur données réelles, un dépassement
+persistant après les deux arrivées.** Conception complète conservée au §11 ter.
 
-**Mesures réelles — semaine 25 (juin 2026), à ne pas réestimer.**
-**89 patients libéraux/semaine** (et non ~40) · **75 %** déjà vus par un MAR au bon secteur ·
-**20 déplacements** (22 %) · **4 pertes libérales** · délai consultation → bloc **médiane 6 jours**,
-73 % ≤ 7 j · MARs consultant en parallèle : moyenne 3,35.
-⚠️ **`p ≈ 1/3` était FAUX d'un facteur deux** : l'appariement est structurellement élevé parce que
-les consultations sont **typées par secteur**. **Vivier par secteur (juin)** : CI **1**, MAT 1,
-ORL 2, ORT 2, END 3, VIS 4, + 7 volants → les **6 déplacements CARDIO I/semaine sont
-irréductibles**.
+Mesures réelles conservées (semaine 25, juin 2026, à ne pas réestimer) : **89 patients
+lib/semaine**, **75 %** déjà bien appariés, **20 déplacements** (22 %), délai consult→bloc **médiane
+6 j**. Vivier CI **1** / MAT 1 / ORL 2 / ORT 2 → 6 déplacements CARDIO/semaine **irréductibles**.
+⚠️ `p ≈ 1/3` était **faux d'un facteur deux** (consultations typées par secteur).
 
-**Pistes abandonnées, à ne pas rouvrir.** *Attribution au fil de l'eau* (rattraper un placement
-aveugle) : une même consultation porte plusieurs patients libéraux avec **des dates de bloc
-différentes**, aucune permutation ne les satisfait tous, et la fenêtre médiane de 5 jours ne
-contient souvent aucun créneau de rechange. *Interface patient* : ferait sortir le module du
-périmètre interne (identification, données de santé, responsabilité) → projet institutionnel DSI.
+### Lot 5-bis (contrôle d'absence côté secrétariat d'anesthésie) — conçu, non codé
+Extraction de la **jambe inoffensive** du Lot 5 : ne route rien, ne compte rien, n'écrit rien,
+**aucune donnée patient**. **Besoin :** un patient vu par Dr X sera opéré par Dr X ; si le bloc
+tombe un jour d'absence de Dr X, le patient est mal placé dès la consultation. **Outil :** la
+secrétaire d'anesthésie ouvre, **au coup par coup pour un MAR donné**, ses **absences sur 3–4
+semaines** et les compare à la main avec sa liste de dates de bloc (qu'elle possède déjà).
+**Forme A** (l'outil affiche les absences, la secrétaire compare) — pas de forme B (saisie des dates
+patient), pour ne créer ni donnée patient ni travail aux secrétaires des chirurgiens.
 
-**Ouvert, non technique.** Le patient repart **sans date** : passe-t-il au secrétariat en sortant de
-chez le chirurgien, ou rappelle-t-il ? Le secrétariat a-t-il le temps de poser ~89 rendez-vous par
-semaine ? Le critère médical (lourdeur du geste, anticoagulants) passe au secrétariat d'anesthésie —
-jugé **très grossier** par Arthur, donc applicable sans expertise, mais à faire figurer dans l'écran.
+- **« Absent »** = jour où le MAR **n'est pas là** : RG, VAC, FORM, CL, CP, absence. **Pas** un jour
+  travaillé sur un autre secteur (réa, autre bloc) : ce jour-là il peut récupérer son patient.
+- ✅ **Faisable — vérifié en lecture de code (24/07).** `Indispos.gs` ~l.2773
+  `ABSENT_CODES_SET = {RG,V,CP,F,CTP,A,CL}` définit déjà « absent ce jour », exploité en prod ; cas
+  particuliers gérés (`tpJoursFixes`, dates début/fin, rythme 2/2 `estSemaineOff`). L'outil est ce
+  **même calcul retourné** : figer le MAR, boucler sur ~20–28 jours. **Nouvelle action de LECTURE**,
+  zéro écriture, zéro nouvelle donnée.
+- 🔴 **À trancher avant maquette (fiabilité) :** un congé long / des vacances peuvent-ils être posés
+  **uniquement** dans INDISPOS ou AFFECTATIONS **sans** apparaître dans GARDES ? Arthur : « GARDES
+  est le plus important » — **à vérifier dans le code**, ne pas conclure par analogie. Si oui, lire
+  les 3 onglets : un faux « disponible » enverrait un patient un jour d'absence.
+- **Accès secrétaire** : action de lecture appelable sans droits MAR/comité — à cadrer (piste : rôle
+  `secretariat` de `CONFIG`, lecture seule). ⚠️ Ne pas réutiliser `getMARsDispoJour` tel quel (garde
+  `TP`/`R` dans sa liste d'absence).
 
-Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter, décisions 15 à 28.
+**Pistes abandonnées, à ne pas rouvrir.** *Attribution au fil de l'eau* (une consultation porte
+plusieurs patients aux dates de bloc différentes, aucune permutation ne les satisfait tous).
+*Interface patient* (sortirait du périmètre interne : identification, données de santé,
+responsabilité → projet DSI).
+
+Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
 ## Version du site (badge `vX.Y.Z`) — actuellement **v1.6.1**
