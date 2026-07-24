@@ -584,6 +584,36 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
   - Conception figée : seuil **30 % par axe** (CCAM technique **et** NGAP consultations, indépendants), objectif = optimiser le pot commun mutualisé, affichage seul côté comité.
   - Assets déjà dans le repo : conception, antisèche cotation CCAM/NGAP, `ccam_actes.json`, `maquette_estimateur_liberal.html`, guide. **Les 3 `.docx` ont été supprimés le 21/07/2026** (décision d'Arthur) : le HTML et le Markdown font foi, trois copies d'un même contenu étant trois occasions de se contredire. Contenu conservé dans `antiseche_CCAM_anesthesie_CHPG.md` et `guide_liberal_MAR.html`. Seul le **mémo de poche 1 page** n'a plus d'équivalent **de format** (son contenu est aux §3 et §5 bis de l'antisèche) — à refaire en HTML si le besoin revient. Récupérables dans l'historique git.
   - **Lots 0, 1 et 3 terminés** (secteurs, fondations données, placement bloc). **Ordre restant : 2 → 4.**
+  - 🆕 **Lot 5 — Interface secrétaire (conçu 24/07/2026, non codé).** Conception complète au
+    **§11 ter** de `module_liberal_conception.md` (**v3.19**, décisions 15 à 28).
+    **Scénario retenu :** le **service reprend le placement des consultations d'anesthésie** — les
+    secrétaires des chirurgiens ne donnent plus de créneau (charge en moins, pas en plus). Le
+    secrétariat d'anesthésie choisit le créneau avec l'écran : entrée **date opératoire + secteur**,
+    sortie **créneaux de consultation en forme A** (bloc prioritaire, autres dates repliées).
+    Le créneau est **bon dès le départ** → ni déplacement de MAR, ni rappel de patient.
+    - **Mesures réelles semaine 25 (juin 2026)** : **89 patients libéraux/semaine** (et non ~40) ;
+      **75 %** déjà vus par un MAR au bon secteur ; **20 déplacements** (22 %) ; **4 pertes
+      libérales** ; délai consultation → bloc **médiane 6 j**, 73 % ≤ 7 j.
+    - ⚠️ **`p ≈ 1/3` était faux d'un facteur deux.** L'appariement est structurellement élevé car
+      les consultations sont **typées par secteur**. Rejeter toute estimation fondée sur `p = 1/3`.
+    - **Vivier par secteur (juin)** : CI **1**, MAT 1, ORL 2, ORT 2, END 3, VIS 4, + 7 volants.
+      Les **6 déplacements CARDIO I/semaine sont structurellement irréductibles** (vivier de 1).
+    - ⚠️ **Ne pas réutiliser `getMARsDispoJour`** : sa liste d'absence garde volontairement `TP` et
+      `R` → proposerait un MAR son jour de non-travail (décision 20). Lire `planning_{Y}.json` via
+      `getPlanningJson` (code-gated, non-admin).
+    - 🔴 **Prérequis d'organisation (décision 21, réactivée)** : horizon de placement des
+      consultations porté de **1 à 3–4 semaines**. Pas de repli (`CS_TEMPLATE` ne nomme personne,
+      `CS_RULES` gelé).
+    - Accès : `SECRETARIAT_CODE` dans `CONFIG` → rôle `secretariat`, **avec liste blanche lecture
+      seule** posée dans le même geste (décision 22).
+    - ❓ Ouvert, non technique : le patient repart **sans date** → passe-t-il au secrétariat en
+      sortant de chez le chirurgien, ou rappelle-t-il ? Et le secrétariat a-t-il le temps de poser
+      ~89 rendez-vous/semaine ?
+    - ⚠️ `docs/module-liberal/maquette_ecran_secretaire.html` : maquette statique de la couche 1,
+      à réaligner sur le scénario retenu.
+    - 🗑️ Piste abandonnée : **attribution au fil de l'eau** (rattrapage d'un placement aveugle) —
+      caduque depuis v3.19, conservée dans la conception pour éviter d'y revenir. Et **interface
+      patient** écartée (sortirait du périmètre interne : données de santé, responsabilité, DSI).
   - **Calendrier acté : la brique convergence ne passe pas en prod avant le go-live d'octobre 2026.** Construction et tests à blanc possibles dès maintenant.
 
 - [ ] 🖥️ **Dashboard / portail**
