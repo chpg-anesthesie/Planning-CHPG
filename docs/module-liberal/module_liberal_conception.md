@@ -35,6 +35,11 @@
 *ergonomie admin validée sur maquette conditions réelles (volet « ◆ Libéral » gauche par MAR,*
 *vert/orange, toast si aucune intervention, grille intacte). indispos.html sort du périmètre libéral.*
 *§6.2–6.4, 11, 12, 13 mis à jour.*
+***v3.16 — 24/07/2026** : **plancher de marge résiduelle acté** (≥ 3 patients pour rester en*
+*bloc 1 ; conversion euros → patients par **moyenne globale du groupe** en V1) et **bloc 2 replié***
+*par défaut. Arbitrage explicité : accepter un risque de dépassement borné plutôt qu'un déplacement*
+*systématique. Plus aucun point ouvert sur la couche 2 du Lot 5.*
+
 ***v3.15 — 24/07/2026** : **partition en blocs validée** (Arthur) → passe en décision 17. Le §14*
 *ne conserve plus que deux points ouverts sur la couche 2 : plancher de marge résiduelle et*
 *masquage du bloc 2.*
@@ -533,7 +538,36 @@ traverser l'hôpital à un MAR que perdre de l'argent). Il n'apparaît que comme
 personne : il décide seulement **dans quel bloc** chacun tombe. La priorisation se réduit donc à une
 question binaire, nettement plus simple à coder et à expliquer qu'un classement fin.
 
-*Partition — **actée**, cf. décision 17.* Bloc 1 = les **rangs A à marge positive** ; si aucun n'existe,
+*Partition — **actée**, cf. décision 17.*
+
+*Plancher de marge résiduelle (décision 18).* Un rang A à marge positive mais faible resterait en
+bloc 1 alors qu'il va saturer aussitôt — et l'écran étant consultatif, il ne verra rien avant que
+les déclarations MAR ne remontent (fenêtre aveugle de quelques jours à quelques semaines). **Règle :
+marge ≥ 3 patients → bloc 1 ; ≤ 2 patients → bloc 2**, même si le MAR est du bon secteur. Le cas
+« exactement 3 » reste en bloc 1 : trois places sont encore de la place réelle.
+
+*Pourquoi 3, et pourquoi si bas.* Arbitrage Arthur : mieux vaut s'exposer à un dépassement limité
+que solliciter systématiquement un MAR d'un autre secteur. Ce n'est **pas** en contradiction avec la
+décision 16 (« plutôt faire traverser que perdre de l'argent ») : les deux situations diffèrent. Si
+le MAR du secteur est **saturé**, la perte est **certaine** → on déplace. S'il a **encore de la
+place**, la perte n'est qu'un **risque**, et seulement sur les patients orientés pendant la fenêtre
+aveugle → on l'accepte pour éviter un déplacement systématique. Avec N = 3, le dépassement éventuel
+porte sur quelques patients, jamais sur un flux entier : le risque est **borné**. Valeur de départ à
+réviser une fois la durée réelle de la fenêtre aveugle mesurée en service.
+
+*Conversion euros → patients.* Le compteur produit une marge **en euros**, le plancher s'exprime en
+**patients** : il faut un montant moyen par patient. En V1, **moyenne globale du groupe**, pas par
+secteur — la moyenne sectorielle serait plus juste mais dépend de `RENDEMENT_LIB` (Lot 0), gelé
+jusqu'au plan du NCHPG, ce qui bloquerait le Lot 5 sur un chantier à l'arrêt. Le plancher est une
+sécurité approximative, pas un calcul comptable : une erreur d'un patient est sans conséquence.
+
+*Bloc 2 replié par défaut (décision 19).* Le bloc « autres dates » est **replié derrière un lien**,
+pas supprimé. Motif : si les deux blocs sont visibles côte à côte, un patient qui répond « je ne
+peux pas le 8 mais je suis libre le 7 » fait contourner la priorité en trois secondes, sans décision
+consciente de personne. Le repli n'est pas un verrou — un clic suffit — mais il fait du bloc 1 le
+réflexe par défaut. Cohérent avec la décision 16 (« la secrétaire impose les dates, le patient
+s'adapte »). **Un MAR n'est jamais masqué** : en bloc 2 il reste accessible à un clic, et si le
+bloc 1 est vide, le bloc 2 devient la réponse — on propose toujours le moins mauvais, jamais rien. Bloc 1 = les **rangs A à marge positive** ; si aucun n'existe,
 bloc 1 = les **rangs B à marge positive** ; bloc 2 = tout le reste, marges négatives comprises.
 Elle réconcilie les deux règles d'Arthur (« les affectés au secteur sont prioritaires » et « plutôt
 faire traverser que perdre de l'argent ») : tant qu'un MAR du secteur a de la marge, l'orienter vers
@@ -633,6 +667,14 @@ go-live octobre 2026.
     argent — il n'y a rien à arbitrer ; on ne fait traverser l'hôpital que lorsque le secteur est
     saturé. Les deux règles d'Arthur ne s'appliquent donc jamais simultanément.
 
+18. **Lot 5 — plancher de marge résiduelle** : **≥ 3 patients de marge → bloc 1 ; ≤ 2 → bloc 2**,
+    même pour un MAR du bon secteur. Conversion euros → patients par **moyenne globale du groupe**
+    en V1 (pas par secteur : dépendrait du Lot 0, gelé). Valeur de départ, à réviser après mesure de
+    la fenêtre aveugle en service.
+19. **Lot 5 — bloc 2 replié par défaut** derrière un lien « voir d'autres dates ». Pas un verrou ;
+    fait du bloc 1 le réflexe. Aucun MAR n'est jamais masqué ; si le bloc 1 est vide, le bloc 2 est
+    la réponse.
+
 ---
 
 ## 14. Questions encore ouvertes
@@ -676,15 +718,9 @@ go-live octobre 2026.
   décompte ne peut venir que des **déclarations MAR**, donc en retard du délai de consultation :
   juste sur la durée, potentiellement faux sur une journée (cinq orientations le même matin vers le
   même MAR resteraient invisibles). À trancher avant le développement du Lot 5.
-- **Lot 5 — deux points ouverts sur la couche 2.**
-  1. **Plancher de marge résiduelle.** Un rang A avec une marge positive mais faible (~3–4 actes)
-     resterait en bloc 1 alors qu'il va saturer aussitôt — et le compteur, en retard de plusieurs
-     jours, ne le verra pas avant que la secrétaire ne lui ait envoyé dix patients. Il faut un
-     minimum en dessous duquel on ne met plus quelqu'un en bloc 1 même s'il est du bon secteur. À
-     exprimer en **nombre d'interventions** plutôt qu'en euros (c'est ce que la secrétaire consomme
-     pendant que le compteur est aveugle). Valeur à fixer : 3 ? 5 ? 10 ?
-  2. **Masquage du bloc 2.** Le replier par défaut derrière un lien « voir d'autres dates » rendrait
-     la priorité difficile à contourner sous la pression du téléphone. À trancher.
+- **Lot 5 — affiner la conversion euros → patients (mineur, différé).** La moyenne globale retenue
+  en V1 (décision 18) ignore l'écart de rendement entre secteurs. À reprendre si `RENDEMENT_LIB`
+  (Lot 0) est un jour dégelé.
 - **Lot 5 — zone d'indifférence (mineur, non urgent).** Un tri strict sur la marge ferait traverser
   l'hôpital pour un écart négligeable (12 000 € contre 11 500 €). À marges proches, privilégier
   celui qui est déjà sur place. Sans objet tant que la partition reste binaire.
