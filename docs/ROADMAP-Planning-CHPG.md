@@ -706,6 +706,18 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
         avant tout traitement d'action** : le rôle `secretariat` n'atteint que `login` + la nouvelle
         action de lecture, rien d'autre. **Étapes 1 et 2 indissociables** — ne jamais pousser l'une
         sans l'autre, l'intervalle serait une brèche.
+    - 🏷️ **Nommage et atterrissage — arrêtés 24/07/2026.**
+      - **Tuile Dashboard : « Mes consultations »**, sous-titre *« Vos consultations à venir et vos
+        absences sur la même période. »* Visible par **tous les MARs**. La tuile n'est vue que par
+        les MARs (la secrétaire ne passe pas par le Dashboard) : elle peut donc parler à la
+        première personne. Écarté : « contrôle d'absence », vocabulaire de conception et non
+        d'utilisateur.
+      - **Titre de la page : « Consultations à venir »** — neutre, car la page est **partagée**
+        entre MARs et secrétariat.
+      - **Atterrissage secrétariat : DIRECT sur `absences.html`**, sans passer par le portail ni le
+        Dashboard (elle n'y a rien à faire). ⚠️ **Impacte le code de connexion** : après saisie du
+        code partagé, la redirection dépend du rôle renvoyé par `checkCode` — à traiter dans
+        l'étape 1/2, pas après coup.
     - 📌 **Ordre de construction (arrêté 24/07) :** (1) `SECRETARIAT_CODE` dans CONFIG +
       `checkCode` renvoie le 3ᵉ rôle → (2) liste blanche refus-par-défaut → (3) action de lecture
       des absences, autonome, deux réponses selon le rôle → (4) action « qui peut prendre » →
