@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-24.3';
+const GAS_VERSION_INDISPOS = '2026-07-25.1';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1074,6 +1074,7 @@ const WRITE_ACTIONS_LOCK = new Set([
 // la regle « dates seules » de l'ecran Consultations a venir.
 const SECRETARIAT_ACTIONS = new Set([
   'login',
+  'getConsultAbsences',
 ]);
 
 function doGet(e) {
@@ -3253,6 +3254,131 @@ if (action === 'setDailyStatus') {
       return ContentService.createTextOutput(JSON.stringify({ success: true, marId, nbEfface, touched, nouvelleFin: nf || null }))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // ── ACTION : getConsultAbsences (Lot 5-bis) ──────────────────────────
+    // Alimente l'ecran « Consultations a venir ». LECTURE SEULE, aucune donnee patient.
+    // Un seul aller-retour : consultations posees + absences de chaque MAR.
+    // ⚠️ Deux reponses selon le role : le motif d'absence (`c`) n'est JOINT QUE pour
+    //    'mar' et 'admin'. En session 'secretariat' il n'est meme pas envoye — le
+    //    masquer cote navigateur le laisserait lisible dans le source de la page.
+    if (action === 'getConsultAbsences') {
+      try {
+        const JOURS_CONSULT = 20;  // 4 semaines ouvrees de consultations affichees
+        const JOURS_ABS     = 20;  // 4 semaines d'absences APRES la derniere consultation
+        const avecMotifs = (user.role !== 'secretariat');
+        const _isoD = function (d) {
+          return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+                 '-' + String(d.getDate()).padStart(2, '0');
+        };
+        // 1) Fenetre de jours ouvres a partir d'aujourd'hui. Il en faut
+        //    JOURS_CONSULT + JOURS_ABS : chaque consultation regarde 4 semaines DEVANT
+        //    elle, donc la derniere consultation affichee a besoin de 4 semaines de plus.
+        const jours = [];
+        const _cur = new Date(); _cur.setHours(12, 0, 0, 0);
+        while (jours.length < JOURS_CONSULT + JOURS_ABS) {
+          const _dw = _cur.getDay();
+          if (_dw >= 1 && _dw <= 5) jours.push(_isoD(_cur));
+          _cur.setDate(_cur.getDate() + 1);
+        }
+        const joursConsult = jours.slice(0, JOURS_CONSULT);
+
+        // 2) Effectif actif (MEDECINS). Index figes : [0] id, [1] nom, [3] actif.
+        const ssL = SpreadsheetApp.getActiveSpreadsheet();
+        const medSh = ssL.getSheetByName('MEDECINS');
+        if (!medSh) return _error('Onglet MEDECINS introuvable');
+        const medD = medSh.getDataRange().getValues();
+        const noms = {};
+        for (let r = 1; r < medD.length; r++) {
+          const id = String(medD[r][0]).trim();
+          if (!id) continue;
+          if (String(medD[r][3]).trim().toUpperCase() !== 'O') continue;
+          noms[id] = String(medD[r][1]).trim();
+        }
+
+        // 3) Consultations posees a la main par le comite (PLANNING_OVERRIDES).
+        //    GENERER_CONSULTATIONS = false : elles n'existent QUE la ou le comite a
+        //    nomme quelqu'un. Une consultation se reconnait au prefixe 'CS-'.
+        const ovr = loadPlanningOverrides();
+        const consultations = [];
+        joursConsult.forEach(function (ds) {
+          const parJour = ovr[ds];
+          if (!parJour) return;
+          Object.keys(parJour).forEach(function (id) {
+            if (!noms[id]) return;                       // MAR inactif ou inconnu
+            const o = parJour[id];
+            const am = String(o.morning   || '');
+            const pm = String(o.afternoon || '');
+            if (am.indexOf('CS-') === 0) consultations.push({date: ds, mar: id, cs: am, per: 'am'});
+            if (pm.indexOf('CS-') === 0) consultations.push({date: ds, mar: id, cs: pm, per: 'pm'});
+          });
+        });
+
+        // 4) Absences par MAR sur toute la fenetre.
+        //    Source : GARDES_{Y} (onglet maitre : la campagne d'indispos y est recopiee
+        //    par generateur_gardes.gs, et poserAbsenceLongue y ecrit CL directement).
+        //    ABSENT_CODES (code.gs) = RG,V,F,CTP,CP,R,A,TP,CL — G/G2 volontairement
+        //    ABSENTS de ce jeu : un MAR de garde peut assurer une intervention liberale.
+        //    Trois absences ne figurent PAS dans GARDES et sont ajoutees ici, sans quoi
+        //    l'ecran afficherait « disponible » a tort :
+        //      TP  = jour fixe non travaille (colonne tp_jours_fixes de MEDECINS)
+        //      OFF = semaine off du rythme 2/2
+        //      HS  = hors periode d'activite (date_debut / date_fin)
+        const FL = getMedecinFlags();
+        const parAn = {};                                // annee -> {data, dateToCol}
+        const _gardes = function (an) {
+          if (parAn[an] === undefined) {
+            const sh = ssL.getSheetByName('GARDES_' + an);
+            if (!sh) { parAn[an] = null; }
+            else {
+              const dt = sh.getDataRange().getValues();
+              const codes = {};
+              for (let r = 3; r < dt.length; r++) {      // MARs des la ligne 4
+                const gid = String(dt[r][0]).trim();
+                if (gid) codes[gid] = dt[r];
+              }
+              parAn[an] = {codes: codes, col: buildDateToCol(dt, an)};
+            }
+          }
+          return parAn[an];
+        };
+
+        const absences = {};
+        Object.keys(noms).forEach(function (id) {
+          const liste = [];
+          const tpj = FL.tpJoursFixes[id];
+          const dd  = FL.dateDebut[id], df = FL.dateFin[id];
+          jours.forEach(function (ds) {
+            let code = '';
+            if (dd && ds < dd) code = 'HS';                        // pas encore en poste
+            else if (df && ds >= df) code = 'HS';                  // a quitte le service
+            else {
+              const g = _gardes(Number(ds.slice(0, 4)));
+              if (g) {
+                const c = g.col[ds];
+                if (c !== undefined && g.codes[id]) {
+                  code = String(g.codes[id][c] || '').trim().toUpperCase();
+                }
+              }
+              if (!ABSENT_CODES.has(code)) code = '';              // present ce jour-la
+              if (!code && tpj && tpj.has(new Date(ds + 'T12:00:00').getDay())) code = 'TP';
+              if (!code && estSemaineOff(id, ds)) code = 'OFF';
+            }
+            if (code) liste.push(avecMotifs ? {d: ds, c: code} : {d: ds});
+          });
+          if (liste.length) absences[id] = liste;
+        });
+
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          motifs: avecMotifs,          // le frontend sait s'il peut afficher un motif
+          moi: user.role === 'mar' ? user.id : null,
+          jours: joursConsult,
+          noms: noms,
+          consultations: consultations,
+          absences: absences
+        })).setMimeType(ContentService.MimeType.JSON);
+      } catch (err) { return _error(err.message); }
+    }
+
     // ── JSON du planning (Drive) — consommés par index.html / dashboard.html ──
     // (Reconstruits après la régression de recopie : ils n'existaient qu'en prod.)
     if (action === 'getPlanningJson') {
