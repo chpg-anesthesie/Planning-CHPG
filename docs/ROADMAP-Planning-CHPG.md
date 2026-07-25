@@ -628,9 +628,9 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
       SECTEUR_MATIN | SECTEUR_AM | COMMENTAIRE`). `GENERER_CONSULTATIONS = false` (code.gs l.255) :
       les consultations ne sont **pas** générées, le comité place chaque MAR à la main. `CS_RULES`
       ne donne que le **gabarit** (combien de créneaux), **jamais qui les tient**.
-    - 🔴 **Seul obstacle restant — organisationnel, pas technique.** L'écran ne peut lister que les
-      consultations **déjà nommées** par le comité. Il faut donc que le comité pose les titulaires
-      **3–4 semaines à l'avance** (validé par Arthur comme cible). À 1 semaine d'horizon, l'écran
+    - ✅ **Prérequis d'horizon — LEVÉ (Arthur, 24/07) : les consultations seront posées à horizon
+      4 semaines.** L'écran ne peut lister que les consultations **déjà nommées** par le comité ;
+      cet engagement débloque donc le lot. À 1 semaine d'horizon, l'écran
       n'affiche qu'une semaine et le contre-check n'a pas de matière. ⚠️ Prérequis **beaucoup plus
       léger que celui du Lot 5** : il ne demande **que** cet horizon — rien ne change pour les
       secrétaires des chirurgiens, ni pour le flux patient. Coût réel côté comité : s'engager plus
@@ -669,7 +669,8 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
       `index.html`). Pour le **secrétariat**, c'est un accès nouveau à l'ensemble des absences de
       l'équipe — c'est le but de l'outil, mais acté explicitement. Fuite du code partagé sans
       gravité : la page n'écrit rien, ne contient aucune donnée patient, n'expose que des dates.
-    - 🎨 **Maquette v3 (24/07, non poussée).** File des consultations posées à gauche, groupées par
+    - 🎨 **Maquette v3 — `docs/module-liberal/maquette_controle_absence.html`** (poussée le
+      24/07 ; non fonctionnelle, ne réédite que ce chemin, la version est dans l'en-tête). File des consultations posées à gauche, groupées par
       jour, avec le **secteur en clair** (Viscéral, ORL, Endoscopie… et non le code `CS-*`) ;
       pastille pleine/grise par ligne = ce MAR a ou non des absences **pertinentes pour CETTE
       consultation**. Clic → panneau droit : périodes à éviter, encadré « qui peut le prendre »,
