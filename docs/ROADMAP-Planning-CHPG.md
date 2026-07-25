@@ -849,11 +849,20 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
     ⚠️ **Rotation OBLIGATOIRE dans le compte perso aussi.** Depuis 2021 les fichiers Google Sheets
     **comptent dans le quota de stockage** (15 Go partagés avec Gmail et Photos) : sans purge des
     anciennes copies, l'accumulation est illimitée. Reprendre la logique de `BACKUP_KEEP = 8`.
-    ❓ **Cadence — mensuelle retenue, à reconsidérer :** en cas de perte du compte au 29ᵉ jour, la
-    perte atteint **un mois de saisies** (indispos, échanges de gardes, absences) — lourd pendant la
-    campagne d'octobre. Une copie **hebdomadaire** ne coûterait qu'**une opération Drive de plus par
-    semaine** et diviserait la perte maximale **par quatre**. Un seul mot à changer si Arthur
-    revient dessus.
+    ✅ **Cadence : HEBDOMADAIRE** (arrêtée par Arthur le 24/07, après un premier choix mensuel).
+    Motif : au mensuel, une perte du compte au 29ᵉ jour coûtait **un mois de saisies** — lourd
+    pendant la campagne d'octobre. L'hebdomadaire divise la perte maximale par quatre pour **une
+    opération Drive de plus par semaine**.
+    ⚠️ **Profondeur d'historique — NE PAS se limiter à la copie la plus récente.** Arthur avait
+    envisagé « ne garder que la dernière » (ou une purge manuelle) ; **déconseillé**. Scénario qui
+    casse une sauvegarde unique : un onglet est corrompu un mardi sans que personne ne le remarque ;
+    la copie du lundi suivant **écrase la seule sauvegarde saine** par la version corrompue ; le
+    problème est vu trois semaines plus tard, il ne reste rien à restaurer. Une copie unique ne
+    protège que de la **perte brutale**, pas de la **corruption silencieuse** — laquelle n'est
+    rattrapée que par la profondeur d'historique. ⇒ **Garder 8 copies (≈ 2 mois)**, comme
+    `BACKUP_KEEP` côté planning, avec **purge automatique** (une suppression manuelle finit
+    toujours par être oubliée). Coût de stockage négligeable : quelques Mo par copie, donc quelques
+    dizaines de Mo sur les 15 Go du compte perso *(poids réel du classeur non vérifié)*.
   - ❓ **À vérifier avant de coder :** (1) quel **niveau d'accès** le compte perso doit avoir sur le
     classeur pour que **le script bound suive la copie** — la lecture seule suffit probablement
     pour les données, pas forcément pour le script ; (2) accorder l'écriture au second compte
