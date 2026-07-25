@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-25.1';
+const GAS_VERSION_INDISPOS = '2026-07-25.3';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -3294,22 +3294,60 @@ if (action === 'setDailyStatus') {
           noms[id] = String(medD[r][1]).trim();
         }
 
-        // 3) Consultations posees a la main par le comite (PLANNING_OVERRIDES).
-        //    GENERER_CONSULTATIONS = false : elles n'existent QUE la ou le comite a
-        //    nomme quelqu'un. Une consultation se reconnait au prefixe 'CS-'.
-        const ovr = loadPlanningOverrides();
+        // 3) Consultations : lues dans le PLANNING PUBLIE (planning_{Y}.json), pas dans
+        //    PLANNING_OVERRIDES. Raison : les overrides ne contiennent que ce que le comite
+        //    a pose A LA MAIN ; tout ce qui vient de la generation (dont les affectations de
+        //    secteur) n'y figure pas. Le JSON est le rendu final = generation + overrides,
+        //    donc exactement ce que voient les MARs dans index.html. S'il n'est pas publie,
+        //    la consultation n'existe pour personne — la source est donc la bonne par
+        //    definition. Le JSON est lu ICI, cote serveur : il ne part JAMAIS au navigateur
+        //    (il contient le code d'absence brut de chaque MAR dans `status`).
         const consultations = [];
-        joursConsult.forEach(function (ds) {
-          const parJour = ovr[ds];
-          if (!parJour) return;
-          Object.keys(parJour).forEach(function (id) {
-            if (!noms[id]) return;                       // MAR inactif ou inconnu
-            const o = parJour[id];
-            const am = String(o.morning   || '');
-            const pm = String(o.afternoon || '');
-            if (am.indexOf('CS-') === 0) consultations.push({date: ds, mar: id, cs: am, per: 'am'});
-            if (pm.indexOf('CS-') === 0) consultations.push({date: ds, mar: id, cs: pm, per: 'pm'});
+        const vus = {};                       // dedoublonnage date|mar|periode
+        const anneesJ = {};
+        joursConsult.forEach(function (ds) { anneesJ[ds.slice(0, 4)] = true; });
+        Object.keys(anneesJ).forEach(function (an) {
+          let doc;
+          try {
+            const raw = readPlanningFromDrive('planning_' + an + '.json');
+            if (!raw) return;                  // annee non publiee : rien a lire
+            doc = JSON.parse(raw);
+          } catch (e) { return; }
+          (doc.months || []).forEach(function (mois) {
+            const jrs = mois.days || [];
+            (mois.doctors || []).forEach(function (md) {
+              const id = md.id;
+              if (!noms[id]) return;           // MAR inactif ou inconnu
+              (md.days || []).forEach(function (cell, i) {
+                const j = jrs[i];
+                if (!j || !j.date || joursConsult.indexOf(j.date) < 0) return;
+                if (j.isWeekend || j.isFerie) return;
+                const am = String((cell && cell.morning)   || '');
+                const pm = String((cell && cell.afternoon) || '');
+                const cs = String((cell && cell.cs)        || '');
+                const _add = function (code, per) {
+                  const k = j.date + '|' + id + '|' + per;
+                  if (vus[k]) return;
+                  vus[k] = true;
+                  consultations.push({date: j.date, mar: id, cs: code, per: per});
+                };
+                if (am.indexOf('CS-') === 0) _add(am, 'am');
+                if (pm.indexOf('CS-') === 0) _add(pm, 'pm');
+                if (cs.indexOf('CS-') === 0) _add(cs, 'am');   // champ dedie (defensif)
+                // MIROIR MATERNITE — mardi (dow 2) et jeudi (dow 4) matin.
+                // Regle existante d'admin.html l.2586 : « la consult CS-MAT et la ligne MAT
+                // sont la MEME personne, le MAR de mater fait la consult systematiquement ».
+                // Elle n'est ecrite NULLE PART dans les donnees : elle est recalculee a
+                // l'affichage. Sans cette reprise, l'ecran raterait toutes les consultations
+                // de maternite. Sens unique, comme dans admin.html : etre en MAT implique la
+                // consult, l'inverse n'est pas vrai.
+                if ((j.dow === 2 || j.dow === 4) && am === 'MAT') _add('CS-MAT', 'am');
+              });
+            });
           });
+        });
+        consultations.sort(function (a, b) {
+          return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.per < b.per ? -1 : 1);
         });
 
         // 4) Absences par MAR sur toute la fenetre.
@@ -3342,8 +3380,10 @@ if (action === 'setDailyStatus') {
         };
 
         const absences = {};
+        const horsTotal = [];          // MAR hors service sur TOUTE la fenetre
         Object.keys(noms).forEach(function (id) {
           const liste = [];
+          let nbHS = 0;
           const tpj = FL.tpJoursFixes[id];
           const dd  = FL.dateDebut[id], df = FL.dateFin[id];
           jours.forEach(function (ds) {
@@ -3362,10 +3402,20 @@ if (action === 'setDailyStatus') {
               if (!code && tpj && tpj.has(new Date(ds + 'T12:00:00').getDay())) code = 'TP';
               if (!code && estSemaineOff(id, ds)) code = 'OFF';
             }
+            if (code === 'HS') nbHS++;
             if (code) liste.push(avecMotifs ? {d: ds, c: code} : {d: ds});
           });
+          // Hors service sur TOUS les jours de la fenetre (pas encore arrive, ou deja
+          // parti) : il ne fait pas partie de l'effectif pour cette periode.
+          if (nbHS === jours.length) { horsTotal.push(id); return; }
           if (liste.length) absences[id] = liste;
         });
+        // ⚠️ Retirer AUSSI de `noms` et des consultations, pas seulement des absences :
+        // un MAR absent de la carte d'absences serait lu comme PRESENT par le frontend
+        // (« pas d'absence ce jour-la »), donc propose comme remplacant alors qu'il
+        // n'est pas dans le service. C'est le faux « disponible » que l'outil doit eviter.
+        horsTotal.forEach(function (id) { delete noms[id]; delete absences[id]; });
+        const consultationsF = consultations.filter(function (c) { return !!noms[c.mar]; });
 
         return ContentService.createTextOutput(JSON.stringify({
           success: true,
@@ -3373,7 +3423,7 @@ if (action === 'setDailyStatus') {
           moi: user.role === 'mar' ? user.id : null,
           jours: joursConsult,
           noms: noms,
-          consultations: consultations,
+          consultations: consultationsF,
           absences: absences
         })).setMimeType(ContentService.MimeType.JSON);
       } catch (err) { return _error(err.message); }
