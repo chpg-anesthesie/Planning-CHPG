@@ -186,9 +186,9 @@ patient), pour ne créer ni donnée patient ni travail aux secrétaires des chir
   SECTEUR_AM | COMMENTAIRE`). `GENERER_CONSULTATIONS = false` (`code.gs` l.255) : les consultations
   **ne sont pas générées**, le comité place chaque MAR à la main. `CS_RULES` ne fournit que le
   **gabarit** (nombre de créneaux par jour), **jamais le nom du titulaire**.
-- 🔴 **Seul obstacle restant : ORGANISATIONNEL.** L'écran ne peut lister que les consultations
-  **déjà nommées**. Prérequis : le comité pose les titulaires **3–4 semaines à l'avance** (cible
-  validée par Arthur le 24/07). À 1 semaine, l'écran n'a pas de matière. ⚠️ Ne pas confondre avec
+- ✅ **Prérequis d'horizon — LEVÉ (Arthur, 24/07).** « Les consultations seront posées à horizon
+  4 semaines. » L'écran ne pouvant lister que les consultations **déjà nommées**, cet engagement
+  débloque le lot : plus aucun obstacle bloquant, ni technique ni organisationnel. ⚠️ Ne pas confondre avec
   le prérequis du Lot 5, **bien plus lourd** : ici **rien ne change** pour les secrétaires des
   chirurgiens ni pour le flux patient — c'est une seule habitude interne du comité. Coût réel :
   s'engager plus tôt, et retoucher un placement quand une absence tombe après coup.
@@ -225,7 +225,8 @@ patient), pour ne créer ni donnée patient ni travail aux secrétaires des chir
   l'équipe — c'est l'objet de l'outil. Fuite du code partagé sans gravité : aucune écriture, aucune
   donnée patient, uniquement des dates.
 - ⚠️ Ne pas réutiliser `getMARsDispoJour` tel quel (garde `TP`/`R` dans sa liste d'absence).
-- 🎨 **Maquette v3 du 24/07 (non poussée).** File des consultations posées à gauche, groupées par
+- 🎨 **Maquette v3 — `docs/module-liberal/maquette_controle_absence.html`** (poussée le 24/07 ;
+  non fonctionnelle ; rééditer toujours ce chemin, la version vit dans l'en-tête du fichier). File des consultations posées à gauche, groupées par
   jour, **secteur affiché en clair** (Viscéral, ORL, Endoscopie… pas le code `CS-*`) ; pastille
   pleine/grise = ce MAR a ou non des absences **pertinentes pour CETTE consultation**. Clic →
   panneau droit : périodes à éviter, encadré « qui peut le prendre », grille 4 semaines, état
