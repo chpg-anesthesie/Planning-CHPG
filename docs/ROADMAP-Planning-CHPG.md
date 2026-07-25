@@ -732,6 +732,30 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
       Alternative écartée : après « Mes congés », auprès des tuiles personnelles.
       Le marquage « Nouveau » et le cerclage du visuel de validation sont **propres au visuel** :
       en production la tuile est identique aux autres.
+    - ✅✅ **ÉTAPES 1 + 2 FAITES ET VALIDÉES EN PRODUCTION le 25/07/2026** (commit `23aa79e`,
+      `GAS_VERSION_INDISPOS = 2026-07-24.3`, recopié dans Apps Script et déployé).
+      - `checkCode` lit désormais **`SECRETARIAT_CODE`** dans CONFIG (même régime qu'`ADMIN_CODE` :
+        aucun défaut ; clé absente ⇒ le rôle n'existe pas). Boucle CONFIG unifiée, `break` retiré
+        mais **« première occurrence gagnante » conservée** ⇒ comportement admin inchangé.
+        Retour : `{role:'secretariat', id:'SECRETARIAT', name:'Secrétariat', initials:'SEC'}` —
+        `name`/`initials` servent **uniquement de libellé dans le journal CONNEXIONS**
+        (`logConnexion` lit `user.name`) ; le code étant partagé, on ne peut pas savoir QUI s'est
+        connecté. Aucune donnée nominative renvoyée.
+      - **`SECRETARIAT_ACTIONS`** (Set) + **refus par défaut** placé juste après `checkCode`,
+        **avant** `WRITE_ACTIONS_LOCK` et avant tout traitement. **Périmètre actuel : `login` seul.**
+      - ✔️ **`doPost` délègue à `doGet`** (`Indispos.gs` l.3275) : le garde couvre **les deux**
+        points d'entrée. Vérifié.
+      - **Tests réels passés le 25/07** (appel direct de l'URL du Web App, sans interface) :
+        `login` ⇒ `role:"secretariat"` ; `getStatsLive` ⇒ refus ; **`getPlanningJson` ⇒ refus**
+        (le test qui protège les motifs d'absence) ; non-régression MAR + admin + diagnostic
+        Maintenance affichant bien `2026-07-24.3`.
+      - ⚠️ **Format du code partagé : éviter `&`** (coupe les URL) **et `O`/`0`/`I`/`1`**
+        (confusions à la dictée — c'est pourquoi `generateCode()` les exclut déjà). Lettres,
+        chiffres et tirets uniquement. Ex. `SEC-4KFE-HXUP`.
+      - ⚠️ **Effet de bord connu, non bloquant :** `dashboard.html` **ne teste pas le rôle** au
+        login (l.1176 : tout `success` ouvre le portail). Saisir le code secrétariat y affiche donc
+        le portail complet, dont toutes les tuiles échoueront (serveur refuse). **Pas une faille**
+        — corrigé à l'étape 6 (redirection du rôle secrétariat vers `absences.html`).
     - 📌 **Ordre de construction (arrêté 24/07) :** (1) `SECRETARIAT_CODE` dans CONFIG +
       `checkCode` renvoie le 3ᵉ rôle → (2) liste blanche refus-par-défaut → (3) action de lecture
       des absences, autonome, deux réponses selon le rôle → (4) action « qui peut prendre » →
