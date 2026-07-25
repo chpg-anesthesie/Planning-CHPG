@@ -836,12 +836,24 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
   - ❌ **Export XLSX envoyé par mail : ÉCARTÉ.** Robuste sur la propriété (la copie vit dans une
     boîte, hors Drive) mais **ne contient pas le script bound**. Arthur : « dans l'idéal il
     faudrait que le script reste ».
-  - ✅ **Voie retenue — sauvegarde TIRÉE, pas poussée.** Principe : c'est la sauvegarde qui va
-    chercher, pas le système à protéger qui envoie. Un petit script (~15 lignes) **dans le compte
-    Google personnel d'Arthur**, déclenché chaque semaine, fait un `makeCopy` du classeur maître
-    vers *son* Drive : le fichier étant **créé par ce compte, il lui appartient nativement** —
-    aucun `setOwner` nécessaire, et rien de ce qui arrive à `planningchpg` ne peut l'atteindre.
-    Une copie Drive **emporte le script bound**, contrairement à l'export XLSX.
+  - ✅ **VOIE RETENUE (validée par Arthur le 24/07) — sauvegarde TIRÉE, pas poussée.** Principe :
+    c'est la sauvegarde qui va chercher, pas le système à protéger qui envoie. Un petit script
+    (~15 lignes) **dans le compte Google personnel d'Arthur**, déclenché **mensuellement**, fait un
+    `makeCopy` **du classeur maître ENTIER** vers *son* Drive : le fichier étant **créé par ce
+    compte, il lui appartient nativement** — aucun `setOwner` nécessaire, et rien de ce qui arrive
+    à `planningchpg` ne peut l'atteindre. Une copie Drive **emporte le script bound**,
+    contrairement à l'export XLSX.
+    ⚠️ **Bien le classeur entier, pas un onglet** (`makeCopy` duplique tous les onglets annuels,
+    MEDECINS, CONFIG, l'historique + le script). Sauvegarder un seul onglet laisserait tout le
+    reste sans filet.
+    ⚠️ **Rotation OBLIGATOIRE dans le compte perso aussi.** Depuis 2021 les fichiers Google Sheets
+    **comptent dans le quota de stockage** (15 Go partagés avec Gmail et Photos) : sans purge des
+    anciennes copies, l'accumulation est illimitée. Reprendre la logique de `BACKUP_KEEP = 8`.
+    ❓ **Cadence — mensuelle retenue, à reconsidérer :** en cas de perte du compte au 29ᵉ jour, la
+    perte atteint **un mois de saisies** (indispos, échanges de gardes, absences) — lourd pendant la
+    campagne d'octobre. Une copie **hebdomadaire** ne coûterait qu'**une opération Drive de plus par
+    semaine** et diviserait la perte maximale **par quatre**. Un seul mot à changer si Arthur
+    revient dessus.
   - ❓ **À vérifier avant de coder :** (1) quel **niveau d'accès** le compte perso doit avoir sur le
     classeur pour que **le script bound suive la copie** — la lecture seule suffit probablement
     pour les données, pas forcément pour le script ; (2) accorder l'écriture au second compte
