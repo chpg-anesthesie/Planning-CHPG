@@ -797,6 +797,41 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
       - 📝 **Limite assumée :** masquer le motif ne masque pas la **forme**. Quinze jours
         consécutifs se lisent comme un arrêt long même sans le code `CL`. Inhérent à l'affichage
         de dates, acté en connaissance de cause.
+    - 🎉 **LOT 5-bis TERMINÉ ET EN PRODUCTION le 25/07/2026** — conception → prod en une session,
+      6 étapes, toutes testées réellement. **Site en `v1.9.5`.**
+      - **Étapes 4 et 5 (25/07).** L'étape 4 n'a demandé **aucune action serveur** : le frontend
+        reçoit déjà les absences de tous les MARs et toutes les consultations, le calcul « qui peut
+        prendre ce patient » se fait entièrement dans le navigateur.
+        Page **`absences.html`** (commits `c53cc0b`, `7991009`) — testée par **jsdom** avant push :
+        connexion, filtre vue MAR, regroupement en plages, panneau de remplaçants.
+        Code repris de `sessionStorage.chpgViewCode`, **partagé avec les autres pages** ⇒ un MAR
+        déjà connecté au portail n'a rien à ressaisir. Écran de connexion **aligné sur le skin du
+        portail** (drapeau, champ masqué, bouton rouge) : c'est l'unique écran que verra le
+        secrétariat, qui n'a pas de Dashboard (lien « Retour au portail » masqué pour ce rôle).
+      - ⚠️ **Écart avec la maquette, assumé :** « même secteur » dans le panneau de remplaçants
+        n'est plus un **rattachement** (la maquette utilisait une liste figée secteur → MARs) mais
+        une **déduction** : un médecin est réputé du même secteur s'il tient déjà une consultation
+        du même type. Bon indicateur en pratique. Pour le vrai rattachement, il faudrait le faire
+        remonter par le serveur.
+      - **Étape 6 — MISE EN SERVICE PARTIELLE (décision d'Arthur, 25/07).** Tuile
+        « Mes consultations » posée sur `dashboard.html` mais **restreinte à FROHLICH**
+        (`only:'FROHLICH'`, mécanisme existant de la tuile CRH). Motif : l'horizon de placement
+        est encore de ~4 jours ; ouverte à tous, l'écran serait presque vide et la première
+        impression — celle qui colle — serait mauvaise.
+        Commits `ef608e2` (icônes), `0f09318` (dashboard), `6870d77` (admin).
+      - ⚠️ **`calendar-check` n'existait PAS** dans `assets/vendor/lucide-icons.js` : ce bundle est
+        **réduit aux seules icônes utilisées** (23). Sans l'ajout, la tuile n'aurait affiché aucune
+        icône. **Réflexe à garder : vérifier la présence de l'icône dans le bundle avant d'en poser
+        une nouvelle.**
+      - **Version `v1.9.5` et non `v1.10`** : la fonctionnalité n'est pas mise en service, elle
+        n'existe que pour un utilisateur. Le 2ᵉ chiffre marquera le vrai jalon.
+        `guide-mar.html` **volontairement non modifié** pour la même raison : documenter une tuile
+        que personne ne voit embrouillerait.
+      - 🔜 **GESTE UNIQUE DE MISE EN SERVICE**, le jour où le comité posera les consultations à
+        4 semaines : retirer `only:'FROHLICH'` de la tuile `consult` dans `dashboard.html`, passer
+        le site en **`v1.10`** (3 emplacements dans `dashboard.html` + 3 dans `admin.html`, à garder
+        égaux — le diagnostic vérifie), et mettre à jour **`docs/guide-mar.html`**. Un commentaire
+        au-dessus de la tuile le rappelle dans le code.
     - 📌 **Ordre de construction (arrêté 24/07) :** (1) `SECRETARIAT_CODE` dans CONFIG +
       `checkCode` renvoie le 3ᵉ rôle → (2) liste blanche refus-par-défaut → (3) action de lecture
       des absences, autonome, deux réponses selon le rôle → (4) action « qui peut prendre » →
