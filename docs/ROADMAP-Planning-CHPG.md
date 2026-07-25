@@ -718,6 +718,20 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
         Dashboard (elle n'y a rien à faire). ⚠️ **Impacte le code de connexion** : après saisie du
         code partagé, la redirection dépend du rôle renvoyé par `checkCode` — à traiter dans
         l'étape 1/2, pas après coup.
+    - 🔢 **Version cible du lot : `v1.10`** (arrêté 24/07/2026). Le site est aujourd'hui en
+      **v1.9.4** ; ce lot est une fonctionnalité ⇒ 2ᵉ chiffre. **Le passage à `v2.0` reste réservé
+      à l'intégration du module libéral** (mise en service du Lot 2 / compteur), jalon encore à
+      venir — ne pas le consommer ici.
+      ⚠️ **Le marqueur de version n'existe que dans `admin.html` (3 occurrences) et
+      `dashboard.html` (3) — soit 6 emplacements, PAS 9.** `index.html`, `indispos.html` et
+      `staff.html` n'en portent aucun (mesuré le 24/07). Ne pas chercher à en ajouter ailleurs
+      sans décision explicite : le diagnostic Maintenance vérifie l'égalité entre les emplacements
+      existants. *(Remarque d'Arthur : l'échelle de versions n'est pas encore visible des
+      utilisateurs, l'interface n'étant pas en service.)*
+    - 📍 **Position de la tuile : 2ᵉ, juste après « Planning »** (validée sur visuel le 24/07).
+      Alternative écartée : après « Mes congés », auprès des tuiles personnelles.
+      Le marquage « Nouveau » et le cerclage du visuel de validation sont **propres au visuel** :
+      en production la tuile est identique aux autres.
     - 📌 **Ordre de construction (arrêté 24/07) :** (1) `SECRETARIAT_CODE` dans CONFIG +
       `checkCode` renvoie le 3ᵉ rôle → (2) liste blanche refus-par-défaut → (3) action de lecture
       des absences, autonome, deux réponses selon le rôle → (4) action « qui peut prendre » →
