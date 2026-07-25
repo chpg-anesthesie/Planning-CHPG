@@ -822,6 +822,39 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
 - [ ] **Sorties de garde réa / anesthésie non distinguées** dans l'Excel (une seule ligne « SORTIES DE GARDE »). Le statut `RG` est unique : impossible de savoir de quelle garde sort la personne. Piste : un second statut (`RG2`), ou déduire depuis la veille — mais le lundi renverrait au dimanche de la semaine précédente, hors `daySlots`.
 - [ ] Picker des consult libérales endo : filtrer/avertir sur la présence au bloc en semaine N+1. **Plus aucun contrôle automatique depuis le retrait de la rotation (20/07/2026)** — l'attribution est 100 % manuelle et la règle du 8.1 est à vérifier de tête par le comité (documenté dans `guide-comite.html` § 8.2).
 - [ ] *(Sécurité, à l'appréciation d'Arthur)* rotation du token GitHub.
+- [ ] 💾 **Sauvegarde hors-compte du classeur maître (conçu 24/07/2026, non codé).**
+  **Existant vérifié :** `backupHebdo()` (`code.gs` l.1473) copie le classeur **tous les lundis
+  ~4 h** dans le dossier Drive `Planning-CHPG-Backups`, rotation sur **8 copies** (≈ 2 mois) ;
+  installation par `installBackupTrigger()` (l.1494) ; le diagnostic Maintenance (`Indispos.gs`
+  l.1886) alerte si la dernière copie date de plus de 10 jours.
+  - 🔴 **Faiblesse structurelle :** la copie est dans **le même Drive, sous le même compte** que
+    l'original. Elle protège d'une fausse manœuvre ou d'un onglet effacé, **pas** d'un compte
+    compromis, suspendu ou fermé — dans ce cas l'original *et* les 8 copies disparaissent ensemble.
+  - ⚠️ **Piège à ne pas retenir :** partager un dossier depuis un second compte et y copier **ne
+    résout rien** — sur Drive, **le fichier appartient à celui qui le crée**. La copie resterait
+    propriété de `planningchpg@gmail.com`, simplement rangée ailleurs.
+  - ❌ **Export XLSX envoyé par mail : ÉCARTÉ.** Robuste sur la propriété (la copie vit dans une
+    boîte, hors Drive) mais **ne contient pas le script bound**. Arthur : « dans l'idéal il
+    faudrait que le script reste ».
+  - ✅ **Voie retenue — sauvegarde TIRÉE, pas poussée.** Principe : c'est la sauvegarde qui va
+    chercher, pas le système à protéger qui envoie. Un petit script (~15 lignes) **dans le compte
+    Google personnel d'Arthur**, déclenché chaque semaine, fait un `makeCopy` du classeur maître
+    vers *son* Drive : le fichier étant **créé par ce compte, il lui appartient nativement** —
+    aucun `setOwner` nécessaire, et rien de ce qui arrive à `planningchpg` ne peut l'atteindre.
+    Une copie Drive **emporte le script bound**, contrairement à l'export XLSX.
+  - ❓ **À vérifier avant de coder :** (1) quel **niveau d'accès** le compte perso doit avoir sur le
+    classeur pour que **le script bound suive la copie** — la lecture seule suffit probablement
+    pour les données, pas forcément pour le script ; (2) accorder l'écriture au second compte
+    **élargit la surface d'exposition** (c'est le compte d'Arthur, mais à décider en conscience) ;
+    (3) poids réel du classeur, si un export hors-Google est aussi souhaité (limite 25 Mo en pièce
+    jointe). *(`setOwner` après copie a été envisagé puis écarté : Google a durci les transferts de
+    propriété entre comptes gratuits, comportement non garanti sans test réel.)*
+  - 📌 **Mise en perspective :** le code GAS est déjà **à 100 % dans le dépôt** (règle du projet).
+    Perdre le script bound est donc un **coût de réinstallation**, pas une perte de données. **Le
+    seul actif irremplaçable est le classeur** — indispos, gardes, historique, statistiques. C'est
+    lui que la sauvegarde doit protéger en priorité.
+  - Le script du compte perso vivra **hors** de ce dépôt (autre compte) : prévoir malgré tout de le
+    versionner quelque part, sinon il échappe à la règle « le dépôt fait foi ».
 - [ ] ⚠️ **`markVeille` écrit sans verrou ni contrôle de rôle** (constaté 24/07/2026, anomalie
   **préexistante**, sans rapport avec le Lot 5-bis). Elle marque un article de veille comme lu —
   donc une **écriture** — mais elle est **absente de `WRITE_ACTIONS_LOCK`** (`Indispos.gs` l.1043)
