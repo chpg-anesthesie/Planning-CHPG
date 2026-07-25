@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consultations à venir — CHPG Anesthésie</title>
+<link rel="icon" href="data:,">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* SITE_VERSION: v1.10 */
+:root{
+  --red:#CE1126; --ink:#0F172A; --ink-2:#334155; --ink-3:#64748B; --ink-4:#94A3B8;
+  --line:#E2E8F0; --line-light:#F1F5F9; --bg:#F8FAFC; --white:#fff; --surface-2:#EEF1F5;
+  --mono:'DM Mono',monospace;
+  --ok:#166534; --ok-soft:#F0FDF4; --ok-line:#BBF7D0;
+  --rose:#BE123C; --rose-soft:#FFF1F3; --rose-line:#FBD5DC;
+  --me:#1D6FB8; --me-soft:#E8F4FD; --me-border:#B9DCF5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);font-family:'Inter',system-ui,sans-serif;color:var(--ink);
+     -webkit-font-smoothing:antialiased}
+svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;
+    stroke-linecap:round;stroke-linejoin:round}
+
+.header{background:var(--white);border-bottom:1px solid var(--line);padding:0 26px;
+        display:flex;align-items:center;justify-content:space-between;height:58px;
+        position:sticky;top:0;z-index:300}
+.header-brand{display:flex;align-items:center;gap:13px}
+.header-flag{display:flex;flex-direction:column;width:26px;height:26px;border-radius:6px;
+             overflow:hidden;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.flag-top{flex:1;background:var(--red)}
+.flag-bottom{flex:1;background:var(--white);border-top:1px solid var(--line)}
+.header-title{font-size:14.5px;font-weight:700;letter-spacing:-.02em}
+.header-sub{font-size:11px;color:var(--ink-4);margin-top:1px}
+.header-right{display:flex;align-items:center;gap:9px}
+.hbtn{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12px;font-weight:700;
+      color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:999px;
+      padding:5px 12px;text-decoration:none;cursor:pointer}
+.me-pill{display:inline-flex;align-items:center;gap:6px;background:var(--me-soft);color:var(--me);
+         border:1px solid var(--me-border);border-radius:999px;padding:5px 12px;font-size:12.5px;
+         font-weight:700;white-space:nowrap}
+
+.wrap{max-width:1180px;margin:0 auto;padding:28px 26px 60px}
+h1{font-size:23px;font-weight:700;letter-spacing:-.02em;margin-bottom:4px}
+.sub{font-size:13.5px;color:var(--ink-3);margin-bottom:22px;max-width:70ch}
+.back{display:inline-flex;align-items:center;gap:7px;font:inherit;font-size:13px;font-weight:600;
+      color:var(--me);background:none;border:none;cursor:pointer;padding:0;margin-bottom:14px;
+      text-decoration:none}
+.back i{width:15px;height:15px;display:inline-block}
+
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px;align-items:start}
+.card{background:var(--white);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.card>h2{font-size:11px;font-family:var(--mono);font-weight:500;text-transform:uppercase;
+         letter-spacing:.06em;color:var(--ink-4);padding:14px 18px 11px;border-bottom:1px solid var(--line)}
+.card>h2 b{color:var(--ink-2);font-weight:600}
+.scroller{max-height:62vh;overflow-y:auto}
+.dayhead{position:sticky;top:0;background:var(--line-light);padding:6px 18px;font-size:11px;
+         font-weight:600;color:var(--ink-3);border-bottom:1px solid var(--line);z-index:1;
+         font-family:var(--mono)}
+.slot{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 18px;
+      border:none;background:none;font:inherit;cursor:pointer;border-bottom:1px solid var(--line-light)}
+.slot:hover{background:var(--bg)}
+.slot[aria-current="true"]{background:var(--me-soft);box-shadow:inset 3px 0 0 var(--me)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--rose);flex:none}
+.dot.none{background:var(--line)}
+.sect{font-family:var(--mono);font-size:10.5px;font-weight:500;color:var(--ink-2);
+      background:var(--surface-2);border-radius:5px;padding:2px 7px;white-space:nowrap}
+.who{font-size:13.5px;font-weight:600;flex:1}
+.when{font-size:11px;color:var(--ink-4);white-space:nowrap}
+.empty{padding:30px 20px;color:var(--ink-3);font-size:13.5px;text-align:center;line-height:1.6}
+.empty b{color:var(--ink)}
+
+.who-head{padding:16px 18px 14px;border-bottom:1px solid var(--line)}
+.who-head .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+             color:var(--ink-4)}
+.who-head h3{font-size:20px;font-weight:700;letter-spacing:-.01em;margin-top:3px}
+.who-head .ctx{font-size:12.5px;color:var(--ink-3);margin-top:3px}
+.answer{padding:16px 18px 4px}
+.lbl{font-size:12px;color:var(--ink-3);margin-bottom:10px}
+.lbl b{color:var(--ink)}
+.dates{display:flex;flex-wrap:wrap;gap:7px}
+.d{font-family:var(--mono);background:var(--rose-soft);border:1px solid var(--rose-line);
+   color:var(--rose);border-radius:10px;padding:8px 12px;font-size:14px;font-weight:600;
+   line-height:1.2;cursor:pointer;text-align:left}
+.d:hover{background:#FCE7EB}
+.d[aria-pressed="true"]{background:var(--rose);color:#fff;border-color:var(--rose)}
+.d small{display:block;font-family:'Inter',sans-serif;font-size:9.5px;font-weight:600;
+         letter-spacing:.05em;text-transform:uppercase;opacity:.85;margin-top:3px}
+.hintclick{font-size:11.5px;color:var(--ink-4);margin-top:10px}
+.clear{background:var(--ok-soft);border:1px solid var(--ok-line);color:var(--ok);border-radius:12px;
+       padding:14px 16px;font-size:13px;line-height:1.45}
+.alt{margin:14px 18px 0;border:1px solid var(--ok-line);background:var(--ok-soft);border-radius:12px;
+     padding:14px 16px}
+.alt h4{font-size:13.5px;font-weight:700;color:var(--ok);margin-bottom:3px}
+.alt .why{font-size:11.5px;color:#3F7A64;margin-bottom:10px}
+.altgrp{margin-bottom:9px}
+.altgrp .t{font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;
+           color:#4A8770;margin-bottom:5px}
+.person{display:flex;align-items:baseline;gap:8px;background:var(--white);border:1px solid var(--ok-line);
+        border-radius:8px;padding:7px 11px;margin-bottom:4px;font-size:12.5px;flex-wrap:wrap}
+.person .cs{font-family:var(--mono);font-size:11px;color:var(--ink-4)}
+.none-alt{font-size:12.5px;color:var(--rose);background:var(--rose-soft);border:1px solid var(--rose-line);
+          border-radius:8px;padding:10px 12px}
+.cal{padding:14px 18px 18px}
+.cal .lbl2{font-size:10.5px;color:var(--ink-4);margin:0 0 8px;font-family:var(--mono);
+           letter-spacing:.05em;text-transform:uppercase}
+table.grid{width:100%;border-collapse:separate;border-spacing:4px}
+table.grid th{font-family:var(--mono);font-size:10px;font-weight:500;color:var(--ink-4);
+              letter-spacing:.06em;text-transform:uppercase;padding-bottom:2px}
+table.grid td{width:20%;height:44px;border-radius:9px;background:var(--bg);border:1px solid var(--line);
+              text-align:center;vertical-align:middle;padding:3px}
+table.grid td .n{font-family:var(--mono);font-size:13px;font-weight:500}
+table.grid td .c{font-family:var(--mono);font-size:9px;color:var(--rose);margin-top:1px}
+table.grid td.hors{opacity:.4}
+table.grid td.absent{background:var(--rose-soft);border-color:var(--rose-line)}
+table.grid td.absent .n{color:var(--rose);font-weight:700}
+table.grid td.consult{box-shadow:inset 0 -3px 0 var(--me)}
+table.grid td.pick{outline:2px solid var(--rose);outline-offset:1px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--ink-4);padding:0 18px 14px}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.foot{padding:13px 18px 16px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-3);
+      line-height:1.55}
+.foot b{color:var(--ink)}
+
+.overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;
+         justify-content:center;z-index:900;padding:20px}
+.auth{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:30px 28px;
+      max-width:390px;width:100%;box-shadow:0 10px 40px rgba(15,23,42,.08)}
+.auth h2{font-size:19px;font-weight:700;margin-bottom:5px}
+.auth p{font-size:13px;color:var(--ink-3);margin-bottom:18px;line-height:1.5}
+.auth input{width:100%;font:inherit;font-size:15px;font-family:var(--mono);text-align:center;
+            letter-spacing:.06em;padding:11px;border:1px solid var(--line);border-radius:10px;
+            text-transform:uppercase}
+.auth input:focus{outline:2px solid var(--me);outline-offset:-1px;border-color:var(--me)}
+.auth button{width:100%;margin-top:11px;font:inherit;font-size:14px;font-weight:700;color:#fff;
+             background:var(--me);border:none;border-radius:10px;padding:11px;cursor:pointer}
+.auth button:disabled{background:#C3CDD4;cursor:not-allowed}
+.autherr{display:none;margin-top:10px;font-size:12.5px;color:var(--rose);background:var(--rose-soft);
+         border:1px solid var(--rose-line);border-radius:8px;padding:8px 11px}
+.loading{padding:50px 20px;text-align:center;color:var(--ink-3);font-size:13.5px}
+@media(max-width:900px){.cols{grid-template-columns:1fr}.wrap{padding:22px 15px 40px}
+  .header{padding:0 15px}.scroller{max-height:40vh}}
+</style>
+</head>
+<body>
+
+<div class="overlay" id="authOverlay">
+  <div class="auth">
+    <h2>Consultations à venir</h2>
+    <p>Saisissez votre code d'accès personnel, ou le code du secrétariat.</p>
+    <input id="authInput" placeholder="CODE" autocomplete="off" spellcheck="false">
+    <button id="authBtn">Accéder &rarr;</button>
+    <div class="autherr" id="authErr"></div>
+  </div>
+</div>
+
+<div class="header" id="hdr" style="display:none">
+  <div class="header-brand">
+    <div class="header-flag"><div class="flag-top"></div><div class="flag-bottom"></div></div>
+    <div>
+      <div class="header-title">Portail CHPG Monaco</div>
+      <div class="header-sub">Service d'Anesthésie-Réanimation</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="me-pill" id="mePill"></span>
+    <button class="hbtn" id="btnOut">Déconnexion</button>
+  </div>
+</div>
+
+<div class="wrap" id="main" style="display:none">
+  <a class="back" href="dashboard.html" id="lnkBack"><i id="icBack"></i> Retour au portail</a>
+  <h1>Consultations à venir</h1>
+  <p class="sub" id="pitch"></p>
+  <div id="zone"><div class="loading">Chargement…</div></div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
+let VIEW_CODE = '', ROLE = '', MOI = null, MOTIFS = true, DATA = null;
+
+const IC = {
+  'arrow-left':'<path d="M19 12H5M12 19l-7-7 7-7"/>'
+};
+function svg(n){ return '<svg viewBox="0 0 24 24">'+(IC[n]||'')+'</svg>'; }
+document.getElementById('icBack').innerHTML = svg('arrow-left');
+
+async function apiPost(payload){
+  payload.code = VIEW_CODE;
+  const res = await fetch(API_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload), redirect:'follow'
+  });
+  return await res.json();
+}
+
+/* ══ AUTH ══════════════════════════════════════════════════════════════ */
+function authErr(m){
+  const el = document.getElementById('authErr');
+  el.textContent = m; el.style.display='block';
+  setTimeout(()=>{ el.style.display='none'; }, 4000);
+}
+async function doLogin(code){
+  VIEW_CODE = code;
+  const r = await apiPost({action:'login'});
+  if(!(r && r.success)){ VIEW_CODE=''; return r; }
+  try{ sessionStorage.setItem('chpgViewCode', code); }catch(e){}
+  ROLE = r.role;
+  MOI  = (r.role === 'mar') ? r.id : null;
+  document.getElementById('mePill').textContent =
+    (r.role === 'secretariat') ? 'Secrétariat' : (r.name || r.id || '');
+  // Le secrétariat n'a pas de portail : on lui masque le lien de retour.
+  document.getElementById('lnkBack').style.display = (r.role === 'secretariat') ? 'none' : '';
+  document.getElementById('pitch').textContent = (r.role === 'mar')
+    ? "Vérifiez qu'aucun patient vu en consultation ne sera opéré un jour où vous êtes absent."
+    : "Avant de placer un patient, vérifiez que le médecin qui le verra en consultation sera présent le jour de son intervention.";
+  document.getElementById('authOverlay').style.display='none';
+  document.getElementById('hdr').style.display='flex';
+  document.getElementById('main').style.display='';
+  charger();
+  return r;
+}
+document.getElementById('authBtn').addEventListener('click', async function(){
+  const code = document.getElementById('authInput').value.trim().toUpperCase();
+  if(!code) return;
+  const b = this; b.disabled = true; b.textContent = 'Vérification…';
+  try{
+    const r = await doLogin(code);
+    if(!(r && r.success)) authErr(r && r.error ? r.error : 'Code incorrect');
+  }catch(e){ VIEW_CODE=''; authErr('Erreur réseau — réessayez'); }
+  b.disabled = false; b.textContent = 'Accéder →';
+});
+document.getElementById('authInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter') document.getElementById('authBtn').click();
+});
+document.getElementById('btnOut').addEventListener('click', ()=>{
+  try{ sessionStorage.removeItem('chpgViewCode'); }catch(e){}
+  location.reload();
+});
+(async function auto(){
+  let saved=''; try{ saved = sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  if(!saved) return;
+  try{ await doLogin(saved); }
+  catch(e){ try{ sessionStorage.removeItem('chpgViewCode'); }catch(_){} }
+})();
+
+/* ══ DONNÉES ═══════════════════════════════════════════════════════════ */
+const JOURS_FR=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+const MOIS_FR=['janv.','févr.','mars','avril','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const LIB_CS={'CS-VIS':'Viscéral','CS-END':'Endoscopie','CS-ORL':'ORL','CS-ORT':'Orthopédie',
+  'CS-MAT':'Maternité','CS-INTER':'Cardio interv.','CS-POLY':'Polyvalent','CS-CI':'Cardio interv.'};
+const NOM_CODE={V:'Vacances',CP:'Congé',F:'Formation',RG:'Repos de garde',CL:'Absence longue',
+  TP:'Jour non travaillé',R:'Récupération',A:'Absent',CTP:'Congé temps partiel',
+  OFF:'Semaine off',HS:'Hors service'};
+const FEN = 20;   // 4 semaines ouvrées — doit rester aligné sur JOURS_ABS côté serveur
+
+let JOURS_ALL = [], IDX = {};
+function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function dt(ds){ return new Date(ds+'T12:00:00'); }
+function libDate(ds){ const d=dt(ds); return JOURS_FR[d.getDay()]+' '+d.getDate()+' '+MOIS_FR[d.getMonth()]; }
+function nomDe(id){ return (DATA && DATA.noms && DATA.noms[id]) ? DATA.noms[id] : id; }
+function libSect(cs){ return LIB_CS[cs] || String(cs||'').replace('CS-',''); }
+
+// Reconstruit la même suite de jours ouvrés que le serveur (week-ends exclus).
+function construireJours(){
+  JOURS_ALL = []; IDX = {};
+  const c = new Date(); c.setHours(12,0,0,0);
+  while(JOURS_ALL.length < FEN*2){
+    const w = c.getDay();
+    if(w>=1 && w<=5) JOURS_ALL.push(iso(c));
+    c.setDate(c.getDate()+1);
+  }
+  JOURS_ALL.forEach((ds,i)=>{ IDX[ds]=i; });
+}
+
+async function charger(){
+  try{
+    const r = await apiPost({action:'getConsultAbsences'});
+    if(!(r && r.success)){
+      document.getElementById('zone').innerHTML =
+        '<div class="card"><div class="empty">Impossible de charger : '+
+        ((r&&r.error)||'erreur inconnue')+'</div></div>';
+      return;
+    }
+    DATA = r; MOTIFS = !!r.motifs;
+    if(r.moi) MOI = r.moi;
+    construireJours();
+    rendre();
+  }catch(e){
+    document.getElementById('zone').innerHTML =
+      '<div class="card"><div class="empty">Erreur réseau — rechargez la page.</div></div>';
+  }
+}
+
+/* ══ CALCULS ═══════════════════════════════════════════════════════════ */
+// Absences d'un MAR dans les 4 semaines qui SUIVENT la consultation.
+function absFenetre(mar, dateConsult){
+  const i0 = IDX[dateConsult]; if(i0 === undefined) return [];
+  const liste = (DATA.absences && DATA.absences[mar]) || [];
+  const out = [];
+  liste.forEach(a=>{
+    const i = IDX[a.d];
+    if(i !== undefined && i >= i0 && i < i0+FEN) out.push({date:a.d, idx:i, code:a.c || ''});
+  });
+  out.sort((x,y)=> x.idx - y.idx);
+  return out;
+}
+// Regroupe les jours ouvrés consécutifs. En session secrétariat le motif n'est
+// pas transmis : on fusionne sans le regarder (décision du 24/07).
+function grouper(liste){
+  const g = [];
+  liste.forEach(a=>{
+    const L = g[g.length-1];
+    if(L && a.idx === L.finIdx+1 && (!MOTIFS || a.code === L.code)){
+      L.finIdx = a.idx; L.fin = a.date;
+    } else {
+      g.push({debIdx:a.idx, finIdx:a.idx, deb:a.date, fin:a.date, code:a.code});
+    }
+  });
+  return g;
+}
+function libPlage(p){
+  const a = dt(p.deb), b = dt(p.fin);
+  if(p.deb === p.fin) return a.getDate()+' '+MOIS_FR[a.getMonth()];
+  if(a.getMonth() === b.getMonth()) return a.getDate()+' – '+b.getDate()+' '+MOIS_FR[a.getMonth()];
+  return a.getDate()+' '+MOIS_FR[a.getMonth()]+' – '+b.getDate()+' '+MOIS_FR[b.getMonth()];
+}
+function nbJours(p){ return p.finIdx - p.debIdx + 1; }
+
+/* ══ RENDU ═════════════════════════════════════════════════════════════ */
+let curBtn=null, curSlot=null, pick=null;
+
+function rendre(){
+  const mien = (ROLE === 'mar');
+  const vis = (DATA.consultations||[]).filter(c => !mien || c.mar === MOI);
+  document.getElementById('zone').innerHTML =
+    '<div class="cols">'+
+      '<div class="card"><h2>'+(mien?'Mes consultations':'Consultations posées')+
+        ' · <b>4 prochaines semaines</b></h2><div class="scroller" id="file"></div></div>'+
+      '<div class="card" id="panel">'+
+        '<div class="who-head"><div class="k">Médecin de la consultation</div>'+
+        '<h3 id="pName">—</h3><div class="ctx" id="pCtx"></div></div>'+
+        '<div class="answer" id="pAnswer"></div><div id="pAlt"></div>'+
+        '<div class="cal"><div class="lbl2" id="calLbl">Vue d\'ensemble</div>'+
+        '<table class="grid"><thead><tr><th>Lun</th><th>Mar</th><th>Mer</th><th>Jeu</th><th>Ven</th></tr></thead>'+
+        '<tbody id="pGrid"></tbody></table></div>'+
+        '<div class="legend">'+
+          '<span><i style="background:var(--rose-soft);border:1px solid var(--rose-line)"></i>Absent</span>'+
+          '<span><i style="background:var(--bg);border:1px solid var(--line);box-shadow:inset 0 -3px 0 var(--me)"></i>Ses consultations</span>'+
+          '<span><i style="background:var(--bg);border:1px solid var(--line);opacity:.4"></i>Avant la consultation</span>'+
+        '</div><div class="foot" id="pFoot"></div>'+
+      '</div>'+
+    '</div>';
+
+  const file = document.getElementById('file');
+  if(!vis.length){
+    file.innerHTML = '<div class="empty">'+(mien
+      ? '<b>Aucune consultation à votre nom</b> sur les 4 prochaines semaines.'
+      : '<b>Aucune consultation posée</b> sur les 4 prochaines semaines.<br>Le comité ne les a pas encore nommées.')+'</div>';
+    document.getElementById('panel').style.display='none';
+    return;
+  }
+  const parJour = {};
+  vis.forEach(c=>{ (parJour[c.date] = parJour[c.date] || []).push(c); });
+  Object.keys(parJour).sort().forEach(ds=>{
+    const g = document.createElement('div');
+    g.innerHTML = '<div class="dayhead">'+libDate(ds)+'</div>';
+    parJour[ds].forEach(c=>{
+      const n = absFenetre(c.mar, c.date).length;
+      const b = document.createElement('button');
+      b.className='slot';
+      b.innerHTML = '<span class="dot'+(n?'':' none')+'"></span>'+
+        '<span class="sect">'+libSect(c.cs)+'</span>'+
+        '<span class="who">'+nomDe(c.mar)+'</span>'+
+        '<span class="when">'+(c.per==='am'?'matin':'après-midi')+'</span>';
+      b.addEventListener('click', ()=> selectionner(b, c));
+      g.appendChild(b);
+    });
+    file.appendChild(g);
+  });
+  const p0 = file.querySelector('.slot'); if(p0) p0.click();
+}
+
+function selectionner(btn, c){
+  if(curBtn) curBtn.setAttribute('aria-current','false');
+  curBtn = btn; btn.setAttribute('aria-current','true');
+  curSlot = c; pick = null;
+
+  document.getElementById('pName').textContent = nomDe(c.mar);
+  document.getElementById('pCtx').textContent =
+    libSect(c.cs)+' · '+libDate(c.date)+' '+(c.per==='am'?'matin':'après-midi');
+  const i0 = IDX[c.date];
+  const fin = JOURS_ALL[Math.min(i0+FEN-1, JOURS_ALL.length-1)];
+  document.getElementById('calLbl').textContent =
+    '4 semaines — jusqu\'au '+dt(fin).getDate()+' '+MOIS_FR[dt(fin).getMonth()];
+
+  const plages = grouper(absFenetre(c.mar, c.date));
+  const a = document.getElementById('pAnswer');
+  if(!plages.length){
+    a.innerHTML = '<div class="clear"><b>Aucune absence dans les 4 semaines qui suivent.</b><br>'+
+      'Toutes les dates d\'intervention conviennent'+(ROLE==='mar'?'':' pour ce médecin')+'.</div>';
+  } else {
+    const tot = plages.reduce((t,p)=> t+nbJours(p), 0);
+    a.innerHTML = '<div class="lbl">Dates d\'intervention à éviter — <b>'+tot+'</b> jour'+
+      (tot>1?'s':'')+' sur '+plages.length+' période'+(plages.length>1?'s':'')+' :</div>'+
+      '<div class="dates">'+plages.map((p,k)=>
+        '<button class="d" data-k="'+k+'" aria-pressed="false">'+libPlage(p)+
+        (MOTIFS && p.code ? '<small>'+(NOM_CODE[p.code]||p.code)+'</small>' : '')+
+        '</button>').join('')+'</div>'+
+      '<div class="hintclick">Cliquez une période pour voir qui peut prendre le patient.</div>';
+    a.querySelectorAll('.d').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const was = el.getAttribute('aria-pressed')==='true';
+        a.querySelectorAll('.d').forEach(x=> x.setAttribute('aria-pressed','false'));
+        pick = was ? null : plages[+el.dataset.k];
+        if(!was) el.setAttribute('aria-pressed','true');
+        rendreAlt(); rendreGrille();
+      });
+    });
+  }
+  rendreAlt(); rendreGrille();
+  document.getElementById('pFoot').innerHTML = (ROLE==='mar')
+    ? 'Ce sont vos absences après cette consultation. Un patient que vous y verriez et qui serait opéré sur l\'une de ces périodes devra être <b>repris par un confrère</b>.'
+    : 'Comparez ces périodes avec les <b>dates d\'intervention</b> de votre liste. Un patient dont le bloc y tombe doit être placé sur la consultation d\'un autre médecin.';
+}
+
+function rendreAlt(){
+  const box = document.getElementById('pAlt');
+  if(!pick || !curSlot){ box.innerHTML=''; return; }
+  const p = pick, secteur = curSlot.cs;
+  const absentSur = (id)=>{
+    const l = (DATA.absences && DATA.absences[id]) || [];
+    for(const a of l){ const i = IDX[a.d]; if(i>=p.debIdx && i<=p.finIdx) return true; }
+    return false;
+  };
+  const csAvant = (id)=> (DATA.consultations||[])
+    .filter(x=> x.mar===id && IDX[x.date] !== undefined && IDX[x.date] < p.debIdx)
+    .sort((a,b)=> a.date < b.date ? -1 : 1);
+  const ligne = (id)=>{
+    const cs = csAvant(id);
+    return '<div class="person"><b>'+nomDe(id)+'</b><span class="cs">'+
+      cs.slice(0,2).map(x=> libDate(x.date)+' '+(x.per==='am'?'matin':'ap.-midi')).join(' · ')+
+      (cs.length>2 ? ' +'+(cs.length-2) : '')+'</span></div>';
+  };
+  const tous = Object.keys(DATA.noms||{});
+  const dispo = tous.filter(id=> id!==curSlot.mar && !absentSur(id) && csAvant(id).length);
+  const meme  = dispo.filter(id=> csAvant(id).some(x=> x.cs === secteur));
+  const autres= dispo.filter(id=> meme.indexOf(id) < 0);
+
+  let h = '<div class="alt"><h4>Patient opéré '+(nbJours(p)>1?'entre le ':'le ')+libPlage(p)+
+    ' — qui peut le voir ?</h4><div class="why">Médecins présents '+
+    (nbJours(p)>1?'sur toute la période':'ce jour-là')+', ayant une consultation avant.</div>';
+  if(!dispo.length){
+    h += '<div class="none-alt">Personne ne remplit les deux conditions. À arbitrer avec le comité.</div>';
+  } else {
+    if(meme.length)   h += '<div class="altgrp"><div class="t">Même secteur — '+libSect(secteur)+
+                           '</div>'+meme.map(ligne).join('')+'</div>';
+    if(autres.length) h += '<div class="altgrp"><div class="t">Autres secteurs — '+autres.length+
+                           ' possible'+(autres.length>1?'s':'')+'</div>'+
+                           autres.slice(0,3).map(ligne).join('')+'</div>';
+  }
+  box.innerHTML = h+'</div>';
+}
+
+function rendreGrille(){
+  if(!curSlot) return;
+  const g = document.getElementById('pGrid');
+  const i0 = IDX[curSlot.date];
+  const debut = i0 - (dt(curSlot.date).getDay() - 1);   // lundi de sa semaine
+  const absMap = {};
+  ((DATA.absences && DATA.absences[curSlot.mar]) || []).forEach(a=>{ absMap[a.d] = a.c || '·'; });
+  const mesCS = {};
+  (DATA.consultations||[]).forEach(x=>{ if(x.mar === curSlot.mar) mesCS[x.date] = true; });
+  g.innerHTML = '';
+  for(let w=0; w<4; w++){
+    const tr = document.createElement('tr'); let html='';
+    for(let k=0; k<5; k++){
+      const i = debut + w*5 + k;
+      if(i<0 || i>=JOURS_ALL.length){ html += '<td class="hors"></td>'; continue; }
+      const ds = JOURS_ALL[i], cls = [];
+      let motif = '';
+      if(i < i0) cls.push('hors');
+      else {
+        if(absMap[ds]){
+          cls.push('absent');
+          if(MOTIFS && absMap[ds] !== '·') motif = '<div class="c">'+absMap[ds]+'</div>';
+        }
+        if(pick && i >= pick.debIdx && i <= pick.finIdx) cls.push('pick');
+      }
+      if(mesCS[ds]) cls.push('consult');
+      html += '<td class="'+cls.join(' ')+'"><div class="n">'+dt(ds).getDate()+'</div>'+motif+'</td>';
+    }
+    tr.innerHTML = html; g.appendChild(tr);
+  }
+}
+</script>
+</body>
+</html>
