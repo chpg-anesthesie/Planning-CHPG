@@ -194,9 +194,33 @@ patient), pour ne créer ni donnée patient ni travail aux secrétaires des chir
   s'engager plus tôt, et retoucher un placement quand une absence tombe après coup.
 - ❓ À traiter à la maquette : override **modifié après coup** (MAR remplacé sur son créneau) —
   l'outil suit le nouveau titulaire, mais les patients déjà placés sur l'ancien ne bougent pas.
-- **Accès secrétaire** : action de lecture appelable sans droits MAR/comité — à cadrer (piste : rôle
-  `secretariat` de `CONFIG`, lecture seule). ⚠️ Ne pas réutiliser `getMARsDispoJour` tel quel (garde
-  `TP`/`R` dans sa liste d'absence).
+- ✅ **Accès — acté 24/07/2026 : UNE page, DEUX portes.** Page unique à la **racine**, même vue en
+  lecture seule pour tous. Entrée (a) **code personnel MAR** (mécanisme existant) ; entrée (b)
+  **code partagé du secrétariat**, nouveau, rangé dans `CONFIG`, de **forme distincte** des codes
+  MAR (pour désambiguïser au login) et **changeable en une ligne** s'il circule trop.
+  → **Nommer par la fonction, pas par l'utilisateur** : `absences.html` /
+  `controle-absences.html` — **pas** `secretariat.html`, puisque tous les MARs y accèdent aussi.
+- **Intégration `dashboard.html` : tuile pour TOUS les MARs**, pas seulement `LIBERAL = O` (à la
+  différence de la tuile « Module libéral », `dashboard.html` l.556). Deux obligations dans le
+  **même push** : page visible → **bump de version du site (2ᵉ chiffre, feature)** ; page MAR →
+  **mise à jour de `docs/guide-mar.html`**.
+- 🔒 **Le motif d'absence n'est JAMAIS affiché** (règle du Lot 5, confirmée par Arthur le 24/07 —
+  une maquette l'avait affiché à tort). L'écran dit « indisponible », pas pourquoi.
+  ⚠️ **Masquer côté écran ne suffit pas : l'action GAS doit renvoyer des DATES SEULES, jamais les
+  codes** (`V`, `CP`, `F`, `RG`, `CL`, `TP`) — sinon ils restent lisibles dans le source de la
+  page. Contrainte la plus facile à oublier au moment de coder.
+- **Exposition, acté explicitement :** pour les **MARs**, rien de neuf (le planning complet est déjà
+  dans `index.html`). Pour le **secrétariat**, c'est un accès nouveau à toutes les absences de
+  l'équipe — c'est l'objet de l'outil. Fuite du code partagé sans gravité : aucune écriture, aucune
+  donnée patient, uniquement des dates.
+- ⚠️ Ne pas réutiliser `getMARsDispoJour` tel quel (garde `TP`/`R` dans sa liste d'absence).
+- 🎨 **Maquette réalisée le 24/07 (non poussée).** File des consultations posées à gauche (groupées
+  par jour) ; clic → panneau droit : **dates à éviter** en gros caractères + grille de 4 semaines ;
+  pastille pleine/grise par ligne pour repérer sans cliquer les MARs ayant des absences ; état
+  « aucune absence » explicite. Simulation vérifiée : 20 jours ouvrés, **92 créneaux = 23/semaine**,
+  conforme au gabarit `CS_RULES`.
+- ⚠️ **Règle générale — le dépôt est PUBLIC : aucune maquette ne doit contenir de noms réels de
+  praticiens** (y compris dans les commentaires de code). Noms fictifs systématiques.
 
 **Pistes abandonnées, à ne pas rouvrir.** *Attribution au fil de l'eau* (une consultation porte
 plusieurs patients aux dates de bloc différentes, aucune permutation ne les satisfait tous).
