@@ -756,6 +756,47 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
         login (l.1176 : tout `success` ouvre le portail). Saisir le code secrétariat y affiche donc
         le portail complet, dont toutes les tuiles échoueront (serveur refuse). **Pas une faille**
         — corrigé à l'étape 6 (redirection du rôle secrétariat vers `absences.html`).
+    - ✅ **ÉTAPE 3 FAITE ET TESTÉE EN PRODUCTION le 25/07/2026** — action `getConsultAbsences`
+      (commits `454942f`, `d66c1a4` ; `GAS_VERSION_INDISPOS = 2026-07-25.3`).
+      - 🔴 **PIÈGE MAJEUR RENCONTRÉ — les consultations de MATERNITÉ n'existent dans AUCUNE
+        donnée.** Première version lisant `PLANNING_OVERRIDES` : elle ratait toutes les CS-MAT.
+        Cause : la règle vit dans **`admin.html` l.2586** — « la consult CS-MAT et la ligne MAT
+        sont la MÊME personne, le MAR de mater fait la consult systématiquement ». Elle est
+        **recalculée à l'affichage** à partir du secteur ; la cellule contient `MAT`, jamais
+        `CS-MAT`. ⇒ **Ne jamais chercher les consultations par le seul préfixe `CS-`.**
+      - **Source corrigée : le PLANNING PUBLIÉ `planning_{Y}.json`**, pas les overrides. Motif :
+        les overrides ne contiennent que le placement manuel du comité ; la génération (dont les
+        affectations de secteur) n'y est pas. Argument décisif d'Arthur : *si ce n'est pas publié,
+        ça n'apparaît pas dans `index.html` non plus, donc ça n'existe pour personne* — le JSON
+        est donc la vérité par définition. Publication systématique après modification (confirmé).
+      - **Le JSON est lu CÔTÉ SERVEUR uniquement** et n'est jamais transmis : il contient le code
+        d'absence brut de chaque MAR dans `status`. La règle « dates seules » reste intacte.
+      - ⚠️ **DETTE : la règle du miroir maternité existe maintenant à DEUX endroits** —
+        `admin.html` l.2586 (affichage) et l'action GAS. Les modifier séparément les fera diverger
+        silencieusement. À traiter si la règle évolue.
+      - **Trois absences hors `GARDES` ajoutées** (sans quoi faux « disponible ») : `TP` jours
+        fixes non travaillés, `OFF` semaine off du rythme 2/2, `HS` hors période d'activité.
+        Validé sur données réelles (BONNET/MENADE/SEVERAC en TP, TRAN en OFF puis HS au 01/09).
+      - **Codes comptés absents = `ABSENT_CODES` (code.gs l.245)** : RG,V,F,CTP,CP,R,A,TP,CL.
+        **`G`/`G2` volontairement exclus** — décision d'Arthur : *un MAR de garde peut assurer du
+        libéral*. `CTP` conservé par sécurité bien que mort dans GARDES (`generateur_gardes.gs`
+        l.1283 traduit `TP`/`CTP` → `TP`) : le classeur est éditable à la main.
+      - **MAR hors service sur TOUTE la fenêtre retirés** de `noms`, `absences` **et**
+        `consultations`. ⚠️ Les retirer des seules absences les aurait rendus **présents tous les
+        jours** aux yeux du frontend, donc proposés comme remplaçants — le faux « disponible » que
+        l'outil doit empêcher. Un `HS` **partiel** (TRAN, part au 01/09) doit au contraire RESTER.
+      - **Tests réels 25/07 :** code MAR ⇒ `motifs:true` + champ `c` présent ; code secrétariat ⇒
+        `motifs:false`, `moi:null`, **aucune occurrence de `"c":`** dans toute la réponse.
+        CS-MAT correctement détectées (FROHLICH mar. 28/07, SALA jeu. 30/07, SULTAN 18 et 20/08).
+      - ⚠️ **Conséquence visible : liste très déséquilibrée** tant que l'horizon de placement
+        n'est pas tenu. Les CS-MAT, déduites du secteur généré, apparaissent sur des semaines ;
+        les autres, posées à la main, s'arrêtent à ~4 jours.
+      - ❓ **À vérifier :** aucune CS-MAT entre le 3 et le 14/08 (4 mardis/jeudis). Personne en MAT
+        ces matins-là (plausible en août), ou trou résiduel du miroir ? Contrôle visuel dans
+        `admin.html` semaine du 03/08, ligne MAT mardi matin.
+      - 📝 **Limite assumée :** masquer le motif ne masque pas la **forme**. Quinze jours
+        consécutifs se lisent comme un arrêt long même sans le code `CL`. Inhérent à l'affichage
+        de dates, acté en connaissance de cause.
     - 📌 **Ordre de construction (arrêté 24/07) :** (1) `SECRETARIAT_CODE` dans CONFIG +
       `checkCode` renvoie le 3ᵉ rôle → (2) liste blanche refus-par-défaut → (3) action de lecture
       des absences, autonome, deux réponses selon le rôle → (4) action « qui peut prendre » →
