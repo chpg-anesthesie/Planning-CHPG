@@ -187,6 +187,14 @@ présente — `calendar-plus` n'existe pas et se serait affichée vide.
 
 ### Version du site — v1.5 (20 juillet 2026)
 
+> ⚠️ **Mesuré le 24/07/2026 : le site est en `v1.9.4`, et le marqueur n'existe que dans
+> DEUX fichiers** — `admin.html` (3 occurrences) et `dashboard.html` (3 occurrences).
+> `index.html`, `indispos.html` et `staff.html` n'en portent **aucune**. La règle « 5 fichiers,
+> 9 emplacements » ne correspond donc plus à l'état réel du dépôt : à reconfirmer avec Arthur
+> avant le prochain bump (la règle a-t-elle changé, ou le marqueur a-t-il disparu de ces trois
+> pages ?).
+
+
 **Le badge affichait `v1.0` depuis plusieurs itérations sans que rien ne le signale.** Chaque fichier
 porte la version à plusieurs endroits, et le diagnostic « Version du site » ne lisait que **le
 marqueur en commentaire** — jamais la valeur affichée. Il concluait donc « les 4 fichiers sont
@@ -669,6 +677,43 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
       `index.html`). Pour le **secrétariat**, c'est un accès nouveau à l'ensemble des absences de
       l'équipe — c'est le but de l'outil, mais acté explicitement. Fuite du code partagé sans
       gravité : la page n'écrit rien, ne contient aucune donnée patient, n'expose que des dates.
+    - 🔐 **AUDIT DE SÉCURITÉ AVANT CODAGE — fait le 24/07/2026, à lire AVANT de toucher au code.**
+      Motif : ajouter un 3ᵉ rôle n'est **pas** neutre. J'avais annoncé à tort que les gardes
+      `if (user.role !== 'admin') return _deny()` bloqueraient un nouveau rôle par défaut — **faux** :
+      les actions placées *avant* ces gardes sont ouvertes à **tout code valide**.
+      - **Inventaire mesuré (`Indispos.gs`, 50 actions) : 40 protégées admin, 10 OUVERTES** —
+        `getActiveYear` (l.1060, avant même `checkCode`), `getStatus` (1082), `getStatsLive` (1087,
+        **stats de gardes nominatives**), `login` (1094), `getNoelAnEligibles` (1115), `getIndispos`
+        (1122), **`saveIndispos` (1129 — ÉCRITURE)**, `getVacConfig` (1275), `getPlanningJson`
+        (3225), `getAffectationsJson` (3232).
+      - 🔴 **BLOQUANT — `getPlanningJson` défait la règle « dates seules ».** `planning_{Y}.json`
+        contient le **code d'absence brut** dans `status`, pour **chaque MAR et chaque jour de
+        l'année** (`code.gs` l.828→857 : la valeur de `GARDES_{Y}` y est recopiée telle quelle), et
+        l'action est ouverte à tout code valide. Donner un code au secrétariat lui donnerait donc
+        **tous les motifs de toute l'équipe sur l'année**, quel que soit le filtrage d'une nouvelle
+        action. ⇒ **La liste blanche DOIT exclure `getPlanningJson`, et l'écran secrétaire DOIT
+        avoir sa propre action dédiée** (consultations + dates seules). Il ne peut pas réutiliser le
+        JSON du planning.
+      - **`portail.gs` (`portailRoute`, l.20) : les actions de LECTURE n'ont aucun contrôle de
+        rôle** — `listTopos`, `getTopo`, `listStaffs`, `listStaffsAll`, `listProtocoles`,
+        `getProtocole`, **`listAnnuaire` (annuaire nominatif)**, `getSecteurs`, `getCsTemplate`,
+        `getVeille`. Un rôle secrétariat y accéderait sans garde.
+      - 🟢 **Déjà solide, rien à faire :** `declareLiberal` / `deleteLiberal` exigent
+        `role === 'mar'` (l.1184) ; `listLiberalJour` exige admin (l.1256) ; `genererCRH_` filtre sur
+        `CRH_ALLOWED` (l.1040). Un rôle secrétariat y est refusé nativement.
+      - ✅ **Plan corrigé :** l'étape 2 n'est **pas** une garde par action mais un **refus par défaut
+        placé immédiatement après `checkCode` (l.1065), AVANT le `WRITE_ACTIONS_LOCK` (l.1043) et
+        avant tout traitement d'action** : le rôle `secretariat` n'atteint que `login` + la nouvelle
+        action de lecture, rien d'autre. **Étapes 1 et 2 indissociables** — ne jamais pousser l'une
+        sans l'autre, l'intervalle serait une brèche.
+    - 📌 **Ordre de construction (arrêté 24/07) :** (1) `SECRETARIAT_CODE` dans CONFIG +
+      `checkCode` renvoie le 3ᵉ rôle → (2) liste blanche refus-par-défaut → (3) action de lecture
+      des absences, autonome, deux réponses selon le rôle → (4) action « qui peut prendre » →
+      (5) `absences.html` → (6) tuile Dashboard + bump de version + `guide-mar.html`.
+      Étapes 1–4 = GAS (recopie manuelle + nouveau déploiement) ; 5–6 = frontend.
+      ⚠️ `getMARsDispoJour` (`Indispos.gs` l.2727) est **admin-only** et répond à une **autre**
+      question (combler une case flash, groupée VOLANT/CTP/R) : l'étape 4 demande sa propre action,
+      ne pas la réutiliser telle quelle.
     - 🎨 **Maquette v3 — `docs/module-liberal/maquette_controle_absence.html`** (poussée le
       24/07 ; non fonctionnelle, ne réédite que ce chemin, la version est dans l'en-tête). File des consultations posées à gauche, groupées par
       jour, avec le **secteur en clair** (Viscéral, ORL, Endoscopie… et non le code `CS-*`) ;
@@ -751,6 +796,12 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
 - [ ] **Sorties de garde réa / anesthésie non distinguées** dans l'Excel (une seule ligne « SORTIES DE GARDE »). Le statut `RG` est unique : impossible de savoir de quelle garde sort la personne. Piste : un second statut (`RG2`), ou déduire depuis la veille — mais le lundi renverrait au dimanche de la semaine précédente, hors `daySlots`.
 - [ ] Picker des consult libérales endo : filtrer/avertir sur la présence au bloc en semaine N+1. **Plus aucun contrôle automatique depuis le retrait de la rotation (20/07/2026)** — l'attribution est 100 % manuelle et la règle du 8.1 est à vérifier de tête par le comité (documenté dans `guide-comite.html` § 8.2).
 - [ ] *(Sécurité, à l'appréciation d'Arthur)* rotation du token GitHub.
+- [ ] ⚠️ **`markVeille` écrit sans verrou ni contrôle de rôle** (constaté 24/07/2026, anomalie
+  **préexistante**, sans rapport avec le Lot 5-bis). Elle marque un article de veille comme lu —
+  donc une **écriture** — mais elle est **absente de `WRITE_ACTIONS_LOCK`** (`Indispos.gs` l.1043)
+  et n'a aucun contrôle de rôle dans `portailRoute` (`portail.gs` l.32). Risque faible vu l'usage
+  (un seul lecteur à la fois en pratique), mais c'est une vraie omission. À traiter **séparément**,
+  ne pas la glisser dans un autre lot.
 - [ ] ⚠️ **`appsscript.json` absent du dépôt** (constaté 24/07/2026). `gas/` ne contient que les
   5 `.gs` + README. Ce fichier déclare les **autorisations OAuth** du script : en son absence, le
   dépôt ne contient pas 100 % de ce qu'il faut pour reconstruire le projet Apps Script — les
