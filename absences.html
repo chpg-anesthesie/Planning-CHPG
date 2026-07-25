@@ -123,21 +123,6 @@ table.grid td.pick{outline:2px solid var(--rose);outline-offset:1px}
       line-height:1.55}
 .foot b{color:var(--ink)}
 
-.overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;
-         justify-content:center;z-index:900;padding:20px}
-.auth{background:var(--white);border:1px solid var(--line);border-radius:16px;padding:30px 28px;
-      max-width:390px;width:100%;box-shadow:0 10px 40px rgba(15,23,42,.08)}
-.auth h2{font-size:19px;font-weight:700;margin-bottom:5px}
-.auth p{font-size:13px;color:var(--ink-3);margin-bottom:18px;line-height:1.5}
-.auth input{width:100%;font:inherit;font-size:15px;font-family:var(--mono);text-align:center;
-            letter-spacing:.06em;padding:11px;border:1px solid var(--line);border-radius:10px;
-            text-transform:uppercase}
-.auth input:focus{outline:2px solid var(--me);outline-offset:-1px;border-color:var(--me)}
-.auth button{width:100%;margin-top:11px;font:inherit;font-size:14px;font-weight:700;color:#fff;
-             background:var(--me);border:none;border-radius:10px;padding:11px;cursor:pointer}
-.auth button:disabled{background:#C3CDD4;cursor:not-allowed}
-.autherr{display:none;margin-top:10px;font-size:12.5px;color:var(--rose);background:var(--rose-soft);
-         border:1px solid var(--rose-line);border-radius:8px;padding:8px 11px}
 .loading{padding:50px 20px;text-align:center;color:var(--ink-3);font-size:13.5px}
 @media(max-width:900px){.cols{grid-template-columns:1fr}.wrap{padding:22px 15px 40px}
   .header{padding:0 15px}.scroller{max-height:40vh}}
@@ -145,13 +130,19 @@ table.grid td.pick{outline:2px solid var(--rose);outline-offset:1px}
 </head>
 <body>
 
-<div class="overlay" id="authOverlay">
-  <div class="auth">
-    <h2>Consultations à venir</h2>
-    <p>Saisissez votre code d'accès personnel, ou le code du secrétariat.</p>
-    <input id="authInput" placeholder="CODE" autocomplete="off" spellcheck="false">
-    <button id="authBtn">Accéder &rarr;</button>
-    <div class="autherr" id="authErr"></div>
+<!-- ── CONNEXION — skin identique a dashboard.html / index.html ────────── -->
+<div id="authOverlay" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--white);border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px rgba(15,23,42,.08);padding:36px 32px;width:100%;max-width:380px;text-align:center">
+    <div style="display:inline-flex;flex-direction:column;width:34px;height:24px;border-radius:4px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.2)">
+      <div style="flex:1;background:var(--red)"></div><div style="flex:1;background:#fff;border:1px solid var(--line);border-top:none"></div>
+    </div>
+    <div style="font-size:18px;font-weight:800;color:var(--ink)">Portail CHPG Monaco</div>
+    <div style="font-size:13px;color:var(--ink-3);margin:4px 0 22px">Service d'Anesthésie-Réanimation</div>
+    <input id="authInput" type="password" placeholder="Code d'acc&egrave;s" autocomplete="off" autocapitalize="characters"
+      style="width:100%;box-sizing:border-box;padding:12px 14px;font-size:16px;border:1px solid var(--line);border-radius:10px;text-align:center;letter-spacing:2px;font-family:monospace"/>
+    <button id="authBtn"
+      style="width:100%;margin-top:12px;padding:12px;background:var(--red);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">Acc&eacute;der &rarr;</button>
+    <div id="authErr" style="display:none;margin-top:12px;font-size:13px;color:var(--red);font-weight:600"></div>
   </div>
 </div>
 
