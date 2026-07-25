@@ -204,11 +204,22 @@ patient), pour ne créer ni donnée patient ni travail aux secrétaires des chir
   différence de la tuile « Module libéral », `dashboard.html` l.556). Deux obligations dans le
   **même push** : page visible → **bump de version du site (2ᵉ chiffre, feature)** ; page MAR →
   **mise à jour de `docs/guide-mar.html`**.
-- 🔒 **Le motif d'absence n'est JAMAIS affiché** (règle du Lot 5, confirmée par Arthur le 24/07 —
-  une maquette l'avait affiché à tort). L'écran dit « indisponible », pas pourquoi.
-  ⚠️ **Masquer côté écran ne suffit pas : l'action GAS doit renvoyer des DATES SEULES, jamais les
-  codes** (`V`, `CP`, `F`, `RG`, `CL`, `TP`) — sinon ils restent lisibles dans le source de la
-  page. Contrainte la plus facile à oublier au moment de coder.
+- 🔒 **Motif d'absence : VISIBILITÉ SELON LE RÔLE (acté 24/07).** Session **MAR** (code personnel,
+  via la tuile Dashboard) → dates **+ motifs**. Justification : les MARs voient déjà le planning
+  complet dans `index.html`, leur masquer le motif n'aurait aucun sens. Session **secrétariat**
+  (code partagé) → **dates seules**.
+  ⚠️ **Le filtrage se fait au SERVEUR, jamais au client.** L'action GAS ne renvoie pas les codes
+  (`V`, `CP`, `F`, `RG`, `CL`, `TP`) dans une session secrétariat : les masquer en JS les
+  laisserait lisibles dans le source de la page. **Deux réponses distinctes selon le rôle
+  authentifié** → une page unique, **deux rendus**. C'est la contrainte la plus facile à oublier
+  au moment de coder. *(À vérifier avant de coder : que l'action GAS identifie le type de session.
+  Le code d'entrée étant transmis à chaque appel, a priori simple — mécanisme non lu à ce jour.)*
+- **Session MAR : la file est filtrée sur ses PROPRES consultations (acté 24/07).** Usage visé : le
+  MAR contrôle lui-même que ses patients ne seront pas opérés un jour où il est absent ; le panneau
+  de droite montre alors toujours ses propres absences.
+  ❓ **À trancher :** filtre **exclusif**, ou **actif par défaut avec bascule « voir tous »** ?
+  Aucune raison de confidentialité de masquer les collègues (le planning leur est déjà visible) —
+  c'est une question d'usage : un MAR peut vouloir vérifier un collègue lors d'un échange.
 - **Exposition, acté explicitement :** pour les **MARs**, rien de neuf (le planning complet est déjà
   dans `index.html`). Pour le **secrétariat**, c'est un accès nouveau à toutes les absences de
   l'équipe — c'est l'objet de l'outil. Fuite du code partagé sans gravité : aucune écriture, aucune
