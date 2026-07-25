@@ -669,11 +669,34 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
       `index.html`). Pour le **secrétariat**, c'est un accès nouveau à l'ensemble des absences de
       l'équipe — c'est le but de l'outil, mais acté explicitement. Fuite du code partagé sans
       gravité : la page n'écrit rien, ne contient aucune donnée patient, n'expose que des dates.
-    - 🎨 **Maquette réalisée (24/07, non poussée) :** file des consultations posées à gauche
-      (groupées par jour), clic → panneau droit avec les **dates à éviter** en gros + grille de
-      4 semaines ; pastille pleine/grise sur chaque ligne pour repérer sans cliquer les MARs
-      ayant des absences ; état « aucune absence » explicite en vert. Simulation vérifiée :
-      20 jours ouvrés, **92 créneaux = 23/semaine**, conforme au gabarit `CS_RULES`.
+    - 🎨 **Maquette v3 (24/07, non poussée).** File des consultations posées à gauche, groupées par
+      jour, avec le **secteur en clair** (Viscéral, ORL, Endoscopie… et non le code `CS-*`) ;
+      pastille pleine/grise par ligne = ce MAR a ou non des absences **pertinentes pour CETTE
+      consultation**. Clic → panneau droit : périodes à éviter, encadré « qui peut le prendre »,
+      grille 4 semaines, état « aucune absence » explicite. Simulé et vérifié : **92 créneaux =
+      23/semaine** conforme à `CS_RULES` ; **aucun médecin proposé n'est absent** le jour visé.
+    - ⏱ **Fenêtre = 4 semaines À PARTIR DE LA CONSULTATION sélectionnée** (acté 24/07), et non
+      depuis aujourd'hui : une absence antérieure à la consultation est sans objet (le patient
+      sera opéré après). Conséquence : l'horizon de données doit dépasser de 4 semaines la
+      dernière consultation affichée (maquette : 45 jours ouvrés pour 20 jours de consultations).
+    - 📅 **Jours consécutifs regroupés en plages** (« 10 – 14 août », pas cinq dates). Règle de
+      fusion **différente selon le rôle** : vue **MAR** → fusion **à motif identique** (le motif
+      est affiché, deux motifs ne peuvent pas tenir dans une plage) ; vue **secrétariat** →
+      fusion **sans regarder le motif** (il n'est pas affiché).
+      ⚠️ **Corollaire serveur : regrouper APRÈS le filtrage par rôle, jamais avant** — sinon on
+      regrouperait sur une information que la secrétaire n'a pas le droit de recevoir.
+    - 🔎 **« Qui peut prendre ce patient ? » (acté 24/07, point 2).** Clic sur une période → liste
+      des MARs **présents sur TOUTE la période** (la proposition reste donc valable quel que soit
+      le jour du bloc) **et ayant une consultation AVANT** cette période (on ne peut pas voir en
+      consultation un patient déjà opéré). Regroupés **même secteur d'abord**, puis autres.
+      Réutilise la logique de `getMARsDispoJour` — question inverse de l'écran principal.
+      Toujours **lecture pure**, zéro écriture, zéro donnée patient.
+    - ❌ **Notification au MAR sur sa tuile Dashboard : ÉCARTÉ (24/07).** Supposerait que le système
+      connaisse les patients — or il n'en connaît aucun, et c'est ce qui le rend simple et sans
+      risque (contrainte 3.bis). Sans identité patient la notification ne pourrait dire que
+      « votre consultation a changé », sans que le MAR puisse agir. Coût réel : créer un système
+      de notifications inexistant + faire passer l'écran de « lecture seule » à « écrit »
+      (`WRITE_ACTIONS_LOCK`, verrous, réconciliation). Arthur : « tant pis ».
     - ⚠️ **Règle générale (dépôt PUBLIC) : aucune maquette ne doit contenir de noms réels de
       praticiens.** Utiliser des noms fictifs, y compris dans les commentaires de code.
     - ⚠️ Ne pas réutiliser tel quel `getMARsDispoJour` : sa liste d'absence garde `TP`/`R`
