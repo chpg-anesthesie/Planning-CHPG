@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-24.2';
+const GAS_VERSION_INDISPOS = '2026-07-24.3';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -387,16 +387,28 @@ function checkCode(code) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName('CONFIG');
   let adminCode = null;   // AUCUN code par défaut : ADMIN_CODE doit exister dans CONFIG
+  // Code PARTAGE du secretariat d'anesthesie (lecture seule). Meme regime que
+  // ADMIN_CODE : aucun defaut, la cle doit exister dans CONFIG pour que le role vive.
+  let secretariatCode = null;
   if (configSheet) {
     const configData = configSheet.getDataRange().getValues();
     for (let r = 1; r < configData.length; r++) {
-      if (String(configData[r][0]).trim() === 'ADMIN_CODE') {
-        adminCode = String(configData[r][1]).trim();
-        break;
-      }
+      const _cle = String(configData[r][0]).trim();
+      // Premiere occurrence gagnante pour chaque cle (comportement d'origine conserve :
+      // le `break` initial faisait deja gagner la premiere ligne ADMIN_CODE).
+      if (_cle === 'ADMIN_CODE'       && adminCode === null)       adminCode = String(configData[r][1]).trim();
+      else if (_cle === 'SECRETARIAT_CODE' && secretariatCode === null) secretariatCode = String(configData[r][1]).trim();
     }
   }
   if (adminCode && code === adminCode) return {role: 'admin', id: 'ADMIN'};
+  // ROLE SECRETARIAT (Lot 5-bis). Code partage, donc perimetre verrouille par la
+  // liste blanche SECRETARIAT_ACTIONS dans doGet — refus par defaut de tout le reste.
+  // Aucune donnee nominative renvoyee ici (ni nom, ni RPPS, ni prenom).
+  // `name` sert uniquement de libelle dans le journal CONNEXIONS (logConnexion lit
+  // user.name) : le code etant partage, on ne peut pas savoir QUI s'est connecte.
+  if (secretariatCode && code === secretariatCode) {
+    return {role: 'secretariat', id: 'SECRETARIAT', name: 'Secrétariat', initials: 'SEC'};
+  }
 
   const sheet = ss.getSheetByName('MEDECINS');
   if (!sheet) return null;
@@ -1051,6 +1063,19 @@ const WRITE_ACTIONS_LOCK = new Set([
   'declareLiberal', 'deleteLiberal',
 ]);
 
+// (Lot 5-bis) PERIMETRE DU ROLE SECRETARIAT — liste blanche, REFUS PAR DEFAUT.
+// Le code du secretariat est PARTAGE : son perimetre se definit ici, en un seul
+// endroit, et JAMAIS par des gardes ajoutees action par action (audit du 24/07 :
+// 10 actions d'Indispos.gs sont ouvertes a tout code valide, dont saveIndispos
+// qui ECRIT, et getStatsLive qui renvoie des stats nominatives).
+// ⚠️ NE JAMAIS y ajouter getPlanningJson ni getAffectationsJson : planning_{Y}.json
+// contient le CODE D'ABSENCE BRUT de chaque MAR pour toute l'annee (code.gs : la
+// valeur de GARDES_{Y} est recopiee dans `status`). Les y autoriser contournerait
+// la regle « dates seules » de l'ecran Consultations a venir.
+const SECRETARIAT_ACTIONS = new Set([
+  'login',
+]);
+
 function doGet(e) {
   try {
     const payload = JSON.parse(e.parameter.payload || '{}');
@@ -1066,6 +1091,14 @@ function doGet(e) {
     if (!user) {
       return ContentService.createTextOutput(JSON.stringify({
         success: false, error: 'Code invalide'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    // (Lot 5-bis) REFUS PAR DEFAUT du role secretariat. Place ICI, juste apres
+    // checkCode et AVANT le verrou d'ecriture et tout traitement d'action : rien
+    // ne peut etre atteint qui ne figure pas dans SECRETARIAT_ACTIONS.
+    if (user.role === 'secretariat' && !SECRETARIAT_ACTIONS.has(action)) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false, error: 'Action non autorisée pour ce code'
       })).setMimeType(ContentService.MimeType.JSON);
     }
     // (RH-C) Verrou d'écriture global : sérialise les actions qui modifient
