@@ -144,6 +144,9 @@
     <li><a href="#c16"><span class="n">16</span>Sécurité &amp; confidentialité (le modèle réel)</a></li>
     <li><a href="#c17"><span class="n">17</span>Roadmap — cadrage du reste à faire</a></li>
     <li><a href="#c18"><span class="n">18</span>Créer un secteur ou une consultation</a></li>
+      <li><a href="#c19"><span class="n">19</span>Consultations à venir &amp; rôle secrétariat</a></li>
+      <li><a href="#c20"><span class="n">20</span>La boîte de réception (Messages)</a></li>
+      <li><a href="#c21"><span class="n">21</span>Sauvegardes &amp; restauration</a></li>
   </ol>
 </nav>
 
@@ -696,6 +699,194 @@
 
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
+<section id="c19">
+  <h2><span class="n">19</span>Consultations à venir &amp; rôle secrétariat</h2>
+  <p>Page <code>absences.html</code> (juillet 2026). Elle répond à une question : <b>le médecin qui
+  voit ce patient en consultation sera-t-il présent le jour de son intervention ?</b> Un patient vu
+  par le D<sup>r</sup> X est opéré par le D<sup>r</sup> X ; si le bloc tombe un jour d'absence, il
+  est mal placé dès la consultation. L'écran est en <b>lecture seule</b> et ne contient
+  <b>aucune donnée patient</b>.</p>
+
+  <h3>Deux portes, une seule page</h3>
+  <table>
+    <thead><tr><th></th><th>Session MAR</th><th>Session secrétariat</th></tr></thead>
+    <tbody>
+      <tr><td>Entrée</td><td>code personnel</td><td><code>SECRETARIAT_CODE</code> (CONFIG), partagé</td></tr>
+      <tr><td>Liste</td><td>ses propres consultations</td><td>toutes</td></tr>
+      <tr><td>Motif d'absence</td><td>affiché</td><td><b>jamais envoyé</b></td></tr>
+      <tr><td>Portail</td><td>tuile Dashboard</td><td>arrive directement sur la page</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <div class="ct">Le filtrage du motif est SERVEUR, jamais client</div>
+    <p>En session secrétariat, l'action ne joint pas le champ motif. Le masquer en JavaScript le
+    laisserait lisible dans le source de la page. Corollaire : le regroupement des jours en
+    périodes se fait <b>après</b> le filtrage par rôle, jamais avant.</p>
+  </div>
+
+  <h3>Le rôle <code>secretariat</code> — refus par défaut</h3>
+  <p><code>checkCode</code> renvoie un 3<sup>e</sup> rôle, et <code>SECRETARIAT_ACTIONS</code>
+  (en tête d'<code>Indispos.gs</code>) définit <b>en un seul endroit</b> tout ce qu'il peut
+  atteindre : <code>login</code> et <code>getConsultAbsences</code>. Tout le reste est refusé
+  juste après <code>checkCode</code>, avant le verrou d'écriture.</p>
+  <div class="callout warn">
+    <div class="ct">Ne jamais y ajouter getPlanningJson</div>
+    <p>Un audit du 26/07 a montré que <b>ajouter un rôle n'est pas neutre</b> : 11 actions sur 54
+    sont ouvertes à tout code valide, dont <code>saveIndispos</code> qui <b>écrit</b>. Et surtout,
+    <code>planning_{Y}.json</code> contient le <b>code d'absence brut</b> de chaque MAR pour
+    l'année entière (champ <code>status</code>) : l'autoriser rendrait la règle « dates seules »
+    purement décorative. D'où la liste blanche, et non des gardes ajoutées action par action.</p>
+  </div>
+
+  <h3>D'où viennent les consultations</h3>
+  <p>Du <b>planning publié</b> (<code>planning_{Y}.json</code>), lu <b>côté serveur</b> et jamais
+  transmis au navigateur. Pas de <code>PLANNING_OVERRIDES</code> : les overrides ne contiennent que
+  le placement manuel du comité, pas ce qui vient de la génération. Le raisonnement qui tranche :
+  <i>si ce n'est pas publié, ça n'apparaît pas non plus dans <code>index.html</code>, donc ça
+  n'existe pour personne.</i></p>
+  <div class="callout warn">
+    <div class="ct">Piège : les consultations de maternité n'existent dans aucune donnée</div>
+    <p>La règle vit dans <code>admin.html</code> : <b>mardi et jeudi matin, qui est en
+    <code>MAT</code> tient aussi la consultation</b>. Elle est <b>recalculée à l'affichage</b> — la
+    cellule contient <code>MAT</code>, jamais <code>CS-MAT</code>. Chercher les consultations par le
+    seul préfixe <code>CS-</code> les rate toutes. <b>Dette :</b> cette règle existe désormais à
+    deux endroits (l'affichage et l'action serveur) ; les modifier séparément les ferait diverger
+    en silence.</p>
+  </div>
+
+  <h3>Ce qui compte comme « absent »</h3>
+  <p><code>ABSENT_CODES</code> (<code>code.gs</code>) : <code>RG V F CTP CP R A TP CL</code>.
+  <b><code>G</code> et <code>G2</code> en sont volontairement exclus</b> — un MAR de garde peut
+  assurer une intervention libérale. Trois absences ne figurent <b>pas</b> dans
+  <code>GARDES_{Y}</code> et sont ajoutées par l'action, sans quoi l'écran afficherait
+  « disponible » à tort :</p>
+  <table>
+    <thead><tr><th>Code</th><th>Origine</th></tr></thead>
+    <tbody>
+      <tr><td><code>TP</code></td><td>jour fixe non travaillé (colonne <code>tp_jours_fixes</code> de MEDECINS)</td></tr>
+      <tr><td><code>OFF</code></td><td>semaine off du rythme 2/2</td></tr>
+      <tr><td><code>HS</code></td><td>hors période d'activité (date de début / de fin)</td></tr>
+    </tbody>
+  </table>
+  <p>Un MAR <code>HS</code> sur <b>toute</b> la fenêtre est retiré de la réponse — mais aussi de la
+  liste des noms et des consultations. Le retirer des seules absences le ferait passer pour
+  <b>présent tous les jours</b>, donc proposé comme remplaçant : c'est le faux « disponible » que
+  l'outil doit précisément empêcher. Un <code>HS</code> <b>partiel</b> (un MAR qui part en cours de
+  fenêtre) doit au contraire rester.</p>
+
+  <div class="callout tip">
+    <div class="ct">Mise en service : un seul geste</div>
+    <p>La tuile « Mes consultations » est aujourd'hui restreinte par <code>only:'FROHLICH'</code>,
+    le temps que le comité pose les consultations à 4 semaines — ouverte trop tôt, l'écran serait
+    presque vide. Pour l'ouvrir : retirer <code>only</code>, passer le site en <b>v1.10</b>
+    (4 fichiers) et compléter <code>guide-mar.html</code>.</p>
+  </div>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c20">
+  <h2><span class="n">20</span>La boîte de réception (Messages)</h2>
+  <p>Bouton <b>✉ Messages</b> dans la barre d'<code>admin.html</code> : il ouvre les messages reçus
+  sur <code>planningchpg@gmail.com</code>, adresse à laquelle les MARs écrivent leurs demandes.
+  Trois actions serveur, <b>toutes réservées à l'admin</b> : <code>mailNonLus</code> (compteur),
+  <code>mailListe</code> (20 messages), <code>mailMessage</code> (corps d'un message).</p>
+
+  <p>Le script passe par le <b>service avancé Gmail</b>, pas par <code>GmailApp</code> — ce dernier
+  imposerait une autorisation large. Ni <i>iframe</i> (Gmail refuse d'être affiché dans une page
+  tierce), ni lien vers Gmail (la boîte appartient au compte propriétaire de tout le back-end).</p>
+
+  <h3>Autorisation : <code>gmail.modify</code></h3>
+  <p>Ouvrir un message le <b>marque lu</b>, sans quoi le compteur ne bougerait jamais et n'aurait
+  aucun sens pour le comité. D'où <code>gmail.modify</code> et non <code>gmail.readonly</code>.
+  Cela reste <b>plus étroit</b> que l'accès initial : la suppression définitive n'est pas possible.
+  Les six autorisations du projet sont déclarées dans <code>gas/appsscript.json</code>, désormais
+  versionné.</p>
+  <div class="callout warn">
+    <div class="ct">Google ne retire jamais une autorisation déjà accordée</div>
+    <p>Déclarer un périmètre plus étroit dans le manifeste <b>ne suffit pas</b> : l'accord antérieur
+    subsiste. Il faut <b>révoquer explicitement</b> (myaccount.google.com → Données et
+    confidentialité → Applications tierces → <i>Tout supprimer</i>), relancer une fonction pour
+    déclencher le consentement, puis <b>redéployer</b>. ⚠️ Le site est hors service entre la
+    révocation et le redéploiement.</p>
+  </div>
+
+  <h3>Deux barrières contre l'injection</h3>
+  <p>Le serveur ne renvoie que du <b>texte brut</b> (parcours des parties MIME, <code>text/plain</code>
+  seulement ; le HTML d'un message est converti en texte côté serveur et ne part jamais). Et le
+  client pose le corps avec <b><code>textContent</code>, jamais <code>innerHTML</code></b>.
+  Expéditeur, objet et aperçu passent par <code>_escHtml</code>.</p>
+
+  <h3>Performance</h3>
+  <p>Le contenu ne part <b>qu'au clic</b> ; le compteur de non-lus part <b>après</b> l'affichage de
+  l'admin, en tâche de fond. <b>Ne jamais le mettre dans <code>getAdminBootstrap</code></b> : il
+  ajouterait environ une seconde à <i>chaque</i> ouverture pour une fonction consultée
+  occasionnellement. Au clic, le tiroir s'ouvre <b>immédiatement</b> avec un indicateur — même
+  durée, ressenti tout autre. Quotas : 20 000 opérations Gmail par jour, un usage lourd en consomme
+  environ 12 %.</p>
+
+  <div class="callout warn">
+    <div class="ct">Piège : « Impossible de décoder la chaîne »</div>
+    <p>Gmail encode le corps en base64 <b>URL-safe et sans remplissage</b> ;
+    <code>Utilities.base64DecodeWebSafe</code> échoue dessus — environ <b>2 messages sur 3</b>.
+    Il faut normaliser soi-même (<code>-</code>→<code>+</code>, <code>_</code>→<code>/</code>, puis
+    compléter à un multiple de 4) avant <code>base64Decode</code>.</p>
+  </div>
+  <p><b>Répondre depuis l'admin n'est pas prévu</b>, volontairement : ce serait une écriture, avec
+  verrou et quota d'envoi. Décision distincte, à reprendre explicitement.</p>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c21">
+  <h2><span class="n">21</span>Sauvegardes &amp; restauration</h2>
+  <p><b>Deux sauvegardes, dans deux comptes différents, deux jours différents.</b></p>
+  <table>
+    <thead><tr><th></th><th>Compte planning</th><th>Compte personnel</th></tr></thead>
+    <tbody>
+      <tr><td>Quand</td><td>lundi ~4 h</td><td>dimanche ~5 h</td></tr>
+      <tr><td>Quoi</td><td><code>backupHebdo()</code> (<code>code.gs</code>)</td><td>script autonome, ~15 lignes</td></tr>
+      <tr><td>Où</td><td>dossier <code>Planning-CHPG-Backups</code></td><td>dossier <code>Sauvegardes Planning-CHPG</code></td></tr>
+      <tr><td>Rotation</td><td>8 copies (≈ 2 mois)</td><td>8 copies</td></tr>
+      <tr><td>Protège de</td><td>fausse manœuvre, onglet effacé</td><td><b>perte du compte planning</b></td></tr>
+    </tbody>
+  </table>
+
+  <p>La première est <b>dans le même Drive, sous le même compte</b> que l'original : compte perdu,
+  copies perdues. D'où le principe de la seconde : <b>la sauvegarde va chercher, elle n'est pas
+  envoyée</b>. Le compte personnel fait un <code>makeCopy</code> ; le fichier étant <b>créé par
+  lui</b>, il lui appartient nativement — aucun transfert de propriété nécessaire.</p>
+  <p><b>Vérifié le 26/07 :</b> un partage en <b>Lecteur</b> suffit, et la copie <b>emporte le script
+  attaché</b> (contrairement à un export XLSX, écarté pour cette raison). Le compte personnel ne
+  peut donc jamais modifier la production. Poids du classeur : ~78 Ko — le stockage est un
+  non-sujet. Marche à suivre complète : <code>docs/sauvegarde-compte-perso.md</code>.</p>
+
+  <div class="callout warn">
+    <div class="ct">Piège à connaître AVANT d'en avoir besoin</div>
+    <p>Avec plusieurs comptes Google connectés, l'ouverture d'un classeur ou d'Apps Script affiche
+    <i>« Impossible d'ouvrir le fichier pour le moment »</i>. Ce n'est <b>ni un problème de droits,
+    ni une sauvegarde corrompue</b> : Google sert la page au compte par défaut du navigateur.
+    <b>Ouvrir une fenêtre de navigation privée avec le seul compte personnel.</b> Le jour d'une
+    panne réelle, ce message ferait croire que l'archive est perdue.</p>
+  </div>
+
+  <h3>Restaurer</h3>
+  <ol>
+    <li>Ouvrir la copie la plus récente (en navigation privée, voir ci-dessus).</li>
+    <li>Vérifier le script attaché : Extensions → Apps Script. S'il manque, récupérer les 5 fichiers
+        depuis <code>gas/</code> sur GitHub, qui en contient toujours 100 %.</li>
+    <li>Redéployer en application web.</li>
+    <li><b>⚠️ Le nouveau déploiement aura une adresse différente</b> — or l'ancienne est écrite en
+        dur dans toutes les pages. Il faut la <b>remplacer partout dans le dépôt</b> avant que le
+        site refonctionne. C'est l'étape qu'on oublie et qui coûte une heure de panique.</li>
+    <li>Recréer le dossier Drive <code>Planning-CHPG-JSON</code> et republier depuis l'admin.</li>
+  </ol>
+  <div class="callout tip">
+    <div class="ct">Une sauvegarde jamais ouverte n'est pas une sauvegarde</div>
+    <p>Une fois par trimestre : vérifier qu'une copie récente existe <b>et qu'elle s'ouvre</b>.</p>
+  </div>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
 
 <div class="foot">Planning-CHPG · Anesthésie-Réanimation CHPG Monaco — guide technique personnel · établi à partir du code en production, mis à jour le 17 juillet 2026</div>
 
