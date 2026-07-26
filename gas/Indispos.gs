@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-26.2';
+const GAS_VERSION_INDISPOS = '2026-07-26.3';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1787,10 +1787,13 @@ if (!affSheet) {
     }
 
     // ── BOITE DE RECEPTION (admin) ───────────────────────────────────────
-    // Lecture de planningchpg@gmail.com depuis admin.html. LECTURE SEULE :
-    // l'autorisation declaree dans appsscript.json est gmail.readonly, le script
-    // ne PEUT PAS envoyer ni supprimer, meme en cas de bug. Repondre depuis
-    // l'admin serait une ecriture : decision distincte, a reprendre explicitement.
+    // Lecture de planningchpg@gmail.com depuis admin.html.
+    // Autorisation declaree : gmail.modify (et non gmail.readonly). Motif : ouvrir un
+    // message le marque LU, sans quoi le compteur de non-lus ne bougerait jamais et
+    // n'aurait aucun sens pour le comite. gmail.modify n'autorise PAS la suppression
+    // definitive — c'est plus etroit que l'acces large accorde jusqu'au 26/07.
+    // Le script LIT et MARQUE LU, rien d'autre : il n'envoie ni ne supprime.
+    // Repondre depuis l'admin reste une decision distincte, a reprendre explicitement.
     // Passe par le service avance Gmail (et non GmailApp, qui exigerait une
     // autorisation large lire/envoyer/supprimer).
 
@@ -1894,9 +1897,22 @@ if (!affSheet) {
         })(m.payload);
         if (!texte.trim() && html) texte = _htmlEnTexte(html);
         if (!texte.trim()) texte = m.snippet || '(message sans contenu lisible)';
+        // Marquer comme LU (retrait du libelle UNREAD) : sans cela le compteur ne
+        // bougerait jamais et serait incomprehensible pour le comite.
+        // ⚠️ Ecriture GMAIL, pas Sheets : volontairement PAS dans WRITE_ACTIONS_LOCK.
+        // Ce verrou protege le classeur contre les ecritures concurrentes ; l'y mettre
+        // sérialiserait la lecture des messages pendant 20 s sans rien proteger.
+        // L'operation est idempotente : retirer UNREAD deux fois est sans effet.
+        let marque = false;
+        try {
+          if ((m.labelIds || []).indexOf('UNREAD') >= 0) {
+            Gmail.Users.Messages.modify({removeLabelIds: ['UNREAD']}, 'me', id);
+            marque = true;
+          }
+        } catch (e) { /* un echec de marquage ne doit JAMAIS empecher de lire */ }
         return ContentService.createTextOutput(JSON.stringify({
           success: true, de: h.From || '', objet: h.Subject || '(sans objet)',
-          date: Number(m.internalDate || 0), texte: texte.trim()
+          date: Number(m.internalDate || 0), texte: texte.trim(), marque: marque
         })).setMimeType(ContentService.MimeType.JSON);
       } catch (err) { return _error('Lecture Gmail impossible : ' + err.message); }
     }
