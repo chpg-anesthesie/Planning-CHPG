@@ -916,6 +916,86 @@ rapporte l'ORL.
 
 ---
 
+## 12 ter. Comment on obtiendra `RENDEMENT_LIB` (arrêté le 26/07/2026)
+
+### Le problème posé par le §12 bis
+
+Le rendement doit être **par spécialité**. Or ⚠️ **le relevé administratif ne mentionne aucun
+secteur** : il donne des euros **par MAR et par mois**, jamais ventilés. On ne peut donc **pas**
+sommer les euros d'une spécialité — ils sont noyés dans les totaux individuels de MARs qui ont
+travaillé sur plusieurs secteurs dans le mois.
+
+✅ **Bonne nouvelle pour le Lot 2 : son schéma (§7.1) reste valable tel quel.** La saisie demeure
+**17 lignes × 6 nombres**, pas 80 lignes. Aucune colonne « spécialité » à ajouter, la maquette de
+saisie n'est pas périmée. **Le rendement est un CALCUL par-dessus, jamais une saisie de plus.**
+
+### La source manquante : la déclaration d'intervention (Lot 3, déjà en production)
+
+`declareLiberal` porte **le secteur**, donc la spécialité. On dispose donc de deux sources
+complémentaires :
+
+| Source | Donne | Granularité |
+|---|---|---|
+| **Relevé administratif** | des **euros** | par MAR et par mois, **exhaustif** (c'est la facturation) |
+| **Déclarations MAR** | des **interventions** | par MAR, par mois **et par spécialité**, **volontaire** |
+
+### Le calcul
+
+Chaque couple MAR-mois fournit une équation :
+`euros = Σ (nb d'interventions de la spécialité s × rendement de s)`
+
+- **Cas direct :** un MAR qui, sur un mois, n'a déclaré **qu'une seule spécialité** donne son
+  rendement **sans calcul**. Ces « mois purs » sont les points d'ancrage.
+- **Cas général :** ~17 MARs × 6 mois ≈ **100 équations pour 5 à 7 inconnues** — système largement
+  surdéterminé, résolu par moindres carrés.
+
+⚠️ **CONDITION INDISPENSABLE : la diversité des affectations.** Le système n'est résoluble que
+parce que les MARs ont des **mélanges de secteurs différents** — celui qui est en ORL déclare
+surtout de l'ORL. **Si tous avaient le même mélange, le système serait indéterminé** (vérifié :
+rang 1 pour 5 inconnues). C'est l'hétérogénéité des affectations qui identifie les rendements.
+
+*Vérification numérique (26/07, données simulées, 17 MARs × 6 mois, bruit mensuel ±6 %) : les cinq
+rendements sont retrouvés **à 3 % près**.*
+
+⚠️ **DEUX systèmes à résoudre, pas un** : le relevé est **bi-axial**. Il y a un rendement **CCAM**
+(acte technique) et un rendement **NGAP** (consultation) par spécialité — l'ORL n'a pas le même
+profil sur les deux axes (beaucoup d'actes courts, une consultation chacun).
+
+### Le garde-fou : taux de couverture des déclarations
+
+Le relevé est **exhaustif**, les déclarations sont **volontaires**. Si un MAR ne déclare que la
+moitié de ses interventions, le rendement calculé est faux du double — **et rien ne le signale**.
+
+**D'où le contrôle, mois par mois :** la somme des euros du relevé (tous MARs) face à ce que
+reconstituent les déclarations. **Il ne s'agit PAS d'attendre une égalité exacte** — l'écart est
+normal :
+
+- **décalage de facturation** (un acte de fin juin facturé en juillet ; la déclaration est datée de
+  l'acte, le relevé de l'encaissement) ;
+- **oublis de déclaration**, sans malveillance ;
+- ❓ *à vérifier :* existe-t-il des actes **facturés sans déclaration possible** ?
+
+**Le critère est que l'écart soit FAIBLE et STABLE.** ~5 % constant = sain, les rendements sont
+exploitables. Un écart qui saute de 5 à 40 % = problème de saisie, et **tout rendement calculé
+serait à jeter**.
+
+À afficher au comité (« taux de couverture : 94 % ») : il **valide** les rendements et **incite** à
+déclarer.
+
+### Séquence retenue
+
+1. **Lot 2 tel que conçu** — saisie, marge, deux vues. Rien à modifier. **Livrable septembre 2026**,
+   immédiatement utile pour redresser 2026. *Chemin critique.*
+2. **Taux de couverture** — comparaison déclaré / facturé. Quasi gratuit une fois le Lot 2 en place
+   (les deux sources sont alors dans le système). **Préalable à tout le reste.**
+3. **Rendement par spécialité** — **uniquement si** le taux de couverture est bon. Décembre au plus
+   tôt : il faut plusieurs mois de relevés ET de déclarations. Alimente le Lot 4 (mi-2027).
+
+📌 **Ne pas retarder le Lot 2 pour ce calcul** : il n'a de sens qu'avec plusieurs mois de données,
+et le Lot 2 est ce qui les produit.
+
+---
+
 ## 13. Décisions actées
 
 1. **Seuil 30 % appliqué séparément sur DEUX axes** (CCAM technique + NGAP consultations),
