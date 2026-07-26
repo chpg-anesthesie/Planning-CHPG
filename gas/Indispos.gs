@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-26.1';
+const GAS_VERSION_INDISPOS = '2026-07-26.2';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1844,16 +1844,56 @@ if (!affSheet) {
         const m = Gmail.Users.Messages.get('me', id, {format: 'full'});
         const h = {};
         ((m.payload && m.payload.headers) || []).forEach(function (x) { h[x.name] = x.value; });
-        // Parcours recursif des parties MIME, on ne retient que text/plain.
-        let texte = '';
+        // ⚠️ Gmail encode le corps en base64 « URL-safe » et SANS remplissage.
+        // Utilities.base64DecodeWebSafe echoue sur ces chaines : mesure le 26/07,
+        // ~2 messages sur 3 tombaient en « Impossible de decoder la chaine ».
+        // On normalise donc soi-meme (caracteres URL-safe + remplissage) avant de decoder.
+        const _decode = function (data) {
+          try {
+            let b = String(data || '').replace(/-/g, '+').replace(/_/g, '/');
+            while (b.length % 4) b += '=';
+            return Utilities.newBlob(Utilities.base64Decode(b)).getDataAsString('UTF-8');
+          } catch (e) { return ''; }   // une partie illisible ne doit pas perdre tout le message
+        };
+        // Beaucoup de messages n'ont QUE du HTML. On le recupere alors, mais on le convertit
+        // en texte ICI, cote serveur : le HTML brut ne quitte jamais le script.
+        const _htmlEnTexte = function (h) {
+          return String(h || '')
+            .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/(p|div|tr|li|h[1-6])>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            // Entites numeriques puis nommees. Les mails en francais en sont pleins
+            // (&eacute;, &ucirc;...) : sans cela le texte serait illisible.
+            .replace(/&#(\d+);/g, function (_, n) { return String.fromCharCode(Number(n)); })
+            .replace(/&#x([0-9a-f]+);/gi, function (_, n) { return String.fromCharCode(parseInt(n, 16)); })
+            .replace(/&([a-z]+);/gi, function (t, n) {
+              const E = {nbsp:' ', eacute:'é', egrave:'è', ecirc:'ê', euml:'ë', agrave:'à',
+                acirc:'â', aacute:'á', ccedil:'ç', ugrave:'ù', ucirc:'û', uuml:'ü', icirc:'î',
+                iuml:'ï', ocirc:'ô', ouml:'ö', oelig:'œ', aelig:'æ', Eacute:'É', Egrave:'È',
+                Ecirc:'Ê', Agrave:'À', Ccedil:'Ç', Ocirc:'Ô', Ucirc:'Û',
+                laquo:'«', raquo:'»', deg:'°', euro:'€', hellip:'…', middot:'·',
+                rsquo:'\u2019', lsquo:'\u2018', ldquo:'\u201C', rdquo:'\u201D',
+                ndash:'\u2013', mdash:'\u2014', apos:"'", quot:'"', lt:'<', gt:'>'};
+              return Object.prototype.hasOwnProperty.call(E, n) ? E[n]
+                   : (E[n.toLowerCase()] !== undefined ? E[n.toLowerCase()] : t);
+            })
+            .replace(/&amp;/gi, '&')            // en DERNIER : evite un double decodage
+            .replace(/\n{3,}/g, '\n\n').trim();
+        };
+        // Parcours recursif des parties MIME.
+        let texte = '', html = '';
         (function lire(p) {
           if (!p) return;
-          if (p.mimeType === 'text/plain' && p.body && p.body.data) {
-            texte += Utilities.newBlob(Utilities.base64DecodeWebSafe(p.body.data)).getDataAsString() + '\n';
+          const mt = String(p.mimeType || '');
+          if (p.body && p.body.data) {
+            if (mt === 'text/plain')     texte += _decode(p.body.data) + '\n';
+            else if (mt === 'text/html') html  += _decode(p.body.data) + '\n';
           }
           (p.parts || []).forEach(lire);
         })(m.payload);
-        if (!texte) texte = m.snippet || '(message sans version texte)';
+        if (!texte.trim() && html) texte = _htmlEnTexte(html);
+        if (!texte.trim()) texte = m.snippet || '(message sans contenu lisible)';
         return ContentService.createTextOutput(JSON.stringify({
           success: true, de: h.From || '', objet: h.Subject || '(sans objet)',
           date: Number(m.internalDate || 0), texte: texte.trim()
