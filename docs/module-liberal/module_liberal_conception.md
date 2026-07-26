@@ -138,14 +138,56 @@ Schéma **réellement en production** : `ID · DATE_CONSULT · DATE_BLOC · MAR_
 
 ### 5.3 Volet comité — `admin.html`
 Au clic sur une case flash, le panneau d'affectation s'ouvre **et** un volet « ◆ Libéral » apparaît à
-gauche : interventions du jour par MAR, **vert** si le placement satisfait l'intervention, **orange**
-sinon (« à replacer → ORT », « en garde — à arbitrer »). Toast si aucune intervention ce jour-là.
+gauche : pour chaque MAR, **le secteur déclaré et la chirurgie** (« Dr X — ORL — cataracte »).
+
+⚠️ **Le volet ne porte AUCUN jugement** (vérifié dans `renderLiberalCard`) : ni couleur, ni
+comparaison avec l'affectation en cours, ni mention « à replacer ». Il affiche, le comité décide.
+S'il n'y a aucune déclaration ce jour, le tiroir **reste masqué en silence** — pas de toast : sur des
+dizaines de clics par séance, une notification à chaque fois deviendrait du bruit.
+
 **La grille ne change pas d'un pixel** — à 20 MARs, tout marquage permanent sature.
+Sécurité : `secteur` et `chirurgie` viennent des MARs (texte libre) et sont injectés dans une page où
+`ADMIN_CODE` est une variable vivante — **ne jamais retirer `_escHtml`** de cette fonction.
 
 ### 5.4 Secteurs — onglet `SECTEURS`
 Externalisation faite : `getSecteurs()` lit l'onglet, `admin.html` en dérive toutes ses listes (le
 tableau en dur n'est plus qu'un **repli** si l'API ne répond pas). Colonne `RENDEMENT_LIB`
 (FORT / MOYEN / NUL / REA) présente et éditable, **pas encore consommée**.
+
+### 5.5 Écran « Consultations à venir » — `absences.html` (Lot 5-bis)
+
+**La question à laquelle il répond, au moment de la consultation :** *le médecin qui voit ce patient
+sera-t-il présent le jour où on l'opérera ?* C'est le contrôle qui évite qu'un patient vu en
+consultation libérale se retrouve opéré un jour d'absence de son MAR.
+
+**Deux publics, une seule page** (action `getConsultAbsences`, Indispos.gs) :
+- **MAR** — « Vérifiez qu'aucun patient vu en consultation ne sera opéré un jour où vous êtes absent. »
+- **Secrétariat** — « Avant de placer un patient, vérifiez que le médecin qui le verra en
+  consultation sera présent le jour de son intervention. »
+
+**Ce qu'il affiche.** Les consultations posées sur **20 jours ouvrés** ; pour chacune, les absences
+du médecin sur les **20 jours ouvrés suivants**, groupées en périodes (« Dates d'intervention à
+éviter — 7 jours sur 2 périodes »). Un clic sur une période montre **qui peut prendre le patient**.
+
+**Trois règles gravées dans le code, à ne pas défaire :**
+1. **Les motifs d'absence ne sont pas envoyés au secrétariat** — non transmis par le serveur, pas
+   masqués côté navigateur (un masquage client resterait lisible dans le source).
+2. **`G` et `G2` ne comptent pas comme absence** : un MAR de garde peut assurer une intervention
+   libérale. À l'inverse, l'écran ajoute trois absences absentes de `GARDES_{Y}` — jour fixe non
+   travaillé (`TP`), semaine off du rythme 2/2, hors période d'activité — sans quoi il afficherait
+   « disponible » à tort. Il reprend aussi le **miroir maternité** (mardi et jeudi matin, `MAT`
+   implique `CS-MAT`), règle qui n'existe nulle part dans les données et n'est que recalculée.
+3. **Le code du secrétariat est partagé** → périmètre en **liste blanche de deux actions**
+   (`login`, `getConsultAbsences`), refus par défaut. ⚠️ **Ne jamais y ajouter `getPlanningJson`** :
+   le JSON publié contient le code d'absence brut de chaque MAR pour toute l'année.
+
+**Source** : le planning **publié** (`planning_{Y}.json`, lu côté serveur, jamais transmis au
+navigateur), pas `PLANNING_OVERRIDES` — les overrides ne contiennent que ce que le comité a posé à la
+main, le JSON est le rendu final.
+
+⏳ **En test.** La tuile Dashboard est restreinte à un seul MAR (`only:'FROHLICH'`) le temps de
+l'essai en conditions réelles ; le secrétariat, lui, y accède par son code. Ouverture à l'équipe une
+fois l'écran validé.
 
 ---
 
@@ -326,8 +368,10 @@ tiers estimé au départ. Le résidu est de ~20 déplacements par semaine, dont 
 irréductibles (cardio interventionnelle, vivier d'un seul MAR). **Toute estimation de gain fondée
 sur `p ≈ 1/3` est fausse.**
 
-**Ce qui en a été tiré et qui tourne** : le **Lot 5-bis** (contrôle d'absence côté secrétariat
-d'anesthésie), en production depuis le 25/07/2026 — voir la ROADMAP.
+**Ce qui en a été tiré et qui tourne** : le **Lot 5-bis**, écran « Consultations à venir »
+(`absences.html`), en production depuis le 25/07/2026 — décrit au **§5.5**. Il ne route rien, ne
+compte rien, n'écrit rien : il répond à une question de disponibilité. C'est la jambe inoffensive du
+Lot 5, et elle suffit à traiter le cas qui fait vraiment mal (un patient opéré un jour d'absence).
 
 ⚠️ La maquette `maquette_ecran_secretaire.html` est **périmée** (elle implémente une entrée
 abandonnée en cours de conception). La conception complète — §11 ter, décisions 15 à 31 — vit dans
@@ -371,7 +415,8 @@ désormais dans `module_liberal_lot5.md`.*
 11. **Saisie groupée mensuelle depuis le PDF**, sécurisée par checksum + monotonie du cumul.
 12. **La page du module libéral est le point d'entrée unique** côté MAR : cotation, devis et
     déclaration. `indispos.html` n'a aucun rôle libéral. Accès par tuile Dashboard si `LIBERAL = O`.
-13. **Ergonomie admin actée** : grille intacte, volet « ◆ Libéral » à gauche, toast si rien.
+13. **Ergonomie admin actée** : grille intacte, volet « ◆ Libéral » à gauche, **affichage sans
+    jugement**, tiroir masqué en silence s'il n'y a rien (pas de toast).
 14. **Aucun champ patient dans le module** — *reformulée le 26/07/2026*. La version d'origine
     prévoyait un champ nom effacé à la fermeture, avec preuve de non-persistance. Le code livré va
     plus loin : **le champ n'existe pas**, le patient écrit son nom à la main sur le devis imprimé.
