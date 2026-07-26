@@ -982,17 +982,39 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
   et n'a aucun contrôle de rôle dans `portailRoute` (`portail.gs` l.32). Risque faible vu l'usage
   (un seul lecteur à la fois en pratique), mais c'est une vraie omission. À traiter **séparément**,
   ne pas la glisser dans un autre lot.
-- [ ] ⚠️ **`appsscript.json` absent du dépôt** (constaté 24/07/2026). `gas/` ne contient que les
-  5 `.gs` + README. Ce fichier déclare les **autorisations OAuth** du script : en son absence, le
-  dépôt ne contient pas 100 % de ce qu'il faut pour reconstruire le projet Apps Script — les
-  autorisations manqueraient. Sans gravité aujourd'hui, mais **l'ajout de la lecture Gmail passe
-  précisément par ce fichier** : autant le verser au dépôt à ce moment-là.
+- [x] ✅ **`appsscript.json` versé au dépôt** (26/07/2026, commit `e2ff328`). Il manquait :
+  le dépôt ne contenait pas les autorisations OAuth, donc pas 100 % de quoi reconstruire le
+  projet. ⚠️ **Ma première version était INVENTÉE** (mauvais fuseau, bloc `oauthScopes`
+  inexistant chez Arthur) — remplacée par le manifeste réel. *Leçon : ne jamais reconstituer un
+  fichier de configuration de mémoire ; un manifeste faux est pire qu'aucun manifeste, il
+  tromperait le jour d'une restauration.*
 
-### Pour 2027 (déménagement)
-
-*Rappel : le chantier **Secteurs (Lot 0)** est terminé depuis le 21/07/2026, de la ligne d'onglet
-jusqu'au fichier Excel du vendredi (détail en section Fait, marche à suivre au § 18 du guide
-technique). Seule l'étape 3 ci-dessous reste ouverte.*
+- [ ] 🔴 **DETTE — l'autorisation Gmail accordée est LARGE, pas en lecture seule** (26/07/2026).
+  Le manifeste demande bien `gmail.readonly`, mais l'accès **réellement accordé** reste
+  « Lire, rédiger, envoyer et supprimer définitivement des e-mails » (constaté sur
+  myaccount.google.com).
+  - **Cause :** Google **n'a jamais retiré** une autorisation déjà accordée. Ajouter une
+    autorisation déclenche un nouvel écran de consentement ; en **restreindre** une, non.
+    L'accord antérieur (obtenu avant que `oauthScopes` existe) subsiste tel quel.
+    ⚠️ **Piège général : déclarer un scope restreint dans le manifeste ne suffit PAS à
+    révoquer un accès déjà donné.**
+  - **Risque réel : faible.** Le code ne contient aucun appel d'envoi ni de suppression Gmail
+    (vérifié : `GmailApp` n'apparaît que dans un commentaire ; seuls
+    `Gmail.Users.Labels.get`, `Messages.list`, `Messages.get` sont utilisés). Arthur est seul
+    à détenir le code admin. Mais **il avait explicitement choisi « impossible » plutôt
+    qu'« improbable »** — l'écart doit être refermé.
+  - **Correction, 2 minutes :** myaccount.google.com → Données et confidentialité → Applications
+    tierces → projet Planning-CHPG → **Tout supprimer** ; puis dans l'éditeur Apps Script,
+    exécuter une fonction à la main pour relancer le consentement (**lire l'écran : doit dire
+    "Consulter vos e-mails"**), et **redéployer**.
+  - ⚠️ **Seule raison du report :** entre la révocation et la réautorisation, **l'application web
+    est hors service quelques minutes**. À faire à un moment creux.
+  - **Autorisations recensées le 26/07** à partir des 5 fichiers `.gs` : `spreadsheets`
+    (SpreadsheetApp ×125), `drive` (DriveApp ×15 — `getFoldersByName` impose le scope complet,
+    `drive.file` ne suffirait pas), `script.scriptapp` (déclencheurs), `script.external_request`
+    (UrlFetchApp ×10), `script.send_mail` (MailApp ×7), `gmail.readonly`.
+    ℹ️ `Session` n'est utilisé que pour `getScriptTimeZone` (×64) : **aucune autorisation
+    d'identité requise**.
 
 - [ ] **Étape 3 (non urgente)** : retirer les tables en dur (`SECTEURS`, `CS_TYPES`, `CS_REQUIRED`,
   `CS_OPENABLE`) et rendre le **repli visible**. Aujourd'hui il est silencieux : une panne de lecture
