@@ -892,9 +892,27 @@ Lot 4 quand la mesure existe**.
 ⚠️ **Le Lot 4 n'est pas envisageable avant mi-2027.** Le tenter plus tôt reviendrait à recommander
 des déplacements d'affectation fondés sur des rendements inventés.
 
-❓ **À confirmer :** le plafond de 30 % se solde-t-il au **31 décembre** (auquel cas mettre le Lot 2
-en service dès septembre permet de corriger l'excédent 2026 sur le dernier trimestre), ou sur une
-période glissante (auquel cas démarrer en janvier sur une base propre est équivalent) ?
+### ✅ TRANCHÉ le 26/07 : le solde est ANNUEL — et l'urgence change
+
+**Tout repart à zéro au 1er janvier**, donc le solde se fait au **31 décembre**. L'année 2026
+**n'est pas jouée** : il reste six mois pour agir, et l'action est **symétrique** —
+
+- **freiner** ceux qui vont dépasser (l'excédent part à l'hôpital) ;
+- **remplir** ceux qui sont **sous** leur plafond. Les ~45 000 € de marge du groupe ne sont pas une
+  réserve théorique : **c'est de l'argent définitivement perdu au 31 décembre s'il n'est pas
+  utilisé.** C'est le levier qu'on oublie, alors qu'il porte plus que le premier.
+
+⚠️ **Conséquence : le Lot 2 n'est pas « utile », il est URGENT.** Chaque mois sans visibilité, c'est
+un mois de moins pour corriger, des deux côtés. Livré en **septembre**, il laisse un trimestre pour
+agir sur 2026. Livré en janvier, il arrive après la bataille.
+
+**Et le même travail sert deux fois** sur ce dernier trimestre : il permet de **redresser 2026**
+*et* de **calibrer les rendements par spécialité** pour l'après-déménagement — puisque les
+spécialités, elles, ne changent pas. Au 1<sup>er</sup> janvier on arrive donc avec les rendements
+**déjà mesurés** et un compteur qui démarre propre, au lieu d'attendre mi-2027 pour savoir ce que
+rapporte l'ORL.
+
+📌 **Cible de livraison : fin septembre 2026.**
 
 ---
 
