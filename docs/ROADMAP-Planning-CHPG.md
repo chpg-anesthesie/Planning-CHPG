@@ -914,6 +914,28 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
   - ⚠️ **Confidentialité actée :** tout le comité voit tous les messages de cette adresse.
     C'est l'objet de l'outil pour des demandes de service, mais **aucune cloison** si un MAR y
     écrit quelque chose de personnel.
+  - 🐛 **Correctif du 26/07 — décodage (`GAS 2026-07-26.2`, commit `763dbe4`).** Gmail encode le
+    corps en base64 **URL-safe et SANS remplissage** ; `Utilities.base64DecodeWebSafe` échoue
+    dessus. **Mesuré : ~2 messages sur 3** tombaient en « Impossible de décoder la chaîne ».
+    ⇒ normaliser soi-même (`-`→`+`, `_`→`/`, puis compléter à un multiple de 4) avant
+    `base64Decode`. Ajouté au passage : les messages **HTML seuls** sont convertis en texte
+    **côté serveur** (le HTML ne part jamais au navigateur), et les **entités accentuées**
+    (`&eacute;`, `&#233;`, `&laquo;`…) sont décodées — indispensable pour des mails en français.
+  - 🐛 **Correctif du 26/07 — compteur figé (`GAS 2026-07-26.3`, site `v1.9.7`).** Lire un message
+    dans l'admin ne le marquait pas lu dans Gmail : le compteur ne bougeait jamais, **ce qui était
+    incompréhensible pour le comité**. ⇒ `Gmail.Users.Messages.modify` retire le libellé `UNREAD`
+    à l'ouverture ; la pastille de la ligne disparaît et le compteur se rafraîchit.
+    - **Écarté : un onglet « messages traités » dans le classeur.** Aurait gardé
+      `gmail.readonly` et distingué « non lu » de « non traité », mais ajoutait une pièce au
+      système. Arthur ne lisant **jamais** cette boîte dans Gmail, les deux notions se confondent
+      — l'option simple devient la bonne.
+    - ⚠️ **`mailMessage` reste HORS de `WRITE_ACTIONS_LOCK`, volontairement** : ce verrou protège
+      le **classeur** contre les écritures concurrentes ; l'y mettre sérialiserait la lecture des
+      messages pendant 20 s sans rien protéger. Le retrait d'un libellé est **idempotent**.
+    - Le marquage a son propre `try/catch` : **un échec de marquage n'empêche jamais de lire**.
+  - ℹ️ **Faux problème rencontré :** après un redéploiement, l'admin peut tourner sans fin avec un
+    `404` en console vers `script.googleusercontent.com`. C'est la page **en cache** qui appelle
+    l'ancienne adresse temporaire de Google. **Ctrl+Maj+R suffit** — ne pas chercher plus loin.
   - 🔜 **Répondre depuis l'admin : NON FAIT, et volontairement.** Ce serait une **écriture**
     (⇒ `WRITE_ACTIONS_LOCK`, quota d'envoi) et exigerait d'élargir l'autorisation Gmail.
     Décision distincte, à reprendre explicitement — ne pas y glisser par commodité.
@@ -990,32 +1012,24 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
   fichier de configuration de mémoire ; un manifeste faux est pire qu'aucun manifeste, il
   tromperait le jour d'une restauration.*
 
-- [ ] 🔴 **DETTE — l'autorisation Gmail accordée est LARGE, pas en lecture seule** (26/07/2026).
-  Le manifeste demande bien `gmail.readonly`, mais l'accès **réellement accordé** reste
-  « Lire, rédiger, envoyer et supprimer définitivement des e-mails » (constaté sur
-  myaccount.google.com).
-  - **Cause :** Google **n'a jamais retiré** une autorisation déjà accordée. Ajouter une
-    autorisation déclenche un nouvel écran de consentement ; en **restreindre** une, non.
-    L'accord antérieur (obtenu avant que `oauthScopes` existe) subsiste tel quel.
-    ⚠️ **Piège général : déclarer un scope restreint dans le manifeste ne suffit PAS à
-    révoquer un accès déjà donné.**
-  - **Risque réel : faible.** Le code ne contient aucun appel d'envoi ni de suppression Gmail
-    (vérifié : `GmailApp` n'apparaît que dans un commentaire ; seuls
-    `Gmail.Users.Labels.get`, `Messages.list`, `Messages.get` sont utilisés). Arthur est seul
-    à détenir le code admin. Mais **il avait explicitement choisi « impossible » plutôt
-    qu'« improbable »** — l'écart doit être refermé.
-  - **Correction, 2 minutes :** myaccount.google.com → Données et confidentialité → Applications
-    tierces → projet Planning-CHPG → **Tout supprimer** ; puis dans l'éditeur Apps Script,
-    exécuter une fonction à la main pour relancer le consentement (**lire l'écran : doit dire
-    "Consulter vos e-mails"**), et **redéployer**.
-  - ⚠️ **Seule raison du report :** entre la révocation et la réautorisation, **l'application web
-    est hors service quelques minutes**. À faire à un moment creux.
-  - **Autorisations recensées le 26/07** à partir des 5 fichiers `.gs` : `spreadsheets`
-    (SpreadsheetApp ×125), `drive` (DriveApp ×15 — `getFoldersByName` impose le scope complet,
-    `drive.file` ne suffirait pas), `script.scriptapp` (déclencheurs), `script.external_request`
-    (UrlFetchApp ×10), `script.send_mail` (MailApp ×7), `gmail.readonly`.
-    ℹ️ `Session` n'est utilisé que pour `getScriptTimeZone` (×64) : **aucune autorisation
-    d'identité requise**.
+- [x] ✅ **DETTE REFERMÉE le 26/07/2026 — autorisation Gmail restreinte.** Passée de
+  « Lire, rédiger, envoyer **et supprimer définitivement** » à « **Consulter, rédiger et
+  envoyer** » (`gmail.modify`). **La suppression n'est plus possible.**
+  - ⚠️ **Piège majeur à retenir : Google ne retire JAMAIS une autorisation déjà accordée.**
+    Déclarer un scope plus étroit dans `appsscript.json` ne suffit pas — l'accord antérieur
+    subsiste. **Il faut révoquer explicitement** : myaccount.google.com → Données et
+    confidentialité → Applications tierces → Planning-CHPG → *Tout supprimer*, puis exécuter une
+    fonction pour relancer le consentement, puis **redéployer**.
+    ⚠️ Le site est **hors service entre la révocation et le redéploiement** (quelques minutes).
+  - **`gmail.modify` et non `gmail.readonly`** : ouvrir un message doit le marquer LU, sinon le
+    compteur de non-lus ne bouge jamais (voir ci-dessous). `modify` reste **plus étroit** que
+    l'accès large accordé initialement.
+  - **Écran de consentement — 6 lignes, à cocher TOUTES**, elles correspondent exactement aux 6
+    scopes du manifeste : Drive, Sheets, Gmail, service externe (`script.external_request`),
+    envoi de mail (`script.send_mail`, = MailApp pour les codes d'accès), exécution en l'absence
+    de l'utilisateur (`script.scriptapp`, = déclencheurs). En décocher une casse la fonction
+    correspondante (sans Drive : plus de publication ; sans déclencheurs : plus de sauvegarde
+    hebdomadaire ni de veille).
 
 - [ ] **Étape 3 (non urgente)** : retirer les tables en dur (`SECTEURS`, `CS_TYPES`, `CS_REQUIRED`,
   `CS_OPENABLE`) et rendre le **repli visible**. Aujourd'hui il est silencieux : une panne de lecture
