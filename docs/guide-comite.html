@@ -103,21 +103,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
   <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
   <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
-  <h2>✉️ Messages</h2>
-<p>Le bouton <strong>✉ Messages</strong>, en haut de la page, ouvre la boîte de réception du
-service : <span class="tag">planningchpg@gmail.com</span>. C'est l'adresse à laquelle les
-médecins écrivent pour demander un changement de statut, signaler un échange de garde ou
-poser une question.</p>
-<p>Une pastille rouge indique le nombre de messages non lus. Cliquez pour voir la liste des
-vingt derniers, puis sur l'un d'eux pour lire son texte.</p>
-<p><strong>La lecture seule est volontaire.</strong> On ne peut pas répondre depuis cette
-page : pour répondre, ouvrez la boîte dans Gmail. Marquer un message comme lu se fait
-également dans Gmail.</p>
-<p><em>À savoir : tous les membres du comité voient les mêmes messages. Cette boîte est
-destinée aux demandes de service — un médecin qui souhaite écrire quelque chose de personnel
-doit utiliser une autre adresse.</em></p>
-
-<div class="maj">Version <strong>v1.9.8</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.9.8 -->
+  <div class="maj">Version <strong>v1.9.8</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.9.8 -->
 </header>
 
 <nav class="toc">
@@ -139,7 +125,8 @@ doit utiliser une autre adresse.</em></p>
     <li><a href="#c14"><span class="n">14</span>Publier le planning</a></li>
     <li><a href="#c15"><span class="n">15</span>Dépannage</a></li>
     <li><a href="#c16"><span class="n">16</span>Glossaire des sigles</a></li>
-    <li><a href="#c17"><span class="n">17</span>Sous le capot — comment l'interface fonctionne</a></li>
+    <li><a href="#c17"><span class="n">17</span>Le brouillon et le publié</a></li>
+      <li><a href="#c18"><span class="n">18</span>✉️ Messages</a></li>
   </ol>
 </nav>
 
@@ -652,19 +639,8 @@ doit utiliser une autre adresse.</em></p>
 
 <!-- 17 -->
 <section id="c17">
-  <h2><span class="n">17</span>Sous le capot — comment l'interface fonctionne</h2>
-  <p>Cette section n'est pas nécessaire pour utiliser l'interface : elle explique <strong>comment elle est construite</strong>, pour ceux que ça intéresse. La comprendre aide surtout à interpréter les comportements du quotidien — pourquoi il faut publier, pourquoi rafraîchir, ce que vérifie le diagnostic.</p>
-
-  <h3>17.1 · Les trois étages</h3>
-  <p>Le système repose sur trois étages, tous hébergés chez Google :</p>
-  <ol class="steps">
-    <li><strong>La page web</strong> (admin.html, le planning de l'équipe, le portail…) : ce que vous voyez à l'écran. Elle ne contient aucune donnée — elle les demande.</li>
-    <li><strong>Le moteur</strong> : un programme qui tourne chez Google et exécute chaque action (lire le planning, poser une absence, générer les gardes, publier, envoyer les codes).</li>
-    <li><strong>Le classeur Google Sheets</strong> : la mémoire du système. Chaque onglet y joue le rôle d'une table : l'équipe, la configuration, les gardes de chaque année, les indispos, le journal des actions…</li>
-  </ol>
-  <p>Quand vous cliquez, la page envoie une demande au moteur ; le moteur lit ou écrit dans le classeur, puis renvoie le résultat à la page. <strong>Personne n'écrit directement dans le classeur depuis une page</strong> : tout passe par le moteur, qui vérifie chaque demande (dont le code d'accès de la personne connectée). C'est ce qui permet un journal complet des actions — l'onglet des logs.</p>
-
-  <h3>17.2 · Le brouillon et le publié : la cuisine et la salle</h3>
+  <h2><span class="n">17</span>Le brouillon et le publié</h2>
+  <p>C'est la seule mécanique interne qu'il faut connaître pour travailler sereinement.</p>
   <p>Le tableau que le comité manipule dans admin.html vit dans le classeur : c'est <strong>la cuisine</strong>. Le bouton « Publier » fabrique un <strong>instantané</strong> du planning et le dépose dans un espace de publication ; c'est ce fichier — et lui seul — que la page Planning de l'équipe vient lire : <strong>la salle</strong>. D'où deux règles du quotidien :</p>
   <ul>
     <li>L'équipe voit <strong>la dernière publication</strong>, jamais le brouillon. Une modification non publiée n'existe pas pour elle.</li>
@@ -675,18 +651,27 @@ doit utiliser une autre adresse.</em></p>
     <p>Pour aller vite, votre navigateur garde une copie des pages qu'il a déjà affichées. Après une mise à jour de l'interface, il peut continuer à montrer l'ancienne copie. Le rafraîchissement forcé (<span class="kbd">Ctrl</span>+<span class="kbd">Maj</span>+<span class="kbd">R</span>) l'oblige à aller rechercher la dernière version. C'est le premier réflexe devant un affichage bizarre.</p>
   </div>
 
-  <h3>17.3 · Une année = son jeu d'onglets</h3>
-  <p>Chaque année possède ses propres onglets dans le classeur (gardes, indispos, affectations, statistiques… suffixés par l'année). Le sélecteur d'année en haut d'admin.html ne fait que <strong>pointer</strong> vers le bon jeu d'onglets — il ne déplace ni ne copie rien. À la clôture, l'assistant de janvier archive l'année écoulée puis bascule le pointeur : les années archivées restent consultables, en lecture seule.</p>
+  
+  <div class="callout tip">
+    <div class="ct">Le reste est dans le guide technique</div>
+    <p>Fonctionnement détaillé, onglets annuels, algorithme, diagnostic : voir
+    <code>guide-technique.html</code>.</p>
+  </div>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
 
-  <h3>17.4 · La génération : un calcul, puis un cliché figé</h3>
-  <p>Quand l'assistant de novembre lance la génération, le moteur calcule l'année complète en une quinzaine de secondes, sous toutes les contraintes (cibles, indispos, protections, rotation de Noël). Le résultat est écrit dans le classeur <strong>et photographié</strong> : ce cliché des statistiques de génération est figé une fois pour toutes. C'est lui qui sert de référence d'équité (le certificat), et c'est sur lui — pas sur l'état au 31 décembre, échanges compris — que se calcule la dette de l'année suivante.</p>
-
-  <h3>17.5 · Ce que vérifie le diagnostic</h3>
-  <p>Le diagnostic de l'onglet Maintenance relit toute la chaîne décrite ci-dessus : l'environnement technique (fuseaux horaires, quotas), les onglets et réglages attendus dans le classeur, l'équipe (doublons, codes, emails), l'<strong>intégrité du tableau de gardes jour par jour</strong> (une garde G et une G2 chaque jour, ni trou ni doublon), les lignes orphelines, la clé de publication, la synchronisation du code déployé avec le dépôt, la présence des fichiers publiés et leur <strong>cohérence</strong> avec le tableau de travail (mêmes gardes des deux côtés). En un clic, il répond à la question « la cuisine et la salle racontent-elles la même histoire ? » — c'est pour cela qu'il est conseillé avant chaque assistant annuel, et dès qu'un comportement semble anormal.</p>
-
+<section id="c18">
+  <h2><span class="n">18</span>✉️ Messages</h2>
+  <p>Le bouton <b>✉ Messages</b>, en haut de la page, ouvre la boîte du service
+  (<code>planningchpg@gmail.com</code>) : c'est là que les médecins écrivent pour un changement de
+  statut, un échange de garde ou une question. Une pastille rouge indique les messages non lus.
+  Cliquez pour voir les vingt derniers, puis sur l'un d'eux pour le lire — <b>l'ouvrir le marque
+  lu</b>, la pastille et le compteur se mettent à jour.</p>
+  <p><b>On ne peut pas répondre depuis cette page</b> : pour répondre, ouvrez la boîte dans Gmail.</p>
   <div class="callout warn">
-    <div class="ct">Ce que cette architecture implique</div>
-    <p>Si Google Sheets est momentanément indisponible, l'interface d'administration l'est aussi — mais <strong>le planning publié, lui, reste consultable</strong> par l'équipe : c'est un fichier séparé. Et comme toutes les données vivent dans un classeur Google, il n'y a ni serveur à entretenir, ni base de données à sauvegarder à la main.</p>
+    <div class="ct">Tout le comité voit les mêmes messages</div>
+    <p>Cette boîte est destinée aux <b>demandes de service</b>. Un médecin qui souhaite écrire
+    quelque chose de personnel doit utiliser une autre adresse.</p>
   </div>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
