@@ -35,24 +35,36 @@ c'est pourquoi l'envoi d'un XLSX par mail a été écarté.
 6. Exécuter **une fois** `installerDeclencheur` : la sauvegarde tournera ensuite toute
    seule chaque dimanche vers 5 h.
 
-## Niveau d'accès — à vérifier au premier essai
+## Niveau d'accès — VÉRIFIÉ le 26/07/2026
 
-Le point non tranché : **la lecture seule suffit-elle pour que le script attaché suive la
-copie ?** Elle suffit certainement pour les données, pas forcément pour le script.
+**Partager en « Lecteur » suffit.** Testé en conditions réelles : une copie faite par le
+compte personnel à partir du classeur partagé en lecture seule **emporte bien le script
+attaché**. Vérifié deux fois, en Éditeur puis en Lecteur.
 
-Marche à suivre : partager d'abord en **Lecteur**, lancer `sauvegardeHebdo`, ouvrir la
-copie obtenue, puis **Extensions → Apps Script**.
+C'est le meilleur réglage : le compte personnel **ne peut jamais modifier la production**,
+et la sauvegarde reste un classeur complet, réutilisable tel quel. Ne pas passer en Éditeur
+« au cas où » — ce serait donner à un second compte le droit d'abîmer les données réelles
+sans rien gagner.
 
-- Le code est là → garder Lecteur, c'est le réglage le plus sûr.
-- Le code est absent → repartager en **Éditeur** et refaire l'essai.
+Poids constaté du classeur : **~78 Ko**. Huit copies ≈ 600 Ko, négligeable sur les 15 Go
+d'un compte gratuit.
 
-Passer en Éditeur élargit la surface d'exposition : le compte personnel pourrait alors
-modifier les données de production. C'est un compte maîtrisé, mais autant le décider en
-connaissance de cause plutôt que par défaut.
+## ⚠️ Piège à connaître AVANT d'en avoir besoin
 
-Rappel utile : **le code GAS est déjà à 100 % dans le dépôt GitHub.** Perdre le script
-attaché est un coût de réinstallation, pas une perte de données. Le seul actif
-irremplaçable est le **classeur** — indispos, gardes, historique, statistiques.
+Si plusieurs comptes Google sont connectés dans le navigateur, l'ouverture d'un classeur
+ou d'Apps Script affiche :
+
+> **Impossible d'ouvrir le fichier pour le moment. Vérifiez l'adresse, puis réessayez.**
+
+**Ce n'est ni un problème de droits, ni une sauvegarde corrompue.** Google sert la page au
+compte « par défaut » du navigateur, qui n'est pas le bon.
+
+**Solution : ouvrir une fenêtre de navigation privée et s'y connecter UNIQUEMENT avec le
+compte personnel.** Le fichier et son script apparaissent alors normalement.
+
+C'est écrit ici parce que le jour où cette sauvegarde servira vraiment, ce sera un jour de
+panne, sous pression — et ce message ferait croire que l'archive est perdue alors qu'elle
+va parfaitement bien.
 
 ## Le code
 
@@ -122,3 +134,23 @@ function installerDeclencheur() {
 - **En cas d'échec**, Google envoie automatiquement un mail au propriétaire du script.
 - **Vérifier une fois par trimestre** qu'une copie récente existe bien dans le dossier.
   Une sauvegarde jamais vérifiée n'est pas une sauvegarde.
+
+## En cas de restauration réelle
+
+Scénario : le compte `planningchpg` est perdu, suspendu ou compromis.
+
+1. **Ouvrir la copie la plus récente** du dossier « Sauvegardes Planning-CHPG », en
+   navigation privée avec le seul compte personnel (voir le piège ci-dessus).
+2. **Vérifier le script** : Extensions → Apps Script. Il doit être présent. S'il manque,
+   récupérer les 5 fichiers depuis le dépôt GitHub (`gas/`), qui en contient toujours
+   100 % du code.
+3. **Redéployer en application web** depuis ce nouveau classeur.
+4. ⚠️ **Le nouveau déploiement aura une ADRESSE DIFFÉRENTE.** L'ancienne est écrite en dur
+   dans les pages du site (`dashboard.html`, `index.html`, `admin.html`, `indispos.html`,
+   `staff.html`, `absences.html`…). Il faut donc **remplacer cette adresse partout dans le
+   dépôt** avant que le site refonctionne. C'est l'étape qu'on oublie et qui coûte une
+   heure de panique — la connaître à l'avance suffit à l'éviter.
+5. Recréer le dossier Drive `Planning-CHPG-JSON` et republier le planning depuis l'admin.
+
+**À vérifier une fois par trimestre** : qu'une copie récente existe, et qu'elle s'ouvre.
+Une sauvegarde jamais ouverte n'est pas une sauvegarde.
