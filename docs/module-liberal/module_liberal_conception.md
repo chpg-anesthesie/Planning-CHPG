@@ -1,1287 +1,433 @@
-# Module libéral — Document de conception
+# Module libéral — document de conception
 
-*Élaboré le 02/07/2026 · révisé le 04/07/2026 (squelette d'architecture).*
-***Révision v3 — 07/07/2026** : intégration du CR administratif réel (activité jan→juin 2026).*
-*Découverte majeure : le seuil de 30 % s'applique **par axe** (CCAM technique ET NGAP*
-*consultations), pas sur un total unique. Fonction objectif reformulée (pot commun).*
-***v3.1 — 07/07/2026** : correction — la consultation libérale (NGAP, J0) **déclenche** le*
-*placement au bloc (J+X) ; un parcours alimente les deux axes. Ajout de `DATE_CONSULT`.*
-***v3.2 — 07/07/2026** : `LIBERAL_CIBLE` fixée à **30 % par axe** (au lieu de 29) + borne de*
-*décembre (libéral permis calculé sur le cumul de novembre pour le mois non observable).*
-***v3.3 — 07/07/2026** : circuit de saisie figé — groupée mensuelle depuis PDF/papier, sécurisée*
-*par checksum (total du document) + contrôle de monotonie du cumul.*
-***v3.4 — 07/07/2026** : la date opératoire est toujours connue dès la consultation → suppression*
-*de l'état « à programmer sans date » du cycle de vie de l'intervention.*
-***v3.5 — 08/07/2026** : correction schéma `LIBERAL_CA_{Y}` — colonnes EXCÉDENT **recopiées** (6*
-*nombres/MAR), pas dérivées : validé sur le relevé réel (checksum illustratif 37 890,45 € exact ; recalcul depuis*
-*le % à 2 décimales = 37 824,12 €, faux). Checksum = somme des excédents recopiés.*
-***v3.6 — 08/07/2026** : §8.1 refondu — **V1 = compteur de marge sur données réelles** (`marge =*
-*(3/7)·P − L`), sans extrapolation « au rythme » (jugée trompeuse sur une activité saisonnière :*
-*congés, gardes, blocs fermés) ; la projection d'un montant à fin décembre, fondée sur l'activité*
-*planifiée, passe en V2. §13.10 aligné.*
-***v3.7 — 12/07/2026** : **règle de calcul de la BR NGAP figée et validée au centime** (8 feuilles*
-*réelles) — BR = lettre-clé × coefficient (`C 34,40 · CS 46 · APC 60`), **sans** coefficient*
-*monégasque ×1,95 ni modificateur ; la carte ne joue que sur le DH (verte/SPME 0 · rose +20 % ·*
-*bulle/français/NAS libre ; **AME 0**). Chaîne complète dans l'antisèche §5 ter. Maquette estimateur*
-*(`maquette_estimateur_liberal.html`) mise à jour : axe NGAP doté d'un builder dédié. §14 précisé.*
-*Calendrier inchangé : construction APRÈS le go-live d'octobre 2026 et APRÈS « secteurs étape 2 ».*
-***v3.8 — 16/07/2026** : statut **AME tranché** (Ord. souveraine 5.743 du 03/03/2016). AME monégasque*
-*(≠ française) = résident sans autre couverture, sous condition de ressources → remboursé sur le tarif*
-*de responsabilité monégasque (**coeff ×1,95**), **DH 0** (indigent, logique carte verte). Libellé et*
-*coefficient confirmés dans la maquette ; question AME close au §14.*
-***v3.9 — 16/07/2026** : flux de déclaration acté. **Page du module libéral = point d'entrée unique***
-*(devis à l'écran + déclaration écrivante) ; payload `LIBERAL_{Y}` **FERMÉ et sans CCAM** (date_bloc ·*
-*MAR · secteur · chirurgie libre optionnelle) ; **tuile Dashboard conditionnée `LIBERAL O/N`** ;*
-*ergonomie admin validée sur maquette conditions réelles (volet « ◆ Libéral » gauche par MAR,*
-*vert/orange, toast si aucune intervention, grille intacte). indispos.html sort du périmètre libéral.*
-*§6.2–6.4, 11, 12, 13 mis à jour.*
-***v3.20 — 24/07/2026** : **maquette v2 livrée** (`maquette_ecran_secretaire.html`), alignée sur le*
-*scénario v3.19. Correction issue des tests : le **repli rang B de la décision 17 est limité aux*
-*3 MARs de plus forte marge** — sans plafond il remplissait le bloc « prioritaire » de 50 dates et*
-*d'une douzaine de médecins. Décision 29. Ajout du **délai minimum** (2 j pour END, 3 j ailleurs,*
-*modifiable) et d'un **plafond d'affichage à 5 dates par bloc**.*
+*Créé le 02/07/2026 · **épuré et remis à plat le 26/07/2026** (v4.0). L'ancien document avait
+1 287 lignes accumulées en 22 révisions successives ; des affirmations périmées y survivaient sous
+des démentis. Il en fait aujourd'hui trois fois moins.*
 
-***v3.19 — 24/07/2026 (fin de journée)** : **scénario retenu — le service reprend le placement des*
-*consultations d'anesthésie.** Les secrétaires des chirurgiens ne donnent plus de créneau ; le*
-*secrétariat d'anesthésie le choisit avec l'écran. Le créneau est **bon dès le départ** → plus de*
-*déplacement de MAR ni de rappel de patient. **Le virage v3.18 (attribution au fil de l'eau) devient*
-*caduc** : c'était du rattrapage d'un placement aveugle. **La décision 21 (horizon 3–4 semaines) est*
-*RÉACTIVÉE.** Ajout des **mesures réelles de la semaine 25** — qui invalident `p ≈ 1/3`. Décisions*
-*26 à 28.*
+> **Comment lire ce document.** Chaque brique porte un état, et un seul :
+> ✅ **EN PRODUCTION** — vérifié dans le code du dépôt, le fichier concerné est nommé.
+> 🔨 **À CONSTRUIRE** — décidé, pas encore écrit.
+> **Une décision périmée est supprimée, jamais démentie sous elle.** Git garde l'historique, le
+> journal en fin de document dit pourquoi ça a changé.
 
-***v3.18 — 24/07/2026** : **virage majeur du Lot 5**. Le créneau de consultation est posé par la*
-*secrétaire du **chirurgien**, à l'aveugle (premier créneau libre, sans MAR nommé) → l'écran n'est*
-*plus un outil de proposition de dates mais un outil d'**attribution au fil de l'eau** : la date ne*
-*bouge jamais, seul **qui voit le patient** change, de façon invisible pour lui. **Le prérequis*
-*d'horizon (décision 21) tombe.** Taux d'appariement révisés à la baisse : **56 / 70 / 80 %** selon*
-*2, 3 ou 4 consultants en parallèle (et non 80 % partout). Source des patients identifiée et testée.*
-*Décisions 23 à 25. **La maquette du 24/07 est périmée** (l'entrée de l'écran change).*
+> **Confidentialité** : tous les montants et pourcentages cités ici sont **illustratifs** (ordres de
+> grandeur réalistes), jamais les chiffres réels des relevés. Aucun praticien n'y est identifiable.
 
-***v3.17 — 24/07/2026** : **audit GAS du Lot 5** (lecture réelle des 5 fichiers `gas/`). Source de*
-*données identifiée (`planning_{Y}.json` via `getPlanningJson`, code-gated non-admin) ; **prérequis*
-*d'organisation** isolé (horizon de placement des consultations 1 → 3–4 semaines) ; **piège des deux*
-*listes d'absence** documenté ; code secrétariat + liste blanche actés. Décisions 20 à 22.*
-
-***v3.16 — 24/07/2026** : **plancher de marge résiduelle acté** (≥ 3 patients pour rester en*
-*bloc 1 ; conversion euros → patients par **moyenne globale du groupe** en V1) et **bloc 2 replié***
-*par défaut. Arbitrage explicité : accepter un risque de dépassement borné plutôt qu'un déplacement*
-*systématique. Plus aucun point ouvert sur la couche 2 du Lot 5.*
-
-***v3.15 — 24/07/2026** : **partition en blocs validée** (Arthur) → passe en décision 17. Le §14*
-*ne conserve plus que deux points ouverts sur la couche 2 : plancher de marge résiduelle et*
-*masquage du bloc 2.*
-
-***v3.14 — 23/07/2026** : **couche 2 du Lot 5 spécifiée** — sortie en **forme A** (deux blocs,*
-*chacun chronologique) ; **la secrétaire impose les dates, le patient s'adapte** ; critère de*
-*priorité = **marge en euros** (pas en points de %) sur **`min(marge_CCAM, marge_NGAP)`** ; le rang*
-*A/B **ne trie plus** (simple mention « sur place » / « se déplace »), il ne sert qu'à la partition.*
-*Confidentialité : **assumée** — l'ordre trahit la position financière, arbitrage acté. Partition,*
-*plancher et masquage du bloc 2 restent ouverts (§14).*
-
-***v3.21 — 26/07/2026** : **décision de modèle — le rendement libéral est un attribut de*
-*SPÉCIALITÉ, pas de secteur.** Déménagement prévu **début janvier 2027** : les secteurs changent*
-*(plus de bloc ORL dédié, tout passe dans un « Bloc Court » mutualisé), mais **les spécialités ne*
-*changent pas** — une cataracte rapporte autant quelle que soit la salle. Adosser `RENDEMENT_LIB`*
-*au secteur le rendrait caduc en janvier ; l'adosser à la spécialité le rend permanent.*
-***v3.13 — 23/07/2026** : ajout de l'**interface secrétaire** (§11 ter, Lot 5) — écran d'orientation*
-*des patients libéraux vers un MAR disponible le jour de l'intervention. **Purement consultatif** :*
-*aucune écriture, la déclaration reste au MAR au moment de la consultation réelle. Fonctionne sur*
-*les **seules données de planning** (aucune donnée financière) → indépendant des Lots 0 et 2.*
-*Ordre d'affichage des candidats laissé en question ouverte (§14).*
-
-***v3.12 — 19/07/2026** : **décision** — le pré-remplissage de la fiche praticien sur les devis*
-*et déclarations se fera **uniquement via le branchement au portail** (MAR identifié à la connexion*
-*→ colonnes dédiées dans `MEDECINS`). **Aucune solution intermédiaire** (localStorage, paramètre*
-*d'URL) : elle serait jetée au branchement. La nature des identifiants à stocker pour Monaco*
-*(n° d'inscription à l'Ordre, n° praticien CCSS — les champs RPPS/ADELI actuels sont hérités du*
-*modèle français) sera tranchée au moment de créer les colonnes.*
-
-***v3.11 — 19/07/2026** : base légale du seuil par axe identifiée — **OS n° 7.766 du 06/11/2019***
-*(modifiant l'OS n° 13.839) : contrôle du 30 % **par catégorie d'actes** depuis le 01/01/2020.*
-*Redevance : mécanisme confirmé (retenue mensuelle à la source sur les honoraires reversés ; taux/assiette à préciser).*
-*Nouvelle exigence intégrée au devis/déclaration (note DAM + ENR/QUA/1086/001) : déclaration de*
-*choix **nominative par praticien**, estimation de frais systématique en hospitalisation avec DH.*
-
-***v3.10 — 16/07/2026** : contrainte **non-persistance des champs patient du devis** gravée comme*
-*NON NÉGOCIABLE (§3.bis) + **livrable de preuve obligatoire** (test anti-persistance jsdom, scan*
-*statique, preuve réseau) exécuté à chaque déploiement et archivable pour audit CCIN / loi 1.565.*
-*Périmètre de responsabilité clarifié (technique = module ; conformité = établissement/DPO ; le devis*
-*imprimé remplace un papier existant, circuit inchangé). Décision 14 ajoutée.*
-*Rien ne part en prod tant que ce plan n'est pas clair et précis. On ne code pas encore.*
-
-***v3.22 — 26/07/2026** : **Lot 2 élargi — le rendement se MESURE, il ne se déduit plus.***
-*Décision d'Arthur : la déclaration d'intervention porte désormais la **spécialité** et le **montant***
-*(BR). Trois conséquences. (1) **Granularité : une ligne = un patient**, la fusion jour+secteur*
-*disparaît. (2) La **décision 8 est amendée** — le payload s'ouvre à `SPECIALITE`, `BR_CCAM`,*
-*`BR_NGAP` ; il reste sans donnée patient et sans code CCAM. (3) Le calcul par **moindres carrés***
-*du §12 ter **devient inutile** : le rendement se lit directement, ventilé au prorata des BR*
-*déclarées et recalé sur le relevé certifié. **Ordre inversé : la déclaration enrichie passe AVANT***
-*la saisie du relevé — le relevé est rattrapable rétroactivement, une intervention non déclarée est*
-*perdue. Liste de **12 spécialités** arrêtée. Décisions 32 à 36.*
-
-> **Confidentialité** : tous les montants et pourcentages cités dans ce document sont des
-> **valeurs illustratives** (ordres de grandeur réalistes), pas les chiffres réels des relevés
-> administratifs. Aucun praticien n'y est identifiable.
+**Documents liés** — `antiseche_CCAM_anesthesie_CHPG.md` (règles de cotation) · `guide_liberal_MAR.html` (guide MAR) ·
+`../ROADMAP-Planning-CHPG.md` (état d'avancement).
 
 ---
 
-## 1. Contexte et objectif
+## 1. Le problème
 
-Les MARs éligibles (PH titulaires, ≥ 1 an) exercent une activité libérale intra-hospitalière au
-sein d'un **groupement à revenus mutualisés** (compte bancaire commun). Règle administrative : le
-libéral d'un praticien ne peut dépasser **30 % de son activité**, appliqué **séparément sur deux
-axes** (cf. §2). L'excédent au 31/12 est **reversé à l'hôpital par le groupe** (pas par
-l'individu).
+Les MARs éligibles exercent une activité libérale intra-hospitalière. Un plafond réglementaire
+**limite le libéral à 30 % de l'activité totale** du praticien. Au-delà, l'excédent est **reversé à
+l'hôpital** : de l'argent produit puis perdu.
 
-**Objectif = optimiser le pot commun**, pas surveiller des individus. Comme le revenu est
-mutualisé et l'excédent perdu, le groupe veut **maximiser le libéral encaissable** :
+Les honoraires sont **mutualisés** dans un groupement (~17 MARs). L'objectif n'est donc pas
+d'optimiser un individu, mais le **pot commun** : `Σ min(libéral, 30 % × total)` par axe. Ce qui
+suppose deux gestes symétriques, et le second est celui qu'on oublie :
 
-```
-maximiser   Σ_axes Σ_praticiens  min( libéral,  30 % × total )
-```
+- **freiner** ceux qui vont dépasser (l'excédent part à l'hôpital) ;
+- **remplir** ceux qui sont **sous** leur plafond — cette marge est **définitivement perdue au
+  31 décembre** si elle n'est pas utilisée.
 
-Deux façons de perdre de l'argent collectif :
-- un praticien **au-dessus** de 30 % → le surplus est reversé (perte sèche) ;
-- un praticien **sous-employé** (< 30 %) → marge autorisée non réalisée (manque à gagner).
-
-Le levier maître est donc la **réallocation des vacations libérales** du saturé vers le
-sous-employé — elle corrige les deux pertes à la fois. Le module est un **optimiseur de
-réallocation**, pas un garde-fou anti-dépassement.
+Aujourd'hui personne ne voit sa position avant le relevé suivant. Le module sert à voir.
 
 ---
 
-## 2. L'invariant central : DEUX fractions, DEUX plafonds
+## 2. L'invariant central : DEUX axes, DEUX plafonds
 
-**Base légale (v3.11)** : OS n° 7.766 du 06/11/2019 modifiant l'OS n° 13.839 du 29/12/1998 —
-le contrôle de la limitation à 30 % s'opère **par catégorie d'actes** depuis le 01/01/2020 et
-« ne se mesure plus globalement » (courrier DG CHPG du 17/12/2019). La règle bi-axiale n'est
-donc pas une pratique administrative : c'est le texte.
+Le seuil de 30 % s'applique **séparément** sur deux catégories d'actes — confirmé par le relevé réel
+et fondé sur l'**OS n° 7.766 du 06/11/2019** (contrôle par catégorie depuis le 01/01/2020) :
 
-Le CR administratif réel (jan→juin 2026, décodé et validé au centime : la somme reconstruite des
-excédents = 37 890,45 € [valeur illustrative], exactement la ligne « ACTIVITÉ LIBÉRALE ») établit que le seuil de 30 %
-s'applique **indépendamment sur deux axes** :
+| Axe | Contenu | Levier public correspondant |
+|---|---|---|
+| **CCAM** | actes techniques (bloc) | blocs publics, **réanimation** (forfaits YYYY015/020) |
+| **NGAP** | consultations | **consultations publiques** |
 
-```
-axe CCAM  (actes techniques d'anesthésie)  :  L_ccam / T_ccam  ≤ 30 %
-axe NGAP  (consultations pré-anesth., CS)  :  L_ngap / T_ngap  ≤ 30 %
-```
+**Les deux plafonds sont indépendants** : on peut être conforme sur un axe et en excédent sur
+l'autre. ⚠️ **La réa ne corrige QUE le CCAM.** Un excédent NGAP ne se rattrape que par des
+consultations publiques. Les leviers ne sont pas interchangeables — c'est le point dur du pilotage.
 
-- `T_ccam`, `T_ngap` = **totaux** de l'activité sur chaque axe (**public + libéral**).
-- Les deux `%` du document = **parts libérales** de chaque axe.
-- `excédent_axe = T_axe × (%_axe − 30)` si `%_axe > 30`, sinon 0. Vérifié à l'euro près.
-- **Les deux plafonds sont indépendants** : on peut être conforme sur un axe et en excédent sur
-  l'autre. Exemple réel : un praticien à `24,1 % CCAM` (large marge) mais `47,2 % NGAP`
-  (excédent d'environ 610 €) [valeurs illustratives].
+**La marge, à public constant** (`P` = public, `L` = libéral, `T = P + L`) :
 
-Conséquences structurantes :
+`marge = (3/7)·P − L = (T/7)·(3 − 10·%)` — nulle à 30 %, négative = excédent.
 
-- **Le module suit et projette DEUX ratios**, jamais un % consolidé.
-- **Les leviers sont spécifiques à l'axe** (cf. §8) : ce qui corrige le CCAM ne corrige pas le
-  NGAP. La **réa**, par exemple, ne joue **que** sur l'axe CCAM.
-- Les **dépassements d'honoraires** (secteur 2 / DE) n'apparaissent pas dans ce calcul et ne
-  comptent pas ; seuls CCAM et NGAP font monter les ratios.
-- Algèbre par axe : `% ≤ 30 %` ⟺ `L ≤ 3/7 · P` ⟺ `P ≥ 7/3 · L` (≈ 2,33 € de public par € de
-  libéral). Le public est un **levier à part entière**, pas seulement le frigo.
+Le libéral ne s'*efface* pas : le public le **dilue**. À la cible, il faut `P ≥ 2,33 × L`.
+
+**Le relevé est un CUMUL, pas un flux.** Deux conséquences :
+- **inertie croissante** — plus l'année avance, plus le % est difficile à bouger : **corriger tôt
+  pèse beaucoup plus que corriger tard** ;
+- on dérive le **flux du mois** (`cumul_M − cumul_{M−1}`) pour lire la tendance, sinon on pilote
+  dans le rétroviseur.
+
+**Le solde est ANNUEL** (tout repart à zéro au 1ᵉʳ janvier) → **décembre est piloté à l'aveugle**
+(le relevé de décembre arrive fin janvier, après clôture). Le module calcule donc, à partir du
+**cumul de novembre**, le libéral encore permis en décembre pour rester ≤ 30 % sur l'année : borne
+exacte, pas de décote forfaitaire.
 
 ---
 
 ## 3. Principes non négociables
 
-1. **Zéro donnée patient *persistée*.** Les couches Pilotage et Placement ne manipulent que (date,
-   MAR, secteur, éventuel code sur sa propre activité) — jamais de nom de patient, jamais d'acte
-   rattaché à un patient. Le sous-module **estimateur / devis** (axe RAC) affiche transitoirement un
-   nom de patient à l'écran pour produire le devis, mais **ne le persiste jamais** : calculette sans
-   mémoire, aucune écriture serveur (GitHub / Sheets / Drive) ni navigateur, champ effacé à la
-   fermeture. Voir la note « Sécurité des données » ci-dessous.
-2. **Chiffres officiels recopiés, jamais calculés.** L'administration communique **chaque mois**
-   un tableau **cumulé depuis janvier**, par MAR : `T_ccam`, `T_ngap`, `%_ccam`, `%_ngap` (+ les
-   excédents). Le module **recopie** ; il n'estime pas, il ne certifie pas. Mention permanente :
-   « Chiffres issus des relevés administratifs — le décompte officiel relève de l'administration. »
-3. **Le module éclaire, le comité décide.** Recommandations, jamais d'affectation automatique.
-   Côté planning quotidien : **affichage seul** des contraintes.
-4. **Visibilité = le groupement.** Revenus mutualisés → pas de confidentialité entre membres.
-   Les non-membres (non-éligibles, < 1 an) ne voient rien du volet financier.
-5. **Aucune grille tarifaire devinée ni en dur.** La source de vérité reste le relevé. Une table
-   tarifaire (cf. V2, §8) ne vivrait qu'en CONFIG paramétrable, maintenue depuis la source
-   officielle (ameli).
+1. **Zéro donnée patient, nulle part.** ✅ Vérifié : la page libérale **ne contient aucun champ nom
+   de patient**. Le devis s'imprime avec un emplacement vide que **le patient remplit lui-même à la
+   main**. Rien à effacer, rien à protéger : la donnée n'entre jamais dans le PC. C'est plus fort
+   qu'une promesse d'effacement — c'est une absence.
+2. **Le relevé administratif est la seule source de vérité financière.** Le module recopie, il ne
+   reconstitue jamais le chiffre d'affaires depuis les actes. Aucune grille tarifaire devinée.
+3. **Estimateur, pas décompte.** Tout chiffre calculé par le module est une estimation qui sera
+   **recalée** par le relevé suivant. Il ne certifie jamais rien, et le dit à l'écran.
+4. **Le module affiche, le comité décide.** Aucun pré-placement automatique, aucune recommandation
+   contraignante.
+5. **Aucune donnée financière individuelle ne sort du groupement.** Visibilité totale **entre
+   membres** (l'argent est mutualisé), rien au-delà.
+6. **Un chiffre douteux ne s'affiche pas.** Mieux vaut une case vide qu'un pourcentage faux — un
+   faux chiffre dit « vas-y » à celui qui doit s'arrêter.
 
-**Note — Sécurité des données.** La sécurité du module ne repose pas sur un cadenas mais sur une
-discipline architecturale : classer la donnée, puis appliquer à chacune le bon régime. Quatre
-natures : (a) **donnée patient sensible** (garanties mutuelle, n° AMC, RAC nominatif) → **jamais
-persistée**, principe stateless ci-dessus ; (b) **donnée praticien** (nom, RPPS, ADELI) → profil MAR
-(`MEDECINS`), jamais dans un JSON publié ; (c) **donnée financière du groupement** (ratios, revenus,
-excédents) → non médicale mais confidentielle : c'est là que le contrôle d'accès a un vrai sens
-(cloisonnement membre `LIBERAL O/N` / non-membre), avec des données **agrégées** uniquement ; (d)
-**référentiel non-patient** (CCAM→BR, formules mutuelle) → technique, sourcé et versionné, sans lien
-patient. Un « code perso » sur GitHub Pages + GAS est de l'**identification de confort**, pas une
-barrière cryptographique : suffisant pour personnaliser le devis (rien de patient stocké), mais la
-vraie protection du financier est qu'il **ne contienne aucune donnée patient**. Un suivi patient
-réellement persistant sortirait de cette stack (hébergement agréé, consentement, DPO) — décision
-hôpital, pas évolution du module. Détail dans `guide_module_liberal.md`, §6.
-
-### 3.bis Contrainte NON NÉGOCIABLE — non-persistance des champs patient du devis
-
-**La règle.** Aucun champ patient saisi à l'ouverture du devis (nom, prénom, mutuelle, RAC nominatif,
-date de naissance…) ne doit **JAMAIS** être écrit dans un quelconque stockage :
-- **navigateur** — `localStorage`, `sessionStorage`, `IndexedDB`, cookies, cache : interdits sur tout
-  champ patient (c'est la fuite n°1 : ça survit à la fermeture de l'onglet) ;
-- **réseau** — le remplissage du devis ne déclenche **aucune** requête sortante portant un champ
-  patient ;
-- **URL / hash** — jamais un nom en paramètre (fuite via historique, logs, referer) ;
-- **pas d'autosave, pas de brouillon, pas d'historique de devis.**
-
-Les champs sont vidés par **effacement actif à la fermeture**. Le seul canal écrivant du module est la
-**déclaration d'intervention**, dont le payload est **fermé** (`DATE_BLOC · MAR_ID · SECTEUR ·
-CHIRURGIE`) — sans aucune donnée patient.
-
-**Pourquoi c'est central.** On ne peut pas voler ce qui n'existe pas. Tant que rien n'est stocké, le
-module ne peut pas être la source d'une **fuite** de données patient (risque de confidentialité nul) ;
-il ne reste qu'un risque d'**intégrité** (qu'on abîme le planning / les déclarations), qui se gère par
-l'hygiène des accès. Le jour où une évolution ajouterait un stockage patient « pour le confort », le
-module basculerait de l'autre côté — d'où le verrou ci-dessous.
-
-**Livrable de preuve OBLIGATOIRE (code de production).** La contrainte doit être **démontrée, pas
-déclarée**. Le code de production livre, et exécute à chaque déploiement (au même titre que
-`node --check` et la validation `JSON.parse`) :
-1. un **test anti-persistance** (jsdom) qui ouvre le devis, le remplit avec un patient fictif, ferme
-   la page, puis **inspecte** `localStorage`, `sessionStorage`, `IndexedDB`, cookies, variables et DOM,
-   et **échoue** si la moindre trace subsiste ;
-2. un **scan statique** interdisant toute référence à un stockage navigateur sur les champs devis ;
-3. la **preuve réseau** qu'aucune requête sortante ne contient de champ patient.
-Le résultat est **archivable** comme preuve reproductible pour un audit (CCIN / loi n° 1.565).
-
-**Périmètre de responsabilité (à ne pas confondre).** Ce dispositif couvre le **numérique**. Le devis
-**imprimé** porte un nom : sa manipulation, sa conservation et sa destruction relèvent du **circuit
-documentaire de l'établissement** — étant entendu qu'il **remplace un papier déjà existant** (devis
-actuel), à circuit inchangé, et qu'il est mieux fait (mentions conformes, aucune trace numérique). La
-**conformité** à la loi monégasque **n° 1.565** sur la protection des données personnelles relève de
-l'**établissement / DPO / CCIN**, pas d'une garantie technique ni d'une certification par l'assistant :
-le module fournit la **preuve technique** (tests ci-dessus), l'établissement porte la conformité.
+*(Le §3 bis de l'ancien document — contrainte de non-persistance, test jsdom, scan statique, preuve
+réseau — décrivait la protection d'un champ patient qui n'a jamais existé dans le code livré. Il est
+supprimé. Le fichier `tests/anti_persistance_devis.test.js` est un fossile de la même époque.)*
 
 ---
 
-## 4. Architecture : 3 couches disjointes qui se parlent
+## 4. Architecture : trois couches
 
-Le CA n'est **jamais** observable en temps réel : le seul signal argent est le relevé
-administratif cumulé, retardé (M+1). D'où trois couches.
+Le chiffre d'affaires n'est **jamais** observable en temps réel : le seul signal argent est le
+relevé mensuel, retardé (M+1) et cumulé. D'où trois couches disjointes.
 
 | Couche | Nature | Source | Rôle |
-|--------|--------|--------|------|
-| **Activité** | Déterministe, maîtrisée | Déclarations MAR + planning quotidien | Placement : présence bloc (axe **CCAM**) |
-| **Argent** | Observée, retardée, cumulée | Relevé mensuel de l'administration | Mesure : `T`/`%`/`excédent` (recopié) des **deux axes** par MAR |
-| **Pilotage** | Dérivée | Croise Activité × Argent × rendement secteurs | Projection + réallocation + équité |
+|---|---|---|---|
+| **Activité** | déterministe, maîtrisée | déclarations MAR + planning | placement : présence au bloc |
+| **Argent** | observée, retardée, cumulée | relevé mensuel de l'administration | mesure : `T` / `%` / excédent, par axe |
+| **Pilotage** | dérivée | croise les deux | marges, réallocation, équité |
 
-Le module **observe** l'activité, **recopie** l'argent, **corrèle** pour piloter — il ne reconstitue
-jamais le CA depuis les actes. Couches Activité et Argent **disjointes** mais reliées par le
-Pilotage.
-
-**Note de périmètre :** un **parcours libéral** = une **consultation (J0, facturée NGAP)** suivie
-d'un **acte au bloc (J+X, facturé CCAM)**. C'est la **consultation qui déclenche le placement** :
-voir une patiente le 02/01 pour une PTG prévue le 15/01 crée l'obligation d'être au bloc le 15/01.
-L'objet « intervention » (§6) matérialise ce parcours et **alimente les deux axes** de facturation ;
-la **contrainte de présence tombe le jour du bloc** (acte CCAM). Le NGAP n'est donc **pas** hors
-placement — il en est le **point d'entrée**.
+**Un parcours libéral = une consultation (J0, NGAP) + un acte au bloc (J+X, CCAM).** C'est la
+consultation qui **déclenche** l'obligation de présence au bloc. Un même parcours alimente donc les
+**deux axes**, à **deux dates différentes** — souvent deux mois différents. Toute la rigueur du
+recoupement tient à ne pas confondre ces deux dates.
 
 ---
 
-## 5. Les temporalités : 2 horloges + 1 horizon
+## 5. ✅ EN PRODUCTION — ce qui tourne aujourd'hui
 
-- **Horloge quotidienne / hebdo (couche Activité).** Consult J0 → contrainte de présence bloc à
-  J+X (axe CCAM) → conflit ou OK. Re-vérifiée **à chaque avancée de l'horizon publié**.
-- **Horloge mensuelle (couche Pilotage).** Relevé cumulé M → projection 31/12 → reco M+1 →
-  arbitrage comité → relevé suivant qui recale. Boucle **auto-corrigée**.
-- **Horizon annuel (couche Argent).** Cible 31/12 = **30 % par axe** (`LIBERAL_CIBLE` en CONFIG).
-  **Décembre est piloté à l'aveugle** (relevé de décembre reçu fin janvier, après clôture) :
-  plutôt qu'une décote forfaitaire, le module calcule à partir du **cumul de novembre** le
-  **libéral encore permis en décembre** pour rester ≤ 30 % sur l'année (borne de décembre, exacte). On vise
-  ainsi 30 % le reste de l'année sans s'exposer au dépassement sur le mois non observable.
+**Ne pas reconstruire.** Chaque brique est vérifiable dans le dépôt.
 
-**Le relevé est un CUMUL, pas un flux.** Deux implications fortes :
-- **Inertie croissante** : plus l'année avance, plus le % cumulé est difficile à bouger →
-  **corriger tôt pèse bien plus que corriger tard**. Le pilotage précoce est prioritaire.
-- Le module dérive le **flux du mois** (`cumul_M − cumul_{M-1}`) pour lire la **tendance**, en plus
-  du cumul qui donne l'**état**. Sinon on pilote dans le rétroviseur.
+### 5.1 Estimateur + devis — `docs/module-liberal/maquette_estimateur_liberal.html`
+Cotation d'un parcours (recherche CCAM, tarif activité 4), calibrage du dépassement sur la mutuelle
+du patient, impression du devis. Branchée au portail : le MAR est identifié par son code de session
+(`chpgViewCode`), l'identité du praticien est pré-remplie. Accès par une **tuile Dashboard visible
+seulement si `LIBERAL = O`** dans l'onglet `MEDECINS`.
 
----
+Règles de calcul figées et validées au centime (détail dans l'antisèche) :
+- **CCAM** : `BR = coefficient carte (monégasque ×1,95 / français ×1,00) × (tarif act. 4 × (1+%mod)
+  × taux d'association + €mod)`
+- **NGAP** : `BR = lettre-clé × coefficient` (`C 34,40 · CS 46 · APC 60`) — **sans** ×1,95, **sans**
+  modificateur. La carte n'y joue que sur le **DH**.
+- **Le DH est hors quota** : il ne charge jamais les 30 %.
 
-## 6. Couche ACTIVITÉ — l'intervention (parcours consult → bloc)
+### 5.2 Déclaration d'intervention — `gas/portail.gs`
+Actions `declareLiberal` / `deleteLiberal` (écritures, dans `WRITE_ACTIONS_LOCK`) et `listLiberal`
+(lecture). Onglet `LIBERAL_{Y}` créé à la volée, année du **jour de bloc**.
 
-### 6.1 Objet à cycle de vie
+Schéma **réellement en production** : `ID · DATE_CONSULT · DATE_BLOC · MAR_ID · SECTEUR · CHIRURGIE`
+— granularité **une journée-bloc dans un secteur** (les déclarations identiques du même jour sont
+**fusionnées**), `DATE_CONSULT` posée automatiquement à aujourd'hui, aucun montant.
+⚠️ Ce schéma est **remplacé par le 2A** (§6.1). Il reste décrit ici tant que le 2A n'est pas déployé.
 
-La **consultation libérale (J0, NGAP) crée l'intervention** et **engage la présence au bloc à J+X**
-(l'acte, CCAM). **La date opératoire est toujours connue dès la consultation** — il n'existe pas
-d'intervention « à programmer sans date ». La semaine du bloc (2 j à 3 semaines plus tard) n'est
-en revanche souvent pas encore planifiée : l'intervention « attend » puis **s'active** quand
-l'horizon publié atteint sa semaine. Un même objet porte les deux bouts du parcours : le J0 qui
-alimente le NGAP, le J+X qui alimente le CCAM et fait tomber la contrainte de placement.
+### 5.3 Volet comité — `admin.html`
+Au clic sur une case flash, le panneau d'affectation s'ouvre **et** un volet « ◆ Libéral » apparaît à
+gauche : interventions du jour par MAR, **vert** si le placement satisfait l'intervention, **orange**
+sinon (« à replacer → ORT », « en garde — à arbitrer »). Toast si aucune intervention ce jour-là.
+**La grille ne change pas d'un pixel** — à 20 MARs, tout marquage permanent sature.
 
-```
-déclarée (date bloc connue, hors horizon)  ──►  active (semaine planifiée)  ──►  OK / conflit  ──►  réalisée
-```
-
-### 6.2 Schéma `LIBERAL_{Y}` — payload OUVERT À LA MESURE (v3.22)
-
-`DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | SPECIALITE | BR_CCAM | BR_NGAP | CHIRURGIE`
-
-*(+ `ID`, poignée technique en tête d'onglet.)*
-
-**Ce qui change en v3.22 et pourquoi.** Le payload d'origine (5 champs, granularité journée)
-suffisait au **placement**. Il ne permet **pas la mesure** : ni de compter les interventions, ni
-de savoir ce que rapporte une spécialité. Trois ajouts, et un seul retrait.
-
-- **`SPECIALITE`** (nouveau, obligatoire) — 12 codes, onglet `SPECIALITES`. C'est la maille du
-  rendement (§12 bis) : elle **survit au déménagement**, le secteur non. Pré-remplie d'après le
-  secteur, toujours modifiable. **Règle `PED` (actée) : patient mineur ⇒ `PED`, quelle que soit
-  la chirurgie.** Arbitraire mais univoque — sans règle unique, deux MARs classent différemment et
-  les deux rendements deviennent du bruit.
-- **`BR_CCAM` / `BR_NGAP`** (nouveaux) — la **base de remboursement**, seule grandeur qui charge le
-  quota des 30 %. **Le DH n'est jamais déclaré** : il est hors quota, il n'intéresse pas le module.
-  Reprises automatiquement du parcours coté dans l'estimateur, **champs éditables** (un parcours
-  sans devis — carte verte, DH 0 — doit rester déclarable).
-- **`DATE_CONSULT` cesse d'être informative.** C'est elle qui **date la BR NGAP**, facturée à la
-  consultation, souvent un autre mois que le bloc. `BR_CCAM` est rattachée au mois de `DATE_BLOC`,
-  `BR_NGAP` au mois de `DATE_CONSULT`. Sans cette séparation, le recoupement bi-axial est faux.
-  Elle devient donc **éditable**, pré-remplie à aujourd'hui (une déclaration tardive, faite après
-  le bloc, porterait sinon une date fausse).
-- **Retrait : la FUSION disparaît.** `declareLiberal` fusionnait même MAR + même jour + même
-  secteur en une ligne. Une journée de 8 cataractes = 1 ligne : incomptable. **Une ligne = un
-  patient.**
-
-**Ce qui ne change pas.** Aucune donnée patient, aucun code CCAM, aucun DH. Le nom du patient
-n'existe que sur le devis, tapé à l'écran, imprimé, effacé (§3 bis).
-
-- **`DATE_CONSULT`** = J0, moment de la consultation libérale (déclencheur, informatif).
-- **`DATE_BLOC`** = J+X, jour de l'acte : **toujours renseignée dès la déclaration**, c'est là que
-  tombe la contrainte de présence.
-- **`SECTEUR`** référence `SECTEURS_CFG` (→ Lot 0). Le comité doit savoir que Dr X doit être à
-  **ORTHO**, pas seulement « au bloc ». Info **logistique**, pas médicale.
-- **`CHIRURGIE`** : libellé libre court (« PTH », « hernie cœlio »), **optionnel** — sert uniquement
-  à donner au comité une idée de la durée du bloc. **Pas de code CCAM** : le code n'apporte rien au
-  placement et son niveau de précision est inutile ici (minimisation). Pré-rempli depuis le libellé
-  court du parcours coté dans l'estimateur, modifiable, effaçable.
-- **Granularité : une ligne = UN PATIENT** (v3.22 ; auparavant une journée-bloc).
-- **Le payload reste BORNÉ** : ces huit champs, rien d'autre. Aucune donnée patient ne transite par
-  la déclaration — le nom du patient n'existe que sur le devis, tapé à la main à l'écran, imprimé,
-  effacé (cf. note Sécurité §3). Un montant, une date et une spécialité n'identifient personne.
-
-### 6.3 Workflow MAR (~20 s, depuis la PAGE DU MODULE LIBÉRAL)
-
-**La page du module libéral est le point d'entrée unique** : le MAR y cote son parcours, y génère
-le devis (à l'écran, sans écriture), et **y déclare l'intervention** — bouton « 📅 Déclarer »
-sur le parcours → formulaire pré-rempli (secteur, chirurgie déduite du parcours) → saisie de la
-date de bloc → écriture `LIBERAL_{Y}` via l'API GAS. Aucun patient, aucun acte codé. Le module
-range et affecte l'état selon l'horizon.
-
-**Prérequis** : l'estimateur doit être **intégré au portail** (MAR identifié à la connexion) pour
-que la déclaration porte le bon `MAR_ID` — et pour pré-remplir le praticien sur les devis.
-L'ancienne option « onglet Activité libérale dans indispos.html » est **abandonnée** : tout vit sur
-la page du module.
-
-### 6.4 Côté comité (admin.html) — AFFICHAGE SEUL, ergonomie actée
-
-**La grille ne change pas d'un pixel** (aucune pastille permanente — à ~20 MARs, tout marquage
-dans la grille sature). L'ergonomie validée sur maquette (conditions réelles, juillet 2026) :
-
-- Au clic sur une **case flash** (comportement existant), le panneau d'affectation s'ouvre comme
-  aujourd'hui **et**, si des interventions libérales existent ce jour-là, un **volet « ◆ Libéral »
-  s'ouvre à gauche** : liste **par MAR** des interventions du jour, chaque ligne colorée —
-  **vert** « ✓ déjà en ORT » si le placement satisfait l'intervention, **orange** « ⚠ à replacer →
-  ORT (est en ORL) » ou « ⚠ en garde — à arbitrer » sinon. Lecture en check-list de placement.
-- **S'il n'y a pas de libéral ce jour** : le volet ne s'ouvre pas et un **toast** le confirme
-  (« Aucune intervention libérale ce jour ») — pas de doute de bug, pas de panneau vide.
-- Style : vocabulaire visuel existant d'admin (violet `cs-lib` déjà en place pour les consults
-  libérales endo).
-
-**Pas de pré-placement** : le comité place à la main. On ne touche pas à
-`generatePlanningFromGardes` ; la greffe = `openLibForDay(date)` appelé dans `openSidePanel` +
-le volet + la lecture de `LIBERAL_{Y}`. Chirurgicale.
+### 5.4 Secteurs — onglet `SECTEURS`
+Externalisation faite : `getSecteurs()` lit l'onglet, `admin.html` en dérive toutes ses listes (le
+tableau en dur n'est plus qu'un **repli** si l'API ne répond pas). Colonne `RENDEMENT_LIB`
+(FORT / MOYEN / NUL / REA) présente et éditable, **pas encore consommée**.
 
 ---
 
-## 7. Couche ARGENT — les relevés (deux axes)
+## 6. 🔨 À CONSTRUIRE — Lot 2 : mesurer
 
-### 7.1 Onglet `LIBERAL_CA_{Y}`
+Trois étapes, dans cet ordre.
 
-Recopie du relevé mensuel **cumulé**, par MAR et par mois, des **6 nombres** de la source :
+### 6.1 2A — Déclaration enrichie
+
+**Pourquoi.** Le schéma actuel suffit au **placement** ; il ne permet **aucune mesure** — ni de
+compter les interventions, ni de savoir ce que rapporte une spécialité.
+
+**Schéma cible de `LIBERAL_{Y}` — 9 colonnes :**
+
+`ID · DATE_CONSULT · DATE_BLOC · MAR_ID · SECTEUR · SPECIALITE · BR_CCAM · BR_NGAP · CHIRURGIE`
+
+- **Granularité : une ligne = UN PATIENT.** La fusion jour+secteur disparaît (8 cataractes ne
+  peuvent pas rester 1 ligne).
+- **`SPECIALITE`** — nouvelle, obligatoire, 12 codes (§6.1.1). C'est la maille du rendement : elle
+  **survit au déménagement de janvier 2027**, le secteur non. `SECTEUR` reste, pour le placement.
+- **`BR_CCAM` / `BR_NGAP`** — la base de remboursement, seule grandeur qui charge le quota. **Le DH
+  n'est jamais déclaré.** `BR_CCAM` est datée du **bloc**, `BR_NGAP` de la **consultation** : sans
+  cette séparation, le recoupement mensuel bi-axial est faux.
+- **`DATE_CONSULT` devient une vraie donnée** (elle date la BR NGAP), donc **éditable**, pré-remplie
+  à aujourd'hui — une déclaration faite après le bloc porterait sinon une date fausse.
+- Les lignes antérieures gardent leurs 6 colonnes remplies et les 3 nouvelles vides : **aucune
+  migration**, elles servent encore au placement et sont ignorées par le calcul de rendement.
+
+**Ergonomie retenue.** La page libérale a deux blocs aujourd'hui **étanches** : la calculette en
+haut, la déclaration en bas (qui ne récupère que la date de bloc et le libellé de chirurgie, jamais
+le montant ni le secteur). On ajoute un bouton **« Déclarer ce parcours »** sur une ligne cotée :
+un clic, tout descend (date, spécialité, BR). Le bloc du bas reste, montants **éditables**, pour les
+parcours sans cotation. **On ne rend rien obligatoire — on rend le bon chemin plus court.**
+
+#### 6.1.1 Onglet `SPECIALITES` — 12 codes
+
+`OPH · ORL · VIS · URO · ORT · END · GYN · PED · CI · RI · VAS · AUT`
+
+Dans un onglet, jamais en dur — même logique que `SECTEURS`. Plus fine que le secteur partout où un
+secteur mélange deux rendements très différents :
+- **`OPH` séparée d'`ORL`** — la cataracte est le moteur du rendement ; la noyer dans l'ORL détruit
+  la mesure ;
+- **`URO` séparée de `VIS`** — le bloc viscéral couvre les deux ;
+- **`VAS` conservée** malgré son très faible volume : la fondre dans `VIS` serait **irréversible**,
+  on ne pourrait plus jamais l'en extraire ;
+- **`AUT`** est une soupape à libellé libre — **si `AUT` grossit, la liste est mal faite.**
+
+**Règle `PED` : patient mineur ⇒ `PED`**, quelle que soit la chirurgie. Arbitraire mais **univoque** :
+deux MARs qui classeraient différemment transformeraient les deux rendements en bruit.
+
+### 6.2 2B — Saisie du relevé et marges
+
+**Onglet `LIBERAL_CA_{Y}`**, recopie du relevé mensuel **cumulé** :
 
 `MOIS | MAR_ID | T_CCAM | PCT_CCAM | EXC_CCAM | T_NGAP | PCT_NGAP | EXC_NGAP`
 
-Les colonnes **EXCÉDENT sont recopiées, pas dérivées** — validé sur le relevé réel (jan→juin 2026) :
-recalculer `T × (%−30)` depuis les % affichés à 2 décimales donne **37 824,12 €** au lieu de
-**37 890,45 €** (−66,33 €) [valeurs illustratives], donc le « tombe pile » du checksum est impossible sans les excédents
-recopiés. Le module ne **dérive** que le **flux du mois** (différence de cumuls). Le `%` reste
-recopié : c'est le ratio du pilotage, seul moyen de connaître la marge d'un MAR **sous 30 %** (où
-l'excédent = 0). On stocke ce que dit la source (`T`, `%`, `excédent`) ; on ne recalcule jamais
-l'excédent (évite les incohérences d'arrondi).
-
-*(Remplace le format « deux masses € » de la v2 : la réalité est bi-axiale, `T_ccam` et `T_ngap`.)*
-
-### 7.2 Saisie — groupée, mensuelle, depuis PDF/papier
-
-L'administration diffuse le tableau en **PDF/papier** (pas de fichier exploitable) → pas d'import,
-**saisie manuelle mensuelle**. **Voie principale : saisie groupée** par une personne (Arthur ou un
-référent du groupe, à définir) : les ~17 lignes × 4 nombres (`T_ccam`, `%_ccam`, `T_ngap`,
-`%_ngap`) reportées en une fois, le cumul du mois. Le seul risque étant la **faute de frappe**,
-deux garde-fous **gratuits** offerts par le document :
-
-1. **Checksum de bout en bout.** La ligne du bas du PDF (« ACTIVITÉ LIBÉRALE » — le total de tous
-   les excédents, ex. 37 890,45 € [illustratif]) est un total de contrôle. Le référent le saisit ; le module
-   somme les **colonnes EXCÉDENT recopiées** (`Σ EXC_CCAM + EXC_NGAP`) et **valide en vert si ça
-   tombe pile à 0,00 près, rouge sinon** (coquille à localiser). Vérifié au centime sur le relevé réel
-   (Σ exact, valeur non reproduite ici). Ne **jamais** recalculer depuis le % affiché (2 décimales → écart de plusieurs
-   dizaines d'euros). Une saisie validée d'un coup, sans relecture ligne à ligne.
-2. **Monotonie du cumul.** Le relevé étant cumulé, chaque total (`T_CCAM`, `T_NGAP`, `EXC_CCAM`,
-   `EXC_NGAP`) ne peut que **croître** d'un mois sur l'autre → une valeur qui régresse déclenche une
-   alerte de saisie. Le `%`, lui, n'est **pas** monotone (un ratio peut baisser) : pas de contrôle dessus.
-
-Une **action API commune** couvre la saisie groupée et (accessoirement) une saisie par membre.
-
----
-
-## 8. Couche PILOTAGE — réallocation, leviers par axe, équité
-
-### 8.1 Projection
-
-**V1 ne projette pas — elle mesure.** Sur une activité libérale hospitalière (congés, gardes, blocs
-fermés, saisonnalité), extrapoler le cumul « au rythme » produit un chiffre faux qui **induit en
-erreur** ; on y renonce. V1 se limite au **certain** : à chaque relevé, pour **chaque MAR et chaque
-axe**, elle affiche l'**état** (`T`, `%`) et la **marge encore permise avant 30 %**, ou l'**excédent**
-(recopié) si le plafond est déjà franchi.
-
-Marge, à public constant (`P = T·(1−%)`, `L = %·T`) : `marge = (3/7)·P − L = (T/7)·(3 − 10·%)`
-(nulle à 30 %, négative = excédent). Vérifiée sur le relevé réel jan→juin 2026 : ~45 000 € de marge
-CCAM disponible dans le groupe face à ~31 000 € déjà en excédent — le carburant de la réallocation.
-
-Vue groupe = Σ des marges (capacité libérale inexploitée) vs Σ des excédents (reversé si rien ne
-change), par axe. On peut afficher le **flux du mois** (`cumul_M − cumul_{M−1}`) comme **tendance**,
-jamais comme prévision. La marge est **prudente** (elle grossit quand le public rentre) ; un excédent
-de mi-année reste **corrigible** en montant le public (§5).
-
-**La projection d'un montant à fin décembre est repoussée à la V2**, appuyée sur l'**activité déjà
-planifiée** (vacations bloquées, interventions déclarées) — du réel à venir ajouté au dernier cumul
-certifié — et non sur une extrapolation.
-
-### 8.2 Leviers — spécifiques à l'axe
-
-| Situation | Levier CCAM | Levier NGAP |
-|-----------|-------------|-------------|
-| **Au-dessus** de 30 % | frigo (secteur `NUL`, gèle L_ccam) · **réa** (secteur `REA`, monte T_ccam public) · réallouer vacations bloc libérales | **moins de consult libérales** · **plus de consult publiques** (monte T_ngap) |
-| **Sous-employé** (< 30 %) | plus de vacations bloc libérales | plus de consult libérales |
-
-**Point dur : la réa ne corrige QUE l'axe CCAM** (forfaits YYYY015/020 = CCAM public). Un excédent
-**NGAP** ne se rattrape pas par la réa — seulement par les consultations. Les leviers ne sont pas
-interchangeables.
-
-### 8.3 Équité résiduelle : le désagrément, pas l'argent
-
-L'argent est mutualisé → l'équité porte sur le **désagrément** des affectations contraintes
-(frigo, réa) : comptées par membre, **tournantes**, même logique que l'équité VD des gardes.
-
----
-
-## 9. Secteurs et `RENDEMENT_LIB` (dépendance : « secteurs étape 2 »)
-
-Attribut de rendement libéral par secteur, à **4 valeurs**, avec l'**axe** qu'il affecte :
-
-| Valeur | Effet | Axe |
-|--------|-------|-----|
-| `FORT` | libéral rentable (numérateur ↑) | CCAM |
-| `MOYEN` | libéral modéré | CCAM |
-| `NUL` | gèle le numérateur (frigo) | — |
-| `REA` | gèle le libéral ET **génère du public** (levier dur) | **CCAM** |
-
-La **réa** n'est pas un simple `NUL` : les `NUL` empêchent la hausse, la `REA` fait **redescendre**
-le `%_ccam`. Elle **n'est pas** une intervention libérale : elle vit dans le planning normal, codée
-YYYY015/020 (binaire), lue depuis **l'affectation quotidienne**, pas depuis `LIBERAL_{Y}`. Son
-montant réel arrive **déjà** dans le `T_ccam` du relevé → le module n'a pas besoin du tarif des
-forfaits.
-
-Prérequis : externaliser `SECTEURS_CFG` (aujourd'hui en dur en haut d'`admin.html`) dans un onglet
-`SECTEURS` + colonne `RENDEMENT_LIB`. Déjà au backlog pour le déménagement 2027 → une pierre deux
-coups.
-
----
-
-## 10. Données (récapitulatif des onglets)
-
-- `LIBERAL_{Y}` — parcours consult→bloc, **une ligne = un patient** (v3.22) :
-  `ID | DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | SPECIALITE | BR_CCAM | BR_NGAP | CHIRURGIE`
-  (auto-créé dans `setupAnnee`, pattern `INDISPOS_${year}`). Les lignes antérieures à v3.22 gardent
-  leurs 6 colonnes remplies et les 3 nouvelles vides : **aucune migration**, elles servent encore au
-  placement et sont simplement ignorées par le calcul de rendement.
-- `SPECIALITES` — 12 lignes (`CODE | LABEL | ACTIF`), amorcé, éditable en cellule. Même logique que
-  `SECTEURS` : jamais en dur dans le code.
-- `LIBERAL_CA_{Y}` — relevés cumulés : `MOIS | MAR_ID | T_CCAM | PCT_CCAM | EXC_CCAM | T_NGAP | PCT_NGAP | EXC_NGAP` (6 nombres recopiés/MAR ; excédents recopiés, pas dérivés).
-- `MEDECINS` — colonne `LIBERAL (O/N)` : appartenance au groupement (maintenue à la main).
-- `SECTEURS` (Lot 0) — externalisation de `SECTEURS_CFG` + `RENDEMENT_LIB` (4 valeurs).
-- `CONFIG` — `LIBERAL_CIBLE` (défaut 30, par axe) + borne de décembre (libéral permis calculé sur le cumul de novembre).
-
----
-
-## 11. Interfaces
-
-### Côté membre — PAGE DU MODULE LIBÉRAL (point d'entrée unique)
-- Accessible via une **tuile « Libéral » du Dashboard, visible uniquement pour les MARs membres du
-  groupement** (colonne `LIBERAL (O/N)` de `MEDECINS`) ; MAR identifié à la connexion.
-- Coter un parcours (recherche CCAM, tarif act. 4 auto), calibrer le DH sur la mutuelle, générer le
-  **devis** (à l'écran, nom du patient tapé à la main, rien de stocké).
-- **Déclarer une intervention bloc** (date + secteur + chirurgie libre optionnelle) → `LIBERAL_{Y}`.
-- Consulter les relevés du groupe (visibilité totale) ; vue convergence **par axe** : T, %, marge à
-  la cible, projection 31/12 (CCAM et NGAP).
-- *(indispos.html n'a plus de rôle libéral.)*
-
-### Côté comité (admin.html)
-- **Volet « ◆ Libéral »** au clic sur une case flash (cf. §6.4) : interventions du jour par MAR,
-  vert/orange ; toast si aucune. Grille intacte.
-- Vue convergence du groupe, **deux axes**, tri par risque, projections.
-- **Réallocation** : marge de chacun par axe → orienter les vacations libérales.
-- Recommandations mensuelles (frigo / réa pour CCAM ; consult publiques pour NGAP).
-- Compteur d'équité des affectations contraintes.
-- Saisie/rattrapage des relevés.
-
-### Interface secrétaire — orientation des patients libéraux (Lot 5)
-
-**Rôle, et frontière à ne pas franchir.** L'écran ne réserve rien et ne remplace aucun logiciel de
-rendez-vous. Il répond à une seule question : *pour une intervention le 15/09 en ORL, quelles dates
-de consultation puis-je proposer à ce patient libéral pour qu'il soit endormi par un MAR
-effectivement présent ce jour-là ?* La secrétaire relève la date et le nom, puis pose le
-rendez-vous dans son outil habituel. C'est la différence entre une brique légère et un projet hors
-de portée.
-
-**Entrée.** Date d'intervention + secteur.
-
-**Sortie.** Une **liste de créneaux de consultation triés par date**, chacun portant le nom du MAR
-qui la tiendra (`mar. 08/09 — Dr X · jeu. 10/09 — Dr X · lun. 14/09 — Dr Y`). La sortie est une
-liste de **dates**, pas un classement de médecins : c'est ce dont la secrétaire a besoin au
-téléphone. Le médecin est le moyen, pas la réponse.
-
-**Deux rangs de candidature** (jamais un filtre binaire) :
-
-| Rang | Condition le jour de l'intervention | Usage |
-|------|--------------------------------------|-------|
-| **A** | affecté au **secteur** de la chirurgie | idéal — pas de déplacement |
-| **B** | **présent à l'hôpital**, quel que soit son secteur (réa comprise) | il sort endormir et revient ; vaut pour **tous** les secteurs |
-
-Un MAR **absent** n'est jamais proposé. Le rang B n'est pas un filet de secours occasionnel : le
-délai consultation → intervention descend parfois sous 7–10 jours, et la fenêtre de consultation
-se réduit alors à un ou deux jours ouvrés — le rang A y sera souvent vide. **Le rang B est un mode
-de fonctionnement courant, à traiter comme tel dès la V1.**
-
-**Règle d'affichage imposée par l'accès partagé.** L'accès se fait par un **code unique pour tout
-le secrétariat d'anesthésie** (pas de compte nominatif : l'écran n'écrit rien, il n'y a rien à
-tracer). Toute personne détenant ce code voit donc la disponibilité de l'équipe. En conséquence :
-**l'écran n'affiche jamais de motif d'indisponibilité** — ni congé, ni formation, ni maternité, ni
-maladie. Il n'affiche que du positif (les dates où quelqu'un peut) ; une indisponibilité se traduit
-par une ligne qui n'existe pas. Aucun montant, aucun pourcentage, aucune position individuelle
-n'apparaît en Lot 5.
-
-**Point technique à ne pas rater.** Le filtre doit exclure **tous** les types d'indisponibilité, pas
-seulement les congés : jour de temps partiel, repos de garde, formation, réanimation, étages,
-consultation, maternité. C'est la seule chose qui peut faire échouer l'outil en silence — proposer
-un nom valide en apparence mais indisponible en réalité. Une secrétaire à qui ça arrive deux fois
-cesse de s'en servir.
-
-**Pas de décompte de places.** Une journée de consultation est traitée comme une capacité pleine :
-le module ne raisonne que sur les patients **libéraux** et ne modélise pas l'activité publique de
-la séance (un patient public peut être vu et endormi par deux MARs différents — sans objet ici).
-
-**Consultatif seul — décision actée.** L'écran **n'écrit rien**. Le parcours n'est validé qu'au
-moment de la consultation réelle : c'est le **MAR** qui déclare ensuite l'intervention depuis la
-page du module libéral (payload fermé, §6.2). Corollaire à assumer : le système ne connaît pas les
-orientations proposées, seulement les consultations effectivement réalisées — tout décompte de
-répartition accuse donc le **retard du délai de consultation**.
-
-**Couche 2 — priorisation par la marge (ultérieure).** Nécessite le compteur (Lot 2) et donc des
-données financières nominatives.
-
-*Critère.* La **marge en euros** (§8.1, `marge = (3/7)·P − L`), et non en points de pourcentage :
-deux MARs à 25 % n'ont pas la même capacité résiduelle selon leur quotité, et c'est la capacité
-d'absorption en euros qui détermine ce qui est récupérable. Corollaire assumé : le critère avantage
-mécaniquement les temps pleins.
-
-*Axe retenu.* Un parcours libéral alimente **les deux** compteurs (consultation → NGAP, bloc →
-CCAM, cf. v3.1). Le classement se fait donc sur **`min(marge_CCAM, marge_NGAP)`** — jamais sur un
-seul axe : orienter vers un MAR qui a de la marge CCAM mais plus de marge NGAP ne rapporte rien.
-L'axe contraignant est le plus souvent le NGAP.
-
-*Effet du rang.* Le rang A/B **ne participe pas au tri** (décision Arthur : mieux vaut faire
-traverser l'hôpital à un MAR que perdre de l'argent). Il n'apparaît que comme mention à côté du nom
-(« sur place » / « se déplace »). Il ne sert plus qu'à la **partition en blocs** (ci-dessous).
-
-*Conséquence de la forme A.* Chaque bloc étant trié par **date**, le classement par marge n'ordonne
-personne : il décide seulement **dans quel bloc** chacun tombe. La priorisation se réduit donc à une
-question binaire, nettement plus simple à coder et à expliquer qu'un classement fin.
-
-*Partition — **actée**, cf. décision 17.*
-
-*Plancher de marge résiduelle (décision 18).* Un rang A à marge positive mais faible resterait en
-bloc 1 alors qu'il va saturer aussitôt — et l'écran étant consultatif, il ne verra rien avant que
-les déclarations MAR ne remontent (fenêtre aveugle de quelques jours à quelques semaines). **Règle :
-marge ≥ 3 patients → bloc 1 ; ≤ 2 patients → bloc 2**, même si le MAR est du bon secteur. Le cas
-« exactement 3 » reste en bloc 1 : trois places sont encore de la place réelle.
-
-*Pourquoi 3, et pourquoi si bas.* Arbitrage Arthur : mieux vaut s'exposer à un dépassement limité
-que solliciter systématiquement un MAR d'un autre secteur. Ce n'est **pas** en contradiction avec la
-décision 16 (« plutôt faire traverser que perdre de l'argent ») : les deux situations diffèrent. Si
-le MAR du secteur est **saturé**, la perte est **certaine** → on déplace. S'il a **encore de la
-place**, la perte n'est qu'un **risque**, et seulement sur les patients orientés pendant la fenêtre
-aveugle → on l'accepte pour éviter un déplacement systématique. Avec N = 3, le dépassement éventuel
-porte sur quelques patients, jamais sur un flux entier : le risque est **borné**. Valeur de départ à
-réviser une fois la durée réelle de la fenêtre aveugle mesurée en service.
-
-*Conversion euros → patients.* Le compteur produit une marge **en euros**, le plancher s'exprime en
-**patients** : il faut un montant moyen par patient. En V1, **moyenne globale du groupe**, pas par
-secteur — la moyenne sectorielle serait plus juste mais dépend de `RENDEMENT_LIB` (Lot 0), gelé
-jusqu'au plan du NCHPG, ce qui bloquerait le Lot 5 sur un chantier à l'arrêt. Le plancher est une
-sécurité approximative, pas un calcul comptable : une erreur d'un patient est sans conséquence.
-
-*Bloc 2 replié par défaut (décision 19).* Le bloc « autres dates » est **replié derrière un lien**,
-pas supprimé. Motif : si les deux blocs sont visibles côte à côte, un patient qui répond « je ne
-peux pas le 8 mais je suis libre le 7 » fait contourner la priorité en trois secondes, sans décision
-consciente de personne. Le repli n'est pas un verrou — un clic suffit — mais il fait du bloc 1 le
-réflexe par défaut. Cohérent avec la décision 16 (« la secrétaire impose les dates, le patient
-s'adapte »). **Un MAR n'est jamais masqué** : en bloc 2 il reste accessible à un clic, et si le
-bloc 1 est vide, le bloc 2 devient la réponse — on propose toujours le moins mauvais, jamais rien. Bloc 1 = les **rangs A à marge positive** ; si aucun n'existe,
-bloc 1 = les **rangs B à marge positive** ; bloc 2 = tout le reste, marges négatives comprises.
-Elle réconcilie les deux règles d'Arthur (« les affectés au secteur sont prioritaires » et « plutôt
-faire traverser que perdre de l'argent ») : tant qu'un MAR du secteur a de la marge, l'orienter vers
-lui ne perd **aucun** argent, il n'y a rien à arbitrer ; on ne fait traverser l'hôpital que lorsque
-le secteur est saturé. Les deux règles ne s'appliquent jamais simultanément.
-
-*Confidentialité — arbitrage assumé.* L'ordre d'affichage **encode la position financière** : un
-MAR systématiquement en bloc 2 est visiblement saturé, et la secrétaire finit par le déduire même
-sans qu'aucun montant ne soit affiché. On ne pourra donc pas soutenir devant le groupement
-qu'« aucune donnée financière n'est exposée » dès lors que la couche 2 est active. **Décision
-Arthur (23/07/2026) : arbitrage accepté en connaissance de cause**, pas d'obfuscation (blocs sans
-ordre interne, catégories floues). Consigné ici pour que la trace existe si la question est posée
-plus tard par le groupe.
-
-*Décalage résiduel.* Le classement s'appuie sur le dernier relevé mensuel et sur les déclarations
-MAR postérieures : la position utilisée a plusieurs jours à plusieurs semaines de retard.
-
-**Périmètre de test.** Tous les secteurs d'emblée, sur l'hôpital **actuel** (bloc éclaté). C'est le
-cas le plus contraint : au NCHPG, le bloc centralisé rend le rang A beaucoup plus fréquent. Ce qui
-marche aujourd'hui marchera forcément après.
-
-**Mesures réelles — semaine 25 (juin 2026), relevé manuel d'Arthur.** Première mesure du
-dispositif ; elle corrige plusieurs hypothèses.
-
-| Mesure | Valeur | Ce qu'on croyait |
-|---|---|---|
-| Patients libéraux / semaine | **89** | ~40 |
-| Consultant déjà au bon secteur le jour du bloc | **75 %** (67/89) | `p ≈ 1/3` |
-| Déplacements | **22 %** (20/89) | — |
-| Pertes libérales réelles | **4** (~4,5 %) | aucune |
-| MARs consultant en parallèle | moyenne **3,35** | 2–3 |
-| Délai consultation → bloc | **médiane 6 j** ; 73 % ≤ 7 j | 2–4 semaines |
-
-*⚠️ `p ≈ 1/3` était faux d'un facteur deux.* L'appariement est structurellement élevé parce que les
-consultations sont **typées par secteur** (le MAR de l'END voit les patients d'END). Toute
-estimation de gain fondée sur `p = 1/3` est à rejeter.
-
-*Vivier par secteur (juin 2026) — le plafond de toute réattribution.* CI = **1**, MAT = 1, ORL = 2,
-ORT = 2, END = 3, VIS = 4, + 7 volants. **CARDIO I a un vivier de 1** : ses 6 déplacements
-hebdomadaires sont **structurellement irréductibles**, aucun outil n'y changera rien.
-
-*Mécanisme des 20 déplacements — deux cas.* **Cas A** : le MAR qui endormira quitte son poste pour
-venir faire la consultation (1 déplacement). **Cas B** : personne du secteur ne peut voir le patient,
-un MAR d'un autre secteur le prend pour ne pas perdre l'acte — il se déplace pour la consultation
-**puis** quitte son secteur le jour du bloc (2 déplacements, deux secteurs désorganisés).
-
-*Pourquoi le rattrapage a posteriori ne marche pas.* Trois portes essayées et fermées :
-(a) permuter le titulaire du créneau → une même consultation porte plusieurs patients libéraux avec
-**des dates de bloc différentes**, aucune permutation ne les satisfait tous ; (b) déplacer le patient
-→ possible, mais la fenêtre médiane est de **5 jours** et ne contient souvent **aucun** créneau de
-rechange du bon secteur (les 6 déplacements END du 18/06 pour un bloc le 22/06 n'avaient que le
-vendredi 19 comme alternative) ; (c) faire choisir le bon créneau à la secrétaire du chirurgien →
-suppose qu'elle voie les plannings d'anesthésie, exclu.
-
-*Règle de priorité (Arthur).* **Mieux vaut déplacer le patient que déplacer le MAR.**
-
----
-
-**SCÉNARIO RETENU (24/07/2026) — le service reprend le placement.**
-
-Les secrétaires des chirurgiens **ne donnent plus de créneau de consultation d'anesthésie**. Le
-**secrétariat d'anesthésie** (ou un MAR) le choisit, avec l'écran du Lot 5. On cesse de rattraper un
-mauvais placement : **on ne le fait plus mal**.
-
-*Conséquence sur l'écran.* Retour exact à la spécification d'origine du §11 ter — entrée **date
-opératoire + secteur**, sortie **créneaux de consultation en forme A** (bloc prioritaire, autres
-dates repliées). La secrétaire propose, le patient s'adapte. **Ce qui change : le créneau est bon dès
-le départ** → plus aucun déplacement de MAR, plus aucun rappel de patient, plus de fenêtre de
-5 jours. Le virage v3.18 devient **caduc**.
-
-*🔴 La décision 21 redevient valable.* Pour proposer un créneau à 3 semaines, il faut que les
-consultations soient placées à 3 semaines. Le prérequis d'horizon, annulé en v3.18, est **réactivé**.
-
-*Point d'organisation à régler — le seul vrai.* Le patient repart de chez le chirurgien **sans date
-d'anesthésie**. Il doit donc passer par le secrétariat d'anesthésie avant de sortir, **ou** appeler.
-Arthur : « au choix ». C'est le changement qui porte sur le **patient**, pas sur les secrétaires des
-chirurgiens — lesquelles n'ont **aucune charge supplémentaire**, elles en ont une de moins.
-
-*Critère médical.* Le placement tenait compte de la lourdeur du geste et des anticoagulants. Ce
-critère passe au secrétariat d'anesthésie ; Arthur le juge **très grossier**, donc applicable sans
-expertise. À faire apparaître dans l'écran, sinon on gagne l'appariement et on perd le délai de
-sécurité.
-
-*Volume.* ~89 rendez-vous par semaine à poser. Viabilité conditionnée à la disponibilité réelle du
-secrétariat — hypothèse de travail : elle existe.
-
-*Interface patient — écartée.* L'idée d'un écran où le patient saisirait sa date opératoire et
-choisirait son créneau a été envisagée puis abandonnée : elle ferait sortir le module du périmètre
-interne (identification patient, données de santé, responsabilité en cas d'erreur de créneau,
-patients qui ne se connectent pas). Ce serait un service institutionnel de prise de rendez-vous en
-ligne, avec la DSI — hors de portée d'un développeur unique. **Le moteur est le même** : la version
-interne ne ferme aucune porte.
-
----
-
-**~~Virage du 24/07/2026 — attribution au fil de l'eau~~ (CADUC depuis v3.19, conservé pour mémoire).**
-
-*Ce qu'on a découvert.* Le rendez-vous d'anesthésie est pris par la **secrétaire du chirurgien**,
-dès la consultation chirurgicale, sur le **premier créneau libre** compatible avec la lourdeur du
-geste (anticoagulants, etc.). Elle ne choisit **aucun MAR** — elle ne connaît pas les plannings
-d'anesthésie — et le créneau n'est **rattaché à personne**. L'appariement entre le MAR qui consulte
-et celui qui endormira est donc aujourd'hui **essentiellement aléatoire**. Conséquence : trois
-patients libéraux peuvent atterrir sur la même demi-journée avec trois dates opératoires
-différentes.
-
-*Le levier n'est pas la date, c'est l'attribution.* On ne déplace **jamais** un rendez-vous : le
-patient vient au jour et à l'heure fixés par la secrétaire du chirurgien. Ce qui change est interne
-— **lequel des MARs qui consultent cette demi-journée le voit**. Le patient n'a jamais eu de nom
-(décision : il reçoit date et heure seulement), il n'est jamais rappelé, rien n'est réorganisé pour
-lui. Aucune demande n'est faite aux secrétaires des chirurgiens : c'est ce qui permet à cette
-option de contourner le blocage.
-
-*Attribution unitaire et définitive — il n'y a rien à réorganiser.* Chaque patient est attribué
-**une fois, au moment où il est repéré**, et ne bouge plus. Traiter les nouveaux arrivants ne
-suppose pas de rejouer les précédents : c'est une **file d'attente**, pas un plan de consultation à
-refaire quotidiennement.
-
-*Le glouton est optimal (simulation, 60 000 tirages par cellule).* Les patients **ne se font pas
-concurrence** : un MAR peut en voir plusieurs sur la même demi-journée. Attribuer au fil de l'eau
-donne donc **exactement** le même résultat qu'une optimisation globale à froid — le taux est
-indépendant du nombre de patients sur la demi-journée (testé de 1 à 6).
-
-| MARs consultant en parallèle | Attribution aveugle | Attribution optimisée |
-|---|---|---|
-| 2 (cas le plus fréquent) | 33 % | **56 %** |
-| 3 | 33 % | **70 %** |
-| 4 (maximum observé) | 33 % | **80 %** |
-
-Formule : `1 − (1−p)^m`, avec `p ≈ 1/3` (probabilité qu'un MAR donné soit disponible au bloc à une
-date donnée, hôpital actuel) et `m` = nombre de consultants. ⚠️ **Correction d'une survente** : le
-chiffre de 80 % annoncé le 24/07 supposait 4 consultants partout ; la réalité étant surtout 2 ou 3,
-l'ordre de grandeur réel est **60–70 %, soit environ le double de l'existant** — pas 80 %. Sur ~40
-patients/semaine : de ~13 appariements à ~25. Sous contrainte d'horaire (deux patients au même
-créneau ne peuvent aller au même MAR), le taux ne perd que 2 à 8 points.
-
-*🟢 Le prérequis d'horizon tombe (annule la décision 21).* L'attribution se décide **quelques jours
-avant la consultation**, quand le planning de cette demi-journée est déjà posé : **une semaine
-d'horizon suffit**. La disponibilité au bloc, elle, vient de `GARDES` et `AFFECTATIONS`, connues
-**toute l'année** — savoir si le Dr X sera là le 12 mars ne dépend d'aucun horizon. Corollaire
-contre-intuitif : **les patients placés à moins d'une semaine du bloc sont les mieux renseignés**,
-pas les plus difficiles.
-
-*Source des patients — testée par Arthur le 24/07/2026.* Les secrétaires des chirurgiens utilisent
-**le même logiciel** que le service ; le **statut libéral y est visible** et les patients sont
-**flashés « Libéral »**. Il est possible de **filtrer les consultations d'une semaine sur le statut
-libéral**. Limite constatée : la **date opératoire n'apparaît pas dans la vue liste**, il faut
-ouvrir chaque patient. Coût estimé : ~20–30 s par patient, soit **15–20 min/semaine** pour ~40
-patients. Aucune notification n'existe (« nouveau patient libéral le 12/03 ») : le repérage est
-**tiré**, pas poussé. → **Optimisation à demander à la DSI** : faire remonter la date opératoire
-dans la vue liste ou dans un export. La donnée existe déjà dans le dossier ; c'est du paramétrage
-d'affichage, pas du développement. Gain : les ~40 ouvertures de dossier tombent à zéro.
-
-*Rythme.* **Deux passages hebdomadaires** (un le lundi pour la semaine suivante, un en milieu de
-semaine pour les ajouts) plutôt qu'un balayage quotidien — l'attribution étant définitive et
-unitaire, rien n'oblige à la quotidienneté.
-
-*🟢 Principe « jamais pire que l'existant ».* Un patient qui passe entre deux balayages retombe sur
-l'attribution aléatoire d'aujourd'hui. **L'outil ne peut jamais dégrader la situation**, seulement
-améliorer ce qu'il attrape. → **Aucune exigence d'exhaustivité**, aucune surveillance quotidienne,
-aucune pression opérationnelle. C'est ce qui rend le dispositif tenable dans la durée.
-
-*Qui fait le travail.* Arthur au démarrage. Cible envisagée : **répartition par secteur** — un des
-MARs affectés aux endoscopies traite les endoscopies, etc. À confirmer à l'usage.
-
----
-
-**Audit GAS — prérequis techniques (24/07/2026).** Lecture réelle des cinq fichiers `gas/`.
-
-*Source de données.* `planning_{Y}.json` contient déjà, **pour chaque MAR et chaque jour**, quatre
-champs : `status` (code GARDES), `morning`, `afternoon` (secteur) et `cs` (consultation). Tout ce
-dont la couche 1 a besoin y est **déjà calculé**. Il est servi par l'action **`getPlanningJson`**,
-protégée par un code mais **sans exigence de rôle admin** → consommable par un code secrétariat sans
-toucher à la logique d'autorisation. Aucune nouvelle donnée à produire.
-
-*⚠️ Piège des deux listes d'absence — ne pas réutiliser `getMARsDispoJour`.* La fonction
-`getMARsDispoJour` (Indispos.gs) fait déjà ~80 % du calcul rang A / rang B, mais **deux listes
-d'absence divergentes coexistent dans le code** :
-
-| Emplacement | Codes considérés absents |
-|---|---|
-| `code.gs:245` — `ABSENT_CODES` | `RG V F CTP CP R A TP CL` (9) |
-| `Indispos.gs:2773` — `ABSENT_CODES_SET` | `RG V CP F CTP A CL` (7) — **sans `R` ni `TP`** |
-
-`getMARsDispoJour` conserve **volontairement** les `TP` (jour fixe non travaillé) et les `R`, en les
-étiquetant : le comité peut vouloir les rappeler pour combler un trou. Pour le Lot 5, c'est
-exactement l'échec silencieux redouté — l'écran proposerait un MAR **son jour de non-travail**.
-**Le Lot 5 lit `planning_{Y}.json`, il ne réutilise pas `getMARsDispoJour`.**
-
-*Gardes.* `G` et `G2` ne figurent dans aucune des deux listes : un MAR de garde le jour de
-l'intervention est compté **présent**. Confirmé par Arthur — il peut endormir un patient libéral
-dans la journée, la garde commence le soir.
-
-*🔴 Prérequis d'organisation — bloquant.* `GENERER_CONSULTATIONS = false` : les consultations ne sont
-pas générées, le comité les place **à la main** via les overrides. Le champ `cs` n'est donc rempli
-que sur l'horizon déjà traité, **une semaine** aujourd'hui. Or l'écran doit proposer des dates de
-consultation à 3–4 semaines. Les deux besoins n'ont pas le même horizon : la **disponibilité au jour
-de l'intervention** est connue toute l'année (gardes et affectations annuelles), les **jours de
-consultation** ne le sont qu'à sept jours. **Passer l'horizon de placement des consultations de 1 à
-3–4 semaines est un prérequis dur du Lot 5**, à obtenir du comité avant tout développement.
-*Statut : acquis (Arthur, 24/07/2026 — « rien ne l'empêche, ça sera fait »), à confirmer en
-pratique.*
-
-*Pas de repli fiable.* `CS_TEMPLATE` ne donne que le **nombre** de créneaux par jour de semaine et
-par type (`required[dow][am|pm][code] = n`), jamais **qui** les tient — or c'est le nom qui fait
-tout l'intérêt. La logique d'attribution automatique (`CS_RULES`, qui déduit le consultant de son
-secteur du mois) existe mais est désactivée **et** fait partie des règles gelées jusqu'au plan du
-NCHPG : à ne pas mobiliser pour ça.
-
-*Accès secrétariat.* Entrée **`SECRETARIAT_CODE`** dans `CONFIG` ; `checkCode` renvoie
-`{role:'secretariat'}`. Nouveau code **et** nouveau rôle : un code doit porter un rôle, sinon il est
-indistinguable d'un MAR. **Liste blanche obligatoire dans le même geste** : aujourd'hui tout ce qui
-n'est pas explicitement réservé à l'admin est accessible dès qu'un code est valide — un code
-secrétariat atteindrait donc des actions d'écriture, `declareLiberal` en particulier (déléguée à
-`portail.gs` sans contrôle de rôle). Le rôle `secretariat` n'a droit qu'aux **lectures nécessaires**,
-tout le reste est refusé.
-
-*Déjà en place.* `declareLiberal`, `deleteLiberal`, `listLiberal`, `listLiberalJour` existent dans
-`portail.gs`, avec l'onglet `LIBERAL_{Y}`. La déclaration d'intervention est **construite**, pas
-seulement conçue → source de données déjà disponible pour le futur compteur.
-
----
-
-## 12. Ordre de construction (lots — chacun utilisable seul)
-
-Chemin critique : **0 → 1 → 2 → 4**, **Lot 3 parallélisable après le Lot 1**. Rien avant le
-go-live octobre 2026.
-
-- **Lot 0 — Secteurs étape 2.** `SECTEURS_CFG` → onglet `SECTEURS` + `RENDEMENT_LIB`. Débloque le
-  libéral ET le déménagement 2027. Seul lot à faire tôt.
-- **Lot 1 — Fondations données + portail.** Colonne `LIBERAL (O/N)` ; onglets `LIBERAL_{Y}` et
-  `LIBERAL_CA_{Y}` auto-créés ; actions API dans `WRITE_ACTIONS` (payload `declareLiberal` FERMÉ :
-  date_bloc, secteur, chirurgie? — le MAR_ID vient de la session) ; **intégration de l'estimateur au
-  portail** (identité MAR à la connexion, tuile Dashboard conditionnée `LIBERAL O/N`) ; visibilité
-  groupement.
-- **Lot 2 — Convergence + mesure (cœur métier), élargi en v3.22.** Trois étapes, dans cet ordre :
-  - **2A — Déclaration enrichie (À FAIRE EN PREMIER).** Spécialité + BR + granularité patient (§6.2)
-    ; onglet `SPECIALITES`. **Motif de priorité : le relevé est rattrapable rétroactivement** (les
-    PDF de janvier→août existent, on les saisira quand on voudra) ; **une intervention non déclarée
-    est perdue définitivement.** Chaque semaine de retard = de la mesure jamais récupérable.
-  - **2B — Saisie du relevé + marges.** `LIBERAL_CA_{Y}` (6 nombres/mois + total de contrôle),
-    checksum et monotonie (§7.2), vue deux axes marge/excédent, membre + comité. Rattrape
-    l'historique 2026 d'un coup. C'est ce qui **redresse 2026**.
-  - **2C — Recoupement.** Taux de couverture puis rendement par spécialité (§12 ter). Quasi gratuit
-    une fois 2A et 2B en service — les deux sources sont alors dans le système.
-  - Ne dépend pas du Lot 0.
-- **Lot 3 — Placement bloc.** Bouton « 📅 Déclarer » dans la page libéral → `LIBERAL_{Y}` ; volet
-  « ◆ Libéral » + toast dans admin (greffe `openSidePanel`, cf. §6.4). Dépend du Lot 1 seul.
-- **Lot 4 — Réallocation + équité.** Reco par axe (nécessite `RENDEMENT_LIB` → Lot 0) ; compteur
-  d'équité. Dépend Lot 0 + Lot 2.
-- **Lot 5 — Interface secrétaire** (cf. §11 ter). Écran d'orientation à code partagé, **lecture
-  seule**. Ne consomme que le planning (affectations sectorielles annuelles + indisponibilités) :
-  **indépendant des Lots 0 et 2**, parallélisable immédiatement. Prérequis à vérifier avant de
-  coder : la façon dont les indisponibilités sont exposées par la route GAS existante.
-
----
-
-## 12 bis. Rendement libéral : la maille est la SPÉCIALITÉ (décidé le 26/07/2026)
-
-### Pourquoi ce n'est pas le secteur
-
-Le §8.2 et le Lot 0 parlent de `RENDEMENT_LIB` comme d'une **colonne de l'onglet `SECTEURS`**.
-C'est vrai dans l'hôpital **actuel**, où un secteur correspond en pratique à une spécialité
-(bloc ORL, bloc ortho…). **Ça devient faux au déménagement de janvier 2027** : il n'y aura plus de
-bloc ORL isolé, l'ORL sera intégrée dans un **« Bloc Court »** mutualisé avec d'autres spécialités.
-
-Un rendement attaché au secteur serait donc **périmé le jour du déménagement**, et il faudrait tout
-réestimer — sur des secteurs dont personne ne connaît encore le contenu exact.
-
-### Le modèle retenu
-
-1. **Le rendement libéral est un attribut de SPÉCIALITÉ** (ORL, endoscopie, viscéral, ortho…).
-   C'est lui qu'on mesure, et il **survit au déménagement** : une cataracte rapporte autant dans un
-   bloc dédié que dans un bloc mutualisé.
-2. **Un secteur est une COMPOSITION de spécialités.** Son rendement s'en déduit — moyenne pondérée
-   de ce qu'on y met. Au déménagement, on ne réestime rien : on **décrit la nouvelle composition**.
-3. ⚠️ **Conséquence directe sur le Lot 2 : la production doit être rattachée à la SPÉCIALITÉ dès la
-   saisie.** Un simple montant mensuel global serait inexploitable après janvier 2027 — il faudrait
-   le croiser après coup avec le programme opératoire, ce qui n'est pas faisable.
-   ❌ **Correction v3.22.** Une version antérieure affirmait ici que « le relevé administratif permet
-   ce rattachement » : **c'est faux**, et le §12 ter le dit à juste titre — le relevé ne mentionne
-   **aucun secteur ni aucune spécialité**, il donne des euros par MAR et par mois. Le rattachement ne
-   peut donc **pas** venir du relevé. Il vient de la **déclaration du MAR**, qui porte depuis la
-   v3.22 la spécialité **et** le montant (§6.2). Ne jamais coder de colonne « spécialité » dans
-   `LIBERAL_CA_{Y}` : elle n'existe pas dans la source.
-
-### Conséquence : le rendement se MESURE, il ne s'estime plus
-
-Le Lot 2 devient **ce qui produit `RENDEMENT_LIB`**, au lieu de le consommer. Une fois qu'il tourne,
-la production par spécialité est connue chaque mois — le rendement est **mesuré, pas deviné**.
-
-Cela renverse l'ordre annoncé au §12 : ce n'est plus « Lot 2 puis Lot 4 », mais **Lot 2 d'abord,
-Lot 4 quand la mesure existe**.
-
-### Conséquence sur le calendrier
+**Six nombres recopiés par MAR et par mois.** Les excédents sont **recopiés, jamais dérivés** :
+recalculer `T × (% − 30)` depuis un % arrondi à 2 décimales fausse le total de plusieurs dizaines
+d'euros, et le checksum ne tombe plus. Le module ne dérive que le **flux du mois**.
+
+**Saisie groupée mensuelle depuis le PDF** (l'administration ne diffuse aucun fichier exploitable),
+par un référent. Deux garde-fous offerts gratuitement par le document :
+
+1. **Checksum de bout en bout** — la ligne « ACTIVITÉ LIBÉRALE » du bas du PDF est le total de tous
+   les excédents. Le référent la saisit ; le module somme les excédents recopiés et **valide en vert
+   si ça tombe pile à 0,00 près, rouge sinon**. Vérifié au centime sur le relevé réel jan→juin 2026.
+   **Un checksum rouge bloque l'enregistrement** : un relevé faux est pire que pas de relevé.
+2. **Monotonie du cumul** — chaque total ne peut que croître d'un mois sur l'autre ; une régression
+   déclenche une alerte. Le `%`, lui, n'est pas monotone : aucun contrôle dessus.
+
+**Ce que 2B affiche — la mesure, pas la prévision.** Pour chaque MAR et chaque axe : l'état (`T`,
+`%`) et la **marge encore permise** avant 30 %, ou l'**excédent** si le plafond est franchi. Vue
+groupe = Σ marges (capacité inexploitée) vs Σ excédents (reversé si rien ne change), par axe. Le flux
+du mois s'affiche comme **tendance**, jamais comme prévision : sur une activité saisonnière (congés,
+gardes, blocs fermés), extrapoler « au rythme » produit un chiffre faux qui induit en erreur.
+
+**Rattrapage.** Les relevés de janvier→août 2026 existent en PDF et se saisissent d'un coup.
+
+### 6.3 2C — Recoupement : le rendement par spécialité
+
+⚠️ **Le relevé ne mentionne ni secteur ni spécialité** : il donne des euros par MAR et par mois. Le
+rattachement ne peut donc venir **que de la déclaration**. Ne jamais coder de colonne « spécialité »
+dans `LIBERAL_CA_{Y}` : elle n'existe pas dans la source.
+
+**Le montage — le certifié fixe le niveau, le déclaré fixe la structure :**
+
+1. le **relevé** donne l'euro **certifié** du couple MAR-mois, par axe : c'est le niveau, il ne se
+   discute pas ;
+2. les **déclarations** du même MAR-mois donnent la **structure** : quelle part de BR relève de
+   quelle spécialité ;
+3. on **ventile le certifié au prorata** des BR déclarées. Rendement d'une spécialité =
+   Σ(euros ventilés) ÷ Σ(interventions), **par axe**.
+
+⚠️ **Ne jamais sommer les BR déclarées** pour obtenir un rendement : la BR estimée diverge du
+facturé (code réel ≠ code prévu, actes annulés ou rejetés, mois d'encaissement décalé). Le résultat
+serait **plausible et faux**, sans que rien ne le signale. La ventilation, elle, absorbe l'écart.
+
+⚠️ **Toujours afficher le `n`** à côté d'un rendement (« ORL : 412 € · n=87 » / « VAS : 890 € ·
+n=4 »). Sans le `n`, un rendement calculé sur quatre interventions servira à décider d'une
+affectation.
+
+*Repli, si les montants s'avéraient mal déclarés :* le rendement peut se **déduire** sans montant,
+par moindres carrés sur ~100 équations MAR-mois (une par couple) pour 5 à 7 inconnues — résoluble
+uniquement parce que les MARs ont des mélanges de spécialités différents. Méthode détaillée dans
+l'historique git (v3.21). Elle n'est plus nécessaire dès lors que la BR est déclarée.
+
+**Le garde-fou — taux de couverture.** Le relevé est exhaustif, les déclarations sont volontaires. Si
+un MAR ne déclare que la moitié de ses interventions, le rendement est faux du double et rien ne le
+dit. D'où, par MAR et par mois : `Σ BR déclarées ÷ euros du relevé`. **On n'attend pas l'égalité** —
+le décalage de facturation et les oublis sont normaux. **Le critère est que l'écart soit FAIBLE et
+STABLE** : ~5 % constant = sain ; un écart qui saute de 5 à 40 % = tout rendement calculé est à
+jeter. À afficher au comité (« couverture : 94 % ») : il valide les rendements et incite à déclarer.
+
+### 6.4 Ordre et calendrier
+
+**2A avant 2B**, parce que le relevé est **rattrapable rétroactivement** (les PDF attendent) alors
+qu'une intervention non déclarée est **perdue définitivement**.
+
+⚠️ **Mais sans urgence tant qu'Arthur est le seul `LIBERAL = O`** dans `MEDECINS` : rien ne se perd
+aujourd'hui. Le chronomètre démarre le jour de l'ouverture aux autres membres — et le 2A doit être
+**rodé avant** cette ouverture, pour ne pas changer le formulaire sous leurs yeux.
 
 | Quand | Quoi |
 |---|---|
-| Sept.–oct. 2026 | **Lot 2** — conception puis code |
-| Oct.–déc. 2026 | Il tourne ; marges visibles ; **l'excédent 2026 reste corrigible** (cf. §8.1) |
-| **Janvier 2027** | **Déménagement.** Le Lot 2 continue sans rien changer : il ignore les secteurs |
-| 2027 | Rendements par spécialité mesurés ; description de la composition des nouveaux secteurs |
-| Mi-2027 | **Lot 4**, sur des chiffres réels et non estimés |
-
-⚠️ **Le Lot 4 n'est pas envisageable avant mi-2027.** Le tenter plus tôt reviendrait à recommander
-des déplacements d'affectation fondés sur des rendements inventés.
-
-### ✅ TRANCHÉ le 26/07 : le solde est ANNUEL — et l'urgence change
-
-**Tout repart à zéro au 1er janvier**, donc le solde se fait au **31 décembre**. L'année 2026
-**n'est pas jouée** : il reste six mois pour agir, et l'action est **symétrique** —
-
-- **freiner** ceux qui vont dépasser (l'excédent part à l'hôpital) ;
-- **remplir** ceux qui sont **sous** leur plafond. Les ~45 000 € de marge du groupe ne sont pas une
-  réserve théorique : **c'est de l'argent définitivement perdu au 31 décembre s'il n'est pas
-  utilisé.** C'est le levier qu'on oublie, alors qu'il porte plus que le premier.
-
-⚠️ **Conséquence : le Lot 2 n'est pas « utile », il est URGENT.** Chaque mois sans visibilité, c'est
-un mois de moins pour corriger, des deux côtés. Livré en **septembre**, il laisse un trimestre pour
-agir sur 2026. Livré en janvier, il arrive après la bataille.
-
-**Et le même travail sert deux fois** sur ce dernier trimestre : il permet de **redresser 2026**
-*et* de **calibrer les rendements par spécialité** pour l'après-déménagement — puisque les
-spécialités, elles, ne changent pas. Au 1<sup>er</sup> janvier on arrive donc avec les rendements
-**déjà mesurés** et un compteur qui démarre propre, au lieu d'attendre mi-2027 pour savoir ce que
-rapporte l'ORL.
-
-📌 **Cible de livraison : fin septembre 2026.**
+| Juillet–août 2026 | 2A, testé seul en conditions réelles |
+| Rentrée 2026 | Ouverture aux membres · 2B et rattrapage des relevés |
+| Oct.–déc. 2026 | Marges visibles — **l'excédent 2026 est encore corrigible** (solde annuel) |
+| Janvier 2027 | **Déménagement.** Le Lot 2 continue sans rien changer : il ignore les secteurs |
+| 2027 | Rendements par spécialité mesurés ; composition des nouveaux secteurs décrite |
+| Mi-2027 | **Lot 4**, sur des chiffres réels |
 
 ---
 
-## 12 ter. Comment on obtiendra `RENDEMENT_LIB` (arrêté le 26/07/2026)
+## 7. 🔨 À CONSTRUIRE — Lot 4 : réallocation et équité (mi-2027)
 
-### Le problème posé par le §12 bis
+**Pas envisageable avant mi-2027** : le tenter plus tôt reviendrait à recommander des déplacements
+d'affectation fondés sur des rendements inventés.
 
-Le rendement doit être **par spécialité**. Or ⚠️ **le relevé administratif ne mentionne aucun
-secteur** : il donne des euros **par MAR et par mois**, jamais ventilés. On ne peut donc **pas**
-sommer les euros d'une spécialité — ils sont noyés dans les totaux individuels de MARs qui ont
-travaillé sur plusieurs secteurs dans le mois.
+**Le rendement est un attribut de SPÉCIALITÉ, pas de secteur.** Au déménagement, il n'y aura plus de
+bloc ORL isolé — l'ORL entrera dans un « Bloc Court » mutualisé. Un rendement attaché au secteur
+serait périmé le jour du déménagement. Attaché à la spécialité, il est permanent : **une cataracte
+rapporte autant quelle que soit la salle.** Un secteur devient alors une **composition de
+spécialités**, et son rendement s'en déduit — au déménagement on ne réestime rien, on **décrit la
+nouvelle composition**.
 
-✅ **Bonne nouvelle pour le Lot 2 : son schéma (§7.1) reste valable tel quel.** La saisie demeure
-**17 lignes × 6 nombres**, pas 80 lignes. Aucune colonne « spécialité » à ajouter, la maquette de
-saisie n'est pas périmée. **Le rendement est un CALCUL par-dessus, jamais une saisie de plus.**
+**Leviers, par axe :**
 
-### La source manquante : la déclaration d'intervention (Lot 3, déjà en production)
-
-`declareLiberal` porte **le secteur**, donc la spécialité. On dispose donc de deux sources
-complémentaires :
-
-| Source | Donne | Granularité |
+| Situation | Levier CCAM | Levier NGAP |
 |---|---|---|
-| **Relevé administratif** | des **euros** | par MAR et par mois, **exhaustif** (c'est la facturation) |
-| **Déclarations MAR** | des **interventions** | par MAR, par mois **et par spécialité**, **volontaire** |
+| **Au-dessus** de 30 % | secteur `NUL` (gèle le libéral) · **réa** (monte le public) · réallouer les vacations libérales | moins de consultations libérales · **plus de consultations publiques** |
+| **Sous-employé** (< 30 %) | plus de vacations bloc libérales | plus de consultations libérales |
 
-### Le calcul — v3.22 : ventilation au prorata, plus de moindres carrés
-
-**La déclaration porte maintenant le montant (BR) et la spécialité** (§6.2). Le rendement ne se
-**déduit** donc plus d'un système d'équations : il se **lit**. La méthode par moindres carrés
-décrite jusqu'en v3.21 (≈100 équations pour 5–7 inconnues, résolubles grâce à l'hétérogénéité des
-affectations) **devient inutile** — elle n'était qu'un contournement de l'absence de montant
-déclaré. Conservée pour mémoire au cas où la déclaration des montants s'avérerait trop peu suivie.
-
-⚠️ **Ne pas sommer les BR déclarées.** La BR estimée diverge du facturé : le code réel diffère du
-prévu (associations, modificateurs), des actes sont annulés, reportés ou rejetés, et le mois
-d'encaissement décale. Sommer les déclarations donnerait un rendement **plausible et faux**, sans
-que rien ne le signale.
-
-**Le montage retenu — le certifié fixe le niveau, le déclaré fixe la structure :**
-
-1. Le **relevé** donne l'euro **certifié** du couple MAR-mois, par axe. C'est le niveau, il ne se
-   discute pas.
-2. Les **déclarations** du même MAR-mois donnent la **structure** : quelle part de BR relève de
-   quelle spécialité.
-3. On **ventile le certifié au prorata** des BR déclarées. Le rendement d'une spécialité =
-   Σ(euros ventilés) ÷ Σ(interventions), par axe.
-
-Le résultat colle **toujours** à l'argent réel : l'écart entre BR estimée et euros encaissés est
-absorbé par le prorata, pas propagé dans le rendement.
-
-**Deux axes, deux rendements**, comme prévu : un rendement **CCAM** (acte) et un rendement **NGAP**
-(consultation) par spécialité — l'ORL n'a pas le même profil sur les deux (beaucoup d'actes courts,
-une consultation chacun). La BR CCAM se ventile sur le mois du **bloc**, la BR NGAP sur le mois de
-la **consultation**.
-
-⚠️ **Toujours afficher `n` à côté du rendement** (« ORL : 412 € · n=87 » / « VAS : 890 € · n=4 »).
-Certaines spécialités sont de très petit volume — `VAS`, `PED` — et un rendement calculé sur quatre
-interventions ne doit jamais servir à décider d'une affectation. Sans le `n` affiché, il le
-servira.
-
-⚠️ **DEUX systèmes à résoudre, pas un** : le relevé est **bi-axial**. Il y a un rendement **CCAM**
-(acte technique) et un rendement **NGAP** (consultation) par spécialité — l'ORL n'a pas le même
-profil sur les deux axes (beaucoup d'actes courts, une consultation chacun).
-
-### Le garde-fou : taux de couverture des déclarations
-
-Le relevé est **exhaustif**, les déclarations sont **volontaires**. Si un MAR ne déclare que la
-moitié de ses interventions, le rendement calculé est faux du double — **et rien ne le signale**.
-
-**D'où le contrôle, mois par mois et MAR par MAR** (v3.22 : il devient un simple rapport de deux
-euros, puisque la déclaration porte le montant) :
-
-`taux de couverture = Σ BR déclarées ÷ euros du relevé`, par MAR, par mois, par axe.
-
-**Il ne s'agit PAS d'attendre une égalité exacte** — l'écart est normal :
-
-- **décalage de facturation** (un acte de fin juin facturé en juillet ; la déclaration est datée de
-  l'acte, le relevé de l'encaissement) ;
-- **oublis de déclaration**, sans malveillance ;
-- ❓ *à vérifier :* existe-t-il des actes **facturés sans déclaration possible** ?
-
-**Le critère est que l'écart soit FAIBLE et STABLE.** ~5 % constant = sain, les rendements sont
-exploitables. Un écart qui saute de 5 à 40 % = problème de saisie, et **tout rendement calculé
-serait à jeter**.
-
-À afficher au comité (« taux de couverture : 94 % ») : il **valide** les rendements et **incite** à
-déclarer.
-
-### Séquence retenue (révisée v3.22 — l'ordre est inversé)
-
-1. **2A — Déclaration enrichie.** *En premier, et sans attendre.* La déclaration n'est **pas
-   rattrapable** : ce qui n'est pas déclaré ce mois-ci ne le sera jamais. Le relevé, lui, attend
-   sagement dans un PDF.
-2. **2B — Saisie du relevé + marges.** Rattrape janvier→août 2026 d'un coup. C'est ce qui rend
-   l'excédent 2026 corrigible sur le dernier trimestre.
-3. **2C — Taux de couverture**, puis **rendement par spécialité** — **uniquement si** le taux de
-   couverture est bon et stable. Il faut plusieurs mois des **deux** sources. Alimente le Lot 4.
-
-📌 **Ne rien retarder pour le calcul de rendement** : il n'a de sens qu'avec plusieurs mois de
-données, et ce sont 2A et 2B qui les produisent.
+**Équité = le désagrément, pas l'argent.** L'argent étant mutualisé, l'équité porte sur les
+affectations contraintes (frigo, réa) : comptées par membre, **tournantes**, même logique que
+l'équité VD des gardes.
 
 ---
 
-## 13. Décisions actées
+## 7 bis. ❄️ Lot 5 — interface secrétaire : GELÉ
 
-1. **Seuil 30 % appliqué séparément sur DEUX axes** (CCAM technique + NGAP consultations),
-   confirmé par le CR réel — pas de seuil global.
-2. **Le module suit T, % et excédent (recopié) des deux axes**, jamais un % consolidé.
-3. **Objectif = optimiser le pot commun** (`Σ min(libéral, 30%×T)` par axe) via réallocation ;
-   la convergence individuelle vers 30 % par axe est le proxy V1.
-4. **Leviers spécifiques à l'axe** ; la réa ne corrige que le CCAM.
-5. **Relevé mensuel cumulé** → dériver le flux ; corriger tôt >> corriger tard.
-6. **Affichage seul** côté comité (pas de pré-placement).
+**L'idée.** Un écran, à code partagé et en lecture seule, aidant le secrétariat d'anesthésie à
+placer les consultations libérales de façon que le patient soit vu par un MAR **présent le jour de
+son intervention** — et, en couche 2, à orienter en priorité vers celui qui est **le plus loin de
+son plafond**. Conçu en détail les 23 et 24/07/2026 (31 décisions, une maquette), **jamais codé**.
+
+**Pourquoi c'est gelé.** (1) La couche 2 suppose le compteur, qui n'existe pas encore. (2) Le
+dépassement du groupe s'efface **arithmétiquement** avec les deux entrants (oct. 2026 et janv. 2027),
+qui apportent du plafond libre. (3) Au-dessus de 30 %, un acte parti en public **n'est pas une
+perte** : il gonfle le dénominateur et libère du plafond. Le Lot 5 optimiserait un problème en voie
+de disparition.
+
+**Condition de réactivation :** que le Lot 2, sur données réelles, montre un dépassement
+**persistant** malgré les deux entrants.
+
+**Le seul chiffre à retenir de sa conception** — audit manuel de la semaine 25 (juin 2026, 89
+patients libéraux) : **75 % des patients sont déjà vus par un MAR du bon secteur**, contre le
+tiers estimé au départ. Le résidu est de ~20 déplacements par semaine, dont 6 structurellement
+irréductibles (cardio interventionnelle, vivier d'un seul MAR). **Toute estimation de gain fondée
+sur `p ≈ 1/3` est fausse.**
+
+**Ce qui en a été tiré et qui tourne** : le **Lot 5-bis** (contrôle d'absence côté secrétariat
+d'anesthésie), en production depuis le 25/07/2026 — voir la ROADMAP.
+
+⚠️ La maquette `maquette_ecran_secretaire.html` est **périmée** (elle implémente une entrée
+abandonnée en cours de conception). La conception complète — §11 ter, décisions 15 à 31 — vit dans
+l'historique git, **dernier état complet au commit `89cf72b7`** (26/07/2026).
+
+---
+
+## 8. Données — onglets
+
+| Onglet | État | Contenu |
+|---|---|---|
+| `MEDECINS` · colonne `LIBERAL (O/N)` | ✅ | appartenance au groupement, maintenue à la main |
+| `SECTEURS` | ✅ | secteurs + `RENDEMENT_LIB` (présent, non consommé) |
+| `LIBERAL_{Y}` | ✅ 6 colonnes | déclarations d'intervention → **9 colonnes au 2A** |
+| `SPECIALITES` | 🔨 2A | 12 codes (`CODE · LABEL · ACTIF`) |
+| `LIBERAL_CA_{Y}` | 🔨 2B | relevés cumulés, 6 nombres recopiés par MAR et par mois |
+| `CONFIG` · `LIBERAL_CIBLE` | 🔨 2B | cible en % par axe (défaut 30). ⚠️ **N'existe pas encore** dans le code |
+
+---
+
+## 9. Décisions actées
+
+*Numérotation d'origine conservée. **Les décisions 15 à 31 concernent le Lot 5** et vivent
+désormais dans `module_liberal_lot5.md`.*
+
+1. **Seuil de 30 % appliqué séparément sur DEUX axes** (CCAM technique, NGAP consultations) —
+   confirmé par le relevé réel. Pas de seuil global.
+2. **Le module suit `T`, `%` et l'excédent recopié des deux axes**, jamais un % consolidé.
+3. **Objectif = optimiser le pot commun** (`Σ min(libéral, 30 % × T)` par axe) ; la convergence
+   individuelle vers 30 % est le proxy de la V1.
+4. **Leviers spécifiques à l'axe** : la réa ne corrige que le CCAM.
+5. **Relevé mensuel cumulé** → dériver le flux ; corriger tôt ≫ corriger tard.
+6. **Affichage seul côté comité** : aucun pré-placement.
 7. **`RENDEMENT_LIB` à 4 valeurs** (FORT / MOYEN / NUL / REA).
-8. **Payload de déclaration borné, sans code CCAM** — ⚠️ **amendée en v3.22** (version d'origine :
-   « FERMÉ », 5 champs, granularité journée). Le payload s'ouvre à `SPECIALITE`, `BR_CCAM` et
-   `BR_NGAP` : sans montant ni spécialité, aucune mesure de rendement n'est possible. Restent
-   inchangés : **jamais de donnée patient**, **jamais de code CCAM**, **jamais de DH**, jamais de
-   grille tarifaire devinée. Schéma en vigueur au §6.2.
-9. **Équité = le désagrément** (frigo/réa), pas l'argent (mutualisé).
-10. **V1 = compteur de marge sur données réelles** (pas d'extrapolation ; `marge = (3/7)·P − L`) ; la **projection** à fin décembre, fondée sur l'**activité planifiée**, est repoussée à la V2.
-11. **Saisie groupée mensuelle depuis PDF** (référent), sécurisée par checksum sur le total du
-    document + contrôle de monotonie du cumul.
-12. **La page du module libéral est le point d'entrée unique** côté MAR : devis (à l'écran, sans
-    écriture) ET déclaration d'intervention (écriture au payload fermé). indispos.html n'a plus de
-    rôle libéral. Accès par **tuile Dashboard visible seulement si `LIBERAL (O/N) = O`**.
-13. **Ergonomie admin actée sur maquette** : grille intacte, volet « ◆ Libéral » à gauche ouvert
-    avec le panneau d'affectation (liste par MAR, vert/orange), toast si aucune intervention.
-    Stratégie : développer le module jusqu'à ce que le branchement au planning se fasse
-    naturellement — la greffe finale reste chirurgicale.
-14. **Non-persistance des champs patient du devis = contrainte NON NÉGOCIABLE** (cf. §3.bis) :
-    aucun stockage navigateur / réseau / URL, pas d'autosave, effacement à la fermeture. **Preuve
-    obligatoire** (test anti-persistance jsdom + scan statique + preuve réseau) exécutée à chaque
-    déploiement du code de production et archivable pour audit (CCIN / loi 1.565). La conformité
-    juridique relève de l'établissement/DPO, jamais d'une garantie de l'assistant.
+8. **Payload de déclaration borné, sans code CCAM** — *amendée le 26/07/2026* : il porte désormais
+   `SPECIALITE`, `BR_CCAM`, `BR_NGAP`. Restent exclus : **toute donnée patient**, **tout code CCAM**,
+   **tout DH**, toute grille tarifaire devinée.
+9. **Équité = le désagrément** (frigo, réa), pas l'argent (mutualisé).
+10. **V1 mesure, elle ne projette pas.** Pas d'extrapolation « au rythme ». La projection à fin
+    décembre, fondée sur l'activité **déjà planifiée**, est repoussée à la V2.
+11. **Saisie groupée mensuelle depuis le PDF**, sécurisée par checksum + monotonie du cumul.
+12. **La page du module libéral est le point d'entrée unique** côté MAR : cotation, devis et
+    déclaration. `indispos.html` n'a aucun rôle libéral. Accès par tuile Dashboard si `LIBERAL = O`.
+13. **Ergonomie admin actée** : grille intacte, volet « ◆ Libéral » à gauche, toast si rien.
+14. **Aucun champ patient dans le module** — *reformulée le 26/07/2026*. La version d'origine
+    prévoyait un champ nom effacé à la fermeture, avec preuve de non-persistance. Le code livré va
+    plus loin : **le champ n'existe pas**, le patient écrit son nom à la main sur le devis imprimé.
+    Rien à protéger, donc rien qui puisse fuir.
 
-15. **Interface secrétaire = aide à la décision, jamais un logiciel de rendez-vous** ; **lecture
-    seule** (la déclaration reste au MAR, §11 ter) ; sortie = **liste de dates** de consultation
-    avec le nom du MAR ; **deux rangs** (A = affecté au secteur, B = présent à l'hôpital, valable
-    pour tous les secteurs) ; **code d'accès unique** pour le secrétariat ; **aucun motif
-    d'indisponibilité ni aucun montant affiché**.
+**15 à 31 — Lot 5, gelé.** Supprimées de ce document (§7 bis) ; texte intégral dans l'historique
+git, commit `89cf72b7`.
 
-16. **Lot 5 couche 2 — critère de priorité** : **marge en euros** sur **`min(marge_CCAM,
-    marge_NGAP)`** ; le **rang A/B ne trie pas** (mention seule) et ne sert qu'à la partition en
-    blocs ; sortie en **forme A** (bloc « à proposer en priorité » puis bloc « autres dates »,
-    chacun chronologique) ; **la secrétaire impose les dates, le patient s'adapte** ; **atteinte à
-    la confidentialité de la position financière assumée** (l'ordre la trahit — arbitrage accepté).
-
-17. **Lot 5 — partition en blocs.** Bloc 1 = les **rangs A à marge positive** ; si aucun n'existe,
-    bloc 1 = les **rangs B à marge positive** ; bloc 2 = tout le reste, marges négatives comprises.
-    Justification : tant qu'un MAR du secteur a de la marge, l'orienter vers lui ne perd aucun
-    argent — il n'y a rien à arbitrer ; on ne fait traverser l'hôpital que lorsque le secteur est
-    saturé. Les deux règles d'Arthur ne s'appliquent donc jamais simultanément.
-
-18. **Lot 5 — plancher de marge résiduelle** : **≥ 3 patients de marge → bloc 1 ; ≤ 2 → bloc 2**,
-    même pour un MAR du bon secteur. Conversion euros → patients par **moyenne globale du groupe**
-    en V1 (pas par secteur : dépendrait du Lot 0, gelé). Valeur de départ, à réviser après mesure de
-    la fenêtre aveugle en service.
-19. **Lot 5 — bloc 2 replié par défaut** derrière un lien « voir d'autres dates ». Pas un verrou ;
-    fait du bloc 1 le réflexe. Aucun MAR n'est jamais masqué ; si le bloc 1 est vide, le bloc 2 est
-    la réponse.
-
-20. **Lot 5 — source de données** : `planning_{Y}.json` via `getPlanningJson` (déjà code-gated,
-    non-admin). **Interdiction de réutiliser `getMARsDispoJour`** : sa liste d'absence conserve
-    volontairement `TP` et `R`, ce qui ferait proposer un MAR son jour de non-travail.
-21. **Lot 5 — prérequis d'organisation : horizon de placement des consultations porté de 1 à
-    3–4 semaines.** ~~Annulée en v3.18~~ → **RÉACTIVÉE en v3.19** : dans le scénario retenu, le
-    secrétariat d'anesthésie propose lui-même les créneaux, il faut donc qu'ils soient posés à
-    l'horizon où il les propose. Sans repli (`CS_TEMPLATE` ne nomme personne, `CS_RULES` est gelé).
-22. **Lot 5 — accès** : `SECRETARIAT_CODE` dans `CONFIG` → rôle `secretariat`, avec **liste blanche
-    d'actions en lecture seule** posée dans le même geste (sans quoi le code atteindrait
-    `declareLiberal` et les autres écritures déléguées à `portail.gs`).
-
-23. **Lot 5 — nature de l'outil** : **attribution au fil de l'eau**, pas proposition de dates. La
-    date du rendez-vous ne bouge **jamais** ; seul change, en interne, **quel MAR voit le patient**.
-    Invisible pour le patient (il ne reçoit que date et heure). **Rien n'est demandé aux secrétaires
-    des chirurgiens.** Attribution **unitaire et définitive** : un patient attribué ne bouge plus,
-    aucun plan à rejouer. Le **glouton est optimal** (les patients ne se font pas concurrence).
-24. **Lot 5 — source des patients** : filtre hebdomadaire « statut libéral » du logiciel de
-    rendez-vous (même logiciel que le service, statut visible, patients flashés « Libéral »).
-    Repérage **tiré**, jamais poussé — aucune notification n'existe. **Deux passages hebdomadaires**
-    suffisent. Optimisation à obtenir de la DSI : date opératoire dans la vue liste ou en export.
-25. **Lot 5 — principe « jamais pire que l'existant »** : un patient non attrapé retombe sur
-    l'attribution aléatoire actuelle. **Aucune exigence d'exhaustivité** ni de surveillance
-    quotidienne. Ce principe est ce qui rend le dispositif tenable ; il doit être rappelé à toute
-    personne qui reprendra le sujet, et interdit d'en faire une astreinte.
-
-26. **Lot 5 — scénario retenu : le service reprend le placement des consultations d'anesthésie.**
-    Les secrétaires des chirurgiens ne donnent plus de créneau (charge en moins, pas en plus). Le
-    créneau est **bon dès le départ** → ni déplacement de MAR, ni rappel de patient. **Le virage
-    v3.18 (attribution au fil de l'eau) est caduc.** Contrepartie : le patient repart sans date et
-    doit passer au secrétariat d'anesthésie ou appeler.
-27. **Lot 5 — `p ≈ 1/3` est faux.** Mesure semaine 25 : **75 %** des patients sont déjà vus par un
-    MAR au bon secteur, l'appariement étant structurellement élevé (consultations typées par
-    secteur). Rejeter toute estimation de gain fondée sur `p = 1/3`. Le résidu est de **20
-    déplacements/semaine**, dont **6 irréductibles** (CARDIO I, vivier de 1).
-28. **Lot 5 — priorité en cas de conflit : déplacer le patient plutôt que le MAR** (Arthur). Ne
-    s'applique qu'en rattrapage ; sans objet dans le scénario retenu, où le créneau est bon d'emblée.
-
-29. **Lot 5 — repli rang B plafonné à 3 MARs.** Quand aucun MAR du secteur n'a de marge
-    suffisante, le bloc 1 bascule sur le rang B (décision 17) — mais **limité aux 3 MARs de plus
-    forte marge**, et le bloc est alors intitulé « Aucun MAR du secteur — autres possibilités » et
-    non « À proposer en priorité ». Motif : sans plafond, le test sur le secteur CI (vivier de 1,
-    titulaire indisponible) produisait **50 dates issues d'une douzaine de médecins** dans le bloc
-    prioritaire, qui perdait tout sens.
-30. **Lot 5 — délai minimum entre consultation et intervention** : **3 jours par défaut, 2 jours
-    pour les endoscopies et la cataracte** (cataracte = secteur ORL/Ophtalmo). Pré-rempli d'après le
-    secteur, **modifiable** par la secrétaire. C'est le critère médical (lourdeur du geste,
-    anticoagulants) repris des secrétaires des chirurgiens ; Arthur le juge très grossier.
-31. **Lot 5 — plafond d'affichage : 5 dates par bloc**, le reste derrière « + N autres dates ».
-    Sans plafond, une intervention à trois semaines produit jusqu'à 28 dates — illisible au
-    téléphone. En **couche 2, l'ordre est commandé par la marge** (du plus loin au plus près du
-    plafond), la date ne départageant que les créneaux d'un même MAR : le premier proposé est donc
-    le plus logique au vu de son plafond. ⚠️ Ceci **modifie la décision 16**, qui prévoyait un tri
-    chronologique à l'intérieur de chaque bloc — le tri chronologique ne vaut plus que pour la
-    couche 1, tant que le compteur n'existe pas.
-
-32. **Lot 2 élargi — la déclaration porte la spécialité ET le montant (BR).** Décision d'Arthur du
-    26/07/2026. Le rendement libéral cesse d'être un calcul indirect : il devient une lecture.
-    Corollaires : granularité **un patient par ligne** (fin de la fusion jour+secteur), `BR` seule
-    (le **DH n'est jamais déclaré** — hors quota, sans intérêt pour le module), reprise automatique
-    du montant depuis l'estimateur avec **champ éditable** (les parcours sans devis — carte verte,
-    DH 0 — doivent rester déclarables).
-
-33. **Douze spécialités, liste fermée** : `OPH · ORL · VIS · URO · ORT · END · GYN · PED · CI · RI ·
-    VAS · AUT`, dans un onglet `SPECIALITES` (jamais en dur). Plus fine que le secteur partout où un
-    secteur mélange deux spécialités de rendement très différent : **`OPH` séparée d'`ORL`** (la
-    cataracte est le moteur du rendement — la noyer dans l'ORL détruit la mesure) et **`URO` séparée
-    de `VIS`** (le bloc viscéral couvre les deux, abus de langage assumé dans `CS_TEMPLATE`).
-    **`VAS` est conservée malgré son très faible volume** : la fondre dans `VIS` serait
-    irréversible, on ne pourrait plus jamais l'en extraire ; le garder coûte une ligne d'onglet.
-    `AUT` est une soupape à libellé libre — **si `AUT` grossit, la liste est mal faite.**
-
-34. **Règle `PED` : patient mineur ⇒ `PED`**, quelle que soit la chirurgie (une amygdalectomie
-    d'enfant est `PED`, pas `ORL`). Arbitraire mais **univoque** — c'est la seule propriété qui
-    compte : deux MARs qui classeraient différemment transformeraient les deux rendements en bruit.
-    Correspond de surcroît à la réalité anesthésique (c'est l'âge qui fait la charge, pas l'organe).
-
-35. **Le rendement se ventile, il ne se somme pas.** Le relevé certifié fixe le **niveau** (euros du
-    MAR-mois, par axe) ; les déclarations fixent la **structure** (répartition par spécialité) ; on
-    ventile le certifié au prorata des BR déclarées. Ne **jamais** sommer les BR déclarées pour
-    obtenir un rendement : le résultat serait plausible et faux. Toujours afficher le **nombre
-    d'interventions `n`** à côté de tout rendement.
-
-36. **Ordre de construction inversé : la déclaration enrichie (2A) passe AVANT la saisie du relevé
-    (2B).** Le relevé est rattrapable rétroactivement — les PDF existent et attendent. Une
-    intervention non déclarée est **perdue définitivement**. Chaque semaine de retard sur 2A est de
-    la mesure qu'aucun travail ultérieur ne récupérera.
+32. **La déclaration porte la spécialité ET le montant (BR)** (26/07/2026). Le rendement cesse
+    d'être un calcul indirect : il devient une lecture. Corollaires : une ligne = un patient, BR
+    seule, montant repris de l'estimateur mais **éditable**.
+33. **Douze spécialités**, liste fermée, dans un onglet (§6.1.1).
+34. **Règle `PED` : patient mineur ⇒ `PED`**, quelle que soit la chirurgie.
+35. **Le rendement se ventile, il ne se somme pas** ; toujours afficher le `n`.
+36. **2A avant 2B** (le relevé est rattrapable, la déclaration non) — mais sans urgence tant
+    qu'Arthur est seul membre actif du module.
+37. **Bouton « Déclarer ce parcours » plutôt qu'un montant obligatoire** : rendre le bon chemin plus
+    court, pas plus contraignant. Le taux de couverture dira si ça suffit.
 
 ---
 
-## 14. Questions encore ouvertes
+## 10. Questions encore ouvertes
 
-- `LIBERAL_CIBLE` **fixé à 30 % par axe** (décision Arthur), avec borne de décembre. À
-  surveiller en réel : si des dépassements récurrents apparaissent malgré la borne, envisager
-  une marge par axe (le NGAP semble plus volatil dans le CR réel).
-- **V2 — estimateur temps réel du libéral (indicateur avancé).** Dès la saisie d'une consult, on
-  peut estimer le **numérateur** à venir : `Σ actes libéraux déclarés × montant CCAM` (+ le NGAP
-  de la consult). **Chiffrage par axe (validé §5 ter de l'antisèche)** : côté **CCAM**, BR = coeff.
-  carte (monég. ×1,95 / français ×1,00) × (tarif act.4 ×(1+%mod) × taux d'association + €mod) ;
-  côté **NGAP**, BR = **lettre-clé × coefficient** (`C 34,40 · CS 46 · APC 60`), sans ×1,95 ni
-  modificateur — la carte n'y touche que le DH, **hors quota**. Le **dénominateur (public)** échappe au module (l'activité publique n'y est pas
-  saisie acte par acte) → on n'obtient pas le ratio complet en temps réel, seulement le libéral
-  accumulé. Montage utile : **partir du dernier relevé cumulé (socle certifié)** et poser
-  par-dessus l'**incrément estimé** des actes déclarés depuis → projection du numérateur bien plus
-  fine qu'une extrapolation au rythme (on voit venir un pic **avant** le relevé). Limites qui en
-  font un *estimateur*, pas un décompte : le code facturé diverge souvent du code prévu
-  (associations, modificateurs, anesthésie indexée sur l'acte chirurgical) ; les actes s'annulent
-  ou se reportent ; il faut une **table CCAM→€ en CONFIG paramétrable** (source ameli, jamais
-  devinée). À chaque relevé, le chiffre officiel **recale** l'estimation. Le relevé reste la
-  source de vérité ; l'estimateur ne certifie jamais rien.
-  - **Sortie actionnable — public requis par axe.** À cible 30 %, `P ≥ (7/3)·L ≈ 2,33·L`. Pour
-    chaque MAR et chaque axe, l'estimateur calcule le **public minimum requis** (`2,33 ×` libéral
-    estimé) et le compare au **public déjà projeté** → il n'affiche que le **déficit** éventuel
-    (le public n'*efface* pas le libéral, il le **dilue**). Par axe : le déficit CCAM se comble par
-    du public CCAM (blocs publics, réa), le déficit NGAP par des **consultations publiques** — pas
-    d'inter-compensation. Le déficit en € se retraduit en **N journées d'affectation** via un
-    rendement moyen (approximatif mais directement exploitable par le comité). C'est la brique qui
-    relie les deux couches par un chiffre ; l'**optimiseur de réallocation** (ci-dessous) la
-    consomme.
-- **V2 — optimiseur de réallocation** explicite : proposer au comité *quelles* vacations
-  déplacer et de qui vers qui, sous les deux contraintes de plafond. La V1 se contente d'afficher
-  les marges ; la V2 optimise.
-- **Lot 5 — ordre d'affichage des candidats à disponibilité égale.** Non tranché. Un ordre **fixe**
-  (alphabétique ou ordre du tableau) est simple mais **concentre** : la secrétaire est pressée et
-  propose la première date qui convient — le premier de la liste absorberait le flux, aggravant le
-  déséquilibre que l'outil vise à corriger. **Aucun ordre** reproduit le statu quo (elle propose
-  celui qu'elle connaît). L'ordre le plus utile serait **le moins sollicité depuis janvier**, qui
-  répartit sans arbitrage et sans afficher de chiffre d'argent — mais l'écran étant consultatif, ce
-  décompte ne peut venir que des **déclarations MAR**, donc en retard du délai de consultation :
-  juste sur la durée, potentiellement faux sur une journée (cinq orientations le même matin vers le
-  même MAR resteraient invisibles). À trancher avant le développement du Lot 5.
-- **Lot 5 — affiner la conversion euros → patients (mineur, différé).** La moyenne globale retenue
-  en V1 (décision 18) ignore l'écart de rendement entre secteurs. À reprendre si `RENDEMENT_LIB`
-  (Lot 0) est un jour dégelé.
-- **Lot 5 — zone d'indifférence (mineur, non urgent).** Un tri strict sur la marge ferait traverser
-  l'hôpital pour un écart négligeable (12 000 € contre 11 500 €). À marges proches, privilégier
-  celui qui est déjà sur place. Sans objet tant que la partition reste binaire.
-- **Lot 5 — où écrire l'attribution ?** Point ouvert, seul reliquat structurel. Aujourd'hui le
-  créneau de consultation n'est **rattaché à aucun MAR** dans le logiciel de rendez-vous (Arthur :
-  « idéalement ça serait un MAR nommé » — c'est une cible, pas l'état actuel). Il faut donc décider
-  où vit le rattachement « le 5 mars après-midi, Dr X voit ces patients-là » : (a) dans le logiciel
-  de rendez-vous s'il accepte de nommer un praticien sur un créneau, (b) dans Planning-CHPG, ce qui
-  suppose une écriture — donc revenir sur le caractère purement consultatif acté en décision 15 —,
-  (c) hors système (liste imprimée, tableau partagé). C'est **une pratique interne à créer**, pas
-  une fonction à coder : le prérequis est chez le service, pas chez les secrétaires des chirurgiens.
-- **Lot 5 — la maquette `maquette_ecran_secretaire.html` est périmée.** Elle implémente l'écran
-  « quelles dates proposer » (entrée : date d'intervention + secteur). L'entrée devient « liste des
-  patients libéraux repérés » (date de consultation + date opératoire + secteur). Le filtre de
-  disponibilité, les deux rangs et la forme A restent valables. À refaire.
-- **Lot 5 — viabilité du scénario retenu.** Deux inconnues, aucune technique : (a) le secrétariat
-  d'anesthésie a-t-il réellement le temps de poser **~89 rendez-vous par semaine** ? (hypothèse de
-  travail : oui) ; (b) le patient passe-t-il au secrétariat en sortant de chez le chirurgien, ou
-  rappelle-t-il ? (Arthur : « au choix » — à trancher avant déploiement, c'est le seul changement
-  visible par le patient).
+- **`LIBERAL_CIBLE` fixée à 30 % par axe**, avec borne de décembre. À surveiller en réel : si des
+  dépassements récurrents apparaissent malgré la borne, envisager une marge de sécurité par axe (le
+  NGAP paraît plus volatil sur le relevé réel).
+- **V2 — projection du numérateur.** Partir du dernier relevé cumulé (socle certifié) et poser
+  par-dessus l'incrément des BR déclarées depuis. Bien plus fin qu'une extrapolation au rythme : on
+  voit venir un pic **avant** le relevé. Reste un **estimateur** — le code facturé diverge du prévu,
+  les actes s'annulent. Le relevé recale à chaque fois.
+- **V2 — sortie actionnable : le public requis par axe.** À 30 %, `P ≥ 2,33 × L`. Pour chaque MAR et
+  chaque axe, comparer le public requis au public déjà projeté et n'afficher que le **déficit**,
+  retraduit en **N journées d'affectation** via un rendement moyen. C'est la brique qui relie les
+  deux couches par un chiffre exploitable par le comité.
+- **V2 — optimiseur de réallocation** : proposer *quelles* vacations déplacer et de qui vers qui,
+  sous les deux contraintes. La V1 se contente d'afficher les marges.
+- **Y a-t-il des actes facturés qu'aucune déclaration ne peut couvrir ?** À vérifier — ça borne par
+  le bas le taux de couverture atteignable.
+
+---
+
+## 11. Journal des révisions
+
+*Détail complet dans l'historique git. Ne sont conservés que les virages qui expliquent une décision
+encore en vigueur.*
+
+| Version | Ce qui a changé |
+|---|---|
+| v3 · 07/07 | **Découverte du seuil par axe** (CCAM et NGAP séparés) après lecture du relevé réel. Fonction objectif reformulée sur le pot commun. |
+| v3.1 · 07/07 | La consultation (NGAP, J0) **déclenche** le placement au bloc (J+X) : un parcours alimente les deux axes. |
+| v3.5 · 08/07 | Excédents **recopiés, pas dérivés** — sans quoi le checksum ne tombe jamais. |
+| v3.6 · 08/07 | **V1 mesure, ne projette pas** : l'extrapolation « au rythme » est trompeuse sur une activité saisonnière. |
+| v3.7 · 12/07 | Règle NGAP figée et validée au centime : `lettre-clé × coefficient`, sans ×1,95 ni modificateur. |
+| v3.9 · 16/07 | Page du module = **point d'entrée unique** ; payload de déclaration fermé ; tuile conditionnée `LIBERAL = O`. |
+| v3.11 · 19/07 | Base légale du seuil par axe : **OS n° 7.766 du 06/11/2019**. |
+| v3.13→3.20 · 23–24/07 | Conception complète du **Lot 5** (interface secrétaire), puis **gel** (§7 bis). |
+| v3.21 · 26/07 | **Le rendement est un attribut de spécialité, pas de secteur** — le déménagement de janvier 2027 change les secteurs, pas les spécialités. |
+| v3.22 · 26/07 | **Lot 2 élargi** : la déclaration porte la spécialité et le montant ; ventilation au prorata ; 2A avant 2B. |
+| **v4.0 · 26/07** | **Épuration.** 1 287 → ~420 lignes, **un seul fichier**. Lot 5 réduit à un résumé (§7 bis), conception complète laissée à git. Suppression de 9 affirmations fausses ou périmées relevées par audit face au code réel : champ patient inexistant (§3 bis entier), « rien avant octobre 2026 » alors que les lots 0/1/3 tournent, `SECTEURS_CFG` présenté comme à externaliser alors que c'est fait, contradiction 4 vs 6 nombres du relevé, projection 31/12 promise à l'écran membre alors que la décision 10 la reporte, `LIBERAL_CIBLE` annoncée en CONFIG alors qu'elle n'existe pas. **Nouvelle règle : une décision périmée est supprimée, jamais démentie sous elle.** |
