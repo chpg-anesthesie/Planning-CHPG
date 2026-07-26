@@ -78,6 +78,11 @@
 *Confidentialité : **assumée** — l'ordre trahit la position financière, arbitrage acté. Partition,*
 *plancher et masquage du bloc 2 restent ouverts (§14).*
 
+***v3.21 — 26/07/2026** : **décision de modèle — le rendement libéral est un attribut de*
+*SPÉCIALITÉ, pas de secteur.** Déménagement prévu **début janvier 2027** : les secteurs changent*
+*(plus de bloc ORL dédié, tout passe dans un « Bloc Court » mutualisé), mais **les spécialités ne*
+*changent pas** — une cataracte rapporte autant quelle que soit la salle. Adosser `RENDEMENT_LIB`*
+*au secteur le rendrait caduc en janvier ; l'adosser à la spécialité le rend permanent.*
 ***v3.13 — 23/07/2026** : ajout de l'**interface secrétaire** (§11 ter, Lot 5) — écran d'orientation*
 *des patients libéraux vers un MAR disponible le jour de l'intervention. **Purement consultatif** :*
 *aucune écriture, la déclaration reste au MAR au moment de la consultation réelle. Fonctionne sur*
@@ -839,6 +844,57 @@ go-live octobre 2026.
   seule**. Ne consomme que le planning (affectations sectorielles annuelles + indisponibilités) :
   **indépendant des Lots 0 et 2**, parallélisable immédiatement. Prérequis à vérifier avant de
   coder : la façon dont les indisponibilités sont exposées par la route GAS existante.
+
+---
+
+## 12 bis. Rendement libéral : la maille est la SPÉCIALITÉ (décidé le 26/07/2026)
+
+### Pourquoi ce n'est pas le secteur
+
+Le §8.2 et le Lot 0 parlent de `RENDEMENT_LIB` comme d'une **colonne de l'onglet `SECTEURS`**.
+C'est vrai dans l'hôpital **actuel**, où un secteur correspond en pratique à une spécialité
+(bloc ORL, bloc ortho…). **Ça devient faux au déménagement de janvier 2027** : il n'y aura plus de
+bloc ORL isolé, l'ORL sera intégrée dans un **« Bloc Court »** mutualisé avec d'autres spécialités.
+
+Un rendement attaché au secteur serait donc **périmé le jour du déménagement**, et il faudrait tout
+réestimer — sur des secteurs dont personne ne connaît encore le contenu exact.
+
+### Le modèle retenu
+
+1. **Le rendement libéral est un attribut de SPÉCIALITÉ** (ORL, endoscopie, viscéral, ortho…).
+   C'est lui qu'on mesure, et il **survit au déménagement** : une cataracte rapporte autant dans un
+   bloc dédié que dans un bloc mutualisé.
+2. **Un secteur est une COMPOSITION de spécialités.** Son rendement s'en déduit — moyenne pondérée
+   de ce qu'on y met. Au déménagement, on ne réestime rien : on **décrit la nouvelle composition**.
+3. ⚠️ **Conséquence directe sur le Lot 2 : la production doit être rattachée à la SPÉCIALITÉ dès la
+   saisie.** Un simple montant mensuel global serait inexploitable après janvier 2027 — il faudrait
+   le croiser après coup avec le programme opératoire, ce qui n'est pas faisable.
+   ✅ Vérifié avec Arthur le 26/07 : le relevé administratif **permet ce rattachement**.
+
+### Conséquence : le rendement se MESURE, il ne s'estime plus
+
+Le Lot 2 devient **ce qui produit `RENDEMENT_LIB`**, au lieu de le consommer. Une fois qu'il tourne,
+la production par spécialité est connue chaque mois — le rendement est **mesuré, pas deviné**.
+
+Cela renverse l'ordre annoncé au §12 : ce n'est plus « Lot 2 puis Lot 4 », mais **Lot 2 d'abord,
+Lot 4 quand la mesure existe**.
+
+### Conséquence sur le calendrier
+
+| Quand | Quoi |
+|---|---|
+| Sept.–oct. 2026 | **Lot 2** — conception puis code |
+| Oct.–déc. 2026 | Il tourne ; marges visibles ; **l'excédent 2026 reste corrigible** (cf. §8.1) |
+| **Janvier 2027** | **Déménagement.** Le Lot 2 continue sans rien changer : il ignore les secteurs |
+| 2027 | Rendements par spécialité mesurés ; description de la composition des nouveaux secteurs |
+| Mi-2027 | **Lot 4**, sur des chiffres réels et non estimés |
+
+⚠️ **Le Lot 4 n'est pas envisageable avant mi-2027.** Le tenter plus tôt reviendrait à recommander
+des déplacements d'affectation fondés sur des rendements inventés.
+
+❓ **À confirmer :** le plafond de 30 % se solde-t-il au **31 décembre** (auquel cas mettre le Lot 2
+en service dès septembre permet de corriger l'excédent 2026 sur le dernier trimestre), ou sur une
+période glissante (auquel cas démarrer en janvier sur une base propre est équivalent) ?
 
 ---
 
