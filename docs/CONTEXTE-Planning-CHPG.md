@@ -129,9 +129,42 @@ d'où l'absence d'icônes de secteur sur cette page, contrairement à `index.htm
 - ⚠️ **La rotation automatique a été SUPPRIMÉE (20/07/2026)** — objet `ROT`, assistant « ⟳ Rotation libérale », overlay et action `applyRotationLib` retirés, faute d'usage réel. Le tag `ROT-LIB` n'existe plus : les lignes existantes ont été converties en `LIB` par la fonction one-shot `convertirRotLibEnLib()` (elle-même retirée après usage), ce qui a préservé à l'identique les créneaux déjà attribués. **Ne pas reproposer d'automatisation de cette rotation.**
 - ⚠️ **`setLibSoliste` n'a jamais existé** dans le dépôt : cette doc l'a longtemps annoncée comme « à recopier », mais aucune trace dans les `.gs` ni dans `admin.html`. Mention supprimée le 20/07/2026. Rappel : **le dépôt fait foi**, pas ce fichier.
 
-## Module libéral — pilotage 30 % : cadrage du 24/07/2026
+## Module libéral — pilotage 30 % : cadrage du 24/07, élargi le 26/07/2026
 
-### Lot 2 (compteur) — architecture actée
+### Lot 2 ÉLARGI (26/07/2026) — la déclaration porte la spécialité et le montant
+**Décision d'Arthur.** La déclaration d'intervention (Lot 3, en prod) cesse d'être un simple signal
+de placement : elle porte désormais la **SPÉCIALITÉ** et le **MONTANT (BR)**. Elle devient donc la
+source du **rendement par spécialité**, qui n'a plus à être déduit par moindres carrés.
+
+- **Granularité : une ligne = UN PATIENT.** La fusion « même MAR + même jour + même secteur » de
+  `declareLiberal` disparaît (elle rendait les interventions incomptables : 8 cataractes = 1 ligne).
+- **Schéma cible `LIBERAL_{Y}` à 9 colonnes** : `+ SPECIALITE, BR_CCAM, BR_NGAP`. ⚠️ **Pas encore en
+  production** — le schéma décrit plus haut dans ce document est celui qui tourne aujourd'hui. Les
+  lignes anciennes gardent leurs 6 colonnes remplies : **aucune migration**.
+- **BR seule, jamais le DH** (hors quota). `BR_CCAM` datée du **bloc**, `BR_NGAP` datée de la
+  **consultation** — souvent deux mois différents ; sans cette séparation le recoupement bi-axial
+  est faux. `DATE_CONSULT` cesse d'être informative et devient éditable.
+- **Onglet `SPECIALITES`, 12 codes** : `OPH ORL VIS URO ORT END GYN PED CI RI VAS AUT`. Plus fine que
+  le secteur là où un secteur mélange deux rendements (`OPH` ≠ `ORL`, `URO` ≠ `VIS`). Règle actée :
+  **patient mineur ⇒ `PED`**, quelle que soit la chirurgie.
+- **Le rendement se VENTILE, il ne se somme pas** : le relevé certifié fixe le niveau, les BR
+  déclarées fixent la structure, on répartit au prorata. Sommer les BR déclarées donnerait un
+  rendement plausible et faux. Toujours afficher le **n** d'interventions à côté d'un rendement.
+- **Trois étapes : 2A** déclaration enrichie → **2B** saisie du relevé + marges → **2C** taux de
+  couverture puis rendement. Le 2A d'abord (le relevé est rattrapable, la déclaration non) — **mais
+  sans urgence tant qu'Arthur est le seul `LIBERAL=O` dans `MEDECINS`** : rien ne se perd, le
+  chronomètre démarre le jour de l'ouverture aux autres. Le 2A doit être **rodé avant**.
+- **Ergonomie retenue (option B)** : bouton **« Déclarer ce parcours »** sur une ligne cotée, qui
+  descend tout (date, spécialité, BR) en un clic — plutôt que de rendre le montant obligatoire. Les
+  deux blocs de la page libérale (calculette en haut, déclaration en bas) sont aujourd'hui
+  **étanches** : la déclaration ne récupère que la date de bloc et le libellé de chirurgie, jamais
+  le montant ni le secteur.
+
+Détail complet : `module_liberal_conception.md` **v3.22** — §6.2, §12 ter, décisions 32 à 36.
+
+### Lot 2 (compteur) — architecture du 24/07, toujours valable sauf sur un point
+⚠️ **Amendement du 26/07** : la déclaration ne porte plus seulement du **volume**, elle porte aussi
+des **euros estimés (BR)**. Reste entièrement vrai : **jamais un % issu des seules déclarations.**
 Le **relevé administratif mensuel** est le **socle certifié en euros**. C'est la **seule** source
 qui connaît le **dénominateur** (activité publique du MAR), donc la seule capable de donner un
 **pourcentage** de plafond. La **déclaration d'intervention par le MAR** (Lot 3, déjà en prod) peut
