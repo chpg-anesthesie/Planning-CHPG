@@ -722,11 +722,20 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
       **v1.9.4** ; ce lot est une fonctionnalité ⇒ 2ᵉ chiffre. **Le passage à `v2.0` reste réservé
       à l'intégration du module libéral** (mise en service du Lot 2 / compteur), jalon encore à
       venir — ne pas le consommer ici.
-      ⚠️ **Le marqueur de version n'existe que dans `admin.html` (3 occurrences) et
-      `dashboard.html` (3) — soit 6 emplacements, PAS 9.** `index.html`, `indispos.html` et
-      `staff.html` n'en portent aucun (mesuré le 24/07). Ne pas chercher à en ajouter ailleurs
-      sans décision explicite : le diagnostic Maintenance vérifie l'égalité entre les emplacements
-      existants. *(Remarque d'Arthur : l'échelle de versions n'est pas encore visible des
+      ⚠️ **CORRECTION du 26/07 — le diagnostic compare QUATRE fichiers, pas deux.**
+      `Indispos.gs` l.2023 : `dashboard.html`, `admin.html`, **`docs/guide-mar.html`** et
+      **`docs/guide-comite.html`**. J'avais conclu à tort « 2 fichiers / 6 emplacements » en
+      ne cherchant que dans les 5 pages visibles — **les guides portent aussi la version**, et
+      c'est ce qui faisait échouer le diagnostic.
+      **Quatre formes de version sont reconnues**, et elles doivent être identiques DANS chaque
+      fichier ET entre fichiers : `SITE_VERSION = 'vX.Y'` (constante JS), `id="verBadge">vX.Y<`
+      (badge HTML), `Version <strong>vX.Y</strong>` (en-tête des guides), `SITE_VERSION: vX.Y`
+      (marqueur en commentaire).
+      **Décompte réel : 3 occurrences dans `admin.html`, 3 dans `dashboard.html`, 2 dans chaque
+      guide — soit 10 emplacements sur 4 fichiers.** `index.html`, `indispos.html` et
+      `staff.html` n'en portent aucune et ne sont pas contrôlées.
+      ⇒ **Tout bump doit toucher les 4 fichiers dans le même push**, sinon le diagnostic signale
+      une erreur (constaté le 26/07). *(Remarque d'Arthur : l'échelle de versions n'est pas encore visible des
       utilisateurs, l'interface n'étant pas en service.)*
     - 📍 **Position de la tuile : 2ᵉ, juste après « Planning »** (validée sur visuel le 24/07).
       Alternative écartée : après « Mes congés », auprès des tuiles personnelles.
