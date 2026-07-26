@@ -109,6 +109,16 @@
 *imprimé remplace un papier existant, circuit inchangé). Décision 14 ajoutée.*
 *Rien ne part en prod tant que ce plan n'est pas clair et précis. On ne code pas encore.*
 
+***v3.22 — 26/07/2026** : **Lot 2 élargi — le rendement se MESURE, il ne se déduit plus.***
+*Décision d'Arthur : la déclaration d'intervention porte désormais la **spécialité** et le **montant***
+*(BR). Trois conséquences. (1) **Granularité : une ligne = un patient**, la fusion jour+secteur*
+*disparaît. (2) La **décision 8 est amendée** — le payload s'ouvre à `SPECIALITE`, `BR_CCAM`,*
+*`BR_NGAP` ; il reste sans donnée patient et sans code CCAM. (3) Le calcul par **moindres carrés***
+*du §12 ter **devient inutile** : le rendement se lit directement, ventilé au prorata des BR*
+*déclarées et recalé sur le relevé certifié. **Ordre inversé : la déclaration enrichie passe AVANT***
+*la saisie du relevé — le relevé est rattrapable rétroactivement, une intervention non déclarée est*
+*perdue. Liste de **12 spécialités** arrêtée. Décisions 32 à 36.*
+
 > **Confidentialité** : tous les montants et pourcentages cités dans ce document sont des
 > **valeurs illustratives** (ordres de grandeur réalistes), pas les chiffres réels des relevés
 > administratifs. Aucun praticien n'y est identifiable.
@@ -309,9 +319,36 @@ alimente le NGAP, le J+X qui alimente le CCAM et fait tomber la contrainte de pl
 déclarée (date bloc connue, hors horizon)  ──►  active (semaine planifiée)  ──►  OK / conflit  ──►  réalisée
 ```
 
-### 6.2 Schéma `LIBERAL_{Y}` — payload FERMÉ
+### 6.2 Schéma `LIBERAL_{Y}` — payload OUVERT À LA MESURE (v3.22)
 
-`DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | CHIRURGIE (texte libre court, optionnel)`
+`DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | SPECIALITE | BR_CCAM | BR_NGAP | CHIRURGIE`
+
+*(+ `ID`, poignée technique en tête d'onglet.)*
+
+**Ce qui change en v3.22 et pourquoi.** Le payload d'origine (5 champs, granularité journée)
+suffisait au **placement**. Il ne permet **pas la mesure** : ni de compter les interventions, ni
+de savoir ce que rapporte une spécialité. Trois ajouts, et un seul retrait.
+
+- **`SPECIALITE`** (nouveau, obligatoire) — 12 codes, onglet `SPECIALITES`. C'est la maille du
+  rendement (§12 bis) : elle **survit au déménagement**, le secteur non. Pré-remplie d'après le
+  secteur, toujours modifiable. **Règle `PED` (actée) : patient mineur ⇒ `PED`, quelle que soit
+  la chirurgie.** Arbitraire mais univoque — sans règle unique, deux MARs classent différemment et
+  les deux rendements deviennent du bruit.
+- **`BR_CCAM` / `BR_NGAP`** (nouveaux) — la **base de remboursement**, seule grandeur qui charge le
+  quota des 30 %. **Le DH n'est jamais déclaré** : il est hors quota, il n'intéresse pas le module.
+  Reprises automatiquement du parcours coté dans l'estimateur, **champs éditables** (un parcours
+  sans devis — carte verte, DH 0 — doit rester déclarable).
+- **`DATE_CONSULT` cesse d'être informative.** C'est elle qui **date la BR NGAP**, facturée à la
+  consultation, souvent un autre mois que le bloc. `BR_CCAM` est rattachée au mois de `DATE_BLOC`,
+  `BR_NGAP` au mois de `DATE_CONSULT`. Sans cette séparation, le recoupement bi-axial est faux.
+  Elle devient donc **éditable**, pré-remplie à aujourd'hui (une déclaration tardive, faite après
+  le bloc, porterait sinon une date fausse).
+- **Retrait : la FUSION disparaît.** `declareLiberal` fusionnait même MAR + même jour + même
+  secteur en une ligne. Une journée de 8 cataractes = 1 ligne : incomptable. **Une ligne = un
+  patient.**
+
+**Ce qui ne change pas.** Aucune donnée patient, aucun code CCAM, aucun DH. Le nom du patient
+n'existe que sur le devis, tapé à l'écran, imprimé, effacé (§3 bis).
 
 - **`DATE_CONSULT`** = J0, moment de la consultation libérale (déclencheur, informatif).
 - **`DATE_BLOC`** = J+X, jour de l'acte : **toujours renseignée dès la déclaration**, c'est là que
@@ -322,10 +359,10 @@ déclarée (date bloc connue, hors horizon)  ──►  active (semaine planifi�
   à donner au comité une idée de la durée du bloc. **Pas de code CCAM** : le code n'apporte rien au
   placement et son niveau de précision est inutile ici (minimisation). Pré-rempli depuis le libellé
   court du parcours coté dans l'estimateur, modifiable, effaçable.
-- **Granularité : une ligne = une journée-bloc, pas un patient.**
-- **Ce payload est FERMÉ** : ces cinq champs, rien d'autre, jamais. Aucune donnée patient ne
-  transite par la déclaration — le nom du patient n'existe que sur le devis, tapé à la main à
-  l'écran, imprimé, effacé (cf. note Sécurité §3).
+- **Granularité : une ligne = UN PATIENT** (v3.22 ; auparavant une journée-bloc).
+- **Le payload reste BORNÉ** : ces huit champs, rien d'autre. Aucune donnée patient ne transite par
+  la déclaration — le nom du patient n'existe que sur le devis, tapé à la main à l'écran, imprimé,
+  effacé (cf. note Sécurité §3). Un montant, une date et une spécialité n'identifient personne.
 
 ### 6.3 Workflow MAR (~20 s, depuis la PAGE DU MODULE LIBÉRAL)
 
@@ -467,8 +504,13 @@ coups.
 
 ## 10. Données (récapitulatif des onglets)
 
-- `LIBERAL_{Y}` — parcours consult→bloc : `DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | CCAM? |
-  COMMENTAIRE` (auto-créé dans `setupAnnee`, pattern `INDISPOS_${year}`).
+- `LIBERAL_{Y}` — parcours consult→bloc, **une ligne = un patient** (v3.22) :
+  `ID | DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | SPECIALITE | BR_CCAM | BR_NGAP | CHIRURGIE`
+  (auto-créé dans `setupAnnee`, pattern `INDISPOS_${year}`). Les lignes antérieures à v3.22 gardent
+  leurs 6 colonnes remplies et les 3 nouvelles vides : **aucune migration**, elles servent encore au
+  placement et sont simplement ignorées par le calcul de rendement.
+- `SPECIALITES` — 12 lignes (`CODE | LABEL | ACTIF`), amorcé, éditable en cellule. Même logique que
+  `SECTEURS` : jamais en dur dans le code.
 - `LIBERAL_CA_{Y}` — relevés cumulés : `MOIS | MAR_ID | T_CCAM | PCT_CCAM | EXC_CCAM | T_NGAP | PCT_NGAP | EXC_NGAP` (6 nombres recopiés/MAR ; excédents recopiés, pas dérivés).
 - `MEDECINS` — colonne `LIBERAL (O/N)` : appartenance au groupement (maintenue à la main).
 - `SECTEURS` (Lot 0) — externalisation de `SECTEURS_CFG` + `RENDEMENT_LIB` (4 valeurs).
@@ -834,8 +876,17 @@ go-live octobre 2026.
   date_bloc, secteur, chirurgie? — le MAR_ID vient de la session) ; **intégration de l'estimateur au
   portail** (identité MAR à la connexion, tuile Dashboard conditionnée `LIBERAL O/N`) ; visibilité
   groupement.
-- **Lot 2 — Convergence (cœur métier).** Saisie relevés (6 nombres/mois + total de contrôle) ; vue **deux axes** :
-  marge + projection ; membre + comité. Ne dépend pas du Lot 0.
+- **Lot 2 — Convergence + mesure (cœur métier), élargi en v3.22.** Trois étapes, dans cet ordre :
+  - **2A — Déclaration enrichie (À FAIRE EN PREMIER).** Spécialité + BR + granularité patient (§6.2)
+    ; onglet `SPECIALITES`. **Motif de priorité : le relevé est rattrapable rétroactivement** (les
+    PDF de janvier→août existent, on les saisira quand on voudra) ; **une intervention non déclarée
+    est perdue définitivement.** Chaque semaine de retard = de la mesure jamais récupérable.
+  - **2B — Saisie du relevé + marges.** `LIBERAL_CA_{Y}` (6 nombres/mois + total de contrôle),
+    checksum et monotonie (§7.2), vue deux axes marge/excédent, membre + comité. Rattrape
+    l'historique 2026 d'un coup. C'est ce qui **redresse 2026**.
+  - **2C — Recoupement.** Taux de couverture puis rendement par spécialité (§12 ter). Quasi gratuit
+    une fois 2A et 2B en service — les deux sources sont alors dans le système.
+  - Ne dépend pas du Lot 0.
 - **Lot 3 — Placement bloc.** Bouton « 📅 Déclarer » dans la page libéral → `LIBERAL_{Y}` ; volet
   « ◆ Libéral » + toast dans admin (greffe `openSidePanel`, cf. §6.4). Dépend du Lot 1 seul.
 - **Lot 4 — Réallocation + équité.** Reco par axe (nécessite `RENDEMENT_LIB` → Lot 0) ; compteur
@@ -869,7 +920,12 @@ réestimer — sur des secteurs dont personne ne connaît encore le contenu exac
 3. ⚠️ **Conséquence directe sur le Lot 2 : la production doit être rattachée à la SPÉCIALITÉ dès la
    saisie.** Un simple montant mensuel global serait inexploitable après janvier 2027 — il faudrait
    le croiser après coup avec le programme opératoire, ce qui n'est pas faisable.
-   ✅ Vérifié avec Arthur le 26/07 : le relevé administratif **permet ce rattachement**.
+   ❌ **Correction v3.22.** Une version antérieure affirmait ici que « le relevé administratif permet
+   ce rattachement » : **c'est faux**, et le §12 ter le dit à juste titre — le relevé ne mentionne
+   **aucun secteur ni aucune spécialité**, il donne des euros par MAR et par mois. Le rattachement ne
+   peut donc **pas** venir du relevé. Il vient de la **déclaration du MAR**, qui porte depuis la
+   v3.22 la spécialité **et** le montant (§6.2). Ne jamais coder de colonne « spécialité » dans
+   `LIBERAL_CA_{Y}` : elle n'existe pas dans la source.
 
 ### Conséquence : le rendement se MESURE, il ne s'estime plus
 
@@ -939,23 +995,40 @@ complémentaires :
 | **Relevé administratif** | des **euros** | par MAR et par mois, **exhaustif** (c'est la facturation) |
 | **Déclarations MAR** | des **interventions** | par MAR, par mois **et par spécialité**, **volontaire** |
 
-### Le calcul
+### Le calcul — v3.22 : ventilation au prorata, plus de moindres carrés
 
-Chaque couple MAR-mois fournit une équation :
-`euros = Σ (nb d'interventions de la spécialité s × rendement de s)`
+**La déclaration porte maintenant le montant (BR) et la spécialité** (§6.2). Le rendement ne se
+**déduit** donc plus d'un système d'équations : il se **lit**. La méthode par moindres carrés
+décrite jusqu'en v3.21 (≈100 équations pour 5–7 inconnues, résolubles grâce à l'hétérogénéité des
+affectations) **devient inutile** — elle n'était qu'un contournement de l'absence de montant
+déclaré. Conservée pour mémoire au cas où la déclaration des montants s'avérerait trop peu suivie.
 
-- **Cas direct :** un MAR qui, sur un mois, n'a déclaré **qu'une seule spécialité** donne son
-  rendement **sans calcul**. Ces « mois purs » sont les points d'ancrage.
-- **Cas général :** ~17 MARs × 6 mois ≈ **100 équations pour 5 à 7 inconnues** — système largement
-  surdéterminé, résolu par moindres carrés.
+⚠️ **Ne pas sommer les BR déclarées.** La BR estimée diverge du facturé : le code réel diffère du
+prévu (associations, modificateurs), des actes sont annulés, reportés ou rejetés, et le mois
+d'encaissement décale. Sommer les déclarations donnerait un rendement **plausible et faux**, sans
+que rien ne le signale.
 
-⚠️ **CONDITION INDISPENSABLE : la diversité des affectations.** Le système n'est résoluble que
-parce que les MARs ont des **mélanges de secteurs différents** — celui qui est en ORL déclare
-surtout de l'ORL. **Si tous avaient le même mélange, le système serait indéterminé** (vérifié :
-rang 1 pour 5 inconnues). C'est l'hétérogénéité des affectations qui identifie les rendements.
+**Le montage retenu — le certifié fixe le niveau, le déclaré fixe la structure :**
 
-*Vérification numérique (26/07, données simulées, 17 MARs × 6 mois, bruit mensuel ±6 %) : les cinq
-rendements sont retrouvés **à 3 % près**.*
+1. Le **relevé** donne l'euro **certifié** du couple MAR-mois, par axe. C'est le niveau, il ne se
+   discute pas.
+2. Les **déclarations** du même MAR-mois donnent la **structure** : quelle part de BR relève de
+   quelle spécialité.
+3. On **ventile le certifié au prorata** des BR déclarées. Le rendement d'une spécialité =
+   Σ(euros ventilés) ÷ Σ(interventions), par axe.
+
+Le résultat colle **toujours** à l'argent réel : l'écart entre BR estimée et euros encaissés est
+absorbé par le prorata, pas propagé dans le rendement.
+
+**Deux axes, deux rendements**, comme prévu : un rendement **CCAM** (acte) et un rendement **NGAP**
+(consultation) par spécialité — l'ORL n'a pas le même profil sur les deux (beaucoup d'actes courts,
+une consultation chacun). La BR CCAM se ventile sur le mois du **bloc**, la BR NGAP sur le mois de
+la **consultation**.
+
+⚠️ **Toujours afficher `n` à côté du rendement** (« ORL : 412 € · n=87 » / « VAS : 890 € · n=4 »).
+Certaines spécialités sont de très petit volume — `VAS`, `PED` — et un rendement calculé sur quatre
+interventions ne doit jamais servir à décider d'une affectation. Sans le `n` affiché, il le
+servira.
 
 ⚠️ **DEUX systèmes à résoudre, pas un** : le relevé est **bi-axial**. Il y a un rendement **CCAM**
 (acte technique) et un rendement **NGAP** (consultation) par spécialité — l'ORL n'a pas le même
@@ -966,9 +1039,12 @@ profil sur les deux axes (beaucoup d'actes courts, une consultation chacun).
 Le relevé est **exhaustif**, les déclarations sont **volontaires**. Si un MAR ne déclare que la
 moitié de ses interventions, le rendement calculé est faux du double — **et rien ne le signale**.
 
-**D'où le contrôle, mois par mois :** la somme des euros du relevé (tous MARs) face à ce que
-reconstituent les déclarations. **Il ne s'agit PAS d'attendre une égalité exacte** — l'écart est
-normal :
+**D'où le contrôle, mois par mois et MAR par MAR** (v3.22 : il devient un simple rapport de deux
+euros, puisque la déclaration porte le montant) :
+
+`taux de couverture = Σ BR déclarées ÷ euros du relevé`, par MAR, par mois, par axe.
+
+**Il ne s'agit PAS d'attendre une égalité exacte** — l'écart est normal :
 
 - **décalage de facturation** (un acte de fin juin facturé en juillet ; la déclaration est datée de
   l'acte, le relevé de l'encaissement) ;
@@ -982,17 +1058,18 @@ serait à jeter**.
 À afficher au comité (« taux de couverture : 94 % ») : il **valide** les rendements et **incite** à
 déclarer.
 
-### Séquence retenue
+### Séquence retenue (révisée v3.22 — l'ordre est inversé)
 
-1. **Lot 2 tel que conçu** — saisie, marge, deux vues. Rien à modifier. **Livrable septembre 2026**,
-   immédiatement utile pour redresser 2026. *Chemin critique.*
-2. **Taux de couverture** — comparaison déclaré / facturé. Quasi gratuit une fois le Lot 2 en place
-   (les deux sources sont alors dans le système). **Préalable à tout le reste.**
-3. **Rendement par spécialité** — **uniquement si** le taux de couverture est bon. Décembre au plus
-   tôt : il faut plusieurs mois de relevés ET de déclarations. Alimente le Lot 4 (mi-2027).
+1. **2A — Déclaration enrichie.** *En premier, et sans attendre.* La déclaration n'est **pas
+   rattrapable** : ce qui n'est pas déclaré ce mois-ci ne le sera jamais. Le relevé, lui, attend
+   sagement dans un PDF.
+2. **2B — Saisie du relevé + marges.** Rattrape janvier→août 2026 d'un coup. C'est ce qui rend
+   l'excédent 2026 corrigible sur le dernier trimestre.
+3. **2C — Taux de couverture**, puis **rendement par spécialité** — **uniquement si** le taux de
+   couverture est bon et stable. Il faut plusieurs mois des **deux** sources. Alimente le Lot 4.
 
-📌 **Ne pas retarder le Lot 2 pour ce calcul** : il n'a de sens qu'avec plusieurs mois de données,
-et le Lot 2 est ce qui les produit.
+📌 **Ne rien retarder pour le calcul de rendement** : il n'a de sens qu'avec plusieurs mois de
+données, et ce sont 2A et 2B qui les produisent.
 
 ---
 
@@ -1007,9 +1084,11 @@ et le Lot 2 est ce qui les produit.
 5. **Relevé mensuel cumulé** → dériver le flux ; corriger tôt >> corriger tard.
 6. **Affichage seul** côté comité (pas de pré-placement).
 7. **`RENDEMENT_LIB` à 4 valeurs** (FORT / MOYEN / NUL / REA).
-8. **Payload de déclaration FERMÉ, sans CCAM** : `DATE_BLOC · MAR_ID · SECTEUR · CHIRURGIE (libellé
-   libre optionnel)` — le code n'apporte rien au placement (minimisation) ; jamais de donnée
-   patient ; jamais de grille tarifaire devinée.
+8. **Payload de déclaration borné, sans code CCAM** — ⚠️ **amendée en v3.22** (version d'origine :
+   « FERMÉ », 5 champs, granularité journée). Le payload s'ouvre à `SPECIALITE`, `BR_CCAM` et
+   `BR_NGAP` : sans montant ni spécialité, aucune mesure de rendement n'est possible. Restent
+   inchangés : **jamais de donnée patient**, **jamais de code CCAM**, **jamais de DH**, jamais de
+   grille tarifaire devinée. Schéma en vigueur au §6.2.
 9. **Équité = le désagrément** (frigo/réa), pas l'argent (mutualisé).
 10. **V1 = compteur de marge sur données réelles** (pas d'extrapolation ; `marge = (3/7)·P − L`) ; la **projection** à fin décembre, fondée sur l'**activité planifiée**, est repoussée à la V2.
 11. **Saisie groupée mensuelle depuis PDF** (référent), sécurisée par checksum sur le total du
@@ -1107,6 +1186,38 @@ et le Lot 2 est ce qui les produit.
     le plus logique au vu de son plafond. ⚠️ Ceci **modifie la décision 16**, qui prévoyait un tri
     chronologique à l'intérieur de chaque bloc — le tri chronologique ne vaut plus que pour la
     couche 1, tant que le compteur n'existe pas.
+
+32. **Lot 2 élargi — la déclaration porte la spécialité ET le montant (BR).** Décision d'Arthur du
+    26/07/2026. Le rendement libéral cesse d'être un calcul indirect : il devient une lecture.
+    Corollaires : granularité **un patient par ligne** (fin de la fusion jour+secteur), `BR` seule
+    (le **DH n'est jamais déclaré** — hors quota, sans intérêt pour le module), reprise automatique
+    du montant depuis l'estimateur avec **champ éditable** (les parcours sans devis — carte verte,
+    DH 0 — doivent rester déclarables).
+
+33. **Douze spécialités, liste fermée** : `OPH · ORL · VIS · URO · ORT · END · GYN · PED · CI · RI ·
+    VAS · AUT`, dans un onglet `SPECIALITES` (jamais en dur). Plus fine que le secteur partout où un
+    secteur mélange deux spécialités de rendement très différent : **`OPH` séparée d'`ORL`** (la
+    cataracte est le moteur du rendement — la noyer dans l'ORL détruit la mesure) et **`URO` séparée
+    de `VIS`** (le bloc viscéral couvre les deux, abus de langage assumé dans `CS_TEMPLATE`).
+    **`VAS` est conservée malgré son très faible volume** : la fondre dans `VIS` serait
+    irréversible, on ne pourrait plus jamais l'en extraire ; le garder coûte une ligne d'onglet.
+    `AUT` est une soupape à libellé libre — **si `AUT` grossit, la liste est mal faite.**
+
+34. **Règle `PED` : patient mineur ⇒ `PED`**, quelle que soit la chirurgie (une amygdalectomie
+    d'enfant est `PED`, pas `ORL`). Arbitraire mais **univoque** — c'est la seule propriété qui
+    compte : deux MARs qui classeraient différemment transformeraient les deux rendements en bruit.
+    Correspond de surcroît à la réalité anesthésique (c'est l'âge qui fait la charge, pas l'organe).
+
+35. **Le rendement se ventile, il ne se somme pas.** Le relevé certifié fixe le **niveau** (euros du
+    MAR-mois, par axe) ; les déclarations fixent la **structure** (répartition par spécialité) ; on
+    ventile le certifié au prorata des BR déclarées. Ne **jamais** sommer les BR déclarées pour
+    obtenir un rendement : le résultat serait plausible et faux. Toujours afficher le **nombre
+    d'interventions `n`** à côté de tout rendement.
+
+36. **Ordre de construction inversé : la déclaration enrichie (2A) passe AVANT la saisie du relevé
+    (2B).** Le relevé est rattrapable rétroactivement — les PDF existent et attendent. Une
+    intervention non déclarée est **perdue définitivement**. Chaque semaine de retard sur 2A est de
+    la mesure qu'aucun travail ultérieur ne récupérera.
 
 ---
 
