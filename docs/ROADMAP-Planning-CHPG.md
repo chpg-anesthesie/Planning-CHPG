@@ -945,60 +945,19 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
 - [ ] **Sorties de garde réa / anesthésie non distinguées** dans l'Excel (une seule ligne « SORTIES DE GARDE »). Le statut `RG` est unique : impossible de savoir de quelle garde sort la personne. Piste : un second statut (`RG2`), ou déduire depuis la veille — mais le lundi renverrait au dimanche de la semaine précédente, hors `daySlots`.
 - [ ] Picker des consult libérales endo : filtrer/avertir sur la présence au bloc en semaine N+1. **Plus aucun contrôle automatique depuis le retrait de la rotation (20/07/2026)** — l'attribution est 100 % manuelle et la règle du 8.1 est à vérifier de tête par le comité (documenté dans `guide-comite.html` § 8.2).
 - [ ] *(Sécurité, à l'appréciation d'Arthur)* rotation du token GitHub.
-- [ ] 💾 **Sauvegarde hors-compte du classeur maître (conçu 24/07/2026, non codé).**
-  **Existant vérifié :** `backupHebdo()` (`code.gs` l.1473) copie le classeur **tous les lundis
-  ~4 h** dans le dossier Drive `Planning-CHPG-Backups`, rotation sur **8 copies** (≈ 2 mois) ;
-  installation par `installBackupTrigger()` (l.1494) ; le diagnostic Maintenance (`Indispos.gs`
-  l.1886) alerte si la dernière copie date de plus de 10 jours.
-  - 🔴 **Faiblesse structurelle :** la copie est dans **le même Drive, sous le même compte** que
-    l'original. Elle protège d'une fausse manœuvre ou d'un onglet effacé, **pas** d'un compte
-    compromis, suspendu ou fermé — dans ce cas l'original *et* les 8 copies disparaissent ensemble.
-  - ⚠️ **Piège à ne pas retenir :** partager un dossier depuis un second compte et y copier **ne
-    résout rien** — sur Drive, **le fichier appartient à celui qui le crée**. La copie resterait
-    propriété de `planningchpg@gmail.com`, simplement rangée ailleurs.
-  - ❌ **Export XLSX envoyé par mail : ÉCARTÉ.** Robuste sur la propriété (la copie vit dans une
-    boîte, hors Drive) mais **ne contient pas le script bound**. Arthur : « dans l'idéal il
-    faudrait que le script reste ».
-  - ✅ **VOIE RETENUE (validée par Arthur le 24/07) — sauvegarde TIRÉE, pas poussée.** Principe :
-    c'est la sauvegarde qui va chercher, pas le système à protéger qui envoie. Un petit script
-    (~15 lignes) **dans le compte Google personnel d'Arthur**, déclenché **mensuellement**, fait un
-    `makeCopy` **du classeur maître ENTIER** vers *son* Drive : le fichier étant **créé par ce
-    compte, il lui appartient nativement** — aucun `setOwner` nécessaire, et rien de ce qui arrive
-    à `planningchpg` ne peut l'atteindre. Une copie Drive **emporte le script bound**,
-    contrairement à l'export XLSX.
-    ⚠️ **Bien le classeur entier, pas un onglet** (`makeCopy` duplique tous les onglets annuels,
-    MEDECINS, CONFIG, l'historique + le script). Sauvegarder un seul onglet laisserait tout le
-    reste sans filet.
-    ⚠️ **Rotation OBLIGATOIRE dans le compte perso aussi.** Depuis 2021 les fichiers Google Sheets
-    **comptent dans le quota de stockage** (15 Go partagés avec Gmail et Photos) : sans purge des
-    anciennes copies, l'accumulation est illimitée. Reprendre la logique de `BACKUP_KEEP = 8`.
-    ✅ **Cadence : HEBDOMADAIRE** (arrêtée par Arthur le 24/07, après un premier choix mensuel).
-    Motif : au mensuel, une perte du compte au 29ᵉ jour coûtait **un mois de saisies** — lourd
-    pendant la campagne d'octobre. L'hebdomadaire divise la perte maximale par quatre pour **une
-    opération Drive de plus par semaine**.
-    ⚠️ **Profondeur d'historique — NE PAS se limiter à la copie la plus récente.** Arthur avait
-    envisagé « ne garder que la dernière » (ou une purge manuelle) ; **déconseillé**. Scénario qui
-    casse une sauvegarde unique : un onglet est corrompu un mardi sans que personne ne le remarque ;
-    la copie du lundi suivant **écrase la seule sauvegarde saine** par la version corrompue ; le
-    problème est vu trois semaines plus tard, il ne reste rien à restaurer. Une copie unique ne
-    protège que de la **perte brutale**, pas de la **corruption silencieuse** — laquelle n'est
-    rattrapée que par la profondeur d'historique. ⇒ **Garder 8 copies (≈ 2 mois)**, comme
-    `BACKUP_KEEP` côté planning, avec **purge automatique** (une suppression manuelle finit
-    toujours par être oubliée). Coût de stockage négligeable : quelques Mo par copie, donc quelques
-    dizaines de Mo sur les 15 Go du compte perso *(poids réel du classeur non vérifié)*.
-  - ❓ **À vérifier avant de coder :** (1) quel **niveau d'accès** le compte perso doit avoir sur le
-    classeur pour que **le script bound suive la copie** — la lecture seule suffit probablement
-    pour les données, pas forcément pour le script ; (2) accorder l'écriture au second compte
-    **élargit la surface d'exposition** (c'est le compte d'Arthur, mais à décider en conscience) ;
-    (3) poids réel du classeur, si un export hors-Google est aussi souhaité (limite 25 Mo en pièce
-    jointe). *(`setOwner` après copie a été envisagé puis écarté : Google a durci les transferts de
-    propriété entre comptes gratuits, comportement non garanti sans test réel.)*
-  - 📌 **Mise en perspective :** le code GAS est déjà **à 100 % dans le dépôt** (règle du projet).
-    Perdre le script bound est donc un **coût de réinstallation**, pas une perte de données. **Le
-    seul actif irremplaçable est le classeur** — indispos, gardes, historique, statistiques. C'est
-    lui que la sauvegarde doit protéger en priorité.
-  - Le script du compte perso vivra **hors** de ce dépôt (autre compte) : prévoir malgré tout de le
-    versionner quelque part, sinon il échappe à la règle « le dépôt fait foi ».
+- [x] ✅ **Sauvegarde hors-compte — INSTALLÉE ET VÉRIFIÉE le 26/07/2026.** Script autonome dans le
+  compte Google **personnel** d'Arthur, déclencheur **hebdomadaire (dimanche ~5 h)**, dossier
+  `Sauvegardes Planning-CHPG`, rotation sur 8 copies. Vérifié dans le Drive : projet créé, dossier
+  créé, copies réelles présentes (69 568 o). Marche à suivre : `docs/sauvegarde-compte-perso.md`.
+  - **Partage en LECTEUR suffit** — testé : la copie **emporte le script attaché**. Le compte
+    personnel ne peut donc jamais modifier la production. Classeur : ~78 Ko, stockage non-sujet.
+  - ⚠️ **Piège vérifié le 26/07 :** avec plusieurs comptes Google connectés, l'ouverture affiche
+    « Impossible d'ouvrir le fichier ». **Ni un problème de droits, ni une sauvegarde corrompue** —
+    ouvrir en **navigation privée** avec le seul compte personnel. À savoir avant un jour de panne.
+  - Procédure de restauration complète (dont **l'adresse de déploiement qui change**) :
+    `docs/guide-technique.html` §21.
+  - *(Ancien item, pour mémoire : `backupHebdo` du compte planning reste en place, lundi ~4 h — les
+    deux sauvegardes sont volontairement décalées.)*
 - [ ] ⚠️ **`markVeille` écrit sans verrou ni contrôle de rôle** (constaté 24/07/2026, anomalie
   **préexistante**, sans rapport avec le Lot 5-bis). Elle marque un article de veille comme lu —
   donc une **écriture** — mais elle est **absente de `WRITE_ACTIONS_LOCK`** (`Indispos.gs` l.1043)
