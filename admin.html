@@ -959,7 +959,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.9.7'; // SITE_VERSION: v1.9.7
+const SITE_VERSION = 'v1.9.8'; // SITE_VERSION: v1.9.8
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1052,7 +1052,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.9.7</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.9.8</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1871,8 +1871,10 @@ function _mailDe(v){
   const m = s.match(/^\s*"?([^"<]+?)"?\s*</);       // « Nom <adresse> » -> Nom
   return (m ? m[1] : s.replace(/[<>]/g,'')).trim() || '(inconnu)';
 }
-// Echappement systematique : tout ce qui vient d'un mail est du contenu externe.
-function _mailEsc(t){
+// Echappement HTML — a utiliser pour TOUTE donnee qui n'est pas ecrite par cette page :
+// contenu de mail, texte saisi par un MAR, valeur venue du classeur.
+// (Renommee de _mailEsc le 26/07 : elle ne sert plus SEULEMENT aux mails.)
+function _escHtml(t){
   return String(t == null ? '' : t)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;');
@@ -1915,17 +1917,17 @@ async function chargerMail(){
   try{
     const r = await api({action:'mailListe', nb:20});
     if (!(r && r.success)){
-      z.innerHTML = '<div class="mail-info">Impossible de charger : ' + _mailEsc((r&&r.error)||'erreur inconnue') + '</div>';
+      z.innerHTML = '<div class="mail-info">Impossible de charger : ' + _escHtml((r&&r.error)||'erreur inconnue') + '</div>';
       return;
     }
     MAIL_CHARGE = true;
     const msgs = r.messages || [];
     if (!msgs.length){ z.innerHTML = '<div class="mail-info">Aucun message.</div>'; return; }
     z.innerHTML = msgs.map(function(m){
-      return '<button class="mail-it' + (m.nonLu ? ' nl' : '') + '" data-id="' + _mailEsc(m.id) + '">' +
-        '<div class="de">' + _mailEsc(_mailDe(m.de)) + '<span class="dt">' + _mailDate(m.date) + '</span></div>' +
-        '<div class="ob">' + _mailEsc(m.objet) + '</div>' +
-        '<div class="ap">' + _mailEsc(m.apercu).slice(0,120) + '</div></button>';
+      return '<button class="mail-it' + (m.nonLu ? ' nl' : '') + '" data-id="' + _escHtml(m.id) + '">' +
+        '<div class="de">' + _escHtml(_mailDe(m.de)) + '<span class="dt">' + _mailDate(m.date) + '</span></div>' +
+        '<div class="ob">' + _escHtml(m.objet) + '</div>' +
+        '<div class="ap">' + _escHtml(m.apercu).slice(0,120) + '</div></button>';
     }).join('');
     z.querySelectorAll('.mail-it').forEach(function(b){
       b.addEventListener('click', function(){ ouvrirMessage(b.dataset.id, b); });
@@ -3578,11 +3580,17 @@ function renderLiberalCard(items, date) {
   if (!items || !items.length) { card.style.display = 'none'; return; }
   document.getElementById('libSub').textContent =
     new Date(date + 'T12:00:00').toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+  // ⚠️ SECURITE (audit du 26/07) : les trois valeurs ci-dessous viennent du classeur et
+  // sont ALIMENTEES PAR LES MARs. `chirurgie` est du texte libre (declareLiberal, 80
+  // caracteres) et `secteur` ressort brut de _libSecteurLabel s'il est inconnu de
+  // SECTEURS_CFG. Sans echappement, un MAR pouvait faire executer du code DANS CETTE PAGE,
+  // ou ADMIN_CODE est une variable vivante — soit l'acces aux 43 actions d'administration.
+  // Ne jamais retirer _escHtml ici.
   document.getElementById('libBody').innerHTML = items.map(it =>
     '<div class="lib-row">'
-    + '<div class="lib-n">' + _nm(it.marId) + '</div>'
-    + '<div class="lib-m"><span class="lib-sec">' + _libSecteurLabel(it.secteur) + '</span>'
-    + (it.chirurgie ? '<span class="lib-ch">' + it.chirurgie + '</span>' : '') + '</div>'
+    + '<div class="lib-n">' + _escHtml(_nm(it.marId)) + '</div>'
+    + '<div class="lib-m"><span class="lib-sec">' + _escHtml(_libSecteurLabel(it.secteur)) + '</span>'
+    + (it.chirurgie ? '<span class="lib-ch">' + _escHtml(it.chirurgie) + '</span>' : '') + '</div>'
     + '</div>').join('');
   card.style.display = 'block';
 }
