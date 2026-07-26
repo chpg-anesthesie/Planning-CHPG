@@ -959,7 +959,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.9.5'; // SITE_VERSION: v1.9.5
+const SITE_VERSION = 'v1.9.6'; // SITE_VERSION: v1.9.6
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1052,7 +1052,11 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.9.5</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.9.6</span></span>
+    <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
+      <span class="hb-ico">✉</span> Messages
+      <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
+    </button>
     <a href="./docs/guide-comite.html" target="_blank" class="header-btn" title="Guide du comité — mode d'emploi de cette interface"><span class="hb-ico">?</span> Aide</a>
     
   </div>
@@ -1792,6 +1796,7 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
       document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR; });
       const affYearEl = document.getElementById('affYear'); if(affYearEl) affYearEl.textContent = YEAR;
       await initDashboard();
+      setTimeout(majCompteurMail, 1500);   // tache de fond : n'ajoute rien a l'ouverture
       // Ouvrir le wizard si appelé depuis dashboard
       const wizParam = new URLSearchParams(window.location.search).get('wizard');
       if (wizParam === '1')      setTimeout(openWizard, 600);
@@ -1835,6 +1840,7 @@ async function authenticate() {
         if (el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR;
       });
       await initDashboard();
+      setTimeout(majCompteurMail, 1500);   // tache de fond : n'ajoute rien a l'ouverture
     } else {
       if (errEl) { errEl.textContent = 'Code incorrect.'; errEl.style.display = 'block'; }
     }
@@ -1849,6 +1855,109 @@ async function authenticate() {
 }
 
 const API_TIMEOUT_MS = 120000; // 2 min : couvre la génération des gardes (~15 s) et le diagnostic, coupe les vrais blocages
+// ══ BOITE DE RECEPTION — lecture seule ═══════════════════════════════
+// Le serveur n'expose que 3 actions de LECTURE et ne renvoie que du TEXTE BRUT
+// (jamais le HTML des messages : l'injecter executerait du contenu externe).
+let MAIL_CHARGE = false;
+
+function _mailDate(ms){
+  const d = new Date(Number(ms) || 0), j = new Date();
+  const meme = d.toDateString() === j.toDateString();
+  return meme ? d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
+              : d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+}
+function _mailDe(v){
+  const s = String(v || '');
+  const m = s.match(/^\s*"?([^"<]+?)"?\s*</);       // « Nom <adresse> » -> Nom
+  return (m ? m[1] : s.replace(/[<>]/g,'')).trim() || '(inconnu)';
+}
+// Echappement systematique : tout ce qui vient d'un mail est du contenu externe.
+function _mailEsc(t){
+  return String(t == null ? '' : t)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+// Compteur de non-lus : appele APRES l'affichage de l'admin, en tache de fond.
+// ⚠️ NE JAMAIS le mettre dans getAdminBootstrap : ~1 s ajoutee a CHAQUE ouverture
+// pour une fonction consultee occasionnellement.
+async function majCompteurMail(){
+  try{
+    const r = await api({action:'mailNonLus'});
+    const el = document.getElementById('mailDot');
+    if (!el) return;
+    if (r && r.success && r.nonLus > 0){
+      el.textContent = r.nonLus > 99 ? '99+' : r.nonLus;
+      el.style.display = 'block';
+    } else { el.style.display = 'none'; }
+  }catch(e){ /* silencieux : le badge est un confort, pas une fonction critique */ }
+}
+
+function ouvrirMail(){
+  document.getElementById('mailOv').style.display = 'block';
+  document.getElementById('mailDr').style.display = 'flex';
+  mailRetour();
+  if (!MAIL_CHARGE) chargerMail();
+}
+function fermerMail(){
+  document.getElementById('mailOv').style.display = 'none';
+  document.getElementById('mailDr').style.display = 'none';
+}
+function mailRetour(){
+  document.getElementById('mailVue').style.display = 'none';
+  document.getElementById('mailBody').style.display = 'block';
+}
+
+async function chargerMail(){
+  const z = document.getElementById('mailBody');
+  // Panneau ouvert IMMEDIATEMENT avec un indicateur : meme duree, ressenti tout autre.
+  z.innerHTML = '<div class="mail-info">Chargement des messages…<br><span style="font-size:11.5px">Quelques secondes.</span></div>';
+  try{
+    const r = await api({action:'mailListe', nb:20});
+    if (!(r && r.success)){
+      z.innerHTML = '<div class="mail-info">Impossible de charger : ' + _mailEsc((r&&r.error)||'erreur inconnue') + '</div>';
+      return;
+    }
+    MAIL_CHARGE = true;
+    const msgs = r.messages || [];
+    if (!msgs.length){ z.innerHTML = '<div class="mail-info">Aucun message.</div>'; return; }
+    z.innerHTML = msgs.map(function(m){
+      return '<button class="mail-it' + (m.nonLu ? ' nl' : '') + '" data-id="' + _mailEsc(m.id) + '">' +
+        '<div class="de">' + _mailEsc(_mailDe(m.de)) + '<span class="dt">' + _mailDate(m.date) + '</span></div>' +
+        '<div class="ob">' + _mailEsc(m.objet) + '</div>' +
+        '<div class="ap">' + _mailEsc(m.apercu).slice(0,120) + '</div></button>';
+    }).join('');
+    z.querySelectorAll('.mail-it').forEach(function(b){
+      b.addEventListener('click', function(){ ouvrirMessage(b.dataset.id); });
+    });
+  }catch(e){
+    z.innerHTML = '<div class="mail-info">Erreur réseau — réessayez.</div>';
+  }
+}
+
+async function ouvrirMessage(id){
+  document.getElementById('mailBody').style.display = 'none';
+  const v = document.getElementById('mailVue');
+  v.style.display = 'flex';
+  document.getElementById('mvObjet').textContent = 'Chargement…';
+  document.getElementById('mvDe').textContent = '';
+  document.getElementById('mvTexte').textContent = '';
+  try{
+    const r = await api({action:'mailMessage', id:id});
+    if (!(r && r.success)){
+      document.getElementById('mvObjet').textContent = 'Impossible de charger';
+      document.getElementById('mvTexte').textContent = (r && r.error) || '';
+      return;
+    }
+    // textContent, jamais innerHTML : le corps du message reste du texte inerte.
+    document.getElementById('mvObjet').textContent = r.objet || '(sans objet)';
+    document.getElementById('mvDe').textContent = r.de + ' — ' + _mailDate(r.date);
+    document.getElementById('mvTexte').textContent = r.texte || '';
+  }catch(e){
+    document.getElementById('mvObjet').textContent = 'Erreur réseau';
+  }
+}
+
 async function api(payload) {
   payload.code = ADMIN_CODE;
   _apiBar(true);
@@ -7053,6 +7162,50 @@ async function resetCodeMAR(marId, marNom) {
   </div>
 </div>
 
+<!-- ══ BOITE DE RECEPTION (admin) — lecture seule ══════════════════════ -->
+<style>
+#mailOv{position:fixed;inset:0;background:rgba(15,23,42,.35);z-index:1200;display:none}
+#mailDr{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:#fff;z-index:1201;
+  display:none;flex-direction:column;box-shadow:-8px 0 30px rgba(15,23,42,.14)}
+#mailDr header{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid #E2E8F0}
+#mailDr header h3{font-size:15px;font-weight:700;margin:0;flex:1}
+#mailDr .sub{font-size:11.5px;color:#64748B;font-weight:400}
+#mailDr .x{border:none;background:none;font-size:22px;line-height:1;color:#64748B;cursor:pointer;padding:0 4px}
+#mailBody{flex:1;overflow-y:auto}
+.mail-it{width:100%;text-align:left;border:none;background:none;font:inherit;cursor:pointer;
+  padding:11px 18px;border-bottom:1px solid #F1F5F9;display:block}
+.mail-it:hover{background:#F8FAFC}
+.mail-it .de{font-size:13px;font-weight:600;color:#0F172A;display:flex;gap:7px;align-items:baseline}
+.mail-it .dt{margin-left:auto;font-size:11px;color:#94A3B8;font-weight:400;white-space:nowrap}
+.mail-it .ob{font-size:12.5px;color:#334155;margin-top:2px}
+.mail-it .ap{font-size:11.5px;color:#94A3B8;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mail-it.nl .de::before{content:'';width:7px;height:7px;border-radius:50%;background:#DC2626;flex:none}
+.mail-info{padding:34px 20px;text-align:center;color:#64748B;font-size:13px;line-height:1.6}
+#mailVue{display:none;flex-direction:column;height:100%}
+#mailVue .hd{padding:14px 18px;border-bottom:1px solid #E2E8F0}
+#mailVue .hd .o{font-size:15px;font-weight:700;color:#0F172A}
+#mailVue .hd .m{font-size:12px;color:#64748B;margin-top:3px}
+#mailVue pre{flex:1;overflow:auto;margin:0;padding:16px 18px;font:13px/1.6 ui-monospace,monospace;
+  white-space:pre-wrap;word-break:break-word;color:#1E293B}
+#mailVue .rt{border:none;background:none;color:#1D6FB8;font:inherit;font-size:13px;font-weight:600;
+  cursor:pointer;padding:10px 18px;text-align:left;border-bottom:1px solid #E2E8F0}
+</style>
+<div id="mailOv" onclick="fermerMail()"></div>
+<div id="mailDr" role="dialog" aria-label="Messages reçus">
+  <header>
+    <div style="flex:1">
+      <h3>Messages reçus</h3>
+      <div class="sub">planningchpg@gmail.com — lecture seule</div>
+    </div>
+    <button class="x" onclick="fermerMail()" title="Fermer">&times;</button>
+  </header>
+  <div id="mailBody"></div>
+  <div id="mailVue">
+    <button class="rt" onclick="mailRetour()">&larr; Retour à la liste</button>
+    <div class="hd"><div class="o" id="mvObjet"></div><div class="m" id="mvDe"></div></div>
+    <pre id="mvTexte"></pre>
+  </div>
+</div>
 </body>
 </html>
 
