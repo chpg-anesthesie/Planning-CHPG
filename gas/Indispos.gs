@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-25.3';
+const GAS_VERSION_INDISPOS = '2026-07-26.1';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1784,6 +1784,81 @@ if (!affSheet) {
       return ContentService.createTextOutput(JSON.stringify({
         success: true, sent, skipped, sansEmail, sansCode, errors
       })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── BOITE DE RECEPTION (admin) ───────────────────────────────────────
+    // Lecture de planningchpg@gmail.com depuis admin.html. LECTURE SEULE :
+    // l'autorisation declaree dans appsscript.json est gmail.readonly, le script
+    // ne PEUT PAS envoyer ni supprimer, meme en cas de bug. Repondre depuis
+    // l'admin serait une ecriture : decision distincte, a reprendre explicitement.
+    // Passe par le service avance Gmail (et non GmailApp, qui exigerait une
+    // autorisation large lire/envoyer/supprimer).
+
+    // Compteur de non-lus. Appele APRES l'affichage de l'admin, en tache de fond :
+    // ne JAMAIS le mettre dans getAdminBootstrap, il ajouterait ~1 s a chaque
+    // ouverture pour une fonction consultee occasionnellement.
+    if (action === 'mailNonLus') {
+      if (user.role !== 'admin') return _deny();
+      try {
+        const lab = Gmail.Users.Labels.get('me', 'INBOX');
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true, nonLus: Number(lab.messagesUnread || 0)
+        })).setMimeType(ContentService.MimeType.JSON);
+      } catch (err) { return _error('Lecture Gmail impossible : ' + err.message); }
+    }
+
+    // Liste des messages recus. Charge au clic sur l'enveloppe (~2-4 s).
+    if (action === 'mailListe') {
+      if (user.role !== 'admin') return _deny();
+      try {
+        const nb = Math.min(Math.max(parseInt(payload.nb) || 20, 1), 50);
+        const liste = Gmail.Users.Messages.list('me', {q: 'in:inbox', maxResults: nb});
+        const out = [];
+        (liste.messages || []).forEach(function (ref) {
+          const m = Gmail.Users.Messages.get('me', ref.id, {format: 'metadata',
+            metadataHeaders: ['From', 'Subject', 'Date']});
+          const h = {};
+          ((m.payload && m.payload.headers) || []).forEach(function (x) { h[x.name] = x.value; });
+          out.push({
+            id: m.id,
+            de: h.From || '',
+            objet: h.Subject || '(sans objet)',
+            date: Number(m.internalDate || 0),
+            apercu: m.snippet || '',
+            nonLu: (m.labelIds || []).indexOf('UNREAD') >= 0
+          });
+        });
+        return ContentService.createTextOutput(JSON.stringify({success: true, messages: out}))
+          .setMimeType(ContentService.MimeType.JSON);
+      } catch (err) { return _error('Lecture Gmail impossible : ' + err.message); }
+    }
+
+    // Corps d'un message, en TEXTE BRUT uniquement.
+    // ⚠️ Ne JAMAIS renvoyer le HTML du message : l'injecter dans admin.html
+    // executerait du contenu venu de l'exterieur dans la page.
+    if (action === 'mailMessage') {
+      if (user.role !== 'admin') return _deny();
+      try {
+        const id = String(payload.id || '').trim();
+        if (!id) return _error('Identifiant de message manquant');
+        const m = Gmail.Users.Messages.get('me', id, {format: 'full'});
+        const h = {};
+        ((m.payload && m.payload.headers) || []).forEach(function (x) { h[x.name] = x.value; });
+        // Parcours recursif des parties MIME, on ne retient que text/plain.
+        let texte = '';
+        (function lire(p) {
+          if (!p) return;
+          if (p.mimeType === 'text/plain' && p.body && p.body.data) {
+            texte += Utilities.newBlob(Utilities.base64DecodeWebSafe(p.body.data)).getDataAsString() + '\n';
+          }
+          (p.parts || []).forEach(lire);
+        })(m.payload);
+        if (!texte) texte = m.snippet || '(message sans version texte)';
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true, de: h.From || '', objet: h.Subject || '(sans objet)',
+          date: Number(m.internalDate || 0), texte: texte.trim()
+        })).setMimeType(ContentService.MimeType.JSON);
+      } catch (err) { return _error('Lecture Gmail impossible : ' + err.message); }
     }
 
     if (action === 'diagComplet') {
