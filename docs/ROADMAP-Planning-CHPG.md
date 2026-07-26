@@ -881,44 +881,36 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
 
 - [ ] 📚 **Veille bibliographique** — enrichissements (option `ENRICH` IA quand clé API dispo).
 
-- [ ] ✉️ **Boîte de réception dans `admin.html` (conçu 24/07/2026, non codé).** Icône enveloppe dans
-  la barre d'admin ouvrant un **panneau interne** listant les mails reçus sur
-  `planningchpg@gmail.com` — boîte destinée à centraliser les demandes des MARs (changement de
-  statut, échange de garde…). **Lecture seule.**
-  - ❌ **Pas d'iframe** : Gmail refuse d'être affiché dans une page tierce, ce n'est pas
-    contournable. ❌ **Pas de lien vers Gmail** non plus : la boîte appartient au compte
-    propriétaire du classeur, du Drive et de l'Apps Script — y donner accès au comité reviendrait à
-    donner les clés de tout le back-end.
-  - ✅ **Voie retenue : lecture côté serveur.** Le script s'exécute **en tant que propriétaire**
-    (vérifié : `MailApp.sendEmail` fonctionne sans identité explicite, `Indispos.gs` l.1741), il lit
-    donc la boîte nativement et renvoie du JSON. Personne n'approche des identifiants.
-  - **Chargement (acté) :** le **contenu ne part qu'au clic** (~2–4 s, ordre de grandeur non
-    mesuré) ; le **compteur de non-lus part en tâche de fond APRÈS l'affichage** de l'admin — les
-    temps se recouvrent, jamais d'attente ajoutée à l'ouverture de la page. ⚠️ **Ne pas mettre le
-    compteur dans `getAdminBootstrap`** : il ajouterait 0,5–1 s à *chaque* ouverture pour une
-    fonction consultée occasionnellement. Au clic, ouvrir le panneau **immédiatement, vide, avec un
-    indicateur** plutôt que de laisser l'icône figée.
-  - **Quotas — non-bloquant, marge vérifiée le 24/07** (source : quotas Apps Script, compte
-    *consumer*) : **20 000 opérations Gmail lecture/écriture par jour**, compteur **distinct** des
-    100 destinataires/jour déjà utilisés à l'envoi. Une ouverture de panneau (20 messages) ≈ **50
-    opérations** → ~**400 ouvertures/jour** possibles ; usage lourd (5 personnes × 10 ouvertures) =
-    2 500 op. = **12 % du quota**. Le compteur de non-lus = **1 opération** (100 chargements/jour =
-    0,5 %). Volume de mails attendu : 23 MARs, ordre de **6/semaine** — dérisoire *(estimation,
-    volume réel non fourni)*.
-  - 🔒 **Deux règles à ne pas oublier en codant :** afficher le **texte brut uniquement, jamais le
-    HTML** des messages (injection de contenu externe dans la page) ; **lire seulement** — répondre
-    depuis l'admin serait une écriture (⇒ `WRITE_ACTIONS_LOCK` + quota d'envoi), c'est une étape
-    distincte à décider séparément.
-  - ⚠️ **Confidentialité :** tout le comité verrait tous les mails de cette adresse. C'est l'objet
-    de l'outil pour des demandes de service, mais il n'y a **aucune cloison** si un MAR y écrit
-    quelque chose de personnel.
-  - ❓ **À vérifier avant de coder :** la lecture Gmail peut-elle se limiter à une autorisation
-    **lecture seule**, ou impose-t-elle l'autorisation large ? Cela change ce que le script pourrait
-    faire de la boîte.
-  - **Même push le jour venu :** `admin.html` est une page visible → **bump de version (2ᵉ chiffre,
-    feature)** + mise à jour de **`docs/guide-comite.html`**.
+- [x] ✅ **Boîte de réception dans `admin.html` — EN PRODUCTION le 26/07/2026.** Bouton
+  **✉ Messages** dans la barre d'admin, tiroir latéral, point rouge des non lus.
+  Commits `abe6999` (GAS), `f890363` (admin), `c5c6f52` (dashboard). **Site en `v1.9.6`.**
+  - **Serveur — 3 actions de LECTURE seule**, toutes `user.role !== 'admin' → _deny()` :
+    `mailNonLus` (compteur, 1 opération), `mailListe` (20 messages, ~40 op.), `mailMessage`
+    (corps d'un message). Passent par le **service avancé Gmail**, pas par `GmailApp` — qui
+    aurait imposé une autorisation large. Testé en réel : `{"success":true,"nonLus":35}`.
+  - ❌ **Pas d'iframe** (Gmail refuse d'être affiché dans une page tierce) ❌ **pas de lien vers
+    Gmail** (la boîte appartient au compte propriétaire de tout le back-end).
+  - **Chargement (conforme à la décision du 24/07) :** le contenu ne part qu'**au clic** ; le
+    **compteur part 1,5 s APRÈS l'affichage**, en tâche de fond. ⚠️ **Ne jamais le mettre dans
+    `getAdminBootstrap`.** Vérifié en production : l'ouverture de l'admin n'est pas ralentie.
+    Au clic, le tiroir s'ouvre **immédiatement** avec un indicateur — même durée, ressenti tout
+    autre.
+  - 🔒 **Deux barrières indépendantes contre l'injection :** le serveur ne renvoie que du
+    **texte brut** (parcours des parties MIME, `text/plain` uniquement, le HTML du message
+    n'est jamais transmis) ; et le client pose le corps avec **`textContent`, jamais
+    `innerHTML`**. Expéditeur, objet et aperçu passent par une fonction d'échappement.
+  - **Quotas (mesurés le 24/07)** : 20 000 opérations Gmail/jour sur compte *consumer*, compteur
+    **distinct** des 100 destinataires/jour de l'envoi. Usage lourd (5 personnes × 10 ouvertures)
+    = ~12 % du quota. Non-sujet.
+  - ⚠️ **Confidentialité actée :** tout le comité voit tous les messages de cette adresse.
+    C'est l'objet de l'outil pour des demandes de service, mais **aucune cloison** si un MAR y
+    écrit quelque chose de personnel.
+  - 🔜 **Répondre depuis l'admin : NON FAIT, et volontairement.** Ce serait une **écriture**
+    (⇒ `WRITE_ACTIONS_LOCK`, quota d'envoi) et exigerait d'élargir l'autorisation Gmail.
+    Décision distincte, à reprendre explicitement — ne pas y glisser par commodité.
+  - 📌 **Reste à faire : mettre à jour `docs/guide-comite.html`** (nouveau bouton visible par
+    tout le comité).
 
-### Finitions & maintenance
 - [ ] **Sorties de garde réa / anesthésie non distinguées** dans l'Excel (une seule ligne « SORTIES DE GARDE »). Le statut `RG` est unique : impossible de savoir de quelle garde sort la personne. Piste : un second statut (`RG2`), ou déduire depuis la veille — mais le lundi renverrait au dimanche de la semaine précédente, hors `daySlots`.
 - [ ] Picker des consult libérales endo : filtrer/avertir sur la présence au bloc en semaine N+1. **Plus aucun contrôle automatique depuis le retrait de la rotation (20/07/2026)** — l'attribution est 100 % manuelle et la règle du 8.1 est à vérifier de tête par le comité (documenté dans `guide-comite.html` § 8.2).
 - [ ] *(Sécurité, à l'appréciation d'Arthur)* rotation du token GitHub.
