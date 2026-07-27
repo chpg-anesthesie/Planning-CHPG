@@ -1,6 +1,6 @@
 # Module libéral — document de conception
 
-*Créé le 02/07/2026 · épuré le 26/07/2026 (v4.0) · **Lot 2A livré le 27/07/2026 (v4.1)**. L'ancien document avait
+*Créé le 02/07/2026 · épuré le 26/07/2026 (v4.0) · **Lot 2A livré le 27/07/2026 · cotations types (v4.2)**. L'ancien document avait
 1 287 lignes accumulées en 22 révisions successives ; des affirmations périmées y survivaient sous
 des démentis. Il en fait aujourd'hui trois fois moins.*
 
@@ -179,6 +179,33 @@ français, **avertie** pour NAS et AME.
 **Bandeau AME.** Deux régimes existent (français : tarifs français, sans dépassement ; monégasque :
 hors annexe III), et rien ne dit lequel s'applique en libéral. Le chiffre s'affiche, **assorti d'un
 avertissement** — un chiffre douteux ne s'affiche pas en silence.
+
+**Cotations types (27/07/2026).** Onglet `COTATIONS_TYPE` — `GROUPE · NOM · ORDRE · CODE · ROLE ·
+MOD7 · MODA · LC` — servi par l'action `getCotationsType`. Un bouton remplit le tableau de cotation
+en un clic : lignes d'acte, rôles, modificateurs **et** consultation associée. Il **remplace** les
+lignes en place (une cotation type décrit un patient entier).
+
+- **Amorcé avec le groupe `Endoscopie`** : *Gastro + colo* (`HHQE002` principal + `ZZLP025` associé
+  50 %), *Gastro seule* (`ZZLP025` seul), *Colo seule* (`HHQE002` seul) — toutes avec modificateur 7
+  et `CS` associée. Motif : la consultation d'endoscopie du mardi et du jeudi après-midi est
+  composée à 100 % de patients libéraux, donc le créneau le plus chargé administrativement.
+- **Sélecteur de contexte** : la page n'affiche **que** les cotations types du groupe choisi, et
+  **rien** tant qu'aucun groupe ne l'est. Au-delà d'une dizaine, une rangée de boutons devient
+  illisible ; grouper par contexte tient à 50 comme à 3. Le choix est mémorisé pour la session.
+- ⚠️ **Aucun tarif n'est stocké dans l'onglet** : il vient de l'index CCAM à partir du code. Une
+  seule source, pas de valeur à maintenir à deux endroits. Un code absent de l'index est signalé,
+  et les lignes en place ne sont pas détruites.
+- ⚠️ **Uniquement des lignes d'activité 4.** Sur un relevé de gastro-colo, les lignes d'activité 1
+  appartiennent à l'opérateur : les inclure gonflerait la BR du MAR d'environ 300 € et son quota
+  des 30 % avec.
+- ⚠️ **Aucun modificateur d'urgence** (`S`, `U`, `O`, `F`, `P`) : il n'y a pas de libéral en urgence
+  au CHPG.
+
+**Modificateur 7 coché par défaut, et tableau vide au démarrage (27/07/2026).** Le modificateur 7
+(présence permanente de l'anesthésiste, +6 %) est **présent sur tous les relevés observés** ; il est
+donc coché d'office sur toute nouvelle ligne — cotation type, recherche CCAM ou ajout manuel. Une
+case oubliée **sous-évaluait silencieusement la BR de 6 %**. Le tableau de cotation, qui contenait
+deux lignes d'orthopédie de démonstration à effacer à chaque patient, démarre désormais vide.
 
 **Pré-remplissage automatique.** « Ajouter le parcours » remplit toute la déclaration (jour, date de
 consultation, deux BR, chirurgie, spécialité proposée d'après le secteur). **Un seul bouton
@@ -502,6 +529,22 @@ git, commit `89cf72b7`.
     pré-remplissage est désormais automatique à l'ajout du parcours, et il n'y a **qu'un seul bouton
     de déclaration**, en bas de page. Le principe est inchangé, le geste est plus court encore.
 
+42. **Cotations types groupées par contexte** (27/07/2026). Onglet `COTATIONS_TYPE`, amorcé sur le
+    groupe `Endoscopie`. Aucun tarif stocké (il vient de l'index CCAM), uniquement des lignes
+    d'activité 4, aucun modificateur d'urgence. **Rien n'est affiché tant qu'aucun contexte n'est
+    choisi** — au-delà d'une dizaine de boutons l'écran devient illisible, et grouper tient à 50
+    comme à 3. Nom d'onglet choisi par Arthur (`COMBOS` écarté).
+
+43. **Modificateur 7 coché par défaut sur toute nouvelle ligne** (27/07/2026). Il est présent sur
+    **tous** les relevés observés ; la case décochée par défaut sous-évaluait la BR de 6 % dès
+    qu'elle était oubliée. Décochable. Corollaire : le tableau de cotation démarre **vide** (il
+    contenait deux lignes d'orthopédie de démonstration).
+
+44. **Toute clé de cache de session doit être versionnée** (`chpgCotTypeLib_v2`). Vécu le 27/07 : la
+    colonne `GROUPE` n'apparaissait pas parce que la page relisait son cache sans jamais appeler le
+    serveur, et `Ctrl+Maj+R` ne vide pas le `sessionStorage`. Invisible chez un seul utilisateur,
+    ingérable le jour de l'ouverture au groupement.
+
 ---
 
 ## 10. Questions encore ouvertes
@@ -530,14 +573,19 @@ git, commit `89cf72b7`.
   3. **AME en libéral** — l'AME ouvre-t-elle seulement droit à une prise en charge libérale ? Deux
      régimes existent (français, OS 5.743/2016 pour le monégasque), et l'AME monégasque est **hors
      annexe III**. En attendant : bandeau d'avertissement, statut inchangé.
-- **Combos de cotation** — une combinaison courante (`HHQE002.4` principal + `ZZLP025.4` associé à
-  50 %, modificateur 7 sur les deux, `CS` associée) remplirait le tableau en un clic. Onglet `COMBOS`
-  éditable en cellule, comme `SECTEURS`. ⚠️ **Uniquement des lignes d'activité 4** : sur un relevé de
-  gastro-colo, les lignes d'activité 1 appartiennent à l'opérateur — les inclure gonflerait la BR du
-  MAR de ~300 € et son quota avec. **Cas prioritaire : les consultations d'endoscopie du mardi et du
-  jeudi après-midi**, composées à 100 % de patients libéraux, donc le créneau le plus chargé
-  administrativement. À spécifier **après** une vraie après-midi faite avec l'outil : c'est elle qui
-  dira si le besoin est la combo ou autre chose.
+- ⚠️ **L'index CCAM a ses tarifs en retard d'une version.** Le fichier `ccam_actes.json` le dit
+  lui-même : `version: CCAM v83 (effet 2026-07-01)` pour les **codes et libellés**, mais
+  `tarif_act4: CCAM v80 (2025)` pour les **tarifs**. Écart mesuré sur un relevé réel : `HHQE002` à
+  51,31 dans l'index contre 52,03 appliqué, soit environ **1,40 € de BR** après coefficient — et
+  c'est **systématique sur les 4 356 tarifs d'activité 4**. Deux chantiers distincts : *afficher la
+  version et sa date dans la page* (l'information existe déjà dans le fichier, elle n'est pas
+  montrée), et *régénérer l'index* depuis la publication officielle. ⚠️ **Une vérification
+  automatique depuis la page est impossible** : pas d'API publique côté Cnam, et un navigateur ne
+  peut pas lire un site tiers depuis GitHub Pages. Détection automatique de l'**obsolescence**, mise
+  à jour **manuelle** du contenu.
+- **Modificateurs `8` et `R`** — à chercher dans les relevés réels (valeurs dans l'antisèche §3).
+  ⚠️ **La cataracte du second œil n'y ouvre PAS droit** : le texte vise une intervention « portant
+  sur un œil ayant déjà subi une de ces mêmes interventions », c'est-à-dire **le même œil réopéré**.
 - **Y a-t-il des actes facturés qu'aucune déclaration ne peut couvrir ?** À vérifier — ça borne par
   le bas le taux de couverture atteignable.
 
@@ -560,5 +608,6 @@ encore en vigueur.*
 | v3.13→3.20 · 23–24/07 | Conception complète du **Lot 5** (interface secrétaire), puis **gel** (§7 bis). |
 | v3.21 · 26/07 | **Le rendement est un attribut de spécialité, pas de secteur** — le déménagement de janvier 2027 change les secteurs, pas les spécialités. |
 | v3.22 · 26/07 | **Lot 2 élargi** : la déclaration porte la spécialité et le montant ; ventilation au prorata ; 2A avant 2B. |
+| **v4.2 · 27/07** | **Cotations types.** Onglet `COTATIONS_TYPE` groupé par contexte, amorcé sur l'endoscopie ; modificateur 7 coché par défaut ; tableau de cotation vide au démarrage ; clés de cache versionnées. Constat consigné : l'index CCAM porte des **tarifs v80 sous des codes v83**. Décisions 42 à 44. |
 | **v4.1 · 27/07** | **Lot 2A livré.** `LIBERAL_{Y}` à 9 colonnes, fin de la fusion, onglet `SPECIALITES`, consultation associée à la cotation, garde-fous APC et AME, volet comité regroupé. Tarifs NGAP recoupés sur l'annexe III de la convention CCSS-CAMTI (01/10/2025) : `C 34,40` et `CS 46` **confirmés au centime**, l'APC absente de la nomenclature monégasque. Décisions 38 à 41. Site **v1.10**. |
 | **v4.0 · 26/07** | **Épuration.** 1 287 → ~420 lignes, **un seul fichier**. Lot 5 réduit à un résumé (§7 bis), conception complète laissée à git. Suppression de 9 affirmations fausses ou périmées relevées par audit face au code réel : champ patient inexistant (§3 bis entier), « rien avant octobre 2026 » alors que les lots 0/1/3 tournent, `SECTEURS_CFG` présenté comme à externaliser alors que c'est fait, contradiction 4 vs 6 nombres du relevé, projection 31/12 promise à l'écran membre alors que la décision 10 la reporte, `LIBERAL_CIBLE` annoncée en CONFIG alors qu'elle n'existe pas. **Nouvelle règle : une décision périmée est supprimée, jamais démentie sous elle.** |
