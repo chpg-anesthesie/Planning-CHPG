@@ -331,6 +331,13 @@
 
     <!-- CCAM : actes techniques -->
     <div id="blocCCAM">
+      <!-- COTATIONS TYPES : servies par l'onglet COTATIONS_TYPE (getCotationsType).
+           Un clic REMPLACE les lignes du tableau (une cotation type = un patient
+           entier) et pose la consultation associee. -->
+      <div id="cotTypeBar" style="display:none;margin:0 0 10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+        <span style="font-size:12px;color:var(--muted)">Cotations types&nbsp;:</span>
+        <span id="cotTypeBtns"></span>
+      </div>
       <div class="ccamsearch">
         <input id="ccamq" autocomplete="off" placeholder="🔍 Rechercher un acte : code, libellé ou abréviation (ex. NEKA014, hernie, PTH)…" oninput="ccamSearch()">
         <div class="ccamresults" id="ccamResults"></div>
@@ -459,10 +466,9 @@ const FORMULES=[
 ];
 let lastRac=0, lastMut=null;
 let axe='CCAM';
-let builder=[
-  {code:'NEKA014',lib:'Prothèse totale de hanche (PTH)',tarif:253.90,m7:true,mA:true,role:'principal'},
-  {code:'NEFA004',lib:'Synovectomie',tarif:118.82,m7:true,mA:true,role:'associe'},
-];
+// Tableau VIDE au demarrage (27/07/2026). Il contenait deux lignes d'orthopedie de
+// demonstration, qu'il fallait effacer a chaque patient.
+let builder=[];
 let ngap=[ {lc:'CS', val:46.00, coef:1} ];
 let parcours=[];
 const eur=n=>Math.round(n).toLocaleString('fr-FR')+' €';
@@ -640,7 +646,10 @@ function onStatut(){const st=STATUTS[document.getElementById('statut').value];
   document.getElementById('cibleWrap').style.display = st.dh==='libre'?'block':'none';
   document.getElementById('mutRow').style.display = st.dh==='0'?'none':'flex';
   renderBuilder();}
-function addLine(){builder.push({code:'',lib:'',tarif:0,m7:false,mA:false,role:'complement'});renderBuilder();}
+// Modificateur 7 (presence permanente de l'anesthesiste, +6 %) COCHE PAR DEFAUT :
+// il est present sur tous les releves observes, et une case oubliee sous-evaluait
+// silencieusement la BR de 6 %. Decochable si le cas se presente.
+function addLine(){builder.push({code:'',lib:'',tarif:0,m7:true,mA:false,role:'complement'});renderBuilder();}
 function rmLine(i){builder.splice(i,1);renderBuilder();}
 function upd(i,f,v){builder[i][f]=v;renderBuilder();}
 
@@ -802,6 +811,62 @@ let SPECIALITES=[];
 // de l'ophtalmo, un secteur VIS de l'urologie -- c'est precisement pourquoi la
 // specialite existe separement.
 const SEC2SPEC={VIS:'VIS', ORT:'ORT', ORL:'ORL', END:'END', CI:'CI', RI:'RI', MAT:'GYN'};
+
+/* ── COTATIONS TYPES ───────────────────────────────────────────────────────
+   Onglet COTATIONS_TYPE : NOM | ORDRE | CODE | ROLE | MOD7 | MODA | LC.
+   Aucun tarif n'y est stocke : il vient de l'index CCAM a partir du code. Si un
+   code est absent de l'index, on le dit plutot que de poser une ligne a 0 EUR. */
+let COTTYPE=[];
+async function chargerCotationsType(){
+  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  if(!code) return;
+  try{
+    const c=JSON.parse(sessionStorage.getItem('chpgCotTypeLib')||'null');
+    if(c && c.length){ COTTYPE=c; renderCotTypeBar(); return; }
+  }catch(e){}
+  try{
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 20000);
+    const r=await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'getCotationsType', code:code}), redirect:'follow', signal:ctrl.signal});
+    clearTimeout(to);
+    const j=await r.json();
+    const brut=(j && (j.data || j.cotations || j)) || [];
+    const list=(Array.isArray(brut)?brut:[]).filter(x=>x && x.nom && x.lignes && x.lignes.length);
+    if(!list.length) return;                       // pas de barre plutot qu'une barre vide
+    COTTYPE=list; renderCotTypeBar();
+    try{ sessionStorage.setItem('chpgCotTypeLib', JSON.stringify(list)); }catch(e){}
+  }catch(e){ /* silencieux : la barre est un raccourci, pas une donnee critique */ }
+}
+
+function renderCotTypeBar(){
+  const bar=document.getElementById('cotTypeBar'), box=document.getElementById('cotTypeBtns');
+  if(!bar || !box || !COTTYPE.length) return;
+  box.innerHTML=COTTYPE.map((c,i)=>`<button class="addline" style="margin-right:6px" onclick="appliquerCotType(${i})">${esc(c.nom)}</button>`).join('');
+  bar.style.display='flex';
+}
+
+// REMPLACE les lignes en place : une cotation type decrit un patient entier.
+function appliquerCotType(i){
+  const c=COTTYPE[i]; if(!c) return;
+  if(axe!=='CCAM') setAxe('CCAM');
+  const manquants=[];
+  const lignes=[];
+  c.lignes.forEach(function(l){
+    const a=CCAM_INDEX.find(x=>String(x.c).toUpperCase()===String(l.code).toUpperCase());
+    if(!a || !a.t){ manquants.push(l.code); return; }
+    lignes.push({code:a.c, lib:a.l, tarif:a.t, m7:!!l.mod7, mA:!!l.modA, role:l.role||'principal'});
+  });
+  if(manquants.length){
+    alert("Code(s) absent(s) de l'index CCAM : "+manquants.join(', ')
+      +"\n\nLa cotation type est incomplète — complétez à la main par la recherche.");
+  }
+  if(!lignes.length) return;
+  builder=lignes;
+  // Consultation associee posee par la cotation type (CS par defaut cote onglet).
+  const sel=document.getElementById('assocLc');
+  if(sel && c.lc){ sel.value=c.lc; assocChange(); }
+  renderBuilder();
+}
 
 async function chargerSpecialites(){
   let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
@@ -1259,7 +1324,7 @@ function ccamSearch(){
 }
 function pickCcam(i){
   const a=lastCcam[i]; if(!a)return;
-  builder.push({code:a.c,lib:a.l,tarif:a.t||0,m7:false,mA:false,role:builder.length?'complement':'principal'});
+  builder.push({code:a.c,lib:a.l,tarif:a.t||0,m7:true,mA:false,role:builder.length?'complement':'principal'});
   document.getElementById('ccamq').value='';
   document.getElementById('ccamResults').innerHTML='';
   renderBuilder();
@@ -1269,6 +1334,7 @@ document.getElementById('dCs').value=isoToday();
 chargerPraticien();
 chargerSecteurs();
 chargerSpecialites();
+chargerCotationsType();
 chargerDecl();
 dclPreview();
 populateMut();setAxe('CCAM');renderRows();
