@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-27.5';
+const GAS_VERSION_PORTAIL = '2026-07-27.6';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1261,7 +1261,13 @@ function getOrCreateLiberalCaTab(year) {
       mois,
       '=SUMIF($A$2:$A$' + n + ';$J' + r + ';$E$2:$E$' + n + ')+SUMIF($A$2:$A$' + n + ';$J' + r + ';$H$2:$H$' + n + ')',
       '',                                            // a recopier : ligne « ACTIVITE LIBERALE » du PDF
-      '=SI($L' + r + '="";"—";SI(ARRONDI($K' + r + ';2)=ARRONDI($L' + r + ';2);"OK";"ECART : "&TEXTE($K' + r + '-$L' + r + ';"0.00")&" EUR"))'
+      // ⚠️ FORMULES EN ANGLAIS OBLIGATOIREMENT. setValues() n'accepte QUE les noms
+      // anglais, meme dans un classeur en francais : SI/ARRONDI/TEXTE renvoient
+      // #NAME? (constate le 27/07/2026). SUMIF ci-dessus marchait par chance.
+      // TEXTE/TEXT est en outre a proscrire : son code de format attend une virgule
+      // decimale en francais et un point en anglais. Une concatenation simple laisse
+      // Sheets formater le nombre selon la langue du classeur.
+      '=IF($L' + r + '="";"—";IF(ROUND($K' + r + ';2)=ROUND($L' + r + ';2);"OK";"ECART "&ROUND($K' + r + '-$L' + r + ';2)&" EUR"))'
     ]);
   }
   sh.getRange(2, 10, ctrl.length, 4).setValues(ctrl);
