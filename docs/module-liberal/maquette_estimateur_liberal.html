@@ -303,8 +303,8 @@
            la meme valeur (C 34,40 / CS 46 / APC 60). -->
       <div class="field" id="assocWrap" style="width:230px"><label>Consultation associée</label>
         <select id="assocLc" onchange="assocChange()">
+          <option value="CS" selected>CS — spécialiste (46,00 €)</option>
           <option value="">— aucune</option>
-          <option value="CS">CS — spécialiste (46,00 €)</option>
           <option value="C">C — généraliste (34,40 €)</option>
           <option value="APC">APC — avis ponctuel (60,00 €) · cotation française</option>
           <option value="LIBRE">Montant libre…</option>
@@ -939,6 +939,13 @@ async function declarer(){
   const brN=document.getElementById('dclBrN').value;
   if(!bloc){ dclFlash('Renseignez le jour du bloc.', false); return; }
   if(!sec){ dclFlash('Le secteur est obligatoire — c\'est ce que le comité doit savoir.', false); return; }
+  // Avertissement NON bloquant : une declaration sans BR CCAM compte comme une
+  // intervention sans montant. Elle reste utile au placement, mais elle sortira du
+  // calcul de rendement et fera baisser le taux de couverture. Mieux vaut le savoir
+  // au moment de valider qu'au moment de lire un rendement faux.
+  if(!(parseFloat(brC)>0)){
+    if(!confirm("Aucune BR CCAM saisie.\n\nL'intervention sera bien déclarée au comité, mais elle ne comptera pas dans le rendement par spécialité.\n\nDéclarer quand même ?")) return;
+  }
   const btn=document.getElementById('dclBtn'); btn.disabled=true; btn.style.opacity=.5;
   const r=await apiLib('declareLiberal', {dateBloc:bloc, secteur:sec, chirurgie:chir,
                                           dateConsult:cons, specialite:spec, brCcam:brC, brNgap:brN});
