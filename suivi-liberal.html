@@ -200,6 +200,13 @@ table.grid td.pick{outline:2px solid var(--rose);outline-offset:1px}
     <div style="font-size:12px;font-weight:700;color:var(--ink-4);letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px">Le groupe, par axe</div>
     <div id="totAxes" style="display:flex;flex-wrap:wrap;gap:16px"></div>
     <div style="font-size:12px;color:var(--ink-4);margin-top:14px;line-height:1.6">
+      Sous chaque excédent, <strong>« public + X&nbsp;€ »</strong> indique le volume d'activité
+      <strong>publique</strong> qu'il faudrait produire sur l'axe concerné pour revenir à 30&nbsp;%,
+      à libéral inchangé — soit <strong>3,3&nbsp;fois l'excédent</strong>. C'est un ordre de grandeur
+      d'objectif&nbsp;: il est calculé à partir de l'excédent recopié du document, jamais d'un
+      pourcentage arrondi. ⚠️ Rappel&nbsp;: ce public doit être produit <strong>sur le bon axe</strong>
+      — la réanimation ne nourrit que le CCAM.
+      <br><br>
       La colonne <strong>« D'ici décembre »</strong> liste les secteurs d'affectation des mois qui restent
       à courir — une pastille par mois, aux couleurs du planning, le mois en cours entouré de pointillés. C'est un <strong>descriptif</strong> : une affectation est un plan,
       elle peut changer, et un secteur ne garantit pas une production libérale — il la rend seulement possible.
@@ -389,12 +396,27 @@ function rendre(items){
   const score = l => (l.excCcam||0) + (l.excNgap||0);
   lignes.sort((a,b) => score(b) - score(a) || String(a.initiales).localeCompare(String(b.initiales)));
 
+  /* PUBLIC À PRODUIRE — dérivé de l'EXCÉDENT RECOPIÉ, jamais du pourcentage.
+     Identité exacte : public à produire = 10/3 × excédent (à libéral constant).
+     Démonstration : l'excédent vaut 0,7 × |marge| et le public requis 7/3 × |marge|.
+     ⚠️ Passer par le % arrondi à une décimale introduirait une erreur de plusieurs
+     dizaines d'euros ; l'excédent, lui, est recopié du document au centime.
+     C'est un ORDRE DE GRANDEUR d'objectif, pas un engagement : produire ce public
+     suppose le libéral inchangé d'ici décembre. */
+  const PUBLIC_PAR_EURO_EXCEDENT = 10/3;
   const cell = (T,p,exc) => {
     const m = marge(T,p);
     const over = (exc != null && exc > 0) || (m != null && m < 0);
     const col = over ? 'var(--rose)' : 'var(--ok)';
-    const txt = over ? '− ' + eur(exc != null ? exc : -m) : '+ ' + eur(m || 0);
-    return '<td style="padding:8px 10px;text-align:right;font-family:var(--mono);color:'+col+';font-weight:600">'+txt+'</td>';
+    const val = over ? (exc != null ? exc : -m) : (m || 0);
+    const txt = (over ? '− ' : '+ ') + eur(val);
+    // Pour qui dépasse : combien de PUBLIC il faudrait produire pour revenir à 30 %.
+    const pub = over
+      ? '<div style="font-size:10.5px;font-weight:500;color:var(--ink-4);white-space:nowrap">public&nbsp;+'
+        + eur(val * PUBLIC_PAR_EURO_EXCEDENT) + '</div>'
+      : '';
+    return '<td style="padding:8px 10px;text-align:right;font-family:var(--mono);color:'+col+';font-weight:600">'
+      + txt + pub + '</td>';
   };
   document.getElementById('tbody').innerHTML = lignes.map(l => {
     const moiRow = (l.marId === MOI);
