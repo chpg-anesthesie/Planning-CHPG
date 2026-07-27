@@ -133,6 +133,36 @@ a.tile:hover, .tile.clickable:hover {
 .tile-arrow { margin-top: auto; font-size: 13px; font-weight: 600; color: var(--me); display: flex; align-items: center; gap: 4px; }
 
 .tile.soon { opacity: .62; cursor: default; }
+
+/* ── TUILE QUI SE SÉPARE EN DEUX (27/07/2026) ──────────────────────────
+   Le libéral, c'est DEUX outils : coter/déclarer un patient, et suivre les 30 %.
+   Deux tuiles côte à côte alourdiraient la grille ; une page intermédiaire
+   ajouterait un clic pour rien. La tuile s'ouvre donc EN PLACE : la face se
+   retire, les deux moitiés s'écartent. Aucun changement de page.
+   La hauteur est figée à l'ouverture (voir splitOpen) pour éviter que la grille
+   ne saute au moment de l'animation. */
+.tile.split { padding: 0; overflow: hidden; cursor: default; }
+.tile.split .split-face { padding: 22px 20px; display: flex; flex-direction: column; gap: 12px;
+  transition: opacity .18s ease, transform .28s cubic-bezier(.4,0,.2,1); cursor: pointer; }
+.tile.split.open .split-face { opacity: 0; transform: scale(.97); pointer-events: none; }
+.tile.split .split-halves { position: absolute; inset: 0; display: flex; opacity: 0;
+  pointer-events: none; transition: opacity .22s ease .06s; }
+.tile.split.open .split-halves { opacity: 1; pointer-events: auto; }
+.tile.split .split-half { flex: 1; display: flex; flex-direction: column; justify-content: center;
+  gap: 6px; padding: 18px; text-decoration: none; color: inherit;
+  transform: translateX(-14px); transition: transform .3s cubic-bezier(.4,0,.2,1), background .15s ease; }
+.tile.split .split-half + .split-half { transform: translateX(14px); border-left: 1px solid var(--line); }
+.tile.split.open .split-half { transform: translateX(0); }
+.tile.split .split-half:hover { background: var(--line-light); }
+.tile.split .split-half .sh-t { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }
+.tile.split .split-half .sh-s { font-size: 11.5px; color: var(--ink-3); line-height: 1.4; }
+.tile.split .split-back { position: absolute; top: 8px; right: 10px; font-size: 11px; font-weight: 700;
+  color: var(--ink-4); background: none; border: none; cursor: pointer; opacity: 0;
+  transition: opacity .2s ease .1s; }
+.tile.split.open .split-back { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .tile.split .split-face, .tile.split .split-halves, .tile.split .split-half { transition: none; }
+}
 .tile.soon .tile-ico { background: var(--surface-2); color: var(--ink-4); }
 .badge-soon {
   position: absolute; top: 14px; right: 14px;
@@ -350,7 +380,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.2</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.3</span></span></p>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
@@ -444,7 +474,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.10.2'; // SITE_VERSION: v1.10.2
+const SITE_VERSION = 'v1.10.3'; // SITE_VERSION: v1.10.3
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -562,7 +592,13 @@ const TILES = [
   // 19 membres du groupement, car c'est elle qui construit le releve LIBERAL_CA_{Y}.
   // Sans `only`, les 18 autres verraient la tuile du jour au lendemain, alors que le
   // module est encore en rodage. Pour OUVRIR : retirer `only` et monter la version.
-  { key:'liberal',  title:'Module libéral', sub:'Estimateur d\'honoraires, devis et déclaration.', icon:'calculator', href:'docs/module-liberal/maquette_estimateur_liberal.html', ready:true, tint:'viol', liberal:true, only:'FROHLICH' },
+  // TUILE QUI SE SEPARE EN DEUX : le liberal, c'est coter/declarer d'un cote,
+  // suivre les 30 % de l'autre. `split` remplace `href` — voir renderTiles.
+  { key:'liberal',  title:'Libéral', sub:'Cotation, devis, déclaration — et suivi des 30 %.', icon:'calculator', ready:true, tint:'viol', liberal:true, only:'FROHLICH',
+    split:[
+      {t:'Cotation & déclaration', s:'Coter un patient, imprimer le devis, déclarer l\'intervention.', href:'docs/module-liberal/maquette_estimateur_liberal.html'},
+      {t:'Suivi des 30 %',         s:'Ma position, celle du groupe, les marges.',                    href:'suivi-liberal.html'},
+    ] },
   { key:'crh',      title:'CRH', sub:'Comptes rendus de réanimation.', icon:'file-text', href:'crh.html', ready:true, only:'FROHLICH' },
   // Documentation TECHNIQUE du systeme (architecture, wizards, deploiement,
   // depannage). Sans interet pour l'equipe : tuile reservee a FROHLICH, comme CRH.
@@ -581,6 +617,19 @@ function renderTiles(){
       '<div class="tile-title">'+esc(t.title)+'</div>' +
       '<div class="tile-sub">'+esc(String(t.sub).replace(' {AN}', INDISPOS_YEAR ? (' pour ' + INDISPOS_YEAR) : ''))+'</div>' +
       arrow;
+    // Tuile a deux destinations : la face reste identique aux autres, les deux
+    // moitiés vivent dessous et n'apparaissent qu'au clic.
+    if (t.ready && t.split) {
+      const moities = t.split.map(h =>
+        '<a class="split-half" href="'+h.href+'">'
+        + '<div class="sh-t">'+esc(h.t)+'</div>'
+        + '<div class="sh-s">'+esc(h.s)+'</div></a>').join('');
+      return '<div class="tile split" id="tile-'+t.key+'">'
+        + '<div class="split-face" onclick="splitOpen(\''+t.key+'\')">'+inner+'</div>'
+        + '<div class="split-halves">'+moities+'</div>'
+        + '<button class="split-back" onclick="splitClose(\''+t.key+'\')">Fermer</button>'
+        + '</div>';
+    }
     if (t.ready && t.href) return '<a class="tile" href="'+t.href+'">'+inner+'</a>';
     if (t.ready && t.view) return '<div class="tile clickable" onclick="openView(\''+t.view+'\')">'+inner+'</div>';
     return '<div class="tile'+soon+'">'+inner+'</div>';
@@ -844,6 +893,20 @@ function route(){
 }
 // Tuiles et bandeau naviguent en changeant le hash → route() prend le relais.
 function openView(v){ location.hash = '#'+v; }
+
+/* Ouverture EN PLACE de la tuile a deux destinations. La hauteur est figée avant
+   l'animation : sans ça, la face disparaît, la tuile se réduit au contenu des
+   moitiés et TOUTE la grille saute. */
+function splitOpen(key){
+  const el = document.getElementById('tile-'+key);
+  if(!el || el.classList.contains('open')) return;
+  el.style.minHeight = el.offsetHeight + 'px';
+  el.classList.add('open');
+}
+function splitClose(key){
+  const el = document.getElementById('tile-'+key);
+  if(el) el.classList.remove('open');
+}
 function fmtDate(s){ if(!s) return ''; const p=String(s).split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : s; }
 function fmtSize(b){ b=Number(b)||0; if(b<1024) return b+' o'; if(b<1048576) return Math.round(b/1024)+' Ko'; return (b/1048576).toFixed(1)+' Mo'; }
 
