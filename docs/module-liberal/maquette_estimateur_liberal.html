@@ -339,6 +339,7 @@
         <select id="cotTypeGrp" onchange="choisirGroupeCotType(this.value)" style="max-width:230px"></select>
         <span id="cotTypeBtns"></span>
       </div>
+      <div id="tarifAlerte" style="display:none;margin:0 0 10px;padding:9px 12px;border:1px solid;border-radius:9px;font-size:12.5px;line-height:1.45"></div>
       <div class="ccamsearch">
         <input id="ccamq" autocomplete="off" placeholder="🔍 Rechercher un acte : code, libellé ou abréviation (ex. NEKA014, hernie, PTH)…" oninput="ccamSearch()">
         <div class="ccamresults" id="ccamResults"></div>
@@ -1324,6 +1325,7 @@ async function loadCcam(){
       const j=await r.json();
       const arr=(j.actes||[]).map(a=>({c:a.c,l:a.l,n:norm(a.l),t:a.t}));
       if(arr.length){ CCAM_INDEX=arr; ccamLoaded=true; ccamLoadError='';
+        alerteTarifs(j.meta||{});
         const q=document.getElementById('ccamq'); if(q&&q.value.trim().length>=2) ccamSearch();
         return; }
       errs.push(u.split('/').pop()+' → fichier vide');
@@ -1332,6 +1334,38 @@ async function loadCcam(){
   ccamLoaded=false;
   ccamLoadError=errs.join(' · ');
 }
+/* ── ALERTE D'OBSOLESCENCE DES TARIFS ─────────────────────────────────────
+   Les tarifs CCAM sont revalorisés une à deux fois par an ; le fichier, lui, ne
+   se met pas à jour tout seul (pas d'API publique côté Cnam, et un navigateur ne
+   peut pas lire un site tiers depuis GitHub Pages). Sans rappel, personne n'y
+   pense : le fichier avait un an de retard quand on s'en est aperçu — v80 sous
+   des codes v83, environ 3 € de moins par acte.
+   La date d'effet vit déjà dans meta.effet : on la compare simplement à
+   aujourd'hui. Détection automatique de l'obsolescence, mise à jour manuelle.
+   Procédure de régénération : guide technique. */
+const TARIFS_ALERTE_MOIS = 8;      // ~ une revalorisation manquée
+const TARIFS_PERIME_MOIS = 14;     // ~ deux revalorisations manquées
+
+function alerteTarifs(meta){
+  const box=document.getElementById('tarifAlerte'); if(!box) return;
+  const eff=String(meta.effet||'').slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(eff)) return;
+  const d=new Date(eff+'T12:00:00'); if(isNaN(d.getTime())) return;
+  const now=new Date();
+  const mois=(now.getFullYear()-d.getFullYear())*12 + (now.getMonth()-d.getMonth());
+  if(mois < TARIFS_ALERTE_MOIS){ box.style.display='none'; return; }
+  const perime = mois >= TARIFS_PERIME_MOIS;
+  box.style.display='block';
+  box.style.background = perime ? '#FEF2F2' : '#FFF7ED';
+  box.style.borderColor = perime ? '#FCA5A5' : '#FED7AA';
+  box.style.color = perime ? '#991B1B' : '#92400E';
+  box.innerHTML = (perime ? '⛔ ' : '⚠️ ')
+    + '<b>Tarifs CCAM vieux de '+mois+' mois</b> ('+esc(meta.version||'version inconnue')
+    + ', effet '+esc(eff)+'). Les tarifs sont revalorisés une à deux fois par an&nbsp;: '
+    + 'les montants calculés ici sont probablement <b>sous-évalués</b>. '
+    + 'À régénérer — procédure dans le guide technique.';
+}
+
 function ccamSearch(){
   const box=document.getElementById('ccamResults');
   const raw=document.getElementById('ccamq').value.trim();
