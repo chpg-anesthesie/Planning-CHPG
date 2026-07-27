@@ -408,8 +408,8 @@
       <div class="field"><label>Date de consultation</label><input id="dclCons" type="date" onchange="dclTouche('cons');dclPreview()"></div>
       <div class="field"><label>Secteur</label><select id="dclSec" onchange="dclSecChange()"><option value="">— chargement…</option></select></div>
       <div class="field"><label>Spécialité</label><select id="dclSpec" onchange="dclTouche('spec');dclPreview()"><option value="">— chargement…</option></select></div>
-      <div class="field" style="width:130px"><label>BR CCAM (€)</label><input id="dclBrC" type="number" step="0.01" min="0" placeholder="0,00" oninput="dclPreview()"></div>
-      <div class="field" style="width:130px"><label>BR NGAP (€)</label><input id="dclBrN" type="number" step="0.01" min="0" placeholder="0,00" oninput="dclPreview()"></div>
+      <div class="field" style="width:130px"><label>BR CCAM (€)</label><input id="dclBrC" type="number" step="0.01" min="0" placeholder="0,00" oninput="dclTouche('brc');dclPreview()"></div>
+      <div class="field" style="width:130px"><label>BR NGAP (€)</label><input id="dclBrN" type="number" step="0.01" min="0" placeholder="0,00" oninput="dclTouche('brn');dclPreview()"></div>
       <div class="field"><label>Chirurgie <span style="color:var(--muted)">— facultatif</span></label><input id="dclChir" placeholder="PTH, hernie cœlio…" oninput="dclTouche('chir');dclPreview()"></div>
     </div>
     <div class="row2">
@@ -857,38 +857,34 @@ let MES_DECL=[];        // cache des declarations de l'annee, rempli par charger
 // synchronisation a maintenir. Le jour et la chirurgie se PRE-REMPLISSENT depuis le
 // dernier parcours bloc ajoute -- mais UNIQUEMENT tant que l'utilisateur n'y a pas
 // touche, sinon une correction saisie ici sauterait a la prochaine cotation.
-const DCL_TOUCHE={bloc:false, chir:false, cons:false, spec:false};
+const DCL_TOUCHE={bloc:false, chir:false, cons:false, spec:false, brc:false, brn:false};
 function dclTouche(champ){ DCL_TOUCHE[champ]=true; }
-/* Bouton « 📅 Déclarer » d'un parcours bloc : remplit TOUT le formulaire de
-   declaration, y compris les deux montants. C'est le chemin normal ; le formulaire
-   du bas reste utilisable seul pour un parcours non cote. */
-function declarerParcours(i){
-  const p=parcours[i];
-  if(!p || p.axe!=='CCAM'){ dclFlash('Seul un parcours bloc peut être déclaré.', false); return; }
-  const set=(id,v)=>{ const el=document.getElementById(id); if(el && v!=null && v!=='') el.value=v; };
-  set('dclBloc', p.dInt);
-  set('dclCons', p.dCs);
-  set('dclBrC', (p.brCcam||0)>0 ? (Math.round(p.brCcam*100)/100).toFixed(2) : '');
-  set('dclBrN', (p.brNgap||0)>0 ? (Math.round(p.brNgap*100)/100).toFixed(2) : '');
-  if(p.lines && p.lines.length && p.lines[0].lib) set('dclChir', p.lines[0].lib);
-  // Ces champs viennent du parcours : on les considere comme choisis, pour qu'un
-  // pre-remplissage ulterieur ne les ecrase pas.
-  DCL_TOUCHE.bloc=true; DCL_TOUCHE.cons=true; DCL_TOUCHE.chir=true;
-  dclPreview();
-  const box=document.querySelector('.declbox');
-  if(box && box.scrollIntoView) box.scrollIntoView({behavior:'smooth', block:'center'});
-  dclFlash('Déclaration pré-remplie — vérifiez le secteur et la spécialité, puis validez.', true);
-}
-
+/* PRE-REMPLISSAGE de la declaration depuis le dernier parcours BLOC ajoute.
+   Il n'y a qu'un seul bouton de declaration, celui du bas : ajouter un parcours
+   remplit le formulaire, il ne reste qu'a choisir le secteur et a valider.
+   REGLE DU DERNIER PARCOURS (choix acte du 27/07) : le formulaire ne contient qu'un
+   patient a la fois. Coter un patient B avant d'avoir declare le patient A ecrase A.
+   Le geste naturel etant coter -> devis -> declarer -> patient suivant, on n'ajoute pas
+   d'etat pour un cas rare ; le bandeau ci-dessous le dit clairement.
+   Un champ modifie A LA MAIN n'est jamais ecrase (DCL_TOUCHE) -- sinon une correction
+   sauterait a la cotation suivante. Cette memoire est remise a zero apres chaque
+   declaration reussie, sans quoi le patient suivant heriterait des corrections du
+   precedent. */
 function dclPreRemplir(p){
   if(!p || p.axe!=='CCAM') return;
-  const b=document.getElementById('dclBloc'), c=document.getElementById('dclChir');
-  if(b && !DCL_TOUCHE.bloc && p.dInt) b.value=p.dInt;
-  if(c && !DCL_TOUCHE.chir){
-    const lib=(p.lines && p.lines.length) ? (p.lines[0].lib||'') : '';
-    if(lib) c.value=lib;
-  }
+  const set=(id,k,v)=>{ const el=document.getElementById(id);
+                        if(el && !DCL_TOUCHE[k] && v!=null && v!=='') el.value=v; };
+  set('dclBloc','bloc', p.dInt);
+  set('dclCons','cons', p.dCs);
+  set('dclBrC','brc', (p.brCcam||0)>0 ? (Math.round(p.brCcam*100)/100).toFixed(2) : '');
+  set('dclBrN','brn', (p.brNgap||0)>0 ? (Math.round(p.brNgap*100)/100).toFixed(2) : '');
+  const lib=(p.lines && p.lines.length) ? (p.lines[0].lib||'') : '';
+  set('dclChir','chir', lib);
+  const sec=document.getElementById('dclSec');
+  const sp=document.getElementById('dclSpec');
+  if(sp && sec && !DCL_TOUCHE.spec && SEC2SPEC[sec.value]) sp.value=SEC2SPEC[sec.value];
   dclPreview();
+  dclFlash('Déclaration pré-remplie — choisissez le secteur, puis validez en bas de page.', true);
 }
 let DECL_ALL=false;     // false = fenetre (futur + 7 j) ; true = toute l'annee depliee
 
@@ -951,6 +947,9 @@ async function declarer(){
   // 2A : une ligne = un patient. Le serveur ne fusionne plus (r.merged est toujours faux).
   dclFlash('Intervention déclarée.', true);
   ['dclChir','dclBrC','dclBrN'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  // Le patient suivant repart d'une feuille blanche : sans cette remise a zero, il
+  // heriterait des champs corriges a la main pour le precedent.
+  Object.keys(DCL_TOUCHE).forEach(k=>{ DCL_TOUCHE[k]=false; });
   await chargerDecl();          // recharge la liste depuis le serveur (source de verite)
 }
 
@@ -1097,7 +1096,6 @@ function renderRows(){
       <div class="d">${chip}${p.desc} <small>${p.statut}${mutLine} · ${p.cnt} ${unit}(s)${(p.axe==='CCAM'&&p.dCs)?' · consult '+fmtI(p.dCs):''}</small></div>
       <div class="amt"><span class="br">${eur2(p.br)}</span> BR<br><span class="dh">${p.dh?'+'+eur2(p.dh)+' DH':'DH 0'}</span>${racLine}</div>
       <button class="devisbtn" onclick="openDevis(${i})" title="Générer le devis">📄 Devis</button>
-      ${p.axe==='CCAM' ? `<button class="devisbtn" onclick="declarerParcours(${i})" title="Remplir la déclaration avec ce parcours">📅 Déclarer</button>` : ''}
       <button class="rm" onclick="delP(${i})">✕</button></div>`;}).join('');
 }
 ['Tc','Pc','Tn','Pn'].forEach(id=>document.getElementById(id).addEventListener('input',renderSummary));
