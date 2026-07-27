@@ -588,6 +588,61 @@
     <p><b><code>_isoDate(undefined)</code> renvoie la chaîne <code>"undefined"</code></b>, pas une chaîne vide : ne l'appeler que sur une valeur présente, sinon un <code>|| valeurParDéfaut</code> ne se déclenche jamais.</p>
   </div>
 
+  <h3>Régénérer l'index CCAM (tarifs)</h3>
+  <p>Le fichier <code>docs/module-liberal/ccam_actes.json</code> alimente la recherche d'acte et les
+  tarifs de l'estimateur. Il <b>ne se met pas à jour tout seul</b> : la Cnam n'expose aucune API
+  publique, et un navigateur ne peut pas lire un site tiers depuis GitHub Pages. <b>Détection
+  automatique de l'obsolescence, mise à jour manuelle.</b></p>
+  <div class="callout warn">
+    <p><b>Constaté le 27/07/2026 :</b> le fichier portait des <b>codes v83</b> mais des <b>tarifs
+    v80 (2025)</b> — un an de retard, soit environ <b>3 € de moins par acte</b> sur 78 % des tarifs.
+    Symptôme : un devis qui diverge du décompte de quelques euros.</p>
+    <p><b>Alerte :</b> la page de cotation compare <code>meta.effet</code> à la date du jour et affiche
+    un bandeau au-dessus de la recherche d'acte à partir de <b>8 mois</b> (orange) puis <b>14 mois</b>
+    (rouge). Seuils = une puis deux revalorisations manquées. Les tarifs sont revalorisés
+    <b>une à deux fois par an</b> ; contrôle conseillé en <b>janvier et juillet</b>.</p>
+    <p><b>Le meilleur signal n'est pas le calendrier, c'est le relevé :</b> prendre un acte
+    d'activité 4, diviser le tarif du CHPG par <b>1,95</b>, comparer à l'estimateur. Tout écart =
+    régénération due. C'est ce contrôle qui a révélé le problème.</p>
+  </div>
+
+  <h4>La procédure</h4>
+  <ol>
+    <li><b>Télécharger le « Fichier NX tarifaire total »</b> sur <code>ameli.fr/accueil-de-la-ccam/telechargement/</code>
+    (fichier <code>CAMTOTX0<i>NN</i>00.zip</code>, ~3 Mo compressé, <b>109 Mo décompressé</b>). ⚠️ Ne
+    PAS prendre le « dbf complet » : trois parties, beaucoup trop lourd pour le besoin.</li>
+    <li>Le déposer dans la conversation — l'environnement de travail n'a accès qu'à GitHub, PyPI et
+    npm, <b>pas à ameli</b>.</li>
+    <li>Extraction, comparaison avec l'ancien fichier, puis push après validation.</li>
+  </ol>
+
+  <h4>Structure du fichier NX (décodée le 27/07/2026)</h4>
+  <p>Enregistrements de <b>128 caractères</b>, encodage <b>latin-1</b>, <b>hiérarchiques et
+  entrelacés</b> (pas en sections) : chaque acte ouvre un bloc, ses activités et phases s'y imbriquent.</p>
+  <table>
+    <thead><tr><th>Type</th><th>Contenu</th><th>Découpe</th></tr></thead>
+    <tbody>
+      <tr><td><code>101</code></td><td>acte : code + libellé <b>abrégé</b></td><td>code en <code>[7:14]</code>, libellé en <code>[20:90]</code></td></tr>
+      <tr><td><code>201</code></td><td>activité en cours</td><td>chiffre en <code>[7]</code> — <b>4 = anesthésie</b></td></tr>
+      <tr><td><code>301</code></td><td>phase de traitement</td><td>ouvre le bloc tarifaire</td></tr>
+      <tr><td><code>310</code></td><td>ligne tarifaire</td><td><b>date d'effet</b> en <code>[7:15]</code> — retenir la plus récente ≤ aujourd'hui</td></tr>
+      <tr><td><code>320</code></td><td><b>les montants</b></td><td>paires de 9 chiffres : <b>contexte (3) + montant (6, centimes)</b>, à partir de <code>[7]</code></td></tr>
+    </tbody>
+  </table>
+  <p><b>Contexte tarifaire</b> (table <code>023</code> de l'en-tête) : prendre <code>007</code>
+  « Anesthésistes, s1 / s1-1DP-2 OPTAM », <b>avec repli sur <code>017</code></b> « Anesthésistes
+  OPTAM/OPTAMACO » — <code>007</code> a disparu des lignes récentes. Les contextes divergent sur 75 %
+  des actes : ce choix n'est pas neutre. Vérifié en réel : <code>HHQE002</code> → 52,03 € et
+  <code>ZZLP025</code> → 48,00 €, soit exactement les tarifs du relevé CHPG divisés par 1,95.</p>
+  <div class="callout warn">
+    <p>⚠️ <b>Conserver les libellés de l'ancien fichier.</b> Le NX ne fournit que des libellés
+    <b>abrégés</b> (« colo. tot. +franchissement orifice iléocolique ») qui dégraderaient la recherche
+    par mot-clé. Seuls les codes réellement nouveaux prennent le libellé abrégé.</p>
+    <p>⚠️ Le nom du fichier porte la version : <code>CAMTOTX<b>084</b>00</code> = CCAM v84. À reporter
+    dans <code>meta.version</code>, et la date de génération (en-tête, enregistrement <code>001</code>)
+    dans <code>meta.effet</code> — <b>c'est elle qui pilote l'alerte</b>.</p>
+  </div>
+
   <h3>Horizon 2027 (déménagement)</h3>
   <p>Quand le plan du nouveau bloc sera connu : reprendre les 4 points durs ci-dessus (externaliser
   garde→secteur et règles jour en CONFIG, refaire <code>CS_RULES</code>, dédupliquer la
