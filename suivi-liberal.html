@@ -201,7 +201,7 @@ table.grid td.pick{outline:2px solid var(--rose);outline-offset:1px}
     <div id="totAxes" style="display:flex;flex-wrap:wrap;gap:16px"></div>
     <div style="font-size:12px;color:var(--ink-4);margin-top:14px;line-height:1.6">
       La colonne <strong>« D'ici décembre »</strong> liste les secteurs d'affectation des mois qui restent
-      à courir, le mois en cours en gris. C'est un <strong>descriptif</strong> : une affectation est un plan,
+      à courir — une pastille par mois, aux couleurs du planning, le mois en cours entouré de pointillés. C'est un <strong>descriptif</strong> : une affectation est un plan,
       elle peut changer, et un secteur ne garantit pas une production libérale — il la rend seulement possible.
       <br><br>
       ⚠️ Ces chiffres sont un <strong>cumul</strong>, pas un flux : le relevé contient tout depuis janvier.
@@ -312,15 +312,54 @@ function carteAxe(titre, T, p, exc){
    le rendement par spécialité, qui n'est pas encore mesuré.
    Le mois EN COURS est affiché en gris : il est déjà bien entamé, mais l'ignorer
    ferait perdre de vue ce qui se joue maintenant. */
-let AFF = {}, MOIS_COURANT = new Date().getMonth() + 1;
+let AFF = {}, MOIS_COURANT = new Date().getMonth() + 1, SECTEURS = {};
+
+/* Chips de LARGEUR FIXE : sans elle, les colonnes ne s'alignent pas d'une ligne
+   à l'autre et l'œil ne peut pas comparer deux MAR. Trois lettres — les codes en
+   font déjà trois (VIS, REA, ORT…), VOLANT se coupe en VOL. ⚠️ CI et RI n'en font
+   que deux : centrés dans la même largeur, ils restent alignés.
+   Couleurs reprises de l'onglet SECTEURS, comme dans le planning : on lit la ligne
+   sans déchiffrer les lettres. Un secteur inconnu tombe sur un gris neutre plutôt
+   que de disparaître. */
+function chipAff(code, mois){
+  const c = String(code || '').trim().toUpperCase();
+  const court = c.slice(0, 3);
+  const s = SECTEURS[c] || {};
+  const bg = s.bg || 'var(--surface-2)';
+  const fg = s.fg || 'var(--ink-3)';
+  // Mois EN COURS : contour pointillé plutôt qu'un gris, qui se confondrait avec
+  // une couleur pâle de secteur.
+  const enCours = (mois === MOIS_COURANT);
+  const bord = enCours ? '1px dashed var(--ink-4)' : '1px solid transparent';
+  const titre = MOIS_FR[mois-1] + ' — ' + (s.label || c) + (enCours ? ' (mois en cours)' : '');
+  return '<span title="'+esc(titre)+'" style="display:inline-block;width:38px;text-align:center;'
+    + 'font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 0;border-radius:6px;'
+    + 'background:'+bg+';color:'+fg+';border:'+bord+'">'+esc(court)+'</span>';
+}
 function suiteAff(marId){
   const s = AFF[marId];
   if(!s || !s.length) return '<span style="color:var(--ink-4)">—</span>';
-  return s.map(x => {
-    const gris = (x.mois === MOIS_COURANT);
-    return '<span title="'+MOIS_FR[x.mois-1]+'" style="font-family:var(--mono);font-size:11.5px;'
-      + (gris ? 'color:var(--ink-4)' : 'color:var(--ink-2)') + '">' + esc(x.secteur) + '</span>';
-  }).join('<span style="color:var(--ink-4)"> · </span>');
+  return '<span style="display:inline-flex;gap:4px">'
+    + s.map(x => chipAff(x.secteur, x.mois)).join('') + '</span>';
+}
+
+/* Couleurs des secteurs — même source que le planning (onglet SECTEURS).
+   Clé de cache VERSIONNÉE : sans le suffixe, une couleur modifiée dans l'onglet
+   resterait invisible tant que la session n'est pas fermée. */
+async function chargerSecteurs(){
+  try{
+    const c = JSON.parse(sessionStorage.getItem('chpgSecteursSuivi_v1') || 'null');
+    if(c){ SECTEURS = c; return; }
+  }catch(e){}
+  try{
+    const r = await apiPost({action:'getSecteurs'});
+    const list = (r && (r.data || r.secteurs || r)) || [];
+    (Array.isArray(list) ? list : []).forEach(x => {
+      if(x && x.code) SECTEURS[String(x.code).toUpperCase()] =
+        { bg:x.bg || null, fg:x.fg || null, label:x.label || x.code };
+    });
+    try{ sessionStorage.setItem('chpgSecteursSuivi_v1', JSON.stringify(SECTEURS)); }catch(e){}
+  }catch(e){ /* silencieux : sans couleurs les chips restent lisibles en gris */ }
 }
 
 function rendre(items){
@@ -386,6 +425,7 @@ function rendre(items){
 
 async function charger(){
   try{
+    await chargerSecteurs();          // couleurs d'abord : le tableau est rendu ensuite
     const r = await apiPost({action:'getReleveLiberal', year:new Date().getFullYear()});
     AFF = (r && r.affectations) || {};
     if(r && r.moisCourant) MOIS_COURANT = r.moisCourant;   // le serveur fait foi sur la date
