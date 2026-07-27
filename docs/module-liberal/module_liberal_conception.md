@@ -71,7 +71,16 @@ Le libéral ne s'*efface* pas : le public le **dilue**. À la cible, il faut `P 
 `public à produire = (10/3) × excédent`  *(à libéral constant)*
 
 Démonstration : l'excédent vaut `0,7 × |marge|` et le public requis `7/3 × |marge|`, d'où le rapport
-de 10/3. ⚠️ **Toujours partir de l'EXCÉDENT RECOPIÉ, jamais du pourcentage** : celui-ci est arrondi à
+de 10/3.
+
+⚠️⚠️ **CETTE FORMULE EST JUSTE MAIS TROMPEUSE EN COURS D'ANNÉE** (précision du 27/07/2026). Elle
+suppose le **public figé**, ce qui n'a de sens qu'au 31 décembre. En juillet, le public de chacun va
+encore à peu près **doubler** d'ici la clôture : le dénominateur grossit tout seul.
+**Le pourcentage se calcule sur l'ANNÉE ENTIÈRE, pas sur le cumul du mois** — ce n'est pas une dette
+qui s'accumule, c'est une moyenne mobile. Exemple réel : ALBOUY à 42,55 % et 10 189 € d'excédent au
+cumul de juin **finirait l'année à 27,0 % et sans aucun excédent** s'il ne facturait plus de libéral
+au second semestre, sans produire un euro de public supplémentaire.
+**Conséquence : le levier n'est pas de rattraper le passé, c'est de piloter le second semestre.** ⚠️ **Toujours partir de l'EXCÉDENT RECOPIÉ, jamais du pourcentage** : celui-ci est arrondi à
 une décimale sur le relevé, ce qui introduit plusieurs dizaines d'euros d'erreur — même raison que
 pour les excédents eux-mêmes. Affiché sous chaque excédent, **sur l'axe concerné uniquement** : un
 excédent NGAP se rattrape par des consultations publiques, pas par la réanimation.
@@ -630,6 +639,44 @@ git, commit `89cf72b7`.
 
 ---
 
+## 9 bis. Analyse du relevé réel — juin 2026 (17 MAR)
+
+*Recoupement relevé × quotités × affectations, 27/07/2026. **Premiers chiffres réels du module.***
+
+**L'excédent n'est pas lié à la quotité — hypothèse ÉCARTÉE.**
+
+| Corrélation avec la quotité | |
+|---|---|
+| part libérale CCAM | **0,25** — quasi nulle |
+| part libérale NGAP | 0,24 |
+| **activité totale** | **0,66** — forte |
+
+La quotité prédit le **volume d'activité**, pas la **part libérale**. Moyennes : 31,8 % chez les temps
+pleins contre 27,2 % chez les temps partiels — écart réel mais faible, et les contre-exemples sont
+francs dans les deux sens (MENADE à 90 % → 40,8 % de libéral et 2ᵉ excédent du groupe ; BONNET à
+60 % → 32,4 %, en excédent ; PARTOUCHE à 100 % → 19,8 %, la plus grosse marge).
+⚠️ **Ne pas construire de règle par quotité** : elle viserait les mauvaises personnes.
+
+**Le problème est CONCENTRÉ, pas structurel.** 2 MAR portent **57 %** de l'excédent, 5 en portent
+**88 %** (ALBOUY 35 %, MENADE 22 %, BOUREGBA, PRUNET, SUPLY). Le levier est individuel.
+
+**Effet SECTEUR : non testé, pas absent.** Les affectations de janvier à mai 2026 n'étaient pas
+saisies (tout en `VOLANT`) : le cumul du premier semestre ne peut être rattaché à aucun secteur. À
+reprendre sur le relevé de décembre, avec un semestre réellement sectorisé.
+
+**Ordres de grandeur au cumul de juin** : excédent 44 170 € · capacité inutilisée 53 381 € ·
+activité totale du groupe 1 163 543 € (CCAM) et 229 830 € (NGAP). La capacité dépasse l'excédent :
+**le groupe pourrait absorber la totalité de ce qu'il reverse.** Sur l'axe NGAP en revanche, la
+marge restante (≈ 60 000 €) est **inférieure** au libéral déjà facturé au S1 (75 820 €) : cet axe est
+nettement plus tendu, et deux MAR y sont déjà à zéro.
+
+⚠️ **Tous ces calculs supposent que le second semestre ressemble au premier** — hypothèse fausse
+(congés d'été, changement d'affectations, deux entrants). À traiter comme un **classement et un ordre
+de grandeur**, jamais comme un seuil. Le calcul fiable suppose le **rendement public ET libéral par
+secteur**, donc plusieurs mois de déclarations (Lot 2C).
+
+---
+
 ## 10. Questions encore ouvertes
 
 - **`LIBERAL_CIBLE` fixée à 30 % par axe**, avec borne de décembre. À surveiller en réel : si des
@@ -691,6 +738,7 @@ encore en vigueur.*
 | v3.13→3.20 · 23–24/07 | Conception complète du **Lot 5** (interface secrétaire), puis **gel** (§7 bis). |
 | v3.21 · 26/07 | **Le rendement est un attribut de spécialité, pas de secteur** — le déménagement de janvier 2027 change les secteurs, pas les spécialités. |
 | v3.22 · 26/07 | **Lot 2 élargi** : la déclaration porte la spécialité et le montant ; ventilation au prorata ; 2A avant 2B. |
+| **v4.5 · 27/07** | **Première analyse sur données réelles** (§9 bis) : l'hypothèse « les temps pleins saturent » est écartée (corrélation 0,25), l'excédent est concentré sur 2 à 5 personnes, l'effet secteur reste non testé faute d'affectations saisies au S1. Nuance majeure sur la formule 10/3 : le pourcentage se calcule sur l'année entière, le levier est le pilotage du second semestre. |
 | **v4.4 · 27/07** | `T` = activité totale **confirmé** ; identité **public = 10/3 × excédent** (affichée sous chaque excédent) ; contrôle de monotonie précisé et daté à août ; index CCAM régénéré en **v84** avec alerte d'obsolescence à 8/14 mois (bandeau de cotation + ligne du Diagnostic). |
 | **v4.3 · 27/07** | **Lot 2B livré.** Onglet `LIBERAL_CA_{Y}` recopié à la main (aucune écriture par le code), checksum en formules **vérifié au centime en réel**, page `suivi-liberal.html`, colonne descriptive des affectations à venir, tuile qui se sépare en deux. Décisions 45 à 48, dont le constat des **10 MAR en excédent**. |
 | **v4.2 · 27/07** | **Cotations types.** Onglet `COTATIONS_TYPE` groupé par contexte, amorcé sur l'endoscopie ; modificateur 7 coché par défaut ; tableau de cotation vide au démarrage ; clés de cache versionnées. Constat consigné : l'index CCAM porte des **tarifs v80 sous des codes v83**. Décisions 42 à 44. |
