@@ -1,6 +1,6 @@
 # Module libéral — document de conception
 
-*Créé le 02/07/2026 · **épuré et remis à plat le 26/07/2026** (v4.0). L'ancien document avait
+*Créé le 02/07/2026 · épuré le 26/07/2026 (v4.0) · **Lot 2A livré le 27/07/2026 (v4.1)**. L'ancien document avait
 1 287 lignes accumulées en 22 révisions successives ; des affirmations périmées y survivaient sous
 des démentis. Il en fait aujourd'hui trois fois moins.*
 
@@ -131,14 +131,20 @@ Règles de calcul figées et validées au centime (détail dans l'antisèche) :
 Actions `declareLiberal` / `deleteLiberal` (écritures, dans `WRITE_ACTIONS_LOCK`) et `listLiberal`
 (lecture). Onglet `LIBERAL_{Y}` créé à la volée, année du **jour de bloc**.
 
-Schéma **réellement en production** : `ID · DATE_CONSULT · DATE_BLOC · MAR_ID · SECTEUR · CHIRURGIE`
-— granularité **une journée-bloc dans un secteur** (les déclarations identiques du même jour sont
-**fusionnées**), `DATE_CONSULT` posée automatiquement à aujourd'hui, aucun montant.
-⚠️ Ce schéma est **remplacé par le 2A** (§6.1). Il reste décrit ici tant que le 2A n'est pas déployé.
+Schéma **en production depuis le 27/07/2026 (Lot 2A)** — 9 colonnes :
+`ID · DATE_CONSULT · DATE_BLOC · MAR_ID · SECTEUR · SPECIALITE · BR_CCAM · BR_NGAP · CHIRURGIE`
+**Une ligne = un patient** ; la fusion jour+secteur a été supprimée. `DATE_CONSULT` est éditable
+(elle date la BR NGAP). Onglet `SPECIALITES` amorcé avec 12 codes, action `getSpecialites`.
+Une **spécialité vide est tolérée**, une spécialité **fournie mais inconnue est refusée** : une faute
+de frappe créerait une spécialité fantôme qui fausserait le rendement en silence.
+Les lignes antérieures gardent leurs 6 colonnes remplies, les 3 nouvelles vides — aucune migration.
 
 ### 5.3 Volet comité — `admin.html`
 Au clic sur une case flash, le panneau d'affectation s'ouvre **et** un volet « ◆ Libéral » apparaît à
-gauche : pour chaque MAR, **le secteur déclaré et la chirurgie** (« Dr X — ORL — cataracte »).
+gauche : **une ligne par MAR et par secteur, avec le compte** (« Dr X — ORL — 4 interventions —
+cataracte, septoplastie »). Depuis la fin de la fusion, une journée de cataractes remonterait sinon
+huit lignes identiques ; le comité place un MAR dans un secteur, pas patient par patient. Libellés
+dédupliqués, tronqués au-delà de trois.
 
 ⚠️ **Le volet ne porte AUCUN jugement** (vérifié dans `renderLiberalCard`) : ni couleur, ni
 comparaison avec l'affectation en cours, ni mention « à replacer ». Il affiche, le comité décide.
@@ -153,6 +159,40 @@ Sécurité : `secteur` et `chirurgie` viennent des MARs (texte libre) et sont in
 Externalisation faite : `getSecteurs()` lit l'onglet, `admin.html` en dérive toutes ses listes (le
 tableau en dur n'est plus qu'un **repli** si l'API ne répond pas). Colonne `RENDEMENT_LIB`
 (FORT / MOYEN / NUL / REA) présente et éditable, **pas encore consommée**.
+
+### 5.4 bis Cotation d'un parcours — ce que le 2A y a ajouté
+
+**Consultation associée.** Au moment de coter un parcours bloc, un champ rattache la **BR NGAP du
+patient** à *son* parcours : `CS` (46,00 · **défaut**, la consultation est systématique), `C` avec
+coefficient (34,40 × n — le cas `C ×2` = 68,80 du relevé), `APC` (60,00) ou montant libre.
+⚠️ **Pourquoi à la cotation et pas à la déclaration :** cinq patients vus le même jour donnent cinq
+parcours NGAP à la même date, de valeurs différentes. Aucune règle de date ne peut dire lequel
+appartient à ce patient. Les tarifs sont lus dans la table `LC` (grille CCSS-CAMTI, annexe III au
+01/10/2025), jamais réécrits ailleurs.
+
+**Garde-fou APC.** L'APC **n'existe pas dans la nomenclature monégasque** (annexe III : `C · CPN ·
+CS · CSPN · CP3 · CPSY · CSC · CALD · CDE · V · VS · VPSY · K · KC/KCC · SPM/SCP`). C'est une
+**cotation française**, d'où sa valeur identique au tarif français et l'absence de coefficient ×1,95.
+Elle est donc **refusée** pour carte verte, rose, bulle et SPME, **autorisée** pour un assuré
+français, **avertie** pour NAS et AME.
+
+**Bandeau AME.** Deux régimes existent (français : tarifs français, sans dépassement ; monégasque :
+hors annexe III), et rien ne dit lequel s'applique en libéral. Le chiffre s'affiche, **assorti d'un
+avertissement** — un chiffre douteux ne s'affiche pas en silence.
+
+**Pré-remplissage automatique.** « Ajouter le parcours » remplit toute la déclaration (jour, date de
+consultation, deux BR, chirurgie, spécialité proposée d'après le secteur). **Un seul bouton
+« 📅 Déclarer »**, en bas.
+⚠️ **Règle du dernier parcours (actée le 27/07) :** le formulaire ne tient **qu'un patient**. Coter un
+patient B avant d'avoir déclaré A **écrase A**. Choix assumé : le geste naturel est coter → devis →
+déclarer → patient suivant, et gérer un état pour un cas rare coûtait plus que ça ne rapportait. Un
+champ corrigé à la main n'est jamais écrasé ; cette mémoire est remise à zéro après chaque
+déclaration réussie, sans quoi le patient suivant hériterait des corrections du précédent.
+
+**Avertissement sans montant.** Valider sans BR CCAM demande confirmation : l'intervention sera
+déclarée au comité, mais **sortira du calcul de rendement** et fera baisser le taux de couverture.
+
+---
 
 ### 5.5 Écran « Consultations à venir » — `absences.html` (Lot 5-bis)
 
@@ -195,7 +235,9 @@ fois l'écran validé.
 
 Trois étapes, dans cet ordre.
 
-### 6.1 2A — Déclaration enrichie
+### 6.1 2A — Déclaration enrichie ✅ **LIVRÉ le 27/07/2026**
+
+*Section conservée pour la conception ; l'état livré est décrit aux §5.2, §5.3 et §5.4 bis.*
 
 **Pourquoi.** Le schéma actuel suffit au **placement** ; il ne permet **aucune mesure** — ni de
 compter les interventions, ni de savoir ce que rapporte une spécialité.
@@ -433,8 +475,32 @@ git, commit `89cf72b7`.
 35. **Le rendement se ventile, il ne se somme pas** ; toujours afficher le `n`.
 36. **2A avant 2B** (le relevé est rattrapable, la déclaration non) — mais sans urgence tant
     qu'Arthur est seul membre actif du module.
+38. **La consultation se rattache à la COTATION, pas à la déclaration** (27/07/2026). Une première
+    version rattachait la BR NGAP par la *date* de consultation ; **Arthur a montré qu'elle ne peut
+    pas marcher** : cinq patients vus le même jour donnent cinq consultations de valeurs différentes
+    (`C 34,40 × coeff`, `CS 46`, `APC 60`), et rien ne dit laquelle est la sienne. Le rattachement se
+    fait donc au moment où le patient est coté.
+
+39. **L'APC est une cotation FRANÇAISE**, absente de l'annexe III de la convention CCSS-CAMTI.
+    Interdite pour un assuré monégasque (verte, rose, bulle, SPME). C'est la base réglementaire de la
+    règle empirique d'Arthur, et la raison pour laquelle il n'y a pas de coefficient ×1,95 : on n'est
+    pas dans la grille monégasque du tout.
+
+40. **Règle du dernier parcours** : le formulaire de déclaration ne tient qu'un patient ; coter le
+    suivant écrase le précédent non déclaré. Assumé plutôt que géré, le geste naturel étant un
+    patient à la fois.
+
+41. **Coter devient nécessaire pour TOUS les patients libéraux**, pas seulement ceux qui ont un
+    dépassement (27/07/2026). Avant le 2A, un patient carte verte ne demandait aucune cotation — pas
+    de DH, pas de devis. Désormais, sans cotation la BR reste vide et l'intervention sort du
+    rendement. **C'est un travail nouveau, et il conditionne toute la mesure** : la validité du Lot 2
+    repose sur le fait que chaque membre cote chacun de ses patients libéraux dans l'outil.
+    Contrepartie prévue : les **combos de cotation** (§10).
+
 37. **Bouton « Déclarer ce parcours » plutôt qu'un montant obligatoire** : rendre le bon chemin plus
-    court, pas plus contraignant. Le taux de couverture dira si ça suffit.
+    court, pas plus contraignant. ⚠️ **Le bouton par parcours a été retiré le 27/07** : le
+    pré-remplissage est désormais automatique à l'ajout du parcours, et il n'y a **qu'un seul bouton
+    de déclaration**, en bas de page. Le principe est inchangé, le geste est plus court encore.
 
 ---
 
@@ -453,6 +519,25 @@ git, commit `89cf72b7`.
   deux couches par un chiffre exploitable par le comité.
 - **V2 — optimiseur de réallocation** : proposer *quelles* vacations déplacer et de qui vers qui,
   sous les deux contraintes. La V1 se contente d'afficher les marges.
+- **Trois questions pour la CSM / la facturation du CHPG** (relevées le 27/07/2026, aucune n'est
+  tranchable par lecture) :
+  1. **Coefficient de l'APC** — supposé à 1, jamais confirmé. Le tarif de 60 € est confirmé (ameli,
+     tarifs conventionnels au 01/01/2026), le coefficient non.
+  2. **Carte rose : 241 % ou 234 % ?** L'annexe III fixe le coefficient CCAM maximal à **195 % carte
+     verte, 241 % carte rose**. L'estimateur applique `1,95 + DH plafonné à +20 %`, soit **234 %**.
+     Deux expressions de la même contrainte, ou divergence réelle ? Écart d'environ 13 € sur une BR
+     de 190 €.
+  3. **AME en libéral** — l'AME ouvre-t-elle seulement droit à une prise en charge libérale ? Deux
+     régimes existent (français, OS 5.743/2016 pour le monégasque), et l'AME monégasque est **hors
+     annexe III**. En attendant : bandeau d'avertissement, statut inchangé.
+- **Combos de cotation** — une combinaison courante (`HHQE002.4` principal + `ZZLP025.4` associé à
+  50 %, modificateur 7 sur les deux, `CS` associée) remplirait le tableau en un clic. Onglet `COMBOS`
+  éditable en cellule, comme `SECTEURS`. ⚠️ **Uniquement des lignes d'activité 4** : sur un relevé de
+  gastro-colo, les lignes d'activité 1 appartiennent à l'opérateur — les inclure gonflerait la BR du
+  MAR de ~300 € et son quota avec. **Cas prioritaire : les consultations d'endoscopie du mardi et du
+  jeudi après-midi**, composées à 100 % de patients libéraux, donc le créneau le plus chargé
+  administrativement. À spécifier **après** une vraie après-midi faite avec l'outil : c'est elle qui
+  dira si le besoin est la combo ou autre chose.
 - **Y a-t-il des actes facturés qu'aucune déclaration ne peut couvrir ?** À vérifier — ça borne par
   le bas le taux de couverture atteignable.
 
@@ -475,4 +560,5 @@ encore en vigueur.*
 | v3.13→3.20 · 23–24/07 | Conception complète du **Lot 5** (interface secrétaire), puis **gel** (§7 bis). |
 | v3.21 · 26/07 | **Le rendement est un attribut de spécialité, pas de secteur** — le déménagement de janvier 2027 change les secteurs, pas les spécialités. |
 | v3.22 · 26/07 | **Lot 2 élargi** : la déclaration porte la spécialité et le montant ; ventilation au prorata ; 2A avant 2B. |
+| **v4.1 · 27/07** | **Lot 2A livré.** `LIBERAL_{Y}` à 9 colonnes, fin de la fusion, onglet `SPECIALITES`, consultation associée à la cotation, garde-fous APC et AME, volet comité regroupé. Tarifs NGAP recoupés sur l'annexe III de la convention CCSS-CAMTI (01/10/2025) : `C 34,40` et `CS 46` **confirmés au centime**, l'APC absente de la nomenclature monégasque. Décisions 38 à 41. Site **v1.10**. |
 | **v4.0 · 26/07** | **Épuration.** 1 287 → ~420 lignes, **un seul fichier**. Lot 5 réduit à un résumé (§7 bis), conception complète laissée à git. Suppression de 9 affirmations fausses ou périmées relevées par audit face au code réel : champ patient inexistant (§3 bis entier), « rien avant octobre 2026 » alors que les lots 0/1/3 tournent, `SECTEURS_CFG` présenté comme à externaliser alors que c'est fait, contradiction 4 vs 6 nombres du relevé, projection 31/12 promise à l'écran membre alors que la décision 10 la reporte, `LIBERAL_CIBLE` annoncée en CONFIG alors qu'elle n'existe pas. **Nouvelle règle : une décision périmée est supprimée, jamais démentie sous elle.** |
