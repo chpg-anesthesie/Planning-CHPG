@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-26.3';
+const GAS_VERSION_INDISPOS = '2026-07-27.1';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -384,6 +384,21 @@ function _mailCodeAcces_(nom, code, renouvele) {
 
 // ── VÉRIFIER CODE ACCÈS ───────────────────────────────────────────────
 function checkCode(code) {
+  /* CASSE IGNOREE (27/07/2026). Le code etait compare a l'identique : taper son
+     code en minuscules donnait « Code incorrect », sans indice. Le piege etait
+     invisible parce que les champs de saisie portent autocapitalize="characters" :
+     le telephone corrigeait tout seul, PAS l'ordinateur. Meme code, accepte sur
+     mobile et refuse sur PC — incomprehensible pour l'utilisateur.
+     Sans risque de collision : generateCode() n'emet que des MAJUSCULES
+     (ABCDEFGHJKLMNPQRSTUVWXYZ23456789) et resetCodeMar verifie deja l'unicite en
+     majuscules. Deux codes ne peuvent donc pas differer par la seule casse.
+     ⚠️ Si un code est un jour saisi A LA MAIN dans le classeur, il doit rester
+     unique une fois mis en majuscules. */
+  const _normCode = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
+  const codeN = _normCode(code);
+  // Un code vide ne doit JAMAIS ouvrir de session : sans ce garde-fou, il
+  // correspondrait a la cellule vide d'un MAR sans code.
+  if (!codeN) return null;
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configSheet = ss.getSheetByName('CONFIG');
   let adminCode = null;   // AUCUN code par défaut : ADMIN_CODE doit exister dans CONFIG
@@ -400,13 +415,13 @@ function checkCode(code) {
       else if (_cle === 'SECRETARIAT_CODE' && secretariatCode === null) secretariatCode = String(configData[r][1]).trim();
     }
   }
-  if (adminCode && code === adminCode) return {role: 'admin', id: 'ADMIN'};
+  if (adminCode && _normCode(adminCode) === codeN) return {role: 'admin', id: 'ADMIN'};
   // ROLE SECRETARIAT (Lot 5-bis). Code partage, donc perimetre verrouille par la
   // liste blanche SECRETARIAT_ACTIONS dans doGet — refus par defaut de tout le reste.
   // Aucune donnee nominative renvoyee ici (ni nom, ni RPPS, ni prenom).
   // `name` sert uniquement de libelle dans le journal CONNEXIONS (logConnexion lit
   // user.name) : le code etant partage, on ne peut pas savoir QUI s'est connecte.
-  if (secretariatCode && code === secretariatCode) {
+  if (secretariatCode && _normCode(secretariatCode) === codeN) {
     return {role: 'secretariat', id: 'SECRETARIAT', name: 'Secrétariat', initials: 'SEC'};
   }
 
@@ -435,7 +450,7 @@ function checkCode(code) {
   // ou un nom rallonge deborderait partout.
   const colPre  = _colParTitre('PRENOM');
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][6]).trim() === String(code).trim()) {
+    if (_normCode(data[r][6]) === codeN) {
       return {role:'mar', id:data[r][0], name:data[r][1], initials:data[r][2],
               liberal: colLib >= 0 && String(data[r][colLib]).trim().toUpperCase() === 'O',
               // DONNEE NOMINATIVE. Le RPPS vit UNIQUEMENT dans le classeur prive, jamais
