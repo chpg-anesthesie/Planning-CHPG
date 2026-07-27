@@ -307,7 +307,45 @@ secteur mélange deux rendements très différents :
 **Règle `PED` : patient mineur ⇒ `PED`**, quelle que soit la chirurgie. Arbitraire mais **univoque** :
 deux MARs qui classeraient différemment transformeraient les deux rendements en bruit.
 
-### 6.2 2B — Saisie du relevé et marges
+### 6.2 2B — Saisie du relevé et marges ✅ **LIVRÉ le 27/07/2026**
+
+**Ce qui a été construit, et qui s'écarte du plan initial :**
+
+- ⚠️ **AUCUN écran de saisie, aucune écriture par le code.** Décision d'Arthur : la gestion du
+  libéral n'est pas du ressort du comité, **rien ne passe par `admin.html`**, qui reste le planning.
+  Le relevé se recopie **à la main** dans l'onglet `LIBERAL_CA_{Y}` ; le module ne fait que **lire**
+  (`getReleveLiberal`). Corollaire : rien à ajouter au verrou d'écriture.
+- **L'onglet est créé pré-rempli** — 12 mois × membres `LIBERAL = O`, `MOIS` et `MAR_ID` déjà posés.
+  Fonction `creerReleveLiberalAnneeEnCours()`, à exécuter depuis l'éditeur Apps Script. Idempotente :
+  si l'onglet existe, elle n'y touche pas.
+- **Le checksum vit dans le classeur**, en formules (colonnes J à M), pas dans du code : le contrôle
+  est immédiat pendant la saisie et donne le **montant de l'écart**, ce qui localise la ligne fautive.
+  ✅ **Vérifié en réel le 27/07 : ça tombe au centime.** Confirmation que la ligne « ACTIVITÉ
+  LIBÉRALE » du document est bien la somme des excédents **des deux axes**.
+- ⚠️ **Formules posées par le code : noms de fonctions ANGLAIS obligatoires** (`IF`, `ROUND`).
+  `setValues()` n'accepte que l'anglais même dans un classeur français — `SI`/`ARRONDI` renvoient
+  `#NAME?`. `TEXT` est à proscrire en plus : son code de format dépend de la langue.
+- **Rattrapage allégé, décidé le 27/07** : le relevé étant **cumulé**, saisir juin suffit à connaître
+  la position — janvier à mai y sont déjà. 108 nombres au lieu de 650. Contrepartie assumée : pas de
+  flux avant juillet, donc **pas de contrôle de monotonie sur le premier mois**.
+
+**Page `suivi-liberal.html`** (racine) — lecture seule :
+ma position par axe · tableau du groupe **en initiales**, trié par excédent décroissant · totaux par
+axe **jamais consolidés** (reversé à l'hôpital d'un côté, capacité inutilisée de l'autre).
+**Seul le mois le plus récent est affiché** — empiler deux cumuls compterait deux fois. La période est
+écrite en toutes lettres (« cumul janvier → juin 2026 »), et **aucune projection** n'est affichée
+(décision 10). L'excédent montré est celui **recopié du document**, jamais recalculé.
+
+**Colonne « D'ici décembre »** — les secteurs des mois restants, en pastilles de largeur fixe aux
+couleurs du planning. ⚠️ **Descriptif seul** : aucune flèche, aucun « s'arrange » ou « s'aggrave ».
+Traduire un mois de secteur en euros suppose le rendement par spécialité, qui n'est pas encore mesuré
+(2C) — et un faux chiffre dirait « vas-y » à quelqu'un qui doit s'arrêter. Les affectations sont
+servies par `getReleveLiberal`, **limitées aux MAR du relevé et aux mois à venir** : l'action
+`getAffectations` reste réservée à l'admin, on n'ouvre pas une action entière pour une colonne.
+
+---
+
+### 6.2 bis — Le plan initial du 2B (conservé pour mémoire)
 
 **Onglet `LIBERAL_CA_{Y}`**, recopie du relevé mensuel **cumulé** :
 
@@ -529,6 +567,27 @@ git, commit `89cf72b7`.
     pré-remplissage est désormais automatique à l'ajout du parcours, et il n'y a **qu'un seul bouton
     de déclaration**, en bas de page. Le principe est inchangé, le geste est plus court encore.
 
+45. **Le relevé ne se saisit PAS dans l'outil** (27/07/2026). Recopie manuelle dans le classeur,
+    lecture seule côté module, contrôles en formules. Motif d'Arthur : `admin.html` est le planning,
+    la gestion du libéral est autre chose. Effet de bord heureux : aucune écriture, donc aucun verrou,
+    aucun écran de saisie à maintenir.
+
+46. **Rattrapage par le seul mois de juin** (27/07/2026), le relevé étant cumulé. Un mois suffit à
+    connaître la position ; les mois antérieurs ne servent qu'à lire le flux.
+
+47. **La colonne `LIBERAL` de `MEDECINS` porte trois métiers à la fois** : membre du groupement,
+    visibilité de la tuile, et désormais présence sur le relevé. Elle est passée à `O` pour les
+    **19** (18 membres + Arthur, qui rejoint le groupe en octobre) ; la tuile est restreinte par
+    `only` en attendant l'ouverture. ⚠️ **À surveiller** : trois responsabilités sur une colonne,
+    ça a déjà posé problème trois fois dans la même journée.
+
+48. **Constat du 27/07/2026 : 10 MAR sur 18 sont en excédent** au cumul de juin, dont 8 sur les deux
+    axes et **2 sur le seul axe NGAP**. ⚠️ Ces deux-là ne se corrigent **pas** par la réanimation —
+    seulement par des consultations publiques. Et cela **fragilise l'hypothèse ayant servi à geler le
+    Lot 5** (« le dépassement s'efface arithmétiquement avec les deux entrants ») : plus de la moitié
+    du groupement dépasse à mi-année. À revérifier sur deux ou trois mois consécutifs avant d'en
+    tirer une conclusion.
+
 42. **Cotations types groupées par contexte** (27/07/2026). Onglet `COTATIONS_TYPE`, amorcé sur le
     groupe `Endoscopie`. Aucun tarif stocké (il vient de l'index CCAM), uniquement des lignes
     d'activité 4, aucun modificateur d'urgence. **Rien n'est affiché tant qu'aucun contexte n'est
@@ -608,6 +667,7 @@ encore en vigueur.*
 | v3.13→3.20 · 23–24/07 | Conception complète du **Lot 5** (interface secrétaire), puis **gel** (§7 bis). |
 | v3.21 · 26/07 | **Le rendement est un attribut de spécialité, pas de secteur** — le déménagement de janvier 2027 change les secteurs, pas les spécialités. |
 | v3.22 · 26/07 | **Lot 2 élargi** : la déclaration porte la spécialité et le montant ; ventilation au prorata ; 2A avant 2B. |
+| **v4.3 · 27/07** | **Lot 2B livré.** Onglet `LIBERAL_CA_{Y}` recopié à la main (aucune écriture par le code), checksum en formules **vérifié au centime en réel**, page `suivi-liberal.html`, colonne descriptive des affectations à venir, tuile qui se sépare en deux. Décisions 45 à 48, dont le constat des **10 MAR en excédent**. |
 | **v4.2 · 27/07** | **Cotations types.** Onglet `COTATIONS_TYPE` groupé par contexte, amorcé sur l'endoscopie ; modificateur 7 coché par défaut ; tableau de cotation vide au démarrage ; clés de cache versionnées. Constat consigné : l'index CCAM porte des **tarifs v80 sous des codes v83**. Décisions 42 à 44. |
 | **v4.1 · 27/07** | **Lot 2A livré.** `LIBERAL_{Y}` à 9 colonnes, fin de la fusion, onglet `SPECIALITES`, consultation associée à la cotation, garde-fous APC et AME, volet comité regroupé. Tarifs NGAP recoupés sur l'annexe III de la convention CCSS-CAMTI (01/10/2025) : `C 34,40` et `CS 46` **confirmés au centime**, l'APC absente de la nomenclature monégasque. Décisions 38 à 41. Site **v1.10**. |
 | **v4.0 · 26/07** | **Épuration.** 1 287 → ~420 lignes, **un seul fichier**. Lot 5 réduit à un résumé (§7 bis), conception complète laissée à git. Suppression de 9 affirmations fausses ou périmées relevées par audit face au code réel : champ patient inexistant (§3 bis entier), « rien avant octobre 2026 » alors que les lots 0/1/3 tournent, `SECTEURS_CFG` présenté comme à externaliser alors que c'est fait, contradiction 4 vs 6 nombres du relevé, projection 31/12 promise à l'écran membre alors que la décision 10 la reporte, `LIBERAL_CIBLE` annoncée en CONFIG alors qu'elle n'existe pas. **Nouvelle règle : une décision périmée est supprimée, jamais démentie sous elle.** |
