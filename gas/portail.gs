@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-27.1';
+const GAS_VERSION_PORTAIL = '2026-07-27.2';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -28,6 +28,7 @@ function portailRoute(action, payload, user) {
     case 'listAnnuaire':   return _portailJson(listAnnuaire());
     case 'getSecteurs':    return _portailJson(getSecteurs());
     case 'getSpecialites': return _portailJson(getSpecialites());   // lecture : pas de verrou
+    case 'getCotationsType': return _portailJson(getCotationsType());  // lecture : pas de verrou
     case 'getCsTemplate':  return _portailJson(getCsTemplate());
     case 'getVeille':  return _portailJson(getVeille());
     case 'markVeille': return _portailJson(markVeille(payload && payload.pmid, payload && payload.field, payload && payload.value));
@@ -1194,6 +1195,78 @@ const _SPECIALITES_SEED = [
   ['VAS', 'Vasculaire',                'O'],
   ['AUT', 'Autre',                     'O'],
 ];
+
+/* ════════════════════════════════════════════════════════════════════
+   COTATIONS_TYPE — combinaisons de cotation frequentes (27/07/2026).
+   Motif : la cotation devient necessaire pour TOUS les patients liberaux, pas
+   seulement ceux qui ont un depassement. Le creneau le plus charge est la
+   consultation d'endoscopie du mardi et du jeudi apres-midi, composee a 100 % de
+   patients liberaux. Une cotation type remplit le tableau de cotation en un clic.
+
+   ⚠️ UNIQUEMENT DES LIGNES D'ACTIVITE 4. Sur un releve de gastro-colo, les lignes
+   d'activite 1 appartiennent a l'operateur (le gastro-enterologue) : les inclure
+   gonflerait la BR du MAR d'environ 300 EUR et son quota des 30 % avec.
+
+   ⚠️ AUCUN TARIF ICI. Le tarif vient de l'index CCAM (ccam_actes.json) a partir du
+   code : une seule source, pas de valeur a maintenir a deux endroits.
+
+   ⚠️ PAS DE MODIFICATEUR D'URGENCE (S, U, O, F, P). Il n'y a pas de liberal en
+   urgence au CHPG (regle Arthur, 27/07). Le modificateur 7 (presence permanente de
+   l'anesthesiste, +6 %) est en revanche systematique sur les releves observes.
+
+   Colonnes : NOM | ORDRE | CODE | ROLE | MOD7 | MODA | LC
+   ROLE : principal | associe (50 %) | complement (100 % en sus)
+   LC   : lettre-cle de la consultation associee, sur la 1re ligne de la cotation type.
+   ══════════════════════════════════════════════════════════════════ */
+const COTATIONS_TYPE_TAB = 'COTATIONS_TYPE';
+const _COTTYPE_HEADER = ['NOM', 'ORDRE', 'CODE', 'ROLE', 'MOD7', 'MODA', 'LC'];
+const _COTTYPE_SEED = [
+  ['Gastro + colo', 1, 'HHQE002', 'principal', 'O', 'N', 'CS'],
+  ['Gastro + colo', 2, 'ZZLP025', 'associe',   'O', 'N', ''  ],
+  ['Gastro seule',  1, 'ZZLP025', 'principal', 'O', 'N', 'CS'],
+  ['Colo seule',    1, 'HHQE002', 'principal', 'O', 'N', 'CS'],
+];
+
+function getOrCreateCotationsTypeTab() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(COTATIONS_TYPE_TAB);
+  if (!sh) {
+    sh = ss.insertSheet(COTATIONS_TYPE_TAB);
+    sh.getRange(1, 1, 1, _COTTYPE_HEADER.length).setValues([_COTTYPE_HEADER]).setFontWeight('bold');
+    sh.getRange(2, 1, _COTTYPE_SEED.length, _COTTYPE_HEADER.length).setValues(_COTTYPE_SEED);
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(1, 180);
+  } else if (sh.getLastRow() < 2) {
+    sh.getRange(1, 1, 1, _COTTYPE_HEADER.length).setValues([_COTTYPE_HEADER]).setFontWeight('bold');
+    sh.getRange(2, 1, _COTTYPE_SEED.length, _COTTYPE_HEADER.length).setValues(_COTTYPE_SEED);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+// Lecture -> [{nom, lc, lignes:[{code, role, mod7, modA}]}], dans l'ordre de l'onglet.
+function getCotationsType() {
+  const rows = getOrCreateCotationsTypeTab().getDataRange().getValues();
+  const out = [], index = {};
+  for (let r = 1; r < rows.length; r++) {
+    const nom  = String(rows[r][0] || '').trim();
+    const code = String(rows[r][2] || '').trim().toUpperCase();
+    if (!nom || !code) continue;                       // ligne incomplete : ignoree
+    if (!index[nom]) { index[nom] = { nom: nom, lc: '', lignes: [] }; out.push(index[nom]); }
+    const role = String(rows[r][3] || '').trim().toLowerCase();
+    index[nom].lignes.push({
+      code:  code,
+      ordre: Number(rows[r][1]) || (index[nom].lignes.length + 1),
+      role:  (role === 'associe' || role === 'complement') ? role : 'principal',
+      mod7:  String(rows[r][4] || '').trim().toUpperCase() === 'O',
+      modA:  String(rows[r][5] || '').trim().toUpperCase() === 'O',
+    });
+    const lc = String(rows[r][6] || '').trim().toUpperCase();
+    if (lc && !index[nom].lc) index[nom].lc = lc;      // 1re valeur rencontree
+  }
+  out.forEach(function (c) { c.lignes.sort(function (a, b) { return a.ordre - b.ordre; }); });
+  return out;
+}
 
 function getOrCreateSpecialitesTab() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
