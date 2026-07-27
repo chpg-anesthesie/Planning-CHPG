@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-27.6';
+const GAS_VERSION_PORTAIL = '2026-07-27.7';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1288,13 +1288,28 @@ function getReleveLiberal(payload) {
     const x = Number(String(v).replace(',', '.').replace(/\s/g, ''));
     return isFinite(x) ? x : null;
   };
+  // Table id -> nom d'affichage : la page ne recoit que des MAR_ID, et aucune autre
+  // action ne permet de les traduire (listAnnuaire renvoie les noms SANS les id).
+  // Visibilite totale entre membres : l'argent est mutualise (decision 5, §3).
+  const noms = {};
+  const med = ss.getSheetByName('MEDECINS');
+  if (med) {
+    const dm = med.getDataRange().getValues();
+    for (let r = 1; r < dm.length; r++) {
+      const mid = String(dm[r][0] || '').trim();
+      if (mid) noms[mid] = { nom: String(dm[r][1] || '').trim() || mid,
+                             initiales: String(dm[r][2] || '').trim() };
+    }
+  }
   const items = [];
   for (let r = 1; r < rows.length; r++) {
     const mois = String(rows[r][0] || '').trim();
     const id   = String(rows[r][1] || '').trim();
     if (!mois || !id) continue;
+    const meta = noms[id] || {};
     const o = {
       mois: mois, marId: id,
+      nom: meta.nom || id, initiales: meta.initiales || id,
       tCcam: num(rows[r][2]), pctCcam: num(rows[r][3]), excCcam: num(rows[r][4]),
       tNgap: num(rows[r][5]), pctNgap: num(rows[r][6]), excNgap: num(rows[r][7]),
     };
