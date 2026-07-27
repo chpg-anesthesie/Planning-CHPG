@@ -226,6 +226,29 @@
     <div class="ct">Champs saisis à l'écran, jamais enregistrés</div>
     <p>Les quelques champs encore éditables (dates, remboursement) vivent dans la page le temps de l'impression&nbsp;: ils sont <strong>effacés à la fermeture</strong>, rien n'est stocké. Le nom du patient, lui, ne transite <strong>jamais</strong> par l'outil — manuscrit uniquement.</p>
   </div>
+  <div class="callout warn">
+    <div class="ct">Nouveau&nbsp;: cotez TOUS vos patients libéraux, même sans dépassement</div>
+    <p>Jusqu'ici, un patient sans dépassement d'honoraires ne demandait aucune cotation&nbsp;: pas de devis à imprimer, rien à calculer. <strong>Ce n'est plus vrai.</strong> C'est la cotation qui donne le montant (la base de remboursement) repris dans votre déclaration — et sans montant, l'intervention est bien vue par le comité, mais elle <strong>ne compte pas</strong> dans la mesure du rendement de votre spécialité. La page vous prévient si vous validez sans montant.</p>
+  </div>
+
+  <h3>Le geste complet, patient par patient</h3>
+  <ol>
+    <li><strong>Cotez l'anesthésie</strong> (axe Bloc CCAM), en renseignant la date de consultation et la date d'intervention.</li>
+    <li><strong>Choisissez la consultation associée.</strong> Le champ est sur <code>CS</code> par défaut, puisqu'il y a toujours une consultation. Vous pouvez mettre <code>C</code> avec son coefficient, ou un montant libre. <strong>L'APC est une cotation française</strong>&nbsp;: elle est refusée pour un assuré monégasque (carte verte, rose, bulle, SPME).</li>
+    <li><strong>« Ajouter le parcours ».</strong> Le formulaire de déclaration, en bas de page, <strong>se remplit tout seul</strong>&nbsp;: jour du bloc, date de consultation, les deux montants, la chirurgie.</li>
+    <li><strong>Imprimez le devis</strong> s'il y a un dépassement. Le patient écrit son nom à la main.</li>
+    <li><strong>Choisissez le secteur</strong> — la spécialité se propose alors toute seule, et reste modifiable.</li>
+    <li><strong>📅 Déclarer.</strong> Une ligne = un patient.</li>
+  </ol>
+  <div class="callout warn">
+    <div class="ct">Un patient à la fois</div>
+    <p>Le formulaire du bas ne contient <strong>qu'un seul patient</strong>. Si vous cotez un patient B avant d'avoir déclaré le patient A, <strong>le formulaire bascule sur B et A est perdu</strong>. Prenez l'habitude de déclarer avant de passer au suivant. Les champs que vous corrigez à la main, eux, ne sont jamais écrasés.</p>
+  </div>
+  <div class="callout tip">
+    <div class="ct">Spécialité&nbsp;: pourquoi elle ne suffit pas d'être le secteur</div>
+    <p>La spécialité est plus fine que le secteur là où un secteur en mélange deux&nbsp;: <strong>ophtalmologie et ORL</strong> partagent un bloc mais n'ont pas du tout le même rendement (la cataracte est le moteur), de même que <strong>urologie et viscéral</strong>. Et surtout, la spécialité <strong>survivra au déménagement</strong> de janvier 2027, quand les secteurs changeront&nbsp;: une cataracte rapporte autant quelle que soit la salle.</p>
+  </div>
+
   <div class="callout tip">
     <div class="ct">Le réflexe au moment de la consultation&nbsp;: serez-vous là le jour du bloc&nbsp;?</div>
     <p>Une consultation libérale <strong>engage votre présence</strong> le jour de l'intervention. L'écran <strong>« Consultations à venir »</strong> (tuile du portail, et accessible au secrétariat d'anesthésie avec son propre code) répond à cette question&nbsp;: pour chacune de vos consultations des 4 prochaines semaines, il liste vos <strong>absences sur les 4 semaines suivantes</strong> — les <strong>dates d'intervention à éviter</strong> — et indique quel confrère peut prendre le patient. Une <strong>garde n'est pas une absence</strong>&nbsp;: un MAR de garde peut assurer une intervention libérale. <em>Écran en cours d'essai, pas encore ouvert à toute l'équipe.</em></p>
