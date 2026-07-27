@@ -160,6 +160,21 @@ source du **rendement par spécialité**, qui n'a plus à être déduit par moin
   **étanches** : la déclaration ne récupère que la date de bloc et le libellé de chirurgie, jamais
   le montant ni le secteur.
 
+### Lot 2B livré (27/07/2026) — le relevé et le suivi
+- Onglet **`LIBERAL_CA_{Y}`** + `getReleveLiberal`. ⚠️ **Lecture seule** : Arthur recopie le relevé à
+  la main, **rien ne passe par `admin.html`** (le comité gère le planning, pas le libéral).
+- Onglet créé pré-rempli par `creerReleveLiberalAnneeEnCours()`. **Checksum en formules**, vérifié au
+  centime : le total « ACTIVITÉ LIBÉRALE » est bien la somme des excédents **des deux axes**.
+- ⚠️ Formules posées par le code : **noms anglais obligatoires** (`IF`, `ROUND`) — `SI`/`ARRONDI`
+  renvoient `#NAME?` même dans un classeur français.
+- **Rattrapage par juin seul** : le relevé est cumulé, un mois suffit à connaître la position.
+- Page **`suivi-liberal.html`** (racine) : position par axe, groupe en initiales, totaux par axe,
+  **aucune projection**, colonne « D'ici décembre » **descriptive** (pastilles colorées).
+- Tuile Dashboard **qui se sépare en deux** : Cotation & déclaration / Suivi des 30 %.
+- ⚠️ **10 MAR sur 18 en excédent** au cumul de juin, dont 2 sur le seul axe NGAP. Fragilise
+  l'hypothèse du gel du Lot 5 — à revérifier sur plusieurs mois.
+- ⚠️ **Code d'accès insensible à la casse** (`checkCode`) : touche **toutes** les pages.
+
 ### Cotations types (27/07/2026) — après le 2A
 - Onglet **`COTATIONS_TYPE`** (`GROUPE · NOM · ORDRE · CODE · ROLE · MOD7 · MODA · LC`) + action
   `getCotationsType`. Amorcé sur le groupe **Endoscopie** : *Gastro + colo* (`HHQE002` principal +
