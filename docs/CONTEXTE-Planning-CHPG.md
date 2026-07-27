@@ -160,7 +160,19 @@ source du **rendement par spécialité**, qui n'a plus à être déduit par moin
   **étanches** : la déclaration ne récupère que la date de bloc et le libellé de chirurgie, jamais
   le montant ni le secteur.
 
-Détail complet : `module_liberal_conception.md` **v3.22** — §6.2, §12 ter, décisions 32 à 36.
+### Cotations types (27/07/2026) — après le 2A
+- Onglet **`COTATIONS_TYPE`** (`GROUPE · NOM · ORDRE · CODE · ROLE · MOD7 · MODA · LC`) + action
+  `getCotationsType`. Amorcé sur le groupe **Endoscopie** : *Gastro + colo* (`HHQE002` principal +
+  `ZZLP025` associé 50 %), *Gastro seule*, *Colo seule*. Un bouton remplit le tableau de cotation.
+- **Rien n'est affiché tant qu'aucun contexte n'est choisi** ; choix mémorisé pour la session.
+- **Aucun tarif stocké** (il vient de l'index CCAM), **uniquement des lignes d'activité 4**, **aucun
+  modificateur d'urgence** — il n'y a pas de libéral en urgence au CHPG.
+- **Modificateur 7 coché par défaut** partout ; **tableau de cotation vide au démarrage**.
+- ⚠️ **Index CCAM : codes v83, tarifs v80.** Écart d'environ 1,40 € sur `HHQE002`, systématique.
+- ⚠️ **Clés de `sessionStorage` versionnées** : une colonne ajoutée à un onglet reste invisible tant
+  que la session n'est pas fermée. Incrémenter le suffixe à chaque changement de structure.
+
+Détail complet : `module_liberal_conception.md` **v4.2** — §5.4 bis, décisions 32 à 44.
 
 ### Lot 2 (compteur) — architecture du 24/07, toujours valable sauf sur un point
 ⚠️ **Amendement du 26/07** : la déclaration ne porte plus seulement du **volume**, elle porte aussi
