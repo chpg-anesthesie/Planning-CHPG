@@ -50,6 +50,10 @@ et fondé sur l'**OS n° 7.766 du 06/11/2019** (contrôle par catégorie depuis 
 l'autre. ⚠️ **La réa ne corrige QUE le CCAM.** Un excédent NGAP ne se rattrape que par des
 consultations publiques. Les leviers ne sont pas interchangeables — c'est le point dur du pilotage.
 
+✅ **`T` est l'activité TOTALE (public + libéral)**, confirmé par Arthur le 27/07/2026. Toute la
+formule de marge en dépend : si `T` était le libéral seul, **tous les montants affichés seraient
+faux**. Test de contrôle sur une ligne en excédent : si `T` est le total, `EXC = T × (% − 30) ÷ 100`.
+
 **La marge, à public constant** (`P` = public, `L` = libéral, `T = P + L`) :
 
 `marge = (3/7)·P − L = (T/7)·(3 − 10·%)` — nulle à 30 %, négative = excédent.
@@ -61,6 +65,20 @@ Le libéral ne s'*efface* pas : le public le **dilue**. À la cible, il faut `P 
   pèse beaucoup plus que corriger tard** ;
 - on dérive le **flux du mois** (`cumul_M − cumul_{M−1}`) pour lire la tendance, sinon on pilote
   dans le rétroviseur.
+
+**Public à produire pour effacer un excédent — identité exacte :**
+
+`public à produire = (10/3) × excédent`  *(à libéral constant)*
+
+Démonstration : l'excédent vaut `0,7 × |marge|` et le public requis `7/3 × |marge|`, d'où le rapport
+de 10/3. ⚠️ **Toujours partir de l'EXCÉDENT RECOPIÉ, jamais du pourcentage** : celui-ci est arrondi à
+une décimale sur le relevé, ce qui introduit plusieurs dizaines d'euros d'erreur — même raison que
+pour les excédents eux-mêmes. Affiché sous chaque excédent, **sur l'axe concerné uniquement** : un
+excédent NGAP se rattrape par des consultations publiques, pas par la réanimation.
+
+⚠️ **Le public déduit du pourcentage (`P = T/% × 100 − T`) reste, lui, IMPRÉCIS** : à 33,8 % la
+vraie valeur est entre 33,75 et 33,85, soit ±110 € sur un total de 72 000 €. À n'afficher qu'arrondi
+et présenté comme déduit.
 
 **Le solde est ANNUEL** (tout repart à zéro au 1ᵉʳ janvier) → **décembre est piloté à l'aveugle**
 (le relevé de décembre arrive fin janvier, après clôture). Le module calcule donc, à partir du
@@ -362,7 +380,13 @@ par un référent. Deux garde-fous offerts gratuitement par le document :
    les excédents. Le référent la saisit ; le module somme les excédents recopiés et **valide en vert
    si ça tombe pile à 0,00 près, rouge sinon**. Vérifié au centime sur le relevé réel jan→juin 2026.
    **Un checksum rouge bloque l'enregistrement** : un relevé faux est pire que pas de relevé.
-2. **Monotonie du cumul** — chaque total ne peut que croître d'un mois sur l'autre ; une régression
+2. **Monotonie du cumul** — 🔨 **pas encore construit** (27/07/2026) : il faut un mois précédent
+   pour comparer, donc il ne devient utile qu'en **août**, à la saisie de juillet. Prévu en
+   **formule dans le classeur**, comme le checksum. Il attrape ce que le checksum ne voit pas : une
+   ligne saisie en face du **mauvais MAR** (le total du mois reste juste). ⚠️ **Ne contrôler QUE les
+   totaux et les excédents cumulés : le POURCENTAGE n'est pas monotone** — il baisse légitimement si
+   le public croît plus vite que le libéral.
+   *(formulation d'origine ci-dessous)* Monotonie du cumul — chaque total ne peut que croître d'un mois sur l'autre ; une régression
    déclenche une alerte. Le `%`, lui, n'est pas monotone : aucun contrôle dessus.
 
 **Ce que 2B affiche — la mesure, pas la prévision.** Pour chaque MAR et chaque axe : l'état (`T`,
@@ -667,6 +691,7 @@ encore en vigueur.*
 | v3.13→3.20 · 23–24/07 | Conception complète du **Lot 5** (interface secrétaire), puis **gel** (§7 bis). |
 | v3.21 · 26/07 | **Le rendement est un attribut de spécialité, pas de secteur** — le déménagement de janvier 2027 change les secteurs, pas les spécialités. |
 | v3.22 · 26/07 | **Lot 2 élargi** : la déclaration porte la spécialité et le montant ; ventilation au prorata ; 2A avant 2B. |
+| **v4.4 · 27/07** | `T` = activité totale **confirmé** ; identité **public = 10/3 × excédent** (affichée sous chaque excédent) ; contrôle de monotonie précisé et daté à août ; index CCAM régénéré en **v84** avec alerte d'obsolescence à 8/14 mois (bandeau de cotation + ligne du Diagnostic). |
 | **v4.3 · 27/07** | **Lot 2B livré.** Onglet `LIBERAL_CA_{Y}` recopié à la main (aucune écriture par le code), checksum en formules **vérifié au centime en réel**, page `suivi-liberal.html`, colonne descriptive des affectations à venir, tuile qui se sépare en deux. Décisions 45 à 48, dont le constat des **10 MAR en excédent**. |
 | **v4.2 · 27/07** | **Cotations types.** Onglet `COTATIONS_TYPE` groupé par contexte, amorcé sur l'endoscopie ; modificateur 7 coché par défaut ; tableau de cotation vide au démarrage ; clés de cache versionnées. Constat consigné : l'index CCAM porte des **tarifs v80 sous des codes v83**. Décisions 42 à 44. |
 | **v4.1 · 27/07** | **Lot 2A livré.** `LIBERAL_{Y}` à 9 colonnes, fin de la fusion, onglet `SPECIALITES`, consultation associée à la cotation, garde-fous APC et AME, volet comité regroupé. Tarifs NGAP recoupés sur l'annexe III de la convention CCSS-CAMTI (01/10/2025) : `C 34,40` et `CS 46` **confirmés au centime**, l'APC absente de la nomenclature monégasque. Décisions 38 à 41. Site **v1.10**. |
