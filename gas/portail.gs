@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-27.3';
+const GAS_VERSION_PORTAIL = '2026-07-27.4';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -29,6 +29,7 @@ function portailRoute(action, payload, user) {
     case 'getSecteurs':    return _portailJson(getSecteurs());
     case 'getSpecialites': return _portailJson(getSpecialites());   // lecture : pas de verrou
     case 'getCotationsType': return _portailJson(getCotationsType());  // lecture : pas de verrou
+    case 'getReleveLiberal': return _portailJson(getReleveLiberal(payload));  // lecture : pas de verrou
     case 'getCsTemplate':  return _portailJson(getCsTemplate());
     case 'getVeille':  return _portailJson(getVeille());
     case 'markVeille': return _portailJson(markVeille(payload && payload.pmid, payload && payload.field, payload && payload.value));
@@ -1168,6 +1169,124 @@ function _todayISO_() {
 }
 
 function _libSheetName(year) { return 'LIBERAL_' + year; }
+
+/* ════════════════════════════════════════════════════════════════════
+   RELEVÉ MENSUEL DE L'ADMINISTRATION — onglet LIBERAL_CA_{Y} (Lot 2B).
+
+   ⚠️ AUCUNE ÉCRITURE PAR LE CODE. Arthur recopie le relevé À LA MAIN dans
+   l'onglet ; le module ne fait que LIRE. La gestion du libéral n'est pas du
+   ressort du comité : rien de tout ceci ne passe par admin.html.
+
+   ⚠️ LE RELEVÉ EST UN CUMUL, pas un flux. Le document de juin s'intitule
+   « ACTIVITES 2026 - JANVIER a JUIN 2026 » : il contient deja janvier a juin.
+   La periode s'allonge chaque mois jusqu'au releve annuel de decembre. Un seul
+   mois suffit donc a connaitre la position ; les mois anterieurs ne servent
+   qu'a lire le FLUX (cumul_M moins cumul_M-1).
+
+   ⚠️ LES EXCEDENTS SE RECOPIENT, ILS NE SE RECALCULENT PAS. Repartir d'un
+   pourcentage arrondi a 2 decimales fausse le total de plusieurs dizaines
+   d'euros et le checksum ne tombe plus.
+
+   Colonnes : MOIS | MAR_ID | T_CCAM | PCT_CCAM | EXC_CCAM | T_NGAP | PCT_NGAP | EXC_NGAP
+   Zone de controle (colonnes J a M) : par mois, somme des excedents recopies
+   face au total « ACTIVITE LIBERALE » du bas du document. Vert = ca tombe.
+   ══════════════════════════════════════════════════════════════════ */
+const LIBERAL_CA_HEADER = ['MOIS', 'MAR_ID', 'T_CCAM', 'PCT_CCAM', 'EXC_CCAM',
+                           'T_NGAP', 'PCT_NGAP', 'EXC_NGAP'];
+function _libCaSheetName(year) { return 'LIBERAL_CA_' + year; }
+
+// Membres du groupement (colonne LIBERAL = O de MEDECINS), dans l'ordre de l'onglet.
+function _membresLiberal_() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('MEDECINS');
+  if (!sh) return [];
+  const data = sh.getDataRange().getValues();
+  if (!data.length) return [];
+  let colLib = -1;
+  for (let c = 0; c < data[0].length; c++) {
+    if (String(data[0][c]).trim().toUpperCase() === 'LIBERAL') { colLib = c; break; }
+  }
+  if (colLib < 0) return [];
+  const out = [];
+  for (let r = 1; r < data.length; r++) {
+    const id = String(data[r][0] || '').trim();
+    if (!id) continue;
+    if (String(data[r][colLib]).trim().toUpperCase() === 'O') out.push(id);
+  }
+  return out;
+}
+
+/* Cree l'onglet de l'annee et le PRE-REMPLIT : 12 mois x N membres, MOIS et MAR_ID
+   deja poses. Il ne reste que les six nombres a taper, en face du bon identifiant.
+   Idempotente : si l'onglet existe deja, elle n'y touche pas (une saisie manuelle
+   fait toujours foi). */
+function getOrCreateLiberalCaTab(year) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const name = _libCaSheetName(year);
+  let sh = ss.getSheetByName(name);
+  if (sh) return sh;
+
+  sh = ss.insertSheet(name);
+  sh.getRange(1, 1, 1, LIBERAL_CA_HEADER.length).setValues([LIBERAL_CA_HEADER]).setFontWeight('bold');
+  sh.setFrozenRows(1);
+
+  const membres = _membresLiberal_();
+  const lignes = [];
+  for (let m = 1; m <= 12; m++) {
+    const mois = year + '-' + (m < 10 ? '0' + m : String(m));
+    membres.forEach(function (id) { lignes.push([mois, id, '', '', '', '', '', '']); });
+  }
+  if (lignes.length) sh.getRange(2, 1, lignes.length, LIBERAL_CA_HEADER.length).setValues(lignes);
+
+  // ── Zone de controle (J:M), une ligne par mois ──
+  const n = lignes.length + 1;                       // derniere ligne de donnees
+  sh.getRange(1, 10, 1, 4)
+    .setValues([['MOIS', 'SOMME EXC RECOPIES', 'TOTAL DU DOCUMENT', 'CONTROLE']])
+    .setFontWeight('bold');
+  const ctrl = [];
+  for (let m = 1; m <= 12; m++) {
+    const mois = year + '-' + (m < 10 ? '0' + m : String(m));
+    const r = m + 1;
+    ctrl.push([
+      mois,
+      '=SUMIF($A$2:$A$' + n + ';$J' + r + ';$E$2:$E$' + n + ')+SUMIF($A$2:$A$' + n + ';$J' + r + ';$H$2:$H$' + n + ')',
+      '',                                            // a recopier : ligne « ACTIVITE LIBERALE » du PDF
+      '=SI($L' + r + '="";"—";SI(ARRONDI($K' + r + ';2)=ARRONDI($L' + r + ';2);"OK";"ECART : "&TEXTE($K' + r + '-$L' + r + ';"0.00")&" EUR"))'
+    ]);
+  }
+  sh.getRange(2, 10, ctrl.length, 4).setValues(ctrl);
+  sh.setColumnWidth(10, 90); sh.setColumnWidth(11, 150);
+  sh.setColumnWidth(12, 150); sh.setColumnWidth(13, 170);
+  return sh;
+}
+
+// Lecture : lignes NON VIDES de l'annee. Un mois non encore recopie n'existe pas.
+function getReleveLiberal(payload) {
+  const year = parseInt(payload && payload.year, 10) || _libYearOf(_todayISO_());
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(_libCaSheetName(year));
+  if (!sh) return { success: true, year: year, items: [] };
+  const rows = sh.getDataRange().getValues();
+  const num = function (v) {
+    if (v === '' || v === null || v === undefined) return null;
+    const x = Number(String(v).replace(',', '.').replace(/\s/g, ''));
+    return isFinite(x) ? x : null;
+  };
+  const items = [];
+  for (let r = 1; r < rows.length; r++) {
+    const mois = String(rows[r][0] || '').trim();
+    const id   = String(rows[r][1] || '').trim();
+    if (!mois || !id) continue;
+    const o = {
+      mois: mois, marId: id,
+      tCcam: num(rows[r][2]), pctCcam: num(rows[r][3]), excCcam: num(rows[r][4]),
+      tNgap: num(rows[r][5]), pctNgap: num(rows[r][6]), excNgap: num(rows[r][7]),
+    };
+    // Ligne pre-remplie mais pas encore saisie : on ne la renvoie pas.
+    if (o.tCcam === null && o.tNgap === null) continue;
+    items.push(o);
+  }
+  return { success: true, year: year, items: items };
+}
 
 /* ════════════════════════════════════════════════════════════════════
    SPECIALITES — maille du RENDEMENT liberal (Lot 2A).
