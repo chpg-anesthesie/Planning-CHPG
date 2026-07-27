@@ -109,12 +109,22 @@
   <h1>Module libéral<br>Guide d'utilisation</h1>
   <p class="subtitle">Estimer le libéral, calibrer le dépassement sur la mutuelle du patient, générer le devis — et piloter la charge libéral / public.</p>
   <div class="maj">Dernière mise à jour : 22 juillet 2026 · rév. 6 (V4.2 — module branché au portail, déclaration d'intervention et volet comité en service)</div>
-  <p style="margin-top:10px"><a href="module-liberal/maquette_estimateur_liberal.html" style="display:inline-block;background:var(--acc);color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">→ Ouvrir l'estimateur</a></p>
+  <p style="margin-top:10px"><a href="module-liberal/maquette_estimateur_liberal.html" style="display:inline-block;background:var(--acc);color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">→ Ouvrir la cotation</a></p>
 </header>
 
 <div class="proto">
-  <div class="pt">⚗ Prototype — en cours d'élaboration</div>
-  <p><strong>Ce module et ce guide sont un prototype.</strong> Rien n'est en production : le module libéral se construit progressivement, et ce guide évolue avec lui. Les écrans, chiffres et règles décrits ici peuvent changer. À relire à chaque étape.</p>
+  <div class="pt">◆ En service — ouvert à un seul praticien pour l'instant</div>
+  <p><strong>Le module fonctionne et est utilisé en production</strong> : cotation, devis, déclaration
+  des interventions au comité, et suivi de la règle des 30 % à partir du relevé de l'administration.
+  Il n'est encore <strong>ouvert qu'à un seul praticien</strong>, le temps du rodage — la tuile
+  n'apparaît donc pas sur le portail des autres membres du groupement.</p>
+  <p><strong>Ce guide décrit ce qui fonctionne aujourd'hui</strong>, rien de ce qui est prévu : les
+  chantiers à venir vivent dans la ROADMAP du projet. Deux briques restent notamment à construire — le
+  <strong>taux de couverture</strong> (comparer ce qui est déclaré à ce qui est facturé) et le
+  <strong>rendement par spécialité</strong>, qui demandent plusieurs mois de relevés et de déclarations.</p>
+  <p>⚠️ Trois points de cotation restent <strong>à confirmer auprès de la CSM</strong> : le coefficient
+  de l'APC, le plafond de la carte rose (241 % à l'annexe III contre 234 % appliqués ici) et le régime
+  AME en libéral. Les montants concernés sont signalés à l'écran.</p>
   <p style="margin-top:8px">Pour comprendre le <strong>fonctionnement de l'activité libérale</strong> elle-même (cartes, dépassements, règle des 30 %), lire d'abord le <a href="module-liberal/guide_liberal_MAR.html" style="color:var(--acc);font-weight:600">guide MAR — Comment fonctionne notre activité libérale</a>. Le présent guide décrit l'outil.</p>
 </div>
 
@@ -129,7 +139,6 @@
     <li><a href="#c6"><span class="n">06</span>Le placement au bloc (comité)</a></li>
     <li><a href="#c7"><span class="n">07</span>Le pilotage libéral / public (30 %)</a></li>
     <li><a href="#c8"><span class="n">08</span>Sécurité des données</a></li>
-    <li><a href="#c9"><span class="n">09</span>Ce qui reste à construire</a></li>
   </ol>
 </nav>
 
@@ -285,7 +294,36 @@
 <section id="c7">
   <h2><span class="n">07</span>Le pilotage libéral / public (30 %)</h2>
   <p>Le seuil de 30 % s'applique <strong>séparément sur deux axes</strong>&nbsp;: le CCAM (actes techniques au bloc) et le NGAP (consultations). Les deux plafonds sont indépendants&nbsp;: on peut être large sur un axe et en excédent sur l'autre.</p>
-  <p>Comme les revenus sont mutualisés et l'excédent reversé à l'hôpital au 31/12, le groupe perd de deux façons&nbsp;: un praticien <strong>au-dessus</strong> de 30 % (surplus reversé) ou <strong>sous-employé</strong> (marge non réalisée). Le module projette, par MAR et par axe, la marge à la cible et guide la réallocation des vacations.</p>
+  <p>Comme les revenus sont mutualisés et l'excédent reversé à l'hôpital au 31/12, le groupe perd de <strong>deux</strong> façons&nbsp;: un praticien <strong>au-dessus</strong> de 30 % (le surplus part à l'hôpital) ou <strong>sous-employé</strong> (une marge que personne n'utilise, et qui disparaît au 31 décembre).</p>
+
+  <h3>L'écran «&nbsp;Suivi des 30&nbsp;%&nbsp;»</h3>
+  <p>Depuis la tuile <strong>Libéral</strong> du portail, la moitié droite ouvre le suivi. Il repose sur le
+  <strong>relevé mensuel de l'administration</strong>, recopié dans le classeur&nbsp;: c'est la seule source
+  de vérité financière, le module ne recalcule jamais un chiffre d'affaires à partir des actes.</p>
+  <ul>
+    <li><strong>Votre position</strong>, par axe&nbsp;: le cumul, le pourcentage, et soit la <strong>marge encore permise</strong>, soit l'<strong>excédent</strong>.</li>
+    <li><strong>Le groupe</strong>, en initiales, trié du plus en excédent au moins&nbsp;: l'argent étant mutualisé, chacun voit la position de tous.</li>
+    <li><strong>Les totaux par axe</strong>&nbsp;: ce qui part à l'hôpital si rien ne change, et la capacité qui dort ailleurs.</li>
+    <li><strong>«&nbsp;D'ici décembre&nbsp;»</strong>&nbsp;: les secteurs d'affectation des mois restants, une pastille par mois. <strong>Purement descriptif</strong> — l'écran ne dit pas si cela va s'arranger ou s'aggraver.</li>
+  </ul>
+
+  <div class="callout rule">
+    <div class="ct">Un cumul, pas un mois — et aucune prévision</div>
+    <p>Le relevé s'intitule «&nbsp;<em>ACTIVITÉS 2026 — JANVIER à JUIN</em>&nbsp;»&nbsp;: les montants
+    contiennent <strong>tout le début d'année</strong>, ce n'est pas l'activité du mois. La période
+    s'allonge à chaque relevé jusqu'au bilan annuel de décembre.</p>
+    <p><strong>L'écran ne projette rien</strong> à fin décembre, et c'est volontaire&nbsp;: sur une activité
+    saisonnière — congés, gardes, blocs fermés — extrapoler «&nbsp;au rythme actuel&nbsp;» produit un
+    chiffre faux, qui dirait «&nbsp;continuez&nbsp;» à quelqu'un qui devrait s'arrêter.</p>
+  </div>
+
+  <div class="callout rule">
+    <div class="ct">La réanimation ne rattrape QUE le CCAM</div>
+    <p>Les deux plafonds ne se compensent pas. Un excédent sur l'axe <strong>CCAM</strong> se corrige en
+    augmentant l'activité publique au bloc, notamment par la <strong>réanimation</strong>. Un excédent sur
+    l'axe <strong>NGAP</strong> ne se rattrape que par des <strong>consultations publiques</strong> —
+    aucune garde de réanimation n'y changera quoi que ce soit.</p>
+  </div>
   <div class="callout rule">
     <div class="ct">À retenir</div>
     <p>Le <strong>dépassement d'honoraires est hors quota 30 %</strong>. Le même acte se lit deux fois, indépendamment&nbsp;: le dépassement et le RAC pour le patient, la BR pour le ratio du groupe. Régler l'un ne touche pas l'autre.</p>
@@ -307,23 +345,9 @@
   </div>
 </section>
 
-<section id="c9">
-  <h2><span class="n">09</span>Ce qui reste à construire</h2>
-  <div class="callout tip">
-    <div class="ct">Ce qui est désormais en service</div>
-    <p>L'<strong>intégration au portail</strong> (tuile réservée aux membres du groupement, identité pré-remplie), la <strong>déclaration d'intervention</strong> et le <strong>volet ◆ Libéral côté comité</strong> sont <strong>en production depuis le 22 juillet 2026</strong> et ne figurent plus dans cette liste.</p>
-  </div>
-  <p>Restent notamment&nbsp;:</p>
-  <ul>
-    <li>Devis <strong>monégasque</strong> validé (entente préalable CCSS, mentions CSM).</li>
-    <li>Enrichissement de la <strong>bibliothèque de formules mutuelle</strong> au fil de la collecte.</li>
-    <li>Brique <strong>pilotage 30 %</strong> côté comité (relevés mensuels, projection par axe).</li>
-    <li>Brique <strong>pilotage 30 %</strong> (relevés mensuels, projection par axe, réallocation).</li>
-  </ul>
-  <a class="backtop" href="#top">↑ Haut de page</a>
-</section>
 
-<div class="foot">Planning-CHPG · Monaco — Guide du module libéral (prototype) · évolue avec le module en cours d'élaboration</div>
+
+<div class="foot">Planning-CHPG · Monaco — Guide du module libéral — décrit le module tel qu'il fonctionne aujourd'hui. Ce qui reste à construire vit dans la ROADMAP.</div>
 
 </div>
 </body>
