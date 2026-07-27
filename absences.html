@@ -209,6 +209,7 @@ async function doLogin(code){
   document.getElementById('authOverlay').style.display='none';
   document.getElementById('hdr').style.display='flex';
   document.getElementById('main').style.display='';
+  chargerMarges();      // tri des alternatives par marge CCAM (MAR seulement)
   charger();
   return r;
 }
@@ -263,6 +264,35 @@ function construireJours(){
     c.setDate(c.getDate()+1);
   }
   JOURS_ALL.forEach((ds,i)=>{ IDX[ds]=i; });
+}
+
+/* ── MARGE LIBÉRALE (axe CCAM) ─────────────────────────────────────────────
+   Sert à classer les confrères qui peuvent reprendre un patient. Une consultation
+   libérale déclenche un bloc : c'est le CCAM qui portera la charge.
+   ⚠️ RÉSERVÉ AU MAR. getReleveLiberal n'est PAS dans SECRETARIAT_ACTIONS : le
+   serveur le refuse à un code partagé. On n'appelle donc même pas pour ce rôle —
+   le secrétariat garde la liste sans aucun montant.
+   ⚠️ Le montant vient du DERNIER RELEVÉ (mensuel, cumulé) : ce qui a été facturé
+   depuis n'y est pas. L'ordre est fiable, le montant est indicatif. */
+let MARGE = {}, MARGE_OK = false, MARGE_MOIS = '';
+const _MOIS_FR = ['janvier','février','mars','avril','mai','juin','juillet','août',
+                  'septembre','octobre','novembre','décembre'];
+async function chargerMarges(){
+  if(ROLE !== 'mar') return;                       // secrétariat : aucun chiffre
+  try{
+    const r = await apiPost({action:'getReleveLiberal', year:new Date().getFullYear()});
+    const items = (r && r.success && Array.isArray(r.items)) ? r.items : [];
+    if(!items.length) return;
+    const dernier = items.map(i=>i.mois).sort().pop();
+    items.filter(i=>i.mois===dernier).forEach(i=>{
+      if(i.tCcam == null || i.pctCcam == null) return;
+      // marge = T x (3 - 10p) / 7, nulle à 30 %, négative au-delà
+      MARGE[i.marId] = i.tCcam * (3 - 10 * (i.pctCcam/100)) / 7;
+    });
+    MARGE_OK = Object.keys(MARGE).length > 0;
+    const mm = parseInt(String(dernier).slice(5,7), 10);
+    if(mm >= 1 && mm <= 12) MARGE_MOIS = 'cumul janvier → ' + _MOIS_FR[mm-1];
+  }catch(e){ /* silencieux : le tri est un confort, pas une donnée critique */ }
 }
 
 async function charger(){
@@ -430,18 +460,33 @@ function rendreAlt(){
     .sort((a,b)=> a.date < b.date ? -1 : 1);
   const ligne = (id)=>{
     const cs = csAvant(id);
-    return '<div class="person"><b>'+nomDe(id)+'</b><span class="cs">'+
+    // Marge CCAM : affichée au MAR seulement (MARGE reste vide pour le secrétariat).
+    const m = MARGE[id];
+    const chip = (m == null) ? '' :
+      '<span class="marge" style="margin-left:8px;font-family:var(--mono);font-size:11px;font-weight:700;'
+      + 'color:' + (m > 0 ? 'var(--ok)' : 'var(--rose)') + '">'
+      + (m > 0 ? '+' : '−') + ' ' + Math.abs(Math.round(m)).toLocaleString('fr-FR') + ' €</span>';
+    return '<div class="person"><b>'+nomDe(id)+'</b>'+chip+'<span class="cs">'+
       cs.slice(0,2).map(x=> libDate(x.date)+' '+(x.per==='am'?'matin':'ap.-midi')).join(' · ')+
       (cs.length>2 ? ' +'+(cs.length-2) : '')+'</span></div>';
   };
   const tous = Object.keys(DATA.noms||{});
   const dispo = tous.filter(id=> id!==curSlot.mar && !absentSur(id) && csAvant(id).length);
-  const meme  = dispo.filter(id=> csAvant(id).some(x=> x.cs === secteur));
-  const autres= dispo.filter(id=> meme.indexOf(id) < 0);
+  // TRI PAR MARGE CCAM DÉCROISSANTE (27/07/2026). Une consultation libérale déclenche
+  // un bloc : c'est l'axe CCAM qui portera la charge, pas le NGAP. Reprendre le patient
+  // d'un confrère doit donc se faire vers celui qui a le plus de place au BLOC.
+  // Sans relevé chargé (secrétariat, ou portail injoignable), l'ordre d'origine est
+  // conservé : la fonctionnalité dégrade, elle ne casse pas.
+  const parMarge = (a,b) => (MARGE[b] == null ? -1e12 : MARGE[b]) - (MARGE[a] == null ? -1e12 : MARGE[a]);
+  const meme  = dispo.filter(id=> csAvant(id).some(x=> x.cs === secteur)).sort(parMarge);
+  const autres= dispo.filter(id=> meme.indexOf(id) < 0).sort(parMarge);
 
   let h = '<div class="alt"><h4>Patient opéré '+(nbJours(p)>1?'entre le ':'le ')+libPlage(p)+
     ' — qui peut le voir ?</h4><div class="why">Médecins présents '+
     (nbJours(p)>1?'sur toute la période':'ce jour-là')+', ayant une consultation avant.</div>';
+  if(MARGE_OK) h += '<div class="why" style="margin-top:-4px">Classés par <b>marge libérale restante au bloc</b> '
+    + '(axe CCAM, dernier relevé' + (MARGE_MOIS ? ' — ' + MARGE_MOIS : '') + '). '
+    + 'L\'ordre est fiable, le montant est indicatif : ce qui a été facturé depuis n\'y figure pas.</div>';
   if(!dispo.length){
     h += '<div class="none-alt">Personne ne remplit les deux conditions. À arbitrer avec le comité.</div>';
   } else {
