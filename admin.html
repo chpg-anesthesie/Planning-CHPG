@@ -3586,12 +3586,33 @@ function renderLiberalCard(items, date) {
   // SECTEURS_CFG. Sans echappement, un MAR pouvait faire executer du code DANS CETTE PAGE,
   // ou ADMIN_CODE est une variable vivante — soit l'acces aux 43 actions d'administration.
   // Ne jamais retirer _escHtml ici.
-  document.getElementById('libBody').innerHTML = items.map(it =>
-    '<div class="lib-row">'
-    + '<div class="lib-n">' + _escHtml(_nm(it.marId)) + '</div>'
-    + '<div class="lib-m"><span class="lib-sec">' + _escHtml(_libSecteurLabel(it.secteur)) + '</span>'
-    + (it.chirurgie ? '<span class="lib-ch">' + _escHtml(it.chirurgie) + '</span>' : '') + '</div>'
-    + '</div>').join('');
+  // REGROUPEMENT (Lot 2A, 27/07/2026) : depuis la fin de la fusion cote serveur, une
+  // ligne = un patient. Une journee de cataractes remonterait donc 8 lignes identiques.
+  // Le comite place un MAR dans un SECTEUR, pas patient par patient : on regroupe par
+  // MAR + secteur et on affiche le COMPTE. Le detail patient reste au MAR, dans sa page.
+  const groupes = [];
+  const index = {};
+  items.forEach(function (it) {
+    const cle = String(it.marId) + '|' + String(it.secteur);
+    if (!index[cle]) { index[cle] = { marId: it.marId, secteur: it.secteur, n: 0, chirs: [] }; groupes.push(index[cle]); }
+    const g = index[cle];
+    g.n++;
+    // Libelles distincts seulement : « cataracte » huit fois n'apprend rien.
+    const ch = String(it.chirurgie || '').trim();
+    if (ch && g.chirs.indexOf(ch) === -1) g.chirs.push(ch);
+  });
+  groupes.sort(function (a, b) { return String(_nm(a.marId)).localeCompare(String(_nm(b.marId))); });
+
+  document.getElementById('libBody').innerHTML = groupes.map(function (g) {
+    // Au-dela de 3 libelles la ligne devient illisible : on tronque a l'affichage.
+    const suite = g.chirs.length > 3 ? (g.chirs.slice(0, 3).join(', ') + '…') : g.chirs.join(', ');
+    return '<div class="lib-row">'
+      + '<div class="lib-n">' + _escHtml(_nm(g.marId)) + '</div>'
+      + '<div class="lib-m"><span class="lib-sec">' + _escHtml(_libSecteurLabel(g.secteur)) + '</span>'
+      + '<span class="lib-ch">' + g.n + (g.n > 1 ? ' interventions' : ' intervention')
+      + (suite ? ' — ' + _escHtml(suite) : '') + '</span></div>'
+      + '</div>';
+  }).join('');
   card.style.display = 'block';
 }
 function loadLiberalJour(date) {
