@@ -248,6 +248,8 @@
     <li><b>Module libéral</b> : <code>declareLiberal</code>, <code>deleteLiberal</code> (écritures), <code>listLiberal</code> (le MAR connecté), <code>listLiberalJour</code> (admin, alimente le volet comité), <code>getSecteurs</code>, <code>getSpecialites</code>, <code>getCotationsType</code>.
       <br><b>Lot 2A (27/07/2026)</b> — <code>LIBERAL_{Y}</code> est passé de 6 à <b>9 colonnes</b> (<code>+ SPECIALITE, BR_CCAM, BR_NGAP</code>) et <b>la fusion jour+secteur a été supprimée</b> : une ligne = un patient. Onglet <code>SPECIALITES</code> (12 codes) amorcé à la demande. L'élargissement de l'en-tête d'un onglet déjà rempli est idempotent et ne réécrit aucune ligne. Une spécialité vide est tolérée (compatibilité), une spécialité inconnue est refusée.
       <br><b>Cotations types (27/07/2026)</b> — onglet <code>COTATIONS_TYPE</code> : <code>GROUPE | NOM | ORDRE | CODE | ROLE | MOD7 | MODA | LC</code>. Aucun tarif n'y est stocké (il vient de <code>ccam_actes.json</code> à partir du code). La page n'affiche que les cotations types du groupe choisi, et rien tant qu'aucun groupe ne l'est. La migration de l'onglet (ajout de <code>GROUPE</code> en tête) est idempotente.
+      <br><b>Miroir maternité — définition UNIQUE (27/07/2026).</b> Mardi et jeudi <b>matin</b>, le MAR placé en <code>MAT</code> fait aussi la <code>CS-MAT</code> : même personne. La règle <b>n'existe pas dans les données</b>, elle est recalculée à chaque usage. Elle avait été réécrite en dur dans l'affichage et dans le compteur d'équité, et <b>oubliée dans l'export Excel</b> — les consultations de maternité étaient visibles à l'écran et absentes du fichier du vendredi. Elle vit désormais dans <code>MIROIR_MATER</code> + <code>estMiroirMater(dateISO, half)</code>, en tête d'<code>admin.html</code>, et les <b>trois</b> usages l'appellent. Dans l'export, elle s'applique <b>après</b> les overrides, sinon un placement manuel du comité serait écrasé.
+      <br>⚠️ <b>Ne jamais recopier la condition <code>jsDow===2 || jsDow===4</code> ailleurs.</b> Dette restante assumée : une <b>seconde</b> implémentation vit côté serveur dans <code>Indispos.gs</code> (<code>getConsultAbsences</code>) — fichiers différents, donc non fusionnables. <b>Si la maternité change de jours, il y a DEUX endroits à modifier.</b>
       <br>⚠️ <b>Piège de cache vécu le 27/07</b> : la page met ces listes en <code>sessionStorage</code>. Une colonne ajoutée à l'onglet reste <b>invisible</b> tant que la session n'est pas fermée — et <code>Ctrl+Maj+R</code> ne vide pas le <code>sessionStorage</code>. Les clés sont désormais <b>versionnées</b> (<code>chpgCotTypeLib_v2</code>) : <b>incrémenter le suffixe à chaque changement de structure</b>, sinon la migration passe inaperçue chez tous les utilisateurs déjà connectés.</li>
     <li><b>Contrôle d'absence</b> : <code>getConsultAbsences</code> — seule action métier ouverte au rôle <b>secrétariat</b> (§19).</li>
   </ul>
@@ -789,7 +791,7 @@
     <div class="ct">Mise en service : un seul geste</div>
     <p>La tuile « Mes consultations » est aujourd'hui restreinte par <code>only:'FROHLICH'</code>,
     le temps que le comité pose les consultations à 4 semaines — ouverte trop tôt, l'écran serait
-    presque vide. Pour l'ouvrir : retirer <code>only</code>, passer le site en <b>v1.10</b>
+    presque vide. Pour l'ouvrir : retirer <code>only</code>, <b>monter la version du site</b>
     (4 fichiers) et compléter <code>guide-mar.html</code>.</p>
   </div>
   <a class="backtop" href="#top">↑ Sommaire</a>
