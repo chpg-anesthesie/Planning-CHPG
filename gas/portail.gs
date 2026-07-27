@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-22.1';
+const GAS_VERSION_PORTAIL = '2026-07-27.1';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -27,6 +27,7 @@ function portailRoute(action, payload, user) {
     case 'getProtocole':   return _portailJson(getProtocole(payload && payload.id));
     case 'listAnnuaire':   return _portailJson(listAnnuaire());
     case 'getSecteurs':    return _portailJson(getSecteurs());
+    case 'getSpecialites': return _portailJson(getSpecialites());   // lecture : pas de verrou
     case 'getCsTemplate':  return _portailJson(getCsTemplate());
     case 'getVeille':  return _portailJson(getVeille());
     case 'markVeille': return _portailJson(markVeille(payload && payload.pmid, payload && payload.field, payload && payload.value));
@@ -1143,7 +1144,22 @@ function testCRH() {
 //  Même MAR + même jour + même secteur => la ligne existante est MISE À JOUR
 //  (libellé chirurgie cumulé), pas dupliquée. Deux secteurs le même jour => 2 lignes.
 // ════════════════════════════════════════════════════════════════════
-const LIBERAL_HEADER = ['ID', 'DATE_CONSULT', 'DATE_BLOC', 'MAR_ID', 'SECTEUR', 'CHIRURGIE'];
+// Lot 2A (27/07/2026) : 6 -> 9 colonnes. SPECIALITE porte le rendement (elle
+// survit au demenagement, le secteur non) ; BR_CCAM / BR_NGAP portent la base de
+// remboursement, SEULE grandeur qui charge le quota des 30 % (le DH en est exclu).
+// Les colonnes 0-5 n'ont pas bouge : les lignes anciennes restent lisibles.
+const LIBERAL_HEADER = ['ID', 'DATE_CONSULT', 'DATE_BLOC', 'MAR_ID', 'SECTEUR', 'CHIRURGIE',
+                        'SPECIALITE', 'BR_CCAM', 'BR_NGAP'];
+
+// Montant -> nombre a 2 decimales, ou '' si absent/invalide. Jamais de negatif :
+// une BR negative n'existe pas, et ecrire '' plutot que 0 distingue "non renseigne"
+// de "zero euro" au moment du recoupement avec le releve.
+function _libMoney_(v) {
+  if (v === '' || v === null || v === undefined) return '';
+  const n = Number(String(v).replace(',', '.').replace(/\s/g, ''));
+  if (!isFinite(n) || n < 0) return '';
+  return Math.round(n * 100) / 100;
+}
 
 // Aujourd'hui en 'yyyy-MM-dd', fuseau du script.
 function _todayISO_() {
@@ -1151,6 +1167,74 @@ function _todayISO_() {
 }
 
 function _libSheetName(year) { return 'LIBERAL_' + year; }
+
+/* ════════════════════════════════════════════════════════════════════
+   SPECIALITES — maille du RENDEMENT liberal (Lot 2A).
+   Pourquoi pas le secteur : en janvier 2027 le bloc ORL disparait dans un
+   'Bloc Court' mutualise. Un rendement attache au secteur serait perime ce
+   jour-la ; attache a la specialite il est permanent (une cataracte rapporte
+   autant quelle que soit la salle).
+   Plus FINE que le secteur la ou un secteur melange deux rendements :
+   OPH separee d'ORL (la cataracte est le moteur), URO separee de VIS.
+   Editable en cellule, jamais en dur cote page.
+   ══════════════════════════════════════════════════════════════════ */
+const SPECIALITES_TAB = 'SPECIALITES';
+const _SPECIALITES_HEADER = ['CODE', 'LABEL', 'ACTIF'];
+const _SPECIALITES_SEED = [
+  ['OPH', 'Ophtalmologie (cataracte)', 'O'],
+  ['ORL', 'ORL / stomatologie',        'O'],
+  ['VIS', 'Visceral / digestif',       'O'],
+  ['URO', 'Urologie',                  'O'],
+  ['ORT', 'Orthopedie',                'O'],
+  ['END', 'Endoscopies digestives',    'O'],
+  ['GYN', 'Gynecologie / obstetrique', 'O'],
+  ['PED', 'Pediatrie',                 'O'],
+  ['CI',  'Cardiologie interventionnelle', 'O'],
+  ['RI',  'Radiologie interventionnelle', 'O'],
+  ['VAS', 'Vasculaire',                'O'],
+  ['AUT', 'Autre',                     'O'],
+];
+
+function getOrCreateSpecialitesTab() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(SPECIALITES_TAB);
+  if (!sh) {
+    sh = ss.insertSheet(SPECIALITES_TAB);
+    sh.getRange(1, 1, 1, _SPECIALITES_HEADER.length).setValues([_SPECIALITES_HEADER]).setFontWeight('bold');
+    sh.getRange(2, 1, _SPECIALITES_SEED.length, _SPECIALITES_HEADER.length).setValues(_SPECIALITES_SEED);
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(2, 240);
+  } else if (sh.getLastRow() < 2) {
+    // Onglet present mais vide (en-tete seul) -> on amorce.
+    sh.getRange(1, 1, 1, _SPECIALITES_HEADER.length).setValues([_SPECIALITES_HEADER]).setFontWeight('bold');
+    sh.getRange(2, 1, _SPECIALITES_SEED.length, _SPECIALITES_HEADER.length).setValues(_SPECIALITES_SEED);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+// Liste pour la page : [{code, label, actif}], ordre de l'onglet.
+function getSpecialites() {
+  const rows = getOrCreateSpecialitesTab().getDataRange().getValues();
+  const out = [];
+  for (let r = 1; r < rows.length; r++) {
+    const code = String(rows[r][0] || '').trim().toUpperCase();
+    if (!code) continue;
+    out.push({
+      code:  code,
+      label: String(rows[r][1] || '').trim() || code,
+      actif: String(rows[r][2] || '').trim().toUpperCase() === 'O',
+    });
+  }
+  return out;
+}
+
+// Set des codes ACTIFS, pour valider une declaration.
+function _specialitesActives_() {
+  const s = {};
+  getSpecialites().forEach(function (x) { if (x.actif) s[x.code] = true; });
+  return s;
+}
 
 // Onglet de l'année du JOUR DE BLOC, créé à la volée (comme SECTEURS).
 function _getOrCreateLiberalTab(year) {
@@ -1164,6 +1248,12 @@ function _getOrCreateLiberalTab(year) {
   } else if (sh.getLastRow() < 1) {
     sh.getRange(1, 1, 1, LIBERAL_HEADER.length).setValues([LIBERAL_HEADER]).setFontWeight('bold');
     sh.setFrozenRows(1);
+  } else if (sh.getLastColumn() < LIBERAL_HEADER.length) {
+    // Migration douce 2A : onglet DEJA REMPLI en 6 colonnes -> on ecrit l'en-tete
+    // a 9. Les lignes existantes gardent leurs valeurs et laissent les 3 nouvelles
+    // cellules vides : aucune reecriture, aucune perte. Idempotente.
+    sh.getRange(1, 1, 1, LIBERAL_HEADER.length).setValues([LIBERAL_HEADER]).setFontWeight('bold');
+    Logger.log('Onglet ' + name + ' : colonnes SPECIALITE / BR_CCAM / BR_NGAP ajoutees.');
   }
   return sh;
 }
@@ -1191,34 +1281,33 @@ function declareLiberal(payload, user) {
   // _isoDate(undefined) renvoie la CHAINE "undefined" (String(undefined)), pas '' :
   // on ne lui passe donc que des valeurs presentes, sinon on prend aujourd'hui.
   const dateCons = (payload && payload.dateConsult) ? _isoDate(payload.dateConsult) : _todayISO_();
+  // Lot 2A : specialite (maille du rendement) + BR des deux axes. La BR NGAP se
+  // rattache au mois de DATE_CONSULT, la BR CCAM a celui de DATE_BLOC : c'est
+  // pour cela que les deux dates sont stockees separement.
+  const spec    = String((payload && payload.specialite) || '').trim().toUpperCase();
+  const brCcam  = _libMoney_(payload && payload.brCcam);
+  const brNgap  = _libMoney_(payload && payload.brNgap);
 
   if (!dateBloc)  return { success: false, error: 'Jour du bloc manquant ou invalide.' };
   const year = _libYearOf(dateBloc);
   if (!year)      return { success: false, error: 'Jour du bloc invalide.' };
   if (!secteur)   return { success: false, error: 'Secteur obligatoire.' };
-
-  const sh = _getOrCreateLiberalTab(year);
-  const data = sh.getDataRange().getValues();
-
-  // Fusion : même MAR + même jour + même secteur → on complète la ligne existante.
-  for (let r = 1; r < data.length; r++) {
-    if (String(data[r][3]).trim() === marId
-        && _isoDate(data[r][2]) === dateBloc
-        && String(data[r][4]).trim().toUpperCase() === secteur) {
-      if (chir) {
-        const prev = String(data[r][5] || '').trim();
-        const parts = prev ? prev.split(' + ') : [];
-        if (parts.indexOf(chir) === -1) {
-          const merged = prev ? (prev + ' + ' + chir) : chir;
-          sh.getRange(r + 1, 6).setValue(merged.slice(0, 120));
-        }
-      }
-      return { success: true, merged: true, id: String(data[r][0]) };
-    }
+  // Specialite VIDE toleree : entre le deploiement du serveur et la mise en ligne
+  // de la page enrichie, l'ancienne page envoie encore l'ancien payload. Elle ne
+  // doit pas tomber en erreur. Une specialite FOURNIE, en revanche, doit exister
+  // et etre active : une faute de frappe creerait une specialite fantome qui
+  // fausserait le rendement sans que rien ne le signale.
+  if (spec && !_specialitesActives_()[spec]) {
+    return { success: false, error: 'Specialite inconnue : ' + spec };
   }
 
+  const sh = _getOrCreateLiberalTab(year);
+
+  // Lot 2A : PLUS DE FUSION. Une ligne = UN PATIENT. L'ancienne version fusionnait
+  // meme MAR + meme jour + meme secteur, ce qui rendait les interventions
+  // incomptables (8 cataractes = 1 ligne) et interdisait toute mesure de rendement.
   const id = _libNewId();
-  sh.appendRow([id, dateCons, dateBloc, marId, secteur, chir]);
+  sh.appendRow([id, dateCons, dateBloc, marId, secteur, chir, spec, brCcam, brNgap]);
   return { success: true, merged: false, id: id };
 }
 
@@ -1265,10 +1354,13 @@ function listLiberalJour(payload, user) {
   for (let r = 1; r < data.length; r++) {
     if (_isoDate(data[r][2]) !== date) continue;
     items.push({
-      id:        String(data[r][0]),
-      marId:     String(data[r][3]).trim(),
-      secteur:   String(data[r][4]).trim().toUpperCase(),
-      chirurgie: String(data[r][5] || '').trim(),
+      id:         String(data[r][0]),
+      marId:      String(data[r][3]).trim(),
+      secteur:    String(data[r][4]).trim().toUpperCase(),
+      chirurgie:  String(data[r][5] || '').trim(),
+      specialite: String(data[r][6] || '').trim().toUpperCase(),
+      brCcam:     _libMoney_(data[r][7]),
+      brNgap:     _libMoney_(data[r][8]),
     });
   }
   items.sort((a, b) => String(a.marId).localeCompare(String(b.marId)));
@@ -1289,10 +1381,14 @@ function listLiberal(payload, user) {
   for (let r = 1; r < data.length; r++) {
     if (String(data[r][3]).trim() !== marId) continue;       // JAMAIS les lignes d'un autre
     items.push({
-      id:        String(data[r][0]),
-      dateBloc:  _isoDate(data[r][2]),
-      secteur:   String(data[r][4]).trim().toUpperCase(),
-      chirurgie: String(data[r][5] || '').trim(),
+      id:          String(data[r][0]),
+      dateConsult: _isoDate(data[r][1]),
+      dateBloc:    _isoDate(data[r][2]),
+      secteur:     String(data[r][4]).trim().toUpperCase(),
+      chirurgie:   String(data[r][5] || '').trim(),
+      specialite:  String(data[r][6] || '').trim().toUpperCase(),
+      brCcam:      _libMoney_(data[r][7]),
+      brNgap:      _libMoney_(data[r][8]),
     });
   }
   items.sort((a, b) => String(a.dateBloc).localeCompare(String(b.dateBloc)));
