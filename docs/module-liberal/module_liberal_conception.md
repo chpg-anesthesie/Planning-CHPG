@@ -508,6 +508,30 @@ tiers estimé au départ. Le résidu est de ~20 déplacements par semaine, dont 
 irréductibles (cardio interventionnelle, vivier d'un seul MAR). **Toute estimation de gain fondée
 sur `p ≈ 1/3` est fausse.**
 
+### Lot 5, couche 2 — ✅ **DÉGELÉE ET LIVRÉE le 27/07/2026**
+
+Le gel portait notamment sur ceci : *orienter vers celui qui est le plus loin de son plafond*
+supposait un compteur, qui n'existait pas. **Le Lot 2B l'a créé** — l'obstacle est levé, pas
+contourné.
+
+Dans `absences.html`, quand un MAR ouvre une période d'absence, la liste « qui peut prendre le
+patient » est **triée par marge libérale CCAM décroissante**, montant affiché.
+
+- ⚠️ **Tri sur l'axe CCAM, pas NGAP.** Une consultation libérale **déclenche un bloc** : c'est le
+  CCAM qui portera la charge. Trier sur le NGAP optimiserait les 230 000 € de consultations en
+  ignorant le million d'actes qui suit.
+- ⚠️ **Réservé au MAR.** `getReleveLiberal` n'est pas dans `SECRETARIAT_ACTIONS` : le serveur le
+  refuserait, et la page ne l'appelle même pas pour ce rôle. **Le secrétariat garde la liste sans
+  aucun montant**, dans son ordre d'origine. Double protection, vérifiée par test.
+- ⚠️ **Le montant vient du dernier relevé** (mensuel, cumulé) : ce qui a été facturé depuis n'y est
+  pas. **L'ordre est fiable, le montant est indicatif** — c'est écrit à l'écran.
+- Sans relevé chargé (portail injoignable), le tri redevient neutre : **la fonctionnalité dégrade,
+  elle ne casse pas**.
+
+**Ce que ça change dans la conception d'origine** : le Lot 5 visait à mieux réallouer *quand ça
+coince*. Le vrai gain, formulé par Arthur le 27/07, est de **ne pas placer la consultation chez un
+MAR saturé dès le départ** — le tri par marge ne concerne donc pas que les cas de rattrapage.
+
 **Ce qui en a été tiré et qui tourne** : le **Lot 5-bis**, écran « Consultations à venir »
 (`absences.html`), en production depuis le 25/07/2026 — décrit au **§5.5**. Il ne route rien, ne
 compte rien, n'écrit rien : il répond à une question de disponibilité. C'est la jambe inoffensive du
@@ -738,6 +762,7 @@ encore en vigueur.*
 | v3.13→3.20 · 23–24/07 | Conception complète du **Lot 5** (interface secrétaire), puis **gel** (§7 bis). |
 | v3.21 · 26/07 | **Le rendement est un attribut de spécialité, pas de secteur** — le déménagement de janvier 2027 change les secteurs, pas les spécialités. |
 | v3.22 · 26/07 | **Lot 2 élargi** : la déclaration porte la spécialité et le montant ; ventilation au prorata ; 2A avant 2B. |
+| **v4.6 · 27/07** | **Lot 5 couche 2 dégelée et livrée** : tri des alternatives de `absences.html` par marge CCAM, réservé au MAR. Le compteur du 2B ayant levé l'obstacle, le gel tombe pour la bonne raison. |
 | **v4.5 · 27/07** | **Première analyse sur données réelles** (§9 bis) : l'hypothèse « les temps pleins saturent » est écartée (corrélation 0,25), l'excédent est concentré sur 2 à 5 personnes, l'effet secteur reste non testé faute d'affectations saisies au S1. Nuance majeure sur la formule 10/3 : le pourcentage se calcule sur l'année entière, le levier est le pilotage du second semestre. |
 | **v4.4 · 27/07** | `T` = activité totale **confirmé** ; identité **public = 10/3 × excédent** (affichée sous chaque excédent) ; contrôle de monotonie précisé et daté à août ; index CCAM régénéré en **v84** avec alerte d'obsolescence à 8/14 mois (bandeau de cotation + ligne du Diagnostic). |
 | **v4.3 · 27/07** | **Lot 2B livré.** Onglet `LIBERAL_CA_{Y}` recopié à la main (aucune écriture par le code), checksum en formules **vérifié au centime en réel**, page `suivi-liberal.html`, colonne descriptive des affectations à venir, tuile qui se sépare en deux. Décisions 45 à 48, dont le constat des **10 MAR en excédent**. |
