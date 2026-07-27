@@ -959,7 +959,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.10'; // SITE_VERSION: v1.10
+const SITE_VERSION = 'v1.10.1'; // SITE_VERSION: v1.10.1
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1052,7 +1052,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.1</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -2558,6 +2558,23 @@ let CS_TYPES = [
   {code:'CS-POLY',  label:'CS Polyvalente'},
   {code:'CS-INTER', label:'CS Interventionnel'},
 ];
+/* ── MIROIR MATERNITÉ — DÉFINITION UNIQUE (27/07/2026) ──────────────────────
+   Le mardi et le jeudi MATIN, le MAR placé en MAT fait AUSSI la consultation
+   CS-MAT : c'est la même personne. Cette règle n'existe NULLE PART dans les
+   données — elle est recalculée à chaque usage.
+   ⚠️ Elle avait déjà été réécrite trois fois (affichage, compteur d'équité,
+   et OUBLIÉE dans l'export Excel : les consultations de maternité manquaient
+   dans le fichier du vendredi alors qu'elles s'affichaient à l'écran).
+   Toute nouvelle utilisation passe par estMiroirMater() — ne pas recopier la
+   condition « jsDow===2 || jsDow===4 » ailleurs. */
+const MIROIR_MATER = { jours: [2, 4], demi: 'am', secteur: 'MAT', cs: 'CS-MAT' };
+function estMiroirMater(dateISO, half) {
+  if (half !== MIROIR_MATER.demi) return false;
+  const d = new Date(String(dateISO) + 'T12:00:00');
+  if (isNaN(d.getTime())) return false;
+  return MIROIR_MATER.jours.indexOf(d.getDay()) >= 0;
+}
+
 let CS_OPENABLE = ['CS-VIS','CS-END','CS-ORL','CS-ORT'];
 let CS_REQUIRED = {
   0:{am:{}, pm:{'CS-VIS':2,'CS-END':2}},                                              // Lundi
@@ -2706,10 +2723,9 @@ function renderWeek() {
   // qu'il y soit arrivé par génération ou par placement manuel.
   daySlots.forEach((slot, dow) => {
     if (!slot || slot.isWeekend || slot.isFerie) return;
-    const jsDow = new Date(slot.date + 'T12:00:00').getDay();  // 2=mardi, 4=jeudi
-    if (jsDow !== 2 && jsDow !== 4) return;
-    const matAm = (smap['MAT'] && smap['MAT'][dow]) ? smap['MAT'][dow].am : null;
-    const csAm  = (csTypeMap['CS-MAT'] && csTypeMap['CS-MAT'][dow]) ? csTypeMap['CS-MAT'][dow].am : null;
+    if (!estMiroirMater(slot.date, 'am')) return;              // définition unique
+    const matAm = (smap[MIROIR_MATER.secteur] && smap[MIROIR_MATER.secteur][dow]) ? smap[MIROIR_MATER.secteur][dow].am : null;
+    const csAm  = (csTypeMap[MIROIR_MATER.cs] && csTypeMap[MIROIR_MATER.cs][dow]) ? csTypeMap[MIROIR_MATER.cs][dow].am : null;
     if (!matAm || !csAm) return;
     // sens unique : qui est en MAT (mater présent OU placé par le comité) fait aussi la consult ;
     // mais une consult CS-MAT auto-remplie ne force PAS quelqu'un dans MAT (→ MAT flashe, le comité choisit)
@@ -3197,7 +3213,7 @@ function consultCountsForMonth(ym) {
   DATA.months.forEach(month => {
     (month.days||[]).forEach((day, dayIdx) => {
       if (!day || !day.date || day.date.slice(0,7) !== ym) return;
-      const jsDow = new Date(day.date + 'T12:00:00').getDay();
+      const miroirMater = estMiroirMater(day.date, 'am');     // définition unique
       (month.doctors||[]).forEach(doc => {
         const key = doc.id + '|' + day.date;
         if (seen.has(key)) return;      // ce (médecin, jour) a déjà été compté via un autre bloc
@@ -3211,7 +3227,7 @@ function consultCountsForMonth(ym) {
         const amSecs = String(amVal).split('+').map(x=>x.trim()).filter(Boolean);
         const pmSecs = String(pmVal).split('+').map(x=>x.trim()).filter(Boolean);
         let n = amSecs.filter(x=>x.startsWith('CS-')).length + pmSecs.filter(x=>x.startsWith('CS-')).length;
-        if ((jsDow===2 || jsDow===4) && amSecs.includes('MAT') && !amSecs.includes('CS-MAT')) n++;
+        if (miroirMater && amSecs.includes(MIROIR_MATER.secteur) && !amSecs.includes(MIROIR_MATER.cs)) n++;
         if (n) counts[doc.id] = (counts[doc.id]||0) + n;
       });
     });
@@ -4517,6 +4533,18 @@ async function exportWeekExcel(){
       });
     });
   });
+  // ── MIROIR MATERNITÉ ────────────────────────────────────────────────────
+  // Corrigé le 27/07/2026 : l'export reconstruisait tout depuis les données brutes
+  // et ignorait cette règle, qui n'est calculée qu'à l'affichage. Résultat : les
+  // consultations de maternité étaient VISIBLES à l'écran et ABSENTES du fichier.
+  // Appliqué APRÈS les overrides, sinon un placement manuel du comité l'écraserait.
+  daySlots.forEach((slot,dow)=>{
+    if(!slot||!estMiroirMater(slot.date,'am'))return;
+    const matAm=(smap[MIROIR_MATER.secteur]&&smap[MIROIR_MATER.secteur][dow])?smap[MIROIR_MATER.secteur][dow].am:null;
+    if(!matAm||!matAm.length)return;
+    matAm.forEach(init=>pushCS(MIROIR_MATER.cs,dow,'am',init));   // pushCS dédoublonne déjà
+  });
+
   // ── Feuille ──
   const wb=new ExcelJS.Workbook();
   // (07/2026) fitToHeight vaut 1 PAR DÉFAUT dans ExcelJS dès que fitToPage est vrai :
@@ -4679,9 +4707,16 @@ async function exportWeekExcel(){
   ws.getRow(4).height=18;ws.getRow(5).height=14;ws.getRow(6).height=16;ws.getRow(7).height=18;
   // ── Séparateurs journaliers : barre noire épaisse à gauche de chaque jour + fermeture du vendredi ──
   const THK={style:'thick',color:{argb:'FF000000'}};
+  // Séparation matin / après-midi À L'INTÉRIEUR d'un jour : 'medium', donc visible
+  // mais nettement plus fin que le 'thick' qui sépare les jours. Chaque jour occupe
+  // 4 colonnes (matin = cs et cs+1, après-midi = cs+2 et cs+3) : le trait se pose
+  // donc à gauche de cs+2, soit une colonne de plus que chaque séparateur de jour.
+  const MED={style:'medium',color:{argb:'FF555555'}};
   const daySep=[2,6,10,14,18];   // colonne de gauche de LUN, MAR, MER, JEU, VEN
+  const halfSep=daySep.map(c=>c+2);
   for(let r=4;r<=37;r++){
     daySep.forEach(c=>{const cell=ws.getCell(r,c);const b=Object.assign({},cell.border);b.left=THK;cell.border=b;});
+    halfSep.forEach(c=>{const cell=ws.getCell(r,c);const b=Object.assign({},cell.border);b.left=MED;cell.border=b;});
     const ce=ws.getCell(r,21);const be=Object.assign({},ce.border);be.right=THK;ce.border=be;
   }
   const buf=await wb.xlsx.writeBuffer();
