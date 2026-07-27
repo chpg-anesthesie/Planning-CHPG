@@ -250,6 +250,8 @@
       <br><b>Cotations types (27/07/2026)</b> — onglet <code>COTATIONS_TYPE</code> : <code>GROUPE | NOM | ORDRE | CODE | ROLE | MOD7 | MODA | LC</code>. Aucun tarif n'y est stocké (il vient de <code>ccam_actes.json</code> à partir du code). La page n'affiche que les cotations types du groupe choisi, et rien tant qu'aucun groupe ne l'est. La migration de l'onglet (ajout de <code>GROUPE</code> en tête) est idempotente.
       <br><b>Miroir maternité — définition UNIQUE (27/07/2026).</b> Mardi et jeudi <b>matin</b>, le MAR placé en <code>MAT</code> fait aussi la <code>CS-MAT</code> : même personne. La règle <b>n'existe pas dans les données</b>, elle est recalculée à chaque usage. Elle avait été réécrite en dur dans l'affichage et dans le compteur d'équité, et <b>oubliée dans l'export Excel</b> — les consultations de maternité étaient visibles à l'écran et absentes du fichier du vendredi. Elle vit désormais dans <code>MIROIR_MATER</code> + <code>estMiroirMater(dateISO, half)</code>, en tête d'<code>admin.html</code>, et les <b>trois</b> usages l'appellent. Dans l'export, elle s'applique <b>après</b> les overrides, sinon un placement manuel du comité serait écrasé.
       <br>⚠️ <b>Ne jamais recopier la condition <code>jsDow===2 || jsDow===4</code> ailleurs.</b> Dette restante assumée : une <b>seconde</b> implémentation vit côté serveur dans <code>Indispos.gs</code> (<code>getConsultAbsences</code>) — fichiers différents, donc non fusionnables. <b>Si la maternité change de jours, il y a DEUX endroits à modifier.</b>
+      <br><b>Lot 2B (27/07/2026)</b> — onglet <code>LIBERAL_CA_{Y}</code> (<code>MOIS | MAR_ID | T_CCAM | PCT_CCAM | EXC_CCAM | T_NGAP | PCT_NGAP | EXC_NGAP</code>) et action <code>getReleveLiberal</code>. ⚠️ <b>LECTURE SEULE : le code n'écrit jamais dans cet onglet</b> — le relevé est recopié à la main, rien ne passe par <code>admin.html</code>. Créé pré-rempli par <code>creerReleveLiberalAnneeEnCours()</code> (à lancer depuis l'éditeur ; idempotente). Le checksum vit en <b>formules</b> dans les colonnes J à M. <code>getReleveLiberal</code> renvoie aussi les <b>affectations restantes</b>, limitées aux MAR du relevé — <code>getAffectations</code> reste réservée à l'admin.
+      <br>⚠️ <b>Formules posées par <code>setValues()</code> : noms ANGLAIS obligatoires</b> (<code>IF</code>, <code>ROUND</code>). Même dans un classeur en français, <code>SI</code>/<code>ARRONDI</code> renvoient <code>#NAME?</code> — constaté le 27/07. <code>TEXT</code> est à proscrire en plus : son code de format attend une virgule décimale en français et un point en anglais.
       <br>⚠️ <b>Piège de cache vécu le 27/07</b> : la page met ces listes en <code>sessionStorage</code>. Une colonne ajoutée à l'onglet reste <b>invisible</b> tant que la session n'est pas fermée — et <code>Ctrl+Maj+R</code> ne vide pas le <code>sessionStorage</code>. Les clés sont désormais <b>versionnées</b> (<code>chpgCotTypeLib_v2</code>) : <b>incrémenter le suffixe à chaque changement de structure</b>, sinon la migration passe inaperçue chez tous les utilisateurs déjà connectés.</li>
     <li><b>Contrôle d'absence</b> : <code>getConsultAbsences</code> — seule action métier ouverte au rôle <b>secrétariat</b> (§19).</li>
   </ul>
@@ -712,7 +714,15 @@
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 <section id="c19">
-  <h2><span class="n">19</span>Consultations à venir &amp; rôle secrétariat</h2>
+  <div class="callout warn">
+  <div class="ct">Code d'accès : la casse est ignorée (27/07/2026)</div>
+  <p><code>checkCode</code> compare désormais le code <b>en majuscules des deux côtés</b>, pour les MAR, l'admin et le secrétariat. Auparavant la comparaison était stricte : taper son code en minuscules donnait « Code incorrect », sans aucun indice.</p>
+  <p><b>Le piège était invisible</b> : les champs de saisie portent <code>autocapitalize="characters"</code>, qui corrige tout seul <b>sur mobile</b> mais <b>pas sur ordinateur</b>. Le même code était donc accepté sur téléphone et refusé sur PC — incompréhensible pour l'utilisateur, et impossible à diagnostiquer à distance.</p>
+  <p><b>Sans risque de collision</b> : <code>generateCode()</code> n'émet que des majuscules (<code>ABCDEFGHJKLMNPQRSTUVWXYZ23456789</code>, sans I ni O) et <code>resetCodeMar</code> vérifie déjà l'unicité en majuscules. ⚠️ Un code saisi un jour <b>à la main</b> dans le classeur doit rester unique une fois mis en majuscules.</p>
+  <p>Ajouté au passage : <b>un code vide est refusé</b> avant toute comparaison. Sans ce garde-fou, il correspondait à la cellule vide d'un MAR sans code.</p>
+</div>
+
+<h2><span class="n">19</span>Consultations à venir &amp; rôle secrétariat</h2>
   <p>Page <code>absences.html</code> (juillet 2026). Elle répond à une question : <b>le médecin qui
   voit ce patient en consultation sera-t-il présent le jour de son intervention ?</b> Un patient vu
   par le D<sup>r</sup> X est opéré par le D<sup>r</sup> X ; si le bloc tombe un jour d'absence, il
