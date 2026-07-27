@@ -297,10 +297,28 @@
         <input id="dCs" type="date" onchange="renderDateHint()"></div>
       <div class="field" id="dIntWrap" style="width:180px"><label>Date d'intervention</label>
         <input id="dInt" type="date" onchange="renderDateHint()"></div>
+      <!-- CONSULTATION ASSOCIEE (2A) : rattache la BR NGAP du patient a SON parcours bloc.
+           Sans ce champ, il faudrait deviner laquelle des consultations du jour appartient
+           a ce patient - impossible des qu'il y en a plusieurs, et elles n'ont pas toutes
+           la meme valeur (C 34,40 / CS 46 / APC 60). -->
+      <div class="field" id="assocWrap" style="width:230px"><label>Consultation associée</label>
+        <select id="assocLc" onchange="assocChange()">
+          <option value="">— aucune</option>
+          <option value="CS">CS — spécialiste (46,00 €)</option>
+          <option value="C">C — généraliste (34,40 €)</option>
+          <option value="APC">APC — avis ponctuel (60,00 €) · cotation française</option>
+          <option value="LIBRE">Montant libre…</option>
+        </select></div>
+      <div class="field" id="assocCoefWrap" style="width:120px;display:none"><label>Coefficient</label>
+        <input id="assocCoef" type="number" step="0.5" min="0.5" value="1" onchange="assocChange()"></div>
+      <div class="field" id="assocLibreWrap" style="width:140px;display:none"><label>BR NGAP (€)</label>
+        <input id="assocLibre" type="number" step="0.01" min="0" onchange="assocChange()"></div>
       <!-- SECTEUR : parcours bloc uniquement. Sert au placement par le comite,
            n'apparait PAS sur le devis. Facultatif tant que la declaration
            d'intervention n'existe pas. -->
       <div class="datehint" id="dateHint"></div>
+      <div class="datehint" id="assocHint"></div>
+      <div class="datehint" id="statutAlerte" style="display:none;color:#8A6516"></div>
     </div>
 
     <!-- MUTUELLE : ligne « honoraires » en % BR (nourrit le calibrage RAC) -->
@@ -384,10 +402,14 @@
        le placement. Aucune donnée patient, aucun code d'acte. -->
   <div class="declbox">
     <h2>Déclarer une intervention libérale</h2>
-    <div class="sub2">Le comité verra cette intervention lors du placement du jour. Aucune donnée patient, aucun code d'acte.</div>
+    <div class="sub2">Le comité verra cette intervention lors du placement du jour. Aucune donnée patient, aucun code d'acte. Le bouton <b>📅 Déclarer</b> d'un parcours bloc remplit tout ceci d'un clic.</div>
     <div class="declgrid">
       <div class="field"><label>Jour du bloc</label><input id="dclBloc" type="date" onchange="dclTouche('bloc');dclPreview()"></div>
-      <div class="field"><label>Secteur</label><select id="dclSec" onchange="dclPreview()"><option value="">— chargement…</option></select></div>
+      <div class="field"><label>Date de consultation</label><input id="dclCons" type="date" onchange="dclTouche('cons');dclPreview()"></div>
+      <div class="field"><label>Secteur</label><select id="dclSec" onchange="dclSecChange()"><option value="">— chargement…</option></select></div>
+      <div class="field"><label>Spécialité</label><select id="dclSpec" onchange="dclTouche('spec');dclPreview()"><option value="">— chargement…</option></select></div>
+      <div class="field" style="width:130px"><label>BR CCAM (€)</label><input id="dclBrC" type="number" step="0.01" min="0" placeholder="0,00" oninput="dclPreview()"></div>
+      <div class="field" style="width:130px"><label>BR NGAP (€)</label><input id="dclBrN" type="number" step="0.01" min="0" placeholder="0,00" oninput="dclPreview()"></div>
       <div class="field"><label>Chirurgie <span style="color:var(--muted)">— facultatif</span></label><input id="dclChir" placeholder="PTH, hernie cœlio…" oninput="dclTouche('chir');dclPreview()"></div>
     </div>
     <div class="row2">
@@ -452,6 +474,74 @@ function lineBR(l){const c=coeff();const pct=l.m7?0.06:0;const rate=ROLES[l.role
   return c*((l.tarif||0)*(1+pct)*rate + A);}
 // NGAP : valeur de la lettre-clé × coefficient — AUCUN coeff monégasque, aucun modificateur
 function ngapBR(n){return (n.val||0)*(n.coef||0);}
+/* ── CONSULTATION ASSOCIEE (2A) ────────────────────────────────────────────
+   Rattache la BR NGAP du patient a SON parcours bloc, au moment de la cotation.
+   Pourquoi ici et pas au moment de la declaration : cinq patients vus le meme jour
+   donnent cinq parcours NGAP a la meme date, de valeurs differentes (C 34,40 x coeff,
+   CS 46, APC 60). Aucune regle de date ne peut dire laquelle appartient a ce patient.
+   ATTENTION : les tarifs viennent de LC (grille CCSS-CAMTI, annexe III au 01/10/2025),
+   jamais reecrits en dur ici. */
+
+// L'APC est une cotation FRANCAISE : elle ne figure pas dans la nomenclature monegasque
+// (annexe III : C, CPN, CS, CSPN, CP3, CPSY, CSC, CALD, CDE, V, VS, VPSY, K, KC, SPM).
+// Interdite pour un assure monegasque.
+const APC_INTERDIT = {verte:true, rose:true, bulle:true, spme:true};
+function statutCourant(){ const s=document.getElementById('statut'); return s ? s.value : ''; }
+
+function assocBR(){
+  const sel=document.getElementById('assocLc'); if(!sel) return 0;
+  const v=sel.value;
+  if(!v) return 0;
+  if(v==='LIBRE') return Math.max(0, parseFloat(document.getElementById('assocLibre').value)||0);
+  if(v==='C'){
+    const k=Math.max(0, parseFloat(document.getElementById('assocCoef').value)||1);
+    return Math.round(LC.C*k*100)/100;
+  }
+  return LC[v]||0;
+}
+
+function assocChange(){
+  const sel=document.getElementById('assocLc'); if(!sel) return;
+  const v=sel.value;
+  document.getElementById('assocCoefWrap').style.display  = (v==='C')     ? 'block':'none';
+  document.getElementById('assocLibreWrap').style.display = (v==='LIBRE') ? 'block':'none';
+  // Garde-fou APC : interdite pour un assure monegasque, avertie pour NAS / AME
+  // (regimes dont la base n'est pas confirmee - cf. questions ouvertes de la conception).
+  if(v==='APC'){
+    const st=statutCourant();
+    if(APC_INTERDIT[st]){
+      alert("L'APC est une cotation francaise : elle ne peut pas etre appliquee a un assure monegasque.");
+      sel.value=''; assocChange(); return;
+    }
+    if(st==='nas' || st==='ame'){
+      alert("APC pour ce statut : base non confirmee. A verifier avec la facturation avant remise du devis.");
+    }
+  }
+  renderAssocHint();
+}
+
+function renderAssocHint(){
+  const h=document.getElementById('assocHint'); if(!h) return;
+  const br=assocBR();
+  h.innerHTML = br>0
+    ? 'BR NGAP rattachee a ce patient : <b>'+eur2(br)+'</b> — elle partira dans la declaration.'
+    : '';
+}
+
+// Bandeau AME : deux regimes existent (francais et monegasque), sur des bases
+// differentes, et rien ne confirme laquelle s'applique en liberal. On calcule quand
+// meme, mais on le DIT : un chiffre douteux ne s'affiche pas en silence.
+function renderStatutAlerte(){
+  const box=document.getElementById('statutAlerte'); if(!box) return;
+  const st=statutCourant();
+  if(st==='ame'){
+    box.style.display='';
+    box.innerHTML='\u26A0\uFE0F <b>AME — base de calcul non confirmee.</b> Deux regimes existent '
+      +'(AME francaise, tarifs francais sans depassement ; AME monegasque, hors annexe III de la '
+      +'convention). A verifier aupres de la facturation avant remise du devis.';
+  } else box.style.display='none';
+}
+
 function parcoursBR(){
   return axe==='NGAP'
     ? ngap.reduce((s,n)=>s+ngapBR(n),0)
@@ -531,6 +621,14 @@ function setAxe(a){axe=a;
   document.getElementById('hintNGAP').style.display=n?'block':'none';
   // La date d'intervention n'a de sens que sur l'axe bloc (CCAM).
   document.getElementById('dIntWrap').style.display=n?'none':'block';
+  // La consultation associee n'a de sens que sur un parcours BLOC : sur l'axe NGAP,
+  // la consultation EST le parcours.
+  ['assocWrap','assocCoefWrap','assocLibreWrap'].forEach(function(id){
+    const el=document.getElementById(id); if(!el) return;
+    el.style.display = n ? 'none' : (id==='assocWrap' ? 'block' : el.style.display);
+  });
+  if(!n) assocChange();
+  const ah=document.getElementById('assocHint'); if(ah && n) ah.innerHTML='';
   renderDateHint();
   onStatut();
 }
@@ -538,6 +636,7 @@ function onStatut(){const st=STATUTS[document.getElementById('statut').value];
   const badge=document.getElementById('coefBadge'), lbl=document.getElementById('coefLbl');
   if(axe==='NGAP'){ badge.textContent='× 1,00'; lbl.textContent='Coeff. NGAP'; badge.title='Le NGAP n’applique pas le coefficient monégasque'; }
   else { badge.textContent='× '+st.coeff.toLocaleString('fr-FR',{minimumFractionDigits:2}); lbl.textContent='Coeff. CCAM'; badge.title=''; }
+  renderStatutAlerte();
   document.getElementById('cibleWrap').style.display = st.dh==='libre'?'block':'none';
   document.getElementById('mutRow').style.display = st.dh==='0'?'none':'flex';
   renderBuilder();}
@@ -693,6 +792,56 @@ async function chargerSecteurs(){
     secteurReplLibre('Secteur (portail injoignable — à saisir)');
   }
 }
+/* ── SPECIALITES (2A) ──────────────────────────────────────────────────────
+   Maille du RENDEMENT liberal. Plus fine que le secteur la ou un secteur melange
+   deux rendements tres differents : OPH separee d'ORL (la cataracte est le moteur),
+   URO separee de VIS. Liste servie par l'onglet SPECIALITES, jamais en dur ici -
+   la seule chose en dur est la PROPOSITION par defaut d'apres le secteur. */
+let SPECIALITES=[];
+// Proposition, pas une deduction : toujours modifiable. Un secteur ORL peut porter
+// de l'ophtalmo, un secteur VIS de l'urologie -- c'est precisement pourquoi la
+// specialite existe separement.
+const SEC2SPEC={VIS:'VIS', ORT:'ORT', ORL:'ORL', END:'END', CI:'CI', RI:'RI', MAT:'GYN'};
+
+async function chargerSpecialites(){
+  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  const sel=document.getElementById('dclSpec');
+  if(!code){ if(sel) sel.innerHTML='<option value="">Spécialité (hors portail)</option>'; return; }
+  try{
+    const c=JSON.parse(sessionStorage.getItem('chpgSpecialitesLib')||'null');
+    if(c && c.length){ SPECIALITES=c; remplirSpecialites(); return; }
+  }catch(e){}
+  try{
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 20000);
+    const r=await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'getSpecialites', code:code}), redirect:'follow', signal:ctrl.signal});
+    clearTimeout(to);
+    const j=await r.json();
+    const brut=(j && (j.data || j.specialites || j)) || [];
+    const list=(Array.isArray(brut)?brut:[]).filter(x=>x && x.actif);
+    if(!list.length){ if(sel) sel.innerHTML='<option value="">Spécialité (liste vide)</option>'; return; }
+    SPECIALITES=list; remplirSpecialites();
+    try{ sessionStorage.setItem('chpgSpecialitesLib', JSON.stringify(list)); }catch(e){}
+  }catch(e){
+    if(sel) sel.innerHTML='<option value="">Spécialité (portail injoignable)</option>';
+  }
+}
+function remplirSpecialites(){
+  const sel=document.getElementById('dclSpec'); if(!sel) return;
+  const garde=sel.value;
+  sel.innerHTML='<option value="">— choisir —</option>'
+    + SPECIALITES.map(x=>`<option value="${esc(x.code)}">${esc(x.code)} — ${esc(x.label||x.code)}</option>`).join('');
+  if(garde) sel.value=garde;
+}
+// Changement de secteur : on PROPOSE la specialite correspondante, tant que l'utilisateur
+// n'a pas choisi la sienne (meme regle que le pre-remplissage du jour et de la chirurgie).
+function dclSecChange(){
+  const sec=document.getElementById('dclSec').value;
+  const sp=document.getElementById('dclSpec');
+  if(sp && !DCL_TOUCHE.spec && SEC2SPEC[sec]) sp.value=SEC2SPEC[sec];
+  dclPreview();
+}
+
 function remplirSecteurs(){
   const dcl=document.getElementById('dclSec'); if(!dcl) return;
   dcl.innerHTML='<option value="">— choisir —</option>'
@@ -708,8 +857,29 @@ let MES_DECL=[];        // cache des declarations de l'annee, rempli par charger
 // synchronisation a maintenir. Le jour et la chirurgie se PRE-REMPLISSENT depuis le
 // dernier parcours bloc ajoute -- mais UNIQUEMENT tant que l'utilisateur n'y a pas
 // touche, sinon une correction saisie ici sauterait a la prochaine cotation.
-const DCL_TOUCHE={bloc:false, chir:false};
+const DCL_TOUCHE={bloc:false, chir:false, cons:false, spec:false};
 function dclTouche(champ){ DCL_TOUCHE[champ]=true; }
+/* Bouton « 📅 Déclarer » d'un parcours bloc : remplit TOUT le formulaire de
+   declaration, y compris les deux montants. C'est le chemin normal ; le formulaire
+   du bas reste utilisable seul pour un parcours non cote. */
+function declarerParcours(i){
+  const p=parcours[i];
+  if(!p || p.axe!=='CCAM'){ dclFlash('Seul un parcours bloc peut être déclaré.', false); return; }
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el && v!=null && v!=='') el.value=v; };
+  set('dclBloc', p.dInt);
+  set('dclCons', p.dCs);
+  set('dclBrC', (p.brCcam||0)>0 ? (Math.round(p.brCcam*100)/100).toFixed(2) : '');
+  set('dclBrN', (p.brNgap||0)>0 ? (Math.round(p.brNgap*100)/100).toFixed(2) : '');
+  if(p.lines && p.lines.length && p.lines[0].lib) set('dclChir', p.lines[0].lib);
+  // Ces champs viennent du parcours : on les considere comme choisis, pour qu'un
+  // pre-remplissage ulterieur ne les ecrase pas.
+  DCL_TOUCHE.bloc=true; DCL_TOUCHE.cons=true; DCL_TOUCHE.chir=true;
+  dclPreview();
+  const box=document.querySelector('.declbox');
+  if(box && box.scrollIntoView) box.scrollIntoView({behavior:'smooth', block:'center'});
+  dclFlash('Déclaration pré-remplie — vérifiez le secteur et la spécialité, puis validez.', true);
+}
+
 function dclPreRemplir(p){
   if(!p || p.axe!=='CCAM') return;
   const b=document.getElementById('dclBloc'), c=document.getElementById('dclChir');
@@ -747,7 +917,14 @@ function dclPreview(){
   btn.disabled=false; btn.style.opacity=1;
   let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
   // Apercu de ce qui sera ecrit ; le MAR_ID reel est mis par le serveur.
-  prev.innerHTML='Sera écrit : <span class="mono">'+isoToday()+' · '+esc(bloc)+' · [vous] · '+esc(sec)+(chir?' · '+esc(chir):'')+'</span>';
+  const cons=document.getElementById('dclCons').value || isoToday();
+  const spec=document.getElementById('dclSpec').value;
+  const brC=parseFloat(document.getElementById('dclBrC').value)||0;
+  const brN=parseFloat(document.getElementById('dclBrN').value)||0;
+  prev.innerHTML='Sera écrit : <span class="mono">'+esc(cons)+' · '+esc(bloc)+' · [vous] · '+esc(sec)
+    +(spec?' · '+esc(spec):'')+(chir?' · '+esc(chir):'')+'</span>'
+    +'<br><span style="font-size:11px;color:var(--muted)">BR CCAM '+eur2(brC)+' (mois du bloc) · BR NGAP '
+    +eur2(brN)+' (mois de la consultation)'+(spec?'':' — <b>spécialité non renseignée</b>')+'</span>';
 }
 
 function dclFlash(txt, ok){
@@ -760,14 +937,20 @@ async function declarer(){
   const bloc=document.getElementById('dclBloc').value;
   const sec=document.getElementById('dclSec').value;
   const chir=document.getElementById('dclChir').value.trim();
+  const cons=document.getElementById('dclCons').value;
+  const spec=document.getElementById('dclSpec').value;
+  const brC=document.getElementById('dclBrC').value;
+  const brN=document.getElementById('dclBrN').value;
   if(!bloc){ dclFlash('Renseignez le jour du bloc.', false); return; }
   if(!sec){ dclFlash('Le secteur est obligatoire — c\'est ce que le comité doit savoir.', false); return; }
   const btn=document.getElementById('dclBtn'); btn.disabled=true; btn.style.opacity=.5;
-  const r=await apiLib('declareLiberal', {dateBloc:bloc, secteur:sec, chirurgie:chir});
+  const r=await apiLib('declareLiberal', {dateBloc:bloc, secteur:sec, chirurgie:chir,
+                                          dateConsult:cons, specialite:spec, brCcam:brC, brNgap:brN});
   btn.disabled=false; btn.style.opacity=1;
   if(!r || !r.success){ dclFlash('Échec : '+((r&&r.error)||'portail injoignable')+'.', false); return; }
-  dclFlash(r.merged ? 'Complétée (une intervention existait déjà ce jour dans ce secteur).' : 'Intervention déclarée.', true);
-  document.getElementById('dclChir').value='';
+  // 2A : une ligne = un patient. Le serveur ne fusionne plus (r.merged est toujours faux).
+  dclFlash('Intervention déclarée.', true);
+  ['dclChir','dclBrC','dclBrN'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   await chargerDecl();          // recharge la liste depuis le serveur (source de verite)
 }
 
@@ -802,7 +985,11 @@ function renderDecl(){
     const past=d.dateBloc<today;
     return '<div class="declrow'+(past?' past':'')+'">'
       +'<span class="dday">'+fmtI(d.dateBloc)+'</span>'
-      +'<span class="dmain">'+esc(secteurLabel(d.secteur))+(d.chirurgie?' <small>— '+esc(d.chirurgie)+'</small>':'')+'</span>'
+      +'<span class="dmain">'+esc(secteurLabel(d.secteur))
+        +(d.specialite?' <b>['+esc(d.specialite)+']</b>':'')
+        +(d.chirurgie?' <small>— '+esc(d.chirurgie)+'</small>':'')
+        +((d.brCcam||d.brNgap)?' <small style="color:var(--muted)">· '+eur2(+d.brCcam||0)+' CCAM · '+eur2(+d.brNgap||0)+' NGAP</small>':'')
+        +'</span>'
       +'<button class="ddel" onclick="supprimerDecl(\''+d.id+'\','+year+')" aria-label="Retirer">🗑</button>'
       +'</div>';
   }).join('');
@@ -859,7 +1046,12 @@ function addParcours(){
     : ngap.map(n=>{const k=(n.lc==='AUTRE'?'NGAP':n.lc);
         return {code:k+((n.coef&&n.coef!==1)?' \u00d7 '+n.coef:''), lib:LC_LAB[n.lc]||'Acte NGAP',
                 br:ngapBR(n), mods:[]};});
-  parcours.push({axe,statut:st,desc,cnt,br,dh,rac,mut,dCs,dInt:(axe==='CCAM'?dInt:''),dActe,lines});
+  // 2A : le parcours porte desormais SES DEUX montants. brCcam/brNgap sont ce qui
+  // partira dans la declaration ; br reste la BR de l'axe courant (devis, RAC, simulateur).
+  const brC = (axe==='CCAM') ? br : 0;
+  const brN = (axe==='CCAM') ? assocBR() : br;
+  parcours.push({axe,statut:st,desc,cnt,br,dh,rac,mut,dCs,dInt:(axe==='CCAM'?dInt:''),dActe,lines,
+                 brCcam:brC, brNgap:brN});
   dclPreRemplir(parcours[parcours.length-1]);
   renderRows();renderSummary();
 }
@@ -905,6 +1097,7 @@ function renderRows(){
       <div class="d">${chip}${p.desc} <small>${p.statut}${mutLine} · ${p.cnt} ${unit}(s)${(p.axe==='CCAM'&&p.dCs)?' · consult '+fmtI(p.dCs):''}</small></div>
       <div class="amt"><span class="br">${eur2(p.br)}</span> BR<br><span class="dh">${p.dh?'+'+eur2(p.dh)+' DH':'DH 0'}</span>${racLine}</div>
       <button class="devisbtn" onclick="openDevis(${i})" title="Générer le devis">📄 Devis</button>
+      ${p.axe==='CCAM' ? `<button class="devisbtn" onclick="declarerParcours(${i})" title="Remplir la déclaration avec ce parcours">📅 Déclarer</button>` : ''}
       <button class="rm" onclick="delP(${i})">✕</button></div>`;}).join('');
 }
 ['Tc','Pc','Tn','Pn'].forEach(id=>document.getElementById(id).addEventListener('input',renderSummary));
@@ -1070,6 +1263,7 @@ loadCcam();
 document.getElementById('dCs').value=isoToday();
 chargerPraticien();
 chargerSecteurs();
+chargerSpecialites();
 chargerDecl();
 dclPreview();
 populateMut();setAxe('CCAM');renderRows();
