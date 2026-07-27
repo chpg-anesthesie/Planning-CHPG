@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-27.7';
+const GAS_VERSION_PORTAIL = '2026-07-27.8';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1317,7 +1317,34 @@ function getReleveLiberal(payload) {
     if (o.tCcam === null && o.tNgap === null) continue;
     items.push(o);
   }
-  return { success: true, year: year, items: items };
+
+  /* AFFECTATIONS RESTANTES (27/07/2026) — descriptif, rien d'autre.
+     Le suivi affiche les secteurs des mois qui restent a courir. On ne dit PAS
+     « ca s'arrange » ou « ca s'aggrave » : traduire un mois d'ORL en euros suppose
+     le rendement par specialite, pas encore mesure (Lot 2C). Inventer ce chiffre
+     reviendrait a dire « vas-y » a quelqu'un qui doit s'arreter.
+     ⚠️ Portee VOLONTAIREMENT ETROITE : uniquement les MAR presents dans le releve,
+     uniquement les mois >= mois en cours. L'action getAffectations reste reservee
+     a l'admin — on n'ouvre pas une action entiere pour une colonne. */
+  const moisCourant = new Date().getMonth() + 1;
+  const aff = {};
+  const shAff = ss.getSheetByName('AFFECTATIONS_' + year);
+  if (shAff) {
+    const presents = {};
+    items.forEach(function (i) { presents[i.marId] = true; });
+    const da = shAff.getDataRange().getValues();
+    for (let r = 1; r < da.length; r++) {
+      const id = String(da[r][0] || '').trim();
+      if (!id || !presents[id]) continue;
+      const suite = [];
+      for (let m = moisCourant; m <= 12; m++) {
+        const v = String(da[r][m] || '').trim().toUpperCase();
+        if (v) suite.push({ mois: m, secteur: v });
+      }
+      if (suite.length) aff[id] = suite;
+    }
+  }
+  return { success: true, year: year, moisCourant: moisCourant, affectations: aff, items: items };
 }
 
 /* ════════════════════════════════════════════════════════════════════
