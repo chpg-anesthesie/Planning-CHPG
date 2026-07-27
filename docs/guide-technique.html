@@ -142,7 +142,7 @@
     <li><a href="#c14"><span class="n">14</span>Dépannage &amp; pièges connus</a></li>
     <li><a href="#c15"><span class="n">15</span>Les messages du diagnostic (Maintenance)</a></li>
     <li><a href="#c16"><span class="n">16</span>Sécurité &amp; confidentialité (le modèle réel)</a></li>
-    <li><a href="#c17"><span class="n">17</span>Roadmap — cadrage du reste à faire</a></li>
+    <li><a href="#c17"><span class="n">17</span>Points techniques durables (hors roadmap)</a></li>
     <li><a href="#c18"><span class="n">18</span>Créer un secteur ou une consultation</a></li>
       <li><a href="#c19"><span class="n">19</span>Consultations à venir &amp; rôle secrétariat</a></li>
       <li><a href="#c20"><span class="n">20</span>La boîte de réception (Messages)</a></li>
@@ -541,23 +541,19 @@
 
 
 <section id="c17">
-  <h2><span class="n">17</span>Roadmap — cadrage du reste à faire</h2>
+  <h2><span class="n">17</span>Points techniques durables (hors roadmap)</h2>
 
-  <p>Photo au 17 juillet 2026. Le socle est <b>terminé et en production</b> : algorithme de gardes (équité, dette, Noël/An au réel, wizards W1–W3 testés), planning quotidien (placement additif, overrides verrouillés, export Excel), portail à 9 tuiles, veille bibliographique pilotée par <code>VEILLE_CFG</code>, CR d'anesthésie. Ce qui suit est la liste ordonnée de ce qui reste, avec l'état exact de chaque chantier. Le détail vit dans <code>docs/ROADMAP-Planning-CHPG.md</code> (et la conception libérale dans <code>docs/module-liberal/</code>) — cette section n'en est que le cadrage.</p>
+  <div class="callout warn">
+    <div class="ct">⚠️ L'avancement des chantiers ne vit PAS ici</div>
+    <p>Cette section listait autrefois l'état de chaque lot, avec des dates. Elle a menti deux fois en dix jours : « conception v3.10 » alors qu'on en était à la v4.3, « payload fermé à 6 colonnes » alors qu'il en compte 9, « rien en production avant octobre 2026 » alors que la ligne du dessus annonçait une mise en service en juillet. <b>Un état d'avancement dupliqué pourrit toujours.</b></p>
+    <p>L'avancement réel vit dans <code>docs/ROADMAP-Planning-CHPG.md</code> et <code>docs/CONTEXTE-Planning-CHPG.md</code>, la conception du module libéral dans <code>docs/module-liberal/module_liberal_conception.md</code>. <b>Ne rien recopier ici.</b> Ne restent ci-dessous que les points <b>techniques et durables</b> — ceux qui ne changent pas à chaque livraison.</p>
+  </div>
 
-  <h3>Chantier A — Secteurs étape 2 (en cours, moitié faite)</h3>
-  <p>Objectif : redéfinir les secteurs <b>sans toucher au code</b> (déménagement 2027) et fournir <code>RENDEMENT_LIB</code> au module libéral.</p>
-  <table>
-    <thead><tr><th>Étape</th><th>Contenu</th><th>État</th></tr></thead>
-    <tbody>
-      <tr><td>0a/0b</td><td>Onglet <code>SECTEURS</code> (11 colonnes, dont <code>RENDEMENT_LIB</code> FORT/MOYEN/NUL/REA) auto-créé + amorcé ; action lecture <code>getSecteurs</code> dans <code>portail.gs</code>.</td><td>✅ En prod</td></tr>
-      <tr><td>0c</td><td><code>admin.html</code> lit l'onglet au boot (fallback <code>SECTEURS_CFG</code> en dur si échec réseau). Équivalence prouvée.</td><td>✅ En prod</td></tr>
-      <tr><td>0d</td><td><code>index.html</code> idem (<code>SECTORS_DEF</code> + <code>_SECTOR_BASE</code> reconstruits, thème sombre ré-appliqué).</td><td>✅ En prod</td></tr>
-      <tr><td>Règles GAS</td><td>4 points encore <b>en dur</b> (voir tableau ci-dessous).</td><td>⏸ Gelé volontairement</td></tr>
-    </tbody>
-  </table>
-  <p><b>Acquis :</b> éditer couleurs, libellés, icônes, ordre, actif et rendement d'un secteur = une cellule dans l'onglet, répercutée sur admin et index au rechargement. <b>Limite :</b> ajouter/renommer/supprimer un <i>code</i> secteur touche encore la logique métier GAS :</p>
-  <table>
+  <h3>Les 4 points GAS encore en dur (gelés volontairement)</h3>
+  <p>L'onglet <code>SECTEURS</code> permet d'éditer couleurs, libellés, icônes, ordre, activité et
+  <code>RENDEMENT_LIB</code> d'un secteur sans toucher au code. <b>Mais ajouter, renommer ou supprimer
+  un code secteur touche encore la logique métier GAS</b>, en quatre endroits :</p>
+<table>
     <thead><tr><th>Point dur</th><th>Où</th><th>Effet</th></tr></thead>
     <tbody>
       <tr><td>Trame des consultations <code>CS_RULES</code></td><td><code>code.gs</code></td><td>jour → [secteur, CS] ; dormante (<code>GENERER_CONSULTATIONS=false</code>), à refaire pour le nouveau bloc si réactivée.</td></tr>
@@ -566,59 +562,38 @@
       <tr><td>Normalisation des affectations</td><td><code>code.gs</code> <b>et</b> <code>setup_annee.gs</code></td><td>dictionnaire de synonymes (VISC→VIS…) <b>dupliqué</b> — à dédupliquer puis externaliser.</td></tr>
     </tbody>
   </table>
-  <div class="callout warn"><div class="ct">Décision actée</div><p>Ces 4 points sont <b>gelés tant que le plan du nouvel hôpital n'est pas connu</b> : les externaliser à l'aveugle serait concevoir dans le brouillard. L'audit ci-dessus donne la carte exacte le jour venu. Périmètre garanti : le générateur de gardes contient <b>zéro</b> référence secteur — l'équité est intouchable par ce chantier.</p></div>
-
-  <h3>Chantier B — Module libéral (conception v3.10 · chaîne MAR + volet comité EN PRODUCTION depuis le 22/07/2026)</h3>
-  <p>Règle des 30&nbsp;% <b>par axe</b> (CCAM technique / NGAP consultations, plafonds indépendants), objectif = optimiser le pot commun mutualisé. La <b>page du module libéral</b> (<code>docs/module-liberal/maquette_estimateur_liberal.html</code>) est le point d'entrée unique côté MAR : cotation → devis (écran seul) → déclaration d'intervention. Accès par tuile Dashboard conditionnée <code>LIBERAL&nbsp;O/N</code>.</p>
-
-  <h3>Ce qui tourne aujourd'hui</h3>
-  <ul>
-    <li><b>Branchement au portail (lecture seule).</b> La page est servie depuis la même origine que <code>dashboard.html</code> et la tuile l'ouvre <b>dans le même onglet</b> : le code d'accès rangé dans <code>sessionStorage('chpgViewCode')</code> est donc lisible directement. Elle appelle <code>login</code> (identité) et <code>getSecteurs</code> (liste). <code>API_URL</code> y figure en clair — elle est déjà publique dans <code>dashboard.html</code> sur ce dépôt public, rien de neuf.</li>
-    <li><b>Colonnes de <code>MEDECINS</code> consommées</b> : <code>LIBERAL</code>, <code>RPPS</code>, <code>PRENOM</code>. Toutes <b>en fin d'onglet</b>, toutes lues <b>par leur en-tête</b> (<code>_colParTitre()</code> dans <code>checkCode</code>, <code>Indispos.gs</code>). ⚠️ Les 22 autres lectures de <code>MEDECINS</code> utilisent des index figés : <b>toute nouvelle colonne s'ajoute à la fin</b>, jamais au milieu.</li>
-    <li><b>Onglet <code>LIBERAL_{Y}</code></b>, créé à la volée, année du <b>jour de bloc</b>. Payload fermé, 6 colonnes : <code>ID · DATE_CONSULT · DATE_BLOC · MAR_ID · SECTEUR · CHIRURGIE</code>. Aucune donnée patient, aucun code CCAM.</li>
-    <li><b>Quatre actions</b>, toutes routées par <code>portailRoute</code> (<code>portail.gs</code>) :
-      <code>declareLiberal</code> et <code>deleteLiberal</code> (écritures — <b>présentes dans le <code>WRITE_ACTIONS_LOCK</code> d'<code>Indispos.gs</code></b>, le verrou étant vérifié <i>avant</i> la délégation, par nom d'action) ;
-      <code>listLiberal</code> (lecture, filtrée sur le MAR connecté) ;
-      <code>listLiberalJour</code> (lecture, <b>réservée à l'admin</b>, alimente le volet comité).</li>
-    <li>🔒 <b>Le <code>MAR_ID</code> écrit est toujours <code>user.id</code></b>, déduit du code d'accès — jamais une valeur envoyée par la page. <code>deleteLiberal</code> refuse la ligne d'autrui.</li>
-    <li><b>Volet comité</b> : tiroir <code>#liberalCard</code> à <b>gauche</b>, symétrique de <code>#dispoCard</code>, cache par date (<code>_libJourCache</code>). Noms résolus par <code>_nm()</code>, secteurs par <code>SECTEURS_CFG</code> — aucune donnée supplémentaire transportée. <b>Lecture seule et sans aucun jugement de placement</b> : pas de « déjà en X », pas de « à replacer », aucun croisement avec l'affectation. Jour sans déclaration : tiroir masqué, sans message.</li>
-  </ul>
-
   <div class="callout">
-    <div class="ct">Deux pièges de lecture, vérifiés en réel</div>
+    <div class="ct">Décision actée</div>
+    <p>Ces 4 points restent gelés <b>tant que le plan du nouvel hôpital n'est pas connu</b> : les
+    externaliser à l'aveugle serait concevoir dans le brouillard. Le tableau ci-dessus est la carte
+    exacte du jour venu.</p>
+    <p><b>Périmètre garanti :</b> le générateur de gardes ne contient <b>aucune</b> référence à un
+    secteur — l'équité est intouchable par ce chantier.</p>
+  </div>
+
+  <h3>Colonnes de <code>MEDECINS</code> : toujours en fin d'onglet</h3>
+  <div class="callout warn">
+    <p><b>22 lectures de <code>MEDECINS</code> utilisent des index de colonne figés.</b> Une nouvelle
+    colonne s'ajoute donc <b>TOUJOURS à la fin</b>, jamais au milieu : une insertion décale tout et
+    rend les codes d'accès inopérants — constaté en réel le 21/07/2026 (<code>checkCode</code> lisait
+    la colonne voisine, symptôme « code refusé » alors que le code était correct).</p>
+    <p>Les colonnes récentes (<code>LIBERAL</code>, <code>RPPS</code>, <code>PRENOM</code>) sont, elles,
+    lues <b>par leur en-tête</b> via <code>_colParTitre()</code>. C'est le modèle à suivre pour toute
+    nouvelle colonne.</p>
+  </div>
+
+  <h3>Deux pièges de lecture, vérifiés en réel</h3>
+  <div class="callout warn">
     <p><b><code>#dispoCard</code> est un tiroir flottant à droite</b> (<code>position:fixed; top:70px; right:16px; width:360px</code>), alors que son attribut <code>style=</code> inline le décrit pleine largeur sous la grille : une règle CSS plus bas l'écrase. <b>Lire la feuille de style, pas seulement l'attribut inline.</b></p>
     <p><b><code>_isoDate(undefined)</code> renvoie la chaîne <code>"undefined"</code></b>, pas une chaîne vide : ne l'appeler que sur une valeur présente, sinon un <code>|| valeurParDéfaut</code> ne se déclenche jamais.</p>
   </div>
-  <table>
-    <thead><tr><th>Lot</th><th>Contenu</th><th>Dépend de</th></tr></thead>
-    <tbody>
-      <tr><td>0</td><td>Secteurs étape 2 (source des secteurs + <code>RENDEMENT_LIB</code>)</td><td>— <i>(fait pour la partie utile : l'onglet existe)</i></td></tr>
-      <tr><td>1</td><td>Fondations données : colonne <code>LIBERAL</code> (MEDECINS), onglet <code>LIBERAL_{Y}</code>, actions API</td><td><i>fait — 22/07/2026</i></td></tr>
-      <tr><td>2</td><td><b>Convergence (cœur métier)</b> : saisie relevés mensuels (checksum + monotonie), vue T/%/marge par axe</td><td>Lot 1</td></tr>
-      <tr><td>3</td><td>Placement bloc : déclaration → <code>LIBERAL_{Y}</code>, volet comité</td><td><i>fait — 22/07/2026</i></td></tr>
-      <tr><td>4</td><td>Réallocation + équité du désagrément (consomme <code>RENDEMENT_LIB</code>)</td><td>Lots 0 + 2</td></tr>
-    </tbody>
-  </table>
-  <p><b>Calendrier acté :</b> la chaîne MAR (cotation, devis, déclaration) et le volet comité sont en service depuis le 22/07/2026 ; la brique <b>convergence 30&nbsp;%</b> (lots 2 et 4) reste à construire, rien en production avant le go-live d'octobre 2026. La construction et les tests à blanc (relevé réel jan→juin comme jeu d'essai) peuvent avancer avant.</p>
-
-  <h3>Chantier C — Dashboard / portail</h3>
-  <ul class="tight">
-    <li><b>Tuile Module libéral</b> : guide + estimateur d'abord, visible <code>LIBERAL=O</code> uniquement (mécanisme <code>only:</code> existant).</li>
-    <li><b>Tuile CRH</b> : aujourd'hui restreinte à un MAR — généraliser ou non, à décider quand le générateur sera jugé mûr.</li>
-    <li>Autres tuiles de contenu : à la demande.</li>
-  </ul>
-
-  <h3>Finitions &amp; maintenance</h3>
-  <ul class="tight">
-    <li>Picker manuel des consult libérales endo : filtrer/avertir sur la présence N+1 (la rotation auto le fait déjà).</li>
-    <li>Libellé hérité dans l'assistant Départ (« onglet Modifications de comite.html », page inexistante).</li>
-    <li>Généraliser service worker / icônes locales aux autres points d'entrée (index, admin…).</li>
-    <li>Veille : option <code>ENRICH</code> (résumé + score IA) quand la clé API sera posée.</li>
-    <li>Sécurité (à l'appréciation) : rotation du token GitHub ; évaluation zéro-rétention/UE pour le CRH (référent RGPD).</li>
-  </ul>
 
   <h3>Horizon 2027 (déménagement)</h3>
-  <p>Quand le plan du nouveau bloc sera connu : reprendre les 4 points durs du chantier A (externaliser garde→secteur et règles jour en CONFIG, refaire <code>CS_RULES</code>, dédupliquer la normalisation), puis ré-agencer les secteurs <b>depuis l'onglet</b>. Les affectations (<code>AFFECTATIONS_{Y}</code>) sont de la donnée, re-saisies pour le nouveau découpage — le code n'a rien à y prévoir.</p>
+  <p>Quand le plan du nouveau bloc sera connu : reprendre les 4 points durs ci-dessus (externaliser
+  garde→secteur et règles jour en CONFIG, refaire <code>CS_RULES</code>, dédupliquer la
+  normalisation), puis ré-agencer les secteurs <b>depuis l'onglet</b>. Les affectations
+  (<code>AFFECTATIONS_{Y}</code>) sont de la <b>donnée</b>, re-saisies pour le nouveau découpage — le
+  code n'a rien à y prévoir.</p>
 
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
