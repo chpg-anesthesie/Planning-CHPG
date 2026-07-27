@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-27.2';
+const GAS_VERSION_PORTAIL = '2026-07-27.3';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1214,17 +1214,22 @@ const _SPECIALITES_SEED = [
    urgence au CHPG (regle Arthur, 27/07). Le modificateur 7 (presence permanente de
    l'anesthesiste, +6 %) est en revanche systematique sur les releves observes.
 
-   Colonnes : NOM | ORDRE | CODE | ROLE | MOD7 | MODA | LC
+   GROUPE : contexte de travail (ex. « Endoscopie »). La page n'affiche QUE les
+   cotations types du groupe choisi, et RIEN tant qu'aucun groupe n'est choisi.
+   Motif : au-dela d'une dizaine de boutons l'affichage devient illisible ; grouper
+   par contexte tient a 50 comme a 3. Un groupe se cree en le tapant dans la cellule.
+
+   Colonnes : GROUPE | NOM | ORDRE | CODE | ROLE | MOD7 | MODA | LC
    ROLE : principal | associe (50 %) | complement (100 % en sus)
    LC   : lettre-cle de la consultation associee, sur la 1re ligne de la cotation type.
    ══════════════════════════════════════════════════════════════════ */
 const COTATIONS_TYPE_TAB = 'COTATIONS_TYPE';
-const _COTTYPE_HEADER = ['NOM', 'ORDRE', 'CODE', 'ROLE', 'MOD7', 'MODA', 'LC'];
+const _COTTYPE_HEADER = ['GROUPE', 'NOM', 'ORDRE', 'CODE', 'ROLE', 'MOD7', 'MODA', 'LC'];
 const _COTTYPE_SEED = [
-  ['Gastro + colo', 1, 'HHQE002', 'principal', 'O', 'N', 'CS'],
-  ['Gastro + colo', 2, 'ZZLP025', 'associe',   'O', 'N', ''  ],
-  ['Gastro seule',  1, 'ZZLP025', 'principal', 'O', 'N', 'CS'],
-  ['Colo seule',    1, 'HHQE002', 'principal', 'O', 'N', 'CS'],
+  ['Endoscopie', 'Gastro + colo', 1, 'HHQE002', 'principal', 'O', 'N', 'CS'],
+  ['Endoscopie', 'Gastro + colo', 2, 'ZZLP025', 'associe',   'O', 'N', ''  ],
+  ['Endoscopie', 'Gastro seule',  1, 'ZZLP025', 'principal', 'O', 'N', 'CS'],
+  ['Endoscopie', 'Colo seule',    1, 'HHQE002', 'principal', 'O', 'N', 'CS'],
 ];
 
 function getOrCreateCotationsTypeTab() {
@@ -1240,6 +1245,14 @@ function getOrCreateCotationsTypeTab() {
     sh.getRange(1, 1, 1, _COTTYPE_HEADER.length).setValues([_COTTYPE_HEADER]).setFontWeight('bold');
     sh.getRange(2, 1, _COTTYPE_SEED.length, _COTTYPE_HEADER.length).setValues(_COTTYPE_SEED);
     sh.setFrozenRows(1);
+  } else if (sh.getLastColumn() < _COTTYPE_HEADER.length) {
+    // L'onglet a ete cree en 7 colonnes (sans GROUPE) : on insere la colonne en tete
+    // et on la remplit avec 'Endoscopie', puisque c'est le seul groupe amorce.
+    sh.insertColumnBefore(1);
+    sh.getRange(1, 1, 1, _COTTYPE_HEADER.length).setValues([_COTTYPE_HEADER]).setFontWeight('bold');
+    const n = sh.getLastRow() - 1;
+    if (n > 0) sh.getRange(2, 1, n, 1).setValue('Endoscopie');
+    Logger.log('Onglet COTATIONS_TYPE : colonne GROUPE ajoutee.');
   }
   return sh;
 }
@@ -1249,20 +1262,22 @@ function getCotationsType() {
   const rows = getOrCreateCotationsTypeTab().getDataRange().getValues();
   const out = [], index = {};
   for (let r = 1; r < rows.length; r++) {
-    const nom  = String(rows[r][0] || '').trim();
-    const code = String(rows[r][2] || '').trim().toUpperCase();
-    if (!nom || !code) continue;                       // ligne incomplete : ignoree
-    if (!index[nom]) { index[nom] = { nom: nom, lc: '', lignes: [] }; out.push(index[nom]); }
-    const role = String(rows[r][3] || '').trim().toLowerCase();
-    index[nom].lignes.push({
+    const groupe = String(rows[r][0] || '').trim();
+    const nom    = String(rows[r][1] || '').trim();
+    const code   = String(rows[r][3] || '').trim().toUpperCase();
+    if (!groupe || !nom || !code) continue;            // ligne incomplete : ignoree
+    const cle = groupe + '|' + nom;                    // deux groupes peuvent porter le meme nom
+    if (!index[cle]) { index[cle] = { groupe: groupe, nom: nom, lc: '', lignes: [] }; out.push(index[cle]); }
+    const role = String(rows[r][4] || '').trim().toLowerCase();
+    index[cle].lignes.push({
       code:  code,
-      ordre: Number(rows[r][1]) || (index[nom].lignes.length + 1),
+      ordre: Number(rows[r][2]) || (index[cle].lignes.length + 1),
       role:  (role === 'associe' || role === 'complement') ? role : 'principal',
-      mod7:  String(rows[r][4] || '').trim().toUpperCase() === 'O',
-      modA:  String(rows[r][5] || '').trim().toUpperCase() === 'O',
+      mod7:  String(rows[r][5] || '').trim().toUpperCase() === 'O',
+      modA:  String(rows[r][6] || '').trim().toUpperCase() === 'O',
     });
-    const lc = String(rows[r][6] || '').trim().toUpperCase();
-    if (lc && !index[nom].lc) index[nom].lc = lc;      // 1re valeur rencontree
+    const lc = String(rows[r][7] || '').trim().toUpperCase();
+    if (lc && !index[cle].lc) index[cle].lc = lc;      // 1re valeur rencontree
   }
   out.forEach(function (c) { c.lignes.sort(function (a, b) { return a.ordre - b.ordre; }); });
   return out;
