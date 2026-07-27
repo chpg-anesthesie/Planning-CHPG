@@ -604,6 +604,23 @@
     un bandeau au-dessus de la recherche d'acte à partir de <b>8 mois</b> (orange) puis <b>14 mois</b>
     (rouge). Seuils = une puis deux revalorisations manquées. Les tarifs sont revalorisés
     <b>une à deux fois par an</b> ; contrôle conseillé en <b>janvier et juillet</b>.</p>
+    <p><b>Deux endroits alertent</b>, avec les <b>mêmes seuils</b> :</p>
+    <ul>
+      <li>la <b>page de cotation</b> — bandeau au-dessus de la recherche d'acte ;</li>
+      <li>le <b>🔍 Diagnostic</b> de l'onglet Maintenance — ligne «&nbsp;<code>Index CCAM (tarifs) :
+      CCAM v84, effet 03/07/2026 — 24 jours</code>&nbsp;», reprise dans le rapport copiable. C'est
+      le seul écran regardé systématiquement, d'où le doublon assumé.</li>
+    </ul>
+    <p>⚠️ <b>Les seuils (8 et 14 mois) existent donc à DEUX endroits dans le code</b> :
+    <code>TARIFS_ALERTE_MOIS</code>/<code>TARIFS_PERIME_MOIS</code> dans la page de cotation,
+    <code>CCAM_ALERTE_MOIS</code>/<code>CCAM_PERIME_MOIS</code> dans <code>admin.html</code>. Fichiers
+    différents, donc non mutualisables — <b>si l'un change, changer l'autre</b>, sinon les deux écrans
+    se contrediront.</p>
+    <p>Le contrôle du Diagnostic est <b>purement côté page</b> : le fichier est servi par GitHub Pages,
+    le serveur GAS ne le voit pas. Il ne télécharge pas le mégaoctet — requête <code>Range:
+    bytes=0-600</code>, les métadonnées étant en tête du JSON. Réseau coupé, fichier absent ou date
+    manquante&nbsp;: avertissement, <b>jamais d'exception</b> — une vérification annexe ne doit pas
+    faire tomber le diagnostic complet.</p>
     <p><b>Le meilleur signal n'est pas le calendrier, c'est le relevé :</b> prendre un acte
     d'activité 4, diviser le tarif du CHPG par <b>1,95</b>, comparer à l'estimateur. Tout écart =
     régénération due. C'est ce contrôle qui a révélé le problème.</p>
