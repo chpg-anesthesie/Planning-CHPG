@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-27.4';
+const GAS_VERSION_PORTAIL = '2026-07-27.5';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1191,6 +1191,17 @@ function _libSheetName(year) { return 'LIBERAL_' + year; }
    Zone de controle (colonnes J a M) : par mois, somme des excedents recopies
    face au total « ACTIVITE LIBERALE » du bas du document. Vert = ca tombe.
    ══════════════════════════════════════════════════════════════════ */
+/* À EXÉCUTER DEPUIS L'ÉDITEUR APPS SCRIPT (liste déroulante -> Exécuter) pour créer
+   l'onglet du relevé. Sans argument : Arthur n'a rien à taper.
+   ⚠️ Poser les O dans la colonne LIBERAL de MEDECINS AVANT de l'exécuter — c'est
+   elle qui construit les lignes. La fonction est idempotente : si l'onglet existe
+   déjà, elle n'y touche pas (il faudrait le supprimer pour le reconstruire). */
+function creerReleveLiberalAnneeEnCours() {
+  const y = new Date().getFullYear();
+  const sh = getOrCreateLiberalCaTab(y);
+  Logger.log('Onglet ' + sh.getName() + ' : ' + (sh.getLastRow() - 1) + ' lignes.');
+}
+
 const LIBERAL_CA_HEADER = ['MOIS', 'MAR_ID', 'T_CCAM', 'PCT_CCAM', 'EXC_CCAM',
                            'T_NGAP', 'PCT_NGAP', 'EXC_NGAP'];
 function _libCaSheetName(year) { return 'LIBERAL_CA_' + year; }
