@@ -334,8 +334,9 @@
       <!-- COTATIONS TYPES : servies par l'onglet COTATIONS_TYPE (getCotationsType).
            Un clic REMPLACE les lignes du tableau (une cotation type = un patient
            entier) et pose la consultation associee. -->
-      <div id="cotTypeBar" style="display:none;margin:0 0 10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+      <div id="cotTypeBar" style="display:none;margin:0 0 10px;flex-wrap:wrap;gap:6px;align-items:center">
         <span style="font-size:12px;color:var(--muted)">Cotations types&nbsp;:</span>
+        <select id="cotTypeGrp" onchange="choisirGroupeCotType(this.value)" style="max-width:230px"></select>
         <span id="cotTypeBtns"></span>
       </div>
       <div class="ccamsearch">
@@ -821,7 +822,10 @@ async function chargerCotationsType(){
   let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
   if(!code) return;
   try{
-    const c=JSON.parse(sessionStorage.getItem('chpgCotTypeLib')||'null');
+    // Cle de cache VERSIONNEE (v2) : sans le suffixe, un changement de structure de
+    // l'onglet reste invisible tant que la session n'est pas fermee -- la colonne
+    // GROUPE n'est pas apparue pour cette raison. A incrementer a chaque evolution.
+    const c=JSON.parse(sessionStorage.getItem('chpgCotTypeLib_v2')||'null');
     if(c && c.length){ COTTYPE=c; renderCotTypeBar(); return; }
   }catch(e){}
   try{
@@ -834,15 +838,44 @@ async function chargerCotationsType(){
     const list=(Array.isArray(brut)?brut:[]).filter(x=>x && x.nom && x.lignes && x.lignes.length);
     if(!list.length) return;                       // pas de barre plutot qu'une barre vide
     COTTYPE=list; renderCotTypeBar();
-    try{ sessionStorage.setItem('chpgCotTypeLib', JSON.stringify(list)); }catch(e){}
+    try{ sessionStorage.setItem('chpgCotTypeLib_v2', JSON.stringify(list)); }catch(e){}
   }catch(e){ /* silencieux : la barre est un raccourci, pas une donnee critique */ }
 }
 
+// GROUPE choisi : memorise pour la SESSION (un F5 entre deux patients ne doit pas
+// obliger a le rechoisir). Tant qu'aucun groupe n'est choisi : AUCUN bouton -- au-dela
+// d'une dizaine, une rangee de boutons devient illisible.
+let COTTYPE_GRP='';
+try{ COTTYPE_GRP=sessionStorage.getItem('chpgCotTypeGroupe')||''; }catch(e){}
+
+function choisirGroupeCotType(g){
+  COTTYPE_GRP=g||'';
+  try{ sessionStorage.setItem('chpgCotTypeGroupe', COTTYPE_GRP); }catch(e){}
+  renderCotTypeBtns();
+}
+
 function renderCotTypeBar(){
-  const bar=document.getElementById('cotTypeBar'), box=document.getElementById('cotTypeBtns');
-  if(!bar || !box || !COTTYPE.length) return;
-  box.innerHTML=COTTYPE.map((c,i)=>`<button class="addline" style="margin-right:6px" onclick="appliquerCotType(${i})">${esc(c.nom)}</button>`).join('');
+  const bar=document.getElementById('cotTypeBar'), sel=document.getElementById('cotTypeGrp');
+  if(!bar || !sel || !COTTYPE.length) return;
+  const groupes=[];
+  COTTYPE.forEach(function(c){ if(c.groupe && groupes.indexOf(c.groupe)===-1) groupes.push(c.groupe); });
+  sel.innerHTML='<option value="">— choisir un contexte —</option>'
+    + groupes.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join('');
+  // Le groupe memorise n'existe plus (renomme, supprime) : on repart a vide.
+  if(COTTYPE_GRP && groupes.indexOf(COTTYPE_GRP)===-1) COTTYPE_GRP='';
+  sel.value=COTTYPE_GRP;
   bar.style.display='flex';
+  renderCotTypeBtns();
+}
+
+function renderCotTypeBtns(){
+  const box=document.getElementById('cotTypeBtns'); if(!box) return;
+  if(!COTTYPE_GRP){ box.innerHTML=''; return; }
+  box.innerHTML=COTTYPE
+    .map((c,i)=>({c,i}))
+    .filter(o=>o.c.groupe===COTTYPE_GRP)
+    .map(o=>`<button class="addline" style="margin-right:6px" onclick="appliquerCotType(${o.i})">${esc(o.c.nom)}</button>`)
+    .join('');
 }
 
 // REMPLACE les lignes en place : une cotation type decrit un patient entier.
