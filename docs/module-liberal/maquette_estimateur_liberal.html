@@ -344,6 +344,10 @@
         <input id="ccamq" autocomplete="off" placeholder="🔍 Rechercher un acte : code, libellé ou abréviation (ex. NEKA014, hernie, PTH)…" oninput="ccamSearch()">
         <div class="ccamresults" id="ccamResults"></div>
       </div>
+      <!-- Version des tarifs : mention PERMANENTE et discrete. Sous 8 mois le bandeau
+           d'alerte ne s'affiche pas, et rien n'indiquait alors sur quels tarifs on
+           travaille — information indispensable le jour ou un montant parait faux. -->
+      <div id="tarifVer" style="font-size:10px;color:var(--muted);margin:-4px 0 8px;opacity:.75"></div>
       <table class="lines">
         <thead><tr><th style="width:30%">Ligne (code / libellé)</th><th style="width:15%">Tarif off. act.4 (€)</th><th class="chkcell">7</th><th class="chkcell">A</th><th style="width:24%">Rôle</th><th style="width:14%;text-align:right">BR</th><th></th></tr></thead>
         <tbody id="linesBody"></tbody>
@@ -1349,6 +1353,9 @@ const TARIFS_PERIME_MOIS = 14;     // ~ deux revalorisations manquées
 function alerteTarifs(meta){
   const box=document.getElementById('tarifAlerte'); if(!box) return;
   const eff=String(meta.effet||'').slice(0,10);
+  // Mention permanente, meme quand tout va bien.
+  const ver=document.getElementById('tarifVer');
+  if(ver) ver.textContent = 'tarifs ' + (meta.version||'CCAM') + (eff ? ' · ' + eff.split('-').reverse().join('/') : '');
   if(!/^\d{4}-\d{2}-\d{2}$/.test(eff)) return;
   const d=new Date(eff+'T12:00:00'); if(isNaN(d.getTime())) return;
   const now=new Date();
