@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.13.5'; // SITE_VERSION: v1.13.5
+const SITE_VERSION = 'v1.14'; // SITE_VERSION: v1.14
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.13.5</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1812,52 +1812,20 @@ async function ouvrirSession(code) {
   } finally { _sessionEnCours = false; }
 }
 
-// Auto-login depuis sessionStorage si code déjà saisi
-(async function tryAutoLogin() {
-  const saved = sessionStorage.getItem('adminCode');
-  if (!saved) return;
-  try {
-    // (perf) Bootstrap lancé EN PARALLÈLE du login : les deux portent le code, le serveur
-    // valide chacun. Année omise → le serveur prend l'année active. Consommé par initDashboard.
-    // (28/07/2026) Ces deux appels passaient en direct, hors de api() : ils n'etaient
-    // ni rejoues ni chronometres. Or ce sont LES DEUX SEULS appels de l'ouverture
-    // (tout le reste est livre par le bootstrap) — le chronometre ne voyait donc RIEN,
-    // et un 404 sur l'un d'eux n'etait jamais rattrape. Ils passent par api().
-    const _s = await ouvrirSession(saved);
-    if (!_s) return;                       // une ouverture est deja en cours
-    const data = _s.ident; window.__boot = _s.boot;
-    if (data.success && data.role === 'admin') {
-      ADMIN_CODE = saved; YEAR = data.year || 2026; INDISPOS_YEAR = data.indisposYear || null;
-      document.getElementById('authOverlay').style.display = 'none';
-      document.getElementById('headerYear').textContent = YEAR;
-    // Mettre à jour les labels des wizards annuels avec l'année réelle
-    const ny = YEAR + 1;
-    const el = document.getElementById('labelDemarrer');
-    if (el) el.textContent = 'Démarrer ' + ny;
-    const desc = document.getElementById('descDemarrer');
-    if (desc) desc.textContent = 'Initialiser INDISPOS ' + ny + ', configurer les vacances et envoyer les codes d\'accès aux MARs';
-      // workflowYearLabel supprimé (remplacé par widget État du cycle)
-      document.getElementById('wfYear').textContent = YEAR;
-      document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR; });
-      const affYearEl = document.getElementById('affYear'); if(affYearEl) affYearEl.textContent = YEAR;
-      // (28/07/2026, 15 h 20) Valeur LUE AVANT initDashboard, qui consomme puis EFFACE
-      // window.__boot : la lire apres donnait toujours null, donc l'appel de repli
-      // partait quand meme — le gain d'un appel etait annule.
-      const _mnl = (window.__boot && typeof window.__boot.mailNonLus === 'number') ? window.__boot.mailNonLus : null;
-      await initDashboard();
-      _batchRestore();                     // placements d'une session precedente non confirmes
-      if (_mnl !== null) majCompteurMail(_mnl);
-      else setTimeout(majCompteurMail, 6000);
-      // Ouvrir le wizard si appelé depuis dashboard
-      const wizParam = new URLSearchParams(window.location.search).get('wizard');
-      if (wizParam === '1')      setTimeout(openWizard, 600);
-      if (wizParam === 'gardes') setTimeout(openWizardGardes, 600);
-      if (wizParam === 'cloture') setTimeout(openWizardCloture, 600);
-    } else {
-      sessionStorage.removeItem('adminCode');
-    }
-  } catch(e) { sessionStorage.removeItem('adminCode'); }
-})();
+/* (28/07/2026, 16 h 15) LA CONNEXION AUTOMATIQUE A ETE DEPLACEE EN FIN DE SCRIPT.
+   CAUSE RACINE trouvee par la trace « [ouverture] » :
+     ReferenceError: Cannot access '_fileAPI' before initialization
+   Cette fonction s'executait ICI (ligne ~1816) alors que `_fileAPI` — la file
+   d'attente utilisee par api() — n'est declaree que ~250 lignes plus bas. Une
+   variable `let` n'existe pas avant sa ligne de declaration : le TOUT PREMIER
+   appel (getAdminBootstrap) levait donc une exception immediate, avalee par le
+   catch d'ouvrirSession.
+   Consequences en cascade, toutes observees le 28/07 et longtemps chassees
+   separement : un `login` parti AVANT le bootstrap (T+0,0 s au chronometre),
+   `window.__boot` vide, donc initDashboard refaisant un bootstrap complet, et
+   les replis getPlanningJson + mailNonLus par-dessus — soit 4 appels au lieu
+   de 1 a CHAQUE rechargement de page avec session active.
+   ⚠️ Ne jamais remonter ce bloc au-dessus des declarations de la section API. */
 
 let _ouvertureFaite = false;   // une ouverture reussie interdit d'en relancer une
 async function authenticate() {
@@ -6425,6 +6393,56 @@ async function launchWizardCloture() {
     nextBtn.disabled = false; nextBtn.textContent = 'Réessayer';
   }
 }
+
+/* ── DEMARRAGE AUTOMATIQUE — DOIT RESTER LA DERNIERE CHOSE DE CE SCRIPT ───
+   Place ici, et nulle part ailleurs : toutes les declarations (dont `_fileAPI`,
+   `_journalAPI`, `_T0_PAGE`, `API_REJOUABLES`) sont alors initialisees. */
+// Auto-login depuis sessionStorage si code déjà saisi
+(async function tryAutoLogin() {
+  const saved = sessionStorage.getItem('adminCode');
+  if (!saved) return;
+  try {
+    // (perf) Bootstrap lancé EN PARALLÈLE du login : les deux portent le code, le serveur
+    // valide chacun. Année omise → le serveur prend l'année active. Consommé par initDashboard.
+    // (28/07/2026) Ces deux appels passaient en direct, hors de api() : ils n'etaient
+    // ni rejoues ni chronometres. Or ce sont LES DEUX SEULS appels de l'ouverture
+    // (tout le reste est livre par le bootstrap) — le chronometre ne voyait donc RIEN,
+    // et un 404 sur l'un d'eux n'etait jamais rattrape. Ils passent par api().
+    const _s = await ouvrirSession(saved);
+    if (!_s) return;                       // une ouverture est deja en cours
+    const data = _s.ident; window.__boot = _s.boot;
+    if (data.success && data.role === 'admin') {
+      ADMIN_CODE = saved; YEAR = data.year || 2026; INDISPOS_YEAR = data.indisposYear || null;
+      document.getElementById('authOverlay').style.display = 'none';
+      document.getElementById('headerYear').textContent = YEAR;
+    // Mettre à jour les labels des wizards annuels avec l'année réelle
+    const ny = YEAR + 1;
+    const el = document.getElementById('labelDemarrer');
+    if (el) el.textContent = 'Démarrer ' + ny;
+    const desc = document.getElementById('descDemarrer');
+    if (desc) desc.textContent = 'Initialiser INDISPOS ' + ny + ', configurer les vacances et envoyer les codes d\'accès aux MARs';
+      // workflowYearLabel supprimé (remplacé par widget État du cycle)
+      document.getElementById('wfYear').textContent = YEAR;
+      document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR; });
+      const affYearEl = document.getElementById('affYear'); if(affYearEl) affYearEl.textContent = YEAR;
+      // (28/07/2026, 15 h 20) Valeur LUE AVANT initDashboard, qui consomme puis EFFACE
+      // window.__boot : la lire apres donnait toujours null, donc l'appel de repli
+      // partait quand meme — le gain d'un appel etait annule.
+      const _mnl = (window.__boot && typeof window.__boot.mailNonLus === 'number') ? window.__boot.mailNonLus : null;
+      await initDashboard();
+      _batchRestore();                     // placements d'une session precedente non confirmes
+      if (_mnl !== null) majCompteurMail(_mnl);
+      else setTimeout(majCompteurMail, 6000);
+      // Ouvrir le wizard si appelé depuis dashboard
+      const wizParam = new URLSearchParams(window.location.search).get('wizard');
+      if (wizParam === '1')      setTimeout(openWizard, 600);
+      if (wizParam === 'gardes') setTimeout(openWizardGardes, 600);
+      if (wizParam === 'cloture') setTimeout(openWizardCloture, 600);
+    } else {
+      sessionStorage.removeItem('adminCode');
+    }
+  } catch(e) { sessionStorage.removeItem('adminCode'); }
+})();
 </script>
 
 <!-- WIZARD CLÔTURER L'ANNÉE -->
