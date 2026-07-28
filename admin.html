@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.10.5'; // SITE_VERSION: v1.10.5
+const SITE_VERSION = 'v1.10.6'; // SITE_VERSION: v1.10.6
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.5</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.6</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1741,9 +1741,10 @@ function _remplirSelecteurAffectation() {
 rebuildSecteursDerivations();  // amorçage synchrone depuis le fallback en dur
 // Source unique : charge les secteurs depuis l'onglet SECTEURS (via getSecteurs).
 // Échec réseau / action absente → on garde silencieusement SECTEURS_CFG en dur.
-async function loadSecteurs() {
+async function loadSecteurs(pre) {
   try {
-    const arr = await api({action:'getSecteurs'});
+    // pre = secteurs deja livres par getAdminBootstrap -> aucun appel reseau ici.
+    const arr = pre || await api({action:'getSecteurs'});
     if (Array.isArray(arr) && arr.length >= 1) { SECTEURS_CFG = arr; rebuildSecteursDerivations(); }
   } catch(e) { /* fallback : SECTEURS_CFG en dur conservé */ }
 }
@@ -1752,9 +1753,10 @@ async function loadSecteurs() {
 // Repli silencieux sur les valeurs en dur si l'onglet est illisible.
 // Garde-fou : on n'écrase QUE si la réponse est exploitable (au moins un type actif),
 // sinon un onglet vidé par erreur ferait disparaître toutes les consultations.
-async function loadCsTemplate() {
+async function loadCsTemplate(pre) {
   try {
-    const t = await api({action:'getCsTemplate'});
+    // pre = consultations deja livrees par getAdminBootstrap -> aucun appel reseau ici.
+    const t = pre || await api({action:'getCsTemplate'});
     if (!t || !Array.isArray(t.types) || !t.types.length || !t.required) return;
     // xlLabel / xlBg conservés : l'export Excel en a besoin (ils étaient perdus ici).
     CS_TYPES    = t.types.map(x => ({code:x.code, label:x.label || x.code,
@@ -2425,9 +2427,6 @@ async function checkNextYearAvailable() {
 async function initDashboard() {
   { const vb = document.getElementById('verBadge'); if (vb) vb.textContent = SITE_VERSION; }
   await new Promise(r => setTimeout(r, 50));
-  // (28/07/2026 perf) EN PARALLELE : les deux sont independants et chacun avale
-  // silencieusement ses erreurs. Avant : en file indienne, un aller-retour de trop.
-  await Promise.all([loadSecteurs(), loadCsTemplate()]);
   ADMIN_YEAR = YEAR;
   // (perf) BOOTSTRAP : un SEUL aller-retour GAS livre planning + affectations + médecins
   // + overrides. Repli automatique sur les appels unitaires si le GAS déployé ne connaît
@@ -2447,6 +2446,14 @@ async function initDashboard() {
   // Cohérence : le bootstrap parallèle porte l'année active du serveur — si elle diffère
   // de l'année demandée (cas limite), on l'ignore et on repasse par les appels unitaires.
   if (_boot && _boot.success && _boot.year && Number(_boot.year) !== Number(ADMIN_YEAR)) _boot = null;
+  // (28/07/2026 perf) Secteurs et consultations : servis par le bootstrap quand le GAS
+  // deploye les connait, sinon deux appels separes comme avant. Deux allers-retours
+  // economises, soit ~2 s de demarrage serveur. Doit rester AVANT renderWeek (appele
+  // par loadPlanningData) : la grille lit SECTEURS_CFG.
+  await Promise.all([
+    loadSecteurs(_boot && _boot.secteurs),
+    loadCsTemplate(_boot && _boot.csTemplate)
+  ]);
   const _bootOk = !!(_boot && _boot.success && _boot.planning);
   const mainLoads = _bootOk
     ? Promise.allSettled([
