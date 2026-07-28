@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.10.7'; // SITE_VERSION: v1.10.7
+const SITE_VERSION = 'v1.10.8'; // SITE_VERSION: v1.10.8
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.7</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.8</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1780,12 +1780,12 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
   try {
     // (perf) Bootstrap lancé EN PARALLÈLE du login : les deux portent le code, le serveur
     // valide chacun. Année omise → le serveur prend l'année active. Consommé par initDashboard.
-    window.__bootPromise = fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({action:'getAdminBootstrap', code: saved}), redirect:'follow'})
-      .then(r => r.ok ? r.json() : null).catch(() => null);
-    const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({action:'login', code: saved}), redirect:'follow'});  // (B3) POST : le code ne transite plus dans l'URL
-    const data = await res.json();
+    // (28/07/2026) Ces deux appels passaient en direct, hors de api() : ils n'etaient
+    // ni rejoues ni chronometres. Or ce sont LES DEUX SEULS appels de l'ouverture
+    // (tout le reste est livre par le bootstrap) — le chronometre ne voyait donc RIEN,
+    // et un 404 sur l'un d'eux n'etait jamais rattrape. Ils passent par api().
+    window.__bootPromise = api({action:'getAdminBootstrap', code: saved}).catch(() => null);
+    const data = await api({action:'login', code: saved});
     if (data.success && data.role === 'admin') {
       ADMIN_CODE = saved; YEAR = data.year || 2026; INDISPOS_YEAR = data.indisposYear || null;
       document.getElementById('authOverlay').style.display = 'none';
@@ -1820,17 +1820,10 @@ async function authenticate() {
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   const errEl = document.getElementById('authError');
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 20000);
-    // (perf) Bootstrap en parallèle du login (voir auto-login) — consommé par initDashboard.
-    window.__bootPromise = fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({action:'getAdminBootstrap', code}), redirect:'follow'})
-      .then(r => r.ok ? r.json() : null).catch(() => null);
-    const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify({action:'login', code}),
-      signal: ctrl.signal, redirect: 'follow'});  // (B3) POST : le code ne transite plus dans l'URL
-    clearTimeout(timer);
-    const data = await res.json();
+    // (28/07/2026) Meme correction que dans l'auto-login : par api(), donc rejoues
+    // une fois en cas de 404 et visibles dans le chronometre.
+    window.__bootPromise = api({action:'getAdminBootstrap', code}).catch(() => null);
+    const data = await api({action:'login', code});
     if (data.success && data.role === 'admin') {
       ADMIN_CODE = code;
       YEAR = data.year || 2026;
@@ -1994,14 +1987,19 @@ const API_REJOUABLES = new Set([
   'getAdminBootstrap', 'getPlanningJson', 'getAffectationsJson', 'getMedecins',
   'getOverrides', 'getSecteurs', 'getCsTemplate', 'getMARsDispoJour',
   'listLiberalJour', 'getStatus', 'getStatsLive', 'getActiveYear', 'mailNonLus',
-  'savePlanningOverride'
+  'savePlanningOverride',
+  // login : rejouable. Seul effet d'un second passage = une ligne de plus dans le
+  // journal CONNEXIONS. Bien preferable a un « Code incorrect » affiche a tort.
+  'login'
 ]);
 
 // Journal des appels : alimente le chronometre (voir chronoAPI() plus bas).
 const _journalAPI = [];
 
 async function api(payload) {
-  payload.code = ADMIN_CODE;
+  // Code explicite respecte : le login et le bootstrap partent AVANT que ADMIN_CODE
+  // soit pose, et doivent pouvoir porter le leur.
+  if (!payload.code) payload.code = ADMIN_CODE;
   const _action = payload.action || '(sans action)';
   const _maxEssais = API_REJOUABLES.has(_action) ? 2 : 1;
   const _debut = Date.now();
@@ -2508,12 +2506,6 @@ async function initDashboard() {
                                  : await api({action:'getAdminBootstrap', year: ADMIN_YEAR});
   } catch(e) { _boot = null; }
   window.__bootPromise = null;
-  // (28/07/2026) La reponse Google revient parfois en 404 (constate en console). Sans ce
-  // rattrapage, un seul echec fait repartir la page pour QUATRE appels, dont getPlanningJson
-  // avec 3 tentatives espacees d'1 s. Une nouvelle tentative coute un seul aller-retour.
-  if (!(_boot && _boot.success && _boot.planning)) {
-    try { _boot = await api({action:'getAdminBootstrap', year: ADMIN_YEAR}); } catch(e) {}
-  }
   // Cohérence : le bootstrap parallèle porte l'année active du serveur — si elle diffère
   // de l'année demandée (cas limite), on l'ignore et on repasse par les appels unitaires.
   if (_boot && _boot.success && _boot.year && Number(_boot.year) !== Number(ADMIN_YEAR)) _boot = null;
