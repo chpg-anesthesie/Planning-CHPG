@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-28.1';
+const GAS_VERSION_INDISPOS = '2026-07-28.2';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1533,6 +1533,13 @@ if (!affSheet) {
       const _m = _buildMedecins_();
       out.medecins = _m.error ? [] : _m.medecins;
       out.overrides = _buildOverrides_();
+      // (28/07/2026 perf) Secteurs et consultations rejoignent le bootstrap.
+      // Motif : chaque aller-retour coute ~1 s de DEMARRAGE (compilation des 5
+      // fichiers + liaison au classeur) avant meme la moindre lecture. Deux appels
+      // separes valaient donc ~2 s a chaque ouverture d'admin. Un echec ici n'est
+      // jamais bloquant : la page repasse par getSecteurs / getCsTemplate.
+      try { out.secteurs   = getSecteurs(); }   catch (e) { out.secteurs = null; }
+      try { out.csTemplate = getCsTemplate(); } catch (e) { out.csTemplate = null; }
       return ContentService.createTextOutput(JSON.stringify(out))
         .setMimeType(ContentService.MimeType.JSON);
     }
