@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.11'; // SITE_VERSION: v1.11
+const SITE_VERSION = 'v1.11.1'; // SITE_VERSION: v1.11.1
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.11</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.11.1</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -2070,7 +2070,10 @@ async function _apiDirect(payload) {
         });
         if (res.ok) {
           const data = await res.json();
-          _journalAPI.push({action: _action, ms: Date.now() - _debut, essais: essai, issue: 'ok'});
+          // (28/07/2026) _srv_ms = duree d'execution REELLE cote serveur, posee
+          // par l'enveloppe GAS. ms - srv = transport + file d'attente Google.
+          _journalAPI.push({action: _action, ms: Date.now() - _debut, essais: essai, issue: 'ok',
+                            srv: (data && typeof data._srv_ms === 'number') ? data._srv_ms : null});
           return data;
         }
         _dernier = new Error('Serveur indisponible (HTTP ' + res.status + ')');
@@ -2101,8 +2104,11 @@ function chronoAPI() {
     total += c.ms;
     if (c.essais > 1) rejoues++;
     if (String(c.issue).indexOf('ECHEC') === 0) echecs++;
+    const _det = (c.srv != null)
+      ? ('  (serveur ' + String(c.srv).padStart(5, ' ') + ' · attente ' + String(Math.max(0, c.ms - c.srv)).padStart(5, ' ') + ')')
+      : '';
     l.push(String(i + 1).padStart(2, ' ') + '. ' + cadre(c.action, 24)
-           + String(c.ms).padStart(6, ' ') + ' ms   ' + c.essais + ' essai(s)   ' + c.issue);
+           + String(c.ms).padStart(6, ' ') + ' ms' + _det + '   ' + c.essais + ' essai(s)   ' + c.issue);
   });
   l.push('─────────────────────────────────────────────────────');
   l.push(_journalAPI.length + ' appels · ' + total + ' ms cumulés · '
