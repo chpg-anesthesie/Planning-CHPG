@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.10.6'; // SITE_VERSION: v1.10.6
+const SITE_VERSION = 'v1.10.7'; // SITE_VERSION: v1.10.7
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.6</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.7</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1972,26 +1972,97 @@ async function ouvrirMessage(id, bouton){
   }
 }
 
+/* ── (28/07/2026) LE 404 DE GOOGLE, ET CE QU'IL SIGNIFIE ─────────────────
+   Google Apps Script EXECUTE le script d'abord, puis indique au navigateur ou
+   recuperer la reponse (une adresse script.googleusercontent.com/macros/echo).
+   Le 404 constate le 28/07 tombe a la SECONDE etape : l'ecriture a deja eu lieu,
+   c'est l'accuse de reception qui se perd. Preuve : l'onglet Executions de
+   l'editeur Apps Script affichait 15 executions « Terminee », aucune en echec.
+   Deux consequences, traitees ici :
+   1. rejouer l'appel a du sens — le serveur repond correctement au second essai ;
+   2. une erreur de TRANSPORT ne veut PAS dire que l'action a echoue. Elle est
+      marquee (err.transport = true) pour que l'appelant ne defasse pas a tort
+      ce que le serveur a fait (voir placeMAR).
+
+   ⚠️ ON NE REJOUE QUE LA LISTE CI-DESSOUS. Rejouer aveuglement creerait des
+   doublons (declareLiberal), enverrait deux fois des mails (sendCodes) ou
+   supprimerait la mauvaise ligne apres decalage (deleteOverride).
+   savePlanningOverride y figure parce qu'elle vise la ligne du couple
+   (date, MAR) et la met a jour : la rejouer n'ajoute jamais de ligne.
+   Toute action ABSENTE de cette liste n'est JAMAIS rejouee. */
+const API_REJOUABLES = new Set([
+  'getAdminBootstrap', 'getPlanningJson', 'getAffectationsJson', 'getMedecins',
+  'getOverrides', 'getSecteurs', 'getCsTemplate', 'getMARsDispoJour',
+  'listLiberalJour', 'getStatus', 'getStatsLive', 'getActiveYear', 'mailNonLus',
+  'savePlanningOverride'
+]);
+
+// Journal des appels : alimente le chronometre (voir chronoAPI() plus bas).
+const _journalAPI = [];
+
 async function api(payload) {
   payload.code = ADMIN_CODE;
+  const _action = payload.action || '(sans action)';
+  const _maxEssais = API_REJOUABLES.has(_action) ? 2 : 1;
+  const _debut = Date.now();
   _apiBar(true);
-  const _ctrl = new AbortController();
-  const _timer = setTimeout(() => _ctrl.abort(), API_TIMEOUT_MS);
+  let _dernier = null;
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
-      redirect: 'follow',
-      signal: _ctrl.signal,
-    });
-    if (!res.ok) throw new Error('Serveur indisponible (HTTP ' + res.status + ')');
-    return await res.json();
-  } catch (e) {
-    if (e && e.name === 'AbortError') throw new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable, réessayez');
-    throw e;
-  } finally { clearTimeout(_timer); _apiBar(false); }
+    for (let essai = 1; essai <= _maxEssais; essai++) {
+      const _ctrl = new AbortController();
+      const _timer = setTimeout(() => _ctrl.abort(), API_TIMEOUT_MS);
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload),
+          redirect: 'follow',
+          signal: _ctrl.signal,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          _journalAPI.push({action: _action, ms: Date.now() - _debut, essais: essai, issue: 'ok'});
+          return data;
+        }
+        _dernier = new Error('Serveur indisponible (HTTP ' + res.status + ')');
+        _dernier.transport = true;
+      } catch (e) {
+        _dernier = (e && e.name === 'AbortError')
+          ? new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable')
+          : e;
+        _dernier.transport = true;          // reseau, JSON illisible, delai : la reponse manque
+      } finally { clearTimeout(_timer); }
+      if (essai < _maxEssais) await new Promise(r => setTimeout(r, 700));
+    }
+    _journalAPI.push({action: _action, ms: Date.now() - _debut, essais: _maxEssais,
+                      issue: 'ECHEC — ' + (_dernier && _dernier.message)});
+    throw _dernier;
+  } finally { _apiBar(false); }
 }
+
+/* Chronometre : tableau des appels du chargement, a copier depuis la console.
+   S'affiche tout seul a la fin de l'ouverture, et reste appelable a tout moment
+   en tapant  chronoAPI()  dans la console. */
+function chronoAPI() {
+  if (!_journalAPI.length) { console.log('Aucun appel enregistré.'); return ''; }
+  const cadre = (t, n) => { let s = String(t); while (s.length < n) s += ' '; return s.slice(0, n); };
+  const l = ['══ CHRONOMÈTRE DES APPELS — ' + new Date().toLocaleTimeString('fr-FR') + ' ══'];
+  let total = 0, rejoues = 0, echecs = 0;
+  _journalAPI.forEach((c, i) => {
+    total += c.ms;
+    if (c.essais > 1) rejoues++;
+    if (String(c.issue).indexOf('ECHEC') === 0) echecs++;
+    l.push(String(i + 1).padStart(2, ' ') + '. ' + cadre(c.action, 24)
+           + String(c.ms).padStart(6, ' ') + ' ms   ' + c.essais + ' essai(s)   ' + c.issue);
+  });
+  l.push('─────────────────────────────────────────────────────');
+  l.push(_journalAPI.length + ' appels · ' + total + ' ms cumulés · '
+         + rejoues + ' rejoué(s) · ' + echecs + ' en échec');
+  const txt = l.join('\n');
+  console.log(txt);
+  return txt;
+}
+window.chronoAPI = chronoAPI;
 // (28/07/2026) FILE D'ATTENTE DES ECRITURES.
 // savePlanningOverride prend un verrou de script de 15 s cote serveur (code.gs) :
 // deux poses simultanees se bousculent sur ce verrou et la 2e revient en erreur.
@@ -2483,6 +2554,7 @@ async function initDashboard() {
   })();
   await mainLoads;
   try { updatePlanningIndisposVisibility(); } catch(e) {}
+  try { chronoAPI(); } catch(e) {}   // tableau des appels, a copier depuis la console
 }
 
 // ── STATUS ─────────────────────────────────────────────────────────────
@@ -2510,15 +2582,11 @@ async function loadPlanningData(pre) {
     // (perf) Planning ET affectations lancés EN PARALLÈLE (avant : en série → ~4 s perdues).
     // Le planning garde son retry x3 ; les affectations sont accessoires (échec toléré).
     const _affP = api({action:'getAffectationsJson', year: ADMIN_YEAR}).catch(()=>null);
-    let res = null, attempts = 0;
-    while (attempts < 3) {
-      try {
-        res = await api({action:'getPlanningJson', year: ADMIN_YEAR});
-        if (res && res.success && res.planning) break;
-      } catch(e) {}
-      attempts++;
-      if (attempts < 3) await new Promise(r => setTimeout(r, 1000));
-    }
+    // (28/07/2026) Les 3 tentatives espacees d'1 s sont SUPPRIMEES : api() rejoue
+    // desormais lui-meme une fois les actions rejouables. Cette boucle coutait
+    // jusqu'a 11 s a elle seule quand la reponse se perdait.
+    let res = null;
+    try { res = await api({action:'getPlanningJson', year: ADMIN_YEAR}); } catch(e) {}
     if (!res || !res.success || !res.planning) throw new Error((res && res.error) || 'Fichier planning introuvable');
     DATA = res.planning;
       // _localOverrides CONSERVÉS : ils restent appliqués tant que le JSON
@@ -3499,13 +3567,22 @@ async function placeMAR(marId, marInit, mode) {
     showToast(`✅ ${marId} en ${value} — enregistré`);
     markPending();
   } catch(e) {
-    showToast('Erreur API : ' + e.message);
-    // Rollback local si l'API a échoué
-    if (_localOverrides[date]?.[marId]) {
-      _localOverrides[date][marId][slotKey] = null;
+    if (e && e.transport) {
+      // La REPONSE s'est perdue, pas l'action : Google execute le script AVANT de
+      // renvoyer quoi que ce soit. Effacer le placement ici, c'est defaire a l'ecran
+      // ce que le classeur a enregistre — et donner l'impression qu'il faut recommencer.
+      // On le GARDE, et on le dit franchement.
+      showToast('⚠️ ' + marId + ' en ' + value + ' — enregistrement non confirmé, à vérifier avant publication');
+      markPending();
+    } else {
+      // Le serveur a REPONDU et refuse : la, il a raison, on annule.
+      showToast('Erreur API : ' + e.message);
+      if (_localOverrides[date]?.[marId]) {
+        _localOverrides[date][marId][slotKey] = null;
+      }
+      saveLocalEdits();
+      renderWeek();
     }
-    saveLocalEdits();
-    renderWeek();
   }
 }
 
