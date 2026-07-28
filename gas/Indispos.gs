@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-28.7';
+const GAS_VERSION_INDISPOS = '2026-07-28.8';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1570,6 +1570,17 @@ if (!affSheet) {
         const _lab = Gmail.Users.Labels.get('me', 'INBOX');
         out.mailNonLus = Number(_lab.messagesUnread || 0);
       } catch (e) { out.mailNonLus = null; }
+      /* (28/07/2026, 15 h 50) EXISTENCE DE L'ANNEE SUIVANTE, SANS LA TELECHARGER.
+         Le frontend appelait getPlanningJson sur N+1 pour repondre a une seule
+         question : « cette annee existe-t-elle ? ». Cela telechargeait le planning
+         COMPLET (255 Ko) a chaque ouverture, soit ~2,5 s, pour un oui/non.
+         _jsonFilesByName_ liste les fichiers du dossier Drive SANS lire leur contenu
+         (aucun getBlob) : la reponse coute quelques dizaines de ms.
+         La detection reste exacte et se met a jour des que N+1 est publiee, puisque
+         elle est recalculee a chaque ouverture. */
+      try {
+        out.anneeSuivante = _jsonFilesByName_('planning_' + (jy + 1) + '.json').length > 0;
+      } catch (e) { out.anneeSuivante = null; }
       return ContentService.createTextOutput(JSON.stringify(out))
         .setMimeType(ContentService.MimeType.JSON);
     }
