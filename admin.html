@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.12.3'; // SITE_VERSION: v1.12.3
+const SITE_VERSION = 'v1.13'; // SITE_VERSION: v1.13
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.12.3</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.13</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -3433,9 +3433,12 @@ function renderWeek() {
 
   if (window.lucide) lucide.createIcons();
   updateFlashBadge();
-  // Prechargement en arriere-plan des dispos + liberal de la semaine affichee :
-  // le panneau de placement s'ouvrira ensuite sans aucun appel.
-  setTimeout(prechargerSemaine, 0);
+  // Prechargement en arriere-plan des dispos + liberal de la semaine affichee.
+  // (28/07/2026, 15 h) DELAI D'IMMOBILITE : on attend que la navigation s'arrete.
+  // Traverser dix semaines a la fleche declenchait dix prechargements — dix peages
+  // de 2,5 s pour neuf semaines seulement survolees (mesure de 14:52 : 14 appels).
+  // Desormais un seul part, celui de la semaine ou l'on s'arrete.
+  planifierPrechargement();
 }
 
 function prevWeek(){if(currentWeekIdx>0){currentWeekIdx--;renderWeek();}}
@@ -3548,9 +3551,27 @@ function prechargerSemaine(force) {
     })
     .finally(() => { _preEnCours = null; });
 }
+// Attend l'immobilite avant de precharger (voir renderWeek). Chaque changement
+// de semaine repousse l'echeance : seule la semaine ou l'on s'arrete est chargee.
+let _preTimer = null;
+const PRE_DELAI_MS = 500;
+function planifierPrechargement() {
+  clearTimeout(_preTimer);
+  _preTimer = setTimeout(prechargerSemaine, PRE_DELAI_MS);
+}
+// Clic sur une case dont le jour n'est pas encore en cache : on ne part PAS sur
+// deux appels unitaires pour ce seul jour — on lance tout de suite le chargement
+// de la SEMAINE (meme prix, un seul appel) et on l'attend. Les cases suivantes
+// s'ouvriront alors sans rien demander.
+function preparerSemaineMaintenant() {
+  clearTimeout(_preTimer); _preTimer = null;
+  prechargerSemaine();
+  return _preEnCours;
+}
 // Un statut modifie change les dispos : on vide les caches et on recharge.
 // (Defaut corrige au passage : _dispoCache ne se rafraichissait JAMAIS de la session.)
 function invaliderCacheSemaine() {
+  clearTimeout(_preTimer); _preTimer = null;
   _dispoCache = {}; _preSemaine = {}; _preEnCours = null;
   prechargerSemaine(true);
 }
@@ -3579,13 +3600,14 @@ async function openSidePanel(sector, date, sectorLabel, slotKey, isLib) {
     '<div class="loading"><div class="spinner"></div></div>';
   // Prechargement en vol : l'attendre coute moins qu'un appel de plus (le peage
   // est par appel). S'il aboutit, on affiche sans rien redemander.
-  if (_preEnCours) {
-    _preEnCours.then(() => {
-      if (_dispoCache[date] && window._sideCtx && window._sideCtx.date === date) {
-        renderSidePanelContent(_dispoCache[date], sector);
-      } else if (window._sideCtx && window._sideCtx.date === date) {
-        _chargerDispoJour(date, sector);
-      }
+  // Prechargement en vol, ou a lancer maintenant : dans les deux cas on attend LA
+  // SEMAINE plutot que de payer deux appels unitaires pour ce seul jour.
+  const _attente = _preEnCours || preparerSemaineMaintenant();
+  if (_attente) {
+    _attente.then(() => {
+      if (!window._sideCtx || window._sideCtx.date !== date) return;   // l'utilisateur est passe ailleurs
+      if (_dispoCache[date]) renderSidePanelContent(_dispoCache[date], sector);
+      else _chargerDispoJour(date, sector);   // repli : la semaine n'a rien donne pour ce jour
     });
     return;
   }
@@ -4024,8 +4046,9 @@ function renderLiberalCard(items, date) {
 function loadLiberalJour(date) {
   if (_libJourCache[date]) { renderLiberalCard(_libJourCache[date], date); return; }
   // Prechargement en vol : l'attendre plutot que payer un appel de plus.
-  if (_preEnCours) {
-    _preEnCours.then(() => {
+  const _att = _preEnCours || preparerSemaineMaintenant();
+  if (_att) {
+    _att.then(() => {
       if (_libJourCache[date]) renderLiberalCard(_libJourCache[date], date);
       else renderLiberalCard([], date);
     });
