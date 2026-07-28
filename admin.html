@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.10.9'; // SITE_VERSION: v1.10.9
+const SITE_VERSION = 'v1.10.10'; // SITE_VERSION: v1.10.10
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.9</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.10</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -2010,20 +2010,37 @@ async function ouvrirMessage(id, bouton){
    savePlanningOverride y figure parce qu'elle vise la ligne du couple
    (date, MAR) et la met a jour : la rejouer n'ajoute jamais de ligne.
    Toute action ABSENTE de cette liste n'est JAMAIS rejouee. */
-const API_REJOUABLES = new Set([
-  'getAdminBootstrap', 'getPlanningJson', 'getAffectationsJson', 'getMedecins',
-  'getOverrides', 'getSecteurs', 'getCsTemplate', 'getMARsDispoJour',
-  'listLiberalJour', 'getStatus', 'getStatsLive', 'getActiveYear', 'mailNonLus',
-  'savePlanningOverride',
-  // login : rejouable. Seul effet d'un second passage = une ligne de plus dans le
-  // journal CONNEXIONS. Bien preferable a un « Code incorrect » affiche a tort.
-  'login'
-]);
+/* (28/07/2026, 11 h) LE REJEU EST RAMENE A UNE SEULE ACTION.
+   Mesure de 10:55 : sur une file d'attente saturee, rejouer AGGRAVE l'engorgement —
+   3 rejeux = 15 executions envoyees au lieu de 12, et des appels a 30-40 s. Le rejeu
+   generalise que j'avais ajoute le matin meme etait donc contre-productif.
+   Il ne reste que getAdminBootstrap, parce que son echec coute le plus cher (repli
+   sur six appels unitaires), et avec une pause franche pour laisser la file se vider. */
+const API_REJOUABLES = new Set(['getAdminBootstrap']);
+const API_PAUSE_REJEU = 1500;
 
 // Journal des appels : alimente le chronometre (voir chronoAPI() plus bas).
 const _journalAPI = [];
 
+/* ── (28/07/2026, 11 h) UN SEUL APPEL EN VOL A LA FOIS ───────────────────
+   Mesure decisive : a 10:46, quatre executions lancees ensemble ont coute 4 a 7 s
+   chacune, alors qu'une execution SEULE en coute 1,8. A 10:55, un paquet d'appels
+   simultanes a produit des attentes de 30 a 56 s cote navigateur, alors qu'aucune
+   execution ne depassait 3,7 s cote serveur : le temps n'etait pas dans le travail,
+   il etait dans la FILE D'ATTENTE de Google.
+   Apps Script met de toute facon les executions d'un meme utilisateur en file. Les
+   envoyer en parallele ne fait donc rien gagner — ca ne fait que transformer une
+   attente ordonnee en bousculade. On les envoie desormais un par un.
+   ⚠️ Ne jamais revenir a des appels paralleles « pour aller plus vite » : c'est
+   l'erreur commise le matin du 28/07, et elle a coute 15 s a chaque ouverture. */
+let _fileAPI = Promise.resolve();
 async function api(payload) {
+  const _suivant = _fileAPI.then(() => _apiDirect(payload), () => _apiDirect(payload));
+  _fileAPI = _suivant.catch(() => {});
+  return _suivant;
+}
+
+async function _apiDirect(payload) {
   // Code explicite respecte : le login et le bootstrap partent AVANT que ADMIN_CODE
   // soit pose, et doivent pouvoir porter le leur.
   if (!payload.code) payload.code = ADMIN_CODE;
@@ -2057,7 +2074,7 @@ async function api(payload) {
           : e;
         _dernier.transport = true;          // reseau, JSON illisible, delai : la reponse manque
       } finally { clearTimeout(_timer); }
-      if (essai < _maxEssais) await new Promise(r => setTimeout(r, 700));
+      if (essai < _maxEssais) await new Promise(r => setTimeout(r, API_PAUSE_REJEU));
     }
     _journalAPI.push({action: _action, ms: Date.now() - _debut, essais: _maxEssais,
                       issue: 'ECHEC — ' + (_dernier && _dernier.message)});
