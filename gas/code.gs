@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-07-20.5';
+const GAS_VERSION_CODE = '2026-07-28.1';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 function buildStats2026() {
@@ -116,13 +116,35 @@ function computeStatsLive(year) {
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER = 'chpg-anesthesie';
 
+/* ── MEMO DE CONFIG (28/07/2026) ───────────────────────────────────────
+   L'onglet CONFIG etait relu jusqu'a QUATRE fois dans une seule execution :
+   TEST_YEAR (ligne 9 d'Indispos.gs, code global -> joue a CHAQUE appel),
+   checkCode, getIndisposYear, _indisposOuverte_. Chaque getValues() est un
+   aller-retour vers les serveurs Sheets, le geste le plus lent d'Apps Script.
+   Mesure du 28/07 : doPost median 3,3 s.
+   Ce memo ne vit QUE le temps d'une execution : Apps Script repart d'un
+   contexte neuf a chaque appel, rien ne survit d'une requete a l'autre.
+   ⚠️ Toute action qui ECRIT dans CONFIG doit appeler _configReset_() juste
+   apres son ecriture, sinon la suite de la MEME execution relirait l'ancienne
+   valeur. Concernees a ce jour : saveConfig, setActiveYear, setIndisposYear,
+   clearIndisposYear (Indispos.gs).
+   Le memo est porte par la fonction elle-meme (et non par une variable
+   globale) : l'ordre d'execution des fichiers .gs n'est pas garanti, une
+   variable declaree en let/const dans un autre fichier serait inaccessible. */
+function _configRows_() {
+  if (_configRows_._v) return _configRows_._v;
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG');
+  _configRows_._v = sh ? sh.getDataRange().getValues() : [];
+  return _configRows_._v;
+}
+function _configReset_() { _configRows_._v = null; }
+
 let _ghTokenCache = null;
 function getGithubToken() {
   if (_ghTokenCache !== null) return _ghTokenCache;
   _ghTokenCache = '';
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG');
-  if (sheet) {
-    const data = sheet.getDataRange().getValues();
+  {
+    const data = _configRows_();
     for (let r = 1; r < data.length; r++) {
       if (String(data[r][0]).trim() === 'GITHUB_TOKEN') { _ghTokenCache = String(data[r][1]).trim(); break; }
     }
@@ -263,10 +285,7 @@ const CS_RULES = {
 
 // ── LIRE L'ANNÉE ACTIVE ───────────────────────────────────────────────
 function getActiveYear() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('CONFIG');
-  if (!sheet) return 2026;
-  const data = sheet.getDataRange().getValues();
+  const data = _configRows_();   // memo : CONFIG lu une seule fois par execution
   for (let r = 1; r < data.length; r++) {
     if (String(data[r][0]).trim() === 'ANNEE_ACTIVE') {
       const year = parseInt(String(data[r][1]).trim());
