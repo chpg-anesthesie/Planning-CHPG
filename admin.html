@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.13'; // SITE_VERSION: v1.13
+const SITE_VERSION = 'v1.13.1'; // SITE_VERSION: v1.13.1
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.13</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.13.1</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1827,8 +1827,10 @@ async function ouvrirSession(code) {
       const affYearEl = document.getElementById('affYear'); if(affYearEl) affYearEl.textContent = YEAR;
       await initDashboard();
       _batchRestore();                     // placements d'une session precedente non confirmes
-      setTimeout(majCompteurMail, 6000);   // (28/07) 6 s : ne doit PAS tourner en meme temps
-                                           // que le chargement, sous peine de ralentir les deux
+      // Compteur de mails : livre par le bootstrap (aucun appel). Repli sur un appel
+      // differe uniquement si le GAS n'a pas encore ete recopie.
+      if (window.__boot && typeof window.__boot.mailNonLus === 'number') majCompteurMail(window.__boot.mailNonLus);
+      else setTimeout(majCompteurMail, 6000);
       // Ouvrir le wizard si appelé depuis dashboard
       const wizParam = new URLSearchParams(window.location.search).get('wizard');
       if (wizParam === '1')      setTimeout(openWizard, 600);
@@ -1867,7 +1869,8 @@ async function authenticate() {
       });
       await initDashboard();
       _batchRestore();                     // voir auto-connexion
-      setTimeout(majCompteurMail, 6000);   // (28/07) voir auto-connexion
+      if (window.__boot && typeof window.__boot.mailNonLus === 'number') majCompteurMail(window.__boot.mailNonLus);
+      else setTimeout(majCompteurMail, 6000);   // voir auto-connexion
     } else {
       if (errEl) { errEl.textContent = 'Code incorrect.'; errEl.style.display = 'block'; }
     }
@@ -1907,12 +1910,20 @@ function _escHtml(t){
     .replace(/"/g,'&quot;');
 }
 
-// Compteur de non-lus : appele APRES l'affichage de l'admin, en tache de fond.
-// ⚠️ NE JAMAIS le mettre dans getAdminBootstrap : ~1 s ajoutee a CHAQUE ouverture
-// pour une fonction consultee occasionnellement.
-async function majCompteurMail(){
+/* Compteur de non-lus.
+   (28/07/2026, 15 h) La regle « NE JAMAIS le mettre dans getAdminBootstrap » qui
+   figurait ici est PERIMEE — elle est remplacee, pas empilee. Elle valait quand un
+   appel separe etait bon marche ; la mesure du 28/07 donne 129 ms de travail reel
+   pour 2,4 s d'appel total, le reste etant le peage d'entree d'Apps Script.
+   Le compteur arrive donc AVEC le bootstrap (champ mailNonLus) : le badge s'affiche
+   des l'ouverture au lieu de 6 s plus tard, et l'ouverture perd un appel.
+   La fonction reste appelable seule (apres lecture d'un message, ou si le bootstrap
+   n'a pas fourni la valeur — GAS pas encore recopie). */
+async function majCompteurMail(valeurConnue){
   try{
-    const r = await api({action:'mailNonLus'});
+    const r = (typeof valeurConnue === 'number')
+      ? {success:true, nonLus: valeurConnue}
+      : await api({action:'mailNonLus'});
     const el = document.getElementById('mailDot');
     if (!el) return;
     if (r && r.success && r.nonLus > 0){
