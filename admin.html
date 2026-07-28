@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.13.4'; // SITE_VERSION: v1.13.4
+const SITE_VERSION = 'v1.13.5'; // SITE_VERSION: v1.13.5
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.13.4</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.13.5</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1789,8 +1789,23 @@ async function ouvrirSession(code) {
   _sessionEnCours = true;
   try {
     let boot = null;
-    try { boot = await api({action:'getAdminBootstrap', code}); } catch(e) { boot = null; }
+    /* (28/07/2026, 16 h) DIAGNOSTIC — l'echec du bootstrap etait AVALE ici sans laisser
+       de trace : ni dans le journal (l'exception peut survenir avant son ecriture), ni
+       en console. Symptomes observes toute la journee et tous issus de ce point unique :
+       un `login` apparaissant AVANT le bootstrap (T+0,0 s au chronometre), un
+       getPlanningJson de repli, et le compteur de mails redemande separement — car
+       `window.__boot` reste vide et initDashboard refait tout.
+       Le comportement est INCHANGE (l'erreur reste avalee, le repli fonctionne) : on
+       l'affiche seulement. */
+    try { boot = await api({action:'getAdminBootstrap', code}); }
+    catch(e) {
+      boot = null;
+      console.warn('[ouverture] le bootstrap a echoue, repli sur login —',
+                   (e && (e.message || e)), '| transport:', !!(e && e.transport), e);
+    }
     if (boot && boot.success && boot.role) return { ident: boot, boot };   // cas normal
+    if (boot) console.warn('[ouverture] bootstrap sans identite exploitable — repli sur login. Reponse :',
+                           JSON.stringify({success: boot.success, role: boot.role, error: boot.error}));
     // Repli : GAS pas encore redeploye, ou bootstrap indisponible.
     const ident = await api({action:'login', code});
     return { ident, boot: (boot && boot.success) ? boot : null };
@@ -2079,7 +2094,8 @@ async function _apiDirect(payload) {
   const _action = payload.action || '(sans action)';
   const _maxEssais = API_REJOUABLES.has(_action) ? 2 : 1;
   const _debut = Date.now();
-  _apiBar(true);
+  try { _apiBar(true); }
+  catch(e) { console.warn('[api] barre de chargement indisponible :', e && e.message); }
   let _dernier = null;
   try {
     for (let essai = 1; essai <= _maxEssais; essai++) {
@@ -2119,7 +2135,7 @@ async function _apiDirect(payload) {
                       depart: _debut - _T0_PAGE,
                       issue: 'ECHEC — ' + (_dernier && _dernier.message)});
     throw _dernier;
-  } finally { _apiBar(false); }
+  } finally { try { _apiBar(false); } catch(e) {} }
 }
 
 /* Chronometre : tableau des appels du chargement, a copier depuis la console.
