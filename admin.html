@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.11.1'; // SITE_VERSION: v1.11.1
+const SITE_VERSION = 'v1.12'; // SITE_VERSION: v1.12
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.11.1</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.12</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -2574,6 +2574,7 @@ async function statApply(statut){
   try{
     const r=await api({action:'setDailyStatus', year:STAT.year, marId:STAT.marId, statut, dates});
     if(!r.success) throw new Error(r.error||'setDailyStatus');
+    invaliderCacheSemaine();   // les statuts changent les dispos : cache perime
     const applied=r.applied||[], rej=(r.rejected||[]).length;
     applied.forEach(d=>{                       // MAJ locale → affichage instantané
       if(!STAT.gardes[d]) STAT.gardes[d]={};
@@ -3432,6 +3433,9 @@ function renderWeek() {
 
   if (window.lucide) lucide.createIcons();
   updateFlashBadge();
+  // Prechargement en arriere-plan des dispos + liberal de la semaine affichee :
+  // le panneau de placement s'ouvrira ensuite sans aucun appel.
+  setTimeout(prechargerSemaine, 0);
 }
 
 function prevWeek(){if(currentWeekIdx>0){currentWeekIdx--;renderWeek();}}
@@ -3466,6 +3470,60 @@ function updateFlashBadge() {
 // ── SIDE PANEL DISPO ─────────────────────────────────────────────────
 let _sideCtx = null;
 
+/* ── (28/07/2026) PRECHARGEMENT DU PANNEAU, SEMAINE PAR SEMAINE ─────────
+   Mesure du jour : une requete VIDE (17 ms de travail serveur) coute 2 a 3 s
+   d'attente a la porte d'entree Google, identique sur un deploiement neuf.
+   Le peage est par APPEL, pas par volume : ouvrir une case flash coutait
+   2 appels (dispos + liberal) soit ~5 s, a chaque nouveau jour.
+   Desormais : UN appel pour les 7 jours, lance en arriere-plan des l'affichage
+   de la semaine. Au clic, le panneau s'ouvre SANS aucun appel.
+   Le repli reste en place : si le prechargement echoue ou n'a pas fini, le
+   panneau retombe sur les deux appels unitaires — jamais de blocage. */
+let _preSemaine = {};        // 'date' → true : jour deja precharge (dispo ET liberal)
+let _preEnCours = null;      // Promise du prechargement en vol (evite les doublons)
+let _preCleSemaine = '';     // signature de la semaine prechargee
+
+function _datesSemaineCourante() {
+  try {
+    const weeks = getAllWeeks(); const wk = weeks[currentWeekIdx];
+    if (!wk) return [];
+    return (getWeekDays(wk.weekNum) || []).filter(d => d && d.date).map(d => d.date);
+  } catch(e) { return []; }
+}
+// Lance le prechargement de la semaine affichee. Silencieux : aucun spinner,
+// aucun toast — l'utilisateur continue a travailler pendant ce temps.
+function prechargerSemaine(force) {
+  const dates = _datesSemaineCourante();
+  if (!dates.length) return;
+  const cle = dates.join(',');
+  if (!force && cle === _preCleSemaine && _preEnCours) return;   // deja en route
+  if (!force && cle === _preCleSemaine && dates.every(d => _preSemaine[d])) return; // deja fait
+  _preCleSemaine = cle;
+  _preEnCours = api({action: 'getPanneauSemaine', dates: dates})
+    .then(res => {
+      if (!res || !res.success) return;
+      // On marque les dates DEMANDEES, pas celles renvoyees. Un jour hors
+      // GARDES_{Y} (renvoye « absent ») ou absent de la reponse serait sinon
+      // considere comme jamais precharge, et renderWeek relancerait un appel a
+      // CHAQUE rendu — exactement la boucle qu'on cherche a supprimer.
+      // Ces jours-la retombent sur le repli unitaire a l'ouverture du panneau.
+      dates.forEach(d => { _preSemaine[d] = true; });
+      Object.keys(res.jours || {}).forEach(d => {
+        const j = res.jours[d];
+        if (j && !j.absent && Array.isArray(j.dispo)) _dispoCache[d] = j.dispo;
+      });
+      Object.keys(res.liberal || {}).forEach(d => { _libJourCache[d] = res.liberal[d] || []; });
+    })
+    .catch(() => {})          // echec silencieux : le repli unitaire prendra le relais
+    .finally(() => { _preEnCours = null; });
+}
+// Un statut modifie change les dispos : on vide les caches et on recharge.
+// (Defaut corrige au passage : _dispoCache ne se rafraichissait JAMAIS de la session.)
+function invaliderCacheSemaine() {
+  _dispoCache = {}; _preSemaine = {}; _preCleSemaine = ''; _preEnCours = null;
+  prechargerSemaine(true);
+}
+
 async function openSidePanel(sector, date, sectorLabel, slotKey, isLib) {
   window._sideCtx = {sector, date, sectorLabel, slotKey, lib: !!isLib};
   const card = document.getElementById('dispoCard');
@@ -3484,10 +3542,26 @@ async function openSidePanel(sector, date, sectorLabel, slotKey, isLib) {
   card.scrollIntoView({behavior:'smooth', block:'nearest'});
   loadLiberalJour(date);   // volet libéral (tiroir gauche), indépendant du placement
 
-  // Cache par jour : la liste des dispos d'une date est stable durant la session
+  // Cache par jour, rempli par le prechargement de la semaine : ouverture instantanee.
   if (_dispoCache[date]) { renderSidePanelContent(_dispoCache[date], sector); return; }
   document.getElementById('pspContent').innerHTML =
     '<div class="loading"><div class="spinner"></div></div>';
+  // Prechargement en vol : l'attendre coute moins qu'un appel de plus (le peage
+  // est par appel). S'il aboutit, on affiche sans rien redemander.
+  if (_preEnCours) {
+    _preEnCours.then(() => {
+      if (_dispoCache[date] && window._sideCtx && window._sideCtx.date === date) {
+        renderSidePanelContent(_dispoCache[date], sector);
+      } else if (window._sideCtx && window._sideCtx.date === date) {
+        _chargerDispoJour(date, sector);
+      }
+    });
+    return;
+  }
+  _chargerDispoJour(date, sector);
+}
+// Repli unitaire : prechargement absent, echoue, ou jour hors semaine affichee.
+function _chargerDispoJour(date, sector) {
   api({action:'getMARsDispoJour', date})
     .then(res => {
       if (!res.success) throw new Error(res.error);
@@ -3918,6 +3992,14 @@ function renderLiberalCard(items, date) {
 }
 function loadLiberalJour(date) {
   if (_libJourCache[date]) { renderLiberalCard(_libJourCache[date], date); return; }
+  // Prechargement en vol : l'attendre plutot que payer un appel de plus.
+  if (_preEnCours) {
+    _preEnCours.then(() => {
+      if (_libJourCache[date]) renderLiberalCard(_libJourCache[date], date);
+      else renderLiberalCard([], date);
+    });
+    return;
+  }
   api({action:'listLiberalJour', date})
     .then(res => {
       const items = (res && res.success && Array.isArray(res.items)) ? res.items : [];
