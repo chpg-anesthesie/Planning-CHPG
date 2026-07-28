@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-27.1';
+const GAS_VERSION_INDISPOS = '2026-07-28.1';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -9,10 +9,7 @@ const GITHUB_REPO_INDISPOS = 'Planning-CHPG';
 const TEST_YEAR = getActiveYear();
 
 function getIndisposYear() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('CONFIG');
-  if (!sheet) return getActiveYear();
-  const data = sheet.getDataRange().getValues();
+  const data = _configRows_();   // memo de CONFIG (code.gs)
   for (let r = 1; r < data.length; r++) {
     if (String(data[r][0]).trim() === 'INDISPOS_ACTIVE') {
       const y = parseInt(String(data[r][1]).trim());
@@ -31,9 +28,7 @@ function getIndisposYear() {
 // replie silencieusement sur getActiveYear() quand la ligne est absente.
 function _indisposOuverte_() {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG');
-    if (!sheet) return false;
-    const data = sheet.getDataRange().getValues();
+    const data = _configRows_();   // memo de CONFIG (code.gs)
     for (let r = 1; r < data.length; r++) {
       if (String(data[r][0]).trim() === 'INDISPOS_ACTIVE') {
         return !isNaN(parseInt(String(data[r][1]).trim()));
@@ -400,13 +395,12 @@ function checkCode(code) {
   // correspondrait a la cellule vide d'un MAR sans code.
   if (!codeN) return null;
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const configSheet = ss.getSheetByName('CONFIG');
   let adminCode = null;   // AUCUN code par défaut : ADMIN_CODE doit exister dans CONFIG
   // Code PARTAGE du secretariat d'anesthesie (lecture seule). Meme regime que
   // ADMIN_CODE : aucun defaut, la cle doit exister dans CONFIG pour que le role vive.
   let secretariatCode = null;
-  if (configSheet) {
-    const configData = configSheet.getDataRange().getValues();
+  {
+    const configData = _configRows_();   // memo de CONFIG (code.gs)
     for (let r = 1; r < configData.length; r++) {
       const _cle = String(configData[r][0]).trim();
       // Premiere occurrence gagnante pour chaque cle (comportement d'origine conserve :
@@ -1348,6 +1342,7 @@ try {
           configSheet.getRange(r + 1, 2).setValue(newYear); break;
         }
       }
+      _configReset_();   // CONFIG modifie : le memo doit repartir a zero
       return ContentService.createTextOutput(JSON.stringify({success:true, year:newYear}))
         .setMimeType(ContentService.MimeType.JSON);
     }
@@ -1760,6 +1755,7 @@ if (!affSheet) {
         }
       }
       if (!found) sheet.appendRow([key, value]);
+      _configReset_();   // CONFIG modifie : le memo doit repartir a zero
       return ContentService.createTextOutput(JSON.stringify({success:true}))
         .setMimeType(ContentService.MimeType.JSON);
     }
@@ -2838,6 +2834,7 @@ if (action === 'getConflitsAll') {
         }
       }
       if (!found) sheet.appendRow(['INDISPOS_ACTIVE', newYear]);
+      _configReset_();   // CONFIG modifie : le memo doit repartir a zero
       logAction(`setIndisposYear → ${newYear}`);
       return ContentService.createTextOutput(JSON.stringify({success:true, year:newYear}))
         .setMimeType(ContentService.MimeType.JSON);
@@ -2854,6 +2851,7 @@ if (action === 'getConflitsAll') {
           sheet.deleteRow(r+1); break;
         }
       }
+      _configReset_();   // CONFIG modifie : le memo doit repartir a zero
       logAction('clearIndisposYear — INDISPOS_ACTIVE supprimée');
       return ContentService.createTextOutput(JSON.stringify({success:true}))
         .setMimeType(ContentService.MimeType.JSON);
