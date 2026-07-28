@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.13.2'; // SITE_VERSION: v1.13.2
+const SITE_VERSION = 'v1.13.3'; // SITE_VERSION: v1.13.3
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.13.2</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.13.3</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1844,9 +1844,16 @@ async function ouvrirSession(code) {
   } catch(e) { sessionStorage.removeItem('adminCode'); }
 })();
 
+let _ouvertureFaite = false;   // une ouverture reussie interdit d'en relancer une
 async function authenticate() {
   const code = document.getElementById('authInput').value.trim().toUpperCase();
   if (!code) return;
+  /* (28/07/2026, 15 h 40) GARDE CONTRE LA DOUBLE OUVERTURE.
+     Le verrou _sessionEnCours ne protege que pendant ouvrirSession ; une fois
+     l'identite obtenue il est relache, alors que le chargement continue. Un second
+     appui sur Entree (ou un clic apres l'appui) relancait donc TOUTE l'ouverture :
+     4 appels au lieu de 2, dont deux getPlanningJson — reproduit en simulation. */
+  if (_ouvertureFaite || _sessionEnCours) return;
   const btn = document.querySelector('.auth-btn');
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   const errEl = document.getElementById('authError');
@@ -1857,6 +1864,7 @@ async function authenticate() {
     if (!_s) return;                       // une ouverture est deja en cours
     const data = _s.ident; window.__boot = _s.boot;
     if (data.success && data.role === 'admin') {
+      _ouvertureFaite = true;
       ADMIN_CODE = code;
       YEAR = data.year || 2026;
       INDISPOS_YEAR = data.indisposYear || null;
@@ -2042,6 +2050,9 @@ const API_PAUSE_REJEU = 1500;
 
 // Journal des appels : alimente le chronometre (voir chronoAPI() plus bas).
 const _journalAPI = [];
+// Origine des temps : ouverture de la page. Permet d'afficher QUAND chaque appel
+// est parti, et donc de distinguer deux sequences d'ouverture successives.
+const _T0_PAGE = Date.now();
 
 /* ── (28/07/2026, 11 h) UN SEUL APPEL EN VOL A LA FOIS ───────────────────
    Mesure decisive : a 10:46, quatre executions lancees ensemble ont coute 4 a 7 s
@@ -2086,7 +2097,11 @@ async function _apiDirect(payload) {
           const data = await res.json();
           // (28/07/2026) _srv_ms = duree d'execution REELLE cote serveur, posee
           // par l'enveloppe GAS. ms - srv = transport + file d'attente Google.
+          // (28/07/2026) `depart` = horodatage du DEPART. Sans lui, le chronometre
+          // n'affichait que les fins : impossible de savoir si deux appels se sont
+          // suivis ou chevauches, ni a quelle sequence d'ouverture ils appartenaient.
           _journalAPI.push({action: _action, ms: Date.now() - _debut, essais: essai, issue: 'ok',
+                            depart: _debut - _T0_PAGE,
                             srv: (data && typeof data._srv_ms === 'number') ? data._srv_ms : null});
           return data;
         }
@@ -2101,6 +2116,7 @@ async function _apiDirect(payload) {
       if (essai < _maxEssais) await new Promise(r => setTimeout(r, API_PAUSE_REJEU));
     }
     _journalAPI.push({action: _action, ms: Date.now() - _debut, essais: _maxEssais,
+                      depart: _debut - _T0_PAGE,
                       issue: 'ECHEC — ' + (_dernier && _dernier.message)});
     throw _dernier;
   } finally { _apiBar(false); }
@@ -2121,7 +2137,8 @@ function chronoAPI() {
     const _det = (c.srv != null)
       ? ('  (serveur ' + String(c.srv).padStart(5, ' ') + ' · attente ' + String(Math.max(0, c.ms - c.srv)).padStart(5, ' ') + ')')
       : '';
-    l.push(String(i + 1).padStart(2, ' ') + '. ' + cadre(c.action, 24)
+    const _dep = (c.depart != null) ? ('T+' + String((c.depart/1000).toFixed(1)).padStart(6,' ') + 's ') : '';
+    l.push(String(i + 1).padStart(2, ' ') + '. ' + _dep + cadre(c.action, 24)
            + String(c.ms).padStart(6, ' ') + ' ms' + _det + '   ' + c.essais + ' essai(s)   ' + c.issue);
   });
   l.push('─────────────────────────────────────────────────────');
@@ -6604,22 +6621,13 @@ async function launchWizardCloture() {
 <script>
 'use strict';
 
-
-// ── AUTH ──────────────────────────────────────────────────────────────
-document.getElementById('authInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') authenticate();
-});
-
-// Auto-login depuis sessionStorage si code déjà saisi
-
-
-// ── TABS ──────────────────────────────────────────────────────────────
-
-// ── TOAST ──────────────────────────────────────────────────────────────
-
-// ── MODAL ──────────────────────────────────────────────────────────────
-
-// ── API ────────────────────────────────────────────────────────────────
+/* (28/07/2026, 15 h 40) BLOC RESIDUEL SUPPRIME.
+   Ce script commencait par un SECOND ecouteur « Entree » sur le champ de code,
+   vestige d'une reorganisation dont les en-tetes vides (TABS, TOAST, MODAL, API)
+   subsistaient sans contenu. Consequence prouvee par simulation : un appui sur
+   Entree declenchait authenticate() DEUX fois, soit deux ouvertures completes
+   — 4 appels au lieu de 2, dont deux getPlanningJson. L'ecouteur utile est
+   declare une seule fois dans le bloc precedent. */
 
 // ── ÉQUIPE ──────────────────────────────────────────────────────────────
 let marData = [];
