@@ -302,6 +302,11 @@ patient), pour ne créer ni donnée patient ni travail aux secrétaires des chir
   peut pas prendre un patient libéral ; le serveur ne renvoie aucun montant à un non-membre
   (`if (!user.liberal)` dans `getConsultAbsences`), le masquage de la tuile ne protégeant rien
   puisque la page est publique.
+- **Qui est proposé — couverture jour par jour, 28/07/2026.** Un confrère couvre le jour *i* s'il est
+  **présent ce jour-là** et a une consultation **strictement avant**, celle-ci pouvant tomber
+  **pendant** la période d'absence. Les plages couvertes sont affichées, aucun candidat n'est tronqué.
+  → Remplace deux critères absolus (« présent sur toute la période », « consultation avant le début »)
+  qui renvoyaient **« personne »** sur un congé réel de 19 jours ouvrés. Supprimés, pas amendés.
 - **Classement des remplaçants — 28/07/2026.** Marge CCAM décroissante, calculée **côté serveur**
   dans `getConsultAbsences` : `getReleveLiberal` reste hors de `SECRETARIAT_ACTIONS`, et la réponse
   ne transporte qu'une marge par MAR, jamais tarifs, pourcentages ni excédents. L'appartenance vient
