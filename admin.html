@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.13.3'; // SITE_VERSION: v1.13.3
+const SITE_VERSION = 'v1.13.4'; // SITE_VERSION: v1.13.4
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.13.3</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.13.4</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -2724,7 +2724,21 @@ async function reloadForYear(year) {
   showTab('planning');
 }
 
-async function checkNextYearAvailable() {
+/* (28/07/2026, 15 h 50) L'ANNEE SUIVANTE EST DETECTEE PAR LE BOOTSTRAP.
+   Avant : cette fonction telechargeait le planning COMPLET de N+1 (255 Ko, ~2,5 s
+   mesurees) pour repondre a une seule question — cette annee existe-t-elle ?
+   Le serveur repond desormais par le champ `anneeSuivante` du bootstrap, sans lire
+   le fichier. Un appel de moins a CHAQUE ouverture.
+   Repli conserve : si le GAS deploye ne fournit pas encore le champ (valeur nulle
+   ou absente), on repasse par l'ancien telechargement — la detection n'est jamais
+   perdue, et elle reste juste des que N+1 est publiee puisqu'elle est recalculee
+   a chaque ouverture. */
+async function checkNextYearAvailable(preAnneeSuivante) {
+  if (typeof preAnneeSuivante === 'boolean') {
+    nextYearAvailable = preAnneeSuivante;
+    selectedYear = null;
+    return;
+  }
   try {
     const resp = await api({action:'getPlanningJson', year: YEAR+1});
     nextYearAvailable = !!(resp && resp.success && resp.planning);
@@ -2782,7 +2796,7 @@ async function initDashboard() {
   (async () => {
     try { await detectAvailableYears(); } catch(e) {}
     await new Promise(r => setTimeout(r, 3000));
-    try { await checkNextYearAvailable(); } catch(e) {}
+    try { await checkNextYearAvailable(_boot && typeof _boot.anneeSuivante === 'boolean' ? _boot.anneeSuivante : undefined); } catch(e) {}
     try { await detectAvailableYears(); } catch(e) {}
   })();
   await mainLoads;
