@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-28.4';
+const GAS_VERSION_INDISPOS = '2026-07-28.5';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1087,7 +1087,7 @@ const SECRETARIAT_ACTIONS = new Set([
   'getConsultAbsences',
 ]);
 
-function doGet(e) {
+function _routeRequete_(e) {
   try {
     const payload = JSON.parse(e.parameter.payload || '{}');
     const action = payload.action;
@@ -3670,6 +3670,34 @@ function _isoDate(v) {
 }
 
 // ── doPost — même logique que doGet ──────────────────────────────────
+// ── (28/07/2026) CHRONOMETRE SERVEUR DANS CHAQUE REPONSE ─────────────
+// Constat du jour : getMARsDispoJour = ~3 s cote serveur, 18,7 s cote
+// navigateur — 15 s perdues quelque part entre Google et l'hopital, sans
+// pouvoir dire ou. Chaque reponse JSON porte desormais sa duree d'execution
+// reelle (_srv_ms) : chronoAPI() (admin.html) separe alors « serveur » et
+// « transport+file », et le diagnostic se lit sans ouvrir le menu Executions.
+// L'aiguillage historique est INTACT : doGet ne fait plus que le chronometrer.
+function doGet(e) {
+  const _t0 = Date.now();
+  const out = _routeRequete_(e);
+  return _ajouterDureeServeur_(out, _t0);
+}
+function _ajouterDureeServeur_(out, t0) {
+  try {
+    const txt = out.getContent();
+    // Garde-fous : ne toucher qu'aux reponses JSON objet, et ne pas reencoder
+    // les tres grosses (planning complet ~Mo) — le cout du parse/stringify
+    // n'y vaudrait pas l'information.
+    if (!txt || txt.length > 400000 || txt.charAt(0) !== '{') return out;
+    const o = JSON.parse(txt);
+    o._srv_ms = Date.now() - t0;
+    return ContentService.createTextOutput(JSON.stringify(o))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return out;   // au moindre doute, la reponse d'origine part telle quelle
+  }
+}
+
 function doPost(e) {
   // Réutiliser doGet en reconstituant e.parameter
   try {
