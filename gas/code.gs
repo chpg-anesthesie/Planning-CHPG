@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-07-28.1';
+const GAS_VERSION_CODE = '2026-07-28.2';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 function buildStats2026() {
@@ -1261,6 +1261,88 @@ function savePlanningOverride(date, marId, morning, afternoon, comment) {
       sheet.appendRow([date, marId.toUpperCase(), setM ? morning : '', setA ? afternoon : '', comment || '']);
       Logger.log(`✅ Override ajouté : ${marId} le ${date} → M:${setM?morning:'—'} A:${setA?afternoon:'—'}`);
     }
+  } finally {
+    try { lock.releaseLock(); } catch(e) {}
+  }
+}
+
+// ── ENREGISTRER PLUSIEURS OVERRIDES EN UNE EXÉCUTION (batch) ─────────
+// (28/07/2026) Le comité place >20 MARs par session : un appel unitaire par clic
+// saturait la Web App (mesure du 28/07 : bridage HTTP 404, 10 poses perdues sur 34,
+// 3 à 44 s par appel). Un seul appel = un verrou, UNE lecture de l'onglet,
+// toutes les lignes écrites d'un coup.
+// Sémantique par demi-jour identique à l'unitaire : null ou '' = « ne pas toucher ».
+// REJOUABLE sans risque : chaque ligne est visée par le couple (date, MAR) —
+// renvoyer le même lot met à jour, ne duplique jamais.
+function savePlanningOverridesBatch(items) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('PLANNING_OVERRIDES');
+  if (!sheet) {
+    sheet = ss.insertSheet('PLANNING_OVERRIDES');
+    sheet.getRange(1,1,1,5).setValues([['DATE','MAR_ID','MATIN','APREM','COMMENTAIRE']]);
+    sheet.getRange(1,1,1,5).setFontWeight('bold');
+    sheet.setColumnWidth(1,100); sheet.setColumnWidth(2,100);
+    sheet.setColumnWidth(3,80); sheet.setColumnWidth(4,80); sheet.setColumnWidth(5,200);
+  }
+  // 1. Fusionner les items par (date, MAR) : le comité peut poser le matin PUIS
+  //    l'après-midi du même MAR dans la même rafale — le dernier passage gagne,
+  //    demi-jour par demi-jour.
+  const merged = {};   // 'date|MARID' → {date, marId, morning, afternoon, comment}
+  const order = [];
+  (items || []).forEach(function(it) {
+    const date = String(it.date || '').trim();
+    const marId = String(it.marId || '').trim().toUpperCase();
+    if (!date || !marId) return;
+    const key = date + '|' + marId;
+    if (!merged[key]) { merged[key] = {date: date, marId: marId, morning: null, afternoon: null, comment: ''}; order.push(key); }
+    if (it.morning != null && it.morning !== '') merged[key].morning = it.morning;
+    if (it.afternoon != null && it.afternoon !== '') merged[key].afternoon = it.afternoon;
+    if (it.comment) merged[key].comment = it.comment;
+  });
+  if (!order.length) return {saved: 0};
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch(e) { Logger.log('savePlanningOverridesBatch : verrou indisponible, on continue'); }
+  try {
+    // 2. UNE lecture, index (date|MAR) → n° de lignes existantes
+    //    (même normalisation des dates que l'unitaire : cellule Date ou texte)
+    const data = sheet.getDataRange().getValues();
+    const rowsByKey = {};
+    for (let r = 1; r < data.length; r++) {
+      const rawDate = data[r][0];
+      const existDate = rawDate instanceof Date
+        ? `${rawDate.getFullYear()}-${String(rawDate.getMonth()+1).padStart(2,'0')}-${String(rawDate.getDate()).padStart(2,'0')}`
+        : String(rawDate).trim();
+      const k = existDate + '|' + String(data[r][1]).trim().toUpperCase();
+      (rowsByKey[k] = rowsByKey[k] || []).push(r);
+    }
+    // 3. Mises à jour des lignes existantes + collecte des ajouts et des doublons
+    const toAppend = [];
+    const toDelete = [];
+    let updated = 0;
+    order.forEach(function(key) {
+      const it = merged[key];
+      const rows = rowsByKey[key];
+      const setM = (it.morning != null && it.morning !== '');
+      const setA = (it.afternoon != null && it.afternoon !== '');
+      if (rows && rows.length) {
+        const keep = rows[0];
+        if (setM) sheet.getRange(keep+1, 3).setValue(it.morning);
+        if (setA) sheet.getRange(keep+1, 4).setValue(it.afternoon);
+        if (it.comment) sheet.getRange(keep+1, 5).setValue(it.comment);
+        for (let i = 1; i < rows.length; i++) toDelete.push(rows[i]);
+        updated++;
+      } else {
+        toAppend.push([it.date, it.marId, setM ? it.morning : '', setA ? it.afternoon : '', it.comment || '']);
+      }
+    });
+    // 4. Doublons : suppression APRÈS toutes les mises à jour, de la FIN vers le
+    //    DÉBUT — une suppression ne décale que les lignes situées en dessous.
+    toDelete.sort(function(a,b){ return b-a; }).forEach(function(r){ sheet.deleteRow(r+1); });
+    // 5. Ajouts en un seul bloc
+    if (toAppend.length) sheet.getRange(sheet.getLastRow()+1, 1, toAppend.length, 5).setValues(toAppend);
+    Logger.log(`✅ Batch overrides : ${updated} mise(s) à jour, ${toAppend.length} ajout(s), ${toDelete.length} doublon(s) supprimé(s)`);
+    return {saved: updated + toAppend.length};
   } finally {
     try { lock.releaseLock(); } catch(e) {}
   }
