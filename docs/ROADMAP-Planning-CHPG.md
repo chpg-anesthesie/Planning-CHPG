@@ -1,7 +1,7 @@
 # Roadmap — Planning-CHPG
 
 Système web : **planning des gardes** (équité annuelle) + **planning quotidien** + **consultations** + **portail/Dashboard** + **veille biblio** + **CR d'anesthésie**, pour ~23 MARs au CHPG (Monaco).
-Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 28 juillet 2026 (chantier performance — le nombre d'appels au serveur est le seul levier ; placements et panneau de placement traités, site v1.12).*
+Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 28 juillet 2026 (écran « Consultations à venir » recadré sur le libéral et rendu utilisable sur les longues absences, site v1.14.1 ; plus tôt dans la journée, chantier performance sur le nombre d'appels au serveur).*
 
 > Le dépôt en ligne fait foi. Cette roadmap est un repère de pilotage, pas la source de vérité du code.
 
@@ -795,7 +795,7 @@ les deux si on y touche.
       portes d'entrée vers la **même vue en lecture seule** : (a) **code personnel MAR**
       (mécanisme existant) ; (b) **code partagé du secrétariat**, nouveau, rangé dans `CONFIG`.
       → **Nommer la page par sa fonction, pas par son utilisateur** : `absences.html` /
-      `controle-absences.html`, **pas** `secretariat.html` (tous les MARs y ont accès).
+      `controle-absences.html`, **pas** `secretariat.html`.
       Le code partagé doit avoir une **forme distincte** des codes MAR (désambiguïsation au
       login) et rester **changeable en une ligne de `CONFIG`** s'il circule trop.
     - **Tuile `dashboard.html` pour TOUS les MARs** — et non les seuls `LIBERAL = O`, à la
@@ -986,6 +986,36 @@ les deux si on y touche.
         le site en **`v1.10`** (3 emplacements dans `dashboard.html` + 3 dans `admin.html`, à garder
         égaux — le diagnostic vérifie), et mettre à jour **`docs/guide-mar.html`**. Un commentaire
         au-dessus de la tuile le rappelle dans le code.
+    - ✅ **28/07/2026 — RECADRAGE ET MISE À NIVEAU DE L'ÉCRAN. Site `v1.14.1`.**
+      Détail complet au **§5.5** de `docs/module-liberal/module_liberal_conception.md` (v4.7).
+      - **Périmètre acté : cet écran ne concerne QUE le libéral**, jamais le public. Rien dans le
+        code ne le disait ; il a été lu comme un contrôle d'absence général, y compris par moi.
+        Les textes de la page, `guide-mar.html` et `guide-liberal.html` le disent désormais.
+      - **Tuile `consult` : `liberal:true`** (réservée au groupement, 19 membres) **+ filtre
+        serveur `if (!user.liberal)`** sur les montants. Masquer la tuile ne protège rien :
+        `absences.html` est une page publique, seul le serveur ferme la porte.
+      - **Classement par marge CCAM déplacé côté serveur** (`getConsultAbsences`). Le navigateur
+        appelait `getReleveLiberal`, action **interdite au secrétariat** : la liste sortait donc
+        non classée pour lui, dans l'ordre de l'onglet MEDECINS — d'où les MAR en excédent en
+        tête. La réponse ne transporte plus qu'**une marge par MAR**, jamais tarifs ni
+        pourcentages ; masquer les montants plus tard = **une ligne, un seul endroit**.
+      - ⚠️ **Deux critères absolus supprimés, pas amendés.** « Présent sur TOUTE la période » et
+        « consultation avant le DÉBUT de la période » renvoyaient **« personne »** sur un congé
+        réel de 19 jours ouvrés (29 juillet → 24 août). Remplacés par une **couverture jour par
+        jour** : présent ce jour-là + une consultation strictement avant, celle-ci pouvant tomber
+        **pendant** la période. Plages affichées par candidat, **aucun candidat tronqué** (le
+        `slice(0,3)` masquait les meilleurs derrière les 3 premiers de la feuille MEDECINS).
+      - **Vérifié par jsdom avant push** : plages trouées par les congés propres, exclusion des
+        non-membres, exclusion d'un MAR absent tout le mois, membre sans relevé proposé sans
+        pastille, `0 €` neutre au seuil exact.
+      - ⚠️ **Incident de concurrence évité.** Au moment du push, `gas/Indispos.gs` portait **trois
+        commits d'une autre session** (versions `.6` à `.8`, chantier performance). Le contrôle de
+        divergence les a détectés ; le patch a été **rejoué sur la version fraîche**. Sans ce
+        contrôle, trois optimisations étaient effacées. La règle « GET du SHA juste avant le PUT »
+        a payé pour de vrai ce jour-là.
+      - 🔜 **Reste à éprouver sur le terrain** : le cas d'usage réel est **ORL / viscéral /
+        orthopédie**. La maternité reste affichée (miroir `MAT` → `CS-MAT`) mais son circuit
+        libéral est **à part** : ce n'est pas là que l'écran sera jugé.
     - 📌 **Ordre de construction (arrêté 24/07) :** (1) `SECRETARIAT_CODE` dans CONFIG +
       `checkCode` renvoie le 3ᵉ rôle → (2) liste blanche refus-par-défaut → (3) action de lecture
       des absences, autonome, deux réponses selon le rôle → (4) action « qui peut prendre » →
