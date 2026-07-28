@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-28.6';
+const GAS_VERSION_INDISPOS = '2026-07-28.7';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1558,6 +1558,18 @@ if (!affSheet) {
       // jamais bloquant : la page repasse par getSecteurs / getCsTemplate.
       try { out.secteurs   = getSecteurs(); }   catch (e) { out.secteurs = null; }
       try { out.csTemplate = getCsTemplate(); } catch (e) { out.csTemplate = null; }
+      /* (28/07/2026, 15 h) LE COMPTEUR DE MAILS REJOINT LE BOOTSTRAP.
+         Un commentaire d'admin.html disait « NE JAMAIS le mettre dans
+         getAdminBootstrap : ~1 s ajoutee a chaque ouverture ». Cette regle est
+         PERIMEE et remplacee : la mesure du 28/07 donne 129 ms de travail reel
+         pour cette action, quand un appel separe coute 2,4 s au total (le peage
+         d'entree d'Apps Script, mesure a 2-3 s sur une requete vide). Le fusionner
+         SUPPRIME un appel de l'ouverture pour 0,13 s de serveur en plus.
+         Echec tolere : le badge est un confort, jamais une donnee critique. */
+      try {
+        const _lab = Gmail.Users.Labels.get('me', 'INBOX');
+        out.mailNonLus = Number(_lab.messagesUnread || 0);
+      } catch (e) { out.mailNonLus = null; }
       return ContentService.createTextOutput(JSON.stringify(out))
         .setMimeType(ContentService.MimeType.JSON);
     }
