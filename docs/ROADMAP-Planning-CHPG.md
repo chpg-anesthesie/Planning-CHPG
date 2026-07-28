@@ -609,6 +609,30 @@ ne coûte que 120 ms — impressionnant ≠ coûteux, gain estimé 0 à 300 ms) 
 `getAdminBootstrap` (**déjà fait le matin même** — le `login` observé au chronomètre était un repli
 après un bootstrap raté, pas un défaut).
 
+**Le prechargement du panneau a demande QUATRE versions dans l'apres-midi — fonction piegeuse,
+a ne pas modifier a la legere.** Les trois premieres ont ete livrees en production puis corrigees :
+1. **v1.12** — le suivi se faisait par *signature de semaine* : revenir sur une semaine deja
+   chargee relancait tout, et `renderWeek()` (rappele a chaque placement, pas seulement au
+   changement de semaine) declenchait un appel a chaque fois. **9 appels mesures en une session.**
+2. **v1.12.1** — corrige en suivant chaque *jour*, mais avec `if (_preEnCours) return;` :
+   sauter a une semaine lointaine pendant que la precedente chargeait encore (5-6 s) faisait
+   **abandonner definitivement** le chargement de la nouvelle → repli unitaire, 2 appels par jour.
+3. **v1.12.2** — enchainement corrige, mais un refus serveur sortait en silence sans marquer les
+   jours : `renderWeek` relancait indefiniment. **11 appels mesures**, dont plusieurs traites en
+   11 a 48 ms cote serveur (le temps d'une reponse d'erreur). Corrige en v1.12.3, qui trace
+   desormais l'echec en console (`[prechargement]`) et marque les jours « tentes ».
+4. **v1.13 — version finale, validee en production a 14:59** : le prechargement attend **500 ms
+   d'immobilite** avant de partir (traverser 12 semaines a la fleche = 1 appel au lieu de 12), et
+   un clic sur une case d'une semaine non prete declenche le chargement de **toute la semaine**
+   (1 appel) au lieu de 2 appels unitaires pour ce seul jour. Mesure de controle : 9 appels pour
+   9 semaines visitees, **aucun repli**, aucune attente superieure a 3,1 s.
+
+**Lecon de methode.** Les trois regressions ont un point commun : elles ne se voient QUE dans
+l'usage reel (navigation rapide, clic pendant un chargement, retour en arriere), jamais sur le
+chemin nominal. Toute modification de cette fonction doit etre testee sur ces scenarios AVANT
+d'etre poussee, pas apres. Les suites jsdom correspondantes sont decrites dans les commentaires
+du code — les rejouer avant toute intervention.
+
 **Point ouvert, non corrigé (hors périmètre) :** dans le tri serveur des MARs disponibles,
 `roleOrder[role] || 3` vaut **3 pour VOLANT** (sa valeur est `0`, falsy en JS) : les volants ne
 remontent pas en tête côté serveur. Sans effet visible (le frontend retrie par sections). Présent
