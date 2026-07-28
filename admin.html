@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.12.2'; // SITE_VERSION: v1.12.2
+const SITE_VERSION = 'v1.12.3'; // SITE_VERSION: v1.12.3
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.12.2</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.12.3</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -3516,7 +3516,19 @@ function prechargerSemaine(force) {
     if (!restant.length) return;          // le prechargement precedent a tout couvert
     return api({action: 'getPanneauSemaine', dates: restant})
     .then(res => {
-      if (!res || !res.success) return;
+      if (!res || !res.success) {
+        /* (28/07/2026, 14 h 50) UN ECHEC DOIT ETRE VISIBLE ET NE DOIT PAS BOUCLER.
+           Avant : un refus serveur sortait ici en silence sans marquer les jours,
+           donc CHAQUE rendu de semaine relancait l'appel — 11 appels mesures dans
+           une seule session a 14:40, dont plusieurs traites en 11 a 48 ms cote
+           serveur (le temps d'une reponse d'erreur, pas d'un traitement).
+           Desormais : le message est affiche en console, et les jours sont marques
+           « tentes » pour que le repli unitaire prenne la main sans relancer. */
+        console.warn('[prechargement] refus serveur :', (res && res.error) || 'reponse illisible',
+                     '| dates demandees :', restant.join(', '));
+        restant.forEach(d => { _preSemaine[d] = true; });
+        return;
+      }
       // On marque les dates DEMANDEES, pas celles renvoyees. Un jour hors
       // GARDES_{Y} (renvoye « absent ») ou absent de la reponse serait sinon
       // considere comme jamais precharge, et renderWeek relancerait un appel a
@@ -3530,7 +3542,10 @@ function prechargerSemaine(force) {
       Object.keys(res.liberal || {}).forEach(d => { _libJourCache[d] = res.liberal[d] || []; });
     });
   })
-    .catch(() => {})          // echec silencieux : le repli unitaire prendra le relais
+    .catch(e => {             // reseau ou exception : on TRACE, et on ne boucle pas
+      console.warn('[prechargement] echec reseau :', (e && e.message) || e);
+      try { _datesSemaineCourante().forEach(d => { _preSemaine[d] = true; }); } catch(_) {}
+    })
     .finally(() => { _preEnCours = null; });
 }
 // Un statut modifie change les dispos : on vide les caches et on recharge.
