@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.10.10'; // SITE_VERSION: v1.10.10
+const SITE_VERSION = 'v1.11'; // SITE_VERSION: v1.11
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.10</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.11</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1826,6 +1826,7 @@ async function ouvrirSession(code) {
       document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR; });
       const affYearEl = document.getElementById('affYear'); if(affYearEl) affYearEl.textContent = YEAR;
       await initDashboard();
+      _batchRestore();                     // placements d'une session precedente non confirmes
       setTimeout(majCompteurMail, 6000);   // (28/07) 6 s : ne doit PAS tourner en meme temps
                                            // que le chargement, sous peine de ralentir les deux
       // Ouvrir le wizard si appelé depuis dashboard
@@ -1865,6 +1866,7 @@ async function authenticate() {
         if (el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR;
       });
       await initDashboard();
+      _batchRestore();                     // voir auto-connexion
       setTimeout(majCompteurMail, 6000);   // (28/07) voir auto-connexion
     } else {
       if (errEl) { errEl.textContent = 'Code incorrect.'; errEl.style.display = 'block'; }
@@ -2016,7 +2018,12 @@ async function ouvrirMessage(id, bouton){
    generalise que j'avais ajoute le matin meme etait donc contre-productif.
    Il ne reste que getAdminBootstrap, parce que son echec coute le plus cher (repli
    sur six appels unitaires), et avec une pause franche pour laisser la file se vider. */
-const API_REJOUABLES = new Set(['getAdminBootstrap']);
+const API_REJOUABLES = new Set(['getAdminBootstrap',
+  // (28/07/2026) Le lot de placements est rejouable par construction : chaque
+  // ligne est visee par le couple (date, MAR) — renvoyer met a jour, ne duplique
+  // jamais. Et c'est UN appel par rafale, pas un par clic : le rejouer ne peut
+  // pas recreer l'engorgement mesure le matin.
+  'savePlanningOverridesBatch']);
 const API_PAUSE_REJEU = 1500;
 
 // Journal des appels : alimente le chronometre (voir chronoAPI() plus bas).
@@ -2119,6 +2126,158 @@ function apiSerie(payload) {
   _queueEcriture = p.catch(function () {});
   return p;
 }
+/* ── (28/07/2026) FILE GROUPEE DES PLACEMENTS ────────────────────────────
+   Mesure de 11:31 : 34 placements unitaires = ~15 s de moyenne par appel et
+   10 poses sur 34 rejetees en HTTP 404 — bridage Google sur le VOLUME de
+   requetes, que la serialisation du matin ordonnait sans le reduire.
+   On regroupe desormais : UN appel savePlanningOverridesBatch, 3 s apres le
+   dernier clic (envoi force toutes les 15 s si la pose continue). L'affichage,
+   lui, reste instantane (_localOverrides + renderWeek, inchange).
+   Garanties :
+   - badge visible en bas a gauche tant que le serveur n'a pas confirme ;
+   - lot rejouable sans doublon (chaque ligne visee par date+MAR) ;
+   - vidage BLOQUANT avant publication (publishPlanning attend) ;
+   - envoi de secours a la fermeture de l'onglet (sendBeacon) ;
+   - en-attente persiste dans localStorage : au rechargement, renvoye. */
+let _batchPending = {};      // 'date|MARID' → {date, marId, morning, afternoon, comment}
+let _batchInFlight = null;   // lot parti au serveur, pas encore confirme
+let _batchTimer = null;      // debounce 3 s
+let _batchMaxTimer = null;   // envoi force 15 s
+let _batchFlushing = null;   // Promise du vidage en cours
+const BATCH_DEBOUNCE_MS = 3000;
+const BATCH_MAX_WAIT_MS = 15000;
+const BATCH_LS_KEY = 'adminBatchPending';
+
+// Fusion demi-jour par demi-jour : `over` (plus recent) gagne la ou il pose.
+function _batchMerge(base, over) {
+  const out = Object.assign({}, base);
+  if (over.morning != null && over.morning !== '') out.morning = over.morning;
+  if (over.afternoon != null && over.afternoon !== '') out.afternoon = over.afternoon;
+  if (over.comment) out.comment = over.comment;
+  return out;
+}
+function _batchAll() { // en vol + en attente, l'attente (plus recente) gagne par demi-jour
+  const all = Object.assign({}, _batchInFlight || {});
+  Object.keys(_batchPending).forEach(k => {
+    all[k] = all[k] ? _batchMerge(all[k], _batchPending[k]) : _batchPending[k];
+  });
+  return all;
+}
+function _batchTotal() { return Object.keys(_batchAll()).length; }
+// Le localStorage garde TOUT ce qui n'est pas confirme (en vol compris) : un
+// crash en plein envoi ne perd rien, le rechargement renverra le lot.
+function _batchPersist() {
+  try {
+    const all = _batchAll();
+    if (Object.keys(all).length) localStorage.setItem(BATCH_LS_KEY, JSON.stringify(all));
+    else localStorage.removeItem(BATCH_LS_KEY);
+  } catch(e) {}
+}
+function _batchRestore() {
+  try {
+    const raw = localStorage.getItem(BATCH_LS_KEY);
+    if (!raw) return;
+    const o = JSON.parse(raw);
+    if (o && typeof o === 'object' && Object.keys(o).length) {
+      Object.keys(o).forEach(k => {
+        _batchPending[k] = _batchPending[k] ? _batchMerge(o[k], _batchPending[k]) : o[k];
+      });
+      _batchBadge();
+      flushBatch();   // placements d'une session precedente jamais confirmes → renvoi
+    }
+  } catch(e) {}
+}
+function _batchBadge(err) {
+  let b = document.getElementById('batchBadge');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'batchBadge';
+    b.style.cssText = 'position:fixed;bottom:18px;left:18px;z-index:9998;background:var(--white);border:1px solid var(--line);border-radius:12px;padding:8px 14px;font-size:12px;font-weight:700;box-shadow:0 4px 14px rgba(15,23,42,.12);cursor:pointer;display:none;font-family:inherit;color:var(--ink-3);';
+    b.title = 'Cliquer pour enregistrer maintenant';
+    b.onclick = () => flushBatch();
+    document.body.appendChild(b);
+  }
+  const n = _batchTotal();
+  if (!n) { b.style.display = 'none'; return; }
+  b.style.display = 'block';
+  if (err) {
+    b.style.borderColor = '#FCA5A5'; b.style.color = '#991B1B';
+    b.textContent = '⚠️ ' + n + ' placement(s) non enregistré(s) — cliquer pour réessayer';
+  } else if (_batchFlushing) {
+    b.style.borderColor = 'var(--line)'; b.style.color = 'var(--ink-3)';
+    b.textContent = '⏳ Enregistrement de ' + n + ' placement(s)…';
+  } else {
+    b.style.borderColor = 'var(--line)'; b.style.color = 'var(--ink-3)';
+    b.textContent = '⏳ ' + n + ' placement(s) en attente d\'enregistrement';
+  }
+}
+// Pose un demi-jour dans la file (l'ecran, lui, est deja a jour).
+function queueOverride(date, marId, slotKey, value, comment) {
+  const key = date + '|' + marId;
+  if (!_batchPending[key]) _batchPending[key] = {date: date, marId: marId, morning: null, afternoon: null, comment: ''};
+  _batchPending[key][slotKey === 'am' ? 'morning' : 'afternoon'] = value;
+  if (comment) _batchPending[key].comment = comment;
+  _batchPersist();
+  _batchBadge();
+  clearTimeout(_batchTimer);
+  _batchTimer = setTimeout(flushBatch, BATCH_DEBOUNCE_MS);
+  if (!_batchMaxTimer) _batchMaxTimer = setTimeout(flushBatch, BATCH_MAX_WAIT_MS);
+}
+// Vide la file : UN appel pour tout le lot. Renvoie true si tout est confirme.
+async function flushBatch() {
+  if (_batchFlushing) return _batchFlushing;
+  if (!Object.keys(_batchPending).length) return true;
+  clearTimeout(_batchTimer); _batchTimer = null;
+  clearTimeout(_batchMaxTimer); _batchMaxTimer = null;
+  const lot = _batchPending;
+  _batchPending = {};
+  _batchInFlight = lot;
+  _batchPersist();
+  const items = Object.keys(lot).map(k => lot[k]);
+  _batchFlushing = (async () => {
+    try {
+      _batchBadge();
+      const res = await api({action: 'savePlanningOverridesBatch', items: items});
+      if (!res.success) throw new Error(res.error || 'refus serveur');
+      _batchInFlight = null;
+      _batchPersist();
+      _batchBadge();
+      showToast('✅ ' + (res.saved != null ? res.saved : items.length) + ' placement(s) enregistré(s)');
+      markPending();
+      return true;
+    } catch(e) {
+      // Echec (transport apres rejeu, ou refus) : RIEN n'est perdu — le lot
+      // revient dans la file (sans ecraser ce qui a ete repose entre-temps),
+      // badge rouge cliquable, et nouvel essai automatique dans 15 s.
+      Object.keys(lot).forEach(k => {
+        _batchPending[k] = _batchPending[k] ? _batchMerge(lot[k], _batchPending[k]) : lot[k];
+      });
+      _batchInFlight = null;
+      _batchPersist();
+      _batchBadge(true);
+      if (!_batchMaxTimer) _batchMaxTimer = setTimeout(flushBatch, BATCH_MAX_WAIT_MS);
+      return false;
+    } finally {
+      _batchFlushing = null;
+    }
+  })();
+  return _batchFlushing;
+}
+// Envoi de secours a la fermeture / mise en arriere-plan de l'onglet :
+// sendBeacon part meme quand la page se ferme. Le lot etant rejouable, un
+// double envoi (beacon + renvoi au rechargement) est sans consequence.
+function _batchBeacon() {
+  const all = _batchAll();
+  const items = Object.keys(all).map(k => all[k]);
+  if (!items.length || !navigator.sendBeacon || !ADMIN_CODE) return;
+  try {
+    const body = JSON.stringify({action: 'savePlanningOverridesBatch', code: ADMIN_CODE, items: items});
+    navigator.sendBeacon(API_URL, new Blob([body], {type: 'text/plain;charset=utf-8'}));
+  } catch(e) {}
+}
+window.addEventListener('pagehide', _batchBeacon);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _batchBeacon(); });
+
 // Barre de chargement globale (même pattern qu'index/dashboard) : feedback
 // visuel sur TOUT appel API — plus aucun clic « muet ». Compteur : gère les
 // appels parallèles (Promise.all).
@@ -3587,39 +3746,13 @@ async function placeMAR(marId, marInit, mode) {
   closeSidePanel();
   renderWeek();  // applique automatiquement _localOverrides via PATCH 2
 
-  // 3. Appel API en arrière-plan → GAS écrit dans PLANNING_OVERRIDES et push JSON
-  showToast('⏳ Enregistrement…');
-  try {
-    const res = await apiSerie({
-      action: 'savePlanningOverride',
-      date, marId,
-      // N'envoyer QUE le demi-jour réellement modifié ; l'autre = null = « ne pas toucher »
-      // (empêche le serveur de recopier/effacer l'autre demi-jour).
-      morning:   slotKey === 'am' ? (_localOverrides[date][marId].am || '') : null,
-      afternoon: slotKey === 'pm' ? (_localOverrides[date][marId].pm || '') : null,
-      comment:   ctx.lib ? 'LIB' : `Comité — ${value} ${slotKey.toUpperCase()}`
-    });
-    if (!res.success) throw new Error(res.error);
-    showToast(`✅ ${marId} en ${value} — enregistré`);
-    markPending();
-  } catch(e) {
-    if (e && e.transport) {
-      // La REPONSE s'est perdue, pas l'action : Google execute le script AVANT de
-      // renvoyer quoi que ce soit. Effacer le placement ici, c'est defaire a l'ecran
-      // ce que le classeur a enregistre — et donner l'impression qu'il faut recommencer.
-      // On le GARDE, et on le dit franchement.
-      showToast('⚠️ ' + marId + ' en ' + value + ' — enregistrement non confirmé, à vérifier avant publication');
-      markPending();
-    } else {
-      // Le serveur a REPONDU et refuse : la, il a raison, on annule.
-      showToast('Erreur API : ' + e.message);
-      if (_localOverrides[date]?.[marId]) {
-        _localOverrides[date][marId][slotKey] = null;
-      }
-      saveLocalEdits();
-      renderWeek();
-    }
-  }
+  // 3. File groupee : UN appel savePlanningOverridesBatch pour toute la rafale,
+  // 3 s apres le dernier clic. L'ecran est deja a jour ; le badge en bas a
+  // gauche suit l'enregistrement reel. Plus d'appel unitaire par clic — c'est
+  // le volume d'appels qui saturait la Web App (HTTP 404 mesures le 28/07).
+  // NB : plus de retour arriere par placement — un refus serveur laisse le lot
+  // dans la file (badge rouge cliquable), rien ne se defait silencieusement.
+  queueOverride(date, marId, slotKey, value, ctx.lib ? 'LIB' : `Comité — ${value} ${slotKey.toUpperCase()}`);
 }
 
 // ── Menu déplacer / retirer un MAR déjà posté (clic sur sa pastille) ──
@@ -3697,16 +3830,11 @@ function reopenConsult(type, date, slotKey) {
   if (typeof showToast === 'function') showToast('Consultation rouverte');
 }
 // Sauvegarde d'un override en arrière-plan (sans bloquer le rendu)
-async function _saveOverrideBg(marId, date, slotKey, why) {
-  try {
-    await apiSerie({
-      action: 'savePlanningOverride', date, marId,
-      morning:   slotKey === 'am' ? (_localOverrides[date][marId].am || '') : null,
-      afternoon: slotKey === 'pm' ? (_localOverrides[date][marId].pm || '') : null,
-      comment:   `Comité — ${why} ${slotKey.toUpperCase()}`
-    });
-    markPending();
-  } catch(e) {}
+// (28/07/2026) passe par la file groupee, comme placeMAR.
+function _saveOverrideBg(marId, date, slotKey, why) {
+  const v = (_localOverrides[date] && _localOverrides[date][marId] && _localOverrides[date][marId][slotKey]) || '';
+  if (!v) return;   // '' = « ne pas toucher » cote serveur : inutile d'envoyer
+  queueOverride(date, marId, slotKey, v, `Comité — ${why} ${slotKey.toUpperCase()}`);
 }
 
 function moveMARTo(marId, marInit, targetSector) {
@@ -6894,6 +7022,14 @@ function _semainesModifiees() {
   return nums;
 }
 async function publishPlanning() {
+  // (28/07/2026) Vidage BLOQUANT de la file groupee : on ne publie JAMAIS avec
+  // des placements non ecrits dans le classeur — la publication est reconstruite
+  // depuis le classeur, ce qui n'y serait pas disparaitrait du planning publie.
+  if (_batchTotal() > 0) {
+    toast('⏳ Enregistrement des placements en attente…');
+    const _okFlush = await flushBatch();
+    if (!_okFlush) { toast('❌ Placements non enregistrés — publication annulée, réessayez dans un instant.', 'error'); return; }
+  }
   // Filet de complétude : avant de rendre le planning visible aux MARs, on liste
   // les présents non placés dans les SEMAINES MODIFIÉES cette session (regroupé
   // par semaine). Le comité peut corriger ou publier quand même.
