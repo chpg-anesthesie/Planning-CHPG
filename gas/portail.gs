@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-27.8';
+const GAS_VERSION_PORTAIL = '2026-07-28.1';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1776,7 +1776,11 @@ function getOrCreateCsTemplateTab() {
   };
   if (!sh) { sh = ss.insertSheet(CS_TEMPLATE_TAB); amorcer(); }
   else if (sh.getLastRow() < 2) { amorcer(); }
-  else _migrerColonnesXlCs_(sh);   // onglet déjà rempli → compléter si besoin
+  // (28/07/2026 perf) Meme raison que pour SECTEURS : getCsTemplate coutait 687 ms
+  // parce que la migration relisait tout l'onglet une seconde fois. Elle ne tourne
+  // plus que si des colonnes manquent. getCsTemplate() a ses propres defauts pour
+  // les cellules XL vides.
+  else if (sh.getLastColumn() < _CS_TEMPLATE_HEADER.length) _migrerColonnesXlCs_(sh);
   return sh;
 }
 
@@ -1881,8 +1885,16 @@ function getOrCreateSecteursTab() {
     sh.getRange(1, 1, 1, _SECTEURS_HEADER.length).setValues([_SECTEURS_HEADER]).setFontWeight('bold');
     sh.getRange(2, 1, _SECTEURS_SEED.length, _SECTEURS_HEADER.length).setValues(_SECTEURS_SEED);
     sh.setFrozenRows(1);
-  } else {
-    _migrerColonnesXL_(sh);   // onglet déjà rempli → compléter si besoin
+  } else if (sh.getLastColumn() < _SECTEURS_HEADER.length) {
+    // (28/07/2026 perf) La migration XL de juillet n'est PLUS jouee a chaque appel.
+    // Mesure du 28/07 : getSecteurs coutait 749 ms contre ~200 ms pour une lecture
+    // simple, parce que _migrerColonnesXL_ relisait l'onglet EN ENTIER une seconde
+    // fois — et ecrivait, dans une action de LECTURE qui ne prend pas le verrou.
+    // Elle tourne desormais uniquement si des colonnes manquent reellement, ce qui
+    // conserve le filet de securite d'un ajout futur de colonne.
+    // Les cellules XL vides sont deja couvertes : getSecteurs() applique un defaut
+    // (COURT en majuscules pour le libelle, gris clair pour le fond).
+    _migrerColonnesXL_(sh);
   }
   return sh;
 }
