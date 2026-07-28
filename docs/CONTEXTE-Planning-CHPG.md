@@ -295,11 +295,20 @@ patient), pour ne créer ni donnée patient ni travail aux secrétaires des chir
   **code partagé du secrétariat**, nouveau, rangé dans `CONFIG`, de **forme distincte** des codes
   MAR (pour désambiguïser au login) et **changeable en une ligne** s'il circule trop.
   → **Nommer par la fonction, pas par l'utilisateur** : `absences.html` /
-  `controle-absences.html` — **pas** `secretariat.html`, puisque tous les MARs y accèdent aussi.
-- **Intégration `dashboard.html` : tuile pour TOUS les MARs**, pas seulement `LIBERAL = O` (à la
-  différence de la tuile « Module libéral », `dashboard.html` l.556). Deux obligations dans le
-  **même push** : page visible → **bump de version du site (2ᵉ chiffre, feature)** ; page MAR →
-  **mise à jour de `docs/guide-mar.html`**.
+  `controle-absences.html` — **pas** `secretariat.html`.
+- ✅ **Périmètre — acté 28/07/2026 : cet écran ne concerne QUE le libéral**, jamais le public.
+  Conséquences directes : la tuile porte `liberal:true` (**réservée au groupement**, `LIBERAL = O`,
+  19 membres) ; seuls les membres du groupement sont proposés comme remplaçants — un non-membre ne
+  peut pas prendre un patient libéral ; le serveur ne renvoie aucun montant à un non-membre
+  (`if (!user.liberal)` dans `getConsultAbsences`), le masquage de la tuile ne protégeant rien
+  puisque la page est publique.
+- **Classement des remplaçants — 28/07/2026.** Marge CCAM décroissante, calculée **côté serveur**
+  dans `getConsultAbsences` : `getReleveLiberal` reste hors de `SECRETARIAT_ACTIONS`, et la réponse
+  ne transporte qu'une marge par MAR, jamais tarifs, pourcentages ni excédents. L'appartenance vient
+  de la **colonne `LIBERAL` de MEDECINS**, jamais du relevé — un membre au mois non saisi serait
+  sinon retiré à tort. Aucune troncature : tous les candidats sont affichés.
+  → Le jour où le secrétariat prend cette mission : remplacer la valeur par un rang quand
+  `avecMotifs === false`. Une ligne, un seul endroit, la page ne bouge pas.
 - 🔒 **Motif d'absence : VISIBILITÉ SELON LE RÔLE (acté 24/07).** Session **MAR** (code personnel,
   via la tuile Dashboard) → dates **+ motifs**. Justification : les MARs voient déjà le planning
   complet dans `index.html`, leur masquer le motif n'aurait aucun sens. Session **secrétariat**
