@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-28.5';
+const GAS_VERSION_INDISPOS = '2026-07-28.6';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -2937,6 +2937,139 @@ if (action === 'validerSemaine') {
     return ContentService.createTextOutput(JSON.stringify({
       success: true,
       isoWeek, year: yearVal, validated: valide
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch(e) {
+    return _error(e.message);
+  }
+}
+
+// ── ACTION : getPanneauSemaine ────────────────────────────────────────
+// (28/07/2026) UN SEUL APPEL POUR TOUTE LA SEMAINE.
+// Mesure du jour : une requete qui ne fait RIEN (17 ms de travail) coute 2 a 3 s
+// d'attente a la porte d'entree Google — identique sur un deploiement neuf, donc
+// hors de notre controle. Le seul levier est de payer ce peage moins souvent.
+// Le panneau de placement coutait 2 appels PAR JOUR ouvert (dispos + liberal) ;
+// il n'en coute plus qu'UN pour les 7 jours, lance en arriere-plan des l'affichage
+// de la semaine. Au clic, le panneau s'ouvre sans aucun appel.
+// Le surcout serveur est faible : les onglets (GARDES, AFFECTATIONS, MEDECINS)
+// sont lus UNE fois pour les 7 jours, la ou getMARsDispoJour les relisait a chaque
+// appel. Seule la boucle par jour se repete, sur des donnees deja en memoire.
+// payload : { action, code, dates:[ '2026-08-03', … ] }  (1 a 10 dates)
+if (action === 'getPanneauSemaine') {
+  if (user.role !== 'admin') return _deny();
+  const dates = Array.isArray(payload.dates) ? payload.dates.map(function(d){ return String(d||'').trim(); }).filter(Boolean) : [];
+  if (!dates.length) return _error('dates requises');
+  if (dates.length > 10) return _error('10 dates maximum');
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    // Une seule annee par appel : la semaine a cheval sur deux annees civiles reste
+    // dans la meme annee de planning (GARDES_{Y} couvre jusqu'a debut janvier).
+    const year = Number(dates[0].slice(0,4));
+    const gardesSheet = ss.getSheetByName('GARDES_' + year);
+    if (!gardesSheet) return _error('GARDES_' + year + ' introuvable');
+
+    // ── Lectures MUTUALISEES : une fois pour les 7 jours ──
+    const gardesData = gardesSheet.getDataRange().getValues();
+    const dateToCol  = buildDateToCol(gardesData, year);
+    const affSheet   = ss.getSheetByName('AFFECTATIONS_' + year);
+    const affData    = affSheet ? affSheet.getDataRange().getValues() : null;
+    const medSheet   = ss.getSheetByName('MEDECINS');
+    const actifs = [];
+    const initMap = {};
+    if (medSheet) {
+      const medData = medSheet.getDataRange().getValues();
+      for (let r = 1; r < medData.length; r++) {
+        const id = String(medData[r][0]).trim();
+        if (!id) continue;
+        initMap[id] = String(medData[r][2] || '').trim();
+        if (String(medData[r][3]).trim().toUpperCase() === 'O') actifs.push(id);
+      }
+    }
+    const FLAGS = getMedecinFlags();
+    const ABSENT_CODES_SET = new Set(['RG','V','CP','F','CTP','A','CL']);
+    // Affectations par mois : memoisees, la semaine ne couvre au plus que deux mois.
+    const affParMois = {};
+    const _affDuMois = function (monthIdx) {
+      if (affParMois[monthIdx]) return affParMois[monthIdx];
+      const m = {};
+      if (affData) {
+        for (let r = 1; r < affData.length; r++) {
+          const id = String(affData[r][0]).trim();
+          if (!id) continue;
+          m[id] = normalizeAffectation(String(affData[r][monthIdx] || '').trim().toUpperCase());
+        }
+      }
+      affParMois[monthIdx] = m;
+      return m;
+    };
+    const roleOrder = {VOLANT:0, CTP:1, R:2, PRESENT:3, TP:4};
+
+    // ── Dispos : meme logique que getMARsDispoJour, repetee par jour ──
+    const jours = {};
+    dates.forEach(function (targetDate) {
+      const colIdx = dateToCol[targetDate];
+      if (colIdx === undefined) { jours[targetDate] = {dispo: [], absent: true}; return; }
+      const affMap = _affDuMois(new Date(targetDate + 'T12:00:00').getMonth() + 1);
+      const codeById = {};
+      for (let r = 3; r < gardesData.length; r++) {
+        const gid = String(gardesData[r][0]).trim();
+        if (gid) codeById[gid] = String(gardesData[r][colIdx] || '').trim().toUpperCase();
+      }
+      const dow = new Date(targetDate + 'T12:00:00').getDay();
+      const dispo = [];
+      actifs.forEach(function (id) {
+        let code = codeById[id] || '';
+        const _tp = FLAGS.tpJoursFixes[id];
+        if (!code && _tp && _tp.has(dow)) code = 'TP';
+        if (ABSENT_CODES_SET.has(code)) return;
+        const _dd = FLAGS.dateDebut[id], _df = FLAGS.dateFin[id];
+        if (_dd && targetDate < _dd) return;
+        if (_df && targetDate >= _df) return;
+        if (estSemaineOff(id, targetDate)) return;
+        const secteur = affMap[id] || 'VOLANT';
+        let role;
+        if (code === 'TP') role = 'TP';
+        else if (code === 'R') role = 'R';
+        else if (secteur === 'VOLANT') role = 'VOLANT';
+        else role = 'PRESENT';
+        dispo.push({ id: id, init: initMap[id] || id, role: role, secteur: secteur, code: code || 'PRESENT' });
+      });
+      dispo.sort(function (a, b) { return (roleOrder[a.role]||3) - (roleOrder[b.role]||3); });
+      jours[targetDate] = {dispo: dispo};
+    });
+
+    // ── Liberal : l'onglet LIBERAL_{Y} lu UNE fois pour les 7 jours ──
+    // (listLiberalJour le relisait entierement a chaque jour ouvert)
+    const liberal = {};
+    dates.forEach(function (d) { liberal[d] = []; });
+    try {
+      const libSh = ss.getSheetByName(_libSheetName(_libYearOf(dates[0])));
+      if (libSh) {
+        const libData = libSh.getDataRange().getValues();
+        for (let r = 1; r < libData.length; r++) {
+          const dBloc = _isoDate(libData[r][2]);
+          if (!liberal.hasOwnProperty(dBloc)) continue;
+          liberal[dBloc].push({
+            id:         String(libData[r][0]),
+            marId:      String(libData[r][3]).trim(),
+            secteur:    String(libData[r][4]).trim().toUpperCase(),
+            chirurgie:  String(libData[r][5] || '').trim(),
+            specialite: String(libData[r][6] || '').trim().toUpperCase(),
+            brCcam:     _libMoney_(libData[r][7]),
+            brNgap:     _libMoney_(libData[r][8]),
+          });
+        }
+        Object.keys(liberal).forEach(function (d) {
+          liberal[d].sort(function (a, b) { return String(a.marId).localeCompare(String(b.marId)); });
+        });
+      }
+    } catch(e) {
+      // Le volet liberal est un confort : son echec ne doit jamais priver le comite
+      // des dispos. On renvoie des listes vides plutot qu'une erreur.
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true, dates: dates, jours: jours, liberal: liberal
     })).setMimeType(ContentService.MimeType.JSON);
   } catch(e) {
     return _error(e.message);
