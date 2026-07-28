@@ -440,16 +440,57 @@ function rendreAlt(){
   const box = document.getElementById('pAlt');
   if(!pick || !curSlot){ box.innerHTML=''; return; }
   const p = pick, secteur = curSlot.cs;
-  const absentSur = (id)=>{
+  const total = p.finIdx - p.debIdx + 1;
+  // Absence d'un MAR un JOUR donné (index dans JOURS_ALL).
+  const absentLe = (id, i)=>{
     const l = (DATA.absences && DATA.absences[id]) || [];
-    for(const a of l){ const i = IDX[a.d]; if(i>=p.debIdx && i<=p.finIdx) return true; }
+    for(const a of l){ if(IDX[a.d] === i) return true; }
     return false;
   };
-  const csAvant = (id)=> (DATA.consultations||[])
-    .filter(x=> x.mar===id && IDX[x.date] !== undefined && IDX[x.date] < p.debIdx)
-    .sort((a,b)=> a.date < b.date ? -1 : 1);
+  // Toutes ses consultations de la fenêtre, de la plus ancienne à la plus récente.
+  const csDe = (id)=> (DATA.consultations||[])
+    .filter(x=> x.mar===id && IDX[x.date] !== undefined)
+    .sort((a,b)=> IDX[a.date] - IDX[b.date]);
+  /* COUVERTURE JOUR PAR JOUR (28/07/2026) — remplace deux critères absolus qui
+     vidaient l'écran sur les longues absences :
+       • « présent sur TOUTE la période » écartait quiconque avait un seul jour
+         d'absence sur 19 jours ouvrés — en août, tout le monde ;
+       • « consultation avant le DÉBUT de la période » ne laissait éligibles que
+         les consultations déjà passées, soit une seule journée.
+     Le patient est opéré UN jour, pas pendant toute la période. Un confrère couvre
+     le jour i s'il est présent ce jour-là ET a une consultation strictement avant —
+     y compris une consultation qui tombe PENDANT la période : il voit le patient
+     ce jour-là et l'opère plus tard. Renvoie les plages de jours consécutifs. */
+  const couverture = (id)=>{
+    const cs = csDe(id); if(!cs.length) return null;
+    const c0 = IDX[cs[0].date];                   // sa première consultation
+    const plages = [];
+    for(let i=p.debIdx; i<=p.finIdx; i++){
+      if(i <= c0 || absentLe(id, i)) continue;
+      const L = plages[plages.length-1];
+      if(L && i === L.fin+1) L.fin = i; else plages.push({deb:i, fin:i});
+    }
+    if(!plages.length) return null;
+    return {plages: plages, nb: plages.reduce((n,x)=> n + (x.fin-x.deb+1), 0), cs: cs};
+  };
+  const COUV = {};
+  const tous = Object.keys(DATA.noms||{});
+  // GROUPEMENT SEULEMENT (28/07/2026). Un MAR hors groupement ne peut pas prendre en
+  // charge un patient libéral : le proposer n'aurait pas de sens. Source = colonne
+  // LIBERAL de MEDECINS transmise par le serveur, jamais le relevé mensuel.
+  // Repli : si le serveur ne transmet rien (ancienne version déployée), on n'exclut
+  // personne — l'écran dégrade vers son comportement précédent au lieu de se vider.
+  const GRP = (DATA && DATA.groupement) || null;
+  const dispo = tous.filter(id=>{
+    if(id === curSlot.mar) return false;
+    if(GRP && !GRP[id]) return false;
+    const cv = couverture(id);
+    if(!cv) return false;
+    COUV[id] = cv; return true;
+  });
+  const plageTxt = (x)=> libPlage({deb:JOURS_ALL[x.deb], fin:JOURS_ALL[x.fin]});
   const ligne = (id)=>{
-    const cs = csAvant(id);
+    const cv = COUV[id];
     // Marge CCAM : affichée au MAR seulement (MARGE reste vide pour le secrétariat).
     const m = MARGE[id];
     const mr = (m == null) ? null : Math.round(m);
@@ -458,34 +499,30 @@ function rendreAlt(){
       '<span class="marge" style="margin-left:8px;font-family:var(--mono);font-size:11px;font-weight:700;'
       + 'color:' + (mr > 0 ? 'var(--ok)' : (mr < 0 ? 'var(--rose)' : 'var(--ink-3)')) + '">'
       + (mr > 0 ? '+ ' : (mr < 0 ? '− ' : '')) + Math.abs(mr).toLocaleString('fr-FR') + ' €</span>';
-    return '<div class="person"><b>'+nomDe(id)+'</b>'+chip+'<span class="cs">'+
-      cs.slice(0,2).map(x=> libDate(x.date)+' '+(x.per==='am'?'matin':'ap.-midi')).join(' · ')+
-      (cs.length>2 ? ' +'+(cs.length-2) : '')+'</span></div>';
+    const quand = (cv.nb === total)
+      ? 'couvre toute la période'
+      : 'couvre ' + cv.plages.slice(0,2).map(plageTxt).join(' · ')
+        + (cv.plages.length > 2 ? ' +' + (cv.plages.length-2) : '');
+    return '<div class="person"><b>'+nomDe(id)+'</b>'+chip+
+      '<span class="cs">'+quand+' · consulte '+libDate(cv.cs[0].date)+
+      ' '+(cv.cs[0].per==='am'?'matin':'ap.-midi')+'</span></div>';
   };
-  const tous = Object.keys(DATA.noms||{});
-  // GROUPEMENT SEULEMENT (28/07/2026). Un MAR hors groupement ne peut pas prendre en
-  // charge un patient libéral : le proposer n'aurait pas de sens. Source = colonne
-  // LIBERAL de MEDECINS transmise par le serveur, jamais le relevé mensuel.
-  // Repli : si le serveur ne transmet rien (ancienne version déployée), on n'exclut
-  // personne — l'écran dégrade vers son comportement précédent au lieu de se vider.
-  const GRP = (DATA && DATA.groupement) || null;
-  const dispo = tous.filter(id=> id!==curSlot.mar && !absentSur(id) && csAvant(id).length
-                              && (!GRP || GRP[id]));
   // TRI PAR MARGE CCAM DÉCROISSANTE (27/07/2026). Une consultation libérale déclenche
   // un bloc : c'est l'axe CCAM qui portera la charge, pas le NGAP. Reprendre le patient
   // d'un confrère doit donc se faire vers celui qui a le plus de place au BLOC.
-  // Sans relevé chargé (secrétariat, ou portail injoignable), l'ordre d'origine est
-  // conservé : la fonctionnalité dégrade, elle ne casse pas.
-  // Marge décroissante : le plus de place au bloc d'abord. Un membre dont le relevé
-  // du mois n'est pas encore saisi n'a pas de chiffre : il passe en fin de liste,
-  // sans pastille — il reste proposable, on ne sait simplement pas où il en est.
-  const parMarge = (a,b) => (MARGE[b] == null ? -1e12 : MARGE[b]) - (MARGE[a] == null ? -1e12 : MARGE[a]);
-  const meme  = dispo.filter(id=> csAvant(id).some(x=> x.cs === secteur)).sort(parMarge);
+  // Un membre dont le relevé du mois n'est pas encore saisi n'a pas de chiffre : il
+  // passe en fin de liste, sans pastille — il reste proposable.
+  // À marge égale (ou sans chiffre), la plus large couverture d'abord.
+  const parMarge = (a,b) =>
+    ((MARGE[b] == null ? -1e12 : MARGE[b]) - (MARGE[a] == null ? -1e12 : MARGE[a]))
+    || (COUV[b].nb - COUV[a].nb);
+  const meme  = dispo.filter(id=> COUV[id].cs.some(x=> x.cs === secteur)).sort(parMarge);
   const autres= dispo.filter(id=> meme.indexOf(id) < 0).sort(parMarge);
 
   let h = '<div class="alt"><h4>Patient opéré '+(nbJours(p)>1?'entre le ':'le ')+libPlage(p)+
-    ' — qui peut le voir ?</h4><div class="why">Membres du groupement présents '+
-    (nbJours(p)>1?'sur toute la période':'ce jour-là')+', ayant une consultation avant.</div>';
+    ' — qui peut le voir ?</h4><div class="why">Membres du groupement ayant une consultation '+
+    'avant la date d\'intervention et présents ce jour-là. La plage indiquée est celle '+
+    'que chacun couvre.</div>';
   if(MARGE_OK) h += '<div class="why" style="margin-top:-4px">Classés par <b>marge libérale restante au bloc</b> '
     + '(axe CCAM, dernier relevé' + (MARGE_MOIS ? ' — ' + MARGE_MOIS : '') + '). '
     + 'L\'ordre est fiable, le montant est indicatif : ce qui a été facturé depuis n\'y figure pas.</div>';
