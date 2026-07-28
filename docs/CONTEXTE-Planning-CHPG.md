@@ -530,6 +530,20 @@ succès du 28/07 viennent de là — placements groupés (34 appels → 1) et pa
   Lecture seule, à lancer depuis l'éditeur Apps Script, résultat dans le Journal d'exécution.
 - Menu **Exécutions** d'Apps Script : durée réelle côté serveur, à croiser avec `chronoAPI()`.
 
+**Ouverture d'admin : UN SEUL appel bloquant** (`getAdminBootstrap`), plus le préchargement du
+panneau en arrière-plan. Le bootstrap livre identité, planning, affectations, médecins,
+overrides, secteurs, modèle de consultations, compteur de mails ET l'existence de l'année
+suivante (`anneeSuivante`). **Avant d'ajouter un appel à l'ouverture, se demander s'il ne peut
+pas rejoindre le bootstrap** : un appel séparé coûte ~2,5 s de péage pour souvent moins de
+200 ms de travail.
+
+**Apps Script n'offre AUCUNE garantie de performance.** Service gratuit, partagé, sans
+engagement pour un compte personnel. Le 28/07, le même code est passé de 3,1 à 6,1 s côté
+serveur en trois heures, sans panne déclarée et sans rapport avec le réseau (partage 4G le
+matin, wifi domestique l'après-midi, même résultat). C'est le régime normal de la plateforme,
+pas un incident. Le vrai enjeu d'un changement d'hébergement n'est donc pas la vitesse moyenne
+mais la **prévisibilité**.
+
 **Méthode : ne jamais optimiser sur une base instable.** Le 28/07 après-midi, `getAdminBootstrap`
 est passé de 3 135 à 5 712 ms **sans changement de code** ; mesurer un gain y était impossible.
 Prendre la mesure de référence le matin.
