@@ -8,9 +8,12 @@
   <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Administration · Planning CHPG Monaco</title>
+<link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+<!-- (28/07/2026 perf) ExcelJS N'EST PLUS charge ici : 948 Ko bloquants a CHAQUE ouverture
+     pour une fonction utilisee une fois par semaine. Il est telecharge au premier clic
+     sur « Export Excel » par _chargerExcelJS(). Ne pas remettre de balise ici. -->
 <style>
 :root {
   --red: #CE1126;
@@ -959,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.10.4'; // SITE_VERSION: v1.10.4
+const SITE_VERSION = 'v1.10.5'; // SITE_VERSION: v1.10.5
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1052,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.4</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.5</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1777,7 +1780,7 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
     // valide chacun. Année omise → le serveur prend l'année active. Consommé par initDashboard.
     window.__bootPromise = fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({action:'getAdminBootstrap', code: saved}), redirect:'follow'})
-      .then(r => r.json()).catch(() => null);
+      .then(r => r.ok ? r.json() : null).catch(() => null);
     const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({action:'login', code: saved}), redirect:'follow'});  // (B3) POST : le code ne transite plus dans l'URL
     const data = await res.json();
@@ -1820,7 +1823,7 @@ async function authenticate() {
     // (perf) Bootstrap en parallèle du login (voir auto-login) — consommé par initDashboard.
     window.__bootPromise = fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({action:'getAdminBootstrap', code}), redirect:'follow'})
-      .then(r => r.json()).catch(() => null);
+      .then(r => r.ok ? r.json() : null).catch(() => null);
     const res = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({action:'login', code}),
       signal: ctrl.signal, redirect: 'follow'});  // (B3) POST : le code ne transite plus dans l'URL
@@ -1986,6 +1989,20 @@ async function api(payload) {
     if (e && e.name === 'AbortError') throw new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable, réessayez');
     throw e;
   } finally { clearTimeout(_timer); _apiBar(false); }
+}
+// (28/07/2026) FILE D'ATTENTE DES ECRITURES.
+// savePlanningOverride prend un verrou de script de 15 s cote serveur (code.gs) :
+// deux poses simultanees se bousculent sur ce verrou et la 2e revient en erreur.
+// Symptome constate : « Erreur API » des que le comite place les MARs rapidement.
+// apiSerie enchaine les appels un par un. L'affichage, lui, reste instantane
+// (renderWeek a deja eu lieu quand l'appel part) : rien ne ralentit pour l'utilisateur.
+// A n'utiliser QUE pour les ecritures ; les lectures doivent rester paralleles.
+let _queueEcriture = Promise.resolve();
+function apiSerie(payload) {
+  const p = _queueEcriture.then(function () { return api(payload); },
+                                function () { return api(payload); });
+  _queueEcriture = p.catch(function () {});
+  return p;
 }
 // Barre de chargement globale (même pattern qu'index/dashboard) : feedback
 // visuel sur TOUT appel API — plus aucun clic « muet ». Compteur : gère les
@@ -2408,8 +2425,9 @@ async function checkNextYearAvailable() {
 async function initDashboard() {
   { const vb = document.getElementById('verBadge'); if (vb) vb.textContent = SITE_VERSION; }
   await new Promise(r => setTimeout(r, 50));
-  await loadSecteurs();            // secteurs depuis l'onglet SECTEURS (fallback = SECTEURS_CFG en dur)
-  await loadCsTemplate();          // consultations depuis l'onglet CS_TEMPLATE (fallback = tables en dur)
+  // (28/07/2026 perf) EN PARALLELE : les deux sont independants et chacun avale
+  // silencieusement ses erreurs. Avant : en file indienne, un aller-retour de trop.
+  await Promise.all([loadSecteurs(), loadCsTemplate()]);
   ADMIN_YEAR = YEAR;
   // (perf) BOOTSTRAP : un SEUL aller-retour GAS livre planning + affectations + médecins
   // + overrides. Repli automatique sur les appels unitaires si le GAS déployé ne connaît
@@ -2420,6 +2438,12 @@ async function initDashboard() {
                                  : await api({action:'getAdminBootstrap', year: ADMIN_YEAR});
   } catch(e) { _boot = null; }
   window.__bootPromise = null;
+  // (28/07/2026) La reponse Google revient parfois en 404 (constate en console). Sans ce
+  // rattrapage, un seul echec fait repartir la page pour QUATRE appels, dont getPlanningJson
+  // avec 3 tentatives espacees d'1 s. Une nouvelle tentative coute un seul aller-retour.
+  if (!(_boot && _boot.success && _boot.planning)) {
+    try { _boot = await api({action:'getAdminBootstrap', year: ADMIN_YEAR}); } catch(e) {}
+  }
   // Cohérence : le bootstrap parallèle porte l'année active du serveur — si elle diffère
   // de l'année demandée (cas limite), on l'ignore et on repasse par les appels unitaires.
   if (_boot && _boot.success && _boot.year && Number(_boot.year) !== Number(ADMIN_YEAR)) _boot = null;
@@ -2439,7 +2463,14 @@ async function initDashboard() {
   // uniquement mainLoads (planning + statuts + overrides) ; la détection N+1 et le
   // sélecteur d'années se complètent en arrière-plan (getPlanningJson N+1 retiré du
   // chemin critique — il ne sert qu'au flag N+1 des wizards/sélecteur).
+  // (28/07/2026 perf) checkNextYearAvailable telecharge le planning COMPLET de N+1
+  // juste pour allumer un booleen : on le decale de 3 s pour qu'il ne concurrence plus
+  // le chargement de l'annee en cours. detectAvailableYears ne tape que des fichiers
+  // locaux : il part tout de suite pour que le selecteur d'annees s'affiche, puis il
+  // est rejoue apres (il repart d'une liste vide, donc aucun doublon).
   (async () => {
+    try { await detectAvailableYears(); } catch(e) {}
+    await new Promise(r => setTimeout(r, 3000));
     try { await checkNextYearAvailable(); } catch(e) {}
     try { await detectAvailableYears(); } catch(e) {}
   })();
@@ -3448,7 +3479,7 @@ async function placeMAR(marId, marInit, mode) {
   // 3. Appel API en arrière-plan → GAS écrit dans PLANNING_OVERRIDES et push JSON
   showToast('⏳ Enregistrement…');
   try {
-    const res = await api({
+    const res = await apiSerie({
       action: 'savePlanningOverride',
       date, marId,
       // N'envoyer QUE le demi-jour réellement modifié ; l'autre = null = « ne pas toucher »
@@ -3548,7 +3579,7 @@ function reopenConsult(type, date, slotKey) {
 // Sauvegarde d'un override en arrière-plan (sans bloquer le rendu)
 async function _saveOverrideBg(marId, date, slotKey, why) {
   try {
-    await api({
+    await apiSerie({
       action: 'savePlanningOverride', date, marId,
       morning:   slotKey === 'am' ? (_localOverrides[date][marId].am || '') : null,
       afternoon: slotKey === 'pm' ? (_localOverrides[date][marId].pm || '') : null,
@@ -4431,9 +4462,29 @@ async function saveAllAffectations() {
 }
 
 // ── EXPORT EXCEL ───────────────────────────────────────────────────────
+// (28/07/2026 perf) ExcelJS (948 Ko) n'est plus dans le <head> : il est telecharge
+// au PREMIER clic sur l'export, puis garde en memoire pour les suivants.
+// La promesse est memorisee : deux clics rapides ne declenchent qu'un telechargement.
+let _excelJsP = null;
+function _chargerExcelJS() {
+  if (typeof ExcelJS !== 'undefined') return Promise.resolve();
+  if (_excelJsP) return _excelJsP;
+  _excelJsP = new Promise(function (resolve, reject) {
+    var sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js';
+    sc.onload  = function () {
+      if (typeof ExcelJS !== 'undefined') resolve();
+      else { _excelJsP = null; reject(new Error('bibliotheque illisible')); }
+    };
+    sc.onerror = function () { _excelJsP = null; reject(new Error('telechargement impossible')); };
+    document.head.appendChild(sc);
+  });
+  return _excelJsP;
+}
 async function exportWeekExcel(){
   if(!DATA){toast('Planning non chargé','error');return;}
-  if(typeof ExcelJS==='undefined'){toast('ExcelJS non disponible','error');return;}
+  try { toast('📊 Préparation de l\'export…'); await _chargerExcelJS(); }
+  catch(e){ toast('Export Excel indisponible : ' + e.message, 'error'); return; }
   const weeks=getAllWeeks(); const wk=weeks[currentWeekIdx]; if(!wk) return;
   toast('📊 Export Excel en cours…');
   const daySlots=getWeekDays(wk.weekNum);
