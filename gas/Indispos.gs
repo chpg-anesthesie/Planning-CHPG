@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-28.8';
+const GAS_VERSION_INDISPOS = '2026-07-28.9';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -3632,11 +3632,19 @@ if (action === 'setDailyStatus') {
         if (!medSh) return _error('Onglet MEDECINS introuvable');
         const medD = medSh.getDataRange().getValues();
         const noms = {};
+        // Appartenance au groupement liberal : colonne LIBERAL de MEDECINS, lue PAR
+        // TITRE (comme checkCode). ⚠️ Ne JAMAIS deduire l'appartenance du releve : un
+        // membre dont le mois n'est pas encore saisi n'y figure pas, il serait retire
+        // des remplacants possibles alors qu'il est parfaitement disponible.
+        const _hdrMed = (medD[0] || []).map(function (x) { return String(x).trim().toUpperCase(); });
+        const colLibC = _hdrMed.indexOf('LIBERAL');
+        const groupement = {};
         for (let r = 1; r < medD.length; r++) {
           const id = String(medD[r][0]).trim();
           if (!id) continue;
           if (String(medD[r][3]).trim().toUpperCase() !== 'O') continue;
           noms[id] = String(medD[r][1]).trim();
+          if (colLibC >= 0 && String(medD[r][colLibC]).trim().toUpperCase() === 'O') groupement[id] = true;
         }
 
         // 3) Consultations : lues dans le PLANNING PUBLIE (planning_{Y}.json), pas dans
@@ -3762,9 +3770,41 @@ if (action === 'setDailyStatus') {
         horsTotal.forEach(function (id) { delete noms[id]; delete absences[id]; });
         const consultationsF = consultations.filter(function (c) { return !!noms[c.mar]; });
 
+        // 5) MARGE LIBERALE (axe CCAM) — sert a classer les remplacants possibles.
+        //    Une consultation liberale declenche un bloc : c'est le CCAM qui portera
+        //    la charge, pas le NGAP. Calculee ICI et non par un appel getReleveLiberal
+        //    du navigateur : cette action reste HORS de SECRETARIAT_ACTIONS. Ne sort
+        //    qu'UNE valeur derivee par MAR — jamais les tarifs, pourcentages ni exces.
+        //    ⚠️ Le jour ou le secretariat prend cette mission : remplacer ici la valeur
+        //    par un rang (1, 2, 3…) quand avecMotifs === false. L'ordre reste, les
+        //    montants disparaissent, et rien ne change dans la page.
+        let marges = {}, margesMois = '';
+        try {
+          if (typeof getReleveLiberal === 'function') {
+            const rel = getReleveLiberal({});                 // annee liberale par defaut
+            const its = (rel && rel.items) || [];
+            if (its.length) {
+              const dernier = its.map(function (i) { return i.mois; }).sort().pop();
+              its.forEach(function (i) {
+                if (i.mois !== dernier) return;
+                if (i.tCcam === null || i.pctCcam === null) return;
+                // marge = T x (3 - 10p) / 7 : nulle a 30 %, negative au-dela
+                marges[i.marId] = i.tCcam * (3 - 10 * (i.pctCcam / 100)) / 7;
+              });
+              margesMois = dernier;
+            }
+          }
+        } catch (e) { marges = {}; margesMois = ''; }   // confort de tri : jamais bloquant
+        // Non-membre du groupement : aucun chiffre. Le masquage de la tuile ne suffit
+        // pas — absences.html est une page publique, seul le serveur ferme la porte.
+        if (!user.liberal) { marges = {}; margesMois = ''; }
+
         return ContentService.createTextOutput(JSON.stringify({
           success: true,
           motifs: avecMotifs,          // le frontend sait s'il peut afficher un motif
+          groupement: groupement,      // id -> true : membre du groupement liberal
+          marges: marges,              // id -> marge CCAM restante (euros), dernier releve
+          margesMois: margesMois,      // 'AAAA-MM' du releve utilise ('' si aucun)
           moi: user.role === 'mar' ? user.id : null,
           jours: joursConsult,
           noms: noms,
