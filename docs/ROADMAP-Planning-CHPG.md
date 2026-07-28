@@ -627,6 +627,37 @@ a ne pas modifier a la legere.** Les trois premieres ont ete livrees en producti
    (1 appel) au lieu de 2 appels unitaires pour ce seul jour. Mesure de controle : 9 appels pour
    9 semaines visitees, **aucun repli**, aucune attente superieure a 3,1 s.
 
+**Ouverture d'admin : 4 appels bloquants ramenes a 1 (fin d'apres-midi, v1.13.4).**
+Audit du chemin d'ouverture mene en EXECUTANT la page (jsdom + faux serveur tracant depart
+et fin de chaque appel), et non en la lisant. Quatre correctifs :
+- **`mailNonLus` livre par le bootstrap** (`2026-07-28.7`). 129 ms de travail serveur contre
+  2,4 s d'appel separe. ⚠️ Le commentaire « NE JAMAIS le mettre dans getAdminBootstrap » qui
+  figurait dans `admin.html` a ete **remplace** : il datait d'un contexte ou un appel separe
+  etait bon marche. Premiere version fautive (valeur lue APRES `initDashboard`, qui efface
+  `window.__boot`) — corrigee en v1.13.2.
+- **Detection de l'annee suivante par le bootstrap** (`2026-07-28.8`, champ `anneeSuivante`).
+  `checkNextYearAvailable` telechargeait le planning COMPLET de N+1 (**255 Ko, ~2,5 s**) pour
+  repondre a un oui/non. Le serveur liste desormais les fichiers du dossier Drive **sans lire
+  leur contenu**. Repli integral conserve : GAS non recopie → ancien telechargement. Les deux
+  cas verifies en simulation, `nextYearAvailable` correct dans les deux.
+- **Garde contre la double ouverture de session.** Le verrou `_sessionEnCours` ne protege que
+  pendant `ouvrirSession` ; une seconde validation (Entree ou clic) relancait TOUTE l'ouverture
+  — 4 appels au lieu de 2, reproduit en simulation. Corrige par `_ouvertureFaite`.
+- **Bloc residuel supprime** dans `admin.html` : un SECOND ecouteur « Entree » sur le champ de
+  code, avec des en-tetes vides (TABS, TOAST, MODAL, API), vestiges d'une reorganisation.
+  Hygiene — sans gain mesurable, le verrou le neutralisait deja.
+- **`chronoAPI()` horodate desormais le DEPART** de chaque appel (colonne `T+x.xs`). Sans cela,
+  seules les fins etaient visibles : impossible de savoir si deux appels s'etaient suivis ou
+  chevauches. C'est ce qui a fait perdre du temps sur un `login` apparaissant avant le bootstrap
+  (en realite le vestige d'une sequence d'ouverture precedente, `_journalAPI` n'etant pas vide
+  entre deux tentatives).
+
+**Le serveur s'est degrade tout au long de l'apres-midi du 28/07, a code constant.**
+`getAdminBootstrap` cote serveur : **3 106 → 3 512 → 3 881 → 5 036 → 6 110 ms** entre 13 h et
+16 h. `getPanneauSemaine` : 2 179 → 4 164 ms. Le reseau est hors de cause (partage 4G le matin,
+wifi domestique l'apres-midi, meme resultat). **Ne jamais mesurer un gain sur cette base** :
+prendre la reference le matin.
+
 **Lecon de methode.** Les trois regressions ont un point commun : elles ne se voient QUE dans
 l'usage reel (navigation rapide, clic pendant un chargement, retour en arriere), jamais sur le
 chemin nominal. Toute modification de cette fonction doit etre testee sur ces scenarios AVANT
