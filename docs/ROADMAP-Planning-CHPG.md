@@ -652,6 +652,25 @@ et fin de chaque appel), et non en la lisant. Quatre correctifs :
   (en realite le vestige d'une sequence d'ouverture precedente, `_journalAPI` n'etant pas vide
   entre deux tentatives).
 
+**⛔ CAUSE RACINE trouvee a 16 h — un defaut INTRODUIT LE MATIN MEME, qui a fausse toute la
+journee.** Le patch « un seul appel serveur en vol a la fois » (28/07 matin) a introduit la file
+`_fileAPI`, declaree en `let` **ligne 2036**, alors que la connexion automatique qui l'utilise
+s'execute **ligne 1801**. Une variable `let` n'existe pas avant sa ligne : le TOUT PREMIER appel
+levait donc `ReferenceError: Cannot access '_fileAPI' before initialization`, **a chaque
+rechargement de page avec session active**. L'exception etait avalee par le `catch`
+d'`ouvrirSession`, sans trace ni au journal ni en console.
+
+Quatre symptomes, longtemps pris pour trois problemes distincts, tous issus de ce point unique :
+un `login` parti AVANT le bootstrap (T+0,0 s au chronometre), `window.__boot` vide, donc
+`initDashboard` refaisant un bootstrap complet, puis les replis `getPlanningJson` et `mailNonLus`
+par-dessus — **3 a 4 appels la ou UN seul etait necessaire**.
+
+Corrige en **v1.14** : la connexion automatique est deplacee en fin de bloc `<script>`, apres
+toutes les declarations. Verifie par simulation (auto-login) : **3 appels ramenes a 1**, plus
+aucune alerte `[ouverture]`. Les 5 regles de diagnostic qui en decoulent sont dans
+`CONTEXTE-Planning-CHPG.md` (section « Diagnostic »). ⚠️ **Ne jamais remonter `tryAutoLogin`
+au-dessus des declarations de la section API.**
+
 **Le serveur s'est degrade tout au long de l'apres-midi du 28/07, a code constant.**
 `getAdminBootstrap` cote serveur : **3 106 → 3 512 → 3 881 → 5 036 → 6 110 ms** entre 13 h et
 16 h. `getPanneauSemaine` : 2 179 → 4 164 ms. Le reseau est hors de cause (partage 4G le matin,
