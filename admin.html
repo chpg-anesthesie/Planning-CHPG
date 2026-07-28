@@ -962,7 +962,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.10.8'; // SITE_VERSION: v1.10.8
+const SITE_VERSION = 'v1.10.9'; // SITE_VERSION: v1.10.9
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1055,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.8</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.10.9</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1773,6 +1773,30 @@ const STATUS_CFG = {G:{l:'G',c:'lbl-g'},G2:{l:'G2',c:'lbl-g2'},RG:{l:'RG',c:'lbl
 // ── AUTH ──────────────────────────────────────────────────────────────
 document.getElementById('authInput').addEventListener('keydown', e => { if(e.key==='Enter') authenticate(); });
 
+/* ── (28/07/2026) OUVERTURE DE SESSION EN UN SEUL APPEL ──────────────────
+   Mesure du 28/07 : une execution Apps Script SEULE coute ~1,8 s ; quatre
+   lancees ensemble coutent 4 a 7 s CHACUNE (Apps Script met les executions
+   d'un meme utilisateur en file). Le chronometre affichait 3 appels pour
+   17,3 s a l'ouverture, dont DEUX login.
+   Desormais : getAdminBootstrap porte l'identite ET les donnees -> UNE seule
+   execution. L'action login n'est appelee qu'en repli, si le GAS deploye ne
+   renvoie pas encore le role (fenetre entre le push et la recopie).
+   ⚠️ NE JAMAIS relancer login et getAdminBootstrap en parallele : c'est
+   exactement ce qui coutait 11 s. */
+let _sessionEnCours = false;   // verrou : interdit deux ouvertures simultanees
+async function ouvrirSession(code) {
+  if (_sessionEnCours) return null;          // une seconde ouverture ne part jamais
+  _sessionEnCours = true;
+  try {
+    let boot = null;
+    try { boot = await api({action:'getAdminBootstrap', code}); } catch(e) { boot = null; }
+    if (boot && boot.success && boot.role) return { ident: boot, boot };   // cas normal
+    // Repli : GAS pas encore redeploye, ou bootstrap indisponible.
+    const ident = await api({action:'login', code});
+    return { ident, boot: (boot && boot.success) ? boot : null };
+  } finally { _sessionEnCours = false; }
+}
+
 // Auto-login depuis sessionStorage si code déjà saisi
 (async function tryAutoLogin() {
   const saved = sessionStorage.getItem('adminCode');
@@ -1784,8 +1808,9 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
     // ni rejoues ni chronometres. Or ce sont LES DEUX SEULS appels de l'ouverture
     // (tout le reste est livre par le bootstrap) — le chronometre ne voyait donc RIEN,
     // et un 404 sur l'un d'eux n'etait jamais rattrape. Ils passent par api().
-    window.__bootPromise = api({action:'getAdminBootstrap', code: saved}).catch(() => null);
-    const data = await api({action:'login', code: saved});
+    const _s = await ouvrirSession(saved);
+    if (!_s) return;                       // une ouverture est deja en cours
+    const data = _s.ident; window.__boot = _s.boot;
     if (data.success && data.role === 'admin') {
       ADMIN_CODE = saved; YEAR = data.year || 2026; INDISPOS_YEAR = data.indisposYear || null;
       document.getElementById('authOverlay').style.display = 'none';
@@ -1801,7 +1826,8 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
       document.querySelectorAll('[id$="Year"]').forEach(el => { if(el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR; });
       const affYearEl = document.getElementById('affYear'); if(affYearEl) affYearEl.textContent = YEAR;
       await initDashboard();
-      setTimeout(majCompteurMail, 1500);   // tache de fond : n'ajoute rien a l'ouverture
+      setTimeout(majCompteurMail, 6000);   // (28/07) 6 s : ne doit PAS tourner en meme temps
+                                           // que le chargement, sous peine de ralentir les deux
       // Ouvrir le wizard si appelé depuis dashboard
       const wizParam = new URLSearchParams(window.location.search).get('wizard');
       if (wizParam === '1')      setTimeout(openWizard, 600);
@@ -1822,8 +1848,9 @@ async function authenticate() {
   try {
     // (28/07/2026) Meme correction que dans l'auto-login : par api(), donc rejoues
     // une fois en cas de 404 et visibles dans le chronometre.
-    window.__bootPromise = api({action:'getAdminBootstrap', code}).catch(() => null);
-    const data = await api({action:'login', code});
+    const _s = await ouvrirSession(code);
+    if (!_s) return;                       // une ouverture est deja en cours
+    const data = _s.ident; window.__boot = _s.boot;
     if (data.success && data.role === 'admin') {
       ADMIN_CODE = code;
       YEAR = data.year || 2026;
@@ -1838,7 +1865,7 @@ async function authenticate() {
         if (el.id !== 'headerYear' && el.id !== 'wfYear') el.textContent = YEAR;
       });
       await initDashboard();
-      setTimeout(majCompteurMail, 1500);   // tache de fond : n'ajoute rien a l'ouverture
+      setTimeout(majCompteurMail, 6000);   // (28/07) voir auto-connexion
     } else {
       if (errEl) { errEl.textContent = 'Code incorrect.'; errEl.style.display = 'block'; }
     }
@@ -2500,12 +2527,12 @@ async function initDashboard() {
   // (perf) BOOTSTRAP : un SEUL aller-retour GAS livre planning + affectations + médecins
   // + overrides. Repli automatique sur les appels unitaires si le GAS déployé ne connaît
   // pas encore l'action (recopie non faite) ou si le bootstrap échoue → jamais bloquant.
-  let _boot = null;
-  try {
-    _boot = window.__bootPromise ? await window.__bootPromise
-                                 : await api({action:'getAdminBootstrap', year: ADMIN_YEAR});
-  } catch(e) { _boot = null; }
-  window.__bootPromise = null;
+  // Le bootstrap a deja ete rapporte par ouvrirSession : aucun nouvel appel ici.
+  let _boot = window.__boot || null;
+  window.__boot = null;
+  if (!_boot) {
+    try { _boot = await api({action:'getAdminBootstrap', year: ADMIN_YEAR}); } catch(e) { _boot = null; }
+  }
   // Cohérence : le bootstrap parallèle porte l'année active du serveur — si elle diffère
   // de l'année demandée (cas limite), on l'ignore et on repasse par les appels unitaires.
   if (_boot && _boot.success && _boot.year && Number(_boot.year) !== Number(ADMIN_YEAR)) _boot = null;
