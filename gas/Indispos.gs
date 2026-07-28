@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-28.2';
+const GAS_VERSION_INDISPOS = '2026-07-28.3';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1521,6 +1521,23 @@ if (!affSheet) {
       if (user.role !== 'admin') return _deny();
       const jy = parseInt(payload.year) || getActiveYear();
       const out = { success: true, year: jy };
+      /* (28/07/2026) L'IDENTITE REJOINT LE BOOTSTRAP — mesure du 28/07 a 10:46 :
+         quatre executions lancees ensemble coutent 4 a 7 s chacune, alors qu'une
+         execution SEULE coute 1,8 s. Apps Script met les executions d'un meme
+         utilisateur en file : le parallelisme ne fait pas gagner de temps, il en
+         fait perdre. L'ouverture d'admin appelait login PUIS getAdminBootstrap,
+         soit deux executions concurrentes pour une seule information utile.
+         En livrant l'identite ici, l'ouverture ne coute plus qu'UNE execution.
+         Les champs ci-dessous sont EXACTEMENT ceux de l'action login, qui reste
+         en place pour les autres pages et comme repli. */
+      out.role = user.role; out.id = user.id;
+      out.name = user.name; out.initials = user.initials;
+      out.liberal = !!user.liberal;
+      out.rpps = user.rpps || '';
+      out.prenom = user.prenom || '';
+      out.indisposYear = getIndisposYear();
+      out.indisposOuverte = _indisposOuverte_();
+      logConnexion(user);
       try {
         const rawP = readPlanningFromDrive(`planning_${jy}.json`);
         out.planning = rawP ? JSON.parse(rawP) : null;
