@@ -1,7 +1,7 @@
 # Roadmap — Planning-CHPG
 
 Système web : **planning des gardes** (équité annuelle) + **planning quotidien** + **consultations** + **portail/Dashboard** + **veille biblio** + **CR d'anesthésie**, pour ~23 MARs au CHPG (Monaco).
-Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 23 juillet 2026 (couverture des jours serrés livrée — 13 jours sans binôme → 0 sur 140 années simulées, équité et vitesse meilleures que la référence).*
+Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 28 juillet 2026 (chantier performance — le nombre d'appels au serveur est le seul levier ; placements et panneau de placement traités, site v1.12).*
 
 > Le dépôt en ligne fait foi. Cette roadmap est un repère de pilotage, pas la source de vérité du code.
 
@@ -566,6 +566,55 @@ Chiffres affichés en une ligne sur la diapo 3/3, détail complet dans les notes
 ⚠️ La part des intervalles ≤ 4 j (21,6 % → 27,5 %) est **biaisée par l'unité vendredi-dimanche** (~15 % des intervalles
 valent 2 jours par construction) — ne pas l'utiliser telle quelle.
 
+### Performance — chantier du 28 juillet 2026 · site v1.12 · `gas/Indispos.gs` v2026-07-28.6
+
+**Le constat qui commande tout le reste.** Une requête qui ne fait RIEN (17 ms de travail serveur)
+coûte **2 à 3 s** d'attente avant d'atteindre le code, avec des pointes à 10-20 s et des rejets
+HTTP 404 sporadiques. Vérifié deux fois, sur deux déploiements indépendants (5 mesures chacun,
+médianes 2,70 s et 2,31 s) : **un déploiement neuf se comporte comme l'ancien**. Ce coût est
+**par appel**, hors de notre contrôle, et il varie dans la journée (≈1,4 s le matin, 2,5 à 7 s
+l'après-midi). Conséquence : **le seul levier est de réduire le NOMBRE d'appels**, jamais leur
+contenu. Toute optimisation future doit être jugée à cette aune.
+
+**Livré et vérifié en production :**
+- **File groupée des placements** (`savePlanningOverridesBatch`). Avant : un appel par clic —
+  34 appels pour une session, ~15 s de moyenne, **10 placements sur 34 perdus en HTTP 404**
+  (l'écran les affichait, le classeur ne les avait pas : risque réel de publier un planning amputé).
+  Après : **un appel par rafale**, mesuré à 4,0 s pour une session entière, zéro perte. Garanties :
+  badge « N placements en attente » en bas à gauche, lot rejouable sans doublon (ligne visée par
+  le couple date+MAR), persistance `localStorage` y compris du lot en vol, envoi de secours à la
+  fermeture d'onglet (`sendBeacon`), et **vidage BLOQUANT avant publication** — on ne publie
+  jamais avec des placements non écrits.
+- **Chronomètre serveur** (`_srv_ms`). `doGet` a été renommé `_routeRequete_` (aiguillage intact) ;
+  le nouveau `doGet` le chronomètre et l'enveloppe ajoute la durée d'exécution réelle dans chaque
+  réponse JSON (garde-fous : réponses > 400 Ko et non-objet passent telles quelles). `chronoAPI()`
+  affiche désormais **serveur / attente** séparément. Le diagnostic se lit sans ouvrir le menu
+  Exécutions d'Apps Script.
+- **Préchargement du panneau de placement** (`getPanneauSemaine`). Avant : 2 appels par jour ouvert
+  (dispos + libéral) ≈ 5 s, soit 10 à 14 appels pour une semaine. Après : **un seul appel pour les
+  7 jours**, lancé en arrière-plan dès l'affichage de la semaine — le panneau s'ouvre ensuite
+  **sans aucun appel**. Vérifié au chronomètre : plus aucun `getMARsDispoJour` ni `listLiberalJour`.
+  Les onglets (`GARDES_{Y}`, `AFFECTATIONS_{Y}`, `MEDECINS`, `LIBERAL_{Y}`) sont lus **une fois**
+  pour les 7 jours. Le repli unitaire reste en place. **Défaut corrigé au passage** : `_dispoCache`
+  ne se rafraîchissait jamais de la session — il est désormais invalidé après tout changement de statut.
+
+**Mesures serveur de référence** (`mesurerPerf`, 12:59) : ouverture du classeur 120 ms ·
+CONFIG 1re lecture 199 ms, **2e lecture identique 638 ms** · MEDECINS 313 ms · `getSecteurs` 500 ms ·
+`getCsTemplate` 512 ms · JSON du Drive ~970 ms · total 5 418 ms sur 5 660 ms d'exécution.
+28 onglets, 1 697 000 cellules. `mesurerDrive` : lire par identifiant direct (396 ms) n'est **pas**
+plus rapide que la recherche par nom (~350 ms cumulés) — piste fermée.
+
+**Écarté en cours de route :** tailler les 1 000 lignes vides des onglets (l'ouverture du classeur
+ne coûte que 120 ms — impressionnant ≠ coûteux, gain estimé 0 à 300 ms) ; fusionner `login` et
+`getAdminBootstrap` (**déjà fait le matin même** — le `login` observé au chronomètre était un repli
+après un bootstrap raté, pas un défaut).
+
+**Point ouvert, non corrigé (hors périmètre) :** dans le tri serveur des MARs disponibles,
+`roleOrder[role] || 3` vaut **3 pour VOLANT** (sa valeur est `0`, falsy en JS) : les volants ne
+remontent pas en tête côté serveur. Sans effet visible (le frontend retrie par sections). Présent
+dans `getMARsDispoJour` **et** reproduit à l'identique dans `getPanneauSemaine` — à corriger dans
+les deux si on y touche.
+
 ### Documentation (docs/)
 - Guides : `guide-mar.html`, `guide-comite.html`, `guide-algo-gardes.html`, `guide-liberal.html`, `guide-technique.html`.
 - Présentations staff, démographie.
@@ -575,6 +624,17 @@ valent 2 jours par construction) — ne pas l'utiliser telle quelle.
 
 ## 🔜 À faire
 
+- [ ] ⚡ **Performance — suite (à reprendre sur une infrastructure reposée).**
+  Le 28/07 après-midi, le **serveur lui-même** s'est dégradé au fil des heures (`getAdminBootstrap` :
+  3 135 → 3 414 → 5 712 ms pour le même code) : impossible de mesurer un gain sur une base qui bouge
+  de 50 % entre deux relevés. **Reprendre par une mesure de référence le matin**, puis :
+  - alléger `getAdminBootstrap` côté serveur (~1,5 s récupérables : CONFIG relu plusieurs fois par
+    requête — `TEST_YEAR`, `checkCode`, `getIndisposYear`, `_indisposOuverte_` — puis `getSecteurs`
+    et `getCsTemplate` à 500 ms chacun) ;
+  - fusionner `mailNonLus` (156 ms serveur) dans le bootstrap plutôt qu'un appel séparé à 2,5 s de
+    péage. ⚠️ Un commentaire d'`admin.html` dit « NE JAMAIS le mettre dans `getAdminBootstrap` » :
+    il datait d'un contexte où un appel séparé était bon marché — **le remplacer, pas l'empiler**.
+  - **Supprimer `gas/mesure_perf.gs`** (dépôt **et** éditeur Apps Script) une fois ce chantier clos.
 - [ ] 📽️ **Présentation staff du 04/09 — reprendre début août (fil dédié).**
   Corrections factuelles et sécurisation du code de démo faites le 22/07. Reste :
   vérifier le slide 24 (cibles nominatives) contre `MEDECINS`, le slide 21 (simulation figée)
