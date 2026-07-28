@@ -103,7 +103,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
   <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
   <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.10.10</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.10.10 -->
+  <div class="maj">Version <strong>v1.11</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.11 -->
 </header>
 
 <div class="callout tip" style="margin:26px 0 6px">
@@ -303,6 +303,12 @@
     <li>Un panneau s'ouvre sur le côté avec la liste des MAR disponibles ce jour-là.</li>
     <li>Cliquer sur le MAR à placer.</li>
   </ol>
+  <div class="callout">
+    <div class="ct">L'enregistrement se fait par séries</div>
+    <p>Chaque placement s'affiche <strong>immédiatement</strong> dans la grille. L'enregistrement, lui, part <strong>quelques secondes après votre dernier clic</strong>, en une seule fois pour toute la série — c'est ce qui permet d'enchaîner vingt placements sans attente ni ralentissement.</p>
+    <p>Un petit encart en <strong>bas à gauche</strong> de l'écran indique «&nbsp;N placements en attente d'enregistrement&nbsp;», puis disparaît une fois la série confirmée (message «&nbsp;✅ … enregistrés&nbsp;»). Si l'encart devient <strong>rouge</strong>, l'enregistrement n'a pas abouti&nbsp;: cliquez dessus pour réessayer. <strong>Rien n'est perdu</strong> — même en fermant la page, la série repart toute seule à la prochaine ouverture.</p>
+    <p>La <a href="#c14">publication</a> attend toujours que tout soit enregistré&nbsp;: impossible de publier un planning auquel il manquerait des placements.</p>
+  </div>
   <div class="callout tip">
     <div class="ct">Deux « + » à ne pas confondre</div>
     <p>Le <strong style="color:#C2410C">+ orange qui clignote</strong> est un <strong>signal</strong> : un ou plusieurs MAR affectés à ce secteur ce mois-ci sont <strong>absents aujourd'hui</strong> (garde, congé, formation, récup) et n'ont pas été remplacés. Il attire votre attention sur un écart par rapport à l'effectif habituel.</p>
@@ -571,6 +577,7 @@
   <div class="callout tip">
     <div class="ct">Contrôle avant publication</div>
     <p>Si, au moment de publier, des MARs présents ne sont <strong>pas placés</strong> (ni le matin ni l'après-midi) dans une des semaines que vous avez modifiées, un message les liste, regroupés par semaine. Vous pouvez <strong>corriger d'abord</strong> ou <strong>publier quand même</strong> (une demi-journée volontairement laissée libre est un cas légitime). Le but : éviter qu'un médecin disponible soit oublié — voir chapitre 6 sur les repères « à placer ».</p>
+    <p>Par ailleurs, si des placements sont encore <strong>en attente d'enregistrement</strong> (encart en bas à gauche, chapitre 6), la publication commence par les enregistrer&nbsp;; en cas d'échec, elle s'arrête sans rien publier — le planning publié ne peut jamais être en retard sur votre écran.</p>
   </div>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
