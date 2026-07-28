@@ -250,20 +250,51 @@ déclarée au comité, mais **sortira du calcul de rendement** et fera baisser l
 
 ### 5.5 Écran « Consultations à venir » — `absences.html` (Lot 5-bis)
 
+**Périmètre — acté le 28/07/2026 : cet écran ne concerne QUE le libéral**, jamais le secteur public.
+Tout en découle : la tuile est réservée au groupement, seuls les membres sont proposés comme
+remplaçants, et les textes de la page disent « patient libéral ». *Écrit ici parce que rien dans le
+code ne le trahissait, et qu'un lecteur — humain ou modèle — le prenait pour un contrôle d'absence
+général.*
+
 **La question à laquelle il répond, au moment de la consultation :** *le médecin qui voit ce patient
-sera-t-il présent le jour où on l'opérera ?* C'est le contrôle qui évite qu'un patient vu en
-consultation libérale se retrouve opéré un jour d'absence de son MAR.
+sera-t-il présent le jour où on l'opérera ?*
 
 **Deux publics, une seule page** (action `getConsultAbsences`, Indispos.gs) :
-- **MAR** — « Vérifiez qu'aucun patient vu en consultation ne sera opéré un jour où vous êtes absent. »
-- **Secrétariat** — « Avant de placer un patient, vérifiez que le médecin qui le verra en
+- **MAR** — « Vérifiez qu'aucun patient libéral vu en consultation ne sera opéré un jour où vous
+  êtes absent. »
+- **Secrétariat** — « Avant de placer un patient libéral, vérifiez que le médecin qui le verra en
   consultation sera présent le jour de son intervention. »
 
 **Ce qu'il affiche.** Les consultations posées sur **20 jours ouvrés** ; pour chacune, les absences
 du médecin sur les **20 jours ouvrés suivants**, groupées en périodes (« Dates d'intervention à
 éviter — 7 jours sur 2 périodes »). Un clic sur une période montre **qui peut prendre le patient**.
 
-**Trois règles gravées dans le code, à ne pas défaire :**
+**Qui est proposé — couverture jour par jour (28/07/2026).** Un confrère couvre le jour *i* s'il est
+**présent ce jour-là** et a une consultation **strictement avant** — y compris une consultation qui
+tombe **pendant** la période d'absence : il voit le patient ce jour-là et l'opère plus tard. Chaque
+candidat est affiché avec **les plages qu'il couvre**, ses propres congés y faisant des trous, et
+**aucun candidat n'est masqué** (la troncature à 3 est supprimée).
+
+> ⚠️ **Ce que cette règle remplace, et pourquoi.** La v1 exigeait la présence sur **toute** la
+> période *et* une consultation antérieure à son **début**. Testée le 28/07 sur un congé réel de
+> 19 jours ouvrés (29 juillet → 24 août), elle renvoyait **« personne »** : sur un mois d'août,
+> nul n'est présent 19 jours d'affilée, et « avant le début » ne laissait qu'une seule journée
+> éligible. Or le patient est opéré **un jour précis**, pas pendant toute la période. Les deux
+> critères absolus sont supprimés, pas amendés.
+
+**Classement — marge libérale restante au bloc, axe CCAM.** Une consultation libérale déclenche un
+bloc : c'est le CCAM qui portera la charge, pas le NGAP. `marge = T × (3 − 10p) / 7`, nulle à 30 %,
+négative au-delà. Décroissante ; à marge égale, la plus large couverture. Un membre dont le mois
+n'est pas encore saisi au relevé n'a pas de chiffre : fin de liste, sans pastille, mais **proposable**.
+Pile au seuil : `0 €` en gris, sans signe.
+
+**Le calcul est fait par le SERVEUR**, dans `getConsultAbsences`, et non par un appel
+`getReleveLiberal` du navigateur — cette action reste hors de `SECRETARIAT_ACTIONS`. La réponse ne
+transporte qu'**une marge par MAR**, jamais les tarifs, pourcentages ni excédents.
+→ Le jour où le secrétariat prend cette mission : remplacer la valeur par un **rang** quand
+`avecMotifs === false`. Une ligne, un seul endroit, la page ne bouge pas.
+
+**Cinq règles gravées dans le code, à ne pas défaire :**
 1. **Les motifs d'absence ne sont pas envoyés au secrétariat** — non transmis par le serveur, pas
    masqués côté navigateur (un masquage client resterait lisible dans le source).
 2. **`G` et `G2` ne comptent pas comme absence** : un MAR de garde peut assurer une intervention
@@ -271,17 +302,24 @@ du médecin sur les **20 jours ouvrés suivants**, groupées en périodes (« Da
    travaillé (`TP`), semaine off du rythme 2/2, hors période d'activité — sans quoi il afficherait
    « disponible » à tort. Il reprend aussi le **miroir maternité** (mardi et jeudi matin, `MAT`
    implique `CS-MAT`), règle qui n'existe nulle part dans les données et n'est que recalculée.
+   *Le circuit libéral de la maternité étant à part, ces créneaux restent affichés mais ne sont pas
+   le cas d'usage ; le vrai terrain d'essai est ORL / viscéral / orthopédie.*
 3. **Le code du secrétariat est partagé** → périmètre en **liste blanche de deux actions**
    (`login`, `getConsultAbsences`), refus par défaut. ⚠️ **Ne jamais y ajouter `getPlanningJson`** :
    le JSON publié contient le code d'absence brut de chaque MAR pour toute l'année.
+4. **L'appartenance au groupement se lit dans la colonne `LIBERAL` de MEDECINS, JAMAIS dans le
+   relevé.** Le relevé ne contient que les membres dont le mois est saisi : s'en servir retirerait
+   des confrères parfaitement disponibles.
+5. **Un non-membre ne reçoit aucun chiffre** (`if (!user.liberal)` côté serveur). Masquer la tuile
+   ne protège rien : `absences.html` est une page publique, seul le serveur ferme la porte.
 
 **Source** : le planning **publié** (`planning_{Y}.json`, lu côté serveur, jamais transmis au
 navigateur), pas `PLANNING_OVERRIDES` — les overrides ne contiennent que ce que le comité a posé à la
 main, le JSON est le rendu final.
 
-⏳ **En test.** La tuile Dashboard est restreinte à un seul MAR (`only:'FROHLICH'`) le temps de
-l'essai en conditions réelles ; le secrétariat, lui, y accède par son code. Ouverture à l'équipe une
-fois l'écran validé.
+⏳ **En test.** La tuile Dashboard porte `liberal:true` **et** `only:'FROHLICH'` : réservée au
+groupement par construction, restreinte à un seul MAR le temps de l'essai. Le geste d'ouverture est
+le retrait du seul `only`.
 
 ---
 
@@ -762,6 +800,7 @@ encore en vigueur.*
 | v3.13→3.20 · 23–24/07 | Conception complète du **Lot 5** (interface secrétaire), puis **gel** (§7 bis). |
 | v3.21 · 26/07 | **Le rendement est un attribut de spécialité, pas de secteur** — le déménagement de janvier 2027 change les secteurs, pas les spécialités. |
 | v3.22 · 26/07 | **Lot 2 élargi** : la déclaration porte la spécialité et le montant ; ventilation au prorata ; 2A avant 2B. |
+| **v4.7 · 28/07** | **Écran « Consultations à venir » recadré** (§5.5). Périmètre **libéral exclusif** acté ; tuile `liberal:true` ; seuls les membres du groupement sont proposés (source : colonne `LIBERAL`, **jamais** le relevé) ; marges calculées **côté serveur** dans `getConsultAbsences`, aucun chiffre pour un non-membre ; troncature à 3 supprimée. **Les deux critères absolus « présent sur toute la période » et « consultation avant le début » sont supprimés** — testés sur un congé réel de 19 jours, ils renvoyaient « personne » — et remplacés par une **couverture jour par jour** avec plages affichées. Site **v1.14.1**. |
 | **v4.6 · 27/07** | **Lot 5 couche 2 dégelée et livrée** : tri des alternatives de `absences.html` par marge CCAM, réservé au MAR. Le compteur du 2B ayant levé l'obstacle, le gel tombe pour la bonne raison. |
 | **v4.5 · 27/07** | **Première analyse sur données réelles** (§9 bis) : l'hypothèse « les temps pleins saturent » est écartée (corrélation 0,25), l'excédent est concentré sur 2 à 5 personnes, l'effet secteur reste non testé faute d'affectations saisies au S1. Nuance majeure sur la formule 10/3 : le pourcentage se calcule sur l'année entière, le levier est le pilotage du second semestre. |
 | **v4.4 · 27/07** | `T` = activité totale **confirmé** ; identité **public = 10/3 × excédent** (affichée sous chaque excédent) ; contrôle de monotonie précisé et daté à août ; index CCAM régénéré en **v84** avec alerte d'obsolescence à 8/14 mois (bandeau de cotation + ligne du Diagnostic). |
