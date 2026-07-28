@@ -26,7 +26,7 @@ Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`.
 - **Racine** : les `.html` (`index.html`, `admin.html`, `staff.html`, `indispos.html`, `dashboard.html`, `crh.html`), `manifest.webmanifest` (PWA, doit rester racine — `scope`/`start_url`), `sw.js`.
 - **`assets/`** : ⚠️ `vendor/lucide-icons.js` est un mini-bundle LOCAL de **17 icônes seulement** (liste dans son en-tête) — une tuile qui demande une icône absente s'affiche vide ; pour en ajouter une, copier son tableau `children` depuis le paquet lucide. `favicon.svg`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`. Référencés par les `<link>` des HTML et par le manifest (`assets/icon-*.png`).
 - **`docs/`** : la documentation vivante — `CONTEXTE-Planning-CHPG.md` (ce fichier) et `ROADMAP-Planning-CHPG.md` ; guides `guide-technique.html` (référence interne : architecture, wizards, déploiement, dépannage), `guide-comite.html`, `guide-mar.html`, `guide-algo-gardes.html`, `guide-liberal.html` ; `reprise.md` (continuité : propriété, accès, sauvegardes) ; `VEILLE_CFG-mode-emploi.md` ; présentations staff (⚠️ `presentation-staff.html` : le code de démo se saisit **par prompt au clic**, ne jamais l'écrire en dur — dépôt public, historique permanent) ; `module-liberal/` (conception, antisèche cotation, estimateur).
-- **`gas/`** : les **5** fichiers Apps Script (`code.gs`, `Indispos.gs`, `generateur_gardes.gs`, `setup_annee.gs`, `portail.gs`) + `README.md`.
+- **`gas/`** : les **5** fichiers Apps Script (`code.gs`, `Indispos.gs`, `generateur_gardes.gs`, `setup_annee.gs`, `portail.gs`) + `README.md`. **+ `mesure_perf.gs` — TEMPORAIRE** (outil de diagnostic en lecture seule, lancé à la main depuis l'éditeur, jamais routé ni déployé ; contient `mesurerPerf()` et `mesurerDrive()`). **À supprimer du dépôt ET de l'éditeur quand le chantier performance sera clos.**
 - **`simulateur/`** : batterie de tests Python (non-régression de l'algo) + `experiences/`.
 
 ## Architecture
@@ -327,7 +327,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site (badge `vX.Y.Z`) — actuellement **v1.6.1**
+## Version du site (badge `vX.Y.Z`) — actuellement **v1.12**
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
@@ -506,6 +506,38 @@ one-shot réversible, à relancer après ajout d'un onglet.
   des MAR non servis, sans trace. Si le quota est illisible, l'envoi est autorisé (choix assumé :
   ne pas bloquer le comité sur une lecture ratée).
 - **Toute nouvelle action d'envoi groupé doit poser ce garde-fou.**
+
+## Performance — ce qu'il faut savoir avant toute optimisation (28/07/2026)
+
+**Le coût dominant est PAR APPEL, et il ne nous appartient pas.** Mesure de référence : une requête
+qui ne fait rien (17 ms de travail serveur) met **2 à 3 s** à revenir, avec des pointes à 10-20 s
+et des rejets HTTP 404 sporadiques. Vérifié sur **deux déploiements indépendants** (5 mesures
+chacun, médianes 2,70 s et 2,31 s) : un déploiement neuf se comporte exactement comme l'ancien.
+Ce socle varie dans la journée (≈1,4 s le matin, 2,5 à 7 s l'après-midi du 28/07).
+
+**Conséquence pratique : le seul levier est le NOMBRE d'appels.** Alléger le contenu d'une réponse
+ou optimiser 200 ms de lecture ne change presque rien ; supprimer un appel gagne 2,5 s. Les deux
+succès du 28/07 viennent de là — placements groupés (34 appels → 1) et panneau préchargé
+(10-14 appels → 0 au clic).
+
+**Outils de mesure en place :**
+- `chronoAPI()` dans la console d'`admin.html` : chaque ligne affiche **serveur / attente**
+  séparément, grâce au champ `_srv_ms` que `doGet` ajoute à chaque réponse JSON.
+  ⚠️ `doGet` n'est plus l'aiguillage : celui-ci s'appelle **`_routeRequete_`**, et `doGet` ne fait
+  que le chronométrer. Ne pas les confondre en lisant `Indispos.gs`.
+- `gas/mesure_perf.gs` : `mesurerPerf()` (coût des lectures d'onglets, du login, de l'ouverture
+  admin, du Drive ; inventaire du classeur) et `mesurerDrive()` (recherche vs téléchargement).
+  Lecture seule, à lancer depuis l'éditeur Apps Script, résultat dans le Journal d'exécution.
+- Menu **Exécutions** d'Apps Script : durée réelle côté serveur, à croiser avec `chronoAPI()`.
+
+**Méthode : ne jamais optimiser sur une base instable.** Le 28/07 après-midi, `getAdminBootstrap`
+est passé de 3 135 à 5 712 ms **sans changement de code** ; mesurer un gain y était impossible.
+Prendre la mesure de référence le matin.
+
+**Pistes fermées (ne pas reproposer sans élément nouveau) :** tailler les lignes vides des onglets
+(ouverture du classeur = 120 ms pour 1,7 M de cellules) ; lire les JSON du Drive par identifiant
+direct (396 ms contre ~350 ms par recherche de nom) ; fusionner `login` et `getAdminBootstrap`
+(**déjà fait**) ; cache serveur et optimisation du JSON (écartés de longue date).
 
 ## État : fonctionnellement terminé
 **Ne PAS reproposer** : `config.html` (abandonné — couvert par les 5 onglets d'admin.html) ; **optimisation perf** du JSON (déjà minifié/gzip) ; patch GAS de robustesse cible (le garde frontend suffit).
