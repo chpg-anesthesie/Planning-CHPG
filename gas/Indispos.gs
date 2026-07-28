@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-28.3';
+const GAS_VERSION_INDISPOS = '2026-07-28.4';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1052,6 +1052,7 @@ function _buildOverrides_() {
 // EXCLUS volontairement :
 //  - savePlanningOverride : verrou dédié déjà en place (même verrou de script
 //    → exclusion mutuelle assurée avec deleteOverride et les autres écritures) ;
+//  - savePlanningOverridesBatch : même verrou dédié (code.gs), mêmes garanties ;
 //  - markVeille : écriture d'une cellule ciblée, lignes jamais supprimées ;
 // INCLUS (routées par portail.gs mais écrivantes — le verrou est vérifié AVANT
 // la délégation, par nom d'action) :
@@ -2894,6 +2895,26 @@ if (action === 'savePlanningOverride') {
     savePlanningOverride(date, marId, morning, afternoon, comment || '');
     logAction(`savePlanningOverride — ${marId} le ${date} → ${morning}`);
     return ContentService.createTextOutput(JSON.stringify({success: true}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch(e) {
+    return _error(e.message);
+  }
+}
+
+
+// ── ACTION : savePlanningOverridesBatch ───────────────────────────────
+// Toute une rafale de placements du comité en UN appel (>20 par session mesurés).
+// payload : { action, code, items:[{date, marId, morning, afternoon, comment}, …] }
+// Exclue de WRITE_ACTIONS_LOCK comme l'unitaire : verrou dédié dans code.gs
+// (même verrou de script → exclusion mutuelle avec l'unitaire et deleteOverride).
+if (action === 'savePlanningOverridesBatch') {
+  if (user.role !== 'admin') return _deny();
+  const items = Array.isArray(payload.items) ? payload.items : [];
+  if (!items.length) return _error('items requis');
+  try {
+    const res = savePlanningOverridesBatch(items);
+    logAction(`savePlanningOverridesBatch — ${res.saved} placement(s) (${items.length} item(s) reçus)`);
+    return ContentService.createTextOutput(JSON.stringify({success: true, saved: res.saved}))
       .setMimeType(ContentService.MimeType.JSON);
   } catch(e) {
     return _error(e.message);
