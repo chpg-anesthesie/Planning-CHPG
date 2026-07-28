@@ -11,6 +11,42 @@ Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`.
 - **Fichiers GAS** (`gas/code.gs`, `gas/generateur_gardes.gs`, `gas/Indispos.gs`, `gas/setup_annee.gs`) : tu pousses la copie du dépôt, **je recopie manuellement dans Apps Script**. En Apps Script, les fonctions se voient entre fichiers (scope global partagé). **Tant qu'un `.gs` n'est pas recopié dans Apps Script, le web app tourne sur l'ancienne version.**
 - **Token GitHub** : je te le fournis en début de session (il sert à pousser ; c'est aussi la clé `GITHUB_TOKEN` de l'onglet CONFIG côté appli). Sans lui, tu ne peux pas publier. Ne l'écris jamais dans un fichier.
 
+## ⛔ Diagnostic : les 4 règles issues de la journée du 28/07/2026
+
+Une seule ligne mal placée a coûté une journée entière. Ces règles en découlent — les appliquer
+avant tout diagnostic de comportement anormal.
+
+**1. Lire dans l'ORDRE D'EXÉCUTION, pas par fragments.** Le défaut du 28/07 : la file d'attente
+`_fileAPI` (`let`, ligne 2036) était utilisée par la connexion automatique qui s'exécute **235
+lignes plus haut** (ligne 1801). Une variable `let` n'existe pas avant sa ligne : le tout premier
+appel levait `ReferenceError: Cannot access '_fileAPI' before initialization`, **à chaque
+rechargement de page**. Aucune lecture locale ne peut révéler ça — seule une lecture « qu'est-ce
+qui s'exécute en premier, qu'est-ce qui est déclaré où » le montre.
+→ ⚠️ **L'emplacement d'une déclaration est une décision technique, jamais éditoriale.** Ne jamais
+insérer du code « là où c'est lisible » sans vérifier ce qui s'exécute avant lui. Dans
+`admin.html`, la connexion automatique (`tryAutoLogin`) est volontairement **la dernière chose du
+gros bloc `<script>`** : ne jamais la remonter.
+
+**2. RENDRE VISIBLE avant de corriger.** L'exception était avalée par le `catch` d'`ouvrirSession`
+depuis le matin. Trois lignes de `console.warn` ont donné la réponse en une minute, après six
+heures de tâtonnements. Face à un symptôme inexpliqué, la PREMIÈRE action est d'afficher l'échec
+silencieux — jamais un correctif. (Corollaire de la règle « un try/catch protecteur ne dispense
+pas de tester ».)
+
+**3. Un symptôme qui CONTREDIT le code est le signal le plus fort.** Le chronomètre montrait
+`login` parti AVANT `getAdminBootstrap`, alors que le code ne l'appelle qu'après. J'ai cherché
+des explications de contournement pendant des heures. Quand l'observation contredit le code,
+c'est que le code ne fait pas ce qu'on croit : creuser LÀ, immédiatement.
+
+**4. Une mesure exacte peut mener à une conclusion fausse.** Le péage de 2-3 s par appel
+(mesuré, vérifié sur deux déploiements) est réel — mais il explique la **durée** d'un appel, pas
+leur **nombre**. Il y avait 3 à 4 appels là où un seul était nécessaire, et ça, c'était le code.
+Toujours vérifier : cette mesure répond-elle à la question posée ?
+
+**5. Quand la même fonction casse deux fois, ARRÊTER DE PATCHER.** Le préchargement du panneau a
+demandé quatre versions successives le même après-midi. Après le deuxième correctif, il fallait
+revenir à un état stable et repartir d'une analyse complète.
+
 ## Conventions de code (à respecter)
 - Patches **AVANT/APRÈS** explicites (jamais un fichier entier collé), ou push direct pour le frontend.
 - Avant chaque edit : vérifier l'**unicité de l'ancre** (`s.count(ancre) == 1`).
