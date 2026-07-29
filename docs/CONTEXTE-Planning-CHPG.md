@@ -254,9 +254,10 @@ source du **rendement par spécialité**, qui n'a plus à être déduit par moin
 
 - **Granularité : une ligne = UN PATIENT.** La fusion « même MAR + même jour + même secteur » de
   `declareLiberal` disparaît (elle rendait les interventions incomptables : 8 cataractes = 1 ligne).
-- **Schéma cible `LIBERAL_{Y}` à 9 colonnes** : `+ SPECIALITE, BR_CCAM, BR_NGAP`. ⚠️ **Pas encore en
-  production** — le schéma décrit plus haut dans ce document est celui qui tourne aujourd'hui. Les
-  lignes anciennes gardent leurs 6 colonnes remplies : **aucune migration**.
+- **Schéma `LIBERAL_{Y}` à 9 colonnes** : `+ SPECIALITE, BR_CCAM, BR_NGAP`.
+  ✅ **EN PRODUCTION depuis le lot 2A (27/07/2026)** — `portail.gs` écrit les 9 colonnes.
+  *(Cette ligne a longtemps indiqué « pas encore en production » : c'était FAUX, corrigé le
+  29/07.)* Les lignes anciennes gardent leurs 6 colonnes remplies : **aucune migration**.
 - **BR seule, jamais le DH** (hors quota). `BR_CCAM` datée du **bloc**, `BR_NGAP` datée de la
   **consultation** — souvent deux mois différents ; sans cette séparation le recoupement bi-axial
   est faux. `DATE_CONSULT` cesse d'être informative et devient éditable.
@@ -320,7 +321,12 @@ volume accumulée depuis*. L'arbitrage pouvant être mensuel, le relevé est men
 saisie garde son sens (17 lignes × 6 nombres, checksum sur Σ des excédents **recopiés**, monotonie
 du cumul). Maquette de saisie explorée, non poussée.
 
-### Lot 5 (orientation financière par la secrétaire) — GELÉ
+### Lot 5 (orientation financière par la secrétaire) — GELÉ, mais hypothèse à revérifier
+
+> ⚠️ **Constat du 27/07/2026 : 10 MAR sur 18 sont en excédent** au cumul de juin, dont **2 sur le
+> seul axe NGAP** — non corrigeables par la réa. Cela **fragilise le motif (2) du gel ci-dessous**
+> (« le dépassement s'efface arithmétiquement avec les deux entrants »). À revérifier sur deux ou
+> trois mois consécutifs avant de confirmer ou lever le gel.
 L'idée initiale : router chaque patient vers le MAR le plus loin de son plafond. **Gelée**, pas
 abandonnée. Raisons : (1) elle dépend du Lot 2 (le plafond n'existe pas encore) et d'un horizon de
 placement porté à 3–4 semaines ; (2) le dépassement du groupe s'efface **arithmétiquement** avec les
@@ -735,22 +741,31 @@ et les **rejouer sur 22 années** a trouvé trois défauts en une heure — dont
 → Partir d'une **famille de pannes** (frontières de dates, incohérences entre deux endroits qui
 font la même chose, scénarios de rupture, échecs silencieux) et la traquer par script. Un objectif
 ciblé produit des réponses ; le balayage produit du volume.
-- **⚠️ ÉTAT RÉEL AU 20/07/2026 : l'année active est 2026, PAS 2027.** Ce fichier a longtemps
-  affirmé « archivage de 2026 testé en réel, année active → 2027 » : **c'est FAUX**. Le classeur
-  contient `GARDES_2026` / `INDISPOS_2026` / `AFFECTATIONS_2026` / `STATS_GARDES_2026`, et **aucun
-  onglet 2027** — 2027 n'a pas encore été généré (ce sera le Wizard 2, en novembre). Vérifier
-  l'état réel du classeur plutôt que de se fier à cette ligne.
+- **⚠️ Année active : 2026.** Le classeur contient `GARDES_2026`, `INDISPOS_2026`,
+  `AFFECTATIONS_2026` et `STATS_GARDES_2026`. L'archivage de 2026 n'a PAS eu lieu ; il se fera en
+  janvier 2027 (voir « Quand clôturer l'année »).
+  ⚠️ **Mise à jour du 29/07/2026 — `INDISPOS_2027` EXISTE** (mesuré le 28/07 : 1000 × 365
+  cellules), créé pour la campagne de saisie des indisponibilités 2027 en cours. Ce fichier
+  affirmait « aucun onglet 2027 » : c'est **périmé**. Les gardes 2027, elles, ne sont pas encore
+  générées (ce sera le Wizard 2, en novembre).
+  **Règle qui ne change pas : vérifier l'état réel du classeur plutôt que de se fier à ce
+  document.**
 - **Mécanique d'archivage (quand elle servira, en janvier 2027)** : `archiveYear` écrit
   `stats_{Y}.json` dans le **Drive** et **déplace** les onglets `*_{Y}` vers `ARCHIVE_SS_ID`
   (`Planning_CHPG_Archives`). Détection via l'action GAS `getArchivedYears` (scan Drive des
   `stats_YYYY.json`) ; lecture des stats archivées via `_ssWithSheet()` (classeur actif sinon
   `ARCHIVE_SS_ID`), appliqué à `computeStatsLive` et `getStats`. Rappel : Initiale = équité figée
   à la génération, Instantané = équité réelle finale (les deux diffèrent légitimement).
-- **Secteurs étape 2 — plan validé, à exécuter plus tard (avant déménagement NCHPG/2027).** Objectif : bascule secteurs en quelques minutes dans un onglet, pas de hardcode. Constat : la config secteurs est **triplée et non synchronisée** — `admin.html` (`SECTEURS_CFG`, source riche), `index.html` (copie en dur `_SECTOR_BASE` + `SECLABELS`), `gas/code.gs` (`CS_TEMPLATE` par jour + règles CI→RI/`csAmRules`). `staff.html` n'a pas de secteurs. **Périmètre décidé : complet** (définitions + consultations). **On ne modélise PAS encore les secteurs NCHPG** — on construit le mécanisme rempli à l'identique de l'existant ; la bascule sera une simple édition d'onglet.
+- ✅ **Secteurs — CHANTIER TERMINÉ DE BOUT EN BOUT le 21/07/2026** (site v1.7.1). Un secteur ou
+  une consultation se crée **dans un onglet du classeur** et va jusqu'à l'Excel du vendredi, sans
+  code ni recopie Apps Script. Marche à suivre complète au **§ 18 du guide technique**.
+  ⚠️ **Ne pas reconstruire.** Le plan d'exécution qui suit est conservé pour comprendre les
+  décisions ; il est **réalisé**, pas à faire.
+- *(Plan d'origine, réalisé)* **Secteurs étape 2 — plan validé (avant déménagement NCHPG/2027).** Objectif : bascule secteurs en quelques minutes dans un onglet, pas de hardcode. Constat : la config secteurs est **triplée et non synchronisée** — `admin.html` (`SECTEURS_CFG`, source riche), `index.html` (copie en dur `_SECTOR_BASE` + `SECLABELS`), `gas/code.gs` (`CS_TEMPLATE` par jour + règles CI→RI/`csAmRules`). `staff.html` n'a pas de secteurs. **Périmètre décidé : complet** (définitions + consultations). **On ne modélise PAS encore les secteurs NCHPG** — on construit le mécanisme rempli à l'identique de l'existant ; la bascule sera une simple édition d'onglet.
   - **Schéma validé — onglet `SECTEURS`** (1 ligne/secteur) : `ORDRE | CODE | LABEL | COURT | AFF | ICON | BG | FG | CS | ACTIF`.
   - **Schéma validé — onglet `CS_TEMPLATE`** (1 ligne/créneau conso) : `JOUR(1-5) | DEMI(AM/PM) | SECTEUR_AFFIL | CODE_CS | NB`.
   - **Workflow d'exécution** (après synchro des 4 `.gs`), chaque étape validée avant la suivante, **repli systématique sur les valeurs actuelles** à chaque étape (jamais de casse) : (1) `setupSecteursTab()` GAS — crée+remplit les 2 onglets à l'identique, idempotente ; (2) lecteur GAS `getSecteursConfig()` (caché) + injection d'un bloc `secteurs` dans les JSON publiés + action API `getSecteursConfig` ; contrôle non-régression = JSON identique + ce bloc ; (3) `admin.html` lit la config au chargement (repli sur `SECTEURS_CFG` actuel si l'API échoue) ; (4) `index.html` consomme le bloc `secteurs` du JSON au lieu de ses copies en dur. Bascule 2027 = éditer l'onglet (nouveaux codes BLOC CENTRAL, anciens en `ACTIF=N`), regénérer. La bascule CI→RI restera du code paramétré (logique, pas donnée).
-- **Module libéral** (règle des 30 %, voir `docs/module_liberal_conception.md`).
+- **Module libéral** (règle des 30 %, voir `docs/module-liberal/module_liberal_conception.md`).
 
 ## Robustesse — invariants acquis (audit des 19–20/07/2026)
 
