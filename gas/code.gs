@@ -1,54 +1,9 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-07-29.1';
+const GAS_VERSION_CODE = '2026-07-29.2';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
-function buildStats2026() {
-  const year = 2026;
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const gardes = ss.getSheetByName(`GARDES_${year}`);
-  if (!gardes) throw new Error(`GARDES_${year} introuvable`);
-  const data = gardes.getDataRange().getValues();
-  const dateToCol = buildDateToCol(data, year);
-  const colToDate = {};
-  Object.keys(dateToCol).forEach(d => { colToDate[dateToCol[d]] = d; });
-  const jf = getJoursFeries(year), jfn = getJoursFeries(year + 1);
-  const NOEL = new Set([`${year}-12-24`,`${year}-12-25`,`${year}-12-31`,`${year+1}-01-01`]);
-  const KEYS = ['dim','lun','mar','mer','jeu','ven','sam'];
-
-  const rows = [];
-  for (let r = 3; r < data.length; r++) {
-    const id = String(data[r][0]).trim();
-    if (!id) continue;
-    const c = {total:0,g:0,g2:0,lun:0,mar:0,mer:0,jeu:0,ven:0,sam:0,dim:0,recupR:0,h18:0,jf:0,noelAn:0};
-    Object.keys(colToDate).forEach(col => {
-      const date = colToDate[col];
-      const val = String(data[r][Number(col)] || '').trim().toUpperCase();
-      if (val === 'R')  c.recupR++;
-      if (val === '18') c.h18++;
-      if (val !== 'G' && val !== 'G2') return;
-      const dow = new Date(date + 'T12:00:00').getDay();
-      c.total++;
-      if (val === 'G') c.g++; else c.g2++;
-      c[KEYS[dow]]++;
-      if (jf.has(date) || jfn.has(date)) c.jf++;
-      if (NOEL.has(date)) c.noelAn++;
-    });
-    rows.push([id, '—', c.total, c.g, c.g2, c.lun, c.mar, c.mer, c.jeu, c.ven,
-               c.sam, c.dim, c.recupR, c.h18, c.jf, 0, c.noelAn]);
-  }
-
-  let st = ss.getSheetByName(`STATS_GARDES_${year}`);
-  if (st) ss.deleteSheet(st);
-  st = ss.insertSheet(`STATS_GARDES_${year}`);
-  st.getRange(1,1,1,17).setValues([['MEDECIN','CIBLE','TOTAL G','G (REA)','G2 (MAT)',
-    'LUN','MAR','MER','JEU','VEN','SAM','DIM','RECUP R','18H','JF','VEILLE JF','NOEL/AN']]).setFontWeight('bold');
-  if (rows.length) st.getRange(2,1,rows.length,17).setValues(rows);
-  st.setColumnWidth(1,140);
-  SpreadsheetApp.getUi().alert(`✅ STATS_GARDES_${year} reconstruit (${rows.length} MARs)`);
-}
-
 // Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
 // sinon le classeur d'archive (année clôturée dont les onglets ont été déplacés).
 function _ssWithSheet(sheetName) {
@@ -1136,23 +1091,6 @@ function testDrivePlanning() {
 
 // À exécuter UNE FOIS avant la suppression des JSON publics (étape 3b) :
 // copie chaque planning_/affectations_ encore présent sur GitHub vers Drive.
-function migrateJsonToDrive() {
-  const out = [];
-  const thisYear = new Date().getFullYear();
-  for (let y = 2026; y <= thisYear + 2; y++) {
-    ['planning', 'affectations'].forEach(kind => {
-      const fn = `${kind}_${y}.json`;
-      try {
-        const r = UrlFetchApp.fetch(`https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${fn}`, {muteHttpExceptions: true});
-        if (r.getResponseCode() === 200) { savePlanningToDrive(fn, r.getContentText()); out.push(`✅ ${fn} → Drive`); }
-        else out.push(`ℹ️ ${fn} absent de GitHub (${r.getResponseCode()})`);
-      } catch(e) { out.push(`❌ ${fn} : ${e.message}`); }
-    });
-  }
-  Logger.log(out.join('\n'));
-  return out;
-}
-
 // ── PUSH FICHIER GITHUB ───────────────────────────────────────────────
 function pushFileToGitHub(fileName, content) {
   const apiUrl = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${fileName}`;
@@ -1190,15 +1128,6 @@ function pushFileToGitHub(fileName, content) {
 }
 
 // Message clair (pour l'utilisateur) à partir d'un push GitHub raté.
-function _pushErrMsg(fileName, res) {
-  const c = res && res.code;
-  if (c === 401) return "Publication échouée : token GitHub invalide ou expiré. Vérifie / régénère la clé GITHUB_TOKEN dans l'onglet CONFIG.";
-  if (c === 403) return "Publication échouée : accès refusé par GitHub (403) — le token n'a peut-être pas le droit « repo », ou la limite d'API est atteinte.";
-  if (c === 404) return "Publication échouée : dépôt ou branche introuvable (404). Vérifie le dépôt et la branche dans le code.";
-  if (c === 409 || c === 422) return "Publication échouée : conflit GitHub (" + c + ") sur " + fileName + ". Réessaie une fois.";
-  return "Publication échouée sur " + fileName + " (code GitHub " + (c || "?") + ").";
-}
-
 // (Étape 3) pushToGitHub (rétrocompat) supprimé — aucun appelant.
 // pushFileToGitHub est conservé : il sert encore à pousser les pages HTML.
 
@@ -1349,200 +1278,6 @@ function savePlanningOverridesBatch(items) {
 }
 
 // ── SUPPRIMER UN PLANNING OVERRIDE ───────────────────────────────────
-function deletePlanningOverride(date, marId) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('PLANNING_OVERRIDES');
-  if (!sheet) return;
-  const data = sheet.getDataRange().getValues();
-  for (let r = data.length - 1; r >= 1; r--) {
-    const rawDate = data[r][0];
-    const existDate = rawDate instanceof Date
-      ? `${rawDate.getFullYear()}-${String(rawDate.getMonth()+1).padStart(2,'0')}-${String(rawDate.getDate()).padStart(2,'0')}`
-      : String(rawDate).trim();
-    if (existDate === date && String(data[r][1]).trim().toUpperCase() === marId.toUpperCase()) {
-      sheet.deleteRow(r + 1);
-      Logger.log(`✅ Override supprimé : ${marId} le ${date}`);
-      return;
-    }
-  }
-}
-function reconstruireGardes2026() {
-  const SOURCE_ID = '1cM6Ml6_6X4-wSSyl_pLi325ZS3zFXrzK2M-nvjDmB1g';
-  const source = SpreadsheetApp.openById(SOURCE_ID);
-  const dest = SpreadsheetApp.getActiveSpreadsheet();
-
-  // Supprimer l'onglet GARDES_2026 corrompu s'il existe
-  const existing = dest.getSheetByName('GARDES_2026');
-  if (existing) dest.deleteSheet(existing);
-
-  // Créer le nouvel onglet GARDES_2026
-  const gs = dest.insertSheet('GARDES_2026');
-
-  // Mapping ID MAR → nom dans le fichier source
-  const MAR_MAP = {
-    'DR ALBOUY':'ALBOUY', 'DR ARMANDO':'ARMANDO', 'DR ARMAND':'ARMAND',
-    'DR BONNET':'BONNET', 'DR BOUREGBA':'BOUREGBA', 'DR CATINEAU':'CATINEAU',
-    'DR FROHLICH':'FROHLICH', 'DR FERRIERO':'FERRIERO', 'DR GHIGLIONE':'GHIGLIONE',
-    'DR GUERIN':'GUERIN', 'DR LEVASSEUR':'LEVASSEUR', 'DR LEY':'LEY',
-    'DR MENADE':'MENADE', 'DR OPPRECHT':'OPPRECHT', 'DR PARTOUCHE':'PARTOUCHE',
-    'DR ROUSSEAU':'ROUSSEAU', 'DR SALA':'SALA', 'DR SEVERAC':'SEVERAC',
-    'DR SULTAN':'SULTAN', 'DR SUPLY':'SUPLY', 'DR WIDEHEM':'WIDEHEM',
-    'DR ZAMARON':'ZAMARON', 'DR TRAN':'TRAN', 'PR PRUNET':'PRUNET',
-    'DR GARCIA':'GARCIA', 'DR DRUGE':'DRUGE',
-  };
-
-  const MOIS = [
-    {nom:'JANVIER_26',   mois:1,  year:2026, jours:31},
-    {nom:'FEVRIER_26',   mois:2,  year:2026, jours:28},
-    {nom:'MARS_26',      mois:3,  year:2026, jours:31},
-    {nom:'AVRIL_26',     mois:4,  year:2026, jours:30},
-    {nom:'MAI_26',       mois:5,  year:2026, jours:31},
-    {nom:'JUIN_26',      mois:6,  year:2026, jours:30},
-    {nom:'JUILLET_26',   mois:7,  year:2026, jours:31},
-    {nom:'AOUT_26',      mois:8,  year:2026, jours:31},
-    {nom:'SEPTEMBRE_26', mois:9,  year:2026, jours:30},
-    {nom:'OCTOBRE_26',   mois:10, year:2026, jours:31},
-    {nom:'NOVEMBRE_26',  mois:11, year:2026, jours:30},
-    {nom:'DECEMBRE_26',  mois:12, year:2026, jours:31},
-    {nom:'JANVIER_27',   mois:1,  year:2027, jours:4},
-  ];
-
-  // Construire la liste de tous les jours de l'année planning 2026
-  // Premier lundi de janvier 2026
-  const jan1 = new Date(2026, 0, 1);
-  const dow1 = jan1.getDay();
-  const offset = dow1 === 1 ? 7 : dow1 === 0 ? 1 : 8 - dow1;
-  const startDate = new Date(2026, 0, 1 + offset);
-
-  // Dernier jour = veille du premier lundi de janvier 2027
-  const jan1Next = new Date(2027, 0, 1);
-  const dow1Next = jan1Next.getDay();
-  const offsetNext = dow1Next === 1 ? 7 : dow1Next === 0 ? 1 : 8 - dow1Next;
-  const endDate = new Date(2027, 0, offsetNext - 1);
-
-  const allDays = [];
-  const d = new Date(startDate);
-  while (d <= endDate) {
-    allDays.push({
-      date: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,
-      day: d.getDate(),
-      month: d.getMonth() + 1,
-      year: d.getFullYear(),
-      dow: d.getDay(),
-    });
-    d.setDate(d.getDate() + 1);
-  }
-
-  // Lire les données depuis chaque onglet mensuel
-  const gardesData = {}; // gardesData[marId][date] = code
-
-  MOIS.forEach(m => {
-    const sheet = source.getSheetByName(m.nom);
-    if (!sheet) { Logger.log(`⚠️ Onglet ${m.nom} introuvable`); return; }
-    const data = sheet.getDataRange().getValues();
-    const numRows = data.length;
-    const numCols = data[0].length;
-
-    // Lire toutes les couleurs de fond en une seule fois
-    const backgrounds = sheet.getRange(1, 1, numRows, numCols).getBackgrounds();
-
-    const dayNums = data[1]; // ligne 2 : numéros des jours
-
-    for (let r = 3; r < numRows; r++) {
-      const rawName = String(data[r][0] || '').trim();
-      if (!rawName) continue;
-      const marId = MAR_MAP[rawName];
-      if (!marId) continue;
-      if (!gardesData[marId]) gardesData[marId] = {};
-
-      for (let c = 1; c < dayNums.length; c++) {
-        const dayNum = Number(dayNums[c]);
-        if (!dayNum) continue;
-        const dateStr = `${m.year}-${String(m.mois).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
-        const val = String(data[r][c] || '').trim();
-        const bg = backgrounds[r][c].toLowerCase();
-
-        let code = '';
-        if (bg === '#00b0f0') code = 'G2';      // Anesth/MAT
-        else if (bg === '#0070c0') code = 'G';   // Réa/REA
-        else if (val) code = val;                 // RG, R, 18, V, F, A, I...
-
-        if (code) gardesData[marId][dateStr] = code;
-      }
-    }
-    Logger.log(`✅ ${m.nom} lu`);
-  });
-
-  // Écrire GARDES_2026
-  const ROUGE = '#C0392B', GRIS_WE = '#CFD8DC', BLANC = '#FFFFFF';
-  const JOURS_ABR = ['D','L','M','M','J','V','S'];
-  const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin',
-                   'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-
-  const nCols = allDays.length + 1;
-  gs.setFrozenRows(3);
-
-  // Ligne 1 : mois
-  const row1 = ['MEDECIN']; allDays.forEach(() => row1.push(''));
-  gs.getRange(1, 1, 1, nCols).setValues([row1]);
-  gs.getRange(1, 1).setFontWeight('bold').setBackground(ROUGE).setFontColor('#FFFFFF');
-
-  let mStart = 2, prevMonth = allDays[0].month;
-  allDays.forEach((day, i) => {
-    const col = i + 2;
-    const isLast = i === allDays.length - 1;
-    if (day.month !== prevMonth || isLast) {
-      const mEnd = (day.month !== prevMonth) ? col - 1 : col;
-      if (mEnd >= mStart) gs.getRange(1, mStart, 1, mEnd - mStart + 1).merge();
-      gs.getRange(1, mStart).setValue(MOIS_FR[prevMonth - 1])
-        .setBackground(ROUGE).setFontColor('#FFFFFF').setFontWeight('bold').setHorizontalAlignment('center');
-      mStart = col; prevMonth = day.month;
-    }
-  });
-
-  // Ligne 2 : initiales jours
-  const row2 = ['JOUR']; allDays.forEach(d => row2.push(JOURS_ABR[d.dow]));
-  gs.getRange(2, 1, 1, nCols).setValues([row2]);
-  gs.getRange(2, 1).setFontWeight('bold').setBackground(ROUGE).setFontColor('#FFFFFF');
-
-  // Ligne 3 : numéros
-  const row3 = ['N°']; allDays.forEach(d => row3.push(d.day));
-  gs.getRange(3, 1, 1, nCols).setValues([row3]);
-  gs.getRange(3, 1).setFontWeight('bold').setBackground(ROUGE).setFontColor('#FFFFFF');
-
-  // Données MAR
-  const allMars = Object.values(MAR_MAP);
-  const dRows = allMars.map(marId => {
-    const row = [marId];
-    allDays.forEach(day => {
-      row.push((gardesData[marId] || {})[day.date] || '');
-    });
-    return row;
-  });
-  gs.getRange(4, 1, dRows.length, nCols).setValues(dRows);
-
-  // Mise en forme
-  allDays.forEach((day, i) => {
-    const col = i + 2;
-    const isWE = day.dow === 0 || day.dow === 6;
-    gs.getRange(1, col, 3 + dRows.length, 1).setBackground(isWE ? GRIS_WE : BLANC);
-    const nextDay = allDays[i + 1];
-    if (!nextDay || nextDay.month !== day.month) {
-      gs.getRange(1, col, 3 + dRows.length, 1)
-        .setBorder(null, null, null, true, null, null, '#000000', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
-    }
-  });
-
-  gs.setColumnWidth(1, 120);
-  for (let c = 2; c <= nCols; c++) gs.setColumnWidth(c, 35);
-  gs.getRange(1, 2, 3 + dRows.length, nCols - 1).setHorizontalAlignment('center');
-
-  Logger.log(`✅ GARDES_2026 reconstruit — ${allDays.length} jours, ${dRows.length} MARs`);
-  SpreadsheetApp.getUi().alert('✅ GARDES_2026 reconstruit avec succès !');
-}
-function testGenerate2027() {
-  generateGardes(2027);
-}
 function testSetDailyStatus() {
   const year = 2026, marId = 'FROHLICH', date = '2026-10-13';
   const ss = SpreadsheetApp.getActiveSpreadsheet();
