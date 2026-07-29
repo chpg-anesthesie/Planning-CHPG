@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-29.4';
+const GAS_VERSION_INDISPOS = '2026-07-29.5';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1062,6 +1062,12 @@ function _buildOverrides_() {
 //  - sendCodes* / envoyerRecapIndispos : emails (lents, pas d'écriture à risque).
 // NB : pas de releaseLock explicite — Google libère le verrou automatiquement
 // à la fin de chaque exécution.
+// Rang de tri d'un role parmi les MAR disponibles. Role inconnu -> 3 (milieu de liste).
+// DEFINITION UNIQUE : les deux tris (getMARsDispoJour et getPanneauSemaine) l'appellent.
+function _rangRole_(role, ordre) {
+  return (role in ordre) ? ordre[role] : 3;
+}
+
 const WRITE_ACTIONS_LOCK = new Set([
   'addMedecinToGroupe', 'annulerAbsenceLongue', 'applyModification',
   'archiveYear', 'clearIndisposYear', 'deleteOverride',
@@ -3053,7 +3059,9 @@ if (action === 'getPanneauSemaine') {
         else role = 'PRESENT';
         dispo.push({ id: id, init: initMap[id] || id, role: role, secteur: secteur, code: code || 'PRESENT' });
       });
-      dispo.sort(function (a, b) { return (roleOrder[a.role]||3) - (roleOrder[b.role]||3); });
+      // `||3` etait un piege : VOLANT vaut 0, donc falsy, donc traite comme 3 —
+      // les volants ne remontaient PAS en tete. `in` teste la presence, pas la valeur.
+      dispo.sort(function (a, b) { return _rangRole_(a.role, roleOrder) - _rangRole_(b.role, roleOrder); });
       jours[targetDate] = {dispo: dispo};
     });
 
@@ -3190,7 +3198,8 @@ if (action === 'getMARsDispoJour') {
 
   // Trier : VOLANT d'abord, puis CTP, puis R, puis autres
   const roleOrder = {VOLANT:0, CTP:1, R:2, PRESENT:3, TP:4};
-  dispo.sort((a,b) => (roleOrder[a.role]||3) - (roleOrder[b.role]||3));
+  // Voir _rangRole_ : `||3` renvoyait 3 pour VOLANT (valeur 0, falsy).
+  dispo.sort((a,b) => _rangRole_(a.role, roleOrder) - _rangRole_(b.role, roleOrder));
 
   return ContentService.createTextOutput(JSON.stringify({
     success: true, date: targetDate, dispo
