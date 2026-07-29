@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-07-23.3';
+const GAS_VERSION_GENERATEUR = '2026-07-29.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -1343,11 +1343,6 @@ function generateGardes(year){
   }catch(e){Logger.log('✅ généré');}
 }
 
-function testGenerate2027(){generateGardes(2027);}
-function renameMonthlySheets(){
-  SpreadsheetApp.getActiveSpreadsheet().getSheets().forEach(s=>{
-    const n=s.getName();if(n.startsWith('Copie de '))s.setName(n.replace('Copie de ',''));});
-}
 // Déplace GARDES/INDISPOS/STATS/AFFECTATIONS de l'année N vers le classeur d'archives.
 // Sûr : copie → vérifie → supprime. À tester en isolé AVANT de câbler en W3.
 function archiveMoveTabs_(year) {
