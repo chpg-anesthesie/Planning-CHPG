@@ -608,6 +608,7 @@ direct (396 ms contre ~350 ms par recherche de nom) ; fusionner `login` et `getA
 
 **Restant / à surveiller (non urgent)** :
 - **`Indispos.gs`** (version dépôt **`2026-07-20.3`**) — action **`resetCodeMar`** (bouton 🔄) et retrait d'`applyRotationLib`. **Recopié et testé en production le 20/07/2026.** **`code.gs` également à recopier** (version **`2026-07-20.3`** : retrait du tag `ROT-LIB` et des fonctions one-shot de conversion). Le 🔍 Diagnostic signale l'écart dépôt/déployé.
+- **`portail.gs` v2026-07-29.2 (poussé le 29/07, NON RECOPIÉ)** — `getReleveLiberal` réservé aux membres du groupement (`LIBERAL=O`). Le code comité est également refusé sur cette action : sans conséquence, la page « Suivi des 30 % » n'est pas faite pour lui. ⚠️ L'appel INTERNE depuis `getConsultAbsences` ne passe pas par le routeur : il reste fonctionnel. **À recopier avec les autres `.gs` du 29/07, puis redéployer.**
 - **⚠️ ÉTAT RÉEL AU 20/07/2026 : l'année active est 2026, PAS 2027.** Ce fichier a longtemps
   affirmé « archivage de 2026 testé en réel, année active → 2027 » : **c'est FAUX**. Le classeur
   contient `GARDES_2026` / `INDISPOS_2026` / `AFFECTATIONS_2026` / `STATS_GARDES_2026`, et **aucun
