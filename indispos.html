@@ -411,8 +411,12 @@ body {
     <div class="login-title">Accès sécurisé</div>
     <div class="login-sub">CHPG Monaco · Anesthésie-Réanimation<br>Saisissez votre code d'accès personnel</div>
     <label class="login-label" for="codeInput">Code d'accès</label>
-    <input class="login-input" id="codeInput" type="text" maxlength="8"
-      placeholder="XXXXXXXX" autocomplete="off" autocorrect="off"
+    <!-- (29/07/2026) maxlength retire : il valait 8, la longueur des codes generes.
+         Un code saisi a la main dans MEDECINS peut etre plus long — le champ refusait
+         alors les caracteres suivants SANS RIEN DIRE, et le code etait declare invalide.
+         Aucune limite haute cote serveur : checkCode compare la chaine entiere. -->
+    <input class="login-input" id="codeInput" type="text"
+      placeholder="Votre code d'accès" autocomplete="off" autocorrect="off"
       autocapitalize="characters" spellcheck="false"/>
     <button class="login-btn" id="loginBtn" onclick="doLogin()">Accéder →</button>
     <div class="login-error" id="loginError">Code invalide. Vérifiez et réessayez.</div>
