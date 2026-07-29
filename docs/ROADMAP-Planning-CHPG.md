@@ -694,6 +694,57 @@ les deux si on y touche.
 - Présentations staff, démographie.
 - Conception module libéral + antisèche cotation (voir ci-dessous).
 
+### Dates aux frontières d'année — traqué par SIMULATION et corrigé (29 juillet 2026) · site v1.14.3 · `code.gs` v2026-07-29.3 · `Indispos.gs` v2026-07-29.4
+
+**Méthode, à reprendre telle quelle** : aucune relecture. Les vraies fonctions de dates du
+dépôt ont été extraites dans un banc d'essai Node et **rejouées sur 22 années (2025→2046)**,
+avec des invariants vérifiés automatiquement. La lecture exhaustive du matin n'avait rien
+donné ; la simulation a trouvé trois défauts en une heure — **dont deux dans le code que je
+venais d'écrire**, invisibles à la relecture (comparaison d'une heure courante à un lundi
+« à midi » : le rappel serait resté masqué toute la matinée du jour J).
+
+**Prouvé sain** (donc à ne pas re-suspecter) : bornes de l'année planning (toujours
+lundi→dimanche, durée multiple de 7, ni trou ni chevauchement entre années) ; concordance
+des DEUX lectures de dates du classeur (par position vs par en-têtes) ; 12 fériés monégasques
+avec report au lundi ; rythme 2 semaines/2 sans dérive y compris sur les années à 53 semaines ;
+absences longues à cheval sur le Nouvel An ; rotation Noël/An.
+
+**CAUSE UNIQUE des trois défauts** : « l'année d'une date = ses 4 premiers chiffres ». Faux ici —
+l'année de planning 2026 court jusqu'au dimanche 03/01/2027.
+→ Helper **`anneePlanning(date)`** dans `code.gs` (vérifié sur les 8 035 jours de 2025→2046).
+
+1. **Écran « Consultations à venir »** — les absences de début janvier étaient cherchées dans
+   l'onglet `GARDES_{année civile}`, qui ne les contient pas : rien trouvé donc « aucune absence »,
+   donc **faux « disponible »**. Volume mesuré : 1 jour ouvré en 2026→2027 (le 1er janvier, férié),
+   mais **5 en 2028→2029**, 4 en 2029→2030, 3 en 2030→2031.
+2. **Volet libéral du comité** — la semaine à cheval ne lisait que `LIBERAL_{année du lundi}` :
+   les interventions déclarées en janvier disparaissaient (3 jours en 2026→2027, 6 en 2029→2030).
+   ⚠️ Corrigé en lisant **toutes** les années civiles de la semaine : les onglets `LIBERAL_{Y}`
+   suivent le relevé, qui est **calendaire** — ils ne doivent PAS passer par `anneePlanning`.
+3. **Navigation par semaine (`admin.html`)** — la clé était « année du jour + n° ISO ». Deux effets :
+   la dernière semaine de chaque année s'affichait **en double**, et surtout **en 2028, 2034, 2040
+   et 2045 le n° ISO 1 désigne DEUX semaines distinctes** de la même année, que `getWeekDays`
+   mélangeait. Une semaine est désormais identifiée par **son lundi** (`_lundiDe`), les 6 appelants
+   mis à jour. ⚠️ Ne jamais revenir à une clé fondée sur le numéro de semaine.
+
+### Rappel de clôture — et pourquoi l'archivage n'est PAS automatisé (29 juillet 2026)
+
+Une année de planning commence le **premier lundi**, pas le 1er janvier. Les deux erreurs
+possibles ne coûtent pas la même chose : **clôturer en retard** n'est qu'un inconfort d'affichage,
+**clôturer trop tôt** fait disparaître du portail les gardes des premiers jours de janvier, qui
+appartiennent encore à l'année écoulée. Automatiser transformerait donc l'erreur bénigne
+(l'oubli) en erreur grave — et un déclencheur annuel est du code jamais testé, qui s'exécute
+sans personne devant l'écran, incapable de vérifier que le planning suivant est publié.
+
+**Retenu : signaler, ne pas agir.**
+- **Bandeau dans `admin.html`** : n'apparaît JAMAIS avant le premier lundi ; ambré si le planning
+  suivant est publié (bouton vers l'assistant), **rouge avec bouton désactivé** sinon. Masquable
+  pour la journée (`chpg_clotureVue`, localStorage). Validé par simulation sur 9 scénarios.
+- **Ligne dans le 🔍 Diagnostic** : info avant la date (« à faire à partir du lundi 4 janvier 2027 —
+  surtout pas avant »), point de vigilance après.
+
+**Dates de clôture** : lundi 4 janvier 2027, 3 janvier 2028, **8** janvier 2029, 7 janvier 2030.
+
 ### Audit du code — passe serveur (29 juillet 2026) · `gas/portail.gs` v2026-07-29.2
 
 Relecture intégrale des 5 fichiers GAS (≈9 400 lignes) et matrice croisée
