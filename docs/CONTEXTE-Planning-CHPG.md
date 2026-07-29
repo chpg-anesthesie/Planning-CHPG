@@ -13,7 +13,7 @@ chiffres concrets plutôt que des généralités.
 
 ## État au 29 juillet 2026
 
-**Site v1.14.3** · GAS : `code.gs` 2026-07-29.3 · `Indispos.gs` 2026-07-29.4 ·
+**Site v1.14.5** · GAS : `code.gs` 2026-07-29.3 · `Indispos.gs` 2026-07-29.5 ·
 `portail.gs` 2026-07-29.2 · `generateur_gardes.gs` · `setup_annee.gs`
 
 **En production :** algorithme de gardes (équité annuelle), planning quotidien (`admin.html`),
@@ -186,7 +186,7 @@ Cycle annuel = 3 assistants dans admin.html, **tous testés en réel** :
 
 - **Mini-bundle d'icônes `assets/vendor/lucide-icons.js`** — `dashboard.html` ne charge PAS Lucide depuis un CDN : le fichier local ne contient que les **18 icônes** réellement utilisées (extraites de lucide 1.23.0). ⚠️ Une icône demandée mais absente du bundle **ne s'affiche pas et ne produit aucune erreur** — la tuile garde un carré vide (constaté le 21/07/2026 avec `calculator`). Avant d'utiliser un nouveau nom d'icône, **vérifier la liste en tête de ce fichier** et y ajouter le tracé si besoin (`npm pack lucide@1.23.0`, puis `dist/esm/icons/<nom>.mjs`). Depuis le 21/07 un `console.warn` signale l'icône manquante.
 - **Code d'accès perso = colonne G (7ᵉ colonne) de la ligne du MAR dans `MEDECINS`** (`checkCode` lit `data[r][6]`). Code admin = clé `ADMIN_CODE` de `CONFIG`.
-- L'écran de connexion **met la saisie en MAJUSCULES**. ⚠️ **La comparaison GAS est STRICTE, sensible à la casse** — `checkCode` fait `String(data[r][6]).trim() === String(code).trim()`, sans `toUpperCase()`. Ce fichier a longtemps affirmé le contraire (« insensible à la casse ») : **c'était faux**, vérifié le 20/07/2026. En pratique rien ne casse puisque la saisie est forcée en majuscules, mais **un code contenant une minuscule en colonne G serait refusé**. Symptôme à connaître : un MAR dont le code « ne marche pas » alors qu'il semble correct → vérifier la casse dans le Sheet. Éviter aussi un code purement numérique (Sheets peut le stocker en numérique/notation scientifique).
+- L'écran de connexion **met la saisie en MAJUSCULES**. ⚠️ **(27/07/2026) La comparaison GAS est désormais INSENSIBLE À LA CASSE** — `checkCode` normalise les deux côtés par `trim().toUpperCase()` (`_normCode`). Le motif : les champs portent `autocapitalize="characters"`, donc le téléphone corrigeait tout seul et **pas l'ordinateur** — même code accepté sur mobile et refusé sur PC. Sans risque de collision : `generateCode()` n'émet que des majuscules et `resetCodeMar` vérifie l'unicité en majuscules. ⚠️ Ce paragraphe a affirmé successivement les deux thèses — **corrigé le 29/07/2026 en relisant `checkCode`, seule référence.** Un code saisi À LA MAIN dans le classeur doit rester unique une fois mis en majuscules. 🔒 **(29/07/2026) AUCUNE limite de longueur** sur les champs de saisie de code : les trois `maxlength` d'`indispos.html` (8), `staff.html` (20) et du wizard d'`admin.html` (12) ont été retirés. Ils tronquaient un code long **sans message**, qui était ensuite déclaré invalide — panne vécue par Arthur sur son propre code. `checkCode` compare la chaîne entière, aucune contrainte serveur. **Ne jamais remettre de `maxlength` sur un champ de code.** Éviter aussi un code purement numérique (Sheets peut le stocker en numérique/notation scientifique).
 - **Aucune limite de tentatives** sur `checkCode()`, et c'est **assumé** (décision du 20/07/2026, voir la section « Écarté » de la ROADMAP pour le chiffrage). Ne pas reproposer de protection anti-force-brute.
 - **Codes robustes** : `genererTousLesCodes()` (dans `setup_annee.gs`) génère un code 8 caractères non devinable (alphabet sans `0 O 1 I L`) pour chaque MAR **actif** (col D=O), efface celui des inactifs (parti = ne peut plus se connecter), et logue le récap. `genererCodeMAR("XX")` pour un seul MAR. Distribution via le flux « Envoyer les codes » du Wizard 1.
 - **Renouveler le code d'un MAR** : action GAS **`resetCodeMar`** (admin only, dans `WRITE_ACTIONS_LOCK`), déclenchée par le bouton **🔄** de sa ligne (onglet Équipe). Tire un code unique (comparé aux autres MARs **et** à `ADMIN_CODE`), l'écrit en colonne G — **l'écrasement EST la révocation**, il n'y a rien d'autre à invalider — puis l'envoie par email. **L'email est vérifié avant toute écriture** (pas d'email → refus, code inchangé) ; l'ancien code est tracé dans `LOGS` avant écrasement ; si l'envoi échoue, le nouveau code est **renvoyé dans le message d'erreur** pour transmission en main propre. ⚠️ **Les envois groupés ne régénèrent PAS** (`sendCodes`, `sendCodesMar`, `sendCodesWithRecap`) : ils renvoient le code existant. Distinction volontaire — un « envoyer à tous » ne doit jamais pouvoir casser 23 codes. Documenté dans `guide-comite.html` § 13.3.
@@ -233,8 +233,10 @@ ajoutées **en fin de tableau** pour ne pas décaler les index 0-10 que `getSect
 Laissées **vides** → défauts appliqués : `COURT` en majuscules, gris `F2F2F2`, 2 lignes. Un secteur
 créé sans les remplir apparaît donc quand même dans l'Excel. Les 9 secteurs actuels sont pré-remplis
 par `_migrerColonnesXL_()` (idempotente, n'écrase jamais une saisie).
-⚠️ Le repli sur les définitions en dur est **silencieux** : en cas d'échec de lecture, les pages
-tournent sur le code sans le dire. `VOLANT` et `CS` sont des pseudo-secteurs, hors onglet.
+⚠️ **(29/07/2026) Il n'existe plus aucun repli en dur** : les 6 copies figées d'`admin.html` ont été
+supprimées. Un échec de lecture affiche le bandeau rouge `configBanner` et **bloque l'export Excel**,
+au lieu de faire tourner les pages sur une config périmée sans le dire.
+`VOLANT` et `CS` sont des pseudo-secteurs, hors onglet.
 ⚠️ `assets/vendor/lucide-icons.js` ne contient que **17 icônes** : aucune icône de secteur
 (Activity, HeartPulse, Bone…) n'y est. `admin.html` **ne charge aucune bibliothèque lucide** —
 d'où l'absence d'icônes de secteur sur cette page, contrairement à `index.html` (CDN unpkg).
@@ -469,7 +471,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site (badge `vX.Y.Z`) — actuellement **v1.14.3**
+## Version du site (badge `vX.Y.Z`) — actuellement **v1.14.5**
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
@@ -486,8 +488,10 @@ Ne jamais livrer un changement d'interface sans incrémenter : le badge doit tou
 Une modification purement GAS (sans page touchée) ne change PAS la version du site : elle a ses
 propres constantes `GAS_VERSION_*`.
 
-**5 fichiers, 9 emplacements.** Deux fichiers la portent DEUX fois : penser au badge HTML **en dur**,
-visible avant connexion tant que le JS ne l'a pas remplacé.
+**4 fichiers, 10 emplacements.** *(Corrigé le 29/07/2026 : ce document annonçait « 5 fichiers,
+9 emplacements » et comptait `guide-technique.html`, qui ne porte aucune version — vérifié dans le
+fichier ET dans le code du Diagnostic, qui ne contrôle que 4 fichiers.)*
+Penser au badge HTML **en dur**, visible avant connexion tant que le JS ne l'a pas remplacé.
 
 | Fichier | Emplacements |
 |---|---|
@@ -495,10 +499,9 @@ visible avant connexion tant que le JS ne l'a pas remplacé.
 | `admin.html` | idem (3) |
 | `docs/guide-mar.html` | `Version <strong>vX.Y</strong>` · `<!-- SITE_VERSION: vX.Y -->` |
 | `docs/guide-comite.html` | idem (2) |
-| `docs/guide-technique.html` | marqueur seul |
 
-Le 🔍 Diagnostic (section « Version du site ») compare **toutes** ces formes, dans chaque fichier et
-entre fichiers, et signale `INCOHÉRENT (…)` en listant les valeurs divergentes.
+Total : 3 + 3 + 2 + 2 = **10**. Le 🔍 Diagnostic (section « Version du site ») compare **toutes**
+ces formes, dans chaque fichier et entre fichiers, et signale `INCOHÉRENT (…)` en listant les valeurs divergentes.
 ⚠️ Avant le 20/07/2026 il ne lisait que le **marqueur en commentaire** : il annonçait « alignés (v1.4) »
 alors que 3 fichiers sur 4 affichaient v1.0 aux utilisateurs. Ne pas revenir à ce contrôle partiel.
 
@@ -700,7 +703,8 @@ direct (396 ms contre ~350 ms par recherche de nom) ; fusionner `login` et `getA
 
 **Restant / à surveiller (non urgent)** :
 - **`Indispos.gs`** (version dépôt **`2026-07-20.3`**) — action **`resetCodeMar`** (bouton 🔄) et retrait d'`applyRotationLib`. **Recopié et testé en production le 20/07/2026.** **`code.gs` également à recopier** (version **`2026-07-20.3`** : retrait du tag `ROT-LIB` et des fonctions one-shot de conversion). Le 🔍 Diagnostic signale l'écart dépôt/déployé.
-- ✅ **29/07/2026 — les 5 fichiers GAS ont été recopiés et déployés, et le fonctionnement confirmé en production. Plus rien en attente de recopie.** Versions déployées : `code.gs` `2026-07-29.3` · `Indispos.gs` `2026-07-29.4` · `portail.gs` `2026-07-29.2` · `generateur_gardes.gs` `2026-07-29.1` · `setup_annee.gs` `2026-07-29.2`. Site **v1.14.3**.
+- ✅ **29/07/2026 (matin) — les 5 fichiers GAS ont été recopiés et déployés, fonctionnement confirmé en production.** Versions déployées : `code.gs` `2026-07-29.3` · `Indispos.gs` `2026-07-29.4` · `portail.gs` `2026-07-29.2` · `generateur_gardes.gs` `2026-07-29.1` · `setup_annee.gs` `2026-07-29.2`.
+- ✅ **29/07/2026 (après-midi) — `Indispos.gs` `2026-07-29.5` recopié et déployé, alignement confirmé par le 🔍 Diagnostic.** Correctif du tri des volants (helper `_rangRole_`). **Plus rien en attente de recopie.** Site **v1.14.5** (frontend, rien à recopier).
 
 ## ⛔ L'année d'une date n'est PAS ses 4 premiers chiffres
 
