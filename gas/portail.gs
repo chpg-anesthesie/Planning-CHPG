@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-28.1';
+const GAS_VERSION_PORTAIL = '2026-07-29.1';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1539,13 +1539,15 @@ function _libNewId() {
 function declareLiberal(payload, user) {
   if (!user || user.role !== 'mar') return { success: false, error: 'Réservé aux MAR identifiés.' };
   const marId  = user.id;                                    // JAMAIS payload : anti-usurpation
-  // _isoDate() vit dans Indispos.gs (meme projet GAS). Attention : _isoDate(undefined)
-  // renvoie la chaine "undefined" -> on ne l'appelle que si la valeur est presente.
+  // _isoDate() : DEFINITION UNIQUE, plus haut dans CE fichier (le doublon
+  // d'Indispos.gs a ete supprime le 29/07/2026 — les deux versions divergeaient,
+  // l'ordre des fichiers dans Apps Script decidait laquelle tournait).
+  // _isoDate(undefined) renvoie '' : la garde ci-dessous reste par prudence.
   const dateBloc = (payload && payload.dateBloc) ? _isoDate(payload.dateBloc) : '';
   const secteur  = String((payload && payload.secteur) || '').trim().toUpperCase();
   const chir     = String((payload && payload.chirurgie) || '').trim().slice(0, 80);
-  // _isoDate(undefined) renvoie la CHAINE "undefined" (String(undefined)), pas '' :
-  // on ne lui passe donc que des valeurs presentes, sinon on prend aujourd'hui.
+  // _isoDate(undefined) renvoie '' depuis l'unification du 29/07/2026 : la garde
+  // reste, elle choisit aujourd'hui quand la valeur est absente.
   const dateCons = (payload && payload.dateConsult) ? _isoDate(payload.dateConsult) : _todayISO_();
   // Lot 2A : specialite (maille du rendement) + BR des deux axes. La BR NGAP se
   // rattache au mois de DATE_CONSULT, la BR CCAM a celui de DATE_BLOC : c'est
