@@ -508,7 +508,10 @@ alignés (v1.4) » pendant que 3 sur 4 montraient v1.0 aux utilisateurs.
   détail. Vérifié en rejouant le nouveau contrôle sur les fichiers d'avant patch : il aurait bien
   signalé les 3 fichiers fautifs.
 
-⚠️ **Pour bumper la version : 5 fichiers, 9 emplacements.** Deux d'entre eux la portent DEUX fois.
+⚠️ **Pour bumper la version : 4 fichiers, 10 emplacements.** *(Corrigé le 29/07/2026 : ce
+paragraphe annonçait « 5 fichiers, 9 emplacements » et comptait `docs/guide-technique.html`, qui
+ne porte aucune version — vérifié dans le fichier ET dans le code du Diagnostic, qui ne contrôle
+que les 4 ci-dessous. La même erreur vivait dans le CONTEXTE, corrigée le même jour.)*
 
 | Fichier | Emplacements |
 |---|---|
@@ -516,7 +519,6 @@ alignés (v1.4) » pendant que 3 sur 4 montraient v1.0 aux utilisateurs.
 | `admin.html` | idem (3 emplacements) |
 | `docs/guide-mar.html` | `Version <strong>vX.Y</strong>` · marqueur `<!-- SITE_VERSION: -->` |
 | `docs/guide-comite.html` | idem (2 emplacements) |
-| `docs/guide-technique.html` | marqueur seul |
 
 Le **badge HTML en dur** compte : il est visible *avant* connexion, jusqu'à ce que le JS le remplace.
 Le diagnostic signale tout oubli — c'est précisément ce qu'il ne savait pas faire.
