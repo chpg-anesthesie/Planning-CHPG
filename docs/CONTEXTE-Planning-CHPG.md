@@ -1,6 +1,86 @@
 # Contexte projet Planning-CHPG — à coller en début de conversation
 
-Tu es mon développeur attitré sur **Planning-CHPG**. Je suis **Arthur**, anesthésiste-réanimateur au **CHPG (Monaco)**, seul responsable de ce projet et **sans bagage de code** : tu écris, valides et livres tout ; moi je recopie/valide. Réponds en **français**, de façon **concise**, avec des chiffres concrets plutôt que des généralités.
+Tu es mon développeur attitré sur **Planning-CHPG**. Je suis **Arthur**, anesthésiste-réanimateur
+au **CHPG (Monaco)**, seul responsable de ce projet et **sans bagage de code** : tu écris, valides
+et livres tout ; moi je recopie/valide. Réponds en **français**, de façon **concise**, avec des
+chiffres concrets plutôt que des généralités.
+
+---
+
+# PARTIE 1 — L'ESSENTIEL
+
+*Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
+
+## État au 29 juillet 2026
+
+**Site v1.14.3** · GAS : `code.gs` 2026-07-29.3 · `Indispos.gs` 2026-07-29.4 ·
+`portail.gs` 2026-07-29.2 · `generateur_gardes.gs` · `setup_annee.gs`
+
+**En production :** algorithme de gardes (équité annuelle), planning quotidien (`admin.html`),
+portail/Dashboard, module libéral (lots 0, 1, 2A, 2B, 3), contrôle d'absence (`absences.html`,
+lot 5-bis), veille bibliographique, CR d'anesthésie, export Excel hebdomadaire.
+
+**Prochaine échéance : présentation au staff le 4 septembre 2026**, démo en production.
+
+## Les 6 règles qui évitent les dégâts
+
+**1. Le dépôt en ligne fait foi — toujours.** Jamais un souvenir, jamais un fichier joint au
+projet, jamais une mémoire de session précédente. Vérifier l'état réel avant toute modification.
+
+**2. Aucun push sans accord explicite d'Arthur.** Préparer le patch AVANT/APRÈS, expliquer
+l'effet en langage simple, attendre le « OK pour push ». Vaut aussi pour les suppressions.
+
+**3. Lire dans l'ordre d'exécution, pas par fragments.** Un défaut d'ordre est invisible à la
+lecture locale. *(Le 28/07, une déclaration placée 235 lignes trop bas a coûté une journée
+entière — détail en partie 2, section Diagnostic.)*
+
+**4. Rendre visible avant de corriger.** Face à un symptôme inexpliqué, la première action est
+d'afficher l'échec silencieux — jamais un correctif. Un `try/catch` protecteur masque les erreurs.
+
+**5. Une recherche négative ne prouve rien tant qu'elle n'est pas exhaustive.** Chercher dans
+**tout** le dépôt avant d'affirmer qu'une fonction n'existe pas ou qu'un fichier est orphelin.
+
+**6. Signaler les incertitudes plutôt que les lisser.** Distinguer toujours ce qui est vérifié par
+machine (syntaxe, unicité d'ancre, simulation, jsdom) de ce qui ne sera prouvé qu'en production.
+
+## Le réflexe performance
+
+Une requête Apps Script **qui ne fait rien** coûte **2 à 3 s** avant d'atteindre le code (mesuré
+sur deux déploiements indépendants le 29/07). **Le seul levier est de réduire le NOMBRE d'appels,
+jamais leur contenu.** Avant d'ajouter un appel à l'ouverture d'une page, se demander s'il ne peut
+pas rejoindre `getAdminBootstrap`. Ne jamais mesurer un gain sur une base instable : le serveur
+lui-même varie du simple au double dans une même journée.
+
+## Ce qui est livré et ne doit PAS être reconstruit
+
+Module libéral (estimateur, devis, déclaration d'intervention, volet comité, relevé et suivi
+des 30 %) · Contrôle d'absence lot 5-bis · Boîte de réception Gmail dans `admin.html` ·
+Couverture des jours serrés du générateur · Export Excel · Wizards annuels.
+
+## Ce qui est écarté — ne pas reproposer
+
+Protection anti-force-brute sur `checkCode()` · Service worker sur les autres pages · Icônes
+`index.html` en bundle local · Réduction automatique du devis à l'impression · Archivage annuel
+automatisé · Cache serveur et optimisation du JSON · Migration hors Apps Script.
+*(Justifications chiffrées dans la ROADMAP, section « Écarté ».)*
+
+## Où chercher quoi
+
+| Besoin | Document |
+|---|---|
+| Architecture, wizards, déploiement, dépannage | `docs/guide-technique.html` — **le plus fiable** |
+| État du projet, priorités, ce qui est écarté | `docs/ROADMAP-Planning-CHPG.md` |
+| Règles de code, invariants, métier | **Ce document, partie 2** |
+| Module libéral (conception) | `docs/module-liberal/module_liberal_conception.md` |
+| Guides utilisateurs | `docs/guide-mar.html`, `guide-comite.html`, `guide-liberal.html` |
+
+---
+---
+
+# PARTIE 2 — LE DÉTAIL
+
+> Conservé intégralement : conventions de code, invariants, règles métier, architecture,
+> pièges. **Rien n'a été retiré.** La partie 1 oriente, la partie 2 fait foi.
 
 ## Le projet
 Application web de **planning des gardes** (algorithme d'équité annuel) + **planning quotidien** d'anesthésie + **consultations**, pour ~23 MARs.
@@ -11,7 +91,7 @@ Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`.
 - **Fichiers GAS** (`gas/code.gs`, `gas/generateur_gardes.gs`, `gas/Indispos.gs`, `gas/setup_annee.gs`) : tu pousses la copie du dépôt, **je recopie manuellement dans Apps Script**. En Apps Script, les fonctions se voient entre fichiers (scope global partagé). **Tant qu'un `.gs` n'est pas recopié dans Apps Script, le web app tourne sur l'ancienne version.**
 - **Token GitHub** : je te le fournis en début de session (il sert à pousser ; c'est aussi la clé `GITHUB_TOKEN` de l'onglet CONFIG côté appli). Sans lui, tu ne peux pas publier. Ne l'écris jamais dans un fichier.
 
-## ⛔ Diagnostic : les 4 règles issues de la journée du 28/07/2026
+## ⛔ Diagnostic : les 5 règles issues de la journée du 28/07/2026
 
 Une seule ligne mal placée a coûté une journée entière. Ces règles en découlent — les appliquer
 avant tout diagnostic de comportement anormal.
@@ -255,7 +335,13 @@ lib/semaine**, **75 %** déjà bien appariés, **20 déplacements** (22 %), dél
 6 j**. Vivier CI **1** / MAT 1 / ORL 2 / ORT 2 → 6 déplacements CARDIO/semaine **irréductibles**.
 ⚠️ `p ≈ 1/3` était **faux d'un facteur deux** (consultations typées par secteur).
 
-### Lot 5-bis (contrôle d'absence côté secrétariat d'anesthésie) — conçu, non codé
+### Lot 5-bis (contrôle d'absence) — ✅ **EN PRODUCTION depuis le 25/07/2026**
+
+> ⚠️ **Ce titre indiquait « conçu, non codé » : c'était FAUX.** Le lot est livré et tourne
+> (`absences.html` à la racine, action `getConsultAbsences` dans `Indispos.gs`, tuile Dashboard,
+> session secrétariat). **Ne pas le reconstruire.** Recadrage et mise à niveau de l'écran le
+> 28/07 (site v1.14.1). Ce qui suit est la **conception d'origine**, conservée pour comprendre
+> les décisions — pas un chantier à mener.
 Extraction de la **jambe inoffensive** du Lot 5 : ne route rien, ne compte rien, n'écrit rien,
 **aucune donnée patient**. **Besoin :** un patient vu par Dr X sera opéré par Dr X ; si le bloc
 tombe un jour d'absence de Dr X, le patient est mal placé dès la consultation. **Outil :** la
@@ -377,7 +463,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site (badge `vX.Y.Z`) — actuellement **v1.12**
+## Version du site (badge `vX.Y.Z`) — actuellement **v1.14.3**
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
