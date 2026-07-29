@@ -103,7 +103,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
   <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
   <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.14.3</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.14.3 -->
+  <div class="maj">Version <strong>v1.14.4</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.14.4 -->
 </header>
 
 <div class="callout tip" style="margin:26px 0 6px">
@@ -635,6 +635,10 @@
   <div class="faq">
     <div class="q">« Un MAR n'arrive pas à se connecter / n'a pas reçu son code. »</div>
     <div class="a">Onglet Maintenance → vérifier au diagnostic qu'il a bien un email et un code, corriger dans l'onglet Équipe si besoin, puis « Renvoyer les codes » en le sélectionnant : il recevra son code actuel, inchangé. Si son code doit au contraire être <em>remplacé</em> (il a été vu par d'autres), utiliser le bouton 🔄 de sa ligne dans l'onglet Équipe — chapitre 13.3.</div>
+  </div>
+  <div class="faq">
+    <div class="q">« Un bandeau rouge dit que la configuration n'a pas été lue. »</div>
+    <div class="a">La page n'a pas réussi à lire les onglets <strong>SECTEURS</strong> et/ou <strong>CS_TEMPLATE</strong> du classeur : la grille affichée est <em>incomplète</em> (lignes de secteur ou de consultation manquantes) et l'export Excel est bloqué tant que le bandeau est là — c'est volontaire, un fichier amputé ne doit pas partir au service. Recharger avec <span class="kbd">Ctrl + Maj + R</span>. Si le bandeau persiste : vérifier que les deux onglets ne sont pas vides, puis lancer le <strong>Diagnostic système</strong> (onglet Maintenance) pour contrôler que le fichier <code>portail.gs</code> déployé est bien à jour.</div>
   </div>
   <div class="faq">
     <div class="q">« La génération des gardes semble injuste pour quelqu'un. »</div>
