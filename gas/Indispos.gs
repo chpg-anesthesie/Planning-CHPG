@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-28.9';
+const GAS_VERSION_INDISPOS = '2026-07-29.1';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -3857,13 +3857,10 @@ function _error(msg) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 // Normalise une valeur de cellule (texte OU objet Date) en 'yyyy-MM-dd' — évite la coercition date de Sheets.
-function _isoDate(v) {
-  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  const s = String(v).trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? s : Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-}
+// _isoDate : DEFINITION UNIQUE dans portail.gs (espace de noms commun Apps Script).
+// Le doublon qui vivait ici a ete supprime le 29/07/2026 : les deux versions
+// divergeaient et l'ordre des fichiers du projet decidait silencieusement
+// laquelle tournait. La version conservee (portail.gs) est la plus stricte.
 
 // ── doPost — même logique que doGet ──────────────────────────────────
 // ── (28/07/2026) CHRONOMETRE SERVEUR DANS CHAQUE REPONSE ─────────────
