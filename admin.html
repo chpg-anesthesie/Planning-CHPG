@@ -959,10 +959,23 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .th-day.today { background:#FFF0F1; }
 .td-day.today { background:#FFF8F8; }
 .bt-cell.today { background:#FFF8F8; }
+
+/* ── BANDEAU DE RAPPEL DE CLOTURE ── (meme grammaire que #readonlyBanner,
+   mais il APPELLE un geste : bouton a droite) */
+.cloture-banner{display:none;align-items:center;gap:12px;padding:10px 24px;background:#FEF3C7;border-bottom:1px solid #FCD34D;font-size:12.5px;color:#92400E;line-height:1.5}
+.cloture-banner .cb-ico{font-size:15px;flex:none}
+.cloture-banner .cb-txt{flex:1;min-width:0}
+.cloture-banner .cb-sub{display:block;font-size:11.5px;opacity:.85;margin-top:1px}
+.cloture-banner .cb-btn{flex:none;border:1px solid #B45309;background:#B45309;color:#fff;border-radius:9px;padding:7px 15px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:background .15s}
+.cloture-banner .cb-btn:hover{background:#92400E}
+.cloture-banner .cb-close{flex:none;background:none;border:none;color:#B45309;font-size:16px;cursor:pointer;opacity:.6;padding:0 2px}
+.cloture-banner .cb-close:hover{opacity:1}
+.cloture-banner.bloque{background:#FEF2F2;border-bottom-color:#FCA5A5;color:#991B1B}
+.cloture-banner.bloque .cb-btn{border-color:#CBD5E1;background:#F1F5F9;color:#94A3B8;cursor:not-allowed}
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.14.2'; // SITE_VERSION: v1.14.2
+const SITE_VERSION = 'v1.14.3'; // SITE_VERSION: v1.14.3
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1055,7 +1068,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.2</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.3</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1072,6 +1085,9 @@ if (sessionStorage.getItem('adminCode')) {
   Les modifications sont désactivées pour cette année.
   <span style="margin-left:auto;font-size:11px;opacity:.7">Sélectionnez l'année active pour modifier.</span>
 </div>
+
+<!-- RAPPEL DE CLOTURE — rempli par majBandeauCloture(), masque le reste de l'annee -->
+<div id="clotureBanner" class="cloture-banner"></div>
 
 <!-- STATUS BAR -->
 <div class="status-bar">
@@ -2732,6 +2748,50 @@ async function checkNextYearAvailable(preAnneeSuivante) {
   }
 }
 
+/* ── RAPPEL DE CLOTURE (29/07/2026) ──────────────────────────────────────
+   Une annee de planning commence le PREMIER LUNDI, pas le 1er janvier :
+   l'annee 2026 court jusqu'au dimanche 03/01/2027. Cloturer AVANT ce lundi
+   ferait disparaitre du portail les gardes du 1er au 3 janvier, qui appartiennent
+   encore a l'annee ecoulee → le bandeau n'apparait JAMAIS avant cette date.
+   Il n'agit pas, il rappelle. Et il DESACTIVE le bouton tant que le planning de
+   la nouvelle annee n'est pas publie : basculer sur une annee vide est la seule
+   erreur vraiment couteuse (cloturer en retard n'est qu'un inconfort d'affichage).
+   ⚠️ C'est pour cette raison que la cloture n'est PAS automatisee : une bascule
+   sans personne devant l'ecran ne peut pas verifier cette condition. */
+/* Renvoie une DATE (AAAA-MM-JJ), pas un instant : comparer l'heure courante a
+   ce lundi « a midi » masquait le bandeau toute la matinee du jour J. */
+function _premierLundiISO(y) {
+  const j1 = new Date(y, 0, 1), dow = j1.getDay();
+  const off = dow === 1 ? 7 : dow === 0 ? 1 : 8 - dow;
+  const d = new Date(y, 0, 1 + off, 12, 0, 0);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function masquerBandeauCloture() {
+  try { localStorage.setItem('chpg_clotureVue', todayStr()); } catch(e) {}
+  const el = document.getElementById('clotureBanner');
+  if (el) el.style.display = 'none';
+}
+function majBandeauCloture() {
+  const el = document.getElementById('clotureBanner');
+  if (!el) return;
+  el.style.display = 'none';
+  if (!YEAR) return;
+  if (todayStr() < _premierLundiISO(YEAR + 1)) return;   // l'annee suivante n'a pas commence
+  let _vu = ''; try { _vu = localStorage.getItem('chpg_clotureVue') || ''; } catch(e) {}
+  if (_vu === todayStr()) return;                        // masque pour la journee
+  const pret = !!nextYearAvailable;
+  el.className = 'cloture-banner' + (pret ? '' : ' bloque');
+  el.innerHTML = pret
+    ? '<span class="cb-ico">📦</span><span class="cb-txt"><b>L\'année ' + (YEAR+1) + ' a commencé lundi — il reste à clôturer ' + YEAR + '.</b>'
+      + '<span class="cb-sub">Le planning ' + (YEAR+1) + ' est généré et publié. Tant que la clôture n\'est pas faite, l\'année affichée par défaut reste ' + YEAR + '.</span></span>'
+      + '<button class="cb-btn" onclick="openWizardCloture()">Clôturer ' + YEAR + ' →</button>'
+      + '<button class="cb-close" onclick="masquerBandeauCloture()" title="Masquer jusqu\'à demain">✕</button>'
+    : '<span class="cb-ico">⛔</span><span class="cb-txt"><b>L\'année ' + (YEAR+1) + ' a commencé, mais son planning n\'est pas publié.</b>'
+      + '<span class="cb-sub">Clôturer maintenant basculerait le service sur une année vide. Faites d\'abord l\'étape 2 — Générer les gardes.</span></span>'
+      + '<button class="cb-btn" disabled>Clôturer ' + YEAR + ' →</button>';
+  el.style.display = 'flex';
+}
+
 async function initDashboard() {
   { const vb = document.getElementById('verBadge'); if (vb) vb.textContent = SITE_VERSION; }
   await new Promise(r => setTimeout(r, 50));
@@ -2782,8 +2842,13 @@ async function initDashboard() {
     await new Promise(r => setTimeout(r, 3000));
     try { await checkNextYearAvailable(_boot && typeof _boot.anneeSuivante === 'boolean' ? _boot.anneeSuivante : undefined); } catch(e) {}
     try { await detectAvailableYears(); } catch(e) {}
+    try { majBandeauCloture(); } catch(e) {}
   })();
   await mainLoads;
+  // Le bootstrap sait deja si l'annee suivante est publiee : le bandeau peut donc
+  // etre juste des la 1re passe, sans attendre la detection differee de 3 s.
+  if (_boot && typeof _boot.anneeSuivante === 'boolean') nextYearAvailable = _boot.anneeSuivante;
+  try { majBandeauCloture(); } catch(e) {}
   try { updatePlanningIndisposVisibility(); } catch(e) {}
   try { chronoAPI(); } catch(e) {}   // tableau des appels, a copier depuis la console
 }
