@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-29.1';
+const GAS_VERSION_PORTAIL = '2026-07-29.2';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -29,7 +29,16 @@ function portailRoute(action, payload, user) {
     case 'getSecteurs':    return _portailJson(getSecteurs());
     case 'getSpecialites': return _portailJson(getSpecialites());   // lecture : pas de verrou
     case 'getCotationsType': return _portailJson(getCotationsType());  // lecture : pas de verrou
-    case 'getReleveLiberal': return _portailJson(getReleveLiberal(payload));  // lecture : pas de verrou
+    // Releve financier du groupement : RESERVE AUX MEMBRES (LIBERAL=O de MEDECINS).
+    // Decision Arthur 29/07/2026 : masquer la tuile ne suffit pas, seul le serveur
+    // ferme la porte (meme principe que les marges de getConsultAbsences).
+    // L'appel INTERNE depuis getConsultAbsences (Indispos.gs) ne passe pas par ce
+    // routeur : il reste fonctionnel, ses marges sont deja filtrees la-bas.
+    case 'getReleveLiberal':
+      if (!user || user.role !== 'mar' || !user.liberal) {
+        return _portailJson({ success: false, error: 'Réservé aux membres du groupement libéral.' });
+      }
+      return _portailJson(getReleveLiberal(payload));  // lecture : pas de verrou
     case 'getCsTemplate':  return _portailJson(getCsTemplate());
     case 'getVeille':  return _portailJson(getVeille());
     case 'markVeille': return _portailJson(markVeille(payload && payload.pmid, payload && payload.field, payload && payload.value));
