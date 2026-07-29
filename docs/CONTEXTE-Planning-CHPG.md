@@ -608,7 +608,47 @@ direct (396 ms contre ~350 ms par recherche de nom) ; fusionner `login` et `getA
 
 **Restant / à surveiller (non urgent)** :
 - **`Indispos.gs`** (version dépôt **`2026-07-20.3`**) — action **`resetCodeMar`** (bouton 🔄) et retrait d'`applyRotationLib`. **Recopié et testé en production le 20/07/2026.** **`code.gs` également à recopier** (version **`2026-07-20.3`** : retrait du tag `ROT-LIB` et des fonctions one-shot de conversion). Le 🔍 Diagnostic signale l'écart dépôt/déployé.
-- **`portail.gs` v2026-07-29.2 (poussé le 29/07, NON RECOPIÉ)** — `getReleveLiberal` réservé aux membres du groupement (`LIBERAL=O`). Le code comité est également refusé sur cette action : sans conséquence, la page « Suivi des 30 % » n'est pas faite pour lui. ⚠️ L'appel INTERNE depuis `getConsultAbsences` ne passe pas par le routeur : il reste fonctionnel. **À recopier avec les autres `.gs` du 29/07, puis redéployer.**
+- ✅ **29/07/2026 — les 5 fichiers GAS ont été recopiés et déployés, et le fonctionnement confirmé en production. Plus rien en attente de recopie.** Versions déployées : `code.gs` `2026-07-29.3` · `Indispos.gs` `2026-07-29.4` · `portail.gs` `2026-07-29.2` · `generateur_gardes.gs` `2026-07-29.1` · `setup_annee.gs` `2026-07-29.2`. Site **v1.14.3**.
+
+## ⛔ L'année d'une date n'est PAS ses 4 premiers chiffres
+
+Une **année de planning commence le premier LUNDI**, pas le 1er janvier : l'année 2026 court
+du 05/01/2026 au **dimanche 03/01/2027**. Les tout premiers jours de janvier appartiennent donc
+encore à l'année précédente — leurs gardes sont dans `GARDES_2026` et `planning_2026.json`.
+
+- **Toute lecture d'un `GARDES_{Y}` ou d'un `planning_{Y}.json` faite À PARTIR D'UNE DATE passe par
+  `anneePlanning(date)` (`code.gs`), jamais par `ds.slice(0,4)`.** Trois défauts en production
+  venaient de là (voir ROADMAP du 29/07) ; volume mesuré : 5 jours ouvrés au passage 2028→2029.
+- **EXCEPTION — les onglets `LIBERAL_{Y}` sont rangés par année CIVILE** de la date de bloc, parce
+  que le relevé du groupement est calendaire. Ils utilisent `_libYearOf`, PAS `anneePlanning`.
+  ⚠️ Ne pas « harmoniser » les deux : une semaine à cheval doit lire les DEUX onglets libéraux.
+- **Une semaine se désigne par son LUNDI**, jamais par son numéro ISO : en 2028, 2034, 2040 et 2045,
+  le n° 1 désigne deux semaines distinctes de la même année de planning (`_lundiDe` dans `admin.html`).
+
+## 📦 Quand clôturer l'année : le premier lundi, JAMAIS avant
+
+**Clôturer trop tôt** fait disparaître du portail les gardes des premiers jours de janvier (elles
+appartiennent à l'année archivée alors que le système affiche déjà la nouvelle). **Clôturer en
+retard** n'est qu'un inconfort d'affichage. Le risque est donc entièrement d'un seul côté.
+
+Dates : **lundi 4 janvier 2027**, 3 janvier 2028, **8** janvier 2029, 7 janvier 2030.
+Prérequis : le planning de la nouvelle année doit être **généré ET publié**.
+
+**L'archivage n'est volontairement PAS automatisé** (décision du 29/07/2026) : un déclencheur
+annuel est du code jamais testé, qui s'exécuterait sans personne pour vérifier que l'année
+suivante est prête. À la place, le système **signale** — bandeau dans `admin.html` (rouge et bouton
+désactivé si le planning suivant n'est pas publié) + ligne dans le 🔍 Diagnostic. **Ne pas
+reproposer l'automatisation.**
+
+## 🔬 Chercher un défaut : simuler, pas relire
+
+Leçon du 29/07/2026. La relecture intégrale des pages HTML (16 000 lignes) n'a **rien** donné et a
+été abandonnée. La même journée, extraire les vraies fonctions du dépôt dans un banc d'essai Node
+et les **rejouer sur 22 années** a trouvé trois défauts en une heure — dont deux dans du code
+écrit le jour même, invisibles à la relecture.
+→ Partir d'une **famille de pannes** (frontières de dates, incohérences entre deux endroits qui
+font la même chose, scénarios de rupture, échecs silencieux) et la traquer par script. Un objectif
+ciblé produit des réponses ; le balayage produit du volume.
 - **⚠️ ÉTAT RÉEL AU 20/07/2026 : l'année active est 2026, PAS 2027.** Ce fichier a longtemps
   affirmé « archivage de 2026 testé en réel, année active → 2027 » : **c'est FAUX**. Le classeur
   contient `GARDES_2026` / `INDISPOS_2026` / `AFFECTATIONS_2026` / `STATS_GARDES_2026`, et **aucun
