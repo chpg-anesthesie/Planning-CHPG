@@ -1,7 +1,7 @@
 # Roadmap — Planning-CHPG
 
 Système web : **planning des gardes** (équité annuelle) + **planning quotidien** + **consultations** + **portail/Dashboard** + **veille biblio** + **CR d'anesthésie**, pour ~23 MARs au CHPG (Monaco).
-Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 28 juillet 2026 (écran « Consultations à venir » recadré sur le libéral et rendu utilisable sur les longues absences, site v1.14.1 ; plus tôt dans la journée, chantier performance sur le nombre d'appels au serveur).*
+Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 29 juillet 2026 (audit du code — passe serveur : relecture intégrale des 5 fichiers GAS, `getReleveLiberal` fermé aux non-membres ; la passe frontend est abandonnée au profit d'audits ciblés). Site v1.14.1.*
 
 > Le dépôt en ligne fait foi. Cette roadmap est un repère de pilotage, pas la source de vérité du code.
 
@@ -693,6 +693,33 @@ les deux si on y touche.
 - Guides : `guide-mar.html`, `guide-comite.html`, `guide-algo-gardes.html`, `guide-liberal.html`, `guide-technique.html`.
 - Présentations staff, démographie.
 - Conception module libéral + antisèche cotation (voir ci-dessous).
+
+### Audit du code — passe serveur (29 juillet 2026) · `gas/portail.gs` v2026-07-29.2
+
+Relecture intégrale des 5 fichiers GAS (≈9 400 lignes) et matrice croisée
+actions serveur ↔ pages appelantes. **La passe frontend (9 pages, ~16 000 lignes)
+n'a PAS été faite** : la lecture exhaustive s'est révélée improductive, elle est
+abandonnée au profit d'audits ciblés (une question précise par session).
+
+**Corrigé et poussé** — `getReleveLiberal` (relevé financier mensuel du groupement)
+était accessible à TOUT code MAR valide, membre ou non. Masquer la tuile ne protège
+rien : la porte est désormais fermée côté serveur, comme les marges de
+`getConsultAbsences`. Décision Arthur : fermer aux non-membres.
+
+**Vérifié sans anomalie** : aucun bouton orphelin (chaque action appelée existe côté
+serveur) ; liste blanche secrétariat à 2 actions avec refus par défaut ; verrou
+d'écriture pris avant délégation à portail.gs ; `declareLiberal`/`deleteLiberal`
+ancrées sur `user.id` ; `getTopo`/`getProtocole` vérifient l'appartenance au dossier Drive.
+
+**Ménage identifié, non traité** (aucun impact fonctionnel) :
+- `getVacConfig` / `getVacValidation` : ~80 lignes dupliquées à l'identique.
+- Mapping des stats recopié 3× dans le routeur d'`Indispos.gs`.
+- Ligne 1237-1238 d'`Indispos.gs` : garde « GARDES_2026 sanctuarisé » écrite deux fois.
+- Commentaire périmé au-dessus de `mailNonLus` (« ne jamais mettre dans le bootstrap »)
+  alors que le bootstrap l'intègre depuis le 28/07.
+- Calcul de Pâques dupliqué (`feriesNamed` vs `getJoursFeries`).
+- `savePlanningOverride` unitaire : plus aucun appelant côté client depuis le passage
+  au batch. **À conserver comme repli** pendant les fenêtres GAS/frontend désynchronisées.
 
 ---
 
