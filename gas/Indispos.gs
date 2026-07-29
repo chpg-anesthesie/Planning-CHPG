@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-29.3';
+const GAS_VERSION_INDISPOS = '2026-07-29.4';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -2039,6 +2039,23 @@ if (!affSheet) {
       }
       check('ANNEE_ACTIVE présente', cfg['ANNEE_ACTIVE'] ? R.OK : R.ERR);
       check(`ANNEE_ACTIVE cohérente (= ${Y})`, String(cfg['ANNEE_ACTIVE']) === String(Y) ? R.OK : R.WARN);
+      // ── Fenetre de cloture ────────────────────────────────────────────────
+      // Une annee de planning commence le PREMIER LUNDI. Cloturer AVANT ferait
+      // disparaitre du portail les gardes des tout premiers jours de janvier, qui
+      // appartiennent encore a l'annee ecoulee. Cloturer en retard n'est qu'un
+      // inconfort d'affichage : on informe, on n'alerte pas.
+      (function () {
+        const _lundi = getPremierJourPlanning(Y + 1);
+        const _lundiTxt = Utilities.formatDate(_lundi, ss.getSpreadsheetTimeZone(), 'EEEE d MMMM yyyy');
+        // getPremierJourPlanning renvoie MIDI (protection changement d'heure) : comparer
+        // l'instant courant a midi masquerait la bascule toute la matinee du jour J.
+        const _lundi0 = new Date(_lundi.getFullYear(), _lundi.getMonth(), _lundi.getDate(), 0, 0, 0);
+        if (new Date() < _lundi0) {
+          info(`Clôture de ${Y} : à faire à partir du ${_lundiTxt} — surtout pas avant`);
+        } else {
+          check(`Clôture de ${Y} attendue depuis le ${_lundiTxt}`, R.WARN);
+        }
+      })();
       check('ADMIN_CODE présent', cfg['ADMIN_CODE'] ? R.OK : R.ERR);
       check('Clé de publication GITHUB_TOKEN présente', cfg['GITHUB_TOKEN'] ? R.OK : R.ERR);
 
