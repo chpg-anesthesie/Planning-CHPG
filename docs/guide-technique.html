@@ -120,7 +120,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document personnel</div>
   <h1>Guide technique personnel<br>Architecture, workflows &amp; internals</h1>
   <p class="subtitle">Le fonctionnement profond du portail — pour toi, responsable et seul décideur : dépôt, backend GAS, assistants pas à pas, algorithme, publication. Niveau technique assumé.</p>
-  <div class="maj">Établi le 15 juillet 2026 — aligné sur le code en production (dépôt <span class="tag">chpg-anesthesie/Planning-CHPG</span>).</div><!-- SITE_VERSION: v1.9.1 -->
+  <div class="maj">Établi le 15 juillet 2026 — aligné sur le code en production (dépôt <span class="tag">chpg-anesthesie/Planning-CHPG</span>).</div>
 </header>
 
 <nav class="toc">
@@ -243,7 +243,7 @@
   <ul class="tight">
     <li><b>Lecture</b> : <code>getMedecins</code>, <code>getGardes</code>, <code>getStats</code>, <code>getStatsLive</code>, <code>getVacValidation</code>, <code>getAllIndispos</code>, <code>getConflitsAll</code>, <code>getJoursFeries</code>, <code>getPlanningJson</code>…</li>
     <li><b>Écriture planning/équipe</b> : <code>saveMedecin</code>, <code>saveIndispos</code>, <code>savePeriodes</code>, <code>saveGroupes</code>, <code>savePlanningOverride</code>, <code>setDailyStatus</code>, <code>saveAffectations</code>…</li>
-    <li><b>Cycle annuel</b> : <code>initYear</code>, <code>setActiveYear</code>, <code>generateGardes</code>, <code>publishPlanning</code>, <code>archiveYear</code>, <code>validerSemaine</code>.</li>
+    <li><b>Cycle annuel</b> : <code>initYear</code>, <code>setActiveYear</code>, <code>generateGardes</code>, <code>publishPlanning</code>, <code>archiveYear</code>.</li>
     <li><b>Communication</b> : <code>sendCodes</code>, <code>sendCodesMar</code>, <code>envoyerRecapIndispos</code>.</li>
     <li><b>Module libéral</b> : <code>declareLiberal</code>, <code>deleteLiberal</code> (écritures), <code>listLiberal</code> (le MAR connecté), <code>listLiberalJour</code> (admin, alimente le volet comité), <code>getSecteurs</code>, <code>getSpecialites</code>, <code>getCotationsType</code>.
       <br><b>Lot 2A (27/07/2026)</b> — <code>LIBERAL_{Y}</code> est passé de 6 à <b>9 colonnes</b> (<code>+ SPECIALITE, BR_CCAM, BR_NGAP</code>) et <b>la fusion jour+secteur a été supprimée</b> : une ligne = un patient. Onglet <code>SPECIALITES</code> (12 codes) amorcé à la demande. L'élargissement de l'en-tête d'un onglet déjà rempli est idempotent et ne réécrit aucune ligne. Une spécialité vide est tolérée (compatibilité), une spécialité inconnue est refusée.
@@ -376,7 +376,7 @@
   <table>
     <thead><tr><th>Onglet</th><th>Usage</th></tr></thead>
     <tbody>
-      <tr><td><b class="lbl-red">Planning</b></td><td>Le planning quotidien : secteurs du bloc, réa, mater, consultations, gardes. Retouches → <code>PLANNING_OVERRIDES</code> via <code>savePlanningOverride</code>. Validation de semaine (<code>validerSemaine</code>).</td></tr>
+      <tr><td><b class="lbl-red">Planning</b></td><td>Le planning quotidien : secteurs du bloc, réa, mater, consultations, gardes. Retouches → <code>PLANNING_OVERRIDES</code> via <code>savePlanningOverride</code>.</td></tr>
       <tr><td><b class="lbl-teal">Équipe</b></td><td>Le référentiel MARs : ajout, quotités, emails, statuts (no_garde, no_weekend, rythme 2/2, souhait_plafond, tp_jours_fixes), absence longue. <code>saveMedecin</code>.</td></tr>
       <tr><td><b class="lbl-viol">Statuts</b></td><td>Absences ponctuelles du jour (<code>setDailyStatus</code>).</td></tr>
       <tr><td><b class="lbl-amber">Affectations</b></td><td>Répartition nominative des secteurs.</td></tr>
