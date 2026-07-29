@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-29.1';
+const GAS_VERSION_INDISPOS = '2026-07-29.2';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1069,7 +1069,7 @@ const WRITE_ACTIONS_LOCK = new Set([
   'saveAffectations', 'saveAffectationsMar', 'saveConfig', 'saveGroupes',
   'resetCodeMar',
   'saveIndispos', 'saveMedecin', 'savePeriodes', 'setActiveYear',
-  'setDailyStatus', 'setIndisposYear', 'validerSemaine',
+  'setDailyStatus', 'setIndisposYear',
   'declareLiberal', 'deleteLiberal',
 ]);
 
@@ -2026,7 +2026,7 @@ if (!affSheet) {
       ['CONFIG','MEDECINS','HISTORIQUE','PERIODES_VAC','GROUPES_VAC'].forEach(n =>
         check(`Onglet ${n}`, has(n) ? R.OK : R.ERR));
       // Onglets créés à l'usage : absence = simple info
-      ['PLANNING_OVERRIDES','SEMAINES_VALIDEES','LOGS','CONNEXIONS'].forEach(n =>
+      ['PLANNING_OVERRIDES','LOGS','CONNEXIONS'].forEach(n =>
         has(n) ? check(`Onglet ${n}`, R.OK) : info(`Onglet ${n} pas encore créé (normal tant qu'inutilisé)`));
 
       // ── 2. Configuration ──
@@ -2944,27 +2944,6 @@ if (action === 'savePlanningOverridesBatch') {
   }
 }
 
-
-// ── ACTION : validerSemaine ───────────────────────────────────────────
-// Valide ou dévalide une semaine → mise à jour SEMAINES_VALIDEES + push JSON
-// payload : { action, code, year, isoWeek, valide (true/false) }
-if (action === 'validerSemaine') {
-  if (user.role !== 'admin') return _deny();
-  const yearVal  = Number(payload.year) || TEST_YEAR;
-  const isoWeek  = Number(payload.isoWeek);
-  const valide   = payload.valide === true || payload.valide === 'true';
-  if (!isoWeek) return _error('isoWeek requis');
-  try {
-    validerSemaine(yearVal, isoWeek, valide);
-    logAction(`validerSemaine — S${isoWeek} ${yearVal} → ${valide ? 'VALIDÉE' : 'dévalidée'}`);
-    return ContentService.createTextOutput(JSON.stringify({
-      success: true,
-      isoWeek, year: yearVal, validated: valide
-    })).setMimeType(ContentService.MimeType.JSON);
-  } catch(e) {
-    return _error(e.message);
-  }
-}
 
 // ── ACTION : getPanneauSemaine ────────────────────────────────────────
 // (28/07/2026) UN SEUL APPEL POUR TOUTE LA SEMAINE.
