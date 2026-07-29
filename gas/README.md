@@ -16,7 +16,7 @@ Installation une seule fois : exécuter `installBackupTrigger()` dans l'éditeur
 
 | Fichier | Rôle |
 |---------|------|
-| `code.gs` | `generatePlanningFromGardes` (placement secteurs + 3a-bis bascule CI→RI le jeudi matin), overrides (lit `PLANNING_OVERRIDES`), `pushFileToGitHub` (token via `getGithubToken`/CONFIG), `onEdit`, `validerSemaine`, `savePlanningOverride`/`deletePlanningOverride`, `getJoursFeries` (report dim→lun généralisé), reconstruction 2026, `buildStats2026` |
+| `code.gs` | `generatePlanningFromGardes` (placement secteurs + 3a-bis bascule CI→RI le jeudi matin), overrides (lit `PLANNING_OVERRIDES`), `pushFileToGitHub` (token via `getGithubToken`/CONFIG), `onEdit`, `savePlanningOverride`/`deletePlanningOverride`, `getJoursFeries` (report dim→lun généralisé), reconstruction 2026, `buildStats2026` |
 | `indispos.gs` | API web app (`doGet`/`doPost`), `MEDECINS_LIST`, vacances/quotas (`getVacConfig`, `getVacValidation`, `getQuotasConges`), toutes les actions admin (initYear, setActiveYear, generateGardes, archiveYear, sendCodes…) |
 | `generateur_gardes.gs` | Algorithme `generateGardes` : sélection MAR + rôles G/G2, équité (samedi/jeudi/VD), dette inter-annuelle via `STATS_GARDES_{N-1}` |
 | `setup.gs` | `setupAnnee` (init INDISPOS/AFFECTATIONS N+1), `archiveYear` (push stats/indispos, suppression onglets commentée) |
