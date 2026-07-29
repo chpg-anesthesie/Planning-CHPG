@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_SETUP = '2026-07-20.1';
+const GAS_VERSION_SETUP = '2026-07-29.1';
 
 
 // ══════════════════════════════════════════════════════════════════════
@@ -40,7 +40,7 @@ const _ONGLETS_PLAN = [
 
 // Écrits et lus par le code seul : masqués.
 const _ONGLETS_MASQUES = [
-  'SEMAINES_VALIDEES', 'ABSENCES_LONGUES', 'HISTORIQUE',
+  'ABSENCES_LONGUES', 'HISTORIQUE',
   'VEILLE', 'LOGS', 'CONNEXIONS',
 ];
 
