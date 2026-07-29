@@ -133,7 +133,8 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     <div class="auth-flag"><div class="auth-flag-t"></div><div class="auth-flag-b"></div></div>
     <div class="auth-title">Staff Vacances</div>
     <div class="auth-sub">CHPG Monaco · Comité Planning · Accès restreint</div>
-    <input class="auth-input" id="authInput" type="password" placeholder="CODE ADMIN" autocomplete="off" maxlength="20"/>
+    <!-- maxlength retire le 29/07/2026 : troncature silencieuse d'un code long (cf. indispos.html). -->
+    <input class="auth-input" id="authInput" type="password" placeholder="CODE ADMIN" autocomplete="off"/>
     <button class="auth-btn" id="authBtn" onclick="doLogin()">Accéder →</button>
     <div class="auth-err" id="authErr">Code incorrect</div>
   </div>
