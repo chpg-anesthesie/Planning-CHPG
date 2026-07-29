@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_SETUP = '2026-07-29.1';
+const GAS_VERSION_SETUP = '2026-07-29.2';
 
 
 // ══════════════════════════════════════════════════════════════════════
@@ -564,63 +564,6 @@ function archiveYear(year, moveSheets) {
   Logger.log(`\n── Archivage ${year} ──\n${rapport}`);
   try{ SpreadsheetApp.getUi().alert(`Archivage ${year}\n\n${rapport}`); }catch(e){}
   return rapport;
-}
-function archiveYear2026() {
-  archiveYear(2026);
-}
-function normalizeAffectations2026() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('AFFECTATIONS_2026');
-  if (!sheet) { Logger.log('❌ AFFECTATIONS_2026 introuvable'); return; }
-
-  const data = sheet.getDataRange().getValues();
-  const MONTH_HEADERS = ['JAN 2026','FEV 2026','MARS 2026','AVRIL 2026','MAI 2026','JUIN 2026',
-                         'JUILLET 2026','AOUT 2026','SEPT 2026','OCT 2026','NOV 2026','DEC 2026'];
-  const SECTOR_MAP = {
-    'VISC':'VIS','VISCERAL':'VIS','VIS':'VIS',
-    'ENDO':'END','END':'END','ENDOSCOPIES':'END',
-    'ORL':'ORL',
-    'REA':'REA','REANIMATION':'REA',
-    'ORTH':'ORT','ORTHO':'ORT','ORT':'ORT',
-    'CARDIO/INTER':'CI','CARDIO':'CI','CI':'CI',
-    'RADIO/INTER':'RI','RI':'RI',
-    'MATER':'MAT','MAT':'MAT','MATERNITE':'MAT',
-    'VOLANT':'VOLANT',
-  };
-  const ID_MAP = {
-    'DR ALBOUY':'ALBOUY','DR ARMAND':'ARMAND','DR ARMANDO':'ARMANDO',
-    'DR BONNET':'BONNET','DR BOUREGBA':'BOUREGBA','DR CATINEAU':'CATINEAU',
-    'DR FROHLICH':'FROHLICH','DR FERRIERO':'FERRIERO','DR GHIGLIONE':'GHIGLIONE',
-    'DR GUERIN':'GUERIN','DR LEVASSEUR':'LEVASSEUR','DR LEY':'LEY',
-    'DR MENADE':'MENADE','DR OPPRECHT':'OPPRECHT','DR PARTOUCHE':'PARTOUCHE',
-    'DR ROUSSEAU':'ROUSSEAU','DR SALA':'SALA','DR SEVERAC':'SEVERAC',
-    'DR SULTAN':'SULTAN','DR SUPLY':'SUPLY','DR WIDEHEM':'WIDEHEM',
-    'DR ZAMARON':'ZAMARON','DR TRAN':'TRAN','PR PRUNET':'PRUNET',
-    'DR GARCIA':'GARCIA',
-  };
-
-  // Réécrire ligne 1 : en-têtes
-  sheet.getRange(1, 1, 1, 13).setValues([['MÉDECIN', ...MONTH_HEADERS]]);
-
-  // Réécrire les lignes de données
-  for (let r = 1; r < data.length; r++) {
-    const rawName = String(data[r][0] || '').trim();
-    if (!rawName) continue;
-    const id = ID_MAP[rawName.toUpperCase()] || 
-               ID_MAP['DR ' + rawName.toUpperCase()] ||
-               rawName.toUpperCase().replace('DR ','').replace('PR ','').trim();
-    sheet.getRange(r + 1, 1).setValue(id);
-
-    // Normaliser les 12 secteurs
-    for (let c = 1; c <= 12; c++) {
-      const raw = String(data[r][c] || '').trim().toUpperCase();
-      const normalized = SECTOR_MAP[raw] || (raw ? 'VOLANT' : '');
-      if (normalized) sheet.getRange(r + 1, c + 1).setValue(normalized);
-    }
-  }
-
-  Logger.log('✅ AFFECTATIONS_2026 normalisé');
-  SpreadsheetApp.getUi().alert('✅ AFFECTATIONS_2026 normalisé — noms et secteurs mis à jour.');
 }
 // ── AMORÇAGE (une fois) : crée HISTORIQUE et le remplit avec l'existant ──
 function creerHistorique() {
