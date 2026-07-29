@@ -4,8 +4,8 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.14.3** ·
-**GAS** `code.gs` 2026-07-29.3 · `Indispos.gs` 2026-07-29.4 · `portail.gs` 2026-07-29.2
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.14.5** ·
+**GAS** `code.gs` 2026-07-29.3 · `Indispos.gs` 2026-07-29.5 · `portail.gs` 2026-07-29.2
 
 *Mise à jour : 29 juillet 2026.*
 
@@ -87,6 +87,10 @@ est **bloquant**. Mesurer l'instant d'affichage de l'information utile, pas le n
 - **Clé de semaine** : ne jamais la fonder sur le numéro de semaine (frontières d'année).
 - **Codes d'accès** : insensibles à la casse depuis le 27/07 (mobile vs PC). Un code vide est
   refusé explicitement. Format : éviter `&` (coupe les URL) et `O`/`0`/`I`/`1`.
+  **Aucune limite de longueur** : les trois `maxlength` des champs de saisie ont été retirés le
+  29/07 (`indispos.html` 8, `staff.html` 20, wizard `admin.html` 12). Ils tronquaient un code
+  saisi à la main **sans aucun message**, et le code était ensuite déclaré invalide. Ne jamais
+  remettre de `maxlength` sur un champ de code.
 - **Verrou d'écriture** : toute nouvelle action qui écrit doit rejoindre `WRITE_ACTIONS_LOCK`
   (`Indispos.gs`). Les lectures ne le prennent jamais.
 - **Motifs d'absence** : filtrage **serveur**, jamais navigateur. Le rôle secrétariat est une
@@ -173,7 +177,10 @@ Invariants : Σ dette = 0 par axe, repli si les cibles manquent.
 
 ### Planning quotidien (`admin.html`)
 Grille du comité, placement par cases, publication vers les JSON du Drive privé.
-`SECTEURS` est la **source vivante** de la configuration ; le tableau en dur n'est qu'un repli.
+`SECTEURS` et `CS_TEMPLATE` sont la configuration — **il n'existe plus aucune copie en dur**
+(6 supprimées le 29/07, dont 2 cachées dans l'export Excel). Échec de lecture ⇒ bandeau rouge
+`configBanner` + **export Excel refusé** ; la grille s'affiche amputée, jamais fausse en silence.
+⚠️ Restent deux listes de secteurs figées, hors config : voir Priorité 3.
 ⚠️ **`RI` ne doit pas rejoindre `COVERAGE`** — sa règle (mercredi/jeudi matin) est plus fine, et
 il n'y a jamais de bloc cardio le jeudi.
 ⚠️ Les **sorties de garde restent groupées** dans l'Excel : le statut `RG` est unique, rien ne dit
@@ -214,7 +221,10 @@ Deux portes : tuile MAR et session secrétariat.
 `G`/`G2` ne comptent pas comme absence. Rôle secrétariat = liste blanche de deux actions.
 
 ### Veille bibliographique, CR d'anesthésie
-En production. ⚠️ `markVeille` écrit sans verrou ni contrôle de rôle (anomalie connue, à corriger).
+En production. *(L'alerte « `markVeille` sans verrou ni contrôle de rôle » a été retirée le 29/07
+après vérification du code : le secrétariat est déjà refusé en amont par `SECRETARIAT_ACTIONS`,
+et l'action écrit **une seule cellule ciblée par PMID**, sans lire-modifier-écrire ni suppression
+de ligne — son exclusion de `WRITE_ACTIONS_LOCK` est délibérée et documentée.)*
 
 ### Sécurité et robustesse
 Audit en 5 axes (19-20/07) : toutes les actions derrière `checkCode()`, aucun code renvoyé en
@@ -250,18 +260,25 @@ Ordre restant : **2C** (recoupement, taux de couverture, rendement) puis **Lot 4
 - Chantier de **conception**, pas de code — mérite un fil dédié. Jeu d'essai : relevé réel
   janvier→juin.
 - Combos de cotation restants : consultations d'endoscopie du mardi et jeudi après-midi.
+- Picker des consultations libérales d'endoscopie : plus aucun contrôle automatique depuis le
+  retrait de la rotation (20/07) — attribution 100 % manuelle, règle du 8.1 à vérifier de tête.
+  *(Rangé ici le 29/07 : c'est une question de règle métier, pas une dette de code.)*
 - ❄️ **Lot 5 (orientation financière par la secrétaire) : GELÉ** depuis le 24/07 — à revoir au vu
   du constat sur les excédents.
 
 ### Priorité 3 — Dettes techniques
-- `markVeille` : ajouter verrou et contrôle de rôle.
-- Retirer les tables en dur restantes (`SECTEURS`, `CS_TYPES`, `CS_REQUIRED`) au profit des onglets.
-- Tri des MAR disponibles côté serveur : `roleOrder[role] || 3` vaut **3 pour VOLANT** (sa valeur
-  est `0`, falsy en JS) — les volants ne remontent pas en tête. Sans effet visible (le navigateur
-  retrie), présent dans `getMARsDispoJour` **et** `getPanneauSemaine`.
-- Picker des consultations libérales endoscopie : plus aucun contrôle automatique depuis le
-  retrait de la rotation (20/07) — attribution 100 % manuelle, règle du 8.1 à vérifier de tête.
+- **Deux listes de secteurs encore figées dans `admin.html`** *(trouvées le 29/07, jamais
+  répertoriées jusque-là)* : `COVERAGE` (l.~3164, secteurs qui déclenchent un « + » quand
+  personne n'est placé) et `targets` (l.~4016, boutons « Déplacer vers » du volet latéral).
+  **Un secteur créé dans l'onglet n'apparaît dans aucune des deux.** À traiter avant le
+  déménagement NCHPG (janvier 2027), pas avant le 04/09.
+  ⚠️ `COVERAGE` n'est pas qu'une liste : `RI` en est volontairement absent (règle plus fine,
+  mercredi/jeudi matin). Le remplacement doit préserver cette exception.
 - *(À l'appréciation d'Arthur)* rotation du token GitHub.
+
+*Traitées le 29/07 : tables de configuration en dur (6 supprimées, repli remplacé par un bandeau
+visible) · tri `roleOrder` des volants (helper `_rangRole_`) · limites de saisie des codes d'accès.
+La ligne `markVeille` a été supprimée : c'était une fausse alerte.*
 
 ---
 
@@ -565,9 +582,9 @@ depuis deux onglets du classeur, sans passer par le code.
   - Effet visible immédiat : `CS_OPENABLE` passe de **4 à 7** codes (décision d'Arthur, tout ouvrable).
 - **2b sautée**, à dessein : elle devait vérifier que l'onglet correspond à la table en dur, or
   c'était déjà prouvé deux fois (simulation + relecture). Une recopie GAS de plus n'aurait rien appris.
-- ⬜ **Reste l'étape 3** (non urgente) : retirer les tables en dur et rendre le repli **visible**.
-  Aujourd'hui il est silencieux — une panne de lecture ferait tourner les pages sur le code sans
-  le dire. Inoffensif tant qu'on ne compte pas dessus.
+- ✅ **Étape 3 faite le 29/07** : les tables en dur sont supprimées et le repli n'existe plus.
+  Une panne de lecture affiche désormais le bandeau rouge `configBanner` et **bloque l'export
+  Excel** (un fichier amputé de ses lignes de secteur ne doit pas partir au service).
 
 ### Rangement du classeur (20 juillet 2026)
 
@@ -592,11 +609,11 @@ Objectif : créer un secteur dans l'onglet `SECTEURS` → l'affecter à un MAR �
 | 1. Créer la ligne dans l'onglet | ✅ |
 | 2. Le choisir dans le sélecteur d'admin | ✅ (vient de l'onglet) |
 | 3. Couleur de la cellule d'affectation | ✅ |
-| 4. **Légende de l'onglet Affectations** | ⬜ **liste en dur** `['VIS','REA',…]` (admin.html ~4080) |
+| 4. **Légende de l'onglet Affectations** | ✅ dérivée de `SECTEURS_ACTIFS` (`legendOrder`) — constaté fait le 29/07, la ligne était périmée |
 | 5. Enregistrement dans `AFFECTATIONS_{Y}` | ✅ |
 | 6. Génération du planning | ✅ **corrigé** (voir ci-dessous) |
 | 7. Nouvelle ligne sur le planning | ✅ (index.html dérive déjà de l'onglet) |
-| 8. **Export Excel** | ⬜ `BLOCS` / `SX` / `CSROWS` en dur (données prêtes, branchement à faire) |
+| 8. **Export Excel** | ✅ **29/07** — `BLOCS` et `CSROWS` dérivés des onglets, `SX` dérivé de `BLOCS` |
 
 **Le verrou levé (maillon 6).** `normalizeAffectation` (`code.gs`) ne connaissait que 9 codes en dur :
 tout autre code devenait `VOLANT` **en silence**. Un secteur créé dans l'onglet était donc affectable,
@@ -1067,6 +1084,75 @@ sans personne devant l'écran, incapable de vérifier que le planning suivant es
   surtout pas avant »), point de vigilance après.
 
 **Dates de clôture** : lundi 4 janvier 2027, 3 janvier 2028, **8** janvier 2029, 7 janvier 2030.
+
+### Dettes techniques soldées + panne silencieuse des codes d'accès (29 juillet 2026) · site v1.14.5 · `gas/Indispos.gs` v2026-07-29.5
+
+Passe de nettoyage des 4 « dettes techniques » de la Priorité 3. **Deux des quatre lignes étaient
+fausses** — la lecture du code a démenti la ROADMAP. Rappel de méthode : une dette notée n'est pas
+une dette prouvée ; on relit le chemin avant de coder.
+
+**1. `markVeille` — fausse alerte, ligne supprimée.** La ROADMAP annonçait « écrit sans verrou ni
+contrôle de rôle ». Vérifié : le secrétariat est refusé **avant** la délégation à `portailRoute`
+(liste blanche `SECRETARIAT_ACTIONS`), il ne reste que `admin` et `mar` — le public visé. Et
+l'action écrit **une cellule ciblée par PMID**, jamais de lire-modifier-écrire ni de suppression
+de ligne : deux clics simultanés touchent deux cellules différentes. Son exclusion de
+`WRITE_ACTIONS_LOCK` est délibérée et commentée dans `Indispos.gs`. Ajouter le verrou aurait
+contredit une décision écrite sans rien protéger. **Aucun code livré.**
+
+**2. Configuration en dur — 6 copies supprimées, pas 3.** La ROADMAP en citait trois
+(`SECTEURS`, `CS_TYPES`, `CS_REQUIRED`). La recherche exhaustive en a trouvé **six** :
+`SECTEURS_CFG`, `CS_TYPES`, `CS_OPENABLE`, `CS_REQUIRED`, plus **`BLOCS` et `CSROWS`, cachées
+dans l'export Excel** — invisibles à qui cherche les trois noms cités. C'est la récidive exacte
+du piège de la « 4ᵉ liste en dur » du 21/07.
+
+Décision d'Arthur, contre ma première proposition : **ne pas ajouter de bandeau par-dessus le
+repli, mais supprimer le repli**. Son argument : « on ne va pas faire une sécurité sur chaque
+chose ». Il avait raison — j'empilais un troisième mécanisme sur deux existants. Raisonnement
+retenu : le repli ne sauvait que le cas étroit où *ces deux lectures seules* échouent (si le
+réseau tombe, `admin.html` est mort de toute façon), et il coûtait une **panne muette** — grille
+affichée avec une config périmée, indiscernable d'une grille juste.
+
+Livré : les 6 tables vidées, `CONFIG_KO` + `majBandeauConfig()`, bandeau rouge non masquable, et
+surtout **l'export Excel refuse de partir** si la config n'est pas lue (un fichier amputé de ses
+lignes de secteur part par mail au service — c'est le point le plus grave du lot).
+Principe consigné : **une panne visible vaut mieux qu'un affichage faux et muet.**
+
+**3. Tri des volants — vrai défaut, corrigé.** `(roleOrder[role] || 3)` renvoyait `3` pour
+`VOLANT`, dont la valeur est `0` (falsy en JS). Jeu d'essai : `R > PRESENT > VOLANT > VOLANT` au
+lieu de `VOLANT > VOLANT > R > PRESENT`. Corrigé par un helper unique `_rangRole_(role, ordre)`
+(`role in ordre ? ordre[role] : 3`) appelé par `getMARsDispoJour` **et** `getPanneauSemaine` —
+une définition, pas deux corrections jumelles. `??` volontairement évité : la syntaxe n'apparaît
+nulle part dans les 9 455 lignes de GAS, pas d'exception pour deux lignes.
+Sans effet visible : `admin.html` regroupe lui-même par rôle (l.~3893).
+
+**4. Picker endoscopie** — sorti des dettes techniques : c'est une règle métier, pas du code.
+Rangé en Priorité 2 avec le lot 2C.
+
+---
+
+**Panne découverte en cours de session : les codes d'accès étaient tronqués en silence.**
+Arthur, ayant changé son code à la main dans `MEDECINS`, ne pouvait plus se connecter à
+`indispos.html`. Cause : `maxlength="8"` sur le champ de saisie — la longueur des codes
+**générés**. Le champ refusait la 9ᵉ frappe **sans aucun message**, et le code tronqué était
+déclaré invalide. Personne ne l'avait jamais heurté parce que les codes automatiques font
+exactement 8 caractères.
+
+Recherche exhaustive sur les 21 fichiers HTML du dépôt : **trois** limites de la même famille,
+toutes retirées — `indispos.html` (8), `staff.html` (20, code admin) et le **wizard de création
+de MAR d'`admin.html` (12)**. Cette dernière était la plus dangereuse : un code de plus de
+12 caractères y aurait été tronqué *à l'enregistrement*, et Arthur aurait communiqué au MAR un
+code qui ne fonctionne pas. Aucune limite haute côté serveur : `checkCode` compare la chaîne
+entière. Placeholder `XXXXXXXX` remplacé par « Votre code d'accès », qui ne suggère plus de
+longueur. Conservés : `maxlength` du DECT (6) et des initiales (3), qui sont de vraies contraintes.
+
+**Troisième panne silencieuse de la semaine** après la déclaration mal placée du 28/07 et le repli
+de configuration ci-dessus. Même schéma : le système refuse quelque chose sans le dire, et
+l'utilisateur cherche au mauvais endroit.
+
+**Trouvé en vérifiant, jamais répertorié** : deux listes de secteurs restent figées dans
+`admin.html` — `COVERAGE` (l.~3164) et `targets` (l.~4016). Un secteur créé dans l'onglet
+n'apparaît ni dans les « + » de couverture ni dans les boutons « Déplacer vers ». Inscrit en
+Priorité 3, à traiter avant le déménagement NCHPG.
 
 ### Audit du code — passe serveur (29 juillet 2026) · `gas/portail.gs` v2026-07-29.2
 
