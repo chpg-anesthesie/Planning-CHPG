@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-07-29.2';
+const GAS_VERSION_CODE = '2026-07-29.3';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 // Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
@@ -256,6 +256,26 @@ function getPremierJourPlanning(year) {
   const dow = jan1.getDay();
   const offset = dow === 1 ? 7 : dow === 0 ? 1 : 8 - dow;
   return new Date(year, 0, 1 + offset, 12, 0, 0);
+}
+
+/* ── ANNEE DE PLANNING D'UNE DATE (29/07/2026) ───────────────────────────
+   L'annee d'une date n'est PAS ses 4 premiers chiffres. L'annee de planning
+   2026 court du 05/01/2026 au 03/01/2027 : le 1er janvier 2027 appartient donc
+   au planning 2026, ses gardes sont dans GARDES_2026 et dans planning_2026.json.
+   Mesure du 29/07/2026 en rejouant 2025 a 2046 : 1 jour ouvre concerne au
+   passage 2026→2027, mais 5 en 2028→2029, 4 en 2029→2030, 3 en 2030→2031.
+   Chercher ces jours dans l'onglet de l'annee civile ne renvoie RIEN, donc
+   « aucune absence », donc un faux « disponible » — exactement ce que l'ecran
+   des consultations doit eviter.
+   ⚠️ Toute lecture d'un GARDES_{Y} ou d'un planning_{Y}.json faite A PARTIR
+   D'UNE DATE doit passer par ici, jamais par ds.slice(0,4).
+   (N'est PAS valable pour les onglets LIBERAL_{Y}, ranges par annee CIVILE de
+   la date de bloc — voir _libYearOf dans portail.gs.) */
+function anneePlanning(dateISO) {
+  const ds = String(dateISO || '').slice(0, 10);
+  const y  = Number(ds.slice(0, 4));
+  if (!y) return y;
+  return (new Date(ds + 'T12:00:00') < getPremierJourPlanning(y)) ? y - 1 : y;
 }
 
 // ── SEMAINE ISO ───────────────────────────────────────────────────────
