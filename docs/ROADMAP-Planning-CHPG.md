@@ -1,11 +1,295 @@
 # Roadmap — Planning-CHPG
 
-Système web : **planning des gardes** (équité annuelle) + **planning quotidien** + **consultations** + **portail/Dashboard** + **veille biblio** + **CR d'anesthésie**, pour ~23 MARs au CHPG (Monaco).
-Dépôt : `chpg-anesthesie/Planning-CHPG`, branche `main`. *Mise à jour : 29 juillet 2026 (audit du code — passe serveur : relecture intégrale des 5 fichiers GAS, `getReleveLiberal` fermé aux non-membres ; la passe frontend est abandonnée au profit d'audits ciblés). Site v1.14.1.*
+Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
+planning des gardes (équité annuelle), planning quotidien, consultations,
+portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-> Le dépôt en ligne fait foi. Cette roadmap est un repère de pilotage, pas la source de vérité du code.
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.14.3** ·
+**GAS** `code.gs` 2026-07-29.3 · `Indispos.gs` 2026-07-29.4 · `portail.gs` 2026-07-29.2
+
+*Mise à jour : 29 juillet 2026.*
+
+> **Le dépôt en ligne fait foi.** Ce document est un repère de pilotage, pas la source de vérité
+> du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
+> dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
+> `docs/module-liberal/module_liberal_conception.md`.
 
 ---
+
+## Comment lire ce document
+
+Le document est en **deux parties**.
+
+**PARTIE 1 — Synthèse** (ci-dessous, ~2 pages). Ce qu'il faut savoir pour travailler aujourd'hui.
+
+| Section | Ce qu'on y trouve |
+|---|---|
+| **Pièges** | Ce qui a déjà cassé la production. À lire avant de coder. |
+| **Performance** | État arrêté, mesures de référence, pistes fermées. |
+| **État par module** | Ce qui existe et les règles métier à ne jamais « simplifier ». |
+| **À faire** | Par ordre de priorité réelle. |
+| **Écarté** | Étudié, chiffré, refusé. **Ne pas reproposer sans élément nouveau.** |
+
+**PARTIE 2 — Historique détaillé par chantier** (à partir de « ✅ Fait »). Conservé **intégralement** :
+le détail d'implémentation, les décisions datées, les cas limites. C'est là qu'on cherche
+« pourquoi tel choix a été fait » ou le nom exact d'une action, d'un onglet, d'une colonne.
+**Rien n'y a été retiré** — la synthèse ne le remplace pas, elle y donne accès.
+
+---
+
+## ⚠️ Pièges — à lire avant toute intervention
+
+### Issus d'erreurs commises (ne pas les refaire)
+
+**1. Une déclaration placée trop bas dans le fichier casse tout, en silence.** (28/07/2026)
+Dans `admin.html`, la file d'appels `_fileAPI` (`let`) avait été déclarée ligne 2036 alors que la
+connexion automatique l'utilise ligne 1801. Une variable `let` n'existe pas avant sa ligne : le
+tout premier appel échouait **à chaque rechargement**, l'exception était avalée par un `catch`, et
+trois appels de repli partaient par-dessus. Quatre symptômes apparemment distincts, une seule
+cause. Coût : une journée.
+→ `tryAutoLogin` doit rester **la dernière chose du gros bloc `<script>`**. Ne jamais la remonter.
+→ **L'emplacement d'une déclaration est une décision technique, jamais éditoriale.**
+
+**2. Une section déclarée « terminée » sans vérifier le chemin complet.** (20/07/2026)
+Le chantier « créer un secteur » a été annoncé fini alors que la création de bout en bout ne
+fonctionnait pas. → Vérifier le trajet réel avant d'écrire « terminé ».
+
+**3. Une 4ᵉ liste en dur, invisible aux recherches.** (21/07/2026)
+Des tables figées dans le code doublonnaient les onglets du classeur. Une recherche partielle ne
+les avait pas trouvées. → **Une recherche négative ne prouve rien tant qu'elle n'est pas
+exhaustive** (tout le dépôt, pas les deux fichiers auxquels on pense).
+
+**4. Un générateur livré puis retiré le même jour.** (23/07/2026)
+La version fermait tous les trous de garde mais **dégradait l'équité des week-ends** — non détecté
+parce que seule la déviation globale était mesurée. → **Mesure d'équité par axe obligatoire**
+avant toute livraison du générateur (`simulateur/eval.js`).
+
+**5. Quatre versions successives d'une même fonction en un après-midi.** (28/07/2026)
+Le préchargement du panneau de placement a demandé 4 itérations, dont 3 régressions livrées en
+production. Point commun : les défauts n'apparaissaient que dans **l'usage réel** (navigation
+rapide, clic pendant un chargement, retour en arrière), jamais sur le chemin nominal.
+→ **Quand la même fonction casse deux fois, arrêter de patcher** et repartir d'une analyse.
+→ Tester les scénarios d'usage réel **avant** de pousser, pas après le retour d'Arthur.
+
+**6. Un gain annoncé sans être mesuré.** (29/07/2026)
+« Faire voyager les gardes avec le login » devait gagner ~4 s. Gain réel mesuré : **130 ms** — le
+second appel n'était pas sur le chemin critique. → Le gain d'un appel supprimé n'est réel que s'il
+est **bloquant**. Mesurer l'instant d'affichage de l'information utile, pas le nombre d'appels.
+
+**7. Un commentaire périmé maintenu sous un correctif.** Une décision qui ne vaut plus se
+**supprime et se remplace**, elle ne s'empile pas — git garde l'historique.
+
+### Pièges techniques
+
+- **ExcelJS** : écrire dans une cellule *esclave* d'une fusion casse le fichier en production.
+- **Cache `sessionStorage`** : une colonne ajoutée à un onglet reste invisible tant que la session
+  n'est pas fermée (`Ctrl+Maj+R` ne suffit pas). **Versionner les clés** à chaque changement.
+- **Clé de semaine** : ne jamais la fonder sur le numéro de semaine (frontières d'année).
+- **Codes d'accès** : insensibles à la casse depuis le 27/07 (mobile vs PC). Un code vide est
+  refusé explicitement. Format : éviter `&` (coupe les URL) et `O`/`0`/`I`/`1`.
+- **Verrou d'écriture** : toute nouvelle action qui écrit doit rejoindre `WRITE_ACTIONS_LOCK`
+  (`Indispos.gs`). Les lectures ne le prennent jamais.
+- **Motifs d'absence** : filtrage **serveur**, jamais navigateur. Le rôle secrétariat est une
+  liste blanche de deux actions — ne jamais y ajouter `getPlanningJson`.
+
+---
+
+## 🚀 Performance — état arrêté au 29/07/2026
+
+### Le constat qui commande tout
+
+Une requête Apps Script **qui ne fait rien** coûte **2 à 3 s** avant d'atteindre le code, avec des
+pointes à 10-20 s. Vérifié sur **deux déploiements indépendants** (médianes 2,70 et 2,31 s) : un
+déploiement neuf se comporte comme l'ancien. Le socle varie dans la journée (≈1,4 s le matin,
+2,5 à 7 s l'après-midi du 28/07) et le serveur lui-même s'est dégradé à code constant
+(`getAdminBootstrap` : 3 106 → 6 110 ms en trois heures).
+
+**→ Le seul levier est de réduire le NOMBRE d'appels, jamais leur contenu.**
+**→ Avant d'ajouter un appel à l'ouverture, se demander s'il ne peut pas rejoindre le bootstrap.**
+**→ Ne jamais mesurer un gain sur une base instable : prendre la référence le matin.**
+
+### Ce qui a été livré
+
+| Chantier | Avant | Après |
+|---|---|---|
+| Enregistrer 20+ placements | 34 appels, **10 perdus en silence** | 1 appel groupé, zéro perte |
+| Ouvrir une case du planning | 2 appels par jour (~5 s) | 0 — préchargement semaine |
+| Ouvrir `admin.html` | 4 appels bloquants | 1 (`getAdminBootstrap`) |
+
+- **File groupée des placements** (`savePlanningOverridesBatch`) : badge « N en attente », lot
+  rejouable sans doublon, persistance `localStorage`, envoi de secours à la fermeture, et
+  **vidage bloquant avant publication** — on ne publie jamais avec des placements non écrits.
+- **Préchargement du panneau** (`getPanneauSemaine`) : un appel pour les 7 jours, déclenché après
+  500 ms d'immobilité (traverser 12 semaines = 1 appel). Cache invalidé après changement de statut.
+- **Bootstrap enrichi** : compteur de mails et existence de l'année suivante (`anneeSuivante`,
+  listage Drive sans lecture de fichier) livrés dans la réponse, au lieu de deux appels séparés.
+- **Chronomètre** `chronoAPI()` : affiche **départ (T+), serveur et attente** séparément, grâce au
+  champ `_srv_ms` posé par l'enveloppe GAS. ⚠️ `doGet` n'est plus l'aiguillage : celui-ci s'appelle
+  **`_routeRequete_`**, `doGet` ne fait que le chronométrer.
+
+### ⛔ `dashboard.html` — piste fermée, ne pas la rouvrir
+
+Mesuré chez Arthur : 2 appels, ~10,6 s. Deux optimisations étudiées **et écartées sur mesure** :
+1. **Gardes livrées par le `login`** → gain réel **130 ms**, pour une lecture Drive (~1 s serveur)
+   ajoutée à chaque login de MAR. Rapport défavorable, non livré.
+2. **Login et planning en parallèle** → impossible : **Apps Script sérialise les exécutions d'un
+   même utilisateur** (4 appels parallèles = 4 à 7 s chacun contre 1,8 s seul).
+
+**`dashboard.html` est à l'optimum de ce qu'Apps Script permet.** Ses ~10 s sont 2 × le péage.
+
+### Comparatif d'hébergement (mesuré le 29/07, même poste, réponse vide des deux côtés)
+
+| | Cloudflare Workers | Apps Script |
+|---|---|---|
+| Mesures | 93 · 101 · 204 ms | 2,62 · 2,80 · 2,85 · 3,02 · 4,00 s |
+| **Médiane** | **~100 ms** | **~2 850 ms** |
+
+**Facteur ≈ 28.** Apps Script fait **deux allers-retours** par appel (redirection puis contenu),
+Cloudflare un seul — pénalisant sur connexion à forte latence.
+
+⚠️ **Ce que la mesure ne dit pas** : le coût de lecture des données depuis une plateforme externe.
+Sur `admin.html`, le travail serveur (~4,8 s) domine désormais le péage : migrer y serait
+décevant. Sur `dashboard.html` et `index.html` (lecture pure), le gain serait franc.
+**Décision : chantier non lancé** (effort de plusieurs semaines, duplication des codes d'accès de
+23 médecins sur une plateforme tierce, second service à maintenir seul, et calendrier du 4/09).
+
+### Pistes fermées (performance)
+
+- Tailler les lignes vides du classeur (ouverture = 120 ms pour 1,7 M de cellules).
+- Lire les JSON du Drive par identifiant direct (396 ms contre ~350 ms par nom).
+- Cache serveur, optimisation du JSON (déjà minifié + gzip).
+
+---
+
+## ✅ État par module
+
+### Algorithme de gardes
+Équité annuelle sur ~730 gardes/an, dette calculée depuis les colonnes `CIBLE*` du snapshot
+`STATS_GARDES_{N-1}` (déjà pro-ratées par la présence), jamais des réels seuls.
+Invariants : Σ dette = 0 par axe, repli si les cibles manquent.
+**Couverture des jours serrés livrée (23/07)** : 13 jours sans binôme → 0 sur 140 années simulées,
+équité et vitesse meilleures que la référence. Mécanisme décisif : passe de dernier recours.
+⚠️ Ne jamais régénérer une année déjà générée (verrou de `generateGardes()`).
+
+### Planning quotidien (`admin.html`)
+Grille du comité, placement par cases, publication vers les JSON du Drive privé.
+`SECTEURS` est la **source vivante** de la configuration ; le tableau en dur n'est qu'un repli.
+⚠️ **`RI` ne doit pas rejoindre `COVERAGE`** — sa règle (mercredi/jeudi matin) est plus fine, et
+il n'y a jamais de bloc cardio le jeudi.
+⚠️ Les **sorties de garde restent groupées** dans l'Excel : le statut `RG` est unique, rien ne dit
+de quelle garde sort la personne.
+
+### Portail / Dashboard
+`dashboard.html` est **le seul carrefour** : toutes les pages s'ouvrent depuis ses tuiles.
+Service worker sur cette page uniquement (suffisant, tout le monde y passe).
+
+### Module libéral — lots 0, 1, 3, 2A et 2B en production
+Le MAR cote, édite un devis, déclare son intervention ; le comité la voit au placement.
+Détail complet : `docs/module-liberal/module_liberal_conception.md`.
+
+**Règles métier à ne jamais « simplifier » :**
+- Seuil de **30 % par axe**, CCAM et NGAP **indépendants**. La réa ne corrige que le CCAM.
+- **Une ligne = un patient** (`LIBERAL_{Y}`, 9 colonnes). La fusion jour+secteur a été supprimée.
+- `BR_CCAM` est datée du **bloc**, `BR_NGAP` de la **consultation** — souvent deux mois différents.
+- **Le DH n'est jamais déclaré** (hors quota) et ne se répartit pas par acte.
+- **Le rendement se ventile, il ne se somme pas** : le relevé certifié fixe le niveau, les BR
+  déclarées la structure.
+- **Jamais de % issu des seules déclarations** : le dénominateur (activité publique) n'existe que
+  dans le relevé. Les déclarations donnent un **volume**, jamais un pourcentage.
+- Tarifs NGAP (annexe III CCSS-CAMTI au 01/10/2025) : `C 34,40 · CS 46,00`. **L'APC est une
+  cotation française, absente de la nomenclature monégasque.** Les tarifs ameli ne valent pas ici.
+- `SPECIALITES` : 12 codes. **Patient mineur ⇒ `PED`**, quelle que soit la chirurgie.
+- Index CCAM **v84** (régénéré le 27/07, codes et tarifs sur la même version).
+  Alerte d'obsolescence calendaire à 8 puis 14 mois. **Prochaine régénération vers mars 2027.**
+- ⚠️ Le devis affiche « secteur 2 (honoraires libres, non-OPTAM) » **en dur** — exact pour Arthur,
+  potentiellement faux pour un autre MAR, et invisible si ça l'est.
+- ⚠️ **Point ouvert CHPG/DAM** : le modèle CNOM réserve l'information sur les actes **au seul
+  patient**, y compris vis-à-vis des complémentaires. Non tranché pour Monaco.
+- ⚠️ **Constat du 27/07 : 10 MAR sur 18 en excédent** au cumul de juin, dont 2 sur le seul axe
+  NGAP. Fragilise l'hypothèse ayant servi à geler le Lot 5 — à revérifier sur 2-3 mois.
+
+### Contrôle d'absence (`absences.html`, Lot 5-bis) — en production
+Deux portes : tuile MAR et session secrétariat.
+🔒 Les **motifs d'absence ne sont jamais transmis au secrétariat** (filtrage serveur).
+`G`/`G2` ne comptent pas comme absence. Rôle secrétariat = liste blanche de deux actions.
+
+### Veille bibliographique, CR d'anesthésie
+En production. ⚠️ `markVeille` écrit sans verrou ni contrôle de rôle (anomalie connue, à corriger).
+
+### Sécurité et robustesse
+Audit en 5 axes (19-20/07) : toutes les actions derrière `checkCode()`, aucun code renvoyé en
+clair, verrou d'écriture, journalisation « qui/quand » sans contenu clinique, XSS fermée dans le
+volet libéral (26/07), `getReleveLiberal` réservé aux membres du groupement (29/07).
+`ensureMarRows()` garantit les lignes annuelles de tout MAR actif (création et réactivation).
+`annulerAbsenceLongue` n'efface que les cases valant exactement `CL`.
+
+### Versionnement
+La version du site vit dans **4 fichiers, 10 emplacements** : `admin.html` (3),
+`dashboard.html` (3), `docs/guide-mar.html` (2), `docs/guide-comite.html` (2).
+⚠️ `index.html`, `indispos.html`, `staff.html` et `absences.html` **n'en portent aucune**.
+Patch → 3ᵉ chiffre · Fonctionnalité → 2ᵉ · **v2.0 réservée à l'ouverture du module libéral au
+groupement** (la version est un repère pour les utilisateurs, pas pour le développeur).
+
+---
+
+## 🔜 À faire
+
+### Priorité 1 — Présentation staff du 04/09 *(reprendre début août, fil dédié)*
+- Vérifier le slide 24 (cibles nominatives) contre `MEDECINS`, le slide 21 (simulation figée),
+  le slide 27 (limites connues).
+- **Vérifier que les profils indispos 2027 des 22 autres MARs sont remplis** (annoncé à la salle).
+- Remplir `CONFIG.SULTAN_CODE` avant l'événement (WS saisit ses indispos en direct).
+- Répétition à blanc de la démo.
+- Écrire la **check-list de ménage post-démo** dans le dépôt : onglets `_2027`, JSON Drive,
+  vacances 2027, mails, changer le code de Sultan, `INDISPOS_ACTIVE`.
+
+### Priorité 2 — Module libéral, brique convergence 30 %
+Ordre restant : **2C** (recoupement, taux de couverture, rendement) puis **Lot 4**.
+- **Lot 4 pas envisageable avant mi-2027** : il lui faut des rendements mesurés, donc plusieurs
+  mois de 2A+2B.
+- Chantier de **conception**, pas de code — mérite un fil dédié. Jeu d'essai : relevé réel
+  janvier→juin.
+- Combos de cotation restants : consultations d'endoscopie du mardi et jeudi après-midi.
+- ❄️ **Lot 5 (orientation financière par la secrétaire) : GELÉ** depuis le 24/07 — à revoir au vu
+  du constat sur les excédents.
+
+### Priorité 3 — Dettes techniques
+- `markVeille` : ajouter verrou et contrôle de rôle.
+- Retirer les tables en dur restantes (`SECTEURS`, `CS_TYPES`, `CS_REQUIRED`) au profit des onglets.
+- Tri des MAR disponibles côté serveur : `roleOrder[role] || 3` vaut **3 pour VOLANT** (sa valeur
+  est `0`, falsy en JS) — les volants ne remontent pas en tête. Sans effet visible (le navigateur
+  retrie), présent dans `getMARsDispoJour` **et** `getPanneauSemaine`.
+- Picker des consultations libérales endoscopie : plus aucun contrôle automatique depuis le
+  retrait de la rotation (20/07) — attribution 100 % manuelle, règle du 8.1 à vérifier de tête.
+- *(À l'appréciation d'Arthur)* rotation du token GitHub.
+
+---
+
+## 🚫 Écarté — ne pas reproposer sans élément nouveau
+
+- **Protection anti-force-brute sur `checkCode()`** *(20/07, chiffré)*. 32⁸ ≈ 1 100 milliards de
+  combinaisons, ~50 essais/s au mieux → **~350 ans**. Surtout : `checkCode()` tourne à **chaque
+  requête**, pas seulement au login — un disjoncteur global aurait coupé le service pour les
+  23 MARs avec 30 essais ratés. Et `Utilities.sleep()` épuise le quota au lieu de le protéger.
+  *(Le compteur par IP est de toute façon impossible : Apps Script ne donne pas l'IP.)*
+- **Généraliser le service worker aux autres pages** *(22/07)*. Tout le monde passe par le
+  Dashboard, qui le porte déjà.
+- **Servir les icônes d'`index.html` depuis le bundle local** *(22/07)*. Les icônes sont
+  configurables par l'onglet `SECTEURS` (1 728 icônes possibles) : une liste figée ferait
+  disparaître un picto **en silence**. Ne reproposer qu'avec un repli visible.
+- **Réduction automatique du devis à l'impression** *(21/07)*. 95 % des dossiers font 2 actes,
+  3 au maximum ; réglé par la mise en page seule.
+- **Archivage annuel automatisé** *(29/07)*. Un déclencheur annuel est du code jamais testé qui
+  s'exécute sans surveillance ; il transformerait un oubli en erreur grave.
+- **`config.html`** — couvert par les onglets d'`admin.html`.
+- **Migration hors Apps Script** — non lancée, voir la section Performance pour le détail chiffré.
+
+---
+---
+
+# PARTIE 2 — Historique détaillé par chantier
+
+> Conservé intégralement. La synthèse ci-dessus oriente ; ce qui suit fait foi sur le détail.
 
 ## ✅ Fait
 
