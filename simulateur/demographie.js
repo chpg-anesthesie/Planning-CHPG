@@ -156,12 +156,12 @@ function planifierEte(year,roster){
   return plan;
 }
 
-function buildAbsences(year,roster){
+function buildAbsences(year,roster,scen){
   const im={}; const FER=feriesDe(year); const planningEte=planifierEte(year,roster);
   roster.forEach(([id,pct,q,f],idx)=>{
     // Graine décorrélée : year*1000+idx*7 produisait des tirages groupés (tous les
     // congés longs après 2037). On mélange fortement année et index.
-    const R=rnd(Math.imul(year,0x9E3779B1)^Math.imul(idx+1,0x85EBCA6B)), m={};
+    const R=rnd(Math.imul(year,0x9E3779B1)^Math.imul(idx+1,0x85EBCA6B)^(scen?Math.imul(scen,0xC2B2AE35):0)), m={};
     // ── CONGÉ LONG : 8 à 12 semaines (maternité, maladie). SEUL code qui baisse la cible.
     // Fréquence RÉELLE constatée dans le service : environ un congé long tous les
     // 2 à 3 ans pour l'ensemble de l'équipe — pas un par an. Avec ~20 gardeurs, cela
