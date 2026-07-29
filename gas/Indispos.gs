@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-29.2';
+const GAS_VERSION_INDISPOS = '2026-07-29.3';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -3045,8 +3045,17 @@ if (action === 'getPanneauSemaine') {
     const liberal = {};
     dates.forEach(function (d) { liberal[d] = []; });
     try {
-      const libSh = ss.getSheetByName(_libSheetName(_libYearOf(dates[0])));
-      if (libSh) {
+      // ⚠️ Une semaine peut chevaucher DEUX annees civiles (28/12 → 03/01), et les
+      // declarations sont rangees par annee civile de la DATE DE BLOC. Lire le seul
+      // onglet du lundi faisait disparaitre les interventions de janvier (mesure du
+      // 29/07/2026 : 3 jours en 2026→2027, 6 en 2029→2030). On lit chaque annee
+      // presente dans la semaine. (Ici c'est bien l'annee CIVILE, pas anneePlanning :
+      // les onglets LIBERAL_{Y} suivent le releve, qui est calendaire.)
+      const _libAns = {};
+      dates.forEach(function (d) { _libAns[_libYearOf(d)] = true; });
+      Object.keys(_libAns).forEach(function (_an) {
+        const libSh = ss.getSheetByName(_libSheetName(Number(_an)));
+        if (!libSh) return;
         const libData = libSh.getDataRange().getValues();
         for (let r = 1; r < libData.length; r++) {
           const dBloc = _isoDate(libData[r][2]);
@@ -3061,10 +3070,10 @@ if (action === 'getPanneauSemaine') {
             brNgap:     _libMoney_(libData[r][8]),
           });
         }
-        Object.keys(liberal).forEach(function (d) {
-          liberal[d].sort(function (a, b) { return String(a.marId).localeCompare(String(b.marId)); });
-        });
-      }
+      });
+      Object.keys(liberal).forEach(function (d) {
+        liberal[d].sort(function (a, b) { return String(a.marId).localeCompare(String(b.marId)); });
+      });
     } catch(e) {
       // Le volet liberal est un confort : son echec ne doit jamais priver le comite
       // des dispos. On renvoie des listes vides plutot qu'une erreur.
@@ -3637,7 +3646,9 @@ if (action === 'setDailyStatus') {
         const consultations = [];
         const vus = {};                       // dedoublonnage date|mar|periode
         const anneesJ = {};
-        joursConsult.forEach(function (ds) { anneesJ[ds.slice(0, 4)] = true; });
+        // anneePlanning (code.gs) et non ds.slice(0,4) : les 1ers jours de janvier
+        // appartiennent au planning de l'annee PRECEDENTE (cf. commentaire du helper).
+        joursConsult.forEach(function (ds) { anneesJ[anneePlanning(ds)] = true; });
         Object.keys(anneesJ).forEach(function (an) {
           let doc;
           try {
@@ -3723,7 +3734,7 @@ if (action === 'setDailyStatus') {
             if (dd && ds < dd) code = 'HS';                        // pas encore en poste
             else if (df && ds >= df) code = 'HS';                  // a quitte le service
             else {
-              const g = _gardes(Number(ds.slice(0, 4)));
+              const g = _gardes(anneePlanning(ds));   // pas ds.slice(0,4) : voir code.gs
               if (g) {
                 const c = g.col[ds];
                 if (c !== undefined && g.codes[id]) {
