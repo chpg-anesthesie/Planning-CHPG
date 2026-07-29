@@ -671,6 +671,45 @@ aucune alerte `[ouverture]`. Les 5 regles de diagnostic qui en decoulent sont da
 `CONTEXTE-Planning-CHPG.md` (section « Diagnostic »). ⚠️ **Ne jamais remonter `tryAutoLogin`
 au-dessus des declarations de la section API.**
 
+### ⛔ `dashboard.html` — PISTE FERMÉE, ne pas la rouvrir (29/07/2026)
+
+**Mesuré chez Arthur (connexion domestique, ~6 Mbit/s) : 2 appels, 6,46 s + 4,13 s ≈ 10,6 s**
+avant que le bandeau « prochaine garde » s'affiche. Deux tentatives d'optimisation ont été
+étudiées **et écartées sur mesure**, pas sur intuition :
+
+**1. Faire voyager les gardes avec le `login`** (le serveur extrait les jours G/G2 du MAR et les
+renvoie, au lieu que le dashboard télécharge le planning complet de 255 Ko).
+→ Patch écrit, testé, équivalence de l'extraction prouvée à l'identique.
+→ **Gain mesuré en simulation : 130 ms.** Le second appel n'est que partiellement bloquant, et le
+planning reste nécessaire pour « Mes congés » — il part de toute façon. Coût : une lecture Drive
+(~1 s serveur) ajoutée à CHAQUE login de MAR. **Rapport défavorable — non livré.**
+→ Leçon : le gain d'un appel supprimé n'est réel que s'il est sur le **chemin critique**. Mesurer
+l'instant d'affichage de l'information utile, pas le nombre d'appels.
+
+**2. Lancer login et planning EN PARALLÈLE.** Impossible d'en tirer quoi que ce soit :
+**Apps Script sérialise les exécutions d'un même utilisateur** (mesure du 28/07 : 4 appels
+parallèles = 4 à 7 s chacun contre 1,8 s seul — c'est la raison d'être de la file `_fileAPI`
+d'`admin.html`). Deux appels parallèles feraient la queue exactement comme aujourd'hui.
+
+**Conclusion : `dashboard.html` est à l'optimum de ce qu'Apps Script permet.** Ses ~10 s sont
+2 × le péage de la plateforme, et rien d'autre. Le seul levier restant sur cette page est un
+changement d'hébergement.
+
+**Mesure de référence pour la décision d'hébergement (29/07, même poste, à quelques minutes
+d'intervalle, réponse vide des deux côtés) :**
+
+| | Cloudflare Workers | Apps Script |
+|---|---|---|
+| Mesures | 93 · 101 · 204 ms | 2,62 · 2,80 · 2,85 · 3,02 · 4,00 s |
+| **Médiane** | **~100 ms** | **~2 850 ms** |
+
+**Facteur ≈ 28.** À noter : Apps Script fait **deux allers-retours** par appel (redirection `exec`
+puis contenu `echo?…`), Cloudflare un seul — pénalisant sur une connexion à forte latence.
+⚠️ **Ce que cette mesure ne dit PAS** : ce que coûterait la lecture des données depuis une
+plateforme externe. Sur `admin.html`, le travail serveur (~4,8 s de bootstrap) domine désormais
+le péage (~2,8 s) : migrer y serait décevant. Sur `dashboard.html` et `index.html`, qui ne font
+que lire du pré-calculé, le gain serait franc. **Mesurer ce point avant toute décision.**
+
 **Le serveur s'est degrade tout au long de l'apres-midi du 28/07, a code constant.**
 `getAdminBootstrap` cote serveur : **3 106 → 3 512 → 3 881 → 5 036 → 6 110 ms** entre 13 h et
 16 h. `getPanneauSemaine` : 2 179 → 4 164 ms. Le reseau est hors de cause (partage 4G le matin,
