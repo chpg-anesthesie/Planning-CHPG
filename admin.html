@@ -975,7 +975,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.14.3'; // SITE_VERSION: v1.14.3
+const SITE_VERSION = 'v1.14.4'; // SITE_VERSION: v1.14.4
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1068,7 +1068,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.3</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.4</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1088,6 +1088,9 @@ if (sessionStorage.getItem('adminCode')) {
 
 <!-- RAPPEL DE CLOTURE — rempli par majBandeauCloture(), masque le reste de l'annee -->
 <div id="clotureBanner" class="cloture-banner"></div>
+
+<!-- CONFIGURATION NON LUE — rempli par majBandeauConfig(). Rouge, non masquable. -->
+<div id="configBanner" class="cloture-banner bloque"></div>
 
 <!-- STATUS BAR -->
 <div class="status-bar">
@@ -1713,17 +1716,12 @@ const ABSENT = new Set(['G','G2','RG','A','V','F','CTP','R','I','E']);
 // en dérivent. Champs : code, label (long), court (grille), aff (libellé affectations),
 // icon, bg/fg (couleurs affectations ; null = pas de couleur propre → gris volant),
 // cs (consultation miroir ; null = aucune), actif.
-let SECTEURS_CFG = [
-  {code:'VIS', label:'Bloc viscéral',            court:'Viscéral',  aff:'Viscéral',    icon:'Activity',   bg:'#EFF6FF', fg:'#1D4ED8', cs:'CS-VIS',   actif:true},
-  {code:'REA', label:'Réanimation',              court:'Réa',       aff:'Réanimation', icon:'HeartPulse', bg:'#FFF1F2', fg:'#BE123C', cs:null,       actif:true},
-  {code:'ORT', label:'Orthopédie',               court:'Ortho',     aff:'Ortho',       icon:'Bone',       bg:'#FFF7ED', fg:'#C2410C', cs:'CS-ORT',   actif:true},
-  {code:'DVI', label:'Pose DVI',                 court:'DVI',       aff:null,          icon:'Syringe',    bg:null,      fg:null,      cs:null,       actif:true},
-  {code:'ORL', label:'ORL / Ophtalmologie',      court:'ORL',       aff:'ORL',         icon:'Eye',        bg:'#FDF4FF', fg:'#7E22CE', cs:'CS-ORL',   actif:true},
-  {code:'END', label:'Endoscopies',              court:'Endo',      aff:'Endoscopies', icon:'Microscope', bg:'#F0FDF4', fg:'#166534', cs:'CS-END',   actif:true},
-  {code:'CI',  label:'Cardio interventionnelle', court:'Cardio',    aff:'Cardio/Inter',icon:'Heart',      bg:'#ECFDF5', fg:'#065F46', cs:'CS-INTER', actif:true},
-  {code:'RI',  label:'Radio interventionnelle',  court:'Radio',     aff:'Radio/Inter', icon:'Zap',        bg:'#FFFBEB', fg:'#92400E', cs:null,       actif:true},
-  {code:'MAT', label:'Maternité',                court:'Maternité', aff:'Maternité',   icon:'Baby',       bg:'#FDF2F8', fg:'#9D174D', cs:'CS-MAT',   actif:true},
-];
+// (29/07/2026) PLUS AUCUNE COPIE EN DUR. L'onglet SECTEURS est la seule source.
+// Le repli figé qui vivait ici se mettait en route SANS RIEN DIRE le jour où la
+// lecture échouait : la grille affichait alors une configuration périmée, muette.
+// Désormais rien ne s'affiche et le bandeau rouge le dit (majBandeauConfig).
+let CONFIG_KO = { secteurs:false, cs:false };   // vrai = config non lue
+let SECTEURS_CFG = [];
 // ── Dérivations automatiques (reconstruites depuis l'onglet SECTEURS via getSecteurs) ──
 let SECTEURS_ACTIFS, CS_SECTOR_MIRROR, SECTOR_COLORS_AFF, SECTOR_LABELS_AFF;
 function rebuildSecteursDerivations() {
@@ -1756,13 +1754,18 @@ function _remplirSelecteurAffectation() {
 }
 rebuildSecteursDerivations();  // amorçage synchrone depuis le fallback en dur
 // Source unique : charge les secteurs depuis l'onglet SECTEURS (via getSecteurs).
-// Échec réseau / action absente → on garde silencieusement SECTEURS_CFG en dur.
+// Échec → CONFIG_KO.secteurs et bandeau rouge. Aucun repli : mieux vaut une page
+// vide et bruyante qu'une grille fausse et silencieuse.
 async function loadSecteurs(pre) {
+  CONFIG_KO.secteurs = true;
   try {
     // pre = secteurs deja livres par getAdminBootstrap -> aucun appel reseau ici.
     const arr = pre || await api({action:'getSecteurs'});
-    if (Array.isArray(arr) && arr.length >= 1) { SECTEURS_CFG = arr; rebuildSecteursDerivations(); }
-  } catch(e) { /* fallback : SECTEURS_CFG en dur conservé */ }
+    if (Array.isArray(arr) && arr.length >= 1) {
+      SECTEURS_CFG = arr; rebuildSecteursDerivations(); CONFIG_KO.secteurs = false;
+    }
+  } catch(e) { /* CONFIG_KO.secteurs reste vrai */ }
+  majBandeauConfig();
 }
 
 // Consultations depuis l'onglet CS_TEMPLATE (getCsTemplate). Alimente les 3 tables.
@@ -1770,16 +1773,36 @@ async function loadSecteurs(pre) {
 // Garde-fou : on n'écrase QUE si la réponse est exploitable (au moins un type actif),
 // sinon un onglet vidé par erreur ferait disparaître toutes les consultations.
 async function loadCsTemplate(pre) {
+  CONFIG_KO.cs = true;
   try {
     // pre = consultations deja livrees par getAdminBootstrap -> aucun appel reseau ici.
     const t = pre || await api({action:'getCsTemplate'});
-    if (!t || !Array.isArray(t.types) || !t.types.length || !t.required) return;
+    if (!t || !Array.isArray(t.types) || !t.types.length || !t.required) { majBandeauConfig(); return; }
     // xlLabel / xlBg conservés : l'export Excel en a besoin (ils étaient perdus ici).
     CS_TYPES    = t.types.map(x => ({code:x.code, label:x.label || x.code,
                                      xlLabel:x.xlLabel, xlBg:x.xlBg}));
     CS_OPENABLE = t.types.filter(x => x.ouvrable).map(x => x.code);
     CS_REQUIRED = t.required;
-  } catch(e) { /* fallback : tables en dur conservées */ }
+    CONFIG_KO.cs = false;
+  } catch(e) { /* CONFIG_KO.cs reste vrai */ }
+  majBandeauConfig();
+}
+
+// Bandeau rouge permanent tant que la configuration n'a pas pu être lue.
+// Non masquable : il signale que la grille affichée est incomplète.
+function majBandeauConfig() {
+  const el = document.getElementById('configBanner');
+  if (!el) return;
+  const manque = [];
+  if (CONFIG_KO.secteurs) manque.push('secteurs');
+  if (CONFIG_KO.cs)       manque.push('consultations');
+  if (!manque.length) { el.style.display = 'none'; return; }
+  el.innerHTML = '<span class="cb-ico">⚠️</span><span class="cb-txt">'
+    + '<b>Configuration non lue (' + manque.join(' et ') + ') — la grille affichée est incomplète.</b>'
+    + '<span class="cb-sub">Rechargez la page (Ctrl+Maj+R). Si le message persiste, vérifiez '
+    + 'les onglets SECTEURS et CS_TEMPLATE du classeur, et que le fichier portail.gs a bien '
+    + 'été recopié dans Apps Script.</span></span>';
+  el.style.display = 'flex';
 }
 const DAYS_FR = ['LUN','MAR','MER','JEU','VEN','SAM','DIM'];
 // INITIALS_MAP construit dynamiquement depuis marsData (chargé via API)
@@ -2965,15 +2988,8 @@ function getWeekDays(lundi) {
 // remplace au chargement par le contenu de l'onglet. Si l'onglet est illisible
 // (réseau, GAS pas recopié), on garde ces valeurs : jamais bloquant.
 // Éditer l'onglet suffit donc à ouvrir/fermer un créneau — sans toucher au code.
-let CS_TYPES = [
-  {code:'CS-VIS',   label:'CS Viscéral'},
-  {code:'CS-END',   label:'CS Endoscopies'},
-  {code:'CS-ORL',   label:'CS ORL'},
-  {code:'CS-ORT',   label:'CS Orthopédie'},
-  {code:'CS-MAT',   label:'CS Maternité'},
-  {code:'CS-POLY',  label:'CS Polyvalente'},
-  {code:'CS-INTER', label:'CS Interventionnel'},
-];
+// (29/07/2026) Idem SECTEURS : l'onglet CS_TEMPLATE est la seule source.
+let CS_TYPES = [];
 /* ── MIROIR MATERNITÉ — DÉFINITION UNIQUE (27/07/2026) ──────────────────────
    Le mardi et le jeudi MATIN, le MAR placé en MAT fait AUSSI la consultation
    CS-MAT : c'est la même personne. Cette règle n'existe NULLE PART dans les
@@ -2991,14 +3007,8 @@ function estMiroirMater(dateISO, half) {
   return MIROIR_MATER.jours.indexOf(d.getDay()) >= 0;
 }
 
-let CS_OPENABLE = ['CS-VIS','CS-END','CS-ORL','CS-ORT'];
-let CS_REQUIRED = {
-  0:{am:{}, pm:{'CS-VIS':2,'CS-END':2}},                                              // Lundi
-  1:{am:{'CS-ORL':1,'CS-MAT':1}, pm:{'CS-VIS':1,'CS-END':1,'CS-ORT':1}},               // Mardi
-  2:{am:{'CS-ORL':1,'CS-POLY':1}, pm:{'CS-VIS':1,'CS-END':1,'CS-ORT':1,'CS-INTER':1}}, // Mercredi
-  3:{am:{'CS-ORL':1,'CS-MAT':1}, pm:{'CS-VIS':1,'CS-END':2,'CS-INTER':1}},             // Jeudi
-  4:{am:{'CS-ORT':1,'CS-ORL':1}, pm:{}},                                              // Vendredi
-};
+let CS_OPENABLE = [];
+let CS_REQUIRED = {};
 
 function renderWeek() {
   if (!DATA) return;
@@ -4977,6 +4987,9 @@ function _chargerExcelJS() {
 }
 async function exportWeekExcel(){
   if(!DATA){toast('Planning non chargé','error');return;}
+  // (29/07/2026) Sans la config des onglets, le fichier produit serait faux en
+  // silence (lignes de secteur et de consultation manquantes). On refuse.
+  if(CONFIG_KO.secteurs || CONFIG_KO.cs){toast('Configuration non lue — rechargez la page avant d\'exporter','error');return;}
   try { toast('📊 Préparation de l\'export…'); await _chargerExcelJS(); }
   catch(e){ toast('Export Excel indisponible : ' + e.message, 'error'); return; }
   const weeks=getAllWeeks(); const wk=weeks[currentWeekIdx]; if(!wk) return;
@@ -4999,45 +5012,24 @@ async function exportWeekExcel(){
   // (07/2026) Les lignes de secteur de l'Excel viennent désormais de l'onglet
   // SECTEURS (colonnes XL_LABEL / XL_BG / XL_ROWS), dans l'ordre de sa colonne
   // ORDRE. Créer un secteur dans le tableau suffit à le voir apparaître ici.
-  // Repli sur les 9 lignes historiques si l'onglet n'a pas été chargé.
-  const BLOCS = (Array.isArray(SECTEURS_ACTIFS) && SECTEURS_ACTIFS.length)
-    ? SECTEURS_ACTIFS.map(x => ({
+  // (29/07/2026) Plus de repli en dur : l'export est refusé plus haut si la
+  // configuration n'a pas pu être lue.
+  const BLOCS = (SECTEURS_ACTIFS || []).map(x => ({
         label: x.xlLabel || String(x.court || x.code).toUpperCase(),
         codes: [x.code],
         bg:    x.xlBg   || 'F2F2F2',
         rows:  x.xlRows || 2,
-      }))
-    : [
-    {label:'VISCERAL',codes:['VIS'],bg:'FFE699',rows:2},
-    {label:'REANIMATION',codes:['REA'],bg:'9DC3E6',rows:2},
-    {label:'ORTHO',codes:['ORT'],bg:'F4B183',rows:2},
-    {label:'DVI',codes:['DVI'],bg:'F4B183',rows:1},
-    {label:'ORL  OPHTALMO',codes:['ORL'],bg:'FFF2CC',rows:2},
-    {label:'ENDOSCOPIES',codes:['END'],bg:'C6E0B4',rows:2},
-    {label:'CARDIO INTERV.',codes:['CI'],bg:'E7E6E6',rows:1},
-    {label:'RADIO / INTERV.',codes:['RI'],bg:'E7E6E6',rows:1},
-    {label:'MATERNITE',codes:['MAT'],bg:'FFA7A9',rows:2},
-  ];
+      }));
   // (07/2026) Lignes de consultation dérivées de l'onglet CS_TEMPLATE
   // (colonnes XL_LABEL / XL_BG), dans son ordre. Les anciens sous-codes 'URO' et
   // 'OPH' ont disparu : ce n'étaient PAS des codes mais des mentions de libellé
   // (le bloc viscéral couvre viscéral ET uro, le bloc ORL couvre ORL ET ophtalmo).
   // `subs` garde le suffixe du code, seul utilisé par subToRow (CS-VIS -> 'VIS').
-  const CSROWS = (Array.isArray(CS_TYPES) && CS_TYPES.length)
-    ? CS_TYPES.map(t => ({
+  const CSROWS = CS_TYPES.map(t => ({
         label: t.xlLabel || ' ' + String(t.label || t.code).replace(/^CS[- ]*/i, '').toUpperCase(),
         subs:  [String(t.code).replace(/^CS-/, '')],
         bg:    t.xlBg || 'F2F2F2',
-      }))
-    : [
-    {label:' VISC. / URO.',subs:['VIS'],bg:'FFE699'},
-    {label:' ORTHO.',subs:['ORT'],bg:'F4B183'},
-    {label:' ORL / OPHTALMO.',subs:['ORL'],bg:'FFF2CC'},
-    {label:' ENDOSCOPIES',subs:['END'],bg:'C6E0B4'},
-    {label:' INTERVENTIONNEL',subs:['INTER'],bg:'E7E6E6'},
-    {label:' MATERNITE',subs:['MAT'],bg:'FFA7A9'},
-    {label:' POLYVALENT',subs:['POLY'],bg:'F2F2F2'},
-  ];
+      }));
   const DFX=['LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI','DIMANCHE'];
   // Codes de secteur collectés : exactement ceux des lignes ci-dessus.
   const SX = BLOCS.reduce((a, b2) => a.concat(b2.codes), []);
