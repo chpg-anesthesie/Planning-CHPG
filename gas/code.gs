@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-07-28.2';
+const GAS_VERSION_CODE = '2026-07-29.1';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 function buildStats2026() {
@@ -563,8 +563,11 @@ function loadPlanningOverrides() {
   return overrides;
 }
 
-// (Horizon glissant) loadSemainesValidees supprimée — l'onglet SEMAINES_VALIDEES
-// n'est plus utilisé et peut être supprimé du classeur.
+// (29/07/2026) VALIDATION DE SEMAINE : RETIREE DU SYSTEME.
+// L'horizon glissant l'avait deja privee d'objet ; le 29/07 le reste a ete
+// retire (action, verrou d'ecriture, branche onEdit, liste des onglets, doc).
+// L'onglet SEMAINES_VALIDEES a ete supprime du classeur : plus une seule ligne
+// de code ne le lit ni ne l'ecrit.
 
 // ── CONSTRUIRE dateToCol DEPUIS L'ONGLET GARDES ───────────────────────
 // Mappe date→colonne par POSITION : colonne 1 = premier lundi de l'année
@@ -1206,16 +1209,13 @@ function onEdit(e) {
   if (
     sheetName === `AFFECTATIONS_${year}` ||
     sheetName === `GARDES_${year}` ||
-    sheetName === 'PLANNING_OVERRIDES' ||
-    sheetName === 'SEMAINES_VALIDEES'
+    sheetName === 'PLANNING_OVERRIDES'
   ) {
     // Republication auto silencieuse : on log l'échec sans bloquer l'édition de la
     // feuille (c'est le bouton « Publier » qui, lui, remonte les erreurs à l'écran).
     try { generatePlanning(); } catch (err) { Logger.log('onEdit republication échouée : ' + err.message); }
   }
 }
-
-// (Horizon glissant) validerSemaine supprimée — plus de validation manuelle.
 
 // ── ÉCRIRE UN PLANNING OVERRIDE (appelé depuis admin.html via API) ────
 // Quand le comité place un MAR dans une case flash
