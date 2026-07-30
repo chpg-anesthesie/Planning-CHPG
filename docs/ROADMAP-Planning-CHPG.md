@@ -41,6 +41,20 @@ le détail d'implémentation, les décisions datées, les cas limites. C'est là
 
 ### Issus d'erreurs commises (ne pas les refaire)
 
+**0. Écrire une ligne entière, c'est écraser ce qu'on n'a pas chargé.** (30/07/2026)
+`saveIndispos` remplaçait toute la ligne d'un MAR par ce qu'envoyait la page. Or `INDISPOS_{Y}`
+a **deux propriétaires** (comité : VAC/FORM · MAR : INDISPO/SOUHAIT/TP). Résultat : revalider le
+staff effaçait la campagne entière, et une page MAR ouverte trop tôt effaçait les vacances.
+Aucune erreur, aucun message — le dernier qui enregistre a raison.
+→ **Dès qu'une ressource a deux propriétaires, on fusionne, on ne remplace pas.**
+→ Et un interdit posé dans le navigateur (`indispos.html` refuse de cliquer sur une VAC) **ne
+protège rien** : ce n'est pas par le clic que la perte arrive.
+
+**0 bis. Déclarer un document « sans erreur » après un contrôle par sondage.** (30/07/2026)
+`guide-fichier-maitre.html` a été annoncé exact ; le croisement avec `VEILLE_CFG-mode-emploi.md`
+a révélé qu'il oubliait le type `GENERAL`. Le sondage prouve la qualité, jamais l'absence d'erreur.
+→ Dire ce qui a été vérifié **et par quel moyen**, pas « tout est propre ».
+
 **1. Une déclaration placée trop bas dans le fichier casse tout, en silence.** (28/07/2026)
 Dans `admin.html`, la file d'appels `_fileAPI` (`let`) avait été déclarée ligne 2036 alors que la
 connexion automatique l'utilise ligne 1801. Une variable `let` n'existe pas avant sa ligne : le
@@ -85,6 +99,12 @@ est **bloquant**. Mesurer l'instant d'affichage de l'information utile, pas le n
 - **Cache `sessionStorage`** : une colonne ajoutée à un onglet reste invisible tant que la session
   n'est pas fermée (`Ctrl+Maj+R` ne suffit pas). **Versionner les clés** à chaque changement.
 - **Clé de semaine** : ne jamais la fonder sur le numéro de semaine (frontières d'année).
+- **Une boucle d'appels côté page = N exécutions sérialisées.** Apps Script sérialise les appels
+  d'un même utilisateur : `doValidate()` faisait 23 allers-retours (~3 min, pris pour un plantage).
+  **Dès qu'une action porte sur toute l'équipe, c'est un batch** — 1 lecture, 1 écriture de bloc.
+- **Rendre un état persistant peut rendre permanent un défaut jusque-là passager.** Les cadenas de
+  `staff.html` masquaient le libellé VAC/FORM ; invisible tant qu'ils s'effaçaient au rechargement,
+  gênant dès qu'ils ont duré. *(Ici les couleurs suffisaient : bleu = VAC, violet = FORM.)*
 - **Codes d'accès** : insensibles à la casse depuis le 27/07 (mobile vs PC). Un code vide est
   refusé explicitement. Format : éviter `&` (coupe les URL) et `O`/`0`/`I`/`1`.
   **Aucune limite de longueur** : les trois `maxlength` des champs de saisie ont été retirés le
@@ -247,6 +267,7 @@ La version du site vit dans **4 fichiers, 10 emplacements** : `admin.html` (3),
 ⚠️ `index.html`, `indispos.html`, `staff.html` et `absences.html` **n'en portent aucune**.
 Patch → 3ᵉ chiffre · Fonctionnalité → 2ᵉ · **v2.0 réservée à l'ouverture du module libéral au
 groupement** (la version est un repère pour les utilisateurs, pas pour le développeur).
+**Version en cours : v1.14.9** (30/07/2026).
 
 ---
 
@@ -393,6 +414,14 @@ de conversation dédié.
   *(trouvées le 29/07, revérifiées présentes le 30/07)* : **un secteur créé dans l'onglet n'apparaît
   dans aucune des deux.** Traitement et solution retenue : voir **Priorité 2 bis (NCHPG)** ci-dessus —
   c'est le même chantier. Rien à faire avant le 04/09.
+- **Code mort `OVERRIDES`** *(30/07)* — deux systèmes successifs aux noms voisins cohabitent :
+  `OVERRIDES` (ancien, **l'onglet n'existe plus**) et `PLANNING_OVERRIDES` (actuel). Conséquence
+  visible : `admin.html` porte un panneau « Modifications en attente » qui affichera
+  **toujours** « ✅ Aucune modification en attente ». Retrait = 6 endroits (3 GAS, 3 `admin.html`),
+  à faire comme lot dédié : la variable `_localOverrides` ne dit pas de quel système elle relève.
+- **Décompte de la tolérance jeudi/samedi non remesuré** sur les 400 années *(le guide n'affiche
+  plus aucun chiffre faux, il dit « exceptionnelle » — c'est un confort, pas une correction)*.
+  Coût mesuré le 30/07 : **1 min 14 s par scénario**, soit ~25 min pour les 20.
 - *(À l'appréciation d'Arthur)* rotation du token GitHub.
 
 *Traitées le 29/07 : tables de configuration en dur (6 supprimées, repli remplacé par un bandeau
@@ -1301,6 +1330,80 @@ ancrées sur `user.id` ; `getTopo`/`getProtocole` vérifient l'appartenance au d
 - Calcul de Pâques dupliqué (`feriesNamed` vs `getJoursFeries`).
 - `savePlanningOverride` unitaire : plus aucun appelant côté client depuis le passage
   au batch. **À conserver comme repli** pendant les fenêtres GAS/frontend désynchronisées.
+
+---
+
+### Audit documentaire complet + sauvetage des saisies (30 juillet 2026) · site v1.14.9 · `gas/Indispos.gs` v2026-07-30.2 · `gas/portail.gs` v2026-07-30.1
+
+**Audit des 7 guides et des 4 `.md` de `docs/`, exhaustif, contre le code en production.**
+Passe machine d'abord (liens, ancres, identifiants cités) : 0 anomalie. Puis lecture
+document par document. 30 anomalies corrigées.
+
+| Document | Corrigé |
+|---|---|
+| `guide-mar` | 8 — dont « retouchez un jour pour le désélectionner » (**faux** : `applyTool` écrase, seul ✕ Effacer supprime) et un e-mail récapitulatif des congés **qui n'existe pas** |
+| `guide-comite` | 5 — dont §6.6 entièrement périmée (décrivait le « Enregistré » par case d'avant le lot, alors que §6.1 décrivait déjà le bon mécanisme) |
+| `guide-liberal` | 6 — le module y était décrit **comme à construire alors qu'il est en service** |
+| `guide_liberal_MAR` | 7 — dont « il ne reste que le nom du patient à taper » (aucun champ patient n'existe) et la fusion jour+secteur supprimée depuis le lot 2A |
+| `guide-algo-gardes` | §14 réaligné sur la campagne du 29/07 : 140 → **400 années**, 102 312 → **292 312 gardes**, écart médian 1,7 → **1,20**, pire 3,3 → **3,5** |
+| `guide-technique` | 1 (date) — **22 sections vérifiées, aucune erreur de fond** |
+| `guide-fichier-maitre` | 1 — type `GENERAL` de `VEILLE_CFG` oublié, révélé par croisement avec le mode d'emploi |
+| `README.md` | réécrit — décrivait 12 fichiers sur 33, citait `maquette_V1_pilotage_liberal.html` **qui n'existe pas**, omettait `guide-technique.html` et l'estimateur libéral |
+| `reprise.md` | les deux comptes Google (`planningchpg` / personnel) nommés explicitement |
+
+`VEILLE_CFG-mode-emploi.md` et `sauvegarde-compte-perso.md` : **exacts, rien à corriger**.
+`docs/Presentation-gardes-staff.html` supprimé (aucun lien n'y menait, 29 mentions de « 140 années »).
+
+**Trois motifs récurrents** : du livré documenté comme à venir · des promesses que le code
+ne tient pas · des chiffres d'une campagne en retard (le guide **sous-vendait** l'algorithme).
+
+---
+
+**Défauts de code trouvés pendant l'audit et corrigés**
+
+- `indispos.html` s'ouvrait sur `currentTool = 'VAC'`, outil **interdit au MAR** : le premier
+  clic de chacun renvoyait « 🔒 Les vacances sont gérées par le comité ». `selectTool` n'était
+  jamais appelée à l'init. Corrigé, + 24 lignes de code mort (`if (false)`) supprimées.
+- `staff.html` : la confirmation promettait un e-mail récapitulatif inexistant.
+- `admin.html` : repère de couverture harmonisé à 400 années (le guide copiait fidèlement un
+  écran qui affichait 20).
+
+---
+
+**⚠️ Le vrai sujet : `saveIndispos` réécrivait la ligne entière**
+
+Découvert en instruisant le verrou du staff. `INDISPOS_{Y}` porte **deux familles de codes** :
+`VAC`/`FORM` (comité, via `staff.html`) et `INDISPO`/`SOUHAIT`/`TP` (MAR, via `indispos.html`).
+Le serveur remplaçait toute la ligne par ce qu'envoyait la page. **Deux pertes silencieuses :**
+
+1. `staff.html` ne garde que les VAC/FORM (`if(val==='VAC'||val==='FORM')`) → **revalider le
+   staff après la campagne effaçait toutes les indispos, souhaits et TP des MARs.** Seul l'ordre
+   du calendrier masquait le problème ; le bouton restait cliquable toute l'année.
+2. Une page MAR ouverte **avant** la pose des vacances les effaçait en enregistrant plus tard —
+   elle renvoyait sa photo périmée.
+
+**Correctif** — `_fusionIndispos_(existant, envoyé, estRoleComite)` dans le **routeur**, pas dans
+`saveIndisposForDoctor` (ce helper sert aussi à l'absence longue et doit continuer à poser une
+ligne complète). Règle : chacun remplace **intégralement ses propres cases** (le retrait reste
+possible des deux côtés) et ne touche jamais celles de l'autre ; en cas de conflit de date, le
+comité gagne. Prouvé sur 7 cas en isolant la fonction.
+**C'est ce qui rend le verrou des vacances réel** : il est désormais côté serveur, plus une
+politesse du navigateur.
+
+---
+
+**« Valider et verrouiller » : ~3 min → quelques secondes** *(confirmé par Arthur en production)*
+
+`doValidate()` bouclait avec **un appel serveur par MAR** : 23 exécutions sérialisées par Apps
+Script, au point qu'Arthur a cru à un plantage. Nouvelle action **`saveIndisposBatch`**
+(admin, dans `WRITE_ACTIONS_LOCK`) : 1 aller-retour, 1 lecture d'onglet, **1 écriture de bloc**,
+même règle de fusion, MARs introuvables remontés au lieu d'être avalés. Échec = message franc
+« rien n'a été modifié », plus de demi-enregistrement silencieux.
+
+**Cadenas** — ils n'existaient qu'en mémoire de l'onglet et disparaissaient au rechargement.
+Reconstruits à chaque chargement depuis les VAC/FORM réellement en base. Bouton
+**🔓 Tout déverrouiller** ajouté (session seulement, **aucune donnée touchée**) : sans lui,
+il fallait déverrouiller case par case. `guide-comite.html` §4 réécrit en conséquence.
 
 ---
 
