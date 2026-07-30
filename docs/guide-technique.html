@@ -120,7 +120,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document personnel</div>
   <h1>Guide technique personnel<br>Architecture, workflows &amp; internals</h1>
   <p class="subtitle">Le fonctionnement profond du portail — pour toi, responsable et seul décideur : dépôt, backend GAS, assistants pas à pas, algorithme, publication. Niveau technique assumé.</p>
-  <div class="maj">Établi le 15 juillet 2026 — aligné sur le code en production (dépôt <span class="tag">chpg-anesthesie/Planning-CHPG</span>).</div>
+  <div class="maj">Établi le 15 juillet 2026, relu et corrigé le 30 juillet 2026 — aligné sur le code en production (dépôt <span class="tag">chpg-anesthesie/Planning-CHPG</span>).</div>
 </header>
 
 <nav class="toc">
@@ -142,11 +142,12 @@
     <li><a href="#c14"><span class="n">14</span>Dépannage &amp; pièges connus</a></li>
     <li><a href="#c15"><span class="n">15</span>Les messages du diagnostic (Maintenance)</a></li>
     <li><a href="#c16"><span class="n">16</span>Sécurité &amp; confidentialité (le modèle réel)</a></li>
-    <li><a href="#c17"><span class="n">17</span>Points techniques durables (hors roadmap)</a></li>
+    <li><a href="#c17"><span class="n">17</span>Points durs connus (hors roadmap)</a></li>
     <li><a href="#c18"><span class="n">18</span>Créer un secteur ou une consultation</a></li>
       <li><a href="#c19"><span class="n">19</span>Consultations à venir &amp; rôle secrétariat</a></li>
       <li><a href="#c20"><span class="n">20</span>La boîte de réception (Messages)</a></li>
       <li><a href="#c21"><span class="n">21</span>Sauvegardes &amp; restauration</a></li>
+        <li><a href="#c22"><span class="n">22</span>Le « + » de case à pourvoir</a></li>
   </ol>
 </nav>
 
@@ -185,7 +186,7 @@
     <thead><tr><th>Chemin</th><th>Contenu</th></tr></thead>
     <tbody>
       <tr><td><code>/</code> (racine)</td><td>Pages frontend : admin.html, index.html, staff.html, indispos.html, dashboard.html</td></tr>
-      <tr><td><code>/docs</code></td><td>Servi par GitHub Pages : guides, présentations, ce document</td></tr>
+      <tr><td><code>/docs</code></td><td>Servi par GitHub Pages : guides, présentations, ce document — dont <code>guide-fichier-maitre.html</code>, l'inventaire du classeur</td></tr>
       <tr><td><code>/docs/module-liberal</code></td><td>Le chantier module libéral (estimateur, antisèche, conception)</td></tr>
       <tr><td><code>/gas</code></td><td>Copie du code Apps Script : code.gs, Indispos.gs, generateur_gardes.gs, setup_annee.gs, portail.gs</td></tr>
     </tbody>
@@ -205,7 +206,7 @@
       <tr><td><code>Indispos.gs</code></td><td>Le cœur de l’API : <code>doGet</code>/<code>doPost</code> et la totalité des actions (getMedecins, getVacValidation, generateGardes, initYear, archiveYear, publishPlanning, sendCodes…). C’est le plus gros fichier.</td></tr>
       <tr><td><code>generateur_gardes.gs</code></td><td>L’algorithme <code>generateGardes(year)</code> : cibles, placement, équité par axe, dette inter-annuelle, souhaits, VDM. Détaillé au §10.</td></tr>
       <tr><td><code>code.gs</code></td><td>Placement des secteurs du bloc (<code>generatePlanningFromGardes</code>), gestion des overrides (<code>PLANNING_OVERRIDES</code>), <code>getJoursFeries</code>, <code>pushFileToGitHub</code>, <code>onEdit</code>, reconstruction 2026, <code>buildStats2026</code>.</td></tr>
-      <tr><td><code>setup_annee.gs</code></td><td><code>setupAnnee</code> (crée INDISPOS/AFFECTATIONS de N+1), <code>archiveYear</code> (archive stats/indispos).</td></tr>
+      <tr><td><code>setup_annee.gs</code></td><td><code>archiveYear</code> (la clôture, appelée par l'action du même nom), <code>proposerVacances</code> / <code>importerVacancesScolaires</code>, <code>creerHistorique</code>, <code>organiserOnglets</code>, et les fonctions de test. ⚠️ <code>setupAnnee</code> y dort : <b>plus aucune action ne l'appelle</b> — c'est <code>initYear</code> (<code>Indispos.gs</code>) qui crée INDISPOS/AFFECTATIONS de N+1.</td></tr>
       <tr><td><code>portail.gs</code></td><td>Le portail perso / dashboard (données agrégées par MAR), <b>et tout le module libéral</b> : <code>declareLiberal</code>, <code>deleteLiberal</code>, <code>listLiberal</code>, <code>listLiberalJour</code>, <code>getSpecialites</code>, <code>getCotationsType</code>. Porte aussi la <b>configuration des secteurs</b> (onglet <code>SECTEURS</code>, amorçage et <code>getSecteurs</code>). ⚠️ Nom trompeur : qui cherche le libéral ou les secteurs doit venir ici.</td></tr>
     </tbody>
   </table>
@@ -217,19 +218,16 @@
 <section id="c4">
   <h2><span class="n">04</span>Le stockage : Google Sheets + Drive privé</h2>
 
-  <p>Toute la donnée vivante est dans le Google Sheet lié. Les onglets structurants :</p>
-  <table>
-    <thead><tr><th>Onglet</th><th>Rôle</th></tr></thead>
-    <tbody>
-      <tr><td><code>MEDECINS</code></td><td>Le référentiel : id, nom, initiales, actif, quotité, %gardes, email, dect, dates début/fin, et les flags de statut (colonnes) : <code>no_garde</code>, <code>only_18</code>, <code>no_weekend</code>, <code>rythme_2sur2</code>, <code>souhait_plafond</code> (col P), <code>tp_jours_fixes</code> (col Q).</td></tr>
-      <tr><td><code>INDISPOS_YYYY</code></td><td>Grille par MAR × jour : VAC, INDISPO, FORM, SOUHAIT… Base de l’algorithme.</td></tr>
-      <tr><td><code>GARDES_YYYY</code></td><td>Le planning de gardes généré (G = réa, G2 = mater/bloc).</td></tr>
-      <tr><td><code>STATS_GARDES_YYYY</code></td><td>La preuve d’équité : cible et réel par axe, par MAR. Sert aussi de base à la <b>dette</b> de l’année N+1.</td></tr>
-      <tr><td><code>PERIODES_VAC</code> / <code>GROUPES_VAC</code></td><td>Périodes de vacances (dates, seuil de présence) et groupes de priorité A/B/C.</td></tr>
-      <tr><td><code>PLANNING_OVERRIDES</code></td><td>Retouches manuelles du comité au planning quotidien, indexées par date.</td></tr>
-      <tr><td><code>CONFIG</code></td><td>Paramètres, dont le token GitHub côté serveur (<code>getGithubToken</code>).</td></tr>
-    </tbody>
-  </table>
+  <p>Toute la donnée vivante est dans le Google Sheet lié — <b>25 onglets</b>, des paramètres qu'on
+  remplit à la main jusqu'aux grilles annuelles produites par les wizards.</p>
+  <div class="callout tip"><div class="ct">Le classeur a son propre guide</div>
+  <p>Le détail onglet par onglet — colonnes, qui écrit, qui lit, ce qu'on peut modifier et
+  <b>ce qui casse si on se trompe</b> — vit dans <a href="guide-fichier-maitre.html"><b>guide-fichier-maitre.html</b></a>.
+  Il n'est pas repris ici : deux inventaires finiraient par se contredire.</p></div>
+  <p>Les quatre repères à garder en tête depuis cette page : <code>MEDECINS</code> (l'effectif et les
+  particularités), <code>INDISPOS_{Y}</code> (l'entrée de l'algorithme), <code>GARDES_{Y}</code> (sa sortie,
+  et le verrou anti-régénération), <code>STATS_GARDES_{Y}</code> (la preuve d'équité, et la dette de
+  l'année suivante).</p>
   <div class="callout warn"><div class="ct">Public vs privé — la ligne de partage</div><p>Le <b>dépôt GitHub est public</b> (Pages gratuit l'exige) : n'importe qui connaissant l'adresse peut lire son contenu — code, guides, et les noms de l'équipe (déjà publics par l'annuaire du CHPG). En revanche, <b>aucune donnée nominative sensible n'y est committée</b> : les JSON de planning (<code>planning_YYYY.json</code>, <code>affectations_YYYY.json</code>) et les archives de clôture (<code>archives_stats/indispos_YYYY.json</code>) vivent <b>uniquement</b> dans le dossier Drive <b>non partagé</b> « Planning-CHPG-JSON », lus/écrits via <code>savePlanningToDrive</code> / <code>readPlanningFromDrive</code>. Un échec d'écriture Drive fait échouer la publication (volontaire : pas de planning à moitié publié). Voir §16 pour le modèle complet.</p></div>
 
   <a class="backtop" href="#top">↑ Sommaire</a>
@@ -238,7 +236,7 @@
 <section id="c5">
   <h2><span class="n">05</span>L’API Web App : requête → réponse</h2>
 
-  <p>Le frontend ne touche jamais le Sheet directement : il passe par des appels HTTP à la Web App, chacun portant une <code>action</code>. Le routeur (<code>doGet</code>/<code>doPost</code> dans <code>Indispos.gs</code>) lit <code>action</code>, vérifie le rôle (<code>user.role === 'admin'</code> pour les actions sensibles), exécute, et renvoie du JSON.</p>
+  <p>Le frontend ne touche jamais le Sheet directement : il passe par des appels HTTP à la Web App, chacun portant une <code>action</code>. Le routeur s'appelle <code>_routeRequete_</code> (dans <code>Indispos.gs</code>) ; <code>doGet</code>/<code>doPost</code> ne font plus que l'appeler et le chronométrer. Il lit <code>action</code>, vérifie le rôle (<code>user.role === 'admin'</code> pour les actions sensibles), exécute, et renvoie du JSON.</p>
   <h3>Familles d’actions</h3>
   <ul class="tight">
     <li><b>Lecture</b> : <code>getMedecins</code>, <code>getGardes</code>, <code>getStats</code>, <code>getStatsLive</code>, <code>getVacValidation</code>, <code>getAllIndispos</code>, <code>getConflitsAll</code>, <code>getJoursFeries</code>, <code>getPlanningJson</code>…</li>
@@ -313,7 +311,7 @@
   <h3>Étape 1 — Validation des vacances</h3>
   <p>Tableau des périodes avec statut agrégé (✅ validé / ⚠️ partiel / ❌ conflits), lu depuis <code>getVacValidation</code>.</p>
   <h3>Étape 2 — Lancement</h3>
-  <p>Récapitulatif final (nombre de MARs inclus, éventuels sans indispos) puis bouton <span class="kbd">⚡ Générer les gardes</span> → <code>launchWizardGardes</code> → action <code>generateGardes(N+1)</code>. La génération prend 30–60 s, publie le planning et notifie les MARs.</p>
+  <p>Récapitulatif final (nombre de MARs inclus, éventuels sans indispos) puis bouton <span class="kbd">⚡ Générer les gardes</span> → <code>launchWizardGardes</code> → action <code>generateGardes(N+1)</code>. La génération prend 30–60 s et <b>publie</b> le planning (écriture des JSON sur le Drive privé). ⚠️ <b>Elle n'envoie aucun message</b> : prévenir les MARs est une action séparée, à déclencher à la main (<code>envoyerRecapGardes</code>).</p>
   <div class="callout warn warn-strong"><div class="ct">Verrous</div><p>W2 est <b>désactivé</b> si N+1 ≤ 2026 (2026 sanctuarisé, saisi à la main) ou si <code>GARDES_{N+1}</code> existe déjà (protection anti-régénération : régénérer écraserait la preuve d’équité figée). Pour forcer : supprimer manuellement l’onglet GARDES_{N+1} dans le Sheet.</p></div>
 
   <a class="backtop" href="#top">↑ Sommaire</a>
@@ -347,7 +345,7 @@
     <li><b>Récupérations</b> : une R par samedi, hors périodes de vacances scolaires.</li>
     <li><b>Écriture</b> : GARDES_{year} + STATS_GARDES_{year} (colonne MEDECIN = id).</li>
   </ol>
-  <div class="callout tip"><div class="ct">Repères validés en simulation (20 ans)</div><p>0 violation de règle dure sur 14 580 gardes, installés entre 98,7 % et 102,2 % de leur juste part, écart individuel annuel 1–2 gardes (pire 2,7). Ces chiffres sont ta référence de non-régression : si une modif du générateur les dégrade, c’est un signal.</p></div>
+  <div class="callout tip"><div class="ct">Repères de non-régression — banc d'essai 400 années (29/07/2026)</div><p><b>292 312 gardes simulées</b> sur 400 années (2027-2046, 20 tirages <code>SCEN=0</code> à <code>19</code>) : <b>0 journée sans binôme</b>, écart médian <b>1,20 garde</b>, et plus de 3 gardes d'écart dans <b>3 années sur 400</b> seulement — toutes dans le creux démographique. Ces chiffres sont ta référence de non-régression : si une modif du générateur les dégrade, c’est un signal.</p></div>
 
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
@@ -405,7 +403,7 @@
     <div class="s"><span class="n">3</span>Nouveau déploiement Web App</div><div class="arrow">→</div>
     <div class="s"><span class="n">4</span>Hard-refresh</div>
   </div>
-  <p>Le push GitHub ne fait que <b>documenter/sauvegarder</b> le code backend. Pour qu’il s’exécute, il faut le <b>coller dans l’éditeur Apps Script</b>, puis <b>redéployer</b> la Web App comme nouvelle version (sinon l’ancienne reste servie). Certains changements ne servant qu’à la génération (comme <code>generateur_gardes.gs</code>) n’exigent pas de redéploiement Web App, juste la recopie avant la prochaine génération.</p>
+  <p>Le push GitHub ne fait que <b>documenter/sauvegarder</b> le code backend. Pour qu’il s’exécute, il faut le <b>coller dans l’éditeur Apps Script</b>, puis <b>redéployer</b> la Web App comme nouvelle version (sinon l’ancienne reste servie). ⚠️ <b>Cela vaut pour les CINQ fichiers, générateur compris.</b> Les pages appellent une adresse en <code>/exec</code>, c'est-à-dire un déploiement <b>figé sur une version</b> : tant qu'une nouvelle version n'est pas publiée, l'ancien code continue de tourner, y compris pour une génération lancée depuis le wizard. Seule exception réelle : une fonction lancée <b>à la main depuis l'éditeur</b> Apps Script, qui exécute le code courant sans passer par le déploiement.</p>
   <div class="callout warn warn-strong"><div class="ct">La règle qui sauve</div><p>Ne jamais modifier un <code>.gs</code> directement dans l’éditeur sans committer aussitôt dans le dépôt : à la prochaine recopie <em>dépôt → éditeur</em>, ta modif non commitée serait écrasée.</p></div>
 
   <a class="backtop" href="#top">↑ Sommaire</a>
@@ -420,10 +418,10 @@
       <tr><td>« Action inconnue » / « fonction introuvable »</td><td>Dépôt/éditeur incomplet ou fichier non recopié. Vérifier que les 5 .gs sont à jour dans l’éditeur, redéployer.</td></tr>
       <tr><td>Une modif backend n’a aucun effet</td><td>Web App pas redéployée (nouvelle version), ou modif faite dans l’éditeur puis écrasée par une recopie du dépôt.</td></tr>
       <tr><td>Le planning MAR ne se met pas à jour</td><td>C’est le Drive qui fait foi, pas GitHub. Vérifier que la publication (écriture Drive) a réussi ; côté MAR, Ctrl+Maj+R.</td></tr>
-      <tr><td>Un profil « souhait garanti » (Prunet) sort en rouge au certificat</td><td>Le flag <code>souhait_plafond</code> (col P de MEDECINS) n’est pas coché : le code ne peut pas le reconnaître et l’exclure.</td></tr>
+      <tr><td>Un profil « souhait garanti » sort en rouge au certificat</td><td>Le flag <code>souhait_plafond</code> (col P de MEDECINS) n’est pas coché : le code ne peut pas le reconnaître et l’exclure.</td></tr>
       <tr><td>W2 refuse de générer</td><td>N+1 ≤ 2026 (sanctuarisé) ou GARDES_{N+1} déjà présent. Voir les verrous du §8.</td></tr>
       <tr><td>Trou de couverture à la génération</td><td>Trop d’absences simultanées non détectées. L’audit de W2 (§8) les signale <b>avant</b> ; suivre la suggestion du MAR le moins prioritaire.</td></tr>
-      <tr><td>Modif du générateur qui dégrade l’équité</td><td>Comparer aux repères de non-régression du §10 (98,7–102,2 %, 0 violation). Le banc d’essai 20 ans est l’outil de contrôle.</td></tr>
+      <tr><td>Modif du générateur qui dégrade l’équité</td><td>Comparer aux repères de non-régression du §10 (écart médian 1,20 ; 0 journée sans binôme). Le banc d'essai 400 années (<code>simulateur/</code>) est l'outil de contrôle — voir son <code>README</code>.</td></tr>
     </tbody>
   </table>
 
@@ -501,8 +499,8 @@
 
   <h3>Authentification &amp; contrôle d'accès</h3>
   <ul class="tight">
-    <li><b>Code-gating d'office.</b> <code>doGet</code>/<code>doPost</code> appellent <code>checkCode(code)</code> ; sans code valide → <code>{success:false,error:'Code invalide'}</code>. Toutes les actions sont derrière cette porte, à <b>trois exceptions</b> volontairement ouvertes car non sensibles : <code>getActiveYear</code> (un numéro d'année), <code>getStatus</code> et <code>getStatsLive</code> — <b>ces deux dernières ont été refermées</b> (elles renvoyaient des stats nominatives sans code) et sont désormais <i>post-checkCode</i>.</li>
-    <li><b>Deux rôles.</b> <code>checkCode</code> renvoie <code>admin</code> (code CONFIG ▸ ADMIN_CODE) ou <code>mar</code> (code personnel, col G de MEDECINS). Les actions d'écriture globale et de cycle annuel refusent tout non-admin via <code>_deny()</code>.</li>
+    <li><b>Code-gating d'office.</b> <code>doGet</code>/<code>doPost</code> appellent <code>checkCode(code)</code> ; sans code valide → <code>{success:false,error:'Code invalide'}</code>. Toutes les actions sont derrière cette porte, à <b>une seule exception</b> : <code>getActiveYear</code>, qui ne renvoie qu'un numéro d'année et répond avant <code>checkCode</code>. <code>getStatus</code> et <code>getStatsLive</code> étaient autrefois ouvertes elles aussi ; elles <b>ont été refermées</b> (elles renvoyaient des stats nominatives sans code) et sont désormais <i>post-checkCode</i>.</li>
+    <li><b>Trois rôles.</b> <code>checkCode</code> renvoie <code>admin</code> (code CONFIG ▸ ADMIN_CODE), <code>mar</code> (code personnel, col G de MEDECINS) ou <code>secretariat</code> (code partagé CONFIG ▸ SECRETARIAT_CODE, <b>liste blanche de deux actions</b> — voir §19). Les actions d'écriture globale et de cycle annuel refusent tout non-admin via <code>_deny()</code>.</li>
     <li><b>Cloisonnement MAR.</b> Un MAR ne lit/écrit que <i>son</i> périmètre : <code>getIndispos</code>/<code>saveIndispos</code> forcent <code>targetId = user.id</code> (seul l'admin peut viser un autre <code>doctorId</code>). Impossible pour un MAR d'atteindre la saisie d'un collègue.</li>
     <li><b>Code jamais renvoyé au client.</b> <code>getMedecins</code> expose <code>hasCode:true/false</code>, pas le code lui-même ; <code>saveMedecin</code> traite un code vide comme « inchangé » (un code ne peut pas être effacé par accident depuis le navigateur).</li>
     <li><b>Transport.</b> HTTPS partout ; les <code>login</code> passent en <b>POST</b> (corps), plus jamais en URL — évite que le code se retrouve dans un historique ou un log de proxy.</li>
@@ -542,7 +540,7 @@
 
 
 <section id="c17">
-  <h2><span class="n">17</span>Points techniques durables (hors roadmap)</h2>
+  <h2><span class="n">17</span>Points durs connus (hors roadmap)</h2>
 
   <div class="callout warn">
     <div class="ct">⚠️ L'avancement des chantiers ne vit PAS ici</div>
@@ -573,15 +571,10 @@
   </div>
 
   <h3>Colonnes de <code>MEDECINS</code> : toujours en fin d'onglet</h3>
-  <div class="callout warn">
-    <p><b>22 lectures de <code>MEDECINS</code> utilisent des index de colonne figés.</b> Une nouvelle
-    colonne s'ajoute donc <b>TOUJOURS à la fin</b>, jamais au milieu : une insertion décale tout et
-    rend les codes d'accès inopérants — constaté en réel le 21/07/2026 (<code>checkCode</code> lisait
-    la colonne voisine, symptôme « code refusé » alors que le code était correct).</p>
-    <p>Les colonnes récentes (<code>LIBERAL</code>, <code>RPPS</code>, <code>PRENOM</code>) sont, elles,
-    lues <b>par leur en-tête</b> via <code>_colParTitre()</code>. C'est le modèle à suivre pour toute
-    nouvelle colonne.</p>
-  </div>
+  <p><b>22 lectures utilisent des index de colonne figés</b> : une colonne insérée au milieu rend les
+  codes d'accès inopérants — constaté en réel le 21/07/2026. Le détail, et le modèle à suivre
+  (<code>_colParTitre()</code>, comme <code>LIBERAL</code>), sont dans
+  <a href="guide-fichier-maitre.html">le guide du fichier maître</a>.</p>
 
   <h3>Deux pièges de lecture, vérifiés en réel</h3>
   <div class="callout warn">
@@ -959,6 +952,54 @@
   </div>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
+
+<section id="c22">
+  <h2><span class="n">22</span>Le « + » de case à pourvoir</h2>
+
+  <p>C'est le signal le plus regardé de la grille, et il n'était documenté nulle part. Un « + »
+  orange dans une case de bloc ne veut pas dire « il manque quelqu'un » : il veut dire
+  <b>« un habitué du secteur manque à l'appel aujourd'hui, et personne ne l'a remplacé »</b>.</p>
+
+  <h3>La règle générale</h3>
+  <ol class="steps">
+    <li><b>Qui devrait être là ?</b> Les MARs dont l'affectation du <b>mois</b>
+    (<code>AFFECTATIONS_{Y}</code>) est ce secteur — les « réguliers ».</li>
+    <li><b>Combien en manque-t-il ?</b> Les réguliers <b>absents</b> ce jour (RG, congé, formation,
+    récup, temps partiel…), <b>plus</b> ceux que le comité a déplacés ou retirés ailleurs ce
+    demi-jour, <b>moins</b> les personnes présentes dans la case qui ne sont pas réguliers du
+    secteur — celles-là comptent comme remplaçants.</li>
+    <li>Le résultat est le <b>nombre de « + »</b>.</li>
+    <li><b>Plancher</b> : une case entièrement vide affiche toujours au moins un « + ».</li>
+  </ol>
+  <p>Jamais le week-end ni les jours fériés. <code>VOLANT</code>, <code>DVI</code> et les
+  consultations ne suivent pas cette règle.</p>
+
+  <h3>Les quatre secteurs qui ont leur propre règle</h3>
+  <table>
+    <thead><tr><th>Secteur</th><th>Règle réellement codée</th></tr></thead>
+    <tbody>
+      <tr><td><code>CI</code></td><td>Règle générale, <b>sauf le jeudi</b> — ce jour-là c'est la radio interventionnelle seule.</td></tr>
+      <tr><td><code>RI</code></td><td>Requis <b>mercredi et jeudi matin uniquement</b>. Jamais l'après-midi, jamais les autres jours, même vide.</td></tr>
+      <tr><td><code>MAT</code></td><td><b>Toujours</b> pourvue, matin et après-midi.</td></tr>
+      <tr><td><code>DVI</code></td><td>Requis <b>mardi matin uniquement</b> (pose de DVI).</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Les consultations, elles, sont pilotées par les données</h3>
+  <p>Pour une consultation, le « + » vaut simplement <b>effectif requis − présents</b>, le requis
+  étant lu dans les dix colonnes <code>LUN_AM … VEN_PM</code> de <code>CS_TEMPLATE</code>. Aucun code
+  de consultation n'est écrit en dur.</p>
+
+  <div class="callout warn"><div class="ct">La dette à connaître</div>
+  <p>Les secteurs de bloc, eux, sont encore décrits par <b>cinq blocs de code</b> avec leurs codes en
+  dur dans <code>admin.html</code>. Au déménagement, quand les codes changeront, le « + »
+  <b>s'éteindra partout, en silence</b> — sans erreur ni message. La cible retenue est de faire
+  passer les secteurs sur le modèle des consultations : un tableau de chiffres dans l'onglet
+  <code>SECTEURS</code>. Voir la roadmap, section NCHPG.</p></div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
 
 
 <div class="foot">Planning-CHPG · Anesthésie-Réanimation CHPG Monaco — guide technique personnel · établi à partir du code en production, mis à jour le 17 juillet 2026</div>
