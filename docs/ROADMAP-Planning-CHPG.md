@@ -274,12 +274,13 @@ Reste à faire, par ordre de criticité :
    jsdom, arithmétique des pourcentages) ; **rien n'est vérifié à l'œil**. Points sensibles : diapo 10
    (tableau à 5 colonnes, le plus large), diapo 19 (densifiée), diapo 16 (146 cellules animées sur 5,6 s,
    et le rosé du repos du lendemain peut passer pour du blanc en vidéoprojection).
-4. Vérifier que les **profils indispos 2027 des autres MARs sont remplis** (annoncé à la salle) et que
-   **`PERIODES_VAC` a ses lignes 2027** (sinon la génération tourne avec un calendrier de vacances vide).
-   ⚠️ **`savePeriodes` (Indispos.gs l.1765) efface TOUT l'onglet** et réécrit seulement les périodes
-   envoyées : saisir celles de 2027 supprime définitivement les lignes 2026. Impact faible sur le reste
-   de 2026 (PERIODES_VAC ne sert qu'aux priorités de vacances de l'année de campagne et à la
-   génération), mais irréversible → **dupliquer l'onglet avant** en `PERIODES_VAC_SAUV_2026`.
+4. Vérifier que les **profils indispos 2027 des autres MARs sont remplis** (annoncé à la salle).
+   `PERIODES_VAC` : ✅ déjà réglé sur 2027 (Arthur, 30/07).
+   📌 **`PERIODES_VAC` ne contient qu'UNE année à la fois — celle qu'on prépare, et c'est normal.**
+   `savePeriodes` (Indispos.gs l.1765) efface tout l'onglet et réécrit les périodes envoyées. Rien à
+   sauvegarder, rien à restaurer : les deux seuls consommateurs (`getVacConfig` via `getIndisposYear()`,
+   `getConflitsAll` via l'année passée en paramètre) travaillent **toujours sur l'année préparée, jamais
+   sur l'année en cours** — vérifié en lecture de code le 30/07. Ne pas chercher 2026 dedans.
 
 ### Ménage post-démo — check-list (à exécuter le 04/09 au soir, puis supprimer cette section)
 
@@ -312,13 +313,11 @@ Reste à faire, par ordre de criticité :
 4. **Code d'accès de WS** : saisi devant la salle → « Régénérer le code » dans MEDECINS
    (`resetCodeMar`) : nouveau code envoyé par mail, ancien tracé dans `HISTORIQUE`. Idem `ADMIN_CODE`
    (CONFIG, à la main) s'il a été projeté.
-5. **PERIODES_VAC** : restaurer les lignes 2026 depuis `PERIODES_VAC_SAUV_2026` si besoin — sinon
-   rien, octobre les réécrira pour 2027.
-6. **Mails : rien ne part tout seul.** Vérifié dans le code : `setIndisposYear` n'envoie aucun
+5. **Mails : rien ne part tout seul.** Vérifié dans le code : `setIndisposYear` n'envoie aucun
    message ; les envois sont des actions explicites (`sendCodesWithRecap`, `envoyerRecapIndispos`,
    `envoyerRecapGardes`). Contrôler seulement qu'aucun bouton d'envoi n'a été cliqué — journal
    `HISTORIQUE` en cas de doute.
-7. **Terminer par 🔍 Diagnostic système** (onglet Maintenance) : onglets, JSON du Drive, concordance
+6. **Terminer par 🔍 Diagnostic système** (onglet Maintenance) : onglets, JSON du Drive, concordance
    des versions.
 
 ### Priorité 1 bis — Deux données à trancher AVANT la génération de novembre
