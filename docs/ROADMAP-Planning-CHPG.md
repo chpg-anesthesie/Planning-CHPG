@@ -55,6 +55,20 @@ protège rien** : ce n'est pas par le clic que la perte arrive.
 a révélé qu'il oubliait le type `GENERAL`. Le sondage prouve la qualité, jamais l'absence d'erreur.
 → Dire ce qui a été vérifié **et par quel moyen**, pas « tout est propre ».
 
+**0 ter. La même règle métier écrite à quatre endroits finit par diverger.** (30/07/2026)
+La rotation A/B/C vit dans `staff.html`, `admin.html` et **deux fois** dans `Indispos.gs`.
+Le serveur tournait à l'envers depuis le début ; personne ne l'a vu parce que les deux ordres
+coïncident **une année sur trois**. Découvert par un symptôme d'Arthur, pas par une relecture.
+→ Avant de modifier une règle de classement, d'équité ou de rotation : **chercher toutes ses
+copies dans tout le dépôt**, jamais seulement celle qu'on a sous les yeux.
+→ Un bug qui ne se manifeste qu'une année sur trois ne se trouve pas en relisant : il se trouve
+en **comparant deux implémentations** sur plusieurs années.
+
+**0 quater. Un « succès » décidé sur un caractère de préfixe.** (30/07/2026)
+`archiveYear` renvoie un rapport texte ; le succès se lisait à l'absence de `❌` en tête de ligne.
+Les vrais échecs de transfert étaient des `⚠️` → succès annoncé, année basculée, onglets restés
+en place. → Un contrat de retour doit être **structuré** (booléen, code), pas typographique.
+
 **1. Une déclaration placée trop bas dans le fichier casse tout, en silence.** (28/07/2026)
 Dans `admin.html`, la file d'appels `_fileAPI` (`let`) avait été déclarée ligne 2036 alors que la
 connexion automatique l'utilise ligne 1801. Une variable `let` n'existe pas avant sa ligne : le
@@ -99,6 +113,9 @@ est **bloquant**. Mesurer l'instant d'affichage de l'information utile, pas le n
 - **Cache `sessionStorage`** : une colonne ajoutée à un onglet reste invisible tant que la session
   n'est pas fermée (`Ctrl+Maj+R` ne suffit pas). **Versionner les clés** à chaque changement.
 - **Clé de semaine** : ne jamais la fonder sur le numéro de semaine (frontières d'année).
+- **`.length` sur un dictionnaire vaut `undefined`.** `getAllIndispos` renvoie `{date: code}` par
+  MAR : `ind.length === 0` est toujours faux, le garde-fou du W2 n'a jamais rien détecté.
+  Utiliser `Object.keys(x).length`. Un test qui ne lève jamais d'erreur peut ne jamais rien tester.
 - **Une boucle d'appels côté page = N exécutions sérialisées.** Apps Script sérialise les appels
   d'un même utilisateur : `doValidate()` faisait 23 allers-retours (~3 min, pris pour un plantage).
   **Dès qu'une action porte sur toute l'équipe, c'est un batch** — 1 lecture, 1 écriture de bloc.
@@ -267,7 +284,7 @@ La version du site vit dans **4 fichiers, 10 emplacements** : `admin.html` (3),
 ⚠️ `index.html`, `indispos.html`, `staff.html` et `absences.html` **n'en portent aucune**.
 Patch → 3ᵉ chiffre · Fonctionnalité → 2ᵉ · **v2.0 réservée à l'ouverture du module libéral au
 groupement** (la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.14.10** (30/07/2026).
+**Version en cours : v1.14.14** (30/07/2026).
 
 ---
 
@@ -1429,6 +1446,71 @@ autres pages. Corrigé le 30/07, site v1.14.10.
 Reconstruits à chaque chargement depuis les VAC/FORM réellement en base. Bouton
 **🔓 Tout déverrouiller** ajouté (session seulement, **aucune donnée touchée**) : sans lui,
 il fallait déverrouiller case par case. `guide-comite.html` §4 réécrit en conséquence.
+
+---
+
+### Audit des 3 wizards (30 juillet 2026, soir) · site v1.14.14 · `Indispos.gs` v2026-07-30.5 · `setup_annee.gs` v2026-07-30.1
+
+Lecture des trois assistants **dans l'ordre d'exécution**, écran par action serveur.
+Constat d'ensemble : **les verrous sont solides, l'affichage ment.** Impossible de générer
+deux fois, de clôturer trop tôt, de tout rejouer après une panne — mais un contrôle qui ne
+contrôlait rien, une coche décorative, un « rien n'est supprimé » qui supprimait, une année
+fausse dans un titre. *Le code protégeait mieux que l'écran n'informait.*
+
+**W1 — corrigé**
+- Un échec de `getVacancesConfig` (filet `.catch`) laissait `wizGroupes = {A:[],B:[],C:[]}` →
+  l'étape 3 envoyait `saveGroupes` qui **vidait `GROUPES_VAC`** en affichant « ✓ Groupes
+  sauvegardés ». L'assistant s'arrête désormais sur un écran « Lecture du classeur impossible ».
+- `savePeriodes` **rasait la table entière** alors que `PERIODES_VAC` porte toutes les années
+  (préparer 2028 effaçait 2027). Suppression ciblée sur l'année, reconnue à l'année de la date
+  de début, comme à la lecture. + refus serveur d'écraser groupes ou périodes par du vide.
+- `PERIODES_DEFAUT` (dates scolaires figées 2027/2028) **supprimé** : le repli renvoyait les
+  dates 2027 pour toute année inconnue. Les périodes viennent du serveur, qui sait interroger
+  le calendrier scolaire (`proposerVacances`) ; sinon bandeau « aucune période trouvée ».
+- Coche décorative « Journal mis à jour » retirée (aucune action ; le journal est écrit par
+  l'étape précédente, `setIndisposYear`).
+
+**W2 — corrigé**
+- ⚠️ **Le garde-fou « des MARs n'ont pas saisi leurs indispos » ne détectait jamais rien.**
+  `getAllIndispos` renvoie un **dictionnaire** `{date: code}` ; le test `ind.length === 0`
+  vaut toujours `false` sur un objet. L'écran affichait systématiquement « ✅ Tous les MARs ont
+  saisi » et **ne bloquait pas** le bouton. (La liste détaillée en dessous, elle, était juste :
+  elle testait `Array.isArray(ind) ? ind.length : Object.keys(ind).length`.)
+- Titre de l'étape 1 sur `YEAR` au lieu de `INDISPOS_YEAR` : « Indisponibilités 2026 » au-dessus
+  d'un audit portant sur 2027.
+- `getAllIndispos` était le seul des 5 appels à ne pas passer l'année (repli serveur silencieux).
+- Nouveau garde-fou : sans campagne ouverte, `INDISPOS_YEAR` est `null` et l'audit bouclait sur
+  « l'année nulle » (1900). Écran d'arrêt explicite.
+
+**W3 — corrigé**
+- ⚠️ **Un archivage partiel était annoncé comme réussi.** Le dispatcher décide du succès en
+  cherchant `❌` en tête de ligne ; les échecs de transfert d'onglets étaient des `⚠️`. Le wizard
+  affichait « ✓ Année archivée », **basculait l'année active et fermait la campagne** alors que
+  les 4 onglets étaient toujours dans le maître — et, l'année ayant basculé, réarchiver N devenait
+  impossible depuis l'assistant. « Classeur d'archive inaccessible » et « transfert échoué » sont
+  désormais bloquants ; les `⚠️` bénins s'affichent sous la coche au lieu d'être avalés.
+- L'écran promettait « **Opération sans risque : rien n'est supprimé** » alors que l'archivage
+  déplace 4 onglets **hors** du classeur maître et purge `PLANNING_OVERRIDES`. Libellé refait,
+  liste complétée (5 opérations réelles, dont la fermeture de la campagne).
+
+**⚠️ Le plus grave, trouvé par un symptôme d'Arthur : la rotation A/B/C tournait à l'envers
+côté serveur.**
+« 1 MAR a des conflits vacances non résolus — DR ARMANDO » alors qu'Armando **n'était pas** le
+moins prioritaire à l'écran. Cause : `staff.html` et `admin.html` tournent **à droite**
+(`(3 - offset % 3) % 3`, « le dernier devient le premier »), `Indispos.gs` tournait **à gauche**
+(`offset % 3`) — dans les **deux** fonctions de conflits, la rotation intra-groupe, et l'outil
+`testNotifierConflits`. Les deux ordres ne coïncidaient qu'**une année sur trois** (décalage nul :
+2026, 2029…). Pour l'hiver 2027, l'ordre serveur était le **miroir** de l'écran.
+**Règle actée par Arthur** : le dernier devient le premier, entre groupes **et** en intra-groupe.
+`ABC → CAB → BCA` · `A1 A2 A3 → A3 A1 A2`. Serveur aligné sur l'écran, vérifié identique MAR par
+MAR sur 5 périodes × 6 années. Impact : le classement sert **aussi** à l'audit de couverture du
+W2 (qui décale ses vacances).
+
+**Documentation** — `guide-technique.html` §07/§08/§09 et `guide-comite.html` §4.3 refaits :
+le W2 **envoie bien** 23 récapitulatifs automatiquement (le guide affirmait le contraire et citait
+`envoyerRecapGardes`, qui n'est qu'un libellé de journal) · sens de rotation écrit noir sur blanc
+avec l'avertissement des 4 copies · archivage décrit comme destructif pour le classeur maître ·
+étape Groupes = écran de contrôle en lecture seule.
 
 ---
 
