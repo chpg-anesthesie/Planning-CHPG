@@ -90,7 +90,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .day-chip.empty{background:transparent;border-color:transparent;color:transparent;}
 .day-chip.vac{background:var(--vac-bg);border-color:var(--vac-brd);color:var(--vac-fg);}
 .day-chip.form{background:var(--form-bg);border-color:var(--form-brd);color:var(--form-fg);}
-.day-chip.locked{cursor:default;opacity:.7;}
+.day-chip.locked{cursor:pointer;opacity:.7;}
 .day-chip.locked::after{content:'🔒';font-size:7px;position:absolute;top:-3px;right:-3px;}
 .day-chip.we-chip{background:transparent;border:none;color:var(--ink-4);font-size:9px;cursor:default;}
 .gt-cell-total{padding:6px 10px;text-align:center;border-bottom:1px solid var(--ll);background:var(--white);}
@@ -149,6 +149,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
   </div>
   <div class="header-right">
         <button class="btn-ghost" onclick="toggleView()" id="viewBtn">📊 Récap</button>
+    <button class="btn-ghost" id="btnUnlock" onclick="unlockAll()" style="display:none;">🔓 Tout déverrouiller</button>
     <button class="btn-validate" id="btnValidate" onclick="doValidate()">✅ Valider et verrouiller</button>
   </div>
 </div>
@@ -288,16 +289,15 @@ async function loadData(){
   // reellement en base : une VAC/FORM enregistree est verrouillee. Avant, ils
   // n'existaient qu'en memoire de l'onglet et disparaissaient au rechargement,
   // alors que le verrou, lui, est desormais applique par le serveur.
-  let dejaEnBase=0;
   medecins.forEach(m=>{
     saisies[m.id]={};locked[m.id]={};
     if(iRes.success&&iRes.data[m.id]){
       Object.entries(iRes.data[m.id]).forEach(([date,val])=>{
-        if(val==='VAC'||val==='FORM'){saisies[m.id][date]=val;locked[m.id][date]=true;dejaEnBase++;}
+        if(val==='VAC'||val==='FORM'){saisies[m.id][date]=val;locked[m.id][date]=true;}
       });
     }
   });
-  if(dejaEnBase)document.getElementById('lockPill').style.display='inline-flex';
+  majBandeauVerrou();
 
   buildPeriodeTabs();
   setCurrentPeriode(0);
@@ -411,6 +411,24 @@ function setView(v){
   renderCurrent();
 }
 
+// Le bandeau 🔒 et le bouton de deverrouillage suivent l'etat reel des cadenas.
+function majBandeauVerrou(){
+  const n=medecins.reduce((t,m)=>t+Object.keys(locked[m.id]||{}).filter(d=>locked[m.id][d]).length,0);
+  document.getElementById('lockPill').style.display=n?'inline-flex':'none';
+  document.getElementById('btnUnlock').style.display=n?'inline-flex':'none';
+}
+
+// Deverrouillage global : ne touche AUCUNE donnee, ne fait que rendre les cases
+// modifiables pour la session. Les VAC/FORM restent en base et les cadenas
+// reviennent au prochain chargement (ils sont deduits de l'onglet).
+function unlockAll(){
+  if(!confirm('Déverrouiller toutes les cases ?\n\nAucune saisie n\'est effacée : les vacances et formations restent enregistrées.\nElles redeviennent seulement modifiables, le temps de cette session.'))return;
+  medecins.forEach(m=>{locked[m.id]={};});
+  majBandeauVerrou();
+  renderCurrent();
+  showToast('🔓 Toutes les cases sont modifiables — rien n\'a été effacé');
+}
+
 function toggleView(){
   setView(currentView==='grille'?'recap':'grille');
   document.getElementById('viewBtn').textContent=currentView==='grille'?'📊 Récap':'📅 Grille';
@@ -423,6 +441,7 @@ function toggleDay(marId,date){
   if((locked[marId]||{})[date]){
     if(!confirm('Déverrouiller le '+formatDay(date)+' pour '+marId+' ?'))return;
     locked[marId][date]=false;
+    majBandeauVerrou();
   }
   if(!saisies[marId])saisies[marId]={};
   const cur=saisies[marId][date];
@@ -570,7 +589,7 @@ async function doValidate(){
     btn.disabled=false;btn.textContent='✅ Valider et verrouiller';
     return;
   }
-  document.getElementById('lockPill').style.display='inline-flex';
+  majBandeauVerrou();
   btn.disabled=false;btn.textContent='✅ Valider et verrouiller';
   renderCurrent();
 }
