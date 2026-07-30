@@ -195,17 +195,54 @@ Cycle annuel = 3 assistants dans admin.html, **tous testés en réel** :
 - Chemin d'échec robuste : une erreur d'auth pendant le chargement ne détruit plus la page — retour propre à l'écran de connexion (`loadYear` renvoie `false`, `init` s'arrête, `checkMobile` null-safe).
 
 ## Règles clés de l'algo de gardes
+
+**⚠️ L'année de planning ne fait PAS 730 gardes.** Elle va du **premier lundi de janvier** au
+dimanche précédant le premier lundi de l'année suivante, donc **toujours un nombre entier de
+semaines** : 52 semaines = 364 j = **728 gardes** (18 années sur 22), ou 53 semaines = 371 j =
+**742 gardes** (**2028, 2034, 2040, 2045**). Le « 730 » du deck et de plusieurs commentaires est
+une approximation (365 × 2) : commode à l'oral, fausse dans tout calcul. Vérifié sur la génération
+réelle de 2027 : Σ `TOTAL G` = **728** exactement. Toute vérification arithmétique des cibles doit
+partir de `SLOTS.total = nDays × 2`, jamais de 730.
+
 - Priorité d'équité : **VD (week-end) > Samedi > Jeudi > Total**.
 - Cibles **proportionnelles à la quotité** (colonne `PCT_GARDES`).
 - **Dette inter-annuelle** dès **2028** : écart réel − cible de N-1, plafonné à ±2, amorti ×0,6.
 - Noël / Jour de l'an en **rotation pluriannuelle** via `getNoelHistory(beforeYear)`.
 - **Couverture des jours serrés (depuis le 23/07/2026)** : **Validé par une génération RÉELLE de 2027 dans le classeur (23/07/2026) : zéro jour sans binôme, écart maximal 1,2 garde.** En simulation : **13 jours sans binôme → 0** sur 140 années, avec une équité et une vitesse meilleures que la référence. **Aucun jour n'est jamais abandonné sans avoir tout essayé** : si le placement normal échoue, une passe de dernier recours retente en tolérant le combo jeudi↔samedi (légal — ce n'est pas deux gardes d'affilée) ; les deux règles dures ne sont JAMAIS relâchées (jamais deux gardes consécutives, jamais de garde sur une absence déclarée) et si vraiment personne n'est disponible, le jour est signalé nommément au comité avant publication. La passe « jours critiques » énumère les combinaisons possibles et retient **la moins coûteuse en équité** (borne dure : 20 000 essais) ; l'équité pilote, la disponibilité ne fait que départager — l'ordre inverse, testé et retiré, dégradait l'axe week-end (5,3 contre 3,4). Piège à connaître : `assign()` **ne vérifie pas** si le jour est déjà pourvu — toujours tester `!gardes[date]` avant de (ré)assigner, sinon on écrase silencieusement l'attribution de Noël. **Toute livraison du générateur exige `simulateur/eval.js`** (écart par axe) : la batterie historique ne mesurait que le total et a laissé passer une régression sur l'axe le plus prioritaire.
 - **Deux gardes d'affilée : INTERDIT, c'est illégal.** Ne jamais le proposer. **Plafonner les congés de Noël : REFUSÉ.** Seule tolérance, en ultime recours quand un jour resterait sinon découvert : le combo jeudi↔samedi (2 occurrences en 140 ans).
+- **Le choix du candidat est un vecteur de score comparé position par position** (`scoreSelect`,
+  l.502) : `[espacement · ratio de l'axe du jour · lissage mensuel · ratio total · total brut]`,
+  et `cmp()` s'arrête à la première position qui départage. Trois conséquences à ne pas oublier :
+  le critère est un **ratio** `(réel + dette) / cible`, jamais un écart — c'est ce qui rend un 50 %
+  comparable à un temps plein ; **la dette de N-1 est dedans en permanence**, ce n'est pas une
+  correction appliquée après coup ; et le **ratio de l'axe du jour n'existe que pour les samedis,
+  jeudis, veilles de fériés et fériés** — un mardi passe directement au lissage mensuel puis au total.
+- **Récupération ≠ repos du lendemain.** Deux codes distincts : `RG` = le lendemain de **chaque**
+  garde, soit 34/an pour un temps plein ; `R` = un jour rendu par **samedi** de garde, soit ~5/an.
+  L'invariant est **`R ≡ SAM`** (testé dans `simulateur/chain.js`, vérifié sur les 24 MARs de la
+  génération réelle 2027). Ne jamais dire « une récup par garde ».
 - **L'espacement à 5 jours n'est PAS une règle dure** : c'est une pénalité de score (`spacingPenalty`). Blocages durs uniquement : lendemain de garde (`rgSet`), récupération (`rSet`), garde le lendemain (`gSet`), combo jeudi-samedi.
-- **Contrainte d'effectif connue** : entre 2037 et 2042 (15 gardeurs), l'écart médian entre deux gardes tombe de 7,8 à 6,2 jours et les mois à plus de 4 gardes passent de 6 % à 36 %. L'algorithme espace au mieux ; c'est un sujet de recrutement, pas un défaut de code.
+- **Contrainte d'effectif connue** — remesurée le 29/07 sur **400 années** (20 scénarios × 20 ans,
+  `simulateur/staff140.js` et `staff_rythme.js`, `SCEN` de 0 à 19 ; `SCEN=0` = le tirage par défaut de
+  `demographie.js`) : entre 2038 et 2041 (15 gardeurs), l'écart médian entre deux gardes tombe de
+  **7,9 à 6,2 jours** et les mois à plus de 4 gardes passent de **8 % à 32 %**. Pire mois observé :
+  **8 gardes**, jamais plus. Retour à la normale dès **2044**. L'algorithme espace au mieux ; c'est un
+  sujet de recrutement, pas un défaut de code.
+- **Équité mesurée sur 400 années** : 292 312 gardes placées, **0 journée sans binôme**, écart maximal
+  annuel de médiane **1,20** garde. Il dépasse 2 dans 5 % des années et **3 dans 0,8 % (3 années sur
+  400)** — les trois dépassements sont **tous** dans le creux démographique, le pire étant **3,5**.
+  À effectif normal (plus de 16 gardeurs, 280 années), le pire observé est **2,3**. La garantie
+  défendable est donc **« jamais plus de 4 »**, pas « jamais plus de 3 » comme annoncé avant le 29/07.
+- **La démographie repose sur deux hypothèses fragiles, à connaître avant d'en tirer un argument.**
+  Les **années de naissance n'existent nulle part ailleurs que dans `simulateur/demographie.js`** —
+  `MEDECINS` n'a pas de colonne de naissance, rien ne les recoupe. Et toute la courbe est portée par
+  l'**exemption de garde à 60 ans** : sans elle, la charge d'un temps plein **ne dépasserait jamais
+  38,6 gardes/an** sur vingt ans, au lieu de monter à 52. Le modèle applique aussi cette exemption dès
+  2027 (deux MAR concernés) alors que la génération réelle ne le fait pas — d'où une courbe qui démarre
+  à 39,7 quand la cible réelle 2027 est 34,6.
 - **L'algo de gardes ne dépend PAS des secteurs** (gardes = G / G2) → réorganiser les secteurs ne touche jamais l'équité.
 - Secteurs définis dans une **source unique `SECTEURS_CFG`** en haut d'`admin.html`.
-- **PRUNET** (`souhait_plafond`) : ses souhaits sont honorés en priorité (≈ tous les mardis, ~48 gardes/an, zéro week-end) ; **il reste dans le pool proportionnel des 730** (décision assumée). Conséquence connue : les cibles des autres, calculées sur 730, sont donc **légèrement surestimées** (~+0,6 garde/100 %) puisque BP consomme plus que sa part → les autres finissent un poil sous leur cible. Normal, dans le bruit du plancher arithmétique. Dans la vue d'équité, PRUNET s'affiche en profil **« SOUHAITS · hors cible »** (barres neutres, pas de trait de cible).
+- **PRUNET** (`souhait_plafond`) : ses souhaits sont honorés en priorité (43 mardis en 2027, 44 gardes au total, zéro week-end) ; **il reste dans le pool proportionnel** (décision assumée). Chiffres réels 2027 : cible **44,0**, réalisé **44**, contre 34,6 pour un temps plein. Conséquence connue : les cibles des autres sont **légèrement surestimées** (~+0,6 garde/100 %) puisque BP consomme plus que sa part → les autres finissent un poil sous leur cible. Normal, dans le bruit du plancher arithmétique. Dans la vue d'équité, PRUNET s'affiche en profil **« SOUHAITS · hors cible »** (barres neutres, pas de trait de cible).
 
 ## Robustesse d'affichage (équité)
 - Toute cible non plausible (date parasite dans une cellule, valeur aberrante type timestamp) est lue comme **« pas de cible » (`—`)** — garde `_cib`/`_cibNum` (admin + index, initiale + instantané). N'invente pas une cible : si une cellule CIBLE de `STATS_GARDES` contient une date, corriger la donnée dans le Sheet (ou régénérer).
