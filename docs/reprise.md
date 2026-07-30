@@ -53,34 +53,36 @@ personne ne peut le modifier ni le réparer.
 
 ## 3. Sauvegarde des données
 
-Le **code** est sauvegardé automatiquement par GitHub (tout l'historique).
-Les **données**, elles, ne le sont par personne : c'est manuel.
+Le **code** est sauvegardé par GitHub (tout l'historique). Les **données** le sont par
+**deux sauvegardes automatiques et indépendantes** — plus rien de manuel :
 
-**Rythme : tous les 3 mois** — 1er octobre, janvier, avril, juillet.
-Calé volontairement juste avant les temps forts (init d'octobre, clôture de
-janvier), quand une perte coûterait le plus cher. Un rappel récurrent est
-posé dans l'agenda d'Arthur.
+| Quand | Quoi | Où | Propriétaire |
+|---|---|---|---|
+| **Lundi ~4 h** | `backupHebdo()` (`code.gs`) copie le classeur maître, rotation 8 copies | Dossier Drive `Planning-CHPG-Backups` | Compte `planningchpg` |
+| **Dimanche ~5 h** | Script indépendant qui **va chercher** une copie du classeur, rotation 8 copies | Dossier `Sauvegardes Planning-CHPG` | **Compte Google personnel d'Arthur** |
 
-**Quoi sauvegarder :**
+La première protège de la fausse manœuvre (onglet effacé, données écrasées). Elle ne protège
+**pas** d'un compte perdu ou suspendu : l'original et les 8 copies partent ensemble.
 
-1. **Le classeur principal Google Sheets** — l'essentiel.
-   `Fichier → Créer une copie` → nommer `SAUVEGARDE Planning-CHPG AAAA-MM`.
-   Il contient : `MEDECINS`, `GARDES_*`, `INDISPOS_*`, `AFFECTATIONS_*`,
-   `STATS_GARDES_*`, `HISTORIQUE`, `NOEL_AN_HISTORIQUE`, `PERIODES_VAC`,
-   `GROUPES_VAC`, `CONFIG`, `PLANNING_OVERRIDES`, `ABSENCES_LONGUES`.
-2. **Le classeur d'archives** (années clôturées) — même méthode.
-3. *Facultatif* : le dossier Drive « Planning-CHPG-JSON ». Ces fichiers se
-   régénèrent avec le bouton **Publier** → non critiques.
+La seconde est là pour ça : sur Drive, **un fichier appartient à celui qui le crée**. La copie
+étant tirée par un autre compte, rien de ce qui arrive à `planningchpg` ne peut l'atteindre.
+Le classeur est partagé en **Lecteur** seulement — vérifié le 26/07/2026, une copie tirée
+depuis un partage en lecture seule **emporte bien le script attaché**.
 
-**À ne pas sauvegarder** : le code (`.gs`, `.html`) — déjà sur GitHub.
+> **Installation, code du script, piège des comptes multiples dans le navigateur, et
+> procédure de restauration complète : `docs/sauvegarde-compte-perso.md`.**
+> ⚠️ Le point que tout le monde oublie : un redéploiement depuis un classeur restauré
+> **change l'URL de la Web App**, écrite en dur dans toutes les pages du dépôt.
 
-Ranger les copies dans un dossier Drive dédié « Sauvegardes Planning-CHPG ».
+**Ce qui reste manuel — une vérification, tous les 3 mois** (1er octobre, janvier, avril,
+juillet) : ouvrir le dossier `Sauvegardes Planning-CHPG` du compte personnel, confirmer
+qu'une copie récente existe **et qu'elle s'ouvre**. Une sauvegarde jamais ouverte n'est pas
+une sauvegarde.
 
-> **Limite assumée** : ces copies vivent dans le Drive personnel d'Arthur.
-> Elles protègent de l'erreur de manipulation, **pas** de la perte du compte.
-> Pour une vraie protection, il faudrait qu'un collègue fasse **sa propre**
-> copie depuis **son** compte (un fichier simplement partagé reste possédé par
-> le compte d'origine), ou utiliser un Drive partagé de l'établissement.
+**Limite qui subsiste.** Ces deux sauvegardes protègent des accidents de données et de la
+perte du compte `planningchpg`. Elles ne protègent **pas** de l'indisponibilité d'Arthur :
+ses deux comptes sont alors hors d'atteinte en même temps. C'est ce que couvrent les mesures
+du §2 — partager le classeur et le projet Apps Script avec un **collègue**.
 
 ---
 
