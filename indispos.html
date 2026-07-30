@@ -439,7 +439,7 @@ body {
     <div class="legend-item erase" data-tool="ERASE" onclick="selectTool('ERASE')">✕ Effacer</div>
     <div class="legend-item ctp" id="btnCTP" data-tool="TP" onclick="selectTool('TP')" style="display:none;background:#F3E8FF;color:#6D28D9">🕐 Temps partiel</div>
   </div>
-  <div class="tool-hint" id="toolHint">Outil actif : <strong>Vacances</strong> — Touchez un jour pour l'appliquer</div>
+  <div class="tool-hint" id="toolHint">Outil actif : <strong>Indisponible</strong> — Touchez un jour pour l'appliquer</div>
 
 
   <!-- Stats annuelles -->
@@ -492,7 +492,8 @@ const STATUS_LABELS = {
 let currentUser = null;
 let currentCode = '';
 let currentMonth = 0; // toujours démarrer sur janvier
-let currentTool = 'VAC';
+let currentTool = 'INDISPO';   // JAMAIS 'VAC' : les vacances sont posees au staff,
+                               // l'outil VAC est refuse au MAR (voir applyTool).
 let indispos = {}; // {date: status}
 let isDragging = false;
 let hasChanges = false;
@@ -529,6 +530,7 @@ async function doLogin() {
       await loadIndispos();
       await loadVacConfig();
       renderMonth();
+      selectTool('INDISPO');   // outil actif + surlignage de la barre des l'ouverture
     } else {
       document.getElementById('loginError').style.display = 'block';
     }
@@ -814,30 +816,6 @@ function applyTool(date) {
       return;
     }
   }
-  if (false) {
-    const pj = premierJourAnneePlanning(YEAR);
-  const premierJour = `${pj.getFullYear()}-${String(pj.getMonth()+1).padStart(2,'0')}-${String(pj.getDate()).padStart(2,'0')}`;
-  const dj = premierJourAnneePlanning(YEAR + 1);
-  const dernierJour = `${dj.getFullYear()}-${String(dj.getMonth()+1).padStart(2,'0')}-${String(dj.getDate()-1).padStart(2,'0')}`;
-  if (date < premierJour || date > dernierJour) return;
-    if (vacConfig) {
-      // Vérifier quota VAC atteint (jours ouvrés)
-      const dow = new Date(date).getDay();
-      const isOuvre = dow !== 0 && dow !== 6;
-      if (currentTool === 'VAC' && isOuvre && !joursFeries.has(date)) {
-          let vacOuvres = Object.entries(indispos).filter(([d, s]) => {
-            const dw = new Date(d).getDay();
-            return s === 'VAC' && dw !== 0 && dw !== 6 && !joursFeries.has(d) && d !== date;
-          }).length;
-        if (vacOuvres >= vacConfig.quotaVac) {
-          showToast(`🚫 Quota atteint — ${vacConfig.quotaVac} jours ouvrés maximum`);
-          return;
-        }
-      }
-      // Pas de blocage ni avertissement — le comité gère les conflits
-    }
-  }
-
   if (currentTool === 'ERASE') {
     delete indispos[date];
   } else {
