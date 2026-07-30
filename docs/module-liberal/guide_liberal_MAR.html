@@ -69,7 +69,7 @@
 <div class="eyebrow">Planning-CHPG · Monaco — activité libérale</div>
 <h1>Comment fonctionne notre activité libérale</h1>
 <p class="subtitle">Guide pour les MARs du groupement</p>
-<p class="maj">v0.5 · 19 juillet 2026 · document de travail — texte commun aux versions web et Word</p>
+<p class="maj">v0.6 · 30 juillet 2026 · document de travail — texte commun aux versions web et Word</p>
 
 <div class="toc">
 <h4>Sommaire</h4>
@@ -117,6 +117,7 @@
 <tr><td><strong>Carte bulle</strong> (monégasque)</td><td><strong>libre</strong> — entente préalable, avec tact et mesure</td></tr>
 <tr><td><strong>Assuré français</strong></td><td><strong>libre</strong> (secteur 2 non-OPTAM)</td></tr>
 <tr><td><strong>NAS</strong></td><td>libre</td></tr>
+<tr><td><strong>Français — AME / C2S</strong> (précarité)</td><td><strong>aucun</strong></td></tr>
 <tr><td><strong>AME</strong> (monégasque)</td><td><strong>aucun</strong></td></tr>
 </table>
 <p>Chez les assurés monégasques, la couleur de la carte d'immatriculation reflète <strong>les ressources et la composition familiale</strong> du foyer. Autrement dit, <strong>le système interdit lui-même tout dépassement chez les patients les plus modestes</strong>, et ne l'ouvre qu'à mesure que les ressources augmentent. Ce n'est pas nous qui décidons de moduler&nbsp;: c'est écrit dans la convention. D'où le réflexe&nbsp;: <strong>demander la carte</strong> — c'est le seul moyen de connaître la catégorie et d'appliquer le bon tarif.</p>
@@ -220,15 +221,15 @@
 <p>Une ligne surcotée finit rejetée de toute façon.</p>
 
 <h2 id="outil"><span class="n">06</span>Un outil pour ne pas faire tout ça de tête</h2>
-<p>L'<strong>estimateur</strong> est <strong>en service sur le portail</strong>, dans la tuile «&nbsp;Module libéral&nbsp;» du Dashboard (visible pour les seuls membres du groupement). Il fait exactement ce que décrit ce guide, sans calcul manuel&nbsp;: on cherche l'acte (par code, mot ou abréviation — «&nbsp;PTH&nbsp;», «&nbsp;TAP&nbsp;»), le tarif officiel se pré-remplit, la base se calcule avec le coefficient et les majorations, on renseigne la formule mutuelle du patient, et l'outil affiche le <strong>dépassement calé</strong> et le <strong>reste à charge</strong> — puis génère l'information écrite préalable, pré-remplie, où il ne reste que le nom du patient à taper.</p>
+<p>L'<strong>estimateur</strong> est <strong>en service sur le portail</strong>, dans la tuile «&nbsp;Libéral&nbsp;» du Dashboard (visible pour les seuls membres du groupement), qui mène d'un côté à la cotation et de l'autre au suivi des 30&nbsp;%. Il fait exactement ce que décrit ce guide, sans calcul manuel&nbsp;: on cherche l'acte (par code, mot ou abréviation — «&nbsp;PTH&nbsp;», «&nbsp;TAP&nbsp;»), le tarif officiel se pré-remplit, la base se calcule avec le coefficient et les majorations, on renseigne la formule mutuelle du patient, et l'outil affiche le <strong>dépassement calé</strong> et le <strong>reste à charge</strong> — puis génère l'information écrite préalable, entièrement pré-remplie. <strong>Le nom du patient ne s'y tape pas</strong>&nbsp;: le document sort avec des lignes en pointillés que le patient remplit lui-même à la main.</p>
 <p>Deux principes non négociables de cet outil&nbsp;:</p>
 <ul>
-<li><strong>aucune donnée patient n'est enregistrée, nulle part.</strong> Le nom saisi pour le devis vit à l'écran le temps de l'impression et s'efface à la fermeture. Ni serveur, ni navigateur&nbsp;;</li>
+<li><strong>aucune donnée patient n'est saisie, nulle part.</strong> Le nom du patient ne transite jamais par l'outil — il est manuscrit sur l'imprimé. Les quelques champs éditables (dates, remboursement) vivent à l'écran le temps de l'impression&nbsp;: ni serveur, ni navigateur&nbsp;;</li>
 <li><strong>l'outil éclaire, il ne décide rien</strong> — ni à la place du praticien, ni à la place du comité, ni à la place de l'administration.</li>
 </ul>
 <h3>Déclarer votre intervention au comité</h3>
-<p>En bas de la même page, un bloc <strong>«&nbsp;Déclarer une intervention libérale&nbsp;»</strong> permet d'annoncer votre présence au bloc&nbsp;: un <strong>jour</strong>, un <strong>secteur</strong>, et un libellé de chirurgie facultatif. Rien d'autre. Le comité verra cette intervention au moment où il compose le planning de ce jour-là, et décidera lui-même si elle justifie un changement d'affectation.</p>
-<p>Si vous venez de coter un parcours, le jour et la chirurgie sont <strong>déjà pré-remplis</strong> — il ne reste que le secteur à choisir. Deux interventions le même jour dans le même secteur ne créent qu'<strong>une seule ligne</strong> (le comité a besoin de savoir où vous êtes, pas combien de patients)&nbsp;; deux secteurs différents le même jour en créent deux.</p>
+<p>En bas de la même page, un bloc <strong>«&nbsp;Déclarer une intervention libérale&nbsp;»</strong> permet d'annoncer votre présence au bloc&nbsp;: le <strong>jour du bloc</strong>, la <strong>date de consultation</strong>, le <strong>secteur</strong>, la <strong>spécialité</strong>, les deux <strong>bases de remboursement</strong> (CCAM et NGAP) et un libellé de chirurgie facultatif. <strong>Ni nom de patient, ni code d'acte.</strong> Le comité verra cette intervention au moment où il compose le planning de ce jour-là, et décidera lui-même si elle justifie un changement d'affectation.</p>
+<p>Si vous venez de coter un parcours, le jour et la chirurgie sont <strong>déjà pré-remplis</strong> — il ne reste que le secteur à choisir. <strong>Une ligne = un patient</strong>&nbsp;: une journée de huit cataractes, ce sont huit déclarations. C'est ce qui permet de mesurer le rendement par spécialité — sans les montants, l'intervention est vue par le comité mais ne compte dans aucune mesure.</p>
 <p>Vos interventions déclarées s'affichent juste en dessous et restent <strong>supprimables</strong> — une intervention déprogrammée doit pouvoir disparaître. La liste montre les interventions à venir et celles des sept derniers jours&nbsp;; un lien déplie <strong>toutes vos interventions de l'année</strong>. <strong>Vous ne voyez que les vôtres</strong>, et personne ne voit les vôtres à part le comité au moment du placement.</p>
 <p>Cette déclaration ne contient <strong>aucune donnée patient et aucun code d'acte</strong>. À ne pas confondre avec la <strong>déclaration de choix</strong> (section 05), qui est le document que le patient signe.</p>
 <p>Les écrans et certains chiffres peuvent encore bouger&nbsp;: le module continue d'évoluer.</p>
@@ -236,7 +237,7 @@
 <h2 id="incertain"><span class="n">07</span>Ce qui reste incertain</h2>
 <p>Quelques points ne sont pas tranchés et font l'objet d'une demande de clarification auprès des Caisses Sociales&nbsp;:</p>
 <ul>
-<li>l'<strong>APC</strong> (avis ponctuel de consultant)&nbsp;: nous la cotons, mais elle ne figure pas dans le tableau conventionnel publié&nbsp;;</li>
+<li>l'<strong>APC</strong> (avis ponctuel de consultant)&nbsp;: elle ne figure pas dans le tableau conventionnel monégasque. L'estimateur la <strong>refuse</strong> désormais pour tout assuré monégasque (verte, rose, bulle, SPME) et ne l'accepte que pour un assuré français&nbsp;;</li>
 <li>la <strong>majoration de coordination</strong> entre spécialistes&nbsp;: existe-t-elle à Monaco&nbsp;? Aucune valeur connue&nbsp;;</li>
 <li>la <strong>chirurgie de la main</strong>&nbsp;: deux actes associés chez nous, peut-être trois par dérogation&nbsp;;</li>
 <li>les <strong>majorations d'analgésie postopératoire</strong>, issues d'une décision postérieure au texte monégasque en vigueur&nbsp;;</li>
