@@ -1,7 +1,7 @@
 # Reprise du système Planning-CHPG
 
 *Document de **continuité** — à lire en premier si Arthur n'est plus joignable.*
-*Mis à jour : 19 juillet 2026.*
+*Mis à jour : 30 juillet 2026.*
 
 > Ce document traite des **accès, de la propriété et des sauvegardes**.
 > Pour le fonctionnement technique (architecture, wizards, déploiement,
@@ -127,8 +127,9 @@ AVANT/APRÈS, et **validation explicite avant chaque mise en ligne**.
 | **Octobre** | Wizard 1 — initialisation de l'année suivante (staff vacances) |
 | **Novembre** | Wizard 2 — génération des gardes |
 | **Janvier** | Wizard 3 — clôture et archivage de l'année écoulée |
+| **Dim. 5h / Lun. 4h** | Sauvegardes automatiques du classeur (aucune action requise) |
 | **Lundi 6h** | Scan automatique de la veille biblio (aucune action requise) |
-| **1er oct / jan / avr / juil** | Sauvegarde des données (§3) |
+| **1er oct / jan / avr / juil** | **Vérification** des sauvegardes automatiques (§3) — ouvrir une copie récente |
 
 ---
 
