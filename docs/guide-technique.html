@@ -284,13 +284,16 @@
     <tbody>
       <tr><td>1</td><td><b>Équipe</b></td><td>Revue des MARs actifs, quotités, emails. Alerte si un MAR actif n’a pas d’email (il ne recevra pas son code). Sauvegarde des quotités (<code>saveWizQuotites</code>).</td></tr>
       <tr><td>2</td><td><b>Périodes vacances</b></td><td>Saisie des fenêtres de congés scolaires (Zone B) de N+1. Elles bornent les congés MARs et bloquent le placement des récupérations (R). <code>collectPeriodes</code>.</td></tr>
-      <tr><td>3</td><td><b>Groupes A/B/C</b></td><td>Ordre de priorité par période avec rotation annuelle. La base <code>ORDRE_BASE</code> (ex. HIVER:CAB, ETE:ABC) subit un décalage <code>offset = (N+1 − 2026) % 3</code>. <code>collectGroupes</code>.</td></tr>
+      <tr><td>3</td><td><b>Groupes A/B/C</b></td><td><b>Écran de contrôle, en lecture seule</b> : il affiche l'ordre de priorité par période après rotation annuelle. La composition des groupes se modifie dans l'onglet <b>Équipe</b>, pas ici (<code>collectGroupes</code> est volontairement vide). L'étape 4 réenregistre les groupes tels qu'ils ont été lus.</td></tr>
       <tr><td>4</td><td><b>Initialisation GSheet</b></td><td>Création des onglets INDISPOS_{N+1} et AFFECTATIONS_{N+1} (<code>launchWizInit</code> → action <code>initYear</code>). Garde-fou si l’onglet existe déjà.</td></tr>
       <tr><td>5</td><td><b>Staff physique</b></td><td>Rappel de la réunion de pose des vacances : c’est là que les seuils de présence sont respectés à la source.</td></tr>
       <tr><td>6</td><td><b>Envoi des codes</b></td><td>Envoi des codes d’accès + du lien de saisie des indispos aux MARs (<code>launchWizardSendCodes</code>).</td></tr>
     </tbody>
   </table>
-  <div class="callout tip"><div class="ct">Point technique — la rotation A/B/C</div><p>L’<code>offset</code> fait tourner l’ordre de priorité chaque année, pour qu’aucun groupe ne soit systématiquement servi en premier. Le rang qui en résulte est <b>exactement</b> celui que l’audit couverture de W2 réutilise pour désigner le MAR le moins prioritaire à qui demander de décaler ses vacances.</p></div>
+  <div class="callout tip"><div class="ct">Point technique — la rotation A/B/C</div>
+  <p>L’<code>offset</code> (= N+1 − 2026) fait tourner l’ordre de priorité chaque année, pour qu’aucun groupe ne soit systématiquement servi en premier. Le rang qui en résulte est <b>exactement</b> celui que l’audit couverture de W2 réutilise pour désigner le MAR le moins prioritaire à qui demander de décaler ses vacances.</p>
+  <p><b>Le sens est « le dernier devient le premier »</b>, entre groupes comme à l’intérieur d’un groupe : <code>ABC → CAB → BCA → ABC</code>, et <code>A1 A2 A3 → A3 A1 A2 → A2 A3 A1</code>. En code : <code>(3 − offset % 3) % 3</code>, jamais <code>offset % 3</code>.</p>
+  <div class="callout warn" style="margin-top:8px"><div class="ct">⚠️ Règle écrite à quatre endroits</div><p>Elle vit dans <code>staff.html</code>, <code>admin.html</code> et <b>deux fois</b> dans <code>Indispos.gs</code> (plus l’outil <code>testNotifierConflits</code>). Le serveur a tourné <b>à gauche</b> jusqu’au 30/07/2026, alors que les écrans tournaient à droite : les deux ordres ne coïncidaient qu’<b>une année sur trois</b> (décalage nul), et une année sur trois le MAR désigné en conflit n’était pas celui affiché au staff. Constaté en réel sur l’hiver 2027. Toute modification doit être répercutée partout.</p></div></div>
 
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
@@ -311,7 +314,8 @@
   <h3>Étape 1 — Validation des vacances</h3>
   <p>Tableau des périodes avec statut agrégé (✅ validé / ⚠️ partiel / ❌ conflits), lu depuis <code>getVacValidation</code>.</p>
   <h3>Étape 2 — Lancement</h3>
-  <p>Récapitulatif final (nombre de MARs inclus, éventuels sans indispos) puis bouton <span class="kbd">⚡ Générer les gardes</span> → <code>launchWizardGardes</code> → action <code>generateGardes(N+1)</code>. La génération prend 30–60 s et <b>publie</b> le planning (écriture des JSON sur le Drive privé). ⚠️ <b>Elle n'envoie aucun message</b> : prévenir les MARs est une action séparée, à déclencher à la main (<code>envoyerRecapGardes</code>).</p>
+  <p>Récapitulatif final (nombre de MARs inclus, éventuels sans indispos) puis bouton <span class="kbd">⚡ Générer les gardes</span> → <code>launchWizardGardes</code> → action <code>generateGardes(N+1)</code>. La génération prend 30–60 s et <b>publie</b> le planning (écriture des JSON sur le Drive privé).</p>
+  <p>⚠️ <b>Le lancement enchaîne TROIS actions</b>, pas une : <code>generateGardes</code> → <code>publishPlanning</code> → <code>envoyerRecapIndispos</code>. La troisième <b>envoie à chaque MAR le récapitulatif de ses gardes</b>, automatiquement, sans confirmation supplémentaire. Le wizard affiche le compte des envois, des MARs sans email et des échecs. <i>(Le nom <code>envoyerRecapGardes</code> n’existe que comme libellé de journal ; l’action s’appelle bien <code>envoyerRecapIndispos</code>.)</i></p>
   <div class="callout warn warn-strong"><div class="ct">Verrous</div><p>W2 est <b>désactivé</b> si N+1 ≤ 2026 (2026 sanctuarisé, saisi à la main) ou si <code>GARDES_{N+1}</code> existe déjà (protection anti-régénération : régénérer écraserait la preuve d’équité figée). Pour forcer : supprimer manuellement l’onglet GARDES_{N+1} dans le Sheet.</p></div>
 
   <a class="backtop" href="#top">↑ Sommaire</a>
@@ -324,11 +328,23 @@
   <table>
     <thead><tr><th>#</th><th>Étape</th><th>Détail</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td><b>Vérification</b></td><td>Contrôle que l’année <b>suivante</b> est prête (W1 + W2 faits). Garde-fou : impossible de clôturer N si N+1 n’existe pas — sinon on se retrouverait sans planning au 1er janvier.</td></tr>
-      <tr><td>2</td><td><b>Archivage</b></td><td>Récapitule l’équité finale et archive (<code>archiveYear</code>) : push des stats/indispos vers l’archive. Suppression d’onglets <b>commentée</b> (non destructif par sécurité).</td></tr>
+      <tr><td>1</td><td><b>Vérification</b></td><td>Contrôle que l’année <b>suivante</b> est prête. Garde-fou : impossible de clôturer N si N+1 n’existe pas — sinon on se retrouverait sans planning au 1<sup>er</sup> janvier. ⚠️ <b>Deux critères différents</b> : l’écran lit le <b>planning publié</b> (<code>getPlanningJson</code>), le serveur lit les <b>onglets</b> (<code>INDISPOS_{N+1}</code> + <code>STATS_GARDES_{N+1}</code>). Une génération réussie mais non publiée bloque donc l’écran, pas le serveur.</td></tr>
+      <tr><td>2</td><td><b>Archivage</b></td><td>Lance <b>trois actions</b> : <code>archiveYear</code> → <code>setActiveYear(N+1)</code> → <code>clearIndisposYear</code> (cette dernière <b>ferme la campagne</b> de saisie).</td></tr>
     </tbody>
   </table>
-  <div class="callout"><div class="ct">Note sur les overrides</div><p><code>setActiveYear</code> archive/vide l’onglet <code>OVERRIDES</code> (hérité, ancien système) mais <b>ne touche pas</b> à <code>PLANNING_OVERRIDES</code> (les vraies retouches comité). Ne pas confondre les deux.</p></div>
+  <div class="callout warn"><div class="ct">⚠️ L’archivage est destructif pour le classeur maître</div>
+  <p>La documentation a longtemps annoncé une « suppression d’onglets commentée, non destructive ». <b>C’est faux</b> : <code>moveSheets</code> vaut <code>true</code> par défaut. <code>archiveYear</code> fait, dans l’ordre :</p>
+  <ol>
+    <li>alimente <code>HISTORIQUE</code> depuis <code>STATS_GARDES_{N}</code> — <b>idempotent</b> (une année déjà présente n’est pas dupliquée). La colonne <code>NOEL/AN</code> est lue dans <code>GARDES_{N}</code> <b>réel</b>, échanges et dons inclus, pas dans le snapshot figé ;</li>
+    <li>range les JSON nominatifs dans le dossier Drive privé ;</li>
+    <li><b>copie puis SUPPRIME du classeur maître</b> les 4 onglets <code>GARDES_{N}</code>, <code>INDISPOS_{N}</code>, <code>AFFECTATIONS_{N}</code>, <code>STATS_GARDES_{N}</code> vers le classeur d’archive ;</li>
+    <li>purge <code>PLANNING_OVERRIDES</code> de toutes les lignes de l’année <b>et des années antérieures</b> (auto-nettoyant si une clôture a été manquée).</li>
+  </ol>
+  <p>Rien n’est perdu — l’année reste consultable dans le classeur d’archive — mais elle <b>quitte</b> le classeur principal.</p></div>
+
+  <div class="callout"><div class="ct">Succès partiel : corrigé le 30/07/2026</div><p>Le dispatcher décide du succès en cherchant une ligne commençant par <code>❌</code> dans le rapport. Les échecs de transfert étaient marqués <code>⚠️</code> : l’action renvoyait <b>succès</b>, le wizard basculait l’année active et fermait la campagne alors que les onglets étaient <b>toujours dans le maître</b> — et, l’année ayant basculé, réarchiver N devenait impossible depuis l’assistant. Désormais « classeur d’archive inaccessible » et « transfert échoué » sont des <code>❌</code> bloquants ; les <code>⚠️</code> restants (onglet absent, purge sans effet) sont affichés sous la coche verte au lieu d’être avalés.</p></div>
+
+  <div class="callout"><div class="ct">Note sur les overrides</div><p>Ne pas confondre <code>OVERRIDES</code> (ancien registre, <b>l’onglet n’existe plus</b> dans le classeur — code mort, voir roadmap) et <code>PLANNING_OVERRIDES</code> (les vraies retouches du comité, purgées à l’archivage).</p></div>
 
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
@@ -1002,7 +1018,7 @@
 
 
 
-<div class="foot">Planning-CHPG · Anesthésie-Réanimation CHPG Monaco — guide technique personnel · établi à partir du code en production, mis à jour le 30 juillet 2026</div>
+<div class="foot">Planning-CHPG · Anesthésie-Réanimation CHPG Monaco — guide technique personnel · établi à partir du code en production, mis à jour le 30 juillet 2026 (audit des 3 wizards)</div>
 
 </div>
 </body>
