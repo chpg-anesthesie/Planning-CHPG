@@ -108,7 +108,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — module libéral</div>
   <h1>Module libéral<br>Guide d'utilisation</h1>
   <p class="subtitle">Estimer le libéral, calibrer le dépassement sur la mutuelle du patient, générer le devis — et piloter la charge libéral / public.</p>
-  <div class="maj">Dernière mise à jour : 22 juillet 2026 · rév. 6 (V4.2 — module branché au portail, déclaration d'intervention et volet comité en service)</div>
+  <div class="maj">Dernière mise à jour : 30 juillet 2026 · rév. 7 (V4.2 — audit du guide contre le code en production)</div>
   <p style="margin-top:10px"><a href="module-liberal/maquette_estimateur_liberal.html" style="display:inline-block;background:var(--acc);color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">→ Ouvrir la cotation</a></p>
 </header>
 
@@ -124,7 +124,7 @@
   <strong>rendement par spécialité</strong>, qui demandent plusieurs mois de relevés et de déclarations.</p>
   <p>⚠️ Trois points de cotation restent <strong>à confirmer auprès de la CSM</strong> : le coefficient
   de l'APC, le plafond de la carte rose (241 % à l'annexe III contre 234 % appliqués ici) et le régime
-  AME en libéral. Les montants concernés sont signalés à l'écran.</p>
+  AME en libéral. <strong>L'outil ne signale rien à l'écran sur ces trois points</strong> : c'est à vous de les avoir en tête.</p>
   <p style="margin-top:8px">Pour comprendre le <strong>fonctionnement de l'activité libérale</strong> elle-même (cartes, dépassements, règle des 30 %), lire d'abord le <a href="module-liberal/guide_liberal_MAR.html" style="color:var(--acc);font-weight:600">guide MAR — Comment fonctionne notre activité libérale</a>. Le présent guide décrit l'outil.</p>
 </div>
 
@@ -146,11 +146,12 @@
   <h2><span class="n">01</span>À quoi sert le module</h2>
   <p>Le module libéral aide le groupement à exercer son activité libérale intra-hospitalière <strong>dans les règles et sans perte</strong>. Il tient sur trois briques, qui partagent le codage des actes mais répondent à trois questions différentes.</p>
   <table>
-    <tr><th>Brique</th><th>Question</th><th>État</th></tr>
-    <tr><td>Calibrage du dépassement</td><td>Combien facturer pour que le reste à charge du patient soit minimal&nbsp;?</td><td>Maquette en ligne</td></tr>
-    <tr><td>Placement bloc</td><td>Qui doit être présent, dans quel secteur, le jour de l'intervention&nbsp;?</td><td>Ergonomie validée (maquette)</td></tr>
-    <tr><td>Pilotage 30 %</td><td>Chacun est-il sous 30 % de libéral, par axe&nbsp;? Le groupe perd-il de l'argent&nbsp;?</td><td>À construire</td></tr>
+    <tr><th>Brique</th><th>Question</th><th>Où</th></tr>
+    <tr><td>Calibrage du dépassement</td><td>Combien facturer pour que le reste à charge du patient soit minimal&nbsp;?</td><td>Tuile Libéral → <em>Cotation &amp; déclaration</em></td></tr>
+    <tr><td>Déclaration &amp; placement bloc</td><td>Qui doit être présent, dans quel secteur, le jour de l'intervention&nbsp;?</td><td>Même page (📅 Déclarer) → volet ◆ Libéral de l'admin</td></tr>
+    <tr><td>Pilotage 30 %</td><td>Chacun est-il sous 30 % de libéral, par axe&nbsp;? Le groupe perd-il de l'argent&nbsp;?</td><td>Tuile Libéral → <em>Suivi des 30 %</em></td></tr>
   </table>
+  <p>Les trois sont <strong>en service</strong>. Deux mesures restent à construire, faute de recul&nbsp;: le <strong>taux de couverture</strong> (comparer le déclaré au facturé) et le <strong>rendement par spécialité</strong>.</p>
   <div class="callout rule">
     <div class="ct">Principe directeur</div>
     <p>Le module <strong>éclaire, le comité décide</strong>. Aucune affectation automatique, aucun engagement à la place de l'administration. Et pour le patient : on cherche à <strong>minimiser son reste à charge</strong>, pas à maximiser l'honoraire.</p>
@@ -159,14 +160,14 @@
 
 <section id="c2">
   <h2><span class="n">02</span>L'estimateur, pas à pas</h2>
-  <p>L'estimateur est la brique déjà utilisable. Il enchaîne, pour un parcours, de l'acte au devis.</p>
+  <p>L'estimateur enchaîne tout le parcours d'un patient, de l'acte à la déclaration. <strong>Une ligne déclarée = un patient</strong> (voir le geste complet en §05).</p>
   <ol class="steps">
     <li><strong>Chercher l'acte.</strong> Dans le bloc CCAM, tape un <strong>code</strong> (<code>NEKA014</code>), un <strong>mot</strong> (<code>hernie</code>, <code>échoguidage</code>) ou une <strong>abréviation</strong> (<code>PTH</code>, <code>TAP</code>, <code>cœlio</code>). La liste sort dans les deux sens ; un clic remplit la ligne.</li>
     <li><strong>Le tarif se pré-remplit.</strong> Le tarif d'anesthésie (activité 4) est repris automatiquement du référentiel officiel. Tu n'as qu'à cocher les modificateurs (7, A) et choisir le rôle (principal / associé / complément).</li>
     <li><strong>La BR se calcule.</strong> ×1,95 monégasque, modificateurs, décote d'association — tout est appliqué derrière. L'axe NGAP (consultations) se saisit séparément.</li>
     <li><strong>Renseigner la mutuelle.</strong> On sélectionne la formule du patient (sa ligne « honoraires » en % BR). L'outil affiche le dépassement optimal et le reste à charge.</li>
     <li><strong>Générer les documents.</strong> Bouton <span class="tag">📄 Devis</span> sur le parcours : l'estimation de frais est entièrement pré-remplie, et un second bouton imprime <strong>devis + déclaration de choix</strong> (modèle CHPG soins externes, nom du MAR pré-rempli). <strong>Aucun nom de patient à taper</strong> : le patient l'écrit à la main sur les documents imprimés.</li>
-    <li><strong>Déclarer l'intervention</strong> <em>(à venir)</em>. Bouton <span class="tag">📅 Déclarer</span> sur le parcours : date de bloc + secteur + chirurgie en clair (« PTH », pré-remplie depuis le parcours, modifiable). C'est ce qui alimentera le volet ◆ Libéral du comité dans la vue admin — <strong>rien d'autre ne part</strong> : ni patient, ni code CCAM.</li>
+    <li><strong>Déclarer l'intervention.</strong> Bouton <span class="tag">📅 Déclarer</span> sur le parcours : date de bloc + secteur + chirurgie en clair (« PTH », pré-remplie depuis le parcours, modifiable). C'est ce qui alimentera le volet ◆ Libéral du comité dans la vue admin — <strong>rien d'autre ne part</strong> : ni patient, ni code CCAM.</li>
   </ol>
   <div class="callout rule">
     <div class="ct">Point d'entrée unique</div>
@@ -178,7 +179,7 @@
   </div>
   <div class="callout tip">
     <div class="ct">Bon à savoir</div>
-    <p>Le référentiel CCAM (8 257 actes, libellés officiels) et les tarifs d'anesthésie (4 356 actes) sont chargés depuis un fichier tenu à jour&nbsp;: pas de saisie de tarifs à la main. Les abréviations maison (PTH, PTG, TAP…) s'ajoutent au fil de l'eau.</p>
+    <p>Le référentiel CCAM (8 558 actes, libellés officiels) et les tarifs d'anesthésie (4 939 actes tarifés en activité 4) sont chargés depuis un fichier tenu à jour&nbsp;: pas de saisie de tarifs à la main. Les abréviations maison (PTH, PTG, TAP…) s'ajoutent au fil de l'eau.</p>
   </div>
 </section>
 
@@ -307,7 +308,7 @@
   </ul>
   <div class="callout rule">
     <div class="ct">Le module éclaire, le comité décide</div>
-    <p>Aucun pré-placement automatique. L'ergonomie a été validée sur une maquette en conditions réelles (grille et panneau d'affectation identiques à l'admin)&nbsp;; la greffe finale sera chirurgicale, sans modifier le moteur du planning.</p>
+    <p>Aucun pré-placement automatique. Le volet est <strong>en service dans l'admin</strong> et n'a demandé aucune modification du moteur du planning&nbsp;: il s'affiche à côté du panneau d'affectation, sans jamais écrire dans la grille.</p>
   </div>
 </section>
 
@@ -355,7 +356,7 @@
   <p>Le module approche du secret médical&nbsp;: sa sécurité repose sur une discipline, pas sur un cadenas.</p>
   <ul>
     <li><strong>Zéro donnée patient — jamais saisie.</strong> Le calibrage et les documents se font à l'écran, sans persistance — ni serveur (GitHub / Sheets / Drive), ni navigateur. Depuis la V3.2, le nom du patient n'est même plus tapé&nbsp;: il est écrit à la main par le patient sur les documents imprimés.</li>
-    <li><strong>Données praticien</strong> (nom, RPPS, ADELI) → profil MAR, jamais dans un fichier publié.</li>
+    <li><strong>Données praticien</strong> (nom, RPPS) → profil MAR, jamais dans un fichier publié. Le champ ADELI a été supprimé.</li>
     <li><strong>Volet financier</strong> → cloisonné entre membres et non-membres du groupement, et <strong>agrégé</strong> (aucune donnée patient).</li>
     <li><strong>Référentiels</strong> (CCAM, formules mutuelle) → publics, sourcés, sans lien à un patient.</li>
   </ul>
