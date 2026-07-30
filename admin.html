@@ -975,7 +975,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.14.11'; // SITE_VERSION: v1.14.11
+const SITE_VERSION = 'v1.14.12'; // SITE_VERSION: v1.14.12
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1068,7 +1068,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.11</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.12</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -5792,7 +5792,9 @@ async function openWizardGardes() {
   document.getElementById('wizardGardesOverlay').classList.add('open');
   document.getElementById('wizGBody').innerHTML = '<div style="text-align:center;padding:48px 0"><div style="font-size:40px;margin-bottom:14px">⏳</div><div style="font-size:14px;color:var(--ink-3)">Vérification…</div></div>';
   // ── Verrou : 2026 sanctuarisé (manuel) OU GARDES_{genYear} déjà généré ──
-  let lockReason = (genYear <= 2026) ? 'sanctuary' : null;
+  // Sans campagne ouverte, INDISPOS_YEAR vaut null : l'audit d'equite boucle alors sur
+  // « l'annee null » (1900) et tout l'ecran devient faux. On bloque avant. (30/07/2026)
+  let lockReason = (genYear <= 2026) ? 'sanctuary' : (!INDISPOS_YEAR ? 'nocampaign' : null);
   if (!lockReason) {
     try {
       const st = await api({action:'getStatus'});
@@ -5808,6 +5810,14 @@ function renderWizGLocked(year, reason) {
   document.getElementById('wizGBackBtn').style.visibility = 'hidden';
   const nb = document.getElementById('wizGNextBtn'); nb.disabled = true; nb.style.display = 'none';
   document.querySelectorAll('#wizardGardesOverlay .wizard-step').forEach(function(s){ s.classList.remove('active'); s.classList.add('done'); });
+  if (reason === 'nocampaign') {
+    document.getElementById('wizGBody').innerHTML = wizardLockedHTML(
+      'Aucune campagne de saisie ouverte',
+      "La saisie des indisponibilités n'est ouverte pour aucune année. L'assistant ne peut pas vérifier les profils ni générer les gardes.",
+      "Lancez d'abord « Démarrer l'année » (étape 1), qui ouvre la saisie, puis revenez ici."
+    );
+    return;
+  }
   const title = reason === 'sanctuary' ? ('Gardes ' + year + ' gérées manuellement') : ('Gardes ' + year + ' déjà générées');
   const msg = reason === 'sanctuary'
     ? (year + " n'a pas été produit par l'algorithme : ses gardes et sa preuve d'équité sont saisies manuellement (sanctuarisées). La génération est désactivée pour cette année.")
@@ -5929,7 +5939,7 @@ async function renderWizGStep() {
     if (_needInd || _needConf || _needFer) {
       const _needVac = !wizGVacData;
       const [_indRes, _confRes, _ferRes, _ferRes2, _vacRes] = await Promise.all([
-        _needInd ? api({action:'getAllIndispos'}).catch(e => ({success:false, error:e.message})) : Promise.resolve(null),
+        _needInd ? api({action:'getAllIndispos', year: INDISPOS_YEAR}).catch(e => ({success:false, error:e.message})) : Promise.resolve(null),
         _needConf ? api({action:'getConflitsAll', year: INDISPOS_YEAR}).catch(() => ({success:false})) : Promise.resolve(null),
         _needFer ? api({action:'getJoursFeries', year: INDISPOS_YEAR}).catch(() => ({success:false})) : Promise.resolve(null),
         _needFer ? api({action:'getJoursFeries', year: INDISPOS_YEAR + 1}).catch(() => ({success:false})) : Promise.resolve(null),
@@ -5953,16 +5963,19 @@ async function renderWizGStep() {
       }
     }
     const actifs = (marsData || []).filter(m => m.actif);
+    // getAllIndispos renvoie un DICTIONNAIRE par MAR ({date: code}), pas un tableau.
+    // L'ancien test `ind.length === 0` valait toujours false sur un objet : le controle
+    // ne detectait JAMAIS un MAR sans saisie et affichait « tous ont saisi ». (30/07/2026)
     const sansIndispo = actifs.filter(m => {
-      const ind = wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || [];
-      return !ind || ind.length === 0;
+      const ind = wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || {};
+      return Object.keys(ind).length === 0;
     });
     const nbConflits = wizGConflitsData.nbConflits || 0;
     const blocked = sansIndispo.length > 0 || nbConflits > 0;
 
     // Bloquer ou débloquer le bouton Suivant
     document.getElementById('wizGNextBtn').disabled = blocked;
-    let html = '<div class="wizard-section-title">Indisponibilités ' + YEAR + ' — récapitulatif</div>';
+    let html = '<div class="wizard-section-title">Indisponibilités ' + INDISPOS_YEAR + ' — récapitulatif</div>';
 
     // Bloc indispos
     if (sansIndispo.length > 0) {
@@ -6250,9 +6263,9 @@ async function renderWizGStep() {
 
   } else if (wizGCurrentStep === 2) {
     const actifs = (marsData || []).filter(m => m.actif);
-    const sansIndispo = actifs.filter(m => {
-      const ind = wizGIndisposData ? (wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || []) : [];
-      return !ind || ind.length === 0;
+    const sansIndispo = actifs.filter(m => {     // dictionnaire, cf. etape 1
+      const ind = (wizGIndisposData && (wizGIndisposData[m.id] || wizGIndisposData[m.initiales])) || {};
+      return Object.keys(ind).length === 0;
     });
     let html = '<div class="wizard-section-title">Prêt à générer les gardes ' + (YEAR+1) + '</div>';
     html += '<div style="background:var(--bg);border-radius:12px;padding:16px;margin:12px 0">';
