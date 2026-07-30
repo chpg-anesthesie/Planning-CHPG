@@ -136,8 +136,8 @@ déploiement neuf se comporte comme l'ancien. Le socle varie dans la journée (�
   `_configReset_()` juste après, sinon la suite de la même exécution relit l'ancienne valeur.
 - **Chantier performance CLOS le 30/07/2026**, vérifié en lecture du code en ligne (et non au
   ROADMAP, qui était périmé) : `mailNonLus`, `getSecteurs` et `getCsTemplate` sont dans
-  `getAdminBootstrap`, `gas/mesure_perf.gs` n'est plus dans le dépôt. **Seul reste à contrôler
-  une fois : son absence dans l'éditeur Apps Script.**
+  `getAdminBootstrap`, et `gas/mesure_perf.gs` a été supprimé du dépôt **et** de l'éditeur Apps
+  Script (confirmé par Arthur le 30/07).
 
 ### ⛔ `dashboard.html` — piste fermée, ne pas la rouvrir
 
@@ -276,8 +276,35 @@ Reste à faire, par ordre de criticité :
    et le rosé du repos du lendemain peut passer pour du blanc en vidéoprojection).
 4. Vérifier que les **profils indispos 2027 des autres MARs sont remplis** (annoncé à la salle) et que
    **`PERIODES_VAC` a ses lignes 2027** (sinon la génération tourne avec un calendrier de vacances vide).
-5. Écrire la **check-list de ménage post-démo** dans le dépôt : onglets `_2027`, JSON Drive,
-   vacances 2027, mails, changer le code de Sultan, `INDISPOS_ACTIVE`.
+   ⚠️ **`savePeriodes` (Indispos.gs l.1765) efface TOUT l'onglet** et réécrit seulement les périodes
+   envoyées : saisir celles de 2027 supprime définitivement les lignes 2026. Impact faible sur le reste
+   de 2026 (PERIODES_VAC ne sert qu'aux priorités de vacances de l'année de campagne et à la
+   génération), mais irréversible → **dupliquer l'onglet avant** en `PERIODES_VAC_SAUV_2026`.
+
+### Ménage post-démo — check-list (à exécuter le 04/09 au soir, puis supprimer cette section)
+
+1. **Onglets `_2027` : supprimer `INDISPOS_2027` et `AFFECTATIONS_2027`.** Impératif, pas cosmétique :
+   `initYear` (Indispos.gs l.1361) **refuse de tourner** si `INDISPOS_2027` existe (« INDISPOS_2027
+   existe déjà ») → le Wizard 1 d'octobre serait bloqué. Et `AFFECTATIONS_2027` n'étant recréé que s'il
+   est absent, les affectations fictives resteraient en place. `GARDES_2027` / `STATS_GARDES_2027` ont
+   été supprimés le 30/07 ; si une génération est relancée pendant la démo, les resupprimer.
+2. **JSON du Drive** (dossier « Planning-CHPG-JSON ») : supprimer `planning_2027.json` et
+   `affectations_2027.json` si la publication a été montrée. Sinon `anneeSuivante` reste vrai dans le
+   bootstrap admin et un MAR peut ouvrir un planning 2027 fictif.
+3. **CONFIG : refermer la campagne** si `INDISPOS_ACTIVE = 2027` a été posé pour la démo (bouton du
+   wizard = `clearIndisposYear`, ou suppression de la ligne). Tant qu'elle est là, la tuile
+   « Mes indispos » est ouverte aux 23 MARs sur une année fictive.
+4. **Code d'accès de WS** : saisi devant la salle → « Régénérer le code » dans MEDECINS
+   (`resetCodeMar`) : nouveau code envoyé par mail, ancien tracé dans `HISTORIQUE`. Idem `ADMIN_CODE`
+   (CONFIG, à la main) s'il a été projeté.
+5. **PERIODES_VAC** : restaurer les lignes 2026 depuis `PERIODES_VAC_SAUV_2026` si besoin — sinon
+   rien, octobre les réécrira pour 2027.
+6. **Mails : rien ne part tout seul.** Vérifié dans le code : `setIndisposYear` n'envoie aucun
+   message ; les envois sont des actions explicites (`sendCodesWithRecap`, `envoyerRecapIndispos`,
+   `envoyerRecapGardes`). Contrôler seulement qu'aucun bouton d'envoi n'a été cliqué — journal
+   `HISTORIQUE` en cas de doute.
+7. **Terminer par 🔍 Diagnostic système** (onglet Maintenance) : onglets, JSON du Drive, concordance
+   des versions.
 
 ### Priorité 1 bis — Deux données à trancher AVANT la génération de novembre
 
