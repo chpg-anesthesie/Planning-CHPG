@@ -975,7 +975,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.14.6'; // SITE_VERSION: v1.14.6
+const SITE_VERSION = 'v1.14.7'; // SITE_VERSION: v1.14.7
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1068,7 +1068,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.6</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.7</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -6060,7 +6060,7 @@ async function renderWizGStep() {
       }
 
       // ── Audit COUVERTURE jour par jour : jours à risque de trou + leviers ──
-      // Calibré sur 20 années simulées : aucun trou n'est jamais survenu un jour à
+      // Calibré sur 400 années simulées : aucun trou n'est jamais survenu un jour à
       // ≥ 6 MARs statiquement disponibles ; tous les trous sont survenus entre 1 et 5.
       // 🔴 < 4 = trou quasi certain · 🟠 4-5 = possible (contraintes dynamiques : RG de
       // la veille, binôme VD, combos) · objectif : ≥ 6 partout ⇒ 0 trou.
@@ -6106,7 +6106,7 @@ async function renderWizGStep() {
           html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534;margin-top:4px">✅ <strong>Aucun jour sous 6 MARs disponibles</strong> — aucun trou de couverture attendu.</div>';
         } else {
           const nbRedJ=_dayRisk.filter(x=>x.red).length;
-          if (nbRedJ) html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b;margin-top:4px">🔴 <strong>'+nbRedJ+' jour(s) à trou quasi certain</strong> (moins de 4 MARs disponibles) — sans libérations ciblées, ces gardes resteront vides.<br><small>Repère (20 années simulées) : aucun trou n\'est jamais survenu un jour à 6 disponibles ou plus. Objectif : remonter chaque jour listé à ≥ 6 en demandant les libérations indiquées. Ceci ne bloque pas la génération.</small></div>';
+          if (nbRedJ) html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b;margin-top:4px">🔴 <strong>'+nbRedJ+' jour(s) à trou quasi certain</strong> (moins de 4 MARs disponibles) — sans libérations ciblées, ces gardes resteront vides.<br><small>Repère (400 années simulées) : aucun trou n\'est jamais survenu un jour à 6 disponibles ou plus. Objectif : remonter chaque jour listé à ≥ 6 en demandant les libérations indiquées. Ceci ne bloque pas la génération.</small></div>';
           else html += '<div class="wizard-warning" style="background:#FEF3C7;border-left:3px solid #F59E0B;color:#92400E;margin-top:4px">🟠 <strong>'+_dayRisk.length+' jour(s) sous la marge de sécurité</strong> (4-5 disponibles : un trou reste possible selon l\'enchaînement des gardes). Objectif : ≥ 6 partout.</div>';
           html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'
             +'<th style="text-align:left;padding:5px 6px;border-bottom:2px solid var(--line);font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">Jour</th>'
