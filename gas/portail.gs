@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-29.2';
+const GAS_VERSION_PORTAIL = '2026-07-30.1';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1141,8 +1141,9 @@ function testCRH() {
 //  (à distinguer de la « déclaration de choix », le document signé par le
 //   patient : ici il s'agit de la présence au bloc annoncée AU COMITÉ.)
 //
-//  Payload FERMÉ, 6 colonnes, AUCUNE donnée patient, AUCUN code CCAM :
+//  Payload FERMÉ, 9 colonnes, AUCUNE donnée patient, AUCUN code CCAM :
 //    ID | DATE_CONSULT | DATE_BLOC | MAR_ID | SECTEUR | CHIRURGIE
+//       | SPECIALITE | BR_CCAM | BR_NGAP
 //  - ID          : poignée aléatoire, pour cibler une ligne (suppression / fusion)
 //                  sans dépendre du numéro de ligne (fragile si l'onglet est trié).
 //  - DATE_CONSULT: J0, informatif (suivi NGAP plus tard) — pris à aujourd'hui.
@@ -1151,9 +1152,14 @@ function testCRH() {
 //  - SECTEUR     : code SECTEURS, obligatoire (sans lui, rien à placer).
 //  - CHIRURGIE   : libellé court libre, facultatif (idée de durée pour le comité).
 //
-//  Granularité : une ligne = une journée-bloc DANS UN SECTEUR pour un MAR.
-//  Même MAR + même jour + même secteur => la ligne existante est MISE À JOUR
-//  (libellé chirurgie cumulé), pas dupliquée. Deux secteurs le même jour => 2 lignes.
+//  - SPECIALITE  : un code de l'onglet SPECIALITES ; maille du rendement.
+//  - BR_CCAM     : base de remboursement de l'acte, datée par DATE_BLOC.
+//  - BR_NGAP     : base de la consultation, datée par DATE_CONSULT.
+//
+//  Granularité : UNE LIGNE = UN PATIENT (Lot 2A, 27/07/2026). La fusion
+//  « même MAR + même jour + même secteur » a été SUPPRIMÉE : elle rendait
+//  les interventions incomptables (8 cataractes = 1 ligne) et interdisait
+//  toute mesure de rendement.
 // ════════════════════════════════════════════════════════════════════
 // Lot 2A (27/07/2026) : 6 -> 9 colonnes. SPECIALITE porte le rendement (elle
 // survit au demenagement, le secteur non) ; BR_CCAM / BR_NGAP portent la base de
