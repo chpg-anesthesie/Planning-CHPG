@@ -7,7 +7,7 @@ portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'ane
 **Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.14.5** ·
 **GAS** `code.gs` 2026-07-29.3 · `Indispos.gs` 2026-07-29.5 · `portail.gs` 2026-07-29.2
 
-*Mise à jour : 29 juillet 2026.*
+*Mise à jour : 30 juillet 2026.*
 
 > **Le dépôt en ligne fait foi.** Ce document est un repère de pilotage, pas la source de vérité
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
@@ -130,6 +130,14 @@ déploiement neuf se comporte comme l'ancien. Le socle varie dans la journée (�
 - **Chronomètre** `chronoAPI()` : affiche **départ (T+), serveur et attente** séparément, grâce au
   champ `_srv_ms` posé par l'enveloppe GAS. ⚠️ `doGet` n'est plus l'aiguillage : celui-ci s'appelle
   **`_routeRequete_`**, `doGet` ne fait que le chronométrer.
+- **CONFIG lu une seule fois par exécution** (memo `_configRows_` de `code.gs`, utilisé par
+  `getActiveYear`, `getIndisposYear`, `_indisposOuverte_` et `checkCode`) : les ~1,5 s de
+  relectures sont récupérées. ⚠️ Toute action qui **écrit** dans CONFIG doit appeler
+  `_configReset_()` juste après, sinon la suite de la même exécution relit l'ancienne valeur.
+- **Chantier performance CLOS le 30/07/2026**, vérifié en lecture du code en ligne (et non au
+  ROADMAP, qui était périmé) : `mailNonLus`, `getSecteurs` et `getCsTemplate` sont dans
+  `getAdminBootstrap`, `gas/mesure_perf.gs` n'est plus dans le dépôt. **Seul reste à contrôler
+  une fois : son absence dans l'éditeur Apps Script.**
 
 ### ⛔ `dashboard.html` — piste fermée, ne pas la rouvrir
 
@@ -254,9 +262,11 @@ le code retiré le 22/07 pour raison de sécurité (il se saisit par `prompt()`,
 remplir dans le fichier).
 
 Reste à faire, par ordre de criticité :
-1. **Supprimer `GARDES_2027`** avant l'événement — sinon le verrou de `generateGardes()` bloque la
-   démo devant la salle. Vérifié : c'est le **seul** onglet qui déclenche le verrou (l.138).
-   Garder `INDISPOS_2027` et `AFFECTATIONS_2027` (les profils fictifs sont dedans).
+1. ✅ **`GARDES_2027` et `STATS_GARDES_2027` supprimés le 30/07.** Le verrou de `generateGardes()`
+   ne bloquera pas la démo (`GARDES_{Y}` est le **seul** onglet qui l'arme, l.138).
+   `INDISPOS_2027` et `AFFECTATIONS_2027` conservés : les profils fictifs sont dedans.
+   ⚠️ `STATS_GARDES_2026` doit rester en place — c'est lui qui porte les colonnes `CIBLE*` de la
+   dette d'équité pour la vraie génération de novembre.
 2. **Répétition à blanc chronométrée.** Le deck annonce « 15 secondes » deux fois (diapos 9 et 23).
    Ce qui n'est pas mesuré, ce n'est pas l'algorithme — c'est le temps que la salle verra, aller-retour
    Apps Script compris, là où on a déjà observé 30 à 56 s côté client pour 2 s côté serveur.
@@ -289,7 +299,6 @@ Ordre restant : **2C** (recoupement, taux de couverture, rendement) puis **Lot 4
   mois de 2A+2B.
 - Chantier de **conception**, pas de code — mérite un fil dédié. Jeu d'essai : relevé réel
   janvier→juin.
-- Combos de cotation restants : consultations d'endoscopie du mardi et jeudi après-midi.
 - Picker des consultations libérales d'endoscopie : plus aucun contrôle automatique depuis le
   retrait de la rotation (20/07) — attribution 100 % manuelle, règle du 8.1 à vérifier de tête.
   *(Rangé ici le 29/07 : c'est une question de règle métier, pas une dette de code.)*
@@ -298,7 +307,8 @@ Ordre restant : **2C** (recoupement, taux de couverture, rendement) puis **Lot 4
 
 ### Priorité 3 — Dettes techniques
 - **Deux listes de secteurs encore figées dans `admin.html`** *(trouvées le 29/07, jamais
-  répertoriées jusque-là)* : `COVERAGE` (l.~3164, secteurs qui déclenchent un « + » quand
+  répertoriées jusque-là ; **revérifiées présentes le 30/07** aux lignes 3164 et 4016)* :
+  `COVERAGE` (l.~3164, secteurs qui déclenchent un « + » quand
   personne n'est placé) et `targets` (l.~4016, boutons « Déplacer vers » du volet latéral).
   **Un secteur créé dans l'onglet n'apparaît dans aucune des deux.** À traiter avant le
   déménagement NCHPG (janvier 2027), pas avant le 04/09.
@@ -1217,20 +1227,13 @@ ancrées sur `user.id` ; `getTopo`/`getProtocole` vérifient l'appartenance au d
 
 ## 🔜 À faire
 
-- [ ] ⚡ **Performance — suite (à reprendre sur une infrastructure reposée).**
-  Le 28/07 après-midi, le **serveur lui-même** s'est dégradé au fil des heures (`getAdminBootstrap` :
-  3 135 → 3 414 → 5 712 ms pour le même code) : impossible de mesurer un gain sur une base qui bouge
-  de 50 % entre deux relevés. **Reprendre par une mesure de référence le matin**, puis :
-  - alléger `getAdminBootstrap` côté serveur (~1,5 s récupérables : CONFIG relu plusieurs fois par
-    requête — `TEST_YEAR`, `checkCode`, `getIndisposYear`, `_indisposOuverte_` — puis `getSecteurs`
-    et `getCsTemplate` à 500 ms chacun) ;
-  - fusionner `mailNonLus` (156 ms serveur) dans le bootstrap plutôt qu'un appel séparé à 2,5 s de
-    péage. ⚠️ Un commentaire d'`admin.html` dit « NE JAMAIS le mettre dans `getAdminBootstrap` » :
-    il datait d'un contexte où un appel séparé était bon marché — **le remplacer, pas l'empiler**.
-  - **Supprimer `gas/mesure_perf.gs`** (dépôt **et** éditeur Apps Script) une fois ce chantier clos.
-- [ ] 📽️ **Présentation staff du 04/09** — voir « Priorité 1 » en tête de section, réécrite
-  le 29/07. Deck refait et poussé (`6ca0b09cd1`). Reste : supprimer `GARDES_2027`, répétition
-  à blanc **chronométrée**, relecture en projection, check-list de ménage post-démo.
+- [ ] 📽️ **Présentation staff du 04/09** — voir « Priorité 1 » en tête de section.
+  Deck refait et poussé (`6ca0b09cd1`), `GARDES_2027` supprimé le 30/07. Reste : **répétition
+  à blanc chronométrée**, relecture en projection, check-list de ménage post-démo.
+
+*(La ligne « Performance — suite » a été supprimée le 30/07 : le chantier est clos, voir la section
+Performance en tête de document. Le ROADMAP l'annonçait encore à faire alors que le code était
+livré — d'où la règle : vérifier le code, pas le ROADMAP.)*
 
 ### Axes de développement (un fil de conversation chacun)
 
