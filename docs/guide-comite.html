@@ -103,7 +103,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
   <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
   <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.14.6</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.14.6 -->
+  <div class="maj">Version <strong>v1.14.7</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.14.7 -->
 </header>
 
 <div class="callout tip" style="margin:26px 0 6px">
@@ -227,7 +227,7 @@
   <p>Avant de valider, examiner les deux contrôles affichés : le <strong>certificat d'équité</strong> (chacun a-t-il une charge juste) et l'<strong>audit de couverture</strong> (toutes les gardes sont-elles pourvues). Voir le chapitre 12.</p>
   <div class="callout warn">
     <div class="ct">Couverture — jours à risque de trou</div>
-    <p>L'assistant liste, <strong>avant</strong> la génération, chaque jour de l'année où moins de 6 MARs sont disponibles (absences, statuts et rythmes déduits). Repère, calibré sur vingt années simulées : aucun trou n'est jamais survenu un jour à 6 disponibles ou plus.</p>
+    <p>L'assistant liste, <strong>avant</strong> la génération, chaque jour de l'année où moins de 6 MARs sont disponibles (absences, statuts et rythmes déduits). Repère, calibré sur 400 années simulées : aucun trou n'est jamais survenu un jour à 6 disponibles ou plus.</p>
     <p>🔴 <strong>Moins de 4 disponibles</strong> = trou quasi certain : sans action, la garde restera vide. 🟠 <strong>4 ou 5</strong> = trou possible (le repos de garde de la veille et le binôme du week-end consomment des candidats).</p>
     <p>Pour chaque jour listé, le tableau indique <strong>combien de libérations obtenir</strong> (« À libérer ≥ N ») et <strong>auprès de qui</strong> : les MARs absents ce jour-là par vacances, indispo ou formation — les seules absences négociables. Contacter ces MARs et redemander la génération une fois les jours repassés au vert. L'audit informe mais <strong>ne bloque pas</strong> : la couverture de tous les jours reste l'objectif prioritaire du comité.</p>
     <p>Quand l'absence en cause est une <strong>vacance posée sur une période à priorité</strong> (groupes A/B/C), le tableau désigne d'emblée le <strong>MAR le moins prioritaire</strong> sur cette période (mention « ▸ NOM · rang N/total, le moins prioritaire ») : c'est celui à solliciter <strong>en premier</strong> pour décaler ses dates, puisqu'il est le dernier servi dans l'ordre de priorité. Les autres absents figurent en dessous, en plus petit. Il s'agit d'une <strong>suggestion d'ordre de sollicitation</strong>, pas d'une obligation — le comité arbitre selon les situations de chacun.</p>
@@ -286,7 +286,7 @@
   </div>
   <div class="callout warn">
     <div class="ct">Valider et verrouiller</div>
-    <p>Une fois les vacances arbitrées, le bouton <span class="btn-ex green">✅ Valider et verrouiller</span> <strong>fige toutes les saisies</strong> : elles deviennent le planning de vacances de l'année, un <strong>e-mail récapitulatif</strong> part à chaque MAR, et la page passe en <span class="tag">🔒 Verrouillé</span>. Ensuite, tout changement se fait à la main par le comité, et les vacances/formations apparaissent <strong>en lecture seule</strong> sur la page Indisponibilités des MAR.</p>
+    <p>Une fois les vacances arbitrées, le bouton <span class="btn-ex green">✅ Valider et verrouiller</span> <strong>fige toutes les saisies</strong> : elles deviennent le planning de vacances de l'année et la page passe en <span class="tag">🔒 Verrouillé</span>. Ensuite, tout changement se fait à la main par le comité, et les vacances/formations apparaissent <strong>en lecture seule</strong> sur la page Indisponibilités des MAR.</p>
   </div>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
@@ -300,7 +300,7 @@
     <li>Les lignes de secteurs correspondent aux blocs et à la réa ; les lignes « CS-… » aux consultations (voir le glossaire).</li>
     <li>On se déplace de semaine en semaine avec les flèches <span class="kbd">←</span> <span class="kbd">→</span> ; le bouton <span class="btn-ex">Aujourd'hui</span> ramène directement à la semaine en cours.</li>
     <li>Une case vide se remplit en cliquant dessus ; une case laissée volontairement vide affiche le symbole <span class="tag">∅</span>.</li>
-    <li>Un MAR posté dans <strong>deux secteurs bloc</strong> le même demi-jour (vrai double-booking) est entouré d'un <strong style="color:#B45309">liseré orangé</strong>, avec une bulle « aussi placé ailleurs » au survol de ses initiales. Un secteur <em>+ sa consultation</em>, en revanche, est normal et n'est pas signalé.</li>
+    <li>Un MAR posté dans <strong>deux secteurs bloc</strong> le même demi-jour (vrai double-booking) est entouré d'un <strong style="color:#B45309">liseré orangé</strong>. Un secteur <em>+ sa consultation</em>, en revanche, est normal et n'est pas signalé.</li>
   </ul>
   <h3>La barre de la semaine</h3>
   <p>À droite du nom de la semaine :</p>
@@ -392,9 +392,9 @@
   </div>
 
   <h3>6.6 · Enregistrement</h3>
-  <p>Chaque modification est enregistrée automatiquement en arrière-plan (message « Enregistré »). Mais elle n'est visible par l'équipe qu'après <strong>publication</strong> (chapitre 14).</p>
-  <p>Vous pouvez <strong>enchaîner les placements aussi vite que vous voulez</strong> : l'affichage suit immédiatement, et les enregistrements partent ensuite <strong>l'un après l'autre</strong>. Le message « Enregistré » de chaque case peut donc arriver avec quelques secondes de retard sur le clic — c'est normal, rien n'est perdu.</p>
-  <p>Il arrive que Google mette du temps à confirmer un enregistrement. Dans ce cas un message orange s'affiche : <em>« enregistrement non confirmé, à vérifier avant publication »</em>. <strong>Le placement reste à l'écran, et il a presque toujours bien été enregistré</strong> — le serveur enregistre avant de répondre. Inutile de recommencer : jetez simplement un œil à la journée concernée avant de publier.</p>
+  <p>Vos placements sont enregistrés <strong>par séries</strong>, quelques secondes après votre dernier clic (voir 6.1) : l'affichage, lui, suit immédiatement. Vous pouvez donc enchaîner les placements aussi vite que vous voulez.</p>
+  <p>Le seul repère à surveiller est l'encart en bas à gauche : <em>« N placement(s) en attente d'enregistrement »</em>. S'il devient <strong>rouge</strong>, l'envoi a échoué — cliquez dessus pour réessayer. Rien n'est perdu : même en fermant la page, la série repart d'elle-même à la prochaine ouverture.</p>
+  <p>Un placement enregistré n'est visible par l'équipe qu'après <strong>publication</strong> (chapitre 14) — et la publication commence toujours par vider la série en attente, donc elle ne peut jamais être en retard sur votre écran.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
@@ -531,7 +531,7 @@
     <li>Affiche, pour chaque MAR, le nombre de gardes de chaque type et l'écart à la cible.</li>
     <li>Deux lectures, via l'interrupteur en haut à droite : <strong>« Initiale »</strong> = la répartition figée au moment de la génération (la référence d'équité) ; <strong>« Instantané »</strong> = l'état réel du planning aujourd'hui, échanges et dons de gardes inclus.</li>
     <li>Le <strong>certificat d'équité</strong> (dans l'assistant de génération) résume si tout le monde est dans les clous. Les profils particuliers (temps partiel, arrangements fixes, pas de week-end…) sont jugés sur des critères adaptés — un écart apparent peut être normal. Un petit écart résiduel est d'ailleurs <strong>inévitable</strong> (les cibles sont fractionnaires, les gardes entières) et se compense l'année suivante.</li>
-    <li>L'<strong>audit de couverture</strong> signale les semaines où, à cause de trop d'absences simultanées, des gardes risquent de ne pas être pourvues. <strong style="color:var(--red)">Rouge</strong> = capacité insuffisante ; <strong style="color:var(--amber)">orange</strong> = tendu mais faisable.</li>
+    <li>L'<strong>audit de couverture</strong> signale les jours où, à cause de trop d'absences simultanées, des gardes risquent de ne pas être pourvues. <strong style="color:var(--red)">Rouge</strong> = capacité insuffisante ; <strong style="color:var(--amber)">orange</strong> = tendu mais faisable.</li>
     <li>L'onglet permet aussi de <strong>valider les vacances</strong>.</li>
   </ul>
   <a class="backtop" href="#top">↑ Sommaire</a>
@@ -746,7 +746,7 @@
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
-<div class="foot">Planning-CHPG · guide du comité — mis à jour au fil des évolutions de l'interface (dernier audit du code : 11 juillet 2026).</div>
+<div class="foot">Planning-CHPG · guide du comité — mis à jour au fil des évolutions de l'interface (dernier audit du code : 30 juillet 2026).</div>
 
 </div>
 </body>
