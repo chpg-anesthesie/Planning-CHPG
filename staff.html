@@ -284,14 +284,20 @@ async function loadData(){
   medecins.forEach(m=>{const gi=groupMap[m.id]||{groupe:'?',rang:99};m.groupe=gi.groupe;m.rang=gi.rang;});
 
   const iRes=await apiCall({action:'getAllIndispos',year:currentYear});
+  // Les cadenas sont RECONSTRUITS a chaque chargement a partir de ce qui est
+  // reellement en base : une VAC/FORM enregistree est verrouillee. Avant, ils
+  // n'existaient qu'en memoire de l'onglet et disparaissaient au rechargement,
+  // alors que le verrou, lui, est desormais applique par le serveur.
+  let dejaEnBase=0;
   medecins.forEach(m=>{
     saisies[m.id]={};locked[m.id]={};
     if(iRes.success&&iRes.data[m.id]){
       Object.entries(iRes.data[m.id]).forEach(([date,val])=>{
-        if(val==='VAC'||val==='FORM')saisies[m.id][date]=val;
+        if(val==='VAC'||val==='FORM'){saisies[m.id][date]=val;locked[m.id][date]=true;dejaEnBase++;}
       });
     }
   });
+  if(dejaEnBase)document.getElementById('lockPill').style.display='inline-flex';
 
   buildPeriodeTabs();
   setCurrentPeriode(0);
@@ -544,18 +550,26 @@ function updateStatsBar(){
 async function doValidate(){
   if(!confirm('Valider et verrouiller toutes les saisies ?\n\nLes MARs ne pourront plus modifier leurs VAC/FORM.'))return;
   const btn=document.getElementById('btnValidate');
-  btn.disabled=true;btn.textContent='⏳ Enregistrement…';
-  let saved=0,errors=0;
-  for(const m of medecins){
-    try{
-      const res=await apiCall({action:'saveIndispos',doctorId:m.id,indispos:saisies[m.id]||{}});
-      if(res.success){saved++;locked[m.id]={};Object.keys(saisies[m.id]||{}).forEach(date=>{locked[m.id][date]=true;});}
-      else errors++;
-    }catch(e){errors++;}
-  }
+  btn.disabled=true;btn.textContent='⏳ Enregistrement des '+medecins.length+' MARs…';
+  // UN SEUL appel : la boucle d'avant faisait un aller-retour PAR MAR, soit 23
+  // executions serialisees par Apps Script (~3 min, au point de passer pour un
+  // plantage). saveIndisposBatch lit l'onglet une fois et ecrit un bloc.
+  const envoi={};
+  medecins.forEach(m=>{envoi[m.id]=saisies[m.id]||{};});
   try{
-    showToast('✅ '+saved+' MARs sauvegardés'+(errors?' · ⚠️ '+errors+' erreur(s)':''));
-  }catch(e){}
+    const res=await apiCall({action:'saveIndisposBatch',indispos:envoi});
+    if(!res||!res.success)throw new Error((res&&res.error)||'échec');
+    medecins.forEach(m=>{
+      locked[m.id]={};
+      Object.keys(saisies[m.id]||{}).forEach(date=>{locked[m.id][date]=true;});
+    });
+    const manquants=(res.inconnus||[]).length;
+    showToast('✅ '+(res.saved||0)+' MARs enregistrés'+(manquants?' · ⚠️ '+manquants+' introuvable(s) : '+res.inconnus.join(', '):''));
+  }catch(e){
+    showToast('⚠️ Enregistrement échoué — rien n\'a été modifié. Réessayez.');
+    btn.disabled=false;btn.textContent='✅ Valider et verrouiller';
+    return;
+  }
   document.getElementById('lockPill').style.display='inline-flex';
   btn.disabled=false;btn.textContent='✅ Valider et verrouiller';
   renderCurrent();
