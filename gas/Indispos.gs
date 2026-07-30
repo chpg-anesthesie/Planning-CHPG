@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-29.5';
+const GAS_VERSION_INDISPOS = '2026-07-30.1';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -109,6 +109,41 @@ function getIndisposForDoctor(doctorId, year) {
     }
   }
   return {};
+}
+
+// ── FUSION DES DEUX PROPRIETAIRES DE INDISPOS_{Y} ────────────────────
+// L'onglet porte DEUX familles de codes, avec un proprietaire net :
+//    VAC / FORM             -> le comite (staff.html, staff vacances)
+//    INDISPO / SOUHAIT / TP -> le MAR    (indispos.html)
+// Avant le 30/07/2026, saveIndispos REECRIVAIT la ligne entiere avec ce
+// qu'envoyait la page. Deux pertes silencieuses en decoulaient :
+//  1) « Valider et verrouiller » du staff n'envoie QUE les VAC/FORM :
+//     revalider apres la campagne effacait toutes les saisies des MARs ;
+//  2) une page MAR ouverte AVANT la pose des vacances les effacait en
+//     enregistrant plus tard (elle renvoyait sa photo perimee).
+// Regle posee : chacun remplace INTEGRALEMENT ses propres cases — un
+// retrait reste donc possible des deux cotes — et ne touche JAMAIS
+// celles de l'autre. En cas de conflit sur une date, la case du comite
+// gagne : c'est le verrou des vacances, cote SERVEUR et non navigateur.
+const CODES_COMITE = new Set(['VAC', 'FORM']);
+function _fusionIndispos_(existant, envoye, estRoleComite) {
+  const out = {};
+  const auComite = v => CODES_COMITE.has(String(v || '').trim().toUpperCase());
+  // 1) conserver les cases de L'AUTRE proprietaire, telles qu'en base
+  Object.keys(existant || {}).forEach(function (d) {
+    const v = String(existant[d] || '').trim();
+    if (v && auComite(v) !== estRoleComite) out[d] = v;
+  });
+  // 2) poser MES cases telles qu'envoyees (une date absente = retrait)
+  Object.keys(envoye || {}).forEach(function (d) {
+    const v = String(envoye[d] || '').trim();
+    if (!v) return;
+    if (auComite(v) !== estRoleComite) return;  // code hors de mon perimetre : ignore
+    if (estRoleComite) { out[d] = v; return; }  // le comite ecrase (verrou vacances)
+    if (out[d]) return;                         // MAR : case VAC/FORM intouchable
+    out[d] = v;
+  });
+  return out;
 }
 
 // ── SAUVEGARDER INDISPOS D'UN MAR ────────────────────────────────────
@@ -1178,8 +1213,19 @@ function _routeRequete_(e) {
 
     if (action === 'saveIndispos') {
       const targetId = user.role === 'admin' ? payload.doctorId : user.id;
+      const anneeInd = getIndisposYear();
+      // Fusion par proprietaire de code — voir _fusionIndispos_.
+      // NE PAS remonter cette logique dans saveIndisposForDoctor : ce helper
+      // sert aussi a l'absence longue, qui doit continuer a poser une ligne
+      // complete. La regle de propriete n'a de sens qu'ici, ou l'on connait
+      // le role de l'appelant.
+      const fusion = _fusionIndispos_(
+        getIndisposForDoctor(targetId, anneeInd),
+        payload.indispos,
+        user.role === 'admin'
+      );
       return ContentService.createTextOutput(JSON.stringify({
-        success: saveIndisposForDoctor(targetId, payload.indispos, getIndisposYear())
+        success: saveIndisposForDoctor(targetId, fusion, anneeInd)
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
