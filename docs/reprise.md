@@ -25,15 +25,19 @@ voir §5.
 
 | Ressource | Où | Titulaire aujourd'hui |
 |---|---|---|
-| **Données** (classeur Google Sheets) | Google Drive | Compte Google d'Arthur |
-| **Code serveur** (Apps Script + Web App déployée) | script.google.com, attaché au classeur | Compte Google d'Arthur |
-| JSON publiés | Dossier Drive « Planning-CHPG-JSON » | Compte Google d'Arthur |
-| Archives annuelles | Classeur Google séparé | Compte Google d'Arthur |
+| **Données** (classeur Google Sheets) | Google Drive | Compte de service `planningchpg` |
+| **Code serveur** (Apps Script + Web App déployée) | script.google.com, attaché au classeur | Compte de service `planningchpg` |
+| JSON publiés | Dossier Drive « Planning-CHPG-JSON » | Compte de service `planningchpg` |
+| Archives annuelles | Classeur Google séparé | Compte de service `planningchpg` |
 | **Code source** (100 % du système) | github.com/chpg-anesthesie/Planning-CHPG | Organisation GitHub `chpg-anesthesie` |
 | Pages web | GitHub Pages, branche `main` | idem |
 | Code admin de l'interface | Onglet `CONFIG` du classeur, ligne `ADMIN_CODE` | — |
 
-**Le risque principal** : tout ce qui est Google dépend d'**un seul compte**.
+**Deux comptes Google distincts, à ne pas confondre** : `planningchpg` (compte de service,
+porteur du classeur, du code serveur et des JSON publiés) et le **compte personnel d'Arthur**,
+qui ne sert qu'à tirer la sauvegarde hebdomadaire (§3). Les deux sont administrés par Arthur.
+
+**Le risque principal** : tout ce qui fait tourner le système dépend du **seul compte `planningchpg`**.
 Si ce compte devient inaccessible, le système continue de tourner, mais plus
 personne ne peut le modifier ni le réparer.
 
