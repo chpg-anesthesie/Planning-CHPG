@@ -975,7 +975,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.14.10'; // SITE_VERSION: v1.14.10
+const SITE_VERSION = 'v1.14.11'; // SITE_VERSION: v1.14.11
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1068,7 +1068,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.10</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.11</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -5270,22 +5270,11 @@ let wizPeriodes = [];
 let wizGroupes = {A:[], B:[], C:[]};
 
 // Périodes zone B pré-remplies par année
-const PERIODES_DEFAUT = {
-  2027: [
-    {label:'Hiver',     nom:'Hiver',     debut:'2027-02-20', fin:'2027-03-07',  seuil:8},
-    {label:'Printemps', nom:'Printemps', debut:'2027-04-17', fin:'2027-05-03',  seuil:8},
-    {label:'Été',       nom:'Été',       debut:'2027-07-03', fin:'2027-08-31',  seuil:12},
-    {label:'Toussaint', nom:'Toussaint', debut:'2027-10-23', fin:'2027-11-08',  seuil:8},
-    {label:'Noël',      nom:'Noël',      debut:'2027-12-18', fin:'2028-01-05',  seuil:8},
-  ],
-  2028: [
-    {label:'Hiver',     debut:'2028-02-19', fin:'2028-03-06',  seuil:8},
-    {label:'Printemps', debut:'2028-04-15', fin:'2028-05-01',  seuil:8},
-    {label:'Été',       debut:'2028-07-01', fin:'2028-08-31',  seuil:12},
-    {label:'Toussaint', debut:'2028-10-21', fin:'2028-11-06',  seuil:8},
-    {label:'Noël',      debut:'2028-12-22', fin:'2029-01-06',  seuil:8},
-  ],
-};
+// (30/07/2026) PERIODES_DEFAUT supprime : les dates scolaires etaient figees a 2027
+// et 2028, et le repli renvoyait les dates 2027 pour toute annee inconnue. Les periodes
+// viennent desormais UNIQUEMENT du serveur (onglet PERIODES_VAC, ou proposerVacances()
+// qui interroge le vrai calendrier scolaire). Aucune date par defaut cote navigateur :
+// un tableau vide se voit, une date fausse ne se voit pas.
 
 async function openWizard() {
   const nextYear = YEAR + 1;
@@ -5295,7 +5284,7 @@ async function openWizard() {
   document.getElementById('wizardOverlay').classList.add('open');
   document.getElementById('wizBody').innerHTML = '<div style="text-align:center;padding:48px 0"><div style="font-size:40px;margin-bottom:14px">⏳</div><div style="font-size:15px;font-weight:600;color:#334155">Chargement de l\'assistant…</div><div style="font-size:13px;color:var(--ink-3);margin-top:6px">Lecture des périodes de vacances et des groupes</div></div>';
   window._wizStaffConfirmed = false;
-  wizPeriodes = PERIODES_DEFAUT[nextYear] || PERIODES_DEFAUT[2027].map(p => ({...p}));
+  wizPeriodes = [];
   wizMarsData = [...marsData];
 
   // Avertissement si trop tôt — bandeau inline, non bloquant
@@ -5307,6 +5296,24 @@ async function openWizard() {
     api({action:'getVacancesConfig', year: nextYear}).catch(() => ({ success:false })),
     api({action:'getStatus'}).catch(() => ({}))
   ]);
+
+  // Lecture ratee (reseau, timeout) : on ARRETE tout. Sinon le wizard continuait
+  // avec wizGroupes = {A:[],B:[],C:[]} et l'etape 3 VIDAIT l'onglet GROUPES_VAC en
+  // affichant « ✓ Groupes sauvegardes ». Ne rien faire vaut mieux que faire a moitie.
+  if (!vacData || !vacData.success) {
+    document.getElementById('wizBackBtn').style.visibility = 'hidden';
+    const nbKO = document.getElementById('wizNextBtn');
+    nbKO.textContent = '↻ Réessayer';
+    nbKO.style.background = '';
+    nbKO.disabled = false;
+    nbKO.onclick = openWizard;
+    document.getElementById('wizBody').innerHTML = wizardLockedHTML(
+      'Lecture du classeur impossible',
+      "Les périodes de vacances et les groupes A/B/C n'ont pas pu être lus. L'assistant s'arrête ici : rien n'a été modifié.",
+      "Vérifiez la connexion, puis Réessayer. Si l'erreur persiste, onglet Maintenance → 🔍 Diagnostic."
+    );
+    return;
+  }
 
   // Périodes + groupes
   try {
@@ -5342,6 +5349,7 @@ async function openWizard() {
     return;
   }
 
+  document.getElementById('wizNextBtn').onclick = wizNext;   // restaure apres un ecran d'erreur
   renderWizStep();
   document.getElementById('wizardOverlay').classList.add('open');
 }
@@ -5469,6 +5477,12 @@ function renderWizStep() {
     // ÉTAPE 2 — Périodes vacances
     html += `<div class="wizard-section-title">Périodes de vacances scolaires ${nextYear} — Zone B</div>`;
     html += `<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">Ces périodes définissent les fenêtres de congés MARs et bloquent le placement des récupérations (R).</div>`;
+    if (!wizPeriodes.length) {
+      html += `<div style="padding:14px;background:#FEF9C3;border:1px solid #FDE68A;border-radius:10px;font-size:13px;color:#92400E;line-height:1.6">
+        ⚠️ Aucune période trouvée pour ${nextYear}, et le calendrier scolaire n'a pas pu être récupéré.
+        Saisissez-les directement dans l'onglet <strong>PERIODES_VAC</strong> du classeur, puis rouvrez cet assistant.
+      </div>`;
+    }
     html += `<table class="wiz-periodes"><thead><tr><th>Période</th><th>Début</th><th>Fin</th><th>Seuil présence</th></tr></thead><tbody>`;
     wizPeriodes.forEach((p, i) => {
       html += `<tr>
@@ -5627,7 +5641,7 @@ async function launchWizInit() {
   document.getElementById('wizBackBtn').style.visibility = 'hidden';
 
   const steps = [
-    {id:'wiz-i1', label:'Périodes sauvegardées',  action: () => api({action:'savePeriodes', periodes: wizPeriodes})},
+    {id:'wiz-i1', label:'Périodes sauvegardées',  action: () => api({action:'savePeriodes', periodes: wizPeriodes, year: nextYear})},
     {id:'wiz-i2', label:'Groupes sauvegardés',    action: () => api({action:'saveGroupes', groupes: wizGroupes})},
     {id:'wiz-i3', label:'INDISPOS créé',           action: async () => {
       if (window._wizIndisposExists) return {success: true};
