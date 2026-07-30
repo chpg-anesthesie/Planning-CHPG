@@ -102,7 +102,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document équipe</div>
   <h1>L'algorithme des gardes,<br>expliqué de A à Z</h1>
   <p class="subtitle">Comment votre planning annuel de gardes est calculé : la juste part de chacun, les règles de protection, la rotation de Noël, et ce qui se passe quand l'année ne tombe pas juste.</p>
-  <div class="maj">Dernière mise à jour : 11 juillet 2026 — aligné sur l'algorithme en service.</div>
+  <div class="maj">Dernière mise à jour : 30 juillet 2026 — aligné sur l'algorithme en service.</div>
 </header>
 
 <nav class="toc">
@@ -121,7 +121,7 @@
     <li><a href="#a11"><span class="n">11</span>La touche finale : l'optimiseur</a></li>
     <li><a href="#a12"><span class="n">12</span>D'une année à l'autre : la dette d'équité</a></li>
     <li><a href="#a13"><span class="n">13</span>Vérifier par vous-même</a></li>
-    <li><a href="#a14"><span class="n">14</span>Éprouvé sur 140 années simulées</a></li>
+    <li><a href="#a14"><span class="n">14</span>Éprouvé sur 400 années simulées</a></li>
   </ol>
 </nav>
 
@@ -305,15 +305,15 @@
 
 <!-- ============ 14 ============ -->
 <section id="a14">
-  <h2><span class="n">14</span>Éprouvé sur 140 années simulées</h2>
-  <p>Avant de répartir une seule vraie garde, l'algorithme a été mis à l'épreuve sur <strong>140 années de planning simulées</strong> : <strong>sept scénarios d'absences différents, de vingt années consécutives chacun</strong> (2027 → 2046), enchaînées comme en vrai — chaque année héritant de la précédente. Chaque scénario reprend la réalité du service : notre équipe et sa pyramide des âges, l'arrêt des gardes à 60 ans, les départs à la retraite et l'arrivée des remplaçants, environ 80 jours d'absence par personne et par an, des congés longs, et des souhaits de jours fixes. Sept fois, avec des congés tirés différemment — parce qu'une année qui tombe bien ne prouve rien.</p>
+  <h2><span class="n">14</span>Éprouvé sur 400 années simulées</h2>
+  <p>Avant de répartir une seule vraie garde, l'algorithme a été mis à l'épreuve sur <strong>400 années de planning simulées</strong> : <strong>vingt scénarios d'absences différents, de vingt années consécutives chacun</strong> (2027 → 2046), enchaînées comme en vrai — chaque année héritant de la précédente. Chaque scénario reprend la réalité du service : notre équipe et sa pyramide des âges, l'arrêt des gardes à 60 ans, les départs à la retraite et l'arrivée des remplaçants, environ 80 jours d'absence par personne et par an, des congés longs, et des souhaits de jours fixes. Vingt fois, avec des congés tirés différemment — parce qu'une année qui tombe bien ne prouve rien.</p>
   <ul>
-    <li><strong>102 312 gardes placées</strong>, sans qu'aucune règle de protection ne soit jamais enfreinte : jamais deux gardes deux jours de suite, jamais de garde sur une absence déclarée, une récupération pour chaque samedi — sur les 140 années, sans exception.</li>
-    <li><strong>Aucune journée sans binôme</strong>, sur aucun des sept scénarios. C'est la garantie la plus importante du système : le service n'est jamais laissé sans garde, y compris sur la semaine de Noël, quand les trois quarts de l'équipe sont en congé. L'algorithme fait alors alterner deux binômes sur la période, exactement comme le comité le faisait à la main.</li>
-    <li><strong>L'équité tient dans la durée</strong> : l'écart le plus important d'une année, tous types de gardes confondus, est de <strong>1,7 garde en médiane</strong> et n'a jamais dépassé <strong>3,3</strong>. Sur près de trois années sur quatre, <strong>personne</strong> n'est à plus de 2 gardes de sa juste part sur aucun axe. Les écarts d'une année sont rattrapés la suivante par la dette d'équité.</li>
+    <li><strong>292 312 gardes placées</strong>, sans qu'aucune règle de protection ne soit jamais enfreinte : jamais deux gardes deux jours de suite, jamais de garde sur une absence déclarée, une récupération pour chaque samedi — sur les 400 années, sans exception.</li>
+    <li><strong>Aucune journée sans binôme</strong>, sur aucun des vingt scénarios. C'est la garantie la plus importante du système : le service n'est jamais laissé sans garde, y compris sur la semaine de Noël, quand les trois quarts de l'équipe sont en congé. L'algorithme fait alors alterner deux binômes sur la période, exactement comme le comité le faisait à la main.</li>
+    <li><strong>L'équité tient dans la durée</strong> : l'écart le plus important d'une année, tous types de gardes confondus, est de <strong>1,20 garde en médiane</strong> et n'a jamais dépassé <strong>3,5</strong> (en 2041, au creux démographique). Dans <strong>95 % des années</strong>, personne n'est à plus de 2 gardes de sa juste part sur aucun axe ; l'écart ne dépasse 3 que dans <strong>3 années sur 400</strong>, toutes situées dans ce creux. Les écarts d'une année sont rattrapés la suivante par la dette d'équité.</li>
     <li><strong>Le creux démographique est traversé</strong> : autour de 2038-2041, l'équipe simulée descend à quinze gardeurs. La charge de chacun monte — mais elle monte <em>pareil pour tous</em>, proportionnellement à sa quotité.</li>
     <li><strong>La rotation Noël / Jour de l'an fonctionne</strong> : sur vingt ans, personne n'est oublié et personne n'enchaîne deux années de suite.</li>
-    <li><strong>Une seule tolérance, deux fois en 140 ans</strong> : quand une journée resterait sinon sans binôme, l'algorithme s'autorise le rythme garde – repos – garde sur trois jours (jeudi puis samedi). Une garde rapprochée reste préférable à un service découvert. Les deux gardes d'affilée, elles, ne sont jamais tolérées : c'est illégal.</li>
+    <li><strong>Une seule tolérance, exceptionnelle</strong> : quand une journée resterait sinon sans binôme, l'algorithme s'autorise le rythme garde – repos – garde sur trois jours (jeudi puis samedi). Une garde rapprochée reste préférable à un service découvert. Les deux gardes d'affilée, elles, ne sont jamais tolérées : c'est illégal.</li>
     <li><strong>Il n'abandonne jamais une journée sans avoir tout essayé.</strong> Si le placement habituel échoue, il reprend la journée et retente en acceptant cette tolérance — exactement le raisonnement du comité, qui cassait la contrainte la moins gênante plutôt que de laisser un jour découvert. Et si vraiment personne n'est disponible, il le signale nommément, avec la date, <em>avant</em> publication : le comité n'est jamais mis devant le fait accompli.</li>
   </ul>
   <h3>Et pour de vrai : l'année 2027</h3>
@@ -335,7 +335,7 @@
 
   <div class="callout tip">
     <div class="ct">Pourquoi c'est important</div>
-    <p>Un planning équitable une année, c'est facile à promettre. Sept trajectoires de vingt ans, avec des départs, des arrivées, des congés longs et des souhaits tirés différemment à chaque fois — puis l'épreuve d'une année réelle dont on connaissait déjà la solution : c'est ce que ces vérifications établissent, chiffres à l'appui.</p>
+    <p>Un planning équitable une année, c'est facile à promettre. Vingt trajectoires de vingt ans, avec des départs, des arrivées, des congés longs et des souhaits tirés différemment à chaque fois — puis l'épreuve d'une année réelle dont on connaissait déjà la solution : c'est ce que ces vérifications établissent, chiffres à l'appui.</p>
   </div>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
