@@ -364,9 +364,21 @@ Ce qui suit n'est pas une conception, c'est l'inventaire de ce que le changement
    actifs de l'onglet. Confort, pas blocage — on peut toujours retirer puis reposer depuis la case.
 3. **Export Excel du vendredi** : déjà piloté par `SECTEURS` (`ORDRE / XL_LABEL / XL_BG / XL_ROWS`)
    et `CS_TEMPLATE` depuis juillet — un secteur créé apparaît dans le fichier sans toucher au code.
-   **Mais le modèle est PLAT** : rien n'exprime « sous-secteur de ». La hiérarchie est le vrai
-   chantier. ⚠️ ExcelJS : écrire dans une cellule *esclave* d'une fusion casse le fichier en
-   production — toute maquette à deux niveaux doit en tenir compte dès le départ.
+   **Mais le modèle est PLAT** : rien n'exprime « sous-secteur de ».
+   **Forme retenue le 30/07 — option A, un bandeau par grand secteur** : fusion des colonnes 1→21,
+   exactement le mécanisme déjà utilisé par la ligne 7 (« ANESTHESISTES AUX BLOCS »). Les
+   sous-secteurs gardent leur comportement actuel (libellé fusionné en colonne 1, `XL_ROWS` pour la
+   hauteur, 2 lignes = 4 initiales par demi-journée). Côté code : une colonne **`PARENT`** dans
+   l'onglet `SECTEURS` et une boucle imbriquée dans `BLOCS` — pas de réécriture de l'export.
+   **Maquette : `docs/maquette-export-excel-secteurs.xlsx`** (4 onglets : modèle actuel, option A,
+   variante « à répartir », notes ; secteurs et initiales fictifs). Vérifié au rendu PDF : chaque
+   onglet tient sur une page A4 paysage en largeur. Non vérifié : le rendu dans le vrai Excel.
+   ⛔ **Écartée : la colonne mère à gauche** (cellule fusionnée verticalement, texte pivoté). La
+   contrainte d'impression est la **largeur** (`fitToWidth:1, fitToHeight:0`, déjà ~30 cm pour
+   28,7 cm utiles) : une ligne de plus est gratuite, une colonne de plus se paie en réduction de
+   police sur tout le document, et obligerait à retoucher tout le calcul `colStart` et chaque fusion.
+   ⚠️ ExcelJS : écrire dans une cellule *esclave* d'une fusion casse le fichier en production.
+   **Point de départ, pas conception figée** — la maille d'affectation (point 4) reste à trancher.
 4. **Question de fond, à trancher avant de coder quoi que ce soit** : l'affectation mensuelle d'un MAR
    est aujourd'hui **un code de secteur unique** (`AFFECTATIONS_{Y}`, comparé tel quel par la
    couverture). Avec une hiérarchie, est-on affecté au **grand secteur** ou au **sous-secteur** ?
