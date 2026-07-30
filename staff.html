@@ -542,7 +542,7 @@ function updateStatsBar(){
 }
 
 async function doValidate(){
-  if(!confirm('Valider et verrouiller toutes les saisies ?\n\nLes MARs ne pourront plus modifier leurs VAC/FORM.\nUn email récap sera envoyé à chaque MAR.'))return;
+  if(!confirm('Valider et verrouiller toutes les saisies ?\n\nLes MARs ne pourront plus modifier leurs VAC/FORM.'))return;
   const btn=document.getElementById('btnValidate');
   btn.disabled=true;btn.textContent='⏳ Enregistrement…';
   let saved=0,errors=0;
