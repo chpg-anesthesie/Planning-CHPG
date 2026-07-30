@@ -267,7 +267,7 @@ La version du site vit dans **4 fichiers, 10 emplacements** : `admin.html` (3),
 ⚠️ `index.html`, `indispos.html`, `staff.html` et `absences.html` **n'en portent aucune**.
 Patch → 3ᵉ chiffre · Fonctionnalité → 2ᵉ · **v2.0 réservée à l'ouverture du module libéral au
 groupement** (la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.14.9** (30/07/2026).
+**Version en cours : v1.14.10** (30/07/2026).
 
 ---
 
@@ -422,6 +422,14 @@ de conversation dédié.
 - **Décompte de la tolérance jeudi/samedi non remesuré** sur les 400 années *(le guide n'affiche
   plus aucun chiffre faux, il dit « exceptionnelle » — c'est un confort, pas une correction)*.
   Coût mesuré le 30/07 : **1 min 14 s par scénario**, soit ~25 min pour les 20.
+- **Indispo saisie AVANT le staff, écrasée par une vacance** *(examiné le 30/07, **décision :
+  on laisse comme ça**)*. La case du comité gagne, la saisie du MAR est perdue sur ce jour et
+  devient non modifiable. **Impact nul sur les gardes** : `INDISPO` et `VAC` bloquent
+  identiquement (`blocked()`, l.420). Seul cas gênant : **retirer** ensuite la vacance laisse la
+  case vide, l'indispo d'origine ne revient pas. Deux pistes étudiées et **non retenues** :
+  verrou `STAFF_VALIDE` sur `indispos.html` (bloquerait la démo du 04/09, et retarder
+  `INDISPOS_ACTIVE` déplacerait toute la résolution d'année d'un an en silence) et marqueur de
+  conflit dans `staff.html`. Ne pas les reproposer sans élément nouveau.
 - *(À l'appréciation d'Arthur)* rotation du token GitHub.
 
 *Traitées le 29/07 : tables de configuration en dur (6 supprimées, repli remplacé par un bandeau
@@ -1399,6 +1407,23 @@ Script, au point qu'Arthur a cru à un plantage. Nouvelle action **`saveIndispos
 (admin, dans `WRITE_ACTIONS_LOCK`) : 1 aller-retour, 1 lecture d'onglet, **1 écriture de bloc**,
 même règle de fusion, MARs introuvables remontés au lieu d'être avalés. Échec = message franc
 « rien n'a été modifié », plus de demi-enregistrement silencieux.
+
+**Bandeau Noël / Jour de l'An** — le plancher passe de 4 à **8 en dur** (`Indispos.gs`
+v2026-07-30.3). Il faut **exactement 8 MAR distincts** : 4 dates (24/12, 25/12, 31/12, 01/01)
+× 2 gardes (G réa + G2 mat), et ces dates **ne peuvent jamais tomber dans la même unité de
+couplage** (les couplages se font à ±2 jours, elles sont espacées de 1 ou 7). La lecture de
+`CONFIG` (`NOEL_SEUIL_ANS` / `NOEL_PLANCHER` / `NOEL_PLAFOND`) a été **supprimée** : aucune des
+trois lignes n'existait dans le classeur, c'était une lecture d'onglet par affichage pour rien.
+Effet de bord heureux : `guide-fichier-maitre.html` affirme « six clés sont lues par le code » —
+c'était **faux** ce matin (les 3 `NOEL_*` l'étaient aussi, manqué à l'audit par sondage), c'est
+redevenu vrai. Le bandeau est désormais documenté dans `guide-comite.html` §4 (règle de priorité,
+exclusions, caractère indicatif).
+À égalité parfaite, le départage est **alphabétique sur l'id** — même clé (`overdueKey`) dans le
+bandeau et dans le générateur. Déterministe, mais auto-correcteur : faire Noël change l'historique.
+
+**Favicon** — `admin.html` et `absences.html` portaient `rel="icon" href="data:,"` (favicon vide
+déclarée exprès) : pas de drapeau monégasque dans l'onglet du navigateur, contrairement aux 5
+autres pages. Corrigé le 30/07, site v1.14.10.
 
 **Cadenas** — ils n'existaient qu'en mémoire de l'onglet et disparaissaient au rechargement.
 Reconstruits à chaque chargement depuis les VAC/FORM réellement en base. Bouton
