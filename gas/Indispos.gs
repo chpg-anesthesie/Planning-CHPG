@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-30.1';
+const GAS_VERSION_INDISPOS = '2026-07-30.2';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1109,7 +1109,7 @@ const WRITE_ACTIONS_LOCK = new Set([
   'generateGardes', 'initYear', 'poserAbsenceLongue', 'publishPlanning',
   'saveAffectations', 'saveAffectationsMar', 'saveConfig', 'saveGroupes',
   'resetCodeMar',
-  'saveIndispos', 'saveMedecin', 'savePeriodes', 'setActiveYear',
+  'saveIndispos', 'saveIndisposBatch', 'saveMedecin', 'savePeriodes', 'setActiveYear',
   'setDailyStatus', 'setIndisposYear',
   'declareLiberal', 'deleteLiberal',
 ]);
@@ -1226,6 +1226,50 @@ function _routeRequete_(e) {
       );
       return ContentService.createTextOutput(JSON.stringify({
         success: saveIndisposForDoctor(targetId, fusion, anneeInd)
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── STAFF VACANCES : ENREGISTREMENT DE TOUS LES MARs EN UN APPEL ──
+    // « Valider et verrouiller » appelait saveIndispos une fois PAR MAR :
+    // 23 allers-retours serialises par Apps Script, ~3 min en reel, au point
+    // de passer pour un plantage. Ici : 1 aller-retour, 1 lecture d'onglet,
+    // 1 ecriture de bloc. Meme regle de fusion que saveIndispos (le comite
+    // ne remplace que les VAC/FORM et ne touche pas aux saisies des MARs).
+    if (action === 'saveIndisposBatch') {
+      if (user.role !== 'admin') return _deny();
+      const anneeB = getIndisposYear();
+      const ssB = SpreadsheetApp.getActiveSpreadsheet();
+      const shB = ssB.getSheetByName(`INDISPOS_${anneeB}`);
+      if (!shB) return _error(`INDISPOS_${anneeB} introuvable`);
+      const dataB = shB.getDataRange().getValues();
+      const datesB = reconstruireDatesHeaders(dataB, anneeB);
+      const envoi = payload.indispos || {};
+      const inconnus = [];
+      let touches = 0;
+      // matrice complete relue depuis l'onglet : les lignes non visees
+      // sont reecrites a l'identique, jamais perdues.
+      const bloc = [];
+      for (let r = 3; r < dataB.length; r++) {
+        bloc.push(datesB.map((d, i) => d ? String(dataB[r][i + 1] || '').trim() : ''));
+      }
+      Object.keys(envoi).forEach(function (marId) {
+        const id = String(marId).trim();
+        let ligne = -1;
+        for (let r = 3; r < dataB.length; r++) {
+          if (String(dataB[r][0]).trim() === id) { ligne = r - 3; break; }
+        }
+        if (ligne < 0) { inconnus.push(id); return; }
+        const existant = {};
+        datesB.forEach(function (d, i) { if (d && bloc[ligne][i]) existant[d] = bloc[ligne][i]; });
+        const fusion = _fusionIndispos_(existant, envoi[marId], true);  // true = comite
+        bloc[ligne] = datesB.map(d => d ? (fusion[d] || '') : '');
+        touches++;
+      });
+      if (bloc.length) shB.getRange(4, 2, bloc.length, datesB.length).setValues(bloc);
+      logAction(`saveIndisposBatch : ${touches} MAR(s) enregistre(s)` +
+                (inconnus.length ? ` — introuvables : ${inconnus.join(', ')}` : ''));
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, saved: touches, inconnus: inconnus
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
