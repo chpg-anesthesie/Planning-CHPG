@@ -288,9 +288,24 @@ Reste à faire, par ordre de criticité :
    existe déjà ») → le Wizard 1 d'octobre serait bloqué. Et `AFFECTATIONS_2027` n'étant recréé que s'il
    est absent, les affectations fictives resteraient en place. `GARDES_2027` / `STATS_GARDES_2027` ont
    été supprimés le 30/07 ; si une génération est relancée pendant la démo, les resupprimer.
-2. **JSON du Drive** (dossier « Planning-CHPG-JSON ») : supprimer `planning_2027.json` et
-   `affectations_2027.json` si la publication a été montrée. Sinon `anneeSuivante` reste vrai dans le
-   bootstrap admin et un MAR peut ouvrir un planning 2027 fictif.
+2. **JSON du Drive** (dossier « Planning-CHPG-JSON ») : supprimer `planning_2027.json` **et**
+   `affectations_2027.json` si la publication a été montrée. **Butoir dur : avant le 1er octobre.**
+   Tracé dans le code le 30/07 :
+   - `index.html` l.1119 sonde les années `2026 → année+1` avec `getAffectationsJson` : c'est
+     **`affectations_2027.json` qui ouvre la porte**. Dès qu'il existe, **2027 apparaît dans le
+     sélecteur de tous les MARs** (l'affichage par défaut reste `activeYear`, mais le clic est
+     disponible et charge alors `planning_2027.json`).
+   - `dashboard.html` l.729 et 832 : `if (new Date().getMonth() >= 9)` — **dès le 1er octobre**, le
+     dashboard va chercher `_fetchPlanning(year+1)` **silencieusement**, sans action de
+     l'utilisateur, et fusionne le résultat dans « prochaine garde » et « Mes congés ». Les JSON de
+     démo laissés en place afficheraient donc des **gardes 2027 fictives à 23 MARs le 1er octobre**.
+   - `admin.html` : `anneeSuivante` n'ajoute que « 2027 — N+1 » au sélecteur du comité (l.2704) et
+     fait passer le bandeau de clôture de ⛔ à 📦 (l.2805) — bandeau invisible avant le premier
+     lundi de 2027. Sans effet en septembre.
+   - Session secrétariat : `getPlanningJson` n'est pas dans la liste blanche → aucun accès.
+   - ⚠️ Non prouvé en réel : supprimer les fichiers ne vide pas le cache `sessionStorage`
+     (`chpgPlan:2027`) d'un onglet déjà ouvert — le rafraîchissement silencieux échoue sans bruit
+     et la copie en cache survit jusqu'à la fermeture de l'onglet.
 3. **CONFIG : refermer la campagne** si `INDISPOS_ACTIVE = 2027` a été posé pour la démo (bouton du
    wizard = `clearIndisposYear`, ou suppression de la ligne). Tant qu'elle est là, la tuile
    « Mes indispos » est ouverte aux 23 MARs sur une année fictive.
