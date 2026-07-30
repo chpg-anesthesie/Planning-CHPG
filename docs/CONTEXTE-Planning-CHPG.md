@@ -13,7 +13,7 @@ chiffres concrets plutôt que des généralités.
 
 ## État au 30 juillet 2026
 
-**Site v1.14.9** · GAS : `code.gs` 2026-07-29.3 · `Indispos.gs` **2026-07-30.2** ·
+**Site v1.14.10** · GAS : `code.gs` 2026-07-29.3 · `Indispos.gs` **2026-07-30.3** ·
 `portail.gs` **2026-07-30.1** · `generateur_gardes.gs` · `setup_annee.gs`
 *(les deux versions du 30/07 sont recopiées et déployées, confirmé par Arthur)*
 
@@ -521,7 +521,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site (badge `vX.Y.Z`) — actuellement **v1.14.9**
+## Version du site (badge `vX.Y.Z`) — actuellement **v1.14.10**
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
@@ -759,7 +759,12 @@ direct (396 ms contre ~350 ms par recherche de nom) ; fusionner `login` et `getA
 - ✅ **29/07/2026 (après-midi) — `Indispos.gs` `2026-07-29.5` recopié et déployé, alignement confirmé par le 🔍 Diagnostic.** Correctif du tri des volants (helper `_rangRole_`). **Plus rien en attente de recopie.** Site **v1.14.5** (frontend, rien à recopier).
 - ✅ **30/07/2026 — `Indispos.gs` `2026-07-30.2` et `portail.gs` `2026-07-30.1` recopiés et déployés.**
   Fusion des indispos par propriétaire de code, action `saveIndisposBatch`, commentaire de la
-  déclaration libérale réaligné (9 colonnes, une ligne = un patient). Site **v1.14.9**.
+  déclaration libérale réaligné (9 colonnes, une ligne = un patient).
+- ✅ **30/07/2026 — `Indispos.gs` `2026-07-30.3` recopié et déployé, fonctionnement confirmé.**
+  Bandeau Noël : plancher **8 en dur** (4 dates × 2 gardes, jamais regroupables) et **lecture de
+  `CONFIG` supprimée** — les clés `NOEL_*` n'existaient pas. ⚠️ Conséquence : `CONFIG` ne porte
+  plus que **six clés lues** (`ANNEE_ACTIVE`, `INDISPOS_ACTIVE`, `ADMIN_CODE`,
+  `SECRETARIAT_CODE`, `GITHUB_TOKEN`, `ANTHROPIC_TOKEN`). Site **v1.14.10**.
   **Plus rien en attente de recopie.**
 
 ## ⛔ L'année d'une date n'est PAS ses 4 premiers chiffres
