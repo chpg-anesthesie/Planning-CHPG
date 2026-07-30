@@ -975,7 +975,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.14.12'; // SITE_VERSION: v1.14.12
+const SITE_VERSION = 'v1.14.13'; // SITE_VERSION: v1.14.13
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1068,7 +1068,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.12</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.13</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -6428,8 +6428,13 @@ async function renderWizCStep() {
     let html = '<div class="wizard-section-title">Archiver l\'ann\xe9e ' + YEAR + '</div>';
     html += '<div style="background:var(--bg);border-radius:12px;padding:16px;margin:12px 0">';
     html += '<div style="font-size:13px;margin-bottom:8px">L\'archivage va :</div>';
-    html += '<ul style="font-size:12px;color:var(--ink-3);padding-left:18px;line-height:2"><li>Enregistrer d\xe9finitivement le bilan de l\'ann\xe9e ' + YEAR + ' (gardes effectu\xe9es et \xe9quit\xe9) dans l\'historique</li><li>Conserver les indisponibilit\xe9s de l\'ann\xe9e pour m\xe9moire</li><li>Basculer l\'outil sur l\'ann\xe9e ' + (YEAR+1) + '</li></ul></div>';
-    html += '<div style="font-size:12px;color:var(--ink-3);margin-top:12px">Op\xe9ration <strong>sans risque</strong> : rien n\'est supprim\xe9, l\'ann\xe9e reste consultable.</div>';
+    html += '<ul style="font-size:12px;color:var(--ink-3);padding-left:18px;line-height:2">'
+      + '<li>Enregistrer d\xe9finitivement le bilan de l\'ann\xe9e ' + YEAR + ' (gardes effectu\xe9es et \xe9quit\xe9) dans l\'historique</li>'
+      + '<li><strong>D\xe9placer</strong> les 4 onglets de ' + YEAR + ' (gardes, indisponibilit\xe9s, affectations, statistiques) du classeur principal vers le <strong>classeur d\'archive</strong></li>'
+      + '<li>Effacer les retouches quotidiennes de planning de ' + YEAR + ' et des ann\xe9es ant\xe9rieures, devenues inutiles</li>'
+      + '<li>Basculer l\'outil sur l\'ann\xe9e ' + (YEAR+1) + '</li>'
+      + '<li><strong>Fermer la campagne</strong> de saisie des indisponibilit\xe9s</li></ul></div>';
+    html += '<div style="font-size:12px;color:var(--ink-3);margin-top:12px">Aucune donn\xe9e n\'est perdue : l\'ann\xe9e ' + YEAR + ' reste consultable dans le classeur d\'archive. Mais elle <strong>quitte le classeur principal</strong> \u2014 ce n\'est pas une simple copie.</div>';
     body.innerHTML = html;
   }
 }
@@ -6467,6 +6472,17 @@ async function launchWizardCloture() {
       _cDone.add(step.id);
       el.classList.remove('running'); el.classList.add('done');
       el.textContent = '✓ ' + step.label;
+      // Le rapport d'archivage peut contenir des ⚠️ non bloquants (onglet absent,
+      // purge sans effet) : ils etaient invisibles derriere le ✓ vert. On les montre.
+      if (step.id === 'wizc-p1' && res.message) {
+        const warns = String(res.message).split('\n').filter(l => l.trim().startsWith('⚠️'));
+        if (warns.length) {
+          const w = document.createElement('div');
+          w.style.cssText = 'margin:6px 0 10px 26px;font-size:11.5px;color:#92400E;line-height:1.6';
+          w.textContent = warns.join(' · ');
+          el.insertAdjacentElement('afterend', w);
+        }
+      }
     } catch(e) {
       el.classList.remove('running'); el.classList.add('error');
       el.textContent = '✕ Erreur : ' + e.message;
