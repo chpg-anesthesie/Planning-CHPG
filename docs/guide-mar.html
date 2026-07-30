@@ -102,7 +102,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document équipe</div>
   <h1>Vos outils au quotidien<br>Guide du médecin anesthésiste-réanimateur</h1>
   <p class="subtitle">Portail · Planning · Indisponibilités · Vacances — le mode d'emploi de vos quatre pages, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.14.5</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.14.5 -->
+  <div class="maj">Version <strong>v1.14.6</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.14.6 -->
 </header>
 
 <div class="callout tip" style="margin:26px 0 6px">
@@ -192,9 +192,9 @@
     <tr><td>Staffs à venir</td><td>Le programme des réunions et les intervenants.</td></tr>
     <tr><td>Veille biblio</td><td>Les nouveaux articles importants en anesthésie-réanimation, mis à jour chaque semaine (voir section 10).</td></tr>
     <tr><td>Annuaire</td><td>Les numéros de l'hôpital et les DECT, avec recherche.</td></tr>
+    <tr><td>CR d'anesthésie</td><td>Le générateur de comptes rendus d'anesthésie (voir section 10).</td></tr>
     
     <tr><td>Mes consultations <span class="btn-ex">en test</span></td><td><strong>Écran libéral uniquement</strong>&nbsp;: il ne concerne pas les patients du secteur public. Vos consultations à venir sur 4 semaines et, pour chacune, vos absences sur les 4 semaines qui suivent. Sert à répondre à une seule question&nbsp;: <strong>un patient libéral que je vois aujourd'hui en consultation, et qui sera opéré dans trois semaines, tombera-t-il un jour où je ne suis pas là&nbsp;?</strong> Si oui, l'écran indique les dates d'intervention à éviter — et quels confrères peuvent prendre le patient. Seuls les <strong>membres du groupement</strong> sont proposés&nbsp;: un MAR qui n'en fait pas partie ne peut pas prendre en charge un patient libéral. <em>Tuile en cours d'essai&nbsp;: elle n'est pas encore ouverte à toute l'équipe.</em></td></tr>
-    <tr><td>CRH</td><td>Comptes rendus de réanimation.</td></tr>
   </table>
   <div class="callout tip">
     <div class="ct">Navigation</div>
@@ -271,16 +271,17 @@
   <h3>Comment faire</h3>
   <ol class="steps">
     <li>Depuis le portail, ouvrez la tuile <strong>« Mes indisponibilités »</strong> (ou la page directement) et saisissez votre <strong>code d'accès personnel</strong>.</li>
-    <li>Choisissez un <strong>outil</strong> dans la barre : <span class="btn-ex red">🚫 Indisponible</span>, <span class="btn-ex green">⭐ Garde souhaitée</span> ou <span class="btn-ex">🕐 Temps partiel</span>.</li>
-    <li><strong>Touchez les jours</strong> du calendrier pour appliquer l'outil actif. Retouchez un jour pour le désélectionner.</li>
-    <li>Terminez par <span class="btn-ex green">💾 Sauvegarder mes indisponibilités</span>. Le message « ✅ Indisponibilités sauvegardées » confirme l'enregistrement.</li>
+    <li>Choisissez un <strong>outil</strong> dans la barre : <span class="btn-ex red">🚫 Indisponible</span>, <span class="btn-ex green">⭐ Garde souhaitée</span> ou <span class="btn-ex">✕ Effacer</span>. Un quatrième outil, <span class="btn-ex">🕐 Temps partiel</span>, n'apparaît que si vous êtes à temps partiel.</li>
+    <li><strong>Touchez les jours</strong> du calendrier pour appliquer l'outil actif. Pour retirer un marquage, prenez l'outil <span class="btn-ex">✕ Effacer</span> puis touchez le jour : retoucher un jour avec le même outil ne l'efface pas.</li>
+    <li>Terminez par <span class="btn-ex green">💾 Sauvegarder</span>. Le message « ✅ Indisponibilités sauvegardées » confirme l'enregistrement.</li>
   </ol>
-  <h3>Les trois marquages</h3>
+  <h3>Les marquages</h3>
   <table>
     <tr><th>Marquage</th><th>Effet sur la répartition</th></tr>
     <tr><td>🚫 Indisponible</td><td>Aucune garde ne vous sera attribuée ce jour-là. À utiliser pour vos contraintes fermes (engagement familial, autre activité…).</td></tr>
     <tr><td>⭐ Garde souhaitée</td><td>À l'inverse : vous <em>préférez</em> être de garde ce jour-là. L'ordinateur essaie d'en tenir compte, sans garantie absolue.</td></tr>
-    <tr><td>🕐 Temps partiel</td><td>Vos jours non travaillés récurrents si vous êtes à temps partiel.</td></tr>
+    <tr><td>🕐 Temps partiel</td><td>Vos jours non travaillés récurrents si vous êtes à temps partiel. <em>Cet outil n'apparaît que pour les MARs à temps partiel.</em></td></tr>
+    <tr><td>✕ Effacer</td><td>Retire le marquage d'un jour. C'est le <strong>seul</strong> moyen d'annuler une saisie.</td></tr>
   </table>
   <div class="callout warn">
     <div class="ct">Quotas</div>
@@ -310,7 +311,7 @@
   <p>Un <strong>quota de jours</strong> par personne s'applique aussi (affiché en haut) — il dépend de votre quotité de travail.</p>
   <div class="callout tip">
     <div class="ct">Comment ça se termine</div>
-    <p>Au staff, l'équipe arbitre les conflits éventuels (la priorité de groupe sert de règle de départage), puis le comité clique <span class="btn-ex green">✅ Valider et verrouiller</span> : les saisies sont figées et deviennent le planning de vacances. Un <strong>e-mail récapitulatif</strong> de vos congés vous est alors envoyé, et ils apparaissent en <strong>lecture seule</strong> sur votre page Indisponibilités. Après verrouillage, tout changement passe par le comité.</p>
+    <p>Au staff, l'équipe arbitre les conflits éventuels (la priorité de groupe sert de règle de départage), puis le comité clique <span class="btn-ex green">✅ Valider et verrouiller</span> : les saisies sont figées et deviennent le planning de vacances. Vos congés apparaissent alors en <strong>lecture seule</strong> sur votre page Indisponibilités. Après verrouillage, tout changement passe par le comité.</p>
   </div>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
@@ -352,7 +353,7 @@
   <h3>Le certificat d'équité</h3>
   <p>En tête de la vue <strong>📊 Équité</strong>, un <strong>certificat</strong> résume la situation d'un coup d'œil : un verdict (« Planning équitable — certifié » ou « À examiner »), le pourcentage de MARs à moins de deux gardes de leur cible, l'écart le plus élevé du service, et un petit graphique montrant que la grande majorité des MARs se situe tout près de sa juste part. C'est la preuve, chiffrée et consultable par chacun, que les écarts restent faibles.</p>
   <div class="callout tip">
-    <div class="ct">Pourquoi Prunet n'apparaît pas dans le certificat</div>
+    <div class="ct">Pourquoi un MAR peut ne pas apparaître dans le certificat</div>
     <p>Un MAR au régime de <strong>souhaits garantis</strong> (ses mardis, par exemple) a pour cible ses jours choisis, et non une part d'équité classique : il est donc <strong>écarté du calcul</strong> du certificat pour ne pas fausser les chiffres. Ses gardes restent bien sûr visibles dans les compteurs en dessous.</p>
   </div>
   <p>Pour aller plus loin — la juste part, les protections, la rotation de Noël, la dette d'équité — le détail complet est dans un document dédié : <a href="./guide-algo-gardes.html" target="_blank" rel="noopener"><strong>L'algorithme des gardes, expliqué de A à Z</strong></a>.</p>
@@ -380,13 +381,12 @@
     <li><strong>Depuis le portail</strong> : la tuile « CR d'anesthésie ».</li>
     <li><strong>Depuis un poste du bloc</strong> (accès internet restreint) : l'outil s'ouvre <strong>directement</strong>, sans passer par le portail, à l'adresse <code>chpg-anesthesie.github.io/Planning-CHPG/cr-anesthesie/</code> — à mettre en favori.</li>
   </ul>
-  <h3>Protocoles, topos, staffs, annuaire, CRH</h3>
+  <h3>Protocoles, topos, staffs, annuaire</h3>
   <ul>
     <li><strong>Protocoles</strong> : les procédures du service classées par spécialité, avec recherche plein texte.</li>
     <li><strong>Topos / biblio</strong> : les présentations et documents partagés du service.</li>
     <li><strong>Staffs à venir</strong> : le programme des réunions, avec dates et intervenants.</li>
     <li><strong>Annuaire</strong> : les numéros utiles de l'hôpital et les DECT, cherchables.</li>
-    <li><strong>CRH</strong> : les comptes rendus de réanimation.</li>
   </ul>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
@@ -448,7 +448,7 @@
 
   <div class="faq">
     <div class="q">Mon code d'accès ne fonctionne pas.</div>
-    <div class="a">Vérifiez les majuscules (le code est en capitales) et les espaces avant/après. Sinon, demandez un renvoi de code au comité — vous recevrez un e-mail (vérifiez aussi les indésirables).</div>
+    <div class="a">Ni les majuscules ni les espaces avant/après ne posent problème : le système les corrige tout seul. Vérifiez plutôt qu'aucun caractère ne manque, puis demandez un renvoi de code au comité — vous recevrez un e-mail (vérifiez aussi les indésirables).</div>
   </div>
 
   <div class="faq">
