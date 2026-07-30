@@ -13,8 +13,8 @@ chiffres concrets plutôt que des généralités.
 
 ## État au 30 juillet 2026
 
-**Site v1.14.10** · GAS : `code.gs` 2026-07-29.3 · `Indispos.gs` **2026-07-30.3** ·
-`portail.gs` **2026-07-30.1** · `generateur_gardes.gs` · `setup_annee.gs`
+**Site v1.14.14** · GAS : `code.gs` 2026-07-29.3 · `Indispos.gs` **2026-07-30.5** ·
+`portail.gs` **2026-07-30.1** · `generateur_gardes.gs` 2026-07-29.1 · `setup_annee.gs` **2026-07-30.1**
 *(les deux versions du 30/07 sont recopiées et déployées, confirmé par Arthur)*
 
 **En production :** algorithme de gardes (équité annuelle), planning quotidien (`admin.html`),
@@ -22,6 +22,15 @@ portail/Dashboard, module libéral (lots 0, 1, 2A, 2B, 3), contrôle d'absence (
 lot 5-bis), veille bibliographique, CR d'anesthésie, export Excel hebdomadaire.
 
 **Prochaine échéance : présentation au staff le 4 septembre 2026**, démo en production.
+
+**⚠️ Rotation des groupes de vacances — règle actée le 30/07/2026.**
+« **Le dernier devient le premier** », entre groupes **et** à l'intérieur d'un groupe :
+`ABC → CAB → BCA` · `A1 A2 A3 → A3 A1 A2`. En code : `(3 − offset % 3) % 3`, **jamais**
+`offset % 3`. Cette règle est écrite à **quatre endroits** (`staff.html`, `admin.html`, et
+**deux fois** dans `Indispos.gs`, plus l'outil `testNotifierConflits`). Le serveur tournait à
+l'envers jusqu'au 30/07 : les deux ordres ne coïncidaient qu'**une année sur trois**, et une
+année sur trois le MAR désigné en conflit de vacances n'était pas celui affiché au staff.
+Elle sert au blocage des conflits **et** à l'audit de couverture du W2 (qui décale ses congés).
 
 **Journée du 30/07 — audit documentaire des 7 guides et des 4 `.md` (30 anomalies corrigées),
 et surtout deux correctifs de fond sur la saisie :**
@@ -521,7 +530,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site (badge `vX.Y.Z`) — actuellement **v1.14.10**
+## Version du site (badge `vX.Y.Z`) — actuellement **v1.14.14**
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
@@ -764,7 +773,9 @@ direct (396 ms contre ~350 ms par recherche de nom) ; fusionner `login` et `getA
   Bandeau Noël : plancher **8 en dur** (4 dates × 2 gardes, jamais regroupables) et **lecture de
   `CONFIG` supprimée** — les clés `NOEL_*` n'existaient pas. ⚠️ Conséquence : `CONFIG` ne porte
   plus que **six clés lues** (`ANNEE_ACTIVE`, `INDISPOS_ACTIVE`, `ADMIN_CODE`,
-  `SECRETARIAT_CODE`, `GITHUB_TOKEN`, `ANTHROPIC_TOKEN`). Site **v1.14.10**.
+  `SECRETARIAT_CODE`, `GITHUB_TOKEN`, `ANTHROPIC_TOKEN`).
+- ✅ **30/07/2026 (soir) — audit des 3 wizards.** `Indispos.gs` `2026-07-30.5` et
+  `setup_annee.gs` `2026-07-30.1` recopiés et déployés. Site **v1.14.14**.
   **Plus rien en attente de recopie.**
 
 ## ⛔ L'année d'une date n'est PAS ses 4 premiers chiffres
