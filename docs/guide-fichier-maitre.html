@@ -105,7 +105,7 @@
 <div class="eyebrow">Planning-CHPG</div>
 <h1>Guide du fichier maître</h1>
 <p class="subtitle">Le classeur Google Sheets, onglet par onglet : à quoi il sert, qui l'écrit, ce qu'on peut y toucher, et ce qui casse si on se trompe.</p>
-<p class="maj">Mis à jour : 30 juillet 2026 — inventaire complet, 25 onglets.</p>
+<p class="maj">Mis à jour : 30 juillet 2026 — inventaire complet : 23 onglets présents, plus 2 décrits pour mémoire (<span class="tag">NOEL_AN_HISTORIQUE</span> et <span class="tag">OVERRIDES</span>, absents du classeur).</p>
 
 <div class="callout rule">
   <div class="ct">Ce que ce guide est, et ce qu'il n'est pas</div>
@@ -143,14 +143,14 @@
     <li><span class="n">19</span><a href="#transition">CONFIG_TRANSITION</a></li>
     <li><span class="n">IV</span><a href="#p4"><strong>Les mémoires longues</strong></a></li>
     <li><span class="n">20</span><a href="#historique">HISTORIQUE</a></li>
-    <li><span class="n">21</span><a href="#noel">NOEL_AN_HISTORIQUE</a></li>
+    <li><span class="n">21</span><a href="#noel">NOEL_AN_HISTORIQUE <em>(absent)</em></a></li>
     <li><span class="n">V</span><a href="#p5"><strong>Les contenus du portail</strong></a></li>
     <li><span class="n">22</span><a href="#annuaire">ANNUAIRE</a></li>
     <li><span class="n">23</span><a href="#staffs">STAFFS</a></li>
     <li><span class="n">24</span><a href="#veille">VEILLE</a></li>
     <li><span class="n">VI</span><a href="#p6"><strong>Journaux, vestiges, et ce qui n'est pas dans le classeur</strong></a></li>
     <li><span class="n">25</span><a href="#journaux">CONNEXIONS et LOGS</a></li>
-    <li><span class="n">26</span><a href="#vestiges">OVERRIDES — vestige</a></li>
+    <li><span class="n">26</span><a href="#vestiges">OVERRIDES <em>(absent)</em></a></li>
     <li><span class="n">27</span><a href="#dehors">Ce qui vit ailleurs (Drive, archives)</a></li>
   </ol>
 </div>
@@ -358,8 +358,37 @@ de décaler ses vacances quand un jour manque de monde.</p>
 <span class="tag">CTP</span>.</p>
 
 <p>Une ligne par quotité (100, 90, 80, 60, 50), donnant le nombre de jours de vacances, de formation
-et de compensation de temps partiel auxquels ouvre droit cette quotité. Le compteur de congés
-affiché aux MARs s'appuie dessus.</p>
+et de compensation de temps partiel auxquels ouvre droit cette quotité.</p>
+
+<div class="callout tip">
+  <div class="ct">Effet immédiat, sans push ni redéploiement</div>
+  <p>Modifier un chiffre ici se voit <strong>au prochain chargement d'<span class="tag">indispos.html</span></strong> :
+  la page demande la configuration au serveur à chaque ouverture, et le serveur relit l'onglet à
+  chaque requête. Aucun cache navigateur ne s'interpose. C'est le seul quota du système réglable
+  sans toucher au code.</p>
+</div>
+
+<p>Ce que le MAR voit : le compteur <span class="tag">🏖️ n/33 jours ouvrés</span> en bas de sa grille, et
+un refus (avec message) quand il tente de poser un jour au-delà. Même mécanique pour le compteur
+de temps partiel.</p>
+
+<p><strong>Trois comportements à connaître avant de modifier :</strong></p>
+<ul>
+  <li><strong>La quotité qui compte est celle de <span class="tag">MEDECINS</span> (colonne E).</strong> Si elle ne
+  correspond à aucune ligne d'ici, le système prend <strong>la ligne la plus proche</strong>, sans rien
+  signaler — une quotité mal saisie donne donc un quota plausible mais faux.</li>
+  <li><strong>À 100 %, le quota CTP est forcé à zéro</strong>, quelle que soit la valeur de la colonne.</li>
+  <li><strong>Si l'onglet est absent ou vide</strong>, le code calcule un quota approché par une formule
+  interne. Aucune erreur n'apparaît : les chiffres seraient simplement inventés.</li>
+</ul>
+
+<div class="callout warn">
+  <div class="ct">Le seuil de 33 jours est écrit en dur dans la page</div>
+  <p>Le compteur de temps partiel ne s'affiche que si le quota de vacances du MAR est
+  <strong>inférieur à 33</strong>. Ce nombre 33 vit dans <span class="tag">indispos.html</span>, pas dans l'onglet.
+  Conséquence : si la DRH abaissait le quota d'un temps plein en dessous de 33, <strong>tout le monde
+  verrait apparaître le compteur TP</strong>. À vérifier si les chiffres changent.</p>
+</div>
 
 <div class="callout warn">
   <div class="ct">Chiffres à confirmer</div>
@@ -626,12 +655,24 @@ amorcé rétroactivement à partir des STATS des années passées.</p>
 
 <section id="noel">
 <h2><span class="n">21</span>NOEL_AN_HISTORIQUE</h2>
-<p>Deux colonnes utiles : <span class="tag">ID</span> et <span class="tag">ANNEE</span>. C'est la mémoire
-des gardes de Noël et du Jour de l'an <strong>pour les années antérieures au système</strong> (2023-2025),
-où aucune STATS n'existe.</p>
+<p><strong>Cet onglet n'existe pas dans le classeur</strong> (vérifié le 30/07/2026), et son absence est
+sans conséquence. Il est décrit ici parce que le code le mentionne, et pour éviter qu'on le
+cherche.</p>
 
-<p>Son rôle est la rotation : personne ne doit reprendre Noël tant que tout le monde n'y est pas
-passé. Une ligne ici vaut « cette personne a déjà fait Noël ou le Jour de l'an cette année-là ».</p>
+<p>Ce qu'il aurait contenu : deux colonnes, <span class="tag">ID</span> et <span class="tag">ANNEE</span>, pour
+mémoriser qui avait fait Noël ou le Jour de l'an <strong>avant le système</strong> (2023-2025). Un seul
+endroit le lit — la fonction manuelle d'amorçage de <span class="tag">HISTORIQUE</span>, qui s'en passe
+s'il est absent.</p>
+
+<div class="callout warn">
+  <div class="ct">Un commentaire de code périmé, à ne pas croire</div>
+  <p>Le générateur porte encore la mention « Historique = onglet NOEL_AN_HISTORIQUE ». <strong>C'est
+  faux</strong> : cinq lignes plus bas, la rotation de Noël lit en réalité <span class="tag">HISTORIQUE</span>
+  (années archivées) <strong>et</strong> les onglets <span class="tag">GARDES_{Y}</span> encore présents. C'est
+  <span class="tag">HISTORIQUE</span> qui porte cette mémoire, via sa colonne <span class="tag">NOEL/AN</span>.</p>
+</div>
+
+<p>La règle métier, elle, reste : personne ne reprend Noël tant que tout le monde n'y est pas passé.</p>
 </section>
 
 <section id="p5">
