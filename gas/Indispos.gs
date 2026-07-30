@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-30.2';
+const GAS_VERSION_INDISPOS = '2026-07-30.3';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -4147,19 +4147,19 @@ function renderRecapMailBlocks_(synth, blocks) {
 // Réutilise la rotation overdueKey du générateur : jamais-fait d'abord,
 // puis l'année la plus ancienne. Exclut no_garde et PRUNET (souhait_plafond),
 // et les MAR hors année planning (date_debut/date_fin).
-// Seuils ajustables via CONFIG : NOEL_SEUIL_ANS (3), NOEL_PLANCHER (4), NOEL_PLAFOND (8).
+// PLANCHER = PLAFOND = 8 : il faut EXACTEMENT 8 MAR distincts. Les 4 dates
+// (24/12, 25/12, 31/12, 01/01) portent chacune 2 gardes (G rea + G2 mat), et
+// elles ne peuvent jamais tomber dans la meme unite de couplage (les couplages
+// se font a +/-2 jours, ces dates sont espacees de 1 ou 7). Le bandeau doit
+// donc toujours proposer 8 noms, meme si moins de MAR sont "en retard".
+// Seuils EN DUR (30/07/2026). La lecture de CONFIG (NOEL_SEUIL_ANS / NOEL_PLANCHER /
+// NOEL_PLAFOND) a ete SUPPRIMEE : aucune des trois lignes n'existait dans le classeur,
+// donc c'etait une lecture d'onglet a chaque affichage du bandeau pour rien.
+// SEUIL = 3 ans : "en retard" = jamais fait, ou pas fait depuis 3 ans.
 function computeNoelAnEligibles(year) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  let SEUIL = 3, PLANCHER = 4, PLAFOND = 8;
-  const cfg = ss.getSheetByName('CONFIG');
-  if (cfg) {
-    const cd = cfg.getDataRange().getValues();
-    const getN = k => { for (let r=1;r<cd.length;r++){ if(String(cd[r][0]).trim()===k){ const v=parseInt(String(cd[r][1]).trim()); if(!isNaN(v)) return v; } } return null; };
-    const a=getN('NOEL_SEUIL_ANS'); if(a!=null) SEUIL=a;
-    const b=getN('NOEL_PLANCHER');  if(b!=null) PLANCHER=b;
-    const c=getN('NOEL_PLAFOND');   if(c!=null) PLAFOND=c;
-  }
+  const SEUIL = 3, PLANCHER = 8, PLAFOND = 8;
 
   const FLAGS = getMedecinFlags();
   const planStart = toDateStr(getPremierJourPlanning(year));
