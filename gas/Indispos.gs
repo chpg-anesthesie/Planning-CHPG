@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-30.4';
+const GAS_VERSION_INDISPOS = '2026-07-30.5';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -551,7 +551,7 @@ function getVacConfig(doctorId, year) {
   const offset = year - 2026;
   function getOrderedGroup(grp) {
     const sorted = [...groups[grp]].sort((a,b) => ordre2026[grp][a] - ordre2026[grp][b]);
-    const shift = offset % sorted.length;
+    const shift = sorted.length ? (sorted.length - (offset % sorted.length)) % sorted.length : 0;  // rotation droite, cf. grpShift
     return [...sorted.slice(shift), ...sorted.slice(0, shift)];
   }
   const orderedA = getOrderedGroup('A');
@@ -627,7 +627,13 @@ function getVacConfig(doctorId, year) {
     const nomNorm = nom.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
     const base = ORDRE_BASE_2026[nomNorm] || 'ABC';
     const grpArr = base.split('');
-    const grpShift = offset % 3;
+    // ROTATION DROITE — « le dernier devient le premier » : ABC -> CAB -> BCA.
+    // (30/07/2026) Le serveur tournait à GAUCHE (offset % 3) alors que staff.html et
+    // admin.html tournent à DROITE : les deux ordres n'étaient identiques qu'une année
+    // sur trois. Une année sur trois, le MAR désigné comme le moins prioritaire par le
+    // calcul des conflits n'était PAS celui affiché au staff. Constaté en réel sur
+    // l'hiver 2027. Le sens qui fait foi est celui de l'écran d'arbitrage.
+    const grpShift = (3 - (offset % 3)) % 3;
     const orderedGrps = [...grpArr.slice(grpShift), ...grpArr.slice(0, grpShift)];
     const orderedList = [];
     orderedGrps.forEach(g => {
@@ -743,7 +749,7 @@ function getVacValidation(year) {
   const offset = year - 2026;
   function getOrderedGroup(grp) {
     const sorted = [...groups[grp]].sort((a,b) => ordre2026[grp][a] - ordre2026[grp][b]);
-    const shift = offset % sorted.length;
+    const shift = sorted.length ? (sorted.length - (offset % sorted.length)) % sorted.length : 0;  // rotation droite, cf. grpShift
     return [...sorted.slice(shift), ...sorted.slice(0, shift)];
   }
   const orderedA = getOrderedGroup('A');
@@ -814,7 +820,13 @@ function getVacValidation(year) {
     const nomNorm = nom.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
     const base = ORDRE_BASE_2026[nomNorm] || 'ABC';
     const grpArr = base.split('');
-    const grpShift = offset % 3;
+    // ROTATION DROITE — « le dernier devient le premier » : ABC -> CAB -> BCA.
+    // (30/07/2026) Le serveur tournait à GAUCHE (offset % 3) alors que staff.html et
+    // admin.html tournent à DROITE : les deux ordres n'étaient identiques qu'une année
+    // sur trois. Une année sur trois, le MAR désigné comme le moins prioritaire par le
+    // calcul des conflits n'était PAS celui affiché au staff. Constaté en réel sur
+    // l'hiver 2027. Le sens qui fait foi est celui de l'écran d'arbitrage.
+    const grpShift = (3 - (offset % 3)) % 3;
     const orderedGrps = [...grpArr.slice(grpShift), ...grpArr.slice(0, grpShift)];
     const orderedList = [];
     orderedGrps.forEach(g => {
@@ -4092,7 +4104,7 @@ function testNotifierConflits() {
   const offset = year - 2026;
   function getOrd(grp) {
     const sorted = [...groups[grp]].sort((a,b) => ordre2026[grp][a] - ordre2026[grp][b]);
-    const sh = offset % sorted.length;
+    const sh = sorted.length ? (sorted.length - (offset % sorted.length)) % sorted.length : 0;  // rotation droite
     return [...sorted.slice(sh), ...sorted.slice(0, sh)];
   }
   const ordA = getOrd('A'), ordB = getOrd('B'), ordC = getOrd('C');
@@ -4100,7 +4112,7 @@ function testNotifierConflits() {
   const testDate = '2027-02-22';
   const ORDRE_BASE = {HIVER:'CAB',PRINTEMPS:'ABC',ETE:'ABC',TOUSSAINT:'BCA',NOEL:'CAB'};
   const base = ORDRE_BASE['HIVER'];
-  const ga = base.split(''); const gs = offset % 3;
+  const ga = base.split(''); const gs = (3 - (offset % 3)) % 3;   // rotation droite
   const og = [...ga.slice(gs), ...ga.slice(0, gs)];
   const ol = []; og.forEach(g => { if (g==='A') ol.push(...ordA); else if (g==='B') ol.push(...ordB); else ol.push(...ordC); });
   const marEnVac = ol.filter(id => vacByDoc[id] && vacByDoc[id].has(testDate));
