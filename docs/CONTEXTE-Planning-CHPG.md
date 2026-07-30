@@ -11,16 +11,29 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
-## État au 29 juillet 2026
+## État au 30 juillet 2026
 
-**Site v1.14.5** · GAS : `code.gs` 2026-07-29.3 · `Indispos.gs` 2026-07-29.5 ·
-`portail.gs` 2026-07-29.2 · `generateur_gardes.gs` · `setup_annee.gs`
+**Site v1.14.9** · GAS : `code.gs` 2026-07-29.3 · `Indispos.gs` **2026-07-30.2** ·
+`portail.gs` **2026-07-30.1** · `generateur_gardes.gs` · `setup_annee.gs`
+*(les deux versions du 30/07 sont recopiées et déployées, confirmé par Arthur)*
 
 **En production :** algorithme de gardes (équité annuelle), planning quotidien (`admin.html`),
 portail/Dashboard, module libéral (lots 0, 1, 2A, 2B, 3), contrôle d'absence (`absences.html`,
 lot 5-bis), veille bibliographique, CR d'anesthésie, export Excel hebdomadaire.
 
 **Prochaine échéance : présentation au staff le 4 septembre 2026**, démo en production.
+
+**Journée du 30/07 — audit documentaire des 7 guides et des 4 `.md` (30 anomalies corrigées),
+et surtout deux correctifs de fond sur la saisie :**
+- `saveIndispos` **réécrivait la ligne entière** d'un MAR. Or `INDISPOS_{Y}` a deux propriétaires
+  (comité : `VAC`/`FORM` · MAR : `INDISPO`/`SOUHAIT`/`TP`). Revalider le staff effaçait la campagne
+  des MARs ; une page MAR ouverte trop tôt effaçait les vacances. Corrigé par `_fusionIndispos_`
+  **dans le routeur** — pas dans `saveIndisposForDoctor`, qui sert aussi à l'absence longue.
+  C'est ce qui rend le verrou des vacances **réel, côté serveur**.
+- « Valider et verrouiller » faisait **un appel par MAR** (23 exécutions sérialisées, ~3 min).
+  Nouvelle action `saveIndisposBatch` : 1 aller-retour, 1 écriture de bloc. **Quelques secondes,
+  confirmé en production.** Cadenas désormais reconstruits depuis la base + bouton
+  🔓 Tout déverrouiller.
 
 ## Les 6 règles qui évitent les dégâts
 
@@ -166,7 +179,7 @@ Cycle annuel = 3 assistants dans admin.html, **tous testés en réel** :
   - **Filtre des secteurs proposés** : `ACTIF` **et** `AFF` renseigné **et** `RENDEMENT_LIB` ni `NUL` ni `REA`, trié par `ORDRE`. Un secteur **sans rendement renseigné est proposé** (présumé productif jusqu'à classement).
   - **Tous les replis sont visibles** : hors portail, API injoignable, liste vide, champ manquant — chaque cas affiche son message et retombe sur la saisie manuelle.
 
-- **Onglet `LIBERAL_{Y}` — déclarations d'intervention** (depuis le 22/07/2026). `ID · DATE_CONSULT · DATE_BLOC · MAR_ID · SECTEUR · CHIRURGIE`, créé à la volée, année du **jour de bloc**. Actions dans `portail.gs` : `declareLiberal` / `deleteLiberal` (écritures, présentes dans le `WRITE_ACTIONS_LOCK` d'`Indispos.gs` bien que routées par `portailRoute` — le verrou est vérifié avant la délégation) et `listLiberal` (lecture).
+- **Onglet `LIBERAL_{Y}` — déclarations d'intervention** (depuis le 22/07/2026). **9 colonnes** — `ID · DATE_CONSULT · DATE_BLOC · MAR_ID · SECTEUR · CHIRURGIE · SPECIALITE · BR_CCAM · BR_NGAP` (ordre du `LIBERAL_HEADER`, revérifié le 30/07 : **`CHIRURGIE` est 6ᵉ, `SPECIALITE` 7ᵉ**). **Une ligne = un patient** depuis le lot 2A (27/07) : la fusion jour+secteur a été supprimée. Créé à la volée, année du **jour de bloc**. Actions dans `portail.gs` : `declareLiberal` / `deleteLiberal` (écritures, présentes dans le `WRITE_ACTIONS_LOCK` d'`Indispos.gs` bien que routées par `portailRoute` — le verrou est vérifié avant la délégation) et `listLiberal` (lecture).
   - 🔒 **`MAR_ID` = `user.id`, toujours déduit du code d'accès.** Le client n'envoie jamais d'identité. `listLiberal` filtre sur le MAR connecté, `deleteLiberal` refuse la ligne d'autrui.
   - **Une ligne = un MAR, un jour, un secteur.** Même jour + même secteur → mise à jour et libellé cumulé, jamais de doublon.
   - ⚠️ **Ne jamais purger automatiquement les lignes passées** : c'est la trace de l'activité libérale. La page en masque une partie, l'onglet garde tout.
@@ -508,7 +521,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site (badge `vX.Y.Z`) — actuellement **v1.14.5**
+## Version du site (badge `vX.Y.Z`) — actuellement **v1.14.9**
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
@@ -640,8 +653,10 @@ elles n'en sont pas.
   `CODE` = clé technique (écrite dans `PLANNING_OVERRIDES` et le planning publié) : **ne jamais la
   renommer** ; pour changer d'organisation, ajouter des lignes et passer les anciennes à `ACTIF=N`.
   `LABEL` est libre (affichage seul).
-- **`CS_TYPES`, `CS_OPENABLE`, `CS_REQUIRED`** (`admin.html`) = valeurs de **REPLI** uniquement,
-  désormais toutes **globales** (`let`). Repli **silencieux** si l'onglet est illisible.
+- **`CS_TYPES`, `CS_OPENABLE`, `CS_REQUIRED`** (`admin.html`) sont **globales** (`let`) et
+  remplies par `getCsTemplate`. ⚠️ **Il n'y a plus de repli silencieux** (29/07) : en cas d'échec
+  de lecture, `CONFIG_KO.cs` reste vrai et un **bandeau rouge** le dit. Une page vide vaut mieux
+  qu'une page fausse.
 - **`CS_REQUIRED`** (`admin.html`) = anciennement la table **ACTIVE** : effectifs requis par jour et
   demi-journée. **GLOBALE depuis le 20/07/2026** (elle était locale à `renderWeek`), car
   l'export Excel en a besoin pour fusionner les cases à créneau unique. Une seule table.
@@ -742,6 +757,10 @@ direct (396 ms contre ~350 ms par recherche de nom) ; fusionner `login` et `getA
 - **`Indispos.gs`** (version dépôt **`2026-07-20.3`**) — action **`resetCodeMar`** (bouton 🔄) et retrait d'`applyRotationLib`. **Recopié et testé en production le 20/07/2026.** **`code.gs` également à recopier** (version **`2026-07-20.3`** : retrait du tag `ROT-LIB` et des fonctions one-shot de conversion). Le 🔍 Diagnostic signale l'écart dépôt/déployé.
 - ✅ **29/07/2026 (matin) — les 5 fichiers GAS ont été recopiés et déployés, fonctionnement confirmé en production.** Versions déployées : `code.gs` `2026-07-29.3` · `Indispos.gs` `2026-07-29.4` · `portail.gs` `2026-07-29.2` · `generateur_gardes.gs` `2026-07-29.1` · `setup_annee.gs` `2026-07-29.2`.
 - ✅ **29/07/2026 (après-midi) — `Indispos.gs` `2026-07-29.5` recopié et déployé, alignement confirmé par le 🔍 Diagnostic.** Correctif du tri des volants (helper `_rangRole_`). **Plus rien en attente de recopie.** Site **v1.14.5** (frontend, rien à recopier).
+- ✅ **30/07/2026 — `Indispos.gs` `2026-07-30.2` et `portail.gs` `2026-07-30.1` recopiés et déployés.**
+  Fusion des indispos par propriétaire de code, action `saveIndisposBatch`, commentaire de la
+  déclaration libérale réaligné (9 colonnes, une ligne = un patient). Site **v1.14.9**.
+  **Plus rien en attente de recopie.**
 
 ## ⛔ L'année d'une date n'est PAS ses 4 premiers chiffres
 
