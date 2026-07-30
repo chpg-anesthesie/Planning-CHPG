@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_SETUP = '2026-07-29.2';
+const GAS_VERSION_SETUP = '2026-07-30.1';
 
 
 // ══════════════════════════════════════════════════════════════════════
@@ -519,14 +519,14 @@ function archiveYear(year, moveSheets) {
   const archiveOk = results.every(r=>!r.startsWith('❌'));
   if (moveSheets && archiveOk) {
     let arch=null;
-    try{ arch=SpreadsheetApp.openById(ARCHIVE_SS_ID); }catch(e){ results.push(`⚠️ Classeur d'archive inaccessible — onglets conservés`); }
+    try{ arch=SpreadsheetApp.openById(ARCHIVE_SS_ID); }catch(e){ results.push(`❌ Classeur d'archive inaccessible — onglets conservés, archivage incomplet`); }
     if (arch) {
       [`GARDES_${year}`,`INDISPOS_${year}`,`AFFECTATIONS_${year}`,`STATS_GARDES_${year}`].forEach(name=>{
         const sh=ss.getSheetByName(name);
         if(!sh){ results.push(`⚠️ ${name} introuvable — ignoré`); return; }
         try{ const old=arch.getSheetByName(name); if(old) arch.deleteSheet(old);
           sh.copyTo(arch).setName(name); ss.deleteSheet(sh); results.push(`📦 ${name} → archive`); }
-        catch(e){ results.push(`⚠️ Transfert ${name} échoué : ${e.message}`); }
+        catch(e){ results.push(`❌ Transfert ${name} échoué : ${e.message} — archivage incomplet`); }
       });
     }
   } else if (moveSheets) results.push(`⏸️ Transfert suspendu (archivage incomplet)`);
