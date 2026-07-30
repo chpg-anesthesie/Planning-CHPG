@@ -347,15 +347,41 @@ Ordre restant : **2C** (recoupement, taux de couverture, rendement) puis **Lot 4
 - ❄️ **Lot 5 (orientation financière par la secrétaire) : GELÉ** depuis le 24/07 — à revoir au vu
   du constat sur les excédents.
 
+### Priorité 2 bis — NCHPG (janvier 2027) : la réorganisation des secteurs *(cadrage du 30/07, aucune conception faite)*
+
+**Acquis (Arthur, 30/07) : les codes de secteurs changent, de façon certaine.** Structure annoncée :
+de **grands secteurs** (« Bloc long », « Bloc court »…) contenant des **sous-secteurs** (endoscopies,
+cardio…). **L'organisation cible n'est pas connue** — donc rien à concevoir tant qu'elle ne l'est pas.
+Ce qui suit n'est pas une conception, c'est l'inventaire de ce que le changement casse.
+
+1. **`COVERAGE` (admin.html l.3164) deviendra une liste de codes morts** → le « + » de case à
+   pourvoir **s'éteindra partout, en silence** : ni erreur, ni message, juste un signal de sécurité
+   qui disparaît. C'est le point le plus dangereux du déménagement côté logiciel.
+   Correctif décidé : colonne **`COUVERTURE` (O/N)** dans l'onglet `SECTEURS` — c'est une **règle
+   métier** (« ce secteur doit toujours être pourvu »), pas la liste des secteurs actifs.
+   ⚠️ Conserver l'exception `RI`, volontairement hors couverture (règle plus fine, mercredi/jeudi matin).
+2. **`targets` (l.~4016)**, boutons « Déplacer vers » du volet latéral : à alimenter par les secteurs
+   actifs de l'onglet. Confort, pas blocage — on peut toujours retirer puis reposer depuis la case.
+3. **Export Excel du vendredi** : déjà piloté par `SECTEURS` (`ORDRE / XL_LABEL / XL_BG / XL_ROWS`)
+   et `CS_TEMPLATE` depuis juillet — un secteur créé apparaît dans le fichier sans toucher au code.
+   **Mais le modèle est PLAT** : rien n'exprime « sous-secteur de ». La hiérarchie est le vrai
+   chantier. ⚠️ ExcelJS : écrire dans une cellule *esclave* d'une fusion casse le fichier en
+   production — toute maquette à deux niveaux doit en tenir compte dès le départ.
+4. **Question de fond, à trancher avant de coder quoi que ce soit** : l'affectation mensuelle d'un MAR
+   est aujourd'hui **un code de secteur unique** (`AFFECTATIONS_{Y}`, comparé tel quel par la
+   couverture). Avec une hiérarchie, est-on affecté au **grand secteur** ou au **sous-secteur** ?
+   Cette réponse fixe la maille de tout le reste : couverture, volet de placement, export Excel.
+5. Rappel : le rendement libéral est modélisé **par spécialité et non par secteur** précisément
+   parce que les secteurs changent au NCHPG et pas les spécialités. Ce choix reste bon.
+
+**Ordre : ne rien coder avant de connaître l'organisation cible.** Le jour où elle est connue → fil
+de conversation dédié.
+
 ### Priorité 3 — Dettes techniques
-- **Deux listes de secteurs encore figées dans `admin.html`** *(trouvées le 29/07, jamais
-  répertoriées jusque-là ; **revérifiées présentes le 30/07** aux lignes 3164 et 4016)* :
-  `COVERAGE` (l.~3164, secteurs qui déclenchent un « + » quand
-  personne n'est placé) et `targets` (l.~4016, boutons « Déplacer vers » du volet latéral).
-  **Un secteur créé dans l'onglet n'apparaît dans aucune des deux.** À traiter avant le
-  déménagement NCHPG (janvier 2027), pas avant le 04/09.
-  ⚠️ `COVERAGE` n'est pas qu'une liste : `RI` en est volontairement absent (règle plus fine,
-  mercredi/jeudi matin). Le remplacement doit préserver cette exception.
+- **Deux listes de secteurs encore figées dans `admin.html`** (`COVERAGE` l.~3164, `targets` l.~4016)
+  *(trouvées le 29/07, revérifiées présentes le 30/07)* : **un secteur créé dans l'onglet n'apparaît
+  dans aucune des deux.** Traitement et solution retenue : voir **Priorité 2 bis (NCHPG)** ci-dessus —
+  c'est le même chantier. Rien à faire avant le 04/09.
 - *(À l'appréciation d'Arthur)* rotation du token GitHub.
 
 *Traitées le 29/07 : tables de configuration en dur (6 supprimées, repli remplacé par un bandeau
