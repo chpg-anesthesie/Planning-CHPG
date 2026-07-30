@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-30.3';
+const GAS_VERSION_INDISPOS = '2026-07-30.4';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1853,11 +1853,31 @@ if (!affSheet) {
         sheet.getRange(1,1,1,4).setValues([['NOM','DEBUT','FIN','SEUIL']]);
         sheet.getRange(1,1,1,4).setFontWeight('bold');
       }
-      if (sheet.getLastRow() > 1) sheet.deleteRows(2, sheet.getLastRow() - 1);
-      if (periodes.length > 0) {
-        const rows = periodes.map(p => [p.nom, p.debut, p.fin, Number(p.seuil)||8]);
-        sheet.getRange(2, 1, rows.length, 4).setValues(rows);
+      // (30/07/2026) L'onglet porte les periodes de TOUTES les annees (getVacancesConfig
+      // filtre par l'annee de DEBUT). L'ancienne version rasait la table entiere : preparer
+      // 2028 effacait les periodes de 2027. On ne remplace desormais que l'annee visee,
+      // reconnue a l'annee de sa date de debut, exactement comme a la lecture.
+      const anneeCible = String(Number(payload.year) || '');
+      const _an = v => (v instanceof Date)
+        ? String(v.getFullYear())
+        : String(v || '').trim().slice(0, 4);
+      const conservees = [];
+      const ancien = sheet.getDataRange().getValues();
+      for (let r = 1; r < ancien.length; r++) {
+        const nom = String(ancien[r][0]).trim();
+        if (!nom) continue;
+        if (anneeCible && _an(ancien[r][1]) === anneeCible) continue;   // remplacee
+        conservees.push([ancien[r][0], ancien[r][1], ancien[r][2], Number(ancien[r][3]) || 8]);
       }
+      const nouvelles = periodes.map(p => [p.nom, p.debut, p.fin, Number(p.seuil) || 8]);
+      // Filet : sans annee ciblee, on refuse de vider une table pleine.
+      if (!anneeCible && !nouvelles.length && ancien.length > 1) {
+        return _error('Refus : aucune période fournie, la table ne sera pas vidée');
+      }
+      const finales = anneeCible ? conservees.concat(nouvelles) : nouvelles;
+      if (sheet.getLastRow() > 1) sheet.deleteRows(2, sheet.getLastRow() - 1);
+      if (finales.length > 0) sheet.getRange(2, 1, finales.length, 4).setValues(finales);
+      logAction(`savePeriodes${anneeCible ? ' ' + anneeCible : ''} : ${nouvelles.length} période(s) écrite(s), ${conservees.length} conservée(s)`);
       return ContentService.createTextOutput(JSON.stringify({success:true}))
         .setMimeType(ContentService.MimeType.JSON);
     }
@@ -1873,11 +1893,18 @@ if (!affSheet) {
         sheet.getRange(1,1,1,3).setValues([['GROUPE','MEDECIN_ID','ORDRE']]);
         sheet.getRange(1,1,1,3).setFontWeight('bold');
       }
-      if (sheet.getLastRow() > 1) sheet.deleteRows(2, sheet.getLastRow() - 1);
       const rows = [];
       ['A','B','C'].forEach(grp => {
         (groupes[grp]||[]).forEach((mar, idx) => rows.push([grp, mar.id, idx+1]));
       });
+      // (30/07/2026) Filet : un payload vide effacait GROUPES_VAC en silence, et le
+      // wizard affichait « ✓ Groupes sauvegardes ». Cas reel : lecture initiale ratee,
+      // wizGroupes reste {A:[],B:[],C:[]}. On refuse plutot que d'ecraser.
+      if (!rows.length && sheet.getLastRow() > 1) {
+        logAction('saveGroupes REFUSE : payload vide sur une table pleine');
+        return _error('Refus : aucun groupe fourni, GROUPES_VAC ne sera pas vidé');
+      }
+      if (sheet.getLastRow() > 1) sheet.deleteRows(2, sheet.getLastRow() - 1);
       if (rows.length > 0) sheet.getRange(2, 1, rows.length, 3).setValues(rows);
       return ContentService.createTextOutput(JSON.stringify({success:true}))
         .setMimeType(ContentService.MimeType.JSON);
