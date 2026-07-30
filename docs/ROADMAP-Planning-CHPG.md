@@ -244,14 +244,44 @@ groupement** (la version est un repère pour les utilisateurs, pas pour le déve
 
 ## 🔜 À faire
 
-### Priorité 1 — Présentation staff du 04/09 *(reprendre début août, fil dédié)*
-- Vérifier le slide 24 (cibles nominatives) contre `MEDECINS`, le slide 21 (simulation figée),
-  le slide 27 (limites connues).
-- **Vérifier que les profils indispos 2027 des 22 autres MARs sont remplis** (annoncé à la salle).
-- Remplir `CONFIG.SULTAN_CODE` avant l'événement (WS saisit ses indispos en direct).
-- Répétition à blanc de la démo.
-- Écrire la **check-list de ménage post-démo** dans le dépôt : onglets `_2027`, JSON Drive,
-  vacances 2027, mails, changer le code de Sultan, `INDISPOS_ACTIVE`.
+### Priorité 1 — Présentation staff du 04/09 *(session du 29/07 : deck refait, il reste 3 choses)*
+
+**Le deck est à jour** (`docs/presentation-staff.html`, commit `6ca0b09cd1`, 33 diapos). Chiffres
+alignés sur la génération réelle de 2027 et sur 400 années simulées, animations en place.
+Les anciennes lignes de cette section étaient périmées et ont été **supprimées, pas démenties** :
+les numéros de slides ne correspondaient plus, et `CONFIG.SULTAN_CODE` demandait d'écrire en dur
+le code retiré le 22/07 pour raison de sécurité (il se saisit par `prompt()`, il n'y a **rien** à
+remplir dans le fichier).
+
+Reste à faire, par ordre de criticité :
+1. **Supprimer `GARDES_2027`** avant l'événement — sinon le verrou de `generateGardes()` bloque la
+   démo devant la salle. Vérifié : c'est le **seul** onglet qui déclenche le verrou (l.138).
+   Garder `INDISPOS_2027` et `AFFECTATIONS_2027` (les profils fictifs sont dedans).
+2. **Répétition à blanc chronométrée.** Le deck annonce « 15 secondes » deux fois (diapos 9 et 23).
+   Ce qui n'est pas mesuré, ce n'est pas l'algorithme — c'est le temps que la salle verra, aller-retour
+   Apps Script compris, là où on a déjà observé 30 à 56 s côté client pour 2 s côté serveur.
+3. **Relecture du deck en projection.** Tout est vérifié par machine (structure, `<div>`, `node --check`,
+   jsdom, arithmétique des pourcentages) ; **rien n'est vérifié à l'œil**. Points sensibles : diapo 10
+   (tableau à 5 colonnes, le plus large), diapo 19 (densifiée), diapo 16 (146 cellules animées sur 5,6 s,
+   et le rosé du repos du lendemain peut passer pour du blanc en vidéoprojection).
+4. Vérifier que les **profils indispos 2027 des autres MARs sont remplis** (annoncé à la salle) et que
+   **`PERIODES_VAC` a ses lignes 2027** (sinon la génération tourne avec un calendrier de vacances vide).
+5. Écrire la **check-list de ménage post-démo** dans le dépôt : onglets `_2027`, JSON Drive,
+   vacances 2027, mails, changer le code de Sultan, `INDISPOS_ACTIVE`.
+
+### Priorité 1 bis — Deux données à trancher AVANT la génération de novembre
+
+Aucune urgence pour le 04/09, mais elles faussent la génération réelle si elles restent en l'air.
+Arthur n'avait pas la réponse au 29/07.
+
+- **`date_fin` de FERRIERO.** `simulateur/demographie.js` le fait partir fin février 2027 ; `MEDECINS`
+  n'a aucune `date_fin`. Le probable, d'après Arthur : le 150 % cumulé AF + LC devient un 50 % seul en
+  mars 2027. Si le départ est réel et la colonne vide, l'algorithme lui donne une cible pleine de 34,6
+  au lieu de ~5,4, et **les cibles des 21 autres sont fausses de ~1,5 garde chacune**.
+- **MENADE et l'exemption de garde à 60 ans.** Il atteint 60 ans en 2027 (né en 1967 d'après le modèle).
+  La règle d'exemption est réelle ; WS en est une exception assumée et continue les gardes. Si RM
+  l'invoque, Σ des poids passe de 21,05 à 20,05 : **la base passe de 34,6 à 36,3**, soit +1,7 garde
+  pour chacun des autres, et le slide des cibles devient faux dans ses 24 lignes.
 
 ### Priorité 2 — Module libéral, brique convergence 30 %
 Ordre restant : **2C** (recoupement, taux de couverture, rendement) puis **Lot 4**.
@@ -1198,13 +1228,9 @@ ancrées sur `user.id` ; `getTopo`/`getProtocole` vérifient l'appartenance au d
     péage. ⚠️ Un commentaire d'`admin.html` dit « NE JAMAIS le mettre dans `getAdminBootstrap` » :
     il datait d'un contexte où un appel séparé était bon marché — **le remplacer, pas l'empiler**.
   - **Supprimer `gas/mesure_perf.gs`** (dépôt **et** éditeur Apps Script) une fois ce chantier clos.
-- [ ] 📽️ **Présentation staff du 04/09 — reprendre début août (fil dédié).**
-  Corrections factuelles et sécurisation du code de démo faites le 22/07. Reste :
-  vérifier le slide 24 (cibles nominatives) contre `MEDECINS`, le slide 21 (simulation figée)
-  et le slide 27 (limites connues) ; **vérifier que les profils indispos 2027 des 22 autres
-  MARs sont remplis** (annoncé à la salle) ; répétition à blanc de la démo (clic sur le bloc
-  code, sessionStorage) ; écrire la **check-list de ménage post-démo** dans le dépôt
-  (onglets `_2027`, JSON Drive, vacances 2027, mails, changer le code de Sultan).
+- [ ] 📽️ **Présentation staff du 04/09** — voir « Priorité 1 » en tête de section, réécrite
+  le 29/07. Deck refait et poussé (`6ca0b09cd1`). Reste : supprimer `GARDES_2027`, répétition
+  à blanc **chronométrée**, relecture en projection, check-list de ménage post-démo.
 
 ### Axes de développement (un fil de conversation chacun)
 
