@@ -975,7 +975,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.14.14'; // SITE_VERSION: v1.14.14
+const SITE_VERSION = 'v1.14.15'; // SITE_VERSION: v1.14.15
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1068,7 +1068,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.14</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.15</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1709,7 +1709,7 @@ let nextYearAvailable = false; // true si planning_N+1.json existe
 
 const MONTH_NAMES = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const DAY_NAMES_SHORT = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-const ABSENT = new Set(['G','G2','RG','A','V','F','CTP','R','I','E']);
+const ABSENT = new Set(['G','G2','RG','A','V','F','CTP','R']);
 // ── SOURCE UNIQUE DES SECTEURS ────────────────────────────────────────
 // UN SEUL endroit à modifier pour ajouter / retirer / renommer / recolorer / réordonner
 // un secteur (ex. réorganisation 2027 : BLOC CENTRAL). Toutes les listes et maps ci-dessous
@@ -2405,7 +2405,6 @@ const STAT_LOCK = new Set(['G','G2','RG']); // gardes → verrouillées
 const STAT_META = {
   '':   {label:'Présent',        bg:'#FFFFFF', fg:'#94A3B8', bd:'#E5E9F0'},
   'V':  {label:'Vacances',       bg:'#EEF4FB', fg:'#1D6FB8', bd:'#CFE0F2'},
-  'I':  {label:'Indispo garde',  bg:'#F1F1F3', fg:'#5F6368', bd:'#DADCE0'},
   'F':  {label:'Formation',      bg:'#FDF3E3', fg:'#B45309', bd:'#F2D98A'},
   'TP': {label:'Temps partiel',  bg:'#FEF3C7', fg:'#92400E', bd:'#FDE68A'},
   'CL': {label:'Congé long',     bg:'#F3E8FF', fg:'#7C3AED', bd:'#E9D5FF'},
@@ -3070,7 +3069,7 @@ function renderWeek() {
       if (st==='G2') gardes[dow].g2 = doc.initials;
       if (st==='18') h18row[dow]    = doc.initials;
       if (st==='RG') sortieRow[dow].push(doc.initials);
-      if (['A','V','F','CTP','R','I','E','CP','TP','CL'].includes(st)) absentRow[dow].push({init:doc.initials, reason:st});
+      if (['A','V','F','CTP','R','CP','TP','CL'].includes(st)) absentRow[dow].push({init:doc.initials, reason:st});
 
       if (ABSENT_V2.has(st)) return;
 
@@ -5041,7 +5040,7 @@ async function exportWeekExcel(){
   const subToRow={};CSROWS.forEach((r,i)=>r.subs.forEach(s=>subToRow[s]=i));
   const POLYI=CSROWS.findIndex(r=>r.subs.indexOf('POLY')>=0);
   const guards=Array(7).fill(null).map(()=>[]);const gardesRea=Array(7).fill(null).map(()=>[]);const gardesAn=Array(7).fill(null).map(()=>[]);const astr=Array(7).fill(null).map(()=>[]);const h18=Array(7).fill('');const sorties=Array(7).fill(null).map(()=>[]);const absents=Array(7).fill(null).map(()=>[]);
-  const ABSENT_S=new Set(['RG','CP','A','F','R','TP','V','I','E','CTP','CL']);
+  const ABSENT_S=new Set(['RG','CP','A','F','R','TP','V','CTP','CL']);   // (31/07/2026) « I » et « E » retires : I = present sans garde, E n'existe pas
   function pushCS(code,dow,half,init){const raw=code.includes('-')?code.split('-')[1]:code;let idx=subToRow[raw];if(idx==null)idx=POLYI;if(idx>=0&&!csb[idx][dow][half].includes(init))csb[idx][dow][half].push(init);}
   month.doctors.forEach(doc=>{
     daySlots.forEach((slot,dow)=>{
@@ -5051,7 +5050,7 @@ async function exportWeekExcel(){
       if(st==='G'||st==='G2')guards[dow].push(doc.initials);
       if(st==='18')h18[dow]=doc.initials;
       if(st==='RG')sorties[dow].push(doc.initials);
-      if(['A','CP','F','R','I','E','TP','V'].includes(st))absents[dow].push(doc.initials);
+      if(['A','CP','F','R','TP','V'].includes(st))absents[dow].push(doc.initials);
       if(ABSENT_S.has(st))return;
       ['am','pm'].forEach(half=>{(half==='am'?am:pm||'').split('+').forEach(raw=>{const s=raw.trim();if(!s)return;if(s.startsWith('CS-'))pushCS(s,dow,half,doc.initials);else if(smap[s]&&!smap[s][dow][half].includes(doc.initials))smap[s][dow][half].push(doc.initials);});});
       // entry.cs : secours seulement si la consult n'est pas déjà captée dans matin/après-midi (évite le doublon AM)
@@ -6298,7 +6297,26 @@ async function launchWizardGardes() {
         if (el && el.classList.contains('running'))
           el.textContent = '⏳ Génération des gardes ' + (YEAR+1) + '… (toujours en cours, patience…)';
       }, 45000);
-      return api({action:'generateGardes', year: YEAR+1}).finally(() => clearTimeout(t));
+      return api({action:'generateGardes', year: YEAR+1}).then(res => {
+        // (31/07/2026) Les avertissements du générateur n'allaient QUE dans le journal
+        // d'exécution Apps Script, invisible depuis l'application : replis de couplage,
+        // exceptions VD, « Manque MAR », passe de confort — tout était perdu, et une
+        // année entière se générait à l'aveugle. On les affiche sous l'étape.
+        if (res && res.warnings && res.warnings.length) {
+          const el = document.getElementById('wizg-p1');
+          const grave = w => /Manque MAR|non pourvu/i.test(w);
+          const box = document.createElement('div');
+          box.style.cssText = 'margin:8px 0 12px 26px;font-size:12px;line-height:1.7;max-height:220px;'
+            + 'overflow:auto;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;'
+            + 'padding:10px 12px;color:#92400E';
+          box.innerHTML = '<b>' + (res.nbWarnings || res.warnings.length) + ' avertissement(s) de génération</b>'
+            + ((res.nbWarnings || 0) > res.warnings.length ? ' <i>(' + res.warnings.length + ' premiers)</i>' : '')
+            + '<br>' + res.warnings.map(w => (grave(w) ? '🔴 ' : '⚠️ ')
+                + String(w).replace(/[<>]/g, '')).join('<br>');
+          if (el) el.insertAdjacentElement('afterend', box);
+        }
+        return res;
+      }).finally(() => clearTimeout(t));
     }},
     {id:'wizg-p2', label:'Planning publié',  action: () => api({action:'publishPlanning', year: YEAR+1})},
     {id:'wizg-p3', label:'Récapitulatifs envoyés', action: () => api({action:'envoyerRecapIndispos', year: YEAR+1})},
