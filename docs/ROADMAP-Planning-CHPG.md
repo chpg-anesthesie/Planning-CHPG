@@ -1505,6 +1505,11 @@ moins prioritaire à l'écran. Cause : `staff.html` et `admin.html` tournent **�
 `ABC → CAB → BCA` · `A1 A2 A3 → A3 A1 A2`. Serveur aligné sur l'écran, vérifié identique MAR par
 MAR sur 5 périodes × 6 années. Impact : le classement sert **aussi** à l'audit de couverture du
 W2 (qui décale ses vacances).
+**✅ Confirmé en production le 30/07 par Arthur** : après recopie et redéploiement, le MAR
+désigné en conflit correspondait cette fois à l'ordre affiché à l'écran. Arthur a résolu le
+conflit en relevant le seuil de la période. *(Le seuil ne gouverne que l'arbitrage du staff :
+l'audit de couverture du W2 compare capacité réelle et gardes requises, sans le regarder — le
+relever assouplit l'arbitrage, pas la sécurité.)*
 
 **Documentation** — `guide-technique.html` §07/§08/§09 et `guide-comite.html` §4.3 refaits :
 le W2 **envoie bien** 23 récapitulatifs automatiquement (le guide affirmait le contraire et citait
