@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-31.1';
+const GAS_VERSION_INDISPOS = '2026-07-31.2';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1212,7 +1212,7 @@ function _routeRequete_(e) {
     if (action === 'getNoelAnEligibles') {
       const yr = parseInt(payload.year) || getIndisposYear();
       return ContentService.createTextOutput(JSON.stringify({
-        success: true, year: yr, eligibles: computeNoelAnEligibles(yr)
+        success: true, year: yr, eligibles: computeNoelAnEligibles(yr, payload.tous === true)
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -4198,7 +4198,7 @@ function renderRecapMailBlocks_(synth, blocks) {
 // NOEL_PLAFOND) a ete SUPPRIMEE : aucune des trois lignes n'existait dans le classeur,
 // donc c'etait une lecture d'onglet a chaque affichage du bandeau pour rien.
 // SEUIL = 3 ans : "en retard" = jamais fait, ou pas fait depuis 3 ans.
-function computeNoelAnEligibles(year) {
+function computeNoelAnEligibles(year, tous) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   const SEUIL = 3, PLANCHER = 8, PLAFOND = 8;
@@ -4237,7 +4237,10 @@ function computeNoelAnEligibles(year) {
   const enRetard = eligibles.filter(id => { const ly=noelHistory[id]; return ly==null || (year-ly)>=SEUIL; });
   let finalIds = enRetard.slice();
   if (finalIds.length < PLANCHER) finalIds = eligibles.slice(0, PLANCHER);
-  finalIds = finalIds.slice(0, PLAFOND);
+  // (31/07/2026) `tous` : renvoie la liste COMPLETE, sans le plafond de 8. Le bandeau
+  // du staff en affiche 8 ; a egalite d'annee le tri est ALPHABETIQUE, donc des
+  // prioritaires legitimes restent invisibles. Le controle du W2 doit porter sur tous.
+  if (!tous) finalIds = finalIds.slice(0, PLAFOND);
 
   return finalIds.map(id => ({ id, init: initMap[id]||id, last: (noelHistory[id]!=null ? noelHistory[id] : null) }));
 }
