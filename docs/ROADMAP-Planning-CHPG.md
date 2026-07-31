@@ -1573,6 +1573,35 @@ vacances »**.
 
 ---
 
+**⚠️ Le compteur « 0 journée sans binôme » était aveugle.** Il construisait un dictionnaire à
+partir des gardes existantes, puis comptait les dates ayant moins de 2 titulaires : **une journée
+ENTIÈREMENT vide n'y figurait pas**. Il annonçait donc 0 quel que soit le résultat. Corrigé dans
+`staff140.js` (comptage sur `P.dates`, pas sur les dates pourvues).
+**Chiffre vrai : 4 journées non pourvues sur 292 312 gardes** (une par siècle), toutes fin
+décembre, avec 3 gardeurs disponibles sur 17, et **toutes signalées** par le générateur
+(`Manque MAR`). → Ne jamais réintroduire un « zéro » sur cette mesure.
+
+**Récupérations — comportement assumé, ne pas « corriger ».** Le compte est exact (12 240 samedis
+→ 12 240 R sur 120 années, y compris les samedis fériés qui ouvrent aussi un R). Mais le placement
+refuse de sortir de l'année civile, et un repli balaie alors l'année **depuis janvier** : **369
+samedis sur 626 ont leur récup posée AVANT le samedi qui la justifie**. Délai médian quand elle est
+postérieure : 39 jours, jusqu'à 282.
+**Règle actée par Arthur (31/07)** : *seul compte le fait que chacun ait autant de R que de samedis
+sur l'année de planning ; la date importe peu, le comité déplace ponctuellement à la demande.*
+Il n'y a **aucun report** d'une année sur l'autre — le générateur repart des seuls samedis de
+l'année générée. Ne pas croire à un mécanisme de reliquat : il n'existe pas.
+
+**Dossier complet du staff** : `simulateur/staff_dossier.js` extrait en une passe tout ce qui est
+mesurable (équité par MAR et par axe, robustesse, absences par profil de quotité, congés simultanés,
+espacement, démographie, confort) — écrit précisément pour ne plus avoir à relancer 400 années
+parce qu'une donnée manque. Chiffres de référence au 31/07 : écart individuel médian **0,30**,
+**88 % à moins d'une garde**, 99,7 % à moins de deux, **jamais plus de 2,9** · espacement médian
+**9 jours** · absences **79 j** (temps plein) / **92 j** (90 %) / **113 j** (80 %) · **15 congés
+simultanés** au maximum · pic de charge **48,8 gardes en 2040** avec 16 gardeurs.
+
+
+---
+
 ## 🔜 À faire
 
 - [ ] 📽️ **Présentation staff du 04/09** — voir « Priorité 1 » en tête de section.
