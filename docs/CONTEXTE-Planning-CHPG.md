@@ -14,7 +14,7 @@ chiffres concrets plutôt que des généralités.
 ## État au 30 juillet 2026
 
 **Site v1.14.14** · GAS : `code.gs` 2026-07-29.3 · `Indispos.gs` **2026-07-30.5** ·
-`portail.gs` **2026-07-30.1** · `generateur_gardes.gs` 2026-07-29.1 · `setup_annee.gs` **2026-07-30.1**
+`portail.gs` **2026-07-30.1** · `generateur_gardes.gs` **2026-07-30.1** · `setup_annee.gs` **2026-07-30.1**
 *(les deux versions du 30/07 sont recopiées et déployées, confirmé par Arthur)*
 
 **En production :** algorithme de gardes (équité annuelle), planning quotidien (`admin.html`),
@@ -22,6 +22,15 @@ portail/Dashboard, module libéral (lots 0, 1, 2A, 2B, 3), contrôle d'absence (
 lot 5-bis), veille bibliographique, CR d'anesthésie, export Excel hebdomadaire.
 
 **Prochaine échéance : présentation au staff le 4 septembre 2026**, démo en production.
+
+**⚠️ Banc d'essai — refonte du 31/07/2026.** Le modèle simulait une équipe qui n'existe pas :
+six temps partiels à **cible pleine** ignorés, jours de TP **figés sur un jour fixe** (un axe
+entier inatteignable), 12 % posés en week-end, FERRIERO retiré de 20 années. Corrigé et aligné sur
+`MEDECINS`. **L'algorithme était sous-évalué** (médian par axe 3,80 → 1,70 à échantillon identique).
+Référence définitive sur 400 années : **292 312 gardes, 0 journée sans binôme, écart médian sur le
+total 1,10, pire 2,90, jamais plus de 3**. Le générateur porte désormais la passe « jour gagné
+avant les vacances » (~16 jours de congé/an, équité strictement inchangée).
+⚠️ **MENADE doit être coché `no_garde = O`** dans `MEDECINS` avant la génération de novembre.
 
 **⚠️ Rotation des groupes de vacances — règle actée le 30/07/2026.**
 « **Le dernier devient le premier** », entre groupes **et** à l'intérieur d'un groupe :
