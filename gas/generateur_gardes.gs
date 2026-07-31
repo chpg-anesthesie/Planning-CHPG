@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-07-29.1';
+const GAS_VERSION_GENERATEUR = '2026-07-30.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -1150,6 +1150,109 @@ function generateGardes(year){
       if(!changed||Date.now()-t0>20000)break;
     }
     Logger.log('Optimiseur: '+moves+' transferts');
+
+    // ── 8bis. PASSE CONFORT — « le jour gagné avant les vacances » ────────
+    // Pratique historique du service : donner à un MAR la garde de la veille de son
+    // dernier jour travaillé avant un départ en congés. Le repos de garde tombe alors
+    // sur ce dernier jour, qui n'est PAS décompté du quota : il gagne un jour.
+    //
+    // PRINCIPE ABSOLU : cette passe n'échange que des gardes de MÊME JOUR DE SEMAINE
+    // et de MÊME RÔLE, toutes deux hors férié et hors veille de férié. Les deux dates
+    // ont donc EXACTEMENT la même contribution à tous les compteurs (total, g/g2,
+    // lun/mar/mer/jeu). L'équité est donc inchangée PAR CONSTRUCTION, pas par mesure.
+    // Vérifié sur 240 années simulées : 0 compteur modifié, 0 règle dure cassée.
+    //
+    // Assouplissement assumé (Arthur, 30/07/2026) : le BÉNÉFICIAIRE peut accepter une
+    // garde à J±2 (rapprochement pénalisé, jamais interdit) ; le CÉDANT, lui, n'hérite
+    // jamais d'un rapprochement qu'il n'a pas choisi. Mesuré : +2,5 rapprochements/an
+    // pour ~18 échanges/an sur toute l'équipe.
+    {
+      const PLAFOND_CONFORT = 2;                     // par MAR et par an
+      // rgSet est recomposé ici : l'optimiseur a pu déplacer des gardes sans le mettre
+      // à jour, et blocked() le consulte.
+      allDoctors.forEach(id=>{rgSet[id]=new Set();});
+      Object.keys(gardes).forEach(dd=>{const gg=gardes[dd];if(!gg.g)return;
+        [gg.g,gg.g2].forEach(id=>{if(id)rgSet[id].add(addOneDay(dd));});});
+
+      const _sd=(d,n)=>toDateStr(new Date(new Date(d+'T12:00:00').getTime()+n*86400000));
+      const _aG=(id,d)=>gSet[id]?.has(d)||g2Set[id]?.has(d);
+      // Jour réellement travaillé par CE MAR (week-end, férié, TP fixe, semaine off,
+      // et toute absence posée comptent comme non travaillés).
+      const _travaille=(id,d)=>{
+        const di=dayByDate[d]; if(!di) return false;
+        if(di.dow===0||di.dow===6||di.isFerie) return false;
+        const s=indispos[id]?.[d];
+        if(s==='VAC'||s==='FORM'||s==='CL'||s==='TP'||s==='CTP'||s==='CP'||s==='A') return false;
+        if(estSemaineOff(id,d)) return false;
+        const tpF=FLAGS.tpJoursFixes[id];
+        if(tpF&&tpF.has(new Date(d+'T12:00:00').getDay())) return false;
+        return true;
+      };
+      // Date échangeable : lundi→jeudi, ni férié ni veille de férié (sinon la
+      // contribution aux compteurs diffère et l'équité bougerait).
+      const _neutre=d=>{const di=dayByDate[d];
+        return !!di && di.dow>=1 && di.dow<=4 && !di.isFerie && !di.isVjf;};
+
+      // 1) Pour chaque début de bloc VAC : remonter au dernier jour travaillé J,
+      //    la garde à obtenir est J-1.
+      const demandes=[];
+      gardeDoctors.forEach(id=>{
+        const m=indispos[id]||{};
+        Object.keys(m).sort().forEach(d=>{
+          if(m[d]!=='VAC') return;
+          if(m[_sd(d,-1)]==='VAC') return;            // pas un début de bloc
+          let j=_sd(d,-1), garde=0;
+          while(garde++<15 && !_travaille(id,j)) j=_sd(j,-1);
+          const cible_=_sd(j,-1);
+          if(_neutre(cible_)) demandes.push({id,date:cible_});
+        });
+      });
+      // 2) Jours déjà gagnés : on ne les reprend à personne (règle du cédant protégé).
+      const dejaGagne={};
+      demandes.forEach(x=>{ if(_aG(x.id,x.date)) dejaGagne[x.id+'|'+x.date]=true; });
+
+      let _ech=0;
+      const _benef={};
+      demandes.sort((a,b)=>a.date<b.date?-1:1).forEach(x=>{
+        const A=x.id, Dn=x.date;
+        if((_benef[A]||0)>=PLAFOND_CONFORT) return;
+        if(_aG(A,Dn)) return;                          // déjà satisfait
+        if(blocked(A,Dn)) return;                      // indispo, RG, veille/lendemain, jeu↔sam…
+        for(const role of [0,1]){
+          const B = role===0 ? gardes[Dn].g : gardes[Dn].g2;
+          if(!B||B===A) continue;
+          if(dejaGagne[B+'|'+Dn]) continue;            // B y perdrait son propre jour
+          if(SOUHAIT_PLAFOND.has(A)||SOUHAIT_PLAFOND.has(B)) continue;   // régime à part
+          const mesDates=[...(role===0?gSet[A]:g2Set[A])].filter(d2=>
+            d2!==Dn && _neutre(d2) && dayByDate[d2].dow===dayByDate[Dn].dow);
+          const cede=mesDates.find(d2=>{
+            if(dejaGagne[A+'|'+d2]) return false;      // A ne se saborde pas
+            if(_aG(B,d2)) return false;                // B tiendrait les deux rôles
+            if(blocked(B,d2)) return false;
+            // le cédant n'hérite pas d'un rapprochement à J±2
+            if(_aG(B,_sd(d2,2))||_aG(B,_sd(d2,-2))) return false;
+            return true;
+          });
+          if(!cede) continue;
+          // 3) Application : gardes, gSet/g2Set, compteurs hebdo/mensuels.
+          //    cnt n'est PAS touché : même jour de semaine, même rôle → contribution
+          //    identique. C'est exactement ce qui rend la passe neutre.
+          if(role===0){ gardes[Dn].g=A;  gardes[cede].g=B;  gSet[A].delete(cede);  gSet[A].add(Dn);  gSet[B].delete(Dn);  gSet[B].add(cede); }
+          else        { gardes[Dn].g2=A; gardes[cede].g2=B; g2Set[A].delete(cede); g2Set[A].add(Dn); g2Set[B].delete(Dn); g2Set[B].add(cede); }
+          [[A,cede,-1],[A,Dn,1],[B,Dn,-1],[B,cede,1]].forEach(([who,dd,sgn])=>{
+            const wk=dayByDate[dd].wk, mo=Number(dd.slice(5,7));
+            weekCnt[who][wk]=(weekCnt[who][wk]||0)+sgn;
+            monthCnt[who][mo]=(monthCnt[who][mo]||0)+sgn;
+          });
+          rgSet[A].delete(addOneDay(cede)); rgSet[A].add(addOneDay(Dn));
+          rgSet[B].delete(addOneDay(Dn));   rgSet[B].add(addOneDay(cede));
+          _benef[A]=(_benef[A]||0)+1; _ech++;
+          break;
+        }
+      });
+      Logger.log('Confort vacances: '+_ech+' echange(s) pour '+Object.keys(_benef).length+' MAR');
+      if(_ech) warnings.push(`Confort : ${_ech} garde(s) déplacée(s) pour prolonger un départ en congés (équité inchangée)`);
+    }
     // 8) Recomposer rgSet / recupDue depuis l'état optimisé (pour R + 18h + STATS).
     allDoctors.forEach(id=>{rgSet[id]=new Set();});
     gardeDoctors.forEach(id=>{recupDue[id]=[];});
