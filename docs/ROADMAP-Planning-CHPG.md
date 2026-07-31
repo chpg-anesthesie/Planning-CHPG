@@ -1519,61 +1519,61 @@ avec l'avertissement des 4 copies · archivage décrit comme destructif pour le 
 
 ---
 
+### Jour gagné avant les vacances — LIVRÉ · et refonte du banc d'essai (31 juillet 2026) · `generateur_gardes.gs` v2026-07-30.1
+
+**La passe de confort est dans le générateur**, entre l'optimiseur d'équité et le calcul des repos
+(le recalcul des RG se fait donc automatiquement sur l'état final).
+
+**Principe** : on remonte du 1er jour d'un bloc `VAC` au dernier jour **réellement travaillé** J
+(week-ends, fériés, **jours de TP fixes**, semaines off et absences collées sont sautés) ; la garde
+visée est **J-1**, qui doit tomber **lundi→jeudi, ni férié ni veille de férié**.
+**Réalisation** : échange entre deux MAR de deux gardes de **même jour de semaine et même rôle**,
+toutes deux hors férié/VJF → contribution identique à tous les compteurs. **L'équité est neutre
+PAR CONSTRUCTION, pas par mesure.** Protections : le cédant ne perd jamais son propre jour gagné
+et n'hérite jamais d'un rapprochement · régime `souhait_plafond` exclu · plafond **2 par MAR et
+par an** · toutes les règles dures passent par `blocked()`, la fonction du générateur.
+
+**Validation — égalité stricte sur 400 années** : 292 312 gardes, 0 journée sans binôme, et les
+écarts (total, par axe, axe concerné, MAR concerné) **identiques année par année**. Mesuré :
+**16,5 échanges/an** pour ~12 MAR, **+2,2 gardes rapprochées J±2/an**, et **0 violation
+supplémentaire** (29 replis avec la passe, 29 sans, scénario par scénario).
+
+**⚠️ Le banc d'essai simulait une équipe qui n'existe pas.** Corrigé dans `simulateur/demographie.js` :
+six temps partiels **à cible pleine** ignorés (CATINEAU 80/100 · GHIGLIONE, LEVASSEUR, MENADE,
+WIDEHEM, ZAMARON 90/100, ~175 jours/an manquants) · jours de TP **figés sur un jour fixe** (un 80 %
+indisponible **tous les jeudis** avec une cible jeudi pleine) · 12 % posés en **week-end** ·
+BONNET/BOUREGBA inversés · FERRIERO retiré de 2028 à 2046 alors que sa `date_fin` est vide.
+Désormais : pool de TP proportionnel à la quotité, jours ouvrés uniquement, un tiers en blocs de
+3-5 jours ; table alignée sur `MEDECINS` ; **SULTAN garde à 100 %** malgré ses 66 ans (exception
+`noExempt`), **MENADE exempté à 60 ans**.
+⚠️ **À FAIRE EN PRODUCTION** : cocher `no_garde = O` pour MENADE dans `MEDECINS`, sinon production
+et banc d'essai divergent d'un gardeur.
+
+**Effet : l'algorithme était sous-évalué.** À échantillon identique, écart médian par axe
+3,80 → **1,70** ; pire par axe 5,90 → 4,30 ; médian sur le total 1,30 → **1,10**.
+
+**Référence définitive (400 années)** : 292 312 gardes · **0 journée sans binôme** · écart médian
+**sur le total 1,10**, pire **2,90**, dépasse 2 dans **3,5 %** des années, **jamais 3** ·
+par axe : médian 1,70, pire 3,00.
+*(Le « 1,20 » du deck était l'écart sur le TOTAL, pas par axe — deux mesures mélangées. Mesure
+retenue pour le staff : le total.)*
+
+**Les 7 violations d'invariants ne sont PAS des bugs** : ce sont des **replis délibérés**, chacun
+annoncé par un avertissement (« unité non tenable, date placée seule », « couplage férié : binôme
+samedi indispo », « jeudi↔samedi toléré »). Toutes à **Noël ou Pâques**, avec 5 à 11 gardeurs
+disponibles contre 15 en médiane. Fausse alerte de ma part, corrigée.
+→ *À faire* : que `checkInvariants` distingue une violation **avec** avertissement (normal) d'une
+violation **silencieuse** (vrai bug) — sinon un vrai défaut s'y noiera.
+
+**Deck du 04/09 mis à jour** : médiane 1,10 · dépasse 2 dans 3,5 % · jamais 3 · pire 2,90 ·
+phrase sur le creux démographique supprimée · **nouvelle diapo « Un jour de congé gagné avant les
+vacances »**.
+
+**Scripts** : `simulateur/echanges_rg_vacances.js` · `simulateur/diag_invariants.js`.
+
+---
+
 ## 🔜 À faire
-
-- [ ] 🎁 **Repos de garde avant vacances — « le jour gagné »** *(mesuré le 30/07, conception
-  validée par Arthur, **à démarrer après le 04/09**)*
-
-  **L'idée** (pratique manuelle de l'ancienne équipe) : donner à un MAR la garde de la veille de
-  son dernier jour travaillé avant un départ en congés. Le repos de garde tombe alors sur ce
-  dernier jour, qui n'est **pas** décompté du quota — il gagne un jour de vacances.
-
-  **Règle exacte** (ne pas la simplifier en « avant-veille du départ », ça rate la cible) :
-  partir du 1er jour du bloc `VAC`, remonter jusqu'au dernier jour **réellement travaillé** J en
-  sautant week-ends, fériés, **jours de temps partiel** (un TP posé le vendredi pour rallonger le
-  départ ne doit pas être pris pour J) et toute absence collée. La garde à obtenir est **J-1**,
-  qui doit tomber **lundi→jeudi non férié** (si J-1 est un dimanche, la garde entraîne le vendredi
-  — unité VD indissociable : on abandonne).
-
-  **Réalisation** : uniquement par **échange entre deux MAR, même type de jour ET même rôle**
-  (jeudi-réa contre jeudi-réa…). Aucun compteur d'équité ne bouge — c'est vrai *par construction*,
-  pas par mesure. Décisions d'Arthur : départ **uniquement** (pas le retour) · plafond **2 par MAR
-  et par an** · **vacances du staff seulement** · pas d'échange à coût non nul dans un premier
-  temps · **le cédant ne doit pas y perdre** son propre jour gagné.
-
-  **Mesure sur 120 années simulées (6 scénarios × 20 ans), générateur NON modifié :**
-
-  | | par an |
-  |---|---|
-  | départs en vacances | 68 |
-  | dont éligibles (J-1 lundi→jeudi) | 62 (**91 %**) |
-  | déjà satisfaits par hasard | 8,0 |
-  | **échanges à coût nul possibles** | **12,2** |
-  | **jours gagnés au total** | **20,2** |
-
-  ⚠️ **82 % des gardes visées sont des jeudis** : les congés étant posés du samedi au samedi
-  (usage réel du service), le dernier jour travaillé est presque toujours un vendredi. La
-  généralisation reste juste, mais on retombe sur l'axe le plus disputé.
-
-  Raisons d'échec, par ordre : **espacement du demandeur** (2 172 — il a déjà une garde à moins
-  de 3 jours ; contrainte de sécurité, ne pas y toucher) · **le cédant y perdrait** (1 305, c'est
-  la règle voulue) · aucun partenaire de même type/rôle (1 285) · J-1 hors fenêtre (726) ·
-  plafond (123) · demandeur indisponible (135).
-
-  **Script de mesure** : `simulateur/mesure_rg_vacances.js` (lecture seule, ne modifie pas le
-  générateur). `SCEN=n node simulateur/mesure_rg_vacances.js`.
-
-  **Validation exigée avant livraison** : la passe étant à coût nul, les 400 années doivent
-  donner des chiffres **strictement identiques** (médian 1,20 · pire 3,5 en 2041 · 292 312 gardes ·
-  0 journée sans binôme). **Un seul indicateur qui bouge = implémentation fausse**, pas « moins
-  bonne ». Outil : `simulateur/avant_apres.js`, qui fait tourner la batterie sur les deux versions.
-  Réserve à mesurer : l'échange déplace des dates, donc peut modifier légèrement le **lissage
-  mensuel** (non mesuré par les stats ni le certificat).
-
-  **Pourquoi après le 04/09** : 12 jours/an est tangible sans être spectaculaire ; modifier la
-  pierre angulaire à 5 semaines d'une démonstration publique penche du mauvais côté. La vraie
-  génération 2027 a lieu **en novembre** — livrer en septembre-octobre suffit pour que le bénéfice
-  soit acquis dès la première année réelle.
 
 - [ ] 📽️ **Présentation staff du 04/09** — voir « Priorité 1 » en tête de section.
   Deck refait et poussé (`6ca0b09cd1`), `GARDES_2027` supprimé le 30/07. Reste : **répétition
