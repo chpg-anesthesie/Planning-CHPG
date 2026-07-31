@@ -20,9 +20,13 @@ for(let y=Y0;y<=Y1;y++){
   let dA=0,qA='',aA='';
   ids.forEach(id=>AX.forEach(([k,ck])=>{const cb=num(st[id][ck]); if(cb<=0)return;
     const e=Math.abs(num(st[id][k])-cb); if(e>dA){dA=e;qA=id;aA=k;}}));
-  const P=A.parsePlanning(r.ss,y); const cnt={};
-  Object.values(P.byDoc).forEach(d=>Object.entries(d).forEach(([k,v])=>{if(v==='G'||v==='G2')cnt[k]=(cnt[k]||0)+1;}));
-  const nu=Object.values(cnt).filter(n=>n<2).length; out.sansBinome+=nu;
+  const P=A.parsePlanning(r.ss,y);
+  // (31/07/2026) On compte sur P.dates, PAS sur les dates presentes dans le releve :
+  // l'ancien compteur construisait un dictionnaire a partir des gardes existantes, donc
+  // une journee ENTIEREMENT non pourvue n'y figurait pas et restait invisible. Il
+  // annoncait 0 alors que 4 journees sur 400 annees n'ont personne (fin decembre,
+  // apres plusieurs replis) — le generateur, lui, les signale par « Manque MAR ».
+  const nu=P.dates.filter(d=>!P.byDate[d].G||!P.byDate[d].G2).length; out.sansBinome+=nu;
   const pleins=roster.filter(([i,p,q,f])=>p===100&&q===100&&!f.noGarde&&!f.dateFin&&!f.dateDebut).map(x=>x[0]);
   out.annees.push({y, dT:+dT.toFixed(2), qT, dA:+dA.toFixed(2), qA, aA, nu,
     gardeurs:roster.filter(([i,p,q,f])=>!f.noGarde&&p>0).length,
