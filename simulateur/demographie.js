@@ -14,27 +14,27 @@ const H=require('./harness.js'), A=require('./analyse.js');
 
 // [id, pct_gardes, quotite, naissance, flags de base]
 const EQUIPE=[
-  ['SULTAN',    100,100, 1961, {}],
-  ['BONNET',      0,100, 1964, {noGarde:1}],
-  ['MENADE',    100,100, 1967, {}],
+  ['SULTAN',    100,100, 1961, {noExempt:1}],   // 66 ans en 2027 mais prend 100 % des gardes (décision Arthur 31/07/2026)
+  ['BONNET',     60, 60, 1964, {noGarde:1, only18:1, tpJours:'JEU, VEN'}],  // 60/60, jeu+ven fixes
+  ['MENADE',   100, 90, 1967, {}],   // 90 % de travail, 100 % des gardes
   ['GUERIN',    100,100, 1969, {}],
-  ['CATINEAU',  100,100, 1974, {}],
-  ['BOUREGBA',    0, 60, 1975, {noGarde:1}],   // 60 % : jeudi+vendredi, ne prend pas de garde
+  ['CATINEAU', 100, 80, 1974, {}],   // 80 % de travail, 100 % des gardes
+  ['BOUREGBA',  100,100, 1975, {noGarde:1, only18:1}],   // 100/100 mais ne prend pas de garde
   ['ARMANDO',   100,100, 1975, {}],
   ['ROUSSEAU',  100,100, 1976, {}],
   ['ALBOUY',    100,100, 1977, {}],
   ['PRUNET',    100,100, 1977, {noWeekend:1,souhaitPlafond:1}],
-  ['GHIGLIONE', 100,100, 1978, {}],
+  ['GHIGLIONE',100, 90, 1978, {}],   // 90 % de travail, 100 % des gardes
   ['LEY',        90, 90, 1981, {}],
   ['OPPRECHT',  100,100, 1982, {}],
-  ['ZAMARON',   100,100, 1986, {}],
+  ['ZAMARON',  100, 90, 1986, {}],   // 90 % de travail, 100 % des gardes
   ['SEVERAC',    80, 80, 1986, {}],
   ['SALA',      100,100, 1986, {}],
-  ['LEVASSEUR', 100,100, 1987, {}],
+  ['LEVASSEUR',100, 90, 1987, {}],   // 90 % de travail, 100 % des gardes
   ['COPELOVICI', 50, 50, 1990, {r2s2:1}],   // LC — le poste conservé, 50 %
   ['SUPLY',     100,100, 1990, {}],
-  ['FERRIERO',  100,100, 1991, {}],          // AF — s'arrête fin février 2027
-  ['WIDEHEM',   100,100, 1991, {}],
+  ['FERRIERO',  100,100, 1991, {}],          // AF — date_fin VIDE dans MEDECINS : il reste
+  ['WIDEHEM',  100, 90, 1991, {}],   // 90 % de travail, 100 % des gardes
   ['FROHLICH',  100,100, 1992, {}],
   ['PARTOUCHE', 100,100, 1992, {}],
   ['ARMAND',    100,100, 1993, {}],          // recrutement titulaire, arrivé 11/2026
@@ -44,17 +44,20 @@ const FIN_FERRIERO='2027-02-28';   // 1 ETP qui disparaît → réabsorbé au pr
 function buildRoster(year,{ageExempt=60,ageRetraite=67}={}){
   const out=[], repl=[];
   EQUIPE.forEach(([id,pct,q,born,f0])=>{
-    // FERRIERO : présent en 2027 jusqu'à fin février, absent ensuite
-    if(id==='FERRIERO'){
-      if(year<2027) out.push([id,pct,q,{...f0}]);
-      else if(year===2027) out.push([id,pct,q,{...f0, dateFin:FIN_FERRIERO}]);
-      return;                                  // à partir de 2028 : parti
-    }
+    // (31/07/2026) FERRIERO n'est plus un cas particulier : sa date_fin est VIDE dans
+    // l'onglet MEDECINS. L'ancien modèle le faisait partir fin février 2027 puis
+    // disparaître dès 2028 — un temps plein retiré de TOUTES les années simulées.
+    // Décision d'Arthur : par défaut il reste, et suit la règle commune (exemption à
+    // 60 ans, retraite à 67). À revoir le jour où sa date de départ sera connue.
     const retYear=born+ageRetraite;
     if(year>=retYear){ if(id!=='SULTAN') repl.push({id:'REMPL_'+id, born:retYear-35}); return; }
     const age=year-born;
     const f={...f0};
-    if(age>=ageExempt) f.noGarde=1;
+    // Exemption de gardes à 60 ans — SAUF exception nominative (drapeau noExempt).
+    // MENADE (né 1967) y entre en 2027 : décision d'Arthur, il n'en prend plus.
+    // ⚠️ À répercuter dans l'onglet MEDECINS (no_garde = O) avant la génération de
+    // novembre, sinon la production et le banc d'essai divergent d'un gardeur.
+    if(age>=ageExempt && !f0.noExempt) f.noGarde=1;
     out.push([id,pct,q,f]);
   });
   repl.forEach(r=>{
@@ -302,18 +305,29 @@ function buildAbsences(year,roster,scen){
     // d'un 80 % ou d'un 90 % tombait parfois sur un lundi férié et cassait le couplage
     // samedi→lundi (2 cas sur 80 en 20 ans) — artefact du modèle.
     const poseTP=(ds)=>{ if(!m[ds] && !FER.has(ds.slice(5))) { m[ds]='TP'; return true; } return false; };
-    if(q===90){                                   // 2 jours off par mois
-      for(let mo=1;mo<=12;mo++) for(let k=0;k<2;k++){
-        let pose=false;
-        for(let t=0;t<10&&!pose;t++) pose=poseTP(iso(year,mo,1+Math.floor(R()*27))); }
-    } else if(q===80){                            // 1 jour off par semaine, jour fixe
-      const d=new Date(Date.UTC(year,0,1+Math.floor(R()*5)));
-      while(d.getUTCFullYear()===year){
-        const ds=iso(year,d.getUTCMonth()+1,d.getUTCDate());
-        if(!poseTP(ds)){                          // férié : reporté dans la même semaine
-          for(let n=1;n<=3;n++){ const x=new Date(d); x.setUTCDate(x.getUTCDate()+n);
-            if(x.getUTCFullYear()===year && poseTP(iso(year,x.getUTCMonth()+1,x.getUTCDate()))) break; } }
-        d.setUTCDate(d.getUTCDate()+7); }
+    // (31/07/2026) POOL LIBRE — corrigé après relevé de l'onglet MEDECINS.
+    // L'ancien modèle imposait un SCHÉMA : 1 jour fixe par semaine pour un 80 %,
+    // 2 jours par mois tirés entre le 1 et le 27 pour un 90 %. Deux défauts :
+    //  1. le jour fixe pouvait tomber sur un axe d'équité (tous les jeudis de
+    //     l'année), rendant la cible de cet axe inatteignable → équité faussée ;
+    //  2. rien n'interdisait le samedi ou le dimanche — 12 % des jours TP y
+    //     tombaient, alors qu'un jour de TP est un jour OUVRÉ non travaillé.
+    // Réalité (Arthur) : chacun dispose d'un POOL proportionnel à sa quotité,
+    // qu'il place librement — groupé en semaine, ou dispersé, sans motif.
+    if(q===90 || q===80){
+      const ouvres=[]; { const d=new Date(Date.UTC(year,0,1));
+        while(d.getUTCFullYear()===year){ const w=d.getUTCDay();
+          const ds=iso(year,d.getUTCMonth()+1,d.getUTCDate());
+          if(w>=1&&w<=5&&!FER.has(ds.slice(5))) ouvres.push(ds);
+          d.setUTCDate(d.getUTCDate()+1); } }
+      const pool=Math.round((1-q/100)*ouvres.length);
+      let pose=0, essais=0;
+      while(pose<pool && essais++<3000){
+        const i=Math.floor(R()*ouvres.length);
+        // ~1 fois sur 3, un bloc de 3 à 5 jours ouvrés consécutifs (« je prends une semaine »)
+        const long = R()<0.33 ? 3+Math.floor(R()*3) : 1;
+        for(let k=0;k<long && pose<pool && i+k<ouvres.length;k++) if(poseTP(ouvres[i+k])) pose++;
+      }
     } else if(q===60){                            // jeudi + vendredi
       const d=new Date(Date.UTC(year,0,1));
       while(d.getUTCFullYear()===year){
