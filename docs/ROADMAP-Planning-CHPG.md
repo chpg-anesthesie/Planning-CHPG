@@ -1666,6 +1666,57 @@ confortable à 21 gardeurs.
 
 ---
 
+**4. ⚠️ `canHold` et `blocked()` avaient divergé — DEUX GARDES D'AFFILÉE en production.**
+`generateur_gardes.gs` v2026-07-31.3. Constaté sur la 2ᵉ génération réelle : PARTOUCHE de garde
+le **03/01/2027** (dernier jour du planning 2026) **et le 04/01/2027** (1er jour de 2027).
+WIDEHEM, l'autre titulaire du 03/01, avait bien son `RG` — pas lui.
+
+*Mécanisme* : `CONFIG_TRANSITION` porte les 2 titulaires du dernier jour de N-1 ; le générateur
+leur pose `RG_TRANSITION` sur le 1er jour de N, et `blocked()` le respecte. Mais l'**optimiseur
+d'équité** n'appelle pas `blocked()` : sa fonction `canHold` refaisait ses propres tests, avec une
+liste maintenue à la main — **`RG_TRANSITION` n'y était pas**. Le placement chronologique
+respectait la contrainte, l'optimiseur la piétinait ensuite.
+Comparaison exhaustive des 2 listes : **un second écart** — `canHold` ne vérifiait pas non plus le
+**plafond des souhaits garantis** (un transfert pouvait dépasser la cible totale de PRUNET).
+
+*Correctif retenu (Arthur : « il faut faire le vrai correctif »)* : **source unique**
+`indispoIndividuelle(id, date)` — toutes les contraintes qui ne dépendent NI de l'ordre de
+placement NI du contexte d'un transfert (présence, absences, `RG_TRANSITION`, semaine off, TP
+fixes, NO_WEEKEND, les 4 règles du régime `souhait_plafond` dont son plafond). Appelée par
+`blocked()` **et** par `canHold()`. Chacun ne garde que ce qui lui est propre : repos, récup,
+gardes adjacentes, combos jeudi↔samedi et dimanche→mardi — car l'optimiseur raisonne sur un
+**groupe** de jours et doit ignorer l'adjacence interne. Commentaire posé : *ne jamais y remettre
+une liste locale*.
+*Validation* : 60 années rejouées, **équité strictement inchangée**, 0 erreur de génération.
+
+**Pourquoi la simulation ne pouvait pas le voir** : `RG_TRANSITION` naît de `CONFIG_TRANSITION`,
+onglet que le banc d'essai **ne crée jamais**. Sur 400 années, ce code n'a jamais valu autre chose
+qu'« absent », et la contrainte ne s'applique qu'**un jour par an** — le premier.
+
+---
+
+**✅ 3ᵉ génération 2027 — validée sur les vraies données (croisement GARDES × INDISPOS × STATS)**
+`RG` présent pour PARTOUCHE **et** WIDEHEM le 04/01 · 364/364 jours à 2 gardes · 0 garde
+consécutive · 0 garde sur absence · 0 repos manquant · récup = samedis pour chacun · 0 unité VD
+brisée · 0 statut `I` · 0 absence d'`INDISPOS` non reportée · 0 code d'absence sans source ·
+**61 souhaits honorés sur 64, aucun hors lundi-mercredi** · Noël/An : 8 MAR distincts sur 4 dates ·
+BONNET et BOUREGBA 0 garde · **PRUNET 43 gardes pour une cible de 44, aucune en week-end ni férié
+— plafond respecté** · 0 récup et 0 « 18 h » en week-end ou férié.
+**Équité : médiane 0,6 · pire 1,6 (MENADE) · 20/21 MAR à moins d'une garde** (axes : SAM 1,2 ·
+JEU 1,0 · VD 1,2 · VJF 0,7). **Confort : 32 départs servis sur 76 (42 %), 18 MAR.**
+
+**À trancher** : 2 journées de « 18 h » posées sur des jours `INDISPO` (CATINEAU 22/01,
+GUERIN 19/03). **Conforme au code** — `ABSENT_18` exclut délibérément `INDISPO`, qui signifie
+« présent, mais pas de garde », et un 18 h n'est pas une garde. Question métier : un MAR qui se
+déclare indisponible accepte-t-il un 18 h ce jour-là ? Si non, ajouter `INDISPO` à `ABSENT_18`.
+
+**Divergence production / banc d'essai** : **MENADE a 33 gardes** en production — `no_garde` n'est
+pas coché dans `MEDECINS`, alors que le modèle l'exempte au titre des 60 ans. À aligner avant
+novembre.
+
+
+---
+
 ## 🔜 À faire
 
 - [ ] 📽️ **Présentation staff du 04/09** — voir « Priorité 1 » en tête de section.
