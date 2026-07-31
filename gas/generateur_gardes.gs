@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-07-31.1';
+const GAS_VERSION_GENERATEUR = '2026-07-31.3';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -412,15 +412,42 @@ function generateGardes(year){
   // Utilisé UNIQUEMENT en dernier recours par la passe des jours critiques, quand un
   // jour resterait sinon non pourvu. Aucun autre appelant ne passe ce paramètre :
   // le comportement par défaut est strictement inchangé.
-  function blocked(id,date,_relaxJS){
+  // ── (31/07/2026) SOURCE UNIQUE DES CONTRAINTES INDIVIDUELLES ──────────
+  // Contraintes qui ne dépendent NI de l'ordre de placement NI du contexte d'un
+  // transfert : présence, absences, régimes. Appelée par blocked() ET par canHold()
+  // de l'optimiseur.
+  // POURQUOI : les deux fonctions répondaient séparément à « ce MAR peut-il prendre
+  // cette garde ? », avec deux listes maintenues à la main. canHold en avait oublié
+  // DEUX — RG_TRANSITION (→ deux gardes d'affilée le 1er jour de l'année, constaté en
+  // production le 04/01/2027) et le plafond des souhaits garantis. Une règle écrite
+  // deux fois finit toujours par diverger : elle n'est plus écrite qu'ici.
+  // Ce qui reste PROPRE à chaque appelant : tout ce qui dépend du planning en cours
+  // (repos, récup, gardes adjacentes, combos jeudi↔samedi et dimanche→mardi), car
+  // l'optimiseur raisonne sur un GROUPE de jours et doit ignorer l'adjacence interne.
+  function indispoIndividuelle(id,date){
     const _dd=FLAGS.dateDebut[id], _df=FLAGS.dateFin[id]; // (F3) arrivée/départ en cours d'année
     if(_dd&&date<_dd) return true;
     if(_df&&date>=_df) return true;
     const s=indispos[id]?.[date];
     if(s==='INDISPO'||s==='VAC'||s==='FORM'||s==='TP'||s==='CL'||s==='CTP') return true;
-    if(estSemaineOff(id,date)) return true;   // ← AJOUT : semaine "off" du rythme 2/2
+    if(s==='RG_TRANSITION') return true;      // repos hérité de la garde du 31/12 (CONFIG_TRANSITION)
+    if(estSemaineOff(id,date)) return true;   // semaine "off" du rythme 2/2
     const _tpF=FLAGS.tpJoursFixes[id];         // (D1) jours fixes non travaillés (MEDECINS col Q)
     if(_tpF&&_tpF.has(new Date(date+'T12:00:00').getDay())) return true;
+    const _di=dayByDate[date];
+    const _dw=_di?_di.dow:new Date(date+'T12:00:00').getDay();
+    if(NO_WEEKEND.has(id)&&(_dw===0||_dw===6||_di?.isFerie)) return true;
+    if(SOUHAIT_PLAFOND.has(id)&&_di?.isVjf) return true;
+    // (Fix A2) souhait_plafond : jamais de week-end ni de férié — le complément des
+    // mardis perdus ne peut tomber qu'en semaine. Vendredi bloqué aussi (unité VD).
+    if(SOUHAIT_PLAFOND.has(id)&&(_dw===0||_dw===5||_dw===6||_di?.isFerie)) return true;
+    // Plafond souhaits : un MAR plafonné ne dépasse JAMAIS sa cible totale.
+    if(SOUHAIT_PLAFOND.has(id)&&cnt[id]&&cible[id]&&cnt[id].total>=cible[id].total) return true;
+    return false;
+  }
+
+  function blocked(id,date,_relaxJS){
+    if(indispoIndividuelle(id,date)) return true;
     if(rgSet[id].has(date)||rSet[id]?.has(date)) return true;
     const _lend=addOneDay(date);
     if(gSet[id]?.has(_lend)||g2Set[id]?.has(_lend)) return true; // jamais 2 gardes d'affilée, même si la garde du lendemain est déjà posée (souhait/VD hors ordre chrono)
@@ -432,19 +459,7 @@ function generateGardes(year){
       if(_di.dow===4&&!_di.isFerie){const sat=toDateStr(new Date(new Date(date+'T12:00:00').getTime()+2*86400000));
         if(gSet[id]?.has(sat)||g2Set[id]?.has(sat)) return true;}
     }
-    if(s==='RG_TRANSITION') return true;
-    const dow=new Date(date+'T12:00:00').getDay();
-    if(NO_WEEKEND.has(id)&&(dow===0||dow===6)) return true;
-    const di=dayByDate[date];
-    if(NO_WEEKEND.has(id)&&di?.isFerie) return true;
-    if(SOUHAIT_PLAFOND.has(id)&&di?.isVjf) return true; // PRUNET : complément cible hors VJF
-    // (Fix A2) souhait_plafond : JAMAIS de week-end ni de férié — le complément des
-    // mardis perdus (VJF, Noël/An) ne peut tomber qu'en semaine (lun→jeu non férié).
-    // Le vendredi est bloqué aussi : sa garde engage le dimanche (unité VD).
-    if(SOUHAIT_PLAFOND.has(id)&&(dow===0||dow===5||dow===6||di?.isFerie)) return true;
-    // Plafond souhaits : un MAR plafonné ne dépasse jamais sa cible totale
-    if(SOUHAIT_PLAFOND.has(id) && cnt[id] && cnt[id].total >= cible[id].total) return true;
-    return false;
+    return false;   // le reste est dans indispoIndividuelle() — source unique
   }
 
   // ── 7. Fonctions de score ─────────────────────────────────────────────
@@ -1014,15 +1029,10 @@ function generateGardes(year){
     // 4) Faisabilité : B peut-il tenir ce rôle sur tous les jours du groupe ?
     const canHold=(B,days_)=>{
       for(let k=0;k<days_.length;k++){const dd=days_[k];
-        const di=dayByDate[dd],dow=di.dow,s=indispos[B]?.[dd];
-        if(ABS.has(s))return false;
-        if(estSemaineOff(B,dd))return false;
-        const _tpB=FLAGS.tpJoursFixes[B]; if(_tpB&&_tpB.has(dow))return false; // (D1)
-        const ddg=FLAGS.dateDebut[B],dfg=FLAGS.dateFin[B];
-        if(ddg&&dd<ddg)return false; if(dfg&&dd>=dfg)return false;
-        if(NO_WEEKEND.has(B)&&(dow===0||dow===6||di.isFerie))return false;
-        if(SOUHAIT_PLAFOND.has(B)&&di.isVjf)return false;
-        if(SOUHAIT_PLAFOND.has(B)&&(dow===0||dow===5||dow===6||di.isFerie))return false; // (Fix A2)
+        const di=dayByDate[dd],dow=di.dow;
+        // (31/07/2026) SOURCE UNIQUE — cf. indispoIndividuelle(). canHold refaisait ses
+        // propres tests et en avait oublie deux. Ne JAMAIS y remettre une liste locale.
+        if(indispoIndividuelle(B,dd))return false;
         const gg=gardes[dd]; if(B===gg.g||B===gg.g2)return false;
         const adj=[shift(dd,-1),shift(dd,1)];
         for(let a=0;a<2;a++){if(days_.indexOf(adj[a])>=0)continue;
