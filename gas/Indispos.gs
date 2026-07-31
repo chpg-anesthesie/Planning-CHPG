@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-30.5';
+const GAS_VERSION_INDISPOS = '2026-07-31.1';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1376,8 +1376,9 @@ if (yearToGenerate === 2026) return _error('Génération désactivée — GARDES
           })).setMimeType(ContentService.MimeType.JSON);
         }
       }
+let _genWarn = { warnings: [], nbWarnings: 0 };
 try {
-  generateGardes(yearToGenerate);
+  _genWarn = generateGardes(yearToGenerate) || _genWarn;
   generatePlanning(yearToGenerate);
         const ss = SpreadsheetApp.getActiveSpreadsheet();
         const sheet = ss.getSheetByName(`STATS_GARDES_${yearToGenerate}`);
@@ -1391,7 +1392,9 @@ try {
             recupR:data[r][12], h18:data[r][13],
             jf:data[r][14], vjf:data[r][15], vd:data[r][20], cSat:data[r][17], cJeu:data[r][18], cVd:data[r][19], cVjf:data[r][21]});
         }
-        return ContentService.createTextOutput(JSON.stringify({success:true, stats}))
+        logAction(`generateGardes ${yearToGenerate} — ${_genWarn.nbWarnings} avertissement(s)`);
+        return ContentService.createTextOutput(JSON.stringify({success:true, stats,
+          warnings: _genWarn.warnings, nbWarnings: _genWarn.nbWarnings}))
           .setMimeType(ContentService.MimeType.JSON);
       } catch(err) { return _error(err.message); }
     }
@@ -3500,7 +3503,7 @@ if (action === 'setDailyStatus') {
         : (payload.date ? [String(payload.date)] : []);
       if (!marId || !dates.length) return _error('marId et date(s) requis');
 
-      const ALLOWED = new Set(['', 'V', 'I', 'F', 'TP', 'CL', 'A', '18']);
+      const ALLOWED = new Set(['', 'V', 'F', 'TP', 'CL', 'A', '18']);   // (31/07/2026) « I » retire : l'indispo de garde se pose dans INDISPOS
       if (!ALLOWED.has(statut)) return _error(`Statut non autorisé : ${statut}`);
 
       const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -3528,7 +3531,7 @@ if (action === 'setDailyStatus') {
 
       if (applied.length) {
         try {
-          const indMap = {'':'', 'V':'VAC', 'I':'INDISPO', 'F':'FORM', 'TP':'TP', 'CL':'CL', 'A':'A', '18':'INDISPO'};
+          const indMap = {'':'', 'V':'VAC', 'F':'FORM', 'TP':'TP', 'CL':'CL', 'A':'A', '18':'INDISPO'};
           const existing = getIndisposForDoctor(marId, year);
           applied.forEach(d => { existing[d] = indMap[statut]; });
           saveIndisposForDoctor(marId, existing, year);
