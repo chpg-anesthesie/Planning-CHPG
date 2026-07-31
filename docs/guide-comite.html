@@ -103,7 +103,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
   <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
   <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.14.16</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.14.16 -->
+  <div class="maj">Version <strong>v1.14.17</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.14.17 -->
 </header>
 
 <div class="callout tip" style="margin:26px 0 6px">
@@ -297,9 +297,11 @@
   <div class="callout tip">
     <div class="ct">🎄 Le bandeau « Noël &amp; Jour de l'An »</div>
     <p>En haut de la page, un bandeau défilant propose les <strong>MAR prioritaires</strong> pour les gardes de fin d'année, avec, à côté de chaque nom, <strong>la dernière année où il l'a faite</strong> — ou « jamais ».</p>
-    <p><strong>Pourquoi 8 noms ?</strong> Parce qu'il faut exactement 8 personnes : quatre dates (24/12, 25/12, 31/12, 01/01), chacune avec <strong>deux gardes</strong> (réanimation et maternité). Ces quatre dates ne peuvent jamais être couvertes par un même binôme — les couplages de l'algorithme se font à deux jours d'écart, or elles sont espacées d'un jour ou d'une semaine. Le bandeau en propose donc toujours 8, même si moins de MAR sont réellement « en retard ».</p>
+    <p><strong>Combien de noms ?</strong> Il faut <strong>8 personnes</strong> : quatre dates (24/12, 25/12, 31/12, 01/01), chacune avec <strong>deux gardes</strong> (réanimation et maternité), et ces quatre dates ne peuvent jamais être couvertes par un même binôme — les couplages se font à deux jours d'écart, or elles sont espacées d'un jour ou d'une semaine.</p>
+    <p>Le bandeau affiche <strong>tous les MAR réellement « en retard »</strong>, avec un minimum de 8. Il n'est <strong>pas tronqué</strong> : à égalité d'année le départage est alphabétique, et s'arrêter à 8 aurait masqué des collègues tout aussi prioritaires.</p>
     <p><strong>L'ordre</strong> : ceux qui ne l'ont <em>jamais</em> faite d'abord, puis du plus ancien au plus récent. Est considéré « en retard » celui qui ne l'a pas faite depuis <strong>3 ans</strong>. Sont <strong>exclus</strong> : les MAR dispensés de garde, celui qui a un régime de souhaits garantis, et ceux qui ne sont pas présents sur l'année concernée (arrivée ou départ).</p>
     <p><strong>C'est un repère, pas une décision.</strong> Le bandeau ne réserve rien et ne pose aucune garde : il rappelle qui devrait être servi en premier au moment où vous arbitrez les congés de la période Noël. L'attribution réelle est faite par l'algorithme lors de la génération des gardes (chapitre 4.2).</p>
+    <div class="callout warn" style="margin-top:8px"><div class="ct">⚠️ Être prioritaire ne suffit pas</div><p>Un MAR prioritaire qui pose une <strong>indisponibilité</strong> sur le 24, le 25, le 31 décembre ou le 1<sup>er</sup> janvier sera <strong>écarté</strong> de la rotation — et restera prioritaire l'année suivante. Ces indisponibilités n'existent pas encore au moment du staff : le contrôle se fait à l'<strong>étape 1 de l'assistant de génération</strong> (novembre), qui liste les prioritaires concernés. Non bloquant, mais à regarder avant de générer.</p></div>
   </div>
   <div class="callout warn">
     <div class="ct">Valider et verrouiller — en séance</div>
