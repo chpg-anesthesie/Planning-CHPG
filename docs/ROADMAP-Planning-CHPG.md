@@ -69,6 +69,29 @@ en **comparant deux implémentations** sur plusieurs années.
 Les vrais échecs de transfert étaient des `⚠️` → succès annoncé, année basculée, onglets restés
 en place. → Un contrat de retour doit être **structuré** (booléen, code), pas typographique.
 
+**0 quinquies. Le banc d'essai ne teste pas le chemin de lecture du classeur.** (31/07/2026)
+Le simulateur **fabrique** onglets et dates ; il ne relit jamais des libellés de mois réels. Les
+400 années n'ont donc jamais exercé `reconstruireDatesHeaders` — bug de frontière d'année sorti en
+30 s par la première génération réelle.
+→ **Une validation ne vaut que pour le chemin qu'elle emprunte.** Dire *par quel chemin* un
+composant est validé — et lister ceux qui ne le sont pas.
+
+**0 sexies. Un indicateur qui ne détecte jamais rien doit prouver qu'il sait détecter.** (31/07/2026)
+Le compteur « 0 journée sans binôme » bâtissait son dictionnaire **à partir des gardes existantes** :
+une journée entièrement vide n'y figurait pas. Il répondait 0 quoi qu'il arrive.
+→ **Contrôle négatif obligatoire** : fabriquer le défaut, vérifier qu'il est vu. Appliqué ensuite
+aux 5 contrôles du planning et au patch de frontière d'année — les deux fois, il a servi.
+→ Même famille que le garde-fou mort du W2 (`.length` sur un dictionnaire).
+
+**0 septies. Un chiffre dont je n'ai pas lu le calcul est une rumeur.** (31/07/2026)
+Sept chiffres annoncés dans la journée se sont révélés faux — jamais par erreur de raisonnement,
+toujours parce que la **source n'avait pas été lue** : compteur écrit des semaines plus tôt,
+commentaire obsolète, deux mesures aux définitions différentes comparées entre elles.
+→ Marquer la **provenance** : *lu dans le code* · *mesuré, et par quoi* · *supposé*. Sans
+provenance = supposé.
+→ Les 7 erreurs ont été trouvées par les **questions de mécanisme d'Arthur**, jamais par relecture.
+Une question sur le résultat ne trouve rien ; une question sur le mécanisme trouve tout.
+
 **1. Une déclaration placée trop bas dans le fichier casse tout, en silence.** (28/07/2026)
 Dans `admin.html`, la file d'appels `_fileAPI` (`let`) avait été déclarée ligne 2036 alors que la
 connexion automatique l'utilise ligne 1801. Une variable `let` n'existe pas avant sa ligne : le
@@ -284,7 +307,7 @@ La version du site vit dans **4 fichiers, 10 emplacements** : `admin.html` (3),
 ⚠️ `index.html`, `indispos.html`, `staff.html` et `absences.html` **n'en portent aucune**.
 Patch → 3ᵉ chiffre · Fonctionnalité → 2ᵉ · **v2.0 réservée à l'ouverture du module libéral au
 groupement** (la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.14.14** (30/07/2026).
+**Version en cours : v1.14.15** (31/07/2026).
 
 ---
 
@@ -1599,6 +1622,47 @@ parce qu'une donnée manque. Chiffres de référence au 31/07 : écart individue
 **9 jours** · absences **79 j** (temps plein) / **92 j** (90 %) / **113 j** (80 %) · **15 congés
 simultanés** au maximum · pic de charge **48,8 gardes en 2040** avec 16 gardeurs.
 
+
+---
+
+### Première génération réelle 2027 — trois défauts que 400 années simulées n'ont pas vus (31 juillet 2026) · `code.gs` v2026-07-31.1 · `generateur_gardes.gs` v2026-07-31.1 · `Indispos.gs` v2026-07-31.1 · site v1.14.15
+
+**Leçon centrale : le banc d'essai FABRIQUE les onglets et les dates, il ne relit jamais le
+classeur réel.** Toute une famille de défauts lui est structurellement invisible. La première
+génération en production les a sortis en quelques minutes.
+
+**1. ⚠️ FRONTIÈRE D'ANNÉE — deux gardes attribuées à des MAR en congés.**
+`reconstruireDatesHeaders` ne changeait d'année que si le libellé contenait 4 chiffres. Or les
+en-têtes ne portent que le mois (« Janvier »). Un onglet annuel court du 1er lundi de janvier N au
+dimanche précédant le 1er lundi de N+1 : il se termine par une **queue de janvier N+1**, qui était
+datée en **année N**. Les absences des 2 derniers jours du planning devenaient **invisibles** →
+OPPRECHT (INDISPO) et ZAMARON (VAC) de garde le 01/01/2028.
+Règle : **si le numéro de mois recule, l'année s'incrémente.** Année écrite prioritaire, en-têtes
+Date inchangés. Contrôle négatif : l'ancienne version datait bien les 2 dernières colonnes en 2027.
+Fonction utilisée à **8 endroits**. `buildDateToCol` (13 autres lectures) est **sain** : il compte
+les colonnes depuis le 1er lundi.
+
+**2. Le statut `I` recopié dans GARDES était lu comme une ABSENCE.**
+842 cas sur 2027. `I` = « présent, mais pas de garde » — `ABSENT_CODES` l'exclut explicitement,
+mais **4 listes d'affichage** l'ajoutaient aux absents, dont deux comme **filtre** : le MAR
+disparaissait de son secteur, consultations et affectations non traitées.
+**Décision d'Arthur : option A** — `I` n'est plus écrit dans `GARDES` (l'info vit dans `INDISPOS`),
+retiré des statuts posables et du glossaire. **Une donnée, un endroit.**
+Le code **`E`** n'existait plus côté serveur mais traînait dans 5 listes : supprimé.
+
+**3. Les avertissements du générateur n'arrivaient nulle part.**
+`Logger.log` (invisible depuis l'application) + un `getUi().alert()` qui **lève une exception via
+la Web App**, avalée par un `try/catch`. Replis, exceptions VD, « Manque MAR », passe de confort :
+tout était perdu, **une année se générait à l'aveugle**. Désormais renvoyés par `generateGardes`,
+transmis par le routeur, affichés sous l'étape du W2 (journées non pourvues en rouge).
+
+**✅ Génération 2027 revalidée** (contrôles indépendants sur les onglets réels) : 0 statut `I` ·
+**0 garde sur absence** · 364/364 jours à 2 gardes · 0 garde consécutive · 727/727 repos ·
+récup = samedis pour chacun · 0 unité VD brisée.
+**Équité : écart maximal 0,6 garde, 21/21 MAR à moins d'UNE garde de leur cible** (SAM 1,2 ·
+JEU 0,5 · VD 1,2 · VJF 0,6) — bien mieux que la campagne (pire 2,9), 2027 étant une année
+confortable à 21 gardeurs.
+**Confort : 29 départs servis sur 76 éligibles (38 %), 16 MAR bénéficiaires.** Aucun repli.
 
 ---
 
