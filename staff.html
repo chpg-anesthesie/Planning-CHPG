@@ -309,7 +309,10 @@ async function renderNoelBanner(){
   const el=document.getElementById('noelBanner');
   if(!el) return;
   try{
-    const r=await apiCall({action:'getNoelAnEligibles',year:currentYear});
+    // (31/07/2026) `tous:true` — la liste COMPLETE, sans le plafond de 8. A egalite
+    // d'annee le tri est alphabetique : plafonner masquait des prioritaires tout aussi
+    // legitimes, et le comite arbitrait les vacances de Noel sur une liste tronquee.
+    const r=await apiCall({action:'getNoelAnEligibles',year:currentYear,tous:true});
     if(!r||!r.success||!r.eligibles||!r.eligibles.length){ el.style.display='none'; return; }
     const items=r.eligibles.map(e=>'<span class="nb-nm">Dr '+e.id+'</span> <span class="nb-ly">· '+(e.last?e.last:'jamais')+'</span>').join('<span class="nb-sep">•</span>');
     const run='Prioritaires pour la garde&nbsp;: <span class="nb-sep">•</span>'+items;
