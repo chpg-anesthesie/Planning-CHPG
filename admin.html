@@ -975,7 +975,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.14.15'; // SITE_VERSION: v1.14.15
+const SITE_VERSION = 'v1.14.16'; // SITE_VERSION: v1.14.16
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1068,7 +1068,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.15</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.16</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -5767,6 +5767,7 @@ let wizGIndisposData = null;
 let wizGVacData = null;
 let wizGConflitsData = null;
 let wizGFeries = null;
+let wizGNoel = null;   // prioritaires Noël/An, liste COMPLÈTE (sans le plafond de 8)
 
 // Carte « wizard verrouillé » réutilisable (fond rouge pastel + cadenas)
 function wizardLockedHTML(title, msg, hint) {
@@ -5935,14 +5936,16 @@ async function renderWizGStep() {
     const _needInd = !wizGIndisposData, _needConf = !wizGConflitsData, _needFer = !wizGFeries;
     if (_needInd || _needConf || _needFer) {
       const _needVac = !wizGVacData;
-      const [_indRes, _confRes, _ferRes, _ferRes2, _vacRes] = await Promise.all([
+      const [_indRes, _confRes, _ferRes, _ferRes2, _vacRes, _noelRes] = await Promise.all([
         _needInd ? api({action:'getAllIndispos', year: INDISPOS_YEAR}).catch(e => ({success:false, error:e.message})) : Promise.resolve(null),
         _needConf ? api({action:'getConflitsAll', year: INDISPOS_YEAR}).catch(() => ({success:false})) : Promise.resolve(null),
         _needFer ? api({action:'getJoursFeries', year: INDISPOS_YEAR}).catch(() => ({success:false})) : Promise.resolve(null),
         _needFer ? api({action:'getJoursFeries', year: INDISPOS_YEAR + 1}).catch(() => ({success:false})) : Promise.resolve(null),
-        _needVac ? api({action:'getVacValidation'}).catch(() => ({success:false})) : Promise.resolve(null)
+        _needVac ? api({action:'getVacValidation'}).catch(() => ({success:false})) : Promise.resolve(null),
+        api({action:'getNoelAnEligibles', year: INDISPOS_YEAR, tous: true}).catch(() => ({success:false}))
       ]);
       if (_needVac && _vacRes && _vacRes.success) wizGVacData = _vacRes.data || [];
+      if (_noelRes && _noelRes.success) wizGNoel = _noelRes.eligibles || [];
       if (_needInd) {
         if (!_indRes || !_indRes.success) {
           body.innerHTML = '<div class="wizard-warning">❌ Impossible de charger les indispos : ' + ((_indRes && _indRes.error) || '') + '</div>';
@@ -5968,6 +5971,26 @@ async function renderWizGStep() {
       return Object.keys(ind).length === 0;
     });
     const nbConflits = wizGConflitsData.nbConflits || 0;
+    // ── (31/07/2026) Prioritaires Noël/An indisponibles sur les 4 dates ──
+    // Un prioritaire qui pose une indispo sur le 24, 25, 31 décembre ou le 1er janvier
+    // est ÉCARTÉ de la rotation par blocked() — et il RESTE prioritaire l'année suivante.
+    // Le bandeau du staff n'est d'aucun secours : il est plafonné à 8 et les indispos
+    // n'existent pas encore au moment du staff. C'est ici, et seulement ici, que la
+    // liste des prioritaires et les saisies des MAR coexistent.
+    // NON BLOQUANT : ce peut être un choix légitime. Mais il doit être SU.
+    let _noelBloq = [];
+    if (wizGNoel && wizGNoel.length && wizGIndisposData) {
+      const _dN = [INDISPOS_YEAR + '-12-24', INDISPOS_YEAR + '-12-25',
+                   INDISPOS_YEAR + '-12-31', (INDISPOS_YEAR + 1) + '-01-01'];
+      const _abs = new Set(['INDISPO', 'VAC', 'FORM', 'CL', 'TP', 'CTP']);
+      wizGNoel.forEach(e => {
+        const m = wizGIndisposData[e.id] || {};
+        const j = _dN.filter(d => _abs.has(String(m[d] || '').trim().toUpperCase()));
+        if (j.length) _noelBloq.push({init: e.init || e.id, last: e.last, n: j.length,
+          quoi: j.map(d => String(m[d]).trim().toUpperCase() === 'INDISPO' ? 'indispo' : 'absent').join(', '),
+          dates: j.map(d => d.slice(8) + '/' + d.slice(5, 7))});
+      });
+    }
     const blocked = sansIndispo.length > 0 || nbConflits > 0;
 
     // Bloquer ou débloquer le bouton Suivant
@@ -6125,6 +6148,19 @@ async function renderWizGStep() {
           const mm = per.mars.find(x => x.id === id);
           return (mm && mm.rang) ? {rang: mm.rang, total: per.mars.length, periode: per.nom} : null;
         };
+        if (_noelBloq.length) {
+          html += '<div class="wizard-section-title" style="margin-top:16px">🎄 Prioritaires Noël / Jour de l\'an — indisponibles sur les dates</div>';
+          html += '<div class="wizard-warning" style="background:#FEF3C7;border-left:3px solid #F59E0B;color:#92400E;margin-top:4px">'
+            + '<strong>' + _noelBloq.length + ' MAR prioritaire(s) ne pourront pas être retenus</strong> : ils sont indisponibles ou absents sur au moins une des 4 dates (24, 25, 31 déc., 1<sup>er</sup> janv.). '
+            + 'Ils <strong>resteront prioritaires l\'an prochain</strong>. Ce peut être un choix légitime — mais autant le savoir avant de générer.</div>';
+          html += '<div class="wiz-mar-list" style="margin-top:8px">';
+          _noelBloq.forEach(b => {
+            html += '<div class="wiz-mar-row"><div class="wiz-mar-init">' + b.init + '</div>'
+              + '<div class="wiz-mar-name">dernier Noël : ' + (b.last ? b.last : 'jamais') + '</div>'
+              + '<div class="wiz-mar-meta"><span class="wiz-warn">' + b.dates.join(' · ') + ' — ' + b.quoi + '</span></div></div>';
+          });
+          html += '</div>';
+        }
         html += '<div class="wizard-section-title" style="margin-top:16px">Couverture — jours à risque de trou</div>';
         if (!_dayRisk.length) {
           html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534;margin-top:4px">✅ <strong>Aucun jour sous 6 MARs disponibles</strong> — aucun trou de couverture attendu.</div>';
