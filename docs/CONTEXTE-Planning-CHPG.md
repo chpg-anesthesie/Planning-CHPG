@@ -13,8 +13,8 @@ chiffres concrets plutôt que des généralités.
 
 ## État au 30 juillet 2026
 
-**Site v1.14.14** · GAS : `code.gs` 2026-07-29.3 · `Indispos.gs` **2026-07-30.5** ·
-`portail.gs` **2026-07-30.1** · `generateur_gardes.gs` **2026-07-30.1** · `setup_annee.gs` **2026-07-30.1**
+**Site v1.14.15** · GAS : `code.gs` **2026-07-31.1** · `Indispos.gs` **2026-07-31.1** ·
+`portail.gs` **2026-07-30.1** · `generateur_gardes.gs` **2026-07-31.1** · `setup_annee.gs` **2026-07-30.1**
 *(les deux versions du 30/07 sont recopiées et déployées, confirmé par Arthur)*
 
 **En production :** algorithme de gardes (équité annuelle), planning quotidien (`admin.html`),
@@ -31,6 +31,16 @@ Référence définitive sur 400 années : **292 312 gardes, 0 journée sans bin�
 total 1,10, pire 2,90, jamais plus de 3**. Le générateur porte désormais la passe « jour gagné
 avant les vacances » (~16 jours de congé/an, équité strictement inchangée).
 ⚠️ **MENADE doit être coché `no_garde = O`** dans `MEDECINS` avant la génération de novembre.
+
+**⚠️ 31/07 — la première génération réelle a sorti 3 défauts invisibles en simulation.**
+Le banc d'essai **fabrique** onglets et dates : il n'exerce jamais le chemin de lecture du classeur.
+(1) `reconstruireDatesHeaders` datait la **queue de janvier N+1** en année N → absences des 2
+derniers jours invisibles, 2 gardes attribuées à des MAR en congés. Règle : *si le mois recule,
+l'année s'incrémente*. (2) Le statut **`I`** recopié dans `GARDES` était lu comme une absence par
+4 écrans → retiré de `GARDES` (option A : une donnée, un endroit) ; code **`E`** supprimé.
+(3) Les **avertissements du générateur** n'arrivaient nulle part — ils remontent désormais au W2.
+**Génération 2027 revalidée** : 0 garde sur absence, 0 statut `I`, écart maximal **0,6 garde**,
+**21/21 MAR à moins d'une garde** de leur cible, 29 départs en congés prolongés d'un jour.
 
 **⚠️ Rotation des groupes de vacances — règle actée le 30/07/2026.**
 « **Le dernier devient le premier** », entre groupes **et** à l'intérieur d'un groupe :
@@ -539,7 +549,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site (badge `vX.Y.Z`) — actuellement **v1.14.14**
+## Version du site (badge `vX.Y.Z`) — actuellement **v1.14.15**
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
