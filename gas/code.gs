@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-07-29.3';
+const GAS_VERSION_CODE = '2026-07-31.1';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 // Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
@@ -646,8 +646,24 @@ function reconstruireDatesHeaders(data, yearFallback) {
       else {
         const lower = String(cell).toLowerCase();
         const match = String(cell).match(/(\d{4})/);
-        if (match) curY = parseInt(match[1]);
-        Object.entries(MOIS_MAP).forEach(([nom, num]) => { if (lower.includes(nom)) curM = num; });
+        let moisLu = null;
+        Object.entries(MOIS_MAP).forEach(([nom, num]) => { if (lower.includes(nom)) moisLu = num; });
+        if (match) {
+          curY = parseInt(match[1]);            // année écrite : elle fait foi
+          if (moisLu) curM = moisLu;
+        } else if (moisLu) {
+          // (31/07/2026) FRONTIÈRE D'ANNÉE. Un onglet annuel court du 1er lundi de
+          // janvier N jusqu'au dimanche précédant le 1er lundi de N+1 : il se termine
+          // donc par une QUEUE de janvier N+1. Les libellés ne portent que le mois
+          // (« Janvier »), sans année. Sans cette règle, ces colonnes étaient datées
+          // en année N : les absences du 1er janvier N+1 devenaient INVISIBLES pour
+          // le générateur (gardes attribuées à des MAR en congés, constaté sur la
+          // première génération réelle 2027), et les vraies colonnes du 1er janvier N
+          // étaient écrasées par elles.
+          // Règle : si le mois RECULE, on a franchi le 31 décembre.
+          if (curM !== null && moisLu < curM) curY = (curY || 0) + 1;
+          curM = moisLu;
+        }
       }
     }
     const dayNum = data[2][c];
