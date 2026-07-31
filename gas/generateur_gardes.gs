@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-07-30.1';
+const GAS_VERSION_GENERATEUR = '2026-07-31.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -1383,7 +1383,11 @@ function generateGardes(year){
       else if(rgSet[id]?.has(day.date)||indispos[id]?.[day.date]==='RG_TRANSITION')v='RG';
       else if(rSet[id]?.has(day.date))v='R';
       else if(h18A[day.date]===id)v='18';
-      else{const s=indispos[id]?.[day.date];if(s==='VAC')v='V';else if(s==='INDISPO')v='I';else if(s==='FORM')v='F';else if(s==='CL')v='CL';else if(s==='TP'||s==='CTP')v='TP';}
+      // (31/07/2026) « I » (indispo garde) N'EST PLUS recopie dans GARDES : l'info
+      // vit dans INDISPOS, sa place. Recopiee ici, elle devenait un « statut » que
+      // 4 ecrans interpretaient comme une ABSENCE — le MAR disparaissait de son
+      // secteur alors qu'il travaille normalement (842 cas sur 2027).
+      else{const s=indispos[id]?.[day.date];if(s==='VAC')v='V';else if(s==='FORM')v='F';else if(s==='CL')v='CL';else if(s==='TP'||s==='CTP')v='TP';}
       row.push(v);
     });
     return row;
@@ -1428,6 +1432,12 @@ function generateGardes(year){
   st.getRange(2,2,sRows.length,1).setNumberFormat('@STRING@');
   st.setColumnWidth(1,140);
 
+  // (31/07/2026) Les avertissements partaient UNIQUEMENT dans Logger.log (journal
+  // d'execution Apps Script, invisible depuis l'application) et dans un getUi().alert()
+  // qui leve une exception quand la fonction est appelee par la Web App — exception
+  // avalee par le try/catch juste en dessous. Resultat : replis de couplage, exceptions
+  // VD, « Manque MAR », passe de confort... TOUT etait perdu, et une annee entiere se
+  // generait a l'aveugle. Ils sont desormais RENVOYES a l'appelant, qui les affiche.
   warnings.forEach(w=>Logger.log(w));
   const gd=gardeDoctors.filter(id=>cnt[id]);
   const noWE=gd.filter(id=>!NO_WEEKEND.has(id));
@@ -1444,6 +1454,7 @@ function generateGardes(year){
       `Exceptions VD : ${warnings.filter(w=>w.includes('VD')).length}`
     );
   }catch(e){Logger.log('✅ généré');}
+  return { warnings: warnings.slice(0, 60), nbWarnings: warnings.length };
 }
 
 // Déplace GARDES/INDISPOS/STATS/AFFECTATIONS de l'année N vers le classeur d'archives.
