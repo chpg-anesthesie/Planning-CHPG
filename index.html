@@ -1031,7 +1031,7 @@ async function viewLogin() {
 
 async function viewAutoLogin() {
   const saved = sessionStorage.getItem('chpgViewCode');
-  if (!saved) { _reveilAPI(); return; } // pas de code en cache → écran de connexion affiché
+  if (!saved) return; // pas de code en cache → écran de connexion affiché
   VIEW_CODE = saved;
   document.getElementById('viewAuthOverlay').style.display = 'none'; // masqué tout de suite (code en cache) → plus de clignotement
   try {
