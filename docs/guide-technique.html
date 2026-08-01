@@ -148,6 +148,7 @@
       <li><a href="#c20"><span class="n">20</span>La boîte de réception (Messages)</a></li>
       <li><a href="#c21"><span class="n">21</span>Sauvegardes &amp; restauration</a></li>
         <li><a href="#c22"><span class="n">22</span>Le « + » de case à pourvoir</a></li>
+    <li><a href="#c23"><span class="n">23</span>Mesurer la performance : <code>chrono()</code></a></li>
   </ol>
 </nav>
 
@@ -1016,9 +1017,64 @@
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
+<section id="c23">
+  <h2><span class="n">23</span>Mesurer la performance : <code>chrono()</code> et <code>chronoClics()</code></h2>
+
+  <p>Deux commandes à taper dans la <b>console du navigateur</b> (F12 → Console), disponibles sur
+  <code>admin.html</code>, <code>index.html</code>, <code>dashboard.html</code>,
+  <code>indispos.html</code> et <code>absences.html</code>. Elles ne modifient rien : elles
+  observent et impriment un tableau.</p>
+
+  <h3><code>chrono()</code> — le budget complet de la page</h3>
+  <p>S'affiche automatiquement à la fin de l'ouverture d'<code>admin.html</code>. Six parties :
+  la page elle-même (DNS, réponse serveur, téléchargement, analyse du JS), les ressources
+  chargées (polices, icônes), les appels serveur (identique à <code>chronoAPI()</code>),
+  les étapes du chargement, le temps passé dans les fonctions d'affichage, et le temps
+  pendant lequel l'écran est resté figé.</p>
+
+  <h3><code>chronoClics()</code> — le coût d'une interaction</h3>
+  <p>Pour chaque clic de plus de 16 ms : la cible, puis <b>trois temps qu'il ne faut pas
+  confondre</b>.</p>
+  <table>
+    <tr><th>Colonne</th><th>Ce qu'elle mesure</th><th>Ce qu'on peut en faire</th></tr>
+    <tr><td><b>attente</b></td><td>Délai entre le clic et le début du traitement</td>
+      <td>Le navigateur était occupé ailleurs — regarder « écran figé »</td></tr>
+    <tr><td><b>traitement</b></td><td>Temps passé dans notre code</td>
+      <td><b>Le seul temps qu'on puisse réduire nous-mêmes</b></td></tr>
+    <tr><td><b>écran</b></td><td>Peinture après le traitement</td>
+      <td>Trop d'éléments réaffichés d'un coup</td></tr>
+  </table>
+  <p>Repère : au-delà de <b>200 ms</b> un clic est ressenti comme lent, au-delà de
+  <b>500 ms</b> comme bloqué.</p>
+
+  <div class="callout warn">
+    <div class="ct">Chrome ou Edge uniquement</div>
+    <p><code>chronoClics()</code> repose sur une mesure que Safari et Firefox ne fournissent pas :
+    sur ces navigateurs la liste reste vide. Le reste de <code>chrono()</code> fonctionne partout.</p>
+  </div>
+
+  <div class="callout tip">
+    <div class="ct">Lire la colonne « dont écran figé »</div>
+    <p>Dans la partie <i>Affichage</i>, une fonction qui attend le serveur (par exemple
+    <code>initDashboard</code>) affiche un cumul de plusieurs secondes mais un « écran figé »
+    de quelques millisecondes : elle est <b>lente sans être bloquante</b>. Ne pas chercher à
+    l'optimiser. À l'inverse, <code>renderWeek</code> affiche les deux temps identiques :
+    tout ce qu'elle consomme est du blocage direct.</p>
+  </div>
+
+  <div class="callout warn">
+    <div class="ct">Ne jamais comparer deux mesures prises à des heures différentes</div>
+    <p>Apps Script n'offre aucune garantie de performance : le 28/07/2026 le même code est passé
+    de 3,1 à 6,1 s côté serveur en trois heures. Un avant/après n'a de sens que si les deux
+    mesures sont prises dans la même session, à quelques minutes d'intervalle.</p>
+  </div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
 
 
-<div class="foot">Planning-CHPG · Anesthésie-Réanimation CHPG Monaco — guide technique personnel · établi à partir du code en production, mis à jour le 30 juillet 2026 (audit des 3 wizards)</div>
+
+<div class="foot">Planning-CHPG · Anesthésie-Réanimation CHPG Monaco — guide technique personnel · établi à partir du code en production, mis à jour le 1er août 2026 (§ 23 : outils de mesure de la performance)</div>
 
 </div>
 </body>
