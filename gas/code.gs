@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-07-31.1';
+const GAS_VERSION_CODE = '2026-07-31.2';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 // Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
@@ -1370,4 +1370,357 @@ function installBackupTrigger() {
   });
   ScriptApp.newTrigger('backupHebdo').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(4).create();
   Logger.log('✅ Déclencheur backupHebdo installé (lundi ~4 h, rotation ' + BACKUP_KEEP + ' copies)');
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// NOTIFICATIONS DE CHANGEMENT DE PLANNING
+// ══════════════════════════════════════════════════════════════════════
+// Principe : on ne surveille PAS les gestes du comité, on compare deux états.
+//   - planning_{année}.json          → l'état courant (écrit par generatePlanning)
+//   - planning_{année}_notifie.json  → l'état au dernier envoi (écrit ici seulement)
+// Un changement posé puis annulé avant l'envoi ne produit donc aucun mail.
+//
+// Déclenchement : chaque publication arme un minuteur de NOTIF_DELAI_MIN minutes
+// et annule le précédent. Les mails ne partent qu'après une accalmie complète.
+//
+// Ce module ne touche AUCUN chemin d'écriture du planning. S'il échoue, la
+// publication reste valide : notifPlanifier() est appelée dans un try/catch.
+// ──────────────────────────────────────────────────────────────────────
+
+const NOTIF_DELAI_MIN   = 10;                  // accalmie avant envoi
+const NOTIF_PROP_ACTIVE = 'NOTIF_ACTIVE';      // 'O' = système allumé
+const NOTIF_PROP_TEST   = 'NOTIF_EMAIL_TEST';  // si renseignée : tout part là
+const NOTIF_PROP_YEAR   = 'NOTIF_YEAR';
+const NOTIF_SITE        = 'https://chpg-anesthesie.github.io/Planning-CHPG/dashboard.html';
+
+// Codes du classeur → français lisible. Un code absent d'ici est traité comme
+// un secteur (bloc, consultation…) et non comme un statut.
+const NOTIF_STATUTS = {
+  'G':   'garde réanimation',
+  'G2':  'garde maternité',
+  'RG':  'repos de garde',
+  'R':   'récupération de samedi',
+  '18':  '18h',
+  'V':   'vacances',
+  'VAC': 'vacances',
+  'F':   'formation',
+  'FORM':'formation',
+  'TP':  'jour de temps partiel',
+  'CTP': 'jour de temps partiel',
+  'CL':  'congé long',
+  'CP':  'congé paternité',
+  'A':   'absence',
+};
+
+const NOTIF_JOURS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+const NOTIF_MOIS  = ['janvier','février','mars','avril','mai','juin',
+                     'juillet','août','septembre','octobre','novembre','décembre'];
+
+// ── Armer / réarmer le minuteur ───────────────────────────────────────
+// Appelée après chaque publication. Supprime le minuteur en attente et en
+// repose un neuf : tant que le comité publie, rien ne part.
+function notifPlanifier(year) {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'notifEnvoyer') ScriptApp.deleteTrigger(t);
+  });
+  PropertiesService.getScriptProperties()
+    .setProperty(NOTIF_PROP_YEAR, String(year || getActiveYear()));
+  ScriptApp.newTrigger('notifEnvoyer')
+    .timeBased().after(NOTIF_DELAI_MIN * 60 * 1000).create();
+}
+
+// ── Recaler la photo de référence sans rien envoyer ───────────────────
+// À utiliser après une génération annuelle ou le wizard : envoyerRecapGardes
+// fait déjà le travail, le notifieur doit se taire.
+function notifRecaler(year) {
+  const y = year || getActiveYear();
+  const courant = readPlanningFromDrive('planning_' + y + '.json');
+  if (!courant) { Logger.log('notifRecaler : planning_' + y + '.json introuvable'); return; }
+  savePlanningToDrive('planning_' + y + '_notifie.json', courant);
+  logAction('notifRecaler ' + y + ' — photo de référence remise à jour, aucun envoi');
+}
+
+// ── Envoi (cible du minuteur) ─────────────────────────────────────────
+function notifEnvoyer() {
+  // Le minuteur est à usage unique : il se supprime lui-même.
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'notifEnvoyer') ScriptApp.deleteTrigger(t);
+  });
+
+  const props = PropertiesService.getScriptProperties();
+  const year  = Number(props.getProperty(NOTIF_PROP_YEAR)) || getActiveYear();
+  const actif = String(props.getProperty(NOTIF_PROP_ACTIVE) || '').trim().toUpperCase() === 'O';
+
+  const refName = 'planning_' + year + '_notifie.json';
+  const courantRaw = readPlanningFromDrive('planning_' + year + '.json');
+  if (!courantRaw) { logAction('notifEnvoyer — planning_' + year + '.json introuvable, abandon'); return; }
+  const refRaw = readPlanningFromDrive(refName);
+
+  // Système éteint, ou toute première exécution : on prend la photo, on se tait.
+  if (!actif || !refRaw) {
+    savePlanningToDrive(refName, courantRaw);
+    logAction('notifEnvoyer ' + year + ' — ' +
+      (actif ? 'première exécution' : 'système éteint') + ', photo prise, aucun envoi');
+    return;
+  }
+
+  let avant, apres;
+  try {
+    avant = _notifAplatir(JSON.parse(refRaw));
+    apres = _notifAplatir(JSON.parse(courantRaw));
+  } catch (e) {
+    logAction('notifEnvoyer — JSON illisible (' + e.message + '), abandon SANS recalage');
+    return;
+  }
+
+  const parMar = _notifDiff(avant, apres);
+  const fenetre = _notifSemaineExcel();
+
+  // Filtre : un statut se signale toujours ; un secteur seulement s'il tombe
+  // dans la semaine que le dernier Excel couvrait.
+  const retenus = {};
+  let nbChang = 0;
+  Object.keys(parMar).forEach(function (id) {
+    const gardes = parMar[id].filter(function (c) {
+      if (c.statut) return true;
+      return c.date >= fenetre.debut && c.date <= fenetre.fin;
+    });
+    if (gardes.length) { retenus[id] = gardes; nbChang += gardes.length; }
+  });
+
+  if (!Object.keys(retenus).length) {
+    savePlanningToDrive(refName, courantRaw);
+    logAction('notifEnvoyer ' + year + ' — aucun changement à signaler');
+    return;
+  }
+
+  const envoi = _notifExpedier(retenus, year);
+
+  // La photo n'est mise à jour QUE si l'envoi s'est déroulé sans erreur : sinon
+  // les changements non annoncés seront repris à la publication suivante.
+  if (!envoi.errors.length) savePlanningToDrive(refName, courantRaw);
+
+  logAction('notifEnvoyer ' + year + ' — ' + nbChang + ' changement(s), ' +
+    envoi.sent + ' mail(s), ' + envoi.skipped + ' sans email, ' +
+    envoi.errors.length + ' erreur(s)' +
+    (envoi.errors.length ? ' → photo NON recalée' : ''));
+}
+
+// ── Aplatir le JSON en table { marId: { date: 'statut|matin|aprem' } } ──
+// months[i].days[j].date donne la date de doctors[k].days[j] (même index).
+// Les valeurs vides sont retirées du JSON publié : d'où les `|| ''`.
+function _notifAplatir(json) {
+  const out = {};
+  (json.months || []).forEach(function (mois) {
+    const dates = (mois.days || []).map(function (d) { return d.date; });
+    (mois.doctors || []).forEach(function (doc) {
+      if (!doc || !doc.id) return;
+      if (!out[doc.id]) out[doc.id] = {};
+      (doc.days || []).forEach(function (e, i) {
+        const date = dates[i];
+        if (!date) return;
+        const o = e || {};
+        out[doc.id][date] = (o.status || '') + '|' + (o.morning || '') + '|' + (o.afternoon || '');
+      });
+    });
+  });
+  return out;
+}
+
+// ── Comparer deux tables aplaties ─────────────────────────────────────
+function _notifDiff(avant, apres) {
+  const parMar = {};
+  Object.keys(apres).forEach(function (id) {
+    const a = avant[id] || {}, b = apres[id];
+    Object.keys(b).forEach(function (date) {
+      const va = a[date], vb = b[date];
+      if (va === undefined || va === vb) return;   // inconnu avant, ou identique
+      const ca = va.split('|'), cb = vb.split('|');
+      const statutChange = ca[0] !== cb[0];
+      if (!parMar[id]) parMar[id] = [];
+      parMar[id].push({
+        date: date,
+        statut: statutChange,
+        avant: _notifDecrire(ca),
+        apres: _notifDecrire(cb),
+      });
+    });
+    if (parMar[id]) parMar[id].sort(function (x, y) { return x.date < y.date ? -1 : 1; });
+  });
+  return parMar;
+}
+
+// ── Décrire une journée en français ───────────────────────────────────
+function _notifDecrire(c) {
+  const statut = String(c[0] || '').trim();
+  if (statut && NOTIF_STATUTS[statut]) return NOTIF_STATUTS[statut];
+  if (statut) return statut;                       // code inconnu : brut, pas d'invention
+  const am = String(c[1] || '').trim(), pm = String(c[2] || '').trim();
+  if (!am && !pm) return 'rien';
+  if (am === pm) return am;
+  return (am || '—') + ' le matin, ' + (pm || '—') + ' l\'après-midi';
+}
+
+// ── Semaine couverte par le dernier Excel ─────────────────────────────
+// L'Excel part le vendredi vers 16 h et couvre la semaine SUIVANTE
+// (lundi → dimanche). On remonte au dernier vendredi 16 h révolu.
+function _notifSemaineExcel(maintenant) {
+  const now = maintenant || new Date();
+  const v = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 16, 0, 0);
+  // Reculer jusqu'au vendredi 16 h le plus récent déjà passé.
+  while (v.getDay() !== 5 || v > now) v.setDate(v.getDate() - 1);
+  const debut = new Date(v); debut.setDate(debut.getDate() + 3);   // lundi suivant
+  const fin   = new Date(debut); fin.setDate(fin.getDate() + 6);   // dimanche
+  return { debut: _notifISO(debut), fin: _notifISO(fin) };
+}
+
+function _notifISO(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+// ── Expédition ────────────────────────────────────────────────────────
+function _notifExpedier(retenus, year) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const med = ss.getSheetByName('MEDECINS');
+  if (!med) return { sent: 0, skipped: 0, errors: ['Onglet MEDECINS introuvable'] };
+  const data = med.getDataRange().getValues();
+
+  // Colonne NOTIF cherchée par son nom : si elle n'existe pas encore, tout le
+  // monde est notifié (pas d'index en dur, la feuille peut bouger).
+  const entete = (data[0] || []).map(function (h) { return String(h).trim().toUpperCase(); });
+  const colNotif = entete.indexOf('NOTIF');
+
+  const testMail = String(
+    PropertiesService.getScriptProperties().getProperty(NOTIF_PROP_TEST) || ''
+  ).trim();
+
+  const destinataires = [];
+  for (let r = 1; r < data.length; r++) {
+    const id = String(data[r][0]).trim();
+    if (!id || !retenus[id]) continue;
+    if (String(data[r][3]).trim().toUpperCase() !== 'O') continue;           // inactif
+    if (colNotif >= 0 && String(data[r][colNotif]).trim().toUpperCase() === 'N') continue;
+    destinataires.push({
+      id: id,
+      nom: String(data[r][1]).trim(),
+      email: testMail || String(data[r][7]).trim(),
+    });
+  }
+
+  const besoin = destinataires.filter(function (d) { return d.email; }).length;
+  const quota = MailApp.getRemainingDailyQuota();
+  if (quota < besoin) {
+    return { sent: 0, skipped: 0,
+      errors: ['Quota email insuffisant : ' + quota + ' restants pour ' + besoin + ' destinataires'] };
+  }
+
+  let sent = 0, skipped = 0;
+  const errors = [];
+  destinataires.forEach(function (d) {
+    if (!d.email) { skipped++; return; }
+    const chgs = retenus[d.id];
+    try {
+      MailApp.sendEmail({
+        to: d.email,
+        subject: _notifSujet(chgs),
+        htmlBody: _notifHtml(d.nom, chgs, year),
+        body: _notifTexte(d.nom, chgs),
+      });
+      sent++;
+    } catch (err) { errors.push(d.nom + ' : ' + err.message); }
+  });
+  return { sent: sent, skipped: skipped, errors: errors };
+}
+
+// ── Objet du mail : c'est lui qui s'affiche en notification ───────────
+function _notifSujet(chgs) {
+  if (chgs.length === 1) return 'Votre planning a changé — ' + _notifDateCourte(chgs[0].date);
+  return 'Votre planning a changé — ' + chgs.length + ' modifications';
+}
+
+function _notifDateCourte(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  return NOTIF_JOURS[d.getDay()] + ' ' + d.getDate() + ' ' + NOTIF_MOIS[d.getMonth()];
+}
+
+// ── Corps texte (repli des clients sans HTML) ─────────────────────────
+function _notifTexte(nom, chgs) {
+  let t = 'Bonjour ' + nom + ',\n\nVotre planning a changé :\n\n';
+  chgs.forEach(function (c) {
+    t += '  ' + _notifDateCourte(c.date) + ' : ' + c.apres +
+         ' (avant : ' + c.avant + ')\n';
+  });
+  t += '\nVous n\'aviez rien demandé, ou ce changement vous pose problème ?\n' +
+       'Écrivez à planningchpg@gmail.com\n\n' +
+       'Voir votre planning : ' + NOTIF_SITE + '\n\n' +
+       'Le Comité Planning — CHPG Monaco\n';
+  return t;
+}
+
+// ── Corps HTML ────────────────────────────────────────────────────────
+function _notifHtml(nom, chgs, year) {
+  const S = {
+    'garde réanimation': { bg: '#eef4ff', fg: '#1d4ed8', bd: '#dbe6ff' },
+    'garde maternité':   { bg: '#ecfdf5', fg: '#0d9488', bd: '#cdeee6' },
+  };
+  const NEUTRE = { bg: '#f1f5f9', fg: '#334155', bd: '#e2e8f0' };
+
+  let blocs = '';
+  chgs.forEach(function (c) {
+    const d = new Date(c.date + 'T12:00:00'), dow = d.getDay();
+    const we = (dow === 0 || dow === 6);
+    const cadre = we ? 'border:1px solid #fde3cf;background:#fffaf5;'
+                     : 'border:1px solid #eef1f5;';
+    const tag = we
+      ? '<span style="font-size:10.5px;font-weight:700;color:#c2410c;background:#fff1e6;' +
+        'border-radius:5px;padding:2px 7px;margin-left:6px;vertical-align:middle">Week-end</span>'
+      : '';
+    const p = S[c.apres] || NEUTRE;
+    blocs +=
+      '<div style="' + cadre + 'border-radius:12px;padding:14px 16px;margin-bottom:9px">' +
+        '<div style="font-size:15px;font-weight:800;color:#0f172a">' +
+          _notifDateCourte(c.date) + tag +
+        '</div>' +
+        '<div style="margin-top:10px">' +
+          '<span style="display:inline-block;background:' + p.bg + ';color:' + p.fg +
+          ';border:1px solid ' + p.bd + ';border-radius:8px;font-size:13px;font-weight:700;' +
+          'padding:5px 11px">' + c.apres + '</span>' +
+        '</div>' +
+        '<div style="margin-top:9px;font-size:13px;color:#94a3b8">avant&nbsp;: ' +
+          '<span style="text-decoration:line-through">' + c.avant + '</span></div>' +
+      '</div>';
+  });
+
+  return '' +
+  '<div style="max-width:600px;margin:0 auto;background:#fff;font-family:-apple-system,' +
+  'BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif">' +
+    '<div style="background:#CE1126;height:4px;line-height:4px;font-size:0">&nbsp;</div>' +
+    '<div style="padding:26px 26px 8px">' +
+      '<div style="font-size:12px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;' +
+      'color:#94a3b8">Planning CHPG Monaco</div>' +
+      '<div style="font-size:20px;font-weight:800;color:#0f172a;margin-top:6px">' +
+      'Votre planning a changé</div>' +
+    '</div>' +
+    '<div style="padding:14px 26px 0;font-size:14px;color:#334155;line-height:1.55">Bonjour ' +
+      nom + ',</div>' +
+    '<div style="padding:16px 26px 0">' + blocs + '</div>' +
+    '<div style="padding:22px 26px 0">' +
+      '<a href="' + NOTIF_SITE + '" style="display:inline-block;background:#0f172a;color:#fff;' +
+      'text-decoration:none;border-radius:9px;font-size:14px;font-weight:700;padding:11px 20px">' +
+      'Voir mon planning</a>' +
+    '</div>' +
+    '<div style="padding:20px 26px 0">' +
+      '<div style="background:#f8fafc;border:1px solid #eef1f5;border-radius:11px;padding:13px 15px;' +
+      'font-size:13px;color:#475569;line-height:1.55">' +
+        'Vous n\'aviez rien demandé, ou ce changement vous pose problème&nbsp;?<br>' +
+        'Écrivez à <a href="mailto:planningchpg@gmail.com" style="color:#1d4ed8;font-weight:600;' +
+        'text-decoration:none">planningchpg@gmail.com</a>' +
+      '</div>' +
+    '</div>' +
+    '<div style="padding:20px 26px 26px;font-size:12px;color:#94a3b8;line-height:1.6">' +
+      'Le Comité Planning — CHPG Monaco<br>Message automatique.' +
+    '</div>' +
+  '</div>';
 }
