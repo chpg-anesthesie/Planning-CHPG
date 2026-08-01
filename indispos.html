@@ -1239,7 +1239,7 @@ try {
    pose avant les declarations qu'il utilisait (`_fileAPI`) levait une erreur
    de zone morte avalee en silence, et coutait 3 appels inutiles a chaque
    ouverture d'admin. On ne demarre rien avant la fin du script. */
-_reveilAPI();
+// _reveilAPI() retire le 01/08 : voir le commentaire de la fonction.
 
 // Warn before leaving with unsaved changes
 window.addEventListener('beforeunload', e => {
