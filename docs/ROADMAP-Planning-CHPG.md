@@ -50,6 +50,17 @@ Aucune erreur, aucun message — le dernier qui enregistre a raison.
 → Et un interdit posé dans le navigateur (`indispos.html` refuse de cliquer sur une VAC) **ne
 protège rien** : ce n'est pas par le clic que la perte arrive.
 
+**0 quater. Une mémorisation ne vaut que si sa clé couvre TOUTES ses sources.** (01/08/2026)
+La bande de présence mémorisait son calcul sur `DATA` seul, alors qu'elle lit aussi `marsData`.
+Or `loadPlanningData` et `loadStatusBar` partent **en parallèle** : `DATA` arrive d'abord,
+`renderWeek` est appelée entre les deux, le compte vaut 0 partout — et ce 0 était mémorisé.
+Le second `renderWeek` (celui de `loadStatusBar`) resservait le cache. Résultat : **0 présent sur
+toute l'année, définitivement**, sans la moindre erreur affichée.
+→ **Clé de cache = toutes les entrées lues.** Et tant qu'une entrée manque : ne rien calculer,
+ne rien mémoriser (retour vide), plutôt que de figer un résultat faux.
+→ Même famille que la TDZ du 28/07 : **l'ordre d'exécution est la première chose à vérifier**
+quand un affichage est uniformément faux.
+
 **0 bis. Déclarer un document « sans erreur » après un contrôle par sondage.** (30/07/2026)
 `guide-fichier-maitre.html` a été annoncé exact ; le croisement avec `VEILLE_CFG-mode-emploi.md`
 a révélé qu'il oubliait le type `GENERAL`. Le sondage prouve la qualité, jamais l'absence d'erreur.
@@ -253,6 +264,11 @@ Grille du comité, placement par cases, publication vers les JSON du Drive priv�
 il n'y a jamais de bloc cardio le jeudi.
 ⚠️ Les **sorties de garde restent groupées** dans l'Excel : le statut `RG` est unique, rien ne dit
 de quelle garde sort la personne.
+🆕 **Bande de présence en tête de l'onglet** (01/08, v1.15) : un carré = une journée ouvrée,
+couleur = nombre de MAR présents (définition `presentsPool` de `code.gs`, **`G`/`G2`/`18`/`I`
+comptent présents**, `PRUNET` exclu). Clic → ouvre la semaine. Aucun appel serveur. Seuils dans
+l'onglet **`SEUILS`**, servi par `getAdminBootstrap`, repli silencieux 13/17. Détail complet dans
+`CONTEXTE`. A remplacé l'ancienne heatmap des indispos, devenue code mort.
 
 ### Portail / Dashboard
 `dashboard.html` est **le seul carrefour** : toutes les pages s'ouvrent depuis ses tuiles.
@@ -307,7 +323,7 @@ La version du site vit dans **4 fichiers, 10 emplacements** : `admin.html` (3),
 ⚠️ `index.html`, `indispos.html`, `staff.html` et `absences.html` **n'en portent aucune**.
 Patch → 3ᵉ chiffre · Fonctionnalité → 2ᵉ · **v2.0 réservée à l'ouverture du module libéral au
 groupement** (la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.14.15** (31/07/2026).
+**Version en cours : v1.15.2** (01/08/2026).
 
 ---
 
@@ -454,6 +470,15 @@ de conversation dédié.
   *(trouvées le 29/07, revérifiées présentes le 30/07)* : **un secteur créé dans l'onglet n'apparaît
   dans aucune des deux.** Traitement et solution retenue : voir **Priorité 2 bis (NCHPG)** ci-dessus —
   c'est le même chantier. Rien à faire avant le 04/09.
+- **Écran « Paramètres » d'`admin.html` : MORT** *(trouvé le 01/08)*. `renderParametres()`
+  (l.~7222) n'est appelée nulle part, `configData` n'est jamais rempli, `#paramsBody` n'existe pas
+  dans la page. Côté serveur `saveConfig` fonctionne toujours. **Conséquence : régler quoi que ce
+  soit dans `CONFIG` impose d'ouvrir le classeur à la main** — donc de passer à côté d'`ADMIN_CODE`
+  et `SECRETARIAT_CODE`. C'est ce constat qui a fait créer l'onglet `SEUILS` séparé plutôt que
+  d'ajouter deux lignes à `CONFIG`. Trois issues, **non tranchées par Arthur** : supprimer le code
+  mort · le rebrancher sur `CONFIG` · le rebrancher **sur `SEUILS` seulement** (le comité règle ses
+  bornes depuis `admin.html`, sans jamais ouvrir le classeur — le plus utile, mais un lot à part).
+  ⚠️ Lot séparé, **après le 04/09**.
 - **Code mort `OVERRIDES`** *(30/07)* — deux systèmes successifs aux noms voisins cohabitent :
   `OVERRIDES` (ancien, **l'onglet n'existe plus**) et `PLANNING_OVERRIDES` (actuel). Conséquence
   visible : `admin.html` porte un panneau « Modifications en attente » qui affichera
@@ -1729,6 +1754,41 @@ livré — d'où la règle : vérifier le code, pas le ROADMAP.)*
 
 ### Axes de développement (un fil de conversation chacun)
 
+- [ ] 🧮 **Trois pistes ouvertes le 01/08/2026, conçues à moitié, aucune codée.** Elles partagent
+  un même constat : **les règles ne sont appliquées qu'à la génération, jamais aux modifications
+  manuelles qui suivent.**
+  1. **Solde des récupérations de samedi.** Le générateur ouvre un R par samedi tenu
+     (`recupDue`, `generateur_gardes.gs`) mais **le lien samedi→R n'est écrit nulle part** : la
+     cellule de `GARDES_{Y}` ne contient qu'un `R` nu. Or `donGarde` / `echangeGardeJours`
+     (`applyModification`) déplacent la garde **et le RG, jamais le R** : qui donne son samedi
+     garde sa récup. ✅ **Le lien n'est pas nécessaire** pour le détecter : `computeStatsLive`
+     compte déjà `sam` et `recupR` depuis `GARDES_{Y}` — le solde `sam − recupR` suffit, sans
+     aucune donnée nouvelle. **Décision Arthur : le replacement du R reste MANUEL** (une date
+     libérée chez le donneur n'a aucune raison d'être plaçable chez le receveur) ; l'outil affiche
+     le déséquilibre, il ne le corrige pas.
+     ⚠️ **À calibrer avant d'afficher une alerte** : `sam − recupR` n'est pas nul même sans échange.
+     Le R se place dans une fenêtre de 2 à 16 semaines **et** doit rester dans l'année
+     (`cDate.startsWith(String(year))`) : les samedis de novembre-décembre repartent sans R.
+     Mesurer sur la génération 2027 réelle avant de coder l'écran.
+     ✅ **Réglé le 01/08 : un samedi couplé à un jeudi ou un lundi férié ouvre bien un R** — le code
+     le fait déjà (`if(dayByDate[dd].dow===6)`), seul le commentaire prêtait à confusion. L'unité de
+     3 jours donne une récup, pas deux. Conforme à la règle d'Arthur, rien à changer.
+  2. **Dette inter-annuelle calculée sur les gardes RÉELLEMENT effectuées.** La dette lit les réels
+     de `STATS_GARDES_{N-1}`, qui est un **instantané figé à la génération** et n'est jamais
+     réécrit ensuite. Un don ou un échange modifie `GARDES_{Y}`, jamais `STATS_GARDES_{Y}` ; à
+     l'archivage (`setup_annee.gs`) **seule la colonne Noël/An est recalculée sur le réel**, les 15
+     autres partent telles quelles dans `HISTORIQUE`. Conséquence : qui donne 8 gardes les porte
+     quand même comme faites dans la dette de N+1, et se voit servir moins de gardes pour des
+     gardes qu'il n'a pas faites. **Correctif court** : réécrire les réels avec
+     `computeStatsLive(year)` **avant** la copie vers `HISTORIQUE`. Sans objet pour 2027
+     (`PREMIERE_ANNEE_STATS_FIABLES = 2027`, dette neutre) — **mord à partir de la génération 2028,
+     donc à traiter d'ici novembre 2027**. Accord de principe d'Arthur (« idée à creuser »).
+  3. **Bilan personnel annuel du MAR** (`dashboard.html`) — « votre 2026 : 31 gardes pour une cible
+     de 34,6 · 6 samedis · 2 fériés · Noël non · 6 récups dues, 6 posées ». Une autre façon de lire
+     l'onglet Équité, pour que le MAR se situe sans lire un tableau de 23 lignes. Source :
+     `getStatsLive` (qui renvoie déjà tout, échanges inclus) + `HISTORIQUE`. **Le moins cher des
+     trois : un rendu, zéro modification serveur.** Accord de principe d'Arthur.
+
 - [ ] 🔬 **Module libéral — brique CONVERGENCE 30 % (lots 2 et 4)**, seul morceau restant. Voir `docs/module-liberal/module_liberal_conception.md`.
   - ✅ **Déjà en production** (détail dans « Module libéral — chaîne complète » de la section Fait) : estimateur, devis, branchement au portail, déclaration d'intervention, volet comité. **Ne pas les reconstruire.**
   - Reste : **Lot 2 élargi** (déclaration enrichie, saisie des relevés, recoupement) puis **Lot 4** (réallocation + équité du désagrément).
@@ -2178,6 +2238,60 @@ livré — d'où la règle : vérifier le code, pas le ROADMAP.)*
 - [ ] **Étape 3 (non urgente)** : retirer les tables en dur (`SECTEURS`, `CS_TYPES`, `CS_REQUIRED`,
   `CS_OPENABLE`) et rendre le **repli visible**. Aujourd'hui il est silencieux : une panne de lecture
   ferait tourner les pages sur le code en dur sans le dire. Inoffensif tant qu'on ne compte pas dessus.
+
+---
+
+### Bande de présence + onglet SEUILS — LIVRÉ (1er août 2026) · site v1.15.2 · `portail.gs` v2026-08-01.1 · `Indispos.gs` v2026-08-01.1 · `setup_annee.gs` v2026-08-01.1
+
+**Demande d'Arthur** : des idées de fonctionnalités pour l'interface planning. Deux séries de
+propositions ont été **entièrement rejetées** avant d'arriver à celle-ci — les propositions
+« ergonomie » (copie de semaine, glisser-déposer, .ics, diff des changements) et une partie des
+propositions « règles » ne l'intéressaient pas. Ce qui a accroché : la **heatmap de tension**, qui
+existait au début du projet et lui manquait.
+
+**Découverte : l'ancienne heatmap était encore dans le fichier, morte.** CSS `.heatmap` /
+`.heat-*` (l.330-334) et `renderIndispos` (l.4699) présents, mais **ni `#heatmap` ni `#marGrid`
+dans la page**, et la fonction **appelée nulle part** — orpheline depuis la réorganisation de
+l'onglet indispos. Son modèle était rudimentaire : présences = (nb MAR × 5) − indispos déclarées,
+seuils **75 et 65 écrits en dur**, valable pendant la seule campagne d'octobre, ignorant gardes,
+RG, vacances validées, temps partiels et postes à couvrir. Supprimée et remplacée.
+
+**Choix de conception, tous d'Arthur :**
+- **Une case = une journée** (et non une semaine). 365 cases en ligne feraient 4 400 px ⇒ format
+  retenu : **5 lignes lun→ven × 52 colonnes**, ~80 px de haut, en tête de l'onglet Planning.
+- **Le calcul porte sur le NOMBRE DE PRÉSENTS**, pas sur les cases à pourvoir (première proposition,
+  écartée). Définition reprise telle quelle de `presentsPool` (`code.gs`) — voir `CONTEXTE`.
+- **Les seuils vont dans un onglet dédié `SEUILS`, PAS dans `CONFIG`** : « Config me semble trop
+  important pour ça ». Confirmé par la découverte de l'**écran Paramètres mort** (voir Priorité 3) —
+  régler `CONFIG` impose aujourd'hui d'ouvrir le classeur, donc de côtoyer les codes d'accès.
+- **Colonnes élastiques** (option A) plutôt que des carrés plus gros : la bande garde sa hauteur et
+  occupe toute la largeur. Les étiquettes de mois sont passées de largeurs en pixels à
+  `grid-column: span N`, sinon elles se décalaient dès que la largeur changeait.
+
+**Séquence de livraison** — imposée par un patch concurrent (notifications de planning, autre fil,
+poussé à 04:33 le même jour dans `code.gs` et `Indispos.gs`) : celui-ci recopié et déployé
+**d'abord**, confirmé, puis reconstruction de mon patch sur l'état frais du dépôt. Le lecteur
+`getSeuils()` a été placé dans **`portail.gs`** (non touché par l'autre patch) pour réduire la zone
+commune à **3 lignes dans `getAdminBootstrap`**.
+
+**Un raté, corrigé en v1.15.1** : 0 présent partout à la mise en service. Cause = mémorisation
+sur une clé incomplète, voir « Pièges », point 0 quater. Reproduit au harnais **avant** de corriger,
+puis prouvé corrigé sur le même harnais.
+
+**Vérifications** : ancre unique (`assert count == 1`) sur chacun des remplacements, `<div>`
+équilibrés (789/789), `node --check` sur le JS extrait, simulation à 12 contrôles (blocs « mois »
+qui se chevauchent, week-ends, fériés, arrivée/départ en cours d'année, `PRUNET`, `G` compté
+présent, bornes inversées, `DATA` absent), et contrôle d'alignement des étiquettes de mois.
+
+**Mesure réelle du 01/08 (année 2026, seuils 13/17) : 9 / 44 / 68 / 70 / 58 jours du rouge au vert**,
+18 jours sous 13 présents sur les 8 semaines à venir, plancher à 10 le lundi 10 août. Les cinq
+couleurs servent ⇒ les bornes par défaut tiennent. **Reste à faire : Arthur demande au comité les
+seuils qu'il veut** — modification dans l'onglet `SEUILS`, sans push.
+
+**À savoir** : la bande devient un **troisième consommateur** de la notion « secteurs / effectifs »
+au moment du NCHPG. Elle ne lit pas `COVERAGE` (elle compte des présents, pas des postes), donc elle
+ne casse pas au changement de codes — mais si le calcul évolue un jour vers « présents − postes
+requis », il faudra le brancher sur la colonne `COUVERTURE` prévue en Priorité 2 bis.
 
 ---
 
