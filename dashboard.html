@@ -380,7 +380,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.1</span></span></p>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
@@ -474,7 +474,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.16'; // SITE_VERSION: v1.16
+const SITE_VERSION = 'v1.16.1'; // SITE_VERSION: v1.16.1
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -519,6 +519,9 @@ function _apiBar(on){
 async function apiPost(payload) {
   payload.code = VIEW_CODE;
   _apiBar(true);
+  // (01/08/2026) Journal de mesure — lecture seule, alimente chrono().
+  const _act = payload.action || '(sans action)';
+  const _dep = Math.round(performance.now()), _t0 = Date.now();
   const _ctrl = new AbortController();
   const _timer = setTimeout(() => _ctrl.abort(), 120000);
   try {
@@ -529,8 +532,13 @@ async function apiPost(payload) {
       redirect: 'follow',
       signal: _ctrl.signal,
     });
-    return await res.json();
+    const _rep = await res.json();
+    try { if (window.PERF) PERF.appel(_act, Date.now() - _t0, _rep && _rep._srv_ms, _dep,
+                                      res.ok ? 'ok' : 'ECHEC — HTTP ' + res.status); } catch (_e) {}
+    return _rep;
   } catch (e) {
+    try { if (window.PERF) PERF.appel(_act, Date.now() - _t0, null, _dep,
+                                      'ECHEC — ' + (e && e.message)); } catch (_e) {}
     if (e && e.name === 'AbortError') throw new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable, réessayez');
     throw e;
   } finally { clearTimeout(_timer); _apiBar(false); }
@@ -1269,6 +1277,7 @@ async function viewAutoLogin(){
   VIEW_CODE = saved; showPortal();
   try{
     const r = await apiPost({action:'login'});
+    try { if (window.PERF) PERF.jalon('reponse serveur recue'); } catch(e) {}
     if(r && r.success){ seedActiveYear(r.year); applyUserBadge(r); showPortal(); }
     else {
       VIEW_CODE=''; try{ sessionStorage.removeItem('chpgViewCode'); }catch(e){}
@@ -1278,6 +1287,296 @@ async function viewAutoLogin(){
   } catch(e){ /* réseau indisponible : on conserve l'affichage optimiste */ }
 }
 document.getElementById('viewAuthInput').addEventListener('keydown', e => { if(e.key==='Enter') viewLogin(); });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CHRONO — INSTRUMENT DE MESURE (01/08/2026)
+   ═══════════════════════════════════════════════════════════════════════════
+   LECTURE SEULE. N'ecrit rien, n'appelle rien, ne modifie aucun affichage.
+   Se contente d'observer et de tenir un journal, consultable dans la console.
+
+   POURQUOI. Jusqu'ici seul admin.html savait mesurer ses APPELS (chronoAPI).
+   Rien ne mesurait : le temps du navigateur (analyse du JS, rendu), les
+   ressources tierces (polices, icones), ni le COUT D'UN CLIC. Or sur admin
+   chaque placement rappelle renderWeek() en entier : c'est la partie du temps
+   que personne n'a jamais chiffree.
+
+   A TAPER DANS LA CONSOLE :
+     chrono()        le budget complet de la page (ouverture + appels + rendus)
+     chronoClics()   le detail des interactions : clic -> ecran mis a jour
+     chronoAPI()     (admin) le detail des appels serveur, inchange
+
+   TROIS MESURES, TROIS SENS DIFFERENTS :
+   - « attente »    : le temps entre le clic et le debut du traitement. Si elle
+                      est grande, le navigateur etait deja occupe ailleurs.
+   - « traitement » : le temps passe DANS notre code. C'est le seul que l'on
+                      peut reduire nous-memes.
+   - « ecran »      : le temps de peinture apres le traitement.
+
+   Cout de l'instrument lui-meme : deux observateurs natifs du navigateur et
+   un push dans un tableau par evenement. Non mesurable a l'echelle de la page.
+   ═════════════════════════════════════════════════════════════════════════ */
+(function () {
+  if (window.PERF) return;
+
+  var P = {
+    page: (location.pathname.split('/').pop() || 'index.html'),
+    jalons: [],      // etapes nommees du chargement
+    rendus: [],      // durees des fonctions d'affichage surveillees
+    clics: [],       // interactions utilisateur
+    longues: [],     // taches > 50 ms : l'ecran est fige pendant ce temps
+    appels: []       // journal des appels serveur (admin : partage avec chronoAPI)
+  };
+  window.PERF = P;
+
+  // ── Jalons ───────────────────────────────────────────────────────────────
+  P.jalon = function (nom) {
+    try { P.jalons.push({ nom: nom, t: Math.round(performance.now()) }); } catch (e) {}
+  };
+
+  // ── Journal d'appel serveur (pages sans chronoAPI) ───────────────────────
+  P.appel = function (action, ms, srv, depart, issue) {
+    try {
+      P.appels.push({ action: action, ms: ms, srv: (typeof srv === 'number' ? srv : null),
+                      depart: depart, essais: 1, issue: issue || 'ok' });
+    } catch (e) {}
+  };
+
+  // Enregistre une duree. Plafond : une session de plusieurs heures ne doit pas
+  // faire enfler le journal (l'instrument ne doit jamais devenir le probleme).
+  P.note = function (nom, ms, t, bloquant) {
+    if (P.rendus.length >= 5000) P.rendus.shift();
+    P.rendus.push({ nom: nom, ms: ms, t: t, bloquant: (bloquant == null ? ms : bloquant) });
+  };
+
+  // ── Surveillance des fonctions d'affichage ───────────────────────────────
+  // Enveloppe une fonction globale pour en chronometrer chaque execution.
+  // A appeler APRES la declaration des fonctions concernees (fin de script).
+  P.surveiller = function (noms) {
+    (noms || []).forEach(function (n) {
+      var f = window[n];
+      if (typeof f !== 'function' || f._chrono) return;
+      var g = function () {
+        var d = performance.now(), r;
+        try { r = f.apply(this, arguments); }
+        finally { try {
+          var sync = performance.now() - d;
+          // Fonction asynchrone : le temps qui compte est celui de la promesse,
+          // pas celui du retour. On note les deux — « bloquant » est le seul
+          // temps pendant lequel l'ecran est fige.
+          if (r && typeof r.then === 'function') {
+            r.then(_fin, _fin);
+            function _fin() { P.note(n, Math.round(performance.now() - d), Math.round(d), Math.round(sync)); }
+          } else {
+            P.note(n, Math.round(sync), Math.round(d), Math.round(sync));
+          }
+        } catch (e) { /* l'instrument ne doit JAMAIS casser la fonction mesuree */ } }
+        return r;
+      };
+      g._chrono = true;
+      try { window[n] = g; } catch (e) {}
+    });
+  };
+
+  // ── Observateur : taches longues (ecran fige) ────────────────────────────
+  try {
+    new PerformanceObserver(function (l) {
+      l.getEntries().forEach(function (e) {
+        P.longues.push({ t: Math.round(e.startTime), ms: Math.round(e.duration) });
+      });
+    }).observe({ type: 'longtask', buffered: true });
+  } catch (e) {}
+
+  // ── Observateur : interactions (clic -> ecran) ───────────────────────────
+  function _cible(el) {
+    if (!el || !el.tagName) return '?';
+    var s = el.tagName.toLowerCase();
+    if (el.id) return s + '#' + el.id;
+    var c = (el.className && el.className.baseVal !== undefined) ? el.className.baseVal : el.className;
+    if (typeof c === 'string' && c.trim()) return s + '.' + c.trim().split(/\s+/).slice(0, 2).join('.');
+    var t = (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 18);
+    return t ? s + ' « ' + t + ' »' : s;
+  }
+  try {
+    new PerformanceObserver(function (l) {
+      l.getEntries().forEach(function (e) {
+        if (e.name !== 'click' && e.name !== 'keydown' && e.name !== 'pointerdown') return;
+        P.clics.push({
+          nom: e.name,
+          cible: _cible(e.target),
+          t: Math.round(e.startTime),
+          attente: Math.round(e.processingStart - e.startTime),
+          traitement: Math.round(e.processingEnd - e.processingStart),
+          ecran: Math.round(e.startTime + e.duration - e.processingEnd),
+          total: Math.round(e.duration)
+        });
+      });
+    }).observe({ type: 'event', durationThreshold: 16, buffered: true });
+  } catch (e) {}
+
+  // ── Mise en forme ────────────────────────────────────────────────────────
+  function col(t, n) { var s = String(t); while (s.length < n) s += ' '; return s.slice(0, n); }
+  function ms(v, n) { return String(Math.round(v)).padStart(n || 6, ' '); }
+  function sec(v) { return (v / 1000).toFixed(1) + ' s'; }
+
+  // ── chrono() : le budget complet ─────────────────────────────────────────
+  P.rapport = function () {
+    var L = ['', '══ CHRONO — ' + P.page + ' — ' + new Date().toLocaleTimeString('fr-FR') + ' ══'];
+    var nav = null;
+    try { nav = performance.getEntriesByType('navigation')[0] || null; } catch (e) {}
+
+    // 1. Arrivee de la page elle-meme
+    if (nav) {
+      L.push('');
+      L.push('── 1. La page (fichier HTML) ' + '─'.repeat(30));
+      L.push('   DNS + connexion   ' + ms(nav.connectEnd - nav.domainLookupStart) + ' ms');
+      L.push('   Reponse serveur   ' + ms(nav.responseStart - nav.requestStart) + ' ms   (premier octet)');
+      L.push('   Telechargement    ' + ms(nav.responseEnd - nav.responseStart) + ' ms   '
+             + (nav.transferSize ? '(' + Math.round(nav.transferSize / 1024) + ' Ko transferes)' : ''));
+      L.push('   Analyse + script  ' + ms(nav.domContentLoadedEventEnd - nav.responseEnd) + ' ms   '
+             + '(lecture du HTML, du CSS et execution du JS)');
+      L.push('   → page prete      ' + ms(nav.domContentLoadedEventEnd) + ' ms');
+    }
+
+    // 2. Ressources tierces
+    var res = [];
+    try {
+      res = performance.getEntriesByType('resource')
+        .filter(function (r) { return r.duration >= 5 && !/googleusercontent|script\.google/.test(r.name); })
+        .sort(function (a, b) { return b.duration - a.duration; }).slice(0, 8);
+    } catch (e) {}
+    if (res.length) {
+      L.push('');
+      L.push('── 2. Ressources chargees ' + '─'.repeat(33));
+      res.forEach(function (r) {
+        var court = r.name.replace(/^https?:\/\//, '').replace(/\?.*$/, '');
+        if (court.length > 46) court = court.slice(0, 20) + '…' + court.slice(-25);
+        L.push('   ' + col(court, 48) + ms(r.duration) + ' ms  '
+               + (r.transferSize ? Math.round(r.transferSize / 1024) + ' Ko' : 'poids n.c.'));
+      });
+    }
+
+    // 3. Appels serveur
+    var J = P.appels;
+    if (J && J.length) {
+      var tot = 0, srv = 0, ech = 0;
+      J.forEach(function (c) {
+        tot += c.ms; srv += (c.srv || 0);
+        if (String(c.issue).indexOf('ECHEC') === 0) ech++;
+      });
+      L.push('');
+      L.push('── 3. Appels serveur ' + '─'.repeat(38));
+      J.forEach(function (c, i) {
+        var dep = (c.depart != null) ? ('T+' + (c.depart / 1000).toFixed(1) + 's ') : '';
+        L.push('   ' + String(i + 1).padStart(2) + '. ' + col(dep, 9) + col(c.action, 24)
+               + ms(c.ms) + ' ms'
+               + (c.srv != null ? '   (serveur ' + ms(c.srv, 5) + ' · attente ' + ms(Math.max(0, c.ms - c.srv), 5) + ')' : '')
+               + (String(c.issue).indexOf('ECHEC') === 0 ? '   ' + c.issue : ''));
+      });
+      L.push('   ' + col('', 9) + col('TOTAL ' + J.length + ' appels', 24) + ms(tot) + ' ms'
+             + '   (serveur ' + ms(srv, 5) + ' · peage ' + ms(tot - srv, 5) + ')'
+             + (ech ? '   ' + ech + ' EN ECHEC' : ''));
+    }
+
+    // 4. Jalons
+    if (P.jalons.length) {
+      L.push('');
+      L.push('── 4. Etapes ' + '─'.repeat(46));
+      P.jalons.forEach(function (j) { L.push('   ' + col(j.nom, 34) + ms(j.t) + ' ms'); });
+    }
+
+    // 5. Rendus
+    if (P.rendus.length) {
+      var par = {};
+      P.rendus.forEach(function (r) {
+        if (!par[r.nom]) par[r.nom] = { n: 0, tot: 0, pire: 0, bloq: 0 };
+        par[r.nom].n++; par[r.nom].tot += r.ms; par[r.nom].bloq += r.bloquant;
+        if (r.ms > par[r.nom].pire) par[r.nom].pire = r.ms;
+      });
+      L.push('');
+      L.push('── 5. Affichage (temps passe dans notre code) ' + '─'.repeat(13));
+      L.push('   ' + col('fonction', 26) + col('appels', 8) + col('cumul', 10)
+             + col('moyenne', 10) + col('pire', 10) + 'dont ecran fige');
+      Object.keys(par).sort(function (a, b) { return par[b].tot - par[a].tot; }).forEach(function (n) {
+        var d = par[n];
+        L.push('   ' + col(n, 26) + col(d.n, 8) + col(d.tot + ' ms', 10)
+               + col(Math.round(d.tot / d.n) + ' ms', 10) + col(d.pire + ' ms', 10) + d.bloq + ' ms');
+      });
+    }
+
+    // 6. Ecran fige
+    if (P.longues.length) {
+      var cum = 0, pire = 0;
+      P.longues.forEach(function (t) { cum += t.ms; if (t.ms > pire) pire = t.ms; });
+      L.push('');
+      L.push('── 6. Ecran fige ' + '─'.repeat(42));
+      L.push('   ' + P.longues.length + ' tache(s) de plus de 50 ms · cumul ' + cum + ' ms · pire ' + pire + ' ms');
+      L.push('   (pendant ce temps la page ne repond a aucun clic)');
+    }
+
+    // 7. Budget
+    if (nav) {
+      var apiTot = 0; (P.appels || []).forEach(function (c) { apiTot += c.ms; });
+      var renduTot = 0; P.rendus.forEach(function (r) { renduTot += r.ms; });
+      L.push('');
+      L.push('── BUDGET ' + '─'.repeat(49));
+      L.push('   statique (page + ressources) ' + col(sec(nav.domContentLoadedEventEnd), 10)
+             + '   appels serveur ' + col(sec(apiTot), 10)
+             + '   affichage ' + sec(renduTot));
+    }
+    L.push('');
+    return L.join('\n');
+  };
+
+  // ── chronoClics() : le detail des interactions ───────────────────────────
+  P.rapportClics = function () {
+    if (!P.clics.length) {
+      return 'Aucune interaction de plus de 16 ms enregistree.\n'
+           + '(Chrome/Edge uniquement. Sur Safari et Firefox cette mesure n\'existe pas.)';
+    }
+    var L = ['', '══ CLICS — ' + P.page + ' — ' + new Date().toLocaleTimeString('fr-FR') + ' ══', '',
+             '   ' + col('#', 4) + col('cible', 30) + col('attente', 10) + col('traitement', 13)
+             + col('ecran', 9) + 'total'];
+    var tot = [], pire = null;
+    P.clics.forEach(function (c, i) {
+      tot.push(c.total);
+      if (!pire || c.total > pire.total) pire = c;
+      L.push('   ' + col(i + 1, 4) + col(c.cible, 30) + col(c.attente + ' ms', 10)
+             + col(c.traitement + ' ms', 13) + col(c.ecran + ' ms', 9) + c.total + ' ms');
+    });
+    tot.sort(function (a, b) { return a - b; });
+    var med = (tot.length % 2) ? tot[(tot.length - 1) / 2]
+            : Math.round((tot[tot.length / 2 - 1] + tot[tot.length / 2]) / 2);
+    L.push('   ' + '─'.repeat(66));
+    L.push('   ' + P.clics.length + ' interaction(s) · mediane ' + med
+           + ' ms · pire ' + pire.total + ' ms sur ' + pire.cible);
+    L.push('   Repere : au-dela de 200 ms le clic est ressenti comme lent, au-dela de 500 ms comme bloque.');
+    L.push('');
+    return L.join('\n');
+  };
+
+  window.chrono = function () { var t = P.rapport(); console.log(t); return t; };
+  window.chronoClics = function () { var t = P.rapportClics(); console.log(t); return t; };
+})();
+
+/* ── BRANCHEMENT DE L'INSTRUMENT ─────────────────────────────────────────
+   Place avant le demarrage : toutes les fonctions sont declarees. */
+try {
+  PERF.surveiller([
+    'showPortal',
+    'renderTiles',
+    'loadMyGardes',
+    'renderMyGardesHero',
+    'renderMesGardes',
+    'loadMyConges',
+    'renderMesConges',
+    'renderVeille',
+    'renderToposList',
+    'renderStaffsList',
+    'renderProtocoles',
+    'renderAnnuaire',
+    'route'
+  ]);
+} catch (e) { console.warn('[chrono] branchement impossible :', e && e.message); }
 
 if(window.lucide) lucide.createIcons();
 window.addEventListener('hashchange', route);
