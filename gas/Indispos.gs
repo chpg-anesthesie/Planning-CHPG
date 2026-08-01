@@ -1,7 +1,19 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-01.4';
+const GAS_VERSION_INDISPOS = '2026-08-01.5';
+
+/* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
+   `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
+   Apps Script evalue toutes les constantes de premier niveau — dont TEST_YEAR,
+   juste en dessous, qui ouvre le classeur et lit CONFIG. Ce temps etait compte
+   comme « attente Google » alors qu'il est a NOUS.
+   Ce marqueur permet a doGet de renvoyer `_glob_ms` = temps ecoule entre ici et
+   l'entree dans doGet. Il ne mesure PAS la compilation du code (545 Ko), qui a
+   lieu avant toute execution : pour celle-la, comparer avec la duree totale
+   affichee dans le menu « Executions » d'Apps Script.
+   Cout : un Date.now(). A retirer si le diagnostic conclut. */
+const _T_GLOBAUX = Date.now();
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -4082,6 +4094,8 @@ function _ajouterDureeServeur_(out, t0) {
     if (!txt || txt.length > 400000 || txt.charAt(0) !== '{') return out;
     const o = JSON.parse(txt);
     o._srv_ms = Date.now() - t0;
+    // Temps passe dans le code GLOBAL (TEST_YEAR et consorts) avant doGet.
+    try { o._glob_ms = t0 - _T_GLOBAUX; } catch (e) {}
     return ContentService.createTextOutput(JSON.stringify(o))
       .setMimeType(ContentService.MimeType.JSON);
   } catch(err) {
