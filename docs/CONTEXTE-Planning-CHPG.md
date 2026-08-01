@@ -11,11 +11,11 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
-## État au 30 juillet 2026
+## État au 1er août 2026
 
-**Site v1.14.15** · GAS : `code.gs` **2026-07-31.1** · `Indispos.gs` **2026-07-31.1** ·
-`portail.gs` **2026-07-30.1** · `generateur_gardes.gs` **2026-07-31.1** · `setup_annee.gs` **2026-07-30.1**
-*(les deux versions du 30/07 sont recopiées et déployées, confirmé par Arthur)*
+**Site v1.15.2** · GAS : `code.gs` **2026-07-31.2** · `Indispos.gs` **2026-08-01.1** ·
+`portail.gs` **2026-08-01.1** · `generateur_gardes.gs` **2026-07-31.1** · `setup_annee.gs` **2026-08-01.1**
+*(tout est recopié et déployé, confirmé par Arthur — Diagnostic OK)*
 
 **En production :** algorithme de gardes (équité annuelle), planning quotidien (`admin.html`),
 portail/Dashboard, module libéral (lots 0, 1, 2A, 2B, 3), contrôle d'absence (`absences.html`,
@@ -96,7 +96,9 @@ lui-même varie du simple au double dans une même journée.
 
 Module libéral (estimateur, devis, déclaration d'intervention, volet comité, relevé et suivi
 des 30 %) · Contrôle d'absence lot 5-bis · Boîte de réception Gmail dans `admin.html` ·
-Couverture des jours serrés du générateur · Export Excel · Wizards annuels.
+Couverture des jours serrés du générateur · Export Excel · Wizards annuels ·
+**Bande de présence** en tête de l'onglet Planning (01/08) ·
+**Notifications de changement de planning** (01/08, module livré **éteint**).
 
 ## Ce qui est écarté — ne pas reproposer
 
@@ -549,7 +551,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site (badge `vX.Y.Z`) — actuellement **v1.14.15**
+## Version du site (badge `vX.Y.Z`) — actuellement **v1.15.2**
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
@@ -673,6 +675,33 @@ elles n'en sont pas.
 - **Week-ends et fériés : NON cliquables**, volontairement (seules les 2 gardes y figurent). Ils
   passent par un rendu séparé — `makeSlot` ne les traite pas.
 
+## Bande de présence (`admin.html`, en tête de l'onglet Planning) — 01/08/2026
+
+Un carré = une journée ouvrée, 5 lignes (lundi→vendredi) × 52 colonnes, couleur = **nombre de MAR
+présents en journée**. Clic sur un carré → la semaine s'ouvre dans la grille.
+
+- **Définition du présent : celle de `presentsPool` (`code.gs`, l.~895)** — statut du jour hors
+  `ABSENT_CODES` (`RG V F CTP CP R A TP CL`) **et** MAR dans sa période d'activité
+  (`date_debut` / `date_fin`). **`G`, `G2` et `18` comptent PRÉSENTS** (ils travaillent en journée,
+  en réa et en maternité), **`I` aussi** (indispo de garde ≠ absence). `PRUNET` est exclu, comme
+  dans `nonPlacesJour` : le comité ne le place pas.
+  ⚠️ **Ne pas transformer cette liste en liste blanche** (« vide + 18 + G + G2 ») : `I` deviendrait
+  absent à tort. La liste noire est la règle du serveur, c'est elle qui fait foi.
+- **Aucun appel serveur** : tout vient de `DATA` et de `marsData`, déjà en mémoire. ~251 jours × 23 MAR.
+- **Seuils de couleur : onglet `SEUILS`** (`CLE | VALEUR | DESCRIPTION`), lignes
+  `SEUIL_PRESENCE_ALERTE` et `SEUIL_PRESENCE_CONFORT`. Onglet **créé et pré-rempli automatiquement**
+  (13 et 17) par `getSeuils()` (`portail.gs`), servi par `getAdminBootstrap`. Absent ou illisible →
+  `admin.html` garde ses valeurs de repli, jamais de blocage. **Volontairement séparé de `CONFIG`**,
+  qui porte `ADMIN_CODE` / `SECRETARIAT_CODE` / `ANNEE_ACTIVE` / `INDISPOS_ACTIVE` : régler une
+  couleur ne doit pas obliger à ouvrir l'onglet des codes d'accès (décision Arthur, 01/08).
+- Bornes inversées dans l'onglet → corrigées à la volée, l'échelle reste monotone.
+- **Première mesure réelle (01/08, année 2026) : 9 / 44 / 68 / 70 / 58 jours du rouge au vert**
+  avec 13 et 17. Les cinq couleurs servent, aucune n'écrase les autres : les bornes par défaut
+  tiennent. Le comité doit encore trancher les siennes.
+- A **remplacé l'ancienne heatmap des indispos**, code orphelin (`renderIndispos` + CSS `.heatmap`
+  / `.heat-*`) : ni `#heatmap` ni `#marGrid` n'existaient plus dans la page, la fonction n'était
+  plus appelée, et ses seuils 75/65 étaient écrits en dur.
+
 ## Consultations : où vit la vérité
 
 - **✅ SOURCE = onglet `CS_TEMPLATE`** depuis le 20/07/2026 (testé en production). `admin.html`
@@ -698,7 +727,7 @@ elles n'en sont pas.
 
 ## Onglets du classeur (rangés le 20/07/2026)
 
-22 onglets, dont **6 MASQUÉS** car jamais édités à la main : `SEMAINES_VALIDEES`,
+22 onglets **+ `SEUILS`** (créé le 01/08/2026 — bornes d'affichage, voir plus bas), dont **6 MASQUÉS** car jamais édités à la main : `SEMAINES_VALIDEES`,
 `ABSENCES_LONGUES`, `HISTORIQUE`, `VEILLE`, `LOGS`, `CONNEXIONS`.
 ⚠️ **Un onglet masqué se lit et s'écrit normalement** (`getSheetByName()` ne fait pas de
 différence) — ne pas s'inquiéter de ne pas le voir. Menu Affichage ▸ Feuilles masquées, ou
