@@ -2892,6 +2892,22 @@ render = function() { _origRender(); if(isMobile){buildMobileDayList();renderMob
       L.push('   demande le menu Executions d\'Apps Script (duree totale a comparer).');
     }
 
+    // 3bis. Detail serveur (fourni par getAdminBootstrap)
+    var avecDetail = (J || []).filter(function (c) { return c.detail && typeof c.detail === 'object'; });
+    avecDetail.forEach(function (c) {
+      var etapes = Object.keys(c.detail);
+      if (!etapes.length) return;
+      L.push('');
+      L.push('── 3bis. Detail de ' + c.action + ' (' + (c.srv != null ? c.srv + ' ms' : '?') + ') '
+             + '─'.repeat(Math.max(0, 26 - c.action.length)));
+      etapes.sort(function (a, b) { return c.detail[b] - c.detail[a]; }).forEach(function (e) {
+        L.push('   ' + col(e, 38) + ms(c.detail[e]) + ' ms');
+      });
+      if (c.ser != null) L.push('   ' + col('serialisation de la reponse', 38) + ms(c.ser) + ' ms');
+      if (c.taille) L.push('   ' + col('taille de la reponse', 38)
+                           + ms(Math.round(c.taille / 1024)) + ' Ko');
+    });
+
     // 4. Jalons
     if (P.jalons.length) {
       L.push('');
