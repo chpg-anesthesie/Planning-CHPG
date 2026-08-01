@@ -675,6 +675,38 @@ elles n'en sont pas.
 - **Week-ends et fériés : NON cliquables**, volontairement (seules les 2 gardes y figurent). Ils
   passent par un rendu séparé — `makeSlot` ne les traite pas.
 
+## Notifications de changement de planning (`code.gs`) — 01/08/2026, LIVRÉ **ÉTEINT**
+
+*(Conçu dans un autre fil ; ce qui suit est **lu dans le code**, pas repris d'une conception —
+les arbitrages de départ appartiennent à cette conversation-là.)*
+
+**Principe : comparer deux états, jamais surveiller les gestes.** `planning_{Y}.json` (courant) vs
+`planning_{Y}_notifie.json` (photo au dernier envoi, dans le même dossier Drive). Un changement
+posé puis annulé avant l'envoi ne produit donc **aucun mail**.
+
+- **Déclenchement** : `publishPlanning` appelle `notifPlanifier()` (3 lignes dans `Indispos.gs`,
+  sous `try/catch` — un échec du notifieur ne fait jamais échouer la publication). Chaque appel
+  **supprime le minuteur en attente et en repose un neuf** à `NOTIF_DELAI_MIN` = **10 minutes** :
+  tant que le comité publie, rien ne part. Une soirée de travail ⇒ un seul envoi.
+- **Interrupteur : propriété de script `NOTIF_ACTIVE`** (`'O'` = allumé). **Aujourd'hui éteint.**
+  Éteint, ou à la toute première exécution, le module **prend la photo et se tait**.
+  `NOTIF_EMAIL_TEST` redirige tous les envois vers une seule adresse — à utiliser pour l'essai.
+- **Filtre** : un **changement de statut** (garde, RG, R, 18h, vacances, formation, TP, CL, CP,
+  absence) est signalé **quelle que soit la date** ; un **changement de secteur** ne l'est que s'il
+  tombe dans la **semaine couverte par le dernier Excel du vendredi 16 h**.
+- **Destinataires** : `MEDECINS`, `ACTIF = O`, moins ceux dont la colonne **`NOTIF` vaut `N`**.
+  La colonne est cherchée **par son titre** ; **absente, tout le monde est notifié**.
+- **Quota vérifié avant le premier envoi** : s'il manque des jetons, rien ne part et l'erreur est
+  journalisée — plutôt qu'un envoi à la moitié de l'équipe.
+- **La photo n'est recalée que si l'envoi s'est passé sans erreur** : un changement non annoncé est
+  repris à la publication suivante. Un JSON illisible interrompt **sans recaler**.
+- **`notifRecaler(year)`** remet la photo à jour sans rien envoyer — à lancer après une génération
+  annuelle ou un wizard, où `envoyerRecapGardes` fait déjà le travail.
+- Un code de statut inconnu est affiché **brut**, jamais interprété.
+
+⚠️ **Ménage post-démo du 04/09** : si le planning 2027 est publié pendant la démo, un
+`planning_2027_notifie.json` apparaîtra dans le dossier Drive. À supprimer avec les deux autres.
+
 ## Bande de présence (`admin.html`, en tête de l'onglet Planning) — 01/08/2026
 
 Un carré = une journée ouvrée, 5 lignes (lundi→vendredi) × 52 colonnes, couleur = **nombre de MAR
