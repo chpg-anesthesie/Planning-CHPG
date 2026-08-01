@@ -339,13 +339,16 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .tension-toggle { margin-left:auto; background:none; border:none; font-size:11px; font-weight:700; color:var(--ink-3); cursor:pointer; padding:2px 6px; border-radius:6px; }
 .tension-toggle:hover { background:var(--line-light); }
 .tmap { display:flex; gap:6px; align-items:flex-start; overflow-x:auto; padding-bottom:2px; }
+.tcol { flex:1; min-width:520px; }   /* la grille occupe toute la largeur disponible */
 .trows { display:flex; flex-direction:column; gap:2px; padding-top:14px; }
 .trow-lbl { height:12px; width:12px; font-size:9px; font-weight:700; color:var(--ink-4); line-height:12px; text-align:center; }
-.tmonths { display:flex; height:14px; }
-.tmonth { font-size:9px; font-weight:700; color:var(--ink-3); border-left:1px solid var(--line); padding-left:3px; line-height:11px; height:11px; overflow:hidden; }
-.tgrid { display:grid; grid-auto-flow:column; grid-template-rows:repeat(5,12px); gap:2px; }
-.tcell { width:12px; height:12px; border-radius:2.5px; cursor:pointer; transition:transform .1s, box-shadow .1s; }
-.tcell:hover { transform:scale(1.35); box-shadow:0 0 0 1.5px var(--ink); position:relative; z-index:5; }
+/* Meme trame que la grille : chaque mois s'etale sur ses semaines (grid-column: span N),
+   donc les etiquettes restent alignees quelle que soit la largeur de la fenetre. */
+.tmonths { display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:2px; height:14px; }
+.tmonth { font-size:9px; font-weight:700; color:var(--ink-3); border-left:1px solid var(--line); padding-left:3px; line-height:11px; height:11px; overflow:hidden; white-space:nowrap; }
+.tgrid { display:grid; grid-auto-flow:column; grid-auto-columns:1fr; grid-template-rows:repeat(5,12px); gap:2px; }
+.tcell { height:12px; border-radius:2.5px; cursor:pointer; transition:transform .1s, box-shadow .1s; }
+.tcell:hover { transform:scaleY(1.35); box-shadow:0 0 0 1.5px var(--ink); position:relative; z-index:5; }
 .tcell:focus-visible { outline:2px solid var(--blue); outline-offset:1px; }
 .t0 { background:#DCFCE7; } .t1 { background:#FEF9C3; } .t2 { background:#FEF3C7; }
 .t3 { background:#FDBA74; } .t4 { background:#F87171; }
@@ -998,7 +1001,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.15.1'; // SITE_VERSION: v1.15.1
+const SITE_VERSION = 'v1.15.2'; // SITE_VERSION: v1.15.2
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1091,7 +1094,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.15.1</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.15.2</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1183,7 +1186,7 @@ if (sessionStorage.getItem('adminCode')) {
         <div class="trows">
           <div class="trow-lbl">L</div><div class="trow-lbl">M</div><div class="trow-lbl">M</div><div class="trow-lbl">J</div><div class="trow-lbl">V</div>
         </div>
-        <div>
+        <div class="tcol">
           <div class="tmonths" id="tensionMonths"></div>
           <div class="tgrid" id="tensionGrid"></div>
         </div>
@@ -4853,7 +4856,7 @@ function renderTension() {
   const bornes = Object.keys(colDebut).map(Number).sort((x, y) => x - y);
   bornes.forEach((wi, k) => {
     const fin = (k + 1 < bornes.length) ? bornes[k + 1] : weeks.length;
-    mois += '<div class="tmonth" style="width:' + ((fin - wi) * 14) + 'px">' + MOIS[colDebut[wi]] + '</div>';
+    mois += '<div class="tmonth" style="grid-column:span ' + (fin - wi) + '">' + MOIS[colDebut[wi]] + '</div>';
   });
   const mEl = document.getElementById('tensionMonths'); if (mEl) mEl.innerHTML = mois;
 
