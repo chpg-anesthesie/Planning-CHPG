@@ -998,7 +998,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.15'; // SITE_VERSION: v1.15
+const SITE_VERSION = 'v1.15.1'; // SITE_VERSION: v1.15.1
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1091,7 +1091,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.15</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.15.1</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -4753,7 +4753,7 @@ function renderCertificat(list){
 const TENSION_ABSENTS = new Set(['RG','V','F','CTP','CP','R','A','TP','CL']);
 // Repli si l'onglet SEUILS est absent ou si le GAS deploye ne le sert pas.
 let SEUIL_ALERTE = 13, SEUIL_CONFORT = 17;
-let _tensionSrc = null, _tensionJours = null;
+let _tensionSrc = null, _tensionMeds = null, _tensionJours = null;
 
 function applySeuils(s) {
   if (!s) return;
@@ -4766,11 +4766,18 @@ function applySeuils(s) {
 // [{date, ferie, n}] pour tous les jours ouvres de l'annee, dans l'ordre.
 // Memoise sur l'objet DATA : recalcule seulement quand le planning est recharge.
 function tensionJours() {
-  if (_tensionSrc === DATA && _tensionJours) return _tensionJours;
+  // COURSE DE CHARGEMENT (corrige le 01/08/2026) : loadPlanningData et
+  // loadStatusBar partent EN PARALLELE. DATA arrive donc avant marsData, et
+  // renderWeek est appelee entre les deux. Sans la liste des medecins le
+  // compte vaut 0 partout — et la version fautive le MEMORISAIT, si bien que
+  // le second renderWeek (celui de loadStatusBar) resservait les zeros.
+  // Tant que la liste n'est pas la : on ne calcule rien et on ne memorise rien.
+  const meds = marsData || [];
+  if (!DATA || !DATA.months || !meds.length) return [];
+  if (_tensionSrc === DATA && _tensionMeds === meds && _tensionJours) return _tensionJours;
   const out = [];
-  if (!DATA || !DATA.months) return out;
   const actifs = {};
-  (marsData || []).forEach(m => { if (m.actif) actifs[m.id] = m; });
+  meds.forEach(m => { if (m.actif) actifs[m.id] = m; });
   const vus = new Set();
   DATA.months.forEach(month => {
     (month.days || []).forEach((day, dayIdx) => {
@@ -4793,7 +4800,7 @@ function tensionJours() {
     });
   });
   out.sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
-  _tensionSrc = DATA; _tensionJours = out;
+  _tensionSrc = DATA; _tensionMeds = meds; _tensionJours = out;
   return out;
 }
 
