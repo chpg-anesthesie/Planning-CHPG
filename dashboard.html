@@ -380,7 +380,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.3</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.4</span></span></p>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
@@ -474,7 +474,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.16.3'; // SITE_VERSION: v1.16.3
+const SITE_VERSION = 'v1.16.4'; // SITE_VERSION: v1.16.4
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -569,7 +569,8 @@ async function _apiPostDirect(payload) {
     });
     const _rep = await res.json();
     try { if (window.PERF) PERF.appel(_act, Date.now() - _t0, _rep && _rep._srv_ms, _dep,
-                                      res.ok ? 'ok' : 'ECHEC — HTTP ' + res.status); } catch (_e) {}
+                                      res.ok ? 'ok' : 'ECHEC — HTTP ' + res.status,
+                                      _rep && _rep._glob_ms); } catch (_e) {}
     return _rep;
   } catch (e) {
     try { if (window.PERF) PERF.appel(_act, Date.now() - _t0, null, _dep,
@@ -1369,9 +1370,10 @@ document.getElementById('viewAuthInput').addEventListener('keydown', e => { if(e
   };
 
   // ── Journal d'appel serveur (pages sans chronoAPI) ───────────────────────
-  P.appel = function (action, ms, srv, depart, issue) {
+  P.appel = function (action, ms, srv, depart, issue, glob) {
     try {
       P.appels.push({ action: action, ms: ms, srv: (typeof srv === 'number' ? srv : null),
+                      glob: (typeof glob === 'number' ? glob : null),
                       depart: depart, essais: 1, issue: issue || 'ok' });
     } catch (e) {}
   };
@@ -1493,9 +1495,9 @@ document.getElementById('viewAuthInput').addEventListener('keydown', e => { if(e
     // 3. Appels serveur
     var J = P.appels;
     if (J && J.length) {
-      var tot = 0, srv = 0, ech = 0;
+      var tot = 0, srv = 0, glo = 0, ech = 0;
       J.forEach(function (c) {
-        tot += c.ms; srv += (c.srv || 0);
+        tot += c.ms; srv += (c.srv || 0); glo += (c.glob || 0);
         if (String(c.issue).indexOf('ECHEC') === 0) ech++;
       });
       L.push('');
@@ -1504,13 +1506,21 @@ document.getElementById('viewAuthInput').addEventListener('keydown', e => { if(e
         var dep = (c.depart != null) ? ('T+' + (c.depart / 1000).toFixed(1) + 's ') : '';
         L.push('   ' + String(i + 1).padStart(2) + '. ' + col(dep, 9) + col(c.action, 24)
                + ms(c.ms) + ' ms'
-               + (c.srv != null ? '   (serveur ' + ms(c.srv, 5) + ' · attente ' + ms(Math.max(0, c.ms - c.srv), 5) + ')' : '')
+               + (c.srv != null
+                    ? '   (avant doGet ' + (c.glob != null ? ms(c.glob, 5) : '    ?')
+                      + ' · doGet ' + ms(c.srv, 5)
+                      + ' · reseau ' + ms(Math.max(0, c.ms - c.srv - (c.glob || 0)), 5) + ')'
+                    : '')
                + (c.essais > 1 ? '  ' + c.essais + ' ESSAIS' : '')
                + (String(c.issue).indexOf('ECHEC') === 0 ? '   ' + c.issue : ''));
       });
       L.push('   ' + col('', 9) + col('TOTAL ' + J.length + ' appels', 24) + ms(tot) + ' ms'
-             + '   (serveur ' + ms(srv, 5) + ' · peage ' + ms(tot - srv, 5) + ')'
+             + '   (avant doGet ' + ms(glo, 5) + ' · doGet ' + ms(srv, 5)
+             + ' · reseau ' + ms(Math.max(0, tot - srv - glo), 5) + ')'
              + (ech ? '   ' + ech + ' EN ECHEC' : ''));
+      L.push('   « avant doGet » = notre code global (TEST_YEAR, ouverture du classeur).');
+      L.push('   « reseau » contient encore la COMPILATION des 545 Ko de .gs : la separer');
+      L.push('   demande le menu Executions d\'Apps Script (duree totale a comparer).');
     }
 
     // 4. Jalons
