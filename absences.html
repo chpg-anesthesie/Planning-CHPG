@@ -255,7 +255,7 @@ async function doLogin(code){
 }
 document.getElementById('authBtn').addEventListener('click', async function(){
   const code = document.getElementById('authInput').value.trim().toUpperCase();
-  if(!code) return;
+  if(!code){ authErr("Entrez votre code d'accès."); return; }   // (T05)
   const b = this; b.disabled = true; b.textContent = 'Vérification…';
   try{
     const r = await doLogin(code);
