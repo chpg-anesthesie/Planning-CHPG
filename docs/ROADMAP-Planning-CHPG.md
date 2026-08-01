@@ -270,6 +270,16 @@ comptent présents**, `PRUNET` exclu). Clic → ouvre la semaine. Aucun appel se
 l'onglet **`SEUILS`**, servi par `getAdminBootstrap`, repli silencieux 13/17. Détail complet dans
 `CONTEXTE`. A remplacé l'ancienne heatmap des indispos, devenue code mort.
 
+### Notifications de changement de planning (`code.gs`, 01/08/2026) — LIVRÉ **ÉTEINT**
+Compare `planning_{Y}.json` à `planning_{Y}_notifie.json` après **10 minutes d'accalmie** suivant la
+dernière publication ; un changement posé puis annulé ne produit aucun mail. Statut ⇒ signalé
+toujours ; secteur ⇒ seulement dans la semaine du dernier Excel. Désabonnement par la colonne
+**`NOTIF`** de `MEDECINS` (absente ⇒ tout le monde reçoit). **Interrupteur : propriété de script
+`NOTIF_ACTIVE = 'O'`** — à ce jour **non posée, donc rien ne part**. Détail dans `CONTEXTE`.
+⚠️ **Reste à faire par le fil qui l'a conçu** : essai réel via `NOTIF_EMAIL_TEST`, création de la
+colonne `NOTIF`, puis allumage. Les arbitrages de conception (accalmie, deux canaux, filtres
+d'horizon) ne sont écrits nulle part — à consigner avant de les perdre.
+
 ### Portail / Dashboard
 `dashboard.html` est **le seul carrefour** : toutes les pages s'ouvrent depuis ses tuiles.
 Service worker sur cette page uniquement (suffisant, tout le monde y passe).
@@ -366,8 +376,9 @@ Reste à faire, par ordre de criticité :
    existe déjà ») → le Wizard 1 d'octobre serait bloqué. Et `AFFECTATIONS_2027` n'étant recréé que s'il
    est absent, les affectations fictives resteraient en place. `GARDES_2027` / `STATS_GARDES_2027` ont
    été supprimés le 30/07 ; si une génération est relancée pendant la démo, les resupprimer.
-2. **JSON du Drive** (dossier « Planning-CHPG-JSON ») : supprimer `planning_2027.json` **et**
-   `affectations_2027.json` si la publication a été montrée. **Butoir dur : avant le 1er octobre.**
+2. **JSON du Drive** (dossier « Planning-CHPG-JSON ») : supprimer `planning_2027.json`,
+   `affectations_2027.json` **et `planning_2027_notifie.json`** *(ajouté le 01/08 : le notifieur
+   dépose cette photo de référence à chaque publication, même éteint)* si la publication a été montrée. **Butoir dur : avant le 1er octobre.**
    Tracé dans le code le 30/07 :
    - `index.html` l.1119 sonde les années `2026 → année+1` avec `getAffectationsJson` : c'est
      **`affectations_2027.json` qui ouvre la porte**. Dès qu'il existe, **2027 apparaît dans le
