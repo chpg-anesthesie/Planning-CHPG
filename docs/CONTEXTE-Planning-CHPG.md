@@ -86,11 +86,24 @@ machine (syntaxe, unicité d'ancre, simulation, jsdom) de ce qui ne sera prouvé
 
 ## Le réflexe performance
 
-Une requête Apps Script **qui ne fait rien** coûte **2 à 3 s** avant d'atteindre le code (mesuré
-sur deux déploiements indépendants le 29/07). **Le seul levier est de réduire le NOMBRE d'appels,
-jamais leur contenu.** Avant d'ajouter un appel à l'ouverture d'une page, se demander s'il ne peut
-pas rejoindre `getAdminBootstrap`. Ne jamais mesurer un gain sur une base instable : le serveur
-lui-même varie du simple au double dans une même journée.
+**Décomposition mesurée le 01/08 d'un appel qui ne fait rien :** ~1 400 ms de plancher
+plateforme (Google, irréductible) + ~730 ms de compilation de nos 545 Ko de `.gs`. Méthode :
+comparer avec un projet Apps Script **vide**, en alternant les deux appels dans la même
+minute — jamais entre deux heures différentes.
+
+**Trois leviers, dans cet ordre :** réduire le nombre d'APPELS, puis le nombre
+d'allers-retours vers SHEETS, puis rien. Le JS du navigateur coûte 0,1 s : ce n'est jamais là.
+
+**⚠️ NE JAMAIS AJOUTER DE REQUÊTE POUR ACCÉLÉRER.** Apps Script sérialise les exécutions
+d'un même utilisateur : toute requête ajoutée occupe la file. Deux tentatives du 01/08
+(appel de réveil, délai d'abandon court avec rejeu) ont cassé l'ouverture d'admin et ont
+été retirées le jour même.
+
+**Le terme qui décide des mauvais jours** — l'attente hors exécution — a valu 2 656 ms puis
+18 191 ms à trois minutes d'écart, à code identique. Rien dans notre code ne le touche.
+
+Avant d'ajouter un appel à l'ouverture d'une page, se demander s'il ne peut pas rejoindre
+`getAdminBootstrap`.
 
 ## Ce qui est livré et ne doit PAS être reconstruit
 
@@ -551,7 +564,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site (badge `vX.Y.Z`) — actuellement **v1.15.2**
+## Version du site (badge `vX.Y.Z`) — actuellement **v1.16.7**
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
@@ -793,51 +806,57 @@ one-shot réversible, à relancer après ajout d'un onglet.
   ne pas bloquer le comité sur une lecture ratée).
 - **Toute nouvelle action d'envoi groupé doit poser ce garde-fou.**
 
-## Performance — ce qu'il faut savoir avant toute optimisation (28/07/2026)
+## Performance — état arrêté au 01/08/2026
 
-**Le coût dominant est PAR APPEL, et il ne nous appartient pas.** Mesure de référence : une requête
-qui ne fait rien (17 ms de travail serveur) met **2 à 3 s** à revenir, avec des pointes à 10-20 s
-et des rejets HTTP 404 sporadiques. Vérifié sur **deux déploiements indépendants** (5 mesures
-chacun, médianes 2,70 s et 2,31 s) : un déploiement neuf se comporte exactement comme l'ancien.
-Ce socle varie dans la journée (≈1,4 s le matin, 2,5 à 7 s l'après-midi du 28/07).
+**Outils de mesure (les seuls, ne pas en recréer) :**
+- **`chrono()`** dans la console des 5 pages : la page, les ressources, les appels
+  (**avant `doGet` · `doGet` · réseau**), le détail des 10 étapes du bootstrap, les
+  fonctions d'affichage, l'écran figé. S'affiche seul à l'ouverture d'admin.
+- **`chronoClics()`** : le coût d'une interaction, en trois temps — **attente** (le
+  navigateur était occupé) / **traitement** (notre code, le seul réductible) / **écran**
+  (peinture). Chrome et Edge uniquement.
+- **Menu Exécutions d'Apps Script** : durée TOTALE côté serveur, la seule qui inclue la
+  compilation. À croiser avec `_srv_ms`, qui ne mesure que l'intérieur de `doGet`.
+- Documentés au **§ 23 du guide technique**.
 
-**Conséquence pratique : le seul levier est le NOMBRE d'appels.** Alléger le contenu d'une réponse
-ou optimiser 200 ms de lecture ne change presque rien ; supprimer un appel gagne 2,5 s. Les deux
-succès du 28/07 viennent de là — placements groupés (34 appels → 1) et panneau préchargé
-(10-14 appels → 0 au clic).
+**Ce que la mesure a démenti le 01/08 — ne pas y revenir :**
+- `renderWeek()` rappelée entièrement à chaque placement : **17 ms**. Le coût d'un clic est
+  la **peinture** (100-230 ms), pas notre code (10-25 ms).
+- Les 500 Ko d'`admin.html` : 0,44 s d'analyse, 2 % de l'ouverture.
+- `JSON.parse`/`stringify` d'une réponse de 350 Ko : **6 ms**.
+- **Le JS du navigateur coûte 0,1 s au total.**
 
-**Outils de mesure en place :**
-- `chronoAPI()` dans la console d'`admin.html` : chaque ligne affiche **serveur / attente**
-  séparément, grâce au champ `_srv_ms` que `doGet` ajoute à chaque réponse JSON.
-  ⚠️ `doGet` n'est plus l'aiguillage : celui-ci s'appelle **`_routeRequete_`**, et `doGet` ne fait
-  que le chronométrer. Ne pas les confondre en lisant `Indispos.gs`.
-- `gas/mesure_perf.gs` : `mesurerPerf()` (coût des lectures d'onglets, du login, de l'ouverture
-  admin, du Drive ; inventaire du classeur) et `mesurerDrive()` (recherche vs téléchargement).
-  Lecture seule, à lancer depuis l'éditeur Apps Script, résultat dans le Journal d'exécution.
-- Menu **Exécutions** d'Apps Script : durée réelle côté serveur, à croiser avec `chronoAPI()`.
+**Cache de configuration (livré 01/08).** `CONFIG`, `SECTEURS`, `CS_TEMPLATE`, `SEUILS` en
+`CacheService`, 10 min. Motif : les lectures d'onglets sautent d'un facteur 10 d'une minute
+à l'autre (SEUILS+CS_TEMPLATE : 702 puis 6 956 ms) alors que les **lectures Drive sont
+stables** (529 à 785 ms sur 7 relevés). Invalidation accrochée à `WRITE_ACTIONS_LOCK`,
+bouton de purge dans Maintenance.
 
-**Ouverture d'admin : UN SEUL appel bloquant** (`getAdminBootstrap`), plus le préchargement du
-panneau en arrière-plan. Le bootstrap livre identité, planning, affectations, médecins,
-overrides, secteurs, modèle de consultations, compteur de mails ET l'existence de l'année
-suivante (`anneeSuivante`). **Avant d'ajouter un appel à l'ouverture, se demander s'il ne peut
-pas rejoindre le bootstrap** : un appel séparé coûte ~2,5 s de péage pour souvent moins de
-200 ms de travail.
+**🔒 Le cache de script est PARTAGÉ entre tous les utilisateurs.** On n'y met JAMAIS une
+donnée qui dépend de qui appelle — sinon l'appelant suivant reçoit celles du précédent.
+`MEDECINS` reste hors cache. Effet de bord : une modification faite **à la main** dans le
+classeur (dont un **code d'accès révoqué**) met jusqu'à 10 min à prendre effet.
 
-**Apps Script n'offre AUCUNE garantie de performance.** Service gratuit, partagé, sans
-engagement pour un compte personnel. Le 28/07, le même code est passé de 3,1 à 6,1 s côté
-serveur en trois heures, sans panne déclarée et sans rapport avec le réseau (partage 4G le
-matin, wifi domestique l'après-midi, même résultat). C'est le régime normal de la plateforme,
-pas un incident. Le vrai enjeu d'un changement d'hébergement n'est donc pas la vitesse moyenne
-mais la **prévisibilité**.
+**Ouverture d'admin : UN SEUL appel** (`getAdminBootstrap`), ~5 s. Il livre identité,
+planning, affectations, médecins, overrides, secteurs, seuils, modèle de consultations,
+compteur de mails et existence de l'année suivante.
 
-**Méthode : ne jamais optimiser sur une base instable.** Le 28/07 après-midi, `getAdminBootstrap`
-est passé de 3 135 à 5 712 ms **sans changement de code** ; mesurer un gain y était impossible.
-Prendre la mesure de référence le matin.
+**Apps Script n'offre AUCUNE garantie de performance.** Service gratuit, partagé. Le vrai
+enjeu d'un changement d'hébergement n'est pas la vitesse moyenne mais la **prévisibilité** —
+et le 01/08 a chiffré ce qu'on paie à rester : de 2,7 s à 18,2 s d'attente hors exécution
+pour le même appel, à trois minutes d'écart.
 
-**Pistes fermées (ne pas reproposer sans élément nouveau) :** tailler les lignes vides des onglets
-(ouverture du classeur = 120 ms pour 1,7 M de cellules) ; lire les JSON du Drive par identifiant
-direct (396 ms contre ~350 ms par recherche de nom) ; fusionner `login` et `getAdminBootstrap`
-(**déjà fait**) ; cache serveur et optimisation du JSON (écartés de longue date).
+**Pour une démonstration en public (4 septembre) :** ne pas ouvrir la page en direct.
+Charger et se connecter AVANT. La saisie d'indisponibilités est locale une fois la page
+ouverte ; seul l'enregistrement final passe par le réseau.
+
+**Pistes fermées — ne pas reproposer sans élément nouveau :** découper le projet GAS
+(~150 ms mesurés, chantier annulé) ; supprimer les commentaires des `.gs` ; tailler les
+lignes vides du classeur ; lire les JSON du Drive par identifiant ; fusionner `login` et
+`getAdminBootstrap` (déjà fait).
+
+**Reste ouvert :** le journal de connexion coûte 210 à 480 ms pour une ligne écrite — seul
+poste ayant encore une marge ET de la variance.
 
 ## État : fonctionnellement terminé
 **Ne PAS reproposer** : `config.html` (abandonné — couvert par les 5 onglets d'admin.html) ; **optimisation perf** du JSON (déjà minifié/gzip) ; patch GAS de robustesse cible (le garde frontend suffit).
