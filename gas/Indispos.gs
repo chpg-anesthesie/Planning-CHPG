@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-01.5';
+const GAS_VERSION_INDISPOS = '2026-08-01.6';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1681,27 +1681,45 @@ if (!affSheet) {
       out.liberal = !!user.liberal;
       out.rpps = user.rpps || '';
       out.prenom = user.prenom || '';
+      /* (01/08/2026) CHRONOMETRE INTERNE — mesure, ne change RIEN.
+         Mesure du 01/08 a 14:53, ouverture ramenee a UN SEUL appel : doGet vaut
+         3 633 ms, soit 53 % du cout total. Le travail du bootstrap est donc
+         devenu le premier poste, devant le peage. Restait a savoir laquelle de
+         ses dix operations le porte. `_jalon` note le temps ecoule depuis le
+         jalon precedent : aucune expression n'est enveloppee, aucun try/catch
+         deplace. Le detail part dans out._detail et s'affiche dans chrono(). */
+      const _det = {}; let _tp = Date.now();
+      const _jalon = function (nom) { const n = Date.now(); _det[nom] = n - _tp; _tp = n; };
+
       out.indisposYear = getIndisposYear();
       out.indisposOuverte = _indisposOuverte_();
+      _jalon('annee + campagne (CONFIG)');
       logConnexion(user);
+      _jalon('journal de connexion (ecriture)');
       try {
         const rawP = readPlanningFromDrive(`planning_${jy}.json`);
+        _jalon('planning : lecture Drive');
         out.planning = rawP ? JSON.parse(rawP) : null;
+        _jalon('planning : analyse JSON');
         if (!rawP) out.planningError = `planning_${jy}.json introuvable dans le Drive`;
-      } catch (e) { out.planning = null; out.planningError = e.message; }
+      } catch (e) { out.planning = null; out.planningError = e.message; _jalon('planning : ECHEC'); }
       try {
         const rawA = readPlanningFromDrive(`affectations_${jy}.json`);
         out.affectations = rawA ? JSON.parse(rawA) : null;
       } catch (e) { out.affectations = null; }
+      _jalon('affectations (Drive + analyse)');
       const _m = _buildMedecins_();
       out.medecins = _m.error ? [] : _m.medecins;
+      _jalon('medecins (onglet)');
       out.overrides = _buildOverrides_();
+      _jalon('overrides (onglet)');
       // (28/07/2026 perf) Secteurs et consultations rejoignent le bootstrap.
       // Motif : chaque aller-retour coute ~1 s de DEMARRAGE (compilation des 5
       // fichiers + liaison au classeur) avant meme la moindre lecture. Deux appels
       // separes valaient donc ~2 s a chaque ouverture d'admin. Un echec ici n'est
       // jamais bloquant : la page repasse par getSecteurs / getCsTemplate.
       try { out.secteurs   = getSecteurs(); }   catch (e) { out.secteurs = null; }
+      _jalon('secteurs (onglet)');
       // (01/08/2026) Seuils d'affichage (onglet SEUILS). Jamais bloquant :
       // absent ou illisible, admin.html garde ses valeurs de repli.
       try { out.seuils     = getSeuils(); }     catch (e) { out.seuils = null; }
@@ -1710,6 +1728,7 @@ if (!affSheet) {
       // admin.html — la constante vit dans generateur_gardes.gs, elle seule fait foi.
       try { out.anneeStatsFiables = PREMIERE_ANNEE_STATS_FIABLES; } catch (e) { out.anneeStatsFiables = null; }
       try { out.csTemplate = getCsTemplate(); } catch (e) { out.csTemplate = null; }
+      _jalon('seuils + modele de consultations');
       /* (28/07/2026, 15 h) LE COMPTEUR DE MAILS REJOINT LE BOOTSTRAP.
          Un commentaire d'admin.html disait « NE JAMAIS le mettre dans
          getAdminBootstrap : ~1 s ajoutee a chaque ouverture ». Cette regle est
@@ -1722,6 +1741,7 @@ if (!affSheet) {
         const _lab = Gmail.Users.Labels.get('me', 'INBOX');
         out.mailNonLus = Number(_lab.messagesUnread || 0);
       } catch (e) { out.mailNonLus = null; }
+      _jalon('compteur de mails (Gmail)');
       /* (28/07/2026, 15 h 50) EXISTENCE DE L'ANNEE SUIVANTE, SANS LA TELECHARGER.
          Le frontend appelait getPlanningJson sur N+1 pour repondre a une seule
          question : « cette annee existe-t-elle ? ». Cela telechargeait le planning
@@ -1733,8 +1753,19 @@ if (!affSheet) {
       try {
         out.anneeSuivante = _jsonFilesByName_('planning_' + (jy + 1) + '.json').length > 0;
       } catch (e) { out.anneeSuivante = null; }
-      return ContentService.createTextOutput(JSON.stringify(out))
-        .setMimeType(ContentService.MimeType.JSON);
+      _jalon('existence annee N+1 (listage Drive)');
+      out._detail = _det;
+      out._taille = null;
+      // La serialisation ne peut pas figurer dans le texte qu'elle produit :
+      // on la mesure, puis on l'insere en tete par simple concatenation.
+      const _tSer = Date.now();
+      const _txtOut = JSON.stringify(out);
+      const _dSer = Date.now() - _tSer;
+      return ContentService.createTextOutput(
+        _txtOut.charAt(1) === '"'
+          ? '{"_ser_ms":' + _dSer + ',"_taille":' + _txtOut.length + ',' + _txtOut.slice(1)
+          : _txtOut
+      ).setMimeType(ContentService.MimeType.JSON);
     }
 
     if (action === 'getMedecins') {
@@ -4087,15 +4118,32 @@ function doGet(e) {
 }
 function _ajouterDureeServeur_(out, t0) {
   try {
+    /* (01/08/2026) INSERTION PAR TEXTE, PLUS PAR ANALYSE COMPLETE.
+       Version du 28/07 : JSON.parse de TOUTE la reponse, ajout des champs, puis
+       JSON.stringify. Pour le bootstrap cela fait ~350 Ko analyses puis
+       reencodes uniquement pour y glisser deux nombres — sur CHAQUE reponse.
+       Ici les champs sont inseres juste apres l'accolade ouvrante, par simple
+       concatenation. Le JSON produit est rigoureusement identique.
+       CONDITION STRICTE : on n'insere que si le texte commence par `{"`, ce qui
+       garantit qu'un objet NON VIDE suit — donc que la virgule ajoutee reste
+       valide. Un `{}`, un JSON indente ou un tableau retombent sur l'ancienne
+       voie : jamais de JSON invalide produit.
+       Le plafond de 400 000 caracteres ne s'applique plus qu'a ce repli : il
+       n'existait qu'a cause du cout du parse. */
     const txt = out.getContent();
-    // Garde-fous : ne toucher qu'aux reponses JSON objet, et ne pas reencoder
-    // les tres grosses (planning complet ~Mo) — le cout du parse/stringify
-    // n'y vaudrait pas l'information.
-    if (!txt || txt.length > 400000 || txt.charAt(0) !== '{') return out;
+    if (!txt || txt.charAt(0) !== '{') return out;
+    let _g = null;
+    try { _g = t0 - _T_GLOBAUX; } catch (e) { _g = null; }
+    const _champs = '"_srv_ms":' + (Date.now() - t0)
+                  + (_g === null ? '' : ',"_glob_ms":' + _g);
+    if (txt.charAt(1) === '"') {
+      return ContentService.createTextOutput('{' + _champs + ',' + txt.slice(1))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    if (txt.length > 400000) return out;          // repli : ancienne voie
     const o = JSON.parse(txt);
     o._srv_ms = Date.now() - t0;
-    // Temps passe dans le code GLOBAL (TEST_YEAR et consorts) avant doGet.
-    try { o._glob_ms = t0 - _T_GLOBAUX; } catch (e) {}
+    if (_g !== null) o._glob_ms = _g;
     return ContentService.createTextOutput(JSON.stringify(o))
       .setMimeType(ContentService.MimeType.JSON);
   } catch(err) {
