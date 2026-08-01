@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-01.6';
+const GAS_VERSION_INDISPOS = '2026-08-01.7';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1198,7 +1198,14 @@ function _routeRequete_(e) {
     }
     // (RH-C) Verrou d'écriture global : sérialise les actions qui modifient
     // les données. Les lectures ne prennent jamais le verrou (dashboard fluide).
+    /* (01/08/2026) TOUTE ECRITURE VIDE LE CACHE DE CONFIGURATION.
+       Place ICI et non action par action : WRITE_ACTIONS_LOCK est la liste de
+       reference des ecritures, et l'accrocher a cette liste garantit qu'aucune
+       action nouvelle ne sera oubliee. L'invalidation est parfois inutile (une
+       ecriture de planning ne touche pas SECTEURS) : cela coute une relecture
+       d'onglet, jamais une donnee perimee. Le sens de l'erreur est le bon. */
     if (WRITE_ACTIONS_LOCK.has(action)) {
+      try { viderCacheConfig(); } catch (e) {}
       const _wl = LockService.getScriptLock();
       if (!_wl.tryLock(20000)) {
         return ContentService.createTextOutput(JSON.stringify({ success: false,
@@ -1207,6 +1214,17 @@ function _routeRequete_(e) {
       }
     }
     // (B1 sécurité) getStatus / getStatsLive : désormais code-gated (données nominatives)
+    // Purge manuelle du cache de configuration (bouton de l'onglet Maintenance).
+    // Utile apres une modification faite A LA MAIN dans le classeur, ou pour
+    // rendre immediate la revocation d'un code d'acces.
+    if (action === 'viderCacheConfig') {
+      if (user.role !== 'admin') return _deny();
+      viderCacheConfig();
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, message: 'Cache de configuration vidé — la prochaine lecture ira au classeur.'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (action === 'getStatus') {
       return ContentService.createTextOutput(JSON.stringify({
         success: true, status: getPlanningStatus()
