@@ -149,6 +149,7 @@
       <li><a href="#c21"><span class="n">21</span>Sauvegardes &amp; restauration</a></li>
         <li><a href="#c22"><span class="n">22</span>Le « + » de case à pourvoir</a></li>
     <li><a href="#c23"><span class="n">23</span>Mesurer la performance : <code>chrono()</code></a></li>
+    <li><a href="#c24"><span class="n">24</span>Notifications de changement de planning</a></li>
   </ol>
 </nav>
 
@@ -1026,11 +1027,29 @@
   observent et impriment un tableau.</p>
 
   <h3><code>chrono()</code> — le budget complet de la page</h3>
-  <p>S'affiche automatiquement à la fin de l'ouverture d'<code>admin.html</code>. Six parties :
-  la page elle-même (DNS, réponse serveur, téléchargement, analyse du JS), les ressources
-  chargées (polices, icônes), les appels serveur (identique à <code>chronoAPI()</code>),
-  les étapes du chargement, le temps passé dans les fonctions d'affichage, et le temps
-  pendant lequel l'écran est resté figé.</p>
+  <p>S'affiche automatiquement à la fin de l'ouverture d'<code>admin.html</code>. Sept parties :
+  la page elle-même, les ressources chargées, les appels serveur, <b>le détail interne du
+  bootstrap</b>, les étapes du chargement, le temps passé dans les fonctions d'affichage, et
+  le temps pendant lequel l'écran est resté figé.</p>
+
+  <p>Chaque appel serveur se lit en <b>trois temps</b>, et les confondre mène à optimiser au
+  mauvais endroit :</p>
+  <table>
+    <tr><th>Colonne</th><th>Ce qu'elle mesure</th></tr>
+    <tr><td><b>avant <code>doGet</code></b></td><td>Notre code global, exécuté avant le
+      point d'entrée : lecture du classeur par <code>TEST_YEAR</code>. Devrait valoir
+      quelques millisecondes grâce au cache de configuration.</td></tr>
+    <tr><td><b><code>doGet</code></b></td><td>Le travail utile. Sa ventilation figure dans la
+      partie « détail du bootstrap ».</td></tr>
+    <tr><td><b>réseau</b></td><td>Tout le reste : plancher de la plateforme (~1,4 s), compilation
+      de nos 545 Ko de <code>.gs</code> (~0,7 s), et la file d'attente Google — le terme qui
+      décide des mauvais jours, mesuré entre 2,7 s et 18,2 s le 01/08 <b>à trois minutes
+      d'écart</b>.</td></tr>
+  </table>
+  <p>La partie <b>« détail de <code>getAdminBootstrap</code> »</b> ventile les dix opérations du
+  bootstrap, triées de la plus coûteuse à la plus légère. C'est elle qui a montré que les
+  lectures d'onglets sautent d'un facteur 10 d'une minute à l'autre là où les lectures Drive
+  restent stables — origine du cache de configuration.</p>
 
   <h3><code>chronoClics()</code> — le coût d'une interaction</h3>
   <p>Pour chaque clic de plus de 16 ms : la cible, puis <b>trois temps qu'il ne faut pas
@@ -1063,6 +1082,17 @@
   </div>
 
   <div class="callout warn">
+    <div class="ct">Trois faux coupables, écartés par la mesure du 01/08</div>
+    <p>Chacun paraissait évident à la lecture du code. Aucun n'était en cause :
+    <code>renderWeek()</code>, rappelée en entier à chaque placement, coûte <b>17 ms</b> ;
+    les 500 Ko d'<code>admin.html</code> coûtent <b>0,44 s</b> d'analyse, soit 2 % de
+    l'ouverture ; le <code>JSON.parse</code> d'une réponse de 350 Ko coûte <b>6 ms</b>.
+    Le coût d'un clic est la <b>peinture</b> (100 à 230 ms), pas notre code (10 à 25 ms).
+    <b>Mesurer d'abord, conclure ensuite</b> — et se méfier des raisonnements fondés sur la
+    taille d'un fichier.</p>
+  </div>
+
+  <div class="callout warn">
     <div class="ct">Ne jamais comparer deux mesures prises à des heures différentes</div>
     <p>Apps Script n'offre aucune garantie de performance : le 28/07/2026 le même code est passé
     de 3,1 à 6,1 s côté serveur en trois heures. Un avant/après n'a de sens que si les deux
@@ -1072,9 +1102,87 @@
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
+<section id="c24">
+  <h2><span class="n">24</span>Notifications de changement de planning</h2>
+
+  <p>Module de <code>gas/code.gs</code>. Il n'observe <b>aucun geste</b> : il compare deux
+  fichiers du Drive.</p>
+  <table>
+    <tr><th>Fichier</th><th>Rôle</th><th>Écrit par</th></tr>
+    <tr><td><code>planning_{année}.json</code></td><td>l'état courant</td><td><code>generatePlanning</code></td></tr>
+    <tr><td><code>planning_{année}_notifie.json</code></td><td>l'état au dernier envoi</td><td>ce module, et lui seul</td></tr>
+  </table>
+  <p>Un changement posé puis annulé avant l'envoi ne produit donc aucun mail : les deux états
+  redeviennent identiques.</p>
+
+  <h3>Déclenchement</h3>
+  <p><code>notifPlanifier(year)</code> est appelée après chaque publication et après
+  <code>applyModification</code> (dons et échanges de gardes). Elle <b>supprime le minuteur en
+  attente</b> et en pose un neuf à <code>NOTIF_DELAI_MIN</code> = 10 minutes. Tant que le comité
+  publie, rien ne part. L'appel est dans un <code>try/catch</code> : si le module échoue, la
+  publication reste valide.</p>
+
+  <h3>Règle de filtrage</h3>
+  <p>Un <b>statut</b> (garde, repos, récupération, 18 h, vacances, formation, temps partiel,
+  congé long, paternité, absence) est signalé <b>quelle que soit la date</b>. Un
+  <b>secteur</b> ne l'est que si la journée tombe dans la fenêtre couverte par le dernier
+  Excel — calculée par <code>_notifSemaineExcel()</code>, du vendredi 16 h révolu jusqu'à
+  neuf jours plus tard. Cette fenêtre part du vendredi et non du lundi suivant : le samedi et
+  le dimanche qui suivent l'envoi appartiennent encore à l'Excel précédent.</p>
+
+  <div class="callout warn">
+    <div class="ct">État au 1er août 2026 : EN TEST</div>
+    <p><code>NOTIF_EMAIL_TEST</code> est renseignée avec l'adresse de l'administrateur :
+    <b>tous</b> les mails y sont détournés, aucun MAR n'en reçoit. Pour ouvrir le service :
+    vider <code>NOTIF_EMAIL_TEST</code>, vérifier <code>NOTIF_ACTIVE</code> = <code>O</code>,
+    nettoyer <code>NOTIF_YEAR</code> si des tests ont eu lieu sur une autre année — puis
+    <b>retirer les encadrés « pas encore en service »</b> du guide comité (ch. 14) et du
+    guide MAR (ch. 5).</p>
+  </div>
+
+  <h3>Réglages (propriétés de script, aucun redéploiement nécessaire)</h3>
+  <table>
+    <tr><th>Propriété</th><th>Effet</th></tr>
+    <tr><td><code>NOTIF_ACTIVE</code></td><td><code>O</code> = système allumé. Toute autre
+      valeur, ou absente : la photo de référence est prise, <b>aucun mail ne part</b>.</td></tr>
+    <tr><td><code>NOTIF_EMAIL_TEST</code></td><td>Si renseignée, <b>tous</b> les mails partent
+      vers cette adresse au lieu de celle des MARs. Mode test.</td></tr>
+    <tr><td><code>NOTIF_YEAR</code></td><td>Posée automatiquement par <code>notifPlanifier</code>.
+      <b>À nettoyer après tout test sur une année autre que l'année active</b>, sinon les
+      notifications réelles ne partiront jamais.</td></tr>
+  </table>
+  <p>Colonne <code>NOTIF</code> de l'onglet MEDECINS : <code>N</code> désabonne un MAR. Lue par
+  son <b>titre</b>, jamais réécrite — colonne absente = tout le monde est notifié.</p>
+
+  <div class="callout warn">
+    <div class="ct">La première exécution ne fait qu'une photo</div>
+    <p>Sans <code>planning_{année}_notifie.json</code>, il n'y a rien à comparer : le module
+    écrit la référence et se tait. <b>Il faut donc deux publications espacées pour voir le
+    premier mail.</b> Ne pas conclure à une panne au premier essai.</p>
+    <p>Autre garde-fou : la photo n'est mise à jour <b>que si aucun envoi n'a échoué</b>. Un
+    changement non annoncé sera repris à la publication suivante plutôt que perdu.</p>
+  </div>
+
+  <div class="callout tip">
+    <div class="ct">Après une génération annuelle</div>
+    <p>Appeler <code>notifRecaler(year)</code> depuis l'éditeur : elle remet la référence à
+    jour <b>sans envoyer</b>. Sinon des milliers de journées seraient signalées d'un coup.
+    Le récapitulatif de gardes de l'assistant W2 joue déjà ce rôle auprès des MARs.</p>
+  </div>
+
+  <div class="callout warn">
+    <div class="ct">Ménage après test</div>
+    <p>Un test sur l'année 2027 laisse <code>planning_2027_notifie.json</code> dans le Drive :
+    à supprimer avec les autres fichiers de test. Et vider <code>NOTIF_YEAR</code> et
+    <code>NOTIF_EMAIL_TEST</code> avant la mise en service réelle.</p>
+  </div>
+
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
 
 
-<div class="foot">Planning-CHPG · Anesthésie-Réanimation CHPG Monaco — guide technique personnel · établi à partir du code en production, mis à jour le 1er août 2026 (§ 23 : outils de mesure de la performance)</div>
+
+<div class="foot">Planning-CHPG · Anesthésie-Réanimation CHPG Monaco — guide technique personnel · établi à partir du code en production, mis à jour le 1er août 2026 (§ 23 mesure de la performance, § 24 notifications)</div>
 
 </div>
 </body>
