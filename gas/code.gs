@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-07-31.2';
+const GAS_VERSION_CODE = '2026-08-01.1';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 // Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
@@ -1569,8 +1569,13 @@ function _notifSemaineExcel(maintenant) {
   const v = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 16, 0, 0);
   // Reculer jusqu'au vendredi 16 h le plus récent déjà passé.
   while (v.getDay() !== 5 || v > now) v.setDate(v.getDate() - 1);
-  const debut = new Date(v); debut.setDate(debut.getDate() + 3);   // lundi suivant
-  const fin   = new Date(debut); fin.setDate(fin.getDate() + 6);   // dimanche
+  // (01/08/2026) La fenetre court d'un Excel a l'autre, pas sur la seule semaine
+  // affichee. Envoi le vendredi V : l'Excel couvre lundi V+3 -> dimanche V+9, mais
+  // le samedi V+1 et le dimanche V+2 appartiennent encore a l'Excel PRECEDENT, donc
+  // ils sont diffuses eux aussi. On part donc du vendredi et on va jusqu'au dimanche
+  // de la semaine couverte. Elargissement pur : aucune date n'est retiree.
+  const debut = new Date(v);                                       // le vendredi de l'envoi
+  const fin   = new Date(v); fin.setDate(fin.getDate() + 9);       // dimanche de la semaine couverte
   return { debut: _notifISO(debut), fin: _notifISO(fin) };
 }
 
