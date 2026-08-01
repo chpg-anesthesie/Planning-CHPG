@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-07-30.1';
+const GAS_VERSION_PORTAIL = '2026-08-01.1';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1886,6 +1886,56 @@ function getCsTemplate() {
     }
   }
   return { types: types, required: required };
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ONGLET SEUILS — bornes d'affichage, reglables par le comite
+// ══════════════════════════════════════════════════════════════════════
+// Trois colonnes : CLE | VALEUR | DESCRIPTION.
+// Volontairement SEPARE de CONFIG, qui porte ADMIN_CODE, SECRETARIAT_CODE,
+// ANNEE_ACTIVE et INDISPOS_ACTIVE : regler une couleur ne doit pas obliger a
+// ouvrir l'onglet des codes d'acces (decision Arthur, 01/08/2026).
+// Aucune valeur sensible ici, jamais de code, jamais de donnee nominative.
+const SEUILS_TAB = 'SEUILS';
+const _SEUILS_HEADER = ['CLE', 'VALEUR', 'DESCRIPTION'];
+const _SEUILS_SEED = [
+  ['SEUIL_PRESENCE_ALERTE', 13,
+   "Bande de presence (onglet Planning) : au-dessous de ce nombre de MAR presents, la journee vire a l'orange puis au rouge."],
+  ['SEUIL_PRESENCE_CONFORT', 17,
+   'Bande de presence (onglet Planning) : a partir de ce nombre de MAR presents, la journee est verte.'],
+];
+
+function getOrCreateSeuilsTab() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(SEUILS_TAB);
+  if (!sh) {
+    sh = ss.insertSheet(SEUILS_TAB);
+    sh.getRange(1, 1, 1, _SEUILS_HEADER.length).setValues([_SEUILS_HEADER]).setFontWeight('bold');
+    sh.getRange(2, 1, _SEUILS_SEED.length, _SEUILS_HEADER.length).setValues(_SEUILS_SEED);
+    sh.setFrozenRows(1);
+    sh.setColumnWidth(1, 210); sh.setColumnWidth(2, 80); sh.setColumnWidth(3, 520);
+  } else if (sh.getLastRow() < 2) {
+    sh.getRange(1, 1, 1, _SEUILS_HEADER.length).setValues([_SEUILS_HEADER]).setFontWeight('bold');
+    sh.getRange(2, 1, _SEUILS_SEED.length, _SEUILS_HEADER.length).setValues(_SEUILS_SEED);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+// Renvoie { CLE: nombre }. Une valeur non numerique est ignoree : le client
+// garde alors sa valeur de repli plutot que d'afficher n'importe quoi.
+function getSeuils() {
+  const sh = getOrCreateSeuilsTab();
+  const rows = sh.getDataRange().getValues();
+  const out = {};
+  for (let r = 1; r < rows.length; r++) {
+    const cle = String(rows[r][0] || '').trim().toUpperCase();
+    if (!cle) continue;
+    const val = Number(rows[r][1]);
+    if (!isFinite(val)) continue;
+    out[cle] = val;
+  }
+  return out;
 }
 
 function getOrCreateSecteursTab() {
