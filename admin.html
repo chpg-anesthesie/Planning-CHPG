@@ -327,11 +327,34 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .mar-info { flex:1; min-width:0; }
 .mar-name { font-size:12px; font-weight:600; color:var(--ink); }
 .mar-count { font-size:10px; color:var(--ink-4); margin-top:1px; }
-.heatmap { display:grid; grid-template-columns:60px repeat(52,1fr); gap:2px; min-width:800px; }
-.heatmap-label { font-size:9px; color:var(--ink-4); display:flex; align-items:center; }
-.heatmap-cell { height:20px; border-radius:3px; cursor:pointer; transition:opacity .15s; }
-.heatmap-cell:hover { opacity:.8; }
-.heat-ok { background:#DCFCE7; } .heat-warn { background:#FEF3C7; } .heat-err { background:#FCA5A5; }
+/* ── BANDE DE PRESENCE (en tete de l'onglet Planning) ──────────────────
+   Remplace l'ancienne heatmap des indispos (CSS .heatmap / .heat-* et
+   fonction renderIndispos), devenue orpheline : ni #heatmap ni #marGrid
+   n'existaient plus dans la page et la fonction n'etait plus appelee. */
+.tension { background:var(--white); border-bottom:1px solid var(--line); margin:0 -32px 20px; padding:9px 20px 11px; }
+.tension-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:7px; }
+.tension-title { font-size:10px; font-weight:700; color:var(--ink-4); text-transform:uppercase; letter-spacing:.06em; }
+.tension-sum { font-size:11.5px; color:var(--ink-3); }
+.tension-sum b { color:var(--ink-2); font-weight:700; }
+.tension-toggle { margin-left:auto; background:none; border:none; font-size:11px; font-weight:700; color:var(--ink-3); cursor:pointer; padding:2px 6px; border-radius:6px; }
+.tension-toggle:hover { background:var(--line-light); }
+.tmap { display:flex; gap:6px; align-items:flex-start; overflow-x:auto; padding-bottom:2px; }
+.trows { display:flex; flex-direction:column; gap:2px; padding-top:14px; }
+.trow-lbl { height:12px; width:12px; font-size:9px; font-weight:700; color:var(--ink-4); line-height:12px; text-align:center; }
+.tmonths { display:flex; height:14px; }
+.tmonth { font-size:9px; font-weight:700; color:var(--ink-3); border-left:1px solid var(--line); padding-left:3px; line-height:11px; height:11px; overflow:hidden; }
+.tgrid { display:grid; grid-auto-flow:column; grid-template-rows:repeat(5,12px); gap:2px; }
+.tcell { width:12px; height:12px; border-radius:2.5px; cursor:pointer; transition:transform .1s, box-shadow .1s; }
+.tcell:hover { transform:scale(1.35); box-shadow:0 0 0 1.5px var(--ink); position:relative; z-index:5; }
+.tcell:focus-visible { outline:2px solid var(--blue); outline-offset:1px; }
+.t0 { background:#DCFCE7; } .t1 { background:#FEF9C3; } .t2 { background:#FEF3C7; }
+.t3 { background:#FDBA74; } .t4 { background:#F87171; }
+.tvide { background:repeating-linear-gradient(45deg,#F8FAFC,#F8FAFC 2px,#E2E8F0 2px,#E2E8F0 4px); cursor:default; }
+.tvide:hover { transform:none; box-shadow:none; }
+.tnow { box-shadow:0 0 0 1.5px var(--ink); }
+.tlegend { display:flex; align-items:center; gap:6px; font-size:10px; color:var(--ink-4); margin-top:7px; flex-wrap:wrap; }
+.tlg { width:11px; height:11px; border-radius:2.5px; display:inline-block; }
+@media (prefers-reduced-motion: reduce) { .tcell { transition:none; } .tcell:hover { transform:none; } }
 
 /* ── VACANCES ── */
 .vac-statut-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; }
@@ -975,7 +998,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.14.17'; // SITE_VERSION: v1.14.17
+const SITE_VERSION = 'v1.15'; // SITE_VERSION: v1.15
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1068,7 +1091,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.14.17</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.15</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1145,6 +1168,27 @@ if (sessionStorage.getItem('adminCode')) {
       <button class="week-export-btn" onclick="exportWeekExcel()">↓ Excel</button>
       <button class="week-validate-btn" id="btnPublier" onclick="publishPlanning()">⬆️ Publier</button>
 <span onclick="resetLocalEdits()" title="Réinitialiser les modifications locales de cette année (si l'affichage semble figé sur d'anciennes modifs)" style="font-size:11px;color:var(--ink-4,#94A3B8);cursor:pointer;margin-left:10px;white-space:nowrap">↺ réinit.</span>
+    </div>
+  </div>
+
+  <!-- BANDE DE PRESENCE — un carre = une journee ouvree, couleur = nb de presents -->
+  <div class="tension" id="tensionBand" style="display:none">
+    <div class="tension-head">
+      <span class="tension-title">Presents en journee</span>
+      <span class="tension-sum" id="tensionSum">&mdash;</span>
+      <button class="tension-toggle" id="tensionToggle" onclick="toggleTension()">&#9652; Reduire</button>
+    </div>
+    <div id="tensionBody">
+      <div class="tmap">
+        <div class="trows">
+          <div class="trow-lbl">L</div><div class="trow-lbl">M</div><div class="trow-lbl">M</div><div class="trow-lbl">J</div><div class="trow-lbl">V</div>
+        </div>
+        <div>
+          <div class="tmonths" id="tensionMonths"></div>
+          <div class="tgrid" id="tensionGrid"></div>
+        </div>
+      </div>
+      <div class="tlegend" id="tensionLegend"></div>
     </div>
   </div>
 
@@ -2834,6 +2878,9 @@ async function initDashboard() {
   // deploye les connait, sinon deux appels separes comme avant. Deux allers-retours
   // economises, soit ~2 s de demarrage serveur. Doit rester AVANT renderWeek (appele
   // par loadPlanningData) : la grille lit SECTEURS_CFG.
+  // (01/08/2026) Seuils de la bande de presence (onglet SEUILS). Absents ou
+  // GAS pas encore recopie : les valeurs de repli restent en place.
+  try { applySeuils(_boot && _boot.seuils); } catch (e) {}
   await Promise.all([
     loadSecteurs(_boot && _boot.secteurs),
     loadCsTemplate(_boot && _boot.csTemplate)
@@ -3550,6 +3597,7 @@ function renderWeek() {
 
   if (window.lucide) lucide.createIcons();
   updateFlashBadge();
+  try { renderTension(); } catch (e) { console.error('Bande de presence ignoree :', e); }
   // Prechargement en arriere-plan des dispos + liberal de la semaine affichee.
   // (28/07/2026, 15 h) DELAI D'IMMOBILITE : on attend que la navigation s'arrete.
   // Traverser dix semaines a la fleche declenchait dix prechargements — dix peages
@@ -4693,38 +4741,173 @@ function renderCertificat(list){
   const el=document.getElementById('equiteCertificat'); if(el) el.innerHTML=h;
 }
 
-// ── INDISPOS ──────────────────────────────────────────────────────────
-function getWeekNum(dt){const tmp=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate()));tmp.setUTCDate(tmp.getUTCDate()+4-(tmp.getUTCDay()||7));const ys=new Date(Date.UTC(tmp.getUTCFullYear(),0,1));return Math.ceil((((tmp-ys)/86400000)+1)/7);}
+// ── BANDE DE PRESENCE ─────────────────────────────────────────────────
+// Un present = la definition de presentsPool (code.gs, l.~895) : statut du
+// jour hors ABSENT_CODES, et MAR dans sa periode d'activite. G/G2 comptent
+// presents (ils travaillent en journee, en rea et en maternite), 'I' aussi.
+// PRUNET est exclu, comme dans nonPlacesJour : le comite ne le place pas.
+// Aucun appel serveur : tout vient de DATA et de marsData, deja en memoire.
+// (Remplace l'ancienne heatmap des indispos, orpheline depuis la refonte de
+//  l'onglet : ni #heatmap ni #marGrid n'existaient plus, renderIndispos
+//  n'etait plus appelee. Ses seuils 75/65 etaient ecrits en dur.)
+const TENSION_ABSENTS = new Set(['RG','V','F','CTP','CP','R','A','TP','CL']);
+// Repli si l'onglet SEUILS est absent ou si le GAS deploye ne le sert pas.
+let SEUIL_ALERTE = 13, SEUIL_CONFORT = 17;
+let _tensionSrc = null, _tensionJours = null;
 
-function renderIndispos(indisposData){
-  const MARS_LIST=marsData.filter(m=>m.actif);
-  const grid=document.getElementById('marGrid');
-  grid.innerHTML=MARS_LIST.map(mar=>{
-    const count=Object.keys(indisposData[mar.id]||{}).length;
-    const cls=count>0?'done':'none';
-    const label=count===0?'Non saisi':`${count} jours saisis`;
-    return `<div class="mar-card"><div class="mar-avatar ${cls}">${mar.initiales}</div><div class="mar-info"><div class="mar-name">${mar.nom}</div><div class="mar-count">${label}</div></div></div>`;
-  }).join('');
+function applySeuils(s) {
+  if (!s) return;
+  const a = Number(s.SEUIL_PRESENCE_ALERTE), c = Number(s.SEUIL_PRESENCE_CONFORT);
+  if (isFinite(a) && a > 0) SEUIL_ALERTE = a;
+  if (isFinite(c) && c > 0) SEUIL_CONFORT = c;
+  if (SEUIL_CONFORT <= SEUIL_ALERTE) SEUIL_CONFORT = SEUIL_ALERTE + 2; // bornes inversees : on ne casse pas l'affichage
+}
 
-  const weekIndispos={};
-  Object.values(indisposData).forEach(dates=>{
-    Object.keys(dates).forEach(date=>{
-      const dt=new Date(typeof date==='string'&&date.length===10?date+'T12:00:00':date); const dow=dt.getDay();
-      if(dow===0||dow===6) return;
-      const wn=getWeekNum(dt);
-      weekIndispos[wn]=(weekIndispos[wn]||0)+1;
+// [{date, ferie, n}] pour tous les jours ouvres de l'annee, dans l'ordre.
+// Memoise sur l'objet DATA : recalcule seulement quand le planning est recharge.
+function tensionJours() {
+  if (_tensionSrc === DATA && _tensionJours) return _tensionJours;
+  const out = [];
+  if (!DATA || !DATA.months) return out;
+  const actifs = {};
+  (marsData || []).forEach(m => { if (m.actif) actifs[m.id] = m; });
+  const vus = new Set();
+  DATA.months.forEach(month => {
+    (month.days || []).forEach((day, dayIdx) => {
+      if (!day || !day.date || vus.has(day.date)) return;   // les blocs mois se chevauchent
+      vus.add(day.date);
+      if (day.isWeekend) return;
+      if (day.isFerie) { out.push({date: day.date, ferie: true, n: null}); return; }
+      let n = 0;
+      (month.doctors || []).forEach(doc => {
+        if (doc.id === 'PRUNET') return;
+        const m = actifs[doc.id];
+        if (!m) return;                                          // inactif
+        if (m.dateDebut && day.date <  m.dateDebut) return;      // pas encore arrive
+        if (m.dateFin   && day.date >= m.dateFin)   return;      // deja parti
+        const st = ((doc.days && doc.days[dayIdx]) || {}).status || '';
+        if (TENSION_ABSENTS.has(st)) return;
+        n++;
+      });
+      out.push({date: day.date, ferie: false, n: n});
     });
   });
+  out.sort((x, y) => x.date < y.date ? -1 : x.date > y.date ? 1 : 0);
+  _tensionSrc = DATA; _tensionJours = out;
+  return out;
+}
 
-  const heatmap=document.getElementById('heatmap');
-  const MAX=MARS_LIST.length*5;
-  heatmap.innerHTML='<div class="heatmap-label">Sem.</div>';
-  for(let w=1;w<=52;w++){
-    const indispos=weekIndispos[w]||0;
-    const presents=MAX-indispos;
-    const cls=presents>75?'heat-ok':presents>=65?'heat-warn':'heat-err';
-    heatmap.innerHTML+=`<div class="heatmap-cell ${cls}" title="S${w} : ${presents} présences estimées"></div>`;
+function tensionNiveau(n) {
+  if (n >= SEUIL_CONFORT)     return 0;
+  if (n >= SEUIL_ALERTE + 2)  return 1;
+  if (n >= SEUIL_ALERTE)      return 2;
+  if (n >= SEUIL_ALERTE - 2)  return 3;
+  return 4;
+}
+
+function renderTension() {
+  const band = document.getElementById('tensionBand');
+  const grid = document.getElementById('tensionGrid');
+  if (!band || !grid) return;
+  const jours = tensionJours();
+  if (!jours.length) { band.style.display = 'none'; return; }
+  band.style.display = 'block';
+
+  const parDate = {}; jours.forEach(j => parDate[j.date] = j);
+  const weeks = getAllWeeks();
+  const today = todayStr();
+  const MOIS = ['Janv.','Fevr.','Mars','Avril','Mai','Juin','Juil.','Aout','Sept.','Oct.','Nov.','Dec.'];
+  const JOURS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+
+  let cells = '', mois = '', dernierMois = -1;
+  const colDebut = {};
+  weeks.forEach((wk, wi) => {
+    for (let j = 0; j < 5; j++) {
+      const d = new Date(wk.lundi + 'T12:00:00'); d.setDate(d.getDate() + j);
+      const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const info = parDate[ds];
+      let cls = 'tcell ', titre = '', clic = '';
+      if (!info) { cls += 'tvide'; titre = ds + ' — hors annee'; }
+      else if (info.ferie) { cls += 'tvide'; titre = JOURS[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS[d.getMonth()].toLowerCase() + ' — ferie'; }
+      else {
+        cls += 't' + tensionNiveau(info.n);
+        titre = JOURS[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS[d.getMonth()].toLowerCase()
+              + ' (S' + wk.weekNum + ') — ' + info.n + ' present' + (info.n > 1 ? 's' : '');
+        clic = ' onclick="tensionAller(\'' + ds + '\')"';
+      }
+      if (ds === today) cls += ' tnow';
+      cells += '<div class="' + cls + '" tabindex="0" title="' + titre + '"' + clic + '></div>';
+    }
+    const mo = new Date(wk.lundi + 'T12:00:00').getMonth();
+    if (mo !== dernierMois) { colDebut[wi] = mo; dernierMois = mo; }
+  });
+  grid.innerHTML = cells;
+
+  const bornes = Object.keys(colDebut).map(Number).sort((x, y) => x - y);
+  bornes.forEach((wi, k) => {
+    const fin = (k + 1 < bornes.length) ? bornes[k + 1] : weeks.length;
+    mois += '<div class="tmonth" style="width:' + ((fin - wi) * 14) + 'px">' + MOIS[colDebut[wi]] + '</div>';
+  });
+  const mEl = document.getElementById('tensionMonths'); if (mEl) mEl.innerHTML = mois;
+
+  // Legende : bornes reelles, pour qu'on sache ce que la couleur veut dire.
+  const lg = document.getElementById('tensionLegend');
+  if (lg) {
+    lg.innerHTML =
+        '<span class="tlg t4"></span><span>&le; ' + (SEUIL_ALERTE - 3) + '</span>'
+      + '<span class="tlg t3"></span><span>' + (SEUIL_ALERTE - 2) + '&ndash;' + (SEUIL_ALERTE - 1) + '</span>'
+      + '<span class="tlg t2"></span><span>' + SEUIL_ALERTE + '&ndash;' + (SEUIL_ALERTE + 1) + '</span>'
+      + '<span class="tlg t1"></span><span>' + (SEUIL_ALERTE + 2) + '&ndash;' + (SEUIL_CONFORT - 1) + '</span>'
+      + '<span class="tlg t0"></span><span>' + SEUIL_CONFORT + ' et +</span>'
+      + '<span class="tlg tvide" style="margin-left:8px"></span><span>ferie</span>'
+      + '<span style="margin-left:auto">Bornes reglables dans l\'onglet SEUILS du classeur.</span>';
   }
+
+  // Resume : ce qui arrive, puis la distribution de l'annee — c'est elle qui
+  // permet au comite de choisir ses bornes en connaissance de cause.
+  const dist = [0, 0, 0, 0, 0];
+  let bas = 0, mini = null, miniDate = '';
+  jours.forEach(j => {
+    if (j.ferie) return;
+    dist[tensionNiveau(j.n)]++;
+    if (j.date < today) return;
+    const ecart = (new Date(j.date + 'T12:00:00') - new Date(today + 'T12:00:00')) / 86400000;
+    if (ecart > 56) return;
+    if (j.n < SEUIL_ALERTE) bas++;
+    if (mini === null || j.n < mini) { mini = j.n; miniDate = j.date; }
+  });
+  const sum = document.getElementById('tensionSum');
+  if (sum) {
+    let txt = '';
+    if (mini !== null) {
+      const dm = new Date(miniDate + 'T12:00:00');
+      txt = '8 semaines a venir : <b>' + bas + ' jour' + (bas > 1 ? 's' : '') + '</b> sous ' + SEUIL_ALERTE
+          + ' presents. Plancher : <b>' + mini + '</b> le ' + JOURS[dm.getDay()] + ' ' + dm.getDate()
+          + ' ' + MOIS[dm.getMonth()].toLowerCase() + '. &nbsp;&middot;&nbsp; ';
+    }
+    txt += 'Annee : ' + dist[4] + ' / ' + dist[3] + ' / ' + dist[2] + ' / ' + dist[1] + ' / ' + dist[0]
+         + ' jours du rouge au vert.';
+    sum.innerHTML = txt;
+  }
+}
+
+// Clic sur un carre : ouvre la semaine correspondante dans la grille.
+function tensionAller(date) {
+  const lu = _lundiDe(date);
+  const i = getAllWeeks().findIndex(w => w.lundi === lu);
+  if (i < 0) return;
+  currentWeekIdx = i;
+  renderWeek();
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function toggleTension() {
+  const b = document.getElementById('tensionBody'), btn = document.getElementById('tensionToggle');
+  if (!b || !btn) return;
+  const ouvert = b.style.display !== 'none';
+  b.style.display = ouvert ? 'none' : 'block';
+  btn.innerHTML = ouvert ? '\u25BE Deplier' : '\u25B4 Reduire';
+  try { localStorage.setItem('chpg_tensionReduite', ouvert ? '1' : '0'); } catch (e) {}
 }
 
 // ── VACANCES ──────────────────────────────────────────────────────────
