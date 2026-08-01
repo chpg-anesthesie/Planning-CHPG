@@ -2839,6 +2839,7 @@ render = function() { _origRender(); if(isMobile){buildMobileDayList();renderMob
         L.push('   ' + String(i + 1).padStart(2) + '. ' + col(dep, 9) + col(c.action, 24)
                + ms(c.ms) + ' ms'
                + (c.srv != null ? '   (serveur ' + ms(c.srv, 5) + ' · attente ' + ms(Math.max(0, c.ms - c.srv), 5) + ')' : '')
+               + (c.essais > 1 ? '  ' + c.essais + ' ESSAIS' : '')
                + (String(c.issue).indexOf('ECHEC') === 0 ? '   ' + c.issue : ''));
       });
       L.push('   ' + col('', 9) + col('TOTAL ' + J.length + ' appels', 24) + ms(tot) + ' ms'
@@ -2885,12 +2886,15 @@ render = function() { _origRender(); if(isMobile){buildMobileDayList();renderMob
     // 7. Budget
     if (nav) {
       var apiTot = 0; (P.appels || []).forEach(function (c) { apiTot += c.ms; });
-      var renduTot = 0; P.rendus.forEach(function (r) { renduTot += r.ms; });
+      // (01/08/2026) On somme le temps BLOQUANT et non le cumul : `initDashboard`
+      // affichait 16 s de cumul pour 0 ms de blocage — elle attend le serveur.
+      // Additionner les cumuls annoncait « affichage 16,7 s » au lieu de 0,3 s.
+      var renduTot = 0; P.rendus.forEach(function (r) { renduTot += r.bloquant; });
       L.push('');
       L.push('── BUDGET ' + '─'.repeat(49));
       L.push('   statique (page + ressources) ' + col(sec(nav.domContentLoadedEventEnd), 10)
              + '   appels serveur ' + col(sec(apiTot), 10)
-             + '   affichage ' + sec(renduTot));
+             + '   affichage ' + sec(renduTot) + ' (ecran fige)');
     }
     L.push('');
     return L.join('\n');
