@@ -103,7 +103,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
   <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
   <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.15.2</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.15.2 -->
+  <div class="maj">Version <strong>v1.16</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.16 -->
 </header>
 
 <div class="callout tip" style="margin:26px 0 6px">
@@ -428,6 +428,15 @@
   <p>Vos placements sont enregistrés <strong>par séries</strong>, quelques secondes après votre dernier clic (voir 6.1) : l'affichage, lui, suit immédiatement. Vous pouvez donc enchaîner les placements aussi vite que vous voulez.</p>
   <p>Le seul repère à surveiller est l'encart en bas à gauche : <em>« N placement(s) en attente d'enregistrement »</em>. S'il devient <strong>rouge</strong>, l'envoi a échoué — cliquez dessus pour réessayer. Rien n'est perdu : même en fermant la page, la série repart d'elle-même à la prochaine ouverture.</p>
   <p>Un placement enregistré n'est visible par l'équipe qu'après <strong>publication</strong> (chapitre 14) — et la publication commence toujours par vider la série en attente, donc elle ne peut jamais être en retard sur votre écran.</p>
+  <h3>Quand un samedi change de mains : la récupération ne suit pas</h3>
+  <p>Toute garde de samedi — réa comme maternité — ouvre <strong>un jour de récupération</strong> (statut <span class="tag">R</span>), que le système place automatiquement quelque part dans l'année. Il peut le poser <strong>avant</strong> le samedi, c'est normal.</p>
+  <p>Un don ou un échange déplace la garde <strong>et le repos du lendemain</strong>. Il ne déplace <strong>jamais la récupération</strong> : le lien entre un samedi précis et son <span class="tag">R</span> n'existe nulle part dans le classeur, et la date qui convenait à l'un ne convient pas forcément à l'autre.</p>
+  <ul>
+    <li><strong>Don d'un samedi</strong>, ou <strong>échange où un seul des deux jours est un samedi</strong> : un avertissement apparaît dans le récapitulatif, avant que vous validiez. Deux gestes à faire dans l'onglet Statuts : <strong>poser un <span class="tag">R</span></strong> à celui qui prend le samedi, et en <strong>retirer un</strong> à celui qui le donne <em>s'il en a encore un à venir</em>. Sinon il en aura eu un de trop — ce n'est pas rattrapé, et ce n'est pas grave : on ne reporte pas de dette de récup d'une année sur l'autre.</li>
+    <li><strong>Échange samedi contre samedi</strong> : rien à faire, aucun avertissement. Chacun garde le même nombre de samedis, les récups déjà posées restent valables.</li>
+  </ul>
+  <p>Un filet existe si le geste a été oublié : la ligne <strong>« Récupérations de samedi »</strong> en tête de l'onglet Équité compare, pour chaque MAR, ses samedis tenus et ses récups posées. Les deux nombres doivent être égaux. Un écart signale un geste à finir, pas une erreur — cliquer sur le nom ouvre l'onglet Statuts sur ce MAR. Le 🔍 Diagnostic de l'onglet Maintenance fait le même contrôle.</p>
+  <p><em>Cette ligne n'apparaît pas sur une année qui n'a pas été générée par l'algorithme</em> (2026, reconstruite à la main) : les récups n'y viennent pas de ce mécanisme, l'écart n'y voudrait rien dire.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
