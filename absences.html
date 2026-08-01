@@ -176,7 +176,42 @@ const IC = {
 function svg(n){ return '<svg viewBox="0 0 24 24">'+(IC[n]||'')+'</svg>'; }
 document.getElementById('icBack').innerHTML = svg('arrow-left');
 
+/* ── (01/08/2026) FILET : CORPS DE REQUETE PERDU ─────────────────────────
+   « Code absent de la requête » est un message que le serveur ne produit que
+   dans un seul cas : il a recu la requete mais pas son corps, donc il n'a
+   RIEN FAIT — ni lu, ni ecrit, ni envoye de mail. Renvoyer est donc sans
+   danger, y compris pour une action d'ecriture : c'est la seule erreur du
+   systeme dont on sache avec certitude qu'elle n'a laisse aucune trace.
+   On ne rejoue QUE sur ce message, jamais sur un code refuse.
+   Le second envoi apparait comme une ligne distincte dans chrono() : le
+   probleme reste visible au lieu d'etre masque par le correctif. */
+const ERR_CORPS_PERDU = 'Code absent de la requête';
 async function apiPost(payload){
+  const r = await _apiPostDirect(payload);
+  if (r && r.success === false && r.error === ERR_CORPS_PERDU) {
+    console.warn('[api] corps de requete perdu (' + (payload.action || '?') + ') — renvoi immediat');
+    return await _apiPostDirect(payload);
+  }
+  return r;
+}
+
+/* ── (01/08/2026) APPEL DE REVEIL ────────────────────────────────────────
+   Mesure du 01/08 a 14:07 : le TOUT PREMIER appel d'un chargement de page
+   revient « Code absent de la requête » — 18 ms de travail serveur, donc la
+   requete EST arrivee, mais SANS SON CORPS. Le meme code passe a l'appel
+   suivant. Cout constate sur admin : 38,8 s jetes, puis un login de repli et
+   un second bootstrap — 3 appels et 50 s pour une ouverture qui en vaut 1.
+   Ce petit appel, sans code et sans effet, encaisse ce premier echange
+   PENDANT que l'utilisateur tape son code : son cout devient invisible.
+   getActiveYear est traite AVANT toute verification d'identite (Indispos.gs,
+   _routeRequete_) : il ne peut ni echouer sur un code absent, ni rien modifier.
+   ⚠️ Si la mesure montre que le corps se perd a CHAQUE requete et non a la
+   premiere, ce reveil ne servira a rien : c'est le filet ci-dessus qui protege. */
+function _reveilAPI() {
+  try { apiPost({action: 'getActiveYear'}).catch(function () {}); } catch (e) {}
+}
+
+async function _apiPostDirect(payload){
   payload.code = VIEW_CODE;
   // (01/08/2026) Journal de mesure — lecture seule, alimente chrono().
   const _act = payload.action || '(sans action)';
@@ -236,7 +271,7 @@ document.getElementById('btnOut').addEventListener('click', ()=>{
 });
 (async function auto(){
   let saved=''; try{ saved = sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
-  if(!saved) return;
+  if(!saved) { _reveilAPI(); return; }
   try{ await doLogin(saved); }
   catch(e){ try{ sessionStorage.removeItem('chpgViewCode'); }catch(_){} }
 })();
