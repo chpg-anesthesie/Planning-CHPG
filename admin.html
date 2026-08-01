@@ -1014,7 +1014,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.16.4'; // SITE_VERSION: v1.16.4
+const SITE_VERSION = 'v1.16.5'; // SITE_VERSION: v1.16.5
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1107,7 +1107,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.4</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.5</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1984,37 +1984,6 @@ async function authenticate() {
 
 const API_TIMEOUT_MS = 120000; // 2 min : couvre la génération des gardes (~15 s) et le diagnostic, coupe les vrais blocages
 
-/* ── (01/08/2026) DELAI COURT POUR LES LECTURES COURANTES ────────────────
-   MESURE DU 01/08. Menu Executions : la plus longue execution de la journee
-   fait 5,61 s. Or a 14:18 un getAdminBootstrap a coute 97 s cote navigateur —
-   le serveur avait fini en 5,61 s et la reponse ne lui est jamais parvenue.
-   Le navigateur a attendu 66 s avant de rejouer, parce que le delai unique
-   valait 2 minutes. On a patiente une minute devant un train deja deraille.
-
-   REGLE : 25 s pour les lectures LEGERES listees ci-dessous (soit ~4,5 fois la
-   pire execution mesuree), delai long inchange pour TOUT le reste.
-
-   ⚠️ ASYMETRIE VOULUE — NE PAS « HARMONISER ».
-   Les ECRITURES et les ENVOIS DE MAIL gardent 2 minutes et ne sont pas
-   rejoues. Raccourcir leur delai creerait un risque NOUVEAU : le navigateur
-   abandonnerait a 25 s une operation que le serveur est en train de reussir,
-   et afficherait une erreur pour une action qui a marche. Mieux vaut une
-   ecriture lente qu'une ecriture mensongere.
-   Toute action ABSENTE de cette liste garde donc le regime long : une erreur
-   d'inventaire de ma part ne peut couter que de la lenteur.
-
-   Sont volontairement EXCLUES les lectures lourdes ou a rallonge :
-   diagComplet (interroge GitHub), getStats, getStatsLive, getConflitsAll,
-   getAllIndispos, getNoelAnEligibles, getAbsencesLongues, listStaffsAll. */
-const API_TIMEOUT_LECTURE = 25000;
-const API_LECTURES = new Set([
-  'login', 'getActiveYear', 'getAdminBootstrap', 'getStatus',
-  'getPlanningJson', 'getAffectationsJson', 'getAffectations',
-  'getSecteurs', 'getCsTemplate', 'getMedecins', 'getGardes', 'getJoursFeries',
-  'getPanneauSemaine', 'getMARsDispoJour', 'listLiberalJour', 'getOverrides',
-  'getVacancesConfig', 'getVacValidation',
-  'mailNonLus', 'mailListe', 'mailMessage',
-]);
 // ══ BOITE DE RECEPTION — lecture seule ═══════════════════════════════
 // Le serveur n'expose que 3 actions de LECTURE et ne renvoie que du TEXTE BRUT
 // (jamais le HTML des messages : l'injecter executerait du contenu externe).
@@ -2231,12 +2200,7 @@ async function _apiDirect(payload) {
   // soit pose, et doivent pouvoir porter le leur.
   if (!payload.code) payload.code = ADMIN_CODE;
   const _action = payload.action || '(sans action)';
-  const _estLecture = API_LECTURES.has(_action);
-  const _delai = _estLecture ? API_TIMEOUT_LECTURE : API_TIMEOUT_MS;
-  // Une lecture hors liste de rejeu obtient une 2e tentative, mais UNIQUEMENT
-  // sur delai depasse (voir le test plus bas) : jamais sur un HTTP 404, car le
-  // rejeu generalise sur 404 avait AGGRAVE l'engorgement le 28/07 au matin.
-  const _maxEssais = (API_REJOUABLES.has(_action) || _estLecture) ? 2 : 1;
+  const _maxEssais = API_REJOUABLES.has(_action) ? 2 : 1;
   let _essaisFaits = 0;
   const _debut = Date.now();
   try { _apiBar(true); }
@@ -2246,7 +2210,7 @@ async function _apiDirect(payload) {
     for (let essai = 1; essai <= _maxEssais; essai++) {
       _essaisFaits = essai;
       const _ctrl = new AbortController();
-      const _timer = setTimeout(() => _ctrl.abort(), _delai);
+      const _timer = setTimeout(() => _ctrl.abort(), API_TIMEOUT_MS);
       try {
         const res = await fetch(API_URL, {
           method: 'POST',
@@ -2271,24 +2235,12 @@ async function _apiDirect(payload) {
         _dernier = new Error('Serveur indisponible (HTTP ' + res.status + ')');
         _dernier.transport = true;
       } catch (e) {
-        if (e && e.name === 'AbortError') {
-          _dernier = new Error('Délai dépassé (' + Math.round(_delai / 1000)
-                               + ' s) — serveur trop lent ou injoignable');
-          _dernier.delai = true;            // marque : c'est un ABANDON, pas un refus
-        } else {
-          _dernier = e;
-        }
+        _dernier = (e && e.name === 'AbortError')
+          ? new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable')
+          : e;
         _dernier.transport = true;          // reseau, JSON illisible, delai : la reponse manque
       } finally { clearTimeout(_timer); }
-      // Rejeu : liste historique (tout echec de transport) OU lecture abandonnee
-      // sur delai. Une lecture qui revient en HTTP 404 n'est PAS rejouee ici.
-      const _rejouer = API_REJOUABLES.has(_action)
-                    || (_estLecture && _dernier && _dernier.delai === true);
-      if (essai < _maxEssais && _rejouer) {
-        console.warn('[api] ' + _action + ' — ' + (_dernier && _dernier.message)
-                     + ' · nouvelle tentative');
-        await new Promise(r => setTimeout(r, API_PAUSE_REJEU));
-      } else break;
+      if (essai < _maxEssais) await new Promise(r => setTimeout(r, API_PAUSE_REJEU));
     }
     _journalAPI.push({action: _action, ms: Date.now() - _debut, essais: _essaisFaits,
                       depart: _debut - _T0_PAGE,
@@ -7283,7 +7235,7 @@ try {
 // Auto-login depuis sessionStorage si code déjà saisi
 (async function tryAutoLogin() {
   const saved = sessionStorage.getItem('adminCode');
-  if (!saved) { _reveilAPI(); return; }   // ecran de code affiche : on degage la voie
+  if (!saved) return;
   try {
     // (perf) Bootstrap lancé EN PARALLÈLE du login : les deux portent le code, le serveur
     // valide chacun. Année omise → le serveur prend l'année active. Consommé par initDashboard.
