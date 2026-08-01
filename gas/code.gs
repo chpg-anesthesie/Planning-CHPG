@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-08-01.1';
+const GAS_VERSION_CODE = '2026-08-01.2';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 // Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
@@ -86,10 +86,70 @@ const GITHUB_USER = 'chpg-anesthesie';
    Le memo est porte par la fonction elle-meme (et non par une variable
    globale) : l'ordre d'execution des fichiers .gs n'est pas garanti, une
    variable declaree en let/const dans un autre fichier serait inaccessible. */
+/* ══════════════════════════════════════════════════════════════════════
+   CACHE DES ONGLETS DE CONFIGURATION (01/08/2026)
+   ══════════════════════════════════════════════════════════════════════
+   POURQUOI. Mesure du 01/08, deux ouvertures d'admin a trois minutes
+   d'ecart, code identique :
+
+       onglets SEUILS + CS_TEMPLATE :   702 ms  puis  6 956 ms   (x10)
+       onglet  SECTEURS             :   432 ms  puis  1 291 ms   (x3)
+       fichiers Drive (planning)    :   548 ms  puis    542 ms   (x1,0)
+
+   Les lectures Drive sont stables ; les lectures d'ONGLETS explosent.
+   L'instabilite d'une ouverture vient donc du service Sheets, et chaque
+   aller-retour vers lui est une occasion de tomber sur un mauvais moment.
+   Le bootstrap en faisait SIX. Ce cache en supprime TROIS, dont celui qui
+   a coute 7 secondes.
+
+   CE QUI EST MIS EN CACHE : uniquement des onglets de CONFIGURATION, qui
+   changent deux ou trois fois par an — CONFIG, SECTEURS, CS_TEMPLATE,
+   SEUILS. JAMAIS de donnees de planning, JAMAIS MEDECINS (reecrit par les
+   formulaires : 1 s ne vaut pas ce risque).
+
+   PEREMPTION. Trois filets, du plus rapide au plus lent :
+     1. toute action d'ECRITURE vide le cache (voir _routeRequete_) ;
+     2. le bouton « Vider le cache » de l'onglet Maintenance ;
+     3. une duree de vie de 10 minutes.
+   Consequence a connaitre : une modification faite A LA MAIN dans le
+   classeur (un seuil, un secteur, un code d'acces) met jusqu'a 10 minutes
+   a prendre effet — ou est visible tout de suite avec le bouton.
+
+   ⚠️ CONFIG porte ADMIN_CODE et SECRETARIAT_CODE. Un code revoque a la
+   main reste donc valable jusqu'a 10 minutes. En cas de revocation
+   urgente : utiliser le bouton « Vider le cache ».
+   ══════════════════════════════════════════════════════════════════════ */
+const CACHE_CONFIG_TTL = 600;                       // 10 minutes
+const CACHE_CONFIG_CLES = ['cfg:CONFIG', 'cfg:SECTEURS', 'cfg:CS_TEMPLATE', 'cfg:SEUILS'];
+
+// Les cellules d'un onglet peuvent contenir des Date, que JSON ne sait pas
+// restituer (elle reviendrait en chaine, et String(date) ne donnerait pas la
+// meme chose). On les marque a l'aller et on les reconstruit au retour.
+function _serDate_(v)   { return (v instanceof Date) ? { __d: v.getTime() } : v; }
+function _deserDate_(v) { return (v && typeof v === 'object' && typeof v.__d === 'number') ? new Date(v.__d) : v; }
+
+function _cacheLire_(cle) {
+  try { const t = CacheService.getScriptCache().get(cle); return t ? JSON.parse(t) : null; }
+  catch (e) { return null; }          // cache indisponible : on relira l'onglet
+}
+function _cacheEcrire_(cle, valeur) {
+  try {
+    const t = JSON.stringify(valeur);
+    if (t.length < 95000) CacheService.getScriptCache().put(cle, t, CACHE_CONFIG_TTL);
+  } catch (e) { /* jamais bloquant */ }
+}
+function viderCacheConfig() {
+  try { CacheService.getScriptCache().removeAll(CACHE_CONFIG_CLES); } catch (e) {}
+  try { _configRows_._v = null; } catch (e) {}
+}
+
 function _configRows_() {
   if (_configRows_._v) return _configRows_._v;
+  const _c = _cacheLire_('cfg:CONFIG');
+  if (_c) { _configRows_._v = _c.map(function (l) { return l.map(_deserDate_); }); return _configRows_._v; }
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG');
   _configRows_._v = sh ? sh.getDataRange().getValues() : [];
+  _cacheEcrire_('cfg:CONFIG', _configRows_._v.map(function (l) { return l.map(_serDate_); }));
   return _configRows_._v;
 }
 function _configReset_() { _configRows_._v = null; }
