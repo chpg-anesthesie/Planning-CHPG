@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-31.2';
+const GAS_VERSION_INDISPOS = '2026-07-31.3';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1593,6 +1593,9 @@ if (!affSheet) {
       if (user.role !== 'admin') return _deny();
       try {
         generatePlanning(Number(payload.year) || TEST_YEAR);
+        // Notifications : arme le minuteur d'accalmie. Isolé : un échec ici
+        // ne doit jamais faire échouer la publication.
+        try { notifPlanifier(Number(payload.year) || TEST_YEAR); } catch (e) {}
         return ContentService.createTextOutput(JSON.stringify({
           success: true, message: `Planning ${TEST_YEAR} publié`
         })).setMimeType(ContentService.MimeType.JSON);
