@@ -272,7 +272,7 @@ document.getElementById('btnOut').addEventListener('click', ()=>{
 });
 (async function auto(){
   let saved=''; try{ saved = sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
-  if(!saved) { _reveilAPI(); return; }
+  if(!saved) return;
   try{ await doLogin(saved); }
   catch(e){ try{ sessionStorage.removeItem('chpgViewCode'); }catch(_){} }
 })();
