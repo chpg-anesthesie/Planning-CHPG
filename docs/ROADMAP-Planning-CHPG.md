@@ -41,6 +41,18 @@ le détail d'implémentation, les décisions datées, les cas limites. C'est là
 
 ### Issus d'erreurs commises (ne pas les refaire)
 
+- **(01/08) Ne jamais ajouter de requête pour accélérer.** Apps Script sérialise les
+  exécutions d'un même utilisateur. Un « appel de réveil » et un délai d'abandon court avec
+  rejeu ont tous deux CASSÉ l'ouverture d'admin le jour de leur livraison, et ont été
+  retirés. Voir la RÈGLE ABSOLUE, § Performance.
+- **(01/08) Ne jamais reconstruire un correctif sur une copie non revérifiée.** Un patch
+  GAS a failli être poussé sur une copie d'`Indispos.gs` antérieure au push précédent : il
+  aurait annulé `_glob_ms` en silence. Toujours re-télécharger le fichier AVANT de le
+  modifier, même si on l'a lu une heure plus tôt.
+- **(01/08) Une hypothèse tirée de la lecture du code ne vaut rien tant qu'elle n'est pas
+  mesurée.** Trois coupables « évidents » — `renderWeek`, le poids d'`admin.html`, le
+  `JSON.parse` de la réponse — étaient tous innocents (17 ms, 0,44 s, 6 ms).
+
 **0. Écrire une ligne entière, c'est écraser ce qu'on n'a pas chargé.** (30/07/2026)
 `saveIndispos` remplaçait toute la ligne d'un MAR par ce qu'envoyait la page. Or `INDISPOS_{Y}`
 a **deux propriétaires** (comité : VAC/FORM · MAR : INDISPO/SOUHAIT/TP). Résultat : revalider le
@@ -169,19 +181,55 @@ est **bloquant**. Mesurer l'instant d'affichage de l'information utile, pas le n
 
 ---
 
-## 🚀 Performance — état arrêté au 29/07/2026
+## 🚀 Performance — état arrêté au 01/08/2026
 
-### Le constat qui commande tout
+### Le coût d'un appel, DÉCOMPOSÉ (mesuré le 01/08, chiffres à jour)
 
-Une requête Apps Script **qui ne fait rien** coûte **2 à 3 s** avant d'atteindre le code, avec des
-pointes à 10-20 s. Vérifié sur **deux déploiements indépendants** (médianes 2,70 et 2,31 s) : un
-déploiement neuf se comporte comme l'ancien. Le socle varie dans la journée (≈1,4 s le matin,
-2,5 à 7 s l'après-midi du 28/07) et le serveur lui-même s'est dégradé à code constant
-(`getAdminBootstrap` : 3 106 → 6 110 ms en trois heures).
+Le 01/08 a produit la première décomposition réelle. Elle corrige la formule du 29/07
+(« le seul levier est le nombre d'appels ») : **le poids du projet compte aussi**.
 
-**→ Le seul levier est de réduire le NOMBRE d'appels, jamais leur contenu.**
-**→ Avant d'ajouter un appel à l'ouverture, se demander s'il ne peut pas rejoindre le bootstrap.**
-**→ Ne jamais mesurer un gain sur une base instable : prendre la référence le matin.**
+| Poste | Durée | À qui |
+|---|---|---|
+| Plancher de la plateforme | **~1 400 ms** | Google — irréductible |
+| Compilation des 545 Ko de `.gs` | **~730 ms** | nous |
+| Lecture du classeur avant `doGet` (`TEST_YEAR`) | ~430 ms | nous — **supprimé par le cache** |
+| Travail utile | 14 ms à 4 500 ms | nous |
+
+**Méthode de mesure (à reproduire, elle seule fait foi) :** créer un projet Apps Script
+**vide** (`doPost` renvoyant `{}`), le déployer en Web App « Exécuter en tant que moi /
+Tout le monde », puis appeler ALTERNATIVEMENT le projet vide et le vrai, 5 fois chacun,
+depuis la même console. Le 01/08 : **témoin 1 417 ms · projet réel 2 580 ms → écart
+1 163 ms**, qui est notre code. Alterner est indispensable : les deux subissent alors la
+même minute, et aucune comparaison entre deux heures différentes n'est valable.
+
+### Ce qui décide vraiment des mauvais jours
+
+Le terme **hors exécution** (file d'attente / redirection Google) a valu **2 656 ms puis
+18 191 ms à trois minutes d'écart** le 01/08, à code identique. Aucune optimisation ne le
+touche. C'est lui qui produit les ouvertures à 30 s ou 1 min, et c'est le seul argument
+sérieux en faveur d'un changement d'hébergement.
+
+**→ Réduire le NOMBRE d'appels reste le premier levier** : chaque appel est une occasion
+supplémentaire de tomber sur un mauvais moment. L'ouverture d'admin est passée de 3 appels
+à 1 le 01/08 — de 50-107 s à ~5 s.
+**→ Réduire le nombre d'allers-retours vers SHEETS est le second** (voir le cache ci-dessous).
+**→ Ne jamais mesurer un gain sur une base instable.**
+
+### ⚠️ RÈGLE ABSOLUE : ne JAMAIS ajouter de requête pour « aller plus vite »
+
+Apps Script sérialise les exécutions d'un même utilisateur. **Toute requête ajoutée
+occupe la file et retarde les autres.** Deux tentatives du 01/08 l'ont prouvé en cassant
+l'ouverture d'admin, et ont été retirées le jour même :
+
+- **Appel de « réveil »** (un `getActiveYear` envoyé pendant que l'utilisateur tape son
+  code) : il a retardé le bootstrap de 18,5 s. Retiré.
+- **Délai d'abandon court + rejeu** (25 s au lieu de 2 min sur les lectures) : il
+  abandonnait des réponses **encore en route** et envoyait un second appel derrière le
+  premier, qui continuait de tourner côté serveur — la file doublait. 4 appels en échec,
+  page inutilisable. Retiré.
+
+Le commentaire d'`admin.html` l.~2124 le disait depuis le 28/07 : *« sur une file
+d'attente saturée, rejouer AGGRAVE l'engorgement »*. Il a été enfreint quand même.
 
 ### Ce qui a été livré
 
@@ -236,11 +284,55 @@ décevant. Sur `dashboard.html` et `index.html` (lecture pure), le gain serait f
 **Décision : chantier non lancé** (effort de plusieurs semaines, duplication des codes d'accès de
 23 médecins sur une plateforme tierce, second service à maintenir seul, et calendrier du 4/09).
 
+### Cache serveur des onglets de configuration — LIVRÉ (01/08/2026)
+
+`CONFIG`, `SECTEURS`, `CS_TEMPLATE`, `SEUILS` sont gardés en `CacheService` (10 min).
+Helpers dans `code.gs` (`_cacheLire_`, `_cacheEcrire_`, `viderCacheConfig`), lecture
+mise en cache dans `portail.gs`, invalidation accrochée à **`WRITE_ACTIONS_LOCK`** dans
+`_routeRequete_` (et non action par action : une écriture ajoutée demain sera couverte
+sans que personne y pense). Bouton **🧹 Vider le cache** dans l'onglet Maintenance.
+
+**Motif : la VARIANCE, pas la moyenne.** Mesuré le 01/08, deux ouvertures à trois minutes
+d'écart, code identique :
+
+| | 15:03 | 15:06 |
+|---|---|---|
+| SEUILS + CS_TEMPLATE | 702 ms | **6 956 ms** |
+| SECTEURS | 432 ms | 1 291 ms |
+| MEDECINS | 257 ms | 1 048 ms |
+| **Fichiers Drive (planning, affectations)** | **548 / 588 ms** | **542 / 551 ms** |
+
+**Les lectures Drive sont stables (7 relevés : 529 à 785 ms). Les lectures d'onglets
+sautent d'un facteur 10.** Chaque aller-retour vers Sheets est une occasion de tomber sur
+un mauvais moment ; le bootstrap en faisait 6, il en fait 3.
+
+Résultat mesuré : SEUILS+CS_TEMPLATE 764 → **15 ms**, SECTEURS 359 → **11 ms**,
+`avant doGet` 868 → **13 ms**. `doGet` : 2 943 → **2 551 ms**.
+
+**🔒 RÈGLE DE SÉCURITÉ — le cache de script est PARTAGÉ entre tous les utilisateurs.**
+On n'y met JAMAIS une donnée qui dépend de qui appelle. Les quatre onglets retenus sont
+globaux. Y mettre un planning de MAR, des indisponibilités ou des déclarations libérales
+serait une faille : l'appelant suivant recevrait les données du précédent.
+`MEDECINS` reste hors cache (réécrit par les formulaires, et 250 ms ne valent pas ce risque).
+
+**Effet de bord à connaître :** une modification faite **à la main** dans le classeur met
+jusqu'à 10 min à prendre effet — y compris un **code d'accès révoqué**. Le bouton de purge
+est là pour ça. Toute modification passant par l'interface est immédiate.
+
 ### Pistes fermées (performance)
 
 - Tailler les lignes vides du classeur (ouverture = 120 ms pour 1,7 M de cellules).
 - Lire les JSON du Drive par identifiant direct (396 ms contre ~350 ms par nom).
-- Cache serveur, optimisation du JSON (déjà minifié + gzip).
+- Optimisation du JSON (déjà minifié + gzip).
+- **Découper le projet GAS** (sortir `generateur_gardes.gs` + `setup_annee.gs`) : mesuré
+  le 01/08, la compilation vaut ~730 ms au total et ces deux fichiers pèsent 115 Ko sur
+  545, soit **~150 ms**. Plusieurs semaines de travail et une architecture éclatée pour un
+  septième de seconde. **Chantier annulé.**
+- **Alléger le code en supprimant les commentaires** (24 % des `.gs`, 130 Ko) : on
+  n'échange pas la documentation du projet contre des millisecondes.
+- **`JSON.parse`/`stringify` de la réponse** : soupçonné coûteux sur 350 Ko, **mesuré à
+  6 ms**. L'enveloppe `_srv_ms` insère désormais ses champs par concaténation de chaîne
+  (gain nul mais code plus simple). Rappel : la taille d'un JSON ne dit rien de son coût.
 
 ---
 
@@ -2251,6 +2343,60 @@ livré — d'où la règle : vérifier le code, pas le ROADMAP.)*
   ferait tourner les pages sur le code en dur sans le dire. Inoffensif tant qu'on ne compte pas dessus.
 
 ---
+
+### Chantier performance du 1er août 2026 — instrument, décomposition, cache · site v1.16.7
+
+**Point de départ :** ouverture d'`admin.html` mesurée à 50-107 s, sans qu'on sache où
+partait le temps. Seul `chronoAPI()` existait, et il ne mesurait que les appels.
+
+**1. Instrument `chrono()` / `chronoClics()`** (les 5 pages, § 23 du guide technique).
+Mesure la page, les ressources tierces, les appels (avant `doGet` / `doGet` / réseau), les
+fonctions d'affichage, l'écran figé et **le coût d'un clic** (attente / traitement / écran).
+Côté serveur : `_glob_ms` (code global avant `doGet`) et `_detail` (les 10 étapes du
+bootstrap). C'est lui qui a tout permis — rien n'aurait été trouvé sans.
+
+**2. Ce que la mesure a démenti.** Trois hypothèses tirées de la LECTURE du code, toutes
+fausses :
+- `renderWeek()` rappelée entièrement à chaque placement : **17 ms de moyenne, 30 ms au
+  pire**. Aucun problème. Le coût d'un clic est la PEINTURE (100-230 ms), pas notre code
+  (10-25 ms). Le pire clic mesuré — onglet Équipe, 288 ms — c'est 1 ms de code.
+- Les 500 Ko d'`admin.html` : **0,44 s d'analyse**, 2 % du temps d'ouverture.
+- `JSON.parse`/`stringify` de 350 Ko : **6 ms**.
+- **Le JS du navigateur coûte 0,1 s au total. Le problème n'a jamais été là.**
+
+**3. Cascade d'ouverture corrigée.** Le premier appel d'un chargement revenait
+« Code invalide » en 14-18 ms de serveur — la requête arrivait **sans son corps**. Le
+serveur distingue désormais `Code absent de la requête` de `Code invalide` (2 lignes dans
+`_routeRequete_`), et la couche d'appel **renvoie une fois** sur ce message précis.
+Sûr pour toute action, y compris une écriture : ce message prouve que le serveur n'a RIEN
+fait. Résultat : 3 appels → 1 à l'ouverture.
+
+**4. Cache de configuration** (voir PARTIE 1). −1,8 s par appel, 6 → 3 allers-retours Sheets.
+
+**5. Deux correctifs retirés le jour même** — voir la RÈGLE ABSOLUE en PARTIE 1 : appel de
+réveil et délai d'abandon court. Les deux ajoutaient une requête dans une file sérialisée.
+
+**Résultat :** ouverture d'admin **5,2 s** (1 appel, `doGet` 2 551 ms) contre 50-107 s le matin.
+
+**Ce qu'il reste, et qui n'a plus de marge :**
+
+| Poste | Durée | Marge |
+|---|---|---|
+| Planning + affectations (Drive) | ~1 400 ms | aucune : ce sont les données |
+| Journal de connexion (écriture) | 210-480 ms | **réelle, non explorée** |
+| Existence année N+1, MEDECINS, Gmail | ~500 ms | faible |
+| Hors exécution (file Google) | 2 656 à 18 191 ms | **aucune** |
+
+**Reste ouvert :** le journal de connexion coûte 480 ms pour une ligne écrite, et varie.
+Seul poste restant ayant à la fois une marge et une variance.
+
+**Piste de repli si le cache devait être abandonné :** déplacer la configuration du
+classeur vers un `config.json` sur le Drive. Sept relevés de lecture Drive le 01/08 :
+529 · 542 · 548 · 554 · 588 · 697 · 785 ms. Le Drive est régulier, le classeur ne l'est pas.
+
+**Nettoyage fait le 01/08 :** les sondes `archives/stats_{Y}.json` passaient 4 fois par
+ouverture (fonction appelée deux fois, `?t=Date.now()` interdisant toute mise en cache)
+vers des fichiers qui n'ont jamais existé. Résultat retenu pour la session : 4 → 2 requêtes.
 
 ### Bande de présence + onglet SEUILS — LIVRÉ (1er août 2026) · site v1.15.2 · `portail.gs` v2026-08-01.1 · `Indispos.gs` v2026-08-01.1 · `setup_annee.gs` v2026-08-01.1
 
