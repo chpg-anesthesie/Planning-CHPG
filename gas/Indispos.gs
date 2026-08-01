@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-01.1';
+const GAS_VERSION_INDISPOS = '2026-08-01.2';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1674,6 +1674,10 @@ if (!affSheet) {
       // (01/08/2026) Seuils d'affichage (onglet SEUILS). Jamais bloquant :
       // absent ou illisible, admin.html garde ses valeurs de repli.
       try { out.seuils     = getSeuils(); }     catch (e) { out.seuils = null; }
+      // (01/08/2026) Premiere annee generee par l'algorithme : le compteur de recups
+      // de samedi n'a de sens qu'a partir de la. Lu ici pour ne PAS figer 2027 dans
+      // admin.html — la constante vit dans generateur_gardes.gs, elle seule fait foi.
+      try { out.anneeStatsFiables = PREMIERE_ANNEE_STATS_FIABLES; } catch (e) { out.anneeStatsFiables = null; }
       try { out.csTemplate = getCsTemplate(); } catch (e) { out.csTemplate = null; }
       /* (28/07/2026, 15 h) LE COMPTEUR DE MAILS REJOINT LE BOOTSTRAP.
          Un commentaire d'admin.html disait « NE JAMAIS le mettre dans
@@ -2386,6 +2390,27 @@ if (!affSheet) {
       check(`INDISPOS_${Y} présent`, has(`INDISPOS_${Y}`) ? R.OK : R.WARN);
       check(`GARDES_${Y} avec données`, rows(`GARDES_${Y}`) > 3 ? R.OK : R.WARN);
       check(`STATS_GARDES_${Y} (référence équité/dette)`, rows(`STATS_GARDES_${Y}`) > 1 ? R.OK : R.WARN);
+      // ── Récups de samedi ────────────────────────────────────────────────
+      // Chaque samedi tenu (G ou G2) ouvre EXACTEMENT une récup, et le générateur
+      // garantit sa pose (repli en 2 passes sur toute l'année, section 9). Or un don
+      // ou un échange déplace la garde et le repos du lendemain, JAMAIS le R
+      // (`applyModification`) : tout écart signale un geste manuel resté à faire.
+      // Sans objet avant PREMIERE_ANNEE_STATS_FIABLES : une année reconstruite à la
+      // main n'a pas de R issus de ce mécanisme, l'écart n'y voudrait rien dire.
+      if (Y >= PREMIERE_ANNEE_STATS_FIABLES && rows(`GARDES_${Y}`) > 3) {
+        try {
+          const _ecarts = computeStatsLive(Y)
+            .map(s => ({ id: s.medecin, d: (Number(s.sat) || 0) - (Number(s.recupR) || 0) }))
+            .filter(x => x.d !== 0)
+            .map(x => x.d > 0
+              ? `${x.id} : ${x.d} récup${x.d > 1 ? 's' : ''} manquante${x.d > 1 ? 's' : ''}`
+              : `${x.id} : ${-x.d} récup${-x.d > 1 ? 's' : ''} en trop`);
+          check(`Récups de samedi : ${_ecarts.length
+              ? _ecarts.join(' · ') + ' — à corriger dans l\'onglet Statuts'
+              : 'une par samedi tenu, pour tous'}`,
+            _ecarts.length ? R.WARN : R.OK);
+        } catch (e) { check('Récups de samedi non vérifiables : ' + e.message, R.WARN); }
+      }
       const affSheet = ss.getSheetByName(`AFFECTATIONS_${Y}`);
       if (affSheet && actifs.length) {
         const affIds = new Set();
