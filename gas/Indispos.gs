@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-01.2';
+const GAS_VERSION_INDISPOS = '2026-08-01.3';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -996,6 +996,13 @@ function applyModification(mod) {
   }
 
   generatePlanning();
+  // (01/08/2026) Un don, un echange de gardes ou de secteurs modifie le statut ou le
+  // secteur des MAR concernes. On arme le notifieur comme le fait publishPlanning :
+  // le filtre existant fait le tri (un statut part toujours, un secteur seulement
+  // dans la fenetre de l'Excel). Isole : un echec du notifieur ne doit jamais faire
+  // echouer la modification, qui est deja ecrite dans le classeur a ce stade.
+  try { notifPlanifier(); }
+  catch (e) { logAction('notifPlanifier apres modification : ' + e.message); }
   return true;
 }
 // ── STATUT CYCLE PLANNING ────────────────────────────────────────────
