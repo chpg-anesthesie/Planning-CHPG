@@ -1014,7 +1014,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.16.5'; // SITE_VERSION: v1.16.5
+const SITE_VERSION = 'v1.16.6'; // SITE_VERSION: v1.16.6
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1107,7 +1107,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.5</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.6</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -2229,7 +2229,10 @@ async function _apiDirect(payload) {
           _journalAPI.push({action: _action, ms: Date.now() - _debut, essais: essai, issue: 'ok',
                             depart: _debut - _T0_PAGE,
                             srv: (data && typeof data._srv_ms === 'number') ? data._srv_ms : null,
-                            glob: (data && typeof data._glob_ms === 'number') ? data._glob_ms : null});
+                            glob: (data && typeof data._glob_ms === 'number') ? data._glob_ms : null,
+                            detail: (data && data._detail) || null,
+                            ser: (data && typeof data._ser_ms === 'number') ? data._ser_ms : null,
+                            taille: (data && typeof data._taille === 'number') ? data._taille : null});
           return data;
         }
         _dernier = new Error('Serveur indisponible (HTTP ' + res.status + ')');
@@ -2801,6 +2804,7 @@ document.addEventListener('click', e => {
   const picker = document.getElementById('yearPicker');
   if (picker && !picker.contains(e.target)) picker.classList.remove('open');
 });
+const _archivesTestees = {};   // annee -> existe ? (voir le commentaire ci-dessous)
 async function detectAvailableYears() {
   availableYears = [];
   availableYears.push({ year: YEAR, label: YEAR + ' — actif', readonly: false, status: 'actif' });
@@ -2811,12 +2815,25 @@ async function detectAvailableYears() {
   const ARCHIVE_FLOOR = 2025;
   const pastYears = [];
   for (let y = YEAR - 1; y >= ARCHIVE_FLOOR; y--) pastYears.push(y);
-  const checks = await Promise.allSettled(pastYears.map(y =>
+  /* (01/08/2026) UN SEUL TEST PAR ANNEE ET PAR SESSION.
+     detectAvailableYears est appelee DEUX fois a chaque ouverture (une fois tout
+     de suite, une fois apres la detection de N+1), et chaque URL portait
+     `?t=Date.now()` — donc aucune mise en cache possible. Resultat mesure le
+     01/08 : 4 requetes par ouverture, ~600 ms chacune, vers des fichiers qui
+     n'existent pas (le dossier `archives/` n'a jamais ete cree dans le depot).
+     Le resultat est desormais retenu pour la duree de la session. La
+     fonctionnalite est intacte : le jour ou le dossier existera, la premiere
+     ouverture le detectera. Recharger la page refait le test. */
+  const _aTester = pastYears.filter(y => !(y in _archivesTestees));
+  const checks = await Promise.allSettled(_aTester.map(y =>
     fetchTimeout(`./archives/stats_${y}.json?t=${Date.now()}`, {}, 5000).then(rs => ({ y, ok: rs.ok }))
   ));
   checks.forEach(r => {
-    if (r.status === 'fulfilled' && r.value.ok) {
-      availableYears.push({ year: r.value.y, label: r.value.y + ' — archivé', readonly: true, status: 'archive' });
+    if (r.status === 'fulfilled') _archivesTestees[r.value.y] = r.value.ok;
+  });
+  pastYears.forEach(y => {
+    if (_archivesTestees[y]) {
+      availableYears.push({ year: y, label: y + ' — archivé', readonly: true, status: 'archive' });
     }
   });
   buildYearSelector();
@@ -7115,6 +7132,22 @@ async function launchWizardCloture() {
       L.push('   « reseau » contient encore la COMPILATION des 545 Ko de .gs : la separer');
       L.push('   demande le menu Executions d\'Apps Script (duree totale a comparer).');
     }
+
+    // 3bis. Detail serveur (fourni par getAdminBootstrap)
+    var avecDetail = (J || []).filter(function (c) { return c.detail && typeof c.detail === 'object'; });
+    avecDetail.forEach(function (c) {
+      var etapes = Object.keys(c.detail);
+      if (!etapes.length) return;
+      L.push('');
+      L.push('── 3bis. Detail de ' + c.action + ' (' + (c.srv != null ? c.srv + ' ms' : '?') + ') '
+             + '─'.repeat(Math.max(0, 26 - c.action.length)));
+      etapes.sort(function (a, b) { return c.detail[b] - c.detail[a]; }).forEach(function (e) {
+        L.push('   ' + col(e, 38) + ms(c.detail[e]) + ' ms');
+      });
+      if (c.ser != null) L.push('   ' + col('serialisation de la reponse', 38) + ms(c.ser) + ' ms');
+      if (c.taille) L.push('   ' + col('taille de la reponse', 38)
+                           + ms(Math.round(c.taille / 1024)) + ' Ko');
+    });
 
     // 4. Jalons
     if (P.jalons.length) {
