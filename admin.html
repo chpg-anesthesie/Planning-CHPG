@@ -1014,7 +1014,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.16.6'; // SITE_VERSION: v1.16.6
+const SITE_VERSION = 'v1.16.7'; // SITE_VERSION: v1.16.7
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1107,7 +1107,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.6</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.7</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1542,6 +1542,15 @@ if (sessionStorage.getItem('adminCode')) {
         <button class="btn-secondary" onclick="copyDiag()" id="btnDiagCopy" style="display:none">📋 Copier le rapport</button>
       </div>
       <div id="diagSysResult" style="display:none;margin-top:12px;font-size:12px;font-family:var(--mono,monospace);background:#F8FAFC;border:1px solid var(--line);border-radius:10px;padding:12px;max-height:340px;overflow-y:auto;line-height:1.85"></div>
+    </div>
+
+    <div class="maint-action">
+      <div class="maint-title">🧹 Vider le cache de configuration</div>
+      <div class="maint-desc">Les onglets <b>CONFIG</b>, <b>SECTEURS</b>, <b>CS_TEMPLATE</b> et <b>SEUILS</b> sont gardés en mémoire par le serveur pendant 10 minutes : c'est ce qui rend l'ouverture des pages rapide et régulière. Toute action qui écrit dans le classeur les rafraîchit automatiquement. Ce bouton ne sert que si vous avez modifié l'un de ces onglets <b>à la main</b> et voulez le voir pris en compte tout de suite — notamment après avoir changé un code d'accès.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="viderCacheConfig()" id="btnCacheVider">Vider le cache</button>
+      </div>
+      <div id="cacheResult" style="display:none;margin-top:10px;font-size:12.5px"></div>
     </div>
 
     <div class="maint-action">
@@ -8043,6 +8052,26 @@ async function _diagCcamFraicheur() {
   } catch (e) {
     return '⚠️ Index CCAM (tarifs) — vérification impossible : ' + (e && e.message ? e.message : e);
   }
+}
+
+/* Purge du cache de configuration serveur (onglet Maintenance).
+   Le cache accelere et surtout REGULARISE les ouvertures : mesure du 01/08, les
+   onglets SEUILS + CS_TEMPLATE ont coute 702 ms puis 6 956 ms a trois minutes
+   d'ecart. Ce bouton n'est utile qu'apres une modification faite A LA MAIN dans
+   le classeur — toute ecriture passant par l'interface vide deja le cache. */
+async function viderCacheConfig() {
+  const btn = document.getElementById('btnCacheVider');
+  const zone = document.getElementById('cacheResult');
+  if (btn) { btn.disabled = true; btn.textContent = 'Vidage…'; }
+  try {
+    const r = await api({action: 'viderCacheConfig'});
+    if (!r || !r.success) throw new Error((r && r.error) || 'réponse illisible');
+    if (zone) { zone.style.display = 'block'; zone.style.color = '#15803D';
+                zone.textContent = '✅ ' + (r.message || 'Cache vidé.'); }
+  } catch (e) {
+    if (zone) { zone.style.display = 'block'; zone.style.color = '#B91C1C';
+                zone.textContent = '❌ ' + (e && e.message ? e.message : 'échec'); }
+  } finally { if (btn) { btn.disabled = false; btn.textContent = 'Vider le cache'; } }
 }
 
 async function runDiag() {
