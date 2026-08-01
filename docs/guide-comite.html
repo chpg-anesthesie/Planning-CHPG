@@ -103,7 +103,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
   <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
   <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.14.17</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.14.17 -->
+  <div class="maj">Version <strong>v1.15</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.15 -->
 </header>
 
 <div class="callout tip" style="margin:26px 0 6px">
@@ -333,6 +333,15 @@
     <li><span class="btn-ex green">⬆️ Publier</span> — met en ligne les modifications pour l'équipe (voir chapitre 14). Le compteur entre parenthèses indique le nombre de modifications non encore publiées.</li>
     <li><span class="tag">↺ réinit.</span> — petit lien discret qui réinitialise les modifications locales de l'écran, si l'affichage semble figé sur d'anciennes modifs.</li>
   </ul>
+  <h3>La bande de présence, en tête de l'onglet</h3>
+  <p>Au-dessus de la barre de la semaine, une bande de petits carrés résume <strong>toute l'année</strong> : un carré = une journée ouvrée, cinq lignes (lundi → vendredi), une colonne par semaine. La couleur donne le <strong>nombre de MAR présents en journée</strong> ce jour-là : plus c'est rouge, moins il y a de monde. Les jours fériés sont hachurés.</p>
+  <ul>
+    <li><strong>Est compté présent</strong> tout MAR qui n'est ni en vacances, ni en formation, ni en repos de garde, ni en récup, ni en CTP, ni en temps partiel, ni en congé long ou paternité. <strong>Les MAR de garde comptent présents</strong> : ils travaillent en journée, en réa et en maternité.</li>
+    <li>Passez la souris sur un carré pour lire la date et le nombre exact ; <strong>cliquez</strong> pour ouvrir cette semaine dans la grille.</li>
+    <li>La ligne de résumé annonce les journées creuses des <strong>8 semaines à venir</strong>, puis la répartition de l'année entière, du rouge au vert.</li>
+    <li><span class="btn-ex">▴ Réduire</span> replie la bande si elle encombre ; le résumé reste visible.</li>
+  </ul>
+  <p><strong>Les seuils de couleur se règlent dans le classeur</strong>, onglet <span class="tag">SEUILS</span>, lignes <span class="tag">SEUIL_PRESENCE_ALERTE</span> et <span class="tag">SEUIL_PRESENCE_CONFORT</span>. En dessous du seuil d'alerte la journée vire à l'orange puis au rouge ; à partir du seuil de confort elle est verte. Modifier ces deux nombres suffit, il n'y a rien à toucher dans le code. La légende affichée sous la bande se met à jour toute seule.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
