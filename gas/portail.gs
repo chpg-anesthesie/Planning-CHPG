@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-08-01.1';
+const GAS_VERSION_PORTAIL = '2026-08-01.2';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1855,6 +1855,9 @@ function initCsTemplate() {
 // bascule de l'étape 2c soit un simple remplacement de source.
 // Les lignes ACTIF=N sont ignorées ; les effectifs à 0 ne sont pas écrits.
 function getCsTemplate() {
+  // Cache de configuration — voir le bloc en tete de code.gs.
+  const _c = _cacheLire_('cfg:CS_TEMPLATE');
+  if (_c) return _c;
   const sh = getOrCreateCsTemplateTab();
   const rows = sh.getDataRange().getValues();
   const types = [];
@@ -1885,7 +1888,9 @@ function getCsTemplate() {
       });
     }
   }
-  return { types: types, required: required };
+  const _out = { types: types, required: required };
+  _cacheEcrire_('cfg:CS_TEMPLATE', _out);
+  return _out;
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1925,6 +1930,8 @@ function getOrCreateSeuilsTab() {
 // Renvoie { CLE: nombre }. Une valeur non numerique est ignoree : le client
 // garde alors sa valeur de repli plutot que d'afficher n'importe quoi.
 function getSeuils() {
+  const _c = _cacheLire_('cfg:SEUILS');
+  if (_c) return _c;
   const sh = getOrCreateSeuilsTab();
   const rows = sh.getDataRange().getValues();
   const out = {};
@@ -1935,6 +1942,7 @@ function getSeuils() {
     if (!isFinite(val)) continue;
     out[cle] = val;
   }
+  _cacheEcrire_('cfg:SEUILS', out);
   return out;
 }
 
@@ -2003,6 +2011,8 @@ function initSecteurs() {
 // Lecture → tableau d'objets (miroir de l'ancien SECTEURS_CFG + rendement).
 // '' → null pour aff/bg/fg/cs ; ACTIF 'O' → actif:true.
 function getSecteurs() {
+  const _c = _cacheLire_('cfg:SECTEURS');
+  if (_c) return _c;
   const sh = getOrCreateSecteursTab();
   const rows = sh.getDataRange().getValues();
   const out = [];
@@ -2032,5 +2042,6 @@ function getSecteurs() {
     });
   }
   out.sort((a, b) => a.ordre - b.ordre);
+  _cacheEcrire_('cfg:SECTEURS', out);
   return out;
 }
