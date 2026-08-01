@@ -331,6 +331,19 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
    Remplace l'ancienne heatmap des indispos (CSS .heatmap / .heat-* et
    fonction renderIndispos), devenue orpheline : ni #heatmap ni #marGrid
    n'existaient plus dans la page et la fonction n'etait plus appelee. */
+.gwarn { border:1px solid #fcd9b6; background:#fff8f1; border-radius:11px; padding:11px 13px; font-size:12.5px; line-height:1.55; color:#7c3a06; margin:8px 0 4px; display:flex; gap:9px; }
+.gwarn b { font-weight:800; color:#9a3412; }
+.rec { border:1px solid var(--line); border-radius:11px; padding:10px 14px; background:var(--white); display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.rec-t { font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-4); }
+.rec-ok { font-size:12.5px; color:#166534; font-weight:600; }
+.rec-ko { font-size:12.5px; color:#9a3412; font-weight:700; }
+.rec-why { font-size:11.5px; color:var(--ink-3); width:100%; line-height:1.5; }
+.rec-list { width:100%; display:flex; flex-direction:column; gap:5px; margin-top:4px; }
+.rec-item { display:flex; align-items:center; gap:10px; font-size:12.5px; padding:7px 10px; border:1px solid #fcd9b6; background:#fff8f1; border-radius:9px; cursor:pointer; }
+.rec-item .nm { font-weight:800; min-width:82px; }
+.rec-item .nb { font-family:var(--mono); font-size:11.5px; color:var(--ink-3); }
+.rec-item .df { margin-left:auto; font-weight:800; color:#9a3412; }
+.rec-item .go { font-size:11px; color:var(--blue); font-weight:700; }
 .tension { background:var(--white); border-bottom:1px solid var(--line); margin:0 -32px 20px; padding:9px 20px 11px; }
 .tension-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:7px; }
 .tension-title { font-size:10px; font-weight:700; color:var(--ink-4); text-transform:uppercase; letter-spacing:.06em; }
@@ -1001,7 +1014,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.15.2'; // SITE_VERSION: v1.15.2
+const SITE_VERSION = 'v1.16'; // SITE_VERSION: v1.16
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1094,7 +1107,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.15.2</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1404,6 +1417,10 @@ if (sessionStorage.getItem('adminCode')) {
         <button class="btn-secondary" onclick="loadStats(ADMIN_YEAR, true)">↻ Actualiser</button>
       </div>
     </div>
+
+    <!-- Recups de samedi : au-dessus du cadre, hors du selecteur Initiale/Instantane.
+         Calcule depuis DATA (planning publie, deja en memoire) : aucun appel serveur. -->
+    <div id="recupBanner" style="display:none"></div>
 
     <div class="card" id="statsCard" style="display:none">
       <div class="card-header">
@@ -2884,6 +2901,7 @@ async function initDashboard() {
   // (01/08/2026) Seuils de la bande de presence (onglet SEUILS). Absents ou
   // GAS pas encore recopie : les valeurs de repli restent en place.
   try { applySeuils(_boot && _boot.seuils); } catch (e) {}
+  if (_boot && _boot.anneeStatsFiables) ANNEE_STATS_FIABLES = Number(_boot.anneeStatsFiables);
   await Promise.all([
     loadSecteurs(_boot && _boot.secteurs),
     loadCsTemplate(_boot && _boot.csTemplate)
@@ -4325,6 +4343,18 @@ function _gcard(g, selId, picker){
     + '<span style="display:flex;align-items:center;gap:9px"><span style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:7px;'+roleStyle+'">'+_roleTxt(g.role)+'</span>'
     + '<span style="font-size:11px;font-weight:700;color:'+(sel?'#1d4ed8':'var(--ink-4)')+'">'+(sel?'\u2713 choisi':'choisir')+'</span></span></div>';
 }
+/* ── AVERTISSEMENT « SAMEDI » (01/08/2026) ────────────────────────────
+   Un samedi tenu ouvre une recup (R). `applyModification` deplace la garde ET
+   le repos du lendemain, JAMAIS le R : le donneur garde sa recup, le receveur
+   n'en a aucune. Le code ne peut pas le corriger seul (le lien samedi -> R
+   n'est ecrit nulle part, et la date libre chez l'un ne l'est pas chez l'autre).
+   On previent donc au moment du geste, et UNIQUEMENT quand le nombre de samedis
+   d'un MAR change : un echange samedi <-> samedi ne demande rien. */
+function _estSamedi(ds){ return !!ds && new Date(ds + 'T12:00:00').getDay() === 6; }
+function _setWarn(html){
+  const w = document.getElementById('gardeWarn'); if (!w) return;
+  w.innerHTML = html ? '<div class="gwarn"><span>\u26A0\uFE0F</span><div>' + html + '</div></div>' : '';
+}
 function _setRecap(html){ const r=document.getElementById('gardeRecap'); if(!r) return; r.innerHTML = html ? '<div style="border:1px solid #cdeee6;background:#f4fcf9;border-radius:11px;padding:12px 14px;font-size:13px;line-height:1.5;color:#0f3d34;margin:6px 0 4px">'+html+'</div>' : ''; }
 
 function setGardeMode(mode){
@@ -4343,7 +4373,7 @@ function _donFormHtml(){
     + '<div id="donHolders"></div>'
     + '<div class="form-field" id="donRecvWrap" style="display:none"><label class="form-label">\u2462 M\u00e9decin qui r\u00e9cup\u00e8re</label>'
     + '<select class="form-select" id="donRecv" onchange="onDonRecv(this.value)"></select></div>'
-    + '<div id="gardeRecap"></div>'
+    + '<div id="gardeRecap"></div><div id="gardeWarn"></div>'
     + '<div style="font-size:11px;color:var(--ink-4);line-height:1.5;padding:8px 10px;background:var(--line-light);border-radius:8px;margin-top:6px">Le m\u00e9decin qui r\u00e9cup\u00e8re prend la garde + le repos du lendemain (automatique).</div>';
 }
 function renderDon(){
@@ -4366,6 +4396,12 @@ function _updateDonRecap(){
   const h=_holdersFor(GD.d1).find(x=>x.id===GD.p1);
   if(h && GD.recv) _setRecap('<b>'+_nm(GD.p1)+'</b> donne sa garde <b>'+_roleTxt(h.role)+'</b> du <b>'+_fmtDate(GD.d1)+'</b> \u00e0 <b>'+_nm(GD.recv)+'</b>.<br><span style="color:var(--ink-3)">Le repos du lendemain suit automatiquement.</span>');
   else _setRecap('');
+  // Don d'un samedi : le nombre de samedis change pour les deux → recup a deplacer.
+  if(h && GD.recv && _estSamedi(GD.d1))
+    _setWarn('<b>Samedi donn\u00e9 \u2014 la r\u00e9cup\u00e9ration ne suit pas.</b><br>'
+      + _nm(GD.recv) + ' n\'a aucune r\u00e9cup pour ce samedi : <b>posez-lui un R</b> dans l\'onglet Statuts. '
+      + 'Si ' + _nm(GD.p1) + ' a encore un R \u00e0 venir, d\u00e9placez celui-l\u00e0 ; sinon il en aura eu un de trop, ce n\'est pas rattrap\u00e9.');
+  else _setWarn('');
 }
 
 function _echFormHtml(){
@@ -4375,7 +4411,7 @@ function _echFormHtml(){
     + '<div class="form-field" style="margin-top:8px"><label class="form-label">\u2461 Deuxi\u00e8me date</label>'
     + '<input class="form-input" type="date" id="echD2" value="'+(GD.d2||'')+'" onchange="onEchDate(2,this.value)"/></div>'
     + '<div id="echH2"></div>'
-    + '<div id="gardeRecap"></div>'
+    + '<div id="gardeRecap"></div><div id="gardeWarn"></div>'
     + '<div style="font-size:11px;color:var(--ink-4);line-height:1.5;padding:8px 10px;background:var(--line-light);border-radius:8px;margin-top:6px">Chacun r\u00e9cup\u00e8re la garde de l\'autre, repos du lendemain inclus. Le r\u00f4le reste attach\u00e9 \u00e0 sa date.</div>';
 }
 function renderEch(){ _renderEchSlot(1); _renderEchSlot(2); _updateEchRecap(); }
@@ -4394,6 +4430,17 @@ function _updateEchRecap(){
   const ha=_holdersFor(GD.d1).find(x=>x.id===GD.p1), hb=_holdersFor(GD.d2).find(x=>x.id===GD.p2);
   if(ha&&hb) _setRecap('<b>'+_nm(GD.p1)+'</b> ('+_roleTxt(ha.role)+', '+_fmtDate(GD.d1)+') <span style="color:#0d9488;font-weight:800">\u21c4</span> <b>'+_nm(GD.p2)+'</b> ('+_roleTxt(hb.role)+', '+_fmtDate(GD.d2)+').<br><span style="color:var(--ink-3)">Chacun r\u00e9cup\u00e8re la garde de l\'autre, repos du lendemain inclus.</span>');
   else _setRecap('');
+  // Un seul des deux jours est un samedi → il change de mains. Samedi contre
+  // samedi : les comptes sont inchangés, on n'affiche RIEN (un avertissement qui
+  // sort pour rien finit par ne plus être lu).
+  const _sa=_estSamedi(GD.d1), _sb=_estSamedi(GD.d2);
+  if(ha && hb && (_sa !== _sb)){
+    const perd = _sa ? GD.p1 : GD.p2, prend = _sa ? GD.p2 : GD.p1;
+    _setWarn('<b>Un samedi change de mains.</b><br>'
+      + _nm(perd) + ' perd son samedi, ' + _nm(prend) + ' le prend : <b>posez un R \u00e0 '
+      + _nm(prend) + '</b> dans l\'onglet Statuts, et retirez-en un \u00e0 ' + _nm(perd)
+      + ' s\'il en a encore un \u00e0 venir.');
+  } else _setWarn('');
 }
 
 function setPanelYear(year) {
@@ -4630,6 +4677,81 @@ function morphGrid(oldGrid, newGridHtml){
     return true;
   }catch(e){ return false; }
 }
+/* ── RECUPS DE SAMEDI (01/08/2026) ────────────────────────────────────
+   Un samedi tenu (G ou G2) ouvre EXACTEMENT une recup, et le generateur en
+   garantit la pose (repli en 2 passes, section 9 — le R peut donc tomber AVANT
+   le samedi, c'est normal). Un don ou un echange deplace la garde et le RG,
+   jamais le R : tout ecart = un geste manuel reste a faire.
+   Source : DATA, le planning publie, qui recopie le code brut de GARDES_{Y}
+   dans `status` pour TOUS les jours, week-ends compris (generatePlanningFromGardes).
+   Donc aucun appel serveur, et independant du selecteur Initiale/Instantane.
+   ANNEE_STATS_FIABLES vient du serveur : sur une annee reconstruite a la main
+   (2026), les R ne sortent pas de ce mecanisme et la ligne ne s'affiche pas. */
+let ANNEE_STATS_FIABLES = null;
+function recupsEcarts(){
+  const out = [];
+  if (!DATA || !DATA.months) return out;
+  const meds = marsData || []; if (!meds.length) return out;
+  const actifs = {}; meds.forEach(m => { if (m.actif) actifs[m.id] = m; });
+  const cnt = {};   // id -> {sam, r}
+  const vus = new Set();
+  DATA.months.forEach(month => {
+    (month.days || []).forEach((day, dayIdx) => {
+      if (!day || !day.date || vus.has(day.date)) return;   // blocs mois qui se chevauchent
+      vus.add(day.date);
+      const sam = new Date(day.date + 'T12:00:00').getDay() === 6;
+      (month.doctors || []).forEach(doc => {
+        if (!actifs[doc.id]) return;
+        const st = ((doc.days && doc.days[dayIdx]) || {}).status || '';
+        if (!cnt[doc.id]) cnt[doc.id] = {sam:0, r:0};
+        if (sam && (st === 'G' || st === 'G2')) cnt[doc.id].sam++;
+        if (st === 'R') cnt[doc.id].r++;
+      });
+    });
+  });
+  Object.keys(cnt).forEach(id => {
+    const d = cnt[id].sam - cnt[id].r;
+    if (d !== 0) out.push({id:id, sam:cnt[id].sam, r:cnt[id].r, d:d});
+  });
+  // Les recups MANQUANTES d'abord : un jour du a quelqu'un passe avant un jour en trop.
+  out.sort((x, y) => (y.d - x.d) || (x.id < y.id ? -1 : 1));
+  return out;
+}
+
+function renderRecups(){
+  const el = document.getElementById('recupBanner'); if (!el) return;
+  if (!ANNEE_STATS_FIABLES || Number(ADMIN_YEAR) < Number(ANNEE_STATS_FIABLES) || !DATA) {
+    el.style.display = 'none'; el.innerHTML = ''; return;   // annee non generee par l'algo
+  }
+  const ec = recupsEcarts();
+  const nMar = (marsData || []).filter(m => m.actif).length;
+  let h = '<div class="rec"><span class="rec-t">Récupérations de samedi</span>';
+  if (!ec.length) {
+    h += '<span class="rec-ok">✓ ' + nMar + ' MAR — chaque samedi tenu a sa récup.</span>';
+  } else {
+    h += '<span class="rec-ko">' + ec.length + ' geste' + (ec.length > 1 ? 's' : '') + ' en attente</span>'
+      + '<div class="rec-why">Chaque samedi tenu doit avoir sa récup, et chaque récup un samedi tenu. '
+      + 'Un écart signale un geste à finir, pas une erreur — il disparaît dès que le R est posé ou retiré.</div>'
+      + '<div class="rec-list">'
+      + ec.map(x => '<div class="rec-item" onclick="recupsVersStatuts(&quot;' + x.id + '&quot;)">'
+          + '<span class="nm">' + x.id + '</span>'
+          + '<span class="nb">' + x.sam + ' samedi' + (x.sam > 1 ? 's' : '') + ' · ' + x.r + ' récup' + (x.r > 1 ? 's' : '') + '</span>'
+          + '<span class="df">' + (x.d > 0 ? x.d + ' manquante' + (x.d > 1 ? 's' : '') : (-x.d) + ' de trop') + '</span>'
+          + '<span class="go">Statuts →</span></div>').join('')
+      + '</div>';
+  }
+  el.innerHTML = h + '</div>';
+  el.style.display = 'block';
+}
+
+// Ouvre l'onglet Statuts DEJA positionne sur le MAR concerne. L'ordre compte :
+// loadStatuts() conserve STAT.marId s'il est valide, donc on le pose AVANT showTab
+// (l'inverse le ferait ecraser par le premier MAR actif de la liste).
+function recupsVersStatuts(id){
+  try { STAT.view = 'mar'; STAT.marId = id; STAT.selected.clear(); } catch(e) {}
+  showTab('statuts');
+}
+
 function renderStats(stats){
   if(!stats||!stats.length){document.getElementById('gardesEmpty').style.display='block';document.getElementById('statsCard').style.display='none';return;}
   const list = stats.map(s=>({
@@ -4640,6 +4762,7 @@ function renderStats(stats){
   (function(){ const cont=document.getElementById('statsCards'); const grid=cont.querySelector('.eqv-grid'); const gh=renderEquiteCards(list); if(!(grid && morphGrid(grid, gh))) cont.innerHTML = gh; })();
   // Certificat : uniquement sur la répartition initiale. En « Instantané » (échanges/dons
   // inclus), l'équité peut être volontairement rompue — pas de verdict qui prêterait à confusion.
+  try { renderRecups(); } catch(e) { console.error('Ligne récups ignorée :', e); }
   const _certEl=document.getElementById('equiteCertificat');
   if(EQ_SRC==='live'){ if(_certEl) _certEl.innerHTML=''; } else { renderCertificat(list); }
   document.getElementById('statsCard').style.display='block';
