@@ -1009,7 +1009,7 @@ function _authErr(msg) {
 
 async function viewLogin() {
   const code = document.getElementById('viewAuthInput').value.trim().toUpperCase();
-  if (!code) return;
+  if (!code) { _authErr("Entrez votre code d'accès."); return; }   // (T05)
   const btn = document.getElementById('viewAuthBtn');
   btn.disabled = true; btn.textContent = 'Vérification…';
   try {
