@@ -1014,7 +1014,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.16.2'; // SITE_VERSION: v1.16.2
+const SITE_VERSION = 'v1.16.3'; // SITE_VERSION: v1.16.3
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1107,7 +1107,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.2</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.3</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -2152,9 +2152,44 @@ const _T0_PAGE = Date.now();
    attente ordonnee en bousculade. On les envoie desormais un par un.
    ⚠️ Ne jamais revenir a des appels paralleles « pour aller plus vite » : c'est
    l'erreur commise le matin du 28/07, et elle a coute 15 s a chaque ouverture. */
+/* ── (01/08/2026) FILET : CORPS DE REQUETE PERDU ─────────────────────────
+   « Code absent de la requête » est un message que le serveur ne produit que
+   dans un seul cas : il a recu la requete mais pas son corps, donc il n'a
+   RIEN FAIT — ni lu, ni ecrit, ni envoye de mail. Renvoyer est donc sans
+   danger, y compris pour une action d'ecriture : c'est la seule erreur du
+   systeme dont on sache avec certitude qu'elle n'a laisse aucune trace.
+   On ne rejoue QUE sur ce message, jamais sur un code refuse.
+   Le second envoi apparait comme une ligne distincte dans chrono() : le
+   probleme reste visible au lieu d'etre masque par le correctif. */
+const ERR_CORPS_PERDU = 'Code absent de la requête';
+async function _apiAvecFilet(payload) {
+  const r = await _apiDirect(payload);
+  if (r && r.success === false && r.error === ERR_CORPS_PERDU) {
+    console.warn('[api] corps de requete perdu (' + (payload.action || '?') + ') — renvoi immediat');
+    return await _apiDirect(payload);
+  }
+  return r;
+}
+
+/* ── (01/08/2026) APPEL DE REVEIL ────────────────────────────────────────
+   Mesure du 01/08 a 14:07 : le TOUT PREMIER appel d'un chargement de page
+   revient « Code absent de la requête » — 18 ms de travail serveur, donc la
+   requete EST arrivee, mais SANS SON CORPS. Le meme code passe a l'appel
+   suivant. Cout constate sur admin : 38,8 s jetes, puis un login de repli et
+   un second bootstrap — 3 appels et 50 s pour une ouverture qui en vaut 1.
+   Ce petit appel, sans code et sans effet, encaisse ce premier echange
+   PENDANT que l'utilisateur tape son code : son cout devient invisible.
+   getActiveYear est traite AVANT toute verification d'identite (Indispos.gs,
+   _routeRequete_) : il ne peut ni echouer sur un code absent, ni rien modifier.
+   ⚠️ Si la mesure montre que le corps se perd a CHAQUE requete et non a la
+   premiere, ce reveil ne servira a rien : c'est le filet ci-dessus qui protege. */
+function _reveilAPI() {
+  try { api({action: 'getActiveYear'}).catch(function () {}); } catch (e) {}
+}
+
 let _fileAPI = Promise.resolve();
 async function api(payload) {
-  const _suivant = _fileAPI.then(() => _apiDirect(payload), () => _apiDirect(payload));
+  const _suivant = _fileAPI.then(() => _apiAvecFilet(payload), () => _apiAvecFilet(payload));
   _fileAPI = _suivant.catch(() => {});
   return _suivant;
 }
@@ -7187,7 +7222,7 @@ try {
 // Auto-login depuis sessionStorage si code déjà saisi
 (async function tryAutoLogin() {
   const saved = sessionStorage.getItem('adminCode');
-  if (!saved) return;
+  if (!saved) { _reveilAPI(); return; }   // ecran de code affiche : on degage la voie
   try {
     // (perf) Bootstrap lancé EN PARALLÈLE du login : les deux portent le code, le serveur
     // valide chacun. Année omise → le serveur prend l'année active. Consommé par initDashboard.
