@@ -647,6 +647,57 @@
     <p>Si, au moment de publier, des MARs présents ne sont <strong>pas placés</strong> (ni le matin ni l'après-midi) dans une des semaines que vous avez modifiées, un message les liste, regroupés par semaine. Vous pouvez <strong>corriger d'abord</strong> ou <strong>publier quand même</strong> (une demi-journée volontairement laissée libre est un cas légitime). Le but : éviter qu'un médecin disponible soit oublié — voir chapitre 6 sur les repères « à placer ».</p>
     <p>Par ailleurs, si des placements sont encore <strong>en attente d'enregistrement</strong> (encart en bas à gauche, chapitre 6), la publication commence par les enregistrer&nbsp;; en cas d'échec, elle s'arrête sans rien publier — le planning publié ne peut jamais être en retard sur votre écran.</p>
   </div>
+
+  <h3>Ce que la publication déclenche : les mails aux MARs concernés</h3>
+
+  <div class="callout warn">
+    <div class="ct">⏸️ Pas encore en service — en test</div>
+    <p>Ce chapitre décrit un dispositif <b>livré mais pas encore ouvert à l'équipe</b>. Pour
+    l'instant, tous les mails partent vers l'adresse de test de l'administrateur : <b>aucun
+    MAR n'en reçoit</b>. Publier ne prévient donc encore personne.</p>
+    <p>Cet encadré sera retiré le jour de la mise en service. Tout ce qui suit décrit le
+    comportement réel du code : c'est ce qui se produira à ce moment-là.</p>
+  </div>
+
+  <p>Publier arme un <b>minuteur de 10 minutes</b>. Tant que vous republiez, le minuteur
+  repart à zéro — rien ne part. Ce n'est qu'après <b>dix minutes sans publication</b> que le
+  système compare le planning en ligne à celui du dernier envoi, et écrit à chaque MAR dont
+  la journée a changé.</p>
+
+  <div class="callout tip">
+    <div class="ct">Un changement posé puis annulé ne produit aucun mail</div>
+    <p>Le système ne surveille pas vos gestes : il compare <b>deux états</b>. Si vous placez
+    quelqu'un puis le retirez avant la fin du minuteur, la situation finale est identique à
+    la précédente, et personne n'est prévenu. Vous pouvez donc corriger tranquillement.</p>
+  </div>
+
+  <h3>Qui reçoit quoi</h3>
+  <table>
+    <tr><th>Type de changement</th><th>Mail envoyé ?</th></tr>
+    <tr><td><b>Un statut</b> — garde, repos de garde, récupération de samedi, 18 h, vacances,
+      formation, temps partiel, congé long, congé paternité, absence</td>
+      <td><b>Toujours</b>, quelle que soit la date</td></tr>
+    <tr><td><b>Un secteur</b> — passer de bloc ortho à consultation, changer de salle…</td>
+      <td><b>Seulement</b> si la journée tombe dans la période déjà diffusée par le dernier
+      Excel du vendredi</td></tr>
+  </table>
+  <p>La logique : un statut engage le MAR personnellement (il pose une garde, annule des
+  vacances) et mérite d'être signalé même dans six mois. Un changement de secteur dans trois
+  mois n'intéresse personne — mais s'il touche une semaine que l'équipe a déjà reçue en
+  Excel, il faut le dire.</p>
+  <p>Le mail nomme la journée en clair (« mardi 8 septembre »), dit ce qu'il y avait avant et
+  ce qu'il y a maintenant, et renvoie vers le portail. Un MAR ne reçoit que <b>ses</b>
+  changements, jamais ceux des autres.</p>
+
+  <div class="callout warn">
+    <div class="ct">La génération annuelle n'envoie rien</div>
+    <p>Créer le planning d'une année entière changerait des milliers de journées. Les
+    assistants annuels remettent donc silencieusement la référence à jour : aucun mail. Le
+    récapitulatif de gardes envoyé par l'assistant W2 joue déjà ce rôle.</p>
+  </div>
+
+  <p>Un MAR qui ne veut aucun de ces mails peut être désabonné : colonne <b>NOTIF</b> de
+  l'onglet MEDECINS, valeur <code>N</code>. Voir le guide du fichier maître.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
