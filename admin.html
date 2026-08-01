@@ -1014,7 +1014,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.16.7'; // SITE_VERSION: v1.16.7
+const SITE_VERSION = 'v1.16.8'; // SITE_VERSION: v1.16.8
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1107,7 +1107,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.7</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.8</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1942,7 +1942,11 @@ async function ouvrirSession(code) {
 let _ouvertureFaite = false;   // une ouverture reussie interdit d'en relancer une
 async function authenticate() {
   const code = document.getElementById('authInput').value.trim().toUpperCase();
-  if (!code) return;
+  if (!code) {   // (T05) un retour muet laissait croire a une panne
+    const _e = document.getElementById('authError');
+    if (_e) { _e.textContent = 'Entrez votre code d\'accès.'; _e.style.display = 'block'; }
+    return;
+  }
   /* (28/07/2026, 15 h 40) GARDE CONTRE LA DOUBLE OUVERTURE.
      Le verrou _sessionEnCours ne protege que pendant ouvrirSession ; une fois
      l'identite obtenue il est relache, alors que le chargement continue. Un second
@@ -3935,6 +3939,13 @@ function nonPlacesJour(date) {
   // alors qu'il figurait bien dans la ligne Absences (autre liste, elle correcte).
   // Référence unique : ABSENT_CODES de code.gs = RG V F CTP CP R A TP CL.
   const EXCL = new Set(['RG','V','F','CTP','CP','R','A','TP','CL']);
+  // (01/08/2026 — recette T44) DEUX LISTES, DEUX SOURCES. Le tableau des MARs
+  // proposes filtre sur MEDECINS.ACTIF ; ici on lit le JSON du planning, qui ne
+  // porte pas cette colonne : un MAR passe inactif restait reclame par « a placer »
+  // jusqu'a la republication. marsData arrive en differe (getMedecins) : tant
+  // qu'elle est vide on n'exclut personne — jamais de faux retrait.
+  const _inactifs = new Set(((typeof marsData !== 'undefined' && marsData) || [])
+    .filter(m => m && m.actif === false).map(m => m.id));
   const ov = _localOverrides[date] || {};
   const AFF = window.AFFM || {};
   const mIdx = parseInt(date.slice(5,7), 10);
@@ -3944,6 +3955,7 @@ function nonPlacesJour(date) {
     if (i < 0) continue;
     for (const doc of (mo.doctors || [])) {
       if (doc.id === 'PRUNET') continue;
+      if (_inactifs.has(doc.id)) continue;   // (T44) sorti de l'effectif
       const e = (doc.days && doc.days[i]) || {};
       if (EXCL.has(e.status || '')) continue;
       [['am','morning'], ['pm','afternoon']].forEach(([half, field]) => {
@@ -3978,17 +3990,17 @@ document.addEventListener('click', e => {
 function confirmPublishNonPlaces(holesByWeek) {
   return new Promise(resolve => {
     const ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto';
     const weeks = Object.keys(holesByWeek).sort((a,b) => a - b);
     const body = weeks.map(wn => {
       const rows = holesByWeek[wn].map(h => `<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:2px 0"><span>${h.label} — ${h.halves}</span><b style="font-family:var(--mono);font-size:11px;color:#92400E">${h.init}</b></div>`).join('');
       return `<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#92400E;margin:8px 0 3px">Semaine ${wn}</div>${rows}`;
     }).join('');
-    ov.innerHTML = `<div style="max-width:450px;width:100%;border:1px solid var(--line);border-radius:14px;background:var(--white);box-shadow:0 10px 34px rgba(15,23,42,.16);padding:20px">
+    ov.innerHTML = `<div style="max-width:450px;width:100%;border:1px solid var(--line);border-radius:14px;background:var(--white);box-shadow:0 10px 34px rgba(15,23,42,.16);padding:20px;max-height:calc(100vh - 40px);display:flex;flex-direction:column">
       <h3 style="font-size:14px;font-weight:800;margin:0 0 6px">⚠️ Des MARs présents ne sont pas placés</h3>
       <p style="font-size:12px;color:var(--ink-3);line-height:1.55;margin:0 0 12px">Publier maintenant rendra ce planning visible aux MARs. Des médecins disponibles n'ont pas d'affectation dans les semaines que vous avez modifiées :</p>
-      <div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:10px;padding:8px 12px;margin-bottom:16px">${body}</div>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
+      <div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:10px;padding:8px 12px;margin-bottom:16px;overflow:auto;min-height:0">${body}</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-shrink:0">
         <button id="npForce" style="border-radius:9px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--line);background:var(--white);color:var(--ink-3)">Publier quand même</button>
         <button id="npFix" style="border-radius:9px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border:1px solid var(--red);background:var(--red);color:#fff">Corriger d'abord</button>
       </div></div>`;
