@@ -121,6 +121,7 @@
     <li><span class="n">00</span><a href="#regles">Les six règles qui valent pour tous</a></li>
     <li><span class="n">I</span><a href="#p1"><strong>Les onglets qu'on remplit à la main</strong></a></li>
     <li><span class="n">01</span><a href="#config">CONFIG</a></li>
+    <li><span class="n">01 bis</span><a href="#seuils">SEUILS</a></li>
     <li><span class="n">02</span><a href="#medecins">MEDECINS</a></li>
     <li><span class="n">03</span><a href="#secteurs">SECTEURS</a></li>
     <li><span class="n">04</span><a href="#cstemplate">CS_TEMPLATE</a></li>
@@ -225,6 +226,34 @@ code — toute autre ligne est ignorée.</p>
 Une modification faite à la main dans le classeur est prise en compte dès la requête suivante.</p>
 </section>
 
+<section id="seuils">
+<h2><span class="n">01 bis</span>SEUILS</h2>
+<p><strong>Trois colonnes : clé, valeur, description.</strong> Les bornes d'affichage réglables par le
+comité. Volontairement <strong>séparé de CONFIG</strong> : régler une couleur ne doit pas obliger à ouvrir
+l'onglet qui porte les codes d'accès. Aucune valeur sensible ici, jamais de code.</p>
+
+<table>
+<tr><th>Clé</th><th>Rôle</th><th>Défaut</th></tr>
+<tr><td>SEUIL_PRESENCE_ALERTE</td><td>Bande de présence de l'onglet Planning : au-dessous de ce nombre de MAR présents, la journée vire à l'orange puis au rouge.</td><td>13</td></tr>
+<tr><td>SEUIL_PRESENCE_CONFORT</td><td>Bande de présence : à partir de ce nombre de présents, la journée est verte.</td><td>17</td></tr>
+</table>
+
+<div class="callout rule">
+  <div class="ct">Rien à créer, rien à casser</div>
+  <p>L'onglet est <strong>fabriqué et pré-rempli automatiquement</strong> au premier chargement d'<span class="tag">admin.html</span>
+  après le déploiement (<span class="tag">getSeuils()</span>, portail.gs) — comme SECTEURS et CS_TEMPLATE.</p>
+  <p>Une valeur <strong>non numérique est ignorée</strong>, une ligne supprimée ou l'onglet entier absent font
+  simplement revenir aux défauts : la bande s'affiche toujours. Si les deux bornes sont saisies à
+  l'envers, l'échelle est corrigée à la volée plutôt que de rendre l'affichage incohérent.</p>
+  <p>La <strong>légende sous la bande se met à jour toute seule</strong> à partir de ces deux nombres :
+  après modification, un <span class="tag">Ctrl+Maj+R</span> suffit à voir le nouveau découpage.</p>
+</div>
+
+<p>Mesure de référence (année 2026, bornes 13 et 17) : <strong>9 / 44 / 68 / 70 / 58 jours du rouge au
+vert</strong>. Les cinq couleurs servent et aucune n'écrase les autres — c'est le repère pour juger si de
+nouvelles bornes découpent encore l'année utilement.</p>
+</section>
+
 <section id="medecins">
 <h2><span class="n">02</span>MEDECINS</h2>
 <p>L'effectif, et la source de vérité sur qui existe, qui est actif, avec quelles particularités.
@@ -251,6 +280,7 @@ Les 17 premières colonnes sont réécrites par le formulaire d'admin ; les suiv
 <tr><td>P</td><td>SOUHAIT_PLAFOND</td><td>Profil « souhait garanti ». <strong>Non coché, le certificat d'équité sort le MAR en rouge</strong> — le code ne peut pas le reconnaître.</td></tr>
 <tr><td>Q</td><td>TP_JOURS_FIXES</td><td>Jours fixes non travaillés</td></tr>
 <tr><td>≥ R</td><td>LIBERAL · RPPS · PRENOM</td><td>Lues <strong>par leur titre</strong>. <span class="tag">LIBERAL</span> porte trois métiers : membre du groupement, visibilité de la tuile, présence sur le relevé.</td></tr>
+<tr><td>≥ R</td><td>NOTIF</td><td>Désabonnement des mails de changement de planning. <span class="tag">N</span> = ce MAR n'en reçoit aucun ; toute autre valeur, ou <strong>colonne absente, = il en reçoit</strong>. Lue par son titre, jamais réécrite par le formulaire.</td></tr>
 </table>
 
 <div class="callout rule">
@@ -766,6 +796,7 @@ du code mort. À supprimer un jour, avec la ligne correspondante du guide techni
 <table>
 <tr><th>Quoi</th><th>Où</th></tr>
 <tr><td>Le planning publié</td><td>Dossier Drive privé <span class="tag">Planning-CHPG-JSON</span> — <span class="tag">planning_{Y}.json</span> et <span class="tag">affectations_{Y}.json</span>. <strong>C'est le Drive qui fait foi pour l'affichage MAR</strong>, jamais GitHub.</td></tr>
+<tr><td>La photo de référence des notifications</td><td>Même dossier — <span class="tag">planning_{Y}_notifie.json</span>. C'est l'état du planning au dernier envoi de mails ; le notifieur compare le fichier courant à celui-ci. Le supprimer ne casse rien : la prochaine exécution reprend une photo et se tait.</td></tr>
 <tr><td>Les topos et protocoles</td><td>Dossiers Drive <span class="tag">Planning-CHPG-Topos</span> et son équivalent protocoles — ce sont des <strong>fichiers</strong>, pas des onglets.</td></tr>
 <tr><td>Les années clôturées</td><td>Un <strong>classeur d'archives séparé</strong> : la clôture y copie GARDES, INDISPOS, STATS_GARDES et AFFECTATIONS de l'année écoulée.</td></tr>
 </table>
