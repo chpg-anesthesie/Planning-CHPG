@@ -103,7 +103,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
   <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
   <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.16.7</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.16.7 -->
+  <div class="maj">Version <strong>v1.16.8</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.16.8 -->
 </header>
 
 <div class="callout tip" style="margin:26px 0 6px">
@@ -194,7 +194,7 @@
     <tr><td>📋 Affectations</td><td>Les secteurs « de base » de chaque MAR, mois par mois : le socle sur lequel le planning quotidien est construit.</td></tr>
     <tr><td>📊 Équité</td><td>Les compteurs de gardes (qui a fait combien, écart à la cible), en vue « Initiale » ou « Instantané », et la validation des vacances.</td></tr>
     <tr><td>✏️ Statuts</td><td>Pour poser les absences et statuts d'un MAR : vacances, formation, temps partiel, congé long, 8h–18h — avec son propre bouton Publier.</td></tr>
-    <tr><td>🔧 Maintenance</td><td>Le diagnostic système (tout est-il en ordre ?) et le renvoi groupé des codes d'accès. Voir le chapitre 13.</td></tr>
+    <tr><td>🔧 Maintenance</td><td>Le diagnostic système (tout est-il en ordre ?), le vidage du cache de configuration et le renvoi groupé des codes d'accès. Voir le chapitre 13.</td></tr>
   </table>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
@@ -461,6 +461,10 @@
     <tr><td>Vendredi</td><td>CS Ortho ×1 · CS ORL ×1</td><td>—</td></tr>
   </table>
   <div class="callout tip">
+    <div class="ct">Ce tableau n'est pas figé dans le programme</div>
+    <p>Il reflète l'onglet <strong>CS_TEMPLATE</strong> du classeur, où chaque ligne est un type de consultation et chaque colonne un demi-jour de la semaine. Modifier un chiffre dans cet onglet change les consultations attendues dans la grille — sans toucher au code. Après une modification, passer par <strong>🧹 Vider le cache de configuration</strong> (chapitre 13.4) pour la voir tout de suite.</p>
+  </div>
+  <div class="callout tip">
     <div class="ct">Volet « ◆ Libéral »&nbsp;: une ligne par secteur, avec le compte</div>
     <p>Depuis le 27 juillet 2026, chaque déclaration correspond à <strong>un patient</strong> et non plus à une journée. Une journée de cataractes, ce sont donc huit déclarations. Le volet les <strong>regroupe</strong> par médecin et par secteur, avec le nombre&nbsp;: «&nbsp;Dr X — ORL — 4 interventions — cataracte, septoplastie&nbsp;». Vous placez un médecin dans un secteur&nbsp;; le détail patient par patient reste chez lui.</p>
   </div>
@@ -569,9 +573,28 @@
 <!-- 12 -->
 <section id="c12">
   <h2><span class="n">12</span>Onglet Équité et contrôles de génération</h2>
+  <h3>12.1 · Lire une carte</h3>
+  <p>Une carte par MAR, une barre par type de garde. Sur chaque barre : le nombre de gardes tenues, la cible après la barre oblique, et un <strong>trait vertical</strong> qui marque cette cible. La couleur dit l'écart — <strong style="color:#15803D">vert</strong> dans les clous, <strong style="color:var(--red)">rouge</strong> à partir de 2 gardes de trop, <strong style="color:#1D4ED8">bleu</strong> à partir de 2 de moins.</p>
+  <table>
+    <tr><th>Barre</th><th>Ce qu'elle compte</th><th>Son repère</th></tr>
+    <tr><td>Total</td><td>Toutes les gardes de l'année</td><td>Cible calculée</td></tr>
+    <tr><td>Lun · Mar · Mer</td><td>Gardes de ces trois jours</td><td><strong>Aucun</strong> — hors équité</td></tr>
+    <tr><td>Jeu</td><td>Gardes du jeudi</td><td>Cible calculée</td></tr>
+    <tr><td>Sam</td><td>Gardes du samedi</td><td>Cible calculée</td></tr>
+    <tr><td>VD</td><td>Week-ends vendredi–dimanche</td><td>Cible calculée</td></tr>
+    <tr><td>JF</td><td>Jours fériés</td><td>Moyenne de l'équipe</td></tr>
+    <tr><td>VJF</td><td>Veilles de jour férié</td><td>Cible calculée</td></tr>
+  </table>
+  <p><strong>Toutes les barres ne se lisent pas pareil.</strong> Jeudi, Samedi, VD et VJF sont les quatre axes que le générateur équilibre : leur cible est calculée pour chacun, quotité et profil compris. Le repère des jours fériés est la <strong>moyenne de l'équipe</strong>, pas une cible — son trait est plus pâle. Lundi, mardi et mercredi n'ont ni cible ni trait : ces gardes ne rentrent pas dans l'équité, la barre grise sert seulement à comparer les MARs entre eux.</p>
+  <div class="callout tip">
+    <div class="ct">Un écart de 1 n'est pas un défaut</div>
+    <p>Les cibles sont fractionnaires et les gardes entières : un reste est inévitable, et il se rattrape l'année suivante par le mécanisme de dette. Ce qui mérite un regard, c'est un écart de <strong>2 ou plus sur un même axe</strong>, surtout s'il se répète d'une année sur l'autre.</p>
+  </div>
+  <p>En tête de l'onglet, la ligne <strong>« Récupérations de samedi »</strong> compare les samedis tenus et les récups posées de chaque MAR : voir le chapitre 11 pour ce qu'il faut en faire.</p>
+
+  <h3>12.2 · Les deux lectures, et les contrôles</h3>
   <ul>
-    <li>Affiche, pour chaque MAR, le nombre de gardes de chaque type et l'écart à la cible.</li>
-    <li>Deux lectures, via l'interrupteur en haut à droite : <strong>« Initiale »</strong> = la répartition figée au moment de la génération (la référence d'équité) ; <strong>« Instantané »</strong> = l'état réel du planning aujourd'hui, échanges et dons de gardes inclus.</li>
+    <li>Interrupteur en haut à droite : <strong>« Initiale »</strong> = la répartition figée au moment de la génération (la référence d'équité) ; <strong>« Instantané »</strong> = l'état réel du planning aujourd'hui, échanges et dons de gardes inclus.</li>
     <li>Le <strong>certificat d'équité</strong> (dans l'assistant de génération) résume si tout le monde est dans les clous. Les profils particuliers (temps partiel, arrangements fixes, pas de week-end…) sont jugés sur des critères adaptés — un écart apparent peut être normal. Un petit écart résiduel est d'ailleurs <strong>inévitable</strong> (les cibles sont fractionnaires, les gardes entières) et se compense l'année suivante.</li>
     <li>L'<strong>audit de couverture</strong> signale les jours où, à cause de trop d'absences simultanées, des gardes risquent de ne pas être pourvues. <strong style="color:var(--red)">Rouge</strong> = capacité insuffisante ; <strong style="color:var(--amber)">orange</strong> = tendu mais faisable.</li>
     <li>L'onglet permet aussi de <strong>valider les vacances</strong>.</li>
@@ -582,7 +605,7 @@
 <!-- 13 -->
 <section id="c13">
   <h2><span class="n">13</span>Onglet Maintenance</h2>
-  <p>Deux outils d'entretien, à utiliser sans crainte : ils ne modifient pas le planning.</p>
+  <p>Trois outils d'entretien, à utiliser sans crainte : ils ne modifient pas le planning.</p>
 
   <h3>13.1 · 🔍 Diagnostic système</h3>
   <p>Le bouton <strong>« Lancer le diagnostic »</strong> passe en revue <strong>toute la chaîne</strong>, de l'environnement technique jusqu'aux fichiers publiés :</p>
@@ -618,6 +641,15 @@
   <p><strong>Cet envoi ne change aucun code</strong> : il se contente de rappeler par email le code déjà en place. C'est le bon geste quand quelqu'un a simplement égaré son email.</p>
 
   <h3>13.3 · 🔄 Donner un nouveau code à un MAR</h3>
+  <h3>13.4 · 🧹 Vider le cache de configuration</h3>
+  <p>Pour aller vite, le serveur garde en mémoire quelques minutes les réglages qu'il relit sans cesse : la liste des MAR, leurs codes d'accès, les secteurs, les modèles de consultation. Une modification faite <strong>directement dans le classeur</strong> peut donc mettre un moment à se voir dans l'interface.</p>
+  <p>Ce bouton efface cette mémoire : au prochain écran, tout est relu dans le classeur. Deux situations où c'est le bon réflexe :</p>
+  <ul>
+    <li>vous venez de corriger une ligne à la main dans le classeur et l'interface affiche encore l'ancienne valeur ;</li>
+    <li>vous avez changé ou retiré le code d'accès de quelqu'un et voulez que ce soit effectif tout de suite.</li>
+  </ul>
+  <p>Sans conséquence : le vidage ne touche à aucune donnée, il oblige seulement le serveur à tout relire. La publication le fait d'ailleurs d'elle-même avant chaque envoi.</p>
+
   <p>Pour <strong>remplacer</strong> le code d'un MAR — code vu par d'autres, départ d'un remplaçant, doute sur sa confidentialité — utiliser le bouton <span class="btn-ex">🔄</span> sur sa ligne dans l'onglet Équipe.</p>
   <ol class="steps">
     <li>Cliquer <span class="btn-ex">🔄</span> sur la ligne du MAR, puis confirmer.</li>
@@ -734,6 +766,10 @@
     <div class="a">La page n'a pas réussi à lire les onglets <strong>SECTEURS</strong> et/ou <strong>CS_TEMPLATE</strong> du classeur : la grille affichée est <em>incomplète</em> (lignes de secteur ou de consultation manquantes) et l'export Excel est bloqué tant que le bandeau est là — c'est volontaire, un fichier amputé ne doit pas partir au service. Recharger avec <span class="kbd">Ctrl + Maj + R</span>. Si le bandeau persiste : vérifier que les deux onglets ne sont pas vides, puis lancer le <strong>Diagnostic système</strong> (onglet Maintenance) pour contrôler que le fichier <code>portail.gs</code> déployé est bien à jour.</div>
   </div>
   <div class="faq">
+    <div class="q">« J'ai corrigé une ligne dans le classeur et l'interface affiche encore l'ancienne valeur. »</div>
+    <div class="a">Le serveur garde les réglages en mémoire quelques minutes. Onglet Maintenance → <strong>🧹 Vider le cache de configuration</strong>, puis <span class="kbd">Ctrl + Maj + R</span>. Voir le chapitre 13.4.</div>
+  </div>
+  <div class="faq">
     <div class="q">« La génération des gardes semble injuste pour quelqu'un. »</div>
     <div class="a">Vérifier sa quotité et ses indispos, puis relancer la génération. Comparer avec le certificat d'équité, en tenant compte des profils particuliers — et de l'écart d'arrondi normal, compensé l'année suivante.</div>
   </div>
@@ -750,7 +786,9 @@
     <tr><td>(vide)</td><td>Présent</td></tr>
     <tr><td>V</td><td>Vacances</td></tr>
     <tr><td>F</td><td>Formation</td></tr>
-    <tr><td>TP</td><td>Temps partiel</td></tr>
+    <tr><td>TP</td><td>Jour de temps partiel</td></tr>
+    <tr><td>CTP</td><td>Jour de temps partiel (variante utilisée par le compteur de congés)</td></tr>
+    <tr><td>CP</td><td>Congé paternité</td></tr>
     <tr><td>CL</td><td>Congé long</td></tr>
     <tr><td>A</td><td>Absent (cycle)</td></tr>
     <tr><td>R</td><td>Récup</td></tr>
@@ -794,6 +832,7 @@
     <tr><td>Samedi</td><td>Garde du samedi</td></tr>
     <tr><td>Jeudi</td><td>Garde du jeudi</td></tr>
     <tr><td>JF</td><td>Jour férié</td></tr>
+    <tr><td>VJF</td><td>Veille de jour férié</td></tr>
   </table>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
