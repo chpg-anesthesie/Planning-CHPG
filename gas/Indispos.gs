@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-07-31.3';
+const GAS_VERSION_INDISPOS = '2026-08-01.1';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1671,6 +1671,9 @@ if (!affSheet) {
       // separes valaient donc ~2 s a chaque ouverture d'admin. Un echec ici n'est
       // jamais bloquant : la page repasse par getSecteurs / getCsTemplate.
       try { out.secteurs   = getSecteurs(); }   catch (e) { out.secteurs = null; }
+      // (01/08/2026) Seuils d'affichage (onglet SEUILS). Jamais bloquant :
+      // absent ou illisible, admin.html garde ses valeurs de repli.
+      try { out.seuils     = getSeuils(); }     catch (e) { out.seuils = null; }
       try { out.csTemplate = getCsTemplate(); } catch (e) { out.csTemplate = null; }
       /* (28/07/2026, 15 h) LE COMPTEUR DE MAILS REJOINT LE BOOTSTRAP.
          Un commentaire d'admin.html disait « NE JAMAIS le mettre dans
