@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-01.3';
+const GAS_VERSION_INDISPOS = '2026-08-01.4';
 
 // ── CONFIG ─────────────────────────────────────────────────────────────
 const GITHUB_USER_INDISPOS = 'chpg-anesthesie';
@@ -1160,8 +1160,20 @@ function _routeRequete_(e) {
     }
     const user = checkCode(code);
     if (!user) {
+      /* (01/08/2026) DEUX CAUSES, DEUX MESSAGES.
+         Mesure du 01/08 a 13:50 : le premier getAdminBootstrap d'une ouverture est
+         revenu « Code invalide » apres 44 s d'attente pour 14 ms de travail serveur.
+         Or 14 ms ne correspond qu'a UN chemin dans checkCode : le retour immediat
+         sur code vide, avant toute lecture d'onglet (un code faux, lui, coute une
+         lecture de MEDECINS). Impossible de trancher : les deux causes rendaient le
+         meme message. On les distingue desormais.
+         Sans risque : aucun code valide n'est revele, et le message ne dit que si le
+         champ etait vide — information que l'appelant possede deja. */
       return ContentService.createTextOutput(JSON.stringify({
-        success: false, error: 'Code invalide'
+        success: false,
+        error: String(code == null ? '' : code).trim()
+               ? 'Code invalide'
+               : 'Code absent de la requête'
       })).setMimeType(ContentService.MimeType.JSON);
     }
     // (Lot 5-bis) REFUS PAR DEFAUT du role secretariat. Place ICI, juste apres
