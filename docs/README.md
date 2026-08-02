@@ -32,7 +32,8 @@ Système web de gestion pour le service d'anesthésie-réanimation du **CHPG (Mo
 | `guide-mar.html` | Guide du MAR : portail, planning, indispos, consultations |
 | `guide-algo-gardes.html` | L'algorithme de gardes expliqué à l'équipe |
 | `guide-liberal.html` | Mode d'emploi de l'**outil** du module libéral |
-| `reprise.md` | **Continuité** : accès, propriété, sauvegardes — à lire si Arthur n'est plus joignable |
+| `si-ca-tombe.html` | **Urgence, pour le comité** : l'interface ne répond plus, faire tourner le service sans elle |
+| `reprise.html` | **Continuité** : accès, propriété, sauvegardes, réparations — à lire si Arthur n'est plus joignable |
 | `sauvegarde-compte-perso.md` | Installation de la sauvegarde hors-compte (dimanche 5 h) |
 | `VEILLE_CFG-mode-emploi.md` | Pilotage de la veille biblio (onglet `VEILLE_CFG`) |
 | `presentation-staff.html` | Deck de présentation du système au service |
