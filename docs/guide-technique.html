@@ -424,6 +424,8 @@
   <p>Le push GitHub ne fait que <b>documenter/sauvegarder</b> le code backend. Pour qu’il s’exécute, il faut le <b>coller dans l’éditeur Apps Script</b>, puis <b>redéployer</b> la Web App comme nouvelle version (sinon l’ancienne reste servie). ⚠️ <b>Cela vaut pour les CINQ fichiers, générateur compris.</b> Les pages appellent une adresse en <code>/exec</code>, c'est-à-dire un déploiement <b>figé sur une version</b> : tant qu'une nouvelle version n'est pas publiée, l'ancien code continue de tourner, y compris pour une génération lancée depuis le wizard. Seule exception réelle : une fonction lancée <b>à la main depuis l'éditeur</b> Apps Script, qui exécute le code courant sans passer par le déploiement.</p>
   <div class="callout warn warn-strong"><div class="ct">La règle qui sauve</div><p>Ne jamais modifier un <code>.gs</code> directement dans l’éditeur sans committer aussitôt dans le dépôt : à la prochaine recopie <em>dépôt → éditeur</em>, ta modif non commitée serait écrasée.</p></div>
 
+  <div class="callout"><div class="ct">Vérifier après déploiement</div><p><strong><a href="cahier-de-tests.html">cahier-de-tests.html</a></strong> — 153 points de contrôle couvrant les six onglets d’<code>admin.html</code>, les pages MAR, le staff vacances, le module libéral, les cinq assistants, les scénarios de panne et la cohérence de la documentation. Chaque test précise le comportement attendu, ce qui permet de distinguer une anomalie d’un fonctionnement normal mal compris. Après un déploiement GAS, les phases <em>Comité</em> et <em>Assistants</em> sont les plus rentables.</p></div>
+
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
