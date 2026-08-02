@@ -37,7 +37,6 @@ Système web de gestion pour le service d'anesthésie-réanimation du **CHPG (Mo
 | `sauvegarde-compte-perso.md` | Installation de la sauvegarde hors-compte (dimanche 5 h) |
 | `VEILLE_CFG-mode-emploi.md` | Pilotage de la veille biblio (onglet `VEILLE_CFG`) |
 | `presentation-staff.html` | Deck de présentation du système au service |
-| `Presentation-gardes-staff.html` | Deck consacré à l'algorithme de gardes |
 | `staff_gardes_demographie.html` | Simulation démographique de la charge de gardes (2026-2050) |
 | `maquette-export-excel-secteurs.xlsx` | Maquette de l'export Excel par grand secteur (NCHPG) |
 | `module-liberal/` | Le **module libéral** (voir ci-dessous) |
