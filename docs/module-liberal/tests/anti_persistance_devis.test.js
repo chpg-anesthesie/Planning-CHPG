@@ -23,7 +23,7 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
-const HTML = process.argv[2] || path.join(__dirname, 'maquette_estimateur_liberal.html');
+const HTML = process.argv[2] || path.join(__dirname, 'estimateur-liberal.html');
 const CCAM = process.argv[3] || path.join(__dirname, 'ccam_actes.json');
 const SENTINEL = 'ZZ_PATIENT_TEMOIN_9137'; // valeur-témoin, improbable ailleurs
 
@@ -49,7 +49,7 @@ const fetchCalls = [];
 
 const dom = new JSDOM(html, {
   runScripts: 'dangerously',
-  url: 'https://chpg-anesthesie.github.io/Planning-CHPG/docs/module-liberal/maquette_estimateur_liberal.html',
+  url: 'https://chpg-anesthesie.github.io/Planning-CHPG/docs/module-liberal/estimateur-liberal.html',
   virtualConsole: new VirtualConsole(),
   beforeParse(w) {
     // fetch mocké : on enregistre tout appel (URL + corps) pour la preuve réseau
