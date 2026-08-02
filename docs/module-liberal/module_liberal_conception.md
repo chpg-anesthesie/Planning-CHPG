@@ -141,7 +141,7 @@ recoupement tient à ne pas confondre ces deux dates.
 
 **Ne pas reconstruire.** Chaque brique est vérifiable dans le dépôt.
 
-### 5.1 Estimateur + devis — `docs/module-liberal/maquette_estimateur_liberal.html`
+### 5.1 Estimateur + devis — `docs/module-liberal/estimateur-liberal.html`
 Cotation d'un parcours (recherche CCAM, tarif activité 4), calibrage du dépassement sur la mutuelle
 du patient, impression du devis. Branchée au portail : le MAR est identifié par son code de session
 (`chpgViewCode`), l'identité du praticien est pré-remplie. Accès par une **tuile Dashboard visible
