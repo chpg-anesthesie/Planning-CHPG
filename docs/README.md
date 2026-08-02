@@ -45,7 +45,7 @@ Système web de gestion pour le service d'anesthésie-réanimation du **CHPG (Mo
 #### docs/module-liberal/
 | Fichier | Rôle |
 |---|---|
-| `maquette_estimateur_liberal.html` | ⚠️ **Outil de production** malgré son nom : cotation, devis, déclaration d'intervention. C'est la cible de la tuile Libéral du Dashboard. |
+| `estimateur-liberal.html` | ⚠️ **Outil de production** malgré son nom : cotation, devis, déclaration d'intervention. C'est la cible de la tuile Libéral du Dashboard. |
 | `guide_liberal_MAR.html` | Guide **métier** : comment fonctionne l'activité libérale (cartes, dépassements, règle des 30 %) |
 | `module_liberal_conception.md` | Document de conception (règle des 30 % par axe, lots) |
 | `antiseche_CCAM_anesthesie_CHPG.md` | Antisèche de cotation CCAM anesthésie & réanimation (Monaco) |
