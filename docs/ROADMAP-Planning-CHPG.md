@@ -715,7 +715,7 @@ précision des années générées et des jours fériés), cinq nouveaux angles 
   enchaîne sur publication/récaps avec l'équité renseignée) ; et l'étape récapitulatifs **affiche
   les échecs d'envoi** (jusqu'ici masqués par un ✓ vert). *Testable réellement en novembre (W2).*
 
-- **Axe 4 — Continuité / bus factor** : `docs/reprise.md` créé (propriété des ressources, accès,
+- **Axe 4 — Continuité / bus factor** : `docs/reprise.html` créé (propriété des ressources, accès,
   sauvegardes, premier jour d'une reprise en main) + rappel agenda de **sauvegarde trimestrielle**
   du classeur (1er oct/jan/avr/juil). Limite assumée et documentée : les copies vivent dans le
   Drive personnel d'Arthur — elles protègent de l'erreur de manipulation, pas de la perte du compte.
@@ -1525,7 +1525,7 @@ document par document. 30 anomalies corrigées.
 | `guide-technique` | 1 (date) — **22 sections vérifiées, aucune erreur de fond** |
 | `guide-fichier-maitre` | 1 — type `GENERAL` de `VEILLE_CFG` oublié, révélé par croisement avec le mode d'emploi |
 | `README.md` | réécrit — décrivait 12 fichiers sur 33, citait `maquette_V1_pilotage_liberal.html` **qui n'existe pas**, omettait `guide-technique.html` et l'estimateur libéral |
-| `reprise.md` | les deux comptes Google (`planningchpg` / personnel) nommés explicitement |
+| `reprise.html` | les deux comptes Google (`planningchpg` / personnel) nommés explicitement |
 
 `VEILLE_CFG-mode-emploi.md` et `sauvegarde-compte-perso.md` : **exacts, rien à corriger**.
 `docs/Presentation-gardes-staff.html` supprimé (aucun lien n'y menait, 29 mentions de « 140 années »).
