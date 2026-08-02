@@ -28,7 +28,7 @@ npm install jsdom        # dépendance unique
 node anti_persistance_devis.test.js [chemin_html] [chemin_ccam_json]
 ```
 
-Sans argument, le test vise `maquette_estimateur_liberal.html` et `ccam_actes.json`
+Sans argument, le test vise `estimateur-liberal.html` et `ccam_actes.json`
 du dossier parent.
 
 ### Sortie attendue (code réel)
