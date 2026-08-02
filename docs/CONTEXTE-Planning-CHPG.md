@@ -522,8 +522,8 @@ patient), pour ne créer ni donnée patient ni travail aux secrétaires des chir
   l'équipe — c'est l'objet de l'outil. Fuite du code partagé sans gravité : aucune écriture, aucune
   donnée patient, uniquement des dates.
 - ⚠️ Ne pas réutiliser `getMARsDispoJour` tel quel (garde `TP`/`R` dans sa liste d'absence).
-- 🎨 **Maquette v3 — `docs/module-liberal/maquette_controle_absence.html`** (poussée le 24/07 ;
-  non fonctionnelle ; rééditer toujours ce chemin, la version vit dans l'en-tête du fichier). File des consultations posées à gauche, groupées par
+- 🎨 **Maquette v3** (poussée le 24/07, **supprimée du dépôt le 02/08/2026** — écran livré :
+  `absences.html` ; la maquette reste consultable dans l'historique git). File des consultations posées à gauche, groupées par
   jour, **secteur affiché en clair** (Viscéral, ORL, Endoscopie… pas le code `CS-*`) ; pastille
   pleine/grise = ce MAR a ou non des absences **pertinentes pour CETTE consultation**. Clic →
   panneau droit : périodes à éviter, encadré « qui peut le prendre », grille 4 semaines, état
