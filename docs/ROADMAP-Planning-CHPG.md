@@ -2197,8 +2197,8 @@ livré — d'où la règle : vérifier le code, pas le ROADMAP.)*
       ⚠️ `getMARsDispoJour` (`Indispos.gs` l.2727) est **admin-only** et répond à une **autre**
       question (combler une case flash, groupée VOLANT/CTP/R) : l'étape 4 demande sa propre action,
       ne pas la réutiliser telle quelle.
-    - 🎨 **Maquette v3 — `docs/module-liberal/maquette_controle_absence.html`** (poussée le
-      24/07 ; non fonctionnelle, ne réédite que ce chemin, la version est dans l'en-tête). File des consultations posées à gauche, groupées par
+    - 🎨 **Maquette v3** (poussée le 24/07, **supprimée du dépôt le 02/08/2026** — écran livré :
+      `absences.html` ; consultable dans l'historique git). File des consultations posées à gauche, groupées par
       jour, avec le **secteur en clair** (Viscéral, ORL, Endoscopie… et non le code `CS-*`) ;
       pastille pleine/grise par ligne = ce MAR a ou non des absences **pertinentes pour CETTE
       consultation**. Clic → panneau droit : périodes à éviter, encadré « qui peut le prendre »,
