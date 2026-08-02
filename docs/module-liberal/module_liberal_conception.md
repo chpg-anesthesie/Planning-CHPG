@@ -575,8 +575,9 @@ MAR saturé dès le départ** — le tri par marge ne concerne donc pas que les 
 compte rien, n'écrit rien : il répond à une question de disponibilité. C'est la jambe inoffensive du
 Lot 5, et elle suffit à traiter le cas qui fait vraiment mal (un patient opéré un jour d'absence).
 
-⚠️ La maquette `maquette_ecran_secretaire.html` est **périmée** (elle implémente une entrée
-abandonnée en cours de conception). La conception complète — §11 ter, décisions 15 à 31 — vit dans
+⚠️ La maquette `maquette_ecran_secretaire.html` était **périmée** (elle implémentait une entrée
+abandonnée en cours de conception) : **supprimée du dépôt le 02/08/2026**, consultable dans
+l'historique git. La conception complète — §11 ter, décisions 15 à 31 — vit dans
 l'historique git, **dernier état complet au commit `89cf72b7`** (26/07/2026).
 
 ---
