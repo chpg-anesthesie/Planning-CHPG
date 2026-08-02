@@ -49,7 +49,6 @@ Système web de gestion pour le service d'anesthésie-réanimation du **CHPG (Mo
 | `module_liberal_conception.md` | Document de conception (règle des 30 % par axe, lots) |
 | `antiseche_CCAM_anesthesie_CHPG.md` | Antisèche de cotation CCAM anesthésie & réanimation (Monaco) |
 | `ccam_actes.json` | Index CCAM (v84) : libellés officiels et tarifs d'anesthésie, activité 4 |
-| `maquette_controle_absence.html`, `maquette_ecran_secretaire.html` | Maquettes de travail |
 | `tests/` | Tests JS du module |
 
 ### gas/ — backend Google Apps Script
