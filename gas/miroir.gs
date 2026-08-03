@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-03.1';
+const GAS_VERSION_MIROIR = '2026-08-03.2';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -133,10 +133,19 @@ function miroirPousserFamilles_(familles, annee) {
   if (uniq['config_admin']) _miroirAjoute_(items, 'config_admin', function () { return _miroirConstruireConfigAdmin_(annee); });
 
   if (uniq['planning'] || uniq['affectations']) {
-    // Année active + année suivante si elle est déjà publiée sur le Drive
-    // (le sélecteur d'index.html propose N+1 dès qu'elle existe).
-    const annees = [annee];
-    try { if (_jsonFilesByName_('planning_' + (annee + 1) + '.json').length > 0) annees.push(annee + 1); } catch (e) {}
+    /* (03/08/2026, correctif) TOUTES les annees consultables, pas « active
+       + N+1 ». Constate en reel : annee active 2027, selecteur proposant
+       2026 → planning_2026 jamais depose au miroir, repli GAS a chaque
+       bascule d'annee. Source de la liste : le meme balayage que le
+       selecteur (_miroirConstruireAnnees_ : GARDES_{Y} actifs + archives) ;
+       chaque annee n'est poussee que si son fichier existe sur le Drive
+       (_miroirAjouteFichierDrive_ saute silencieusement les absents). */
+    const annees = [];
+    try {
+      _miroirConstruireAnnees_().annees.forEach(function (a) { annees.push(Number(a.annee)); });
+    } catch (e) { /* repli ci-dessous : au minimum l'annee courante */ }
+    if (annees.indexOf(annee) === -1) annees.push(annee);
+    try { if (_jsonFilesByName_('planning_' + (annee + 1) + '.json').length > 0 && annees.indexOf(annee + 1) === -1) annees.push(annee + 1); } catch (e) {}
     annees.forEach(function (y) {
       if (uniq['planning'])     _miroirAjouteFichierDrive_(items, 'planning_' + y,     'planning_' + y + '.json');
       if (uniq['affectations']) _miroirAjouteFichierDrive_(items, 'affectations_' + y, 'affectations_' + y + '.json');
