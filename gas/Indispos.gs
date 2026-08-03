@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-01.7';
+const GAS_VERSION_INDISPOS = '2026-08-02.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -940,6 +940,50 @@ function applyModification(mod) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'00')}-${String(d.getDate()).padStart(2,'00')}`;
   }
 
+  function prevDay(date) {
+    const d = new Date(date + 'T12:00:00');
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'00')}-${String(d.getDate()).padStart(2,'00')}`;
+  }
+
+  /* ── GARDE-FOUS (02/08/2026) ──────────────────────────────────────────────
+     Un don / une garde exceptionnelle ecrivait le RG du lendemain SANS regarder
+     la case d'arrivee. Constate sur 2027 : la garde du jeudi 25/03 donnee a
+     FROHLICH a fait ecrire 'RG' le vendredi 26/03, ecrasant SA PROPRE garde de
+     ce jour-la. Resultat : 26/03/2027 sans G, un RG orphelin le 27, aucun signal.
+     Trois regles desormais :
+       1. aucune ecriture ne detruit un G/G2 existant ;
+       2. personne ne recoit une garde adjacente a une garde qu'il tient deja ;
+       3. toutes les cases visees sont verifiees AVANT la premiere ecriture
+          (writeCell leve une erreur si le MAR est absent de la grille — ex. un
+          MAR actif mais sorti de GARDES_{annee} — et laissait la modification
+          a moitie appliquee, donc une garde perdue). */
+  const estGarde = v => /^G2?$/i.test(String(v == null ? '' : v).trim());
+
+  function refuseSiGarde(who, jour, motif) {
+    const v = readCell(`GARDES_${year}`, who, jour);
+    if (estGarde(v)) throw new Error(`${who} est deja de garde (${v}) le ${jour} — ${motif}`);
+  }
+
+  function refuseSiAdjacente(who, jour) {
+    [prevDay(jour), nextDay(jour)].forEach(d => {
+      const v = readCell(`GARDES_${year}`, who, d);
+      if (estGarde(v)) throw new Error(`${who} est de garde (${v}) le ${d} — deux gardes consecutives sont impossibles`);
+    });
+  }
+
+  // Pre-vol : la case existe-t-elle ? Meme controle que writeCell, mais AVANT
+  // d'ecrire quoi que ce soit, pour ne jamais laisser une modification a moitie faite.
+  function verifieCellules(paires) {
+    const sheetName = `GARDES_${year}`;
+    const sheet = getSheet(sheetName);
+    paires.forEach(([who, jour]) => {
+      if (!who || !jour) return;
+      if (getDateIndex(sheet, jour) < 0) throw new Error(`Date ${jour} introuvable dans ${sheetName}`);
+      if (getDoctorRow(sheet, who)  < 0) throw new Error(`${who} est absent de ${sheetName} — modification impossible`);
+    });
+  }
+
   const { type, date, doctorId, doctorId2, value, date2 } = mod;
 
   switch (type) {
@@ -952,6 +996,9 @@ function applyModification(mod) {
     }
     case 'gardeExceptionnelle': {
       const lendemain = nextDay(date);
+      verifieCellules([[doctorId, date], [doctorId, lendemain]]);
+      refuseSiGarde(doctorId, date, 'garde exceptionnelle impossible');
+      refuseSiAdjacente(doctorId, date);
       writeCell(`GARDES_${year}`, doctorId, date, value || 'G');
       writeCell(`GARDES_${year}`, doctorId, lendemain, 'RG');
       break;
@@ -962,6 +1009,9 @@ function applyModification(mod) {
       writeCell(`GARDES_${year}`, doctorId,  date, valGardeB);
       writeCell(`GARDES_${year}`, doctorId2, date, valGardeA);
       const jourRG = date2 || nextDay(date);
+      verifieCellules([[doctorId, date], [doctorId2, date], [doctorId, jourRG], [doctorId2, jourRG]]);
+      refuseSiGarde(doctorId,  jourRG, 'l\'echange deplacerait cette garde — a traiter manuellement');
+      refuseSiGarde(doctorId2, jourRG, 'l\'echange deplacerait cette garde — a traiter manuellement');
       const valRGA = readCell(`GARDES_${year}`, doctorId,  jourRG);
       const valRGB = readCell(`GARDES_${year}`, doctorId2, jourRG);
       writeCell(`GARDES_${year}`, doctorId,  jourRG, valRGB);
@@ -971,6 +1021,11 @@ function applyModification(mod) {
     case 'donGarde': {
       const valGarde = readCell(`GARDES_${year}`, doctorId, date);
       const jourRG = date2 || nextDay(date);
+      verifieCellules([[doctorId, date], [doctorId2, date], [doctorId, jourRG], [doctorId2, jourRG]]);
+      if (!estGarde(valGarde)) throw new Error(`${doctorId} n'a pas de garde le ${date} — rien a donner`);
+      refuseSiGarde(doctorId2, date,   'don impossible');
+      refuseSiGarde(doctorId2, jourRG, 'le repos de garde ecraserait cette garde — don impossible');
+      refuseSiAdjacente(doctorId2, date);
       writeCell(`GARDES_${year}`, doctorId,  date,   '');
       writeCell(`GARDES_${year}`, doctorId2, date,   valGarde);
       writeCell(`GARDES_${year}`, doctorId,  jourRG, '');
@@ -1006,6 +1061,11 @@ function applyModification(mod) {
     default:
       throw new Error(`Type de modification inconnu : ${type}`);
   }
+
+  // (02/08/2026) Ces gestes ne laissaient aucune trace : LOGS ne disait rien d'un
+  // don, d'un echange ou d'une garde exceptionnelle. Diagnostic aveugle garanti.
+  logAction(`applyModification ${type} — ${date || ''}${date2 ? ' / ' + date2 : ''}`
+    + `${doctorId ? ' | ' + doctorId : ''}${doctorId2 ? ' -> ' + doctorId2 : ''}`);
 
   generatePlanning();
   // (01/08/2026) Un don, un echange de gardes ou de secteurs modifie le statut ou le
