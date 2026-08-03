@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-03.3';
+const GAS_VERSION_INDISPOS = '2026-08-03.4';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -4392,6 +4392,11 @@ function _error(msg) {
 function doGet(e) {
   const _t0 = Date.now();
   const out = _routeRequete_(e);
+  // (03/08/2026, miroir) Après une ÉCRITURE réussie, déposer les données à
+  // jour au miroir Cloudflare (miroir.gs). Coût nul pour les lectures (un
+  // simple lookup) ; jamais bloquant : une panne du miroir n'affecte
+  // aucune réponse du portail.
+  try { miroirApresRequete_(e, out.getContent()); } catch (_m) {}
   return _ajouterDureeServeur_(out, _t0);
 }
 function _ajouterDureeServeur_(out, t0) {
