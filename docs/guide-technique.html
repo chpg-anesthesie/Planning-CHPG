@@ -1043,15 +1043,35 @@
       quelques millisecondes grâce au cache de configuration.</td></tr>
     <tr><td><b><code>doGet</code></b></td><td>Le travail utile. Sa ventilation figure dans la
       partie « détail du bootstrap ».</td></tr>
-    <tr><td><b>réseau</b></td><td>Tout le reste : plancher de la plateforme (~1,4 s), compilation
-      de nos 545 Ko de <code>.gs</code> (~0,7 s), et la file d'attente Google — le terme qui
-      décide des mauvais jours, mesuré entre 2,7 s et 18,2 s le 01/08 <b>à trois minutes
-      d'écart</b>.</td></tr>
+    <tr><td><b>réseau</b></td><td>Tout le reste : compilation de nos <b>573 Ko</b> de
+      <code>.gs</code>, transport, et la file d'attente Google. <b>Mesure du 03/08</b> :
+      en comparant la durée totale du menu <i>Exécutions</i> d'Apps Script au
+      <code>doGet</code> du chrono, l'écart est de <b>1,28 à 1,93 s, moyenne 1,5 s</b> —
+      c'est la compilation, et elle est remarquablement stable. Le transport ajoute
+      ~1,65 s. Le <b>coût fixe d'un appel est donc d'environ 3,15 s</b>, avant qu'une
+      seule ligne utile ne s'exécute.</td></tr>
   </table>
   <p>La partie <b>« détail de <code>getAdminBootstrap</code> »</b> ventile les dix opérations du
   bootstrap, triées de la plus coûteuse à la plus légère. C'est elle qui a montré que les
   lectures d'onglets sautent d'un facteur 10 d'une minute à l'autre là où les lectures Drive
   restent stables — origine du cache de configuration.</p>
+
+  <h3>Un seul appel en vol à la fois</h3>
+  <p>Puisque le coût fixe est payé <b>par appel</b> et que le déploiement s'exécute
+  « en tant que <code>planningchpg@gmail.com</code> », Apps Script met en file les
+  exécutions de <b>tous les utilisateurs confondus</b>. Envoyer des appels en parallèle
+  ne fait donc rien gagner : cela transforme une attente ordonnée en bousculade.</p>
+  <p><b>Preuve chiffrée, mesure du 03/08 sur <code>index.html</code></b> :
+  <code>getAffectationsJson</code> lancé en parallèle d'un autre appel a coûté
+  <b>8 461 ms</b> de réseau ; le même appel, parti moins encombré, <b>1 761 ms</b> —
+  facteur 4,8 dans la même ouverture.</p>
+  <p><code>admin.html</code> applique ce principe depuis le 28/07 (file <code>_fileAPI</code>).
+  <code>index.html</code> l'a reçu le 03/08. <b>Ne jamais revenir à des appels parallèles
+  « pour aller plus vite »</b> : c'est l'erreur commise le matin du 28/07, et elle avait
+  coûté 15 s à chaque ouverture.</p>
+  <p>Corollaire : le levier le plus rentable n'est pas d'accélérer le travail serveur
+  (27 % du temps mesuré) mais de <b>réduire le nombre d'appels</b>, qui attaque à la fois
+  la compilation et le transport.</p>
 
   <h3><code>chronoClics()</code> — le coût d'une interaction</h3>
   <p>Pour chaque clic de plus de 16 ms : la cible, puis <b>trois temps qu'il ne faut pas
