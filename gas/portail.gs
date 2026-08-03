@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-08-01.2';
+const GAS_VERSION_PORTAIL = '2026-08-02.1';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1608,14 +1608,22 @@ function deleteLiberal(payload, user) {
   if (!sh) return { success: false, error: 'Aucune déclaration cette année.' };
   const data = sh.getDataRange().getValues();
 
+  /* (02/08/2026) La recherche se faisait sur le SEUL identifiant, et s'arretait a la
+     premiere ligne trouvee. LIBERAL_2026 contient dix lignes partageant un meme ID
+     (heritage d'un ancien schema d'ID par fusion) appartenant a des MAR differents :
+     tous sauf le proprietaire de la premiere occurrence recevaient « pas la votre »
+     et ne pouvaient plus supprimer leur propre declaration. On cherche desormais sur
+     ID + MAR_ID, ce qui rend la suppression insensible aux doublons d'identifiant. */
+  let trouveAutreMar = false;
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][0]).trim() === id) {
-      // On ne supprime QUE si la ligne appartient au MAR connecté.
-      if (String(data[r][3]).trim() !== marId) return { success: false, error: 'Cette déclaration n\'est pas la vôtre.' };
+    if (String(data[r][0]).trim() !== id) continue;
+    if (String(data[r][3]).trim() === marId) {
       sh.deleteRow(r + 1);
       return { success: true, id: id };
     }
+    trouveAutreMar = true;
   }
+  if (trouveAutreMar) return { success: false, error: 'Cette déclaration n\'est pas la vôtre.' };
   return { success: false, error: 'Déclaration introuvable (déjà supprimée ?).' };
 }
 
