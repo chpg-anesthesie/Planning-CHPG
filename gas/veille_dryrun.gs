@@ -75,6 +75,7 @@ const DRY_EXCLUSIONS =
   'OR "trial protocol"[Title] OR "rationale and design"[Title]';
 
 const DRY_LANGS  = ['eng', 'fre'];
+const DRY_HUMANS = 'souple';   // mode retenu pour les mesures de detail
 const DRY_SLEEP  = 400;   // ms entre deux appels PubMed (politesse NCBI)
 
 // ══════════════════════════════════════════════════════════════════════
@@ -120,14 +121,25 @@ function _drIds(term, jours) {
 function _drOrJournals(list) { return list.map(function (j) { return '"' + j + '"[Journal]'; }).join(' OR '); }
 function _drOrThemes(list)   { return list.map(function (t) { return '(' + t + ')'; }).join(' OR '); }
 
-// Filtre commun. `excl` = appliquer les exclusions dures.
-function _drFiltre(pubtypes, humans, langs, excl) {
+// Filtre commun.
+//  humansMode : false      → aucun filtre espece
+//               'strict'   → "humans"[MeSH] EXIGE  (= config actuelle)
+//               'souple'   → rejette seulement l'animal PUR
+//  Pourquoi ce choix : "humans"[MeSH] n'est attribue qu'a l'indexation
+//  MEDLINE, plusieurs semaines apres la parution. L'exiger revient a
+//  rejeter 100 % des articles du mois en cours (mesure du 03/08/2026 :
+//  0 article sur 14 dans les 6 grandes revues). La forme souple laisse
+//  passer le non-encore-indexe et n'ecarte que l'animal avere.
+function _drFiltre(pubtypes, humansMode, langs, excl) {
   const parts = [];
   if (pubtypes.length) parts.push('(' + pubtypes.map(function (p) { return '"' + p + '"[Publication Type]'; }).join(' OR ') + ')');
-  if (humans) parts.push('"humans"[MeSH Terms]');
+  if (humansMode === 'strict') parts.push('"humans"[MeSH Terms]');
   if (langs.length) parts.push('(' + langs.map(function (l) { return l + '[la]'; }).join(' OR ') + ')');
   let s = parts.join(' AND ');
-  if (excl) s += (s ? ' NOT (' : 'NOT (') + DRY_EXCLUSIONS + ')';
+  const nots = [];
+  if (humansMode === 'souple') nots.push('"animals"[MeSH Terms] NOT "humans"[MeSH Terms]');
+  if (excl) nots.push(DRY_EXCLUSIONS);
+  nots.forEach(function (n) { s += (s ? ' NOT (' : 'NOT (') + n + ')'; });
   return s;
 }
 
@@ -169,7 +181,7 @@ function _drCfgActuelle() {
 function _drAxesActuels(jours) {
   const cfg = _drCfgActuelle();
   if (!cfg) { Logger.log('⚠️ Onglet VEILLE_CFG introuvable — comparatif impossible.'); return null; }
-  const filtre = _drFiltre(cfg.pubtypes, String(cfg.params.HUMANS || 'O').toUpperCase() === 'O',
+  const filtre = _drFiltre(cfg.pubtypes, String(cfg.params.HUMANS || 'O').toUpperCase() === 'O' ? 'strict' : false,
     String(cfg.params.LANGS || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean), false);
   const union = {}, parAxe = { revues: 0, general: 0, themes: 0 };
 
@@ -192,8 +204,8 @@ function _drAxesActuels(jours) {
 }
 
 // Axes de la config PROPOSÉE.
-function _drAxesProposes(jours) {
-  const filtre = _drFiltre(DRY_PUBTYPES, true, DRY_LANGS, true);
+function _drAxesProposes(jours, humansMode) {
+  const filtre = _drFiltre(DRY_PUBTYPES, humansMode, DRY_LANGS, true);
   const themesVals = DRY_THEMES.map(function (t) { return t.val; });
   const union = {}, parAxe = { direct: 0, themed: 0 };
 
@@ -219,14 +231,20 @@ function veilleDryRun() {
       '   (revues ' + a.parAxe.revues + ' · généralistes×thèmes ' + a.parAxe.general +
       ' · thèmes ' + a.parAxe.themes + ')');
 
-    const p = _drAxesProposes(j);
-    Logger.log('PROPOSÉE  : ' + _drPadL(p.total, 5) + ' articles uniques' +
-      '   (revues directes ' + p.parAxe.direct + ' · revues×thèmes ' + p.parAxe.themed + ')');
+    const ps = _drAxesProposes(j, 'strict');
+    Logger.log('PROPOSÉE humans STRICT : ' + _drPadL(ps.total, 5) + ' uniques' +
+      '   (directes ' + ps.parAxe.direct + ' · croisées ' + ps.parAxe.themed + ')');
 
-    const parSem = (p.total / (j / 7)).toFixed(1);
-    Logger.log('→ config proposée ≈ ' + parSem + ' articles/semaine' +
+    const p = _drAxesProposes(j, 'souple');
+    Logger.log('PROPOSÉE humans SOUPLE : ' + _drPadL(p.total, 5) + ' uniques' +
+      '   (directes ' + p.parAxe.direct + ' · croisées ' + p.parAxe.themed + ')');
+
+    if (ps.total >= 0) Logger.log('→ articles rendus visibles par le passage en souple : ' +
+      (p.total - ps.total));
+    Logger.log('→ config souple ≈ ' + (p.total / (j / 7)).toFixed(1) + ' articles/semaine' +
       '   (cible visée : 15–20)');
-    if (a && a.total > 0) Logger.log('→ réduction : ' + Math.round((1 - p.total / a.total) * 100) + ' %');
+    if (a && a.total > 0) Logger.log('→ vs config actuelle : ' +
+      Math.round((1 - p.total / a.total) * 100) + ' % de volume en moins');
   });
   Logger.log('');
   Logger.log('Suite : veilleDryRunRevues() puis veilleDryRunThemes() pour élaguer.');
@@ -238,7 +256,7 @@ function veilleDryRun() {
 
 function veilleDryRunRevues() {
   const jours = 90;
-  const filtre = _drFiltre(DRY_PUBTYPES, true, DRY_LANGS, true);
+  const filtre = _drFiltre(DRY_PUBTYPES, DRY_HUMANS, DRY_LANGS, true);
   const themesOr = _drOrThemes(DRY_THEMES.map(function (t) { return t.val; }));
 
   Logger.log('═══ VOLUME PAR REVUE — 90 jours, config proposée ═══');
@@ -270,7 +288,7 @@ function veilleDryRunRevues() {
 
 function veilleDryRunThemes() {
   const jours = 90;
-  const filtre = _drFiltre(DRY_PUBTYPES, true, DRY_LANGS, true);
+  const filtre = _drFiltre(DRY_PUBTYPES, DRY_HUMANS, DRY_LANGS, true);
   const universOr = _drOrJournals(DRY_REVUES_DIRECT.concat(DRY_REVUES_THEMED));
 
   Logger.log('═══ VOLUME PAR THÈME — 90 jours, DANS l\'univers de revues ═══');
@@ -285,7 +303,7 @@ function veilleDryRunThemes() {
   const base = '(' + _drOrJournals(DRY_REVUES_DIRECT) + ') OR ((' +
                _drOrJournals(DRY_REVUES_THEMED) + ') AND (' + themesOr + '))';
   DRY_PUBTYPES.forEach(function (pt) {
-    const f = _drFiltre([pt], true, DRY_LANGS, true);
+    const f = _drFiltre([pt], DRY_HUMANS, DRY_LANGS, true);
     const n = _drCount(_drAvec(base, f), jours);
     Logger.log('  ' + _drPad(pt, 30) + _drPadL(n, 5) + ' /90j' + _drPadL((n / 3).toFixed(1), 8) + ' /mois');
   });
@@ -297,7 +315,7 @@ function veilleDryRunThemes() {
 
 function veilleDryRunApercu() {
   const jours = 30;
-  const filtre = _drFiltre(DRY_PUBTYPES, true, DRY_LANGS, true);
+  const filtre = _drFiltre(DRY_PUBTYPES, DRY_HUMANS, DRY_LANGS, true);
   const themesOr = _drOrThemes(DRY_THEMES.map(function (t) { return t.val; }));
   const union = {};
   _drIds(_drAvec(_drOrJournals(DRY_REVUES_DIRECT), filtre), jours).forEach(function (i) { union[i] = 1; });
