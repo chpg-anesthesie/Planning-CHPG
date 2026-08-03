@@ -150,6 +150,7 @@
         <li><a href="#c22"><span class="n">22</span>Le « + » de case à pourvoir</a></li>
     <li><a href="#c23"><span class="n">23</span>Mesurer la performance : <code>chrono()</code></a></li>
     <li><a href="#c24"><span class="n">24</span>Notifications de changement de planning</a></li>
+    <li><a href="#c25"><span class="n">25</span>Le miroir Cloudflare (lecture rapide)</a></li>
   </ol>
 </nav>
 
@@ -1199,6 +1200,16 @@
     <code>NOTIF_EMAIL_TEST</code> avant la mise en service réelle.</p>
   </div>
 
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c25">
+  <h2><span class="n">25</span>Le miroir Cloudflare (lecture rapide)</h2>
+  <p><b>Pourquoi.</b> Mesures du 03/08/2026 : un appel Apps Script coûte 2,5 à 5 s quel que soit le travail serveur (compilation des ~575 Ko à chaque requête, redirection 302, file d’attente par compte). Les pages qui lisent via Apps Script ne peuvent donc jamais s’ouvrir vite, et le temps est <em>aléatoire</em>. Le miroir sert les mêmes données en ~150 ms, de façon stable.</p>
+  <p><b>Principe.</b> Apps Script reste le seul écrivain. Après chaque écriture réussie (accroche dans <code>doGet</code>, table <code>MIROIR_APRES_ECRITURE</code> de <code>gas/miroir.gs</code>), il dépose les JSON à jour chez Cloudflare (Worker <code>chpg-miroir</code> + stockage KV <code>CHPG_MIROIR</code>). Un déclencheur horaire (<code>miroirSyncComplet</code>) resynchronise tout en filet. Les pages lisent le miroir d’abord (<code>miroirBoot()</code>) ; <b>tout échec — panne, clé manquante, code refusé — rend la main au circuit GAS historique</b>, seul juge de la validité d’un code. Le pire cas est donc le comportement d’avant le miroir.</p>
+  <p><b>Sécurité.</b> Les codes d’accès ne quittent jamais le script en clair : le Worker authentifie par empreintes SHA-256 (clé <code>acces</code>). Rôles conservés : secrétariat = aucune lecture miroir ; MAR = ses données (indispos filtrées) ; admin = tout. Le jeton d’écriture vit dans les propriétés du script (<code>MIROIR_PUSH_TOKEN</code>) et dans les secrets du Worker — jamais dans le dépôt. Liste rouge inchangée : relevé libéral, marges, CONFIG/PARAMETRES, Gmail, journaux ne transitent jamais par le miroir.</p>
+  <p><b>Fraîcheur.</b> Le KV propage en ~60 s au plus : après une écriture du comité, un MAR peut brièvement voir la version précédente. La page qui vient d’écrire relit, elle, le circuit direct.</p>
+  <p><b>Diagnostic.</b> <code>https://chpg-miroir.arthurfrohlich.workers.dev/</code> doit répondre <code>{"ok":true,…}</code> ; les clés et leur date de dépôt se voient dans le tableau de bord Cloudflare (Storage &amp; Databases → Workers KV) ; dans <code>chrono()</code>, les appels miroir apparaissent préfixés <code>miroir:</code>. Révoquer un code : le retirer de MEDECINS puis relancer <code>miroirSyncComplet</code> (ou attendre l’heure du filet).</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
