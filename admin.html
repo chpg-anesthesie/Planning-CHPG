@@ -1014,7 +1014,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.16.10'; // SITE_VERSION: v1.16.10
+const SITE_VERSION = 'v1.17'; // SITE_VERSION: v1.17
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1107,7 +1107,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.16.10</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.17</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -2817,38 +2817,35 @@ document.addEventListener('click', e => {
   const picker = document.getElementById('yearPicker');
   if (picker && !picker.contains(e.target)) picker.classList.remove('open');
 });
-const _archivesTestees = {};   // annee -> existe ? (voir le commentaire ci-dessous)
+let _anneesServeur = null;     // liste renvoyee par le serveur, une fois par session
 async function detectAvailableYears() {
   availableYears = [];
   availableYears.push({ year: YEAR, label: YEAR + ' — actif', readonly: false, status: 'actif' });
   if (nextYearAvailable) {
     availableYears.push({ year: YEAR + 1, label: (YEAR + 1) + ' — N+1', readonly: false, status: 'n1' });
   }
-  // Tester toutes les années archivées depuis le démarrage du projet (en parallèle, silencieux si 404)
-  const ARCHIVE_FLOOR = 2025;
-  const pastYears = [];
-  for (let y = YEAR - 1; y >= ARCHIVE_FLOOR; y--) pastYears.push(y);
-  /* (01/08/2026) UN SEUL TEST PAR ANNEE ET PAR SESSION.
-     detectAvailableYears est appelee DEUX fois a chaque ouverture (une fois tout
-     de suite, une fois apres la detection de N+1), et chaque URL portait
-     `?t=Date.now()` — donc aucune mise en cache possible. Resultat mesure le
-     01/08 : 4 requetes par ouverture, ~600 ms chacune, vers des fichiers qui
-     n'existent pas (le dossier `archives/` n'a jamais ete cree dans le depot).
-     Le resultat est desormais retenu pour la duree de la session. La
-     fonctionnalite est intacte : le jour ou le dossier existera, la premiere
-     ouverture le detectera. Recharger la page refait le test. */
-  const _aTester = pastYears.filter(y => !(y in _archivesTestees));
-  const checks = await Promise.allSettled(_aTester.map(y =>
-    fetchTimeout(`./archives/stats_${y}.json?t=${Date.now()}`, {}, 5000).then(rs => ({ y, ok: rs.ok }))
-  ));
-  checks.forEach(r => {
-    if (r.status === 'fulfilled') _archivesTestees[r.value.y] = r.value.ok;
-  });
-  pastYears.forEach(y => {
-    if (_archivesTestees[y]) {
-      availableYears.push({ year: y, label: y + ' — archivé', readonly: true, status: 'archive' });
+  /* (03/08/2026) On demande au SERVEUR quelles annees existent, au lieu de tester
+     « ./archives/stats_{annee}.json » sur le site. Ce fichier n'a jamais existe :
+     depuis le passage au Drive prive, l'archivage ecrit « archives_stats_{annee}.json »
+     sur Drive. Le selecteur ne pouvait donc JAMAIS proposer une annee cloturee, et
+     depensait 4 requetes par ouverture vers des URL en 404.
+     getAnneesDisponibles scanne le maitre ET le classeur d'archives : un seul appel,
+     resultat retenu pour la session (cette fonction est appelee deux fois a
+     l'ouverture). Recharger la page refait la demande. */
+  try {
+    if (_anneesServeur === null) {
+      const r = await api({ action: 'getAnneesDisponibles' });
+      _anneesServeur = (r && r.success && Array.isArray(r.annees)) ? r.annees : [];
     }
-  });
+    _anneesServeur
+      .filter(a => Number(a.annee) < YEAR)
+      .sort((a, b) => b.annee - a.annee)
+      .forEach(a => availableYears.push({
+        year: Number(a.annee),
+        label: a.annee + (a.archivee ? ' — archivé' : ' — clos'),
+        readonly: true, status: 'archive'
+      }));
+  } catch (e) { /* serveur muet : on garde l'annee active, le selecteur reste utilisable */ }
   buildYearSelector();
 }
 
