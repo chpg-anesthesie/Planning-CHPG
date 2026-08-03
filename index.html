@@ -947,13 +947,31 @@ function _apiBar(on) {
    Le second envoi apparait comme une ligne distincte dans chrono() : le
    probleme reste visible au lieu d'etre masque par le correctif. */
 const ERR_CORPS_PERDU = 'Code absent de la requête';
-async function apiPost(payload) {
+async function _apiPostFilet(payload) {
   const r = await _apiPostDirect(payload);
   if (r && r.success === false && r.error === ERR_CORPS_PERDU) {
     console.warn('[api] corps de requete perdu (' + (payload.action || '?') + ') — renvoi immediat');
     return await _apiPostDirect(payload);
   }
   return r;
+}
+
+/* ── (03/08/2026) UN SEUL APPEL EN VOL A LA FOIS ─────────────────────
+   Mesure du 03/08 a 18:46 (cas « MAR habitue », 6 appels, 25,9 s) :
+   getAffectationsJson lance EN PARALLELE d'un autre appel a coute 8 461 ms de
+   reseau ; le MEME appel, parti moins encombre, en a coute 1 761. Facteur 4,8
+   sur le meme appel dans la meme ouverture.
+   Apps Script met de toute facon les executions d'un meme compte en file
+   (deploiement « Executer en tant que : moi »). Les envoyer en parallele ne
+   fait donc rien gagner : ca transforme une attente ordonnee en bousculade.
+   admin.html applique ce principe depuis le 28/07 ; index.html ne l'avait
+   jamais recu.
+   ⚠️ Ne jamais revenir a des appels paralleles « pour aller plus vite ». */
+let _fileAPI = Promise.resolve();
+async function apiPost(payload) {
+  const _suivant = _fileAPI.then(() => _apiPostFilet(payload), () => _apiPostFilet(payload));
+  _fileAPI = _suivant.catch(() => {});
+  return _suivant;
 }
 
 /* ── (01/08/2026) APPEL DE REVEIL ────────────────────────────────────────
@@ -972,33 +990,63 @@ function _reveilAPI() {
   try { apiPost({action: 'getActiveYear'}).catch(function () {}); } catch (e) {}
 }
 
+/* ── (03/08/2026) REJEU SUR ECHEC DE TRANSPORT ──────────────────────
+   Mesure du 03/08 a 18:44 (cas « premiere visite ») : getAffectationsJson est
+   revenu au bout de 33,6 s avec « Unexpected token '<', "<!DOCTYPE " » — Google
+   a renvoye une page HTML au lieu de JSON. loadYear a avale l'erreur en silence
+   (catch -> AFFECTATIONS_DATA = {}) : le MAR voit un planning sans affectations
+   et AUCUN message. C'est le defaut le plus grave releve ce jour-la.
+   admin.html rejoue depuis le 01/08 ; index.html n'avait pas de filet.
+   SURETE DU REJEU : les 7 actions d'index.html sont toutes en LECTURE
+   (login, getActiveYear, getAnneesDisponibles, getSecteurs, getPlanningJson,
+   getAffectationsJson, getStatsLive) — inventaire exhaustif du 03/08. Aucune
+   n'ecrit, aucune n'envoie de mail : renvoyer ne peut rien dupliquer.
+   ⚠️ Si une action d'ECRITURE est ajoutee a cette page un jour, il faudra
+   restreindre le rejeu par liste blanche, comme API_REJOUABLES dans admin.html.
+   Chaque tentative reste une ligne distincte dans chrono() : le probleme reste
+   visible au lieu d'etre masque par le correctif. */
+const API_MAX_ESSAIS = 2;
+const API_PAUSE_REJEU = 1500;
 async function _apiPostDirect(payload) {
   payload.code = VIEW_CODE;
   _apiBar(true);
   // (01/08/2026) Journal de mesure — lecture seule, alimente chrono().
   const _act = payload.action || '(sans action)';
-  const _dep = Math.round(performance.now()), _t0 = Date.now();
-  const _ctrl = new AbortController();
-  const _timer = setTimeout(() => _ctrl.abort(), 120000);
+  let _dernier = null;
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
-      redirect: 'follow',
-      signal: _ctrl.signal,
-    });
-    const _rep = await res.json();
-    try { if (window.PERF) PERF.appel(_act, Date.now() - _t0, _rep && _rep._srv_ms, _dep,
-                                      res.ok ? 'ok' : 'ECHEC — HTTP ' + res.status,
-                                      _rep && _rep._glob_ms); } catch (_e) {}
-    return _rep;
-  } catch (e) {
-    try { if (window.PERF) PERF.appel(_act, Date.now() - _t0, null, _dep,
-                                      'ECHEC — ' + (e && e.message)); } catch (_e) {}
-    if (e && e.name === 'AbortError') throw new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable, réessayez');
-    throw e;
-  } finally { clearTimeout(_timer); _apiBar(false); }
+    for (let essai = 1; essai <= API_MAX_ESSAIS; essai++) {
+      const _dep = Math.round(performance.now()), _t0 = Date.now();
+      const _ctrl = new AbortController();
+      const _timer = setTimeout(() => _ctrl.abort(), 120000);
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload),
+          redirect: 'follow',
+          signal: _ctrl.signal,
+        });
+        const _rep = await res.json();
+        try { if (window.PERF) PERF.appel(_act, Date.now() - _t0, _rep && _rep._srv_ms, _dep,
+                                          res.ok ? 'ok' : 'ECHEC — HTTP ' + res.status,
+                                          _rep && _rep._glob_ms); } catch (_e) {}
+        return _rep;
+      } catch (e) {
+        try { if (window.PERF) PERF.appel(_act, Date.now() - _t0, null, _dep,
+                                          'ECHEC — ' + (e && e.message)
+                                          + (essai < API_MAX_ESSAIS ? ' (rejeu)' : '')); } catch (_e) {}
+        _dernier = (e && e.name === 'AbortError')
+          ? new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable, réessayez')
+          : e;
+        if (essai < API_MAX_ESSAIS) {
+          console.warn('[api] ' + _act + ' — echec de transport (' + (e && e.message) + ') : rejeu dans '
+                       + API_PAUSE_REJEU + ' ms');
+        }
+      } finally { clearTimeout(_timer); }
+      if (essai < API_MAX_ESSAIS) await new Promise(r => setTimeout(r, API_PAUSE_REJEU));
+    }
+    throw _dernier;
+  } finally { _apiBar(false); }
 }
 
 function _authErr(msg) {
@@ -1308,15 +1356,25 @@ function _ssPlanWrite(year, planning, affectations){
     sessionStorage.setItem(_SS_PLAN_KEY(year), JSON.stringify(obj));
   } catch(e){ /* quota plein : on vit sans cache */ }
 }
-async function _refreshYearSilently(year){
+/* ── (03/08/2026) NE PAS REDEMANDER CE QUI VIENT D'ARRIVER ─────────────
+   Mesure du 03/08 a 18:46 : getAffectationsJson est parti DEUX FOIS dans la
+   meme ouverture — 10 060 ms puis 4 037 ms, soit 14,1 s pour la meme donnee.
+   Cause : loadYear() les charge quand le sessionStorage n'en contient pas
+   (l. 1379), puis appelle ce rafraichissement qui les redemande aussitot.
+   `avecAff` vaut desormais false quand les affectations viennent d'etre
+   chargees a l'instant : seul le planning est reverifie.
+   Le Promise.all est remplace par deux attentes successives : la file
+   d'attente les aurait de toute facon serialisees, autant que le code le dise. */
+async function _refreshYearSilently(year, avecAff){
   try {
-    const [res, affRes] = await Promise.all([
-      apiPost({action:'getPlanningJson', year}),
-      apiPost({action:'getAffectationsJson', year}),
-    ]);
+    const res = await apiPost({action:'getPlanningJson', year});
+    let affRes = null;
+    if (avecAff) affRes = await apiPost({action:'getAffectationsJson', year});
     if (!res || !res.success || !res.planning) return;
     const fresh = res.planning;
-    const freshAff = (affRes && affRes.success && affRes.affectations && affRes.affectations.affectations) || {};
+    const freshAff = avecAff
+      ? ((affRes && affRes.success && affRes.affectations && affRes.affectations.affectations) || {})
+      : (AFF_CACHE[year] || {});
     const changed = JSON.stringify(fresh) !== JSON.stringify(PLANNING_CACHE[year] || null)
                  || JSON.stringify(freshAff) !== JSON.stringify(AFF_CACHE[year] || null);
     PLANNING_CACHE[year] = fresh; AFF_CACHE[year] = freshAff;
@@ -1337,10 +1395,12 @@ async function _refreshYearSilently(year){
 
 async function loadYear(year) {
   // (perf) rehydratation depuis sessionStorage : affichage immediat + refresh derriere
-  let fromSS = false;
+  let fromSS = false, affFromSS = false;
   if (!PLANNING_CACHE[year]) {
     const c = _ssPlanRead(year);
-    if (c) { PLANNING_CACHE[year] = c.p; if (c.a !== undefined) AFF_CACHE[year] = c.a; fromSS = true; }
+    if (c) { PLANNING_CACHE[year] = c.p;
+             if (c.a !== undefined) { AFF_CACHE[year] = c.a; affFromSS = true; }
+             fromSS = true; }
   }
   if (!PLANNING_CACHE[year]) showSkeleton();
   try {
@@ -1383,8 +1443,9 @@ async function loadYear(year) {
     }
   } catch(e) { AFFECTATIONS_DATA = {}; }
 
-  // (perf) si on a servi le cache de la visite precedente : rafraichir en arriere-plan
-  if (fromSS) _refreshYearSilently(year);
+  // (perf) si on a servi le cache de la visite precedente : rafraichir en arriere-plan.
+  // Les affectations ne sont reverifiees que si elles venaient AUSSI du cache (03/08).
+  if (fromSS) _refreshYearSilently(year, affFromSS);
 
   // Aller au mois actuel si disponible dans cette année, sinon premier mois
   const now = new Date();
