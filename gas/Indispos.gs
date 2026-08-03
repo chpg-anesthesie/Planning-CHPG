@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-02.2';
+const GAS_VERSION_INDISPOS = '2026-08-03.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -53,6 +53,680 @@ function _indisposOuverte_() {
 // (C3) MEDECINS_LIST supprimé — l'effectif vient de l'onglet MEDECINS.
 
 // ── LOG ───────────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────────────────────────
+   diagnosticComplet() — (02/08/2026) extrait du routeur doPost pour pouvoir etre
+   lance aussi par un declencheur hebdomadaire. Le corps est INCHANGE : meme
+   controles, meme ordre, meme libelles. Seules l'indentation et l'enveloppe de
+   sortie changent (objet au lieu de reponse HTTP).
+   Retourne { ok, results, nbErr, nbWarn }.
+   ───────────────────────────────────────────────────────────────────────────── */
+function diagnosticComplet() {
+    const results = [];
+    let ok = true;
+    const R = { OK:1, WARN:2, ERR:3 };
+    function check(label, level) {
+      if (level === true || level === R.OK) results.push(`✅ ${label}`);
+      else if (level === R.WARN) results.push(`⚠️ ${label}`);
+      else { results.push(`❌ ${label}`); ok = false; }
+    }
+    const info = t => results.push(`ℹ️ ${t}`);
+    const hdr  = t => results.push(`── ${t} ${'─'.repeat(Math.max(0,32-t.length))}`);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const has = n => !!ss.getSheetByName(n);
+    const rows = n => { const sh = ss.getSheetByName(n); return sh ? sh.getLastRow() : 0; };
+    const Y  = getActiveYear();
+    const N1 = Y + 1;
+    const t0 = Date.now();
+
+    // ── 0. Environnement d'exécution ──
+    hdr('Environnement');
+    try {
+      const tzS = Session.getScriptTimeZone(), tzC = ss.getSpreadsheetTimeZone();
+      if (tzS === tzC) check(`Fuseau horaire cohérent (${tzS})`, R.OK);
+      else check(`Fuseaux DIFFÉRENTS : script « ${tzS} » vs classeur « ${tzC} » — risque de décalage de dates (à aligner dans les paramètres)`, R.ERR);
+    } catch (e) { check('Fuseau horaire illisible : ' + e.message, R.WARN); }
+    try {
+      const q = MailApp.getRemainingDailyQuota();
+      // Seuil calé sur l'effectif RÉEL (compte gratuit = 100 emails/jour) :
+      // en dessous d'un envoi complet, un groupé serait refusé.
+      const besoin = _marsAvecEmail_();
+      if (q >= besoin * 2) check(`Quota email : ${q} envois restants aujourd'hui (un envoi groupé en demande ${besoin})`, R.OK);
+      else if (q >= besoin) check(`Quota email : ${q} restants — de quoi faire UN seul envoi groupé (${besoin}) aujourd'hui`, R.WARN);
+      else check(`Quota email insuffisant : ${q} restants pour ${besoin} destinataires — tout envoi groupé sera refusé jusqu'à demain`, R.ERR);
+    } catch (e) { info('Quota email non consultable : ' + e.message); }
+    try {
+      const lk = LockService.getScriptLock();
+      if (lk.tryLock(3000)) { lk.releaseLock(); check('Verrou de script disponible (enregistrements protégés)', R.OK); }
+      else check('Verrou de script occupé — une exécution longue est en cours, relancer dans une minute', R.WARN);
+    } catch (e) { check('Verrou de script indisponible : ' + e.message, R.WARN); }
+    try {
+      const trigs = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
+      info(`Déclencheur(s) installé(s) : ${trigs.length ? trigs.join(', ') : 'aucun'}`);
+    } catch (e) {}
+
+    // ── 1. Onglets de base (toujours requis) ──
+    hdr('Onglets de base');
+    ['CONFIG','MEDECINS','HISTORIQUE','PERIODES_VAC','GROUPES_VAC'].forEach(n =>
+      check(`Onglet ${n}`, has(n) ? R.OK : R.ERR));
+    // Onglets créés à l'usage : absence = simple info
+    ['PLANNING_OVERRIDES','LOGS','CONNEXIONS'].forEach(n =>
+      has(n) ? check(`Onglet ${n}`, R.OK) : info(`Onglet ${n} pas encore créé (normal tant qu'inutilisé)`));
+
+    // ── 2. Configuration ──
+    hdr('Configuration');
+    const cfgSheet = ss.getSheetByName('CONFIG');
+    const cfg = {};
+    if (cfgSheet) {
+      const cd = cfgSheet.getDataRange().getValues();
+      for (let r = 1; r < cd.length; r++) cfg[String(cd[r][0]).trim()] = String(cd[r][1]).trim();
+    }
+    check('ANNEE_ACTIVE présente', cfg['ANNEE_ACTIVE'] ? R.OK : R.ERR);
+    check(`ANNEE_ACTIVE cohérente (= ${Y})`, String(cfg['ANNEE_ACTIVE']) === String(Y) ? R.OK : R.WARN);
+    // ── Fenetre de cloture ────────────────────────────────────────────────
+    // Une annee de planning commence le PREMIER LUNDI. Cloturer AVANT ferait
+    // disparaitre du portail les gardes des tout premiers jours de janvier, qui
+    // appartiennent encore a l'annee ecoulee. Cloturer en retard n'est qu'un
+    // inconfort d'affichage : on informe, on n'alerte pas.
+    (function () {
+      const _lundi = getPremierJourPlanning(Y + 1);
+      const _lundiTxt = Utilities.formatDate(_lundi, ss.getSpreadsheetTimeZone(), 'EEEE d MMMM yyyy');
+      // getPremierJourPlanning renvoie MIDI (protection changement d'heure) : comparer
+      // l'instant courant a midi masquerait la bascule toute la matinee du jour J.
+      const _lundi0 = new Date(_lundi.getFullYear(), _lundi.getMonth(), _lundi.getDate(), 0, 0, 0);
+      if (new Date() < _lundi0) {
+        info(`Clôture de ${Y} : à faire à partir du ${_lundiTxt} — surtout pas avant`);
+      } else {
+        check(`Clôture de ${Y} attendue depuis le ${_lundiTxt}`, R.WARN);
+      }
+    })();
+    check('ADMIN_CODE présent', cfg['ADMIN_CODE'] ? R.OK : R.ERR);
+    check('Clé de publication GITHUB_TOKEN présente', cfg['GITHUB_TOKEN'] ? R.OK : R.ERR);
+
+    // ── 3. Publication GitHub (test réel de la clé) ──
+    hdr('Publication (test réel)');
+    try {
+      const tok = getGithubToken();
+      if (!tok) {
+        check('Clé de publication lisible', R.ERR);
+      } else {
+        const url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/branches/${GITHUB_BRANCH}`;
+        const resp = UrlFetchApp.fetch(url, {
+          method: 'get',
+          headers: { Authorization: 'token ' + tok, Accept: 'application/vnd.github+json' },
+          muteHttpExceptions: true
+        });
+        const code = resp.getResponseCode();
+        if (code === 200) {
+          check('Connexion GitHub OK (le planning peut être publié)', R.OK);
+          const exp = (resp.getAllHeaders() || {})['github-authentication-token-expiration'];
+          if (exp) {
+            const days = Math.round((new Date(String(exp)) - new Date()) / 86400000);
+            if (days < 0) check('Token GitHub EXPIRÉ', R.ERR);
+            else if (days <= 14) check(`Token GitHub expire dans ${days} j — à renouveler`, R.WARN);
+            else info(`Token GitHub valide, expire dans ${days} j`);
+          } else info('Token GitHub sans date d\'expiration');
+        } else if (code === 401) {
+          check('Token GitHub invalide/expiré (401) — publications impossibles', R.ERR);
+        } else if (code === 404) {
+          check(`Dépôt/branche introuvable (404) — vérifier ${GITHUB_USER}/${GITHUB_REPO}@${GITHUB_BRANCH}`, R.ERR);
+        } else {
+          check(`Réponse GitHub inattendue (${code})`, R.WARN);
+        }
+      }
+    } catch (e) {
+      check('Connexion GitHub impossible : ' + e.message, R.WARN);
+    }
+
+    // ── 3bis. Synchronisation dépôt ↔ Apps Script (détecteur de dérive) ──
+    // Compare la version des constantes GAS_VERSION_* déployées ici avec
+    // celles du dépôt GitHub : toute recopie oubliée est signalée.
+    hdr('Code déployé vs dépôt');
+    try {
+      const deployed = {};
+      try { deployed['code.gs'] = GAS_VERSION_CODE; } catch (e) { deployed['code.gs'] = null; }
+      try { deployed['Indispos.gs'] = GAS_VERSION_INDISPOS; } catch (e) { deployed['Indispos.gs'] = null; }
+      try { deployed['generateur_gardes.gs'] = GAS_VERSION_GENERATEUR; } catch (e) { deployed['generateur_gardes.gs'] = null; }
+      try { deployed['setup_annee.gs'] = GAS_VERSION_SETUP; } catch (e) { deployed['setup_annee.gs'] = null; }
+      try { deployed['portail.gs'] = GAS_VERSION_PORTAIL; } catch (e) { deployed['portail.gs'] = null; }
+      const tokSync = getGithubToken();
+      Object.keys(deployed).forEach(fn => {
+        let repoV = null;
+        try {
+          const r = UrlFetchApp.fetch(
+            `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/gas/${fn}?ref=${GITHUB_BRANCH}`,
+            { headers: { Authorization: 'token ' + tokSync, Accept: 'application/vnd.github.raw' }, muteHttpExceptions: true });
+          if (r.getResponseCode() === 200) {
+            const m = r.getContentText().match(/GAS_VERSION_\w+\s*=\s*'([^']+)'/);
+            repoV = m ? m[1] : '(sans version)';
+          }
+        } catch (e) {}
+        if (repoV === null) check(`${fn} : dépôt illisible (réseau/clé)`, R.WARN);
+        else if (!deployed[fn]) check(`${fn} : version déployée absente — recopier le fichier depuis le dépôt`, R.WARN);
+        else if (repoV === deployed[fn]) check(`${fn} : à jour (v${repoV})`, R.OK);
+        else check(`${fn} : DÉRIVE — dépôt v${repoV}, déployé v${deployed[fn]} → recopier + redéployer`, R.ERR);
+      });
+    } catch (e) { check('Contrôle de synchronisation impossible : ' + e.message, R.WARN); }
+
+    // ── 3ter. Sauvegarde automatique du classeur ──
+    hdr('Sauvegarde automatique');
+    try {
+      const trigOk = ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'backupHebdo');
+      if (trigOk) check('Déclencheur hebdomadaire installé (lundi ~4 h)', R.OK);
+      else check("Déclencheur hebdomadaire absent — exécuter installBackupTrigger() dans Apps Script", R.WARN);
+      let last = null;
+      const bIt = DriveApp.getFoldersByName('Planning-CHPG-Backups');
+      if (bIt.hasNext()) {
+        const bFiles = bIt.next().getFiles();
+        while (bFiles.hasNext()) { const bf = bFiles.next(); const dc = bf.getDateCreated(); if (!last || dc > last) last = dc; }
+      }
+      if (!last) info('Aucune copie de sauvegarde encore créée' + (trigOk ? ' (la première viendra lundi)' : ''));
+      else {
+        const bDays = Math.round((new Date() - last) / 86400000);
+        check(`Dernière sauvegarde il y a ${bDays} j`, bDays <= 10 ? R.OK : R.WARN);
+      }
+    } catch (e) { check('Contrôle de sauvegarde impossible : ' + e.message, R.WARN); }
+
+    // ── 3quater. Cohérence de la version du site (4 fichiers) ──
+    // (Corrigé 20/07/2026) Ce contrôle ne lisait que le MARQUEUR en commentaire
+    // « SITE_VERSION: vX.Y » — jamais la valeur réellement AFFICHÉE. Résultat : il
+    // annonçait « les 4 fichiers sont alignés (v1.4) » alors que 3 sur 4 affichaient
+    // v1.0 depuis plusieurs itérations. On compare désormais TOUTES les occurrences
+    // de version d'un fichier (constante JS, badge HTML en dur, ligne des guides,
+    // marqueur) : elles doivent être identiques DANS chaque fichier ET entre fichiers.
+    hdr('Version du site');
+    try {
+      const vFiles = ['dashboard.html', 'admin.html', 'docs/guide-mar.html', 'docs/guide-comite.html'];
+      const tokV = getGithubToken();
+      const versions = {};
+      vFiles.forEach(fn => {
+        try {
+          const r = UrlFetchApp.fetch(
+            `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${fn}?ref=${GITHUB_BRANCH}`,
+            { headers: { Authorization: 'token ' + tokV, Accept: 'application/vnd.github.raw' }, muteHttpExceptions: true });
+          if (r.getResponseCode() === 200) {
+            const txt = r.getContentText();
+            // Toutes les formes de version présentes dans le fichier.
+            const vus = [];
+            const push_ = re => { const m = txt.match(re); if (m) vus.push(m[1]); };
+            push_(/SITE_VERSION\s*=\s*'(v[\d.]+)'/);            // constante JS (dashboard/admin)
+            push_(/id="verBadge">(v[\d.]+)</);                    // badge HTML en dur (visible avant login)
+            push_(/Version <strong>(v[\d.]+)<\/strong>/);         // ligne d'en-tête des guides
+            push_(/SITE_VERSION:\s*(v[\d.]+)/);                  // marqueur en commentaire
+            if (!vus.length) versions[fn] = '(absente)';
+            else if (vus.some(v => v !== vus[0])) versions[fn] = 'INCOHÉRENT (' + vus.join(' / ') + ')';
+            else versions[fn] = vus[0];
+          } else versions[fn] = '(illisible)';
+        } catch (e) { versions[fn] = '(illisible)'; }
+      });
+      const vals = vFiles.map(fn => versions[fn]);
+      // Référence = première valeur PROPRE (un fichier incohérent ne fait pas foi).
+      const ref = vals.find(v => v && v[0] === 'v' && v.indexOf('INCOHÉRENT') < 0);
+      const allSame = ref && vals.every(v => v === ref);
+      if (allSame) check(`Les 4 fichiers sont alignés (${ref})`, R.OK);
+      else {
+        vFiles.forEach(fn => {
+          if (versions[fn] === ref) check(`${fn} : ${versions[fn]}`, R.OK);
+          else check(`${fn} : ${versions[fn]}${ref ? ' (attendu ' + ref + ')' : ''} → réaligner`, R.ERR);
+        });
+      }
+    } catch (e) { check('Contrôle de version impossible : ' + e.message, R.WARN); }
+
+    // ── 4. Équipe (MEDECINS) ──
+    hdr('Équipe');
+    let actifs = [];
+    const tousIds = new Set();
+    const medSheet = ss.getSheetByName('MEDECINS');
+    if (medSheet) {
+      const md = medSheet.getDataRange().getValues();
+      const sansEmail = [], sansCode = [], quotiteKO = [], datesKO = [], partis = [];
+      const _auj = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+      const idDup = [], codeMap = {}, emailKO = [];
+      for (let r = 1; r < md.length; r++) {
+        const id = String(md[r][0]).trim(); if (!id) continue;
+        if (tousIds.has(id)) idDup.push(id); else tousIds.add(id);
+        if (String(md[r][3]).trim().toUpperCase() !== 'O') continue; // ACTIF = O
+        actifs.push(id);
+        const cAcc = String(md[r][6]).trim();
+        if (cAcc) (codeMap[cAcc] = codeMap[cAcc] || []).push(id);
+        const em = String(md[r][7]).trim();
+        if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) emailKO.push(id);
+        if (!String(md[r][7]).trim()) sansEmail.push(id);            // email col 7
+        if (!String(md[r][6]).trim()) sansCode.push(id);             // code col 6
+        // Quotité col 4 et PCT_GARDES col 5 (mêmes colonnes que generateGardes).
+        // Cellule vide tolérée : le générateur applique 100 par défaut.
+        // NO_GARDE (col 11) posé → PCT_GARDES non contrôlé : le MAR est exclu de
+        // gardeDoctors, son pct n'est jamais lu (un « 0 » y est expressif, pas une erreur).
+        const estNoGarde = String(md[r][11]).trim().toUpperCase() === 'O';
+        const rawQ = String(md[r][4]).trim(), rawP = String(md[r][5]).trim();
+        const q = Number(rawQ), p = Number(rawP);
+        if (rawQ && !(q > 0 && q <= 100)) quotiteKO.push(`${id} (quotité « ${rawQ} »)`);
+        else if (!estNoGarde && rawP && !(p > 0 && p <= 100)) quotiteKO.push(`${id} (PCT_GARDES « ${rawP} »)`);
+        const dd = md[r][9], df = md[r][10];                         // arrivée / départ
+        if (dd && df) {
+          const a = dd instanceof Date ? dd : new Date(String(dd) + 'T00:00:00');
+          const b = df instanceof Date ? df : new Date(String(df) + 'T00:00:00');
+          if (a.getTime() && b.getTime() && b < a) datesKO.push(id);
+        }
+        if (df) {
+          const _f = df instanceof Date
+            ? Utilities.formatDate(df, ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd')
+            : String(df).trim().slice(0, 10);
+          if (/^\d{4}-\d{2}-\d{2}$/.test(_f) && _f < _auj) partis.push(`${id} (depuis le ${_f})`);
+        }
+      }
+      check(`${actifs.length} MARs actifs`, actifs.length > 0 ? R.OK : R.ERR);
+      check(`MARs actifs sans email : ${sansEmail.length || 'aucun'}${sansEmail.length ? ' (' + sansEmail.join(', ') + ')' : ''}`, sansEmail.length ? R.WARN : R.OK);
+      check(`MARs actifs sans code d'accès : ${sansCode.length || 'aucun'}${sansCode.length ? ' (' + sansCode.join(', ') + ')' : ''}`, sansCode.length ? R.WARN : R.OK);
+      check(`Quotité manquante ou hors bornes : ${quotiteKO.length || 'aucun'}${quotiteKO.length ? ' (' + quotiteKO.join(', ') + ')' : ''}`, quotiteKO.length ? R.WARN : R.OK);
+      check(`Dates arrivée/départ incohérentes : ${datesKO.length || 'aucun'}${datesKO.length ? ' (' + datesKO.join(', ') + ')' : ''}`, datesKO.length ? R.WARN : R.OK);
+      /* (03/08/2026) Le controle ci-dessus verifie seulement que le depart ne precede pas
+         l'arrivee ; aucune date n'est comparee a aujourd'hui. Un MAR parti mais reste
+         ACTIF=O continue d'apparaitre partout ou seul ce drapeau est consulte : relances,
+         selecteurs, completude des indispos de l'annee suivante. */
+      check(`MARs ACTIF=O dont la date de départ est passée : ${partis.length || 'aucun'}${partis.length ? ' (' + partis.join(', ') + ') — à passer en ACTIF=N' : ''}`, partis.length ? R.WARN : R.OK);
+      check(`Identifiants en double dans MEDECINS : ${idDup.length || 'aucun'}${idDup.length ? ' (' + idDup.join(', ') + ') — CORROMPT tout le système' : ''}`, idDup.length ? R.ERR : R.OK);
+      const codeDup = Object.keys(codeMap).filter(c => codeMap[c].length > 1).map(c => codeMap[c].join('+'));
+      check(`Codes d'accès partagés par plusieurs MARs actifs : ${codeDup.length || 'aucun'}${codeDup.length ? ' (' + codeDup.join(', ') + ') — connexions ambiguës' : ''}`, codeDup.length ? R.ERR : R.OK);
+      check(`Emails au format douteux : ${emailKO.length || 'aucun'}${emailKO.length ? ' (' + emailKO.join(', ') + ')' : ''}`, emailKO.length ? R.WARN : R.OK);
+    } else {
+      check('Onglet MEDECINS', R.ERR);
+    }
+
+    // ── 5. Année active {Y} ──
+    hdr('Année active ' + Y);
+    check(`INDISPOS_${Y} présent`, has(`INDISPOS_${Y}`) ? R.OK : R.WARN);
+    check(`GARDES_${Y} avec données`, rows(`GARDES_${Y}`) > 3 ? R.OK : R.WARN);
+    check(`STATS_GARDES_${Y} (référence équité/dette)`, rows(`STATS_GARDES_${Y}`) > 1 ? R.OK : R.WARN);
+    // ── Récups de samedi ────────────────────────────────────────────────
+    // Chaque samedi tenu (G ou G2) ouvre EXACTEMENT une récup, et le générateur
+    // garantit sa pose (repli en 2 passes sur toute l'année, section 9). Or un don
+    // ou un échange déplace la garde et le repos du lendemain, JAMAIS le R
+    // (`applyModification`) : tout écart signale un geste manuel resté à faire.
+    // Sans objet avant PREMIERE_ANNEE_STATS_FIABLES : une année reconstruite à la
+    // main n'a pas de R issus de ce mécanisme, l'écart n'y voudrait rien dire.
+    if (Y >= PREMIERE_ANNEE_STATS_FIABLES && rows(`GARDES_${Y}`) > 3) {
+      try {
+        const _ecarts = computeStatsLive(Y)
+          .map(s => ({ id: s.medecin, d: (Number(s.sat) || 0) - (Number(s.recupR) || 0) }))
+          .filter(x => x.d !== 0)
+          .map(x => x.d > 0
+            ? `${x.id} : ${x.d} récup${x.d > 1 ? 's' : ''} manquante${x.d > 1 ? 's' : ''}`
+            : `${x.id} : ${-x.d} récup${-x.d > 1 ? 's' : ''} en trop`);
+        check(`Récups de samedi : ${_ecarts.length
+            ? _ecarts.join(' · ') + ' — à corriger dans l\'onglet Statuts'
+            : 'une par samedi tenu, pour tous'}`,
+          _ecarts.length ? R.WARN : R.OK);
+      } catch (e) { check('Récups de samedi non vérifiables : ' + e.message, R.WARN); }
+    }
+    const affSheet = ss.getSheetByName(`AFFECTATIONS_${Y}`);
+    if (affSheet && actifs.length) {
+      const affIds = new Set();
+      const ad = affSheet.getDataRange().getValues();
+      for (let r = 1; r < ad.length; r++) { const id = String(ad[r][0]).trim(); if (id) affIds.add(id); }
+      const sansAff = actifs.filter(id => !affIds.has(id));
+      check(`MARs actifs sans affectation : ${sansAff.length || 'aucun'}${sansAff.length ? ' (' + sansAff.join(', ') + ')' : ''}`, sansAff.length ? R.WARN : R.OK);
+
+      // ── Affectations pointant vers un secteur qui n'existe plus ──
+      // (07/2026) Supprimer une ligne de l'onglet SECTEURS — ou la passer à
+      // ACTIF=N, ou vider sa colonne AFF — ne touche PAS les affectations déjà
+      // saisies : elles gardent l'ancien code. À la publication, ce code devient
+      // VOLANT (normalizeAffectation). Le MAR n'est pas perdu, mais il quitte
+      // silencieusement son secteur. Ce contrôle le dit AVANT qu'on le découvre
+      // sur le planning. Rappel : préférer ACTIF=N à la suppression d'une ligne.
+      try {
+        const codesOk = new Set(['VOLANT']);
+        (getSecteurs() || []).forEach(sec => {
+          if (sec && sec.actif && String(sec.aff || '').trim()) {
+            codesOk.add(String(sec.code).trim().toUpperCase());
+          }
+        });
+        const orphelinsSect = {};   // code inconnu -> Set(MAR)
+        for (let r = 1; r < ad.length; r++) {
+          const id = String(ad[r][0]).trim();
+          if (!id) continue;
+          for (let c = 1; c < ad[r].length; c++) {
+            const v = String(ad[r][c] || '').trim().toUpperCase();
+            if (!v || codesOk.has(v)) continue;
+            if (!orphelinsSect[v]) orphelinsSect[v] = new Set();
+            orphelinsSect[v].add(id);
+          }
+        }
+        const codesKo = Object.keys(orphelinsSect);
+        if (!codesKo.length) {
+          check('Affectations pointant toutes vers un secteur valide', R.OK);
+        } else {
+          codesKo.forEach(code => {
+            const qui = Array.from(orphelinsSect[code]);
+            check(`Secteur « ${code} » absent de l'onglet SECTEURS (ou inactif / sans AFF) `
+                + `— ${qui.length} MAR concerné(s) : ${qui.join(', ')} → passeront en VOLANT à la publication`,
+                R.ERR);
+          });
+        }
+      } catch (e) {
+        info('Contrôle des secteurs affectés impossible : ' + e.message);
+      }
+    } else {
+      check(`AFFECTATIONS_${Y} présent`, affSheet ? R.OK : R.WARN);
+    }
+
+    // ── 5bis. Intégrité GARDES (couverture 1 G + 1 G2 par jour, IDs orphelins) ──
+    const auditGardesIntegrite = y => {
+      hdr(`Intégrité GARDES_${y}`);
+      try {
+        const gSheet = ss.getSheetByName(`GARDES_${y}`);
+        if (!gSheet || gSheet.getLastRow() <= 3) { info('Onglet absent ou vide — contrôle sans objet'); return; }
+        const gd = gSheet.getDataRange().getValues();
+        const orphelins = new Set();
+        for (let r = 3; r < gd.length; r++) {
+          const id = String(gd[r][0]).trim();
+          if (id && tousIds.size && !tousIds.has(id)) orphelins.add(id);
+        }
+        check(`Lignes avec identifiant inconnu de MEDECINS : ${orphelins.size || 'aucune'}${orphelins.size ? ' (' + [...orphelins].join(', ') + ') — leurs gardes sont IGNORÉES à la publication' : ''}`, orphelins.size ? R.WARN : R.OK);
+        const d2c = buildDateToCol(gd, y);
+        // Passé vs futur : un trou PASSÉ est de l'histoire (redistribution manuelle
+        // non reportée, ex. départ d'un MAR) → ⚠️ ; un trou FUTUR = jour sans
+        // médecin de garde → ❌ à traiter immédiatement.
+        const aujd = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+        const sansGFut = [], sansGPas = [], multiG = [], g2KO = [];
+        Object.keys(d2c).sort().forEach(ds => {
+          const c = d2c[ds];
+          let nG = 0, nG2 = 0;
+          for (let r = 3; r < gd.length; r++) {
+            const v = String(gd[r][c] || '').trim().toUpperCase();
+            if (v === 'G') nG++; else if (v === 'G2') nG2++;
+          }
+          if (nG === 0) (ds >= aujd ? sansGFut : sansGPas).push(ds);
+          else if (nG > 1) multiG.push(`${ds} (×${nG})`);
+          if (nG2 === 0) g2KO.push(ds); else if (nG2 > 1) g2KO.push(`${ds} (×${nG2})`);
+        });
+        const liste = arr => arr.slice(0, 10).join(', ') + (arr.length > 10 ? ` … et ${arr.length - 10} autre(s)` : '');
+        check(`Jours FUTURS sans garde G : ${sansGFut.length || 'aucun'}${sansGFut.length ? ' → ' + liste(sansGFut) + ' — À TRAITER IMMÉDIATEMENT' : ''}`, sansGFut.length ? R.ERR : R.OK);
+        check(`Jours passés sans garde G (historique, tableau non tenu à jour) : ${sansGPas.length || 'aucun'}${sansGPas.length ? ' → ' + liste(sansGPas) : ''}`, sansGPas.length ? R.WARN : R.OK);
+        check(`Jours avec PLUSIEURS gardes G : ${multiG.length || 'aucun'}${multiG.length ? ' → ' + liste(multiG) : ''}`, multiG.length ? R.WARN : R.OK);
+        check(`Jours sans exactement une G2 : ${g2KO.length || 'aucun'}${g2KO.length ? ' → ' + liste(g2KO) : ''}`, g2KO.length ? R.WARN : R.OK);
+        /* (03/08/2026) Les repos de garde n'etaient jamais controles : le diagnostic
+           voyait le symptome (jour sans G) mais jamais la cause. Un repos orphelin —
+           un RG sans garde la veille — designe la garde effacee ET son porteur, ce qui
+           a permis d'identifier FROHLICH sur le 26/03/2027. */
+        const dates = Object.keys(d2c).sort();
+        const estG = x => x === 'G' || x === 'G2';
+        const rgOrph = [], consec = [], sansRepos = [];
+        for (let r = 3; r < gd.length; r++) {
+          const id = String(gd[r][0]).trim(); if (!id) continue;
+          for (let i = 0; i < dates.length; i++) {
+            const v  = String(gd[r][d2c[dates[i]]] || '').trim().toUpperCase();
+            const av = i > 0 ? String(gd[r][d2c[dates[i-1]]] || '').trim().toUpperCase() : null;
+            const ap = i < dates.length - 1 ? String(gd[r][d2c[dates[i+1]]] || '').trim().toUpperCase() : null;
+            if (v === 'RG' && av !== null && !estG(av))   rgOrph.push(`${id} ${dates[i]}`);
+            if (estG(v)   && av !== null && estG(av))     consec.push(`${id} ${dates[i]}`);
+            if (estG(v)   && ap !== null && ap !== 'RG')  sansRepos.push(`${id} ${dates[i]}`);
+          }
+        }
+        check(`Repos orphelins (RG sans garde la veille) : ${rgOrph.length || 'aucun'}${rgOrph.length ? ' → ' + liste(rgOrph) + ' — une garde a probablement ete ecrasee' : ''}`, rgOrph.length ? R.ERR : R.OK);
+        check(`Gardes consecutives : ${consec.length || 'aucune'}${consec.length ? ' → ' + liste(consec) : ''}`, consec.length ? R.ERR : R.OK);
+        check(`Gardes sans repos le lendemain : ${sansRepos.length || 'aucune'}${sansRepos.length ? ' → ' + liste(sansRepos) : ''}`, sansRepos.length ? R.WARN : R.OK);
+      } catch (e) { check(`Contrôle GARDES_${y} impossible : ` + e.message, R.WARN); }
+    };
+    auditGardesIntegrite(Y);
+    if (rows(`GARDES_${N1}`) > 3) auditGardesIntegrite(N1);
+
+    // ── 5ter. Indisponibilités : lignes orphelines ──
+    hdr(`Indisponibilités ${Y}`);
+    try {
+      const indS = ss.getSheetByName(`INDISPOS_${Y}`);
+      if (!indS || indS.getLastRow() <= 3) info('Onglet absent ou vide — contrôle sans objet');
+      else {
+        const idd = indS.getDataRange().getValues();
+        const inc = new Set();
+        for (let r = 3; r < idd.length; r++) {
+          const id = String(idd[r][0]).trim();
+          if (id && tousIds.size && !tousIds.has(id)) inc.add(id);
+        }
+        check(`Lignes avec identifiant inconnu de MEDECINS : ${inc.size || 'aucune'}${inc.size ? ' (' + [...inc].join(', ') + ') — leurs indispos sont IGNORÉES' : ''}`, inc.size ? R.WARN : R.OK);
+      }
+    } catch (e) { check('Contrôle INDISPOS impossible : ' + e.message, R.WARN); }
+
+    // ── 6. Année en préparation {N+1} (état du cycle) ──
+    hdr('Préparation ' + N1);
+    if (has(`INDISPOS_${N1}`)) {
+      info(`INDISPOS_${N1} créé → assistant 1 (octobre) lancé`);
+      if (rows(`GARDES_${N1}`) > 3) info(`GARDES_${N1} généré → assistant 2 (novembre) fait`);
+      else info(`GARDES_${N1} pas encore généré → assistant 2 à venir`);
+    } else {
+      info(`Aucun onglet ${N1} : préparation non commencée (normal hors période octobre→décembre)`);
+    }
+
+    // ── 6ter. HISTORIQUE : coherence avec les gardes reellement faites ──
+    /* (03/08/2026) HISTORIQUE n'etait verifie que par sa presence. C'est pourtant la
+       memoire longue du service : une fois GARDES_{annee} deplace vers les archives,
+       c'est la seule trace qui reste dans le maitre. Ses 25 lignes 2026 ne
+       correspondaient ni au planning genere ni au planning reel. */
+    hdr('Historique');
+    try {
+      const hSheet = ss.getSheetByName('HISTORIQUE');
+      if (!hSheet || hSheet.getLastRow() < 2) info('Onglet vide — contrôle sans objet');
+      else {
+        const hd = hSheet.getDataRange().getValues();
+        const annees = [...new Set(hd.slice(1).map(l => Number(l[1])).filter(y => y > 2000))].sort();
+        info(`${hd.length - 1} ligne(s), année(s) ${annees.join(', ')}`);
+        let controlees = 0;
+        annees.forEach(y => {
+          if (!(rows(`GARDES_${y}`) > 3)) return;      // grille archivée : rien à comparer
+          controlees++;
+          let live; try { live = computeStatsLive(y); } catch (e) { return; }
+          const reel = {}; live.forEach(x => reel[x.medecin] = x);
+          const ecarts = [], absents = [];
+          hd.slice(1).filter(l => Number(l[1]) === y).forEach(l => {
+            const id = String(l[0]).trim(); if (!id) return;
+            const r = reel[id];
+            if (!r) { absents.push(id); return; }
+            if (Number(l[2] || 0) !== r.total || Number(l[3] || 0) !== r.g || Number(l[4] || 0) !== r.g2)
+              ecarts.push(`${id} (${l[2]}/${l[3]}/${l[4]} vs ${r.total}/${r.g}/${r.g2})`);
+          });
+          const manquants = Object.keys(reel).filter(id =>
+            !hd.slice(1).some(l => Number(l[1]) === y && String(l[0]).trim() === id));
+          check(`HISTORIQUE ${y} vs gardes réellement faites : ${ecarts.length || 'aucun'} écart${ecarts.length ? ' → ' + ecarts.slice(0, 6).join(', ') + (ecarts.length > 6 ? ` … et ${ecarts.length - 6} autre(s)` : '') : ''}`, ecarts.length ? R.WARN : R.OK);
+          if (absents.length)   check(`HISTORIQUE ${y} : ${absents.length} MAR absent(s) de la grille (${absents.join(', ')})`, R.WARN);
+          if (manquants.length) check(`HISTORIQUE ${y} : ${manquants.length} MAR de la grille sans ligne (${manquants.join(', ')})`, R.WARN);
+        });
+        if (!controlees) info('Aucune année comparable (grilles archivées) — contrôle sans objet');
+      }
+    } catch (e) { check('Contrôle HISTORIQUE impossible : ' + e.message, R.WARN); }
+
+    // ── 7. Vacances & groupes ──
+    hdr('Vacances & groupes');
+    check(`${Math.max(0, rows('PERIODES_VAC') - 1)} période(s) de vacances configurée(s)`, rows('PERIODES_VAC') > 1 ? R.OK : R.WARN);
+    const grpSheet = ss.getSheetByName('GROUPES_VAC');
+    if (grpSheet) {
+      const gd = grpSheet.getDataRange().getValues();
+      const c = { A:0, B:0, C:0 };
+      for (let r = 1; r < gd.length; r++) { const g = String(gd[r][0]).trim(); if (c[g] !== undefined) c[g]++; }
+      check(`Groupes A/B/C peuplés (${c.A}/${c.B}/${c.C})`, (c.A && c.B && c.C) ? R.OK : R.WARN);
+      /* (03/08/2026) On ne comptait que la TAILLE des groupes, jamais leur completude.
+         Un MAR absent de GROUPES_VAC n'est pas dans la liste ordonnee : son rang vaut 0
+         et la condition de blocage n'est jamais vraie. Il echappe a l'arbitrage des
+         vacances dans les deux sens — jamais bloque, jamais compte contre les autres. */
+      const idsGV = new Set();
+      for (let r = 1; r < gd.length; r++) { const m = String(gd[r][1]).trim(); if (m) idsGV.add(m); }
+      const horsGroupe = actifs.filter(id => !idsGV.has(id));
+      check(`MARs actifs absents de GROUPES_VAC : ${horsGroupe.length || 'aucun'}${horsGroupe.length ? ' (' + horsGroupe.join(', ') + ') — hors arbitrage des vacances' : ''}`, horsGroupe.length ? R.WARN : R.OK);
+    }
+
+    // ── 8. Overrides planning (PLANNING_OVERRIDES) ──
+    hdr('Overrides planning');
+    const ov = ss.getSheetByName('PLANNING_OVERRIDES');
+    if (ov && ov.getLastRow() > 1) {
+      const od = ov.getDataRange().getValues();
+      const seen = new Set(), dup = [];
+      const ovIdKO = new Set(); let ovHorsAnnee = 0, ovDateKO = 0;
+      const fmtOv = v => {
+        if (v instanceof Date) return `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`;
+        return String(v || '').trim();
+      };
+      for (let r = 1; r < od.length; r++) {
+        const ds = fmtOv(od[r][0]), id = String(od[r][1] || '').trim();
+        const key = `${ds}_${id}`;
+        if (seen.has(key)) dup.push(key); else seen.add(key);
+        if (id && tousIds.size && !tousIds.has(id)) ovIdKO.add(id);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(ds)) ovDateKO++;
+        else if (!ds.startsWith(String(Y) + '-')) ovHorsAnnee++;
+      }
+      info(`${od.length - 1} placement(s) manuel(s) enregistré(s)`);
+      check(`Doublons (même date + MAR) : ${dup.length || 'aucun'}`, dup.length ? R.WARN : R.OK);
+      check(`Placements sur MAR inconnu de MEDECINS : ${ovIdKO.size || 'aucun'}${ovIdKO.size ? ' (' + [...ovIdKO].join(', ') + ')' : ''}`, ovIdKO.size ? R.WARN : R.OK);
+      check(`Placements avec date illisible : ${ovDateKO || 'aucun'}`, ovDateKO ? R.WARN : R.OK);
+      check(`Placements hors année active ${Y} : ${ovHorsAnnee || 'aucun'}${ovHorsAnnee ? ' — reliquat à purger (clôture W3)' : ''}`, ovHorsAnnee ? R.WARN : R.OK);
+    } else {
+      info('Aucun placement manuel enregistré');
+    }
+
+    // ── 9. Publication JSON (Drive) ──
+    hdr('Publication JSON (Drive)');
+    try {
+      let nbFolders = 0;
+      const fit = DriveApp.getFoldersByName(DRIVE_JSON_FOLDER);
+      while (fit.hasNext()) { fit.next(); nbFolders++; }
+      if (nbFolders === 0) check(`Dossier Drive « ${DRIVE_JSON_FOLDER} » introuvable`, R.ERR);
+      else if (nbFolders > 1) check(`Doublon : ${nbFolders} dossiers « ${DRIVE_JSON_FOLDER} »`, R.WARN);
+      else check(`Dossier Drive « ${DRIVE_JSON_FOLDER} » présent`, R.OK);
+
+      const countGardesJson = txt => {
+        let n = 0;
+        const j = JSON.parse(txt);
+        (j.months || []).forEach(mo => (mo.doctors || []).forEach(dc => (dc.days || []).forEach(day => {
+          if (day && (day.status === 'G' || day.status === 'G2')) n++;
+        })));
+        return n;
+      };
+      const countGardesSheet = name => {
+        const sh = ss.getSheetByName(name);
+        if (!sh) return null;
+        const dd = sh.getDataRange().getValues();
+        let n = 0;
+        for (let r = 3; r < dd.length; r++) for (let c = 1; c < dd[r].length; c++) {
+          const v = String(dd[r][c] || '').trim().toUpperCase();
+          if (v === 'G' || v === 'G2') n++;
+        }
+        return n;
+      };
+      const auditPlanning = (y, critique) => {
+        const name = `planning_${y}.json`;
+        const files = _jsonFilesByName_(name);
+        if (!files.length) { check(`${name} absent du Drive — planning ${y} invisible aux MARs`, critique ? R.ERR : R.WARN); return; }
+        if (files.length > 1) check(`Doublon : ${files.length} × ${name}`, R.WARN);
+        const f = files[0];
+        const ageJ = Math.round((Date.now() - f.getLastUpdated().getTime()) / 86400000);
+        let njson = null;
+        try { njson = countGardesJson(f.getBlob().getDataAsString()); } catch (e) {}
+        if (!njson) { check(`${name} vide ou illisible — republier`, R.ERR); return; }
+        const nsheet = countGardesSheet(`GARDES_${y}`);
+        if (nsheet === null) info(`${name} publié (${njson} gardes, il y a ${ageJ} j) — onglet GARDES_${y} absent, cohérence non vérifiable`);
+        else if (njson === nsheet) check(`${name} à jour, cohérent avec GARDES_${y} (${njson} gardes, publié il y a ${ageJ} j)`, R.OK);
+        else {
+          check(`${name} DÉSYNCHRONISÉ : ${njson} gardes publiées vs ${nsheet} dans l'onglet`, R.WARN);
+          let ph = [];
+          try { ph = _findPhantomGardes_(y); } catch (e) { info(`Détail des gardes en écart indisponible : ${e.message}`); }
+          if (ph.length) {
+            info(`${ph.length} garde(s) présente(s) dans GARDES_${y} mais exclue(s) du planning publié :`);
+            ph.slice(0, 15).forEach(p => info(`   • ${p.id} — ${p.date} (${p.code}, ${p.cell}) → ${p.reason}`));
+            if (ph.length > 15) info(`   … et ${ph.length - 15} autre(s), voir le journal d'exécution.`);
+            info(`Si ces gardes sont légitimes : rien à faire, le planning publié est correct. Sinon, corrigez GARDES_${y} puis republiez.`);
+            Logger.log(`[diag] ${name} désync ${njson} vs ${nsheet} — ${ph.length} garde(s) fantôme :\n` +
+                       ph.map(p => `   ${p.id} | ${p.date} | ${p.code} | ${p.cell} | ${p.reason}`).join('\n'));
+          } else {
+            info(`Écart de ${nsheet - njson} garde(s) non localisé (override de statut ou cas particulier) — republiez ; si l'écart persiste, signalez-le.`);
+            Logger.log(`[diag] ${name} désync ${njson} vs ${nsheet} — aucune garde fantôme localisée`);
+          }
+        }
+      };
+      const auditAff = y => {
+        const name = `affectations_${y}.json`;
+        const files = _jsonFilesByName_(name);
+        if (!files.length) { info(`${name} absent du Drive`); return; }
+        if (files.length > 1) check(`Doublon : ${files.length} × ${name}`, R.WARN);
+        const ageJ = Math.round((Date.now() - files[0].getLastUpdated().getTime()) / 86400000);
+        info(`${name} présent (publié il y a ${ageJ} j)`);
+      };
+      auditPlanning(Y, true);
+      auditAff(Y);
+      if (rows(`GARDES_${N1}`) > 3) { auditPlanning(N1, false); auditAff(N1); }
+    } catch (e) {
+      check('Audit Drive impossible : ' + e.message, R.WARN);
+    }
+
+    // ── 10. Santé du classeur ──
+    hdr('Santé du classeur');
+    try {
+      const shts = ss.getSheets();
+      let cells = 0; shts.forEach(sh => cells += sh.getMaxRows() * sh.getMaxColumns());
+      check(`${shts.length} onglets, ~${Math.round(cells / 1000)} k cellules (limite Google : 10 000 k)`, cells > 8000000 ? R.WARN : R.OK);
+      ['LOGS', 'CONNEXIONS'].forEach(n => {
+        const nr = rows(n);
+        if (nr > 20000) check(`Onglet ${n} volumineux (${nr} lignes) — purge des anciennes lignes conseillée`, R.WARN);
+        else if (nr > 1) info(`Onglet ${n} : ${nr - 1} ligne(s)`);
+      });
+    } catch (e) { check('Contrôle du classeur impossible : ' + e.message, R.WARN); }
+
+    results.push('────────────────────────────────────');
+    const nbErr = results.filter(l => l.startsWith('❌')).length;
+    const nbWarn = results.filter(l => l.startsWith('⚠️')).length;
+    results.push(ok ? `✅ Tout est en ordre${nbWarn ? ` (${nbWarn} point(s) de vigilance)` : ''}` : `❌ ${nbErr} problème(s) à corriger${nbWarn ? `, ${nbWarn} avertissement(s)` : ''}`);
+    results.push(`ℹ️ Diagnostic exécuté en ${((Date.now() - t0) / 1000).toFixed(1)} s — ${Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'dd/MM/yyyy HH:mm')} (v${GAS_VERSION_INDISPOS})`);
+    logAction(`diagComplet — ${ok ? 'OK' : 'ERREURS'} (${nbErr} err, ${nbWarn} warn)`);
+  return { ok, results, nbErr, nbWarn };
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DIAGNOSTIC AUTOMATIQUE (03/08/2026)
+   Le trou du 26/03/2027 etait detectable par le diagnostic depuis le 01/08 : il
+   affichait « Jours FUTURS sans garde G : 1 — A TRAITER IMMEDIATEMENT ». Personne
+   ne l'a lance. Ajouter des controles a un rapport que personne n'ouvre ne sert a
+   rien : on l'envoie donc tout seul, chaque lundi a 2 h.
+   L'adresse est lue dans CONFIG / DIAG_EMAIL — jamais ecrite dans le code, le
+   depot etant public. Absente : on ne fait rien plutot que d'echouer.
+   ───────────────────────────────────────────────────────────────────────────── */
+function diagHebdo() {
+  let dest = '';
+  try {
+    const data = _configRows_();
+    for (let r = 1; r < data.length; r++) {
+      if (String(data[r][0]).trim() === 'DIAG_EMAIL') { dest = String(data[r][1]).trim(); break; }
+    }
+  } catch (e) { /* CONFIG illisible : on sortira sans envoi */ }
+  if (!dest) { logAction('diagHebdo — annule : DIAG_EMAIL absent de CONFIG'); return; }
+
+  let d;
+  try { d = diagnosticComplet(); }
+  catch (e) {
+    try {
+      MailApp.sendEmail(dest, '❌ Diagnostic Planning-CHPG en echec',
+        'Le diagnostic hebdomadaire n\'a pas pu s\'executer.\n\n' + e.message + '\n\n' + (e.stack || ''));
+    } catch (e2) { /* rien de plus a tenter */ }
+    logAction('diagHebdo — ECHEC : ' + e.message);
+    return;
+  }
+
+  const sujet = d.nbErr
+    ? `❌ ${d.nbErr} problème(s) — Planning-CHPG`
+    : `✅ RAS${d.nbWarn ? ` (${d.nbWarn} point(s) de vigilance)` : ''} — Planning-CHPG`;
+  try {
+    MailApp.sendEmail(dest, sujet,
+      d.results.join('\n') + '\n\n— Diagnostic automatique du lundi. Repondre a ce mail ne sert a rien.');
+  } catch (e) { logAction('diagHebdo — envoi impossible : ' + e.message); return; }
+  logAction(`diagHebdo — envoye (${d.nbErr} err, ${d.nbWarn} warn)`);
+}
+
+// A lancer UNE fois depuis l'editeur Apps Script. Idempotent : les declencheurs
+// existants sur diagHebdo sont retires avant d'en reposer un.
+function installDiagTrigger() {
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'diagHebdo')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('diagHebdo').timeBased()
+    .onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(2).nearMinute(0).create();
+  return 'Declencheur diagHebdo installe : tous les lundis vers 2 h.';
+}
+
 function logAction(message) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -2276,541 +2950,8 @@ if (!affSheet) {
 
     if (action === 'diagComplet') {
       if (user.role !== 'admin') return _deny();
-      const results = [];
-      let ok = true;
-      const R = { OK:1, WARN:2, ERR:3 };
-      function check(label, level) {
-        if (level === true || level === R.OK) results.push(`✅ ${label}`);
-        else if (level === R.WARN) results.push(`⚠️ ${label}`);
-        else { results.push(`❌ ${label}`); ok = false; }
-      }
-      const info = t => results.push(`ℹ️ ${t}`);
-      const hdr  = t => results.push(`── ${t} ${'─'.repeat(Math.max(0,32-t.length))}`);
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const has = n => !!ss.getSheetByName(n);
-      const rows = n => { const sh = ss.getSheetByName(n); return sh ? sh.getLastRow() : 0; };
-      const Y  = getActiveYear();
-      const N1 = Y + 1;
-      const t0 = Date.now();
-
-      // ── 0. Environnement d'exécution ──
-      hdr('Environnement');
-      try {
-        const tzS = Session.getScriptTimeZone(), tzC = ss.getSpreadsheetTimeZone();
-        if (tzS === tzC) check(`Fuseau horaire cohérent (${tzS})`, R.OK);
-        else check(`Fuseaux DIFFÉRENTS : script « ${tzS} » vs classeur « ${tzC} » — risque de décalage de dates (à aligner dans les paramètres)`, R.ERR);
-      } catch (e) { check('Fuseau horaire illisible : ' + e.message, R.WARN); }
-      try {
-        const q = MailApp.getRemainingDailyQuota();
-        // Seuil calé sur l'effectif RÉEL (compte gratuit = 100 emails/jour) :
-        // en dessous d'un envoi complet, un groupé serait refusé.
-        const besoin = _marsAvecEmail_();
-        if (q >= besoin * 2) check(`Quota email : ${q} envois restants aujourd'hui (un envoi groupé en demande ${besoin})`, R.OK);
-        else if (q >= besoin) check(`Quota email : ${q} restants — de quoi faire UN seul envoi groupé (${besoin}) aujourd'hui`, R.WARN);
-        else check(`Quota email insuffisant : ${q} restants pour ${besoin} destinataires — tout envoi groupé sera refusé jusqu'à demain`, R.ERR);
-      } catch (e) { info('Quota email non consultable : ' + e.message); }
-      try {
-        const lk = LockService.getScriptLock();
-        if (lk.tryLock(3000)) { lk.releaseLock(); check('Verrou de script disponible (enregistrements protégés)', R.OK); }
-        else check('Verrou de script occupé — une exécution longue est en cours, relancer dans une minute', R.WARN);
-      } catch (e) { check('Verrou de script indisponible : ' + e.message, R.WARN); }
-      try {
-        const trigs = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
-        info(`Déclencheur(s) installé(s) : ${trigs.length ? trigs.join(', ') : 'aucun'}`);
-      } catch (e) {}
-
-      // ── 1. Onglets de base (toujours requis) ──
-      hdr('Onglets de base');
-      ['CONFIG','MEDECINS','HISTORIQUE','PERIODES_VAC','GROUPES_VAC'].forEach(n =>
-        check(`Onglet ${n}`, has(n) ? R.OK : R.ERR));
-      // Onglets créés à l'usage : absence = simple info
-      ['PLANNING_OVERRIDES','LOGS','CONNEXIONS'].forEach(n =>
-        has(n) ? check(`Onglet ${n}`, R.OK) : info(`Onglet ${n} pas encore créé (normal tant qu'inutilisé)`));
-
-      // ── 2. Configuration ──
-      hdr('Configuration');
-      const cfgSheet = ss.getSheetByName('CONFIG');
-      const cfg = {};
-      if (cfgSheet) {
-        const cd = cfgSheet.getDataRange().getValues();
-        for (let r = 1; r < cd.length; r++) cfg[String(cd[r][0]).trim()] = String(cd[r][1]).trim();
-      }
-      check('ANNEE_ACTIVE présente', cfg['ANNEE_ACTIVE'] ? R.OK : R.ERR);
-      check(`ANNEE_ACTIVE cohérente (= ${Y})`, String(cfg['ANNEE_ACTIVE']) === String(Y) ? R.OK : R.WARN);
-      // ── Fenetre de cloture ────────────────────────────────────────────────
-      // Une annee de planning commence le PREMIER LUNDI. Cloturer AVANT ferait
-      // disparaitre du portail les gardes des tout premiers jours de janvier, qui
-      // appartiennent encore a l'annee ecoulee. Cloturer en retard n'est qu'un
-      // inconfort d'affichage : on informe, on n'alerte pas.
-      (function () {
-        const _lundi = getPremierJourPlanning(Y + 1);
-        const _lundiTxt = Utilities.formatDate(_lundi, ss.getSpreadsheetTimeZone(), 'EEEE d MMMM yyyy');
-        // getPremierJourPlanning renvoie MIDI (protection changement d'heure) : comparer
-        // l'instant courant a midi masquerait la bascule toute la matinee du jour J.
-        const _lundi0 = new Date(_lundi.getFullYear(), _lundi.getMonth(), _lundi.getDate(), 0, 0, 0);
-        if (new Date() < _lundi0) {
-          info(`Clôture de ${Y} : à faire à partir du ${_lundiTxt} — surtout pas avant`);
-        } else {
-          check(`Clôture de ${Y} attendue depuis le ${_lundiTxt}`, R.WARN);
-        }
-      })();
-      check('ADMIN_CODE présent', cfg['ADMIN_CODE'] ? R.OK : R.ERR);
-      check('Clé de publication GITHUB_TOKEN présente', cfg['GITHUB_TOKEN'] ? R.OK : R.ERR);
-
-      // ── 3. Publication GitHub (test réel de la clé) ──
-      hdr('Publication (test réel)');
-      try {
-        const tok = getGithubToken();
-        if (!tok) {
-          check('Clé de publication lisible', R.ERR);
-        } else {
-          const url = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/branches/${GITHUB_BRANCH}`;
-          const resp = UrlFetchApp.fetch(url, {
-            method: 'get',
-            headers: { Authorization: 'token ' + tok, Accept: 'application/vnd.github+json' },
-            muteHttpExceptions: true
-          });
-          const code = resp.getResponseCode();
-          if (code === 200) {
-            check('Connexion GitHub OK (le planning peut être publié)', R.OK);
-            const exp = (resp.getAllHeaders() || {})['github-authentication-token-expiration'];
-            if (exp) {
-              const days = Math.round((new Date(String(exp)) - new Date()) / 86400000);
-              if (days < 0) check('Token GitHub EXPIRÉ', R.ERR);
-              else if (days <= 14) check(`Token GitHub expire dans ${days} j — à renouveler`, R.WARN);
-              else info(`Token GitHub valide, expire dans ${days} j`);
-            } else info('Token GitHub sans date d\'expiration');
-          } else if (code === 401) {
-            check('Token GitHub invalide/expiré (401) — publications impossibles', R.ERR);
-          } else if (code === 404) {
-            check(`Dépôt/branche introuvable (404) — vérifier ${GITHUB_USER}/${GITHUB_REPO}@${GITHUB_BRANCH}`, R.ERR);
-          } else {
-            check(`Réponse GitHub inattendue (${code})`, R.WARN);
-          }
-        }
-      } catch (e) {
-        check('Connexion GitHub impossible : ' + e.message, R.WARN);
-      }
-
-      // ── 3bis. Synchronisation dépôt ↔ Apps Script (détecteur de dérive) ──
-      // Compare la version des constantes GAS_VERSION_* déployées ici avec
-      // celles du dépôt GitHub : toute recopie oubliée est signalée.
-      hdr('Code déployé vs dépôt');
-      try {
-        const deployed = {};
-        try { deployed['code.gs'] = GAS_VERSION_CODE; } catch (e) { deployed['code.gs'] = null; }
-        try { deployed['Indispos.gs'] = GAS_VERSION_INDISPOS; } catch (e) { deployed['Indispos.gs'] = null; }
-        try { deployed['generateur_gardes.gs'] = GAS_VERSION_GENERATEUR; } catch (e) { deployed['generateur_gardes.gs'] = null; }
-        try { deployed['setup_annee.gs'] = GAS_VERSION_SETUP; } catch (e) { deployed['setup_annee.gs'] = null; }
-        try { deployed['portail.gs'] = GAS_VERSION_PORTAIL; } catch (e) { deployed['portail.gs'] = null; }
-        const tokSync = getGithubToken();
-        Object.keys(deployed).forEach(fn => {
-          let repoV = null;
-          try {
-            const r = UrlFetchApp.fetch(
-              `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/gas/${fn}?ref=${GITHUB_BRANCH}`,
-              { headers: { Authorization: 'token ' + tokSync, Accept: 'application/vnd.github.raw' }, muteHttpExceptions: true });
-            if (r.getResponseCode() === 200) {
-              const m = r.getContentText().match(/GAS_VERSION_\w+\s*=\s*'([^']+)'/);
-              repoV = m ? m[1] : '(sans version)';
-            }
-          } catch (e) {}
-          if (repoV === null) check(`${fn} : dépôt illisible (réseau/clé)`, R.WARN);
-          else if (!deployed[fn]) check(`${fn} : version déployée absente — recopier le fichier depuis le dépôt`, R.WARN);
-          else if (repoV === deployed[fn]) check(`${fn} : à jour (v${repoV})`, R.OK);
-          else check(`${fn} : DÉRIVE — dépôt v${repoV}, déployé v${deployed[fn]} → recopier + redéployer`, R.ERR);
-        });
-      } catch (e) { check('Contrôle de synchronisation impossible : ' + e.message, R.WARN); }
-
-      // ── 3ter. Sauvegarde automatique du classeur ──
-      hdr('Sauvegarde automatique');
-      try {
-        const trigOk = ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'backupHebdo');
-        if (trigOk) check('Déclencheur hebdomadaire installé (lundi ~4 h)', R.OK);
-        else check("Déclencheur hebdomadaire absent — exécuter installBackupTrigger() dans Apps Script", R.WARN);
-        let last = null;
-        const bIt = DriveApp.getFoldersByName('Planning-CHPG-Backups');
-        if (bIt.hasNext()) {
-          const bFiles = bIt.next().getFiles();
-          while (bFiles.hasNext()) { const bf = bFiles.next(); const dc = bf.getDateCreated(); if (!last || dc > last) last = dc; }
-        }
-        if (!last) info('Aucune copie de sauvegarde encore créée' + (trigOk ? ' (la première viendra lundi)' : ''));
-        else {
-          const bDays = Math.round((new Date() - last) / 86400000);
-          check(`Dernière sauvegarde il y a ${bDays} j`, bDays <= 10 ? R.OK : R.WARN);
-        }
-      } catch (e) { check('Contrôle de sauvegarde impossible : ' + e.message, R.WARN); }
-
-      // ── 3quater. Cohérence de la version du site (4 fichiers) ──
-      // (Corrigé 20/07/2026) Ce contrôle ne lisait que le MARQUEUR en commentaire
-      // « SITE_VERSION: vX.Y » — jamais la valeur réellement AFFICHÉE. Résultat : il
-      // annonçait « les 4 fichiers sont alignés (v1.4) » alors que 3 sur 4 affichaient
-      // v1.0 depuis plusieurs itérations. On compare désormais TOUTES les occurrences
-      // de version d'un fichier (constante JS, badge HTML en dur, ligne des guides,
-      // marqueur) : elles doivent être identiques DANS chaque fichier ET entre fichiers.
-      hdr('Version du site');
-      try {
-        const vFiles = ['dashboard.html', 'admin.html', 'docs/guide-mar.html', 'docs/guide-comite.html'];
-        const tokV = getGithubToken();
-        const versions = {};
-        vFiles.forEach(fn => {
-          try {
-            const r = UrlFetchApp.fetch(
-              `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${fn}?ref=${GITHUB_BRANCH}`,
-              { headers: { Authorization: 'token ' + tokV, Accept: 'application/vnd.github.raw' }, muteHttpExceptions: true });
-            if (r.getResponseCode() === 200) {
-              const txt = r.getContentText();
-              // Toutes les formes de version présentes dans le fichier.
-              const vus = [];
-              const push_ = re => { const m = txt.match(re); if (m) vus.push(m[1]); };
-              push_(/SITE_VERSION\s*=\s*'(v[\d.]+)'/);            // constante JS (dashboard/admin)
-              push_(/id="verBadge">(v[\d.]+)</);                    // badge HTML en dur (visible avant login)
-              push_(/Version <strong>(v[\d.]+)<\/strong>/);         // ligne d'en-tête des guides
-              push_(/SITE_VERSION:\s*(v[\d.]+)/);                  // marqueur en commentaire
-              if (!vus.length) versions[fn] = '(absente)';
-              else if (vus.some(v => v !== vus[0])) versions[fn] = 'INCOHÉRENT (' + vus.join(' / ') + ')';
-              else versions[fn] = vus[0];
-            } else versions[fn] = '(illisible)';
-          } catch (e) { versions[fn] = '(illisible)'; }
-        });
-        const vals = vFiles.map(fn => versions[fn]);
-        // Référence = première valeur PROPRE (un fichier incohérent ne fait pas foi).
-        const ref = vals.find(v => v && v[0] === 'v' && v.indexOf('INCOHÉRENT') < 0);
-        const allSame = ref && vals.every(v => v === ref);
-        if (allSame) check(`Les 4 fichiers sont alignés (${ref})`, R.OK);
-        else {
-          vFiles.forEach(fn => {
-            if (versions[fn] === ref) check(`${fn} : ${versions[fn]}`, R.OK);
-            else check(`${fn} : ${versions[fn]}${ref ? ' (attendu ' + ref + ')' : ''} → réaligner`, R.ERR);
-          });
-        }
-      } catch (e) { check('Contrôle de version impossible : ' + e.message, R.WARN); }
-
-      // ── 4. Équipe (MEDECINS) ──
-      hdr('Équipe');
-      let actifs = [];
-      const tousIds = new Set();
-      const medSheet = ss.getSheetByName('MEDECINS');
-      if (medSheet) {
-        const md = medSheet.getDataRange().getValues();
-        const sansEmail = [], sansCode = [], quotiteKO = [], datesKO = [];
-        const idDup = [], codeMap = {}, emailKO = [];
-        for (let r = 1; r < md.length; r++) {
-          const id = String(md[r][0]).trim(); if (!id) continue;
-          if (tousIds.has(id)) idDup.push(id); else tousIds.add(id);
-          if (String(md[r][3]).trim().toUpperCase() !== 'O') continue; // ACTIF = O
-          actifs.push(id);
-          const cAcc = String(md[r][6]).trim();
-          if (cAcc) (codeMap[cAcc] = codeMap[cAcc] || []).push(id);
-          const em = String(md[r][7]).trim();
-          if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) emailKO.push(id);
-          if (!String(md[r][7]).trim()) sansEmail.push(id);            // email col 7
-          if (!String(md[r][6]).trim()) sansCode.push(id);             // code col 6
-          // Quotité col 4 et PCT_GARDES col 5 (mêmes colonnes que generateGardes).
-          // Cellule vide tolérée : le générateur applique 100 par défaut.
-          // NO_GARDE (col 11) posé → PCT_GARDES non contrôlé : le MAR est exclu de
-          // gardeDoctors, son pct n'est jamais lu (un « 0 » y est expressif, pas une erreur).
-          const estNoGarde = String(md[r][11]).trim().toUpperCase() === 'O';
-          const rawQ = String(md[r][4]).trim(), rawP = String(md[r][5]).trim();
-          const q = Number(rawQ), p = Number(rawP);
-          if (rawQ && !(q > 0 && q <= 100)) quotiteKO.push(`${id} (quotité « ${rawQ} »)`);
-          else if (!estNoGarde && rawP && !(p > 0 && p <= 100)) quotiteKO.push(`${id} (PCT_GARDES « ${rawP} »)`);
-          const dd = md[r][9], df = md[r][10];                         // arrivée / départ
-          if (dd && df) {
-            const a = dd instanceof Date ? dd : new Date(String(dd) + 'T00:00:00');
-            const b = df instanceof Date ? df : new Date(String(df) + 'T00:00:00');
-            if (a.getTime() && b.getTime() && b < a) datesKO.push(id);
-          }
-        }
-        check(`${actifs.length} MARs actifs`, actifs.length > 0 ? R.OK : R.ERR);
-        check(`MARs actifs sans email : ${sansEmail.length || 'aucun'}${sansEmail.length ? ' (' + sansEmail.join(', ') + ')' : ''}`, sansEmail.length ? R.WARN : R.OK);
-        check(`MARs actifs sans code d'accès : ${sansCode.length || 'aucun'}${sansCode.length ? ' (' + sansCode.join(', ') + ')' : ''}`, sansCode.length ? R.WARN : R.OK);
-        check(`Quotité manquante ou hors bornes : ${quotiteKO.length || 'aucun'}${quotiteKO.length ? ' (' + quotiteKO.join(', ') + ')' : ''}`, quotiteKO.length ? R.WARN : R.OK);
-        check(`Dates arrivée/départ incohérentes : ${datesKO.length || 'aucun'}${datesKO.length ? ' (' + datesKO.join(', ') + ')' : ''}`, datesKO.length ? R.WARN : R.OK);
-        check(`Identifiants en double dans MEDECINS : ${idDup.length || 'aucun'}${idDup.length ? ' (' + idDup.join(', ') + ') — CORROMPT tout le système' : ''}`, idDup.length ? R.ERR : R.OK);
-        const codeDup = Object.keys(codeMap).filter(c => codeMap[c].length > 1).map(c => codeMap[c].join('+'));
-        check(`Codes d'accès partagés par plusieurs MARs actifs : ${codeDup.length || 'aucun'}${codeDup.length ? ' (' + codeDup.join(', ') + ') — connexions ambiguës' : ''}`, codeDup.length ? R.ERR : R.OK);
-        check(`Emails au format douteux : ${emailKO.length || 'aucun'}${emailKO.length ? ' (' + emailKO.join(', ') + ')' : ''}`, emailKO.length ? R.WARN : R.OK);
-      } else {
-        check('Onglet MEDECINS', R.ERR);
-      }
-
-      // ── 5. Année active {Y} ──
-      hdr('Année active ' + Y);
-      check(`INDISPOS_${Y} présent`, has(`INDISPOS_${Y}`) ? R.OK : R.WARN);
-      check(`GARDES_${Y} avec données`, rows(`GARDES_${Y}`) > 3 ? R.OK : R.WARN);
-      check(`STATS_GARDES_${Y} (référence équité/dette)`, rows(`STATS_GARDES_${Y}`) > 1 ? R.OK : R.WARN);
-      // ── Récups de samedi ────────────────────────────────────────────────
-      // Chaque samedi tenu (G ou G2) ouvre EXACTEMENT une récup, et le générateur
-      // garantit sa pose (repli en 2 passes sur toute l'année, section 9). Or un don
-      // ou un échange déplace la garde et le repos du lendemain, JAMAIS le R
-      // (`applyModification`) : tout écart signale un geste manuel resté à faire.
-      // Sans objet avant PREMIERE_ANNEE_STATS_FIABLES : une année reconstruite à la
-      // main n'a pas de R issus de ce mécanisme, l'écart n'y voudrait rien dire.
-      if (Y >= PREMIERE_ANNEE_STATS_FIABLES && rows(`GARDES_${Y}`) > 3) {
-        try {
-          const _ecarts = computeStatsLive(Y)
-            .map(s => ({ id: s.medecin, d: (Number(s.sat) || 0) - (Number(s.recupR) || 0) }))
-            .filter(x => x.d !== 0)
-            .map(x => x.d > 0
-              ? `${x.id} : ${x.d} récup${x.d > 1 ? 's' : ''} manquante${x.d > 1 ? 's' : ''}`
-              : `${x.id} : ${-x.d} récup${-x.d > 1 ? 's' : ''} en trop`);
-          check(`Récups de samedi : ${_ecarts.length
-              ? _ecarts.join(' · ') + ' — à corriger dans l\'onglet Statuts'
-              : 'une par samedi tenu, pour tous'}`,
-            _ecarts.length ? R.WARN : R.OK);
-        } catch (e) { check('Récups de samedi non vérifiables : ' + e.message, R.WARN); }
-      }
-      const affSheet = ss.getSheetByName(`AFFECTATIONS_${Y}`);
-      if (affSheet && actifs.length) {
-        const affIds = new Set();
-        const ad = affSheet.getDataRange().getValues();
-        for (let r = 1; r < ad.length; r++) { const id = String(ad[r][0]).trim(); if (id) affIds.add(id); }
-        const sansAff = actifs.filter(id => !affIds.has(id));
-        check(`MARs actifs sans affectation : ${sansAff.length || 'aucun'}${sansAff.length ? ' (' + sansAff.join(', ') + ')' : ''}`, sansAff.length ? R.WARN : R.OK);
-
-        // ── Affectations pointant vers un secteur qui n'existe plus ──
-        // (07/2026) Supprimer une ligne de l'onglet SECTEURS — ou la passer à
-        // ACTIF=N, ou vider sa colonne AFF — ne touche PAS les affectations déjà
-        // saisies : elles gardent l'ancien code. À la publication, ce code devient
-        // VOLANT (normalizeAffectation). Le MAR n'est pas perdu, mais il quitte
-        // silencieusement son secteur. Ce contrôle le dit AVANT qu'on le découvre
-        // sur le planning. Rappel : préférer ACTIF=N à la suppression d'une ligne.
-        try {
-          const codesOk = new Set(['VOLANT']);
-          (getSecteurs() || []).forEach(sec => {
-            if (sec && sec.actif && String(sec.aff || '').trim()) {
-              codesOk.add(String(sec.code).trim().toUpperCase());
-            }
-          });
-          const orphelinsSect = {};   // code inconnu -> Set(MAR)
-          for (let r = 1; r < ad.length; r++) {
-            const id = String(ad[r][0]).trim();
-            if (!id) continue;
-            for (let c = 1; c < ad[r].length; c++) {
-              const v = String(ad[r][c] || '').trim().toUpperCase();
-              if (!v || codesOk.has(v)) continue;
-              if (!orphelinsSect[v]) orphelinsSect[v] = new Set();
-              orphelinsSect[v].add(id);
-            }
-          }
-          const codesKo = Object.keys(orphelinsSect);
-          if (!codesKo.length) {
-            check('Affectations pointant toutes vers un secteur valide', R.OK);
-          } else {
-            codesKo.forEach(code => {
-              const qui = Array.from(orphelinsSect[code]);
-              check(`Secteur « ${code} » absent de l'onglet SECTEURS (ou inactif / sans AFF) `
-                  + `— ${qui.length} MAR concerné(s) : ${qui.join(', ')} → passeront en VOLANT à la publication`,
-                  R.ERR);
-            });
-          }
-        } catch (e) {
-          info('Contrôle des secteurs affectés impossible : ' + e.message);
-        }
-      } else {
-        check(`AFFECTATIONS_${Y} présent`, affSheet ? R.OK : R.WARN);
-      }
-
-      // ── 5bis. Intégrité GARDES (couverture 1 G + 1 G2 par jour, IDs orphelins) ──
-      const auditGardesIntegrite = y => {
-        hdr(`Intégrité GARDES_${y}`);
-        try {
-          const gSheet = ss.getSheetByName(`GARDES_${y}`);
-          if (!gSheet || gSheet.getLastRow() <= 3) { info('Onglet absent ou vide — contrôle sans objet'); return; }
-          const gd = gSheet.getDataRange().getValues();
-          const orphelins = new Set();
-          for (let r = 3; r < gd.length; r++) {
-            const id = String(gd[r][0]).trim();
-            if (id && tousIds.size && !tousIds.has(id)) orphelins.add(id);
-          }
-          check(`Lignes avec identifiant inconnu de MEDECINS : ${orphelins.size || 'aucune'}${orphelins.size ? ' (' + [...orphelins].join(', ') + ') — leurs gardes sont IGNORÉES à la publication' : ''}`, orphelins.size ? R.WARN : R.OK);
-          const d2c = buildDateToCol(gd, y);
-          // Passé vs futur : un trou PASSÉ est de l'histoire (redistribution manuelle
-          // non reportée, ex. départ d'un MAR) → ⚠️ ; un trou FUTUR = jour sans
-          // médecin de garde → ❌ à traiter immédiatement.
-          const aujd = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
-          const sansGFut = [], sansGPas = [], multiG = [], g2KO = [];
-          Object.keys(d2c).sort().forEach(ds => {
-            const c = d2c[ds];
-            let nG = 0, nG2 = 0;
-            for (let r = 3; r < gd.length; r++) {
-              const v = String(gd[r][c] || '').trim().toUpperCase();
-              if (v === 'G') nG++; else if (v === 'G2') nG2++;
-            }
-            if (nG === 0) (ds >= aujd ? sansGFut : sansGPas).push(ds);
-            else if (nG > 1) multiG.push(`${ds} (×${nG})`);
-            if (nG2 === 0) g2KO.push(ds); else if (nG2 > 1) g2KO.push(`${ds} (×${nG2})`);
-          });
-          const liste = arr => arr.slice(0, 10).join(', ') + (arr.length > 10 ? ` … et ${arr.length - 10} autre(s)` : '');
-          check(`Jours FUTURS sans garde G : ${sansGFut.length || 'aucun'}${sansGFut.length ? ' → ' + liste(sansGFut) + ' — À TRAITER IMMÉDIATEMENT' : ''}`, sansGFut.length ? R.ERR : R.OK);
-          check(`Jours passés sans garde G (historique, tableau non tenu à jour) : ${sansGPas.length || 'aucun'}${sansGPas.length ? ' → ' + liste(sansGPas) : ''}`, sansGPas.length ? R.WARN : R.OK);
-          check(`Jours avec PLUSIEURS gardes G : ${multiG.length || 'aucun'}${multiG.length ? ' → ' + liste(multiG) : ''}`, multiG.length ? R.WARN : R.OK);
-          check(`Jours sans exactement une G2 : ${g2KO.length || 'aucun'}${g2KO.length ? ' → ' + liste(g2KO) : ''}`, g2KO.length ? R.WARN : R.OK);
-        } catch (e) { check(`Contrôle GARDES_${y} impossible : ` + e.message, R.WARN); }
-      };
-      auditGardesIntegrite(Y);
-      if (rows(`GARDES_${N1}`) > 3) auditGardesIntegrite(N1);
-
-      // ── 5ter. Indisponibilités : lignes orphelines ──
-      hdr(`Indisponibilités ${Y}`);
-      try {
-        const indS = ss.getSheetByName(`INDISPOS_${Y}`);
-        if (!indS || indS.getLastRow() <= 3) info('Onglet absent ou vide — contrôle sans objet');
-        else {
-          const idd = indS.getDataRange().getValues();
-          const inc = new Set();
-          for (let r = 3; r < idd.length; r++) {
-            const id = String(idd[r][0]).trim();
-            if (id && tousIds.size && !tousIds.has(id)) inc.add(id);
-          }
-          check(`Lignes avec identifiant inconnu de MEDECINS : ${inc.size || 'aucune'}${inc.size ? ' (' + [...inc].join(', ') + ') — leurs indispos sont IGNORÉES' : ''}`, inc.size ? R.WARN : R.OK);
-        }
-      } catch (e) { check('Contrôle INDISPOS impossible : ' + e.message, R.WARN); }
-
-      // ── 6. Année en préparation {N+1} (état du cycle) ──
-      hdr('Préparation ' + N1);
-      if (has(`INDISPOS_${N1}`)) {
-        info(`INDISPOS_${N1} créé → assistant 1 (octobre) lancé`);
-        if (rows(`GARDES_${N1}`) > 3) info(`GARDES_${N1} généré → assistant 2 (novembre) fait`);
-        else info(`GARDES_${N1} pas encore généré → assistant 2 à venir`);
-      } else {
-        info(`Aucun onglet ${N1} : préparation non commencée (normal hors période octobre→décembre)`);
-      }
-
-      // ── 7. Vacances & groupes ──
-      hdr('Vacances & groupes');
-      check(`${Math.max(0, rows('PERIODES_VAC') - 1)} période(s) de vacances configurée(s)`, rows('PERIODES_VAC') > 1 ? R.OK : R.WARN);
-      const grpSheet = ss.getSheetByName('GROUPES_VAC');
-      if (grpSheet) {
-        const gd = grpSheet.getDataRange().getValues();
-        const c = { A:0, B:0, C:0 };
-        for (let r = 1; r < gd.length; r++) { const g = String(gd[r][0]).trim(); if (c[g] !== undefined) c[g]++; }
-        check(`Groupes A/B/C peuplés (${c.A}/${c.B}/${c.C})`, (c.A && c.B && c.C) ? R.OK : R.WARN);
-      }
-
-      // ── 8. Overrides planning (PLANNING_OVERRIDES) ──
-      hdr('Overrides planning');
-      const ov = ss.getSheetByName('PLANNING_OVERRIDES');
-      if (ov && ov.getLastRow() > 1) {
-        const od = ov.getDataRange().getValues();
-        const seen = new Set(), dup = [];
-        const ovIdKO = new Set(); let ovHorsAnnee = 0, ovDateKO = 0;
-        const fmtOv = v => {
-          if (v instanceof Date) return `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`;
-          return String(v || '').trim();
-        };
-        for (let r = 1; r < od.length; r++) {
-          const ds = fmtOv(od[r][0]), id = String(od[r][1] || '').trim();
-          const key = `${ds}_${id}`;
-          if (seen.has(key)) dup.push(key); else seen.add(key);
-          if (id && tousIds.size && !tousIds.has(id)) ovIdKO.add(id);
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(ds)) ovDateKO++;
-          else if (!ds.startsWith(String(Y) + '-')) ovHorsAnnee++;
-        }
-        info(`${od.length - 1} placement(s) manuel(s) enregistré(s)`);
-        check(`Doublons (même date + MAR) : ${dup.length || 'aucun'}`, dup.length ? R.WARN : R.OK);
-        check(`Placements sur MAR inconnu de MEDECINS : ${ovIdKO.size || 'aucun'}${ovIdKO.size ? ' (' + [...ovIdKO].join(', ') + ')' : ''}`, ovIdKO.size ? R.WARN : R.OK);
-        check(`Placements avec date illisible : ${ovDateKO || 'aucun'}`, ovDateKO ? R.WARN : R.OK);
-        check(`Placements hors année active ${Y} : ${ovHorsAnnee || 'aucun'}${ovHorsAnnee ? ' — reliquat à purger (clôture W3)' : ''}`, ovHorsAnnee ? R.WARN : R.OK);
-      } else {
-        info('Aucun placement manuel enregistré');
-      }
-
-      // ── 9. Publication JSON (Drive) ──
-      hdr('Publication JSON (Drive)');
-      try {
-        let nbFolders = 0;
-        const fit = DriveApp.getFoldersByName(DRIVE_JSON_FOLDER);
-        while (fit.hasNext()) { fit.next(); nbFolders++; }
-        if (nbFolders === 0) check(`Dossier Drive « ${DRIVE_JSON_FOLDER} » introuvable`, R.ERR);
-        else if (nbFolders > 1) check(`Doublon : ${nbFolders} dossiers « ${DRIVE_JSON_FOLDER} »`, R.WARN);
-        else check(`Dossier Drive « ${DRIVE_JSON_FOLDER} » présent`, R.OK);
-
-        const countGardesJson = txt => {
-          let n = 0;
-          const j = JSON.parse(txt);
-          (j.months || []).forEach(mo => (mo.doctors || []).forEach(dc => (dc.days || []).forEach(day => {
-            if (day && (day.status === 'G' || day.status === 'G2')) n++;
-          })));
-          return n;
-        };
-        const countGardesSheet = name => {
-          const sh = ss.getSheetByName(name);
-          if (!sh) return null;
-          const dd = sh.getDataRange().getValues();
-          let n = 0;
-          for (let r = 3; r < dd.length; r++) for (let c = 1; c < dd[r].length; c++) {
-            const v = String(dd[r][c] || '').trim().toUpperCase();
-            if (v === 'G' || v === 'G2') n++;
-          }
-          return n;
-        };
-        const auditPlanning = (y, critique) => {
-          const name = `planning_${y}.json`;
-          const files = _jsonFilesByName_(name);
-          if (!files.length) { check(`${name} absent du Drive — planning ${y} invisible aux MARs`, critique ? R.ERR : R.WARN); return; }
-          if (files.length > 1) check(`Doublon : ${files.length} × ${name}`, R.WARN);
-          const f = files[0];
-          const ageJ = Math.round((Date.now() - f.getLastUpdated().getTime()) / 86400000);
-          let njson = null;
-          try { njson = countGardesJson(f.getBlob().getDataAsString()); } catch (e) {}
-          if (!njson) { check(`${name} vide ou illisible — republier`, R.ERR); return; }
-          const nsheet = countGardesSheet(`GARDES_${y}`);
-          if (nsheet === null) info(`${name} publié (${njson} gardes, il y a ${ageJ} j) — onglet GARDES_${y} absent, cohérence non vérifiable`);
-          else if (njson === nsheet) check(`${name} à jour, cohérent avec GARDES_${y} (${njson} gardes, publié il y a ${ageJ} j)`, R.OK);
-          else {
-            check(`${name} DÉSYNCHRONISÉ : ${njson} gardes publiées vs ${nsheet} dans l'onglet`, R.WARN);
-            let ph = [];
-            try { ph = _findPhantomGardes_(y); } catch (e) { info(`Détail des gardes en écart indisponible : ${e.message}`); }
-            if (ph.length) {
-              info(`${ph.length} garde(s) présente(s) dans GARDES_${y} mais exclue(s) du planning publié :`);
-              ph.slice(0, 15).forEach(p => info(`   • ${p.id} — ${p.date} (${p.code}, ${p.cell}) → ${p.reason}`));
-              if (ph.length > 15) info(`   … et ${ph.length - 15} autre(s), voir le journal d'exécution.`);
-              info(`Si ces gardes sont légitimes : rien à faire, le planning publié est correct. Sinon, corrigez GARDES_${y} puis republiez.`);
-              Logger.log(`[diag] ${name} désync ${njson} vs ${nsheet} — ${ph.length} garde(s) fantôme :\n` +
-                         ph.map(p => `   ${p.id} | ${p.date} | ${p.code} | ${p.cell} | ${p.reason}`).join('\n'));
-            } else {
-              info(`Écart de ${nsheet - njson} garde(s) non localisé (override de statut ou cas particulier) — republiez ; si l'écart persiste, signalez-le.`);
-              Logger.log(`[diag] ${name} désync ${njson} vs ${nsheet} — aucune garde fantôme localisée`);
-            }
-          }
-        };
-        const auditAff = y => {
-          const name = `affectations_${y}.json`;
-          const files = _jsonFilesByName_(name);
-          if (!files.length) { info(`${name} absent du Drive`); return; }
-          if (files.length > 1) check(`Doublon : ${files.length} × ${name}`, R.WARN);
-          const ageJ = Math.round((Date.now() - files[0].getLastUpdated().getTime()) / 86400000);
-          info(`${name} présent (publié il y a ${ageJ} j)`);
-        };
-        auditPlanning(Y, true);
-        auditAff(Y);
-        if (rows(`GARDES_${N1}`) > 3) { auditPlanning(N1, false); auditAff(N1); }
-      } catch (e) {
-        check('Audit Drive impossible : ' + e.message, R.WARN);
-      }
-
-      // ── 10. Santé du classeur ──
-      hdr('Santé du classeur');
-      try {
-        const shts = ss.getSheets();
-        let cells = 0; shts.forEach(sh => cells += sh.getMaxRows() * sh.getMaxColumns());
-        check(`${shts.length} onglets, ~${Math.round(cells / 1000)} k cellules (limite Google : 10 000 k)`, cells > 8000000 ? R.WARN : R.OK);
-        ['LOGS', 'CONNEXIONS'].forEach(n => {
-          const nr = rows(n);
-          if (nr > 20000) check(`Onglet ${n} volumineux (${nr} lignes) — purge des anciennes lignes conseillée`, R.WARN);
-          else if (nr > 1) info(`Onglet ${n} : ${nr - 1} ligne(s)`);
-        });
-      } catch (e) { check('Contrôle du classeur impossible : ' + e.message, R.WARN); }
-
-      results.push('────────────────────────────────────');
-      const nbErr = results.filter(l => l.startsWith('❌')).length;
-      const nbWarn = results.filter(l => l.startsWith('⚠️')).length;
-      results.push(ok ? `✅ Tout est en ordre${nbWarn ? ` (${nbWarn} point(s) de vigilance)` : ''}` : `❌ ${nbErr} problème(s) à corriger${nbWarn ? `, ${nbWarn} avertissement(s)` : ''}`);
-      results.push(`ℹ️ Diagnostic exécuté en ${((Date.now() - t0) / 1000).toFixed(1)} s — ${Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'dd/MM/yyyy HH:mm')} (v${GAS_VERSION_INDISPOS})`);
-      logAction(`diagComplet — ${ok ? 'OK' : 'ERREURS'} (${nbErr} err, ${nbWarn} warn)`);
-      return ContentService.createTextOutput(JSON.stringify({ success:true, ok, results }))
+      const _d = diagnosticComplet();
+      return ContentService.createTextOutput(JSON.stringify({ success:true, ok:_d.ok, results:_d.results }))
         .setMimeType(ContentService.MimeType.JSON);
     }
     if (action === 'archiveYear') {
