@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-02.1';
+const GAS_VERSION_INDISPOS = '2026-08-02.2';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -986,6 +986,12 @@ function applyModification(mod) {
 
   const { type, date, doctorId, doctorId2, value, date2 } = mod;
 
+  // (02/08/2026 - correctif) Le journal etait ecrit APRES le switch : un geste refuse
+  // levait une exception et ne laissait donc aucune trace — exactement le cas qu'on
+  // veut tracer. On capture, on journalise succes ET refus, puis on relance l'erreur.
+  let _echec = null;
+  try {
+
   switch (type) {
     case 'echangeSecteur': {
       const valA = readCell(`INDISPOS_${year}`, doctorId,  date);
@@ -1062,10 +1068,14 @@ function applyModification(mod) {
       throw new Error(`Type de modification inconnu : ${type}`);
   }
 
+  } catch (e) { _echec = e; }
+
   // (02/08/2026) Ces gestes ne laissaient aucune trace : LOGS ne disait rien d'un
   // don, d'un echange ou d'une garde exceptionnelle. Diagnostic aveugle garanti.
   logAction(`applyModification ${type} — ${date || ''}${date2 ? ' / ' + date2 : ''}`
-    + `${doctorId ? ' | ' + doctorId : ''}${doctorId2 ? ' -> ' + doctorId2 : ''}`);
+    + `${doctorId ? ' | ' + doctorId : ''}${doctorId2 ? ' -> ' + doctorId2 : ''}`
+    + `${_echec ? ' — REFUSE : ' + _echec.message : ' — OK'}`);
+  if (_echec) throw _echec;
 
   generatePlanning();
   // (01/08/2026) Un don, un echange de gardes ou de secteurs modifie le statut ou le
