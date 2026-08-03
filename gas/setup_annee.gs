@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_SETUP = '2026-08-01.1';
+const GAS_VERSION_SETUP = '2026-08-03.1';
 
 
 // ══════════════════════════════════════════════════════════════════════
@@ -484,23 +484,73 @@ function archiveYear(year, moveSheets) {
       }
     }
 
+    /* (03/08/2026) HISTORIQUE reflete desormais les gardes REELLEMENT faites.
+       Il recopiait le snapshot STATS, c'est-a-dire le planning tel que genere. Or la
+       dette d'equite de l'annee suivante n'est PAS lue ici : le generateur va la
+       chercher directement dans STATS_GARDES_{annee-1}, avec repli sur le classeur
+       d'archives (generateur_gardes.gs). HISTORIQUE n'est donc pas un moteur, c'est
+       la memoire longue du service — et une fois GARDES_{annee} parti aux archives,
+       la seule trace qui reste dans le maitre. Autant qu'elle dise la verite.
+       Effet de bord voulu : les MAR presents dans la grille mais absents du snapshot
+       (arrivee en cours d'annee, ex. ARMAND en novembre 2026) obtiennent enfin leur
+       ligne, avec leur Noel reel — sans quoi ils redevenaient eligibles a Noel.
+       Repli : si la grille est illisible, on retombe sur l'ancien comportement. */
+    let live = null;
+    try { if (gSheet) live = computeStatsLive(year); }
+    catch (e) { results.push(`⚠️ Recomptage des gardes ${year} impossible (${e.message}) — HISTORIQUE alimenté depuis STATS`); }
+
     const hrows=[];
-    for (let r=1;r<d.length;r++){
-      const id=String(d[r][0]).trim(); if(!id) continue;
-      if (seen.has(`${id}|${year}`)) continue;
-      const noelAn = noelReel ? (noelReel.has(id) ? 1 : 0) : num(r,'NOEL/AN');
-      hrows.push([id,year, num(r,'TOTAL G'),num(r,'G (REA)'),num(r,'G2 (MAT)'),
-        num(r,'LUN'),num(r,'MAR'),num(r,'MER'),num(r,'JEU'),num(r,'VEN'),num(r,'SAM'),num(r,'DIM'),
-        num(r,'VD'),num(r,'VEILLE JF'),num(r,'JF'),noelAn,num(r,'RECUP R'),num(r,'18H')]);
+    if (live && live.length) {
+      live.forEach(x => {
+        const id = String(x.medecin).trim(); if (!id) return;
+        if (seen.has(`${id}|${year}`)) return;
+        const noelAn = noelReel ? (noelReel.has(id) ? 1 : 0) : 0;
+        hrows.push([id, year, x.total, x.g, x.g2,
+          x.lun, x.mar, x.mer, x.jeu, x.ven, x.sat, x.dim,
+          x.vd, x.vjf, x.jf, noelAn, x.recupR, x.h18]);
+      });
+    } else {
+      for (let r=1;r<d.length;r++){
+        const id=String(d[r][0]).trim(); if(!id) continue;
+        if (seen.has(`${id}|${year}`)) continue;
+        const noelAn = noelReel ? (noelReel.has(id) ? 1 : 0) : num(r,'NOEL/AN');
+        hrows.push([id,year, num(r,'TOTAL G'),num(r,'G (REA)'),num(r,'G2 (MAT)'),
+          num(r,'LUN'),num(r,'MAR'),num(r,'MER'),num(r,'JEU'),num(r,'VEN'),num(r,'SAM'),num(r,'DIM'),
+          num(r,'VD'),num(r,'VEILLE JF'),num(r,'JF'),noelAn,num(r,'RECUP R'),num(r,'18H')]);
+      }
     }
     if (hrows.length){ h.getRange(h.getLastRow()+1,1,hrows.length,18).setValues(hrows);
-      results.push(`✅ HISTORIQUE : ${hrows.length} ligne(s) ${year} ajoutée(s)`); }
+      results.push(`✅ HISTORIQUE : ${hrows.length} ligne(s) ${year} ajoutée(s)${live && live.length ? ' (gardes réellement faites)' : ' (snapshot STATS — repli)'}`); }
     else results.push(`ℹ️ HISTORIQUE : ${year} déjà présent`);
 
     // b) Sauvegarde JSON (rangée dans archives/)
     const statsObj = d.slice(1).filter(row=>String(row[0]).trim()).map(row=>{ const o={}; Hd.forEach((hn,i)=>o[hn]=row[i]); return o; });
     const ok1 = saveArchiveToDrive(`archives_stats_${year}.json`, JSON.stringify({year, stats:statsObj}, null, 2));
     results.push(ok1?`✅ archives_stats_${year}.json → Drive`:`❌ archivage stats échoué`);
+
+    /* (03/08/2026) Sauvegarde de la GRILLE elle-meme. Seuls les stats et les indispos
+       partaient sur Drive : le detail jour par jour n'existait qu'en un exemplaire,
+       dans le classeur d'archives. Une copie de plus ne coute rien et c'est la seule
+       chose qu'on ne saurait pas reconstituer. */
+    if (gSheet) {
+      try {
+        const gdA = gSheet.getDataRange().getValues();
+        const d2cA = buildDateToCol(gdA, year);
+        const grille = {};
+        Object.keys(d2cA).forEach(dt => {
+          const col = Number(d2cA[dt]);
+          for (let r = 3; r < gdA.length; r++) {
+            const gid = String(gdA[r][0]).trim(); if (!gid) continue;
+            const v = String(gdA[r][col] || '').trim();
+            if (!v) continue;
+            if (!grille[dt]) grille[dt] = {};
+            grille[dt][gid] = v;
+          }
+        });
+        const ok3 = saveArchiveToDrive(`archives_gardes_${year}.json`, JSON.stringify({year, gardes:grille}, null, 2));
+        results.push(ok3?`✅ archives_gardes_${year}.json → Drive`:`❌ archivage de la grille échoué`);
+      } catch (e) { results.push(`⚠️ archives_gardes_${year}.json non créé (${e.message})`); }
+    } else results.push(`⚠️ GARDES_${year} introuvable — grille non sauvegardée`);
   }
 
   // ── 2. INDISPOS_N → sauvegarde JSON ──
