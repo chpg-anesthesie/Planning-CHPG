@@ -11,11 +11,27 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
-## État au 1er août 2026
+## État au 3 août 2026
 
-**Site v1.15.2** · GAS : `code.gs` **2026-07-31.2** · `Indispos.gs` **2026-08-01.1** ·
-`portail.gs` **2026-08-01.1** · `generateur_gardes.gs` **2026-07-31.1** · `setup_annee.gs` **2026-08-01.1**
-*(tout est recopié et déployé, confirmé par Arthur — Diagnostic OK)*
+**Site v1.17** · GAS : `code.gs` **2026-08-01.2** · `Indispos.gs` **2026-08-03.3** ·
+`portail.gs` **2026-08-02.1** · `generateur_gardes.gs` **2026-07-31.3** · `setup_annee.gs` **2026-08-03.1**
+
+**⚠️ 03/08 — un jour de 2027 s'est retrouvé sans garde de réanimation (vendredi 26/03).**
+Pas le générateur : la génération réelle rejouée hors ligne avec les vraies entrées donne
+0 trou. Un **don de garde** sur la veille a écrit le repos du lendemain **par-dessus** la garde
+que le bénéficiaire détenait déjà ce jour-là. Trois fonctions avaient le même défaut
+(`donGarde`, `gardeExceptionnelle`, `echangeGarde`) et **aucune n'était journalisée**.
+Corrigé : refus explicite, vérification des cases avant écriture, journal des succès et des
+refus. Réparé en production, invariants 2027 à zéro (0 trou, 0 repos orphelin, 0 garde
+consécutive).
+
+**Le Diagnostic détectait ce trou depuis le 01/08 et personne ne le lançait.** Il est désormais
+extrait dans `diagnosticComplet()` et envoyé automatiquement chaque **lundi 2 h** à l'adresse
+lue dans `CONFIG / DIAG_EMAIL`.
+
+**Années clôturées consultables** en lecture seule sur `admin.html` et `index.html`
+(planning, statuts, affectations, équité initiale/instantané), y compris après déplacement des
+onglets vers le classeur d'archives.
 
 **En production :** algorithme de gardes (équité annuelle), planning quotidien (`admin.html`),
 portail/Dashboard, module libéral (lots 0, 1, 2A, 2B, 3), contrôle d'absence (`absences.html`,
@@ -62,6 +78,25 @@ et surtout deux correctifs de fond sur la saisie :**
   Nouvelle action `saveIndisposBatch` : 1 aller-retour, 1 écriture de bloc. **Quelques secondes,
   confirmé en production.** Cadenas désormais reconstruits depuis la base + bouton
   🔓 Tout déverrouiller.
+
+## Ce qu'a appris la journée du 3 août 2026
+
+1. **Une donnée dérivée s'écrit en regardant la case d'arrivée.** Un `RG` posé automatiquement
+   après un `G` peut écraser un `G`. Refuser, jamais écraser.
+2. **L'absence de trace ne prouve rien.** J'ai conclu « pas de don » d'un journal vide, alors
+   que ces gestes n'étaient tout simplement pas journalisés.
+3. **Un contrôle sans destinataire ne sert à rien.** Le trou était détecté, écrit noir sur
+   blanc, avec « À TRAITER IMMÉDIATEMENT ». Personne ne l'a lu pendant deux jours.
+4. **Lire la fonction entière avant de proposer de l'étendre.** Trois contrôles proposés pour
+   le Diagnostic existaient déjà. Inventorier, puis proposer.
+5. **Le simulateur ne remplace pas les vraies entrées.** 400 années simulées, 0 défaut ; la
+   première année réelle en a eu un. Le harnais fabrique ses données et n'exerce pas le chemin
+   de lecture du classeur — ni les Date, ni les souhaits, ni les transitions.
+6. **Deux représentations d'un même fait finissent par diverger.** Le générateur tient
+   `gardes[]` et `gSet`/`g2Set` en parallèle ; la grille écrite lit l'un, les repos sont
+   dérivés de l'autre. Rien ne vérifie qu'ils disent la même chose.
+
+---
 
 ## Les 6 règles qui évitent les dégâts
 
@@ -564,12 +599,15 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site (badge `vX.Y.Z`) — actuellement **v1.16.7**
+## Version du site (badge `vX.Y.Z`) — actuellement **v1.17**
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
-**Toute modification d'une page visible — `admin.html`, `index.html`, `dashboard.html`,
-`indispos.html`, `staff.html` — DOIT s'accompagner d'une montée de version, dans le même push.**
+**Toute modification d'une page visible DOIT s'accompagner d'une montée de version, dans le
+même push.** Le badge est porté par **4 fichiers, 8 emplacements** (comptés le 03/08/2026) :
+`admin.html`, `dashboard.html`, `docs/guide-mar.html`, `docs/guide-comite.html`. `index.html`,
+`indispos.html` et `staff.html` n'en portent pas. **Recompter avant chaque montée** plutôt que
+se fier à cette liste.
 Ne jamais livrer un changement d'interface sans incrémenter : le badge doit toujours dire la vérité.
 
 | Nature du changement | Incrément | Exemple |
