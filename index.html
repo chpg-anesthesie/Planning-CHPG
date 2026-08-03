@@ -967,6 +967,78 @@ async function _apiPostFilet(payload) {
    admin.html applique ce principe depuis le 28/07 ; index.html ne l'avait
    jamais recu.
    ⚠️ Ne jamais revenir a des appels paralleles « pour aller plus vite ». */
+/* ══ MIROIR CLOUDFLARE — LECTURE (etape 4, 03/08/2026) ═══════════════════
+   Mesures du 03/08 : un appel Apps Script coute 2,5 a 5 s quel que soit le
+   travail serveur (compilation ~575 Ko a CHAQUE requete, redirection 302,
+   file d'attente par compte). Le miroir Cloudflare (cloudflare/worker.js,
+   alimente par gas/miroir.gs a chaque ecriture) sert les MEMES donnees en
+   ~150 ms, authentification comprise (empreinte SHA-256 du code, calculee
+   cote Worker — le code ne circule qu'en POST, jamais dans l'URL).
+   REGLE DE REPLI : tout resultat autre qu'un succes complet (panne, miroir
+   vide, cle manquante, code refuse) rend la main au circuit GAS historique,
+   qui reste SEUL JUGE de la validite d'un code. Le pire cas est donc le
+   comportement d'avant ce patch — jamais moins bien.
+   FRAICHEUR : le stockage Cloudflare propage en ~60 s au plus. La donnee
+   servie peut donc avoir jusqu'a une minute de retard sur une ecriture du
+   comite — assume (voir guide technique, section Miroir). */
+const MIROIR_URL = 'https://chpg-miroir.arthurfrohlich.workers.dev';
+const _MIROIR_PRE = { annees: null, secteurs: null };   // livre par miroirBoot(), consomme par init()/loadSecteurs()
+
+async function miroirRead(keys) {
+  const _dep = Math.round(performance.now()), _t0 = Date.now();
+  const _ctrl = new AbortController();
+  const _timer = setTimeout(() => _ctrl.abort(), 6000);   // 6 s : au-dela, le GAS fera mieux
+  try {
+    const res = await fetch(MIROIR_URL + '/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // requete « simple » : pas de preambule CORS
+      body: JSON.stringify({ code: VIEW_CODE, keys }),
+      signal: _ctrl.signal,
+    });
+    const rep = await res.json();
+    try { if (window.PERF) PERF.appel('miroir:' + keys.join('+'), Date.now() - _t0, null, _dep,
+                                      rep && rep.success ? 'ok' : 'ECHEC — ' + ((rep && rep.error) || 'HTTP ' + res.status)); } catch (_e) {}
+    return rep;
+  } catch (e) {
+    try { if (window.PERF) PERF.appel('miroir:' + keys.join('+'), Date.now() - _t0, null, _dep,
+                                      'ECHEC — ' + (e && e.message)); } catch (_e) {}
+    return null;   // toute panne de transport → le repli GAS decide
+  } finally { clearTimeout(_timer); }
+}
+
+/* Ouverture par le miroir : UN aller-retour qui authentifie et livre annees
+   + secteurs + planning + affectations. Renvoie true si la page est partie
+   sur le miroir ; tout autre retour → l'appelant bascule sur le GAS. */
+async function miroirBoot() {
+  const devine = new Date().getFullYear();
+  const m = await miroirRead(['annees', 'secteurs', 'planning_' + devine, 'affectations_' + devine]);
+  if (!m || !m.success) return m;
+  const active = (m.data && m.data.annees && Number(m.data.annees.active)) || devine;
+  if (active !== devine) {
+    const m2 = await miroirRead(['planning_' + active, 'affectations_' + active]);
+    if (m2 && m2.success && m2.data) Object.assign(m.data, m2.data);
+  }
+  const plan = m.data && m.data['planning_' + active];
+  if (!plan) return null;   // cle jamais poussee → circuit GAS
+  // Meme deballage que loadYear : le fichier affectations_{Y}.json contient
+  // un objet { affectations: {...} }.
+  const affBrut = m.data['affectations_' + active];
+  const aff = (affBrut && affBrut.affectations) || {};
+  PLANNING_CACHE[active] = plan;
+  AFF_CACHE[active] = aff;
+  _ssPlanWrite(active, plan, aff);
+  _MIROIR_PRE.annees   = (m.data.annees && Array.isArray(m.data.annees.annees)) ? m.data.annees : null;
+  _MIROIR_PRE.secteurs = Array.isArray(m.data.secteurs) ? m.data.secteurs : null;
+  applyUserBadge(m.identite || {});
+  /* Journal de connexion : l'action login du GAS part en arriere-plan et son
+     resultat est IGNORE — l'authentification a deja eu lieu au miroir, cet
+     appel ne sert que la ligne du journal CONNEXIONS. */
+  try { apiPost({ action: 'login' }).catch(function () {}); } catch (e) {}
+  document.getElementById('viewAuthOverlay').style.display = 'none';
+  init(active);
+  return true;
+}
+
 let _fileAPI = Promise.resolve();
 async function apiPost(payload) {
   const _suivant = _fileAPI.then(() => _apiPostFilet(payload), () => _apiPostFilet(payload));
@@ -1062,16 +1134,25 @@ async function viewLogin() {
   btn.disabled = true; btn.textContent = 'Vérification…';
   try {
     VIEW_CODE = code;
-    const r = await apiPost({action: 'login'});
-    if (r && r.success) {
+    /* (miroir, 03/08/2026) Tentative miroir d'abord : authentifie ET livre
+       les donnees en ~150 ms. Tout autre resultat → login GAS historique,
+       seul juge de la validite d'un code (un code change il y a moins d'une
+       heure peut manquer au miroir : le GAS tranche). */
+    if (await miroirBoot() === true) {
       sessionStorage.setItem('chpgViewCode', code);
-      try { if (window.PERF) PERF.jalon('reponse serveur recue'); } catch(e) {}
-      applyUserBadge(r);
-      document.getElementById('viewAuthOverlay').style.display = 'none';
-      init(r.year);   // (perf) l'année active arrive avec le login — pas de 2e appel
+      try { if (window.PERF) PERF.jalon('ouverture via miroir'); } catch(e) {}
     } else {
-      VIEW_CODE = '';
-      _authErr(r && r.error ? r.error : 'Code incorrect');
+      const r = await apiPost({action: 'login'});
+      if (r && r.success) {
+        sessionStorage.setItem('chpgViewCode', code);
+        try { if (window.PERF) PERF.jalon('reponse serveur recue'); } catch(e) {}
+        applyUserBadge(r);
+        document.getElementById('viewAuthOverlay').style.display = 'none';
+        init(r.year);   // (perf) l'année active arrive avec le login — pas de 2e appel
+      } else {
+        VIEW_CODE = '';
+        _authErr(r && r.error ? r.error : 'Code incorrect');
+      }
     }
   } catch(e) { VIEW_CODE = ''; _authErr('Erreur réseau — réessayez'); }
   btn.disabled = false; btn.textContent = 'Accéder →';
@@ -1083,6 +1164,8 @@ async function viewAutoLogin() {
   VIEW_CODE = saved;
   document.getElementById('viewAuthOverlay').style.display = 'none'; // masqué tout de suite (code en cache) → plus de clignotement
   try {
+    /* (miroir, 03/08/2026) Ouverture par le miroir ; tout echec → circuit GAS. */
+    if (await miroirBoot() === true) return;
     const r = await apiPost({action: 'login'});
     if (r && r.success) {
       applyUserBadge(r);
@@ -1218,7 +1301,10 @@ async function init(loginYear){
      AFF_CACHE n'est plus pre-rempli : loadYear() le remplit a la demande (l. 1376). */
   const availableYears = [];
   try {
-    const r = await apiPost({action: 'getAnneesDisponibles'});
+    // (miroir) liste deja livree par miroirBoot() → zero appel ici dans ce cas.
+    const r = _MIROIR_PRE.annees
+      ? { success: true, annees: _MIROIR_PRE.annees.annees }
+      : await apiPost({action: 'getAnneesDisponibles'});
     if (r && r.success && Array.isArray(r.annees)) {
       r.annees.forEach(a => { if (Number(a.annee) !== activeYear) availableYears.push(Number(a.annee)); });
     }
@@ -1407,11 +1493,25 @@ async function loadYear(year) {
     if (PLANNING_CACHE[year]) {
       DATA = PLANNING_CACHE[year];
     } else {
-      const res = await apiPost({action: 'getPlanningJson', year});
-      if (!res || !res.success || !res.planning) throw new Error((res && res.error) || 'réponse API invalide');
-      DATA = res.planning;
+      /* (miroir, 03/08/2026) Changement d'annee : miroir d'abord (N+1 y est
+         poussee des qu'elle existe sur le Drive), GAS en repli. Le miroir
+         livre aussi les affectations : AFF_CACHE evite l'appel suivant. */
+      let _plan = null;
+      const _mi = await miroirRead(['planning_' + year, 'affectations_' + year]);
+      if (_mi && _mi.success && _mi.data && _mi.data['planning_' + year]) {
+        _plan = _mi.data['planning_' + year];
+        const _ab = _mi.data['affectations_' + year];
+        if (_ab && _ab.affectations) AFF_CACHE[year] = _ab.affectations;
+      }
+      if (_plan) {
+        DATA = _plan;
+      } else {
+        const res = await apiPost({action: 'getPlanningJson', year});
+        if (!res || !res.success || !res.planning) throw new Error((res && res.error) || 'réponse API invalide');
+        DATA = res.planning;
+      }
       PLANNING_CACHE[year] = DATA;
-      _ssPlanWrite(year, DATA);
+      _ssPlanWrite(year, DATA, AFF_CACHE[year]);
     }
   } catch(e) {
     const msg = String((e && e.message) || e || '');
@@ -1915,7 +2015,7 @@ let SECTOR_AFF = {
 // Échec réseau / action absente → on garde silencieusement les définitions en dur.
 async function loadSecteurs(){
   try{
-    const arr = await apiPost({action:'getSecteurs'});
+    const arr = _MIROIR_PRE.secteurs || await apiPost({action:'getSecteurs'});   // (miroir) livre par miroirBoot() quand l'ouverture est passee par lui
     if(Array.isArray(arr) && arr.length){
       const actifs = arr.filter(s=>s.actif);
       // Grille : mêmes champs qu'avant ; l'entrée CS (hors onglet) est conservée.
