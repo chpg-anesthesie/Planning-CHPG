@@ -1159,20 +1159,22 @@ async function init(loginYear){
   currentYear = activeYear;
   const planP = loadYear(activeYear);   // rend le planning sans attendre les sondes
 
-  const thisYear = new Date().getFullYear();
-  const yearsToCheck = [];
-  for(let y = 2026; y <= thisYear + 1; y++) if(y !== activeYear) yearsToCheck.push(y);
-
+  /* (03/08/2026) UN SEUL APPEL au lieu d'une sonde par annee.
+     On sondait chaque annee de 2026 a N+1 avec un getAffectationsJson : 1 appel en
+     2026, 5 en 2030, 10 en 2035. Apps Script serialise les executions d'un meme
+     utilisateur, donc ces sondes ne se recouvrent pas, elles s'additionnent — le
+     plancher mesure par appel est d'environ 2,5 s (1,4 s de plateforme + 0,7 s de
+     compilation), sans compter la file d'attente Google.
+     getAnneesDisponibles repond pour toutes les annees d'un coup, et couvre aussi
+     celles dont les onglets sont partis dans le classeur d'archives.
+     AFF_CACHE n'est plus pre-rempli : loadYear() le remplit a la demande (l. 1376). */
   const availableYears = [];
-  await Promise.all(yearsToCheck.map(async y => {
-    try {
-      const res = await apiPost({action: 'getAffectationsJson', year: y});
-      if(res && res.success && res.affectations) {
-        AFF_CACHE[y] = (res.affectations.affectations) || {};
-        availableYears.push(y);
-      }
-    } catch(e){}
-  }));
+  try {
+    const r = await apiPost({action: 'getAnneesDisponibles'});
+    if (r && r.success && Array.isArray(r.annees)) {
+      r.annees.forEach(a => { if (Number(a.annee) !== activeYear) availableYears.push(Number(a.annee)); });
+    }
+  } catch(e){}
 
   // 3. Résultat du chargement de l'année active
   const planOk = (await planP) !== false;
