@@ -1,0 +1,223 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   MIROIR CHPG — Worker Cloudflare
+   Version : miroir 2026-08-03.2
+
+   RÔLE. Servir en ~150 ms les données de lecture du portail (planning,
+   affectations, secteurs, années, config admin, indispos), déposées ici
+   par le Google Apps Script à chaque écriture. Le Worker ne calcule
+   rien : il authentifie, filtre, et sert.
+
+   DEUX GUICHETS :
+     POST /push  — réservé au GAS, sur présentation du jeton PUSH_TOKEN
+                   (secret Cloudflare, jamais dans ce fichier ni dans le
+                   dépôt). Dépose ou supprime des clés dans le KV.
+     POST /read  — réservé aux codes d'accès valides. Authentifie par
+                   EMPREINTE SHA-256 (les codes en clair ne sont jamais
+                   stockés chez Cloudflare), applique les règles de rôle,
+                   renvoie identité + données demandées.
+
+   RÈGLES DE RÔLE (reprises de _routeRequete_ dans Indispos.gs) :
+     - secrétariat : AUCUNE lecture miroir (le planning contient les
+       codes d'absence bruts ; règle du GAS conservée à l'identique).
+     - MAR   : annees, secteurs, planning_{Y}, affectations_{Y},
+               indispos_{Y} FILTRÉES à ses propres lignes.
+     - admin : tout, indispos complètes.
+
+   SÉCURITÉ :
+     - Aucun code d'accès en clair : acces.json ne contient que des
+       empreintes SHA-256, calculées et déposées par le GAS.
+     - Aucun secret dans ce fichier : PUSH_TOKEN vit dans les secrets
+       du Worker (Settings → Variables and Secrets).
+     - Aucune donnée financière ici : le relevé libéral, les marges et
+       PARAMETRES ne transitent JAMAIS par le miroir (liste rouge).
+     - Cache-Control: no-store — rien n'est mis en cache par les
+       navigateurs ou proxys intermédiaires.
+
+   CONTRAT DES CLÉS KV (le GAS est seul écrivain, il fait foi) :
+     acces               {"users":[{"h":"<sha256>","id","role","name",
+                          "initials","prenom","liberal","rpps"}],
+                          "indisposYear":N,"indisposOuverte":bool,"t":ms}
+     annees              {"active":2026,"annees":[{"annee","archivee"}]}
+     secteurs            (sortie de getSecteurs, telle quelle)
+     config_admin        {"medecins":[...],"overrides":...,"seuils":...,
+                          "csTemplate":...,"anneeStatsFiables":N,
+                          "anneeSuivante":bool}          — admin seul
+     planning_{Y}        (contenu de planning_{Y}.json du Drive)
+     affectations_{Y}    (contenu de affectations_{Y}.json du Drive)
+     indispos_{Y}        {"parMar":{"ID":[...] }}        — filtré par rôle
+   Chaque valeur est une chaîne JSON. Clé absente = donnée pas encore
+   poussée : le client se replie sur le circuit GAS.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const VERSION = 'miroir 2026-08-03.2';
+
+// Clés admissibles — tout le reste est refusé à l'écriture comme à la
+// lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
+// une clé orpheline invisible.
+const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4})$/;
+
+// En-têtes communs. Origin * : la protection est le code d'accès, pas
+// l'origine (les pages GitHub Pages n'ont pas d'origine secrète).
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Cache-Control': 'no-store',
+  'Content-Type': 'application/json; charset=utf-8',
+};
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    // Préambule CORS (le navigateur le demande parfois avant un POST).
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: {
+        ...CORS,
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Max-Age': '86400',
+      }});
+    }
+
+    // GET — signe de vie UNIQUEMENT sur la racine. Tout autre chemin en
+    // GET est refusé : /push et /read ne parlent qu'en POST, et un refus
+    // explicite vaut mieux qu'un « ok » ambigu dans un navigateur.
+    if (request.method === 'GET') {
+      if (url.pathname === '/') {
+        return new Response(JSON.stringify({ ok: true, service: VERSION }),
+                            { status: 200, headers: CORS });
+      }
+      return reponse({ success: false, error: 'Méthode non autorisée — POST uniquement' }, 405);
+    }
+
+    if (request.method !== 'POST') {
+      return reponse({ success: false, error: 'Méthode non autorisée' }, 405);
+    }
+
+    let corps;
+    try { corps = await request.json(); }
+    catch (e) { return reponse({ success: false, error: 'JSON invalide' }, 400); }
+
+    if (url.pathname === '/push') return push(corps, env);
+    if (url.pathname === '/read') return lire(corps, env);
+    return reponse({ success: false, error: 'Chemin inconnu' }, 404);
+  }
+};
+
+/* ── /push — dépôt par le GAS ─────────────────────────────────────────
+   corps : { token, items: { cle: chaineJSON | null } }
+   null = suppression de la clé. 20 clés maximum par appel. */
+async function push(corps, env) {
+  if (!env.PUSH_TOKEN || corps.token !== env.PUSH_TOKEN) {
+    return reponse({ success: false, error: 'Jeton invalide' }, 403);
+  }
+  const items = corps.items && typeof corps.items === 'object' ? corps.items : null;
+  if (!items) return reponse({ success: false, error: 'items manquant' }, 400);
+  const cles = Object.keys(items);
+  if (!cles.length) return reponse({ success: false, error: 'items vide' }, 400);
+  if (cles.length > 20) return reponse({ success: false, error: '20 clés maximum' }, 400);
+
+  const ecrits = [], supprimes = [], refuses = [];
+  for (const cle of cles) {
+    if (!CLE_VALIDE.test(cle)) { refuses.push(cle); continue; }
+    const val = items[cle];
+    if (val === null) { await env.KV.delete(cle); supprimes.push(cle); continue; }
+    if (typeof val !== 'string') { refuses.push(cle); continue; }
+    // Contrôle : la valeur doit être du JSON analysable. Une valeur
+    // corrompue déposée ici servirait une page cassée à 23 MARs.
+    try { JSON.parse(val); } catch (e) { refuses.push(cle); continue; }
+    await env.KV.put(cle, val);
+    ecrits.push(cle);
+  }
+  return reponse({ success: true, ecrits, supprimes, refuses, version: VERSION });
+}
+
+/* ── /read — lecture par les pages ────────────────────────────────────
+   corps : { code, keys: [cle, …] }
+   Réponse : { success, identite, data:{cle:objet}, manquants:[],
+               refuses:[] }
+   manquants = clé jamais poussée (le client se replie sur le GAS pour
+   CETTE donnée) ; refuses = rôle insuffisant (le client ne doit PAS
+   réessayer). Les deux cas sont distingués exprès : un repli sur refus
+   masquerait un défaut de droits derrière un détour par le GAS. */
+async function lire(corps, env) {
+  const code = String(corps.code == null ? '' : corps.code).trim().toUpperCase();
+  if (!code) return reponse({ success: false, error: 'Code absent de la requête' });
+
+  const accesBrut = await env.KV.get('acces');
+  if (!accesBrut) {
+    // Miroir jamais alimenté : message distinct d'un code invalide,
+    // pour que le diagnostic reste possible depuis la console.
+    return reponse({ success: false, error: 'Miroir vide — utiliser le circuit GAS' });
+  }
+  let acces;
+  try { acces = JSON.parse(accesBrut); }
+  catch (e) { return reponse({ success: false, error: 'acces illisible — utiliser le circuit GAS' }); }
+
+  const empreinte = await sha256hex(code);
+  const user = (acces.users || []).find(u => u && u.h === empreinte);
+  if (!user) return reponse({ success: false, error: 'Code invalide' });
+
+  // Règle GAS conservée : le rôle secrétariat ne lit RIEN au miroir.
+  if (user.role === 'secretariat') {
+    return reponse({ success: false, error: 'Accès non autorisé pour ce rôle' });
+  }
+
+  const demandes = Array.isArray(corps.keys) ? corps.keys.slice(0, 12) : [];
+  const data = {}, manquants = [], refuses = [];
+
+  // Lectures KV en parallèle (interne au Worker : pas de file d'attente,
+  // contrairement à Apps Script).
+  const taches = demandes.map(async (cle) => {
+    cle = String(cle || '');
+    if (!CLE_VALIDE.test(cle) || cle === 'acces') { refuses.push(cle); return; }
+    if (!autorise(user, cle)) { refuses.push(cle); return; }
+    const brut = await env.KV.get(cle);
+    if (brut == null) { manquants.push(cle); return; }
+    let valeur;
+    try { valeur = JSON.parse(brut); } catch (e) { manquants.push(cle); return; }
+    if (/^indispos_\d{4}$/.test(cle) && user.role !== 'admin') {
+      valeur = filtreIndispos(valeur, user.id);
+    }
+    data[cle] = valeur;
+  });
+  await Promise.all(taches);
+
+  // Identité renvoyée SANS l'empreinte : le client n'en a pas l'usage,
+  // et une empreinte qui circule est une empreinte qu'on peut comparer.
+  const identite = {
+    id: user.id, role: user.role, name: user.name,
+    initials: user.initials, prenom: user.prenom || '',
+    liberal: !!user.liberal, rpps: user.rpps || '',
+    indisposYear: acces.indisposYear, indisposOuverte: !!acces.indisposOuverte,
+  };
+  return reponse({ success: true, identite, data, manquants, refuses, version: VERSION });
+}
+
+/* Droits de lecture par clé et par rôle. Toute clé inconnue est refusée
+   par CLE_VALIDE en amont : ici, on ne traite que le connu. */
+function autorise(user, cle) {
+  if (cle === 'annees' || cle === 'secteurs') return true;              // MAR + admin
+  if (/^(planning|affectations)_\d{4}$/.test(cle)) return true;        // MAR + admin
+  if (/^indispos_\d{4}$/.test(cle)) return true;                       // filtré plus loin
+  if (cle === 'config_admin') return user.role === 'admin';            // admin seul
+  return false;
+}
+
+/* Un MAR ne reçoit que SES indispos. Structure poussée par le GAS :
+   {"parMar":{"ID":[...]}} — le GAS est seul écrivain, ce format fait foi. */
+function filtreIndispos(valeur, id) {
+  const parMar = (valeur && valeur.parMar) || {};
+  const mien = {};
+  if (id && parMar[id] !== undefined) mien[id] = parMar[id];
+  return { parMar: mien };
+}
+
+async function sha256hex(texte) {
+  const donnees = new TextEncoder().encode(texte);
+  const hash = await crypto.subtle.digest('SHA-256', donnees);
+  return [...new Uint8Array(hash)].map(o => o.toString(16).padStart(2, '0')).join('');
+}
+
+function reponse(objet, statut) {
+  return new Response(JSON.stringify(objet), { status: statut || 200, headers: CORS });
+}
