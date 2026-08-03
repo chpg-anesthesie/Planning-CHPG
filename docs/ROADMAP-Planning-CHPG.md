@@ -4,10 +4,11 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.14.5** ·
-**GAS** `code.gs` 2026-07-29.3 · `Indispos.gs` 2026-07-29.5 · `portail.gs` 2026-07-29.2
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.17** ·
+**GAS** `code.gs` 2026-08-01.2 · `Indispos.gs` 2026-08-03.3 · `portail.gs` 2026-08-02.1 ·
+`generateur_gardes.gs` 2026-07-31.3 · `setup_annee.gs` 2026-08-03.1
 
-*Mise à jour : 30 juillet 2026.*
+*Mise à jour : 3 août 2026.*
 
 > **Le dépôt en ligne fait foi.** Ce document est un repère de pilotage, pas la source de vérité
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
@@ -40,6 +41,23 @@ le détail d'implémentation, les décisions datées, les cas limites. C'est là
 ## ⚠️ Pièges — à lire avant toute intervention
 
 ### Issus d'erreurs commises (ne pas les refaire)
+
+- **(03/08) Ne jamais écrire une donnée dérivée sans regarder la case d'arrivée.** Un don de
+  garde écrivait le repos du lendemain sans vérifier ce qu'il écrasait. Le 26/03/2027 s'est
+  retrouvé sans garde de réa pendant deux jours, sans le moindre signal. Toute écriture qui
+  découle d'une autre (RG après G, récup après samedi) doit refuser si la case est occupée.
+- **(03/08) Un geste non journalisé rend le diagnostic impossible.** `applyModification`
+  n'écrivait rien dans `LOGS`. J'en ai déduit à tort qu'aucun don n'avait eu lieu, et cherché
+  le bug dans le générateur pendant des heures. **L'absence de trace ne prouve rien.**
+- **(03/08) Un contrôle sans destinataire ne sert à rien.** Le trou du 26/03 était détecté par
+  le Diagnostic depuis le 01/08, avec la mention « À TRAITER IMMÉDIATEMENT ». Personne ne le
+  lançait. Avant d'ajouter un contrôle, se demander qui le lira.
+- **(03/08) Lire la fonction avant de proposer de l'étendre.** Trois propositions d'ajout au
+  Diagnostic portaient sur des contrôles **qui existaient déjà** (rotation de `CONNEXIONS`,
+  purge de `PLANNING_OVERRIDES`, couverture des gardes). Inventorier d'abord, proposer ensuite.
+- **(03/08) Un cache de 10 minutes n'a rien à faire dans une tâche hebdomadaire.**
+  `diagHebdo` lisait `CONFIG` via `_configRows_()` et a conclu « DIAG_EMAIL absent » sur une
+  valeur périmée. Une tâche rare lit la source, pas le cache.
 
 - **(01/08) Ne jamais ajouter de requête pour accélérer.** Apps Script sérialise les
   exécutions d'un même utilisateur. Un « appel de réveil » et un délai d'abandon court avec
@@ -633,6 +651,52 @@ La ligne `markVeille` a été supprimée : c'était une fausse alerte.*
 > Conservé intégralement. La synthèse ci-dessus oriente ; ce qui suit fait foi sur le détail.
 
 ## ✅ Fait
+
+### Intégrité des gardes & consultation des années passées (3 août 2026)
+
+**Origine.** Audit complet du classeur maître (30 onglets) via le connecteur Drive. Découverte
+d'un jour sans garde de réanimation dans l'année 2027 générée : **vendredi 26/03/2027**.
+
+**Cause, établie par rejeu.** Le générateur est hors de cause : la génération réelle du 01/08
+rejouée hors ligne avec les vraies entrées donne 0 trou, quel que soit le nombre de passes de
+l'optimiseur. Un **don de garde** portant sur le jeudi 25/03 a écrit `RG` sur le 26 par-dessus
+la garde que le bénéficiaire y détenait déjà. Signature : un repos orphelin le 27, et une
+configuration (deux gardes à 24 h d'intervalle) que le générateur ne peut pas produire.
+
+**Livré.**
+- `Indispos.gs` **2026-08-03.3** — refus de tout don / échange / garde exceptionnelle qui
+  écraserait un `G`/`G2` ou créerait deux gardes consécutives ; vérification que toutes les
+  cases visées existent **avant** la première écriture (`writeCell` échouait à mi-parcours et
+  laissait une garde perdue — cas atteignable : un MAR actif absent de `GARDES_{année}`) ;
+  journalisation des succès **et** des refus.
+- `portail.gs` **2026-08-02.1** — `deleteLiberal` cherche sur `ID` **+** `MAR_ID`. Dix lignes
+  de `LIBERAL_2026` partageaient un même identifiant (héritage d'un ancien schéma de fusion) :
+  trois MAR ne pouvaient pas supprimer leur propre déclaration.
+- **Diagnostic** extrait du routeur dans `diagnosticComplet()` — corps prouvé identique,
+  534 lignes sur 534. Quatre contrôles ajoutés : repos orphelins, gardes consécutives, gardes
+  sans repos, MAR actifs absents de `GROUPES_VAC`, MAR `ACTIF=O` à date de départ dépassée,
+  `HISTORIQUE` comparé aux gardes réellement faites. **Déclencheur hebdomadaire** `diagHebdo`
+  (lundi 2 h), destinataire lu dans `CONFIG / DIAG_EMAIL`, objet `❌ N problème(s)` ou `✅ RAS`.
+- **Années clôturées consultables** — repli sur le classeur d'archives pour `getGardes` et
+  `getStats`, endpoint `getAnneesDisponibles` (maître + archives), verrou serveur explicite sur
+  les années archivées. Côté interface : `admin.html` testait `./archives/stats_{année}.json`,
+  **fichier qui n'a jamais existé** depuis le passage au Drive privé — le sélecteur ne pouvait
+  donc jamais proposer une année close ; `index.html` sondait les années une par une (1 appel
+  en 2026, 10 en 2035, ~2,5 s chacun de plancher). Les deux passent par l'endpoint unique.
+- `setup_annee.gs` **2026-08-03.1** — `archiveYear` alimente `HISTORIQUE` depuis
+  `computeStatsLive()` (gardes **réellement faites**) au lieu de recopier le snapshot `STATS`,
+  avec repli. Sauvegarde JSON de la grille elle-même (`archives_gardes_{année}.json`).
+
+**Décision structurante.** `HISTORIQUE` = mémoire longue du service, pas moteur. La **dette
+d'équité** de l'année N+1 est lue par le générateur dans `STATS_GARDES_N` directement, avec
+repli sur le classeur d'archives — `HISTORIQUE` n'intervient jamais dans ce calcul. Il doit donc
+refléter le **réel**. Effet concret : ARMAND (arrivé en novembre 2026, absent du snapshot,
+de garde le 25 décembre) obtient enfin sa ligne et son Noël — sans quoi il redevenait éligible.
+
+**Reste à faire côté classeur** : supprimer les 25 lignes `ANNEE = 2026` de `HISTORIQUE` après
+déploiement du patch (l'ajout est idempotent sur `id|année` : sans suppression, les lignes
+périmées sont figées pour toujours) ; ajouter FERRIERO dans `GROUPES_VAC` ; passer TRAN en
+`ACTIF=N` le 1er septembre ; régénérer le token GitHub avant le 18 octobre (expiration).
 
 ### Fondations & algorithme de gardes (mai–juin 2026)
 - Architecture Google Sheets → fichiers GAS (`code.gs`, `generateur_gardes.gs`, `Indispos.gs`, `setup_annee.gs`, `portail.gs`) → sortie web ; cycle annuel simulé et validé.
