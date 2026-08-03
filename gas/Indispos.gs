@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-03.1';
+const GAS_VERSION_INDISPOS = '2026-08-03.2';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -688,12 +688,18 @@ function diagnosticComplet() {
 function diagHebdo() {
   let dest = '';
   try {
-    const data = _configRows_();
+    /* Lecture DIRECTE de l'onglet. _configRows_() sert un cache de 10 minutes, et une
+       tache hebdomadaire ne doit pas dependre de sa fraicheur. Constate le 03/08/2026 :
+       DIAG_EMAIL venait d'etre ajoute, le cache tenait encore la version d'avant,
+       diagHebdo a conclu « adresse absente » et n'a rien envoye — sans que la cause
+       soit lisible dans le journal. */
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG');
+    const data = sh ? sh.getDataRange().getValues() : [];
     for (let r = 1; r < data.length; r++) {
       if (String(data[r][0]).trim() === 'DIAG_EMAIL') { dest = String(data[r][1]).trim(); break; }
     }
   } catch (e) { /* CONFIG illisible : on sortira sans envoi */ }
-  if (!dest) { logAction('diagHebdo — annule : DIAG_EMAIL absent de CONFIG'); return; }
+  if (!dest) { logAction('diagHebdo — annule : DIAG_EMAIL absent ou vide dans l\'onglet CONFIG (lecture directe)'); return; }
 
   let d;
   try { d = diagnosticComplet(); }
