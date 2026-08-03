@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-03.2';
+const GAS_VERSION_INDISPOS = '2026-08-03.3';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1565,6 +1565,15 @@ function applyModification(mod) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const year = Number(mod.year) || TEST_YEAR;
 
+  /* (03/08/2026) Verrou explicite sur les annees cloturees. La protection existait
+     deja, mais par accident : getSheet() ne cherchant que dans le maitre, une annee
+     archivee produisait « Onglet GARDES_YYYY introuvable ». Le jour ou cette fonction
+     lira les archives pour une bonne raison, la protection disparaitrait sans que
+     personne ne s'en apercoive. La regle est donc ecrite, et le message est lisible. */
+  if (!ss.getSheetByName(`GARDES_${year}`)) {
+    throw new Error(`Année ${year} archivée — consultation seule, aucune modification possible`);
+  }
+
   function getSheet(name) {
     const s = ss.getSheetByName(name);
     if (!s) throw new Error(`Onglet ${name} introuvable`);
@@ -1920,6 +1929,36 @@ function _routeRequete_(e) {
         success: true, year: TEST_YEAR
       })).setMimeType(ContentService.MimeType.JSON);
     }
+
+    /* (03/08/2026) Quelles annees sont consultables ?
+       admin.html testait l'existence de « ./archives/stats_{annee}.json » sur le site —
+       fichier qui n'a JAMAIS ete cree : depuis le passage au Drive prive, l'archivage
+       ecrit « archives_stats_{annee}.json » sur Drive. Le selecteur ne pouvait donc
+       jamais proposer une annee cloturee. index.html, lui, sondait les annees une par
+       une (un appel par annee, or Apps Script serialise les executions d'un meme
+       utilisateur : 1 sonde en 2026, 5 en 2030, 10 en 2035).
+       Un seul appel repond desormais pour les deux pages. Pas de controle de role :
+       c'est une liste d'annees, et index.html est la page des MAR. */
+    if (action === 'getAnneesDisponibles') {
+      const vues = {};
+      const scan = (classeur, archivee) => {
+        try {
+          classeur.getSheets().forEach(sh => {
+            const m = sh.getName().match(/^GARDES_(\d{4})$/);
+            if (!m) return;
+            const y = Number(m[1]);
+            if (vues[y] === undefined) vues[y] = archivee;
+          });
+        } catch (e) { /* classeur inaccessible : on garde ce qu'on a */ }
+      };
+      scan(SpreadsheetApp.getActiveSpreadsheet(), false);
+      try { scan(SpreadsheetApp.openById(ARCHIVE_SS_ID), true); } catch (e) {}
+      const annees = Object.keys(vues).map(Number).sort()
+        .map(y => ({ annee: y, archivee: vues[y] }));
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true, active: TEST_YEAR, annees
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
     const user = checkCode(code);
     if (!user) {
       /* (01/08/2026) DEUX CAUSES, DEUX MESSAGES.
@@ -2118,7 +2157,8 @@ function _routeRequete_(e) {
     if (action === 'getStats') {
   if (user.role !== 'admin') return _deny();
   const statsYear = Number(payload.year) || TEST_YEAR;
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // (03/08/2026) Repli archives, meme raison que getGardes ci-dessus.
+  const ss = _ssWithSheet(`STATS_GARDES_${statsYear}`) || SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(`STATS_GARDES_${statsYear}`);
   if (!sheet) return _error(`Onglet STATS_GARDES_${statsYear} introuvable`);
       const data = sheet.getDataRange().getValues();
@@ -2200,7 +2240,10 @@ try {
     if (action === 'getGardes') {
       if (user.role !== 'admin') return _deny();
       const gYear = Number(payload.year) || TEST_YEAR;              // (C3) année paramétrable
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      /* (03/08/2026) Repli sur le classeur d'archives : une annee cloturee voit ses
+         onglets deplaces hors du maitre, et cet endpoint repondait « introuvable ».
+         L'onglet Statuts et l'equite initiale d'une annee passee etaient donc morts. */
+      const ss = _ssWithSheet(`GARDES_${gYear}`) || SpreadsheetApp.getActiveSpreadsheet();
       const sheet = ss.getSheetByName(`GARDES_${gYear}`);
       if (!sheet) return _error(`Onglet GARDES_${gYear} introuvable`);
       const data = sheet.getDataRange().getValues();
