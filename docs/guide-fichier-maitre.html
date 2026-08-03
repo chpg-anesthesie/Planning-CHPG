@@ -105,7 +105,7 @@
 <div class="eyebrow">Planning-CHPG</div>
 <h1>Guide du fichier maître</h1>
 <p class="subtitle">Le classeur Google Sheets, onglet par onglet : à quoi il sert, qui l'écrit, ce qu'on peut y toucher, et ce qui casse si on se trompe.</p>
-<p class="maj">Mis à jour : 30 juillet 2026 — inventaire complet : 23 onglets présents, plus 2 décrits pour mémoire (<span class="tag">NOEL_AN_HISTORIQUE</span> et <span class="tag">OVERRIDES</span>, absents du classeur).</p>
+<p class="maj">Mis à jour : 3 août 2026 — inventaire complet : <strong>30 onglets présents</strong>, soit 26 noms distincts (les onglets annuels existent en double : année en cours et année suivante). S'y ajoutent 3 onglets décrits pour mémoire mais absents du classeur : <span class="tag">NOEL_AN_HISTORIQUE</span>, <span class="tag">OVERRIDES</span> et <span class="tag">SEMAINES_VALIDEES</span>, ce dernier supprimé le 3 août 2026 après vérification qu'aucune ligne de code ne le lisait.</p>
 
 <div class="callout rule">
   <div class="ct">Ce que ce guide est, et ce qu'il n'est pas</div>
@@ -201,7 +201,7 @@ Ils sont classés par ordre d'importance : les quatre premiers commandent le fon
 
 <section id="config">
 <h2><span class="n">01</span>CONFIG</h2>
-<p><strong>Deux colonnes : clé, valeur.</strong> Le tableau de bord du système. Six clés sont lues par le
+<p><strong>Deux colonnes : clé, valeur.</strong> Le tableau de bord du système. Sept clés sont lues par le
 code — toute autre ligne est ignorée.</p>
 
 <table>
@@ -212,7 +212,19 @@ code — toute autre ligne est ignorée.</p>
 <tr><td>SECRETARIAT_CODE</td><td>Code partagé du secrétariat d'anesthésie. Donne accès à <strong>deux actions seulement</strong>.</td><td>À la main</td></tr>
 <tr><td>GITHUB_TOKEN</td><td>Clé de publication vers GitHub. Le Diagnostic la teste réellement.</td><td>À la main</td></tr>
 <tr><td>ANTHROPIC_TOKEN</td><td>Clé du générateur de comptes rendus.</td><td>À la main</td></tr>
+<tr><td>DIAG_EMAIL</td><td>Destinataire du diagnostic automatique du lundi. Ligne absente ou vide : aucun envoi, et la raison est notée dans <span class="tag">LOGS</span>.</td><td>À la main</td></tr>
 </table>
+
+<div class="callout warn">
+  <div class="ct">Une ligne qui ne sert à rien</div>
+  <p><span class="tag">ARCHIVE_DRIVE_ID</span> figure dans l'onglet mais <strong>n'est lue par aucune ligne
+  de code</strong> — vérification exhaustive sur les 66 fichiers du dépôt, le 3 août 2026. L'identifiant
+  réellement utilisé est écrit en dur dans <span class="tag">generateur_gardes.gs</span>
+  (<span class="tag">ARCHIVE_SS_ID</span>).</p>
+  <p>Les deux valeurs coïncident aujourd'hui. Le piège est pour plus tard : modifier la ligne de CONFIG
+  ne changera rien, sans le moindre message d'erreur, et l'archivage continuera d'écrire dans l'ancien
+  classeur.</p>
+</div>
 
 <div class="callout warn">
   <div class="ct">Deux pièges</div>
