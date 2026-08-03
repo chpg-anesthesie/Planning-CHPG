@@ -103,7 +103,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
   <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
   <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.16.10</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.16.10 -->
+  <div class="maj">Version <strong>v1.17</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.17 -->
 </header>
 
 <div class="callout tip" style="margin:26px 0 6px">
@@ -438,6 +438,16 @@
   <p>Un filet existe si le geste a été oublié : la ligne <strong>« Récupérations de samedi »</strong> en tête de l'onglet Équité compare, pour chaque MAR, ses samedis tenus et ses récups posées. Les deux nombres doivent être égaux. Un écart signale un geste à finir, pas une erreur — cliquer sur le nom ouvre l'onglet Statuts sur ce MAR. Le 🔍 Diagnostic de l'onglet Maintenance fait le même contrôle.</p>
   <p><em>Cette ligne n'apparaît pas sur une année qui n'a pas été générée par l'algorithme</em> (2026, reconstruite à la main) : les récups n'y viennent pas de ce mécanisme, l'écart n'y voudrait rien dire.</p>
 
+
+  <h3>Consulter une année passée</h3>
+  <p>Le sélecteur d'année propose les années clôturées à côté de l'année active et de N+1.
+  Une année passée s'ouvre en <strong>lecture seule</strong>, signalée par un bandeau : les
+  boutons de modification sont inactifs, et le serveur refuse de son côté toute écriture sur
+  une année archivée.</p>
+  <p>Tout reste consultable : planning, statuts sur l'année entière, affectations sectorielles,
+  et l'onglet Équité avec sa bascule <em>initiale / instantané</em> — c'est-à-dire le planning
+  tel que l'algorithme l'avait distribué, face à ce qui a réellement été fait après les dons et
+  les échanges.</p>
   <h3>Quand un don ou un échange est refusé</h3>
   <p>Depuis le 2 août 2026, trois situations sont bloquées avant toute écriture. Le message
   s'affiche, <strong>rien n'est modifié</strong>, et vous pouvez recommencer autrement.</p>
