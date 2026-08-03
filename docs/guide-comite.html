@@ -103,7 +103,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document comité</div>
   <h1>Interface d'administration<br>Guide de gestion quotidienne</h1>
   <p class="subtitle">Gardes · Planning quotidien · Consultations — mode d'emploi d'<span class="tag">admin.html</span>, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.16.9</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.16.9 -->
+  <div class="maj">Version <strong>v1.16.10</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.16.10 -->
 </header>
 
 <div class="callout tip" style="margin:26px 0 6px">
@@ -437,6 +437,38 @@
   </ul>
   <p>Un filet existe si le geste a été oublié : la ligne <strong>« Récupérations de samedi »</strong> en tête de l'onglet Équité compare, pour chaque MAR, ses samedis tenus et ses récups posées. Les deux nombres doivent être égaux. Un écart signale un geste à finir, pas une erreur — cliquer sur le nom ouvre l'onglet Statuts sur ce MAR. Le 🔍 Diagnostic de l'onglet Maintenance fait le même contrôle.</p>
   <p><em>Cette ligne n'apparaît pas sur une année qui n'a pas été générée par l'algorithme</em> (2026, reconstruite à la main) : les récups n'y viennent pas de ce mécanisme, l'écart n'y voudrait rien dire.</p>
+
+  <h3>Quand un don ou un échange est refusé</h3>
+  <p>Depuis le 2 août 2026, trois situations sont bloquées avant toute écriture. Le message
+  s'affiche, <strong>rien n'est modifié</strong>, et vous pouvez recommencer autrement.</p>
+  <table>
+    <tr><th>Message</th><th>Ce qui se passe</th><th>Quoi faire</th></tr>
+    <tr>
+      <td><em>« X est déjà de garde (G) le … »</em></td>
+      <td>Le repos du lendemain se serait écrit par-dessus une garde que X tient déjà ce jour-là,
+          et l'aurait effacée.</td>
+      <td>Choisir un autre bénéficiaire, ou traiter d'abord la garde qui gêne.</td>
+    </tr>
+    <tr>
+      <td><em>« X est de garde (G) le … — deux gardes consécutives sont impossibles »</em></td>
+      <td>Le bénéficiaire aurait deux gardes d'affilée, ce que le planning interdit.</td>
+      <td>Choisir un autre bénéficiaire.</td>
+    </tr>
+    <tr>
+      <td><em>« X est absent de GARDES_{année} — modification impossible »</em></td>
+      <td>Le MAR figure dans l'équipe mais pas dans la grille de cette année-là — typiquement un
+          départ ou une arrivée en cours d'année.</td>
+      <td>Vérifier ses dates de début et de fin dans l'onglet Équipe.</td>
+    </tr>
+  </table>
+  <div class="callout">
+    <div class="ct">Pourquoi ces refus existent</div>
+    <p>Le 26 mars 2027 s'est retrouvé sans garde de réanimation : un don portant sur la veille avait
+    écrit un repos par-dessus la garde du bénéficiaire, sans que rien ne le signale. Ces trois
+    contrôles rendent le geste impossible. Depuis la même date, chaque don, échange et garde
+    exceptionnelle laisse une ligne dans le journal du classeur (onglet LOGS).</p>
+  </div>
+
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
