@@ -1014,7 +1014,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.18.4'; // SITE_VERSION: v1.18.4
+const SITE_VERSION = 'v1.18.5'; // SITE_VERSION: v1.18.5
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1107,7 +1107,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.18.4</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.18.5</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1308,7 +1308,7 @@ if (sessionStorage.getItem('adminCode')) {
         <div class="section-sub">Gestion des MARs — statuts, quotités, emails</div>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn-secondary" onclick="loadEquipe()">↻ Actualiser</button>
+        <button class="btn-secondary" onclick="loadEquipe(true)">↻ Actualiser</button>
         <button class="btn-secondary" onclick="openCL()">🏖️ Absence longue</button>
         <button class="btn-primary" onclick="openAddMAR()">+ Ajouter un MAR</button>
       </div>
@@ -2142,12 +2142,25 @@ function mailRetour(){
   document.getElementById('mailBody').style.display = 'block';
 }
 
+/* (04/08/2026, lot A) Liste des mails prechauffee a l'ouverture de la page.
+   Validite 2 min : au-dela, ou apres consommation, retour a l'appel direct. */
+let _mailPre = null;   // { t: Date.now(), r: reponse mailListe }
+async function _prechaufferMails() {
+  try {
+    const r = await api({action: 'mailListe', nb: 20});
+    if (r && r.success) _mailPre = { t: Date.now(), r: r };
+  } catch (e) { /* silencieux : chargerMail fera l'appel */ }
+}
+
 async function chargerMail(){
   const z = document.getElementById('mailBody');
   // Panneau ouvert IMMEDIATEMENT avec un indicateur : meme duree, ressenti tout autre.
   z.innerHTML = '<div class="mail-info">Chargement des messages…<br><span style="font-size:11.5px">Quelques secondes.</span></div>';
   try{
-    const r = await api({action:'mailListe', nb:20});
+    // (lot A) prechauffage consomme une seule fois, si frais (< 2 min)
+    const _pre = (_mailPre && (Date.now() - _mailPre.t) < 120000) ? _mailPre.r : null;
+    _mailPre = null;
+    const r = _pre || await api({action:'mailListe', nb:20});
     if (!(r && r.success)){
       z.innerHTML = '<div class="mail-info">Impossible de charger : ' + _escHtml((r&&r.error)||'erreur inconnue') + '</div>';
       return;
@@ -3058,6 +3071,10 @@ async function initDashboard() {
   // (01/08/2026) Seuils de la bande de presence (onglet SEUILS). Absents ou
   // GAS pas encore recopie : les valeurs de repli restent en place.
   try { applySeuils(_boot && _boot.seuils); } catch (e) {}
+  // (04/08/2026, lot A) L'equipe arrive avec le bootstrap : l'onglet Equipe
+  // s'affichera sans appel. « Actualiser » et l'apres-enregistrement forcent
+  // le serveur (loadEquipe(true)).
+  try { if (_boot && Array.isArray(_boot.medecins) && _boot.medecins.length) marData = _boot.medecins; } catch (e) {}
   if (_boot && _boot.anneeStatsFiables) ANNEE_STATS_FIABLES = Number(_boot.anneeStatsFiables);
   await Promise.all([
     loadSecteurs(_boot && _boot.secteurs),
@@ -3103,6 +3120,20 @@ async function initDashboard() {
   // chronoAPI() reste disponible dans la console, inchange.
   try { chrono(); } catch(e) { try { chronoAPI(); } catch(_) {} }
   try { console.log('Pour le detail des interactions : chronoClics()'); } catch(e) {}
+  /* (04/08/2026, lot A) CHAUFFAGE D'ARRIERE-PLAN — l'ouverture miroir a mis
+     la lenteur GAS a nu : le premier clic sur une case flash ou sur la boite
+     mail payait le peage (2,5-5 s) en direct. Des la page utilisable, on
+     lance en silence, dans la file api() existante : le panneau de la
+     semaine affichee (sans attendre la temporisation de 500 ms) puis la
+     liste des mails. Au clic, dans la grande majorite des cas, tout est
+     deja la. Un clic dans les toutes premieres secondes retombe sur
+     l'attente actuelle — irreductible tant que le GAS est le fournisseur.
+     Aucun risque de fraicheur : le panneau garde son invalidation sur
+     ecriture (invaliderCacheSemaine), les mails ont 2 min de validite. */
+  setTimeout(function () {
+    try { prechargerSemaine(); } catch (e) {}
+    try { _prechaufferMails(); } catch (e) {}
+  }, 400);
 }
 
 // ── STATUS ─────────────────────────────────────────────────────────────
@@ -7657,7 +7688,16 @@ try {
 // ── ÉQUIPE ──────────────────────────────────────────────────────────────
 let marData = [];
 
-async function loadEquipe() {
+async function loadEquipe(force) {
+  /* (04/08/2026, lot A) marData deja en memoire (bootstrap miroir ou visite
+     precedente de l'onglet) : affichage immediat, zero appel. force=true
+     (bouton Actualiser, apres enregistrement) → serveur obligatoire. */
+  if (!force && Array.isArray(marData) && marData.length) {
+    document.getElementById('equipeLoading').style.display = 'none';
+    document.getElementById('equipeContent').style.display = 'block';
+    renderEquipe();
+    return;
+  }
   document.getElementById('equipeLoading').style.display = 'flex';
   document.getElementById('equipeContent').style.display = 'none';
   try {
@@ -7808,7 +7848,7 @@ async function poserCL() {
     }
     res.innerHTML = html; res.style.display = 'block';
     toast('✅ Absence posée', 'success');
-    if (typeof loadEquipe === 'function') loadEquipe();
+    if (typeof loadEquipe === 'function') loadEquipe(true);   // (lot A) apres enregistrement : serveur obligatoire
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
   } finally {
