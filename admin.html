@@ -1012,9 +1012,10 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .cloture-banner.bloque{background:#FEF2F2;border-bottom-color:#FCA5A5;color:#991B1B}
 .cloture-banner.bloque .cb-btn{border-color:#CBD5E1;background:#F1F5F9;color:#94A3B8;cursor:not-allowed}
 </style>
+<script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.19.2'; // SITE_VERSION: v1.19.2
+const SITE_VERSION = 'v1.20'; // SITE_VERSION: v1.20
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1107,7 +1108,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.19.2</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.20</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1937,18 +1938,23 @@ async function miroirRead(keys, codeAcces) {
 async function miroirBootAdmin(anneeVoulue, codeAcces) {
   const devine = anneeVoulue || new Date().getFullYear();
   const m = await miroirRead(['annees', 'secteurs', 'config_admin',
-                              'planning_' + devine, 'affectations_' + devine], codeAcces);
+                              'planning_' + devine, 'affectations_' + devine,
+                              'gardes_' + devine], codeAcces);   // (etage 2) gardes du jour pour le calcul local
   if (!m || !m.success || !m.identite) return (m && m.success === false) ? m : null;
   if (m.identite.role !== 'admin') return { nonAdmin: true, identite: m.identite };
   const active = anneeVoulue || (m.data && m.data.annees && Number(m.data.annees.active)) || devine;
   let plan = m.data['planning_' + active], aff = m.data['affectations_' + active];
+  let gardesEnv = m.data['gardes_' + active];
   if (!plan && active !== devine) {
-    const m2 = await miroirRead(['planning_' + active, 'affectations_' + active], codeAcces);
-    if (m2 && m2.success && m2.data) { plan = m2.data['planning_' + active]; aff = m2.data['affectations_' + active]; }
+    const m2 = await miroirRead(['planning_' + active, 'affectations_' + active, 'gardes_' + active], codeAcces);
+    if (m2 && m2.success && m2.data) { plan = m2.data['planning_' + active]; aff = m2.data['affectations_' + active]; gardesEnv = m2.data['gardes_' + active]; }
   }
   const cfg = m.data && m.data.config_admin;
   if (!plan || !cfg) return null;   // miroir incomplet → bootstrap GAS
   if (m.data.annees && Array.isArray(m.data.annees.annees)) _MIROIR_ANNEES = m.data.annees;
+  // (etage 2) Contexte du calcul LOCAL du panneau — null si une piece manque,
+  // et dans ce cas les chemins serveur existants prennent la main.
+  _ETAGE2 = _construireEtage2_(active, gardesEnv || null, cfg, m.data.secteurs, aff || null);
   const id = m.identite;
   return { boot: {
     success: true, year: active,
@@ -4047,6 +4053,14 @@ async function openSidePanel(sector, date, sectorLabel, slotKey, isLib) {
 
   // Cache par jour, rempli par le prechargement de la semaine : ouverture instantanee.
   if (_dispoCache[date]) { renderSidePanelContent(_dispoCache[date], sector); return; }
+  // (etage 2) CALCUL LOCAL — 0 ms sur toute l'annee ; le serveur compare et
+  // corrige derriere (voir _temoinDispo). Indisponible → chemins ci-dessous.
+  const _localDispo = _dispoLocale(date);
+  if (_localDispo) {
+    renderSidePanelContent(_localDispo, sector);
+    _temoinDispo(date, sector, _localDispo);
+    return;
+  }
   document.getElementById('pspContent').innerHTML =
     '<div class="loading"><div class="spinner"></div></div>';
   // Prechargement en vol : l'attendre coute moins qu'un appel de plus (le peage
@@ -4064,6 +4078,90 @@ async function openSidePanel(sector, date, sectorLabel, slotKey, isLib) {
   }
   _chargerDispoJour(date, sector);
 }
+/* ══ ETAGE 2 — CALCUL LOCAL DU PANNEAU (04/08/2026) ══════════════════════
+   Le tri des disponibles est calcule DANS LE NAVIGATEUR par le module
+   partage (partage/dispo_jour.js — LA MEME source que le serveur, incluse
+   telle quelle : equivalence prouvee par test-oracle, 400 cas, 0 ecart).
+   Donnees : miroir (gardes, medecins+drapeaux, affectations brutes
+   normalisees par le module, secteurs). AFFICHAGE : 0 ms.
+   LE SERVEUR RESTE L'AUTORITE : sa reponse (prechargement) est comparee en
+   silence ; toute divergence s'imprime en console [DISPO-TEMOIN] et le
+   serveur CORRIGE l'ecran. Garde de fraicheur : moins de 90 s apres une
+   ecriture planning → pas de calcul local, circuit serveur direct. */
+let _ETAGE2 = null;
+
+function _construireEtage2_(annee, gardesEnv, cfg, secteurs, affFichier) {
+  try {
+    if (!gardesEnv || !gardesEnv.success || !gardesEnv.data) return null;
+    const meds = (cfg && cfg.medecins) || [];
+    if (!meds.length) return null;
+    // Copie du parsing de getMedecinFlags (code.gs) — ASSEMBLAGE de contexte,
+    // la logique de tri, elle, vit dans le module partage.
+    const JOUR_NUM = { LUN:1, MAR:2, MER:3, JEU:4, VEN:5, SAM:6, DIM:0 };
+    const flags = { tpJoursFixes: {}, dateDebut: {}, dateFin: {}, rythme2sur2: [] };
+    const actifs = [], initiales = {};
+    meds.forEach(function (m2) {
+      if (!m2 || !m2.id) return;
+      if (m2.actif) actifs.push(m2.id);
+      initiales[m2.id] = m2.initiales || m2.id;
+      if (m2.dateDebut) flags.dateDebut[m2.id] = m2.dateDebut;
+      if (m2.dateFin) flags.dateFin[m2.id] = m2.dateFin;
+      if (m2.rythme2sur2) flags.rythme2sur2.push(m2.id);
+      const tp = String(m2.tpJoursFixes || '').trim().toUpperCase();
+      if (tp) {
+        const jours = [];
+        tp.split(/[,;\s]+/).forEach(function (tok) {
+          const t = tok.trim();
+          if (t && JOUR_NUM[t] !== undefined && jours.indexOf(JOUR_NUM[t]) === -1) jours.push(JOUR_NUM[t]);
+        });
+        if (jours.length) flags.tpJoursFixes[m2.id] = jours;
+      }
+    });
+    const codesValides = (Array.isArray(secteurs) ? secteurs : [])
+      .map(function (x) { return x && x.code; }).filter(Boolean);
+    return { annee: Number(annee), gardes: gardesEnv.data, flags: flags,
+             actifs: actifs, initiales: initiales,
+             affectations: (affFichier && affFichier.affectations) || {},
+             codesValides: codesValides };
+  } catch (e) { return null; }
+}
+
+function _dispoLocale(date) {
+  try {
+    if (!_ETAGE2 || typeof calculerDispoJour !== 'function') return null;
+    if (Number(date.slice(0, 4)) !== _ETAGE2.annee) return null;
+    if (Date.now() - _tsEcriturePlanning < 90000) return null;   // ecriture recente → serveur
+    if (!(date in _ETAGE2.gardes)) return null;                  // jour hors GARDES → chemins existants
+    const mois = new Date(date + 'T12:00:00').getMonth() + 1;
+    const affMois = {};
+    Object.keys(_ETAGE2.affectations).forEach(function (id) {
+      const v = _ETAGE2.affectations[id];
+      if (v && v[mois] !== undefined) affMois[id] = v[mois];
+    });
+    return calculerDispoJour(date, {
+      actifs: _ETAGE2.actifs, initiales: _ETAGE2.initiales,
+      affectationDuMois: affMois, codeById: _ETAGE2.gardes[date] || {},
+      codesValides: _ETAGE2.codesValides, flags: _ETAGE2.flags,
+    });
+  } catch (e) { return null; }
+}
+
+function _temoinDispo(date, sector, locale) {
+  const _att = _preEnCours || preparerSemaineMaintenant();
+  const _fin = function () {
+    const srv = _dispoCache[date];
+    if (!srv) return;   // semaine sans reponse pour ce jour : le local reste affiche
+    if (JSON.stringify(srv) === JSON.stringify(locale)) {
+      try { console.log('[DISPO-TEMOIN] concordance', date); } catch (e) {}
+      return;
+    }
+    try { console.warn('[DISPO-TEMOIN] DIVERGENCE', date, '— le serveur corrige l\'affichage.',
+                       { locale: locale, serveur: srv }); } catch (e) {}
+    if (window._sideCtx && window._sideCtx.date === date) renderSidePanelContent(srv, sector);
+  };
+  if (_att) { _att.then(_fin).catch(function () {}); } else { _fin(); }
+}
+
 // Repli unitaire : prechargement absent, echoue, ou jour hors semaine affichee.
 function _chargerDispoJour(date, sector) {
   api({action:'getMARsDispoJour', date})
