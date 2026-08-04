@@ -380,7 +380,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.18.2</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.18.3</span></span></p>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
@@ -474,7 +474,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.18.2'; // SITE_VERSION: v1.18.2
+const SITE_VERSION = 'v1.18.3'; // SITE_VERSION: v1.18.3
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -607,6 +607,18 @@ async function miroirBootDash() {
   /* Journal de connexion : login GAS en arriere-plan, resultat ignore. */
   try { apiPost({ action: 'login' }).catch(function () {}); } catch (e) {}
   return true;
+}
+
+/* (miroir, 04/08/2026) Tuile via le miroir : la cle stocke l'enveloppe
+   {success:true,…} telle que l'action GAS la renvoie — la vue la consomme
+   a l'identique. Echec ou cle absente → l'action GAS, comme avant.
+   Fraicheur : synchro horaire (contenus Drive geres a la main). */
+async function miroirTuile(cle, action) {
+  try {
+    const m = await miroirRead([cle]);
+    if (m && m.success && m.data && m.data[cle] && m.data[cle].success) return m.data[cle];
+  } catch (e) { /* repli */ }
+  return await apiPost({ action: action });
 }
 
 async function _apiPostDirect(payload) {
@@ -1027,7 +1039,7 @@ async function openTopos(){
   const box=document.getElementById('toposList');
   box.innerHTML='<div class="topos-loading">Chargement…</div>';
   try{
-    const r=await apiPost({action:'listTopos'});
+    const r=await miroirTuile('topos','listTopos');           // (miroir, 04/08/2026)
     if(r && r.success){ renderToposList(r); }
     else { box.innerHTML='<div class="topos-empty">'+esc((r&&r.error)||'Erreur de chargement')+'</div>'; }
   }catch(e){ box.innerHTML='<div class="topos-empty">Erreur réseau — réessayez.</div>'; }
@@ -1048,7 +1060,7 @@ async function openStaffs(){
   const box=document.getElementById('staffsList');
   box.innerHTML='<div class="topos-loading">Chargement…</div>';
   try{
-    const r=await apiPost({action:'listStaffs'});
+    const r=await miroirTuile('staffs','listStaffs');         // (miroir, 04/08/2026)
     if(r && r.success){ renderStaffsList(r); }
     else { box.innerHTML='<div class="topos-empty">'+esc((r&&r.error)||'Erreur de chargement')+'</div>'; }
   }catch(e){ box.innerHTML='<div class="topos-empty">Erreur réseau — réessayez.</div>'; }
@@ -1098,7 +1110,7 @@ async function openVeille(){
   box.innerHTML='<div class="topos-loading">Chargement…</div>';
   try{ V_SEEN = localStorage.getItem('chpgVeilleSeen')||''; }catch(e){ V_SEEN=''; }
   try{
-    const r=await apiPost({action:'getVeille'});
+    const r=await miroirTuile('veille','getVeille');          // (miroir, 04/08/2026)
     if(r && r.success){
       VEILLE_ITEMS = r.items||[];
       document.getElementById('veilleToolbar').style.display = VEILLE_ITEMS.length ? 'flex' : 'none';
@@ -1261,7 +1273,7 @@ async function openProtocoles(){
   const box=document.getElementById('protocolesList');
   box.innerHTML='<div class="topos-loading">Chargement…</div>';
   try{
-    const r=await apiPost({action:'listProtocoles'});
+    const r=await miroirTuile('protocoles','listProtocoles'); // (miroir, 04/08/2026)
     if(r && r.success){ _protoGroups=r.groups; renderProtocoles(r,''); }
     else { box.innerHTML='<div class="topos-empty">'+esc((r&&r.error)||'Erreur de chargement')+'</div>'; }
   }catch(e){ box.innerHTML='<div class="topos-empty">Erreur réseau — réessayez.</div>'; }
@@ -1309,7 +1321,7 @@ async function openAnnuaire(){
   const box=document.getElementById('annuaireList');
   box.innerHTML='<div class="topos-loading">Chargement…</div>';
   try{
-    const r=await apiPost({action:'listAnnuaire'});
+    const r=await miroirTuile('annuaire','listAnnuaire');     // (miroir, 04/08/2026)
     if(r && r.success){ _annu=r; renderAnnuaire(r,''); }
     else { box.innerHTML='<div class="topos-empty">'+esc((r&&r.error)||'Erreur de chargement')+'</div>'; }
   }catch(e){ box.innerHTML='<div class="topos-empty">Erreur réseau — réessayez.</div>'; }
