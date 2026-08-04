@@ -1223,6 +1223,7 @@
   <b>Panne Cloudflare</b> : rien à faire — repli GAS automatique sur toutes les pages ; le portail redevient simplement lent.
   <b>Vider le miroir</b> : tableau de bord → KV <code>CHPG_MIROIR</code> → supprimer les paires (ou pousser <code>null</code> par clé) ; le prochain sync reconstruit tout.
   <b>Après la démo du 04/09</b> (nettoyage 2027) : le <code>miroirSyncComplet</code> final re-poussera l'état nettoyé ; vérifier que les clés <code>*_2027</code> orphelines ont disparu du KV.</p>
+  <p><b>Étage 2 (04/08/2026) — panneau à 0 ms.</b> Le tri des disponibles vit dans le module PARTAGÉ <code>partage/dispo_jour.js</code> (côté GAS : fichier <code>dispo_jour</code> — même contenu, le diagnostic surveille la dérive). admin.html le calcule LOCALEMENT depuis le miroir (affichage 0 ms, toute l'année) ; le serveur reste l'autorité : sa réponse est comparée en silence, toute divergence s'imprime en console <code>[DISPO-TEMOIN]</code> et corrige l'écran. Garde de 90 s après écriture. Toute évolution du tri se fait dans le module et se déploie DES DEUX côtés.</p>
   <p><b>Diagnostic Maintenance</b> : depuis Indispos.gs 2026-08-04.6, le contrôle de dérive couvre <code>miroir.gs</code>, et un bloc « Miroir Cloudflare » vérifie jeton présent, Worker joignable (version affichée) et déclencheur horaire installé.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
