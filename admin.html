@@ -1014,7 +1014,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.19.1'; // SITE_VERSION: v1.19.1
+const SITE_VERSION = 'v1.19.2'; // SITE_VERSION: v1.19.2
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1107,7 +1107,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.19.1</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.19.2</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -3161,6 +3161,9 @@ async function initDashboard() {
     try { prechargerVoisines(); } catch (e) {}   // (lot A-bis) semaine ±1, enchainees derriere
     try { _prechaufferMails(); } catch (e) {}
   }, 400);
+  setTimeout(function () {
+    try { prechargerTrimestre(); } catch (e) {}   // (chauffage adouci) −1 a +6, pendant les accalmies
+  }, 5000);
 }
 
 // ── STATUS ─────────────────────────────────────────────────────────────
@@ -3931,6 +3934,37 @@ function _datesSemaineIdx(idx) {
     return (getWeekDays(wk.lundi) || []).filter(d => d && d.date).map(d => d.date);
   } catch(e) { return []; }
 }
+/* (04/08/2026, chauffage — version adoucie) Au-dela des semaines ±1 :
+   rechauffer en tache de fond les semaines −1 a +6 autour de la semaine
+   affichee (la ou le comite navigue a ~95 %), une par une, espacees de 2 s.
+   POLITESSE : ne tire que pendant les ACCALMIES (aucun clic depuis 4 s).
+   La file GAS etant COMMUNE a tout le portail, l'empreinte est volontairement
+   reduite : au pire, une ecriture d'un MAR croise UNE semaine de chauffe
+   (~2-4 s d'attente, une fois). Fraicheur inchangee : une ecriture invalide
+   sa semaine (invaliderCacheSemaine), qui se rechauffe. */
+let _trimestreLance = false;
+let _tsDernierGeste = 0;
+document.addEventListener('click', function () { _tsDernierGeste = Date.now(); }, true);
+
+async function prechargerTrimestre() {
+  if (_trimestreLance) return;
+  _trimestreLance = true;
+  const cibles = [];
+  for (let d = -1; d <= 6; d++) cibles.push(currentWeekIdx + d);
+  for (const i of cibles) {
+    while (Date.now() - _tsDernierGeste < 4000) {
+      await new Promise(function (r) { setTimeout(r, 1000); });
+    }
+    const dates = _datesSemaineIdx(i).filter(function (d) { return d && !_preSemaine[d]; });
+    if (!dates.length) continue;
+    try {
+      const res = await api({ action: 'getPanneauSemaine', dates: dates });
+      _appliquerReponsePanneau_(res, dates);
+    } catch (e) { /* silencieux : le repli unitaire couvrira ce jour-la */ }
+    await new Promise(function (r) { setTimeout(r, 2000); });
+  }
+}
+
 function prechargerVoisines() {
   const _apres = _preEnCours || Promise.resolve();
   _apres.catch(function () {}).then(function () {
