@@ -223,6 +223,23 @@ async function doLogin(){
   const btn=document.getElementById('authBtn');
   btn.innerHTML='<span class="spinner"></span>';btn.disabled=true;
   try{
+    /* (miroir, 04/08/2026) Miroir d'abord ; tout autre resultat → login GAS. */
+    const mb = await miroirBootStaff(code);
+    if (mb && mb.medecins) {
+      adminCode = code;
+      currentYear = mb.annee;
+      document.getElementById('yearPill').textContent=currentYear;
+      document.getElementById('authOverlay').style.display='none';
+      document.getElementById('appHeader').style.display='flex';
+      document.getElementById('statsBar').style.display='flex';
+      document.getElementById('appToolbar').style.display='flex';
+      document.getElementById('appMain').style.display='block';
+      try { apiCall({action:'login',code},code).catch(function(){}); } catch(e){}   // journal de connexion
+      await loadData(mb);
+      btn.textContent='Accéder →';btn.disabled=false;
+      return;
+    }
+    if (mb && mb.nonAdmin) { showAuthErr('Code incorrect'); btn.textContent='Accéder →'; btn.disabled=false; return; }
     const r=await apiCall({action:'login',code},code);
     if(r.success&&r.role==='admin'){
       adminCode=code;
@@ -242,6 +259,56 @@ async function doLogin(){
 function showAuthErr(msg){const el=document.getElementById('authErr');el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',4000);}
 
 async function apiCall(payload,overrideCode){
+  /* (04/08/2026) Rejeu sur echec de transport — meme protection que les
+     autres pages : page d'erreur HTML servie au hasard par Google → un
+     unique renvoi silencieux. Protege notamment saveIndisposBatch. */
+  try { return await _apiCallDirect_(payload, overrideCode); }
+  catch (e) {
+    console.warn('[api] echec de transport (' + (payload && payload.action) + ') — rejeu unique');
+    return await _apiCallDirect_(payload, overrideCode);
+  }
+}
+
+/* ══ MIROIR CLOUDFLARE — LECTURE (04/08/2026) ═══════════════════════════
+   Meme mecanisme que les autres pages. Cles utilisees : config_admin
+   (medecins), indispos_{Y} (admin = toutes), vacances_admin (lot B : tant
+   que le Worker .4 n'est pas deploye, la cle est refusee et la page repasse
+   par getVacancesConfig — repli par construction). Tout ecart → login GAS. */
+const MIROIR_URL = 'https://chpg-miroir.arthurfrohlich.workers.dev';
+
+async function miroirRead(keys, codeAcces) {
+  const _ctrl = new AbortController();
+  const _timer = setTimeout(() => _ctrl.abort(), 6000);
+  try {
+    const res = await fetch(MIROIR_URL + '/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ code: codeAcces, keys }),
+      signal: _ctrl.signal,
+    });
+    return await res.json();
+  } catch (e) { return null; } finally { clearTimeout(_timer); }
+}
+
+/* Identite + medecins + indispos de l'annee de campagne, en un aller-retour
+   dans le cas courant (les deux annees plausibles demandees d'emblee). */
+async function miroirBootStaff(codeAcces) {
+  const Y = new Date().getFullYear();
+  const m = await miroirRead(['config_admin', 'indispos_' + Y, 'indispos_' + (Y + 1)], codeAcces);
+  if (!m || !m.success || !m.identite) return m;
+  if (m.identite.role !== 'admin') return { nonAdmin: true };
+  const iy = Number(m.identite.indisposYear) || (Y + 1);
+  let bloc = m.data && m.data['indispos_' + iy];
+  if (!bloc) {
+    const m2 = await miroirRead(['indispos_' + iy], codeAcces);
+    if (m2 && m2.success && m2.data) bloc = m2.data['indispos_' + iy];
+  }
+  const cfg = m.data && m.data.config_admin;
+  if (!bloc || !bloc.parMar || !cfg || !Array.isArray(cfg.medecins)) return null;   // repli GAS
+  return { annee: iy, medecins: cfg.medecins, indisposData: bloc.parMar };
+}
+
+async function _apiCallDirect_(payload,overrideCode){
   // (F4) POST : le code ne transite plus dans l'URL.
   payload.code=overrideCode||adminCode;
   const _ctrl=new AbortController();
@@ -255,17 +322,22 @@ async function apiCall(payload,overrideCode){
   }finally{clearTimeout(_timer);}
 }
 
-async function loadData(){
+async function loadData(pre){
   document.getElementById('loadingArea').style.display='flex';
   document.getElementById('griView').style.display='none';
   document.getElementById('recView').style.display='none';
 
-  const mRes=await apiCall({action:'getMedecins'});
+  // (miroir) medecins deja livres par miroirBootStaff → zero appel dans ce cas.
+  const mRes=(pre && Array.isArray(pre.medecins)) ? {success:true, medecins: pre.medecins} : await apiCall({action:'getMedecins'});
   if(!mRes.success)return showToast('Erreur médecins');
   medecins=mRes.medecins.filter(m=>m.actif);
   document.getElementById('sbMars').textContent=medecins.length;
 
-  const pRes=await apiCall({action:'getVacancesConfig'});
+  // (miroir, lot B) cle vacances_admin d'abord ; refusee ou absente → action GAS.
+  let pRes=null;
+  try{ const mv=await miroirRead(['vacances_admin'], adminCode);
+       if(mv&&mv.success&&mv.data&&mv.data.vacances_admin&&mv.data.vacances_admin.success) pRes=mv.data.vacances_admin; }catch(e){}
+  if(!pRes) pRes=await apiCall({action:'getVacancesConfig'});
   if(!pRes.success)return showToast('Erreur périodes');
   periodes=(pRes.periodes||[]).filter(p=>parseInt(p.debut.slice(0,4))===currentYear||parseInt(p.debut.slice(0,4))===currentYear-1);
   if(!periodes.length){document.getElementById('loadingArea').innerHTML='<div>Aucune période pour '+currentYear+'</div>';return;}
@@ -284,7 +356,8 @@ async function loadData(){
   });
   medecins.forEach(m=>{const gi=groupMap[m.id]||{groupe:'?',rang:99};m.groupe=gi.groupe;m.rang=gi.rang;});
 
-  const iRes=await apiCall({action:'getAllIndispos',year:currentYear});
+  // (miroir) indispos deja livrees (admin = parMar complet, meme forme que getAllIndispos.data).
+  const iRes=(pre && pre.indisposData) ? {success:true, data: pre.indisposData} : await apiCall({action:'getAllIndispos',year:currentYear});
   // Les cadenas sont RECONSTRUITS a chaque chargement a partir de ce qui est
   // reellement en base : une VAC/FORM enregistree est verrouillee. Avant, ils
   // n'existaient qu'en memoire de l'onglet et disparaissaient au rechargement,
