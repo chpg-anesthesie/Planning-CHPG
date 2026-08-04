@@ -2,7 +2,7 @@
 // À L'IDENTIQUE des deux côtés (Apps Script : fichier `dispo_jour` ; frontend :
 // <script src="partage/dispo_jour.js">). Le diagnostic Maintenance compare la
 // version déployée côté GAS avec celle du dépôt et signale toute dérive.
-const GAS_VERSION_DISPO = '2026-08-04.1';
+const GAS_VERSION_DISPO = '2026-08-04.2';
 
 /* ═══════════════════════════════════════════════════════════════════════
    DISPO_JOUR — module PARTAGÉ serveur / frontend (étage 2, 04/08/2026)
@@ -29,6 +29,11 @@ const GAS_VERSION_DISPO = '2026-08-04.1';
      affectationDuMois  {id: 'VIS'|…}      affectation du MOIS de la date,
                                            DÉJÀ passée par normalizeAffectation
      codeById           {id: 'RG'|'R'|…}   code GARDES du jour, MAJUSCULES
+     codesValides       Set|[…]  OPTIONNEL : si fourni, les affectations sont
+                        normalisées ICI (alias + validité + VOLANT par défaut) —
+                        chemin du FRONTEND, dont les données miroir sont brutes ;
+                        si absent, elles passent telles quelles — chemin du
+                        SERVEUR, qui normalise en amont.
      flags:
        tpJoursFixes     {id: Set|[dow…]}   jours fixes non travaillés (0=dim)
        dateDebut        {id: 'AAAA-MM-JJ'}
@@ -47,6 +52,32 @@ var DISPO_ABSENT_CODES = ['RG', 'V', 'CP', 'F', 'CTP', 'A', 'CL'];
 // Ordre d'affichage des rôles. ⚠️ VOLANT vaut 0 (falsy) : toujours tester la
 // PRÉSENCE de la clé, jamais `ordre[role] || 3` (piège corrigé en production).
 var DISPO_ROLE_ORDRE = { VOLANT: 0, CTP: 1, R: 2, PRESENT: 3, TP: 4 };
+
+/* Alias de secteurs — COPIE de _AFF_ALIAS (code.gs, normalizeAffectation).
+   Toute évolution se fait ICI d'abord, puis se répercute dans code.gs le même
+   jour (chantier ultérieur : faire consommer cette table par code.gs). */
+var DISPO_AFF_ALIAS = {
+  'VISC':'VIS','VISCERAL':'VIS',
+  'ENDO':'END','ENDOSCOPIES':'END',
+  'REANIMATION':'REA',
+  'ORTH':'ORT','ORTHO':'ORT',
+  'CARDIO/INTER':'CI','CARDIO':'CI',
+  'RADIO/INTER':'RI',
+  'MATER':'MAT','MATERNITE':'MAT',
+};
+
+/* Normalisation d'un code d'affectation. Fidèle à normalizeAffectation
+   (code.gs) : trim + majuscules → alias → validité → sinon VOLANT.
+   IDEMPOTENTE : une valeur déjà normalisée ressort inchangée — le serveur,
+   qui normalise en amont, peut donc passer par ici sans effet. */
+function dispoNormaliserAffectation_(brut, codesValides) {
+  if (!brut) return 'VOLANT';
+  var v = String(brut).trim().toUpperCase();
+  if (DISPO_AFF_ALIAS[v]) v = DISPO_AFF_ALIAS[v];
+  if (!codesValides) return v;                       // pas de référentiel fourni → passage direct
+  if (dispoContient_(codesValides, v) || v === 'VOLANT') return v;
+  return 'VOLANT';
+}
 
 function dispoRangRole_(role) {
   return (role in DISPO_ROLE_ORDRE) ? DISPO_ROLE_ORDRE[role] : 3;
@@ -99,7 +130,9 @@ function calculerDispoJour(targetDate, ctx) {
     if (dd && targetDate < dd) return;
     if (df && targetDate >= df) return;
     if (dispoEstSemaineOff_(id, targetDate, flags.rythme2sur2)) return;
-    var secteur = affMap[id] || 'VOLANT';
+    var secteur = ctx && ctx.codesValides
+      ? dispoNormaliserAffectation_(affMap[id], ctx.codesValides)
+      : (affMap[id] || 'VOLANT');   // serveur : affMap déjà normalisée en amont
     var role;
     if (code === 'TP') role = 'TP';
     else if (code === 'R') role = 'R';
