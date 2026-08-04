@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-04.7';
+const GAS_VERSION_INDISPOS = '2026-08-04.8';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -2454,12 +2454,22 @@ if (!affSheet) {
     if (action === 'publishPlanning') {
       if (user.role !== 'admin') return _deny();
       try {
+        /* (2026-08-04.8) PUBLICATION COMBINEE : le lot de placements en
+           attente arrive DANS le meme appel (payload.items) — un aller-retour
+           au lieu de deux. Meme fonction que l'action dediee : lignes visees
+           par (date, MAR), rejouable sans doublon. Lot vide ou absent :
+           comportement inchange. */
+        let _lotEcrit = 0;
+        if (Array.isArray(payload.items) && payload.items.length) {
+          const _resLot = savePlanningOverridesBatch(payload.items);
+          _lotEcrit = (_resLot && _resLot.saved) || 0;
+        }
         generatePlanning(Number(payload.year) || TEST_YEAR);
         // Notifications : arme le minuteur d'accalmie. Isolé : un échec ici
         // ne doit jamais faire échouer la publication.
         try { notifPlanifier(Number(payload.year) || TEST_YEAR); } catch (e) {}
         return ContentService.createTextOutput(JSON.stringify({
-          success: true, message: `Planning ${TEST_YEAR} publié`
+          success: true, message: `Planning ${TEST_YEAR} publié`, lotEcrit: _lotEcrit
         })).setMimeType(ContentService.MimeType.JSON);
       } catch(err) { return _error(err.message); }
     }
