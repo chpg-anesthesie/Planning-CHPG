@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-04.5';
+const GAS_VERSION_INDISPOS = '2026-08-04.6';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -188,6 +188,7 @@ function diagnosticComplet() {
       try { deployed['generateur_gardes.gs'] = GAS_VERSION_GENERATEUR; } catch (e) { deployed['generateur_gardes.gs'] = null; }
       try { deployed['setup_annee.gs'] = GAS_VERSION_SETUP; } catch (e) { deployed['setup_annee.gs'] = null; }
       try { deployed['portail.gs'] = GAS_VERSION_PORTAIL; } catch (e) { deployed['portail.gs'] = null; }
+      try { deployed['miroir.gs'] = GAS_VERSION_MIROIR; } catch (e) { deployed['miroir.gs'] = null; }   // (04/08/2026) le 6e fichier entre au controle de derive
       const tokSync = getGithubToken();
       Object.keys(deployed).forEach(fn => {
         let repoV = null;
@@ -206,6 +207,24 @@ function diagnosticComplet() {
         else check(`${fn} : DÉRIVE — dépôt v${repoV}, déployé v${deployed[fn]} → recopier + redéployer`, R.ERR);
       });
     } catch (e) { check('Contrôle de synchronisation impossible : ' + e.message, R.WARN); }
+
+    // ── 3bis-m. Miroir Cloudflare (04/08/2026) ──
+    hdr('Miroir Cloudflare');
+    try {
+      const _jeton = PropertiesService.getScriptProperties().getProperty('MIROIR_PUSH_TOKEN');
+      if (_jeton) check('Jeton d\'écriture présent (propriétés du script)', R.OK);
+      else check('MIROIR_PUSH_TOKEN ABSENT — le miroir ne reçoit plus rien, pages en repli GAS', R.ERR);
+      try {
+        const _rw = UrlFetchApp.fetch(MIROIR_URL + '/', { muteHttpExceptions: true });
+        if (_rw.getResponseCode() === 200) {
+          const _o = JSON.parse(_rw.getContentText());
+          check('Worker joignable — ' + (_o.service || 'version inconnue'), _o.ok ? R.OK : R.WARN);
+        } else check('Worker injoignable (HTTP ' + _rw.getResponseCode() + ') — repli GAS actif partout', R.WARN);
+      } catch (eW) { check('Worker injoignable (' + eW.message + ') — repli GAS actif partout', R.WARN); }
+      const _trigM = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'miroirSyncComplet'; });
+      if (_trigM) check('Synchro horaire installée (miroirSyncComplet)', R.OK);
+      else check('Synchro horaire ABSENTE — exécuter miroirInstallerDeclencheur()', R.WARN);
+    } catch (eM) { check('Contrôle du miroir impossible : ' + eM.message, R.WARN); }
 
     // ── 3ter. Sauvegarde automatique du classeur ──
     hdr('Sauvegarde automatique');
