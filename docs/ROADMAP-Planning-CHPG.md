@@ -201,6 +201,17 @@ est **bloquant**. Mesurer l'instant d'affichage de l'information utile, pas le n
 
 ## 🚀 Performance — état arrêté au 01/08/2026
 
+### 🪞 Miroir Cloudflare — LIVRÉ (04/08/2026) — remplace la lecture GAS à l'ouverture
+
+Le tableau du coût d'un appel ci-dessous reste EXACT — c'est précisément pourquoi la lecture
+a quitté Apps Script. Worker `chpg-miroir` + KV `CHPG_MIROIR`, alimentés par `gas/miroir.gs`
+(accroche `doGet` sur écriture + synchro horaire). Pages branchées : index, dashboard
+(+ tuiles), indispos, admin (site v1.18.5). Repli GAS intégral au moindre écart ; rejeu de
+transport sur les 4 pages ; après une écriture la page relit le circuit direct (KV ≈ 60 s).
+Détail complet : CONTEXTE « État au 4 août 2026 » et guide technique § 25.
+**Ne pas rouvrir** : recalcul client du panneau semaine, cache page pour Statuts/Équité,
+clé miroir pour `getVacConfig` (par MAR) — décisions motivées du 04/08.
+
 ### Le coût d'un appel, DÉCOMPOSÉ (mesuré le 01/08, chiffres à jour)
 
 Le 01/08 a produit la première décomposition réelle. Elle corrige la formule du 29/07
@@ -1910,6 +1921,17 @@ novembre.
 ---
 
 ## 🔜 À faire
+
+- [ ] 🪞 **Miroir — lot B** (une session PC d'Arthur) : Worker `.4` + `miroir.gs` `.4` avec
+  clés `gardes_{Y}` + `joursferies_{Y}` → onglets **Statuts** et une partie d'**Équité**
+  rapides ET sûrs (rafraîchis à chaque écriture — le cache page est interdit sur un éditeur).
+  Coût du calcul des stats à MESURER avant toute promesse sur Équité.
+- [ ] 🪞 **`staff.html`** : dernier branchement miroir (clés déjà en place, push frontend seul).
+- [ ] 🪞 **Répétition générale chiffrée** : chaque page ×10, PC + mobile + navigation privée.
+  Verdict « prêt pour le 04/09 » = **10/10 sous 2 s**, pas une moyenne. À caler avec les
+  chronos (`chrono()`, lignes `miroir:`).
+- [ ] 🪞 **Périmètre exact de la démo du 04/09 à confirmer par Arthur** (grille + placements +
+  saisie WS ? Équité ? boîte mail ?) — il pilote la priorité du lot B avant/après la démo.
 
 - [ ] 📽️ **Présentation staff du 04/09** — voir « Priorité 1 » en tête de section.
   Deck refait et poussé (`6ca0b09cd1`), `GARDES_2027` supprimé le 30/07. Reste : **répétition
