@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR CHPG — Worker Cloudflare
-   Version : miroir 2026-08-04.3
+   Version : miroir 2026-08-04.4
 
    RÔLE. Servir en ~150 ms les données de lecture du portail (planning,
    affectations, secteurs, années, config admin, indispos), déposées ici
@@ -49,12 +49,12 @@
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-04.3';
+const VERSION = 'miroir 2026-08-04.4';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
 // une clé orpheline invisible.
-const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|topos|staffs|veille|protocoles|annuaire|planning_\d{4}|affectations_\d{4}|indispos_\d{4})$/;
+const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4})$/;
 
 // En-têtes communs. Origin * : la protection est le code d'accès, pas
 // l'origine (les pages GitHub Pages n'ont pas d'origine secrète).
@@ -199,6 +199,8 @@ function autorise(user, cle) {
   if (cle === 'annees' || cle === 'secteurs') return true;              // MAR + admin
   if (cle === 'topos' || cle === 'staffs' || cle === 'veille' ||
       cle === 'protocoles' || cle === 'annuaire') return true;          // tuiles dashboard : MAR + admin
+  if (cle === 'vacances_admin' || /^(gardes|joursferies|stats)_\d{4}$/.test(cle))
+    return user.role === 'admin';                                       // lot B : outils comite (roles GAS repliques)
   if (/^(planning|affectations)_\d{4}$/.test(cle)) return true;        // MAR + admin
   if (/^indispos_\d{4}$/.test(cle)) return true;                       // filtré plus loin
   if (cle === 'config_admin') return user.role === 'admin';            // admin seul
