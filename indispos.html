@@ -515,24 +515,47 @@ async function doLogin() {
   btn.disabled = true;
 
   try {
-    const res = await apiCall('login', {code});
-    if (res.success) {
-      currentUser = res;
-      YEAR = res.indisposYear || res.year || YEAR;
+    /* (miroir, 04/08/2026) Miroir d'abord : identite + mes indispos en
+       ~150 ms, calendrier affiche aussitot. La config vacances (par MAR)
+       reste au GAS et n'est PLUS attendue : le quota se glisse 2-3 s plus
+       tard. Tout autre resultat miroir → login GAS historique inchange. */
+    const mb = await miroirBootIndispos(code);
+    if (mb && mb.identite) {
+      currentUser = mb.identite;
+      YEAR = mb.annee || mb.identite.indisposYear || YEAR;
       displayYear = YEAR;
-      // Démarrer sur le premier mois de l'année planning
       const pjLogin = premierJourAnneePlanning(YEAR);
       currentMonth = pjLogin.getMonth();
       currentCode = code;
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
-      document.getElementById('headerUser').textContent = res.name || res.id;
-      await loadIndispos();
-      await loadVacConfig();
+      document.getElementById('headerUser').textContent = mb.identite.name || mb.identite.id;
+      indispos = mb.indispos || {};
+      updateStats();
       renderMonth();
-      selectTool('INDISPO');   // outil actif + surlignage de la barre des l'ouverture
+      selectTool('INDISPO');
+      loadVacConfig();                                                    // non bloquant
+      try { apiCall('login', {code}).catch(function () {}); } catch (e) {} // journal de connexion
     } else {
-      document.getElementById('loginError').style.display = 'block';
+      const res = await apiCall('login', {code});
+      if (res.success) {
+        currentUser = res;
+        YEAR = res.indisposYear || res.year || YEAR;
+        displayYear = YEAR;
+        // Démarrer sur le premier mois de l'année planning
+        const pjLogin = premierJourAnneePlanning(YEAR);
+        currentMonth = pjLogin.getMonth();
+        currentCode = code;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        document.getElementById('headerUser').textContent = res.name || res.id;
+        await loadIndispos();
+        await loadVacConfig();
+        renderMonth();
+        selectTool('INDISPO');   // outil actif + surlignage de la barre des l'ouverture
+      } else {
+        document.getElementById('loginError').style.display = 'block';
+      }
     }
   } catch(e) {
     document.getElementById('loginError').style.display = 'block';
@@ -634,8 +657,67 @@ function renderPrioPanel() {
    Le second envoi apparait comme une ligne distincte dans chrono() : le
    probleme reste visible au lieu d'etre masque par le correctif. */
 const ERR_CORPS_PERDU = 'Code absent de la requête';
+/* ══ MIROIR CLOUDFLARE — LECTURE (etape 4, 04/08/2026) ═══════════════════
+   Meme mecanisme qu'index/dashboard : le Worker authentifie par empreinte
+   SHA-256 et livre identite + MES indispos (filtrees cote Worker) en un
+   aller-retour ~150 ms. Tout autre resultat → login GAS, seul juge d'un
+   code. Equivalence des donnees PROUVEE par lecture : getIndisposForDoctor
+   et le constructeur miroir lisent le meme onglet, memes lignes, meme
+   helper de dates (reconstruireDatesHeaders). Les ecritures (saveIndispos)
+   restent 100 % GAS — fusion VAC/FORM cote serveur inchangee. */
+const MIROIR_URL = 'https://chpg-miroir.arthurfrohlich.workers.dev';
+
+async function miroirRead(keys, codeAcces) {
+  const _dep = Math.round(performance.now()), _t0 = Date.now();
+  const _ctrl = new AbortController();
+  const _timer = setTimeout(() => _ctrl.abort(), 6000);
+  try {
+    const res = await fetch(MIROIR_URL + '/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ code: codeAcces, keys }),
+      signal: _ctrl.signal,
+    });
+    const rep = await res.json();
+    try { if (window.PERF) PERF.appel('miroir:' + keys.join('+'), Date.now() - _t0, null, _dep,
+                                      rep && rep.success ? 'ok' : 'ECHEC — ' + ((rep && rep.error) || 'HTTP ' + res.status)); } catch (_e) {}
+    return rep;
+  } catch (e) {
+    try { if (window.PERF) PERF.appel('miroir:' + keys.join('+'), Date.now() - _t0, null, _dep,
+                                      'ECHEC — ' + (e && e.message)); } catch (_e) {}
+    return null;
+  } finally { clearTimeout(_timer); }
+}
+
+/* Connexion par le miroir : l'annee de campagne arrive AVEC l'identite
+   (indisposYear) ; on demande d'emblee les deux annees plausibles pour
+   tenir en UN aller-retour dans le cas courant. */
+async function miroirBootIndispos(codeAcces) {
+  const Y = new Date().getFullYear();
+  const m = await miroirRead(['indispos_' + Y, 'indispos_' + (Y + 1)], codeAcces);
+  if (!m || !m.success || !m.identite) return m;
+  const iy = Number(m.identite.indisposYear) || (Y + 1);
+  let bloc = m.data && m.data['indispos_' + iy];
+  if (!bloc) {
+    const m2 = await miroirRead(['indispos_' + iy], codeAcces);
+    if (m2 && m2.success && m2.data) bloc = m2.data['indispos_' + iy];
+  }
+  if (!bloc || !bloc.parMar) return null;   // cle jamais poussee → repli GAS
+  return { identite: m.identite, indispos: bloc.parMar[m.identite.id] || {}, annee: iy };
+}
+
 async function apiCall(action, extra = {}) {
-  const r = await _apiCallDirect(action, extra);
+  let r;
+  try {
+    r = await _apiCallDirect(action, extra);
+  } catch (e) {
+    /* (04/08/2026) Rejeu sur echec de transport — meme protection que
+       index/dashboard : page d'erreur HTML servie au hasard par Google
+       → un unique renvoi silencieux. 2e echec → l'erreur remonte.
+       Protege notamment saveIndispos (la sauvegarde de la demo). */
+    console.warn('[api] echec de transport (' + action + ') — rejeu unique');
+    r = await _apiCallDirect(action, extra);
+  }
   if (r && r.success === false && r.error === ERR_CORPS_PERDU) {
     console.warn('[api] corps de requete perdu (' + action + ') — renvoi immediat');
     return await _apiCallDirect(action, extra);
