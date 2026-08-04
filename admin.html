@@ -1015,7 +1015,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.21'; // SITE_VERSION: v1.21
+const SITE_VERSION = 'v1.21.1'; // SITE_VERSION: v1.21.1
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1108,7 +1108,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.21</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.21.1</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1983,7 +1983,10 @@ async function ouvrirSession(code) {
       const _mb = await miroirBootAdmin(null, code);
       if (_mb && _mb.boot) {
         try { PERF.jalon('ouverture via miroir'); } catch (e) {}
-        try { api({action: 'login', code}).catch(function () {}); } catch (e) {}   // journal de connexion
+        // (v1.21.1) Journal de connexion DIFFERE de 20 s : c'etait le premier
+        // occupant de la file GAS a l'ouverture (2,5-5 s de barre bleue pour
+        // un simple journal). L'horodatage decale de 20 s est sans importance.
+        try { setTimeout(function () { api({action: 'login', code}).catch(function () {}); }, 20000); } catch (e) {}
         return { ident: _mb.boot, boot: _mb.boot };
       }
       if (_mb && _mb.nonAdmin) return { ident: { success: true, role: _mb.identite.role }, boot: null };
@@ -2672,6 +2675,12 @@ async function loadStatuts(){
        ne montre jamais du perime, le circuit direct tranche. Enveloppes
        identiques aux actions ; cle refusee/absente → GAS comme avant. */
     let g = null, jf = null;
+    /* (v1.21.1) Pont sur le chargement paresseux : un clic Statuts dans les
+       toutes premieres secondes attend la fin du telechargement des gardes
+       (≤ 3 s, miroir) plutot que de retomber sur le circuit GAS et sa file. */
+    if (_ETAGE2 && !_ETAGE2.gardes && _etage2PromesseGardes) {
+      try { await Promise.race([_etage2PromesseGardes, new Promise(r => setTimeout(r, 3000))]); } catch (e) {}
+    }
     /* (v1.20.1) ZERO reseau dans le cas courant : gardes + feries de l'annee
        sont deja en memoire (etage 2). Copie profonde : l'editeur filtre 'I'
        et ne doit pas toucher les donnees du panneau. Memes gardes-fous que
@@ -3212,11 +3221,14 @@ async function initDashboard() {
      l'attente actuelle — irreductible tant que le GAS est le fournisseur.
      Aucun risque de fraicheur : le panneau garde son invalidation sur
      ecriture (invaliderCacheSemaine), les mails ont 2 min de validite. */
-  /* (v1.20.1) Chauffage reduit a l'ESSENTIEL : semaine affichee + mails. */
-  setTimeout(function () {
-    try { prechargerSemaine(); } catch (e) {}
-    try { _prechaufferMails(); } catch (e) {}
-  }, 400);
+  /* (v1.21.1) FILE VIDE A L'OUVERTURE — exigence : la barre bleue eteinte,
+     aucun clic des premieres secondes ne fait la queue. Les deux chauffages
+     restants partent APRES la fenetre d'action initiale, etales : la semaine
+     affichee a +8 s (nourrit le temoin ; avant elle, un premier panneau
+     declenche lui-meme sa verification, en arriere-plan, sans bloquer), les
+     mails a +15 s (l'appel Gmail est le plus lent de tous). */
+  setTimeout(function () { try { prechargerSemaine(); } catch (e) {} }, 8000);
+  setTimeout(function () { try { _prechaufferMails(); } catch (e) {} }, 15000);
 }
 
 // ── STATUS ─────────────────────────────────────────────────────────────
@@ -4138,7 +4150,9 @@ function _construireEtage2_(annee, cfg, secteurs, affFichier) {
 /* (v1.20.1) Gardes + feries charges en arriere-plan ~1-2 s apres l'ouverture :
    un colis leger a l'ouverture, l'etage 2 s'active juste derriere. Entre-temps,
    _dispoLocale rend null → chemins serveur, comme avant l'etage 2. */
+let _etage2PromesseGardes = null;   // (v1.21.1) pont pour loadStatuts : attendre la fin du chargement paresseux
 async function _etage2ChargerGardes_(annee, codeAcces) {
+  const _p = (async () => {
   try {
     const m = await miroirRead(['gardes_' + annee, 'joursferies_' + annee], codeAcces);
     if (!(m && m.success && m.data && _ETAGE2 && _ETAGE2.annee === Number(annee))) return;
@@ -4146,6 +4160,9 @@ async function _etage2ChargerGardes_(annee, codeAcces) {
     if (g && g.success && g.data) _ETAGE2.gardes = g.data;
     if (j && j.success && Array.isArray(j.joursFeries)) _ETAGE2.joursFeries = j.joursFeries;
   } catch (e) { /* silencieux : panneau local inactif, chemins serveur */ }
+  })();
+  _etage2PromesseGardes = _p;
+  return _p;
 }
 
 function _dispoLocale(date) {
