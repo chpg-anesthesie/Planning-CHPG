@@ -155,9 +155,9 @@
 </nav>
 
 <section id="c1">
-  <h2><span class="n">01</span>Vue d’ensemble : les trois couches</h2>
+  <h2><span class="n">01</span>Vue d’ensemble : les quatre couches</h2>
 
-  <p>Le portail repose sur trois couches nettement séparées. Comprendre où vit chaque chose évite 90 % des erreurs de maintenance.</p>
+  <p>Le portail repose sur quatre couches nettement séparées. Comprendre où vit chaque chose évite 90 % des erreurs de maintenance. Depuis le 04/08/2026, un <b>miroir de lecture Cloudflare</b> s'intercale entre le frontend et Apps Script : les pages LISENT le miroir (~150 ms), Apps Script reste le seul à ÉCRIRE et le repli intégral en cas d'écart (§ 25).</p>
   <div class="arch">
     <b>1. Frontend</b> (pages statiques, servies par GitHub Pages depuis <code>docs/</code> et la racine)<br>
     &nbsp;&nbsp;├─ <b>admin.html</b> — ton poste de pilotage (PC) : planning quotidien, wizards, équité<br>
@@ -200,12 +200,13 @@
 </section>
 
 <section id="c3">
-  <h2><span class="n">03</span>Le backend Apps Script (les 5 fichiers .gs)</h2>
+  <h2><span class="n">03</span>Le backend Apps Script (les 6 fichiers .gs)</h2>
 
-  <p>Le backend est un projet Apps Script lié au Google Sheet de production, déployé comme application Web. Cinq fichiers se partagent le travail :</p>
+  <p>Le backend est un projet Apps Script lié au Google Sheet de production, déployé comme application Web. Six fichiers se partagent le travail :</p>
   <table>
     <thead><tr><th>Fichier</th><th>Responsabilité</th></tr></thead>
     <tbody>
+      <tr><td><code>miroir.gs</code></td><td>Alimentation du miroir Cloudflare (§ 25) : table écriture→clés, constructeurs, synchro horaire (<code>miroirSyncComplet</code>). Accroché par <code>doGet</code> après chaque écriture réussie.</td></tr>
       <tr><td><code>Indispos.gs</code></td><td>Le cœur de l’API : <code>doGet</code>/<code>doPost</code> et la totalité des actions (getMedecins, getVacValidation, generateGardes, initYear, archiveYear, publishPlanning, sendCodes…). C’est le plus gros fichier.</td></tr>
       <tr><td><code>generateur_gardes.gs</code></td><td>L’algorithme <code>generateGardes(year)</code> : cibles, placement, équité par axe, dette inter-annuelle, souhaits, VDM. Détaillé au §10.</td></tr>
       <tr><td><code>code.gs</code></td><td>Placement des secteurs du bloc (<code>generatePlanningFromGardes</code>), gestion des overrides (<code>PLANNING_OVERRIDES</code>), <code>getJoursFeries</code>, <code>pushFileToGitHub</code>, <code>onEdit</code>, reconstruction 2026, <code>buildStats2026</code>.</td></tr>
@@ -407,6 +408,8 @@
 
 <section id="c13">
   <h2><span class="n">13</span>Le pipeline de déploiement du code</h2>
+  <h3>Worker Cloudflare (miroir)</h3>
+  <p><code>cloudflare/worker.js</code> du dépôt est la source de vérité. Livraison : tableau de bord Cloudflare → Worker <code>chpg-miroir</code> → <b>Edit code</b> → tout remplacer → <b>Deploy</b>. Contrôle : la racine du Worker affiche la version attendue (<code>{"ok":true,"service":"miroir …"}</code>). Toute montée de <code>CLE_VALIDE</code> côté Worker se livre AVANT le <code>miroir.gs</code> qui pousse les nouvelles clés.</p>
 
   <h3>Frontend (HTML / JS / docs)</h3>
   <div class="step-chain">
@@ -436,7 +439,10 @@
   <table>
     <thead><tr><th>Symptôme</th><th>Cause probable / action</th></tr></thead>
     <tbody>
-      <tr><td>« Action inconnue » / « fonction introuvable »</td><td>Dépôt/éditeur incomplet ou fichier non recopié. Vérifier que les 5 .gs sont à jour dans l’éditeur, redéployer.</td></tr>
+      <tr><td>Les pages s'ouvrent lentement (10 s+) alors que le miroir est en place</td><td>Repli GAS silencieux : miroir en panne, clé absente, ou <code>acces</code> jamais poussé. Contrôles § 25 (racine du Worker, clés KV, <code>chrono()</code> — la ligne <code>miroir:</code> dit ECHEC et pourquoi).</td></tr>
+      <tr><td>Une donnée modifiée n'apparaît pas côté MAR (&lt; 1 min)</td><td>Propagation KV normale (~60 s max). Au-delà d'une heure : l'accroche n'a pas poussé (écriture hors portail ? action absente de <code>MIROIR_APRES_ECRITURE</code> ?) — lancer <code>miroirSyncComplet</code> et lire son journal.</td></tr>
+      <tr><td>« Erreur réseau » sporadique sur une action</td><td>Page d'erreur HTML aléatoire de Google. Toutes les pages rejouent une fois en silence ; deux échecs consécutifs = vraie panne, regarder le menu Exécutions.</td></tr>
+      <tr><td>« Action inconnue » / « fonction introuvable »</td><td>Dépôt/éditeur incomplet ou fichier non recopié. Vérifier que les 6 .gs sont à jour dans l’éditeur (miroir.gs compris), redéployer.</td></tr>
       <tr><td>Une modif backend n’a aucun effet</td><td>Web App pas redéployée (nouvelle version), ou modif faite dans l’éditeur puis écrasée par une recopie du dépôt.</td></tr>
       <tr><td>Le planning MAR ne se met pas à jour</td><td>C’est le Drive qui fait foi, pas GitHub. Vérifier que la publication (écriture Drive) a réussi ; côté MAR, Ctrl+Maj+R.</td></tr>
       <tr><td>Un profil « souhait garanti » sort en rouge au certificat</td><td>Le flag <code>souhait_plafond</code> (col P de MEDECINS) n’est pas coché : le code ne peut pas le reconnaître et l’exclure.</td></tr>
@@ -505,6 +511,7 @@
 
 <section id="c16">
   <h2><span class="n">16</span>Sécurité &amp; confidentialité (le modèle réel)</h2>
+  <p><b>Côté miroir (04/08/2026)</b> : les codes d'accès ne quittent jamais Apps Script en clair — le Worker authentifie par empreintes SHA-256 (clé <code>acces</code>) ; le rôle secrétariat n'a AUCUNE lecture miroir ; le jeton d'écriture <code>MIROIR_PUSH_TOKEN</code> vit dans les propriétés du script et les secrets du Worker, jamais dans le dépôt. <b>Liste rouge</b> (ne transite JAMAIS par Cloudflare) : relevé libéral, marges CCAM, CONFIG/PARAMETRES, Gmail, journaux — c'est pourquoi absences.html plafonne à ~4-5 s (fusion login+données) au lieu de 2 s : la confidentialité prime.</p>
 
   <p>Cette section décrit ce qui est protégé, à quel niveau, et où sont les limites assumées. Principe directeur : <b>tout ce qui est nominatif et sensible est verrouillé côté serveur ; ce qui est exposé publiquement ne contient rien qu'on ne trouve déjà ailleurs.</b></p>
 
@@ -1210,6 +1217,13 @@
   <p><b>Sécurité.</b> Les codes d’accès ne quittent jamais le script en clair : le Worker authentifie par empreintes SHA-256 (clé <code>acces</code>). Rôles conservés : secrétariat = aucune lecture miroir ; MAR = ses données (indispos filtrées) ; admin = tout. Le jeton d’écriture vit dans les propriétés du script (<code>MIROIR_PUSH_TOKEN</code>) et dans les secrets du Worker — jamais dans le dépôt. Liste rouge inchangée : relevé libéral, marges, CONFIG/PARAMETRES, Gmail, journaux ne transitent jamais par le miroir.</p>
   <p><b>Fraîcheur.</b> Le KV propage en ~60 s au plus : après une écriture du comité, un MAR peut brièvement voir la version précédente. La page qui vient d’écrire relit, elle, le circuit direct.</p>
   <p><b>Diagnostic.</b> <code>https://chpg-miroir.arthurfrohlich.workers.dev/</code> doit répondre <code>{"ok":true,…}</code> ; les clés et leur date de dépôt se voient dans le tableau de bord Cloudflare (Storage &amp; Databases → Workers KV) ; dans <code>chrono()</code>, les appels miroir apparaissent préfixés <code>miroir:</code>. Révoquer un code : le retirer de MEDECINS puis relancer <code>miroirSyncComplet</code> (ou attendre l’heure du filet).</p>
+  <p><b>Procédures d'exploitation.</b>
+  <b>Rotation du jeton</b> : générer 40 caractères → Worker (Settings → Variables and Secrets → <code>PUSH_TOKEN</code>) ET propriétés du script (<code>MIROIR_PUSH_TOKEN</code>) → un <code>miroirSyncComplet</code> de contrôle.
+  <b>Révocation d'un code</b> : retirer/changer le code dans MEDECINS (ou CONFIG pour l'admin) → <code>miroirSyncComplet</code> (sinon effet à l'heure suivante).
+  <b>Panne Cloudflare</b> : rien à faire — repli GAS automatique sur toutes les pages ; le portail redevient simplement lent.
+  <b>Vider le miroir</b> : tableau de bord → KV <code>CHPG_MIROIR</code> → supprimer les paires (ou pousser <code>null</code> par clé) ; le prochain sync reconstruit tout.
+  <b>Après la démo du 04/09</b> (nettoyage 2027) : le <code>miroirSyncComplet</code> final re-poussera l'état nettoyé ; vérifier que les clés <code>*_2027</code> orphelines ont disparu du KV.</p>
+  <p><b>Diagnostic Maintenance</b> : depuis Indispos.gs 2026-08-04.6, le contrôle de dérive couvre <code>miroir.gs</code>, et un bloc « Miroir Cloudflare » vérifie jeton présent, Worker joignable (version affichée) et déclencheur horaire installé.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
