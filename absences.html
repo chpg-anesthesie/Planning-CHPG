@@ -187,7 +187,16 @@ document.getElementById('icBack').innerHTML = svg('arrow-left');
    probleme reste visible au lieu d'etre masque par le correctif. */
 const ERR_CORPS_PERDU = 'Code absent de la requête';
 async function apiPost(payload){
-  const r = await _apiPostDirect(payload);
+  let r;
+  try {
+    r = await _apiPostDirect(payload);
+  } catch (e) {
+    /* (04/08/2026) Rejeu sur echec de transport — meme protection que les
+       autres pages : page d'erreur HTML servie au hasard par Google → un
+       unique renvoi silencieux. 2e echec → l'erreur remonte. */
+    console.warn('[api] echec de transport (' + (payload.action || '?') + ') — rejeu unique');
+    r = await _apiPostDirect(payload);
+  }
   if (r && r.success === false && r.error === ERR_CORPS_PERDU) {
     console.warn('[api] corps de requete perdu (' + (payload.action || '?') + ') — renvoi immediat');
     return await _apiPostDirect(payload);
@@ -235,22 +244,30 @@ function authErr(m){
 }
 async function doLogin(code){
   VIEW_CODE = code;
-  const r = await apiPost({action:'login'});
+  /* (04/08/2026, fusion) UN aller-retour au lieu de deux : getConsultAbsences
+     authentifie (checkCode en routage, secretariat autorise) ET livre les
+     donnees + role + nom (Indispos.gs 2026-08-04.5). Le login GAS part en
+     arriere-plan pour le seul journal de connexion. Tant que le GAS .5 n'est
+     pas deploye, r.role est absent → deduction par la regle SERVEUR :
+     motifs === false ⇔ secretariat (avecMotifs = role !== 'secretariat'). */
+  const r = await apiPost({action:'getConsultAbsences'});
   if(!(r && r.success)){ VIEW_CODE=''; return r; }
   try{ sessionStorage.setItem('chpgViewCode', code); }catch(e){}
-  ROLE = r.role;
-  MOI  = (r.role === 'mar') ? r.id : null;
+  ROLE = r.role || (r.motifs ? 'mar' : 'secretariat');
+  MOI  = (ROLE === 'mar') ? (r.moi || null) : null;
   document.getElementById('mePill').textContent =
-    (r.role === 'secretariat') ? 'Secrétariat' : (r.name || r.id || '');
+    (ROLE === 'secretariat') ? 'Secrétariat'
+    : (r.name || (r.noms && r.moi && r.noms[r.moi]) || r.moi || '');
   // Le secrétariat n'a pas de portail : on lui masque le lien de retour.
-  document.getElementById('lnkBack').style.display = (r.role === 'secretariat') ? 'none' : '';
-  document.getElementById('pitch').textContent = (r.role === 'mar')
+  document.getElementById('lnkBack').style.display = (ROLE === 'secretariat') ? 'none' : '';
+  document.getElementById('pitch').textContent = (ROLE === 'mar')
     ? "Vérifiez qu'aucun patient libéral vu en consultation ne sera opéré un jour où vous êtes absent."
     : "Avant de placer un patient libéral, vérifiez que le médecin qui le verra en consultation sera présent le jour de son intervention.";
   document.getElementById('authOverlay').style.display='none';
   document.getElementById('hdr').style.display='flex';
   document.getElementById('main').style.display='';
-  charger();
+  chargerDepuis(r);   // la reponse deja recue EST le chargement — zero appel de plus
+  try { apiPost({action:'login'}).catch(function(){}); } catch(e) {}   // journal de connexion
   return r;
 }
 document.getElementById('authBtn').addEventListener('click', async function(){
@@ -325,20 +342,25 @@ function lireMarges(r){
   if(mm >= 1 && mm <= 12) MARGE_MOIS = 'cumul janvier → ' + _MOIS_FR[mm-1];
 }
 
+/* (04/08/2026, fusion) Consommation d'une reponse getConsultAbsences deja
+   recue : partagee entre doLogin (fusion) et charger (rechargements). */
+function chargerDepuis(r){
+  if(!(r && r.success)){
+    document.getElementById('zone').innerHTML =
+      '<div class="card"><div class="empty">Impossible de charger : '+
+      ((r&&r.error)||'erreur inconnue')+'</div></div>';
+    return;
+  }
+  DATA = r; MOTIFS = !!r.motifs;
+  lireMarges(r);
+  if(r.moi) MOI = r.moi;
+  construireJours();
+  rendre();
+}
 async function charger(){
   try{
     const r = await apiPost({action:'getConsultAbsences'});
-    if(!(r && r.success)){
-      document.getElementById('zone').innerHTML =
-        '<div class="card"><div class="empty">Impossible de charger : '+
-        ((r&&r.error)||'erreur inconnue')+'</div></div>';
-      return;
-    }
-    DATA = r; MOTIFS = !!r.motifs;
-    lireMarges(r);
-    if(r.moi) MOI = r.moi;
-    construireJours();
-    rendre();
+    chargerDepuis(r);
   }catch(e){
     document.getElementById('zone').innerHTML =
       '<div class="card"><div class="empty">Erreur réseau — rechargez la page.</div></div>';
