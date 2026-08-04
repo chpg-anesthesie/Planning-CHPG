@@ -1922,16 +1922,19 @@ novembre.
 
 ## 🔜 À faire
 
-- [ ] 🪞 **Miroir — lot B** (une session PC d'Arthur) : Worker `.4` + `miroir.gs` `.4` avec
-  clés `gardes_{Y}` + `joursferies_{Y}` → onglets **Statuts** et une partie d'**Équité**
-  rapides ET sûrs (rafraîchis à chaque écriture — le cache page est interdit sur un éditeur).
-  Coût du calcul des stats à MESURER avant toute promesse sur Équité.
-- [ ] 🪞 **`staff.html`** : dernier branchement miroir (clés déjà en place, push frontend seul).
-- [ ] 🪞 **Répétition générale chiffrée** : chaque page ×10, PC + mobile + navigation privée.
-  Verdict « prêt pour le 04/09 » = **10/10 sous 2 s**, pas une moyenne. À caler avec les
-  chronos (`chrono()`, lignes `miroir:`).
-- [ ] 🪞 **Périmètre exact de la démo du 04/09 à confirmer par Arthur** (grille + placements +
-  saisie WS ? Équité ? boîte mail ?) — il pilote la priorité du lot B avant/après la démo.
+- [x] 🪞 **Miroir — lot B — LIVRÉ ET DÉPLOYÉ (04/08 soir)** : Worker `.4` + `miroir.gs` `.4`,
+  clés `gardes_{Y}` / `joursferies_{Y}` / `stats_{Y}` / `vacances_admin` (admin seul).
+  Découverte en route : `getStats` est un dump d'onglet → Équité (source feuille) mirrorée
+  sans mesure. Garde de fraîcheur 90 s après écriture planning sur Statuts/Équité.
+- [x] 🪞 **`staff.html` — BRANCHÉE (v1.19)** : miroir + rejeu de transport.
+- [x] 🪞 **Lot A-bis — semaines voisines ±1 préchargées** derrière la semaine courante.
+- [x] 🪞 **Périmètre démo confirmé par Arthur : dashboard + index + indispos** (admin second plan).
+- [ ] 🪞 **Répétition générale chiffrée — DERNIER JALON AVANT LE 04/09** : chaque page ×10,
+  PC + mobile + navigation privée. Verdict « prêt » = **10/10 sous 2 s**, pas une moyenne.
+  À caler sur une session PC tranquille (`chrono()`, lignes `miroir:`), chiffres consignés ici.
+- [ ] 🪞 **Idée en réserve (non engagée)** : clé `panneau_{Y}` précalculée pour un premier clic
+  case flash instantané — coût du calcul année entière PAR ÉCRITURE à mesurer d'abord ;
+  le chauffage + voisines du 04/08 la rendent probablement inutile.
 
 - [ ] 📽️ **Présentation staff du 04/09** — voir « Priorité 1 » en tête de section.
   Deck refait et poussé (`6ca0b09cd1`), `GARDES_2027` supprimé le 30/07. Reste : **répétition
