@@ -1015,7 +1015,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.21.1'; // SITE_VERSION: v1.21.1
+const SITE_VERSION = 'v1.21.2'; // SITE_VERSION: v1.21.2
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1108,7 +1108,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.21.1</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.21.2</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1908,6 +1908,8 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
    (propagation KV ~60 s). */
 const MIROIR_URL = 'https://chpg-miroir.arthurfrohlich.workers.dev';
 let _MIROIR_ANNEES = null;   // {active, annees:[...]} livre par miroirBootAdmin
+let _MIROIR_CFG = null;      // (v1.21.2) config_admin du boot (medecins + drapeaux)
+let _MIROIR_SECTEURS = null; // (v1.21.2) referentiel secteurs du boot
 
 async function miroirRead(keys, codeAcces) {
   const _dep = Math.round(performance.now()), _t0 = Date.now();
@@ -1950,6 +1952,8 @@ async function miroirBootAdmin(anneeVoulue, codeAcces) {
   const cfg = m.data && m.data.config_admin;
   if (!plan || !cfg) return null;   // miroir incomplet → bootstrap GAS
   if (m.data.annees && Array.isArray(m.data.annees.annees)) _MIROIR_ANNEES = m.data.annees;
+  _MIROIR_CFG = cfg || null;                     // (v1.21.2) pour reconstruire l'etage 2 au changement d'annee
+  _MIROIR_SECTEURS = m.data.secteurs || null;
   // (etage 2) Contexte du calcul LOCAL du panneau — null si une piece manque,
   // et dans ce cas les chemins serveur existants prennent la main.
   _ETAGE2 = _construireEtage2_(active, cfg, m.data.secteurs, aff || null);
@@ -2085,7 +2089,22 @@ async function authenticate() {
   }
 }
 
-const API_TIMEOUT_MS = 120000; // 2 min : couvre la génération des gardes (~15 s) et le diagnostic, coupe les vrais blocages
+/* (v1.21.2) TIMEOUTS DIFFERENCIES — le 2 min unique etait la cause du
+   « chargement infini » du 04/08 au soir : sur iOS, un onglet mis en
+   arriere-plan gele le fetch ET son minuteur d'abandon ; au retour, l'appel
+   zombie tenait la file SERIELLE jusqu'a 2 minutes, barre figee, et tout
+   attendait derriere (dont le changement d'annee). Lectures : 20 s — un GAS
+   sain repond en < 8 s, au-dela c'est mort, on rejoue ou on echoue VITE et la
+   file vit. Ecritures et taches longues (generation, diagnostic, publication,
+   archivage) : 90 s — on ne coupe pas une ecriture en cours. */
+const API_TIMEOUT_LECTURE_MS  = 20000;
+const API_TIMEOUT_ECRITURE_MS = 90000;
+const _ACTIONS_LONGUES = new Set(['generateGardes','diagComplet','publishPlanning','archiveYear','initYear']);
+function _apiTimeoutPour(action) {
+  if (_ACTIONS_LONGUES.has(action)) return API_TIMEOUT_ECRITURE_MS;
+  try { if (_ACTIONS_ECRITURE_PLANNING.has(action)) return API_TIMEOUT_ECRITURE_MS; } catch (e) {}
+  return API_TIMEOUT_LECTURE_MS;
+}
 
 // ══ BOITE DE RECEPTION — lecture seule ═══════════════════════════════
 // Le serveur n'expose que 3 actions de LECTURE et ne renvoie que du TEXTE BRUT
@@ -2336,7 +2355,7 @@ async function _apiDirect(payload) {
     for (let essai = 1; essai <= _maxEssais; essai++) {
       _essaisFaits = essai;
       const _ctrl = new AbortController();
-      const _timer = setTimeout(() => _ctrl.abort(), API_TIMEOUT_MS);
+      const _timer = setTimeout(() => _ctrl.abort(), _apiTimeoutPour(_action));   // (v1.21.2) 20 s lecture / 90 s ecriture
       try {
         const res = await fetch(API_URL, {
           method: 'POST',
@@ -2365,7 +2384,7 @@ async function _apiDirect(payload) {
         _dernier.transport = true;
       } catch (e) {
         _dernier = (e && e.name === 'AbortError')
-          ? new Error('Délai dépassé (2 min) — serveur trop lent ou injoignable')
+          ? new Error('Délai dépassé (' + Math.round(_apiTimeoutPour(_action)/1000) + ' s) — serveur trop lent ou injoignable')
           : e;
         _dernier.transport = true;          // reseau, JSON illisible, delai : la reponse manque
       } finally { clearTimeout(_timer); }
@@ -3063,6 +3082,26 @@ async function reloadForYear(year) {
   });
   // Aller directement sur la vue Planning de l'année choisie, et forcer son rechargement
   DATA = null;
+  /* (v1.21.2) LE CHANGEMENT D'ANNEE PASSE PAR LE MIROIR — il passait par la
+     file GAS (2 appels, 5-8 s au mieux, otage de la file au pire : c'est lui
+     que la panne du 04/08 au soir a fige). Desormais : une lecture miroir
+     (~300-800 ms meme en 4G), INSENSIBLE a l'etat de la file, et l'etage 2
+     est rebranche sur la nouvelle annee. Tout ecart → circuit GAS d'origine
+     via loadPlanningData(), inchange. */
+  try {
+    const m = await miroirRead(['planning_' + year, 'affectations_' + year], ADMIN_CODE);
+    const p = m && m.success && m.data && m.data['planning_' + year];
+    const af = m && m.success && m.data && m.data['affectations_' + year];
+    if (p && p.planning) {
+      try {
+        _ETAGE2 = _construireEtage2_(year, _MIROIR_CFG, _MIROIR_SECTEURS, af || null);
+        _etage2ChargerGardes_(year, ADMIN_CODE);
+      } catch (e) { _ETAGE2 = null; }
+      await loadPlanningData({ planning: p.planning, affectations: af || null });
+      showTab('planning');   // APRES : DATA est pose, showTab ne relance pas de chargement GAS
+      return;
+    }
+  } catch (e) { /* repli GAS ci-dessous */ }
   showTab('planning');
 }
 
