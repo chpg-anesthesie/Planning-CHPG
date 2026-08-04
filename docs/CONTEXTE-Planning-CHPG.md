@@ -11,6 +11,67 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 4 août 2026 — LE MIROIR CLOUDFLARE EST EN PRODUCTION
+
+**Site v1.18.5** · nouveau fichier **`gas/miroir.gs` 2026-08-04.3** · `Indispos.gs` **2026-08-03.4**
+(accroche miroir dans `doGet`) · nouveau **`cloudflare/worker.js`** (Worker `chpg-miroir`,
+version `miroir 2026-08-04.3`, déployé chez Cloudflare, stockage KV `CHPG_MIROIR`).
+
+**Pourquoi.** Mesures du 03/08 : tout appel Apps Script coûte 2,5–5 s quel que soit le
+travail serveur (compilation ~575 Ko À CHAQUE requête + redirection 302 + file d'attente
+par compte + pages d'erreur HTML aléatoires). Aucune optimisation de code ne pouvait rendre
+l'ouverture des pages ni rapide ni PRÉVISIBLE — exigence non négociable pour la démo du 04/09.
+
+**Architecture.** Apps Script reste le SEUL écrivain. Après chaque écriture réussie, il dépose
+les JSON à jour au Worker (`miroirApresRequete_` appelé par `doGet`, table
+`MIROIR_APRES_ECRITURE` dans `miroir.gs`) ; un déclencheur HORAIRE (`miroirSyncComplet`)
+resynchronise tout en filet — c'est la SEULE fraîcheur pour ce qui ne passe par aucune action
+du portail (modification manuelle du classeur, dossiers Drive des topos/protocoles).
+Les pages lisent le miroir d'abord (~150 ms, authentification comprise) ; **tout écart —
+panne, clé absente, code refusé — rend la main au circuit GAS, seul juge d'un code**.
+
+**Clés servies** : `acces` (EMPREINTES SHA-256 des codes + identité + indisposYear/Ouverte —
+jamais un code en clair, jamais le code secrétariat), `annees`, `secteurs`, `config_admin`
+(admin seul), `planning_{Y}` / `affectations_{Y}` (toutes les années consultables — PAS
+« active + N+1 », voir leçons), `indispos_{Y}` (filtrées par MAR côté Worker),
+`topos` / `staffs` / `veille` / `protocoles` / `annuaire` (enveloppes `{success:true,…}`
+telles quelles, fraîcheur horaire assumée).
+
+**Sécurité** : jeton d'écriture `MIROIR_PUSH_TOKEN` (propriétés du script + secret Worker,
+JAMAIS dans le dépôt) ; secrétariat = AUCUNE lecture miroir ; **liste rouge inchangée** —
+relevé libéral, marges, CONFIG/PARAMETRES, Gmail, journaux ne transitent JAMAIS par le miroir.
+
+**Pages branchées** : `index.html` (v1.18), `dashboard.html` + ses 5 tuiles (v1.18.1/.3),
+`indispos.html` (v1.18.3), `admin.html` — ouverture, changement d'année, sélecteur d'années
+(v1.18.4) + lot A v1.18.5 (Équipe depuis le bootstrap, chauffage d'arrière-plan : panneau
+semaine immédiat + liste des mails préchargée 2 min). **`staff.html` PAS branchée.**
+
+**Règles posées le 04/08 (ne pas défaire)** :
+- Après une ÉCRITURE, la page relit le circuit DIRECT GAS, jamais le miroir (propagation
+  KV ≈ 60 s max). Vaut pour admin et pour la saisie de WS le 04/09.
+- Rejeu sur échec de transport (page d'erreur HTML Google → un renvoi silencieux) posé sur
+  les 4 pages ; il protège surtout les ÉCRITURES, qui ne passeront jamais par le miroir.
+- `getVacConfig` est PAR MAR (quota, temps partiel) → hors miroir, appelé SANS bloquer.
+- Pas de recalcul CLIENT du panneau semaine (logique de tri du comité : divergence interdite) ;
+  pas de cache page pour Statuts/Équité (un ÉDITEUR ne montre jamais du périmé) → lot B.
+
+## Ce qu'a appris la journée du 4 août 2026
+
+1. **Le miroir met l'aléa GAS à nu.** Tout ce qui reste sur GAS (tuiles avant migration,
+   mails, onglets) paraissait « cassé » par contraste — c'était la loterie de toujours,
+   rendue visible. Réponse : rejeu de transport partout + chauffage d'arrière-plan.
+2. **« Active + N+1 » était une règle fausse.** Année active 2027 → `planning_2026` jamais
+   déposé, repli GAS à chaque bascule. Corrigé : TOUTES les années consultables, même
+   balayage que le sélecteur. Une règle de périmètre se calque sur ce que l'interface
+   PROPOSE, pas sur un raccourci.
+3. **Une modification MANUELLE du classeur est invisible du miroir** jusqu'à la synchro
+   horaire (ou un `miroirSyncComplet` à la main). L'accroche n'écoute que les actions du
+   portail.
+4. **Mes notes de session peuvent être périmées** : « la version vit dans 5 fichiers /
+   9 emplacements » était faux (règle en vigueur : 4 fichiers, celle du Diagnostic).
+   Compter dans le dépôt, jamais se fier à une liste écrite — la règle existait déjà,
+   elle a encore servi.
+
 ## État au 3 août 2026
 
 **Site v1.17** · GAS : `code.gs` **2026-08-01.2** · `Indispos.gs` **2026-08-03.3** ·
