@@ -1061,6 +1061,75 @@
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T125" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T125" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T125" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
+
+  <h3>Miroir Cloudflare (04/08/2026) — répétition générale</h3>
+
+  <div class="test" data-id="T154"><div class="test-head"><span class="tid">T154</span><div class="test-body">
+    <div class="t-do">Navigation privée, ouvrir index.html, taper un code MAR. Répéter 10 fois (fermer l'onglet privé entre chaque).</div>
+    <div class="t-exp">Attendu : planning visible en <b>moins de 2 s, 10 fois sur 10</b> — pas une moyenne. <code>chrono()</code> montre une ligne <code>miroir:…</code> à ~150–400 ms et aucun appel GAS bloquant avant l'affichage.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T154" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T154" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T154" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T155"><div class="test-head"><span class="tid">T155</span><div class="test-body">
+    <div class="t-do">Même protocole sur dashboard.html puis indispos.html (les pages de la démo), PC ET mobile.</div>
+    <div class="t-exp">Attendu : 10/10 sous 2 s chacune. Sur indispos, le calendrier porte déjà tes indispos ; le quota vacances se glisse 2-3 s après SANS bloquer.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T155" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T155" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T155" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T156"><div class="test-head"><span class="tid">T156</span><div class="test-body">
+    <div class="t-do">index.html : basculer 2026 ↔ 2027 dans le sélecteur d'année.</div>
+    <div class="t-exp">Attendu : première bascule vers une année ~150 ms (miroir), suivantes 0 ms (cache). Jamais la barre rouge d'appels GAS.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T156" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T156" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T156" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T157"><div class="test-head"><span class="tid">T157</span><div class="test-body">
+    <div class="t-do">Taper un code FAUX sur index.html.</div>
+    <div class="t-exp">Attendu : refus (« Code incorrect ») après le passage par le circuit GAS — le miroir ne valide jamais seul un code douteux. Aucune donnée affichée.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T157" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T157" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T157" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T158"><div class="test-head"><span class="tid">T158</span><div class="test-body">
+    <div class="t-do">Se connecter sur absences.html avec le code du secrétariat, puis vérifier chez Cloudflare (Metrics du Worker) qu'AUCUNE requête du secrétariat n'aboutit en lecture.</div>
+    <div class="t-exp">Attendu : la page absences fonctionne (~4-5 s, circuit GAS fusionné) ; le rôle secrétariat ne lit RIEN au miroir — c'est la règle, pas un oubli.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T158" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T158" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T158" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T159"><div class="test-head"><span class="tid">T159</span><div class="test-body">
+    <div class="t-do">Se connecter sur indispos.html avec DEUX codes MAR différents (deux navigateurs).</div>
+    <div class="t-exp">Attendu : chacun ne voit QUE ses propres indisponibilités. Le filtrage est fait par le Worker, pas par la page.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T159" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T159" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T159" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T160"><div class="test-head"><span class="tid">T160</span><div class="test-body">
+    <div class="t-do">DevTools → Network → « Block request domain » sur <code>chpg-miroir…workers.dev</code> → recharger index.html.</div>
+    <div class="t-exp">Attendu : la page s'ouvre QUAND MÊME, en lent (repli GAS silencieux). Débloquer → recharger → instantané. Le pire cas du miroir est le comportement d'avant.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T160" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T160" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T160" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T161"><div class="test-head"><span class="tid">T161</span><div class="test-body">
+    <div class="t-do">Dans admin : modifier une case, puis ouvrir l'onglet Statuts DANS la minute.</div>
+    <div class="t-exp">Attendu : la modification est visible immédiatement (garde de fraîcheur : moins de 90 s après une écriture, Statuts relit le circuit DIRECT, jamais le miroir).</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T161" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T161" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T161" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T162"><div class="test-head"><span class="tid">T162</span><div class="test-body">
+    <div class="t-do">Comité modifie le planning (admin), puis un MAR recharge index.html sur un autre appareil.</div>
+    <div class="t-exp">Attendu : la modification apparaît en moins d'une minute (propagation KV ~60 s). Au-delà d'une heure : anomalie, lancer <code>miroirSyncComplet</code> et lire son journal.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T162" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T162" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T162" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T163"><div class="test-head"><span class="tid">T163</span><div class="test-body">
+    <div class="t-do">Admin ouvert depuis ~10 s : clic sur une case flash, puis flèche « semaine suivante » et re-clic.</div>
+    <div class="t-exp">Attendu : panneau immédiat dans les deux cas (chauffage + semaines ±1 préchargées). Un clic dans les 5 premières secondes de la page peut encore attendre — connu et assumé.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T163" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T163" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T163" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T164"><div class="test-head"><span class="tid">T164</span><div class="test-body">
+    <div class="t-do">Saisir puis SAUVEGARDER des indispos (le geste de WS le 04/09), 5 fois de suite.</div>
+    <div class="t-exp">Attendu : 5/5 sans « Erreur réseau » (le rejeu de transport encaisse l'aléa Google en silence). Les valeurs relues après rechargement sont exactes.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T164" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T164" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T164" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
   <h3>W3 — clôture</h3>
 
   <div class="test" data-id="T126"><div class="test-head"><span class="tid">T126</span><div class="test-body">
