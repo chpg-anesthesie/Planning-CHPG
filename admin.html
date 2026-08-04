@@ -1014,7 +1014,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.18.3'; // SITE_VERSION: v1.18.3
+const SITE_VERSION = 'v1.18.4'; // SITE_VERSION: v1.18.4
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1107,7 +1107,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.18.3</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.18.4</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1895,12 +1895,94 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
    renvoie pas encore le role (fenetre entre le push et la recopie).
    ⚠️ NE JAMAIS relancer login et getAdminBootstrap en parallele : c'est
    exactement ce qui coutait 11 s. */
+/* ══ MIROIR CLOUDFLARE — LECTURE (etape 4, 04/08/2026) ═══════════════════
+   Mesures du 03/08 : ouverture admin = 7,3 + 11,2 + 8,2 s pour 3 appels GAS.
+   Le miroir (cloudflare/worker.js, alimente par gas/miroir.gs) livre en
+   ~150 ms les 12 donnees de CONFIGURATION du bootstrap ; les 2 donnees
+   VIVANTES restent au GAS sans rien bloquer : mailNonLus arrive par le
+   rechargement automatique du badge (+6 s, code existant, declenche par
+   mailNonLus:null), le journal de connexion par un login d'arriere-plan.
+   Tout ecart → getAdminBootstrap GAS, strictement inchange. ADMIN ecrit :
+   apres chaque ecriture la page relit le circuit DIRECT, jamais le miroir
+   (propagation KV ~60 s). */
+const MIROIR_URL = 'https://chpg-miroir.arthurfrohlich.workers.dev';
+let _MIROIR_ANNEES = null;   // {active, annees:[...]} livre par miroirBootAdmin
+
+async function miroirRead(keys, codeAcces) {
+  const _dep = Math.round(performance.now()), _t0 = Date.now();
+  const _ctrl = new AbortController();
+  const _timer = setTimeout(() => _ctrl.abort(), 6000);
+  try {
+    const res = await fetch(MIROIR_URL + '/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ code: codeAcces, keys }),
+      signal: _ctrl.signal,
+    });
+    const rep = await res.json();
+    try { if (window.PERF) PERF.appel('miroir:' + keys.join('+'), Date.now() - _t0, null, _dep,
+                                      rep && rep.success ? 'ok' : 'ECHEC — ' + ((rep && rep.error) || 'HTTP ' + res.status)); } catch (_e) {}
+    return rep;
+  } catch (e) {
+    try { if (window.PERF) PERF.appel('miroir:' + keys.join('+'), Date.now() - _t0, null, _dep,
+                                      'ECHEC — ' + (e && e.message)); } catch (_e) {}
+    return null;
+  } finally { clearTimeout(_timer); }
+}
+
+/* Reconstruit un objet de la FORME EXACTE de getAdminBootstrap a partir des
+   cles miroir (champ a champ : voir Indispos.gs, action getAdminBootstrap).
+   mailNonLus:null est un etat PREVU du bootstrap (echec Gmail tolere) : le
+   code appelant recharge le badge a +6 s — comportement existant reutilise. */
+async function miroirBootAdmin(anneeVoulue, codeAcces) {
+  const devine = anneeVoulue || new Date().getFullYear();
+  const m = await miroirRead(['annees', 'secteurs', 'config_admin',
+                              'planning_' + devine, 'affectations_' + devine], codeAcces);
+  if (!m || !m.success || !m.identite) return (m && m.success === false) ? m : null;
+  if (m.identite.role !== 'admin') return { nonAdmin: true, identite: m.identite };
+  const active = anneeVoulue || (m.data && m.data.annees && Number(m.data.annees.active)) || devine;
+  let plan = m.data['planning_' + active], aff = m.data['affectations_' + active];
+  if (!plan && active !== devine) {
+    const m2 = await miroirRead(['planning_' + active, 'affectations_' + active], codeAcces);
+    if (m2 && m2.success && m2.data) { plan = m2.data['planning_' + active]; aff = m2.data['affectations_' + active]; }
+  }
+  const cfg = m.data && m.data.config_admin;
+  if (!plan || !cfg) return null;   // miroir incomplet → bootstrap GAS
+  if (m.data.annees && Array.isArray(m.data.annees.annees)) _MIROIR_ANNEES = m.data.annees;
+  const id = m.identite;
+  return { boot: {
+    success: true, year: active,
+    role: id.role, id: id.id, name: id.name, initials: id.initials,
+    liberal: !!id.liberal, rpps: id.rpps || '', prenom: id.prenom || '',
+    indisposYear: id.indisposYear, indisposOuverte: !!id.indisposOuverte,
+    planning: plan, affectations: aff || null,
+    medecins: cfg.medecins || [], overrides: cfg.overrides || null,
+    secteurs: Array.isArray(m.data.secteurs) ? m.data.secteurs : null,
+    seuils: cfg.seuils || null, anneeStatsFiables: cfg.anneeStatsFiables || null,
+    csTemplate: cfg.csTemplate || null, anneeSuivante: cfg.anneeSuivante,
+    mailNonLus: null,
+    _miroir: true,
+  } };
+}
+
 let _sessionEnCours = false;   // verrou : interdit deux ouvertures simultanees
 async function ouvrirSession(code) {
   if (_sessionEnCours) return null;          // une seconde ouverture ne part jamais
   _sessionEnCours = true;
   try {
     let boot = null;
+    /* (miroir, 04/08/2026) Tentative miroir d'abord : bootstrap complet en
+       ~150 ms. Un code non-admin est refuse SANS aller-retour GAS. Tout
+       autre ecart → le bootstrap GAS ci-dessous, strictement inchange. */
+    try {
+      const _mb = await miroirBootAdmin(null, code);
+      if (_mb && _mb.boot) {
+        try { PERF.jalon('ouverture via miroir'); } catch (e) {}
+        try { api({action: 'login', code}).catch(function () {}); } catch (e) {}   // journal de connexion
+        return { ident: _mb.boot, boot: _mb.boot };
+      }
+      if (_mb && _mb.nonAdmin) return { ident: { success: true, role: _mb.identite.role }, boot: null };
+    } catch (e) { /* repli bootstrap GAS */ }
     /* (28/07/2026, 16 h) DIAGNOSTIC — l'echec du bootstrap etait AVALE ici sans laisser
        de trace : ni dans le journal (l'exception peut survenir avant son ecriture), ni
        en console. Symptomes observes toute la journee et tous issus de ce point unique :
@@ -2833,6 +2915,9 @@ async function detectAvailableYears() {
      resultat retenu pour la session (cette fonction est appelee deux fois a
      l'ouverture). Recharger la page refait la demande. */
   try {
+    if (_anneesServeur === null && _MIROIR_ANNEES && Array.isArray(_MIROIR_ANNEES.annees)) {
+      _anneesServeur = _MIROIR_ANNEES.annees;   // (miroir) livre a l'ouverture — zero appel
+    }
     if (_anneesServeur === null) {
       const r = await api({ action: 'getAnneesDisponibles' });
       _anneesServeur = (r && r.success && Array.isArray(r.annees)) ? r.annees : [];
@@ -2955,6 +3040,11 @@ async function initDashboard() {
   // Le bootstrap a deja ete rapporte par ouvrirSession : aucun nouvel appel ici.
   let _boot = window.__boot || null;
   window.__boot = null;
+  if (!_boot) {
+    /* (miroir, 04/08/2026) Changement d'annee ou ouverture sans __boot :
+       miroir d'abord (annee demandee forcee), GAS en repli. */
+    try { const _mb = await miroirBootAdmin(ADMIN_YEAR, ADMIN_CODE); if (_mb && _mb.boot) _boot = _mb.boot; } catch (e) {}
+  }
   if (!_boot) {
     try { _boot = await api({action:'getAdminBootstrap', year: ADMIN_YEAR}); } catch(e) { _boot = null; }
   }
