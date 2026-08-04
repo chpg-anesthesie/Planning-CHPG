@@ -380,7 +380,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.18</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.18.1</span></span></p>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
@@ -474,7 +474,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.18'; // SITE_VERSION: v1.18
+const SITE_VERSION = 'v1.18.1'; // SITE_VERSION: v1.18.1
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -549,6 +549,55 @@ async function apiPost(payload) {
    premiere, ce reveil ne servira a rien : c'est le filet ci-dessus qui protege. */
 function _reveilAPI() {
   try { apiPost({action: 'getActiveYear'}).catch(function () {}); } catch (e) {}
+}
+
+/* ══ MIROIR CLOUDFLARE — LECTURE (etape 4, 03/08/2026) ═══════════════════
+   Meme mecanisme que index.html : le Worker (cloudflare/worker.js, alimente
+   par gas/miroir.gs) authentifie par empreinte SHA-256 et livre identite +
+   donnees en ~150 ms. TOUT resultat autre qu'un succes complet rend la main
+   au circuit GAS historique, seul juge de la validite d'un code. */
+const MIROIR_URL = 'https://chpg-miroir.arthurfrohlich.workers.dev';
+
+async function miroirRead(keys) {
+  const _dep = Math.round(performance.now()), _t0 = Date.now();
+  const _ctrl = new AbortController();
+  const _timer = setTimeout(() => _ctrl.abort(), 6000);
+  try {
+    const res = await fetch(MIROIR_URL + '/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // requete « simple » : pas de preambule CORS
+      body: JSON.stringify({ code: VIEW_CODE, keys }),
+      signal: _ctrl.signal,
+    });
+    const rep = await res.json();
+    try { if (window.PERF) PERF.appel('miroir:' + keys.join('+'), Date.now() - _t0, null, _dep,
+                                      rep && rep.success ? undefined : 'ECHEC — ' + ((rep && rep.error) || 'HTTP ' + res.status)); } catch (_e) {}
+    return rep;
+  } catch (e) {
+    try { if (window.PERF) PERF.appel('miroir:' + keys.join('+'), Date.now() - _t0, null, _dep,
+                                      'ECHEC — ' + (e && e.message)); } catch (_e) {}
+    return null;   // panne de transport → le repli GAS decide
+  } finally { clearTimeout(_timer); }
+}
+
+/* Ouverture par le miroir : identite + annee active + planning en un
+   aller-retour. true = parti sur le miroir ; sinon l'appelant bascule GAS. */
+async function miroirBootDash() {
+  const devine = new Date().getFullYear();
+  const m = await miroirRead(['annees', 'planning_' + devine]);
+  if (!m || !m.success) return m;
+  const active = (m.data && m.data.annees && Number(m.data.annees.active)) || devine;
+  let plan = m.data['planning_' + active];
+  if (!plan && active !== devine) {
+    const m2 = await miroirRead(['planning_' + active]);
+    if (m2 && m2.success && m2.data) plan = m2.data['planning_' + active];
+  }
+  seedActiveYear(active);
+  if (plan) { _planCache[active] = plan; _ssPlanSet(active, plan); }
+  applyUserBadge(m.identite || {});
+  /* Journal de connexion : login GAS en arriere-plan, resultat ignore. */
+  try { apiPost({ action: 'login' }).catch(function () {}); } catch (e) {}
+  return true;
 }
 
 async function _apiPostDirect(payload) {
@@ -742,6 +791,14 @@ async function _fetchPlanning(year){
   if(_planCache[year]) return _planCache[year];
   const c=_ssPlanGet(year);                       // (perf) cache de la visite précédente
   if(c){ _planCache[year]=c.p; _refreshPlanSilently(year); return c.p; }
+  /* (miroir, 03/08/2026) Miroir d'abord — toutes les annees consultables y
+     sont poussees (miroir.gs 2026-08-03.2) ; echec → GAS comme avant. */
+  const mi = await miroirRead(['planning_' + year]);
+  if (mi && mi.success && mi.data && mi.data['planning_' + year]) {
+    const p = mi.data['planning_' + year];
+    _planCache[year] = p; _ssPlanSet(year, p);
+    return p;
+  }
   const r = await apiPost({action:'getPlanningJson', year});
   if(r && r.success && r.planning){ _planCache[year]=r.planning; _ssPlanSet(year, r.planning); return r.planning; }
   return null;
@@ -1292,15 +1349,23 @@ async function viewLogin(){
   btn.disabled = true; btn.textContent = 'Vérification…';
   try{
     VIEW_CODE = code;
-    const r = await apiPost({action:'login'});
-    if(r && r.success){
+    /* (miroir, 03/08/2026) Miroir d'abord ; tout autre resultat → login GAS,
+       seul juge de la validite d'un code. */
+    if (await miroirBootDash() === true) {
       try{ sessionStorage.setItem('chpgViewCode', code); }catch(e){}
-      seedActiveYear(r.year);   // (perf) évite un getActiveYear ultérieur
-      applyUserBadge(r);
+      try { if (window.PERF) PERF.jalon('ouverture via miroir'); } catch(e) {}
       showPortal();
     } else {
-      VIEW_CODE='';
-      _authErr(r && r.error ? r.error : 'Code incorrect');
+      const r = await apiPost({action:'login'});
+      if(r && r.success){
+        try{ sessionStorage.setItem('chpgViewCode', code); }catch(e){}
+        seedActiveYear(r.year);   // (perf) évite un getActiveYear ultérieur
+        applyUserBadge(r);
+        showPortal();
+      } else {
+        VIEW_CODE='';
+        _authErr(r && r.error ? r.error : 'Code incorrect');
+      }
     }
   } catch(e){ VIEW_CODE=''; _authErr('Erreur réseau — réessayez'); }
   btn.disabled = false; btn.textContent = 'Accéder →';
@@ -1312,6 +1377,14 @@ async function viewAutoLogin(){
   // et on revalide en arrière-plan — plus de clignotement de la page d'authentification.
   VIEW_CODE = saved; showPortal();
   try{
+    /* (miroir, 03/08/2026) Revalidation par le miroir (~150 ms) : identite,
+       annee active et planning arrivent d'un coup ; le bandeau « Mes
+       gardes » se remplit sans attendre le login GAS. Echec → login GAS. */
+    if (await miroirBootDash() === true) {
+      try { if (window.PERF) PERF.jalon('ouverture via miroir'); } catch(e) {}
+      showPortal();
+      return;
+    }
     const r = await apiPost({action:'login'});
     try { if (window.PERF) PERF.jalon('reponse serveur recue'); } catch(e) {}
     if(r && r.success){ seedActiveYear(r.year); applyUserBadge(r); showPortal(); }
