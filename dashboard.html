@@ -380,7 +380,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.18.1</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.18.2</span></span></p>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
@@ -474,7 +474,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.18.1'; // SITE_VERSION: v1.18.1
+const SITE_VERSION = 'v1.18.2'; // SITE_VERSION: v1.18.2
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -527,7 +527,16 @@ function _apiBar(on){
    probleme reste visible au lieu d'etre masque par le correctif. */
 const ERR_CORPS_PERDU = 'Code absent de la requête';
 async function apiPost(payload) {
-  const r = await _apiPostDirect(payload);
+  let r;
+  try {
+    r = await _apiPostDirect(payload);
+  } catch (e) {
+    /* (04/08/2026) Rejeu sur echec de transport — meme protection
+       qu'index.html : page d'erreur HTML servie au hasard par Google
+       → un unique renvoi silencieux. 2e echec → l'erreur remonte. */
+    console.warn('[api] echec de transport (' + (payload.action || '?') + ') — rejeu unique');
+    r = await _apiPostDirect(payload);
+  }
   if (r && r.success === false && r.error === ERR_CORPS_PERDU) {
     console.warn('[api] corps de requete perdu (' + (payload.action || '?') + ') — renvoi immediat');
     return await _apiPostDirect(payload);
