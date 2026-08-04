@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-04.6';
+const GAS_VERSION_INDISPOS = '2026-08-04.7';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -189,12 +189,13 @@ function diagnosticComplet() {
       try { deployed['setup_annee.gs'] = GAS_VERSION_SETUP; } catch (e) { deployed['setup_annee.gs'] = null; }
       try { deployed['portail.gs'] = GAS_VERSION_PORTAIL; } catch (e) { deployed['portail.gs'] = null; }
       try { deployed['miroir.gs'] = GAS_VERSION_MIROIR; } catch (e) { deployed['miroir.gs'] = null; }   // (04/08/2026) le 6e fichier entre au controle de derive
+      try { deployed['partage/dispo_jour.js'] = GAS_VERSION_DISPO; } catch (e) { deployed['partage/dispo_jour.js'] = null; }   // (etage 2) module partage serveur/frontend
       const tokSync = getGithubToken();
       Object.keys(deployed).forEach(fn => {
         let repoV = null;
         try {
           const r = UrlFetchApp.fetch(
-            `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/gas/${fn}?ref=${GITHUB_BRANCH}`,
+            `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${fn.indexOf('/') !== -1 ? fn : 'gas/' + fn}?ref=${GITHUB_BRANCH}`,   // chemin complet si fourni (module partage)
             { headers: { Authorization: 'token ' + tokSync, Accept: 'application/vnd.github.raw' }, muteHttpExceptions: true });
           if (r.getResponseCode() === 200) {
             const m = r.getContentText().match(/GAS_VERSION_\w+\s*=\s*'([^']+)'/);
@@ -3533,7 +3534,6 @@ if (action === 'getPanneauSemaine') {
       }
     }
     const FLAGS = getMedecinFlags();
-    const ABSENT_CODES_SET = new Set(['RG','V','CP','F','CTP','A','CL']);
     // Affectations par mois : memoisees, la semaine ne couvre au plus que deux mois.
     const affParMois = {};
     const _affDuMois = function (monthIdx) {
@@ -3549,42 +3549,25 @@ if (action === 'getPanneauSemaine') {
       affParMois[monthIdx] = m;
       return m;
     };
-    const roleOrder = {VOLANT:0, CTP:1, R:2, PRESENT:3, TP:4};
-
-    // ── Dispos : meme logique que getMARsDispoJour, repetee par jour ──
+    /* (04/08/2026, etage 2) CŒUR PARTAGÉ — la logique de tri vit desormais
+       dans calculerDispoJour (fichier `dispo_jour`, source unique du depot :
+       partage/dispo_jour.js, incluse A L'IDENTIQUE cote frontend).
+       Equivalence prouvee par test-oracle (400 cas) avant extraction.
+       Toute evolution du tri se fait LA-BAS et se deploie des deux cotes. */
     const jours = {};
     dates.forEach(function (targetDate) {
       const colIdx = dateToCol[targetDate];
       if (colIdx === undefined) { jours[targetDate] = {dispo: [], absent: true}; return; }
-      const affMap = _affDuMois(new Date(targetDate + 'T12:00:00').getMonth() + 1);
       const codeById = {};
       for (let r = 3; r < gardesData.length; r++) {
         const gid = String(gardesData[r][0]).trim();
         if (gid) codeById[gid] = String(gardesData[r][colIdx] || '').trim().toUpperCase();
       }
-      const dow = new Date(targetDate + 'T12:00:00').getDay();
-      const dispo = [];
-      actifs.forEach(function (id) {
-        let code = codeById[id] || '';
-        const _tp = FLAGS.tpJoursFixes[id];
-        if (!code && _tp && _tp.has(dow)) code = 'TP';
-        if (ABSENT_CODES_SET.has(code)) return;
-        const _dd = FLAGS.dateDebut[id], _df = FLAGS.dateFin[id];
-        if (_dd && targetDate < _dd) return;
-        if (_df && targetDate >= _df) return;
-        if (estSemaineOff(id, targetDate)) return;
-        const secteur = affMap[id] || 'VOLANT';
-        let role;
-        if (code === 'TP') role = 'TP';
-        else if (code === 'R') role = 'R';
-        else if (secteur === 'VOLANT') role = 'VOLANT';
-        else role = 'PRESENT';
-        dispo.push({ id: id, init: initMap[id] || id, role: role, secteur: secteur, code: code || 'PRESENT' });
-      });
-      // `||3` etait un piege : VOLANT vaut 0, donc falsy, donc traite comme 3 —
-      // les volants ne remontaient PAS en tete. `in` teste la presence, pas la valeur.
-      dispo.sort(function (a, b) { return _rangRole_(a.role, roleOrder) - _rangRole_(b.role, roleOrder); });
-      jours[targetDate] = {dispo: dispo};
+      jours[targetDate] = { dispo: calculerDispoJour(targetDate, {
+        actifs: actifs, initiales: initMap,
+        affectationDuMois: _affDuMois(new Date(targetDate + 'T12:00:00').getMonth() + 1),
+        codeById: codeById, flags: FLAGS,
+      }) };
     });
 
     // ── Liberal : l'onglet LIBERAL_{Y} lu UNE fois pour les 7 jours ──
@@ -3684,8 +3667,6 @@ if (action === 'getMARsDispoJour') {
   }
 
   const FLAGS = getMedecinFlags(); // (C2-D2) date_debut/date_fin externalisées → MEDECINS
-  const ABSENT_CODES_SET = new Set(['RG','V','CP','F','CTP','A','CL']);
-  const dispo = [];
 
   // (C2-D2) Index des codes GARDES par MAR (un MAR sans ligne GARDES → code vide).
   const codeById = {};
@@ -3694,34 +3675,14 @@ if (action === 'getMARsDispoJour') {
     if (gid) codeById[gid] = String(gardesData[r][colIdx] || '').trim().toUpperCase();
   }
 
-  // (C2-D2) Itérer sur l'effectif réel (MEDECINS actifs), PAS sur les lignes GARDES.
-  // → un MAR actif récemment arrivé (ex. COPELOVICI, absente de GARDES_2026 reconstruit)
-  //   apparaît quand même ; date_debut/date_fin gèrent arrivée/départ.
-  Array.from(actifs).forEach(id => {
-    let code = codeById[id] || '';
-    // (C2-D3) jours fixes non travaillés (ex. BONNET jeu/ven) → TP, lus depuis MEDECINS
-    const _tp = FLAGS.tpJoursFixes[id];
-    if (!code && _tp && _tp.has(new Date(targetDate + 'T12:00:00').getDay())) code = 'TP';
-    if (ABSENT_CODES_SET.has(code)) return; // absent
-    const _dd = FLAGS.dateDebut[id], _df = FLAGS.dateFin[id];
-    if (_dd && targetDate < _dd) return; // pas encore actif (ex. ARMAND avant le 1er nov)
-    if (_df && targetDate >= _df) return; // n'est plus actif (ex. TRAN à partir du 1er sept)
-    if (estSemaineOff(id, targetDate)) return; // rythme 2/2 (TRAN, COPELOVICI…) — semaine off
-
-    const secteur = affMap[id] || 'VOLANT';
-    let role;
-    if (code === 'TP') role = 'TP';
-    else if (code === 'R') role = 'R';
-    else if (secteur === 'VOLANT') role = 'VOLANT';
-    else role = 'PRESENT';
-
-    dispo.push({ id, init: initMap[id] || id, role, secteur, code: code || 'PRESENT' });
+  /* (04/08/2026, etage 2) CŒUR PARTAGÉ — meme delegation que getPanneauSemaine :
+     calculerDispoJour (fichier `dispo_jour` / partage/dispo_jour.js). L'iteration
+     sur l'effectif MEDECINS actifs (C2-D2) et toutes les regles (TP fixes C2-D3,
+     bornes, rythme 2/2, tri VOLANT en tete) vivent dans le module. */
+  const dispo = calculerDispoJour(targetDate, {
+    actifs: Array.from(actifs), initiales: initMap,
+    affectationDuMois: affMap, codeById: codeById, flags: FLAGS,
   });
-
-  // Trier : VOLANT d'abord, puis CTP, puis R, puis autres
-  const roleOrder = {VOLANT:0, CTP:1, R:2, PRESENT:3, TP:4};
-  // Voir _rangRole_ : `||3` renvoyait 3 pour VOLANT (valeur 0, falsy).
-  dispo.sort((a,b) => _rangRole_(a.role, roleOrder) - _rangRole_(b.role, roleOrder));
 
   return ContentService.createTextOutput(JSON.stringify({
     success: true, date: targetDate, dispo
