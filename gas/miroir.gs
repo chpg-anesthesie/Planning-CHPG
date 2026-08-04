@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-04.4';
+const GAS_VERSION_MIROIR = '2026-08-04.5';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -56,14 +56,22 @@ const MIROIR_URL = 'https://chpg-miroir.arthurfrohlich.workers.dev';
    Principe : pousser un peu trop large plutôt que trop étroit — une clé
    repoussée à l'identique ne coûte qu'un envoi, une clé oubliée coûte une
    donnée périmée servie à 23 MARs. */
+/* (2026-08-04.5, AUDIT) Une famille = ce que l'action MODIFIE REELLEMENT.
+   L'accroche tourne DANS la requete, avant la reponse : chaque famille en
+   trop est du temps d'attente utilisateur. Constats de l'audit :
+   - un lot de placements n'ecrit que PLANNING_OVERRIDES → config_admin seul
+     (le fichier planning ne change qu'a la PUBLICATION) ;
+   - setDailyStatus ecrit GARDES + le reflet INDISPOS, ne republie pas ;
+   - la generation n'a pas encore publie → pas de famille planning.
+   applyModification garde un perimetre large (action rare, doute documente
+   sur la mise a jour du fichier). */
 const MIROIR_APRES_ECRITURE = {
-  // Planning et overrides (les overrides vivent dans config_admin)
   publishPlanning:            ['planning', 'affectations', 'annees', 'config_admin', 'gardes', 'stats'],
-  setDailyStatus:             ['planning', 'config_admin', 'gardes', 'stats'],
+  setDailyStatus:             ['gardes', 'indispos'],
   applyModification:          ['planning', 'config_admin', 'gardes', 'stats'],
-  deleteOverride:             ['planning', 'config_admin', 'gardes', 'stats'],
-  savePlanningOverridesBatch: ['planning', 'config_admin', 'gardes', 'stats'],
-  generateGardes:             ['planning', 'annees', 'config_admin', 'gardes', 'stats'],
+  deleteOverride:             ['config_admin'],
+  savePlanningOverridesBatch: ['config_admin'],
+  generateGardes:             ['annees', 'config_admin', 'gardes', 'stats'],
   archiveYear:                ['planning', 'affectations', 'annees', 'config_admin', 'gardes', 'stats'],
   setActiveYear:              ['annees', 'acces', 'config_admin'],
   initYear:                   ['annees', 'config_admin'],
@@ -98,7 +106,7 @@ function miroirApresRequete_(e, outTexte) {
     if (!familles) return;
     if (String(outTexte || '').indexOf('"success":true') === -1) return;
     const annee = Number(payload.year) || getActiveYear();
-    miroirPousserFamilles_(familles, annee);
+    miroirPousserFamilles_(familles, annee, false);   // ecriture : l'annee concernee SEULE
   } catch (err) { /* jamais bloquant */ }
 }
 
@@ -110,7 +118,7 @@ function miroirSyncComplet() {
   const familles = ['acces', 'annees', 'secteurs', 'config_admin',
                     'planning', 'affectations', 'indispos', 'tuiles',
                     'gardes', 'joursferies', 'stats', 'vacances_admin'];
-  const res = miroirPousserFamilles_(familles, getActiveYear());
+  const res = miroirPousserFamilles_(familles, getActiveYear(), true);   // synchro : toutes les annees consultables
   Logger.log('miroirSyncComplet : ' + JSON.stringify(res));
   return res;
 }
@@ -129,7 +137,12 @@ function miroirInstallerDeclencheur() {
    Traduit des familles logiques en clés concrètes, construit chaque valeur,
    pousse le tout en UN appel HTTP. Une famille qui échoue à se construire
    est simplement omise (le filet horaire retentera). */
-function miroirPousserFamilles_(familles, annee) {
+/* (2026-08-04.5) `toutesAnnees` : true = synchro horaire (couverture de
+   toutes les annees consultables) ; false/absent = accroche d'ecriture —
+   SEULE l'annee concernee est reconstruite. C'etait la racine des ecritures
+   lentes du 04/08 : chaque pose reconstruisait gardes+stats+planning de
+   TOUTES les annees, dans la requete, avant de repondre. */
+function miroirPousserFamilles_(familles, annee, toutesAnnees) {
   const items = {};
   const uniq = {};
   familles.forEach(function (f) { uniq[f] = true; });
@@ -148,11 +161,13 @@ function miroirPousserFamilles_(familles, annee) {
        chaque annee n'est poussee que si son fichier existe sur le Drive
        (_miroirAjouteFichierDrive_ saute silencieusement les absents). */
     const annees = [];
-    try {
-      _miroirConstruireAnnees_().annees.forEach(function (a) { annees.push(Number(a.annee)); });
-    } catch (e) { /* repli ci-dessous : au minimum l'annee courante */ }
+    if (toutesAnnees) {
+      try {
+        _miroirConstruireAnnees_().annees.forEach(function (a) { annees.push(Number(a.annee)); });
+      } catch (e) { /* repli ci-dessous : au minimum l'annee courante */ }
+      try { if (_jsonFilesByName_('planning_' + (annee + 1) + '.json').length > 0 && annees.indexOf(annee + 1) === -1) annees.push(annee + 1); } catch (e) {}
+    }
     if (annees.indexOf(annee) === -1) annees.push(annee);
-    try { if (_jsonFilesByName_('planning_' + (annee + 1) + '.json').length > 0 && annees.indexOf(annee + 1) === -1) annees.push(annee + 1); } catch (e) {}
     annees.forEach(function (y) {
       if (uniq['planning'])     _miroirAjouteFichierDrive_(items, 'planning_' + y,     'planning_' + y + '.json');
       if (uniq['affectations']) _miroirAjouteFichierDrive_(items, 'affectations_' + y, 'affectations_' + y + '.json');
@@ -172,7 +187,9 @@ function miroirPousserFamilles_(familles, annee) {
   if (uniq['gardes'] || uniq['joursferies'] || uniq['stats']) {
     // Memes annees que le planning : toutes les annees consultables.
     const anneesOutils = [];
-    try { _miroirConstruireAnnees_().annees.forEach(function (a) { anneesOutils.push(Number(a.annee)); }); } catch (e) { anneesOutils.push(annee); }
+    if (toutesAnnees) {
+      try { _miroirConstruireAnnees_().annees.forEach(function (a) { anneesOutils.push(Number(a.annee)); }); } catch (e) {}
+    }
     if (anneesOutils.indexOf(annee) === -1) anneesOutils.push(annee);
     anneesOutils.forEach(function (y) {
       if (uniq['gardes'])      _miroirAjouteEnveloppe_(items, 'gardes_' + y,      function () { return _miroirConstruireGardes_(y); });
