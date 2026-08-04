@@ -13,9 +13,9 @@ chiffres concrets plutôt que des généralités.
 
 ## État au 4 août 2026 — LE MIROIR CLOUDFLARE EST EN PRODUCTION
 
-**Site v1.18.5** · nouveau fichier **`gas/miroir.gs` 2026-08-04.3** · `Indispos.gs` **2026-08-03.4**
+**Site v1.19** · nouveau fichier **`gas/miroir.gs` 2026-08-04.4** · `Indispos.gs` **2026-08-03.4**
 (accroche miroir dans `doGet`) · nouveau **`cloudflare/worker.js`** (Worker `chpg-miroir`,
-version `miroir 2026-08-04.3`, déployé chez Cloudflare, stockage KV `CHPG_MIROIR`).
+version `miroir 2026-08-04.4`, déployé chez Cloudflare, stockage KV `CHPG_MIROIR`).
 
 **Pourquoi.** Mesures du 03/08 : tout appel Apps Script coûte 2,5–5 s quel que soit le
 travail serveur (compilation ~575 Ko À CHAQUE requête + redirection 302 + file d'attente
@@ -35,16 +35,26 @@ jamais un code en clair, jamais le code secrétariat), `annees`, `secteurs`, `co
 (admin seul), `planning_{Y}` / `affectations_{Y}` (toutes les années consultables — PAS
 « active + N+1 », voir leçons), `indispos_{Y}` (filtrées par MAR côté Worker),
 `topos` / `staffs` / `veille` / `protocoles` / `annuaire` (enveloppes `{success:true,…}`
-telles quelles, fraîcheur horaire assumée).
+telles quelles, fraîcheur horaire assumée), et **lot B (admin seul)** : `gardes_{Y}`,
+`joursferies_{Y}`, `stats_{Y}`, `vacances_admin` — rafraîchies aux écritures planning
+(+ `savePeriodes`/`saveGroupes` pour les vacances). Les builders `gardes`/`stats`/
+`vacances_admin` sont des COPIES CONFORMES annotées des blocs inline de `_routeRequete_`
+(purs dumps d'onglets — si un bloc change dans Indispos.gs, répercuter dans miroir.gs).
+`getStatsLive` (calcul vivant) n'est JAMAIS mirroré ; `getVacValidation` non plus.
 
 **Sécurité** : jeton d'écriture `MIROIR_PUSH_TOKEN` (propriétés du script + secret Worker,
 JAMAIS dans le dépôt) ; secrétariat = AUCUNE lecture miroir ; **liste rouge inchangée** —
 relevé libéral, marges, CONFIG/PARAMETRES, Gmail, journaux ne transitent JAMAIS par le miroir.
 
-**Pages branchées** : `index.html` (v1.18), `dashboard.html` + ses 5 tuiles (v1.18.1/.3),
-`indispos.html` (v1.18.3), `admin.html` — ouverture, changement d'année, sélecteur d'années
-(v1.18.4) + lot A v1.18.5 (Équipe depuis le bootstrap, chauffage d'arrière-plan : panneau
-semaine immédiat + liste des mails préchargée 2 min). **`staff.html` PAS branchée.**
+**Pages branchées : LES CINQ** — `index.html` (v1.18), `dashboard.html` + ses 5 tuiles
+(v1.18.1/.3), `indispos.html` (v1.18.3), `admin.html` (v1.18.4 → v1.19 : ouverture,
+changement d'année, sélecteur, Équipe depuis le bootstrap, chauffage d'arrière-plan —
+panneau semaine courante **±1** et liste des mails —, onglets Statuts et Équité via les clés
+lot B), `staff.html` (v1.19 : médecins + indispos par le miroir, `vacances_admin`, rejeu).
+**Garde de fraîcheur des éditeurs** : Statuts/Équité évitent le miroir pendant 90 s après
+toute écriture planning (`_tsEcriturePlanning` dans `api()`) — le circuit direct tranche.
+**Périmètre démo 04/09 confirmé par Arthur : dashboard + index + indispos** (admin en
+second plan) — les trois sont au miroir depuis le 04/08.
 
 **Règles posées le 04/08 (ne pas défaire)** :
 - Après une ÉCRITURE, la page relit le circuit DIRECT GAS, jamais le miroir (propagation
@@ -67,7 +77,13 @@ semaine immédiat + liste des mails préchargée 2 min). **`staff.html` PAS bran
 3. **Une modification MANUELLE du classeur est invisible du miroir** jusqu'à la synchro
    horaire (ou un `miroirSyncComplet` à la main). L'accroche n'écoute que les actions du
    portail.
-4. **Mes notes de session peuvent être périmées** : « la version vit dans 5 fichiers /
+4. **`getPlanningJson` sert le fichier Drive BRUT, sans fusion d'overrides** — vérifié le
+   04/08 au soir en lisant l'action. Le miroir, qui pousse ce même fichier, est donc fidèle
+   bit pour bit au circuit GAS. Toute évolution qui ferait fusionner des overrides côté
+   serveur devra être répercutée dans `miroir.gs` LE MÊME JOUR.
+5. **`getStats` est un dump d'onglet, pas un calcul** — l'Équité (source feuille) est entrée
+   au miroir sans mesure préalable. `getStatsLive` reste le calcul vivant, hors miroir.
+6. **Mes notes de session peuvent être périmées** : « la version vit dans 5 fichiers /
    9 emplacements » était faux (règle en vigueur : 4 fichiers, celle du Diagnostic).
    Compter dans le dépôt, jamais se fier à une liste écrite — la règle existait déjà,
    elle a encore servi.
