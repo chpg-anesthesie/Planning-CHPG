@@ -1015,7 +1015,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.20.1'; // SITE_VERSION: v1.20.1
+const SITE_VERSION = 'v1.21'; // SITE_VERSION: v1.21
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1108,7 +1108,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.20.1</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.21</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -2874,33 +2874,74 @@ function statSelectDay(date){
   } else { if(STAT.selected.has(date)) STAT.selected.delete(date); else STAT.selected.add(date); }
   renderStatuts();
 }
+/* (v1.21, etage 4) POSE DE STATUT OPTIMISTE — l'ecran n'attend plus le
+   serveur. Meme regle de verrouillage que lui (STAT_LOCK sur le code ACTUEL
+   de la cellule) appliquee localement ; l'envoi part derriere, SERIALISE
+   (apiSerie : l'ordre des poses et de la publication est garanti). Le
+   serveur reste l'autorite : un refus de sa part ANNULE la cellule a
+   l'ecran, visiblement, avec un message — rien ne diverge en silence.
+   L'echec de transport (apres le rejeu automatique) annule tout le lot. */
 async function statApply(statut){
   if(ADMIN_YEAR_READONLY){ toast('Année archivée — lecture seule', 'error'); return; }
   if(!STAT.marId){ toast('Sélectionnez un MAR', 'error'); return; }
   const dates=[...STAT.selected];
   if(!dates.length){ toast('Sélectionnez au moins un jour', 'error'); return; }
   const lib=statut?statMeta(statut).label:'Effacement';
-  try{
-    const r=await api({action:'setDailyStatus', year:STAT.year, marId:STAT.marId, statut, dates});
-    if(!r.success) throw new Error(r.error||'setDailyStatus');
-    invaliderCacheSemaine();   // les statuts changent les dispos : cache perime
-    const applied=r.applied||[], rej=(r.rejected||[]).length;
-    applied.forEach(d=>{                       // MAJ locale → affichage instantané
+
+  // 1. Application LOCALE immediate, avec la regle serveur (gardes verrouillees)
+  const marId = STAT.marId, year = STAT.year;      // captures : l'envoi survit aux changements d'onglet/MAR
+  const avant = {}, poses = [];
+  dates.forEach(d=>{
+    const cur = statCode(marId, d) || '';
+    if (STAT_LOCK.has(cur)) return;                // meme critere que le serveur
+    avant[d] = cur; poses.push(d);
+    if(!STAT.gardes[d]) STAT.gardes[d]={};
+    if(statut==='') delete STAT.gardes[d][marId];
+    else STAT.gardes[d][marId]=statut;
+  });
+  const verrouilles = dates.length - poses.length;
+  if(!poses.length){ toast('Jour(s) verrouillé(s) par une garde', 'error'); return; }
+  STAT.pending += poses.length;
+  invaliderCacheSemaine();   // les statuts changent les dispos : cache perime
+  STAT.selected.clear();
+  renderStatuts();
+  toast(`${lib} : ${poses.length} jour(s)${verrouilles?`, ${verrouilles} verrouillé(s)`:''} — à publier`);
+
+  // 2. Envoi en arriere-plan ; retour arriere VISIBLE si le serveur refuse
+  const _annuler = (liste) => {
+    liste.forEach(d=>{
       if(!STAT.gardes[d]) STAT.gardes[d]={};
-      if(statut==='') delete STAT.gardes[d][STAT.marId];
-      else STAT.gardes[d][STAT.marId]=statut;
+      if(avant[d]) STAT.gardes[d][marId]=avant[d]; else delete STAT.gardes[d][marId];
     });
-    STAT.pending += applied.length;
-    toast(`${lib} : ${applied.length} jour(s)${rej?`, ${rej} refusé(s) (garde)`:''} — à publier`);
-    STAT.selected.clear();
-    renderStatuts();
-  }catch(e){ toast('Erreur : '+e.message, 'error'); }
+    STAT.pending = Math.max(0, STAT.pending - liste.length);
+    invaliderCacheSemaine();
+    if (STAT.year === year) renderStatuts();
+    /* Filet ANTI-EMPILEMENT : si deux rafales sur une meme cellule echouaient
+       toutes deux, l'ordre des annulations laisserait un etat intermediaire.
+       Toute anomalie declenche donc une resynchronisation COMPLETE depuis
+       l'autorite (la garde des 90 s force le circuit direct). L'annulation
+       ci-dessus reste : l'ecran reagit tout de suite, la verite arrive juste
+       derriere. Cout : un appel, uniquement dans le chemin d'anomalie. */
+    try { if (STAT.year === year) loadStatuts(); } catch (e) {}
+  };
+  apiSerie({action:'setDailyStatus', year, marId, statut, dates: poses}).then(r=>{
+    if(!(r && r.success)) throw new Error((r && r.error) || 'setDailyStatus');
+    const okSet = new Set(r.applied || []);
+    const refuses = poses.filter(d => !okSet.has(d));
+    if (refuses.length){
+      _annuler(refuses);
+      toast(`${refuses.length} jour(s) refusé(s) par le serveur (garde) — annulé(s) à l'écran`, 'error');
+    }
+  }).catch(e=>{
+    _annuler(poses);
+    toast('Enregistrement échoué — pose annulée à l\'écran : ' + e.message, 'error');
+  });
 }
 async function statPublish(){
   if(ADMIN_YEAR_READONLY){ toast('Année archivée — lecture seule', 'error'); return; }
   const btn=document.querySelector('.stat-publish'); if(btn){ btn.disabled=true; btn.textContent='⏳ Publication…'; }
   try{
-    const r=await api({action:'publishPlanning', year:STAT.year});
+    const r=await apiSerie({action:'publishPlanning', year:STAT.year});   // (v1.21) meme file que les poses : publie APRES les statuts en route
     if(!r.success) throw new Error(r.error||'publishPlanning');
     STAT.pending=0;
     toast('Planning publié ✓', 'success');
