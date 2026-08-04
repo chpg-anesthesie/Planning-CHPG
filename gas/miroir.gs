@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-04.3';
+const GAS_VERSION_MIROIR = '2026-08-04.4';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -58,13 +58,13 @@ const MIROIR_URL = 'https://chpg-miroir.arthurfrohlich.workers.dev';
    donnée périmée servie à 23 MARs. */
 const MIROIR_APRES_ECRITURE = {
   // Planning et overrides (les overrides vivent dans config_admin)
-  publishPlanning:            ['planning', 'affectations', 'annees', 'config_admin'],
-  setDailyStatus:             ['planning', 'config_admin'],
-  applyModification:          ['planning', 'config_admin'],
-  deleteOverride:             ['planning', 'config_admin'],
-  savePlanningOverridesBatch: ['planning', 'config_admin'],
-  generateGardes:             ['planning', 'annees', 'config_admin'],
-  archiveYear:                ['planning', 'affectations', 'annees', 'config_admin'],
+  publishPlanning:            ['planning', 'affectations', 'annees', 'config_admin', 'gardes', 'stats'],
+  setDailyStatus:             ['planning', 'config_admin', 'gardes', 'stats'],
+  applyModification:          ['planning', 'config_admin', 'gardes', 'stats'],
+  deleteOverride:             ['planning', 'config_admin', 'gardes', 'stats'],
+  savePlanningOverridesBatch: ['planning', 'config_admin', 'gardes', 'stats'],
+  generateGardes:             ['planning', 'annees', 'config_admin', 'gardes', 'stats'],
+  archiveYear:                ['planning', 'affectations', 'annees', 'config_admin', 'gardes', 'stats'],
   setActiveYear:              ['annees', 'acces', 'config_admin'],
   initYear:                   ['annees', 'config_admin'],
   // Affectations sectorielles
@@ -74,9 +74,9 @@ const MIROIR_APRES_ECRITURE = {
   saveMedecin:                ['acces', 'config_admin'],
   resetCodeMar:               ['acces', 'config_admin'],
   addMedecinToGroupe:         ['config_admin'],
-  saveGroupes:                ['config_admin'],
   saveConfig:                 ['acces', 'config_admin'],
-  savePeriodes:               ['config_admin'],
+  savePeriodes:               ['config_admin', 'vacances_admin'],
+  saveGroupes:                ['config_admin', 'vacances_admin'],
   // Indisponibilités (l'année de campagne et son état vivent dans `acces`)
   saveIndispos:               ['indispos', 'acces'],
   saveIndisposBatch:          ['indispos', 'acces'],
@@ -108,7 +108,8 @@ function miroirApresRequete_(e, outTexte) {
    heure via miroirInstallerDeclencheur(). */
 function miroirSyncComplet() {
   const familles = ['acces', 'annees', 'secteurs', 'config_admin',
-                    'planning', 'affectations', 'indispos', 'tuiles'];
+                    'planning', 'affectations', 'indispos', 'tuiles',
+                    'gardes', 'joursferies', 'stats', 'vacances_admin'];
   const res = miroirPousserFamilles_(familles, getActiveYear());
   Logger.log('miroirSyncComplet : ' + JSON.stringify(res));
   return res;
@@ -166,6 +167,22 @@ function miroirPousserFamilles_(familles, annee) {
     _miroirAjouteEnveloppe_(items, 'veille',     function () { return getVeille(); });
     _miroirAjouteEnveloppe_(items, 'protocoles', function () { return listProtocoles(); });
     _miroirAjouteEnveloppe_(items, 'annuaire',   function () { return listAnnuaire(); });
+  }
+
+  if (uniq['gardes'] || uniq['joursferies'] || uniq['stats']) {
+    // Memes annees que le planning : toutes les annees consultables.
+    const anneesOutils = [];
+    try { _miroirConstruireAnnees_().annees.forEach(function (a) { anneesOutils.push(Number(a.annee)); }); } catch (e) { anneesOutils.push(annee); }
+    if (anneesOutils.indexOf(annee) === -1) anneesOutils.push(annee);
+    anneesOutils.forEach(function (y) {
+      if (uniq['gardes'])      _miroirAjouteEnveloppe_(items, 'gardes_' + y,      function () { return _miroirConstruireGardes_(y); });
+      if (uniq['joursferies']) _miroirAjouteEnveloppe_(items, 'joursferies_' + y, function () { return { success: true, joursFeries: getJoursFeries(y).concat(getJoursFeries(y + 1)), year: y }; });
+      if (uniq['stats'])       _miroirAjouteEnveloppe_(items, 'stats_' + y,       function () { return _miroirConstruireStats_(y); });
+    });
+  }
+
+  if (uniq['vacances_admin']) {
+    _miroirAjouteEnveloppe_(items, 'vacances_admin', _miroirConstruireVacancesAdmin_);
   }
 
   if (uniq['indispos']) {
@@ -348,4 +365,88 @@ function _miroirConstruireIndispos_(annee) {
     });
   }
   return { parMar: parMar, annee: annee, t: Date.now() };
+}
+
+
+/* ── BUILDERS LOT B (04/08/2026) — outils du comite ──────────────────────
+   ⚠️ FIDELITE : `gardes`, `stats` et `vacances_admin` sont des COPIES
+   CONFORMES des blocs inline de _routeRequete_ (Indispos.gs : actions
+   getGardes, getStats, getVacancesConfig SANS parametre year). Ces blocs
+   sont de purs dumps d'onglets ; si l'un d'eux change dans Indispos.gs,
+   REPERCUTER ICI. `joursferies` appelle la vraie fonction (code.gs) :
+   zero duplication. Enveloppes identiques aux actions → le client les
+   consomme comme une reponse api(). */
+
+function _miroirConstruireGardes_(gYear) {
+  const ss = _ssWithSheet('GARDES_' + gYear) || SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('GARDES_' + gYear);
+  if (!sheet) return null;
+  const data = sheet.getDataRange().getValues();
+  const dateToCol = buildDateToCol(data, gYear);
+  const result = {};
+  for (var r = 3; r < data.length; r++) {
+    const id = String(data[r][0]).trim();
+    if (!id) continue;
+    Object.keys(dateToCol).forEach(function (date) {
+      const val = String(data[r][dateToCol[date]] || '').trim();
+      if (!val) return;
+      if (!result[date]) result[date] = {};
+      result[date][id] = val;
+    });
+  }
+  return { success: true, data: result, year: gYear };
+}
+
+function _miroirConstruireStats_(statsYear) {
+  const ss = _ssWithSheet('STATS_GARDES_' + statsYear) || SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('STATS_GARDES_' + statsYear);
+  if (!sheet) return null;
+  const data = sheet.getDataRange().getValues();
+  const stats = [];
+  for (var r = 1; r < data.length; r++) {
+    if (!data[r][0]) continue;
+    stats.push({medecin:data[r][0], cible:data[r][1], total:data[r][2],
+      g:data[r][3], g2:data[r][4], lun:data[r][5], mar:data[r][6], mer:data[r][7],
+      jeu:data[r][8], ven:data[r][9], sat:data[r][10], dim:data[r][11],
+      recupR:data[r][12], h18:data[r][13],
+      jf:data[r][14], vjf:data[r][15], vd:data[r][20], cSat:data[r][17], cJeu:data[r][18], cVd:data[r][19], cVjf:data[r][21]});
+  }
+  return { success: true, stats: stats };
+}
+
+function _miroirConstruireVacancesAdmin_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const perSheet = ss.getSheetByName('PERIODES_VAC');
+  const periodes = [];
+  if (perSheet) {
+    const perData = perSheet.getDataRange().getValues();
+    for (var r = 1; r < perData.length; r++) {
+      const nom = String(perData[r][0]).trim();
+      if (!nom) continue;
+      const debutRaw = perData[r][1], finRaw = perData[r][2];
+      const debut = debutRaw instanceof Date
+        ? debutRaw.getFullYear() + '-' + String(debutRaw.getMonth()+1).padStart(2,'0') + '-' + String(debutRaw.getDate()).padStart(2,'0')
+        : String(debutRaw).trim();
+      const fin = finRaw instanceof Date
+        ? finRaw.getFullYear() + '-' + String(finRaw.getMonth()+1).padStart(2,'0') + '-' + String(finRaw.getDate()).padStart(2,'0')
+        : String(finRaw).trim();
+      periodes.push({nom: nom, debut: debut, fin: fin, seuil: Number(perData[r][3]) || 8});
+    }
+  }
+  const groupSheet = ss.getSheetByName('GROUPES_VAC');
+  const groupes = {A: [], B: [], C: []};
+  if (groupSheet) {
+    const groupData = groupSheet.getDataRange().getValues();
+    const tempGroups = {A: [], B: [], C: []};
+    for (var r2 = 1; r2 < groupData.length; r2++) {
+      const grp = String(groupData[r2][0]).trim(), id = String(groupData[r2][1]).trim();
+      const ord = Number(groupData[r2][2]) || 0;
+      if (!id || !tempGroups[grp]) continue;
+      tempGroups[grp].push({id: id, ordre: ord});
+    }
+    ['A', 'B', 'C'].forEach(function (gk) {
+      groupes[gk] = tempGroups[gk].sort(function (x, y) { return x.ordre - y.ordre; }).map(function (m) { return {id: m.id}; });
+    });
+  }
+  return { success: true, periodes: periodes, groupes: groupes };
 }
