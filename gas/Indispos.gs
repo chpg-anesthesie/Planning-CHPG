@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-03.4';
+const GAS_VERSION_INDISPOS = '2026-08-04.5';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -4324,6 +4324,8 @@ if (action === 'setDailyStatus') {
           groupement: groupement,      // id -> true : membre du groupement liberal
           marges: marges,              // id -> marge CCAM restante (euros), dernier releve
           margesMois: margesMois,      // 'AAAA-MM' du releve utilise ('' si aucun)
+          role: user.role,                       // (04/08/2026, fusion absences.html) auth + donnees en UN appel
+          name: user.name || '',                 //  → le login separe devient un simple journal d'arriere-plan
           moi: user.role === 'mar' ? user.id : null,
           jours: joursConsult,
           noms: noms,
