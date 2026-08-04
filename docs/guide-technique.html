@@ -155,28 +155,34 @@
 </nav>
 
 <section id="c1">
-  <h2><span class="n">01</span>Vue d’ensemble : les quatre couches</h2>
+  <h2><span class="n">01</span>Vue d’ensemble : les quatre couches et le chemin d’une donnée</h2>
 
-  <p>Le portail repose sur quatre couches nettement séparées. Comprendre où vit chaque chose évite 90 % des erreurs de maintenance. Depuis le 04/08/2026, un <b>miroir de lecture Cloudflare</b> s'intercale entre le frontend et Apps Script : les pages LISENT le miroir (~150 ms), Apps Script reste le seul à ÉCRIRE et le repli intégral en cas d'écart (§ 25).</p>
+  <p>Le portail repose sur quatre couches nettement séparées. Comprendre où vit chaque chose — et par où <em>passe</em> chaque donnée — évite 90 % des erreurs de maintenance.</p>
+
   <div class="arch">
     <b>1. Frontend</b> (pages statiques, servies par GitHub Pages depuis <code>docs/</code> et la racine)<br>
-    &nbsp;&nbsp;├─ <b>admin.html</b> — ton poste de pilotage (PC) : planning quotidien, wizards, équité<br>
-    &nbsp;&nbsp;├─ <b>dashboard.html</b> — le portail perso du MAR : <b>c'est le seul carrefour</b>, toutes les pages ci-dessous s'ouvrent depuis ses tuiles<br>
-    &nbsp;&nbsp;├─ <b>index.html</b> — le planning de l'équipe : planning, équité, année<br>
-    &nbsp;&nbsp;├─ <b>indispos.html</b> — saisie des indisponibilités (tuile visible pendant la campagne seulement)<br>
-    &nbsp;&nbsp;├─ <b>absences.html</b> — « Consultations à venir » : le contrôle d'absence au moment de la consultation. <b>Deux portes</b> — tuile MAR (restreinte pour l'instant) et session secrétariat par code partagé. Voir <a href="#c19">§19</a><br>
+    &nbsp;&nbsp;├─ <b>admin.html</b> — le poste de pilotage du comité : planning quotidien, wizards, équité. Embarque le <b>module partagé</b> <code>partage/dispo_jour.js</code> (calcul local du panneau, § 25)<br>
+    &nbsp;&nbsp;├─ <b>dashboard.html</b> — le portail perso du MAR : <b>le seul carrefour</b>, toutes les pages s'ouvrent depuis ses tuiles<br>
+    &nbsp;&nbsp;├─ <b>index.html</b> — le planning de l'équipe<br>
+    &nbsp;&nbsp;├─ <b>indispos.html</b> — saisie des indisponibilités (tuile visible pendant la campagne)<br>
+    &nbsp;&nbsp;├─ <b>absences.html</b> — « Consultations à venir » : contrôle d'absence, deux portes (MAR / secrétariat). Voir <a href="#c19">§19</a><br>
     &nbsp;&nbsp;├─ <b>staff.html</b> — outil du staff vacances (comité)<br>
-    &nbsp;&nbsp;├─ <b>crh.html</b> et <b>cr-anesthesie/</b> — générateurs de comptes rendus (réa et anesthésie)<br>
-    &nbsp;&nbsp;├─ <b>docs/module-liberal/estimateur-liberal.html</b> — le module libéral (cotation, devis, déclaration). Malgré son nom et son emplacement, c'est un <b>outil de production</b><br>
+    &nbsp;&nbsp;├─ <b>crh.html</b> et <b>cr-anesthesie/</b> — générateurs de comptes rendus<br>
+    &nbsp;&nbsp;├─ <b>docs/module-liberal/estimateur-liberal.html</b> — le module libéral : outil de <b>production</b> malgré son emplacement<br>
     &nbsp;&nbsp;└─ <b>docs/*.html</b> — guides &amp; présentations<br><br>
-    <b>2. Backend</b> (Google Apps Script, déployé en Web App)<br>
-    &nbsp;&nbsp;└─ <b>5 fichiers</b> <code>.gs</code> exposant une API <code>doGet</code>/<code>doPost</code> — voir <a href="#c3">§03</a><br><br>
-    <b>3. Données</b><br>
-    &nbsp;&nbsp;├─ <b>Google Sheets</b> — la base : MEDECINS, INDISPOS_YYYY, GARDES_YYYY, STATS_GARDES_YYYY, PERIODES_VAC, GROUPES_VAC, PLANNING_OVERRIDES, CONFIG…<br>
-    &nbsp;&nbsp;└─ <b>Drive privé</b> « Planning-CHPG-JSON » — les JSON publiés (planning_YYYY.json, affectations_YYYY.json)
+    <b>2. Miroir de lecture</b> (Cloudflare — depuis le 04/08/2026)<br>
+    &nbsp;&nbsp;└─ Worker <b><code>chpg-miroir</code></b> + stockage KV <b><code>CHPG_MIROIR</code></b> : sert en ~150 ms les données de lecture déposées par le backend, authentifie par <b>empreintes SHA-256</b> et applique les rôles. Code : <code>cloudflare/worker.js</code>. <b>Jamais une source</b> : une réplique, reconstructible à tout moment (§ 25)<br><br>
+    <b>3. Backend</b> (Google Apps Script, déployé en Web App — le <b>seul écrivain</b>)<br>
+    &nbsp;&nbsp;└─ <b>6 fichiers <code>.gs</code></b> + le module partagé <code>dispo_jour</code> — API <code>doGet</code>/<code>doPost</code>, voir <a href="#c3">§03</a>. Toute écriture, toute donnée vivante, et le <b>repli intégral</b> de la lecture<br><br>
+    <b>4. Données</b> (§ 04)<br>
+    &nbsp;&nbsp;├─ <b>Google Sheets</b> — la base (25 onglets)<br>
+    &nbsp;&nbsp;├─ <b>Drive privé</b> « Planning-CHPG-JSON » — les JSON publiés (planning, affectations, archives)<br>
+    &nbsp;&nbsp;└─ <b>KV Cloudflare</b> — la réplique de lecture
   </div>
-  <div class="callout tip"><div class="ct">Le flux, en une phrase</div><p>Le frontend (admin ou MAR) appelle l’<b>API Web App</b> ; celle-ci lit/écrit dans <b>Google Sheets</b> ; à la publication, le planning est figé en <b>JSON sur Drive privé</b>, que le portail MAR relit pour l’affichage. Le code lui-même vit dans le <b>dépôt GitHub</b>, recopié dans l’éditeur Apps Script pour le backend.</p></div>
 
+  <h3>Le chemin d'une donnée — les deux flux à connaître par cœur</h3>
+  <p><b>LECTURE (ouvrir une page)</b> : page → POST <code>/read</code> au Worker (code d'accès dans le corps) → le Worker compare l'empreinte, applique le rôle, sert identité + données en <b>un</b> aller-retour → la page affiche. <b>Tout écart</b> (panne, clé absente, code refusé) → la page bascule, silencieusement, sur le circuit Apps Script historique — le GAS reste <b>seul juge d'un code</b>. Cas particulier : le panneau de placement d'admin n'appelle <em>plus personne</em> — il se calcule localement par le module partagé, le serveur vérifiant derrière (§ 25, étage 2).</p>
+  <p><b>ÉCRITURE (sauver quoi que ce soit)</b> : page → POST à la Web App GAS → <code>_routeRequete_</code> vérifie le rôle, écrit dans le classeur/Drive → au retour, l'accroche de <code>doGet</code> (<code>miroirApresRequete_</code>) redépose les clés concernées au KV → ~60 s de propagation au plus, et un filet horaire (<code>miroirSyncComplet</code>) rattrape tout envoi raté ou toute modification faite <em>à la main</em> dans le classeur. La page qui vient d'écrire, elle, <b>relit le circuit direct</b> — jamais le miroir.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
@@ -191,7 +197,9 @@
       <tr><td><code>/</code> (racine)</td><td>Pages frontend : admin.html, index.html, staff.html, indispos.html, dashboard.html</td></tr>
       <tr><td><code>/docs</code></td><td>Servi par GitHub Pages : guides, présentations, ce document — dont <code>guide-fichier-maitre.html</code>, l'inventaire du classeur</td></tr>
       <tr><td><code>/docs/module-liberal</code></td><td>Le chantier module libéral (estimateur, antisèche, conception)</td></tr>
-      <tr><td><code>/gas</code></td><td>Copie du code Apps Script : code.gs, Indispos.gs, generateur_gardes.gs, setup_annee.gs, portail.gs</td></tr>
+      <tr><td><code>/gas</code></td><td>Copie du code Apps Script (6 fichiers) : code.gs, Indispos.gs, miroir.gs, generateur_gardes.gs, setup_annee.gs, portail.gs</td></tr>
+      <tr><td><code>/cloudflare</code></td><td><code>worker.js</code> — le code du Worker miroir, source de vérité de ce qui tourne chez Cloudflare (§ 13)</td></tr>
+      <tr><td><code>/partage</code></td><td><code>dispo_jour.js</code> — le module PARTAGÉ serveur/frontend du tri des disponibles (§ 25). Inclus par admin.html via <code>&lt;script src&gt;</code> ; recopié côté Apps Script sous le fichier <code>dispo_jour</code></td></tr>
     </tbody>
   </table>
   <div class="callout warn"><div class="ct">Frontend vs backend : deux circuits de livraison</div><p><b>Frontend</b> (HTML/JS/docs) : le push GitHub suffit — GitHub Pages sert la nouvelle version, tu fais <span class="kbd">Ctrl+Maj+R</span> pour vider le cache. <b>Backend</b> (fichiers <code>.gs</code>) : le push GitHub ne suffit pas — il faut <b>recopier</b> le fichier dans l’éditeur Apps Script, puis souvent <b>redéployer</b> la Web App (voir §13).</p></div>
@@ -220,7 +228,7 @@
 </section>
 
 <section id="c4">
-  <h2><span class="n">04</span>Le stockage : Google Sheets + Drive privé</h2>
+  <h2><span class="n">04</span>Le stockage : Sheets + Drive privé + KV Cloudflare</h2>
 
   <p>Toute la donnée vivante est dans le Google Sheet lié — <b>25 onglets</b>, des paramètres qu'on
   remplit à la main jusqu'aux grilles annuelles produites par les wizards.</p>
@@ -234,13 +242,15 @@
   l'année suivante).</p>
   <div class="callout warn"><div class="ct">Public vs privé — la ligne de partage</div><p>Le <b>dépôt GitHub est public</b> (Pages gratuit l'exige) : n'importe qui connaissant l'adresse peut lire son contenu — code, guides, et les noms de l'équipe (déjà publics par l'annuaire du CHPG). En revanche, <b>aucune donnée nominative sensible n'y est committée</b> : les JSON de planning (<code>planning_YYYY.json</code>, <code>affectations_YYYY.json</code>) et les archives de clôture (<code>archives_stats/indispos_YYYY.json</code>) vivent <b>uniquement</b> dans le dossier Drive <b>non partagé</b> « Planning-CHPG-JSON », lus/écrits via <code>savePlanningToDrive</code> / <code>readPlanningFromDrive</code>. Un échec d'écriture Drive fait échouer la publication (volontaire : pas de planning à moitié publié). Voir §16 pour le modèle complet.</p></div>
 
+  <div class="callout tip"><div class="ct">Le troisième stockage : le KV Cloudflare — une réplique, jamais une source</div><p>Le KV <code>CHPG_MIROIR</code> ne contient que des <b>copies</b> de lecture, déposées par le backend et reconstructibles à tout moment par <code>miroirSyncComplet</code>. On peut le vider sans rien perdre : le portail redevient lent, pas faux. <b>Aucune donnée de la liste rouge</b> (relevé libéral, marges, CONFIG, Gmail, journaux) n'y transite — voir § 16 et § 25.</p></div>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
 <section id="c5">
-  <h2><span class="n">05</span>L’API Web App : requête → réponse</h2>
+  <h2><span class="n">05</span>L’API : DEUX circuits depuis le 04/08/2026</h2>
 
-  <p>Le frontend ne touche jamais le Sheet directement : il passe par des appels HTTP à la Web App, chacun portant une <code>action</code>. Le routeur s'appelle <code>_routeRequete_</code> (dans <code>Indispos.gs</code>) ; <code>doGet</code>/<code>doPost</code> ne font plus que l'appeler et le chronométrer. Il lit <code>action</code>, vérifie le rôle (<code>user.role === 'admin'</code> pour les actions sensibles), exécute, et renvoie du JSON.</p>
+  <p><b>Circuit de LECTURE (miroir Cloudflare, § 25)</b> : les six pages ouvrent leurs données par un POST unique vers le Worker <code>chpg-miroir</code> (~150 ms — pas de compilation, pas de file). Le Worker authentifie par empreinte SHA-256 et applique les rôles. <b>Circuit d'ÉCRITURE et de repli (Web App Apps Script)</b> : toute écriture, toute donnée vivante (Gmail, stats live, validation), et TOUTE lecture dès que le miroir dévie — le GAS reste seul juge d'un code et seule autorité sur les données.</p>
+  <p>Côté Apps Script, le frontend ne touche jamais le Sheet directement : il passe par des appels HTTP à la Web App, chacun portant une <code>action</code>. Le routeur s'appelle <code>_routeRequete_</code> (dans <code>Indispos.gs</code>) ; <code>doGet</code>/<code>doPost</code> ne font plus que l'appeler et le chronométrer. Il lit <code>action</code>, vérifie le rôle (<code>user.role === 'admin'</code> pour les actions sensibles), exécute, et renvoie du JSON.</p>
   <h3>Familles d’actions</h3>
   <ul class="tight">
     <li><b>Lecture</b> : <code>getMedecins</code>, <code>getGardes</code>, <code>getStats</code>, <code>getStatsLive</code>, <code>getVacValidation</code>, <code>getAllIndispos</code>, <code>getConflitsAll</code>, <code>getJoursFeries</code>, <code>getPlanningJson</code>…</li>
@@ -392,40 +402,43 @@
   <h2><span class="n">12</span>Les 6 onglets d’admin.html</h2>
 
   <table>
-    <thead><tr><th>Onglet</th><th>Usage</th></tr></thead>
+    <thead><tr><th>Onglet</th><th>Usage — et comment il se charge depuis le 04/08/2026</th></tr></thead>
     <tbody>
-      <tr><td><b class="lbl-red">Planning</b></td><td>Le planning quotidien : secteurs du bloc, réa, mater, consultations, gardes. Retouches → <code>PLANNING_OVERRIDES</code> via <code>savePlanningOverride</code>.</td></tr>
-      <tr><td><b class="lbl-teal">Équipe</b></td><td>Le référentiel MARs : ajout, quotités, emails, statuts (no_garde, no_weekend, rythme 2/2, souhait_plafond, tp_jours_fixes), absence longue. <code>saveMedecin</code>.</td></tr>
-      <tr><td><b class="lbl-viol">Statuts</b></td><td>Absences ponctuelles du jour (<code>setDailyStatus</code>).</td></tr>
+      <tr><td><b class="lbl-red">Planning</b></td><td>Le planning quotidien : secteurs, réa, mater, consultations, gardes. Retouches → <code>PLANNING_OVERRIDES</code> via <code>savePlanningOverride</code>. Le <b>panneau de placement</b> (clic case flash) est calculé <b>localement à 0 ms</b> par le module partagé (§ 25, étage 2) ; le serveur compare en silence et corrige au moindre écart (<code>[DISPO-TEMOIN]</code> en console).</td></tr>
+      <tr><td><b class="lbl-teal">Équipe</b></td><td>Le référentiel MARs (<code>saveMedecin</code>). S'affiche <b>sans appel</b> (données du bootstrap) ; « ↻ Actualiser » et l'après-enregistrement forcent le serveur.</td></tr>
+      <tr><td><b class="lbl-viol">Statuts</b></td><td>Absences ponctuelles du jour (<code>setDailyStatus</code>). Lecture par le miroir (clés <code>gardes</code>/<code>joursferies</code>) <b>sauf pendant les 90 s qui suivent une écriture planning</b> : circuit direct, pour ne jamais montrer du périmé dans un éditeur.</td></tr>
       <tr><td><b class="lbl-amber">Affectations</b></td><td>Répartition nominative des secteurs.</td></tr>
-      <tr><td><b class="lbl-blue">Équité</b></td><td>Le certificat d’équité + les barres par MAR (§ certificat). Deux vues : <b>Initiale</b> (généré) et <b>Instantané</b> (échanges inclus — le certificat y est masqué à dessein). Bouton Générer (W2).</td></tr>
-      <tr><td><b>Maintenance</b></td><td>Diagnostics (<code>diagComplet</code>), outils ponctuels.</td></tr>
+      <tr><td><b class="lbl-blue">Équité</b></td><td>Certificat + barres par MAR. Deux vues : <b>Initiale</b> (source feuille → miroir <code>stats_{Y}</code>, même garde de 90 s) et <b>Instantané</b> (<code>getStatsLive</code>, calcul vivant — jamais mirroré, certificat masqué à dessein). Bouton Générer (W2).</td></tr>
+      <tr><td><b>Maintenance</b></td><td>Diagnostics (<code>diagComplet</code>) — dont le contrôle de dérive des <b>7 fichiers de code</b> (6 .gs + module partagé) et le bloc santé <b>Miroir Cloudflare</b> — et outils ponctuels.</td></tr>
     </tbody>
   </table>
-
+  <p>À l'ouverture, la page se <b>chauffe</b> seule en arrière-plan (panneau des semaines −1 à +6, liste des mails), uniquement pendant les accalmies : un clic du comité ne fait jamais la queue derrière le chauffage.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
 <section id="c13">
-  <h2><span class="n">13</span>Le pipeline de déploiement du code</h2>
-  <h3>Worker Cloudflare (miroir)</h3>
+  <h2><span class="n">13</span>Les TROIS pipelines de déploiement</h2>
+
+  <p>Trois circuits de livraison, du plus simple au plus manuel — et une <b>règle d'ordre</b> : quand une livraison touche plusieurs circuits, déployer <b>Worker → GAS → frontend</b> (le consommateur toujours après son fournisseur). Le contrôle de dérive de Maintenance surveille <b>7 fichiers</b> : les 6 .gs + <code>partage/dispo_jour.js</code>.</p>
+
+  <h3>1. Worker Cloudflare (miroir)</h3>
   <p><code>cloudflare/worker.js</code> du dépôt est la source de vérité. Livraison : tableau de bord Cloudflare → Worker <code>chpg-miroir</code> → <b>Edit code</b> → tout remplacer → <b>Deploy</b>. Contrôle : la racine du Worker affiche la version attendue (<code>{"ok":true,"service":"miroir …"}</code>). Toute montée de <code>CLE_VALIDE</code> côté Worker se livre AVANT le <code>miroir.gs</code> qui pousse les nouvelles clés.</p>
 
-  <h3>Frontend (HTML / JS / docs)</h3>
+  <h3>2. Frontend (HTML / JS / docs / module partagé côté pages)</h3>
   <div class="step-chain">
     <div class="s"><span class="n">1</span>Push GitHub (API Contents)</div><div class="arrow">→</div>
     <div class="s"><span class="n">2</span>GitHub Pages sert la version</div><div class="arrow">→</div>
     <div class="s"><span class="n">3</span>Ctrl+Maj+R</div>
   </div>
   <p>Immédiat. La règle d’or côté push : <b>GET du SHA du fichier juste avant le PUT</b> (plusieurs conversations écrivent sur le même dépôt), <code>node --check</code> sur tout JS, vérification de l’équilibre des balises.</p>
-  <h3>Backend (fichiers .gs)</h3>
+  <h3>3. Backend (fichiers .gs + module partagé côté serveur)</h3>
   <div class="step-chain">
     <div class="s"><span class="n">1</span>Push GitHub (copie du dépôt)</div><div class="arrow">→</div>
     <div class="s"><span class="n">2</span>Recopie manuelle dans l’éditeur Apps Script</div><div class="arrow">→</div>
     <div class="s"><span class="n">3</span>Nouveau déploiement Web App</div><div class="arrow">→</div>
     <div class="s"><span class="n">4</span>Hard-refresh</div>
   </div>
-  <p>Le push GitHub ne fait que <b>documenter/sauvegarder</b> le code backend. Pour qu’il s’exécute, il faut le <b>coller dans l’éditeur Apps Script</b>, puis <b>redéployer</b> la Web App comme nouvelle version (sinon l’ancienne reste servie). ⚠️ <b>Cela vaut pour les CINQ fichiers, générateur compris.</b> Les pages appellent une adresse en <code>/exec</code>, c'est-à-dire un déploiement <b>figé sur une version</b> : tant qu'une nouvelle version n'est pas publiée, l'ancien code continue de tourner, y compris pour une génération lancée depuis le wizard. Seule exception réelle : une fonction lancée <b>à la main depuis l'éditeur</b> Apps Script, qui exécute le code courant sans passer par le déploiement.</p>
+  <p>Le push GitHub ne fait que <b>documenter/sauvegarder</b> le code backend. Pour qu’il s’exécute, il faut le <b>coller dans l’éditeur Apps Script</b>, puis <b>redéployer</b> la Web App comme nouvelle version (sinon l’ancienne reste servie). ⚠️ <b>Cela vaut pour les SIX fichiers .gs, générateur et miroir compris, PLUS le fichier <code>dispo_jour</code></b> (recopie de <code>partage/dispo_jour.js</code> — le même contenu que celui que chargent les pages : c'est ce qui rend la divergence impossible). Les pages appellent une adresse en <code>/exec</code>, c'est-à-dire un déploiement <b>figé sur une version</b> : tant qu'une nouvelle version n'est pas publiée, l'ancien code continue de tourner, y compris pour une génération lancée depuis le wizard. Seule exception réelle : une fonction lancée <b>à la main depuis l'éditeur</b> Apps Script, qui exécute le code courant sans passer par le déploiement.</p>
   <div class="callout warn warn-strong"><div class="ct">La règle qui sauve</div><p>Ne jamais modifier un <code>.gs</code> directement dans l’éditeur sans committer aussitôt dans le dépôt : à la prochaine recopie <em>dépôt → éditeur</em>, ta modif non commitée serait écrasée.</p></div>
 
   <div class="callout"><div class="ct">Vérifier après déploiement</div><p><strong><a href="cahier-de-tests.html">cahier-de-tests.html</a></strong> — 153 points de contrôle couvrant les six onglets d’<code>admin.html</code>, les pages MAR, le staff vacances, le module libéral, les cinq assistants, les scénarios de panne et la cohérence de la documentation. Chaque test précise le comportement attendu, ce qui permet de distinguer une anomalie d’un fonctionnement normal mal compris. Après un déploiement GAS, les phases <em>Comité</em> et <em>Assistants</em> sont les plus rentables.</p></div>
@@ -464,6 +477,11 @@
     <tr><td>❌ Fuseaux DIFFÉRENTS script vs classeur</td><td>Classeur : Fichier → Paramètres → Fuseau horaire « Paris ». Aligner aussi le classeur d'archives.</td></tr>
     <tr><td>⚠️ Quota email presque épuisé</td><td>Quota Google journalier (100/j) : reporter l'envoi des codes au lendemain.</td></tr>
     <tr><td>⚠️ Verrou de script occupé / indisponible</td><td>Exécution longue en cours (génération, publication) : relancer dans une minute.</td></tr>
+    <tr><th colspan="2">Miroir Cloudflare (04/08/2026)</th></tr>
+    <tr><td>❌ MIROIR_PUSH_TOKEN ABSENT — le miroir ne reçoit plus rien</td><td>Propriétés du script : recréer <code>MIROIR_PUSH_TOKEN</code> (les 40 caractères, identiques au secret <code>PUSH_TOKEN</code> du Worker). Puis <code>miroirSyncComplet</code>. Les pages fonctionnent en repli GAS entre-temps.</td></tr>
+    <tr><td>⚠️ Worker injoignable — repli GAS actif partout</td><td>Panne ou maintenance Cloudflare : rien à faire, le portail est juste lent. Vérifier dash.cloudflare.com si ça persiste.</td></tr>
+    <tr><td>⚠️ Synchro horaire ABSENTE</td><td>Exécuter <code>miroirInstallerDeclencheur()</code> dans l'éditeur Apps Script.</td></tr>
+    <tr><td>❌ miroir.gs / partage/dispo_jour.js : DÉRIVE — dépôt vX, déployé vY</td><td>Recopier le fichier du dépôt dans l'éditeur (pour <code>dispo_jour</code> : le fichier Apps Script du même nom) + nouvelle version de la Web App.</td></tr>
     <tr><th colspan="2">Onglets &amp; configuration</th></tr>
     <tr><td>❌ Onglet … (CONFIG, MEDECINS, …) manquant</td><td>Restaurer l'onglet depuis la dernière copie « Planning-CHPG-Backups » (copier-coller l'onglet entier). Ne pas recréer à la main.</td></tr>
     <tr><td>❌ ANNEE_ACTIVE / ADMIN_CODE / GITHUB_TOKEN absent</td><td>Rétablir la ligne dans CONFIG (clé col. A, valeur col. B).</td></tr>
@@ -1211,20 +1229,31 @@
 </section>
 
 <section id="c25">
-  <h2><span class="n">25</span>Le miroir Cloudflare (lecture rapide)</h2>
-  <p><b>Pourquoi.</b> Mesures du 03/08/2026 : un appel Apps Script coûte 2,5 à 5 s quel que soit le travail serveur (compilation des ~575 Ko à chaque requête, redirection 302, file d’attente par compte). Les pages qui lisent via Apps Script ne peuvent donc jamais s’ouvrir vite, et le temps est <em>aléatoire</em>. Le miroir sert les mêmes données en ~150 ms, de façon stable.</p>
-  <p><b>Principe.</b> Apps Script reste le seul écrivain. Après chaque écriture réussie (accroche dans <code>doGet</code>, table <code>MIROIR_APRES_ECRITURE</code> de <code>gas/miroir.gs</code>), il dépose les JSON à jour chez Cloudflare (Worker <code>chpg-miroir</code> + stockage KV <code>CHPG_MIROIR</code>). Un déclencheur horaire (<code>miroirSyncComplet</code>) resynchronise tout en filet. Les CINQ pages sont branchées (index, dashboard — tuiles comprises —, indispos, admin — bootstrap, panneau semaine ±1 préchargé, Statuts et Équité via clés <code>gardes</code>/<code>joursferies</code>/<code>stats</code> avec garde de 90 s après écriture —, staff). Elles lisent le miroir d’abord (<code>miroirBoot()</code>) ; <b>tout échec — panne, clé manquante, code refusé — rend la main au circuit GAS historique</b>, seul juge de la validité d’un code. Le pire cas est donc le comportement d’avant le miroir.</p>
-  <p><b>Sécurité.</b> Les codes d’accès ne quittent jamais le script en clair : le Worker authentifie par empreintes SHA-256 (clé <code>acces</code>). Rôles conservés : secrétariat = aucune lecture miroir ; MAR = ses données (indispos filtrées) ; admin = tout. Le jeton d’écriture vit dans les propriétés du script (<code>MIROIR_PUSH_TOKEN</code>) et dans les secrets du Worker — jamais dans le dépôt. Liste rouge inchangée : relevé libéral, marges, CONFIG/PARAMETRES, Gmail, journaux ne transitent jamais par le miroir.</p>
-  <p><b>Fraîcheur.</b> Le KV propage en ~60 s au plus : après une écriture du comité, un MAR peut brièvement voir la version précédente. La page qui vient d’écrire relit, elle, le circuit direct.</p>
-  <p><b>Diagnostic.</b> <code>https://chpg-miroir.arthurfrohlich.workers.dev/</code> doit répondre <code>{"ok":true,…}</code> ; les clés et leur date de dépôt se voient dans le tableau de bord Cloudflare (Storage &amp; Databases → Workers KV) ; dans <code>chrono()</code>, les appels miroir apparaissent préfixés <code>miroir:</code>. Révoquer un code : le retirer de MEDECINS puis relancer <code>miroirSyncComplet</code> (ou attendre l’heure du filet).</p>
-  <p><b>Procédures d'exploitation.</b>
-  <b>Rotation du jeton</b> : générer 40 caractères → Worker (Settings → Variables and Secrets → <code>PUSH_TOKEN</code>) ET propriétés du script (<code>MIROIR_PUSH_TOKEN</code>) → un <code>miroirSyncComplet</code> de contrôle.
-  <b>Révocation d'un code</b> : retirer/changer le code dans MEDECINS (ou CONFIG pour l'admin) → <code>miroirSyncComplet</code> (sinon effet à l'heure suivante).
-  <b>Panne Cloudflare</b> : rien à faire — repli GAS automatique sur toutes les pages ; le portail redevient simplement lent.
-  <b>Vider le miroir</b> : tableau de bord → KV <code>CHPG_MIROIR</code> → supprimer les paires (ou pousser <code>null</code> par clé) ; le prochain sync reconstruit tout.
-  <b>Après la démo du 04/09</b> (nettoyage 2027) : le <code>miroirSyncComplet</code> final re-poussera l'état nettoyé ; vérifier que les clés <code>*_2027</code> orphelines ont disparu du KV.</p>
-  <p><b>Étage 2 (04/08/2026) — panneau à 0 ms.</b> Le tri des disponibles vit dans le module PARTAGÉ <code>partage/dispo_jour.js</code> (côté GAS : fichier <code>dispo_jour</code> — même contenu, le diagnostic surveille la dérive). admin.html le calcule LOCALEMENT depuis le miroir (affichage 0 ms, toute l'année) ; le serveur reste l'autorité : sa réponse est comparée en silence, toute divergence s'imprime en console <code>[DISPO-TEMOIN]</code> et corrige l'écran. Garde de 90 s après écriture. Toute évolution du tri se fait dans le module et se déploie DES DEUX côtés.</p>
-  <p><b>Diagnostic Maintenance</b> : depuis Indispos.gs 2026-08-04.6, le contrôle de dérive couvre <code>miroir.gs</code>, et un bloc « Miroir Cloudflare » vérifie jeton présent, Worker joignable (version affichée) et déclencheur horaire installé.</p>
+  <h2><span class="n">25</span>Le miroir Cloudflare &amp; l'étage 2 (lecture rapide, panneau à 0 ms)</h2>
+
+  <h3>Pourquoi</h3>
+  <p>Mesures du 03/08/2026 : tout appel Apps Script coûte 2,5 à 5 s quel que soit le travail serveur — compilation des ~575 Ko à CHAQUE requête, redirection 302, file d'attente par compte, pages d'erreur HTML aléatoires. Rendre l'ouverture des pages rapide <em>et prévisible</em> exigeait de sortir Apps Script du chemin de lecture.</p>
+
+  <h3>Architecture &amp; flux</h3>
+  <p>Apps Script reste le <b>seul écrivain</b>. Après chaque écriture réussie, l'accroche de <code>doGet</code> (<code>miroirApresRequete_</code>, table <code>MIROIR_APRES_ECRITURE</code> de <code>miroir.gs</code>) dépose les JSON à jour au Worker <code>chpg-miroir</code> (stockage KV <code>CHPG_MIROIR</code>). Un déclencheur <b>horaire</b> (<code>miroirSyncComplet</code>) resynchronise tout en filet — seule fraîcheur pour ce qui ne passe par aucune action du portail (modification manuelle du classeur, dossiers Drive des topos/protocoles). Les pages lisent le miroir d'abord ; <b>tout écart — panne, clé absente, code refusé — rend la main au circuit GAS</b>, seul juge d'un code. Le pire cas du miroir est donc le comportement d'avant lui. Toutes les pages rejouent une fois, en silence, sur échec de transport GAS.</p>
+
+  <h3>Les clés et leurs rôles</h3>
+  <p><code>acces</code> (empreintes SHA-256 + identité — jamais un code en clair, jamais le code secrétariat) · <code>annees</code>, <code>secteurs</code>, <code>planning_{Y}</code>, <code>affectations_{Y}</code> : MAR + admin, <b>toutes les années consultables</b> · <code>indispos_{Y}</code> : filtrées par MAR côté Worker, admin = tout · <code>topos</code>/<code>staffs</code>/<code>veille</code>/<code>protocoles</code>/<code>annuaire</code> : tuiles du dashboard, fraîcheur horaire assumée · <code>config_admin</code>, <code>gardes_{Y}</code>, <code>joursferies_{Y}</code>, <code>stats_{Y}</code>, <code>vacances_admin</code> : <b>admin seul</b>. Le rôle secrétariat ne lit RIEN au miroir.</p>
+
+  <h3>Sécurité &amp; liste rouge</h3>
+  <p>Jeton d'écriture <code>MIROIR_PUSH_TOKEN</code> : propriétés du script + secret du Worker, jamais dans le dépôt. <b>Liste rouge — ne transite JAMAIS par Cloudflare</b> : relevé libéral, marges CCAM, CONFIG/PARAMETRES, Gmail, journaux. C'est pourquoi absences.html plafonne à ~4-5 s (connexion fusionnée en un appel) : la confidentialité prime sur les 2 s.</p>
+
+  <h3>Fraîcheur</h3>
+  <p>Propagation KV ≈ 60 s au plus. Règles posées en conséquence : après une écriture, la page qui a écrit relit le circuit <b>direct</b> ; Statuts, Équité et le panneau local évitent le miroir pendant <b>90 s</b> après toute écriture planning (<code>_tsEcriturePlanning</code>) — un éditeur ne montre jamais du périmé.</p>
+
+  <h3>Étage 2 — le panneau de placement à 0 ms</h3>
+  <p>Le tri des disponibles vit dans le module <b>partagé</b> <code>partage/dispo_jour.js</code> — côté GAS, fichier <code>dispo_jour</code> au contenu identique ; le diagnostic surveille la dérive. Une seule implémentation, incluse telle quelle des deux côtés : la divergence est structurellement impossible (équivalence prouvée par test-oracle, 400 cas, avant extraction). admin.html calcule chaque panneau <b>localement</b> depuis le miroir (gardes, médecins + drapeaux, affectations brutes normalisées par le module, secteurs) : affichage 0 ms, toute l'année, sans chauffage. <b>Le serveur reste l'autorité</b> : sa réponse est comparée en silence — <code>[DISPO-TEMOIN] concordance</code> en console, ou <code>DIVERGENCE</code> avec les deux listes et correction immédiate de l'écran. Toute évolution du tri se fait dans le module et se déploie DES DEUX côtés dans la même livraison.</p>
+
+  <h3>Exploitation</h3>
+  <p><b>Rotation du jeton</b> : générer 40 caractères → Worker (Settings → Variables and Secrets → <code>PUSH_TOKEN</code>) ET propriétés du script → un <code>miroirSyncComplet</code> de contrôle. <b>Révocation d'un code</b> : le retirer/changer dans MEDECINS (ou CONFIG pour l'admin) → <code>miroirSyncComplet</code>, sinon effet à l'heure suivante. <b>Panne Cloudflare</b> : rien à faire, repli automatique. <b>Vider le miroir</b> : KV → supprimer les paires ; le prochain sync reconstruit. <b>Après la démo du 04/09</b> : le sync final re-pousse l'état nettoyé ; vérifier la disparition des clés <code>*_2027</code> orphelines. <b>Montée du Worker</b> : toujours AVANT le <code>miroir.gs</code> qui pousse de nouvelles clés.</p>
+
+  <h3>Diagnostic rapide</h3>
+  <p>Racine du Worker → <code>{"ok":true,"service":"miroir …"}</code> (la version dit si le déploiement a pris) · clés et dates de dépôt dans le KV · <code>chrono()</code> : lignes <code>miroir:</code> (~150 ms à 1 s selon le colis ; <code>ECHEC — …</code> donne la cause) · Maintenance : bloc « Miroir Cloudflare » + contrôle de dérive des 7 fichiers.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
