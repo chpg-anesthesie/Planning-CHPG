@@ -140,6 +140,8 @@
     <li><a href="#c12"><span class="n">12</span>Onglet Équité et contrôles</a></li>
     <li><a href="#c13"><span class="n">13</span>Onglet Maintenance</a></li>
     <li><a href="#c14"><span class="n">14</span>Publier le planning</a></li>
+    <li><a href="#c14b"><span class="n">14b</span>Séance de comité — mode d'emploi rapide</a></li>
+    <li><a href="#c14c"><span class="n">14c</span>Les lenteurs volontaires</a></li>
     <li><a href="#c15"><span class="n">15</span>Dépannage</a></li>
     <li><a href="#c16"><span class="n">16</span>Glossaire des sigles</a></li>
     <li><a href="#c17"><span class="n">17</span>Le brouillon et le publié</a></li>
@@ -154,6 +156,10 @@
   <div class="callout tip">
     <div class="ct">Deux réflexes permanents</div>
     <p><strong>Je modifie</strong> le planning dans l'interface (placer un MAR, poser une absence, générer les gardes…). <strong>Rien n'est visible par l'équipe</strong> tant que je n'ai pas cliqué sur <span class="btn-ex green">⬆️ Publier</span>.</p>
+  </div>
+  <div class="callout tip">
+    <div class="ct">Depuis le 04/08/2026 : l'interface est rapide, et le rester ne dépend pas de vous</div>
+    <p>Les pages s'ouvrent en <strong>1 à 2 secondes</strong> : elles lisent un circuit rapide, pendant que les enregistrements passent, eux, par le circuit sûr (2–4 s — c'est voulu, le serveur vérifie tout). Si le circuit rapide tombe en panne, <strong>tout continue de fonctionner, juste plus lentement</strong> : rien à faire, rien de cassé. Le mode d'emploi de séance est au chapitre 14b, et les lenteurs <em>normales</em> au 14c.</p>
   </div>
   <div class="callout rule">
     <div class="ct">Règle d'or du dépannage</div>
@@ -176,6 +182,10 @@
     <li><strong>Archivée</strong> : une année clôturée. Elle s'ouvre en <strong>lecture seule</strong> — un bandeau jaune 🔒 le rappelle, et toute modification est désactivée.</li>
   </ul>
   <p>Sous l'en-tête, la <strong>barre d'état</strong> affiche en permanence : Système · MARs actifs · Semaine courante.</p>
+  <div class="callout tip">
+    <div class="ct">Le code est demandé à CHAQUE ouverture — c'est un choix, pas un oubli</div>
+    <p>Contrairement aux pages MAR (qui gardent la session), l'interface d'administration redemande le code à chaque ouverture : elle donne le droit de <em>modifier</em> le planning de toute l'équipe, et peut être ouverte sur un poste partagé. Décision confirmée le 04/08/2026. Une fois le code saisi, la grille apparaît en ~1–2 s.</p>
+  </div>
   <div class="callout warn">
     <div class="ct">Confidentialité</div>
     <p>Le code admin est partagé par le comité. Toute personne qui l'a peut ouvrir <em>et modifier</em> le planning : à ne pas diffuser au-delà des membres concernés.</p>
@@ -190,10 +200,10 @@
   <table>
     <tr><th>Onglet</th><th>À quoi il sert</th></tr>
     <tr><td>📅 Planning</td><td>Le planning quotidien : qui est dans quel secteur, les consultations, et les cartes « Opérations annuelles » (les trois assistants). C'est là que l'on passe le plus de temps.</td></tr>
-    <tr><td>👥 Équipe</td><td>La liste des MAR, leurs emails, leur dect, leur groupe de vacances ; l'ajout, le départ et l'absence longue d'un MAR.</td></tr>
+    <tr><td>👥 Équipe</td><td>La liste des MAR, leurs emails, leur dect, leur groupe de vacances ; l'ajout, le départ et l'absence longue d'un MAR. S'ouvre <strong>immédiatement</strong> ; « ↻ Actualiser » ne sert qu'après une modification faite depuis un autre écran.</td></tr>
     <tr><td>📋 Affectations</td><td>Les secteurs « de base » de chaque MAR, mois par mois : le socle sur lequel le planning quotidien est construit.</td></tr>
-    <tr><td>📊 Équité</td><td>Les compteurs de gardes (qui a fait combien, écart à la cible), en vue « Initiale » ou « Instantané », et la validation des vacances.</td></tr>
-    <tr><td>✏️ Statuts</td><td>Pour poser les absences et statuts d'un MAR : vacances, formation, temps partiel, congé long, 8h–18h — avec son propre bouton Publier.</td></tr>
+    <tr><td>📊 Équité</td><td>Les compteurs de gardes (qui a fait combien, écart à la cible), en vue « Initiale » ou « Instantané », et la validation des vacances. La vue Initiale s'ouvre en un clin d'œil — <strong>sauf ~90 s après une modification du planning</strong> (2–4 s) : protection volontaire, voir 14c.</td></tr>
+    <tr><td>✏️ Statuts</td><td>Pour poser les absences et statuts d'un MAR : vacances, formation, temps partiel, congé long, 8h–18h — avec son propre bouton Publier. Même règle de fraîcheur que l'Équité (~90 s après une écriture : volontairement plus lent, voir 14c).</td></tr>
     <tr><td>🔧 Maintenance</td><td>Le diagnostic système (tout est-il en ordre ?), le vidage du cache de configuration et le renvoi groupé des codes d'accès. Voir le chapitre 13.</td></tr>
   </table>
   <a class="backtop" href="#top">↑ Sommaire</a>
@@ -357,11 +367,11 @@
     <li>Cliquer sur le MAR à placer.</li>
   </ol>
   <div class="callout tip">
-    <div class="ct">Le panneau s'ouvre sans attendre</div>
-    <p>Dès qu'une semaine s'affiche, la liste des MAR disponibles de <strong>ses sept jours</strong> est préparée en arrière-plan, pendant que vous consultez le planning. Résultat&nbsp;: quand vous cliquez sur une case, le panneau apparaît <strong>immédiatement</strong>, quel que soit le jour.</p>
-    <p>Si vous cliquez très vite après avoir changé de semaine, la préparation n'est pas encore finie&nbsp;: le panneau affiche brièvement un indicateur d'attente, puis s'ouvre. C'est le seul cas où il faut patienter.</p>
-    <p>Quand vous <strong>modifiez un statut</strong> (garde, congé, récup) dans l'onglet Statuts, la liste est automatiquement refaite&nbsp;: le panneau tient compte du changement sans avoir à recharger la page.</p>
-  </div>
+  <div class="ct">Le panneau s'ouvre instantanément — sur toute l'année (04/08/2026)</div>
+  <p>La liste des MAR disponibles est désormais <strong>calculée directement sur votre écran</strong>, à partir des mêmes règles exactement que le serveur (le même code, au caractère près, tourne des deux côtés). Résultat : le panneau s'ouvre <strong>immédiatement, quel que soit le jour cliqué</strong>, même six mois plus loin.</p>
+  <p>Le serveur revérifie chaque liste en arrière-plan et corrigerait l'écran au moindre écart — vous n'avez rien à surveiller. Seule exception : dans les ~90 s qui suivent une modification du planning, la liste repasse par le serveur (2–4 s), pour être certaine d'être à jour.</p>
+  <p>Quand vous <strong>modifiez un statut</strong> (garde, congé, récup) dans l'onglet Statuts, la liste se remet à jour toute seule.</p>
+</div>
   <div class="callout">
     <div class="ct">L'enregistrement se fait par séries</div>
     <p>Chaque placement s'affiche <strong>immédiatement</strong> dans la grille. L'enregistrement, lui, part <strong>quelques secondes après votre dernier clic</strong>, en une seule fois pour toute la série — c'est ce qui permet d'enchaîner vingt placements sans attente ni ralentissement.</p>
@@ -657,7 +667,7 @@
     <li>l'<strong>équipe</strong> : MAR sans email ou sans code, identifiants en double, codes d'accès partagés par erreur, emails mal formés, MAR actifs sans affectation ;</li>
     <li>l'<strong>intégrité des gardes, jour par jour</strong> : chaque jour de l'année doit avoir exactement une garde G et une garde G2 — un trou ou un doublon (échange mal reporté, par exemple) est listé avec sa date ;</li>
     <li>les <strong>lignes orphelines</strong> : gardes, indisponibilités ou placements manuels rattachés à un identifiant qui n'existe plus dans l'équipe (ces données seraient silencieusement ignorées) ;</li>
-    <li>la clé de publication, la <strong>synchronisation du code</strong> déployé avec le dépôt, les <strong>fichiers publiés</strong> (présence et cohérence avec le planning) ;</li>
+    <li>la clé de publication, la <strong>synchronisation du code</strong> déployé avec le dépôt (7 fichiers surveillés — « DÉRIVE » = recopie oubliée, à transmettre au responsable technique), la santé du <strong>circuit rapide</strong> (bloc « Miroir Cloudflare » : lignes vertes = tout va bien ; un ⚠️ = mode lent, sans danger), les <strong>fichiers publiés</strong> (présence et cohérence avec le planning) ;</li>
     <li>la <strong>santé du classeur</strong> : taille par rapport aux limites Google, onglets de journalisation qui enflent.</li>
   </ul>
   <p>Le résultat s'ouvre par un <strong>résumé</strong> (nombre d'erreurs et d'avertissements), puis le détail ligne par ligne : ce qui va bien, ce qui manque, ce qu'il faut corriger. <strong>Réflexe conseillé</strong> : le lancer avant chaque assistant annuel, et dès qu'un comportement semble anormal.</p>
@@ -776,11 +786,37 @@
 </section>
 
 <!-- 15 -->
+<section id="c14b">
+  <h2><span class="n">14b</span>Séance de comité — mode d'emploi rapide (depuis le 04/08/2026)</h2>
+  <p><b>Avant la séance</b> : ouvrir admin.html <b>2–3 minutes avant</b> et la laisser tranquille. La grille s'affiche en ~1–2 s, puis la page se chauffe seule (panneau des semaines autour, boîte mail) pendant que vous ne cliquez pas. Si la séance porte sur une autre semaine, y naviguer d'abord, puis laisser 30 s.</p>
+  <p><b>Pendant la séance</b> : les clics sur les cases flash ouvrent le panneau <b>instantanément, sur toute l'année</b> — enchaînez sans retenue. Les flèches de semaine sont toujours prêtes. Après un placement, la semaine se remet à jour seule. L'onglet Équipe est immédiat ; « ↻ Actualiser » ne sert qu'après une modification faite ailleurs. La boîte mail s'ouvre pleine ; son badge se met à jour ~6 s après l'ouverture de la page. Changer d'année : immédiat.</p>
+  <p><b>Si quelque chose semble lent</b> : taper <code>chrono()</code> dans la console (F12) et transmettre le résultat, ou passer par Maintenance → « 📋 Copier le rapport ».</p>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
+<section id="c14c">
+  <h2><span class="n">14c</span>Les lenteurs VOLONTAIRES — à ne pas signaler comme bug</h2>
+  <p>Trois comportements sont des protections, pas des défauts :</p>
+  <p><b>1. Statuts et Équité ralentissent ~90 s après une modification du planning.</b> Pendant cette fenêtre, ils relisent le circuit direct (2–4 s) au lieu du cache rapide : c'est la garantie qu'un éditeur ne montre <em>jamais</em> une donnée périmée. Le confort revient tout seul.</p>
+  <p><b>2. La sauvegarde d'une écriture prend 2–4 s.</b> Le serveur est l'autorité : une écriture ne peut pas être instantanée, et c'est voulu.</p>
+  <p><b>3. La console peut afficher <code>[DISPO-TEMOIN] concordance …</code></b> à chaque ouverture de panneau : c'est le calcul local vérifié par le serveur, tout va bien. Si une ligne <code>DIVERGENCE</code> apparaît : l'écran a <em>déjà</em> été corrigé par le serveur — aucun risque pour le placement — mais copier-coller la ligne entière et la transmettre au responsable technique le jour même.</p>
+  <p>Enfin, la page absences (secrétariat) ouvre en ~4–5 s : plafond assumé, ses données confidentielles ne passent pas par le circuit rapide.</p>
+  <a class="backtop" href="#top">↑ Sommaire</a>
+</section>
+
 <section id="c15">
   <h2><span class="n">15</span>Dépannage</h2>
 
   <div class="faq">
-    <div class="q">« J'ai modifié, mais le changement ne se voit pas. »</div>
+    <div class="q">« Tout est soudainement redevenu lent (10 s et plus à l'ouverture). »</div>
+  <div class="a">Le circuit rapide est probablement en panne : le portail bascule tout seul sur le circuit de secours — <strong>rien n'est cassé, aucune donnée n'est en danger</strong>. Lancer le Diagnostic (Maintenance) : le bloc « Miroir Cloudflare » dira quoi. Si ça persiste plus d'une journée, transmettre le rapport.</div>
+</div>
+<div class="faq">
+  <div class="q">« La console affiche une ligne rouge DIVERGENCE. »</div>
+  <div class="a">L'écran a <strong>déjà été corrigé automatiquement</strong> par le serveur — le placement en cours ne risque rien. Copier-coller la ligne <em>entière</em> et la transmettre au responsable technique le jour même : elle contient tout ce qu'il faut.</div>
+</div>
+<div class="faq">
+  <div class="q">« J'ai modifié, mais le changement ne se voit pas. »</div>
     <div class="a">Le plus souvent, ce n'est pas publié. Cliquer sur <strong>⬆️ Publier</strong> (attention : l'onglet Statuts a son propre Publier). Puis, sur mon écran, recharger en vidant le cache : <span class="kbd">Ctrl + Maj + R</span>.</div>
   </div>
   <div class="faq">
