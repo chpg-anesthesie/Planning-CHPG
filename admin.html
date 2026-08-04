@@ -1014,7 +1014,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 </style>
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.18.5'; // SITE_VERSION: v1.18.5
+const SITE_VERSION = 'v1.19'; // SITE_VERSION: v1.19
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1107,7 +1107,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.18.5</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.19</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -2297,7 +2297,17 @@ function _reveilAPI() {
 }
 
 let _fileAPI = Promise.resolve();
+/* (04/08/2026, lot B) Garde de fraicheur : apres une ecriture planning, les
+   lectures Statuts/Equite evitent le miroir pendant 90 s (propagation KV
+   ~60 s) et repassent par le circuit direct — un EDITEUR ne montre jamais
+   du perime. */
+let _tsEcriturePlanning = 0;
+const _ACTIONS_ECRITURE_PLANNING = new Set(['publishPlanning','setDailyStatus','applyModification',
+  'deleteOverride','savePlanningOverridesBatch','generateGardes','archiveYear','initYear',
+  'saveAffectations','saveAffectationsMar']);
+
 async function api(payload) {
+  if (payload && _ACTIONS_ECRITURE_PLANNING.has(payload.action)) _tsEcriturePlanning = Date.now();
   const _suivant = _fileAPI.then(() => _apiAvecFilet(payload), () => _apiAvecFilet(payload));
   _fileAPI = _suivant.catch(() => {});
   return _suivant;
@@ -2652,11 +2662,27 @@ async function loadStatuts(){
   load.style.display='flex'; wrap.style.display='none';
   try{
     const needMeds = !marData.length;
-    const [medRes, g, jf] = await Promise.all([
+    /* (04/08/2026, lot B) Miroir d'abord pour gardes + jours feries — SAUF
+       dans les 90 s suivant une ecriture planning (KV ~60 s) : un editeur
+       ne montre jamais du perime, le circuit direct tranche. Enveloppes
+       identiques aux actions ; cle refusee/absente → GAS comme avant. */
+    let g = null, jf = null;
+    if (Date.now() - _tsEcriturePlanning > 90000) {
+      try {
+        const _mi = await miroirRead(['gardes_' + ADMIN_YEAR, 'joursferies_' + ADMIN_YEAR], ADMIN_CODE);
+        if (_mi && _mi.success && _mi.data) {
+          const _g = _mi.data['gardes_' + ADMIN_YEAR], _j = _mi.data['joursferies_' + ADMIN_YEAR];
+          if (_g && _g.success) g = _g;
+          if (_j && _j.success) jf = _j;
+        }
+      } catch (e) { /* repli GAS */ }
+    }
+    const [medRes, _gSrv, _jfSrv] = await Promise.all([
       needMeds ? api({action:'getMedecins'}) : Promise.resolve(null),
-      api({action:'getGardes', year:ADMIN_YEAR}),
-      api({action:'getJoursFeries', year:ADMIN_YEAR}),
+      g ? Promise.resolve(g) : api({action:'getGardes', year:ADMIN_YEAR}),
+      jf ? Promise.resolve(jf) : api({action:'getJoursFeries', year:ADMIN_YEAR}),
     ]);
+    g = _gSrv; jf = _jfSrv;
     if(needMeds && medRes && medRes.success) marData=medRes.medecins;
     if(!g.success) throw new Error(g.error||'getGardes');
     STAT.gardes=g.data||{};
@@ -3132,6 +3158,7 @@ async function initDashboard() {
      ecriture (invaliderCacheSemaine), les mails ont 2 min de validite. */
   setTimeout(function () {
     try { prechargerSemaine(); } catch (e) {}
+    try { prechargerVoisines(); } catch (e) {}   // (lot A-bis) semaine ±1, enchainees derriere
     try { _prechaufferMails(); } catch (e) {}
   }, 400);
 }
@@ -3860,13 +3887,7 @@ let _sideCtx = null;
 let _preSemaine = {};        // 'date' → true : jour deja precharge (dispo ET liberal)
 let _preEnCours = null;      // Promise du prechargement en vol (evite les doublons)
 
-function _datesSemaineCourante() {
-  try {
-    const weeks = getAllWeeks(); const wk = weeks[currentWeekIdx];
-    if (!wk) return [];
-    return (getWeekDays(wk.lundi) || []).filter(d => d && d.date).map(d => d.date);
-  } catch(e) { return []; }
-}
+function _datesSemaineCourante() { return _datesSemaineIdx(currentWeekIdx); }   // (lot A-bis) delegue
 // Lance le prechargement de la semaine affichee. Silencieux : aucun spinner,
 // aucun toast — l'utilisateur continue a travailler pendant ce temps.
 /* (28/07/2026, 14 h 20) CORRECTIF — LE SUIVI SE FAIT PAR JOUR, PAS PAR SEMAINE.
@@ -3877,6 +3898,52 @@ function _datesSemaineCourante() {
    relancait tout, la signature ayant change entre-temps.
    Desormais on ne demande QUE les jours reellement absents du cache : une semaine
    revisitee ne coute plus rien, et l'ordre de navigation n'a plus d'importance. */
+/* (04/08/2026, lot A-bis) Traitement de reponse FACTORISE : prechargement de
+   la semaine courante ET des voisines passent ici. Comportement inchange :
+   commentaires d'origine conserves dans l'historique du fichier (28/07). */
+function _appliquerReponsePanneau_(res, demandees) {
+  if (!res || !res.success) {
+    // Refus serveur : visible, et jours marques « tentes » pour ne pas boucler
+    // (le repli unitaire prend la main a l'ouverture du panneau).
+    console.warn('[prechargement] refus serveur :', (res && res.error) || 'reponse illisible',
+                 '| dates demandees :', demandees.join(', '));
+    demandees.forEach(d => { _preSemaine[d] = true; });
+    return;
+  }
+  // On marque les dates DEMANDEES, pas celles renvoyees (jour « absent » →
+  // repli unitaire, sans relancer un appel a chaque rendu).
+  demandees.forEach(d => { _preSemaine[d] = true; });
+  Object.keys(res.jours || {}).forEach(d => {
+    const j = res.jours[d];
+    if (j && !j.absent && Array.isArray(j.dispo)) _dispoCache[d] = j.dispo;
+  });
+  Object.keys(res.liberal || {}).forEach(d => { _libJourCache[d] = res.liberal[d] || []; });
+}
+
+/* (04/08/2026, lot A-bis) SEMAINES VOISINES — la navigation reelle du comite
+   est semaine par semaine : une fois la semaine affichee servie, on charge en
+   silence la suivante et la precedente. Le cache _preSemaine evite toute
+   redite ; l'invalidation sur ecriture (invaliderCacheSemaine) est inchangee. */
+function _datesSemaineIdx(idx) {
+  try {
+    const weeks = getAllWeeks(); const wk = weeks[idx];
+    if (!wk) return [];
+    return (getWeekDays(wk.lundi) || []).filter(d => d && d.date).map(d => d.date);
+  } catch(e) { return []; }
+}
+function prechargerVoisines() {
+  const _apres = _preEnCours || Promise.resolve();
+  _apres.catch(function () {}).then(function () {
+    [currentWeekIdx + 1, currentWeekIdx - 1].forEach(function (i) {
+      const dates = _datesSemaineIdx(i).filter(function (d) { return d && !_preSemaine[d]; });
+      if (!dates.length) return;
+      api({action: 'getPanneauSemaine', dates: dates})
+        .then(function (res) { _appliquerReponsePanneau_(res, dates); })
+        .catch(function (e) { console.warn('[prechargement voisines] echec :', (e && e.message) || e); });
+    });
+  });
+}
+
 function prechargerSemaine(force) {
   const toutes = _datesSemaineCourante();
   if (!toutes.length) return;
@@ -3893,32 +3960,7 @@ function prechargerSemaine(force) {
     const restant = force ? toutes : toutes.filter(d => !_preSemaine[d]);
     if (!restant.length) return;          // le prechargement precedent a tout couvert
     return api({action: 'getPanneauSemaine', dates: restant})
-    .then(res => {
-      if (!res || !res.success) {
-        /* (28/07/2026, 14 h 50) UN ECHEC DOIT ETRE VISIBLE ET NE DOIT PAS BOUCLER.
-           Avant : un refus serveur sortait ici en silence sans marquer les jours,
-           donc CHAQUE rendu de semaine relancait l'appel — 11 appels mesures dans
-           une seule session a 14:40, dont plusieurs traites en 11 a 48 ms cote
-           serveur (le temps d'une reponse d'erreur, pas d'un traitement).
-           Desormais : le message est affiche en console, et les jours sont marques
-           « tentes » pour que le repli unitaire prenne la main sans relancer. */
-        console.warn('[prechargement] refus serveur :', (res && res.error) || 'reponse illisible',
-                     '| dates demandees :', restant.join(', '));
-        restant.forEach(d => { _preSemaine[d] = true; });
-        return;
-      }
-      // On marque les dates DEMANDEES, pas celles renvoyees. Un jour hors
-      // GARDES_{Y} (renvoye « absent ») ou absent de la reponse serait sinon
-      // considere comme jamais precharge, et renderWeek relancerait un appel a
-      // CHAQUE rendu — exactement la boucle qu'on cherche a supprimer.
-      // Ces jours-la retombent sur le repli unitaire a l'ouverture du panneau.
-      restant.forEach(d => { _preSemaine[d] = true; });
-      Object.keys(res.jours || {}).forEach(d => {
-        const j = res.jours[d];
-        if (j && !j.absent && Array.isArray(j.dispo)) _dispoCache[d] = j.dispo;
-      });
-      Object.keys(res.liberal || {}).forEach(d => { _libJourCache[d] = res.liberal[d] || []; });
-    });
+    .then(res => _appliquerReponsePanneau_(res, restant));
   })
     .catch(e => {             // reseau ou exception : on TRACE, et on ne boucle pas
       console.warn('[prechargement] echec reseau :', (e && e.message) || e);
@@ -3932,7 +3974,7 @@ let _preTimer = null;
 const PRE_DELAI_MS = 500;
 function planifierPrechargement() {
   clearTimeout(_preTimer);
-  _preTimer = setTimeout(prechargerSemaine, PRE_DELAI_MS);
+  _preTimer = setTimeout(function () { prechargerSemaine(); prechargerVoisines(); }, PRE_DELAI_MS);   // (lot A-bis)
 }
 // Clic sur une case dont le jour n'est pas encore en cache : on ne part PAS sur
 // deux appels unitaires pour ce seul jour — on lance tout de suite le chargement
@@ -4791,7 +4833,16 @@ async function loadStats(year, force){
   if(cached){ renderStats(cached); document.getElementById('gardesLoading').style.display='none'; document.getElementById('gardesEmpty').style.display='none'; }
   else { document.getElementById('gardesLoading').style.display='flex'; document.getElementById('gardesEmpty').style.display='none'; }
   try{
-    const data = await api({action: src==='live'?'getStatsLive':'getStats', year});
+    /* (04/08/2026, lot B) Miroir pour la source « feuille » uniquement
+       (getStatsLive = calcul vivant, jamais mirore) + meme garde 90 s. */
+    let data = null;
+    if (src !== 'live' && Date.now() - _tsEcriturePlanning > 90000) {
+      try {
+        const _mi = await miroirRead(['stats_' + year], ADMIN_CODE);
+        if (_mi && _mi.success && _mi.data && _mi.data['stats_' + year] && _mi.data['stats_' + year].success) data = _mi.data['stats_' + year];
+      } catch (e) { /* repli GAS */ }
+    }
+    if (!data) data = await api({action: src==='live'?'getStatsLive':'getStats', year});
     if(!data.success) throw new Error(data.error);
     STATS_CACHE[key]=data.stats;
     if(EQ_SRC===src && year===ADMIN_YEAR) renderStats(data.stats);
