@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-03.2';
+const GAS_VERSION_MIROIR = '2026-08-04.3';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -38,8 +38,14 @@ const GAS_VERSION_MIROIR = '2026-08-03.2';
    cloudflare/worker.js ; le Worker refuse toute clé hors liste) :
      acces, annees, secteurs, config_admin,
      planning_{Y}, affectations_{Y}, indispos_{Y}
-   À AJOUTER à l'étape « indispos.html » : clé `vacances` (getVacancesConfig)
-   — exigera une montée de version du Worker (CLE_VALIDE) en même temps.
+   AJOUT 04/08 : clés `topos`, `staffs`, `veille`, `protocoles`, `annuaire`
+   (tuiles du dashboard, enveloppes {success:true,…} stockées telles quelles).
+   Pas d'accroche d'écriture pour elles : topos/protocoles vivent dans des
+   dossiers Drive gérés à la main, veille via son déclencheur hebdo — la
+   synchro HORAIRE est leur seule source de fraîcheur (délai assumé : ces
+   contenus changent rarement). Décision vacances : getVacConfig est PAR MAR
+   (quota, TP) et reste au GAS, appelé SANS bloquer l'affichage — pas de clé
+   miroir.
    ═══════════════════════════════════════════════════════════════════ */
 
 const MIROIR_URL = 'https://chpg-miroir.arthurfrohlich.workers.dev';
@@ -102,7 +108,7 @@ function miroirApresRequete_(e, outTexte) {
    heure via miroirInstallerDeclencheur(). */
 function miroirSyncComplet() {
   const familles = ['acces', 'annees', 'secteurs', 'config_admin',
-                    'planning', 'affectations', 'indispos'];
+                    'planning', 'affectations', 'indispos', 'tuiles'];
   const res = miroirPousserFamilles_(familles, getActiveYear());
   Logger.log('miroirSyncComplet : ' + JSON.stringify(res));
   return res;
@@ -152,6 +158,16 @@ function miroirPousserFamilles_(familles, annee) {
     });
   }
 
+  if (uniq['tuiles']) {
+    // Enveloppes {success:true,…} stockées TELLES QUELLES : le client les
+    // consomme comme une réponse apiPost. Garde : jamais pousser un échec.
+    _miroirAjouteEnveloppe_(items, 'topos',      function () { return listTopos(); });
+    _miroirAjouteEnveloppe_(items, 'staffs',     function () { return listStaffs(); });
+    _miroirAjouteEnveloppe_(items, 'veille',     function () { return getVeille(); });
+    _miroirAjouteEnveloppe_(items, 'protocoles', function () { return listProtocoles(); });
+    _miroirAjouteEnveloppe_(items, 'annuaire',   function () { return listAnnuaire(); });
+  }
+
   if (uniq['indispos']) {
     const iy = (function () { try { return getIndisposYear(); } catch (e) { return annee; } })();
     _miroirAjoute_(items, 'indispos_' + iy, function () { return _miroirConstruireIndispos_(iy); });
@@ -167,6 +183,15 @@ function _miroirAjoute_(items, cle, construire) {
   try {
     const v = construire();
     if (v !== null && v !== undefined) items[cle] = JSON.stringify(v);
+  } catch (err) { /* omise ; filet horaire */ }
+}
+
+/* Enveloppe d'action ({success:true,…}) : poussée telle quelle, mais JAMAIS
+   si l'action a échoué — un échec figé au miroir serait servi en boucle. */
+function _miroirAjouteEnveloppe_(items, cle, construire) {
+  try {
+    const v = construire();
+    if (v && v.success === true) items[cle] = JSON.stringify(v);
   } catch (err) { /* omise ; filet horaire */ }
 }
 
