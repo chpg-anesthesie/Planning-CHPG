@@ -1015,7 +1015,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.20'; // SITE_VERSION: v1.20
+const SITE_VERSION = 'v1.20.1'; // SITE_VERSION: v1.20.1
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1108,7 +1108,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.20</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.20.1</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1912,7 +1912,7 @@ let _MIROIR_ANNEES = null;   // {active, annees:[...]} livre par miroirBootAdmin
 async function miroirRead(keys, codeAcces) {
   const _dep = Math.round(performance.now()), _t0 = Date.now();
   const _ctrl = new AbortController();
-  const _timer = setTimeout(() => _ctrl.abort(), 6000);
+  const _timer = setTimeout(() => _ctrl.abort(), 10000);   // (v1.20.1) 6 s coupait les reseaux mobiles lents en plein colis
   try {
     const res = await fetch(MIROIR_URL + '/read', {
       method: 'POST',
@@ -1938,23 +1938,22 @@ async function miroirRead(keys, codeAcces) {
 async function miroirBootAdmin(anneeVoulue, codeAcces) {
   const devine = anneeVoulue || new Date().getFullYear();
   const m = await miroirRead(['annees', 'secteurs', 'config_admin',
-                              'planning_' + devine, 'affectations_' + devine,
-                              'gardes_' + devine], codeAcces);   // (etage 2) gardes du jour pour le calcul local
+                              'planning_' + devine, 'affectations_' + devine], codeAcces);
   if (!m || !m.success || !m.identite) return (m && m.success === false) ? m : null;
   if (m.identite.role !== 'admin') return { nonAdmin: true, identite: m.identite };
   const active = anneeVoulue || (m.data && m.data.annees && Number(m.data.annees.active)) || devine;
   let plan = m.data['planning_' + active], aff = m.data['affectations_' + active];
-  let gardesEnv = m.data['gardes_' + active];
   if (!plan && active !== devine) {
-    const m2 = await miroirRead(['planning_' + active, 'affectations_' + active, 'gardes_' + active], codeAcces);
-    if (m2 && m2.success && m2.data) { plan = m2.data['planning_' + active]; aff = m2.data['affectations_' + active]; gardesEnv = m2.data['gardes_' + active]; }
+    const m2 = await miroirRead(['planning_' + active, 'affectations_' + active], codeAcces);
+    if (m2 && m2.success && m2.data) { plan = m2.data['planning_' + active]; aff = m2.data['affectations_' + active]; }
   }
   const cfg = m.data && m.data.config_admin;
   if (!plan || !cfg) return null;   // miroir incomplet → bootstrap GAS
   if (m.data.annees && Array.isArray(m.data.annees.annees)) _MIROIR_ANNEES = m.data.annees;
   // (etage 2) Contexte du calcul LOCAL du panneau — null si une piece manque,
   // et dans ce cas les chemins serveur existants prennent la main.
-  _ETAGE2 = _construireEtage2_(active, gardesEnv || null, cfg, m.data.secteurs, aff || null);
+  _ETAGE2 = _construireEtage2_(active, cfg, m.data.secteurs, aff || null);
+  _etage2ChargerGardes_(active, codeAcces);   // (v1.20.1) gardes + feries en ARRIERE-PLAN : colis d'ouverture et de changement d'annee alleges (mobile)
   const id = m.identite;
   return { boot: {
     success: true, year: active,
@@ -2673,7 +2672,17 @@ async function loadStatuts(){
        ne montre jamais du perime, le circuit direct tranche. Enveloppes
        identiques aux actions ; cle refusee/absente → GAS comme avant. */
     let g = null, jf = null;
-    if (Date.now() - _tsEcriturePlanning > 90000) {
+    /* (v1.20.1) ZERO reseau dans le cas courant : gardes + feries de l'annee
+       sont deja en memoire (etage 2). Copie profonde : l'editeur filtre 'I'
+       et ne doit pas toucher les donnees du panneau. Memes gardes-fous que
+       le miroir (annee, 90 s apres ecriture). */
+    if (_ETAGE2 && _ETAGE2.gardes && _ETAGE2.joursFeries
+        && _ETAGE2.annee === Number(ADMIN_YEAR)
+        && Date.now() - _tsEcriturePlanning > 90000) {
+      g  = { success: true, data: JSON.parse(JSON.stringify(_ETAGE2.gardes)), year: ADMIN_YEAR };
+      jf = { success: true, joursFeries: _ETAGE2.joursFeries.slice(), year: ADMIN_YEAR };
+    }
+    if (!g && Date.now() - _tsEcriturePlanning > 90000) {
       try {
         const _mi = await miroirRead(['gardes_' + ADMIN_YEAR, 'joursferies_' + ADMIN_YEAR], ADMIN_CODE);
         if (_mi && _mi.success && _mi.data) {
@@ -3162,14 +3171,11 @@ async function initDashboard() {
      l'attente actuelle — irreductible tant que le GAS est le fournisseur.
      Aucun risque de fraicheur : le panneau garde son invalidation sur
      ecriture (invaliderCacheSemaine), les mails ont 2 min de validite. */
+  /* (v1.20.1) Chauffage reduit a l'ESSENTIEL : semaine affichee + mails. */
   setTimeout(function () {
     try { prechargerSemaine(); } catch (e) {}
-    try { prechargerVoisines(); } catch (e) {}   // (lot A-bis) semaine ±1, enchainees derriere
     try { _prechaufferMails(); } catch (e) {}
   }, 400);
-  setTimeout(function () {
-    try { prechargerTrimestre(); } catch (e) {}   // (chauffage adouci) −1 a +6, pendant les accalmies
-  }, 5000);
 }
 
 // ── STATUS ─────────────────────────────────────────────────────────────
@@ -3940,50 +3946,13 @@ function _datesSemaineIdx(idx) {
     return (getWeekDays(wk.lundi) || []).filter(d => d && d.date).map(d => d.date);
   } catch(e) { return []; }
 }
-/* (04/08/2026, chauffage — version adoucie) Au-dela des semaines ±1 :
-   rechauffer en tache de fond les semaines −1 a +6 autour de la semaine
-   affichee (la ou le comite navigue a ~95 %), une par une, espacees de 2 s.
-   POLITESSE : ne tire que pendant les ACCALMIES (aucun clic depuis 4 s).
-   La file GAS etant COMMUNE a tout le portail, l'empreinte est volontairement
-   reduite : au pire, une ecriture d'un MAR croise UNE semaine de chauffe
-   (~2-4 s d'attente, une fois). Fraicheur inchangee : une ecriture invalide
-   sa semaine (invaliderCacheSemaine), qui se rechauffe. */
-let _trimestreLance = false;
-let _tsDernierGeste = 0;
-document.addEventListener('click', function () { _tsDernierGeste = Date.now(); }, true);
-
-async function prechargerTrimestre() {
-  if (_trimestreLance) return;
-  _trimestreLance = true;
-  const cibles = [];
-  for (let d = -1; d <= 6; d++) cibles.push(currentWeekIdx + d);
-  for (const i of cibles) {
-    while (Date.now() - _tsDernierGeste < 4000) {
-      await new Promise(function (r) { setTimeout(r, 1000); });
-    }
-    const dates = _datesSemaineIdx(i).filter(function (d) { return d && !_preSemaine[d]; });
-    if (!dates.length) continue;
-    try {
-      const res = await api({ action: 'getPanneauSemaine', dates: dates });
-      _appliquerReponsePanneau_(res, dates);
-    } catch (e) { /* silencieux : le repli unitaire couvrira ce jour-la */ }
-    await new Promise(function (r) { setTimeout(r, 2000); });
-  }
-}
-
-function prechargerVoisines() {
-  const _apres = _preEnCours || Promise.resolve();
-  _apres.catch(function () {}).then(function () {
-    [currentWeekIdx + 1, currentWeekIdx - 1].forEach(function (i) {
-      const dates = _datesSemaineIdx(i).filter(function (d) { return d && !_preSemaine[d]; });
-      if (!dates.length) return;
-      api({action: 'getPanneauSemaine', dates: dates})
-        .then(function (res) { _appliquerReponsePanneau_(res, dates); })
-        .catch(function (e) { console.warn('[prechargement voisines] echec :', (e && e.message) || e); });
-    });
-  });
-}
-
+/* (v1.20.1) TRIMESTRE ET VOISINES RETIRES — histoire complete dans le depot.
+   Le chauffage des semaines etait ne AVANT l'etage 2 ; le calcul local du
+   panneau l'a rendu redondant, et son cout etait devenu le principal frein
+   du MOBILE : la file GAS est unique (cote page ET cote Google), chaque
+   semaine de chauffage l'occupait 2,5-5 s, et placements, publications,
+   Statuts et Affectations faisaient la queue derriere. Ne reste que le
+   prechargement de la semaine AFFICHEE (1 appel, nourrit le temoin). */
 function prechargerSemaine(force) {
   const toutes = _datesSemaineCourante();
   if (!toutes.length) return;
@@ -4014,7 +3983,7 @@ let _preTimer = null;
 const PRE_DELAI_MS = 500;
 function planifierPrechargement() {
   clearTimeout(_preTimer);
-  _preTimer = setTimeout(function () { prechargerSemaine(); prechargerVoisines(); }, PRE_DELAI_MS);   // (lot A-bis)
+  _preTimer = setTimeout(prechargerSemaine, PRE_DELAI_MS);   // (v1.20.1) semaine affichee seule — voisines/trimestre retires
 }
 // Clic sur une case dont le jour n'est pas encore en cache : on ne part PAS sur
 // deux appels unitaires pour ce seul jour — on lance tout de suite le chargement
@@ -4090,9 +4059,8 @@ async function openSidePanel(sector, date, sectorLabel, slotKey, isLib) {
    ecriture planning → pas de calcul local, circuit serveur direct. */
 let _ETAGE2 = null;
 
-function _construireEtage2_(annee, gardesEnv, cfg, secteurs, affFichier) {
+function _construireEtage2_(annee, cfg, secteurs, affFichier) {
   try {
-    if (!gardesEnv || !gardesEnv.success || !gardesEnv.data) return null;
     const meds = (cfg && cfg.medecins) || [];
     if (!meds.length) return null;
     // Copie du parsing de getMedecinFlags (code.gs) — ASSEMBLAGE de contexte,
@@ -4119,16 +4087,29 @@ function _construireEtage2_(annee, gardesEnv, cfg, secteurs, affFichier) {
     });
     const codesValides = (Array.isArray(secteurs) ? secteurs : [])
       .map(function (x) { return x && x.code; }).filter(Boolean);
-    return { annee: Number(annee), gardes: gardesEnv.data, flags: flags,
+    return { annee: Number(annee), gardes: null, joursFeries: null, flags: flags,   // gardes/feries arrivent par _etage2ChargerGardes_
              actifs: actifs, initiales: initiales,
              affectations: (affFichier && affFichier.affectations) || {},
              codesValides: codesValides };
   } catch (e) { return null; }
 }
 
+/* (v1.20.1) Gardes + feries charges en arriere-plan ~1-2 s apres l'ouverture :
+   un colis leger a l'ouverture, l'etage 2 s'active juste derriere. Entre-temps,
+   _dispoLocale rend null → chemins serveur, comme avant l'etage 2. */
+async function _etage2ChargerGardes_(annee, codeAcces) {
+  try {
+    const m = await miroirRead(['gardes_' + annee, 'joursferies_' + annee], codeAcces);
+    if (!(m && m.success && m.data && _ETAGE2 && _ETAGE2.annee === Number(annee))) return;
+    const g = m.data['gardes_' + annee], j = m.data['joursferies_' + annee];
+    if (g && g.success && g.data) _ETAGE2.gardes = g.data;
+    if (j && j.success && Array.isArray(j.joursFeries)) _ETAGE2.joursFeries = j.joursFeries;
+  } catch (e) { /* silencieux : panneau local inactif, chemins serveur */ }
+}
+
 function _dispoLocale(date) {
   try {
-    if (!_ETAGE2 || typeof calculerDispoJour !== 'function') return null;
+    if (!_ETAGE2 || !_ETAGE2.gardes || typeof calculerDispoJour !== 'function') return null;
     if (Number(date.slice(0, 4)) !== _ETAGE2.annee) return null;
     if (Date.now() - _tsEcriturePlanning < 90000) return null;   // ecriture recente → serveur
     if (!(date in _ETAGE2.gardes)) return null;                  // jour hors GARDES → chemins existants
@@ -5555,14 +5536,35 @@ const MOIS_COURTS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oc
 // SECTOR_COLORS_AFF et SECTOR_LABELS_AFF : désormais dérivés de SECTEURS_CFG (voir la source unique en haut).
 
 
-async function loadAffectations(year) {
+/* (v1.20.1) Cache de SESSION des affectations. Cet onglet est un editeur de
+   BROUILLON (source : la feuille, modifications non publiees comprises) — il
+   ne peut PAS lire le fichier publie du miroir. Regles : des modifications en
+   attente ne sont JAMAIS ecrasees par un re-clic d'onglet ; premier clic par
+   annee = serveur ; suivants = memoire ; un enregistrement reussi met la
+   memoire a jour. */
+let _affSession = {};
+async function loadAffectations(year, force) {
   year = year || ADMIN_YEAR;
+  if (!force && affPending && Number(year) === Number(ADMIN_YEAR) && affData) {
+    renderAffectations();   // brouillon en cours : on ne recharge rien
+    document.getElementById('affLoading').style.display = 'none';
+    document.getElementById('affContent').style.display = 'block';
+    return;
+  }
+  if (!force && _affSession[year]) {
+    affData = JSON.parse(JSON.stringify(_affSession[year]));
+    renderAffectations();
+    document.getElementById('affLoading').style.display = 'none';
+    document.getElementById('affContent').style.display = 'block';
+    return;
+  }
   document.getElementById('affLoading').style.display = 'flex';
   document.getElementById('affContent').style.display = 'none';
   try {
     const data = await api({action: 'getAffectations', year});
     if (!data.success) throw new Error(data.error);
     affData = data.affectations;
+    _affSession[year] = JSON.parse(JSON.stringify(affData));
     renderAffectations();
   } catch(e) {
     toast('Erreur affectations : ' + e.message, 'error');
@@ -5654,6 +5656,7 @@ async function saveAllAffectations() {
   try {
     const data = await api({action:'saveAffectations', affectations: affData, year: ADMIN_YEAR});
     if (!data.success) throw new Error(data.error);
+    _affSession[ADMIN_YEAR] = JSON.parse(JSON.stringify(affData));   // (v1.20.1) le brouillon accepte devient la memoire de session
     affPending = false;
     document.getElementById('affPendingMsg').style.display = 'none';
     toast('✅ Affectations enregistrées — planning republié dans ~30s', 'success');
