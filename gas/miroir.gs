@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-05.9';
+const GAS_VERSION_MIROIR = '2026-08-05.10';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -427,9 +427,45 @@ function _miroirAjouteFichierDrive_(items, cle, nomFichier) {
   } catch (err) { /* omise ; filet horaire */ }
 }
 
+/* (2026-08-05.10) ENVOI PAR PAQUETS. Le Worker refuse plus de 20 clés par
+   appel — garde-fou volontaire contre les requêtes énormes. Or la synchro
+   COMPLÈTE construit 11 clés globales + 5 par année consultable + 1 pour les
+   indispos : 23 clés avec 2026 et 2027, et 28 dès que 2028 existera. Elle
+   échouait donc EN BLOC (« 20 clés maximum », 05/08 17:42) — le filet horaire
+   était hors service sans que rien ne le signale à l'écran.
+   Découpage en lots de 20 : chaque lot part séparément, et le compte rendu
+   agrège les résultats. Un lot en échec n'empêche pas les autres de passer,
+   et le rapport dit lequel a échoué. */
+const MIROIR_MAX_CLES = 20;
+
 function _miroirEnvoyer_(items) {
   const jeton = PropertiesService.getScriptProperties().getProperty('MIROIR_PUSH_TOKEN');
   if (!jeton) return { success: false, error: 'MIROIR_PUSH_TOKEN absent des propriétés du script' };
+  const cles = Object.keys(items || {});
+  if (!cles.length) return { success: false, error: 'aucune clé à envoyer' };
+
+  const lots = [];
+  for (let i = 0; i < cles.length; i += MIROIR_MAX_CLES) {
+    const lot = {};
+    cles.slice(i, i + MIROIR_MAX_CLES).forEach(function (c) { lot[c] = items[c]; });
+    lots.push(lot);
+  }
+
+  const echecs = [];
+  let ecrites = 0;
+  lots.forEach(function (lot, n) {
+    const r = _miroirEnvoyerLot_(lot, jeton);
+    if (r && r.success) ecrites += (typeof r.ecrites === 'number' ? r.ecrites : Object.keys(lot).length);
+    else echecs.push('lot ' + (n + 1) + '/' + lots.length + ' : ' + ((r && r.error) || 'erreur inconnue'));
+  });
+
+  if (echecs.length) {
+    return { success: false, error: echecs.join(' · '), lots: lots.length, ecrites: ecrites };
+  }
+  return { success: true, ecrites: ecrites, cles: cles.length, lots: lots.length };
+}
+
+function _miroirEnvoyerLot_(items, jeton) {
   try {
     const rep = UrlFetchApp.fetch(MIROIR_URL + '/push', {
       method: 'post',
