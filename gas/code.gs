@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-08-01.2';
+const GAS_VERSION_CODE = '2026-08-05.3';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 // Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
@@ -280,6 +280,12 @@ function getMedecinFlags() {
 // A = absent cycle TRAN
 // NB : I (indispo garde) → MAR PRÉSENT en journée dans son secteur
 const ABSENT_CODES = new Set(['RG','V','F','CTP','CP','R','A','TP','CL']);
+/* (05/08/2026) Codes rendant un PLACEMENT caduc — volontairement PLUS ÉTROIT
+   qu'ABSENT_CODES, et identique à DISPO_ABSENT_CODES du module partagé
+   (partage/dispo_jour.js) : le panneau propose les TP et les récups (R) en
+   dernier recours, donc un placement qui les vise doit tenir. Toute
+   modification ici doit être répercutée dans dispo_jour.js, et inversement. */
+const CADUC_ABSENT_CODES = new Set(['RG','V','CP','F','CTP','A','CL']);
 // (C2-D3) ARMAND_DEBUT_PLANNING / TRAN_FIN_PLANNING retirés — gates pilotées par
 // date_debut/date_fin (MEDECINS), dans generatePlanningFromGardes + getMARsDispoJour.
 // ── MAR HABILITÉS DVI (mardi matin uniquement) ─────────────────────────
@@ -914,6 +920,9 @@ function generatePlanningFromGardes(year) {
       isWeekend: d.isWeekend, isFerie: d.isFerie,
     }));
 
+    // (05/08/2026) Placements devenus caducs (MAR absent) — recensés, jamais appliqués.
+    const planningCaducs = [];
+
     // result[marId][dayIdx] = {status, morning, afternoon, cs}
     const result = {};
     DOCTORS.forEach(doc => {
@@ -941,6 +950,17 @@ function generatePlanningFromGardes(year) {
         const dayOv = planningOverrides[day.date] || {};
         Object.entries(dayOv).forEach(([docId, ov]) => {
           if (!DOCTORS.find(d => d.id === docId)) return;
+          /* (05/08/2026) Même règle qu'en semaine (§4) : le statut prime.
+             presentsPool n'est pas construit ici → critère identique appliqué
+             directement (ABSENT_CODES + fenêtre d'activité). Les gardes G/G2
+             posées juste au-dessus ne sont PAS dans ABSENT_CODES : un MAR de
+             garde reste plaçable, comme avant. */
+          const _stW = gardesCodes[docId] ? gardesCodes[docId][dayIdx] : '';
+          const _ddW = FLAGS.dateDebut[docId], _dfW = FLAGS.dateFin[docId];
+          if (CADUC_ABSENT_CODES.has(_stW) || (_ddW && day.date < _ddW) || (_dfW && day.date >= _dfW)) {
+            planningCaducs.push({ date: day.date, marId: docId, statut: _stW || '(hors activité)' });
+            return;
+          }
           if (ov.morning)   result[docId][dayIdx].morning   = ov.morning;
           if (ov.afternoon) result[docId][dayIdx].afternoon = ov.afternoon;
         });
@@ -1053,9 +1073,27 @@ function generatePlanningFromGardes(year) {
       // ── 3d. CS-ORL → désormais géré en 3b-bis (consultation du matin) ─
 
       // ── 4. Appliquer PLANNING_OVERRIDES (dernier layer) ────────────
+      /* (05/08/2026) PLACEMENT CADUC. Constat de terrain : un placement du
+         comité s'appliquait SANS JAMAIS consulter le statut du MAR — poser un
+         TP (ou V, CL, A…) dans GARDES ne défaisait pas le placement, qui
+         continuait d'afficher le MAR en secteur alors qu'il est absent. Seule
+         issue : supprimer la ligne à la main dans PLANNING_OVERRIDES.
+         Désormais le statut PRIME : un placement visant un MAR absent ce
+         jour-là est ignoré et RECENSÉ (planningCaducs) — la ligne reste dans
+         le classeur, elle redeviendra active si le statut est retiré. */
       const dayOv = planningOverrides[day.date] || {};
       Object.entries(dayOv).forEach(([docId, ov]) => {
         if (!DOCTORS.find(d => d.id === docId)) return;
+        /* (05/08/2026, décision du service) Les critères sont ceux du PANNEAU
+           de placement (dispo_jour), PAS ceux de presentsPool : un MAR en TP
+           ou en récup (R) reste RÉQUISITIONNABLE en dernier recours — le
+           panneau le propose, le placement doit donc tenir. Ne sont écartés
+           que les vraies absences (congés, formation, RG, absence longue). */
+        if (CADUC_ABSENT_CODES.has(gardesCodes[docId] ? gardesCodes[docId][dayIdx] : '')) {
+          planningCaducs.push({ date: day.date, marId: docId,
+                                statut: result[docId][dayIdx].status || '(hors activité)' });
+          return;
+        }
         if (ov.morning)   result[docId][dayIdx].morning   = ov.morning;
         if (ov.afternoon) result[docId][dayIdx].afternoon = ov.afternoon;
         if (ov.tag === 'LIB') result[docId][dayIdx].lib = true;   // consult libérale endo (affectation manuelle du comité)
@@ -1101,6 +1139,21 @@ function generatePlanningFromGardes(year) {
     });
 
     Logger.log(`✅ ${label} généré (${weeksInMonth.length} semaines)`);
+    /* (05/08/2026) Trace des placements caducs : le comité doit pouvoir
+       comprendre pourquoi un MAR placé n'apparaît pas en secteur. Repris
+       aussi par le diagnostic Maintenance. */
+    if (planningCaducs.length) {
+      Logger.log(`⚠️ ${label} : ${planningCaducs.length} placement(s) ignoré(s) — MAR absent ce jour-là : ` +
+        planningCaducs.slice(0, 8).map(x => `${x.marId} ${x.date} (${x.statut})`).join(', ') +
+        (planningCaducs.length > 8 ? ` … et ${planningCaducs.length - 8} autre(s)` : ''));
+      try {
+        const _p = PropertiesService.getScriptProperties();
+        const _prec = JSON.parse(_p.getProperty('PLANNING_CADUCS') || '[]');
+        const _tous = _prec.filter(x => x.mois !== label)
+          .concat(planningCaducs.map(x => ({ mois: label, marId: x.marId, date: x.date, statut: x.statut })));
+        _p.setProperty('PLANNING_CADUCS', JSON.stringify(_tous.slice(-200)));
+      } catch (e) { /* trace best-effort */ }
+    }
   });
 
   return months;
