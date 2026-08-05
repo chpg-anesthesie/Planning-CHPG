@@ -11,6 +11,106 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 5 août 2026 — LE JOURNAL D'INTENTIONS ET LE BANC D'ESSAI
+
+**Site v1.24.** GAS : `code.gs 2026-08-05.3`, `Indispos.gs 2026-08-05.11`,
+`miroir.gs 2026-08-05.8`, `journal.gs 2026-08-05.3` (NOUVEAU fichier),
+Worker `2026-08-05.6`.
+
+### Le journal d'intentions — les écritures ne passent plus par Google
+
+Le comité ne parle plus à Apps Script pour écrire. Chaque geste (placement,
+statut, publication) dépose une **fiche** chez Cloudflare (~150 ms, accusée,
+durable) ; un déclencheur GAS tire la file **chaque minute** et applique dans
+l'ordre des horodatages du Worker, par les fonctions de production existantes.
+Purge → registre d'audit `jfait_*` conservé 90 jours (qui, quoi, quand,
+appliqué quand, résultat).
+
+Conséquence pour le comité : **cliquer à son rythme, publier, fermer la page** —
+tout aboutit, avec ou sans lui. Chaque dépôt garde son **repli GAS intégral** :
+une panne de Cloudflare ne bloque aucun geste.
+
+### Pourquoi les écritures étaient lentes — la faute était dans le lot B
+
+L'accroche miroir tournait **dans la requête, avant la réponse**, et
+reconstruisait gardes + stats + planning pour **toutes les années** à chaque
+écriture (mesure : `savePlanningOverridesBatch` à 6,9 s serveur). Deux
+corrections : audit des familles (chaque action ne pousse que ce qu'elle
+modifie réellement), puis **accroche différée** — la requête note ce qu'il
+faudra pousser (fusion sous verrou, un déclencheur unique) et répond tout de
+suite. La construction du miroir est sortie de la file du comité.
+
+### Le dernier geste gagne (statuts vs placements)
+
+Constat de terrain : un MAR placé en secteur puis passé en TP restait affiché
+en secteur — il fallait supprimer la ligne à la main dans le classeur.
+Désormais **poser un statut d'absence (V, F, TP, CL, A) retire les placements
+de ces jours-là** pour ce MAR, ciblage par (date, MAR), jamais par numéro de
+ligne. Décision du service : **TP et R restent plaçables** — un MAR en temps
+partiel est réquisitionnable en dernier recours ; il suffit de le placer
+APRÈS avoir posé le TP. À la publication, seules les vraies absences rendent
+un placement caduc, avec les **mêmes critères que le panneau**
+(`CADUC_ABSENT_CODES` ↔ `DISPO_ABSENT_CODES` de `partage/dispo_jour.js` :
+toute modification de l'un impose l'autre).
+
+### Les modifications manuelles du classeur sont enfin vues
+
+Une correction faite directement dans le Google Sheet n'était vue par
+personne : aucune requête ne partait, donc aucune note miroir, et la copie de
+lecture n'était réalignée qu'à la **synchro horaire**. `miroirSurEdition`
+écoute désormais les onglets qui comptent (GARDES, INDISPOS, MEDECINS,
+SECTEURS, PLANNING_OVERRIDES, PERIODES_VAC, GROUPES_VAC) et pose la même note
+que les écritures du portail. **Le bouton Publier reste volontaire** : c'est
+lui, et lui seul, qui fabrique ce que voient les MAR.
+
+### Le banc d'essai — RÈGLE DE TRAVAIL
+
+`banc/` exécute le **vrai code** (les `.gs`, `cloudflare/worker.js`,
+`admin.html`, les pages MAR) dans un Google et un Cloudflare simulés.
+**181 vérifications**, onze scripts, une commande : `cd banc && ./lancer.sh`.
+
+**Avant toute proposition de push** touchant `admin.html`, un `.gs`,
+`cloudflare/worker.js` ou `partage/dispo_jour.js` : lancer le banc, ne
+présenter le patch qu'une fois tout au vert, et annoncer le résultat chiffré.
+**Toute fonctionnalité nouvelle ou tout défaut corrigé se pousse avec son
+test** — un défaut trouvé en production devient un scénario du banc.
+
+Ce que le banc prouve : ordre des opérations, idempotence, isolation des
+échecs, ciblage des lignes, verrous, absence d'appel Apps Script sur les
+gestes du comité, parcours complet placer → publier → fermer → classeur →
+planning régénéré, droits des MAR, confidentialité des indispos, et les
+*mécanismes* des pannes mobiles (onglet gelé, fermeture, cache servant une
+ancienne page) et Apps Script (budget d'exécution, refus de déclencheur,
+saturation).
+
+Ce qu'il ne prouve pas, et qu'il ne faut jamais présenter comme prouvé : le
+moteur réel de Safari, les quotas et autorisations Google, la latence réelle,
+l'exécution effective des déclencheurs installables. **« Le banc est vert »
+n'a jamais voulu dire « ça marche ».**
+
+## Ce qu'a appris la journée du 5 août 2026
+
+1. **Une accroche synchrone est un péage sur chaque geste.** Tout travail
+   ajouté « juste avant la réponse » se paie en attente utilisateur, et se
+   multiplie silencieusement par le nombre d'années balayées.
+2. **Des familles trop larges coûtent cher.** Le lot B poussait `planning` sur
+   un simple placement, qui n'y touche pas. L'audit action par action a divisé
+   le travail serveur.
+3. **Verrous imbriqués = 15 s perdues par écriture.** L'applicateur prenait le
+   verrou de script que réclament ensuite les fonctions d'écriture. Deux
+   espaces de verrous distincts (document / script) règlent le problème.
+   *Défaut trouvé par le banc, pas en production.*
+4. **Un test qui passe peut mentir.** Deux faux positifs attrapés : un mauvais
+   nom de paramètre (`cles` au lieu de `keys`) et un code d'accès non injecté
+   — la page retombait silencieusement sur Apps Script. Vérifier ce qu'un test
+   prouve *vraiment*, pas seulement qu'il est vert.
+5. **`PLANNING_OVERRIDES` n'a pas d'horodatage.** Impossible de dater une
+   ligne : on ne peut donc pas prouver après coup qu'une écriture a eu lieu ce
+   matin-là. Le registre d'audit du journal ferme cette impasse.
+6. **Le cache mobile fait croire que les correctifs ne prennent pas.** Avant
+   de rechercher un bug de code, vérifier le numéro de version affiché sur
+   l'appareil.
+
 ## État au 4 août 2026 — LE MIROIR CLOUDFLARE EST EN PRODUCTION
 
 **Site v1.19** · nouveau fichier **`gas/miroir.gs` 2026-08-04.4** · `Indispos.gs` **2026-08-03.4**
