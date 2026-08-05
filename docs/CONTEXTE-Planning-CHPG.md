@@ -11,6 +11,23 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## DÉCISIONS MÉTIER — ce qui n'est écrit dans aucun code
+
+Ces règles ne se déduisent PAS de la lecture du dépôt. Les ignorer conduit à
+« corriger » un comportement voulu, ou à proposer une automatisation déjà
+écartée. À compléter au fil des sessions.
+
+| Décision | Détail |
+|---|---|
+| **Emails vides = volontaire** | 24 MAR sur 25 n'ont pas d'adresse dans MEDECINS. C'est un choix, pas un oubli : les notifications ne doivent pas partir avant la mise en service. Des propriétés Apps Script seront basculées **le jour J**. Ne jamais traiter ce point comme un défaut à réparer. |
+| **TP et récup restent plaçables** | Un MAR en temps partiel est **réquisitionnable en dernier recours** : le panneau le propose (en dernier), et un placement postérieur à la pose du TP tient. Poser une absence retire en revanche les placements déjà posés ce jour-là (« le dernier geste gagne »). |
+| **Publier reste volontaire** | Aucune publication automatique. Un brouillon non publié est invisible des MAR, et c'est voulu : le comité décide du moment où son travail devient public. |
+| **Le secrétariat ne lit rien au miroir** | Rôle exclu de toute lecture Cloudflare (liste rouge des absences). Ne jamais « optimiser » ce chemin. |
+| **Pas de mémoire de session admin** | Le code est redemandé à CHAQUE ouverture de l'interface d'administration : elle modifie le planning de toute l'équipe et peut être ouverte sur un poste partagé. Décision confirmée le 04/08/2026. |
+| **L'archivage n'est jamais automatisé** | Opération manuelle, le premier lundi de la nouvelle année de planning. Archiver trop tôt est la seule erreur vraiment coûteuse. Ne pas reproposer. |
+| **Aucun montant hors du classeur** | Les données financières (br CCAM/NGAP, relevés) ne quittent ni le classeur ni la page du MAR concerné. Le volet libéral du comité n'affiche QUE qui opère, dans quel secteur, quelle chirurgie. |
+| **Les guides doivent tout couvrir** | `docs/guide-comite.html` et `docs/guide-mar.html` doivent expliquer **l'intégralité** du fonctionnement, en langage simple, à plusieurs niveaux de lecture. Toute modification fonctionnelle se pousse avec sa documentation. |
+
 ## État au 5 août 2026 — LE JOURNAL D'INTENTIONS ET LE BANC D'ESSAI
 
 **Site v1.24.** GAS : `code.gs 2026-08-05.3`, `Indispos.gs 2026-08-05.11`,
