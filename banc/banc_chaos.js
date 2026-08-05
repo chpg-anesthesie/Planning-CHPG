@@ -124,6 +124,27 @@ function googleCapricieux(scenario) {
     });
   }
 
+  console.log('\n═══ 45. Ouverture SANS aucun appel Apps Script (v1.25) ═══');
+  {
+    /* La barre bleue s'allume dès qu'un appel Google est en vol. Objectif :
+       plus aucun appel à l'ouverture, donc barre éteinte. On compte. */
+    const appels = [];
+    const { w, erreurs } = await ouvrirPage(async (url, opt) => {
+      if (String(url).includes('workers.dev')) return { ok:true, json: async () => ({ success:true, data:{}, identite:{ role:'admin' } }) };
+      try { appels.push(JSON.parse(new URLSearchParams(opt.body).get('payload')).action); } catch (e) { appels.push('?'); }
+      return { ok:true, json: async () => ({ success:false }) };
+    });
+    await dodo(1200);
+    V('aucun appel Apps Script pendant les 1,2 s d\'ouverture', appels.length === 0, appels);
+    /* Les trois occupants supprimés, un par un. */
+    const src = fs.readFileSync('../admin.html', 'utf8');
+    V('le témoin ne part plus automatiquement', /PLUS AUCUNE VÉRIFICATION AUTOMATIQUE/.test(src));
+    V('le volet libéral ne part plus à chaque panneau', /ne réveille PLUS Apps Script tout seul/.test(src));
+    V('le compteur de courrier ne réveille plus Gmail', /NE réveille PLUS Gmail/.test(src) && !/await api\(\{action:'mailNonLus'\}\)/.test(src));
+    V('le chargement à la demande du volet libéral existe', typeof w.liberalJourCharger === 'function');
+    V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
+  }
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   process.exit(ko ? 1 : 0);
 })();
