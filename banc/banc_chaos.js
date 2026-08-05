@@ -139,7 +139,16 @@ function googleCapricieux(scenario) {
     /* Les trois occupants supprimés, un par un. */
     const src = fs.readFileSync('../admin.html', 'utf8');
     V('le témoin ne part plus automatiquement', /PLUS AUCUNE VÉRIFICATION AUTOMATIQUE/.test(src));
-    V('le volet libéral ne part plus à chaque panneau', /ne réveille PLUS Apps Script tout seul/.test(src));
+    /* (v1.26) Le volet libéral vient désormais du miroir : la preuve n'est plus
+   « il ne part pas » mais « il est servi par la clé liberal_{année} », et
+   qu'aucun appel listLiberalJour ne subsiste dans le chemin automatique. */
+V('le volet libéral est servi par le miroir', /liberal_' \+ (active|devine)/.test(src) || /_lib\.jours/.test(src));
+/* On isole le CORPS de loadLiberalJour (chemin automatique) : l'appel serveur
+   ne doit exister que dans liberalJourCharger, déclenché à la demande. */
+const corpsAuto = src.slice(src.indexOf('function loadLiberalJour(date) {'),
+                            src.indexOf('function liberalJourCharger('));
+V('plus aucun appel automatique à listLiberalJour', !/listLiberalJour/.test(corpsAuto), corpsAuto.length);
+V('le chargement à la demande, lui, existe toujours', /api\(\{action:'listLiberalJour'/.test(src));
     V('le compteur de courrier ne réveille plus Gmail', /NE réveille PLUS Gmail/.test(src) && !/await api\(\{action:'mailNonLus'\}\)/.test(src));
     V('le chargement à la demande du volet libéral existe', typeof w.liberalJourCharger === 'function');
     V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
