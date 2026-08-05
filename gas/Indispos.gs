@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-04.8';
+const GAS_VERSION_INDISPOS = '2026-08-05.9';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -190,6 +190,7 @@ function diagnosticComplet() {
       try { deployed['portail.gs'] = GAS_VERSION_PORTAIL; } catch (e) { deployed['portail.gs'] = null; }
       try { deployed['miroir.gs'] = GAS_VERSION_MIROIR; } catch (e) { deployed['miroir.gs'] = null; }   // (04/08/2026) le 6e fichier entre au controle de derive
       try { deployed['partage/dispo_jour.js'] = GAS_VERSION_DISPO; } catch (e) { deployed['partage/dispo_jour.js'] = null; }   // (etage 2) module partage serveur/frontend
+      try { deployed['journal.gs'] = GAS_VERSION_JOURNAL; } catch (e) { deployed['journal.gs'] = null; }   // (05/08/2026) applicateur du journal d'intentions
       const tokSync = getGithubToken();
       Object.keys(deployed).forEach(fn => {
         let repoV = null;
@@ -208,6 +209,18 @@ function diagnosticComplet() {
         else check(`${fn} : DÉRIVE — dépôt v${repoV}, déployé v${deployed[fn]} → recopier + redéployer`, R.ERR);
       });
     } catch (e) { check('Contrôle de synchronisation impossible : ' + e.message, R.WARN); }
+
+    // ── 3bis-j. Journal d'intentions (05/08/2026) ──
+    hdr('Journal d\'intentions');
+    try {
+      const _trigJ = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'journalAppliquer'; });
+      if (_trigJ) check('Applicateur installé (journalAppliquer, chaque minute)', R.OK);
+      else check('Applicateur ABSENT — exécuter journalInstallerDeclencheur() : les intentions du comité ne s\'appliquent pas', R.ERR);
+      try {
+        const _ej = journalEtat_();
+        check('File chez Cloudflare : ' + _ej.enAttente + ' intention(s) en attente', _ej.enAttente > 20 ? R.WARN : R.OK);
+      } catch (eJ) { check('File injoignable (' + eJ.message + ')', R.WARN); }
+    } catch (eJt) { check('Contrôle du journal impossible : ' + eJt.message, R.WARN); }
 
     // ── 3bis-m. Miroir Cloudflare (04/08/2026) ──
     hdr('Miroir Cloudflare');
@@ -3856,52 +3869,16 @@ const MOIS_ABR = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','s
 }
 if (action === 'setDailyStatus') {
       if (user.role !== 'admin') return _deny();
-      const year   = Number(payload.year) || TEST_YEAR;
-      const marId  = String(payload.marId || '').trim().toUpperCase();
-      const statut = String(payload.statut || '').trim().toUpperCase(); // '' = effacer
-      const dates  = Array.isArray(payload.dates)
-        ? payload.dates
-        : (payload.date ? [String(payload.date)] : []);
-      if (!marId || !dates.length) return _error('marId et date(s) requis');
-
-      const ALLOWED = new Set(['', 'V', 'F', 'TP', 'CL', 'A', '18']);   // (31/07/2026) « I » retire : l'indispo de garde se pose dans INDISPOS
-      if (!ALLOWED.has(statut)) return _error(`Statut non autorisé : ${statut}`);
-
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const sheet = ss.getSheetByName(`GARDES_${year}`);
-      if (!sheet) return _error(`GARDES_${year} introuvable`);
-      const data = sheet.getDataRange().getValues();
-      const dateToCol = buildDateToCol(data, year);
-
-      let row = -1;
-      for (let r = 3; r < data.length; r++) {
-        if (String(data[r][0]).trim().toUpperCase() === marId) { row = r; break; }
-      }
-      if (row < 0) return _error(`${marId} introuvable dans GARDES_${year}`);
-
-      const GARDE_BLOCK = new Set(['G', 'G2', 'RG']); // garde + récup → échange/don
-      const applied = [], rejected = [];
-      dates.forEach(d => {
-        const col = dateToCol[d];
-        if (col === undefined) { rejected.push(`${d} (hors planning)`); return; }
-        const current = String(data[row][col] || '').trim().toUpperCase();
-        if (GARDE_BLOCK.has(current)) { rejected.push(`${d} (${current} → échange/don)`); return; }
-        sheet.getRange(row + 1, col + 1).setValue(statut);
-        applied.push(d);
-      });
-
-      if (applied.length) {
-        try {
-          const indMap = {'':'', 'V':'VAC', 'F':'FORM', 'TP':'TP', 'CL':'CL', 'A':'A', '18':'INDISPO'};
-          const existing = getIndisposForDoctor(marId, year);
-          applied.forEach(d => { existing[d] = indMap[statut]; });
-          saveIndisposForDoctor(marId, existing, year);
-        } catch(e) { Logger.log('Miroir INDISPOS: ' + e.message); }
-        // (C3) plus d'auto-republication : déclenchée par le bouton « Publier » (action publishPlanning).
-      }
-      logAction(`setDailyStatus — ${marId} "${statut || '∅'}" ×${applied.length}, ${rejected.length} rejeté(s)`);
-      return ContentService.createTextOutput(JSON.stringify({ success: true, applied, rejected }))
-        .setMimeType(ContentService.MimeType.JSON);
+      /* (2026-08-05.9) Corps extrait dans appliquerStatutJour — une seule
+         source pour le routage et l'applicateur du journal. */
+      try {
+        const res = appliquerStatutJour(
+          Number(payload.year) || TEST_YEAR,
+          payload.marId, payload.statut,
+          Array.isArray(payload.dates) ? payload.dates : (payload.date ? [String(payload.date)] : []));
+        return ContentService.createTextOutput(JSON.stringify({ success: true, applied: res.applied, rejected: res.rejected }))
+          .setMimeType(ContentService.MimeType.JSON);
+      } catch (e) { return _error(e.message); }
     }
     if (action === 'poserAbsenceLongue') {
       if (user.role !== 'admin') return _deny();
@@ -4381,6 +4358,58 @@ function _error(msg) {
 // reelle (_srv_ms) : chronoAPI() (admin.html) separe alors « serveur » et
 // « transport+file », et le diagnostic se lit sans ouvrir le menu Executions.
 // L'aiguillage historique est INTACT : doGet ne fait plus que le chronometrer.
+/* (2026-08-05.9) Corps de l'action setDailyStatus, EXTRAIT VERBATIM du
+   routage (transformation mecanique verifiee : 4 _error → throw, reponse
+   → objet). Une seule source pour le routage ET l'applicateur du journal
+   (journal.gs) — meme principe que dispo_jour. */
+function appliquerStatutJour(year, marIdBrut, statutBrut, datesBrutes) {
+  const payload = { marId: marIdBrut, statut: statutBrut, dates: datesBrutes };
+                  const marId  = String(payload.marId || '').trim().toUpperCase();
+      const statut = String(payload.statut || '').trim().toUpperCase(); // '' = effacer
+      const dates  = Array.isArray(payload.dates)
+        ? payload.dates
+        : (payload.date ? [String(payload.date)] : []);
+      if (!marId || !dates.length) throw new Error('marId et date(s) requis');
+
+      const ALLOWED = new Set(['', 'V', 'F', 'TP', 'CL', 'A', '18']);   // (31/07/2026) « I » retire : l'indispo de garde se pose dans INDISPOS
+      if (!ALLOWED.has(statut)) throw new Error(`Statut non autorisé : ${statut}`);
+
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName(`GARDES_${year}`);
+      if (!sheet) throw new Error(`GARDES_${year} introuvable`);
+      const data = sheet.getDataRange().getValues();
+      const dateToCol = buildDateToCol(data, year);
+
+      let row = -1;
+      for (let r = 3; r < data.length; r++) {
+        if (String(data[r][0]).trim().toUpperCase() === marId) { row = r; break; }
+      }
+      if (row < 0) throw new Error(`${marId} introuvable dans GARDES_${year}`);
+
+      const GARDE_BLOCK = new Set(['G', 'G2', 'RG']); // garde + récup → échange/don
+      const applied = [], rejected = [];
+      dates.forEach(d => {
+        const col = dateToCol[d];
+        if (col === undefined) { rejected.push(`${d} (hors planning)`); return; }
+        const current = String(data[row][col] || '').trim().toUpperCase();
+        if (GARDE_BLOCK.has(current)) { rejected.push(`${d} (${current} → échange/don)`); return; }
+        sheet.getRange(row + 1, col + 1).setValue(statut);
+        applied.push(d);
+      });
+
+      if (applied.length) {
+        try {
+          const indMap = {'':'', 'V':'VAC', 'F':'FORM', 'TP':'TP', 'CL':'CL', 'A':'A', '18':'INDISPO'};
+          const existing = getIndisposForDoctor(marId, year);
+          applied.forEach(d => { existing[d] = indMap[statut]; });
+          saveIndisposForDoctor(marId, existing, year);
+        } catch(e) { Logger.log('Miroir INDISPOS: ' + e.message); }
+        // (C3) plus d'auto-republication : déclenchée par le bouton « Publier » (action publishPlanning).
+      }
+      logAction(`setDailyStatus — ${marId} "${statut || '∅'}" ×${applied.length}, ${rejected.length} rejeté(s)`);
+      return { applied: applied, rejected: rejected };
+}
+
 function doGet(e) {
   const _t0 = Date.now();
   const out = _routeRequete_(e);
