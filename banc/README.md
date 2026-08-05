@@ -20,6 +20,8 @@ node banc_resilience.js  # rafales, crash, panne, concurrence       (16)
 node banc_page.js        # la page face aux pannes                  (11)
 node e2e.js              # circuit d'écriture de bout en bout        (19)
 node interface.js        # L'INTERFACE RÉELLE, pilotée au clic       (18)
+node banc_chaos.js       # Google capricieux, session interrompue    (24)
+node banc_pages_mar.js   # index / dashboard / indispos + droits     (17)
 ```
 
 `interface.js` est le test le plus proche du terrain : il monte un service
@@ -70,6 +72,15 @@ qu'en production, avec le diagnostic de Maintenance.
 | 200 fiches en attente | toutes traitées, miroir noté une seule fois par année |
 | Statut posé un jour de garde | refusé (échange ou don obligatoire) |
 | MAR inconnu, statut invalide, date hors planning | refusés proprement, file non bloquée |
+
+## Angles morts assumés
+
+Le banc **ne reproduit pas** : iOS Safari (onglet gelé, cache tenace, requêtes
+zombies), les autorisations et quotas Google, la latence réelle, ni les
+déclencheurs installables. Ces points ne se vérifient qu'en production, au
+diagnostic de Maintenance et au chronomètre. Un jeu de données écrit par la
+même main que le code peut aussi partager une hypothèse fausse : le banc
+réduit le risque, il ne l'annule pas.
 
 ## Défauts trouvés par ce banc (05/08/2026)
 
