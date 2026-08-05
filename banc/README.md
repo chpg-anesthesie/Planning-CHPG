@@ -34,6 +34,7 @@ node banc_chaos.js       # Google capricieux, session interrompue    (24)
 node banc_pages_mar.js   # index / dashboard / indispos + droits     (17)
 node banc_ios.js         # mécanismes du mobile (gel, fermeture, cache) (13)
 node banc_google.js      # contraintes Apps Script (budget, refus)   (14)
+node banc_gestes.js      # échanges/dons de garde, affectations      (22)
 ```
 
 `interface.js` est le test le plus proche du terrain : il monte un service
@@ -110,6 +111,13 @@ même main que le code peut aussi partager une hypothèse fausse : le banc
 réduit le risque, il ne l'annule pas.
 
 ## Défauts trouvés par ce banc (05/08/2026)
+
+- **Échange de garde refusé = classeur à moitié modifié.** `echangeGarde`
+  écrivait l'échange de la date principale AVANT de vérifier le repos de garde
+  du lendemain : un refus laissait la garde changée de titulaire pendant que
+  le comité lisait « échange refusé ». Corrigé (`Indispos.gs 2026-08-05.12`) :
+  tout est vérifié, et toutes les lectures faites, avant la première écriture.
+  Le scénario 44 éprouve désormais l'atomicité des CINQ types de modification.
 
 - Verrous imbriqués : l'applicateur du journal prenait le verrou de script,
   que réclament ensuite les fonctions d'écriture → 15 s d'attente par
