@@ -1015,7 +1015,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.26'; // SITE_VERSION: v1.26
+const SITE_VERSION = 'v1.26.2'; // SITE_VERSION: v1.26.2
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1108,7 +1108,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.26</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.26.2</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1761,7 +1761,7 @@ function pubMarkDirty()  { _pubSynced = false; renderPubIndicator(); }
 function pubMarkSynced() { _pubSynced = true;  renderPubIndicator(); }
 function pubRecompute()  { _pubSynced = null;  renderPubIndicator(); }
 
-function showPublishReassurance() {
+function showPublishReassurance(via) {
   pubMarkSynced();
   let el = document.getElementById('pubReassure');
   if (!el) {
@@ -1770,7 +1770,12 @@ function showPublishReassurance() {
     el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9000;max-width:520px;background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;border-radius:12px;padding:14px 18px;box-shadow:0 8px 28px rgba(0,0,0,.12);font-size:13.5px;line-height:1.5';
     document.body.appendChild(el);
   }
-  el.innerHTML = "<b>✅ Modifications enregistrées.</b> Elles sont déjà visibles ici. La version des MAR se met à jour automatiquement dans 1 à 2 minutes — <b>inutile de recharger la page</b>.";
+  /* (v1.26.1) Le texte suit le circuit réellement emprunté. Par le journal,
+     la publication n'est pas encore faite : elle est GARANTIE, ce qui n'est
+     pas la même chose — et c'est précisément ce qui permet de fermer la page. */
+  el.innerHTML = (via === 'journal')
+    ? "<b>📤 Publication en route.</b> Vos modifications sont enregistrées et déjà visibles ici. Le serveur publie dans la minute : <b>vous pouvez fermer cette page</b>, la version des MAR sera à jour sous 2 à 3 minutes."
+    : "<b>✅ Modifications publiées.</b> Elles sont déjà visibles ici. La version des MAR se met à jour dans 1 à 2 minutes — <b>inutile de recharger la page</b>.";
   el.style.display = 'block';
   clearTimeout(window._pubReassureT);
   window._pubReassureT = setTimeout(() => { if (el) el.style.display = 'none'; }, 9000);
@@ -3137,7 +3142,7 @@ async function statPublish(){
     const r = _via ? { success: true } : { success: false, error: 'publication impossible' };
     if(!r.success) throw new Error(r.error||'publishPlanning');
     STAT.pending=0;
-    toast('Planning publié ✓', 'success');
+    toast(_via === 'journal' ? '📤 Publication en route — vous pouvez fermer la page.' : 'Planning publié ✓', 'success');
     showPublishReassurance();
     renderStatuts();
   }catch(e){ toast('Publication échouée : '+e.message, 'error'); renderStatuts(); }
@@ -3210,14 +3215,28 @@ async function detectAvailableYears() {
       const r = await api({ action: 'getAnneesDisponibles' });
       _anneesServeur = (r && r.success && Array.isArray(r.annees)) ? r.annees : [];
     }
+    /* (v1.26.2, CORRECTIF) La liste du miroir fait foi pour TOUTES les années,
+       futures comprises. Auparavant elle était filtrée sur « années < année
+       active » : l'accès à N+1 dépendait alors du SEUL booléen anneeSuivante,
+       calculé à part. Le jour où ce booléen n'arrive pas (ou pas en booléen),
+       2027 disparaissait du sélecteur sans un mot — constaté le 05/08 au soir,
+       sur mobile, la pastille passant en mode « solo » (sans chevron).
+       Une seule source de vérité désormais, la même qu'index.html. */
+    const _dejaLa = new Set(availableYears.map(a => a.year));
     _anneesServeur
-      .filter(a => Number(a.annee) < YEAR)
-      .sort((a, b) => b.annee - a.annee)
-      .forEach(a => availableYears.push({
-        year: Number(a.annee),
-        label: a.annee + (a.archivee ? ' — archivé' : ' — clos'),
-        readonly: true, status: 'archive'
-      }));
+      .map(a => Number(a.annee))
+      .filter(y => isFinite(y) && !_dejaLa.has(y))
+      .sort((a, b) => b - a)
+      .forEach(y => {
+        const info = _anneesServeur.find(a => Number(a.annee) === y) || {};
+        if (y > YEAR) {
+          availableYears.push({ year: y, label: y + ' — N+1', readonly: false, status: 'n1' });
+        } else {
+          availableYears.push({ year: y, label: y + (info.archivee ? ' — archivé' : ' — clos'),
+                                readonly: true, status: 'archive' });
+        }
+      });
+    availableYears.sort((a, b) => b.year - a.year);
   } catch (e) { /* serveur muet : on garde l'annee active, le selecteur reste utilisable */ }
   buildYearSelector();
 }
@@ -8815,9 +8834,15 @@ async function publishPlanning() {
     const _via = await _publierCombine(ADMIN_YEAR);
     if (!_via) throw new Error('publication impossible (journal et circuit direct)');
     _pendingChanges = 0;
-    if (_via === 'journal') toast('📤 Publication en route — vous pouvez quitter cette page. Visible des MARs sous ~2 min.', 'success');
-    toast('✅ Planning publié en ligne', 'success');
-    showPublishReassurance();
+    /* (v1.26.1) UN SEUL message, et il dit la vérité. Deux toasts partaient
+       coup sur coup : le second (« publié en ligne ») écrasait le premier
+       avant qu'on ait pu le lire, ET affirmait une publication qui n'était pas
+       encore faite — la fiche vient d'être déposée, le serveur publie dans la
+       minute. Par le circuit direct, en revanche, c'est bien fait. */
+    toast(_via === 'journal'
+      ? '📤 Publication en route — vous pouvez fermer la page.'
+      : '✅ Planning publié en ligne', 'success');
+    showPublishReassurance(_via);
   } catch(e) {
     // (v1.23) restauration du lot geree dans _publierCombine
     toast('Erreur : ' + e.message, 'error');
