@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-05.9';
+const GAS_VERSION_INDISPOS = '2026-08-05.11';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -209,6 +209,19 @@ function diagnosticComplet() {
         else check(`${fn} : DÉRIVE — dépôt v${repoV}, déployé v${deployed[fn]} → recopier + redéployer`, R.ERR);
       });
     } catch (e) { check('Contrôle de synchronisation impossible : ' + e.message, R.WARN); }
+
+    // ── 3bis-c. Placements caducs (05/08/2026) ──
+    try {
+      const _cad = JSON.parse(PropertiesService.getScriptProperties().getProperty('PLANNING_CADUCS') || '[]');
+      if (_cad.length) {
+        check(`${_cad.length} placement(s) ignoré(s) à la publication — MAR absent ce jour-là : ` +
+              _cad.slice(0, 6).map(x => `${x.marId} ${x.date} (${x.statut})`).join(', ') +
+              (_cad.length > 6 ? ` … et ${_cad.length - 6} autre(s)` : '') +
+              ' — la ligne reste dans PLANNING_OVERRIDES et redeviendra active si le statut est retiré', R.WARN);
+      } else {
+        check('Aucun placement caduc à la dernière publication', R.OK);
+      }
+    } catch (e) { /* trace absente : sans objet */ }
 
     // ── 3bis-j. Journal d'intentions (05/08/2026) ──
     hdr('Journal d\'intentions');
@@ -4358,6 +4371,41 @@ function _error(msg) {
 // reelle (_srv_ms) : chronoAPI() (admin.html) separe alors « serveur » et
 // « transport+file », et le diagnostic se lit sans ouvrir le menu Executions.
 // L'aiguillage historique est INTACT : doGet ne fait plus que le chronometrer.
+/* (2026-08-05.11) Retire les lignes de PLANNING_OVERRIDES visant ce MAR à ces
+   dates. Ciblage par (date, MAR) — JAMAIS par numéro de ligne : les rangs
+   bougent entre le moment où on les lit et celui où on écrit. Même verrou et
+   même normalisation de date que savePlanningOverridesBatch ; suppression de
+   la FIN vers le DÉBUT (une suppression ne décale que les lignes en dessous). */
+function retirerPlacementsPourDates(marId, dates) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('PLANNING_OVERRIDES');
+  if (!sheet || sheet.getLastRow() < 2) return 0;
+  const cible = String(marId || '').trim().toUpperCase();
+  const jours = {};
+  (dates || []).forEach(function (d) { jours[String(d).trim()] = true; });
+  if (!cible || !Object.keys(jours).length) return 0;
+
+  const lock = LockService.getScriptLock();
+  try { lock.waitLock(15000); } catch (e) { Logger.log('retirerPlacements : verrou indisponible, on continue'); }
+  try {
+    const data = sheet.getDataRange().getValues();
+    const aSupprimer = [];
+    for (let r = 1; r < data.length; r++) {
+      const brut = data[r][0];
+      const dateStr = brut instanceof Date
+        ? `${brut.getFullYear()}-${String(brut.getMonth()+1).padStart(2,'0')}-${String(brut.getDate()).padStart(2,'0')}`
+        : String(brut).trim();
+      if (!jours[dateStr]) continue;
+      if (String(data[r][1]).trim().toUpperCase() !== cible) continue;
+      aSupprimer.push(r);
+    }
+    aSupprimer.sort(function (a, b) { return b - a; }).forEach(function (r) { sheet.deleteRow(r + 1); });
+    return aSupprimer.length;
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
 /* (2026-08-05.9) Corps de l'action setDailyStatus, EXTRAIT VERBATIM du
    routage (transformation mecanique verifiee : 4 _error → throw, reponse
    → objet). Une seule source pour le routage ET l'applicateur du journal
@@ -4398,6 +4446,24 @@ function appliquerStatutJour(year, marIdBrut, statutBrut, datesBrutes) {
       });
 
       if (applied.length) {
+        /* (2026-08-05.11) LE DERNIER GESTE GAGNE. Constat de terrain : un MAR
+           placé en secteur puis passé en TP restait affiché en secteur — la
+           ligne de PLANNING_OVERRIDES survivait au changement de statut, et il
+           fallait la supprimer à la main dans le classeur. Désormais, poser un
+           statut d'ABSENCE retire les placements de ces jours-là pour ce MAR.
+           Le TP y figure : poser un TP annule le placement du jour. L'inverse
+           reste vrai et VOLONTAIRE — un MAR en TP peut être réquisitionné en
+           dernier recours, il suffit de le placer APRÈS (le panneau le
+           propose, et le placement, postérieur, tient).
+           « 18 » (8h-18h) et l'effacement ('') ne retirent RIEN : ce ne sont
+           pas des absences. */
+        const STATUTS_RETIRANT_PLACEMENT = new Set(['V', 'F', 'TP', 'CL', 'A']);
+        if (STATUTS_RETIRANT_PLACEMENT.has(statut)) {
+          try {
+            const _nbRet = retirerPlacementsPourDates(marId, applied);
+            if (_nbRet) logAction(`setDailyStatus — ${_nbRet} placement(s) retiré(s) (${marId}, statut ${statut})`);
+          } catch (e) { Logger.log('Retrait des placements : ' + e.message); }
+        }
         try {
           const indMap = {'':'', 'V':'VAC', 'F':'FORM', 'TP':'TP', 'CL':'CL', 'A':'A', '18':'INDISPO'};
           const existing = getIndisposForDoctor(marId, year);
