@@ -991,7 +991,7 @@
 
   <div class="test" data-id="T116"><div class="test-head"><span class="tid">T116</span><div class="test-body">
     <div class="t-do">Relancer W1 immédiatement.</div>
-    <div class="t-exp">Attendu : l'étape « INDISPOS créé » échoue avec « INDISPOS_2028 existe déjà ». Question à trancher : <b>comprends-tu quoi faire</b> en lisant ce message, ou restes-tu bloqué ?</div>
+    <div class="t-exp">Attendu : l'étape « INDISPOS créé » échoue avec « INDISPOS_2028 existe déjà ». Question à trancher : <b>comprends-tu quoi faire</b> en lisant ce message, ou restes-tu bloqué ? <b style="color:#047857">✅ Garde-fou vérifié automatiquement</b> — banc : <code>banc_annuel.js</code>. Le déroulé complet de l assistant reste à faire à la main.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T116" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T116" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T116" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
@@ -1042,14 +1042,14 @@
 
   <div class="test" data-id="T123"><div class="test-head"><span class="tid">T123</span><div class="test-body">
     <div class="t-do">Relancer W2 sur 2028.</div>
-    <div class="t-exp">Attendu : « déjà générées — rien à refaire », et surtout <b>aucune régénération</b> (le planning ne doit pas changer). Compare deux ou trois gardes avant/après.</div>
+    <div class="t-exp">Attendu : « déjà générées — rien à refaire », et surtout <b>aucune régénération</b> (le planning ne doit pas changer). Compare deux ou trois gardes avant/après. <b style="color:#047857">✅ Garde-fou vérifié automatiquement</b> — banc : <code>banc_annuel.js</code>. Le déroulé complet de l assistant reste à faire à la main.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T123" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T123" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T123" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
   <div class="test" data-id="T124"><div class="test-head"><span class="tid">T124</span><div class="test-body">
     <div class="t-do">Relancer W2, et fermer l'onglet en pleine génération. Rouvrir, relancer.</div>
-    <div class="t-exp">Attendu : le verrou serveur fait office de mémoire — l'étape est reconnue acquise, la publication enchaîne.</div>
+    <div class="t-exp">Attendu : le verrou serveur fait office de mémoire — l'étape est reconnue acquise, la publication enchaîne. <b style="color:#047857">✅ Garde-fou vérifié automatiquement</b> — banc : <code>banc_annuel.js</code>. Le déroulé complet de l assistant reste à faire à la main.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T124" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T124" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T124" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
@@ -1148,14 +1148,14 @@
 
   <div class="test" data-id="T128"><div class="test-head"><span class="tid">T128</span><div class="test-body">
     <div class="t-do">Vérifier HISTORIQUE ligne par ligne pour 2027.</div>
-    <div class="t-exp">Attendu : un enregistrement par MAR, 18 colonnes remplies. La colonne Noël/Jour de l'an doit refléter qui a <b>réellement</b> passé ces jours (échanges inclus), pas la version initiale du générateur.</div>
+    <div class="t-exp">Attendu : un enregistrement par MAR, 18 colonnes remplies. La colonne Noël/Jour de l'an doit refléter qui a <b>réellement</b> passé ces jours (échanges inclus), pas la version initiale du générateur. <b style="color:#047857">✅ Garde-fou vérifié automatiquement</b> — banc : <code>banc_annuel.js</code>. Le déroulé complet de l assistant reste à faire à la main.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T128" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T128" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T128" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
   <div class="test" data-id="T129"><div class="test-head"><span class="tid">T129</span><div class="test-body">
     <div class="t-do">Relancer W3 sur 2027 (déjà archivée).</div>
-    <div class="t-exp">Attendu : « déjà archivée — rien à refaire », et le wizard enchaîne sur la bascule sans redéplacer d'onglets. C'est la garde d'idempotence : le test le plus important de la phase.</div>
+    <div class="t-exp">Attendu : « déjà archivée — rien à refaire », et le wizard enchaîne sur la bascule sans redéplacer d'onglets. C'est la garde d'idempotence : le test le plus important de la phase. <b style="color:#047857">✅ Garde-fou vérifié automatiquement</b> — banc : <code>banc_annuel.js</code>. Le déroulé complet de l assistant reste à faire à la main.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T129" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T129" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T129" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
