@@ -1,5 +1,5 @@
 // ⚠️ RÈGLE : incrémenter à CHAQUE push. Fichier Apps Script : `journal`.
-const GAS_VERSION_JOURNAL = '2026-08-05.1';
+const GAS_VERSION_JOURNAL = '2026-08-05.3';
 
 /* ═══════════════════════════════════════════════════════════════════════
    JOURNAL D'INTENTIONS — L'APPLICATEUR (05/08/2026)
@@ -66,11 +66,35 @@ function journalEtat_() {
   return JSON.parse(rep.getContentText());
 }
 
+/* (2026-08-05.2) Le compteur de courrier non lu est rafraichi ICI, hors de
+   la file du comite : l'applicateur tourne deja chaque minute, on interroge
+   Gmail au plus toutes les 5 minutes (garde d'horodatage). Le badge du
+   comite lit ensuite le miroir, sans aucun appel Google. */
+const JOURNAL_CLE_MAIL = 'JOURNAL_MAIL_DERNIER';
+function _journalRafraichirMail_() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const dernier = Number(props.getProperty(JOURNAL_CLE_MAIL) || 0);
+    if (Date.now() - dernier < 300000) return;          // < 5 min : rien a faire
+    props.setProperty(JOURNAL_CLE_MAIL, String(Date.now()));
+    miroirPousserFamilles_(['mail'], getActiveYear(), false);
+  } catch (e) { /* jamais bloquant : le badge est un confort */ }
+}
+
 function journalAppliquer() {
+  _journalRafraichirMail_();
   // Un seul applicateur à la fois : deux passages qui se chevauchent
   // appliqueraient les mêmes fiches (sans dégât — idempotence — mais en
   // double travail et double note miroir).
-  const verrou = LockService.getScriptLock();
+  /* (2026-08-05.3, CORRECTIF) Verrou de DOCUMENT, pas verrou de script. Les
+     fonctions d'ecriture appelees ensuite (savePlanningOverridesBatch,
+     retirerPlacementsPourDates) prennent, elles, le verrou de SCRIPT : si
+     l'applicateur le tenait deja, chacune de ces ecritures attendrait ses
+     15 s de timeout avant de continuer — une pose de statut par le journal
+     aurait coute 15 s de plus, pour rien. Deux espaces de verrous distincts :
+     l'applicateur ne se chevauche pas avec lui-meme, et les ecritures gardent
+     leur exclusion mutuelle habituelle. */
+  const verrou = LockService.getDocumentLock();
   if (!verrou.tryLock(5000)) return;
   try {
     const rep = UrlFetchApp.fetch(MIROIR_URL + '/tirer', {
