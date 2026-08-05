@@ -87,6 +87,31 @@
   .backtop:hover{color:var(--red)}
   .foot{margin-top:56px; padding-top:18px; border-top:1px solid var(--line); font-size:12px; color:var(--ink-3); font-family:var(--mono); text-align:center}
 
+  /* (05/08/2026) Bloc d'accroche : ce qu'il faut savoir même sans lire la suite. */
+  .hero{background:linear-gradient(180deg,#fff 0%,#FBFCFE 100%); border:1px solid var(--line);
+        border-left:4px solid var(--red); border-radius:14px; padding:22px 26px; margin:26px 0 8px}
+  .hero h2{font-size:18px; margin:0 0 10px; padding:0; border:none}
+  .hero p{font-size:15px; color:var(--ink-2)}
+  .hero ol{margin:12px 0 0; padding-left:20px; color:var(--ink-2)}
+  .hero ol li{margin:8px 0}
+  .hero .cle{color:var(--ink); font-weight:700}
+
+  /* Encadré dépliable : les curieux ouvrent, les autres passent. */
+  details.pourquoi{background:var(--white); border:1px solid var(--line); border-radius:12px;
+                   padding:0 18px; margin:16px 0}
+  details.pourquoi summary{cursor:pointer; padding:12px 0; font-size:13.5px; font-weight:600;
+                           color:var(--ink-2); list-style:none}
+  details.pourquoi summary::-webkit-details-marker{display:none}
+  details.pourquoi summary::before{content:"▸ "; color:var(--red); font-weight:700}
+  details.pourquoi[open] summary::before{content:"▾ "}
+  details.pourquoi[open] summary{border-bottom:1px solid var(--line)}
+  details.pourquoi .corps{padding:12px 0 4px; font-size:14px; color:var(--ink-2)}
+  details.pourquoi .corps p:last-child{margin-bottom:0}
+
+  .geste{background:var(--green-soft); border:1px solid #86EFAC; border-radius:12px;
+         padding:14px 18px; margin:16px 0; color:#14532D; font-size:14.5px}
+  .geste b{color:#14532D}
+
   @media print{
     body{background:#fff; padding:0; font-size:12.5px}
     .toc ol{columns:2}
@@ -94,444 +119,228 @@
     section{break-inside:avoid-page; margin-top:28px}
   }
 </style>
-</head>
-<body>
+</head><body>
 <div class="wrap">
 
-<header id="top">
-  <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document équipe</div>
-  <h1>Vos outils au quotidien<br>Guide du médecin anesthésiste-réanimateur</h1>
-  <p class="subtitle">Portail · Planning · Indisponibilités · Vacances — le mode d'emploi de vos quatre pages, à rouvrir en cas de doute.</p>
-  <div class="maj">Version <strong>v1.27</strong> — alignée sur les pages en service.</div><!-- SITE_VERSION: v1.27 -->
-</header>
+  <div class="eyebrow">Planning-CHPG</div>
+  <h1><span class="flag"><i class="r"></i><i class="w"></i></span>Guide du MAR</h1>
+  <p class="subtitle">Votre planning, vos congés, vos indisponibilités — tout ce qu'il faut savoir, et rien d'autre.</p>
+  <p class="maj">Mis à jour le 5 août 2026 · <span id="verBadge">v1.27</span></p>
 
-<div class="callout tip" style="margin:26px 0 6px">
-  <div class="ct">L'essentiel en une minute</div>
-  <p>Votre <b>code d'accès</b> vous a été envoyé par mail. Il ouvre le portail — ajoutez-le à
-  l'écran d'accueil de votre téléphone, il se comporte comme une application.</p>
-  <p><b>Trois pages suffisent au quotidien :</b></p>
-  <ul>
-    <li><b>Planning</b> — vos gardes et vos affectations, tenus à jour par le comité.</li>
-    <li><b>Mes indisponibilités</b> — à remplir <b>en octobre</b>. C'est le seul moment où votre
-    avis pèse sur vos gardes de l'année suivante.</li>
-    <li><b>Mes congés</b> — vos vacances et formations validées.</li>
-  </ul>
-  <p><b>Un réflexe :</b> jamais de nom de patient dans un champ libre.</p>
-  <p style="margin-bottom:0"><em>Le reste de ce guide répond aux questions précises — le sommaire
-  ci-dessous. Vous n'avez pas besoin de le lire en entier.</em></p>
-</div>
-
-<nav class="toc">
-  <h2>Sommaire</h2>
-  <ol>
-    <li><a href="#c1"><span class="n">01</span>Le principe en une page</a></li>
-    <li><a href="#c2"><span class="n">02</span>Votre code d'accès</a></li>
-    <li><a href="#c3"><span class="n">03</span>Le portail : votre page d'accueil</a></li>
-    <li><a href="#c4"><span class="n">04</span>Mes gardes &amp; Mes congés</a></li>
-    <li><a href="#c5"><span class="n">05</span>Lire le planning</a></li>
-    <li><a href="#c6"><span class="n">06</span>Saisir vos indisponibilités</a></li>
-    <li><a href="#c7"><span class="n">07</span>Le Staff Vacances</a></li>
-    <li><a href="#c8"><span class="n">08</span>Votre année en trois rendez-vous</a></li>
-    <li><a href="#c9"><span class="n">09</span>L'équité des gardes, expliquée</a></li>
-    <li><a href="#c10"><span class="n">10</span>Ressources : veille, protocoles, annuaire…</a></li>
-    <li><a href="#c11"><span class="n">11</span>Confidentialité &amp; protection de vos données</a></li>
-    <li><a href="#c12"><span class="n">12</span>Questions fréquentes</a></li>
-    <li><a href="#c13"><span class="n">13</span>Un problème ?</a></li>
-  </ol>
-</nav>
-
-<!-- ============ 01 ============ -->
-<section id="c1">
-  <h2><span class="n">01</span>Le principe en une page</h2>
-  <p>Le service utilise un système de planning en ligne, accessible depuis n'importe quel navigateur (téléphone, tablette, ordinateur). En tant que MAR, vous avez <strong>quatre pages</strong>, chacune avec un rôle précis :</p>
-  <table>
-    <tr><th>Page</th><th>À quoi elle sert</th><th>Quand vous en servir</th></tr>
-    <tr><td>Portail</td><td>Votre page d'accueil personnalisée : vos prochaines gardes, vos congés, la veille biblio, les protocoles, l'annuaire…</td><td>Tous les jours</td></tr>
-    <tr><td>Planning</td><td>Consulter le planning de l'équipe : gardes, secteurs du bloc, consultations, équité.</td><td>Quand vous voulez savoir qui fait quoi</td></tr>
-    <tr><td>Indisponibilités</td><td>Déclarer vos indisponibilités et vos souhaits de garde <strong>avant</strong> la génération du planning de l'année suivante.</td><td>Chaque automne (octobre-novembre)</td></tr>
-    <tr><td>Staff Vacances <span style="color:#94A3B8">(en staff)</span></td><td>Vos vacances et formations sont posées <strong>ensemble en réunion de staff</strong>, pas en ligne — vous n'ouvrez pas cette page. La priorité de votre groupe sert de départage.</td><td>Chaque automne, au staff</td></tr>
-  </table>
-  <p>Vous ne pouvez rien « casser » : ces pages sont soit en consultation seule, soit limitées à <strong>vos</strong> propres saisies. La gestion du planning (placements, échanges, corrections) reste entre les mains du comité.</p>
-  <div class="callout tip">
-    <div class="ct">Bon à savoir</div>
-    <p>Toutes ces pages fonctionnent sur téléphone. Ajoutez le portail à l'écran d'accueil de votre smartphone : il se comporte alors comme une application.</p>
-  </div>
-  <a class="backtop" href="#top">↑ Sommaire</a>
-</section>
-
-<!-- ============ 02 ============ -->
-<section id="c2">
-  <h2><span class="n">02</span>Votre code d'accès</h2>
-  <p>Un seul code personnel ouvre tout ce qui vous est propre : le <strong>portail</strong> et la saisie des <strong>indisponibilités</strong>. C'est le code que vous avez reçu <strong>par e-mail</strong> au lancement du système (et à chaque renvoi). <em>(Le Staff Vacances, lui, se tient en réunion — voir section 07.)</em></p>
-  <ul>
-    <li>Il est <strong>personnel</strong> : il identifie vos saisies et affiche vos informations (vos gardes, vos congés).</li>
-    <li>Il ne change pas d'une année sur l'autre, sauf renvoi par le comité.</li>
-    <li>Le planning en consultation, lui, est ouvert : pas de code pour <em>regarder</em>.</li>
-  </ul>
-  <div class="callout warn">
-    <div class="ct">Code perdu ?</div>
-    <p>Pas de panique et pas de compte à recréer : demandez au comité de <strong>renvoyer votre code</strong> (c'est un bouton de leur interface, ils le font en quelques secondes). Vérifiez aussi vos indésirables : l'e-mail d'origine s'y cache parfois.</p>
-  </div>
-  <a class="backtop" href="#top">↑ Sommaire</a>
-</section>
-
-<!-- ============ 03 ============ -->
-<section id="c3">
-  <h2><span class="n">03</span>Le portail : votre page d'accueil</h2>
-  <p>Le portail est la page à mettre en favori. À la première visite, il demande votre code d'accès (le même que pour les indisponibilités) puis se souvient de vous.</p>
-  <p>En haut à droite du portail — comme de la page Planning — le bouton <span class="btn-ex">? Aide</span> rouvre ce guide à tout moment.</p>
-  <h3>Ce que vous y trouvez</h3>
-  <table>
-    <tr><th>Tuile</th><th>Contenu</th></tr>
-    <tr><td>Bandeau « Mes gardes »</td><td>Vos <strong>prochaines gardes</strong>, avec leur type : Réa ou Mater/Bloc. Toujours en haut, impossible à rater.</td></tr>
-    <tr><td>Planning</td><td>Raccourci vers le planning complet de l'équipe (gardes, secteurs, consultations, équité).</td></tr>
-    <tr><td>Mes indisponibilités</td><td><strong>Visible seulement à l'automne</strong>, pendant la campagne de saisie : c'est le raccourci vers la déclaration de vos contraintes et souhaits de garde pour l'année suivante (voir section 06). Elle reste en place jusqu'à la <strong>clôture de l'année, en janvier</strong> — mais après la date limite d'automne, ce que vous y saisissez n'entre plus dans la répartition.</td></tr>
-    <tr><td>Mes congés</td><td>Vos vacances, formations, temps partiel, récupérations et congés à venir (voir section 04).</td></tr>
-    <tr><td>Topos / biblio</td><td>Documents et présentations du service.</td></tr>
-    <tr><td>Protocoles</td><td>Les procédures du service, classées par spécialité, avec recherche.</td></tr>
-    <tr><td>Staffs à venir</td><td>Le programme des réunions et les intervenants.</td></tr>
-    <tr><td>Veille biblio</td><td>Les nouveaux articles importants en anesthésie-réanimation, mis à jour chaque semaine (voir section 10).</td></tr>
-    <tr><td>Annuaire</td><td>Les numéros de l'hôpital et les DECT, avec recherche.</td></tr>
-    <tr><td>CR d'anesthésie</td><td>Le générateur de comptes rendus d'anesthésie (voir section 10).</td></tr>
-    
-    <tr><td>Mes consultations <span class="btn-ex">en test</span></td><td><strong>Écran libéral uniquement</strong>&nbsp;: il ne concerne pas les patients du secteur public. Vos consultations à venir sur 4 semaines et, pour chacune, vos absences sur les 4 semaines qui suivent. Sert à répondre à une seule question&nbsp;: <strong>un patient libéral que je vois aujourd'hui en consultation, et qui sera opéré dans trois semaines, tombera-t-il un jour où je ne suis pas là&nbsp;?</strong> Si oui, l'écran indique les dates d'intervention à éviter — et quels confrères peuvent prendre le patient. Seuls les <strong>membres du groupement</strong> sont proposés&nbsp;: un MAR qui n'en fait pas partie ne peut pas prendre en charge un patient libéral. <em>Tuile en cours d'essai&nbsp;: elle n'est pas encore ouverte à toute l'équipe.</em></td></tr>
-  </table>
-  <div class="callout tip">
-    <div class="ct">Navigation</div>
-    <p>Le bouton <strong>retour</strong> de votre téléphone ou navigateur fonctionne normalement dans le portail : il vous ramène à l'écran précédent, pas hors du site.</p>
-  </div>
-  <a class="backtop" href="#top">↑ Sommaire</a>
-</section>
-
-<!-- ============ 04 ============ -->
-<section id="c4">
-  <h2><span class="n">04</span>Mes gardes &amp; Mes congés</h2>
-  <h3>Mes gardes</h3>
-  <p>Le bandeau en haut du portail liste vos prochaines gardes avec la date et le type :</p>
-  <table>
-    <tr><th>Type</th><th>Ce que c'est</th></tr>
-    <tr><td>Réa</td><td>La garde de réanimation (ligne « G »).</td></tr>
-    <tr><td>Mater/Bloc</td><td>La garde de maternité et bloc (ligne « G2 »).</td></tr>
-  </table>
-  <p>Cette liste reflète le <strong>planning publié</strong> par le comité : si un échange de garde a été validé et publié, votre bandeau est à jour.</p>
-  <h3>Mes congés</h3>
-  <p>La tuile « Mes congés » regroupe tout ce qui est posé pour vous dans le planning, avec un code couleur par type :</p>
-  <table>
-    <tr><th>Type</th><th>Signification</th></tr>
-    <tr><td>Vacances</td><td>Vos congés annuels validés.</td></tr>
-    <tr><td>Formation</td><td>Congrès, DU, formations.</td></tr>
-    <tr><td>Temps partiel</td><td>Vos jours non travaillés si vous êtes à temps partiel.</td></tr>
-    <tr><td>Récupération</td><td>Repos de garde et récupérations.</td></tr>
-    <tr><td>Congé long</td><td>Absences longues (maternité, maladie…).</td></tr>
-  </table>
-  <div class="callout rule">
-    <div class="ct">Règle</div>
-    <p>Ce qui s'affiche ici est ce qui est <strong>enregistré dans le planning</strong>. Si un congé validé n'apparaît pas, signalez-le au comité : c'est la saisie qui doit être corrigée, pas votre écran.</p>
-  </div>
-  <a class="backtop" href="#top">↑ Sommaire</a>
-</section>
-
-<!-- ============ 05 ============ -->
-<section id="c5">
-  <h2><span class="n">05</span>Lire le planning</h2>
-  <p>La page Planning est en <strong>consultation</strong> : tout le monde voit la même chose, personne n'y modifie rien. Sur ordinateur, cinq vues sont accessibles par les boutons en haut :</p>
-  <table>
-    <tr><th>Vue</th><th>Ce qu'elle montre</th></tr>
-    <tr><td>📋 Planning</td><td>La semaine, jour par jour : qui est où (secteurs du bloc, réa, maternité, consultations) et qui est de garde. Les flèches <span class="kbd">‹</span> <span class="kbd">›</span> changent de semaine, le bouton <span class="btn-ex">Aujourd'hui</span> ramène à la date du jour.</td></tr>
-    <tr><td>👥 Médecins</td><td>Le mois vu par médecin : une carte par MAR avec son secteur du mois et ses compteurs. Cliquer une carte ouvre sa <strong>fiche</strong> : son calendrier du mois, navigable avec <span class="kbd">←</span> <span class="kbd">→</span>.</td></tr>
-    <tr><td>📊 Équité</td><td>Les compteurs de gardes de chacun par rapport à sa cible (voir section 09), avec deux lectures au choix : <strong>Initiale</strong> (le planning tel qu'il a été généré) et <strong>Instantané</strong> (l'état actuel, échanges compris).</td></tr>
-    <tr><td>🔄 Affectations</td><td>L'<strong>affectation sectorielle mensuelle</strong> de chaque MAR : un tableau des 12 mois de l'année indiquant, mois par mois, le secteur de rattachement de chacun (Viscéral, Réanimation, Ortho, ORL, Endoscopies, Cardio/Inter, Radio/Inter, Maternité, Volant). Le mois en cours est surligné.</td></tr>
-    <tr><td>🗓️ Année</td><td>La vue calendaire de l'année entière : une ligne par MAR, une case par jour, avec les codes de gardes, vacances, formations et récupérations. La colonne du jour est surlignée.</td></tr>
-  </table>
-  <ul>
-    <li>En haut à droite, un sélecteur change de <strong>mois</strong> (vues Planning et Médecins) ou d'<strong>année</strong> (vues Équité, Affectations et Année).</li>
-    <li><span class="kbd">🌗</span> bascule en mode sombre.</li>
-    <li>Une fois connecté, <strong>votre ligne est surlignée</strong> dans les vues Affectations et Année, et votre carte mise en avant dans Équité.</li>
-    <li>Sur <strong>téléphone</strong>, la barre du bas propose les mêmes cinq vues ; le Planning s'y lit jour par jour (flèches <span class="kbd">←</span> <span class="kbd">→</span> et bouton <span class="btn-ex">📍 Aujourd'hui</span>), et la vue Affectations s'y appelle « Secteurs ».</li>
-  </ul>
-  <div class="callout tip">
-    <div class="ct">Ce que vous voyez est ce qui est publié</div>
-    <p>Le comité travaille sur un brouillon puis <strong>publie</strong>. Le planning que vous consultez est toujours la dernière version publiée : si une modification vient d'être décidée mais pas encore publiée, elle n'apparaît pas encore.</p>
-  </div>
-  <div class="callout tip">
-    <div class="ct">Les semaines à venir &amp; le badge 🚧</div>
-    <p>Vous voyez les semaines déjà passées et les <strong>quatre prochaines</strong> (semaine en cours jusqu'à trois semaines plus tard). Les semaines plus lointaines restent consultables mais portent un badge <strong>🚧 provisoire</strong> : le comité peut encore les ajuster, elles ne sont pas définitives. La référence qui fait foi reste le <strong>fichier Excel envoyé par mail chaque vendredi</strong> pour la semaine suivante.</p>
+  <div class="hero">
+    <h2>En 2 minutes</h2>
+    <p>Le portail, c'est <span class="cle">votre planning dans votre poche</span> : qui travaille où, vos gardes, vos congés. Et une fois par an, vous y déposez vos souhaits d'indisponibilité.</p>
+    <ol>
+      <li><span class="cle">Votre code est personnel.</span> Il vous identifie : vous ne voyez que ce qui vous concerne, et vos collègues ne voient pas vos absences.</li>
+      <li><span class="cle">Le planning change quand le comité publie.</span> Vous recevez alors un mail. <b>Ce n'est pas du direct</b> : pour un changement urgent, on vous appellera.</li>
+      <li><span class="cle">Sur téléphone, un doute ?</span> Tirez la page vers le bas, comme pour rafraîchir un fil d'actualité.</li>
+    </ol>
+    <p style="margin-top:14px">Le reste de ce guide répond à des questions précises. <b>Vous n'avez pas besoin de le lire en entier.</b></p>
   </div>
 
-  <h3>Vous êtes prévenu par mail quand votre planning change</h3>
-
-  <div class="callout warn">
-    <div class="ct">⏸️ Bientôt — ce service n'est pas encore ouvert</div>
-    <p>Ce dispositif est prêt mais <b>en cours de test</b> : les mails ne partent pas encore.
-    D'ici là, continuez à vous fier au <b>fichier Excel du vendredi</b> et au portail. Vous
-    serez prévenu quand le service sera ouvert.</p>
+  <div class="toc">
+    <h2>Sommaire</h2>
+    <ol>
+      <li><a href="#s1"><span class="n">01</span>Votre code d'accès</a></li>
+      <li><a href="#s2"><span class="n">02</span>Le portail : votre page d'accueil</a></li>
+      <li><a href="#s3"><span class="n">03</span>Lire le planning</a></li>
+      <li><a href="#s4"><span class="n">04</span>Vos gardes et vos congés</a></li>
+      <li><a href="#s5"><span class="n">05</span>Saisir vos indisponibilités</a></li>
+      <li><a href="#s6"><span class="n">06</span>Comment vos vacances sont décidées</a></li>
+      <li><a href="#s7"><span class="n">07</span>L'équité des gardes</a></li>
+      <li><a href="#s8"><span class="n">08</span>Vos données et leur confidentialité</a></li>
+      <li><a href="#s9"><span class="n">09</span>Un problème ?</a></li>
+    </ol>
   </div>
 
-  <p>Vous n'avez rien à surveiller. Quand le comité modifie <b>votre</b> journée, vous recevez
-  un mail qui nomme le jour en clair, dit ce qu'il y avait avant et ce qu'il y a maintenant.
-  Vous ne recevez que vos changements, jamais ceux de vos collègues.</p>
-  <table>
-    <tr><th>Ce qui change</th><th>Vous êtes prévenu</th></tr>
-    <tr><td>Un <b>statut</b> : garde, repos de garde, récupération de samedi, 18 h, vacances,
-      formation, temps partiel, congé long ou paternité, absence</td>
-      <td><b>Toujours</b>, même pour une date lointaine</td></tr>
-    <tr><td>Un <b>secteur</b> : passer de bloc ortho à consultation, changer de salle…</td>
-      <td>Seulement si le jour concerné figurait dans le dernier Excel du vendredi</td></tr>
-  </table>
-  <p>Un changement de secteur dans quatre mois ne vous vaudra donc pas de mail : le planning
-  lointain bouge encore, et vous le verrez sur le portail. Un changement de garde, si.</p>
-  <div class="callout tip">
-    <div class="ct">Pas de mail pour rien</div>
-    <p>Le comité dispose de dix minutes après chaque publication : tant qu'il continue de
-    travailler, rien ne part. Une modification posée puis annulée ne vous vaut aucun mail, et
-    plusieurs changements de la même séance arrivent dans <b>un seul</b> message.</p>
-    <p>La création du planning annuel, elle, n'envoie rien : c'est le récapitulatif de vos
-    gardes, envoyé séparément, qui joue ce rôle.</p>
-  </div>
-  <p>Si vous ne souhaitez pas recevoir ces mails, demandez-le au comité : un réglage permet de
-  vous en dispenser sans toucher au reste.</p>
+  <section id="s1">
+    <h2><span class="n">01</span>Votre code d'accès</h2>
+    <p>Un code personnel, reçu par mail, qui ouvre toutes les pages du portail. Pas de mot de passe à choisir, pas de compte à créer.</p>
+    <div class="geste"><b>Le geste :</b> vous ouvrez une page du portail, vous tapez votre code, c'est tout. Sur votre téléphone, il reste en mémoire — vous ne le retaperez pas à chaque fois.</div>
+    <table>
+      <tr><th>Situation</th><th>Ce que vous faites</th></tr>
+      <tr><td>Code oublié</td><td>Demandez au comité : il vous en génère un nouveau, envoyé par mail.</td></tr>
+      <tr><td>Code qui ne marche plus</td><td>Il a sans doute été réinitialisé. Cherchez le mail ; sinon, demandez.</td></tr>
+      <tr><td>Téléphone perdu</td><td>Prévenez le comité pour qu'il change votre code.</td></tr>
+    </table>
+    <div class="callout warn">
+      <div class="ct">Un code, une personne</div>
+      <p>Ne partagez pas votre code : il donne accès à <b>vos</b> informations, et ce que vous saisissez est enregistré sous votre nom. Si un collègue a besoin d'accéder au portail, il a le sien.</p>
+    </div>
+    <a class="backtop" href="#">↑ Sommaire</a>
+  </section>
 
+  <section id="s2">
+    <h2><span class="n">02</span>Le portail : votre page d'accueil</h2>
+    <p>C'est le tableau de bord : de là, vous atteignez tout le reste en un clic.</p>
+    <table>
+      <tr><th>Tuile</th><th>Ce que vous y trouvez</th></tr>
+      <tr><td>Planning</td><td>Le planning de toute l'équipe, semaine par semaine.</td></tr>
+      <tr><td>Mes indisponibilités</td><td>Votre grille de saisie — visible seulement quand la campagne est ouverte.</td></tr>
+      <tr><td>Mes gardes</td><td>Vos gardes à venir, et le décompte de l'année.</td></tr>
+      <tr><td>Mes congés</td><td>Vos vacances, formations, temps partiels, récupérations.</td></tr>
+      <tr><td>Protocoles · Topos · Annuaire</td><td>Les ressources du service.</td></tr>
+      <tr><td>Veille biblio</td><td>La sélection d'articles récents.</td></tr>
+    </table>
+    <div class="geste"><b>Le geste qui change tout :</b> ajoutez le portail à l'écran d'accueil de votre téléphone (menu Partager → « Sur l'écran d'accueil »). Il s'ouvre alors comme une application, en un appui, sans barre d'adresse.</div>
+    <a class="backtop" href="#">↑ Sommaire</a>
+  </section>
 
-  <h3>Consulter une année passée</h3>
-  <p>Le sélecteur d'année, en haut de la page Planning, propose désormais les années
-  clôturées à côté de l'année en cours. Une année passée s'ouvre en
-  <strong>lecture seule</strong> : planning, affectations, équipe et équité restent
-  consultables, rien ne peut être modifié.</p>
-  <p>Ces données sont conservées indéfiniment, y compris après le rangement de l'année
-  dans les archives.</p>
+  <section id="s3">
+    <h2><span class="n">03</span>Lire le planning</h2>
+    <p>Une ligne par secteur, une colonne par demi-journée. Vos propres lignes sont mises en évidence.</p>
 
-  <a class="backtop" href="#top">↑ Sommaire</a>
-</section>
+    <h3>Je ne vois pas le dernier changement</h3>
+    <div class="geste"><b>Tirez la page vers le bas</b> avec le doigt, comme pour rafraîchir un fil d'actualité. C'est tout.</div>
+    <p>Et si vous laissez la page ouverte plus de 15 minutes avant d'y revenir, elle se met à jour <b>toute seule</b> : vous n'avez rien à faire.</p>
 
-<!-- ============ 06 ============ -->
-<section id="c6">
-  <h2><span class="n">06</span>Saisir vos indisponibilités</h2>
-  <p>Chaque automne, avant que l'ordinateur ne répartisse les gardes de l'année suivante, la page Indisponibilités s'ouvre pour recueillir vos contraintes. C'est <strong>le</strong> moment où votre saisie influence directement votre futur planning de gardes.</p>
-  <div class="callout tip">
-    <div class="ct">Où la trouver</div>
-    <p>Pendant la campagne, une tuile <strong>« Mes indisponibilités »</strong> apparaît sur le portail, juste sous Planning : c'est le chemin le plus simple. Elle reste visible jusqu'à la clôture de l'année, en janvier. Le lien figure aussi dans l'e-mail qui annonce l'ouverture de la saisie.</p>
-  </div>
-  <h3>Comment faire</h3>
-  <ol class="steps">
-    <li>Depuis le portail, ouvrez la tuile <strong>« Mes indisponibilités »</strong> (ou la page directement) et saisissez votre <strong>code d'accès personnel</strong>.</li>
-    <li>Choisissez un <strong>outil</strong> dans la barre : <span class="btn-ex red">🚫 Indisponible</span>, <span class="btn-ex green">⭐ Garde souhaitée</span> ou <span class="btn-ex">✕ Effacer</span>. Un quatrième outil, <span class="btn-ex">🕐 Temps partiel</span>, n'apparaît que si vous êtes à temps partiel.</li>
-    <li><strong>Touchez les jours</strong> du calendrier pour appliquer l'outil actif. Pour retirer un marquage, prenez l'outil <span class="btn-ex">✕ Effacer</span> puis touchez le jour : retoucher un jour avec le même outil ne l'efface pas.</li>
-    <li>Terminez par <span class="btn-ex green">💾 Sauvegarder</span>. Le message « ✅ Indisponibilités sauvegardées » confirme l'enregistrement.</li>
-  </ol>
-  <h3>Les marquages</h3>
-  <table>
-    <tr><th>Marquage</th><th>Effet sur la répartition</th></tr>
-    <tr><td>🚫 Indisponible</td><td>Aucune garde ne vous sera attribuée ce jour-là. À utiliser pour vos contraintes fermes (engagement familial, autre activité…).</td></tr>
-    <tr><td>⭐ Garde souhaitée</td><td>À l'inverse : vous <em>préférez</em> être de garde ce jour-là. L'ordinateur essaie d'en tenir compte, sans garantie absolue.</td></tr>
-    <tr><td>🕐 Temps partiel</td><td>Vos jours non travaillés récurrents si vous êtes à temps partiel. <em>Cet outil n'apparaît que pour les MARs à temps partiel.</em></td></tr>
-    <tr><td>✕ Effacer</td><td>Retire le marquage d'un jour. C'est le <strong>seul</strong> moyen d'annuler une saisie.</td></tr>
-  </table>
-  <div class="callout warn">
-    <div class="ct">Quotas</div>
-    <p>Le nombre de jours d'indisponibilité et de jours de temps partiel est <strong>plafonné</strong> (le compteur s'affiche en haut de page). Si tout le monde bloquait ses week-ends, la répartition deviendrait impossible : le quota garantit que l'équité reste calculable.</p>
-  </div>
-  <div class="callout rule">
-    <div class="ct">Règle</div>
-    <p>Après la <strong>date limite</strong> annoncée par le comité, la génération se lance. <strong>La page, elle, reste ouverte</strong> jusqu'à la clôture de janvier : ne vous y fiez pas, une indisponibilité saisie après la génération n'est plus prise en compte par l'ordinateur — elle se règle par échange de gardes, à la main.</p>
-  </div>
-  <a class="backtop" href="#top">↑ Sommaire</a>
-</section>
+    <div class="callout tip">
+      <div class="ct">Quand voyez-vous les changements ?</div>
+      <p>Quand le comité publie, la modification apparaît sur votre écran <b>2 à 3 minutes</b> plus tard. Vous recevez ensuite un <b>mail récapitulatif</b>, environ 10 minutes après la fin de leurs modifications — un seul mail, même s'ils ont changé vingt choses.</p>
+    </div>
 
-<!-- ============ 07 ============ -->
-<section id="c7">
-  <h2><span class="n">07</span>Le Staff Vacances (comment vos vacances sont décidées)</h2>
-  <p>Vos vacances et jours de formation ne se saisissent <strong>pas en ligne chacun de son côté</strong> : ils sont posés <strong>ensemble, en réunion de staff</strong>, à l'automne. Le comité projette l'écran « Staff Vacances » et remplit avec l'équipe les congés de chacun pour l'année à venir, période par période (hiver, printemps, été, Toussaint, Noël). Vous n'avez donc <strong>aucune page à ouvrir</strong> pour ça — venez au staff avec vos souhaits. Une fois les vacances verrouillées, vous saisissez vos <em>indisponibilités</em> chacun de votre côté (section 06).</p>
-  <h3>Le principe des groupes</h3>
-  <p>L'équipe est répartie en <strong>trois groupes (A, B, C)</strong>. À chaque période de vacances, l'ordre de priorité entre groupes <strong>tourne</strong> : le groupe prioritaire sur Noël ne l'est pas sur l'été, et l'ordre change d'une année sur l'autre. Le tableau « Priorités vacances » en haut de page montre l'ordre de <em>votre</em> groupe pour chaque période.</p>
-  <h3>Les seuils</h3>
-  <p>Pour chaque jour, un <strong>nombre maximal de MARs absents</strong> est défini (le service doit tourner). L'écran projeté montre en direct où en est chaque jour :</p>
-  <table>
-    <tr><th>Couleur</th><th>Signification</th></tr>
-    <tr><td>Normal</td><td>De la place : posez sereinement.</td></tr>
-    <tr><td>Proche seuil</td><td>Ça se remplit — si cette date compte pour vous, ne tardez pas.</td></tr>
-    <tr><td>Seuil atteint</td><td>Le jour est plein : un souhait supplémentaire devra passer par l'arbitrage du staff.</td></tr>
-  </table>
-  <p>Un <strong>quota de jours</strong> par personne s'applique aussi (affiché en haut) — il dépend de votre quotité de travail.</p>
-  <div class="callout tip">
-    <div class="ct">Comment ça se termine</div>
-    <p>Au staff, l'équipe arbitre les conflits éventuels (la priorité de groupe sert de règle de départage), puis le comité clique <span class="btn-ex green">✅ Valider et verrouiller</span> : les saisies sont figées et deviennent le planning de vacances. Vos congés apparaissent alors en <strong>lecture seule</strong> sur votre page Indisponibilités. Après verrouillage, tout changement passe par le comité.</p>
-  </div>
-  <a class="backtop" href="#top">↑ Sommaire</a>
-</section>
+    <details class="pourquoi">
+      <summary>Pourquoi ce délai, et pourquoi un seul mail ?</summary>
+      <div class="corps">
+        <p>Le comité travaille souvent par séances : il place, corrige, replace. Envoyer un mail à chaque clic serait insupportable. Le portail attend donc que <b>tout soit calme depuis 10 minutes</b> avant de vous écrire, et ne vous annonce que les changements qui vous concernent réellement.</p>
+        <p>Quant aux 2-3 minutes d'affichage : le planning que vous consultez est une photo, refabriquée à chaque publication. C'est ce qui permet à la page de s'ouvrir instantanément, même en 4G dans un couloir.</p>
+      </div>
+    </details>
 
-<!-- ============ 08 ============ -->
-<section id="c8">
-  <h2><span class="n">08</span>Votre année en trois rendez-vous</h2>
-  <p>Le système suit un cycle annuel. Côté comité, ce sont trois « assistants » ; côté MAR, cela se résume à <strong>trois moments où l'on attend quelque chose de vous</strong> :</p>
-  <table>
-    <tr><th>Quand</th><th>Ce qui se passe</th><th>Ce que VOUS faites</th></tr>
-    <tr><td>Octobre</td><td>Le comité ouvre l'année suivante : périodes de vacances, groupes, envoi des codes.</td><td>Au <strong>staff annuel</strong>, vos vacances/formations sont posées ensemble ; puis vous saisissez vos <strong>indisponibilités</strong> chacun de votre côté avant la date limite.</td></tr>
-    <tr><td>Novembre</td><td>L'ordinateur répartit les gardes de l'année suivante, le comité vérifie et <strong>publie</strong>.</td><td>Consulter vos gardes sur le portail, vérifier, signaler une anomalie ou proposer un échange.</td></tr>
-    <tr><td>Janvier</td><td>L'année écoulée est archivée, la nouvelle prend le relais.</td><td>Rien — vos compteurs repartent, l'historique (Noël, Nouvel An) est conservé.</td></tr>
-  </table>
-  <div class="callout rule">
-    <div class="ct">La date limite d'automne est la seule vraie contrainte</div>
-    <p>Tout le reste de l'année, le système travaille pour vous sans rien vous demander. Mais les indisponibilités et souhaits de vacances saisis <strong>après la clôture d'automne</strong> ne peuvent plus être pris en compte par la répartition automatique.</p>
-  </div>
-  <a class="backtop" href="#top">↑ Sommaire</a>
-</section>
+    <h3>Les codes que vous verrez</h3>
+    <table>
+      <tr><th>Code</th><th>Signification</th></tr>
+      <tr><td>G · G2</td><td>Garde de 24 h (réanimation ou maternité)</td></tr>
+      <tr><td>RG</td><td>Repos de garde, le lendemain</td></tr>
+      <tr><td>18</td><td>Journée 8 h – 18 h</td></tr>
+      <tr><td>VAC · FORM</td><td>Vacances · Formation</td></tr>
+      <tr><td>TP · CL</td><td>Temps partiel · Congé long</td></tr>
+      <tr><td>R</td><td>Récupération</td></tr>
+    </table>
+    <a class="backtop" href="#">↑ Sommaire</a>
+  </section>
 
-<!-- ============ 09 ============ -->
-<section id="c9">
-  <h2><span class="n">09</span>L'équité des gardes, expliquée</h2>
-  <p>La répartition des gardes n'est pas faite à la main : un algorithme la calcule pour que chacun porte une part équitable de la charge, en particulier des gardes les plus contraignantes.</p>
-  <h3>Les règles, dans l'ordre de priorité</h3>
-  <ol class="steps">
-    <li><strong>Week-ends (vendredi-dimanche)</strong> : l'écart entre MARs est réduit en priorité — c'est la charge la plus lourde.</li>
-    <li><strong>Samedis</strong>, puis <strong>jeudis</strong> : équilibrés ensuite.</li>
-    <li><strong>Jours fériés</strong> et <strong>veilles de jour férié</strong> : équilibrés eux aussi, chacun sur son propre compteur.</li>
-    <li><strong>Total de gardes</strong> : équilibré en dernier.</li>
-  </ol>
-  <h3>Ce qui est pris en compte</h3>
-  <ul>
-    <li><strong>Votre quotité</strong> : un MAR à 80 % a une cible de gardes proportionnelle (80 % de la cible d'un temps plein).</li>
-    <li><strong>Vos indisponibilités et souhaits</strong> saisis à l'automne (section 06).</li>
-    <li><strong>Noël et le Nouvel An</strong> : une rotation sur plusieurs années fait tourner ces gardes — celui qui a fait Noël cette année ne le refait pas l'an prochain. Les échanges réalisés en cours d'année sont enregistrés « au réel » pour que la rotation reste juste.</li>
-  </ul>
-  <p>La vue <strong>📊 Équité</strong> du planning montre les compteurs de chacun par rapport à sa cible : tout est visible par tous, c'est le principe.</p>
-  <h3>Le certificat d'équité</h3>
-  <p>En tête de la vue <strong>📊 Équité</strong>, un <strong>certificat</strong> résume la situation d'un coup d'œil : un verdict (« Planning équitable — certifié » ou « À examiner »), le pourcentage de MARs à moins de deux gardes de leur cible, l'écart le plus élevé du service, et un petit graphique montrant que la grande majorité des MARs se situe tout près de sa juste part. C'est la preuve, chiffrée et consultable par chacun, que les écarts restent faibles.</p>
-  <div class="callout tip">
-    <div class="ct">Pourquoi un MAR peut ne pas apparaître dans le certificat</div>
-    <p>Un MAR au régime de <strong>souhaits garantis</strong> (ses mardis, par exemple) a pour cible ses jours choisis, et non une part d'équité classique : il est donc <strong>écarté du calcul</strong> du certificat pour ne pas fausser les chiffres. Ses gardes restent bien sûr visibles dans les compteurs en dessous.</p>
-  </div>
-  <p>Pour aller plus loin — la juste part, les protections, la rotation de Noël, la dette d'équité — le détail complet est dans un document dédié : <a href="./guide-algo-gardes.html" target="_blank" rel="noopener"><strong>L'algorithme des gardes, expliqué de A à Z</strong></a>.</p>
-  <div class="callout tip">
-    <div class="ct">Et si l'année se termine avec un petit écart ?</div>
-    <p>Personne ne tombe jamais pile sur sa cible. À partir de 2028, l'écart de fin d'année sera partiellement <strong>reporté</strong> sur l'année suivante (plafonné et amorti) : un MAR qui a fait un peu plus une année en fera un peu moins la suivante.</p>
-  </div>
-  <a class="backtop" href="#top">↑ Sommaire</a>
-</section>
+  <section id="s4">
+    <h2><span class="n">04</span>Vos gardes et vos congés</h2>
+    <p>Deux vues qui ne montrent que <b>vous</b> — pratiques quand vous cherchez une date précise sans parcourir toute l'équipe.</p>
+    <ul>
+      <li><b>Mes gardes</b> : vos gardes à venir, et combien vous en avez faites cette année.</li>
+      <li><b>Mes congés</b> : vacances, formations, temps partiels et récupérations enregistrés.</li>
+    </ul>
+    <div class="callout warn">
+      <div class="ct">Un écart avec ce que vous croyez ?</div>
+      <p>Ces vues affichent ce qui est <b>enregistré</b>. Si une date manque ou paraît fausse, ne la corrigez pas dans votre coin : signalez-la au comité, qui la rectifiera à la source. Une correction non enregistrée disparaîtra à la publication suivante.</p>
+    </div>
+    <a class="backtop" href="#">↑ Sommaire</a>
+  </section>
 
-<!-- ============ 10 ============ -->
-<section id="c10">
-  <h2><span class="n">10</span>Ressources : veille, protocoles, annuaire…</h2>
-  <h3>Veille bibliographique</h3>
-  <p>La tuile « Veille biblio » du portail affiche les <strong>nouveaux articles</strong> parus dans les grandes revues d'anesthésie-réanimation (et les revues généralistes quand elles touchent nos thèmes). La sélection est automatique et se met à jour <strong>chaque semaine</strong> :</p>
-  <ul>
-    <li>Seuls les articles « solides » passent le filtre : essais randomisés, méta-analyses, revues systématiques, recommandations.</li>
-    <li>Chaque article porte un <strong>badge de type</strong> et des <strong>étiquettes de thème</strong> (sepsis, voies aériennes, ALR…). Cliquez une étiquette pour filtrer.</li>
-    <li>Le tri par pertinence met en avant ce qui concerne le plus la spécialité.</li>
-  </ul>
-  <h3>Le CR d'anesthésie</h3>
-  <p>Un outil pour <strong>rédiger vos comptes-rendus d'anesthésie</strong> plus vite : vous cliquez l'intervention, les intervenants et le déroulé (monitorage, induction, voies aériennes, ALR…) et le compte-rendu se rédige tout seul dans le volet de droite, prêt à <strong>copier-coller dans le DPI</strong>. L'ALR conseillée, l'antibioprophylaxie et le monitorage s'adaptent automatiquement au geste choisi.</p>
-  <ul>
-    <li><strong>Aucune donnée patient</strong> n'est saisie ni conservée : seuls la date, les intervenants et la technique d'anesthésie figurent dans l'outil.</li>
-    <li><strong>Depuis le portail</strong> : la tuile « CR d'anesthésie ».</li>
-    <li><strong>Depuis un poste du bloc</strong> (accès internet restreint) : l'outil s'ouvre <strong>directement</strong>, sans passer par le portail, à l'adresse <code>chpg-anesthesie.github.io/Planning-CHPG/cr-anesthesie/</code> — à mettre en favori.</li>
-  </ul>
-  <h3>Protocoles, topos, staffs, annuaire</h3>
-  <ul>
-    <li><strong>Protocoles</strong> : les procédures du service classées par spécialité, avec recherche plein texte.</li>
-    <li><strong>Topos / biblio</strong> : les présentations et documents partagés du service.</li>
-    <li><strong>Staffs à venir</strong> : le programme des réunions, avec dates et intervenants.</li>
-    <li><strong>Annuaire</strong> : les numéros utiles de l'hôpital et les DECT, cherchables.</li>
-  </ul>
-  <a class="backtop" href="#top">↑ Sommaire</a>
-</section>
+  <section id="s5">
+    <h2><span class="n">05</span>Saisir vos indisponibilités</h2>
+    <p>Une fois par an, à l'automne, vous déposez vos souhaits pour l'année suivante : les jours où vous ne pouvez pas prendre de garde.</p>
+    <ol class="steps">
+      <li>Ouvrez la tuile <b>Mes indisponibilités</b> (elle n'apparaît que pendant la campagne).</li>
+      <li>Touchez les jours concernés. Pour une période, touchez le premier puis le dernier : tout l'intervalle se remplit.</li>
+      <li>Appuyez sur <span class="btn-ex green">Enregistrer</span>. Un message confirme.</li>
+      <li>Revenez quand vous voulez : vos saisies sont conservées, vous pouvez les modifier jusqu'à la clôture.</li>
+    </ol>
+    <div class="callout rule">
+      <div class="ct">La règle du jeu</div>
+      <p>Ces jours sont des <b>souhaits</b>, pas des congés validés. Ils sont respectés dans la mesure du possible : plus vous en demandez, moins la contrainte peut être tenue pour tout le monde. Le comité vous prévient si un souhait ne peut pas l'être.</p>
+    </div>
+    <div class="callout tip">
+      <div class="ct">Vous n'êtes pas sûr que ça a été enregistré ?</div>
+      <p>Quittez la page, rouvrez-la. Ce que vous voyez alors est ce qui est enregistré. Si vos jours sont là, c'est bon — inutile de ressaisir.</p>
+    </div>
+    <a class="backtop" href="#">↑ Sommaire</a>
+  </section>
 
-<!-- ============ 11 ============ -->
-<section id="c11">
-  <h2><span class="n">11</span>Confidentialité &amp; protection de vos données</h2>
+  <section id="s6">
+    <h2><span class="n">06</span>Comment vos vacances sont décidées</h2>
+    <p>Les grandes périodes (été, Noël, vacances scolaires) sont réparties de façon à ce qu'il reste toujours assez de monde dans le service. Pour que le choix soit équitable, l'équipe est séparée en <b>trois groupes</b>.</p>
+    <ol class="steps">
+      <li>Une <b>rotation annuelle entre les groupes</b> détermine quel groupe choisit en premier cette année-là.</li>
+      <li>À l'intérieur de chaque groupe, une <b>rotation</b> détermine également l'ordre de passage.</li>
+      <li>Le placement se fait <b>en présentiel, lors d'un staff dédié</b> : chacun choisit à son tour, à l'écran, devant tout le monde.</li>
+      <li>Le résultat est publié dans le planning.</li>
+    </ol>
+    <div class="callout tip">
+      <div class="ct">Deux rotations, pas une</div>
+      <p>La rotation joue <b>entre</b> les groupes et <b>à l'intérieur</b> de chaque groupe. Autrement dit, ni un groupe ni une personne ne reste durablement en fin de file : celui qui choisit en dernier cette année remontera l'an prochain.</p>
+    </div>
 
-  <h3>Ce que le système enregistre — et ce qu'il n'enregistre pas</h3>
-  <p>Uniquement ce qui sert à faire les plannings : votre nom, vos initiales, votre code d'accès,
-  votre email professionnel et votre DECT, votre quotité de travail, et ce que vous saisissez
-  vous-même (indisponibilités, congés, souhaits). <b>Aucun nom de patient, aucune donnée médicale
-  de patient</b> n'est stocké dans le planning.</p>
-  <div class="callout warn">
-    <div class="ct">Un réflexe à garder</div>
-    <p>Dans vos saisies libres (motif d'indisponibilité, commentaire), <b>n'écrivez jamais de nom
-    de patient</b> ni d'information médicale le concernant. Ces champs sont visibles du comité.</p>
-  </div>
+    <a class="backtop" href="#">↑ Sommaire</a>
+  </section>
 
-  <h3>Chacun son code, chacun ses données</h3>
-  <p>Votre code d'accès est <b>personnel</b>. Avec lui vous consultez le planning de l'équipe, et
-  vous ne modifiez que <b>vos propres</b> indisponibilités et congés — le système vous empêche
-  techniquement d'accéder à la saisie d'un confrère. Seul le <b>comité</b> voit l'ensemble : c'est
-  indispensable pour construire les gardes, poser les absences validées et gérer l'équité. Même
-  principe qu'un secrétariat de planning.</p>
+  <section id="s7">
+    <h2><span class="n">07</span>L'équité des gardes</h2>
+    <p>Les gardes de l'année sont réparties par un calcul, pas à la main. Ce calcul poursuit un objectif simple : <b>que personne ne soit durablement désavantagé</b>.</p>
+    <ul>
+      <li>Chacun a une <b>cible</b> de gardes, proportionnelle à son temps de travail.</li>
+      <li>L'équité est mesurée sur plusieurs axes : le total, mais aussi les <b>week-ends</b>, les <b>veilles de fériés</b>, les <b>fériés</b>, et <b>Noël / Jour de l'an</b>.</li>
+      <li>Les écarts d'une année sont <b>reportés</b> sur la suivante : qui a été plus servi une année le sera moins ensuite.</li>
+    </ul>
+    <div class="callout tip">
+      <div class="ct">Un écart vous surprend ?</div>
+      <p>Demandez au comité : il dispose du détail axe par axe, et peut vous montrer d'où vient l'écart. Un chiffre qui paraît injuste s'explique presque toujours par un report de l'année précédente ou par un échange de garde.</p>
+    </div>
+    <a class="backtop" href="#">↑ Sommaire</a>
+  </section>
 
-  <h3>Où vivent vos données</h3>
-  <p>Tout ce qui est personnel — indisponibilités, congés, email, DECT, code d'accès, détail des
-  gardes — est rangé dans un <b>compte Google professionnel protégé</b>, auquel seul le comité
-  accède. Les pages du site, elles, sont publiques comme n'importe quel site web : elles ne
-  contiennent que la mise en page, <b>jamais vos données</b>, qui ne s'affichent qu'après saisie de
-  votre code. À chaque connexion, la date et votre nom sont notés dans un registre technique
-  (les 2 000 dernières), uniquement pour dépanner.</p>
+  <section id="s8">
+    <h2><span class="n">08</span>Vos données et leur confidentialité</h2>
+    <table>
+      <tr><th>Donnée</th><th>Qui la voit</th></tr>
+      <tr><td>Vos gardes et secteurs</td><td>Toute l'équipe — c'est le planning</td></tr>
+      <tr><td>Le motif de vos absences</td><td>Vous et le comité. Vos collègues voient « absent », sans le motif.</td></tr>
+      <tr><td>Vos indisponibilités</td><td>Vous et le comité. <b>Jamais vos collègues.</b></td></tr>
+      <tr><td>Vos coordonnées</td><td>L'équipe, via l'annuaire</td></tr>
+    </table>
+    <div class="callout rule">
+      <div class="ct">Ce que le portail ne fait pas</div>
+      <p>Aucune donnée n'est vendue, partagée ni exploitée à d'autres fins. Le portail n'est relié à aucun outil de l'hôpital : c'est un outil du service, pour le service.</p>
+    </div>
+    <a class="backtop" href="#">↑ Sommaire</a>
+  </section>
 
-  <h3>Vos droits</h3>
-  <p>Vous pouvez à tout moment demander au comité de <b>consulter, corriger ou supprimer</b> les
-  informations qui vous concernent. Une simple demande, à l'oral ou par email, suffit.</p>
-  <a class="backtop" href="#top">↑ Sommaire</a>
-</section>
+  <section id="s9">
+    <h2><span class="n">09</span>Un problème ?</h2>
 
-<!-- ============ 12 ============ -->
-<section id="c12">
-  <h2><span class="n">12</span>Questions fréquentes</h2>
+    <div class="faq">
+      <div class="q">« Mon code ne marche plus »</div>
+      <div class="a">Il a probablement été réinitialisé. Cherchez le mail contenant le nouveau code ; sinon, demandez au comité.</div>
+    </div>
+    <div class="faq">
+      <div class="q">« Le planning a changé mais je ne le vois pas »</div>
+      <div class="a">Tirez la page vers le bas. Si vous êtes sur ordinateur, rechargez la page.</div>
+    </div>
+    <div class="faq">
+      <div class="q">« Je vois une garde qui n'est pas la mienne »</div>
+      <div class="a">Le planning affiche toute l'équipe, c'est normal — vos lignes sont mises en évidence. Pour ne voir que vous, ouvrez « Mes gardes ».</div>
+    </div>
+    <div class="faq">
+      <div class="q">« La page tourne dans le vide »</div>
+      <div class="a">Fermez l'onglet, rouvrez-le. Si ça persiste plus de quelques minutes, prévenez le comité : c'est peut-être une panne côté serveur, et vous n'êtes sans doute pas seul concerné.</div>
+    </div>
+    <div class="faq">
+      <div class="q">« J'ai saisi mes indisponibilités, ont-elles bien été prises en compte ? »</div>
+      <div class="a">Quittez la page et rouvrez-la : ce que vous voyez est ce qui est enregistré.</div>
+    </div>
+    <div class="faq">
+      <div class="q">« Une date est fausse dans mes congés »</div>
+      <div class="a">Signalez-la au comité, qui corrigera à la source. Ne notez pas la correction de votre côté : elle ne serait pas reprise.</div>
+    </div>
+    <div class="faq">
+      <div class="q">« Je n'ai pas reçu le mail de changement »</div>
+      <div class="a">Vérifiez vos indésirables. Si votre adresse n'est pas encore enregistrée dans le portail, vous ne recevez rien — demandez au comité de l'ajouter.</div>
+    </div>
+    <div class="faq">
+      <div class="q">« Puis-je consulter le portail hors de l'hôpital ? »</div>
+      <div class="a">Oui, depuis n'importe où, avec votre code.</div>
+    </div>
+    <a class="backtop" href="#">↑ Sommaire</a>
+  </section>
 
-  <div class="faq">
-    <div class="q">Je veux échanger une garde avec un collègue, comment faire ?</div>
-    <div class="a">Mettez-vous d'accord entre vous, puis transmettez l'échange au comité, qui le saisit et publie. Votre bandeau « Mes gardes » se met à jour à la publication. L'échange est enregistré « au réel » — important pour la rotation Noël/Nouvel An.</div>
-  </div>
-
-  <div class="faq">
-    <div class="q">Le planning que je vois est-il le définitif ?</div>
-    <div class="a">Vous voyez toujours la dernière version <strong>publiée</strong>. Si le comité travaille sur une modification non publiée, elle n'apparaît pas encore. En cas de doute sur une garde imminente, demandez au comité.</div>
-  </div>
-
-  <div class="faq">
-    <div class="q">J'ai raté la date limite des indisponibilités, que faire ?</div>
-    <div class="a">La répartition automatique ne peut plus en tenir compte. Deux issues : proposer un échange de gardes une fois le planning publié, ou signaler au comité une contrainte majeure avant la génération s'il est encore temps.</div>
-  </div>
-
-  <div class="faq">
-    <div class="q">Mon code d'accès ne fonctionne pas.</div>
-    <div class="a">Ni les majuscules ni les espaces avant/après ne posent problème : le système les corrige tout seul. Vérifiez plutôt qu'aucun caractère ne manque, puis demandez un renvoi de code au comité — vous recevrez un e-mail (vérifiez aussi les indésirables).</div>
-  </div>
-
-  <div class="faq">
-    <div class="q">Un congé validé n'apparaît pas dans « Mes congés ».</div>
-    <div class="a">La tuile reflète ce qui est saisi dans le planning : si un congé manque, c'est la saisie qui doit être corrigée. Signalez-le au comité avec les dates exactes.</div>
-  </div>
-
-  <div class="faq">
-    <div class="q">Pourquoi ai-je plus de gardes que mon collègue ce trimestre ?</div>
-    <div class="a">L'équité se juge sur <strong>l'année</strong>, pas sur un trimestre, et d'abord sur les week-ends. Ouvrez la vue 📊 Équité : vous y verrez votre position par rapport à votre cible (qui dépend de votre quotité). Un déséquilibre ponctuel se résorbe sur les mois suivants.</div>
-  </div>
-
-  <div class="faq">
-    <div class="q">Puis-je marquer tous mes week-ends comme indisponibles ?</div>
-    <div class="a">Non — un quota plafonne les indisponibilités, sinon la répartition équitable deviendrait impossible. Utilisez les 🚫 pour vos contraintes fermes et les ⭐ pour orienter le reste.</div>
-  </div>
-
-  <div class="faq">
-    <div class="q">Le portail affiche des informations périmées.</div>
-    <div class="a">Rechargez la page en forçant le rafraîchissement (tirez la page vers le bas sur mobile ; <span class="kbd">Ctrl</span>+<span class="kbd">Maj</span>+<span class="kbd">R</span> sur ordinateur). Le portail garde une copie locale pour s'ouvrir vite ; ce geste force la mise à jour.</div>
-  </div>
-</section>
-
-<!-- ============ 12 ============ -->
-<section id="c13">
-  <h2><span class="n">13</span>Un problème ?</h2>
-  <table>
-    <tr><th>Situation</th><th>Réflexe</th></tr>
-    <tr><td>Code perdu / e-mail introuvable</td><td>Demander un <strong>renvoi de code</strong> au comité.</td></tr>
-    <tr><td>Erreur dans le planning publié</td><td>Signaler au comité (qui corrige et republie).</td></tr>
-    <tr><td>Erreur dans « Mes congés »</td><td>Signaler au comité avec les dates exactes.</td></tr>
-    <tr><td>Échange de gardes</td><td>Accord entre collègues → transmission au comité.</td></tr>
-    <tr><td>Page qui ne charge pas / affichage bizarre</td><td>Forcer le rafraîchissement (voir FAQ) ; si ça persiste, prévenir le comité.</td></tr>
-  </table>
-  <p>Pour tout le reste : les membres du comité d'organisation sont vos interlocuteurs — ce guide existe pour que les réponses simples soient déjà là.</p>
-  <a class="backtop" href="#top">↑ Sommaire</a>
-</section>
-
-<div class="foot">Planning-CHPG · Guide du MAR · CHPG Monaco — document équipe · docs/guide-mar.html</div>
+  <div class="foot">Planning-CHPG · Guide du MAR · version <span>v1.27</span></div>
 
 </div>
 </body>
