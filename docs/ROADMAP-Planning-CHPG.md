@@ -4,11 +4,17 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.17** ·
-**GAS** `code.gs` 2026-08-01.2 · `Indispos.gs` 2026-08-03.3 · `portail.gs` 2026-08-02.1 ·
-`generateur_gardes.gs` 2026-07-31.3 · `setup_annee.gs` 2026-08-03.1
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.24** ·
+**GAS** `code.gs` 2026-08-05.3 · `Indispos.gs` 2026-08-05.11 · `miroir.gs` 2026-08-05.8 ·
+`journal.gs` 2026-08-05.3 · `portail.gs` 2026-08-02.1 ·
+`generateur_gardes.gs` 2026-07-31.3 · `setup_annee.gs` 2026-08-03.1 ·
+**Worker** `cloudflare/worker.js` 2026-08-05.6
 
-*Mise à jour : 3 août 2026.*
+**Banc d'essai** `banc/` — 181 vérifications, `cd banc && ./lancer.sh`.
+À lancer AVANT toute proposition de push touchant `admin.html`, un `.gs`,
+le Worker ou `partage/dispo_jour.js`.
+
+*Mise à jour : 5 août 2026.*
 
 > **Le dépôt en ligne fait foi.** Ce document est un repère de pilotage, pas la source de vérité
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
@@ -16,6 +22,64 @@ portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'ane
 > `docs/module-liberal/module_liberal_conception.md`.
 
 ---
+
+## 5 août 2026 — Journal d'intentions, banc d'essai, statut vs placement
+
+**Livré (site v1.24)**
+
+- **Journal d'intentions Cloudflare** (`journal.gs` NOUVEAU, Worker `.6`,
+  admin v1.23) : les gestes du comité déposent une fiche chez Cloudflare
+  (~150 ms) ; l'applicateur GAS tire chaque minute et applique dans l'ordre.
+  Registre d'audit 90 jours. Repli GAS intégral sur chaque dépôt.
+- **Accroche miroir différée** (`miroir.gs .6` puis `.8`) : la construction du
+  miroir sort de la requête d'écriture. Racine des écritures lentes du 04/08.
+- **Audit des familles miroir** (`.5`) : chaque action ne pousse que ce qu'elle
+  modifie (un lot de placements → `config_admin` seul, plus `planning`).
+- **Le dernier geste gagne** (`Indispos.gs .11`) : poser V/F/TP/CL/A retire les
+  placements de ces jours-là (ciblage date+MAR). TP et R restent plaçables
+  (réquisition en dernier recours) — décision du service.
+- **Placement caduc** (`code.gs .3`) : à la publication, un placement visant un
+  MAR en vraie absence est ignoré et recensé ; la ligne reste au classeur et
+  redevient active si le statut est retiré. Signalé au diagnostic.
+- **Éditions manuelles du classeur** (`miroir.gs .8`) : `miroirSurEdition` pose
+  la même note que les écritures du portail → copie de lecture à jour dans la
+  minute au lieu d'une heure.
+- **Compteur de courrier par le miroir** : badge visible à l'ouverture sans
+  aucun appel Google (et même si Gmail est en panne).
+- **Bascule d'année corrigée** (v1.22.1) : la valeur KV EST le planning brut ;
+  le test cherchait un emballage inexistant → repli GAS silencieux à chaque
+  bascule. C'était le « chargement infini ».
+- **Témoin échantillonné** (v1.24) : 1 semaine sur 5 au lieu de chaque semaine
+  parcourue, plus systématiquement après un écart.
+- **Zéro appel Google à l'ouverture** : chauffages retirés, journal de
+  connexion en envoi à fond perdu.
+
+**Banc d'essai (`banc/`) — 181 vérifications, 11 scripts**
+
+Le vrai code exécuté dans un Google et un Cloudflare simulés : fonctions GAS,
+Worker réel, `admin.html` chargée et **pilotée au clic** (code saisi, case à
+pourvoir cliquée, MAR choisi dans le panneau, publication, fermeture de page),
+pages MAR et droits, scénarios adverses (crash entre application et purge,
+Cloudflare KO, 404 HTML, concurrence, 200 fiches), mécanismes mobiles (onglet
+gelé, `pagehide`, cache servant une ancienne page) et contraintes Apps Script
+(budget d'exécution, refus de déclencheur, saturation 429).
+
+**Règle de travail** : lancer le banc avant toute proposition de push touchant
+`admin.html`, un `.gs`, le Worker ou le module partagé ; livrer chaque
+correctif avec son test. Le banc prouve la logique, jamais l'infrastructure.
+
+**Défauts trouvés par le banc avant la production** : verrous imbriqués
+(15 s perdues par écriture), deux faux positifs de test qui masquaient un repli
+silencieux vers Apps Script.
+
+**Reste à faire**
+
+- Séance PC : Worker → 4 GAS → nouvelle version → `miroirInstallerDeclencheur`
+  (surveiller le journal d'exécution : le déclencheur d'édition peut être
+  refusé) → diagnostic → test SEVERAC.
+- Couvrir au banc : éditeur d'affectations, échanges de gardes, génération
+  d'année, vacances.
+- Répétition générale T154+ (`docs/cahier-de-tests.html`) avant le 4 septembre.
 
 ## Comment lire ce document
 
