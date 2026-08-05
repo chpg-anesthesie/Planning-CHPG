@@ -34,7 +34,8 @@ node banc_chaos.js       # Google capricieux, session interrompue    (24)
 node banc_pages_mar.js   # index / dashboard / indispos + droits     (17)
 node banc_ios.js         # mécanismes du mobile (gel, fermeture, cache) (13)
 node banc_google.js      # contraintes Apps Script (budget, refus)   (14)
-node banc_gestes.js      # échanges/dons de garde, affectations      (22)
+node banc_gestes.js      # échanges/dons, affectations, volet libéral (29)
+node banc_synchro.js     # plafond de clés du miroir, années futures (20)
 ```
 
 `interface.js` est le test le plus proche du terrain : il monte un service
@@ -112,6 +113,17 @@ réduit le risque, il ne l'annule pas.
 
 ## Défauts trouvés par ce banc (05/08/2026)
 
+- **Synchro complète en échec sur « 20 clés maximum ».** Depuis l'ajout des
+  familles courrier et libérale, la synchro construisait 23 clés pour un
+  plafond de 20 : elle échouait EN BLOC, filet horaire hors service, sans rien
+  à l'écran. Corrigé (`miroir.gs 2026-08-05.10`) : envoi par paquets de 20,
+  éprouvé jusqu'à cinq années (38 clés) — la limite ne reviendra pas.
+- **Volet libéral déclaré « non mirrorable » à tort.** Décision prise en
+  lisant la réponse SERVEUR (qui portait des montants) sans lire l'AFFICHAGE,
+  qui n'utilise que MAR, secteur et chirurgie. Corrigé des deux côtés : la
+  réponse serveur est allégée (les montants restent au classeur) et le volet
+  passe par le miroir. Leçon : lire le CONSOMMATEUR, pas seulement le
+  producteur.
 - **Échange de garde refusé = classeur à moitié modifié.** `echangeGarde`
   écrivait l'échange de la date principale AVANT de vérifier le repos de garde
   du lendemain : un refus laissait la garde changée de titulaire pendant que
