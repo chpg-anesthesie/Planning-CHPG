@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-04.5';
+const GAS_VERSION_MIROIR = '2026-08-05.6';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -99,6 +99,17 @@ const MIROIR_APRES_ECRITURE = {
    Ne pousse que si l'action est une écriture connue ET que la réponse
    annonce un succès (une écriture refusée ne change rien au classeur).
    Coût pour les LECTURES : un lookup d'objet, ~0 ms. */
+/* (2026-08-05.6) ACCROCHE DIFFEREE — mesure du 05/08 au matin : meme avec
+   l'audit des familles (.5), la construction + l'envoi au miroir DANS la
+   requete coutaient encore ~5 s a chaque ecriture (savePlanningOverridesBatch :
+   6,9 s serveur, dont ~1,5-2 s d'ecriture reelle). Desormais la requete se
+   contente de NOTER ce qu'il faudra pousser (fusion dans les proprietes du
+   script, sous verrou) et de garantir UN declencheur unique : la reponse part
+   tout de suite, le declencheur pousse dans la minute qui suit, la synchro
+   horaire ramasse tout echec. Fraicheur MAR : ~1-2 min au lieu de ~1 —
+   l'ecran qui vient d'ecrire relit de toute facon le circuit DIRECT. */
+const MIROIR_CLE_ATTENTE = 'MIROIR_POUSSEES_EN_ATTENTE';
+
 function miroirApresRequete_(e, outTexte) {
   try {
     const payload = JSON.parse((e && e.parameter && e.parameter.payload) || '{}');
@@ -106,8 +117,85 @@ function miroirApresRequete_(e, outTexte) {
     if (!familles) return;
     if (String(outTexte || '').indexOf('"success":true') === -1) return;
     const annee = Number(payload.year) || getActiveYear();
-    miroirPousserFamilles_(familles, annee, false);   // ecriture : l'annee concernee SEULE
+    _miroirNoterPoussee_(familles, annee);
   } catch (err) { /* jamais bloquant */ }
+}
+
+/* Fusionne familles + annee dans la file d'attente persistee, sous verrou
+   (deux ecritures paralleles ne s'ecrasent pas), et garantit le declencheur. */
+function _miroirNoterPoussee_(familles, annee) {
+  const verrou = LockService.getScriptLock();
+  try { verrou.waitLock(5000); } catch (e) { /* sans verrou : on note quand meme */ }
+  try {
+    const props = PropertiesService.getScriptProperties();
+    let attente = {};
+    try { attente = JSON.parse(props.getProperty(MIROIR_CLE_ATTENTE) || '{}'); } catch (e) { attente = {}; }
+    attente.familles = attente.familles || {};
+    attente.annees = attente.annees || {};
+    var etaitVide = !Object.keys(attente.familles).length;
+    familles.forEach(function (f) { attente.familles[f] = true; });
+    attente.annees[String(annee)] = true;
+    props.setProperty(MIROIR_CLE_ATTENTE, JSON.stringify(attente));
+  } finally {
+    try { verrou.releaseLock(); } catch (e) {}
+  }
+  /* Declencheur verifie SEULEMENT quand la file etait vide : une note deja
+     presente implique un declencheur en attente (ou un cas d'echec couvert
+     par la synchro horaire). L'ecriture typique ne paie ainsi que la note
+     (~100 ms), pas l'inventaire des declencheurs.
+     ── INVENTAIRE DES FENETRES DE PERTE (audit du 05/08) — toutes bornees :
+     l'ECRITURE DU CLASSEUR, elle, est TOUJOURS synchrone dans l'action ;
+     seul le rafraichissement de la COPIE de lecture peut etre retarde.
+     (a) echec d'ecriture de la note (quota props) → miroir rattrape par la
+         synchro HORAIRE ; (b) verrou indisponible 5 s + deux notes
+         simultanees → la derniere gagne, l'autre rattrapee par la synchro ;
+     (c) echec de creation du declencheur → idem. Pire cas absolu : copie de
+     lecture en retard d'UNE heure, donnees du classeur intactes. */
+  if (etaitVide) {
+    const deja = ScriptApp.getProjectTriggers().some(function (t) {
+      return t.getHandlerFunction() === 'miroirRattrapage';
+    });
+    if (!deja) {
+      try { ScriptApp.newTrigger('miroirRattrapage').timeBased().after(1000).create(); } catch (e) {}
+    }
+  }
+}
+
+/* Execute par le declencheur (~30-60 s apres la note) : pousse le cumul,
+   se nettoie. Un echec ici n'est pas grave : la synchro horaire repasse. */
+function miroirRattrapage() {
+  // Supprimer NOS declencheurs d'abord : meme si la pousse echoue, pas d'orphelins.
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'miroirRattrapage') {
+      try { ScriptApp.deleteTrigger(t); } catch (e) {}
+    }
+  });
+  const verrou = LockService.getScriptLock();
+  let attente = null;
+  try { verrou.waitLock(10000); } catch (e) {}
+  try {
+    const props = PropertiesService.getScriptProperties();
+    try { attente = JSON.parse(props.getProperty(MIROIR_CLE_ATTENTE) || 'null'); } catch (e) { attente = null; }
+    props.deleteProperty(MIROIR_CLE_ATTENTE);
+  } finally {
+    try { verrou.releaseLock(); } catch (e) {}
+  }
+  if (!attente || !attente.familles) return;
+  const familles = Object.keys(attente.familles);
+  const annees = Object.keys(attente.annees || {}).map(Number);
+  if (!annees.length) annees.push(getActiveYear());
+  annees.forEach(function (y) {
+    try { miroirPousserFamilles_(familles, y, false); } catch (e) { /* filet horaire */ }
+  });
+  Logger.log('miroirRattrapage : ' + familles.join(',') + ' / annees ' + annees.join(','));
+  /* Course rare : une ecriture a note PENDANT cette pousse (sa file n'etait
+     pas vide → elle n'a pas cree de declencheur, et le notre est deja
+     supprime). On re-arme pour elle. */
+  try {
+    if (PropertiesService.getScriptProperties().getProperty(MIROIR_CLE_ATTENTE)) {
+      ScriptApp.newTrigger('miroirRattrapage').timeBased().after(1000).create();
+    }
+  } catch (e) { /* synchro horaire */ }
 }
 
 /* ── SYNCHRO COMPLÈTE — filet horaire + amorçage initial ─────────────────
@@ -118,6 +206,7 @@ function miroirSyncComplet() {
   const familles = ['acces', 'annees', 'secteurs', 'config_admin',
                     'planning', 'affectations', 'indispos', 'tuiles',
                     'gardes', 'joursferies', 'stats', 'vacances_admin'];
+  try { PropertiesService.getScriptProperties().deleteProperty(MIROIR_CLE_ATTENTE); } catch (e) {}   // la synchro pousse un sur-ensemble : la note devient caduque
   const res = miroirPousserFamilles_(familles, getActiveYear(), true);   // synchro : toutes les annees consultables
   Logger.log('miroirSyncComplet : ' + JSON.stringify(res));
   return res;
