@@ -1015,7 +1015,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.22'; // SITE_VERSION: v1.22
+const SITE_VERSION = 'v1.23'; // SITE_VERSION: v1.23
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1108,7 +1108,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.22</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.23</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1907,6 +1907,94 @@ document.getElementById('authInput').addEventListener('keydown', e => { if(e.key
    apres chaque ecriture la page relit le circuit DIRECT, jamais le miroir
    (propagation KV ~60 s). */
 const MIROIR_URL = 'https://chpg-miroir.arthurfrohlich.workers.dev';
+
+/* ═══ (v1.23) JOURNAL D'INTENTIONS ════════════════════════════════════
+   Les gestes du comite (placements, statuts, publication) ne parlent PLUS
+   a Google en direct : ils deposent une FICHE chez Cloudflare (~150 ms,
+   accusee, durable), que le serveur applique chaque minute, dans l'ordre.
+   → cliquer a son rythme, publier, FERMER LA PAGE : tout s'applique.
+   Chaque depot a son repli GAS integral (l'ancien circuit, conserve tel
+   quel) : une panne du Worker ne bloque jamais un geste. */
+async function _journalDeposer(intention) {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 6000);
+    const rep = await fetch(MIROIR_URL + '/ecrire', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: ADMIN_CODE, intention: intention }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    const r = await rep.json();
+    if (!(r && r.success)) return null;
+    _tsEcriturePlanning = Date.now();   // meme garde de fraicheur que les ecritures directes
+    _journalSuivre();
+    return r;
+  } catch (e) { return null; }
+}
+
+/* Suivi : tant que des fiches attendent, interroger l'etat toutes les 20 s.
+   Echec d'application (fiche ok:false posterieure a l'ouverture) → alerte. */
+let _jSuiviTimer = null, _jOuvertA = new Date().toISOString(), _jEchecsVus = {};
+function _journalSuivre() {
+  if (_jSuiviTimer) return;
+  const boucle = async () => {
+    try {
+      const rep = await fetch(MIROIR_URL + '/journal-etat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: ADMIN_CODE }),
+      });
+      const r = await rep.json();
+      if (r && r.success) {
+        (r.dernieresAppliquees || []).forEach(f => {
+          if (!f.ok && f.applique > _jOuvertA && !_jEchecsVus[f.applique]) {
+            _jEchecsVus[f.applique] = true;
+            toast('⚠️ Une action n\'a pas pu etre appliquee : ' + (f.detail || '?'), 'error');
+          }
+        });
+        if (r.enAttente === 0) {
+          clearInterval(_jSuiviTimer); _jSuiviTimer = null;
+          _batchBadge();   // plus rien en route : badge au repos
+          return;
+        }
+        try {
+          _batchBadge();   // cree l'element au besoin (il est construit paresseusement)
+          const el = document.getElementById('batchBadge');
+          if (el) { el.style.display = 'inline-flex'; el.textContent = '⏳ ' + r.enAttente + ' en application…'; }
+        } catch (e) {}
+      }
+    } catch (e) { /* silencieux : on reessaie au tour suivant */ }
+  };
+  _jSuiviTimer = setInterval(boucle, 20000);
+  boucle();
+}
+
+/* Publication par le journal : depose le lot en attente (une fiche) PUIS la
+   fiche « publier » — l'ordre du journal garantit lot-avant-publication.
+   Retour : 'journal' (fiches deposees), 'gas' (repli direct reussi), null. */
+async function _publierCombine(year) {
+  if (_batchFlushing) { try { await _batchFlushing; } catch (e) {} }
+  const items = _prendreLotPourPublication();
+  if (items.length) {
+    const d1 = await _journalDeposer({ type: 'placements', year: Number(year), items: items });
+    if (d1) _publicationLotOK();
+    else {
+      // Worker muet : repli GAS COMBINE (v1.22) — un appel, items + publication
+      try {
+        const data = await api({ action: 'publishPlanning', year: year, items: items });
+        if (data && data.success) { _publicationLotOK(); return 'gas'; }
+        _publicationLotEchec(); return null;
+      } catch (e) { _publicationLotEchec(); return null; }
+    }
+  }
+  const d2 = await _journalDeposer({ type: 'publier', year: Number(year) });
+  if (d2) return 'journal';
+  // Lot deja au journal (ou vide) mais fiche « publier » refusee : repli GAS pur.
+  try {
+    const data = await api({ action: 'publishPlanning', year: year, items: [] });
+    return (data && data.success) ? 'gas' : null;
+  } catch (e) { return null; }
+}
 let _MIROIR_ANNEES = null;   // {active, annees:[...]} livre par miroirBootAdmin
 let _MIROIR_CFG = null;      // (v1.21.2) config_admin du boot (medecins + drapeaux)
 let _MIROIR_SECTEURS = null; // (v1.21.2) referentiel secteurs du boot
@@ -2582,7 +2670,11 @@ async function flushBatch() {
   _batchFlushing = (async () => {
     try {
       _batchBadge();
-      const res = await api({action: 'savePlanningOverridesBatch', items: items});
+      /* (v1.23) Journal d'abord (~150 ms, durable) ; l'ancien circuit GAS
+         reste le repli integral. */
+      let res = await _journalDeposer({ type: 'placements', year: Number(ADMIN_YEAR), items: items });
+      if (res) res = { success: true, saved: items.length };
+      else res = await api({action: 'savePlanningOverridesBatch', items: items});
       if (!res.success) throw new Error(res.error || 'refus serveur');
       _batchInFlight = null;
       _batchPersist();
@@ -2985,7 +3077,13 @@ async function statApply(statut){
        derriere. Cout : un appel, uniquement dans le chemin d'anomalie. */
     try { if (STAT.year === year) loadStatuts(); } catch (e) {}
   };
-  apiSerie({action:'setDailyStatus', year, marId, statut, dates: poses}).then(r=>{
+  /* (v1.23) Journal d'abord : la fiche part chez Cloudflare, le verdict
+     detaille arrive par le suivi du journal (echec → alerte + le filet de
+     resynchronisation habituel a la prochaine ouverture de l'onglet).
+     Worker muet → circuit GAS d'origine, avec son verdict immediat. */
+  _journalDeposer({ type: 'statut', year: year, marId: marId, statut: statut, dates: poses }).then(dep => {
+    if (dep) return;   // fiche deposee — rien d'autre a faire ici
+    return apiSerie({action:'setDailyStatus', year, marId, statut, dates: poses}).then(r=>{
     if(!(r && r.success)) throw new Error((r && r.error) || 'setDailyStatus');
     const okSet = new Set(r.applied || []);
     const refuses = poses.filter(d => !okSet.has(d));
@@ -2997,17 +3095,14 @@ async function statApply(statut){
     _annuler(poses);
     toast('Enregistrement échoué — pose annulée à l\'écran : ' + e.message, 'error');
   });
+  });
 }
 async function statPublish(){
   if(ADMIN_YEAR_READONLY){ toast('Année archivée — lecture seule', 'error'); return; }
   const btn=document.querySelector('.stat-publish'); if(btn){ btn.disabled=true; btn.textContent='⏳ Publication…'; }
   try{
-    if (_batchFlushing) { try { await _batchFlushing; } catch (e) {} }
-    const _lotStat = _prendreLotPourPublication();   // (v1.22) les placements en attente voyagent avec CETTE publication aussi
-    let r;
-    try { r = await apiSerie({action:'publishPlanning', year:STAT.year, items:_lotStat}); }
-    catch (e) { _publicationLotEchec(); throw e; }
-    if (r && r.success) _publicationLotOK(); else _publicationLotEchec();
+    const _via = await _publierCombine(STAT.year);   // (v1.23) meme circuit que le bouton Publier
+    const r = _via ? { success: true } : { success: false, error: 'publication impossible' };
     if(!r.success) throw new Error(r.error||'publishPlanning');
     STAT.pending=0;
     toast('Planning publié ✓', 'success');
@@ -3127,15 +3222,24 @@ async function reloadForYear(year) {
      est rebranche sur la nouvelle annee. Tout ecart → circuit GAS d'origine
      via loadPlanningData(), inchange. */
   try {
+    /* (v1.22.1) Meme garde que Statuts/Equite : moins de 90 s apres une
+       ecriture planning (l'accroche miroir est DIFFEREE depuis miroir.gs .6),
+       la bascule repasse par le circuit direct — jamais d'annee perimee. */
+    if (Date.now() - _tsEcriturePlanning < 90000) throw new Error('ecriture recente');
     const m = await miroirRead(['planning_' + year, 'affectations_' + year], ADMIN_CODE);
     const p = m && m.success && m.data && m.data['planning_' + year];
     const af = m && m.success && m.data && m.data['affectations_' + year];
-    if (p && p.planning) {
+    /* (v1.22.1, CORRECTIF) La valeur KV EST le planning brut — comme dans
+       index.html et le boot (`planning: plan`). Le test `p.planning` cherchait
+       un emballage inexistant : toujours faux → repli GAS silencieux a CHAQUE
+       bascule (le « chargement infini » du 04-05/08, prouve par chrono :
+       miroir 120 ms OK puis getPlanningJson 18 s derriere). */
+    if (p) {
       try {
         _ETAGE2 = _construireEtage2_(year, _MIROIR_CFG, _MIROIR_SECTEURS, af || null);
         _etage2ChargerGardes_(year, ADMIN_CODE);
       } catch (e) { _ETAGE2 = null; }
-      await loadPlanningData({ planning: p.planning, affectations: af || null });
+      await loadPlanningData({ planning: p, affectations: af || null });
       showTab('planning');   // APRES : DATA est pose, showTab ne relance pas de chargement GAS
       return;
     }
@@ -8597,8 +8701,7 @@ async function publishPlanning() {
      classeur incomplet — mais le lot part desormais DANS l'appel de
      publication : le serveur ecrit les placements PUIS reconstruit, en un
      seul aller-retour. Un envoi deja en vol est attendu (jamais de doublon). */
-  if (_batchFlushing) { try { await _batchFlushing; } catch (e) {} }
-  const _itemsCombines = _prendreLotPourPublication();
+  /* (v1.23) Toute la mecanique lot+publication vit dans _publierCombine. */
   // Filet de complétude : avant de rendre le planning visible aux MARs, on liste
   // les présents non placés dans les SEMAINES MODIFIÉES cette session (regroupé
   // par semaine). Le comité peut corriger ou publier quand même.
@@ -8635,14 +8738,14 @@ async function publishPlanning() {
   const b = document.getElementById('btnPublier');
   if (b) { b.disabled = true; b.textContent = '⏳ Publication…'; }
   try {
-    const data = await api({action: 'publishPlanning', year: ADMIN_YEAR, items: _itemsCombines});
-    if (!data.success) throw new Error(data.error);
-    _publicationLotOK();
+    const _via = await _publierCombine(ADMIN_YEAR);
+    if (!_via) throw new Error('publication impossible (journal et circuit direct)');
     _pendingChanges = 0;
+    if (_via === 'journal') toast('📤 Publication en route — vous pouvez quitter cette page. Visible des MARs sous ~2 min.', 'success');
     toast('✅ Planning publié en ligne', 'success');
     showPublishReassurance();
   } catch(e) {
-    _publicationLotEchec();   // (v1.22) le lot combine REVIENT en attente, badge rouge, rien de perdu
+    // (v1.23) restauration du lot geree dans _publierCombine
     toast('Erreur : ' + e.message, 'error');
   } finally {
     if (b) b.disabled = false;
