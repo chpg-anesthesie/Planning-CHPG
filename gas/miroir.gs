@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-05.6';
+const GAS_VERSION_MIROIR = '2026-08-05.8';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -205,7 +205,7 @@ function miroirRattrapage() {
 function miroirSyncComplet() {
   const familles = ['acces', 'annees', 'secteurs', 'config_admin',
                     'planning', 'affectations', 'indispos', 'tuiles',
-                    'gardes', 'joursferies', 'stats', 'vacances_admin'];
+                    'gardes', 'joursferies', 'stats', 'vacances_admin', 'mail'];
   try { PropertiesService.getScriptProperties().deleteProperty(MIROIR_CLE_ATTENTE); } catch (e) {}   // la synchro pousse un sur-ensemble : la note devient caduque
   const res = miroirPousserFamilles_(familles, getActiveYear(), true);   // synchro : toutes les annees consultables
   Logger.log('miroirSyncComplet : ' + JSON.stringify(res));
@@ -214,7 +214,51 @@ function miroirSyncComplet() {
 
 /* Installe le déclencheur horaire (idempotent : supprime d'abord les
    déclencheurs existants de miroirSyncComplet pour ne jamais en empiler). */
+/* (2026-08-05.8) MODIFICATIONS MANUELLES DU CLASSEUR. Constat du 05/08 :
+   une correction faite directement dans le Google Sheet n'était vue par
+   personne — aucune requête ne part, donc aucune note miroir ; la copie de
+   lecture ne se réalignait qu'à la synchro HORAIRE (attente jusqu'à 1 h,
+   affichages incohérents entre pages). Ce déclencheur écoute les éditions du
+   classeur et pose la MÊME note que les écritures du portail : la copie suit
+   dans la minute. Le planning PUBLIÉ, lui, ne bouge pas — c'est le rôle du
+   bouton « Publier », qui reste un acte volontaire du comité. */
+const MIROIR_ONGLETS_SUIVIS = {
+  GARDES:    ['gardes', 'indispos', 'stats'],   // statuts et gardes
+  INDISPOS:  ['indispos'],
+  MEDECINS:  ['config_admin', 'annees'],
+  SECTEURS:  ['secteurs'],
+  PLANNING_OVERRIDES: ['config_admin'],
+  PERIODES_VAC: ['vacances_admin'],
+  GROUPES_VAC:  ['vacances_admin'],
+};
+
+function miroirSurEdition(e) {
+  try {
+    const nom = String((e && e.range && e.range.getSheet().getName()) || '').trim().toUpperCase();
+    let familles = null, annee = getActiveYear();
+    Object.keys(MIROIR_ONGLETS_SUIVIS).forEach(function (prefixe) {
+      if (nom === prefixe || nom.indexOf(prefixe + '_') === 0) {
+        familles = MIROIR_ONGLETS_SUIVIS[prefixe];
+        const m = nom.match(/_(\d{4})$/);            // GARDES_2027, INDISPOS_2026…
+        if (m) annee = Number(m[1]);
+      }
+    });
+    if (!familles) return;                            // onglet non concerné : rien à faire
+    _miroirNoterPoussee_(familles, annee);            // même file que les écritures du portail
+  } catch (err) { /* jamais bloquant pour l'utilisateur du classeur */ }
+}
+
 function miroirInstallerDeclencheur() {
+  // (2026-08-05.8) Écoute des éditions manuelles, en plus du filet horaire.
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'miroirSurEdition') ScriptApp.deleteTrigger(t);
+  });
+  try {
+    ScriptApp.newTrigger('miroirSurEdition')
+      .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet()).onEdit().create();
+    Logger.log('Déclencheur d\'édition installé sur miroirSurEdition.');
+  } catch (e) { Logger.log('Déclencheur d\'édition NON installé : ' + e.message); }
+
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'miroirSyncComplet') ScriptApp.deleteTrigger(t);
   });
@@ -284,6 +328,18 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
       if (uniq['gardes'])      _miroirAjouteEnveloppe_(items, 'gardes_' + y,      function () { return _miroirConstruireGardes_(y); });
       if (uniq['joursferies']) _miroirAjouteEnveloppe_(items, 'joursferies_' + y, function () { return { success: true, joursFeries: getJoursFeries(y).concat(getJoursFeries(y + 1)), year: y }; });
       if (uniq['stats'])       _miroirAjouteEnveloppe_(items, 'stats_' + y,       function () { return _miroirConstruireStats_(y); });
+    });
+  }
+
+  if (uniq['mail']) {
+    /* (2026-08-05.7) Compteur de non-lus : un NOMBRE seul, jamais d'objet ni
+       d'expediteur. Il vient du miroir pour que le badge s'affiche a
+       l'ouverture SANS aucun appel Google — et pour qu'une panne Gmail ne
+       laisse plus le comite aveugle (mesure du 05/08 : mailNonLus en echec a
+       20 s, badge muet). La LISTE des messages, elle, reste a la demande. */
+    _miroirAjouteEnveloppe_(items, 'mail_nonlus', function () {
+      const lab = Gmail.Users.Labels.get('me', 'INBOX');
+      return { success: true, nonLus: Number(lab.messagesUnread || 0), maj: new Date().toISOString() };
     });
   }
 
