@@ -22,6 +22,8 @@ node e2e.js              # circuit d'écriture de bout en bout        (19)
 node interface.js        # L'INTERFACE RÉELLE, pilotée au clic       (18)
 node banc_chaos.js       # Google capricieux, session interrompue    (24)
 node banc_pages_mar.js   # index / dashboard / indispos + droits     (17)
+node banc_ios.js         # mécanismes du mobile (gel, fermeture, cache) (13)
+node banc_google.js      # contraintes Apps Script (budget, refus)   (14)
 ```
 
 `interface.js` est le test le plus proche du terrain : il monte un service
@@ -73,11 +75,26 @@ qu'en production, avec le diagnostic de Maintenance.
 | Statut posé un jour de garde | refusé (échange ou don obligatoire) |
 | MAR inconnu, statut invalide, date hors planning | refusés proprement, file non bloquée |
 
-## Angles morts assumés
+## Angles morts : ce qui a été ramené dans le banc
 
-Le banc **ne reproduit pas** : iOS Safari (onglet gelé, cache tenace, requêtes
-zombies), les autorisations et quotas Google, la latence réelle, ni les
-déclencheurs installables. Ces points ne se vérifient qu'en production, au
+On ne peut pas embarquer Safari ni Google dans un test. En revanche, les
+*mécanismes* qui causent leurs pannes se reproduisent, et c'est fait :
+
+| Panne réelle | Comment elle est jouée ici |
+|---|---|
+| Onglet iOS gelé, requête zombie | la réponse n'arrive JAMAIS ; on vérifie qu'aucun envoi n'est perdu ni empilé |
+| Onglet fermé avec du travail en cours | événement `pagehide` réel → envoi de secours + mémoire du poste |
+| Cache servant une ANCIENNE page | la version précédente est chargée contre un serveur à jour (copie dans `reference/`) |
+| Réseau mobile lent | délai d'abandon du miroir vérifié à la valeur, lecture non bloquante |
+| Limite des 6 minutes | 140 intentions en une exécution : 2 appels réseau, écritures groupées |
+| Autorisation de déclencheur refusée | la note survit, rien ne plante, la synchro horaire prend le relais |
+| Édition manuelle en rafale (100 cellules) | une seule note, un seul déclencheur |
+| Google saturé (429) | l'intention reste en file, le classeur n'est pas à moitié écrit |
+
+### Ce qui reste hors de portée
+
+Le vrai moteur de Safari, les quotas réels, la latence réelle et l'exécution
+effective des déclencheurs installables. Ces points ne se vérifient qu'en production, au
 diagnostic de Maintenance et au chronomètre. Un jeu de données écrit par la
 même main que le code peut aussi partager une hypothèse fausse : le banc
 réduit le risque, il ne l'annule pas.
