@@ -18,8 +18,18 @@ node banc_worker.mjs     # le vrai Worker : journal + /read         (17)
 node banc_miroir.js      # notes du miroir, éditions manuelles      (13)
 node banc_resilience.js  # rafales, crash, panne, concurrence       (16)
 node banc_page.js        # la page face aux pannes                  (11)
-node e2e.js              # la vraie page admin, clics simulés       (19)
+node e2e.js              # circuit d'écriture de bout en bout        (19)
+node interface.js        # L'INTERFACE RÉELLE, pilotée au clic       (18)
 ```
+
+`interface.js` est le test le plus proche du terrain : il monte un service
+fictif complet (`monde.js` : 23 MAR, secteurs, affectations, gardes de
+l'année), fait produire le planning par **le vrai générateur** du dépôt, sert
+ces données par **le vrai Worker**, charge `admin.html` **telle quelle**, puis
+saisit le code, clique le bouton « Accéder », clique une case à pourvoir,
+choisit un MAR dans le panneau, publie, « ferme la page », laisse le serveur
+appliquer, et vérifie enfin que le classeur ET le planning régénéré
+contiennent le placement.
 
 `jeu_donnees.js` fabrique un service **fictif** à l'échelle réelle (23 MAR,
 120 jours, 40 placements de départ). Le dépôt est public : **aucune donnée du
@@ -35,6 +45,7 @@ Chaque script sort en erreur si une vérification échoue.
 | KV Cloudflare (une Map) | `cloudflare/worker.js`, exécuté |
 | Transport GAS ↔ Cloudflare dans `e2e.js` | le Worker, dans `banc_worker.mjs` |
 | Navigateur (jsdom) | `admin.html`, chargée et cliquée |
+| Données du service (`monde.js`, fictives) | `code.gs` + `generateur_gardes.gs`, qui produisent le planning |
 
 ## Ce que le banc prouve — et ce qu'il ne prouve pas
 
