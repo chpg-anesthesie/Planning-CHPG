@@ -75,5 +75,18 @@ V('compteur courrier lisible par l\'admin', !!(r.j.data && r.j.data.mail_nonlus)
 r = await appel('/read', { code: CODE_MAR, keys: ['mail_nonlus'] });
 V('compteur courrier REFUSÉ à un MAR', !(r.j.data && r.j.data.mail_nonlus), r.j.data);
 
+console.log('\n═══ 46. Volet libéral : mirrorable, et SANS montants ═══');
+{
+  M.set('liberal_2027', JSON.stringify({ success: true, annee: 2027, jours: {
+    '2027-03-03': [{ marId: 'ALPHA', secteur: 'END', chirurgie: 'cataracte' }] } }));
+  let r = await appel('/read', { code: CODE_ADMIN, keys: ['liberal_2027'] });
+  V('l\'admin obtient le volet libéral', !!(r.j.data && r.j.data.liberal_2027), Object.keys(r.j.data || {}));
+  const brut = JSON.stringify(r.j.data.liberal_2027);
+  V('aucun montant ne circule', !/brCcam|brNgap|montant/i.test(brut), brut.slice(0, 120));
+  V('les champs sont exactement ceux affichés', /marId/.test(brut) && /secteur/.test(brut) && /chirurgie/.test(brut));
+  r = await appel('/read', { code: CODE_MAR, keys: ['liberal_2027'] });
+  V('un MAR n\'obtient PAS le volet du comité', !(r.j.data && r.j.data.liberal_2027), r.j.refuses);
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);
