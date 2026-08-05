@@ -1015,7 +1015,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.25'; // SITE_VERSION: v1.25
+const SITE_VERSION = 'v1.26'; // SITE_VERSION: v1.26
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1108,7 +1108,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.25</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.26</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -2036,7 +2036,8 @@ async function miroirRead(keys, codeAcces) {
 async function miroirBootAdmin(anneeVoulue, codeAcces) {
   const devine = anneeVoulue || new Date().getFullYear();
   const m = await miroirRead(['annees', 'secteurs', 'config_admin',
-                              'planning_' + devine, 'affectations_' + devine, 'mail_nonlus'], codeAcces);
+                              'planning_' + devine, 'affectations_' + devine, 'mail_nonlus',
+                              'liberal_' + devine], codeAcces);
   if (!m || !m.success || !m.identite) return (m && m.success === false) ? m : null;
   if (m.identite.role !== 'admin') return { nonAdmin: true, identite: m.identite };
   const active = anneeVoulue || (m.data && m.data.annees && Number(m.data.annees.active)) || devine;
@@ -2048,6 +2049,16 @@ async function miroirBootAdmin(anneeVoulue, codeAcces) {
   const cfg = m.data && m.data.config_admin;
   if (!plan || !cfg) return null;   // miroir incomplet → bootstrap GAS
   if (m.data.annees && Array.isArray(m.data.annees.annees)) _MIROIR_ANNEES = m.data.annees;
+  try {
+    /* (v1.26) Volet libéral servi par le miroir : le panneau l'affiche
+       instantanément, sans réveiller Apps Script (mesure du 05/08 : 3,8 s
+       puis 9,6 s d'occupation de la file). La clé ne contient QUE ce que
+       l'écran montre — qui opère, quel secteur, quelle chirurgie. */
+    const _lib = m.data['liberal_' + active];
+    if (_lib && _lib.success && _lib.jours) {
+      Object.keys(_lib.jours).forEach(function (d) { _libJourCache[d] = _lib.jours[d]; });
+    }
+  } catch (e) {}
   try {
     const _mail = m.data['mail_nonlus'];              // (v1.23.1) badge courrier sans appel Google
     if (_mail && _mail.success && typeof _mail.nonLus === 'number') majCompteurMail(_mail.nonLus);
@@ -4872,24 +4883,24 @@ function renderLiberalCard(items, date) {
   }).join('');
   card.style.display = 'block';
 }
-/* (v1.25) Le tiroir libéral ne réveille PLUS Apps Script tout seul.
-   Mesure du 05/08 : listLiberalJour partait à CHAQUE ouverture du panneau de
-   placement (3,8 s puis 9,6 s d'occupation de la file) pour un volet qu'on
-   n'ouvre presque jamais — et c'était l'un des deux occupants de la barre
-   bleue. Il n'est PAS mirrorable : ces lignes portent des montants par MAR
-   (br CCAM / NGAP), qui n'ont rien à faire dans une copie de lecture.
-   Donc : affichage depuis le cache s'il existe, silence sinon, et chargement
-   à la DEMANDE via liberalJourCharger() (bouton du panneau). */
+/* (v1.26) Le volet libéral vient du MIROIR (clé liberal_{année}), remplie au
+   chargement de la page. Correction d'une erreur d'analyse du 05/08 : j'avais
+   conclu « non mirrorable » en lisant la réponse SERVEUR (qui portait des
+   montants) sans lire l'AFFICHAGE, qui n'utilise que marId, secteur et
+   chirurgie. La réponse serveur a été allégée en conséquence
+   (portail.gs 2026-08-05.2) : les montants ne quittent plus le classeur. */
 function loadLiberalJour(date) {
+  /* (v1.26) La journée entière vient du miroir au chargement de la page : le
+     cache est déjà rempli, l'affichage est immédiat et AUCUN appel ne part.
+     Cache vide pour cette date = aucune déclaration ce jour-là (le miroir
+     porte toutes les dates de l'année) : volet masqué, silence. Le miroir
+     absent (clé jamais poussée) laisse le chargement à la demande. */
   if (_libJourCache[date]) { renderLiberalCard(_libJourCache[date], date); return; }
-  if (_preEnCours) {   // un préchargement est déjà en vol : on profite de son résultat
-    _preEnCours.then(() => {
-      if (_libJourCache[date]) renderLiberalCard(_libJourCache[date], date);
-      else renderLiberalCard([], date);
-    });
+  if (_preEnCours) {
+    _preEnCours.then(() => renderLiberalCard(_libJourCache[date] || [], date));
     return;
   }
-  renderLiberalCard([], date);   // volet masqué : aucun appel serveur
+  renderLiberalCard([], date);
 }
 
 /* Chargement explicite du volet libéral (bouton « Activité libérale du jour »). */
