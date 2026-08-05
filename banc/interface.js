@@ -135,8 +135,7 @@ const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++
   V('la page est authentifiée (overlay masqué)', d.querySelector('.auth-overlay').style.display === 'none');
   V('les données de planning sont chargées', w.eval('(typeof DATA!=="undefined" && DATA && DATA.months) ? DATA.months.length : 0') > 0);
   V('la grille du planning est rendue', table && table.querySelectorAll('tr').length > 2, table && table.querySelectorAll('tr').length);
-  V('un seul appel serveur à l\'ouverture : le témoin (par conception)',
-    appelsGAS === 1 && appelsDetail[0] === 'getPanneauSemaine', appelsDetail);
+  V('AUCUN appel Apps Script à l\'ouverture (v1.25)', appelsGAS === 0, appelsDetail);
   V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
 
   console.log('\n═══ 19. Je place des MAR sur des cases à pourvoir ═══');
