@@ -7,12 +7,23 @@ dans un Google et un Cloudflare simulés. Sert à vérifier une modification
 ## Lancer
 
 ```bash
-cd banc && npm install jsdom
-node banc.js          # statuts, placements, verrous          (19 vérifications)
-node banc_worker.mjs  # le vrai Worker : journal + /read       (17)
-node banc_miroir.js   # notes du miroir, éditions manuelles    (13)
-node e2e.js           # la vraie page admin, clics simulés     (19)
+cd banc && ./lancer.sh        # tout, d'un coup — 95 vérifications
 ```
+
+ou script par script :
+
+```bash
+node banc.js             # statuts, placements, verrous            (19)
+node banc_worker.mjs     # le vrai Worker : journal + /read         (17)
+node banc_miroir.js      # notes du miroir, éditions manuelles      (13)
+node banc_resilience.js  # rafales, crash, panne, concurrence       (16)
+node banc_page.js        # la page face aux pannes                  (11)
+node e2e.js              # la vraie page admin, clics simulés       (19)
+```
+
+`jeu_donnees.js` fabrique un service **fictif** à l'échelle réelle (23 MAR,
+120 jours, 40 placements de départ). Le dépôt est public : **aucune donnée du
+classeur ne doit y figurer**, jamais.
 
 Chaque script sort en erreur si une vérification échoue.
 
@@ -35,6 +46,19 @@ du comité.
 **Ne prouve pas** : les autorisations Google, les quotas, la latence réelle,
 le comportement des déclencheurs installables. Ces points-là ne se vérifient
 qu'en production, avec le diagnostic de Maintenance.
+
+## Incidents rejoués (chacun a été observé en production)
+
+| Scénario | Ce qui doit se produire |
+|---|---|
+| Cloudflare injoignable | la page bascule sur Apps Script, le placement passe |
+| Google ET Cloudflare tombés | le travail reste en attente + est écrit sur le poste |
+| Panne entre application et purge | rejeu au passage suivant, **sans doublon** |
+| Publication refusée | le lot revient en attente, badge rouge |
+| Deux membres du comité sur la même case | une seule ligne, le dernier déposé gagne |
+| 200 fiches en attente | toutes traitées, miroir noté une seule fois par année |
+| Statut posé un jour de garde | refusé (échange ou don obligatoire) |
+| MAR inconnu, statut invalide, date hors planning | refusés proprement, file non bloquée |
 
 ## Défauts trouvés par ce banc (05/08/2026)
 
