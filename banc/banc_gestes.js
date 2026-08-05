@@ -224,5 +224,24 @@ console.log('\n═══ 47. La clé libérale ne contient QUE ce que l\'écran 
   V('année sans déclaration : liste vide, pas une erreur', vide.success === true && Object.keys(vide.jours).length === 0, vide);
 }
 
+console.log('\n═══ 53. Alerte d\'expiration du jeton GitHub ═══');
+{
+  const ctx = vm.createContext({ console, JSON, Number, String, Math, isFinite, Object });
+  ctx.globalThis = ctx;
+  vm.runInContext(extraireFonction('../gas/Indispos.gs', '_diagNiveauToken_'), ctx);
+  const n = j => vm.runInContext(`_diagNiveauToken_(${JSON.stringify(j)})`, ctx);
+  V('74 j (aujourd\'hui) : simple information', n(74).niveau === 'INFO', n(74));
+  V('31 j : encore une information', n(31).niveau === 'INFO', n(31).niveau);
+  V('30 j : passe en ORANGE', n(30).niveau === 'WARN', n(30).niveau);
+  V('11 j : toujours ORANGE', n(11).niveau === 'WARN', n(11).niveau);
+  V('10 j : passe en ROUGE', n(10).niveau === 'ERR', n(10));
+  V('3 j : ROUGE', n(3).niveau === 'ERR');
+  V('0 j (dernier jour) : ROUGE', n(0).niveau === 'ERR', n(0));
+  V('expiré : ROUGE, et le nombre de jours écoulés est donné', n(-5).niveau === 'ERR' && /5 j/.test(n(-5).message), n(-5).message);
+  V('le message rouge dit la CONSÉQUENCE, pas juste la date',
+    /publication/i.test(n(5).message) && /publication/i.test(n(-1).message), [n(5).message, n(-1).message]);
+  V('date illisible : information, jamais de fausse alerte', n('abc').niveau === 'INFO', n('abc'));
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);
