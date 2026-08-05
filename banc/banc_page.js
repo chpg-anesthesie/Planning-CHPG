@@ -112,6 +112,48 @@ async function page(transport) {
     V('sans liste, le booléen suffit encore (repli conservé)', ans.includes(2027), ans);
   }
 
+  console.log('\n═══ 55. Panneau Modifications : gardes par le miroir, échec jamais mémorisé ═══');
+  {
+    /* Défaut du 05/08 au soir : un appel raté laissait « {} » en mémoire pour
+       toute la session → « Aucune garde à cette date » sur TOUTES les dates,
+       sans jamais dire qu'un appel avait échoué. */
+    let appelsMiroir = 0, appelsGAS = 0;
+    const { w } = await page(async (url, opt) => {
+      if (String(url).includes('workers.dev')) {
+        appelsMiroir++;
+        return { ok:true, json: async () => ({ success:true, identite:{role:'admin'},
+          data: { gardes_2027: { success:true, data: { '2027-01-04': { ARMANDO:'G', OPPRECHT:'G2' } } } } }) };
+      }
+      appelsGAS++;
+      return { ok:true, json: async () => ({ success:true, data:{} }) };
+    });
+    w.eval('gardesByYear = {}; _tsEcriturePlanning = 0;');
+    const r1 = await w.ensureGardesYear('2027');
+    V('les gardes viennent du MIROIR', appelsMiroir >= 1 && appelsGAS === 0, { appelsMiroir, appelsGAS });
+    V('la journée du 04/01/2027 est chargée', !!(r1 && r1['2027-01-04']), r1 && Object.keys(r1));
+    V('ARMANDO y est bien de garde', r1['2027-01-04'].ARMANDO === 'G', r1['2027-01-04']);
+    V('un second appel ne redemande RIEN (mémoire)', (await w.ensureGardesYear('2027')) && appelsMiroir === 1, appelsMiroir);
+
+    // Tout tombe : l'échec ne doit rien laisser en mémoire
+    const { w: w2 } = await page(async () => { throw new Error('réseau'); });
+    w2.eval('gardesByYear = {}; _tsEcriturePlanning = 0;');
+    const r2 = await w2.ensureGardesYear('2027');
+    V('un échec rend null (et non une liste vide)', r2 === null, r2);
+    V('RIEN n\'est mémorisé : le prochain essai recommencera', w2.eval('gardesByYear["2027"] === undefined'), w2.eval('JSON.stringify(gardesByYear)'));
+
+    // Puis le réseau revient : la lecture doit réussir sans rechargement de page
+    let revenu = false;
+    w2.fetch = async (url) => {
+      if (String(url).includes('workers.dev')) { revenu = true;
+        return { ok:true, json: async () => ({ success:true, identite:{role:'admin'},
+          data: { gardes_2027: { success:true, data: { '2027-01-04': { ARMANDO:'G' } } } } }) }; }
+      return { ok:true, json: async () => ({ success:true, data:{} }) };
+    };
+    const r3 = await w2.ensureGardesYear('2027');
+    V('le réseau revenu, la lecture réussit (pas de rechargement nécessaire)', !!(r3 && r3['2027-01-04']) && revenu, r3);
+    V('le message d\'échec et le bouton Réessayer existent', typeof w2._gardesReessayer === 'function');
+  }
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   process.exit(ko ? 1 : 0);
 })();
