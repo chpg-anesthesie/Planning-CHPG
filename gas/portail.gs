@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-08-02.1';
+const GAS_VERSION_PORTAIL = '2026-08-05.2';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1644,14 +1644,17 @@ function listLiberalJour(payload, user) {
   const items = [];
   for (let r = 1; r < data.length; r++) {
     if (_isoDate(data[r][2]) !== date) continue;
+    /* (2026-08-05.2) RÉPONSE ALLÉGÉE. Le volet du comité n'affiche que QUI
+       opère, dans quel SECTEUR, et le libellé de chirurgie (vérifié dans
+       renderLiberalCard, admin.html) : il regroupe par MAR + secteur et
+       compte les interventions. Les montants (br CCAM / NGAP) et la
+       spécialité voyageaient donc jusqu'au navigateur SANS AUCUN USAGE.
+       Ils restent désormais dans le classeur — moins de donnée sensible en
+       circulation, et cette liste devient mirrorable (affichage instantané). */
     items.push({
-      id:         String(data[r][0]),
-      marId:      String(data[r][3]).trim(),
-      secteur:    String(data[r][4]).trim().toUpperCase(),
-      chirurgie:  String(data[r][5] || '').trim(),
-      specialite: String(data[r][6] || '').trim().toUpperCase(),
-      brCcam:     _libMoney_(data[r][7]),
-      brNgap:     _libMoney_(data[r][8]),
+      marId:     String(data[r][3]).trim(),
+      secteur:   String(data[r][4]).trim().toUpperCase(),
+      chirurgie: String(data[r][5] || '').trim(),
     });
   }
   items.sort((a, b) => String(a.marId).localeCompare(String(b.marId)));
