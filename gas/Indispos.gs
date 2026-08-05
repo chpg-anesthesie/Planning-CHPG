@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-05.11';
+const GAS_VERSION_INDISPOS = '2026-08-05.12';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1729,6 +1729,11 @@ function applyModification(mod) {
 
   switch (type) {
     case 'echangeSecteur': {
+      /* (2026-08-05.12) Mêmes précautions : les deux cellules sont vérifiées
+         avant la première écriture (readCell/writeCell lèvent si le MAR ou la
+         date est introuvable — un doctorId2 mal saisi ne doit pas laisser la
+         première cellule modifiée). */
+      verifieCellules([[doctorId, date], [doctorId2, date]]);
       const valA = readCell(`INDISPOS_${year}`, doctorId,  date);
       const valB = readCell(`INDISPOS_${year}`, doctorId2, date);
       writeCell(`INDISPOS_${year}`, doctorId,  date, valB);
@@ -1745,16 +1750,24 @@ function applyModification(mod) {
       break;
     }
     case 'echangeGarde': {
-      const valGardeA = readCell(`GARDES_${year}`, doctorId,  date);
-      const valGardeB = readCell(`GARDES_${year}`, doctorId2, date);
-      writeCell(`GARDES_${year}`, doctorId,  date, valGardeB);
-      writeCell(`GARDES_${year}`, doctorId2, date, valGardeA);
+      /* (2026-08-05.12, CORRECTIF) TOUT VÉRIFIER AVANT D'ÉCRIRE. L'échange de
+         la date principale était écrit AVANT le contrôle du repos de garde du
+         lendemain : un refus laissait donc le classeur À MOITIÉ modifié — la
+         garde avait changé de titulaire, le comité lisait « échange refusé »,
+         et personne ne voyait la divergence (défaut trouvé au banc d'essai,
+         scénario 39). Un geste doit être entièrement fait, ou entièrement
+         refusé. */
       const jourRG = date2 || nextDay(date);
       verifieCellules([[doctorId, date], [doctorId2, date], [doctorId, jourRG], [doctorId2, jourRG]]);
       refuseSiGarde(doctorId,  jourRG, 'l\'echange deplacerait cette garde — a traiter manuellement');
       refuseSiGarde(doctorId2, jourRG, 'l\'echange deplacerait cette garde — a traiter manuellement');
-      const valRGA = readCell(`GARDES_${year}`, doctorId,  jourRG);
-      const valRGB = readCell(`GARDES_${year}`, doctorId2, jourRG);
+      // Toutes les lectures AVANT la première écriture : aucune ne peut plus échouer ensuite.
+      const valGardeA = readCell(`GARDES_${year}`, doctorId,  date);
+      const valGardeB = readCell(`GARDES_${year}`, doctorId2, date);
+      const valRGA    = readCell(`GARDES_${year}`, doctorId,  jourRG);
+      const valRGB    = readCell(`GARDES_${year}`, doctorId2, jourRG);
+      writeCell(`GARDES_${year}`, doctorId,  date,   valGardeB);
+      writeCell(`GARDES_${year}`, doctorId2, date,   valGardeA);
       writeCell(`GARDES_${year}`, doctorId,  jourRG, valRGB);
       writeCell(`GARDES_${year}`, doctorId2, jourRG, valRGA);
       break;
