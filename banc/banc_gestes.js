@@ -193,5 +193,36 @@ console.log('\n═══ 44. Atomicité : un refus ne laisse JAMAIS d\'écriture
   });
 }
 
+console.log('\n═══ 47. La clé libérale ne contient QUE ce que l\'écran affiche ═══');
+{
+  /* Contrôle de non-régression sur la confidentialité : le constructeur du
+     miroir lit l'onglet LIBERAL_{Y}, où les colonnes 8 et 9 portent les
+     montants. Il ne doit jamais les recopier. */
+  const cl = new Classeur();
+  cl.ajouter('LIBERAL_2027', [
+    ['ID','DATE_CONS','DATE_BLOC','MAR_ID','SECTEUR','CHIRURGIE','SPECIALITE','BR_CCAM','BR_NGAP'],
+    ['1','2027-02-01','2027-03-03','ALPHA','END','cataracte','OPH', 1234.56, 78.90],
+    ['2','2027-02-01','2027-03-03','BRAVO','VIS','hernie','VISC', 999.99, 12.34],
+    ['3','2027-02-02','2027-03-04','ALPHA','END','cataracte','OPH', 500, 0],
+  ]);
+  const ctx = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Math, RegExp,
+    SpreadsheetApp: { getActiveSpreadsheet: () => cl } });
+  ctx.globalThis = ctx;
+  vm.runInContext(extraireFonction('../gas/miroir.gs', '_miroirConstruireLiberal_'), ctx);
+  const res = vm.runInContext('_miroirConstruireLiberal_(2027)', ctx);
+  const brut = JSON.stringify(res);
+  V('les journées sont indexées par date', !!(res.jours && res.jours['2027-03-03'] && res.jours['2027-03-04']), Object.keys(res.jours || {}));
+  V('deux MAR le 03/03, un le 04/03', res.jours['2027-03-03'].length === 2 && res.jours['2027-03-04'].length === 1);
+  V('AUCUN montant recopié', !/1234|999|78\.9|12\.34|500/.test(brut), brut.slice(0, 160));
+  V('aucune spécialité non plus (non affichée)', !/OPH|VISC|specialite/.test(brut));
+  V('les trois champs utiles sont là', /marId/.test(brut) && /secteur/.test(brut) && /chirurgie/.test(brut));
+  V('tri par MAR à l\'intérieur d\'une journée', res.jours['2027-03-03'][0].marId === 'ALPHA');
+  const vide = (() => { const c2 = new Classeur(); c2.ajouter('LIBERAL_2027', [['ID']]);
+    const x = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Math, RegExp, SpreadsheetApp: { getActiveSpreadsheet: () => c2 } });
+    x.globalThis = x; vm.runInContext(extraireFonction('../gas/miroir.gs', '_miroirConstruireLiberal_'), x);
+    return vm.runInContext('_miroirConstruireLiberal_(2027)', x); })();
+  V('année sans déclaration : liste vide, pas une erreur', vide.success === true && Object.keys(vide.jours).length === 0, vide);
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);
