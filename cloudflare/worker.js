@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR CHPG — Worker Cloudflare
-   Version : miroir 2026-08-04.4
+   Version : miroir 2026-08-05.5
 
    RÔLE. Servir en ~150 ms les données de lecture du portail (planning,
    affectations, secteurs, années, config admin, indispos), déposées ici
@@ -49,7 +49,7 @@
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-04.4';
+const VERSION = 'miroir 2026-08-05.5';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
@@ -99,6 +99,11 @@ export default {
 
     if (url.pathname === '/push') return push(corps, env);
     if (url.pathname === '/read') return lire(corps, env);
+    // ── Journal d'intentions (05/08/2026) ──
+    if (url.pathname === '/ecrire') return jEcrire(corps, env);
+    if (url.pathname === '/tirer') return jTirer(corps, env);
+    if (url.pathname === '/purger') return jPurger(corps, env);
+    if (url.pathname === '/journal-etat') return jEtat(corps, env);
     return reponse({ success: false, error: 'Chemin inconnu' }, 404);
   }
 };
@@ -195,6 +200,101 @@ async function lire(corps, env) {
 
 /* Droits de lecture par clé et par rôle. Toute clé inconnue est refusée
    par CLE_VALIDE en amont : ici, on ne traite que le connu. */
+/* ═══ JOURNAL D'INTENTIONS (05/08/2026) ══════════════════════════════
+   Le comité DÉPOSE ses gestes ici (~150 ms, durable) au lieu de parler à
+   Google ; le GAS les tire chaque minute et les applique dans l'ordre.
+   /ecrire : comité (code admin, même empreinte que /read).
+   /tirer, /purger : GAS (jeton PUSH_TOKEN).
+   /journal-etat : comité OU GAS.
+   Ordre = horodatage de CE Worker (source unique) dans la clé j_{ts}_{aléa}.
+   Registre d'audit jfait_* conservé 90 jours. */
+
+async function jAuthAdmin(corps, env) {
+  const code = String(corps && corps.code == null ? '' : corps.code).trim().toUpperCase();
+  if (!code) return null;
+  const accesBrut = await env.KV.get('acces');
+  if (!accesBrut) return null;
+  let acces;
+  try { acces = JSON.parse(accesBrut); } catch (e) { return null; }
+  const empreinte = await sha256hex(code);
+  const user = (acces.users || []).find(u => u && u.h === empreinte);
+  return (user && user.role === 'admin') ? user : null;
+}
+
+async function jEcrire(corps, env) {
+  const user = await jAuthAdmin(corps, env);
+  if (!user) return reponse({ success: false, error: 'Code invalide' }, 403);
+  const it = corps.intention || {};
+  if (['placements', 'statut', 'publier'].indexOf(it.type) === -1) {
+    return reponse({ success: false, error: 'type inconnu : ' + it.type }, 400);
+  }
+  if (JSON.stringify(it).length > 100000) {
+    return reponse({ success: false, error: 'fiche trop volumineuse' }, 400);
+  }
+  const ts = Date.now();
+  const cle = 'j_' + String(ts).padStart(14, '0') + '_' + Math.random().toString(36).slice(2, 6);
+  it.par = user.id || 'admin';
+  it.depose = new Date(ts).toISOString();
+  await env.KV.put(cle, JSON.stringify(it));
+  return reponse({ success: true, cle: cle, depose: it.depose });
+}
+
+async function jTirer(corps, env) {
+  if (!env.PUSH_TOKEN || corps.token !== env.PUSH_TOKEN) {
+    return reponse({ success: false, error: 'Jeton invalide' }, 403);
+  }
+  const liste = await env.KV.list({ prefix: 'j_', limit: 200 });
+  const fiches = await Promise.all(liste.keys.map(async (k) => {
+    const v = await env.KV.get(k.name);
+    if (!v) return null;
+    try { return { cle: k.name, valeur: JSON.parse(v) }; } catch (e) { return null; }
+  }));
+  return reponse({ success: true, fiches: fiches.filter(Boolean) });
+}
+
+async function jPurger(corps, env) {
+  if (!env.PUSH_TOKEN || corps.token !== env.PUSH_TOKEN) {
+    return reponse({ success: false, error: 'Jeton invalide' }, 403);
+  }
+  const resultats = Array.isArray(corps.resultats) ? corps.resultats : [];
+  let purgees = 0;
+  for (const r of resultats) {
+    if (!r || typeof r.cle !== 'string' || r.cle.indexOf('j_') !== 0) continue;
+    const v = await env.KV.get(r.cle);
+    if (v == null) continue;
+    let fiche;
+    try { fiche = JSON.parse(v); } catch (e) { fiche = { brut: v }; }
+    fiche.applique = new Date().toISOString();
+    fiche.ok = !!r.ok;
+    fiche.detail = String(r.detail || '');
+    await env.KV.put('jfait_' + r.cle.slice(2), JSON.stringify(fiche), { expirationTtl: 7776000 });
+    await env.KV.delete(r.cle);
+    purgees++;
+  }
+  return reponse({ success: true, purgees: purgees });
+}
+
+async function jEtat(corps, env) {
+  let ok = !!(env.PUSH_TOKEN && corps.token === env.PUSH_TOKEN);
+  if (!ok) ok = !!(await jAuthAdmin(corps, env));
+  if (!ok) return reponse({ success: false, error: 'refus' }, 403);
+  const attente = await env.KV.list({ prefix: 'j_', limit: 100 });
+  const clesAttente = attente.keys.map(k => k.name).sort();
+  const fiches = (await Promise.all(clesAttente.map(async (n) => {
+    const v = await env.KV.get(n);
+    if (!v) return null;
+    try { const f = JSON.parse(v); f.cle = n; return f; } catch (e) { return null; }
+  }))).filter(Boolean);
+  const faits = await env.KV.list({ prefix: 'jfait_', limit: 1000 });
+  const nomsFaits = faits.keys.map(k => k.name).sort().slice(-8);
+  const dernieres = (await Promise.all(nomsFaits.map(async (n) => {
+    const v = await env.KV.get(n);
+    if (!v) return null;
+    try { return JSON.parse(v); } catch (e) { return null; }
+  }))).filter(Boolean);
+  return reponse({ success: true, enAttente: clesAttente.length, fiches: fiches, dernieresAppliquees: dernieres });
+}
+
 function autorise(user, cle) {
   if (cle === 'annees' || cle === 'secteurs') return true;              // MAR + admin
   if (cle === 'topos' || cle === 'staffs' || cle === 'veille' ||
