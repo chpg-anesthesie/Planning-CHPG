@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-05.8';
+const GAS_VERSION_MIROIR = '2026-08-05.9';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -72,6 +72,8 @@ const MIROIR_APRES_ECRITURE = {
   deleteOverride:             ['config_admin'],
   savePlanningOverridesBatch: ['config_admin'],
   generateGardes:             ['annees', 'config_admin', 'gardes', 'stats'],
+  declareLiberal:             ['liberal'],   // (2026-08-05.9) un MAR déclare → le volet du comité suit
+  deleteLiberal:              ['liberal'],
   archiveYear:                ['planning', 'affectations', 'annees', 'config_admin', 'gardes', 'stats'],
   setActiveYear:              ['annees', 'acces', 'config_admin'],
   initYear:                   ['annees', 'config_admin'],
@@ -205,7 +207,7 @@ function miroirRattrapage() {
 function miroirSyncComplet() {
   const familles = ['acces', 'annees', 'secteurs', 'config_admin',
                     'planning', 'affectations', 'indispos', 'tuiles',
-                    'gardes', 'joursferies', 'stats', 'vacances_admin', 'mail'];
+                    'gardes', 'joursferies', 'stats', 'vacances_admin', 'mail', 'liberal'];
   try { PropertiesService.getScriptProperties().deleteProperty(MIROIR_CLE_ATTENTE); } catch (e) {}   // la synchro pousse un sur-ensemble : la note devient caduque
   const res = miroirPousserFamilles_(familles, getActiveYear(), true);   // synchro : toutes les annees consultables
   Logger.log('miroirSyncComplet : ' + JSON.stringify(res));
@@ -228,6 +230,7 @@ const MIROIR_ONGLETS_SUIVIS = {
   MEDECINS:  ['config_admin', 'annees'],
   SECTEURS:  ['secteurs'],
   PLANNING_OVERRIDES: ['config_admin'],
+  LIBERAL:      ['liberal'],
   PERIODES_VAC: ['vacances_admin'],
   GROUPES_VAC:  ['vacances_admin'],
 };
@@ -343,6 +346,18 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
     });
   }
 
+  if (uniq['liberal']) {
+    /* (2026-08-05.9) Activité libérale du jour, pour le volet du panneau de
+       placement. Contenu STRICTEMENT limité à ce que l'écran affiche : qui
+       opère, dans quel secteur, quelle chirurgie. AUCUN montant — ils restent
+       au classeur (voir listLiberalJour, portail.gs 2026-08-05.2).
+       Clé admin seule. Objectif : le volet s'affiche instantanément au lieu
+       des 3,8-9,6 s mesurés le 05/08. */
+    _miroirAjouteEnveloppe_(items, 'liberal_' + annee, function () {
+      return _miroirConstruireLiberal_(annee);
+    });
+  }
+
   if (uniq['vacances_admin']) {
     _miroirAjouteEnveloppe_(items, 'vacances_admin', _miroirConstruireVacancesAdmin_);
   }
@@ -367,6 +382,35 @@ function _miroirAjoute_(items, cle, construire) {
 
 /* Enveloppe d'action ({success:true,…}) : poussée telle quelle, mais JAMAIS
    si l'action a échoué — un échec figé au miroir serait servi en boucle. */
+/* (2026-08-05.9) Déclarations libérales de l'année, groupées PAR DATE :
+   { "2027-03-03": [{marId, secteur, chirurgie}, …], … }
+   Même forme que ce que renvoie listLiberalJour, pour que le volet consomme
+   l'un ou l'autre sans distinction. */
+function _miroirConstruireLiberal_(annee) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('LIBERAL_' + annee);
+  if (!sh || sh.getLastRow() < 2) return { success: true, annee: Number(annee), jours: {} };
+  const data = sh.getDataRange().getValues();
+  const jours = {};
+  for (let r = 1; r < data.length; r++) {
+    const brut = data[r][2];
+    const date = brut instanceof Date
+      ? `${brut.getFullYear()}-${String(brut.getMonth()+1).padStart(2,'0')}-${String(brut.getDate()).padStart(2,'0')}`
+      : String(brut || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    const marId = String(data[r][3]).trim();
+    if (!marId) continue;
+    (jours[date] = jours[date] || []).push({
+      marId: marId,
+      secteur: String(data[r][4]).trim().toUpperCase(),
+      chirurgie: String(data[r][5] || '').trim(),
+    });
+  }
+  Object.keys(jours).forEach(function (d) {
+    jours[d].sort(function (a, b) { return String(a.marId).localeCompare(String(b.marId)); });
+  });
+  return { success: true, annee: Number(annee), jours: jours };
+}
+
 function _miroirAjouteEnveloppe_(items, cle, construire) {
   try {
     const v = construire();
