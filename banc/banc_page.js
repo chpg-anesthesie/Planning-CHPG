@@ -72,6 +72,46 @@ async function page(transport) {
     V('la première semaine est toujours vérifiée', suite[0] === true);
   }
 
+  console.log('\n═══ 54. Sélecteur d\'année : la liste du miroir fait foi ═══');
+  {
+    /* Défaut du 05/08 au soir : 2027 disparaissait du sélecteur admin (pastille
+       « solo », sans chevron) dès que le booléen anneeSuivante n'arrivait pas,
+       alors que la liste du miroir contenait bien l'année. */
+    const { w } = await page(async () => ({ ok:true, json: async () => ({ success:true }) }));
+    const poser = (annees, booleen) => w.eval(`
+      YEAR = 2026; ADMIN_YEAR = 2026;
+      nextYearAvailable = ${JSON.stringify(!!booleen)};
+      _anneesServeur = ${JSON.stringify(annees)};
+      _MIROIR_ANNEES = { active: 2026, annees: ${JSON.stringify(annees)} };
+      availableYears = [];`);
+    const liste = [{ annee: 2024, archivee: true }, { annee: 2025, archivee: false },
+                   { annee: 2026, archivee: false }, { annee: 2027, archivee: false }];
+
+    // (a) le cas qui a cassé : le booléen manque, la liste contient 2027
+    poser(liste, false);
+    await w.detectAvailableYears();
+    let ans = w.eval('availableYears.map(a => a.year)');
+    V('2027 est proposée MÊME sans le booléen', ans.includes(2027), ans);
+    V('les années closes sont là aussi', ans.includes(2025) && ans.includes(2024), ans);
+    V('aucun doublon', new Set(ans).size === ans.length, ans);
+    V('classées de la plus récente à la plus ancienne', ans.join(',') === [...ans].sort((a,b)=>b-a).join(','), ans);
+    V('le sélecteur n\'est PAS en mode solo', ans.length > 1, ans.length);
+    const statuts = w.eval('availableYears.map(a => a.year + ":" + a.status + (a.readonly ? "/RO" : ""))');
+    V('2027 est modifiable, les années closes en lecture seule',
+      statuts.includes('2027:n1') && statuts.some(x => /2025:archive\/RO/.test(x)), statuts);
+
+    // (b) une seule année : le mode solo reste possible
+    poser([{ annee: 2026, archivee: false }], false);
+    await w.detectAvailableYears();
+    V('une seule année connue → une seule entrée', w.eval('availableYears.length') === 1, w.eval('availableYears.length'));
+
+    // (c) le booléen seul, sans liste : l'ancien chemin fonctionne toujours
+    w.eval('YEAR = 2026; ADMIN_YEAR = 2026; nextYearAvailable = true; _anneesServeur = []; _MIROIR_ANNEES = null; availableYears = [];');
+    await w.detectAvailableYears();
+    ans = w.eval('availableYears.map(a => a.year)');
+    V('sans liste, le booléen suffit encore (repli conservé)', ans.includes(2027), ans);
+  }
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   process.exit(ko ? 1 : 0);
 })();
