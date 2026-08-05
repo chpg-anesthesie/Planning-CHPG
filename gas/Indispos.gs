@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-05.12';
+const GAS_VERSION_INDISPOS = '2026-08-05.13';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -161,9 +161,15 @@ function diagnosticComplet() {
           const exp = (resp.getAllHeaders() || {})['github-authentication-token-expiration'];
           if (exp) {
             const days = Math.round((new Date(String(exp)) - new Date()) / 86400000);
-            if (days < 0) check('Token GitHub EXPIRÉ', R.ERR);
-            else if (days <= 14) check(`Token GitHub expire dans ${days} j — à renouveler`, R.WARN);
-            else info(`Token GitHub valide, expire dans ${days} j`);
+            /* (2026-08-05.13) Le jour où ce jeton expire, la PUBLICATION
+               s'arrête net : les MAR ne voient plus aucune mise à jour, et
+               rien ne le dit à l'écran du comité. Un simple « ℹ️ » à 14 jours
+               se noie dans un diagnostic de 90 lignes. Trois paliers, avec un
+               ROUGE franc quand il reste moins de deux semaines de marge. */
+            const _tk = _diagNiveauToken_(days);
+            if (_tk.niveau === 'ERR') check(_tk.message, R.ERR);
+            else if (_tk.niveau === 'WARN') check(_tk.message, R.WARN);
+            else info(_tk.message);
           } else info('Token GitHub sans date d\'expiration');
         } else if (code === 401) {
           check('Token GitHub invalide/expiré (401) — publications impossibles', R.ERR);
@@ -4423,6 +4429,22 @@ function retirerPlacementsPourDates(marId, dates) {
    routage (transformation mecanique verifiee : 4 _error → throw, reponse
    → objet). Une seule source pour le routage ET l'applicateur du journal
    (journal.gs) — meme principe que dispo_jour. */
+/* (2026-08-05.13) Paliers d'alerte du jeton GitHub, isolés pour être
+   éprouvables au banc :
+     expiré ou ≤ 10 j  → ROUGE   (la publication va s'arrêter)
+     11 à 30 j         → ORANGE  (à planifier)
+     > 30 j            → simple information
+   Le renouvellement demande d'aller sur GitHub, de créer un jeton et de le
+   coller dans PARAMETRES : ce n'est pas un geste qu'on improvise la veille. */
+function _diagNiveauToken_(jours) {
+  const j = Number(jours);
+  if (!isFinite(j)) return { niveau: 'INFO', message: 'Token GitHub : date d\'expiration illisible' };
+  if (j < 0)   return { niveau: 'ERR',  message: `Token GitHub EXPIRÉ depuis ${Math.abs(j)} j — PUBLICATION IMPOSSIBLE : les MAR ne voient plus les mises à jour. Renouveler immédiatement.` };
+  if (j <= 10) return { niveau: 'ERR',  message: `Token GitHub expire dans ${j} j — À RENOUVELER MAINTENANT : passé cette date, plus aucune publication ne partira.` };
+  if (j <= 30) return { niveau: 'WARN', message: `Token GitHub expire dans ${j} j — prévoir son renouvellement (sans lui, la publication s'arrête).` };
+  return { niveau: 'INFO', message: `Token GitHub valide, expire dans ${j} j` };
+}
+
 function appliquerStatutJour(year, marIdBrut, statutBrut, datesBrutes) {
   const payload = { marId: marIdBrut, statut: statutBrut, dates: datesBrutes };
                   const marId  = String(payload.marId || '').trim().toUpperCase();
