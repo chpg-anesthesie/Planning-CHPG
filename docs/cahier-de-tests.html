@@ -114,7 +114,7 @@
   <div class="eyebrow">Planning-CHPG · vérification du système</div>
   <h1>Cahier de tests</h1>
   <p class="subtitle">Parcours complet de vérification : accès, portail, planning, saisies, module libéral, wizards, et scénarios de panne.</p>
-  <p class="maj">Établi le 2 août 2026 · année active 2027 · 153 points de contrôle · 5 à 6 h, sécable phase par phase</p>
+  <p class="maj">Établi le 2 août 2026, <b>mis à jour le 5 août 2026</b> · année active 2027 · <b>179 points</b> de contrôle, dont <b>plus de 40 déjà couverts par le banc d'essai</b> · 4 à 5 h à la main, sécable phase par phase</p>
 
   <div class="callout rule">
     <div class="ct">Avant tout</div>
@@ -419,7 +419,7 @@
 
   <div class="test" data-id="T035"><div class="test-head"><span class="tid">T035</span><div class="test-body">
     <div class="t-do">Faire dix placements d'affilée rapidement, puis taper <code>chronoAPI()</code>.</div>
-    <div class="t-exp">Attendu : les écritures sont <b>groupées</b> (savePlanningOverridesBatch), pas dix appels séparés. C'est l'optimisation récente : c'est le moment de vérifier qu'elle tient.</div>
+    <div class="t-exp">Attendu (05/08/2026) : <b>une seule ligne</b> <code>journal:placements</code>, autour de <b>150–200 ms</b>. Aucun <code>savePlanningOverridesBatch</code> ne doit apparaître : les écritures ne passent plus par Apps Script — elles sont déposées chez Cloudflare et appliquées par le serveur dans la minute.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T035" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T035" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T035" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
@@ -447,7 +447,7 @@
 
   <div class="test" data-id="T039"><div class="test-head"><span class="tid">T039</span><div class="test-body">
     <div class="t-do">Ouvrir le panneau de semaine, puis passer à la semaine suivante.</div>
-    <div class="t-exp">Attendu : le passage est quasi instantané (le panneau suivant est préchargé). Si tu attends plus de 2 s, note la valeur.</div>
+    <div class="t-exp">Attendu : le passage est instantané. Depuis le 04/08/2026, la liste des MAR disponibles est <b>calculée sur la page</b> et non plus préchargée depuis le serveur : l'instantanéité ne dépend plus du réseau. Si tu attends plus de 2 s, note la valeur.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T039" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T039" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T039" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
@@ -475,7 +475,7 @@
 
   <div class="test" data-id="T043"><div class="test-head"><span class="tid">T043</span><div class="test-body">
     <div class="t-do">Publier le planning.</div>
-    <div class="t-exp">Attendu : succès affiché, et <code>planning_2027.json</code> mis à jour sur le Drive (vérifier l'horodatage du fichier).</div>
+    <div class="t-exp">Attendu (05/08/2026) : le message <b>« Publication en route — vous pouvez fermer la page »</b> apparaît en moins d'une seconde. <code>planning_2027.json</code> est mis à jour sur le Drive <b>dans les 1 à 3 minutes</b> (vérifier l'horodatage). Si le message affiché est « Planning publié en ligne », c'est le circuit de secours qui a servi — le fichier est alors déjà à jour.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T043" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T043" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T043" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
@@ -503,7 +503,7 @@
 
   <div class="test" data-id="T047"><div class="test-head"><span class="tid">T047</span><div class="test-body">
     <div class="t-do">Fermer admin.html brutalement (croix de l'onglet) juste après un placement, rouvrir.</div>
-    <div class="t-exp">Attendu : soit le placement est enregistré, soit il ne l'est pas — mais l'écran et le classeur doivent <b>dire la même chose</b>. Une divergence ici est grave.</div>
+    <div class="t-exp">Attendu (05/08/2026) : le placement <b>est enregistré</b>. Il part chez Cloudflare 3 s après le clic et reste conservé sur le poste tant qu'il n'est pas confirmé — la réouverture le renvoie seule. L'ancien comportement toléré (« soit enregistré, soit pas ») — mais l'écran et le classeur doivent <b>dire la même chose</b>. Une divergence ici est grave.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T047" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T047" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T047" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
@@ -1120,7 +1120,7 @@
 
   <div class="test" data-id="T163"><div class="test-head"><span class="tid">T163</span><div class="test-body">
     <div class="t-do">Admin ouvert depuis ~10 s : clic sur une case flash, puis flèche « semaine suivante » et re-clic.</div>
-    <div class="t-exp">Attendu : panneau immédiat dans les deux cas (chauffage + semaines ±1 préchargées). Un clic dans les 5 premières secondes de la page peut encore attendre — connu et assumé.</div>
+    <div class="t-exp">Attendu : panneau immédiat dans les deux cas, <b>sans aucun appel serveur</b> — le calcul est local (chauffage + semaines ±1 préchargées). Un clic dans les 5 premières secondes de la page peut encore attendre — connu et assumé.</div>
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T163" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T163" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T163" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
@@ -1296,7 +1296,123 @@
 
 <!-- ─── section ─── -->
 <section id="pdoc">
-  <h2><span class="n">P13</span>Cohérence de la documentation</h2>
+      <div style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:12px;padding:14px 18px;margin:0 0 18px;font-size:13.5px;line-height:1.55;color:#065F46">
+    <b>Nouveau (05/08/2026) : une partie de ce cahier se joue toute seule.</b><br>
+    Le dépôt contient un <b>banc d'essai</b> qui exécute le vrai code dans un Google et un Cloudflare simulés :
+    <code>cd banc &amp;&amp; ./lancer.sh</code>. Les points marqués <b>✅ Déjà vérifié automatiquement</b> y sont couverts —
+    inutile de les refaire à la main, sauf doute. Le banc prouve la <b>logique</b> ; il ne prouve ni les autorisations Google,
+    ni les quotas, ni la latence réelle, ni ce qui se voit à l'œil : ces points-là restent manuels.
+  </div>
+
+  <h2 id="p15"><span class="pnum">P15</span>Journal d'intentions, miroir et vitesse <span style="font-size:13px;font-weight:400;color:#64748B">— ajoutés le 05/08/2026</span></h2>
+  <p style="font-size:13.5px;color:#475569;margin:0 0 14px">Ces points couvrent la refonte du 4-5 août : les écritures du comité passent par un journal chez Cloudflare, le miroir sert toutes les lectures, et le classeur signale ses modifications manuelles. Les points marqués <b style="color:#047857">✅</b> sont déjà couverts par le banc d'essai (<code>cd banc &amp;&amp; ./lancer.sh</code>) : à ne refaire à la main qu'en cas de doute.</p>
+
+  <div class="test" data-id="T165"><div class="test-head"><span class="tid">T165</span><div class="test-body">
+    <div class="t-do">Ouvrir admin, taper le code, puis <code>chronoAPI()</code> sans rien faire d'autre.</div>
+    <div class="t-exp">Attendu : <b>aucun appel Apps Script</b> — seulement deux lignes <code>miroir:…</code>. La barre bleue en haut doit rester <b>éteinte</b> après le chargement. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc d'essai : banc_chaos.js, scénario 45.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T165" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T165" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T165" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T166"><div class="test-head"><span class="tid">T166</span><div class="test-body">
+    <div class="t-do">Placer un MAR sur une case flash, puis lui poser un <b>TP</b> ce jour-là dans l'onglet Statuts. Recharger la page.</div>
+    <div class="t-exp">Attendu : son placement a <b>disparu tout seul</b> (le dernier geste gagne). Vérifier dans PLANNING_OVERRIDES qu'aucune ligne ne subsiste pour ce MAR à cette date. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc d'essai : banc.js, scénario 1 · interface.js, scénario 21.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T166" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T166" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T166" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T167"><div class="test-head"><span class="tid">T167</span><div class="test-body">
+    <div class="t-do">Après le test précédent, replacer le même MAR sur la même case (réquisition d'un temps partiel).</div>
+    <div class="t-exp">Attendu : le placement <b>tient</b> — un MAR en TP reste plaçable en dernier recours, dès lors que le placement est postérieur à la pose du statut.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T167" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T167" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T167" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T168"><div class="test-head"><span class="tid">T168</span><div class="test-body">
+    <div class="t-do">Tenter un échange de gardes impossible (l'un des deux a déjà une garde à l'autre date). Noter les quatre cellules AVANT, puis les relire dans GARDES_{année} APRÈS le refus.</div>
+    <div class="t-exp">Attendu : refus affiché avec son motif, et <b>les quatre cellules rigoureusement inchangées</b>. Un geste est entier ou refusé — jamais à moitié écrit. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc d'essai : banc_gestes.js, scénario 44 (les 5 types).</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T168" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T168" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T168" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T169"><div class="test-head"><span class="tid">T169</span><div class="test-body">
+    <div class="t-do">Faire 3 placements, cliquer Publier, puis <b>fermer l'onglet immédiatement</b>. Rouvrir index.html 3 minutes plus tard.</div>
+    <div class="t-exp">Attendu : les 3 placements sont visibles. Le serveur termine le travail sans la page. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc d'essai : interface.js, scénario 20 · e2e.js.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T169" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T169" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T169" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T170"><div class="test-head"><span class="tid">T170</span><div class="test-body">
+    <div class="t-do">Ouvrir le panneau « Modifications » et saisir une date où des gardes existent.</div>
+    <div class="t-exp">Attendu : la liste des MAR de garde s'affiche <b>immédiatement</b>. Si elle échoue, un message orange doit le dire avec un bouton <b>Réessayer</b> — jamais « aucune garde à cette date » (qui serait faux). <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc d'essai : banc_page.js, scénario 55.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T170" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T170" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T170" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T171"><div class="test-head"><span class="tid">T171</span><div class="test-body">
+    <div class="t-do">Cliquer une case flash un jour où un MAR a déclaré une activité libérale.</div>
+    <div class="t-exp">Attendu : le volet libéral s'affiche <b>instantanément</b> (qui opère, quel secteur, quelle chirurgie). <b>Aucun montant</b> ne doit apparaître ni transiter. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc d'essai : banc_worker.mjs, scénario 46 · banc_gestes.js, scénario 47.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T171" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T171" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T171" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T172"><div class="test-head"><span class="tid">T172</span><div class="test-body">
+    <div class="t-do">Dans Apps Script, exécuter <code>miroirSyncComplet</code>.</div>
+    <div class="t-exp">Attendu : réponse <code>success: true</code>, avec le nombre de clés et de <b>lots</b> (2 lots pour 2 années). Un message « 20 clés maximum » signalerait une régression du découpage. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc d'essai : banc_synchro.js, scénarios 48 à 52.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T172" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T172" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T172" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T173"><div class="test-head"><span class="tid">T173</span><div class="test-body">
+    <div class="t-do">Modifier une cellule <b>à la main</b> dans GARDES_{année} du classeur, attendre 2 minutes, puis recharger une page du portail.</div>
+    <div class="t-exp">Attendu : la modification est prise en compte. Depuis le 05/08/2026, le classeur signale lui-même ses modifications manuelles ; sans cela, il fallait attendre la synchro horaire. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc d'essai : banc_miroir.js, scénario 6 · banc_google.js, scénario 36.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T173" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T173" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T173" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T174"><div class="test-head"><span class="tid">T174</span><div class="test-body">
+    <div class="t-do">Lancer le Diagnostic et lire le bloc « Journal d'intentions ».</div>
+    <div class="t-exp">Attendu : applicateur installé, et <b>file à 0</b> intention en attente. Une file qui grossit signifie que le serveur n'applique plus. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc d'essai : banc_google.js, scénario 34.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T174" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T174" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T174" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T175"><div class="test-head"><span class="tid">T175</span><div class="test-body">
+    <div class="t-do">Lire le bloc « Overrides planning » du Diagnostic.</div>
+    <div class="t-exp">Attendu : les éventuels <b>placements caducs</b> sont listés avec leur motif (« MAR absent ce jour-là »). Ce sont des placements ignorés à la publication ; la ligne reste au classeur et redevient active si le statut est retiré.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T175" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T175" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T175" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T176"><div class="test-head"><span class="tid">T176</span><div class="test-body">
+    <div class="t-do">Lire la ligne du <b>jeton GitHub</b> dans le Diagnostic.</div>
+    <div class="t-exp">Attendu : information au-delà de 30 jours, <b>orange</b> entre 30 et 11 jours, <b>ROUGE</b> à 10 jours ou moins. Sans jeton valide, plus aucune publication ne part. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc d'essai : banc_gestes.js, scénario 53.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T176" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T176" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T176" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T177"><div class="test-head"><span class="tid">T177</span><div class="test-body">
+    <div class="t-do">Couper le réseau (mode avion) juste après un placement, puis rétablir.</div>
+    <div class="t-exp">Attendu : le placement reste en attente (badge en bas à gauche), rien n'est perdu, et il repart seul au retour du réseau. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc d'essai : banc_chaos.js, scénarios 23 à 25.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T177" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T177" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T177" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T178"><div class="test-head"><span class="tid">T178</span><div class="test-body">
+    <div class="t-do">Sur mobile, laisser la page ouverte plus de 15 minutes, puis y revenir.</div>
+    <div class="t-exp">Attendu : les données se rafraîchissent seules, sans écran de chargement. En deçà de 15 minutes, tirer la page vers le bas pour forcer.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T178" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T178" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T178" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T179"><div class="test-head"><span class="tid">T179</span><div class="test-body">
+    <div class="t-do">Vérifier le sélecteur d'année dans l'en-tête d'admin.</div>
+    <div class="t-exp">Attendu : le chevron est présent et les années disponibles sont proposées (2026 et 2027). Une pastille sans chevron signale que la liste des années n'est pas arrivée. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc d'essai : banc_page.js, scénario 54.</div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T179" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T179" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T179" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+<h2><span class="n">P13</span>Cohérence de la documentation</h2>
   <p class="phase-sub">Une documentation fausse est pire que pas de documentation : elle est crue.</p>
 
   <div class="test" data-id="T150"><div class="test-head"><span class="tid">T150</span><div class="test-body">
