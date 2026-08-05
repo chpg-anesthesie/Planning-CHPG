@@ -1015,7 +1015,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.23'; // SITE_VERSION: v1.23
+const SITE_VERSION = 'v1.24'; // SITE_VERSION: v1.24
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1108,7 +1108,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.23</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.24</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1919,6 +1919,7 @@ async function _journalDeposer(intention) {
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 6000);
+    const _t0 = Date.now();
     const rep = await fetch(MIROIR_URL + '/ecrire', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: ADMIN_CODE, intention: intention }),
@@ -1926,6 +1927,13 @@ async function _journalDeposer(intention) {
     });
     clearTimeout(t);
     const r = await rep.json();
+    /* (v1.23.1) Les depots au journal entrent dans le chronometre : sans eux
+       on pilotait a l'aveugle sur la partie devenue la plus importante. */
+    try {
+      _journalAPI.push({ action: 'journal:' + intention.type, ms: Date.now() - _t0, essais: 1,
+                         depart: _t0 - _T0_PAGE,
+                         issue: (r && r.success) ? 'ok' : 'ECHEC — depot refuse par le journal' });
+    } catch (e) {}
     if (!(r && r.success)) return null;
     _tsEcriturePlanning = Date.now();   // meme garde de fraicheur que les ecritures directes
     _journalSuivre();
@@ -2028,7 +2036,7 @@ async function miroirRead(keys, codeAcces) {
 async function miroirBootAdmin(anneeVoulue, codeAcces) {
   const devine = anneeVoulue || new Date().getFullYear();
   const m = await miroirRead(['annees', 'secteurs', 'config_admin',
-                              'planning_' + devine, 'affectations_' + devine], codeAcces);
+                              'planning_' + devine, 'affectations_' + devine, 'mail_nonlus'], codeAcces);
   if (!m || !m.success || !m.identite) return (m && m.success === false) ? m : null;
   if (m.identite.role !== 'admin') return { nonAdmin: true, identite: m.identite };
   const active = anneeVoulue || (m.data && m.data.annees && Number(m.data.annees.active)) || devine;
@@ -2040,6 +2048,10 @@ async function miroirBootAdmin(anneeVoulue, codeAcces) {
   const cfg = m.data && m.data.config_admin;
   if (!plan || !cfg) return null;   // miroir incomplet → bootstrap GAS
   if (m.data.annees && Array.isArray(m.data.annees.annees)) _MIROIR_ANNEES = m.data.annees;
+  try {
+    const _mail = m.data['mail_nonlus'];              // (v1.23.1) badge courrier sans appel Google
+    if (_mail && _mail.success && typeof _mail.nonLus === 'number') majCompteurMail(_mail.nonLus);
+  } catch (e) {}
   _MIROIR_CFG = cfg || null;                     // (v1.21.2) pour reconstruire l'etage 2 au changement d'annee
   _MIROIR_SECTEURS = m.data.secteurs || null;
   // (etage 2) Contexte du calcul LOCAL du panneau — null si une piece manque,
@@ -2078,7 +2090,17 @@ async function ouvrirSession(code) {
         // (v1.21.1) Journal de connexion DIFFERE de 20 s : c'etait le premier
         // occupant de la file GAS a l'ouverture (2,5-5 s de barre bleue pour
         // un simple journal). L'horodatage decale de 20 s est sans importance.
-        try { setTimeout(function () { api({action: 'login', code}).catch(function () {}); }, 20000); } catch (e) {}
+        /* (v1.23.1) Journal de connexion en envoi A FOND PERDU : aucune
+           place dans la file, aucun delai d'attente, et il survit a la
+           fermeture de la page. On ne lit pas sa reponse : c'est un journal. */
+        try {
+          setTimeout(function () {
+            try {
+              const _b = new Blob([JSON.stringify({action:'login', code:code})], {type:'text/plain;charset=utf-8'});
+              if (!navigator.sendBeacon(API_URL, _b)) api({action:'login', code}).catch(function(){});
+            } catch (e) { try { api({action:'login', code}).catch(function(){}); } catch (e2) {} }
+          }, 20000);
+        } catch (e) {}
         return { ident: _mb.boot, boot: _mb.boot };
       }
       if (_mb && _mb.nonAdmin) return { ident: { success: true, role: _mb.identite.role }, boot: null };
@@ -2257,15 +2279,10 @@ function mailRetour(){
   document.getElementById('mailBody').style.display = 'block';
 }
 
-/* (04/08/2026, lot A) Liste des mails prechauffee a l'ouverture de la page.
-   Validite 2 min : au-dela, ou apres consommation, retour a l'appel direct. */
-let _mailPre = null;   // { t: Date.now(), r: reponse mailListe }
-async function _prechaufferMails() {
-  try {
-    const r = await api({action: 'mailListe', nb: 20});
-    if (r && r.success) _mailPre = { t: Date.now(), r: r };
-  } catch (e) { /* silencieux : chargerMail fera l'appel */ }
-}
+/* (v1.24) Prechauffage des mails RETIRE : plus aucun appelant depuis que le
+   compteur de non-lus vient du miroir (v1.23.1). La LISTE reste chargee au
+   clic sur l'enveloppe — donnee vivante, utile seulement quand on la lit. */
+let _mailPre = null;   // conserve : consomme par chargerMail s'il est un jour repose
 
 async function chargerMail(){
   const z = document.getElementById('mailBody');
@@ -3408,8 +3425,11 @@ async function initDashboard() {
      affichee a +8 s (nourrit le temoin ; avant elle, un premier panneau
      declenche lui-meme sa verification, en arriere-plan, sans bloquer), les
      mails a +15 s (l'appel Gmail est le plus lent de tous). */
-  setTimeout(function () { try { prechargerSemaine(); } catch (e) {} }, 8000);
-  setTimeout(function () { try { _prechaufferMails(); } catch (e) {} }, 15000);
+  /* (v1.23.1) PLUS AUCUN APPEL GOOGLE A L'OUVERTURE. Mesure du 05/08 a
+     09h43 : les deux chauffages restants ont coute 15,1 s et 20 s (echec)
+     pour zero valeur — le panneau est calcule sur la page (etage 2) et le
+     compteur de courrier arrive par le miroir. La liste des messages reste
+     chargee au clic sur l'enveloppe. */
 }
 
 // ── STATUS ─────────────────────────────────────────────────────────────
@@ -4187,6 +4207,16 @@ function _datesSemaineIdx(idx) {
    semaine de chauffage l'occupait 2,5-5 s, et placements, publications,
    Statuts et Affectations faisaient la queue derriere. Ne reste que le
    prechargement de la semaine AFFICHEE (1 appel, nourrit le temoin). */
+/* (v1.24) Cadence du temoin : 1re semaine, puis 1 sur 5 ; une anomalie remet
+   le compteur a zero (on reverifie la semaine suivante). */
+let _temoinCompteur = 0;
+function _temoinDoitVerifier_() {
+  const verifie = (_temoinCompteur % 5 === 0);
+  _temoinCompteur++;
+  return verifie;
+}
+function _temoinAnomalie_() { _temoinCompteur = 0; }
+
 function prechargerSemaine(force) {
   const toutes = _datesSemaineCourante();
   if (!toutes.length) return;
@@ -4202,6 +4232,16 @@ function prechargerSemaine(force) {
   _preEnCours = _precedent.catch(() => {}).then(() => {
     const restant = force ? toutes : toutes.filter(d => !_preSemaine[d]);
     if (!restant.length) return;          // le prechargement precedent a tout couvert
+    /* (v1.24) TEMOIN ECHANTILLONNE. Ce prechargement ne sert plus a AFFICHER
+       (le panneau est calcule sur la page depuis l'etage 2) : il sert de
+       TEMOIN — il compare la reponse du serveur au calcul local et signale
+       tout ecart. Or il partait a CHAQUE semaine parcourue : 2,5-5 s de file
+       Google occupee par semaine, qui retardaient les gestes passant encore
+       par le serveur (affectations, echanges de gardes).
+       Regle : la 1re semaine de la session, puis une sur cinq, et TOUJOURS
+       apres une anomalie (le compteur repart a zero). Filet conserve, trafic
+       divise par cinq. */
+    if (!_temoinDoitVerifier_()) { restant.forEach(d => { _preSemaine[d] = true; }); return; }
     return api({action: 'getPanneauSemaine', dates: restant})
     .then(res => _appliquerReponsePanneau_(res, restant));
   })
@@ -4375,6 +4415,7 @@ function _temoinDispo(date, sector, locale) {
       try { console.log('[DISPO-TEMOIN] concordance', date); } catch (e) {}
       return;
     }
+    try { _temoinAnomalie_(); } catch (e) {}   // (v1.24) ecart detecte : on reverifie la semaine suivante
     try { console.warn('[DISPO-TEMOIN] DIVERGENCE', date, '— le serveur corrige l\'affichage.',
                        { locale: locale, serveur: srv }); } catch (e) {}
     if (window._sideCtx && window._sideCtx.date === date) renderSidePanelContent(srv, sector);
