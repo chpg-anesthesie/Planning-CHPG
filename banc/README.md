@@ -1,5 +1,15 @@
 # Banc d'essai — Planning-CHPG
 
+> **RÈGLE DE TRAVAIL.** Avant toute proposition de push touchant `admin.html`,
+> un fichier `.gs`, `cloudflare/worker.js` ou `partage/dispo_jour.js` :
+> lancer le banc, ne présenter le patch qu'une fois **tout au vert**, et
+> annoncer le résultat chiffré. Toute fonctionnalité nouvelle ou tout défaut
+> corrigé se pousse **avec le test qui l'accompagne** — un défaut trouvé en
+> production devient un scénario du banc, pour qu'il ne revienne jamais.
+> Le banc prouve la **logique**, jamais l'infrastructure : « le banc est vert »
+> ne veut pas dire « ça marche en production ».
+
+
 Exécute le **vrai code** (fichiers `.gs`, `cloudflare/worker.js`, `admin.html`)
 dans un Google et un Cloudflare simulés. Sert à vérifier une modification
 **avant** de la déployer, plutôt qu'en production.
