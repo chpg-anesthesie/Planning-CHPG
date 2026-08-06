@@ -380,7 +380,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.27</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.24</span></span></p>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
@@ -474,7 +474,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.27'; // SITE_VERSION: v1.27
+const SITE_VERSION = 'v1.24'; // SITE_VERSION: v1.24
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -807,6 +807,80 @@ async function _refreshPlanSilently(year){
 function _todayStr(){ const d=new Date(), p=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
 function _daysUntil(dateStr){ const t=new Date(_todayStr()+'T00:00:00'), d=new Date(dateStr+'T00:00:00'); return Math.round((d-t)/86400000); }
 function _mgCap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+
+/* Rechargement des données, appelé par le glissement (voir plus bas) :
+   on vide les caches de la visite pour forcer une vraie lecture du miroir. */
+window.__rafraichirDonnees = async function () {
+  try {
+    Object.keys(_planCache).forEach(function (y) { delete _planCache[y]; });
+    try { Object.keys(sessionStorage).forEach(function (k) { if (k.indexOf('plan_') === 0) sessionStorage.removeItem(k); }); } catch (e) {}
+    if (typeof loadMyGardes === 'function') await loadMyGardes();
+    if (typeof loadMyConges === 'function') await loadMyConges();
+  } catch (e) {}
+};
+
+/* ═══ (05/08/2026) RAFRAÎCHIR EN TIRANT LA PAGE VERS LE BAS ═══
+   Constat du terrain : ajouté à l'écran d'accueil, le portail s'ouvre en mode
+   application (apple-mobile-web-app-capable) — et dans ce mode, iOS ne fournit
+   AUCUN rafraîchissement par glissement. Le geste faisait bouger l'écran sans
+   rien recharger. On le fournit donc nous-mêmes, à l'identique de ce que fait
+   Safari : même seuil, même indicateur circulaire, même sensation.
+   Conditions : page tout en haut, glissement vers le bas d'au moins 70 px,
+   un seul doigt. Sinon, on ne touche à rien — le défilement reste normal. */
+(function () {
+  var SEUIL = 70, depart = null, actif = false, enCours = false;
+
+  var ind = document.createElement('div');
+  ind.id = 'ptrInd';
+  ind.style.cssText = 'position:fixed;top:0;left:50%;margin-left:-17px;width:34px;height:34px;' +
+    'border-radius:50%;background:#fff;box-shadow:0 3px 12px rgba(15,23,42,.18);z-index:99998;' +
+    'display:flex;align-items:center;justify-content:center;font-size:16px;color:#DC2626;' +
+    'transform:translateY(-46px);transition:transform .18s ease-out;pointer-events:none';
+  ind.textContent = '↻';
+  document.addEventListener('DOMContentLoaded', function () { document.body.appendChild(ind); });
+
+  function place(y, tourne) {
+    ind.style.transform = 'translateY(' + Math.min(y, 74) + 'px)' + (tourne ? ' rotate(' + (y * 4) + 'deg)' : '');
+  }
+  function range() { ind.style.transform = 'translateY(-46px)'; }
+
+  document.addEventListener('touchstart', function (e) {
+    if (enCours || e.touches.length !== 1) { depart = null; return; }
+    depart = (window.scrollY || document.documentElement.scrollTop) <= 0 ? e.touches[0].clientY : null;
+    actif = false;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function (e) {
+    if (depart === null || enCours) return;
+    var d = e.touches[0].clientY - depart;
+    if (d <= 0) { depart = null; range(); return; }
+    if ((window.scrollY || document.documentElement.scrollTop) > 0) { depart = null; range(); return; }
+    actif = true;
+    place(d * 0.55 - 40, true);
+  }, { passive: true });
+
+  document.addEventListener('touchend', function (e) {
+    if (depart === null || !actif || enCours) { depart = null; range(); return; }
+    var d = (e.changedTouches[0].clientY - depart);
+    depart = null; actif = false;
+    if (d < SEUIL) { range(); return; }
+    enCours = true;
+    place(16, false);
+    ind.style.animation = 'ptrTourne .7s linear infinite';
+    Promise.resolve()
+      .then(function () { return window.__rafraichirDonnees ? window.__rafraichirDonnees() : null; })
+      .catch(function () {})
+      .then(function () {
+        setTimeout(function () {
+          ind.style.animation = ''; range(); enCours = false;
+        }, 320);
+      });
+  }, { passive: true });
+
+  var st = document.createElement('style');
+  st.textContent = '@keyframes ptrTourne{to{transform:translateY(16px) rotate(360deg)}}';
+  document.head.appendChild(st);
+})();
 
 async function _fetchPlanning(year){
   if(_planCache[year]) return _planCache[year];
