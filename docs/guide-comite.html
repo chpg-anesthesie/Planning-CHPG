@@ -106,6 +106,110 @@
   .geste b{color:#14532D}
   .vite{display:inline-block; font-family:var(--mono); font-size:12px; padding:1px 8px; border-radius:6px; background:var(--green-soft); color:var(--green); border:1px solid #86EFAC}
   .lent{display:inline-block; font-family:var(--mono); font-size:12px; padding:1px 8px; border-radius:6px; background:var(--amber-soft); color:var(--amber); border:1px solid #FCD34D}
+
+  /* ═══ Démonstrations animées — copie conforme de l'interface ═══
+     Toutes les valeurs (tailles, couleurs, bordures, graisses) sont relevées
+     dans admin.html : th-sector, day-name/day-date, am-pm-label, td-day,
+     slot-flash, slot-name, slot-new. CSS pur, aucune bibliothèque.
+     Elles illustrent le texte sans le remplacer, et se figent si l'appareil
+     demande de réduire les animations. */
+  .demo{background:var(--white); border:1px solid var(--line); border-radius:14px; padding:16px 18px 18px; margin:18px 0}
+  .demo-t{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3); margin-bottom:12px}
+  .scene{position:relative; background:var(--white); border:1px solid var(--line); border-radius:10px; overflow:hidden}
+
+  .gt{display:grid; grid-template-columns:118px 1fr 1fr}
+  .gt-s{padding:10px 12px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em;
+        color:var(--ink-3); background:var(--line-light); border-bottom:1px solid var(--line); border-right:1px solid var(--line)}
+  .gt-j{padding:8px 6px 6px; text-align:center; background:var(--white);
+        border-bottom:1px solid var(--line); border-right:1px solid var(--line)}
+  .gt-j .jn{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-3); margin-bottom:1px}
+  .gt-j .jd{font-size:18px; font-weight:700; color:var(--ink); line-height:1; margin-bottom:6px}
+  .ampm{display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:4px}
+  .ampm div{font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+            color:#fff; background:var(--red); border-radius:4px; padding:2px 0; text-align:center}
+  .ampm div.pm{background:#94A3B8}
+
+  .grow{display:grid; grid-template-columns:118px 1fr 1fr; border-bottom:1px solid #CBD5E1}
+  .gsect{padding:8px 12px; font-size:13px; font-weight:700; color:var(--ink); line-height:1.2;
+         display:flex; align-items:center; gap:8px; border-right:1px solid var(--line)}
+  .gsect i{width:10px; height:10px; border-radius:3px; flex-shrink:0}
+  .gcell{padding:4px 3px; border-right:1px solid var(--line); min-height:38px;
+         display:grid; grid-template-columns:1fr 1fr; gap:2px; align-content:start}
+  .nom{display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;
+       font-family:var(--mono); padding:2px 4px; border-radius:5px; background:#F1F5F9; color:var(--ink-2)}
+  .flash{display:inline-flex; align-items:center; justify-content:center; width:28px; height:20px;
+         border-radius:4px; font-size:14px; font-weight:700; border:1.5px dashed #F97316;
+         background:#FFF7ED; color:#F97316; justify-self:center}
+  .curseur{position:absolute; width:15px; height:15px; border-radius:50%; background:rgba(220,38,38,.20);
+           border:2px solid var(--red); opacity:0; z-index:6; pointer-events:none}
+
+  .pan{position:absolute; right:8px; top:30px; width:172px; background:var(--white); border:1px solid var(--line);
+       border-radius:14px; box-shadow:0 12px 32px rgba(15,23,42,.16); overflow:hidden; opacity:0;
+       transform:translateY(-6px); z-index:5}
+  .pan-h{padding:10px 12px 8px; border-bottom:1px solid var(--line)}
+  .pan-t{font-size:13px; font-weight:700; color:var(--ink)}
+  .pan-s{font-size:10.5px; color:var(--ink-3); margin-top:2px}
+  .pan-i{padding:7px 12px; font-size:11.5px; color:var(--ink-2); display:flex; justify-content:space-between; align-items:center}
+  .pan-i b{font-weight:700; font-family:var(--mono)}
+  .pan-i span{font-size:9.5px; color:var(--ink-3); text-transform:uppercase; letter-spacing:.05em}
+  .pan-i.choisi{background:var(--red-soft); color:var(--red)}
+  .pan-i.choisi span{color:var(--red)}
+
+  @keyframes c1{0%,6%{opacity:0;left:26%;top:78%} 10%{opacity:1;left:26%;top:78%}
+                26%{opacity:1;left:57%;top:56%} 32%{opacity:1;left:57%;top:56%;transform:scale(.72)}
+                37%{transform:scale(1)} 54%{opacity:1;left:82%;top:47%} 59%{transform:scale(.72)}
+                64%{transform:scale(1)} 72%,100%{opacity:0;left:82%;top:47%}}
+  @keyframes p1{0%,30%{opacity:0;transform:translateY(-6px)} 36%,62%{opacity:1;transform:translateY(0)}
+                68%,100%{opacity:0;transform:translateY(-6px)}}
+  @keyframes f1{0%,62%{opacity:1} 65%,100%{opacity:0}}
+  @keyframes n1{0%,64%{opacity:0;transform:scale(.9)} 68%,93%{opacity:1;transform:scale(1)} 97%,100%{opacity:0}}
+  .demo1 .curseur{animation:c1 8s ease-in-out infinite}
+  .demo1 .pan{animation:p1 8s ease-in-out infinite}
+  .demo1 .flash.cible{animation:f1 8s ease-in-out infinite}
+  .demo1 .nom.pose{position:absolute; opacity:0; outline:2px solid #86EFAC; background:#F0FDF4 !important;
+                   color:#166534 !important; animation:n1 8s ease-in-out infinite}
+
+  .voyant{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--ink-2)}
+  .voyant i{width:7px; height:7px; border-radius:50%; background:#F59E0B}
+  .btnpub{display:inline-flex; align-items:center; gap:5px; background:var(--red); color:#fff;
+          font-size:11.5px; font-weight:700; padding:7px 15px; border-radius:9px}
+  .msg{position:absolute; left:10px; right:10px; bottom:9px; background:#065F46; color:#fff; font-size:11px;
+       font-weight:600; padding:8px 11px; border-radius:9px; opacity:0; z-index:6}
+  @keyframes c2{0%,8%{opacity:0;left:22%;top:62%} 14%{opacity:1;left:22%;top:62%}
+                36%{opacity:1;left:78%;top:32%} 42%{transform:scale(.72)} 47%{transform:scale(1)} 58%,100%{opacity:0}}
+  @keyframes m2{0%,44%{opacity:0;transform:translateY(6px)} 50%,88%{opacity:1;transform:translateY(0)} 94%,100%{opacity:0}}
+  @keyframes v2{0%,46%{background:#F59E0B} 52%,100%{background:#16A34A}}
+  @keyframes b2{0%,42%{background:var(--red)} 46%,52%{background:#991B1B} 58%,100%{background:var(--red)}}
+  @keyframes e2a{0%,48%{opacity:1} 52%,100%{opacity:0}}
+  @keyframes e2b{0%,48%{opacity:0} 52%,100%{opacity:1}}
+  .demo2 .curseur{animation:c2 8s ease-in-out infinite}
+  .demo2 .msg{animation:m2 8s ease-in-out infinite}
+  .demo2 .voyant i{animation:v2 8s ease-in-out infinite}
+  .demo2 .btnpub{animation:b2 8s ease-in-out infinite}
+  .demo2 .etat1{animation:e2a 8s ease-in-out infinite}
+  .demo2 .etat2{opacity:0; position:absolute; left:0; animation:e2b 8s ease-in-out infinite}
+
+  @keyframes d3{0%,10%{opacity:0;top:24%} 16%{opacity:1;top:24%} 42%{opacity:1;top:60%}
+                52%{opacity:1;top:60%} 64%{opacity:0;top:24%} 100%{opacity:0}}
+  @keyframes pg3{0%,16%{transform:translateY(0)} 42%,52%{transform:translateY(18px)} 66%,100%{transform:translateY(0)}}
+  @keyframes fl3{0%,20%{opacity:0;transform:rotate(0)} 40%{opacity:1;transform:rotate(200deg)}
+                 58%{opacity:1;transform:rotate(380deg)} 66%,100%{opacity:0}}
+  .demo3 .curseur{animation:d3 6.5s ease-in-out infinite}
+  .demo3 .feuille{animation:pg3 6.5s ease-in-out infinite}
+  .demo3 .fleche{position:absolute; left:50%; top:7px; margin-left:-8px; font-size:15px; color:var(--red);
+                 opacity:0; z-index:2; animation:fl3 6.5s ease-in-out infinite}
+
+  @media (prefers-reduced-motion: reduce){
+    .demo1 *,.demo2 *,.demo3 *{animation:none !important}
+    .demo1 .pan,.demo1 .curseur,.demo2 .curseur,.demo3 .curseur,.demo2 .msg{opacity:1}
+    .demo1 .nom.pose{opacity:0}
+  }
+  @media print{ .demo{display:none} }
+
+  @media print{ .demo{display:none} }
+
+  @media print{ .demo{display:none} }
+
   @media print{
     body{background:#fff; padding:0; font-size:12.5px}
     .toc ol{columns:2}
@@ -119,7 +223,7 @@
   <div class="eyebrow">Planning-CHPG · document interne au comité</div>
   <h1><span class="flag"><i class="r"></i><i class="w"></i></span>Guide du comité</h1>
   <p class="subtitle">Conduire le planning : tous les écrans, tous les gestes, et ce qui se passe derrière.</p>
-  <p class="maj">Mis à jour le 5 août 2026 · <span id="verBadge">v1.27</span></p>
+  <p class="maj">Mis à jour le 5 août 2026 · <span id="verBadge">v1.28</span></p>
 
   <div class="hero">
     <h2>En 2 minutes</h2>
@@ -146,6 +250,7 @@
       <li><a href="#s9"><span class="n">09</span>Le staff vacances</a></li>
       <li><a href="#s10"><span class="n">10</span>Les trois rendez-vous annuels</a></li>
       <li><a href="#s11"><span class="n">11</span>Maintenance et diagnostic</a></li>
+      <li><a href="#s11b"><span class="n">11b</span>La messagerie du portail</a></li>
       <li><a href="#s12"><span class="n">12</span>Vitesse : ce qui est instantané, ce qui ne l'est pas</a></li>
       <li><a href="#s13"><span class="n">13</span>Quand ça ne va pas</a></li>
     </ol>
@@ -174,6 +279,39 @@
       <li>Trois secondes après votre dernier clic, l'ensemble part s'enregistrer. Un badge en bas à gauche le signale, puis disparaît.</li>
     </ol>
 
+    <div class="demo demo1">
+      <div class="demo-t">Placer un MAR — la séquence</div>
+      <div class="scene">
+        <div class="gt">
+          <div class="gt-s">Secteur</div>
+          <div class="gt-j"><div class="jn">Lun</div><div class="jd">4</div><div class="ampm"><div>AM</div><div class="pm">PM</div></div></div>
+          <div class="gt-j"><div class="jn">Mar</div><div class="jd">5</div><div class="ampm"><div>AM</div><div class="pm">PM</div></div></div>
+        </div>
+        <div class="grow">
+          <div class="gsect"><i style="background:#2563EB"></i>Bloc viscéral</div>
+          <div class="gcell"><span class="nom">LUL</span><span class="nom">LL</span><span class="nom">CS</span></div>
+          <div class="gcell"><span class="nom">LUL</span><span class="nom">CS</span></div>
+        </div>
+        <div class="grow">
+          <div class="gsect"><i style="background:#DC2626"></i>Réanimation</div>
+          <div class="gcell"><span class="nom">SG</span><span class="nom">RM</span><span class="flash cible">+</span><span class="nom pose">GR</span></div>
+          <div class="gcell"><span class="nom">SG</span><span class="nom">RM</span></div>
+        </div>
+        <div class="grow" style="border-bottom:none">
+          <div class="gsect"><i style="background:#EA580C"></i>Orthopédie</div>
+          <div class="gcell"><span class="nom">GA</span></div>
+          <div class="gcell"><span class="nom">GA</span></div>
+        </div>
+        <div class="pan">
+          <div class="pan-h"><div class="pan-t">Affecter en Réanimation</div><div class="pan-s">REA · AM · lundi 4 janvier</div></div>
+          <div class="pan-i choisi"><b>GR</b> <span>volant</span></div>
+          <div class="pan-i"><b>NP</b> <span>volant</span></div>
+          <div class="pan-i"><b>JC</b> <span>temps partiel</span></div>
+        </div>
+        <div class="curseur"></div>
+      </div>
+    </div>
+
     <div class="callout tip">
       <div class="ct">Comment le panneau choisit qui proposer</div>
       <p>Il ne propose que les MAR <b>présents</b> ce jour-là, en excluant congés, formations, récupérations et gardes. Les <b>volants</b> sont présentés en premier — ce sont eux le vivier — puis les temps partiels en dernier : un MAR en TP reste plaçable, en dernier recours.</p>
@@ -191,6 +329,18 @@
 
     <h3>Publier</h3>
     <div class="geste"><b>Le geste :</b> cliquez <span class="btn-ex red">Publier</span> une fois, en fin de séance. Le message « Publication en route — vous pouvez fermer la page » apparaît en moins d'une seconde. C'est tout : vous pouvez partir.</div>
+    <div class="demo demo2">
+      <div class="demo-t">Publier — puis fermer la page</div>
+      <div class="scene" style="padding:12px 14px 46px">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px">
+          <span class="voyant"><i></i>Vue équipe&nbsp;<b style="position:relative"><span class="etat1">À publier</span><span class="etat2">Publié</span></b></span>
+          <span class="btnpub">⬆️ Publier</span>
+        </div>
+        <div class="msg">📤 Publication en route — vous pouvez fermer la page.</div>
+        <div class="curseur"></div>
+      </div>
+    </div>
+
     <div class="callout rule">
       <div class="ct">Publier fige une photo de l'instant</div>
       <p>Tout ce qui est fait <b>avant</b> le clic est publié, y compris les placements des dernières secondes. Tout ce qui est fait <b>après</b> attendra la publication suivante — c'est enregistré, mais invisible des MAR. Si vous replacez quelque chose après avoir publié, <b>recliquez Publier</b> : c'est instantané.</p>
@@ -364,6 +514,22 @@
     <a class="backtop" href="#">↑ Sommaire</a>
   </section>
 
+  <section id="s11b">
+    <h2><span class="n">11b</span>La messagerie du portail</h2>
+    <p>Les MAR écrivent à <b>planningchpg@gmail.com</b>. Le bouton <b>Messages</b>, en haut de l'interface, donne accès à cette boîte sans quitter l'écran.</p>
+    <table>
+      <tr><th>Ce que fait la messagerie</th><th>Ce qu'elle ne fait pas</th></tr>
+      <tr><td>Affiche les 20 derniers messages reçus</td><td>Elle ne permet pas de répondre : la réponse se fait depuis votre propre messagerie</td></tr>
+      <tr><td>Signale le nombre de messages non lus</td><td>Elle n'envoie aucune alerte : le compteur n'est visible qu'en ouvrant l'interface</td></tr>
+      <tr><td>Marque un message comme lu quand vous l'ouvrez</td><td>Elle ne classe ni n'archive les messages</td></tr>
+    </table>
+    <div class="callout tip">
+      <div class="ct">Le compteur peut être en retard</div>
+      <p>Le nombre de non-lus est rafraîchi périodiquement, pas en direct : il peut afficher un état vieux de quelques minutes. Ouvrir la boîte donne toujours la liste à jour.</p>
+    </div>
+    <a class="backtop" href="#">↑ Sommaire</a>
+  </section>
+
   <section id="s12">
     <h2><span class="n">12</span>Vitesse : ce qui est instantané, ce qui ne l'est pas</h2>
     <p>Tout n'a pas la même vitesse, et c'est délibéré. Savoir ce qui est normal évite de croire à une panne.</p>
@@ -430,7 +596,7 @@
     <a class="backtop" href="#">↑ Sommaire</a>
   </section>
 
-  <div class="foot">Planning-CHPG · Guide du comité · version <span>v1.27</span> · document interne</div>
+  <div class="foot">Planning-CHPG · Guide du comité · version <span>v1.28</span> · document interne</div>
 
 </div>
 </body>
