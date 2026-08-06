@@ -2831,6 +2831,81 @@ function renderMobileDay() {
 // données de l'année affichée (sinon un onglet gardé ouvert des jours montre
 // un planning périmé).
 let _lastFetch = Date.now();
+/* Rechargement des données, appelé par le glissement (voir plus bas) et
+   réutilisant exactement le chemin du retour au premier plan. */
+window.__rafraichirDonnees = async function () {
+  try {
+    delete PLANNING_CACHE[currentYear]; delete AFF_CACHE[currentYear];
+    _lastFetch = Date.now();
+    await loadYear(currentYear);
+    buildWeekNav(); render();
+    if (currentMainView === 'medecins') renderMedecins();
+  } catch (e) {}
+};
+
+/* ═══ (05/08/2026) RAFRAÎCHIR EN TIRANT LA PAGE VERS LE BAS ═══
+   Constat du terrain : ajouté à l'écran d'accueil, le portail s'ouvre en mode
+   application (apple-mobile-web-app-capable) — et dans ce mode, iOS ne fournit
+   AUCUN rafraîchissement par glissement. Le geste faisait bouger l'écran sans
+   rien recharger. On le fournit donc nous-mêmes, à l'identique de ce que fait
+   Safari : même seuil, même indicateur circulaire, même sensation.
+   Conditions : page tout en haut, glissement vers le bas d'au moins 70 px,
+   un seul doigt. Sinon, on ne touche à rien — le défilement reste normal. */
+(function () {
+  var SEUIL = 70, depart = null, actif = false, enCours = false;
+
+  var ind = document.createElement('div');
+  ind.id = 'ptrInd';
+  ind.style.cssText = 'position:fixed;top:0;left:50%;margin-left:-17px;width:34px;height:34px;' +
+    'border-radius:50%;background:#fff;box-shadow:0 3px 12px rgba(15,23,42,.18);z-index:99998;' +
+    'display:flex;align-items:center;justify-content:center;font-size:16px;color:#DC2626;' +
+    'transform:translateY(-46px);transition:transform .18s ease-out;pointer-events:none';
+  ind.textContent = '↻';
+  document.addEventListener('DOMContentLoaded', function () { document.body.appendChild(ind); });
+
+  function place(y, tourne) {
+    ind.style.transform = 'translateY(' + Math.min(y, 74) + 'px)' + (tourne ? ' rotate(' + (y * 4) + 'deg)' : '');
+  }
+  function range() { ind.style.transform = 'translateY(-46px)'; }
+
+  document.addEventListener('touchstart', function (e) {
+    if (enCours || e.touches.length !== 1) { depart = null; return; }
+    depart = (window.scrollY || document.documentElement.scrollTop) <= 0 ? e.touches[0].clientY : null;
+    actif = false;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function (e) {
+    if (depart === null || enCours) return;
+    var d = e.touches[0].clientY - depart;
+    if (d <= 0) { depart = null; range(); return; }
+    if ((window.scrollY || document.documentElement.scrollTop) > 0) { depart = null; range(); return; }
+    actif = true;
+    place(d * 0.55 - 40, true);
+  }, { passive: true });
+
+  document.addEventListener('touchend', function (e) {
+    if (depart === null || !actif || enCours) { depart = null; range(); return; }
+    var d = (e.changedTouches[0].clientY - depart);
+    depart = null; actif = false;
+    if (d < SEUIL) { range(); return; }
+    enCours = true;
+    place(16, false);
+    ind.style.animation = 'ptrTourne .7s linear infinite';
+    Promise.resolve()
+      .then(function () { return window.__rafraichirDonnees ? window.__rafraichirDonnees() : null; })
+      .catch(function () {})
+      .then(function () {
+        setTimeout(function () {
+          ind.style.animation = ''; range(); enCours = false;
+        }, 320);
+      });
+  }, { passive: true });
+
+  var st = document.createElement('style');
+  st.textContent = '@keyframes ptrTourne{to{transform:translateY(16px) rotate(360deg)}}';
+  document.head.appendChild(st);
+})();
+
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState !== 'visible' || !DATA) return;
   if (Date.now() - _lastFetch < 15*60*1000) return;
