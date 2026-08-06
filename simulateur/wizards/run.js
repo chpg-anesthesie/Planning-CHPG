@@ -99,7 +99,7 @@ function expect(label, cond) {
 (async () => {
   // ═══ W1 : init échoue à l'étape 4 → Réessayer ne rejoue que l'étape 4 ═══
   console.log('━━ W1 : étape 4 KO → reprise ━━');
-  ['wiz-i1','wiz-i2','wiz-i3','wiz-i4','wiz-i5','wizNextBtn','wizBackBtn'].forEach(id => els[id] = mkEl(id));
+  ['wiz-i1','wiz-i2','wiz-i3','wiz-i4','wizNextBtn','wizBackBtn'].forEach(id => els[id] = mkEl(id));
   window._wizIndisposExists = false;
   apiScript = [OK, OK, OK, KO]; apiLog = [];
   await launchWizInit();
@@ -109,7 +109,7 @@ function expect(label, cond) {
   expect('1er essai = 4 appels (periodes, groupes, initYear, setIndisposYear)',
     firstLog === 'savePeriodes,saveGroupes,initYear,setIndisposYear');
   expect('retry ne rejoue que setIndisposYear', apiLog.join(',') === 'setIndisposYear');
-  expect('les 5 étapes finissent done', ['wiz-i1','wiz-i2','wiz-i3','wiz-i4','wiz-i5'].every(id => els[id]._cls.has('done')));
+  expect('les 4 étapes finissent done', ['wiz-i1','wiz-i2','wiz-i3','wiz-i4'].every(id => els[id]._cls.has('done')));
 
   // ═══ W2-S1 : génération OK, publication KO → reprise sans regénérer ═══
   console.log('━━ W2-S1 : publication KO → reprise ━━');
@@ -176,9 +176,11 @@ function expect(label, cond) {
     getUi: () => { throw new Error('no UI'); },
   };
   global.Logger = { log: () => {} };
-  global.UrlFetchApp = { fetch: () => { throw new Error('SENTINELLE réseau'); } };
-  global.getGithubToken = () => 'x';
-  global.Utilities = { base64Encode: () => '', newBlob: () => ({ getBytes: () => [] }) };
+  // (05/08/2026) archiveYear n'écrit plus sur GitHub : les JSON partent sur Drive
+  // via savePlanningToDrive (code.gs). On enregistre les écritures pour prouver
+  // que le chemin normal est emprunté (l'ancienne sentinelle UrlFetchApp est morte).
+  let driveWrites = [];
+  global.savePlanningToDrive = name => { driveWrites.push(name); };
   global.buildDateToCol = () => ({});
   global.reconstruireDatesHeaders = () => [];
   (0, eval)(extractFn(setupSrc, 'archiveYear'));
@@ -193,9 +195,46 @@ function expect(label, cond) {
   expect('vrai problème → ❌ conservé (blocage protecteur)', !dispatchOk(archiveYear(2026)));
 
   MASTER = { STATS_GARDES_2026: mkSheet([['ID','TOTAL G'],['ABC',12]]), HISTORIQUE: mkSheet([['ID','ANNEE']]) };
-  let sentinelle = false;
-  try { archiveYear(2026); } catch (e) { sentinelle = /SENTINELLE/.test(e.message); }
-  expect('archivage normal → garde transparente (chemin habituel emprunté)', sentinelle);
+  driveWrites = [];
+  const rapNormal = archiveYear(2026, false);
+  expect('archivage normal → garde transparente (chemin habituel emprunté)',
+    dispatchOk(rapNormal) && driveWrites.includes('archives_stats_2026.json'));
+
+  // ═══ archiveYear : purge PLANNING_OVERRIDES (retouches quotidiennes) ═══
+  // Le point sensible de la clôture : la purge supprime les retouches ≤ année close.
+  // On prouve : (a) lignes ≤ year supprimées, (b) lignes futures CONSERVÉES,
+  // (c) purge SAUTÉE si l'archivage a échoué (garde archiveOk).
+  console.log('━━ archiveYear : purge des OVERRIDES ━━');
+  function mkOverridesSheet(rows) {
+    const sh = mkSheet(rows);
+    sh.cleared = false; sh.written = null;
+    sh.getRange = () => ({
+      clearContent: () => { sh.cleared = true; },
+      setValues: v => { sh.written = v; },
+      setFontWeight: () => {},
+    });
+    return sh;
+  }
+
+  let po = mkOverridesSheet([
+    ['DATE','MAR','SLOT','VAL'],
+    ['2025-12-31','X','am','G'],
+    ['2026-05-10','Y','pm','G2'],
+    ['2027-01-05','Z','am','G'],
+  ]);
+  MASTER = { STATS_GARDES_2026: mkSheet([['ID','TOTAL G'],['ABC',12]]),
+             HISTORIQUE: mkSheet([['ID','ANNEE']]), PLANNING_OVERRIDES: po };
+  const rapPurge = archiveYear(2026, false);
+  expect('purge : les lignes ≤ 2026 sont supprimées (2 sur 3)',
+    /PLANNING_OVERRIDES : 2 ligne\(s\)/.test(String(rapPurge)) && po.cleared);
+  expect('purge : la ligne 2027 est conservée',
+    !!po.written && po.written.length === 1 && po.written[0][0] === '2027-01-05');
+
+  po = mkOverridesSheet([['DATE'],['2026-05-10']]);
+  MASTER = { HISTORIQUE: mkSheet([['ID','ANNEE'],['ABC',2025]]), PLANNING_OVERRIDES: po };
+  ARCHIVE = {};
+  archiveYear(2026, false);
+  expect('archivage en échec → OVERRIDES intacts (purge sautée)', !po.cleared && !po.written);
 
   console.log(failures === 0 ? '\n🎉 TOUS LES SCÉNARIOS PASSENT' : `\n❌ ${failures} scénario(s) en échec`);
   process.exit(failures === 0 ? 0 : 1);
