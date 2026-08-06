@@ -36,7 +36,7 @@ function toucher(w, type, y) {
 }
 
 (async () => {
-  for (const [nom, fichier] of [['index.html', '../index_ptr.html'], ['dashboard.html', '../dashboard_ptr.html']]) {
+  for (const [nom, fichier] of [['index.html', '../live_index.html'], ['dashboard.html', '../live_dashboard.html']]) {
     console.log(`\n═══ ${nom} ═══`);
     const { w, erreurs } = await page(fichier);
     V('la page se charge sans erreur', erreurs.length === 0, erreurs.slice(0,2));
@@ -97,6 +97,17 @@ function toucher(w, type, y) {
     toucher(w, 'touchstart', 100); toucher(w, 'touchmove', 170); toucher(w, 'touchend', 210);
     await dodo(60);
     V('après un échec, le geste fonctionne encore', repris === 1, repris);
+  }
+
+  console.log('\n═══ Le témoin ne s\'allume plus pour le journal de connexion ═══');
+  {
+    for (const [nom, fichier] of [['index.html', '../live_index.html'], ['dashboard.html', '../live_dashboard.html']]) {
+      const src = fs.readFileSync(fichier, 'utf8');
+      V(nom + ' : le journal part à fond perdu (sendBeacon)', /sendBeacon\(API_URL/.test(src));
+      V(nom + ' : plus d\'appel bloquant pour le journal',
+        !/try \{ apiPost\(\{ action: 'login' \}\)\.catch\(function \(\) \{\}\); \} catch \(e\) \{\}\n/.test(src));
+      V(nom + ' : un repli existe si l\'envoi direct échoue', /if \(!_envoye\)/.test(src));
+    }
   }
 
   console.log(`\n${ok} OK · ${ko} en échec`);

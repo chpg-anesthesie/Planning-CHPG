@@ -605,7 +605,18 @@ async function miroirBootDash() {
   if (plan) { _planCache[active] = plan; _ssPlanSet(active, plan); }
   applyUserBadge(m.identite || {});
   /* Journal de connexion : login GAS en arriere-plan, resultat ignore. */
-  try { apiPost({ action: 'login' }).catch(function () {}); } catch (e) {}
+  /* (06/08/2026) Journal de connexion en envoi A FOND PERDU.
+     Il n'apporte rien a l'ecran : il alimente l'onglet CONNEXIONS. En passant
+     par le circuit normal, il allumait pourtant le temoin d'activite pendant
+     2 a 3 secondes a CHAQUE ouverture de page — un clignotement sans cause
+     visible pour l'utilisateur. sendBeacon l'envoie hors de la file, sans
+     attendre de reponse, et survit meme a la fermeture de l'onglet. */
+  try {
+    const _p = JSON.stringify({ action: 'login', code: VIEW_CODE });
+    let _envoye = false;
+    try { _envoye = navigator.sendBeacon(API_URL, new Blob([_p], { type: 'text/plain;charset=utf-8' })); } catch (e) {}
+    if (!_envoye) { try { apiPost({ action: 'login' }).catch(function () {}); } catch (e) {} }
+  } catch (e) {}
   return true;
 }
 
