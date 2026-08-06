@@ -4,17 +4,17 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.24** ·
-**GAS** `code.gs` 2026-08-05.3 · `Indispos.gs` 2026-08-05.11 · `miroir.gs` 2026-08-05.8 ·
-`journal.gs` 2026-08-05.3 · `portail.gs` 2026-08-02.1 ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.28** ·
+**GAS** `code.gs` 2026-08-05.3 · `Indispos.gs` 2026-08-05.13 · `miroir.gs` 2026-08-05.10 ·
+`journal.gs` 2026-08-05.3 · `portail.gs` 2026-08-05.2 ·
 `generateur_gardes.gs` 2026-07-31.3 · `setup_annee.gs` 2026-08-03.1 ·
-**Worker** `cloudflare/worker.js` 2026-08-05.6
+**Worker** `cloudflare/worker.js` 2026-08-05.7
 
-**Banc d'essai** `banc/` — 181 vérifications, `cd banc && ./lancer.sh`.
-À lancer AVANT toute proposition de push touchant `admin.html`, un `.gs`,
+**Banc d'essai** `banc/` — 440 vérifications, `cd banc && ./lancer.sh`.
+À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 5 août 2026.*
+*Mise à jour : 6 août 2026.*
 
 > **Le dépôt en ligne fait foi.** Ce document est un repère de pilotage, pas la source de vérité
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
@@ -22,6 +22,63 @@ le Worker ou `partage/dispo_jour.js`.
 > `docs/module-liberal/module_liberal_conception.md`.
 
 ---
+
+## 6 août 2026 — v1.28 : plus aucun appel inutile, guides refondus
+
+**Livré**
+
+- **Volet libéral par le miroir** (`portail.gs .2`, `miroir.gs .9`, Worker .7) :
+  réponse allégée aux trois champs affichés — les montants restent au
+  classeur — puis clé `liberal_{année}`, admin seule. Affichage instantané
+  (3,8 s et 9,6 s mesurés auparavant).
+- **Envoi du miroir par paquets de 20 clés** (`miroir.gs .10`) : la synchro
+  complète échouait en bloc (« 20 clés maximum ») depuis l'ajout des familles
+  courrier et libérale. Éprouvé jusqu'à cinq années (38 clés).
+- **Alerte du jeton GitHub** (`Indispos.gs .13`) : ROUGE à 10 jours, orange à
+  30, message centré sur la conséquence (« plus aucune publication ne part »).
+- **Sélecteur d'année** (v1.26.2) : la liste du miroir fait foi pour toutes les
+  années, futures comprises. 2027 disparaissait dès que le booléen
+  `anneeSuivante` n'arrivait pas.
+- **Message de publication unique et exact** (v1.26.1) : « Publication en
+  route — vous pouvez fermer la page » au lieu d'un « publié en ligne » faux.
+- **Panneau Modifications** (v1.27) : gardes lues au miroir, et surtout un
+  échec n'est plus mémorisé comme une réponse vide (« aucune garde à cette
+  date » affiché indéfiniment). Message + bouton Réessayer.
+- **Rafraîchissement par glissement** (v1.28, index + dashboard) : iOS ne le
+  fournit pas en mode application. Seuil 70 px, indicateur circulaire,
+  ignoré si la page est défilée ou si le geste va vers le haut.
+- **Journal de connexion en envoi à fond perdu** (index + dashboard) : le
+  témoin d'activité ne s'allume plus sans raison visible.
+- **Guides refondus** (MAR : 9 sections · comité : 14) : « En 2 minutes »,
+  sections « je veux faire quoi », dépliables, blocs « Le geste », animations
+  CSS conformes à l'interface, messagerie du portail. Corrections d'Arthur
+  intégrées via export texte étiqueté (aller-retour Pages, zéro bloc perdu).
+- **Cahier de tests** : 179 points, 5 corrigés, section P15 ajoutée, 40+
+  marqués comme couverts par le banc.
+
+**Banc d'essai : 181 → 440 vérifications, 20 scripts**
+
+Ajouts : accès et rôles (P1), scénarios catastrophe (P12), équipe et absences
+longues (P5), garde-fous annuels (P11), indisponibilités (P6), calendrier et
+fériés monégasques (P2/P3), plafond de clés, rafraîchissement par glissement.
+
+**Corrections de méthode**
+
+- Un lot de fichiers se pousse en **UN SEUL COMMIT** (API git/trees) : sept
+  push séparés = sept publications, six annulées, mise en ligne retardée.
+- Toute modification repart de **la version en ligne**, jamais d'une copie
+  locale — un `dashboard.html` reconstruit depuis une copie périmée a affiché
+  v1.24 après un push v1.28.
+
+**Reste à faire**
+
+- Séance PC : recopier `portail.gs`, `miroir.gs`, `Indispos.gs` + Worker,
+  déployer une nouvelle version, relancer `miroirSyncComplet`.
+- Relecture des guides par Arthur (fichiers texte étiquetés fournis).
+- Captures d'écran dans les guides, si souhaité.
+- `gardeExceptionnelle` : code mort côté serveur, aucun bouton ne l'appelle.
+- Répétition générale du cahier (P1 à P6) fin août, avant la démo du 4/09.
+- Renouvellement du jeton GitHub : **mi-octobre 2026**.
 
 ## 5 août 2026 — Journal d'intentions, banc d'essai, statut vs placement
 

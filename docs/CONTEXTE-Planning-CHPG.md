@@ -11,6 +11,81 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 6 août 2026 — v1.28, guides refondus, banc à 440 vérifications
+
+**Site v1.28.** GAS : `code.gs 2026-08-05.3`, `Indispos.gs 2026-08-05.13`,
+`miroir.gs 2026-08-05.10`, `journal.gs 2026-08-05.3`, `portail.gs 2026-08-05.2`.
+Worker `2026-08-05.7`.
+
+### Ce que la journée du 5-6 août a livré, dans l'ordre
+
+- **Journal d'intentions** : les gestes du comité (placements, statuts,
+  publication) ne passent plus par Apps Script. Mesuré chez Arthur :
+  **171-189 ms** au lieu de 4 à 37 s. Chaque dépôt garde son repli GAS.
+- **Accroche miroir différée**, puis **envoi par paquets de 20 clés** : la
+  synchro complète construit 23 clés (28 avec 2028, 38 avec cinq années) pour
+  un plafond de 20 — elle échouait EN BLOC, filet horaire hors service.
+- **Le dernier geste gagne** : poser V/F/TP/CL/A retire les placements du
+  jour. TP et R restent plaçables (réquisition en dernier recours).
+- **Atomicité des modifications de gardes** : un refus ne laisse plus rien de
+  modifié. Vérifié en production sur ARMANDO/MENADE, classeur relu.
+- **Zéro appel Apps Script à l'ouverture** des trois pages : témoin
+  échantillonné puis retiré, volet libéral par le miroir, compteur de courrier
+  par le miroir, journal de connexion en envoi à fond perdu.
+- **Volet libéral mirroré** après allègement de `listLiberalJour` : les
+  montants (br CCAM/NGAP) ne quittent plus le classeur.
+- **Alerte du jeton GitHub** : information > 30 j, orange 30-11 j, ROUGE ≤ 10 j.
+- **Rafraîchissement par glissement** (index, dashboard) : iOS ne le fournit
+  pas en mode application (`apple-mobile-web-app-capable`), le geste bougeait
+  l'écran sans rien recharger — et le guide MAR l'annonçait pourtant.
+- **Guides refondus** : bloc « En 2 minutes », sections « je veux faire quoi »,
+  encadrés dépliables, blocs « Le geste », animations CSS reproduisant
+  l'interface réelle, section messagerie (planningchpg@gmail.com).
+- **Cahier de tests** : 179 points (5 corrigés, 15 ajoutés en P15), dont plus
+  de 40 marqués « déjà vérifié automatiquement ».
+
+### Le banc d'essai — 440 vérifications, 20 scripts
+
+`cd banc && ./lancer.sh`. Il exécute le vrai code (les `.gs`, le Worker,
+`admin.html`, les pages MAR) dans un Google et un Cloudflare simulés, et va
+jusqu'à **cliquer dans l'interface** : saisie du code, clic sur une case à
+pourvoir, choix d'un MAR, publication, fermeture de page, vérification du
+classeur puis du planning régénéré.
+
+Couvre aussi : accès et rôles (P1), scénarios catastrophe (P12), équipe et
+absences longues (P5), garde-fous annuels (P11), indisponibilités (P6),
+calendrier et fériés monégasques (P2/P3), plafond de clés du miroir,
+mécanismes mobiles, contraintes Apps Script, rafraîchissement par glissement.
+
+**Défauts trouvés par le banc AVANT la production** : verrous imbriqués (15 s
+perdues par écriture), échange refusé laissant le classeur à moitié modifié,
+plafond de 20 clés, et deux faux positifs de test qui masquaient un repli
+silencieux vers Apps Script.
+
+## Ce qu'ont appris les 5 et 6 août 2026
+
+1. **Lire le CONSOMMATEUR, pas seulement le producteur.** Le volet libéral a
+   été déclaré « non mirrorable » sur la seule lecture de la réponse serveur
+   (qui portait des montants), sans lire l'affichage — qui n'utilise que MAR,
+   secteur et chirurgie. Décision d'architecture fausse, prise sur une lecture
+   partielle.
+2. **Une accroche synchrone est un péage sur chaque geste.** Tout travail
+   ajouté « juste avant la réponse » se paie en attente utilisateur.
+3. **Verrous imbriqués = 15 s perdues par écriture.** Deux espaces de verrous
+   distincts (document pour l'applicateur, script pour les écritures).
+4. **Un test qui passe peut mentir.** Deux faux positifs attrapés : mauvais nom
+   de paramètre, code d'accès non injecté.
+5. **Repartir de la version EN LIGNE, jamais d'une copie locale.** Un
+   `dashboard.html` reconstruit depuis une copie périmée a affiché v1.24 après
+   un push v1.28. Attrapé par le contrôle post-push.
+6. **Un lot = un commit.** Sept fichiers poussés séparément = sept
+   publications, six annulées, mise en ligne retardée.
+7. **iOS en mode application ne fournit aucun rafraîchissement par
+   glissement.** Documenter un geste sans l'avoir éprouvé sur l'appareil cible
+   revient à écrire une supposition.
+8. **`PLANNING_OVERRIDES` n'a pas d'horodatage** : impossible de dater une
+   ligne après coup. Le registre d'audit du journal ferme cette impasse.
+
 ## DÉCISIONS MÉTIER — ce qui n'est écrit dans aucun code
 
 Ces règles ne se déduisent PAS de la lecture du dépôt. Les ignorer conduit à
@@ -26,6 +101,8 @@ Ces règles ne se déduisent PAS de la lecture du dépôt. Les ignorer conduit �
 | **Pas de mémoire de session admin** | Le code est redemandé à CHAQUE ouverture de l'interface d'administration : elle modifie le planning de toute l'équipe et peut être ouverte sur un poste partagé. Décision confirmée le 04/08/2026. |
 | **L'archivage n'est jamais automatisé** | Opération manuelle, le premier lundi de la nouvelle année de planning. Archiver trop tôt est la seule erreur vraiment coûteuse. Ne pas reproposer. |
 | **Aucun montant hors du classeur** | Les données financières (br CCAM/NGAP, relevés) ne quittent ni le classeur ni la page du MAR concerné. Le volet libéral du comité n'affiche QUE qui opère, dans quel secteur, quelle chirurgie. |
+| **La garde exceptionnelle n'existe pas** | Il y a toujours 2 MAR de garde, jamais 3. La fonction `gardeExceptionnelle` subsiste côté serveur mais **aucun bouton ne l'appelle** : code mort, retiré des guides. |
+| **Le planning affiche le motif d'absence** | Le code (V, F, TP, CL, R) est visible de toute l'équipe : le planning est public par nature. Seules les **indisponibilités saisies à l'automne** restent privées (MAR + comité). |
 | **Les guides doivent tout couvrir** | `docs/guide-comite.html` et `docs/guide-mar.html` doivent expliquer **l'intégralité** du fonctionnement, en langage simple, à plusieurs niveaux de lecture. Toute modification fonctionnelle se pousse avec sa documentation. |
 
 ## État au 5 août 2026 — LE JOURNAL D'INTENTIONS ET LE BANC D'ESSAI
