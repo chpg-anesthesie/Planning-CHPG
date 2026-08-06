@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Déménagement NCHPG — Planning-CHPG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#CE1126; --red-soft:#FDECEF;
+    --blue:#1D6FB8; --blue-soft:#EAF3FB;
+    --amber:#B45309; --amber-soft:#FDF3E3;
+    --green:#166534; --green-soft:#F0FDF4;
+    --violet:#6D28D9; --violet-soft:#F3EFFC;
+    --ink:#0F172A; --ink-2:#475569; --ink-3:#7A8699;
+    --line:#E2E8F0; --bg:#F6F8FB; --white:#fff;
+    --mono:'DM Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+    line-height:1.62; font-size:15.5px; padding:34px 20px 80px}
+  .wrap{max-width:800px; margin:0 auto}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--red); font-weight:500}
+  h1{font-size:31px; font-weight:800; letter-spacing:-.02em; margin:8px 0 8px; line-height:1.18}
+  .sub{color:var(--ink-2); margin:0}
+  .maj{font-family:var(--mono); font-size:12px; color:var(--ink-3); margin-top:10px}
+
+  .hero{background:var(--white); border:1px solid var(--line); border-left:5px solid var(--red);
+        border-radius:14px; padding:20px 24px; margin:26px 0 8px}
+  .hero .t{font-weight:800; font-size:18px; margin-bottom:6px; letter-spacing:-.01em}
+  .hero p{margin:0; color:var(--ink-2)}
+
+  section{margin-top:40px}
+  h2{font-size:20px; font-weight:800; letter-spacing:-.015em; margin:0 0 4px; display:flex; align-items:baseline; gap:11px}
+  h2 .n{font-family:var(--mono); font-size:12.5px; font-weight:500; color:#fff; background:var(--red); border-radius:7px; padding:3px 9px; flex-shrink:0}
+  .lead{color:var(--ink-3); font-size:13.5px; margin:0 0 14px}
+  h3{font-size:15.5px; font-weight:700; margin:22px 0 6px}
+  p{margin:0 0 12px; color:var(--ink-2)}
+  strong,b{color:var(--ink)}
+  code{font-family:var(--mono); font-size:12.5px; background:#EEF1F5; border-radius:5px; padding:1px 6px; color:var(--ink)}
+  .kbd{font-family:var(--mono); font-size:12px; border:1px solid var(--line); border-bottom-width:2px; border-radius:6px; padding:1px 6px; background:var(--white)}
+
+  .callout{border-radius:12px; padding:14px 18px; margin:16px 0; border:1px solid var(--line); border-left-width:4px; background:var(--white)}
+  .callout p:last-child{margin-bottom:0}
+  .callout .ct{font-family:var(--mono); font-size:11.5px; font-weight:500; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px}
+  .callout.stop{border-left-color:var(--red); background:var(--red-soft)} .callout.stop .ct{color:var(--red)}
+  .callout.tip{border-left-color:var(--blue); background:var(--blue-soft)} .callout.tip .ct{color:var(--blue)}
+  .callout.warn{border-left-color:var(--amber); background:var(--amber-soft)} .callout.warn .ct{color:var(--amber)}
+  .callout.todo{border-left-color:var(--violet); background:var(--violet-soft)} .callout.todo .ct{color:var(--violet)}
+
+  .steps{counter-reset:step; margin:12px 0 16px; padding:0; list-style:none}
+  .steps li{counter-increment:step; position:relative; padding:10px 0 10px 42px; margin:0; color:var(--ink-2)}
+  .steps li::before{content:counter(step); position:absolute; left:0; top:9px; width:27px; height:27px; border-radius:8px;
+    background:var(--white); border:1.5px solid var(--red); color:var(--red); font-family:var(--mono); font-size:13px;
+    display:flex; align-items:center; justify-content:center}
+  .steps li + li{border-top:1px dashed var(--line)}
+
+  table{width:100%; border-collapse:collapse; margin:14px 0 18px; background:var(--white);
+        border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:14.5px}
+  th{background:#F1F4F8; text-align:left; font-size:12px; font-family:var(--mono); font-weight:500;
+     text-transform:uppercase; letter-spacing:.05em; color:var(--ink-2); padding:9px 14px; border-bottom:1px solid var(--line)}
+  td{padding:10px 14px; border-bottom:1px solid #F1F5F9; color:var(--ink-2); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td:first-child{font-weight:600; color:var(--ink); white-space:nowrap}
+  ul{margin:0 0 14px; padding-left:22px; color:var(--ink-2)} li{margin:6px 0}
+  .foot{margin-top:44px; padding-top:18px; border-top:1px solid var(--line); font-size:13.5px; color:var(--ink-3)}
+  .foot a{color:var(--red); text-decoration:none; font-weight:500}
+  a{color:var(--blue)}
+  @media print{ body{padding:0} section{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">Planning-CHPG · janvier 2027</div>
+  <h1>Déménagement NCHPG — la bascule des secteurs</h1>
+  <p class="sub">Document de travail pour l'administrateur. Il complète le
+  <a href="guide-technique.html#c18">§18 du guide technique</a> (marche à suivre détaillée pour
+  créer un secteur ou une consultation) : ici, on décrit <b>le chantier du déménagement</b> —
+  quoi décider, quoi faire modifier dans le code, quoi faire soi-même dans le classeur, et
+  dans quel ordre.</p>
+  <p class="maj">Créé le 06/08/2026 · organisation cible du NCHPG non connue à cette date —
+  les encadrés violets ⏳ marquent ce qui reste à compléter.</p>
+
+  <div class="hero">
+    <div class="t">L'idée en une phrase</div>
+    <p>Au NCHPG, les codes de secteurs changent complètement. On ne renomme <b>rien</b> :
+    on <b>crée</b> les nouveaux secteurs dans le classeur, on <b>désactive</b> les anciens,
+    et entre les deux, une (seule) série de modifications de code doit être livrée pour que
+    les cases « à pourvoir » suivent le mouvement.</p>
+  </div>
+
+<section id="perimetre">
+  <h2><span class="n">01</span>Ce qui change · ce qui ne change pas</h2>
+
+  <table>
+    <tr><th>Change</th><th>Ne change pas</th></tr>
+    <tr>
+      <td>Les <b>codes de secteurs</b> et leur organisation : de grands secteurs
+      (« Bloc long », « Bloc court »…) contenant des sous-secteurs (endoscopies, cardio…).</td>
+      <td>Les <b>gardes</b>. Elles sont générées par année, indépendamment des secteurs.
+      L'année 2027 est déjà générée : <b>on n'y touche pas</b>.</td>
+    </tr>
+    <tr>
+      <td>Les <b>consultations</b>, si leur découpage suit la nouvelle organisation.</td>
+      <td>Les <b>spécialités</b>. Le module libéral est volontairement modélisé par spécialité
+      et non par secteur, précisément pour survivre au déménagement. Rien à faire de ce côté.</td>
+    </tr>
+    <tr>
+      <td>Les <b>affectations mensuelles</b> (<code>AFFECTATIONS_{Y}</code>) : de la donnée,
+      re-saisie avec les nouveaux codes à partir du mois de la bascule.</td>
+      <td>Les <b>MAR</b>, leurs indisponibilités, leurs vacances, leurs codes d'accès.</td>
+    </tr>
+  </table>
+</section>
+
+<section id="regle-or">
+  <h2><span class="n">02</span>La règle d'or : un code ne se renomme jamais</h2>
+
+  <p>Le code d'un secteur (<code>VIS</code>, <code>ORT</code>…) est écrit tel quel dans les
+  affectations mensuelles, dans le planning publié et dans les placements du comité
+  (<code>PLANNING_OVERRIDES</code>). Renommer un code en service rendrait tout cet historique
+  orphelin — d'un coup, en silence.</p>
+
+  <p>La bascule se fait donc <b>par ajout</b> :</p>
+  <ul>
+    <li>les <b>nouveaux</b> secteurs sont <b>créés</b> (nouvelles lignes, nouveaux codes) ;</li>
+    <li>les <b>anciens</b> passent <code>ACTIF = N</code> — la ligne est conservée, avec ses
+    couleurs et libellés, pour l'historique.</li>
+  </ul>
+
+  <div class="callout stop">
+    <div class="ct">Vérifié au banc (06/08/2026) — ACTIF = N efface l'historique de l'écran</div>
+    <p>Testé sur les vraies pages, avec un planning publié portant un secteur passé
+    ensuite <code>ACTIF = N</code> : sur <b>admin.html</b>, la ligne du secteur disparaît de la
+    grille — y compris pour les semaines déjà publiées — et un MAR placé dans ce secteur est
+    <b>ignoré silencieusement</b> au rendu (l.≈3673 : pas de repli). Sur <b>index.html</b>, le
+    secteur perd sa ligne, sa couleur et son libellé. Les données, elles, sont intactes :
+    seul l'affichage est touché.</p>
+    <p><b>Conséquence pratique :</b> ne désactiver les anciens secteurs que lorsque plus
+    personne n'a besoin de consulter les semaines de l'ancien hôpital à l'écran — ou demander
+    au lot de code (§04) d'apprendre au rendu à afficher un secteur inactif encore présent
+    dans un planning publié. À trancher en Phase A.</p>
+  </div>
+</section>
+
+<section id="decisions">
+  <h2><span class="n">03</span>Phase A — Décider (dès que l'organisation cible est connue)</h2>
+  <p class="lead">Rien de ce qui suit ne se code ni ne se saisit tant que ces décisions ne sont pas prises.</p>
+
+  <ol class="steps">
+    <li><b>La maille d'affectation.</b> Aujourd'hui, un MAR est affecté au mois à <b>un</b> code
+    de secteur, comparé tel quel partout. Avec une hiérarchie grand secteur / sous-secteur :
+    est-on affecté au <b>grand secteur</b> ou au <b>sous-secteur</b> ? Cette réponse fixe la
+    maille de tout le reste — couverture, panneau de placement, export Excel. C'est <b>la</b>
+    décision structurante.</li>
+    <li><b>La table de correspondance.</b> Un tableau ancien code → nouveau(x) code(s), validé
+    avec le service. Il servira à re-saisir les affectations et à relire l'historique.</li>
+    <li><b>La règle de couverture par secteur.</b> Pour chaque nouveau secteur : doit-il
+    <b>toujours</b> être pourvu (donc déclencher un « + » clignotant quand il ne l'est pas) ?
+    C'est une règle métier, pas une conséquence technique.</li>
+    <li><b>Les règles fines à réexaminer.</b> Trois exceptions sont aujourd'hui écrites en dur
+    autour des anciens codes et devront être re-décidées dans les termes du NCHPG :
+    <ul>
+      <li><code>RI</code> : hors couverture générale, requis mercredi et jeudi matin uniquement ;</li>
+      <li><code>CI</code> : non requis le jeudi (jour de radio interventionnelle seule) ;</li>
+      <li><code>MAT</code> : toujours pourvue, avec le miroir automatique vers sa consultation.</li>
+    </ul></li>
+    <li><b>La date d'effet.</b> Les affectations sont mensuelles : basculer <b>au 1er d'un
+    mois</b>, jamais en cours de mois. Attention, l'année de planning ne coïncide pas avec
+    l'année civile (l'année 2026 court jusqu'au dimanche 3 janvier 2027).</li>
+    <li><b>Les consultations.</b> La liste des types de consultation au NCHPG, avec leurs
+    créneaux par demi-journée.</li>
+  </ol>
+
+  <div class="callout todo">
+    <div class="ct">⏳ À compléter quand l'organisation est connue</div>
+    <p>· Maille d'affectation retenue : <i>…</i><br>
+    · Table de correspondance : <i>…</i><br>
+    · Liste des secteurs couverts : <i>…</i><br>
+    · Date d'effet : <i>…</i></p>
+  </div>
+</section>
+
+<section id="code">
+  <h2><span class="n">04</span>Phase B — Le lot de code (avec le développeur, avant la bascule)</h2>
+  <p class="lead">C'est la seule partie qui ne se fait pas en autonomie dans le classeur.
+  Un fil de conversation dédié, un lot, un banc au vert.</p>
+
+  <div class="callout stop">
+    <div class="ct">Le point le plus dangereux</div>
+    <p>Deux listes de secteurs sont encore <b>écrites en dur</b> dans <code>admin.html</code> :
+    celle qui déclenche les « + » de case à pourvoir (<code>COVERAGE</code>, l.≈3754) et celle
+    des boutons « Déplacer vers » (<code>targets</code>, l.≈4761). Tant qu'elles ne sont pas
+    débranchées, <b>un secteur créé dans l'onglet ne flashe jamais et n'a pas de bouton</b>.
+    Au NCHPG, ces listes deviendraient des codes morts : le signal de sécurité s'éteindrait
+    partout, sans erreur ni message. <b>Ce lot doit être livré et vérifié avant la bascule.</b></p>
+  </div>
+
+  <h3>Contenu du lot (cadré le 30/07/2026)</h3>
+  <ul>
+    <li><b>Colonne <code>COUVERTURE</code> (O/N)</b> dans l'onglet <code>SECTEURS</code> :
+    la règle métier « ce secteur doit toujours être pourvu » sort du code et se règle dans
+    le classeur. <code>COVERAGE</code> et <code>targets</code> lisent l'onglet.</li>
+    <li><b>Les règles fines</b> (RI, CI-jeudi, mater) réécrites selon les décisions de la
+    Phase A — elles aussi sont en dur aujourd'hui.</li>
+    <li><b>Colonne <code>PARENT</code></b> dans <code>SECTEURS</code> pour l'export Excel :
+    un bandeau fusionné par grand secteur (option A, retenue le 30/07). Maquette validée en
+    rendu PDF : <a href="maquette-export-excel-secteurs.xlsx">maquette-export-excel-secteurs.xlsx</a>.</li>
+    <li><b>Selon la décision prise au §02</b> : apprendre au rendu à afficher un secteur
+    inactif encore présent dans un planning publié (aujourd'hui, sa ligne disparaît et ses
+    placements sont ignorés à l'écran — constat vérifié au banc le 06/08/2026).</li>
+  </ul>
+
+  <p>Chaque élément arrive avec son scénario de banc ; rien ne se pousse tant que tout n'est
+  pas au vert, et le banc prouve la logique, pas l'infrastructure : la preuve finale reste
+  l'essai en production sur une semaine réelle.</p>
+</section>
+
+<section id="bascule">
+  <h2><span class="n">05</span>Phase C — La bascule (classeur seul, aucun code)</h2>
+  <p class="lead">Une fois la Phase B en production. Chaque geste est détaillé au
+  <a href="guide-technique.html#c18">§18 du guide technique</a> — ici, l'ordre.</p>
+
+  <ol class="steps">
+    <li><b>Créer les nouveaux secteurs</b> dans l'onglet <code>SECTEURS</code> : une ligne par
+    secteur, avec <code>ORDRE</code>, <code>CODE</code>, libellés, couleurs, <code>AFF</code>
+    (rempli = affectable au mois), colonnes Excel — et les nouvelles colonnes
+    <code>COUVERTURE</code> et <code>PARENT</code>.</li>
+    <li><b>Créer les consultations</b> dans <code>CS_TEMPLATE</code> : une ligne par type,
+    les créneaux par demi-journée (<code>LUN_AM</code> … <code>VEN_PM</code>).</li>
+    <li><b>Relier</b> chaque consultation à son secteur : colonne <code>CS</code> de l'onglet
+    <code>SECTEURS</code>. Sans ce lien, le panneau de placement ne met pas en tête les MAR
+    du secteur.</li>
+    <li><b>Saisir les affectations mensuelles</b> avec les nouveaux codes, à partir du mois
+    d'effet, à l'aide de la table de correspondance de la Phase A.</li>
+    <li><b>Désactiver les anciens secteurs</b> (<code>ACTIF = N</code>) — <b>seulement</b>
+    quand l'affichage des semaines de l'ancien hôpital n'est plus nécessaire, ou une fois le
+    rendu adapté (voir le constat du §02).</li>
+    <li><span class="kbd">Ctrl+Maj+R</span> et passer aux contrôles ci-dessous.</li>
+  </ol>
+</section>
+
+<section id="controles">
+  <h2><span class="n">06</span>Phase D — Contrôles après bascule</h2>
+
+  <table>
+    <tr><th>Contrôle</th><th>Ce qu'on doit voir</th></tr>
+    <tr><td>Légende du planning</td>
+        <td>Les nouveaux secteurs, avec leurs couleurs — la légende se construit à partir des
+        secteurs réellement utilisés : il faut au moins une affectation saisie.</td></tr>
+    <tr><td>Le « + » clignotant</td>
+        <td>Retirer quelqu'un d'un secteur couvert un jour ouvré : un « + » doit apparaître.
+        Vérifier aussi qu'un secteur <b>non</b> couvert ne flashe pas.</td></tr>
+    <tr><td>Boutons « Déplacer vers »</td>
+        <td>Le volet latéral propose les nouveaux secteurs actifs.</td></tr>
+    <tr><td>Excel du vendredi</td>
+        <td>Un bandeau par grand secteur, les sous-secteurs dessous, chaque nouvelle
+        consultation sur sa ligne. Ouvrir le fichier dans le vrai Excel, pas seulement
+        l'aperçu.</td></tr>
+    <tr><td>Historique</td>
+        <td>Une semaine d'<b>avant</b> la bascule s'affiche toujours correctement
+        (planning et Excel).</td></tr>
+    <tr><td>Diagnostic</td>
+        <td>Lancer le diagnostic de l'onglet Maintenance : aucun message nouveau.</td></tr>
+    <tr><td>Journal</td>
+        <td>Aucun avertissement « code secteur inconnu → VOLANT » : il signalerait une
+        affectation saisie avec un code non créé ou mal orthographié.</td></tr>
+  </table>
+</section>
+
+<section id="pieges">
+  <h2><span class="n">07</span>Pièges connus</h2>
+  <ul>
+    <li><b>Basculer avant la Phase B</b> : les nouveaux secteurs existeraient à l'écran mais
+    ne flasheraient jamais — le pire des états, parce qu'il est silencieux.</li>
+    <li><b>Renommer un code</b> « pour faire propre » : jamais (§02).</li>
+    <li><b>Re-générer les gardes 2027</b> : jamais. Le déménagement n'est pas une raison —
+    les gardes ignorent les secteurs.</li>
+    <li><b>Un secteur créé sans <code>AFF</code></b> n'apparaît pas dans le sélecteur
+    d'affectation : c'est voulu (cas <code>DVI</code>), mais y penser si un secteur
+    « n'apparaît pas ».</li>
+    <li><b>L'espace en tête des libellés Excel</b> de <code>CS_TEMPLATE</code> est voulu
+    (il décale le texte dans la cellule) : ne pas le « corriger ».</li>
+    <li><b>La bascule en cours de mois</b> : les affectations sont mensuelles, l'écran
+    mélangerait deux organisations le même mois.</li>
+  </ul>
+</section>
+
+  <div class="foot">
+    Voir aussi : <a href="guide-technique.html#c18">guide technique §18</a> (créer un secteur /
+    une consultation, colonne par colonne) · <a href="guide-technique.html#c22">§22</a> (le « + »
+    de case à pourvoir) · <a href="maquette-export-excel-secteurs.xlsx">maquette Excel</a> ·
+    ROADMAP, priorité 2 bis (inventaire d'origine, cadrage du 30/07/2026).
+  </div>
+
+</div>
+</body>
+</html>

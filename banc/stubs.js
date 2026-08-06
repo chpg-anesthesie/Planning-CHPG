@@ -22,6 +22,7 @@ class Sheet {
       setValues(vals) { vals.forEach((ligne, i) => { while (s.lignes.length < r+i) s.lignes.push([]); ligne.forEach((v,j) => s.lignes[r-1+i][c-1+j] = v); }); },
       setFontWeight() { return this; },
       getValues() { const out = []; for (let i=0;i<(nr||1);i++) out.push((s.lignes[r-1+i]||[]).slice(c-1, c-1+(nc||1))); return out; },
+      getValue() { return (s.lignes[r-1]||[])[c-1]; },
     };
   }
   deleteRow(n) { this.lignes.splice(n-1, 1); }
