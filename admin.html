@@ -1015,7 +1015,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.27'; // SITE_VERSION: v1.27
+const SITE_VERSION = 'v1.28'; // SITE_VERSION: v1.28
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1108,7 +1108,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.27</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.28</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -5021,7 +5021,7 @@ let DON_ON_DONE = null;
 const _nm = id => (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
 const _roleTxt = r => r==='G' ? 'G \u00b7 R\u00e9a' : 'G2 \u00b7 Mat';
 function _fmtDate(d){ if(!d) return '\u2014'; const x=new Date(d+'T12:00:00'); return ['dim','lun','mar','mer','jeu','ven','sam'][x.getDay()]+' '+String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0'); }
-/* (v1.27) Deux défauts corrigés ici, constatés le 05/08 au soir sur mobile.
+/* (v1.28) Deux défauts corrigés ici, constatés le 05/08 au soir sur mobile.
    1. UN ÉCHEC ÉTAIT MÉMORISÉ COMME UNE RÉPONSE VIDE : au moindre appel raté,
       gardesByYear[y] = {} était retenu POUR TOUTE LA SESSION, et le panneau
       affichait « Aucune garde à cette date » sur chaque date, sans jamais
@@ -5109,7 +5109,7 @@ async function onDonDate(v){ GD.d1=v; GD.p1=''; GD.recv='';
   if(v){ const ok = await ensureGardesYear(v.slice(0,4)); if(!ok) return _gardesIndispo('don'); }
   renderDon(); }
 
-/* (v1.27) La lecture des gardes a échoué : on le DIT, au lieu d'afficher
+/* (v1.28) La lecture des gardes a échoué : on le DIT, au lieu d'afficher
    « aucune garde à cette date » — qui est faux et bloque le comité sans
    explication. Un bouton relance la lecture. */
 function _gardesIndispo(quoi){
