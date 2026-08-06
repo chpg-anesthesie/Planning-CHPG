@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-05.10';
+const GAS_VERSION_MIROIR = '2026-08-06.11';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -224,14 +224,25 @@ function miroirSyncComplet() {
    classeur et pose la MÊME note que les écritures du portail : la copie suit
    dans la minute. Le planning PUBLIÉ, lui, ne bouge pas — c'est le rôle du
    bouton « Publier », qui reste un acte volontaire du comité. */
+/* (2026-08-06.11) Liste établie par INVENTAIRE : pour chaque famille du
+   miroir, on est remonté à l'onglet qui l'alimente réellement, au lieu de
+   lister les onglets « qui viennent à l'esprit ». Trois manquaient —
+   AFFECTATIONS (les cases à pourvoir), STATS_GARDES (l'équité et la dette),
+   CS_TEMPLATE et SEUILS (modèle de consultations, bornes de tension) : une
+   correction manuelle y attendait la synchro HORAIRE sans que rien ne le dise.
+   Toute nouvelle famille du miroir impose de revoir cette table. */
 const MIROIR_ONGLETS_SUIVIS = {
-  GARDES:    ['gardes', 'indispos', 'stats'],   // statuts et gardes
-  INDISPOS:  ['indispos'],
-  MEDECINS:  ['config_admin', 'annees'],
-  SECTEURS:  ['secteurs'],
+  GARDES:       ['gardes', 'indispos', 'stats'],   // statuts et gardes
+  STATS_GARDES: ['gardes', 'stats'],               // équité de référence et dette
+  INDISPOS:     ['indispos'],
+  MEDECINS:     ['config_admin', 'annees', 'acces'],
+  SECTEURS:     ['secteurs'],
+  AFFECTATIONS: ['affectations', 'config_admin'],  // détermine les cases à pourvoir
   PLANNING_OVERRIDES: ['config_admin'],
+  CS_TEMPLATE:  ['config_admin'],                  // modèle de consultations
+  SEUILS:       ['config_admin'],                  // bornes de la carte de tension
   LIBERAL:      ['liberal'],
-  PERIODES_VAC: ['vacances_admin'],
+  PERIODES_VAC: ['vacances_admin', 'stats'],
   GROUPES_VAC:  ['vacances_admin'],
 };
 

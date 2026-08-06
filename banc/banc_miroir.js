@@ -62,5 +62,40 @@ V('éditer CONNEXIONS ne note rien non plus', JSON.stringify(PROPS.MIROIR_POUSSE
 vm.runInContext('miroirRattrapage()', ctx);
 V('la poussée suit l\'édition manuelle', pousses.length >= 1, pousses);
 
+console.log('\n═══ 56. Inventaire des onglets écoutés (06/08/2026) ═══');
+{
+  /* Chaque famille du miroir a une source dans le classeur. Si un onglet
+     source n'est pas écouté, une correction manuelle y attend la synchro
+     HORAIRE — sans que rien ne le signale. Trois manquaient. */
+  const fs2 = require('fs');
+  const src = fs2.readFileSync('../gas/miroir.gs', 'utf8');
+  const table = src.match(/const MIROIR_ONGLETS_SUIVIS = \{([\s\S]*?)\};/)[1];
+  const suivis = {};
+  table.replace(/(\w+):\s*\[([^\]]*)\]/g, (m, o, f) => { suivis[o] = f.replace(/['\s]/g, '').split(','); });
+
+  const ATTENDU = {
+    GARDES: 'gardes', STATS_GARDES: 'stats', INDISPOS: 'indispos', MEDECINS: 'config_admin',
+    SECTEURS: 'secteurs', AFFECTATIONS: 'affectations', PLANNING_OVERRIDES: 'config_admin',
+    CS_TEMPLATE: 'config_admin', SEUILS: 'config_admin', LIBERAL: 'liberal',
+    PERIODES_VAC: 'vacances_admin', GROUPES_VAC: 'vacances_admin',
+  };
+  Object.entries(ATTENDU).forEach(([onglet, famille]) => {
+    V(`${onglet} est écouté (famille « ${famille} »)`,
+      suivis[onglet] && suivis[onglet].includes(famille), suivis[onglet]);
+  });
+
+  // les trois oublis du 05/08, nommément
+  V('AFFECTATIONS — l\'oubli qui masquait les cases à pourvoir', !!suivis.AFFECTATIONS);
+  V('STATS_GARDES — l\'équité de référence et la dette', !!suivis.STATS_GARDES);
+  V('CS_TEMPLATE et SEUILS — consultations et bornes de tension', !!suivis.CS_TEMPLATE && !!suivis.SEUILS);
+
+  // toute famille construite par le miroir doit avoir au moins une source écoutée
+  const construites = [...src.matchAll(/if \(uniq\['(\w+)'\]\)/g)].map(m => m[1]);
+  const couvertes = new Set(Object.values(suivis).flat());
+  const SANS_SOURCE = ['annees', 'planning', 'affectations', 'tuiles', 'joursferies', 'mail'];
+  const orphelines = construites.filter(f => !couvertes.has(f) && !SANS_SOURCE.includes(f));
+  V('aucune famille sans onglet source écouté', orphelines.length === 0, orphelines);
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);
