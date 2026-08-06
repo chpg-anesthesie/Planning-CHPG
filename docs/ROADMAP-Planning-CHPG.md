@@ -683,13 +683,13 @@ de **grands secteurs** (« Bloc long », « Bloc court »…) contenant des **so
 cardio…). **L'organisation cible n'est pas connue** — donc rien à concevoir tant qu'elle ne l'est pas.
 Ce qui suit n'est pas une conception, c'est l'inventaire de ce que le changement casse.
 
-1. **`COVERAGE` (admin.html l.3164) deviendra une liste de codes morts** → le « + » de case à
+1. **`COVERAGE` (admin.html l.≈3754, revérifié 06/08) deviendra une liste de codes morts** → le « + » de case à
    pourvoir **s'éteindra partout, en silence** : ni erreur, ni message, juste un signal de sécurité
    qui disparaît. C'est le point le plus dangereux du déménagement côté logiciel.
    Correctif décidé : colonne **`COUVERTURE` (O/N)** dans l'onglet `SECTEURS` — c'est une **règle
    métier** (« ce secteur doit toujours être pourvu »), pas la liste des secteurs actifs.
    ⚠️ Conserver l'exception `RI`, volontairement hors couverture (règle plus fine, mercredi/jeudi matin).
-2. **`targets` (l.~4016)**, boutons « Déplacer vers » du volet latéral : à alimenter par les secteurs
+2. **`targets` (l.≈4761, revérifié 06/08)**, boutons « Déplacer vers » du volet latéral : à alimenter par les secteurs
    actifs de l'onglet. Confort, pas blocage — on peut toujours retirer puis reposer depuis la case.
 3. **Export Excel du vendredi** : déjà piloté par `SECTEURS` (`ORDRE / XL_LABEL / XL_BG / XL_ROWS`)
    et `CS_TEMPLATE` depuis juillet — un secteur créé apparaît dans le fichier sans toucher au code.
@@ -718,8 +718,21 @@ Ce qui suit n'est pas une conception, c'est l'inventaire de ce que le changement
 **Ordre : ne rien coder avant de connaître l'organisation cible.** Le jour où elle est connue → fil
 de conversation dédié.
 
+**06/08/2026 — le chantier a désormais son guide : `docs/guide-demenagement-nchpg.html`**
+(lié depuis le §18 du guide technique). Phases A (décisions) / B (lot de code) / C (bascule,
+classeur seul) / D (contrôles), encadrés ⏳ pour ce qui attend l'organisation cible.
+
+6. **Constat vérifié au banc le 06/08 (scénario dédié, vraies pages) : `ACTIF = N` efface
+   l'historique de l'écran.** Un secteur désactivé mais encore présent dans un planning publié
+   perd sa ligne dans la grille d'`admin.html` (semaines passées comprises) et un MAR placé
+   dedans est **ignoré silencieusement** au rendu (l.≈3673 : `if (smap[key])`, pas de repli) ;
+   sur `index.html`, ligne, couleur et libellé disparaissent. Les données restent intactes.
+   → Nouvelle décision de Phase A : garder les anciens secteurs actifs tant que l'historique
+   de l'ancien hôpital doit rester consultable, **ou** ajouter au lot de code le rendu des
+   secteurs inactifs encore présents dans un planning publié.
+
 ### Priorité 3 — Dettes techniques
-- **Deux listes de secteurs encore figées dans `admin.html`** (`COVERAGE` l.~3164, `targets` l.~4016)
+- **Deux listes de secteurs encore figées dans `admin.html`** (`COVERAGE` l.≈3754, `targets` l.≈4761 — revérifiées 06/08)
   *(trouvées le 29/07, revérifiées présentes le 30/07)* : **un secteur créé dans l'onglet n'apparaît
   dans aucune des deux.** Traitement et solution retenue : voir **Priorité 2 bis (NCHPG)** ci-dessus —
   c'est le même chantier. Rien à faire avant le 04/09.
@@ -1672,7 +1685,7 @@ de configuration ci-dessus. Même schéma : le système refuse quelque chose san
 l'utilisateur cherche au mauvais endroit.
 
 **Trouvé en vérifiant, jamais répertorié** : deux listes de secteurs restent figées dans
-`admin.html` — `COVERAGE` (l.~3164) et `targets` (l.~4016). Un secteur créé dans l'onglet
+`admin.html` — `COVERAGE` (l.≈3754) et `targets` (l.≈4761). Un secteur créé dans l'onglet
 n'apparaît ni dans les « + » de couverture ni dans les boutons « Déplacer vers ». Inscrit en
 Priorité 3, à traiter avant le déménagement NCHPG.
 

@@ -11,7 +11,7 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
-## État au 6 août 2026 — v1.28, guides refondus, banc à 440 vérifications
+## État au 6 août 2026 — v1.28, guides refondus, banc à 436 vérifications
 
 **Site v1.28.** GAS : `code.gs 2026-08-05.3`, `Indispos.gs 2026-08-05.13`,
 `miroir.gs 2026-08-05.10`, `journal.gs 2026-08-05.3`, `portail.gs 2026-08-05.2`.
@@ -44,7 +44,7 @@ Worker `2026-08-05.7`.
 - **Cahier de tests** : 179 points (5 corrigés, 15 ajoutés en P15), dont plus
   de 40 marqués « déjà vérifié automatiquement ».
 
-### Le banc d'essai — 440 vérifications, 20 scripts
+### Le banc d'essai — 436 vérifications, 19 scripts *(remesuré le 06/08 : somme des « N OK » de `lancer.sh`)*
 
 `cd banc && ./lancer.sh`. Il exécute le vrai code (les `.gs`, le Worker,
 `admin.html`, les pages MAR) dans un Google et un Cloudflare simulés, et va
@@ -56,6 +56,11 @@ Couvre aussi : accès et rôles (P1), scénarios catastrophe (P12), équipe et
 absences longues (P5), garde-fous annuels (P11), indisponibilités (P6),
 calendrier et fériés monégasques (P2/P3), plafond de clés du miroir,
 mécanismes mobiles, contraintes Apps Script, rafraîchissement par glissement.
+
+⚠️ **06/08 — le banc était rouge sur `main`** : `Indispos.gs 2026-08-05.13` appelle
+`getRange(...).getValue()` (l.≈1675, `readCell`) mais le stub ne l'implémentait pas —
+`banc_gestes.js` plantait. Corrigé : `getValue()` ajouté à `banc/stubs.js` (1 ligne).
+Rappel : toute nouvelle API Apps Script utilisée dans un `.gs` doit exister dans le stub.
 
 **Défauts trouvés par le banc AVANT la production** : verrous imbriqués (15 s
 perdues par écriture), échange refusé laissant le classeur à moitié modifié,
@@ -503,7 +508,7 @@ revenir à un état stable et repartir d'une analyse complète.
 ## Structure du dépôt (rangé)
 - **Racine** : les `.html` (`index.html`, `admin.html`, `staff.html`, `indispos.html`, `dashboard.html`, `crh.html`), `manifest.webmanifest` (PWA, doit rester racine — `scope`/`start_url`), `sw.js`.
 - **`assets/`** : ⚠️ `vendor/lucide-icons.js` est un mini-bundle LOCAL de **17 icônes seulement** (liste dans son en-tête) — une tuile qui demande une icône absente s'affiche vide ; pour en ajouter une, copier son tableau `children` depuis le paquet lucide. `favicon.svg`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`. Référencés par les `<link>` des HTML et par le manifest (`assets/icon-*.png`).
-- **`docs/`** : la documentation vivante — `CONTEXTE-Planning-CHPG.md` (ce fichier) et `ROADMAP-Planning-CHPG.md` ; guides `guide-technique.html` (référence interne : architecture, wizards, déploiement, dépannage), `guide-comite.html`, `guide-mar.html`, `guide-algo-gardes.html`, `guide-liberal.html` ; `reprise.html` (continuité : propriété, accès, sauvegardes, réparations) ; `si-ca-tombe.html` (urgence comité : mode dégradé) ; `VEILLE_CFG-mode-emploi.md` ; présentations staff (⚠️ `presentation-staff.html` : le code de démo se saisit **par prompt au clic**, ne jamais l'écrire en dur — dépôt public, historique permanent) ; `module-liberal/` (conception, antisèche cotation, estimateur).
+- **`docs/`** : la documentation vivante — `CONTEXTE-Planning-CHPG.md` (ce fichier) et `ROADMAP-Planning-CHPG.md` ; guides `guide-technique.html` (référence interne : architecture, wizards, déploiement, dépannage), `guide-comite.html`, `guide-mar.html`, `guide-algo-gardes.html`, `guide-liberal.html` ; `reprise.html` (continuité : propriété, accès, sauvegardes, réparations) ; `si-ca-tombe.html` (urgence comité : mode dégradé) ; `guide-demenagement-nchpg.html` (bascule des secteurs au NCHPG, phases A→D, créé 06/08) ; `VEILLE_CFG-mode-emploi.md` ; présentations staff (⚠️ `presentation-staff.html` : le code de démo se saisit **par prompt au clic**, ne jamais l'écrire en dur — dépôt public, historique permanent) ; `module-liberal/` (conception, antisèche cotation, estimateur).
 - **`gas/`** : les **5** fichiers Apps Script (`code.gs`, `Indispos.gs`, `generateur_gardes.gs`, `setup_annee.gs`, `portail.gs`) + `README.md`. **+ `mesure_perf.gs` — TEMPORAIRE** (outil de diagnostic en lecture seule, lancé à la main depuis l'éditeur, jamais routé ni déployé ; contient `mesurerPerf()` et `mesurerDrive()`). **À supprimer du dépôt ET de l'éditeur quand le chantier performance sera clos.**
 - **`simulateur/`** : batterie de tests Python (non-régression de l'algo) + `experiences/`.
 
