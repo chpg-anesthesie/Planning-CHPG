@@ -22,7 +22,7 @@ body{font-family:var(--sans);color:var(--ink)}
 
 /* ── Scène (moteur identique à presentation-staff) ── */
 .slide{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;
-  padding:7vh 9vw;background:var(--paper);overflow:hidden}
+  padding:7vh max(9vw,calc((100vw - 1500px)/2));background:var(--paper);overflow:hidden}
 .slide.on{display:flex;animation:fadeIn .35s ease}
 .slide.top{justify-content:flex-start}
 .slide.alt{background:var(--surface)}
