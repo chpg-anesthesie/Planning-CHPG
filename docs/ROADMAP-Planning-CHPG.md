@@ -749,9 +749,11 @@ classeur seul) / D (contrôles), encadrés ⏳ pour ce qui attend l'organisation
   dans la page. Côté serveur `saveConfig` fonctionne toujours. **Conséquence : régler quoi que ce
   soit dans `CONFIG` impose d'ouvrir le classeur à la main** — donc de passer à côté d'`ADMIN_CODE`
   et `SECRETARIAT_CODE`. C'est ce constat qui a fait créer l'onglet `SEUILS` séparé plutôt que
-  d'ajouter deux lignes à `CONFIG`. Trois issues, **non tranchées par Arthur** : supprimer le code
-  mort · le rebrancher sur `CONFIG` · le rebrancher **sur `SEUILS` seulement** (le comité règle ses
-  bornes depuis `admin.html`, sans jamais ouvrir le classeur — le plus utile, mais un lot à part).
+  d'ajouter deux lignes à `CONFIG`. **Tranché par Arthur le 07/08 : le rebranchement sur `CONFIG`
+  est ÉCARTÉ** — argument de sécurité : les secrets doivent rester dans le classeur, pas transiter
+  par une page web. Reste : supprimer le code mort (orientation retenue, à grouper avec le retrait
+  d'`OVERRIDES` — même genre de lot) · ou rebrancher **sur `SEUILS` seulement** si le besoin de
+  régler les bornes souvent apparaît (pas le cas à ce jour, réglées une fois le 01/08).
   ⚠️ Lot séparé, **après le 04/09**.
 - **Code mort `OVERRIDES`** *(30/07)* — deux systèmes successifs aux noms voisins cohabitent :
   `OVERRIDES` (ancien, **l'onglet n'existe plus**) et `PLANNING_OVERRIDES` (actuel). Conséquence
