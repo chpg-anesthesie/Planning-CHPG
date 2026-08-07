@@ -512,14 +512,22 @@ comptent présents**, `PRUNET` exclu). Clic → ouvre la semaine. Aucun appel se
 l'onglet **`SEUILS`**, servi par `getAdminBootstrap`, repli silencieux 13/17. Détail complet dans
 `CONTEXTE`. A remplacé l'ancienne heatmap des indispos, devenue code mort.
 
-### Notifications de changement de planning (`code.gs`, 01/08/2026) — LIVRÉ **ÉTEINT**
+### Notifications de changement de planning (`code.gs`, 01/08/2026) — EN ESSAI, allumage planifié
 Compare `planning_{Y}.json` à `planning_{Y}_notifie.json` après **10 minutes d'accalmie** suivant la
 dernière publication ; un changement posé puis annulé ne produit aucun mail. Statut ⇒ signalé
-toujours ; secteur ⇒ seulement dans la semaine du dernier Excel. Désabonnement par la colonne
-**`NOTIF`** de `MEDECINS` (absente ⇒ tout le monde reçoit). **Interrupteur : propriété de script
-`NOTIF_ACTIVE = 'O'`** — à ce jour **non posée, donc rien ne part**. Détail dans `CONTEXTE`.
-⚠️ **Reste à faire par le fil qui l'a conçu** : essai réel via `NOTIF_EMAIL_TEST`, création de la
-colonne `NOTIF`, puis allumage. Les arbitrages de conception (accalmie, deux canaux, filtres
+toujours ; secteur ⇒ seulement dans la semaine du dernier Excel. Détail dans `CONTEXTE`.
+**Essai réel validé par Arthur le 07/08/2026** : `NOTIF_ACTIVE='O'` + `NOTIF_EMAIL_TEST` posées —
+tout part sur sa boîte perso, rien aux MARs (`_notifExpedier` : `email: testMail || vraie adresse`).
+**Allumage = supprimer la propriété `NOTIF_EMAIL_TEST`, à faire APRÈS le staff et le ménage du
+04/09 — jamais avant** : la démo publiera un planning 2027 fictif et le notifieur s'armera dessus
+(`journal.gs` l.140) ; avec la redirection en place, ces mails fictifs tombent chez Arthur.
+Colonne **`NOTIF`** de `MEDECINS` : **facultative** (absente ⇒ tout le monde reçoit), cherchée par
+son nom — à créer au premier désabonnement, pas avant.
+Pas de doublon avec le récap de génération (vérifié 07/08) : `generateur_gardes.gs` n'arme jamais
+le notifieur ; seule la première **publication** du planning 2027 le fera, et elle sera silencieuse
+(pas de photo de référence après le ménage → « photo prise, aucun envoi », l.1573).
+`notifRecaler` : outil de secours si une photo de référence préexiste à une génération — inutile en
+novembre, le ménage supprime la photo. Les arbitrages de conception (accalmie, deux canaux, filtres
 d'horizon) ne sont écrits nulle part — à consigner avant de les perdre.
 
 ### Portail / Dashboard
