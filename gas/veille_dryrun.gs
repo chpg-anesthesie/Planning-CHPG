@@ -38,7 +38,7 @@ const DRY_REVUES_DIRECT = [
   // Urgences / arrêt cardiaque (3)
   'Resuscitation', 'Ann Emerg Med',
   // Périopératoire (1)
-  'Perioper Med',
+  'Perioper Med (Lond)',   // le nom sans (Lond) ne renvoie RIEN : PubMed ne le reconnait pas
 ];
 
 // THEMED = la revue ne remonte QUE si l'article touche un de tes thèmes.
