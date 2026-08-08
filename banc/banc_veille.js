@@ -124,7 +124,57 @@ function monde(plan) {
     V('après réécriture, les 5 types sont revenus', cfg.pubtypes.length === 5, cfg.pubtypes);
   }
 
-  console.log('\n═══ 5. Dates : epubdate au jour près prime, sinon repli (défaut des blocs par revue) ═══');
+  console.log('\n═══ 5. Contrat SOURCE : les codes que dashboard.html filtre, rien d\'autre ═══');
+  {
+    /* Défaut du 08/08 (15 h 44) : la refonte écrivait 'Revue'/'Généraliste',
+       le filtre source de l'écran compare à 'REVUE'/'GENERAL'/'THEME' →
+       aucun article affiché hors « Toutes sources ». Ici on lit le VRAI
+       dashboard.html pour extraire les codes du filtre, et on exige que
+       getVeille ne serve QUE ces codes-là. */
+    const html = fs.readFileSync('../dashboard.html', 'utf8');
+    const bloc = html.slice(html.indexOf('onVSource'), html.indexOf('vThemeSel'));
+    const codes = [];
+    (html.match(/onchange="onVSource[\s\S]{0,400}?<\/select>/) || [''])[0]
+      .replace(/<option value="([^"]+)"/g, (m, v) => { codes.push(v); return m; });
+    V('le filtre de l\'écran expose bien des codes', codes.length >= 2 && codes.indexOf('REVUE') !== -1 && codes.indexOf('GENERAL') !== -1, codes);
+
+    const plan = (endpoint, params) => {
+      if (endpoint === 'esearch.fcgi') {
+        const term = params.get('term') || '';
+        const direct  = term.indexOf('"Anesthesiology"[Journal]') !== -1;
+        const general = term.indexOf('"N Engl J Med"[Journal]') !== -1;
+        if (direct && general) return { esearchresult: { count: '0', idlist: [] } };
+        if (direct)  return { esearchresult: { count: '2', idlist: ['301', '302'] } };
+        if (general) return { esearchresult: { count: '1', idlist: ['401'] } };
+        return { esearchresult: { count: '0', idlist: [] } };
+      }
+      if (endpoint === 'esummary.fcgi') {
+        const result = {};
+        (params.get('id') || '').split(',').filter(Boolean).forEach(id => {
+          result[id] = { title: 'A' + id, source: 'Rev', authors: [], pubtype: [] };
+        });
+        return { result };
+      }
+      return {};
+    };
+    const { ctx, cl } = monde(plan);
+    vm.runInContext('getOrCreateVeilleTabs()', ctx);
+    vm.runInContext('runVeille()', ctx);
+    const feuille = cl.getSheetByName('VEILLE');
+    const colSrc = feuille.lignes.slice(1).map(l => l[6]);
+    V('runVeille écrit les codes (REVUE×2, GENERAL×1)', colSrc.filter(v => v === 'REVUE').length === 2 && colSrc.filter(v => v === 'GENERAL').length === 1, colSrc);
+    // Lignes héritées du réglage fautif (les 2 044 du 08/08) : normalisées à la lecture
+    feuille.appendRow(['500', '2026-07-01', 'Hérité 1', '', 'NEJM', '', 'Généraliste', '', '', 'N', 'N', '2026-08-08', '', '']);
+    feuille.appendRow(['501', '2026-07-02', 'Hérité 2', '', 'BJA',  '', 'Revue',       '', '', 'N', 'N', '2026-08-08', '', '']);
+    const g = vm.runInContext('getVeille()', ctx);
+    const sources = g.items.map(i => i.source);
+    V('getVeille traduit les libellés hérités en codes', sources.indexOf('Généraliste') === -1 && sources.indexOf('Revue') === -1, sources);
+    V('chaque source servie est un code que l\'écran sait filtrer', sources.every(v => codes.indexOf(v) !== -1), sources);
+    const h1 = g.items.find(i => i.pmid === '500'), h2 = g.items.find(i => i.pmid === '501');
+    V('Généraliste → GENERAL, Revue → REVUE', h1 && h1.source === 'GENERAL' && h2 && h2.source === 'REVUE', [h1 && h1.source, h2 && h2.source]);
+  }
+
+  console.log('\n═══ 6. Dates : epubdate au jour près prime, sinon repli (défaut des blocs par revue) ═══');
   {
     /* Mesuré le 08/08 : 925/2 044 articles datés au « 01 » par sortpubdate
        → blocs par revue à l'écran. epubdate au jour près pour 27/30. */

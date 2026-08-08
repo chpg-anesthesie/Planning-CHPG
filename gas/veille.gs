@@ -57,7 +57,7 @@
 //  instantané unique et partagé : chantier séparé.
 // ══════════════════════════════════════════════════════════════════════
 
-const GAS_VERSION_VEILLE = '2026-08-08.3';
+const GAS_VERSION_VEILLE = '2026-08-08.4';
 
 const VEILLE_CFG_TAB = 'VEILLE_CFG';
 const VEILLE_TAB     = 'VEILLE';
@@ -416,9 +416,12 @@ function runVeille() {
     idsGeneral = _esearchTout(_veilleAvec(baseG, filtre), jours);
   }
 
+  /* (2026-08-08.4) CODES, pas libellés : le filtre source et les badges de
+     dashboard.html comparent à 'REVUE' / 'GENERAL' / 'THEME'. La refonte
+     avait écrit 'Revue'/'Généraliste' → filtre vide, badges faux. */
   const source = {};
-  idsDirect.forEach(function (id) { source[id] = 'Revue'; });
-  idsGeneral.forEach(function (id) { if (!source[id]) source[id] = 'Généraliste'; });
+  idsDirect.forEach(function (id) { source[id] = 'REVUE'; });
+  idsGeneral.forEach(function (id) { if (!source[id]) source[id] = 'GENERAL'; });
 
   // ── Étiquetage par thème ──────────────────────────────────────────
   // Une requête par thème, bornée à l'univers de revues. Sert à remplir
@@ -466,7 +469,7 @@ function runVeille() {
         _veilleAuteurs(o.authors),
         String(o.source || ''),
         _veilleDoi(o),
-        source[pmid] || 'Revue',
+        source[pmid] || 'REVUE',
         '',                                   // SCORE  — réservé au tri fin
         '',                                   // RESUME — idem
         'N', 'N',
@@ -561,6 +564,16 @@ function _veillePubType(list) {
   return autres.length ? String(autres[0]) : '';
 }
 
+/* Normalise la colonne SOURCE vers le code que l'écran attend. Les 2 044
+   lignes collectées le 08/08 portent les libellés fautifs : on les traduit
+   à la lecture plutôt que de réécrire la feuille. */
+function _veilleSourceCode(v) {
+  const s = String(v || '').trim();
+  if (s === 'Revue') return 'REVUE';
+  if (s === 'Généraliste') return 'GENERAL';
+  return s.toUpperCase() === 'GENERAL' ? 'GENERAL' : (s ? s.toUpperCase() : 'REVUE');
+}
+
 function _veilleThemes(obj) { return obj ? Object.keys(obj).join('; ') : ''; }
 function _veilleSplitThemes(v) {
   return String(v || '').split(';').map(function (s) { return s.trim(); }).filter(Boolean);
@@ -587,7 +600,7 @@ function getVeille() {
     items.push({
       pmid: pmid, date: _isoDate(data[r][1]), titre: String(data[r][2] || ''),
       auteurs: String(data[r][3] || ''), revue: String(data[r][4] || ''), doi: String(data[r][5] || ''),
-      source: String(data[r][6] || ''), score: data[r][7] === '' ? null : Number(data[r][7]),
+      source: _veilleSourceCode(data[r][6]), score: data[r][7] === '' ? null : Number(data[r][7]),
       resume: String(data[r][8] || ''), lu: String(data[r][9] || 'N').toUpperCase() === 'O',
       star: String(data[r][10] || 'N').toUpperCase() === 'O', ajoute: _isoDate(data[r][11]),
       pubtype: String(data[r][12] || ''), themes: _veilleSplitThemes(data[r][13]),
