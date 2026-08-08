@@ -273,6 +273,24 @@ const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++
   V('elle affiche le compte du miroir (3)', dot && dot.textContent.trim() === '3', dot && dot.textContent);
   V('elle est TOUJOURS visible après le repli des 6 s', dot && dot.style.display === 'block', dot && dot.style.display);
 
+  console.log('\n═══ 24. Lire un message décrémente la pastille (v1.28.2) ═══');
+  /* Avant v1.28.2, le gestionnaire de lecture appelait majCompteurMail() SANS
+     valeur, ce qui CACHAIT la pastille (7 non-lus, 1 lu → plus rien d'affiché).
+     Désormais il appelle decrementerCompteurMail() : décrément local, sans
+     réseau. On exerce la vraie fonction de la page. */
+  V('la fonction de décrément existe dans la page', w.eval('typeof decrementerCompteurMail') === 'function');
+  V('le gestionnaire de lecture l\'utilise (plus d\'appel sans valeur)',
+    /r\.marque\)\s*\{[^}]*decrementerCompteurMail\(\)/.test(fs.readFileSync('../admin.html','utf8')));
+  w.eval('decrementerCompteurMail()');
+  await dodo(50);
+  V('3 non-lus, 1 lu → la pastille affiche 2', dot && dot.textContent.trim() === '2' && dot.style.display === 'block', dot && dot.textContent);
+  w.eval('decrementerCompteurMail(); decrementerCompteurMail();');
+  await dodo(50);
+  V('0 non-lu → la pastille s\'efface', dot && dot.style.display === 'none', dot && dot.style.display);
+  w.eval('decrementerCompteurMail()');
+  await dodo(50);
+  V('décrémenter sous zéro ne fait rien (pas d\'erreur, pastille éteinte)', dot && dot.style.display === 'none' && erreurs.length === 0, erreurs.slice(0,1));
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   process.exit(ko ? 1 : 0);
 })();
