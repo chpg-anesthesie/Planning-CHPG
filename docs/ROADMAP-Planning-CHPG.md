@@ -993,26 +993,22 @@ pour éviter tout biais de confirmation). Conclusions :
   filtre par revues cochées (v1.29, mémoire par appareil) ; diapo 29 du deck staff
   réalignée. Volume validé : **79,5 art./semaine**.
 
-**Veille — reste à faire :**
-- Supprimer `gas/veille_dryrun.gs` (du dépôt ET d'Apps Script, avec la fonction de
-  mesure `mesureEpubdate` qui y a été collée) — la veille est validée.
-- **Lu/★ par MAR** : une seule colonne LU/STAR pour 23 MARs aujourd'hui — marquer
-  « lu » retire l'article de l'écran de tous. La clé miroir `veille` est un
-  instantané **unique et partagé** : l'état par MAR passera par le mécanisme
-  `{parMar:{ID:…}}` filtré par le Worker (celui des indispos, `miroir.gs` ~l.602).
-  Touche `dashboard.html` → montée de version ; y inclure le **retrait de l'option
-  morte « Thèmes »** du menu sources (vestige de l'ancien axe thème).
-  Plan validé le 08/08 (6 points) : ① onglet `VEILLE_MARQUES` (une ligne par
-  couple MAR×PMID, écriture ciblée, jamais de suppression) ; ② clé `veille_marques`
-  filtrée par le Worker **pour tous les rôles, admin compris** (lecture = donnée
-  personnelle) ; ③ accroche miroir après `markVeille` + optimisme d'écran existant ;
-  ④ colonnes LU/STAR partagées abandonnées ; ⑤ v1.30 ; ⑥ **file locale de marques**
-  (`localStorage`) rejouée à chaque ouverture jusqu'à confirmation — ferme le seul
-  « à fond perdu avec échec avalé » portant des données utilisateur (cf. doctrine
-  des écritures, CONTEXTE). Banc écrit d'abord : deux MARs qui ne se voient pas,
-  refus Worker, transport coupé → page fermée → rejeu. **Gel le 31/08** : fini,
-  testé à deux vrais codes, `veille_dryrun.gs` supprimé — puis plus rien jusqu'au
-  4/09.
+**Veille — FAIT le 08/08/2026 :**
+- ~~Supprimer `gas/veille_dryrun.gs`~~ **fait** (dépôt le 08/08 au soir ; Arthur
+  l'a retiré d'Apps Script avec la fonction `mesureEpubdate`, + nouvelle version).
+- **Lu/★ par MAR — LIVRÉ et VALIDÉ EN PRODUCTION le 08/08** (v1.30 ; `veille.gs`
+  2026-08-08.5, `portail.gs` .2, `miroir.gs` 2026-08-08.1, Worker 2026-08-08.1).
+  Tests passés : solo (marques visibles dans `VEILLE_MARQUES`) et **croisé à deux
+  vrais codes** (deux MARs, deux états indépendants). Les 6 points du plan tenus :
+  ① onglet `VEILLE_MARQUES` creux (une ligne par couple MAR×article touché) ;
+  ② clé `veille_marques` filtrée par le Worker **pour tous les rôles, admin
+  compris** ; ③ accroche miroir après `markVeille` ; ④ colonnes LU/STAR partagées
+  abandonnées (plus lues ni écrites — retrait physique plus tard) ; ⑤ v1.30 avec
+  retrait de l'option morte « Thèmes » ; ⑥ **file locale de marques** rejouée
+  jusqu'à confirmation — le dernier « à fond perdu avec échec avalé » portant des
+  données utilisateur est fermé (doctrine des écritures). Banc : deux MARs isolés,
+  admin filtré, transport coupé → rejeu à la réouverture — 510 vérifications.
+  **Gel jusqu'au 4/09 : plus rien ne bouge.**
 - **Audit des écritures — case restante** : localiser l'appelant client de
   `declareLiberal`/`deleteLiberal` (absent des pages de la racine, probablement le
   module libéral sous `docs/`) et le classer selon la doctrine des écritures.

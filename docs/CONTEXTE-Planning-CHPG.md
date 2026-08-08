@@ -47,6 +47,23 @@ le matin, commit `49e6465`, puis corrigé trois fois dans la journée) ;
   dates, et l'interface **pilotée au clic** dans la vraie page. Stubs complétés
   (`setFrozenRows`, `clearContent`).
 
+### Chantier Lu/★ par MAR — livré et validé le 08/08 au soir (v1.30)
+
+Marquer « lu » ne retire plus l'article que de SA liste ; les marques suivent le
+MAR d'un appareil à l'autre. Onglet **`VEILLE_MARQUES`** creux (MAR_ID, PMID, LU,
+STAR, MAJ_LE — une ligne par couple touché, zéro de base) ; `markVeille` exige
+l'identité **du routeur** (jamais du payload) et est idempotent ; clé miroir
+`veille_marques` au format `{parMar:{ID:…}}`, filtrée par le Worker **pour tous
+les rôles, admin compris** ; `getVeille(user)` fusionne côté serveur pour le
+repli GAS — les deux chemins rendent le même écran ; **file locale des marques**
+au dashboard (une entrée par article×champ, le dernier geste gagne, sortie sur
+confirmation seulement, « article introuvable » = marque abandonnée proprement).
+Ordre de déploiement qui compte : **Worker d'abord**, puis les .gs, puis
+`miroirSyncComplet()`. Tests solo + croisé à deux vrais codes : passés.
+`veille_dryrun.gs` supprimé (dépôt + Apps Script). Aucun entretien automatique
+des onglets VEILLE/VEILLE_MARQUES : purge **manuelle** à concevoir ~novembre
+(ROADMAP). Banc **482 → 510**.
+
 ### Doctrine des écritures (08/08/2026, gravée après audit)
 
 **Toute écriture de données utilisateur est soit journalisée, soit attendue avec
