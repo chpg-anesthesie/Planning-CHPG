@@ -1016,6 +1016,36 @@ pour éviter tout biais de confirmation). Conclusions :
 - **Audit des écritures — case restante** : localiser l'appelant client de
   `declareLiberal`/`deleteLiberal` (absent des pages de la racine, probablement le
   module libéral sous `docs/`) et le classer selon la doctrine des écritures.
+
+### Ouverture des topos/protocoles — mesuré le 08/08/2026, chantier à l'étude
+**Mesure (`chrono()`, dashboard, un seul utilisateur, aucune concurrence) :**
+`getProtocole` **6,1 s** (doGet 2,8 s · réseau 3,2 s) · `getTopo` **11,5 s**
+(doGet 4,2 s · réseau 7,2 s — le « réseau » contient la compilation des 545 Ko
+de .gs et le PDF gonflé en base64). Tout le reste de la page : miroir à
+100-270 ms. **L'ouverture d'un PDF est 50 à 100 fois plus chère que tout autre
+geste du dashboard** — c'est le seul appel lourd que les MARs peuvent empiler.
+Sous charge (mesure du 28/07 : 30-40 s par appel sur file saturée), 25
+ouvertures simultanées = dizaines de secondes chacun, abandons à 120 s
+possibles. Échec **visible** (alert), pas de perte silencieuse.
+
+**Note orateur, 4 septembre (et toute réunion)** : ne jamais inviter la salle à
+ouvrir un même PDF ensemble ; tout document à projeter se **pré-ouvre avant** la
+séance — 11 s de silence devant la salle, c'est long.
+
+**Chantier « PDF par le miroir » — à l'étude, APRÈS Lu/★ par MAR.** Principe :
+la synchro horaire pousse chaque document des dossiers Drive comme une clé
+(`topo_pdf_…`) ; le Worker, générique, la sert derrière l'authentification
+existante. **Ajouter un topo/protocole reste le geste d'aujourd'hui** (déposer le
+fichier dans le dossier Drive) : disponible à la synchro suivante ou via
+`miroirSyncComplet()` — zéro reprogrammation Cloudflare à l'ajout, le Worker ne
+change qu'une fois, à la mise en place. Gain attendu : de 6-11 s à l'ordre du
+¼ de seconde constaté sur les autres clés. **Trois vérifications AVANT toute
+décision** (mesurer, pas supposer) :
+1. Poids réel des dossiers topos + protocoles (Drive) contre les limites
+   Cloudflare par clé et en cumul ;
+2. Temps de poussée : la synchro qui transfère des Mo de PDF ne doit pas
+   devenir elle-même la tâche longue qui engorge la file ;
+3. Cas du document trop lourd : repli vers le chemin GAS actuel pour lui seul.
 - Rappel d'exploitation : après re-collecte ou modification de `getVeille()`,
   lancer `miroirSyncComplet()` — la clé `veille` n'est rafraîchie que par la
   synchro horaire.
