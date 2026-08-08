@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_SETUP = '2026-08-03.1';
+const GAS_VERSION_SETUP = '2026-08-08.1';
 
 
 // ══════════════════════════════════════════════════════════════════════
@@ -37,12 +37,17 @@ const _ONGLETS_PLAN = [
   { n:'STAFFS',             c:'#7E22CE' },
   // ── Technique mais consultable en dépannage — orange (VISIBLE)
   { n:'PLANNING_OVERRIDES', c:'#C2410C' },
+  // ── Module libéral — turquoise
+  { n:'SPECIALITES',        c:'#0D9488' },
+  { n:'COTATIONS_TYPE',     c:'#0D9488' },
+  { n:'LIBERAL_2026',       c:'#0D9488' },
+  { n:'LIBERAL_CA_2026',    c:'#0D9488' },
 ];
 
 // Écrits et lus par le code seul : masqués.
 const _ONGLETS_MASQUES = [
   'ABSENCES_LONGUES', 'HISTORIQUE',
-  'VEILLE', 'LOGS', 'CONNEXIONS',
+  'VEILLE', 'VEILLE_MARQUES', 'LOGS', 'CONNEXIONS',
 ];
 
 const _ONGLET_ANNUEL_RE = /^(GARDES|INDISPOS|AFFECTATIONS|STATS_GARDES)_(\d{4})$/;
