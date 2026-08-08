@@ -57,7 +57,7 @@
 //  instantané unique et partagé : chantier séparé.
 // ══════════════════════════════════════════════════════════════════════
 
-const GAS_VERSION_VEILLE = '2026-08-08.4';
+const GAS_VERSION_VEILLE = '2026-08-08.5';
 
 const VEILLE_CFG_TAB = 'VEILLE_CFG';
 const VEILLE_TAB     = 'VEILLE';
@@ -210,6 +210,18 @@ function getOrCreateVeilleTabs() {
     cfg.getRange(2, 1, VEILLE_DEFAULT_CFG.length, 4).setValues(VEILLE_DEFAULT_CFG);
   }
 
+  /* (2026-08-08.5) Marques de lecture PAR MAR : une ligne par couple
+     (MAR, article) touché — écriture ciblée, jamais de suppression. Les
+     colonnes LU/STAR de l'onglet VEILLE (partagées entre 23 MARs) sont
+     abandonnées : plus lues, plus écrites. */
+  let mq = ss.getSheetByName('VEILLE_MARQUES');
+  if (!mq) {
+    mq = ss.insertSheet('VEILLE_MARQUES');
+    mq.getRange(1, 1, 1, 5).setValues([['MAR_ID', 'PMID', 'LU', 'STAR', 'MAJ_LE']]);
+    mq.getRange(1, 1, 1, 5).setFontWeight('bold');
+    mq.setFrozenRows(1);
+  }
+
   let v = ss.getSheetByName(VEILLE_TAB);
   if (!v) {
     v = ss.insertSheet(VEILLE_TAB);
@@ -223,7 +235,7 @@ function getOrCreateVeilleTabs() {
   } else {
     _ensureVeilleColumns(v);
   }
-  return { cfg: cfg, veille: v };
+  return { cfg: cfg, veille: v, marques: mq };
 }
 
 // Ajoute en fin les colonnes manquantes sans décaler LU/STAR, référencés
@@ -586,10 +598,24 @@ function _veilleSplitThemes(v) {
 //  dashboard.html ET miroir.gs.
 // ══════════════════════════════════════════════════════════════════════
 
-function getVeille() {
+/* (2026-08-08.5) `user` optionnel : la synchro miroir appelle SANS user
+   (instantané partagé, marques neutres) ; le repli GAS du dashboard passe
+   PAR le routeur, qui fournit user → les marques du MAR sont fusionnées
+   ici même, l'écran n'a rien à faire de plus. Les colonnes LU/STAR de
+   l'onglet VEILLE ne sont PLUS lues. */
+function getVeille(user) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const v  = ss.getSheetByName(VEILLE_TAB);
   if (!v) return { success: true, count: 0, enrich: false, items: [] };
+
+  let lus = {}, stars = {};
+  if (user && user.id) {
+    const m = _veilleMarquesParMar()[String(user.id).trim()];
+    if (m) {
+      m.lus.forEach(function (p) { lus[p] = true; });
+      m.stars.forEach(function (p) { stars[p] = true; });
+    }
+  }
 
   const cfg  = _readVeilleCfg();
   const data = v.getDataRange().getValues();
@@ -601,8 +627,8 @@ function getVeille() {
       pmid: pmid, date: _isoDate(data[r][1]), titre: String(data[r][2] || ''),
       auteurs: String(data[r][3] || ''), revue: String(data[r][4] || ''), doi: String(data[r][5] || ''),
       source: _veilleSourceCode(data[r][6]), score: data[r][7] === '' ? null : Number(data[r][7]),
-      resume: String(data[r][8] || ''), lu: String(data[r][9] || 'N').toUpperCase() === 'O',
-      star: String(data[r][10] || 'N').toUpperCase() === 'O', ajoute: _isoDate(data[r][11]),
+      resume: String(data[r][8] || ''), lu: !!lus[pmid],
+      star: !!stars[pmid], ajoute: _isoDate(data[r][11]),
       pubtype: String(data[r][12] || ''), themes: _veilleSplitThemes(data[r][13]),
     });
   }
@@ -618,17 +644,57 @@ function getVeille() {
   };
 }
 
-function markVeille(pmid, field, value) {
+/* (2026-08-08.5) Marque PERSONNELLE : l'identité vient du routeur
+   (portail.gs lui passe `user`, déjà authentifié) — jamais du payload.
+   Idempotent : poser deux fois « lu » = « lu », le rejeu de la file locale
+   du dashboard est donc sans danger. */
+function markVeille(pmid, field, value, user) {
+  if (!user || !user.id) return { success: false, error: 'identité requise' };
   const tabs = getOrCreateVeilleTabs();
-  const col  = String(field).toUpperCase() === 'STAR' ? 11 : 10;
-  const data = tabs.veille.getRange(1, 1, tabs.veille.getLastRow(), 1).getValues();
+  const p = String(pmid || '').trim();
+
+  // L'article doit exister (protège l'onglet des PMID fantaisistes).
+  const arts = tabs.veille.getRange(1, 1, Math.max(tabs.veille.getLastRow(), 1), 1).getValues();
+  let existe = false;
+  for (let r = 1; r < arts.length; r++) {
+    if (String(arts[r][0] || '').trim() === p) { existe = true; break; }
+  }
+  if (!existe) return { success: false, error: 'article introuvable' };
+
+  const col = String(field).toUpperCase() === 'STAR' ? 4 : 3;
+  const id  = String(user.id).trim();
+  const mq  = tabs.marques;
+  const data = mq.getRange(1, 1, Math.max(mq.getLastRow(), 1), 2).getValues();
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][0] || '').trim() === String(pmid).trim()) {
-      tabs.veille.getRange(r + 1, col).setValue(value ? 'O' : 'N');
+    if (String(data[r][0] || '').trim() === id && String(data[r][1] || '').trim() === p) {
+      mq.getRange(r + 1, col).setValue(value ? 'O' : 'N');
+      mq.getRange(r + 1, 5).setValue(new Date());
       return { success: true };
     }
   }
-  return { success: false, error: 'article introuvable' };
+  mq.appendRow([id, p,
+    String(field).toUpperCase() === 'LU'   ? (value ? 'O' : 'N') : 'N',
+    String(field).toUpperCase() === 'STAR' ? (value ? 'O' : 'N') : 'N',
+    new Date()]);
+  return { success: true };
+}
+
+/* Toutes les marques, groupées par MAR — pour la clé miroir
+   `veille_marques`, filtrée par le Worker : chacun ne reçoit que les
+   siennes (admin compris — ce qu'un collègue lit est personnel). */
+function _veilleMarquesParMar() {
+  const tabs = getOrCreateVeilleTabs();
+  const mq = tabs.marques;
+  const data = mq.getRange(1, 1, Math.max(mq.getLastRow(), 1), 4).getValues();
+  const parMar = {};
+  for (let r = 1; r < data.length; r++) {
+    const id = String(data[r][0] || '').trim(), p = String(data[r][1] || '').trim();
+    if (!id || !p) continue;
+    if (!parMar[id]) parMar[id] = { lus: [], stars: [] };
+    if (String(data[r][2] || '').toUpperCase() === 'O') parMar[id].lus.push(p);
+    if (String(data[r][3] || '').toUpperCase() === 'O') parMar[id].stars.push(p);
+  }
+  return parMar;
 }
 
 // ══════════════════════════════════════════════════════════════════════

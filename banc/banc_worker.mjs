@@ -88,5 +88,34 @@ console.log('\n═══ 46. Volet libéral : mirrorable, et SANS montants ═�
   V('un MAR n\'obtient PAS le volet du comité', !(r.j.data && r.j.data.liberal_2027), r.j.refuses);
 }
 
+console.log('\n═══ Lu/★ par MAR : la clé veille_marques, filtrée POUR TOUS ═══');
+{
+  M.set('veille_marques', JSON.stringify({ parMar: {
+    BONNET:   { lus: ['101', '102'], stars: ['103'] },
+    FROHLICH: { lus: ['201'],        stars: [] },
+    CATINEAU: { lus: ['301'],        stars: ['301'] },
+  }, t: Date.now() }));
+
+  // Le MAR ne reçoit que SES marques
+  let r = await appel('/read', { code: CODE_MAR, keys: ['veille_marques'] });
+  const vmM = r.j.data && r.j.data.veille_marques;
+  V('un MAR obtient la clé veille_marques', !!vmM, r.j);
+  V('il ne reçoit QUE ses marques (BONNET seul)', vmM && Object.keys(vmM.parMar).length === 1 && !!vmM.parMar.BONNET, vmM && Object.keys(vmM.parMar));
+  V('ses lus et ses étoiles sont complets', vmM && vmM.parMar.BONNET.lus.length === 2 && vmM.parMar.BONNET.stars[0] === '103', vmM && vmM.parMar.BONNET);
+  V('les marques de CATINEAU ne fuient pas', vmM && !vmM.parMar.CATINEAU);
+
+  // L'ADMIN AUSSI est filtré — contrairement aux indispos : lire est personnel
+  r = await appel('/read', { code: CODE_ADMIN, keys: ['veille_marques'] });
+  const vmA = r.j.data && r.j.data.veille_marques;
+  V('l\'admin obtient la clé', !!vmA);
+  V('l\'admin est filtré LUI AUSSI (FROHLICH seul, jamais les autres)', vmA && Object.keys(vmA.parMar).length === 1 && !!vmA.parMar.FROHLICH && !vmA.parMar.BONNET, vmA && Object.keys(vmA.parMar));
+
+  // Poussée par le GAS : la clé est acceptée à l'écriture /push
+  r = await appel('/push', { token: 'JETON-SECRET', items: { veille_marques: JSON.stringify({ parMar: { BONNET: { lus: ['999'], stars: [] } }, t: 1 }) } });
+  V('le GAS peut pousser veille_marques', r.j.success === true, r.j);
+  r = await appel('/read', { code: CODE_MAR, keys: ['veille_marques'] });
+  V('la nouvelle valeur est servie, toujours filtrée', r.j.data.veille_marques.parMar.BONNET.lus[0] === '999', r.j.data.veille_marques);
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);

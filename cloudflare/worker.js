@@ -49,12 +49,12 @@
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-05.7';
+const VERSION = 'miroir 2026-08-08.1';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
 // une clé orpheline invisible.
-const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4})$/;
+const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|veille_marques)$/;
 
 // En-têtes communs. Origin * : la protection est le code d'accès, pas
 // l'origine (les pages GitHub Pages n'ont pas d'origine secrète).
@@ -183,6 +183,11 @@ async function lire(corps, env) {
     if (/^indispos_\d{4}$/.test(cle) && user.role !== 'admin') {
       valeur = filtreIndispos(valeur, user.id);
     }
+    if (cle === 'veille_marques') {
+      // (08/08) Ce qu'un collègue lit est PERSONNEL : filtré pour TOUS les
+      // rôles, admin compris — contrairement aux indispos.
+      valeur = filtreIndispos(valeur, user.id);
+    }
     data[cle] = valeur;
   });
   await Promise.all(taches);
@@ -303,6 +308,7 @@ function autorise(user, cle) {
     return user.role === 'admin';                                       // lot B : outils comite (roles GAS repliques)
   if (/^(planning|affectations)_\d{4}$/.test(cle)) return true;        // MAR + admin
   if (/^indispos_\d{4}$/.test(cle)) return true;                       // filtré plus loin
+  if (cle === 'veille_marques') return true;                           // (08/08) MAR + admin — filtré plus loin, POUR TOUS
   if (cle === 'config_admin') return user.role === 'admin';            // admin seul
   if (cle === 'mail_nonlus') return user.role === 'admin';             // (05/08) compteur de non-lus : un NOMBRE, jamais de contenu
   if (/^liberal_\d{4}$/.test(cle)) return user.role === 'admin';       // (05/08) volet du panneau : qui opere, ou — jamais de montant

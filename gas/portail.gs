@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-08-08.1';
+const GAS_VERSION_PORTAIL = '2026-08-08.2';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -40,8 +40,8 @@ function portailRoute(action, payload, user) {
       }
       return _portailJson(getReleveLiberal(payload));  // lecture : pas de verrou
     case 'getCsTemplate':  return _portailJson(getCsTemplate());
-    case 'getVeille':  return _portailJson(getVeille());
-    case 'markVeille': return _portailJson(markVeille(payload && payload.pmid, payload && payload.field, payload && payload.value));
+    case 'getVeille':  return _portailJson(getVeille(user));   // (2026-08-08.2) repli GAS : marques du MAR fusionnées
+    case 'markVeille': return _portailJson(markVeille(payload && payload.pmid, payload && payload.field, payload && payload.value, user));
     case 'genererCRH': return _portailJson(genererCRH_(payload, user));
     // Declaration d'intervention liberale (onglet LIBERAL_{Y}). declareLiberal et
     // deleteLiberal ECRIVENT : elles sont dans WRITE_ACTIONS_LOCK (Indispos.gs), le

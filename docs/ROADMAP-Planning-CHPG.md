@@ -1049,6 +1049,15 @@ décision** (mesurer, pas supposer) :
 - Rappel d'exploitation : après re-collecte ou modification de `getVeille()`,
   lancer `miroirSyncComplet()` — la clé `veille` n'est rafraîchie que par la
   synchro horaire.
+- **Entretien des onglets VEILLE et VEILLE_MARQUES (à concevoir ~novembre 2026,
+  chiffres en main)** : constat du 08/08 — AUCUN auto-nettoyage, la fenêtre de
+  180 j ne borne que la collecte ; ~2 000 articles/semestre s'accumulent sans
+  fin, l'instantané miroir les charge tous. Prévoir une fonction **MANUELLE**
+  `purgerVeille()` (jamais un déclencheur : règle de l'archivage — aucune
+  suppression automatisée) : retire les articles au-delà de `PURGE_MOIS`
+  (VEILLE_CFG, ~12 mois) ET leurs marques dans VEILLE_MARQUES, annonce le
+  compte au journal, et ne touche JAMAIS un article encore ★ chez quelqu'un.
+  À lancer par Arthur quelques fois par an, comme l'archivage.
 
 ### Audit des emails (20 juillet 2026)
 

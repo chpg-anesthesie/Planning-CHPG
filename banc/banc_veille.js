@@ -209,14 +209,17 @@ function monde(plan) {
     V('la page se charge sans erreur JavaScript', erreurs.length === 0, erreurs.slice(0, 2));
 
     /* Trois articles, deux revues. VEILLE_ITEMS est un `let` de page,
-       invisible depuis w.* : on passe par le chemin PUBLIC — miroirTuile
+       invisible depuis w.* : on passe par le chemin PUBLIC — miroirRead
        remplacée (déclaration `function`, donc propriété de window),
-       puis le vrai openVeille(). */
-    w.miroirTuile = async () => ({ success:true, count:3, enrich:false, items: [
-      { pmid:'1', date:'2026-08-01', titre:'Un',    auteurs:'', revue:'Anesthesiology', doi:'', source:'REVUE', score:null, resume:'', lu:false, star:false, ajoute:'', pubtype:'', themes:[] },
-      { pmid:'2', date:'2026-08-02', titre:'Deux',  auteurs:'', revue:'Crit Care',      doi:'', source:'REVUE', score:null, resume:'', lu:false, star:false, ajoute:'', pubtype:'', themes:[] },
-      { pmid:'3', date:'2026-08-03', titre:'Trois', auteurs:'', revue:'Anesthesiology', doi:'', source:'REVUE', score:null, resume:'', lu:false, star:false, ajoute:'', pubtype:'', themes:['NVPO'] },
-    ] });
+       puis le vrai openVeille(). (v1.30 : openVeille lit DEUX clés miroir.) */
+    w.miroirRead = async () => ({ success:true, data: {
+      veille: { success:true, count:3, enrich:false, items: [
+        { pmid:'1', date:'2026-08-01', titre:'Un',    auteurs:'', revue:'Anesthesiology', doi:'', source:'REVUE', score:null, resume:'', lu:false, star:false, ajoute:'', pubtype:'', themes:[] },
+        { pmid:'2', date:'2026-08-02', titre:'Deux',  auteurs:'', revue:'Crit Care',      doi:'', source:'REVUE', score:null, resume:'', lu:false, star:false, ajoute:'', pubtype:'', themes:[] },
+        { pmid:'3', date:'2026-08-03', titre:'Trois', auteurs:'', revue:'Anesthesiology', doi:'', source:'REVUE', score:null, resume:'', lu:false, star:false, ajoute:'', pubtype:'', themes:['NVPO'] },
+      ] },
+      veille_marques: { parMar: {} },
+    } });
     await w.openVeille();
     const panneau = w.document.getElementById('vRevPanel');
     const cases = panneau.querySelectorAll('input[type=checkbox]');
@@ -243,6 +246,117 @@ function monde(plan) {
     w.onVTheme('NVPO');
     V('cumul revue + thème → seule la carte qui a les deux', w.document.querySelectorAll('.veille-card').length === 1
       && /Trois/.test(w.document.querySelector('.vc-title').textContent));
+  }
+
+  console.log('\n═══ 8. Lu/★ PAR MAR (GAS) : deux collègues ne se marchent plus dessus ═══');
+  {
+    const plan = () => ({ esearchresult: { count: '0', idlist: [] }, result: {} });
+    const { ctx, cl } = monde(plan);
+    vm.runInContext('getOrCreateVeilleTabs()', ctx);
+    const feuille = cl.getSheetByName('VEILLE');
+    feuille.appendRow(['700', '2026-08-01', 'Article commun', '', 'BJA', '', 'REVUE', '', '', 'N', 'N', '2026-08-08', '', '']);
+    ctx.__A = { id: 'BONNET' }; ctx.__B = { id: 'SULTAN' };
+
+    // Sans identité : refus.
+    let r = vm.runInContext("markVeille('700','lu',true)", ctx);
+    V('markVeille SANS identité est refusé', r.success === false && /identité/.test(r.error), r);
+
+    // A marque lu, B marque ★ — même article.
+    r = vm.runInContext("markVeille('700','lu',true, __A)", ctx);
+    V('BONNET marque « lu »', r.success === true, r);
+    r = vm.runInContext("markVeille('700','star',true, __B)", ctx);
+    V('SULTAN marque « ★ »', r.success === true, r);
+
+    const parMar = vm.runInContext('_veilleMarquesParMar()', ctx);
+    V('chacun sa ligne : BONNET lu, pas ★', parMar.BONNET && parMar.BONNET.lus[0] === '700' && parMar.BONNET.stars.length === 0, parMar.BONNET);
+    V('SULTAN ★, pas lu', parMar.SULTAN && parMar.SULTAN.stars[0] === '700' && parMar.SULTAN.lus.length === 0, parMar.SULTAN);
+
+    // getVeille fusionne les marques DU MAR passé (repli GAS du dashboard).
+    let g = vm.runInContext('getVeille(__A)', ctx);
+    let it = g.items.find(i => i.pmid === '700');
+    V('getVeille(BONNET) : lu=vrai, ★=faux', it && it.lu === true && it.star === false, it && [it.lu, it.star]);
+    g = vm.runInContext('getVeille(__B)', ctx);
+    it = g.items.find(i => i.pmid === '700');
+    V('getVeille(SULTAN) : lu=faux, ★=vrai — la marque de BONNET ne déteint pas', it && it.lu === false && it.star === true, it && [it.lu, it.star]);
+    g = vm.runInContext('getVeille()', ctx);
+    it = g.items.find(i => i.pmid === '700');
+    V('getVeille() SANS user (instantané miroir) : marques neutres', it && it.lu === false && it.star === false);
+
+    // Idempotence + repentir.
+    vm.runInContext("markVeille('700','lu',true, __A)", ctx);
+    vm.runInContext("markVeille('700','lu',false, __A)", ctx);
+    const pm2 = vm.runInContext('_veilleMarquesParMar()', ctx);
+    V('re-poser puis retirer : plus de « lu », pas de ligne dupliquée', (!pm2.BONNET || pm2.BONNET.lus.length === 0)
+      && cl.getSheetByName('VEILLE_MARQUES').lignes.filter(l => l[0] === 'BONNET' && String(l[1]) === '700').length === 1, pm2.BONNET);
+
+    r = vm.runInContext("markVeille('999999','lu',true, __A)", ctx);
+    V('PMID inconnu : refusé (article introuvable)', r.success === false && /introuvable/.test(r.error), r);
+
+    // Les colonnes LU/STAR partagées de VEILLE sont mortes : getVeille les ignore.
+    feuille.lignes[1][9] = 'O'; feuille.lignes[1][10] = 'O';
+    g = vm.runInContext('getVeille()', ctx);
+    it = g.items.find(i => i.pmid === '700');
+    V('les anciennes colonnes partagées ne sont PLUS lues', it && it.lu === false && it.star === false);
+  }
+
+  console.log('\n═══ 9. File locale des marques (v1.30) : rien ne se perd, même téléphone verrouillé ═══');
+  {
+    const { JSDOM, VirtualConsole } = require('jsdom');
+    const faireDom = (transportOk, envois, graine) => {
+      const vcons = new VirtualConsole();
+      const dom = new JSDOM(fs.readFileSync('../dashboard.html', 'utf8'), {
+        runScripts: 'dangerously', virtualConsole: vcons,
+        url: 'https://chpg-anesthesie.github.io/Planning-CHPG/dashboard.html', pretendToBeVisual: true,
+        beforeParse(win) {
+          win.matchMedia = () => ({ matches:false, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
+          win.Element.prototype.scrollIntoView = function () {}; win.scrollTo = () => {};
+        } });
+      const w = dom.window;
+      if (graine) Object.keys(graine).forEach(k => w.localStorage.setItem(k, graine[k]));
+      w.fetch = async () => ({ ok:true, json: async () => ({ success:false }) });   // pas de miroir
+      // apiPost remplacée : capture des envois, succès selon transportOk.
+      w.apiPost = async (p) => {
+        if (p.action === 'getVeille') return { success:true, count:1, enrich:false, items:[
+          { pmid:'800', date:'2026-08-01', titre:'Art', auteurs:'', revue:'BJA', doi:'', source:'REVUE', score:null, resume:'', lu:false, star:false, ajoute:'', pubtype:'', themes:[] }] };
+        if (p.action === 'markVeille') { if (!transportOk()) throw new Error('transport mort'); envois.push(p); return { success:true }; }
+        return { success:true };
+      };
+      return w;
+    };
+
+    // Acte 1 : transport MORT — on marque, la file retient, l'écran est à jour.
+    let envois1 = [];
+    const w1 = faireDom(() => false, envois1, null);
+    await new Promise(r => setTimeout(r, 350));
+    await w1.openVeille();
+    w1.toggleV('800', 'lu'); w1.toggleV('800', 'star');
+    await new Promise(r => setTimeout(r, 50));
+    V('transport mort : rien ne part', envois1.length === 0);
+    const file1 = JSON.parse(w1.localStorage.getItem('chpgVeilleFile') || '[]');
+    V('mais la file locale retient les 2 marques', file1.length === 2, file1);
+    const compteur1 = w1.document.getElementById('veilleCount').textContent;
+    V('l\'écran montre déjà « 0 non lus » (optimisme, transport mort compris)', /0 non lus/.test(compteur1), compteur1);
+
+    // Acte 2 : « téléphone rouvert » — nouvelle page, MÊME localStorage, transport VIVANT.
+    let envois2 = [];
+    const w2 = faireDom(() => true, envois2, { chpgVeilleFile: w1.localStorage.getItem('chpgVeilleFile') });
+    await new Promise(r => setTimeout(r, 350));
+    await w2.openVeille();
+    await new Promise(r => setTimeout(r, 80));
+    V('à la réouverture, les 2 marques PARTENT au serveur', envois2.filter(e => e.action === 'markVeille').length === 2, envois2);
+    V('et la file locale se vide', JSON.parse(w2.localStorage.getItem('chpgVeilleFile') || '[]').length === 0);
+    V('la marque rejouée porte les bons champs', envois2.some(e => e.pmid === '800' && e.field === 'lu' && e.value === true), envois2);
+
+    // Deux gestes contraires sur le même champ : une seule entrée, le dernier gagne.
+    w2.toggleV('800', 'lu');   // false (était true après rejeu... l'écran : true → false)
+    w2.toggleV('800', 'lu');   // true
+    const f2 = JSON.parse(w2.localStorage.getItem('chpgVeilleFile') || '[]');
+    V('même champ retouché : une seule entrée en file (le dernier geste)', f2.filter(m => m.pmid === '800' && m.field === 'lu').length <= 1, f2);
+
+    // L'option morte « Thèmes » a quitté le menu sources.
+    const opts = [...w2.document.querySelectorAll('select.vsel option')].map(o => o.value);
+    V('l\'option « THEME » du menu sources est retirée', opts.indexOf('THEME') === -1, opts);
+    V('REVUE et GENERAL, elles, restent', opts.indexOf('REVUE') !== -1 && opts.indexOf('GENERAL') !== -1);
   }
 
   console.log(`\n${ok} OK · ${ko} en échec`);

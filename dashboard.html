@@ -388,7 +388,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.29.1</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.30</span></span></p>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
@@ -432,7 +432,6 @@ a.tile:hover, .tile.clickable:hover {
         <option value="">Toutes sources</option>
         <option value="REVUE">Revues spécialisées</option>
         <option value="GENERAL">Généralistes</option>
-        <option value="THEME">Thèmes</option>
       </select>
       <div class="vrev-wrap">
         <button class="vsel" id="vRevBtn" onclick="toggleVRevPanel(event)">Revues (toutes)</button>
@@ -486,7 +485,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.29.1'; // SITE_VERSION: v1.29.1
+const SITE_VERSION = 'v1.30'; // SITE_VERSION: v1.30
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -1209,13 +1208,35 @@ async function openVeille(){
   try{ V_SEEN = localStorage.getItem('chpgVeilleSeen')||''; }catch(e){ V_SEEN=''; }
   try{ V_REVUES = JSON.parse(localStorage.getItem('chpgVeilleRevues')||'[]')||[]; }catch(e){ V_REVUES=[]; }
   try{
-    const r=await miroirTuile('veille','getVeille');          // (miroir, 04/08/2026)
+    /* (v1.30) Deux clés dans la MEME lecture miroir : les articles (instantané
+       partagé) + MES marques (clé filtrée par le Worker — je ne reçois que les
+       miennes, sans meme connaitre mon id : je prends la seule entrée servie).
+       Repli miroir en panne → getVeille par GAS, qui fusionne mes marques
+       coté serveur : les deux chemins rendent le meme écran. */
+    let r=null, marks=null;
+    try{
+      const m = await miroirRead(['veille','veille_marques']);
+      if(m && m.success && m.data){
+        if(m.data['veille'] && m.data['veille'].success) r = m.data['veille'];
+        const vm = m.data['veille_marques'];
+        if(vm && vm.parMar){ const ks=Object.keys(vm.parMar); marks = ks.length ? vm.parMar[ks[0]] : {lus:[],stars:[]}; }
+      }
+    }catch(e){ /* repli GAS ci-dessous */ }
+    if(!r){ r = await apiPost({action:'getVeille'}); marks=null; }
     if(r && r.success){
       VEILLE_ITEMS = r.items||[];
+      if(marks){
+        const L={}, S={};
+        (marks.lus||[]).forEach(function(p){ L[p]=true; });
+        (marks.stars||[]).forEach(function(p){ S[p]=true; });
+        VEILLE_ITEMS.forEach(function(it){ it.lu=!!L[it.pmid]; it.star=!!S[it.pmid]; });
+      }
+      _veilleAppliquerFile();                       // marques en attente par-dessus l'état serveur
       document.getElementById('veilleToolbar').style.display = VEILLE_ITEMS.length ? 'flex' : 'none';
       populateThemeSelect();
       populateRevuePanel();
       renderVeille();
+      _veilleRejouerFile();                         // et on tente de les poser, sans bloquer l'écran
       try{ localStorage.setItem('chpgVeilleSeen', new Date().toISOString().slice(0,10)); }catch(e){}
     } else {
       box.innerHTML='<div class="topos-empty">'+esc((r&&r.error)||'Erreur de chargement')+'</div>';
@@ -1343,13 +1364,51 @@ function renderVeille(){
   }).join('');
 }
 
+/* ── FILE LOCALE DES MARQUES (v1.30, doctrine des écritures) ─────────────
+   Chaque marque est écrite ICI avant tout appel réseau, et n'en sort que sur
+   confirmation du serveur. Rejouée à chaque ouverture de la veille : un
+   timeout GAS ou une page suspendue par iOS ne perd plus rien — la marque est
+   soit confirmée, soit en file, soit rejouée à la prochaine visite.
+   markVeille est idempotent coté serveur : rejouer est sans danger. */
+let _vFileEnvoi=false;
+function _vFileLire(){ try{ return JSON.parse(localStorage.getItem('chpgVeilleFile')||'[]')||[]; }catch(e){ return []; } }
+function _vFileEcrire(f){ try{ localStorage.setItem('chpgVeilleFile', JSON.stringify(f)); }catch(e){} }
+function _vFilePoser(pmid, field, value){
+  // Une seule entrée par (article, champ) : le dernier geste gagne.
+  const f=_vFileLire().filter(function(m){ return !(m.pmid===pmid && m.field===field); });
+  f.push({pmid:pmid, field:field, value:value});
+  _vFileEcrire(f);
+}
+function _veilleAppliquerFile(){
+  _vFileLire().forEach(function(m){
+    const it=VEILLE_ITEMS.find(function(x){return x.pmid===m.pmid;});
+    if(it) it[m.field]=m.value;
+  });
+}
+async function _veilleRejouerFile(){
+  if(_vFileEnvoi) return;                            // un seul rejeu à la fois
+  _vFileEnvoi=true;
+  try{
+    let f=_vFileLire();
+    while(f.length){
+      const m=f[0];
+      const r=await apiPost({action:'markVeille', pmid:m.pmid, field:m.field, value:m.value});
+      if(r && r.success){ f.shift(); _vFileEcrire(f); continue; }
+      if(r && r.error==='article introuvable'){ f.shift(); _vFileEcrire(f); continue; }  // article purgé : la marque n'a plus d'objet
+      break;                                         // échec serveur : on garde, prochaine ouverture
+    }
+  }catch(e){ /* échec transport : la file attend la prochaine ouverture */ }
+  finally{ _vFileEnvoi=false; }
+}
+
 function toggleV(pmid, field){
   const it=VEILLE_ITEMS.find(function(x){return x.pmid===pmid;});
   if(!it) return;
   const val=!it[field];
   it[field]=val;
   renderVeille();
-  apiPost({action:'markVeille', pmid:pmid, field:field, value:val}).catch(function(){});
+  _vFilePoser(pmid, field, val);                     // durable AVANT le réseau
+  _veilleRejouerFile();
 }
 
 function renderToposList(data){

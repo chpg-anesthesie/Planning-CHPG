@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-06.11';
+const GAS_VERSION_MIROIR = '2026-08-08.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -94,6 +94,10 @@ const MIROIR_APRES_ECRITURE = {
   annulerAbsenceLongue:       ['indispos', 'acces'],
   clearIndisposYear:          ['indispos', 'acces'],
   setIndisposYear:            ['indispos', 'acces'],
+  // (2026-08-08.1) Lu/★ par MAR : la marque suit sur les autres appareils
+  // en ~1-2 min (accroche différée) ; l'écran qui a marqué est déjà à jour
+  // (optimisme + file locale du dashboard).
+  markVeille:                 ['veille_marques'],
 };
 
 /* ── POINT D'ACCROCHE — appelé par doGet (Indispos.gs) après le routage ──
@@ -207,7 +211,8 @@ function miroirRattrapage() {
 function miroirSyncComplet() {
   const familles = ['acces', 'annees', 'secteurs', 'config_admin',
                     'planning', 'affectations', 'indispos', 'tuiles',
-                    'gardes', 'joursferies', 'stats', 'vacances_admin', 'mail', 'liberal'];
+                    'gardes', 'joursferies', 'stats', 'vacances_admin', 'mail', 'liberal',
+                    'veille_marques'];
   try { PropertiesService.getScriptProperties().deleteProperty(MIROIR_CLE_ATTENTE); } catch (e) {}   // la synchro pousse un sur-ensemble : la note devient caduque
   const res = miroirPousserFamilles_(familles, getActiveYear(), true);   // synchro : toutes les annees consultables
   Logger.log('miroirSyncComplet : ' + JSON.stringify(res));
@@ -244,6 +249,7 @@ const MIROIR_ONGLETS_SUIVIS = {
   LIBERAL:      ['liberal'],
   PERIODES_VAC: ['vacances_admin', 'stats'],
   GROUPES_VAC:  ['vacances_admin'],
+  VEILLE_MARQUES: ['veille_marques'],              // (2026-08-08.1) correction manuelle d'une marque
 };
 
 function miroirSurEdition(e) {
@@ -376,6 +382,14 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
   if (uniq['indispos']) {
     const iy = (function () { try { return getIndisposYear(); } catch (e) { return annee; } })();
     _miroirAjoute_(items, 'indispos_' + iy, function () { return _miroirConstruireIndispos_(iy); });
+  }
+
+  if (uniq['veille_marques']) {
+    // (2026-08-08.1) Meme format que les indispos : {parMar:{ID:…}}, filtré
+    // par le Worker — chacun ne reçoit que ses marques, admin compris.
+    _miroirAjoute_(items, 'veille_marques', function () {
+      return { parMar: _veilleMarquesParMar(), t: Date.now() };
+    });
   }
 
   if (!Object.keys(items).length) return { success: false, error: 'aucune clé construite' };
