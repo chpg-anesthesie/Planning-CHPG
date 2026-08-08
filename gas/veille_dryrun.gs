@@ -555,6 +555,17 @@ function veilleDryRunRegime() {
 //     lettres : anaesthesia / anesthesia ne se déduisent pas l'une l'autre.
 // ══════════════════════════════════════════════════════════════════════
 
+// ── CONFIGURATION ARRÊTÉE LE 08/08/2026 ────────────────────────────────
+// Mesures PubMed (fenêtre 180 j, axe direct) :
+//   vocabulaire initial   : 2 085 articles (81/sem) · couverture Anesthesiology 59 %
+//   vocabulaire resserré  : 1 893 articles (73/sem) · couverture 52 %
+// Le resserrement a coûté plus de couverture (-12 %) qu'il n'a réduit de
+// volume (-9 %) : la voie du filtrage thématique est saturée. Le volume ne
+// vient pas de mots trop larges, il vient de ce que 23 bonnes revues
+// d'anesthésie-réanimation publient réellement.
+// DÉCISION : on conserve les 23 revues et on assume ~73 articles/semaine.
+// Le tri fin (notation titre + résumé) est reporté à un second chantier.
+// ───────────────────────────────────────────────────────────────────────
 const DRY_THEMES_V2 = [
   { cle: 'Voies aériennes', val:
     '"intubation"[tiab] OR "extubation"[tiab] OR "difficult airway"[tiab] OR "airway management"[tiab] OR ' +
@@ -576,14 +587,14 @@ const DRY_THEMES_V2 = [
   { cle: 'Hémodynamique', val:
     '"hemodynamic"[tiab] OR "haemodynamic"[tiab] OR "vasopressor"[tiab] OR "vasopressors"[tiab] OR ' +
     '"norepinephrine"[tiab] OR "noradrenaline"[tiab] OR "fluid responsiveness"[tiab] OR "fluid therapy"[tiab] OR ' +
-    '"cardiac output"[tiab] OR "intraoperative hypotension"[tiab] OR "hypotension"[tiab] OR ' +
-    '"shock"[tiab] OR "microcirculation"[tiab] OR "capillary refill"[tiab] OR "lactate"[tiab]' },
+    '"cardiac output"[tiab] OR "intraoperative hypotension"[tiab] OR "circulatory shock"[tiab] OR ' +
+    '"microcirculation"[tiab] OR "capillary refill"[tiab] OR "lactate clearance"[tiab] OR "goal directed"[tiab]' },
 
   { cle: 'Ventilation & SDRA', val:
     '"mechanical ventilation"[tiab] OR "ARDS"[tiab] OR "acute respiratory distress syndrome"[tiab] OR ' +
     '"prone position"[tiab] OR "prone positioning"[tiab] OR "PEEP"[tiab] OR "positive end expiratory pressure"[tiab] OR ' +
     '"tidal volume"[tiab] OR "weaning"[tiab] OR "extubation failure"[tiab] OR "one lung ventilation"[tiab] OR ' +
-    '"high flow nasal"[tiab] OR "noninvasive ventilation"[tiab] OR "ECMO"[tiab] OR "oxygenation"[tiab]' },
+    '"high flow nasal"[tiab] OR "noninvasive ventilation"[tiab] OR "ECMO"[tiab] OR "apnoeic oxygenation"[tiab]' },
 
   { cle: 'Sepsis & infection', val:
     '"sepsis"[tiab] OR "septic shock"[tiab] OR "bacteremia"[tiab] OR "bacteraemia"[tiab] OR ' +
@@ -603,13 +614,13 @@ const DRY_THEMES_V2 = [
   { cle: 'Neuro & délire', val:
     '"delirium"[tiab] OR "postoperative cognitive"[tiab] OR "neurocognitive"[tiab] OR ' +
     '"anesthetic depth"[tiab] OR "anaesthetic depth"[tiab] OR "processed EEG"[tiab] OR "bispectral"[tiab] OR ' +
-    '"traumatic brain injury"[tiab] OR "intracranial pressure"[tiab] OR "stroke"[tiab] OR "sedation"[tiab]' },
+    '"traumatic brain injury"[tiab] OR "intracranial pressure"[tiab] OR "perioperative stroke"[tiab] OR "sedation depth"[tiab] OR "sedation practice"[tiab]' },
 
   { cle: 'Médecine périopératoire', val:
-    '"perioperative"[tiab] OR "preoperative"[tiab] OR "postoperative complications"[tiab] OR ' +
-    '"prehabilitation"[tiab] OR "enhanced recovery"[tiab] OR "ERAS"[tiab] OR "frailty"[tiab] OR ' +
-    '"risk assessment"[tiab] OR "postoperative outcome"[tiab] OR "postoperative outcomes"[tiab] OR ' +
-    '"myocardial injury"[tiab] OR "MINS"[tiab]' },
+    '"postoperative complications"[tiab] OR "prehabilitation"[tiab] OR "enhanced recovery"[tiab] OR ' +
+    '"ERAS"[tiab] OR "frailty"[tiab] OR "preoperative assessment"[tiab] OR "preoperative optimization"[tiab] OR ' +
+    '"postoperative outcome"[tiab] OR "postoperative outcomes"[tiab] OR "postoperative mortality"[tiab] OR ' +
+    '"myocardial injury"[tiab] OR "MINS"[tiab] OR "perioperative medicine"[tiab]' },
 
   { cle: 'Agents & pharmacologie', val:
     '"propofol"[tiab] OR "sevoflurane"[tiab] OR "desflurane"[tiab] OR "remimazolam"[tiab] OR ' +
@@ -623,8 +634,9 @@ const DRY_THEMES_V2 = [
     '"postpartum hemorrhage"[tiab] OR "postpartum haemorrhage"[tiab] OR "pregnancy"[tiab] OR "parturient"[tiab]' },
 
   { cle: 'Pédiatrie', val:
-    '"pediatric"[tiab] OR "paediatric"[tiab] OR "children"[tiab] OR "infant"[tiab] OR "infants"[tiab] OR ' +
-    '"neonatal"[tiab] OR "neonate"[tiab] OR "child"[tiab]' },
+    '"pediatric anesthesia"[tiab] OR "paediatric anaesthesia"[tiab] OR "pediatric patients"[tiab] OR ' +
+    '"paediatric patients"[tiab] OR "neonatal anesthesia"[tiab] OR "neonatal anaesthesia"[tiab] OR ' +
+    '"children undergoing"[tiab] OR "pediatric intensive care"[tiab] OR "paediatric intensive care"[tiab]' },
 
   { cle: 'IRA & épuration', val:
     '"acute kidney injury"[tiab] OR "renal replacement therapy"[tiab] OR "hemodialysis"[tiab] OR ' +
@@ -643,7 +655,7 @@ const DRY_THEMES_V2 = [
   { cle: 'Nutrition', val:
     '"nutrition"[tiab] OR "nutritional"[tiab] OR "enteral"[tiab] OR "parenteral"[tiab] OR ' +
     '"caloric"[tiab] OR "malnutrition"[tiab] OR "refeeding"[tiab] OR "glycemic control"[tiab] OR ' +
-    '"glycaemic control"[tiab] OR "fasting"[tiab]' },
+    '"glycaemic control"[tiab] OR "preoperative fasting"[tiab]' },
 
   { cle: 'Thrombose & anticoagulation', val:
     '"venous thromboembolism"[tiab] OR "thromboprophylaxis"[tiab] OR "pulmonary embolism"[tiab] OR ' +
@@ -651,18 +663,18 @@ const DRY_THEMES_V2 = [
     '"heparin"[tiab] OR "direct oral anticoagulant"[tiab] OR "antiplatelet"[tiab]' },
 
   { cle: 'Échographie clinique', val:
-    '"ultrasound"[tiab] OR "ultrasonography"[tiab] OR "ultrasound guided"[tiab] OR "POCUS"[tiab] OR ' +
-    '"lung ultrasound"[tiab] OR "echocardiography"[tiab] OR "gastric ultrasound"[tiab] OR ' +
-    '"transcranial doppler"[tiab] OR "focused cardiac"[tiab]' },
+    '"ultrasound guided"[tiab] OR "POCUS"[tiab] OR "lung ultrasound"[tiab] OR "gastric ultrasound"[tiab] OR ' +
+    '"focused echocardiography"[tiab] OR "transthoracic echocardiography"[tiab] OR ' +
+    '"transcranial doppler"[tiab] OR "focused cardiac"[tiab] OR "diaphragm ultrasound"[tiab]' },
 
   { cle: 'Sécurité & erreurs', val:
     '"patient safety"[tiab] OR "medication error"[tiab] OR "medication errors"[tiab] OR "adverse event"[tiab] OR ' +
-    '"adverse events"[tiab] OR "checklist"[tiab] OR "human factors"[tiab] OR "critical incident"[tiab] OR ' +
-    '"near miss"[tiab] OR "morbidity conference"[tiab] OR "burnout"[tiab]' },
+    '"checklist"[tiab] OR "human factors"[tiab] OR "critical incident"[tiab] OR ' +
+    '"near miss"[tiab] OR "morbidity conference"[tiab] OR "burnout"[tiab] OR "wrong site"[tiab]' },
 
   { cle: 'Simulation & formation', val:
-    '"simulation"[tiab] OR "simulation based"[tiab] OR "medical education"[tiab] OR "training"[tiab] OR ' +
-    '"competency"[tiab] OR "learning curve"[tiab] OR "curriculum"[tiab] OR "teaching"[tiab]' },
+    '"simulation based"[tiab] OR "simulation training"[tiab] OR "high fidelity simulation"[tiab] OR ' +
+    '"medical education"[tiab] OR "competency based"[tiab] OR "learning curve"[tiab] OR "curriculum"[tiab]' },
 ];
 
 // Exclusions V2 : plus de liste blanche de types, une liste NOIRE courte.
