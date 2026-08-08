@@ -190,6 +190,61 @@ function monde(plan) {
     V('rien du tout → chaîne vide', d({}) === '');
   }
 
+  console.log('\n═══ 7. Filtre par revues cochées (v1.29) — piloté au clic dans la vraie page ═══');
+  {
+    const { JSDOM, VirtualConsole } = require('jsdom');
+    const vcons = new VirtualConsole(); const erreurs = [];
+    vcons.on('jsdomError', e => erreurs.push(e.message));
+    const dom = new JSDOM(fs.readFileSync('../dashboard.html', 'utf8'), {
+      runScripts: 'dangerously', virtualConsole: vcons,
+      url: 'https://chpg-anesthesie.github.io/Planning-CHPG/dashboard.html', pretendToBeVisual: true,
+      beforeParse(win) {
+        win.matchMedia = () => ({ matches:false, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
+        win.Element.prototype.scrollIntoView = function () {};
+        win.scrollTo = () => {};
+      } });
+    const w = dom.window;
+    w.fetch = async () => ({ ok:true, json: async () => ({ success:false }) });
+    await new Promise(r => setTimeout(r, 400));
+    V('la page se charge sans erreur JavaScript', erreurs.length === 0, erreurs.slice(0, 2));
+
+    /* Trois articles, deux revues. VEILLE_ITEMS est un `let` de page,
+       invisible depuis w.* : on passe par le chemin PUBLIC — miroirTuile
+       remplacée (déclaration `function`, donc propriété de window),
+       puis le vrai openVeille(). */
+    w.miroirTuile = async () => ({ success:true, count:3, enrich:false, items: [
+      { pmid:'1', date:'2026-08-01', titre:'Un',    auteurs:'', revue:'Anesthesiology', doi:'', source:'REVUE', score:null, resume:'', lu:false, star:false, ajoute:'', pubtype:'', themes:[] },
+      { pmid:'2', date:'2026-08-02', titre:'Deux',  auteurs:'', revue:'Crit Care',      doi:'', source:'REVUE', score:null, resume:'', lu:false, star:false, ajoute:'', pubtype:'', themes:[] },
+      { pmid:'3', date:'2026-08-03', titre:'Trois', auteurs:'', revue:'Anesthesiology', doi:'', source:'REVUE', score:null, resume:'', lu:false, star:false, ajoute:'', pubtype:'', themes:['NVPO'] },
+    ] });
+    await w.openVeille();
+    const panneau = w.document.getElementById('vRevPanel');
+    const cases = panneau.querySelectorAll('input[type=checkbox]');
+    V('le panneau liste les 2 revues présentes', cases.length === 2, cases.length);
+    V('rien de coché → 3 cartes affichées', w.document.querySelectorAll('.veille-card').length === 3);
+    V('le bouton annonce « toutes »', /toutes/.test(w.document.getElementById('vRevBtn').textContent));
+
+    // On coche Anesthesiology, AU CLIC.
+    const caseAnesth = [...cases].find(c => c.value === 'Anesthesiology');
+    caseAnesth.click();
+    V('cocher une revue → 2 cartes, la bonne revue', w.document.querySelectorAll('.veille-card').length === 2
+      && [...w.document.querySelectorAll('.vc-journal')].every(el => el.textContent === 'Anesthesiology'));
+    V('le bouton annonce le compte', /1 cochée/.test(w.document.getElementById('vRevBtn').textContent), w.document.getElementById('vRevBtn').textContent);
+    V('le choix est mémorisé sur l\'appareil', w.localStorage.getItem('chpgVeilleRevues') === '["Anesthesiology"]', w.localStorage.getItem('chpgVeilleRevues'));
+
+    // « Toutes les revues » remet tout.
+    panneau.querySelector('.vrev-clear').click();
+    V('« Toutes les revues » → 3 cartes et mémoire vidée', w.document.querySelectorAll('.veille-card').length === 3
+      && w.localStorage.getItem('chpgVeilleRevues') === '[]');
+
+    // Cumul avec le filtre thème : Anesthesiology cochée ET thème NVPO
+    // → seul l'article 3 (Anesthesiology + NVPO) reste.
+    [...panneau.querySelectorAll('input[type=checkbox]')].find(c => c.value === 'Anesthesiology').click();
+    w.onVTheme('NVPO');
+    V('cumul revue + thème → seule la carte qui a les deux', w.document.querySelectorAll('.veille-card').length === 1
+      && /Trois/.test(w.document.querySelector('.vc-title').textContent));
+  }
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   process.exit(ko ? 1 : 0);
 })();

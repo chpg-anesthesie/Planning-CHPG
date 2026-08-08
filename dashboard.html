@@ -305,6 +305,14 @@ a.tile:hover, .tile.clickable:hover {
 .vsel,.vsearch{border:1px solid var(--line);background:var(--white);color:var(--ink);border-radius:10px;padding:7px 12px;font:500 13px 'DM Sans',sans-serif}
 .vsearch{flex:1;min-width:180px}
 .vsel:focus,.vsearch:focus{outline:none;border-color:var(--me-border)}
+.vrev-wrap{position:relative}
+.vrev-panel{position:absolute;top:calc(100% + 6px);left:0;z-index:40;background:var(--white);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.18);padding:8px;max-height:320px;overflow-y:auto;min-width:270px}
+.vrev-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font:500 13px 'DM Sans',sans-serif;color:var(--ink);cursor:pointer}
+.vrev-item:hover{background:var(--surface-2)}
+.vrev-item input{accent-color:var(--me)}
+.vrev-item span{margin-left:auto;color:var(--ink-4);font-size:12px}
+.vrev-clear{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--me);font:600 13px 'DM Sans',sans-serif;padding:6px 8px;border-radius:8px;cursor:pointer}
+.vrev-clear:hover{background:var(--surface-2)}
 .veille-card{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:15px 18px;margin-bottom:11px;border-left:3px solid transparent}
 .veille-card.unread{border-left-color:var(--me)}
 .vc-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px}
@@ -380,7 +388,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.28.2</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.29</span></span></p>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
@@ -426,6 +434,10 @@ a.tile:hover, .tile.clickable:hover {
         <option value="GENERAL">Généralistes</option>
         <option value="THEME">Thèmes</option>
       </select>
+      <div class="vrev-wrap">
+        <button class="vsel" id="vRevBtn" onclick="toggleVRevPanel(event)">Revues (toutes)</button>
+        <div class="vrev-panel" id="vRevPanel" style="display:none"></div>
+      </div>
       <select class="vsel" id="vThemeSel" onchange="onVTheme(this.value)">
         <option value="">Tous thèmes</option>
       </select>
@@ -474,7 +486,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.28.2'; // SITE_VERSION: v1.28.2
+const SITE_VERSION = 'v1.29'; // SITE_VERSION: v1.29
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -1180,6 +1192,7 @@ let V_THEME  = '';
 let V_SORT   = 'recent';   // recent | relevance
 let V_SEARCH = '';
 let V_SEEN   = '';         // dernière visite (yyyy-MM-dd) → badge "nouveau"
+let V_REVUES = [];         // revues cochées ([] = toutes) — mémorisé sur l'appareil
 
 // Type d'article : rang pour le tri pertinence + libellé court FR pour le badge.
 const PUBTYPE_RANK = { 'Meta-Analysis':1, 'Systematic Review':2, 'Randomized Controlled Trial':3, 'Practice Guideline':4, 'Guideline':5, 'Review':6 };
@@ -1194,12 +1207,14 @@ async function openVeille(){
   const box=document.getElementById('veilleList');
   box.innerHTML='<div class="topos-loading">Chargement…</div>';
   try{ V_SEEN = localStorage.getItem('chpgVeilleSeen')||''; }catch(e){ V_SEEN=''; }
+  try{ V_REVUES = JSON.parse(localStorage.getItem('chpgVeilleRevues')||'[]')||[]; }catch(e){ V_REVUES=[]; }
   try{
     const r=await miroirTuile('veille','getVeille');          // (miroir, 04/08/2026)
     if(r && r.success){
       VEILLE_ITEMS = r.items||[];
       document.getElementById('veilleToolbar').style.display = VEILLE_ITEMS.length ? 'flex' : 'none';
       populateThemeSelect();
+      populateRevuePanel();
       renderVeille();
       try{ localStorage.setItem('chpgVeilleSeen', new Date().toISOString().slice(0,10)); }catch(e){}
     } else {
@@ -1223,6 +1238,49 @@ function populateThemeSelect(){
     return '<option value="'+esc(t)+'"'+(t===V_THEME?' selected':'')+'>'+esc(t)+'</option>';
   }).join('');
 }
+/* ── Filtre par revues : cases à cocher, mémorisé sur CET appareil
+      (localStorage, comme la date de dernière visite). [] = toutes. ── */
+function populateRevuePanel(){
+  const p=document.getElementById('vRevPanel'); if(!p) return;
+  const cnt={};
+  VEILLE_ITEMS.forEach(function(it){ if(it.revue) cnt[it.revue]=(cnt[it.revue]||0)+1; });
+  const list=Object.keys(cnt).sort(function(a,b){ return a.localeCompare(b,'fr'); });
+  V_REVUES=V_REVUES.filter(function(r){ return cnt[r]; });   // revues disparues : oubliées
+  p.innerHTML='<button class="vrev-clear" onclick="clearVRevues()">Toutes les revues</button>'
+    +list.map(function(r){
+      return '<label class="vrev-item"><input type="checkbox" value="'+esc(r)+'"'
+        +(V_REVUES.indexOf(r)!==-1?' checked':'')+' onchange="onVRevue(this)">'
+        +esc(r)+'<span>'+cnt[r]+'</span></label>';
+    }).join('');
+  majVRevBtn();
+}
+function majVRevBtn(){
+  const b=document.getElementById('vRevBtn');
+  if(b) b.textContent='Revues '+(V_REVUES.length?'('+V_REVUES.length+' cochées)':'(toutes)');
+}
+function toggleVRevPanel(ev){
+  if(ev) ev.stopPropagation();
+  const p=document.getElementById('vRevPanel');
+  p.style.display = p.style.display==='none' ? 'block' : 'none';
+}
+function onVRevue(el){
+  const v=el.value;
+  if(el.checked){ if(V_REVUES.indexOf(v)===-1) V_REVUES.push(v); }
+  else { V_REVUES=V_REVUES.filter(function(r){ return r!==v; }); }
+  try{ localStorage.setItem('chpgVeilleRevues', JSON.stringify(V_REVUES)); }catch(e){}
+  majVRevBtn(); renderVeille();
+}
+function clearVRevues(){
+  V_REVUES=[];
+  try{ localStorage.setItem('chpgVeilleRevues','[]'); }catch(e){}
+  populateRevuePanel(); renderVeille();
+}
+// Un clic hors du panneau le referme (sans gêner les cases à l'intérieur).
+document.addEventListener('click', function(ev){
+  const p=document.getElementById('vRevPanel');
+  if(p && p.style.display!=='none' && !ev.target.closest('.vrev-wrap')) p.style.display='none';
+});
+
 function onVSort(v){ V_SORT=v; renderVeille(); }
 function onVSearch(v){ V_SEARCH=String(v||'').trim().toLowerCase(); renderVeille(); }
 
@@ -1231,6 +1289,7 @@ function _vMatch(it){
   if(V_FILTER==='star'   && !it.star) return false;
   if(V_SOURCE && it.source!==V_SOURCE) return false;
   if(V_THEME && (!it.themes || it.themes.indexOf(V_THEME)===-1)) return false;
+  if(V_REVUES.length && V_REVUES.indexOf(it.revue)===-1) return false;
   if(V_SEARCH){
     const hay=(it.titre+' '+it.auteurs+' '+it.revue).toLowerCase();
     if(hay.indexOf(V_SEARCH)===-1) return false;
