@@ -25,11 +25,14 @@
 // Retirées le 08/08/2026 : BJA Educ (revue de formation, 4,7/mois),
 // J Cardiothorac Vasc Anesth (9,3/mois, pas de chir cardiaque au CHPG),
 // Acad Emerg Med (2,7/mois, hors périmètre).
+// Retirées le 08/08/2026 sur critère IF : Acta Anaesthesiol Scand (IF 2,0 Q2,
+// JCR 2025 — 17 art./90j, le plus gros contributeur à IF bas) et Minerva
+// Anestesiol (IF ~2,8-3,5 selon les sources, 7 art./90j).
 const DRY_REVUES_DIRECT = [
   // Anesthésie (15)
   'Anesthesiology', 'Br J Anaesth', 'Anaesthesia', 'Anesth Analg', 'Eur J Anaesthesiol',
-  'Anaesth Crit Care Pain Med', 'Can J Anaesth', 'Acta Anaesthesiol Scand', 'J Clin Anesth',
-  'Reg Anesth Pain Med', 'Minerva Anestesiol', 'Paediatr Anaesth',
+  'Anaesth Crit Care Pain Med', 'Can J Anaesth', 'J Clin Anesth',
+  'Reg Anesth Pain Med', 'Paediatr Anaesth',
   'Int J Obstet Anesth',
   // Réanimation (11)
   'Intensive Care Med', 'Crit Care Med', 'Crit Care', 'Ann Intensive Care',
