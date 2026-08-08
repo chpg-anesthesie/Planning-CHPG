@@ -435,3 +435,50 @@ function veilleDryRunTypes() {
     Logger.log('');
   });
 }
+
+// ══════════════════════════════════════════════════════════════════════
+//  7. DÉLAI D'INDEXATION MEDLINE, par tranches d'ancienneté
+//     Constat du 08/08/2026 : Anesthesiology et Anesth Analg affichent
+//     100 % de "Journal Article" sur 90 jours, c'est-à-dire AUCUN article
+//     encore indexé. Question ouverte : au bout de combien de temps le
+//     sont-ils ? Réponse = la bonne largeur de fenêtre pour la veille.
+//     Lecture : si la tranche 90-180 j est nettement plus fournie que la
+//     tranche 0-90 j, la fenêtre actuelle passe à côté de l'essentiel.
+// ══════════════════════════════════════════════════════════════════════
+
+// Comptage sur une tranche [debut, fin] jours avant aujourd'hui.
+function _drCountTranche(term, jDebut, jFin) {
+  const ms = 24 * 3600 * 1000;
+  const f = function (d) { return Utilities.formatDate(new Date(Date.now() - d * ms), 'GMT', 'yyyy/MM/dd'); };
+  const t = '(' + term + ') AND ("' + f(jFin) + '"[edat] : "' + f(jDebut) + '"[edat])';
+  const j = _drPost('esearch.fcgi', 'db=pubmed&retmode=json&retmax=0&term=' + encodeURIComponent(t));
+  Utilities.sleep(DRY_SLEEP);
+  return parseInt((j && j.esearchresult && j.esearchresult.count) || '0', 10);
+}
+
+function veilleDryRunDelai() {
+  const langs   = ' AND (' + DRY_LANGS.map(function (l) { return l + '[la]'; }).join(' OR ') + ')';
+  const actuels = ' AND (' + DRY_PUBTYPES.map(function (p) { return '"' + p + '"[Publication Type]'; }).join(' OR ') + ')';
+  const tranches = [[0, 90], [90, 180], [180, 270], [270, 360]];
+
+  Logger.log('═══ DÉLAI D\'INDEXATION — par tranche d\'ancienneté ═══');
+  Logger.log('brut  = articles parus dans la tranche');
+  Logger.log('typés = ceux portant un des 5 types retenus (donc indexés)');
+  Logger.log('');
+
+  DRY_REVUES_TEST.forEach(function (rev) {
+    const j = '"' + rev + '"[Journal]' + langs;
+    Logger.log('── ' + rev + ' ──');
+    tranches.forEach(function (t) {
+      const brut  = _drCountTranche(j, t[0], t[1]);
+      const types = _drCountTranche(j + actuels, t[0], t[1]);
+      const pct   = brut ? Math.round(types / brut * 100) : 0;
+      Logger.log('   ' + _drPad(t[0] + '-' + t[1] + ' j', 12) +
+                 'brut ' + _drPadL(brut, 5) + '   typés ' + _drPadL(types, 4) +
+                 _drPadL(pct + ' %', 7));
+    });
+    Logger.log('');
+  });
+  Logger.log('Si le % monte fortement au-delà de 90 j : élargir la fenêtre.');
+  Logger.log('S\'il reste plat et bas : la revue n\'est pas indexée MEDLINE du tout.');
+}
