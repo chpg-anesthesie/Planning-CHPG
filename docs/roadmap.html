@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadmap — Planning-CHPG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#CE1126; --red-soft:#FDECEF; --red-deep:#9E0C1D;
+    --blue:#1D6FB8; --blue-soft:#EAF3FB;
+    --amber:#B45309; --amber-soft:#FDF3E3;
+    --green:#166534; --green-soft:#DCFCE7;
+    --viol:#6D28D9; --viol-soft:#F5F3FF;
+    --ink:#0F172A; --ink-2:#475569; --ink-3:#7A8699;
+    --line:#E2E8F0; --bg:#F6F8FB; --white:#fff;
+    --mono:'DM Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+    line-height:1.6; font-size:15px; padding:32px 18px 80px}
+  .wrap{max-width:860px; margin:0 auto}
+
+  /* ---- en-tête ---- */
+  .flag{display:inline-flex; height:14px; width:22px; border-radius:3px; overflow:hidden; border:1px solid var(--line); vertical-align:-2px; margin-right:8px}
+  .flag span{flex:1} .flag .r{background:var(--red)} .flag .w{background:#fff}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--red); font-weight:500}
+  h1{font-size:31px; font-weight:800; letter-spacing:-.025em; margin:6px 0 6px; line-height:1.15}
+  .lede{color:var(--ink-2); margin:0 0 18px; max-width:60ch}
+
+  /* ---- bandeau d'état ---- */
+  .etat{background:var(--ink); color:#fff; border-radius:14px; padding:16px 20px; margin:0 0 8px}
+  .etat h2{margin:0 0 12px; font-family:var(--mono); font-size:11px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:#94A3B8; border:none; padding:0}
+  .etat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:14px 18px}
+  .etat-k{font-family:var(--mono); font-size:11px; color:#94A3B8; letter-spacing:.04em}
+  .etat-v{font-size:17px; font-weight:700; letter-spacing:-.01em}
+  .etat-v small{font-weight:500; font-size:12px; color:#94A3B8; font-family:var(--mono)}
+  .verif{font-family:var(--mono); font-size:11px; color:var(--ink-3); margin:0 0 30px; text-align:right}
+
+  /* ---- échéancier (signature) ---- */
+  .ech{position:relative; margin:0 0 38px; padding-left:26px}
+  .ech::before{content:''; position:absolute; left:6px; top:10px; bottom:10px; width:2px; background:linear-gradient(var(--red),var(--line))}
+  .jalon{position:relative; padding:0 0 20px 0}
+  .jalon::before{content:''; position:absolute; left:-25px; top:6px; width:12px; height:12px; border-radius:50%; background:var(--white); border:2px solid var(--line)}
+  .jalon.chaud::before{background:var(--red); border-color:var(--red); box-shadow:0 0 0 4px var(--red-soft)}
+  .jalon-t{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+  .jalon-d{font-family:var(--mono); font-size:12px; color:var(--ink-3); letter-spacing:.03em}
+  .jalon-n{font-weight:700; font-size:16px; letter-spacing:-.01em}
+  .jalon-p{margin:2px 0 0; color:var(--ink-2); font-size:14px}
+  .cd{font-family:var(--mono); font-size:11px; font-weight:500; padding:2px 8px; border-radius:20px; background:var(--line); color:var(--ink-2); white-space:nowrap}
+  .cd.urgent{background:var(--red); color:#fff}
+  .cd.proche{background:var(--amber-soft); color:var(--amber)}
+
+  /* ---- sections ---- */
+  h2{font-size:13px; font-family:var(--mono); font-weight:500; text-transform:uppercase; letter-spacing:.09em; color:var(--ink-3);
+     border-top:1px solid var(--line); padding-top:16px; margin:40px 0 16px}
+  h3{font-size:16px; font-weight:700; margin:24px 0 8px; letter-spacing:-.01em}
+  p{margin:0 0 12px}
+
+  .card{background:var(--white); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:0 0 12px}
+  .card h4{margin:0 0 6px; font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .card p{margin:0; color:var(--ink-2); font-size:14px}
+  .card p + p{margin-top:8px}
+  .card.risque{border-left:3px solid var(--red)}
+  .card.ok{border-left:3px solid var(--green)}
+  .card.attente{border-left:3px solid var(--amber)}
+
+  .tag{font-family:var(--mono); font-size:10px; letter-spacing:.05em; text-transform:uppercase; padding:2px 7px; border-radius:5px; font-weight:500}
+  .t-red{background:var(--red-soft); color:var(--red-deep)}
+  .t-amber{background:var(--amber-soft); color:var(--amber)}
+  .t-green{background:var(--green-soft); color:var(--green)}
+  .t-blue{background:var(--blue-soft); color:var(--blue)}
+  .t-viol{background:var(--viol-soft); color:var(--viol)}
+
+  ul{margin:8px 0 12px; padding-left:20px} li{margin:5px 0}
+  code{font-family:var(--mono); font-size:.88em; background:#EEF2F7; padding:1px 5px; border-radius:4px; color:var(--ink)}
+  b{font-weight:700}
+
+  /* ---- check-list ---- */
+  .check{background:var(--white); border:1px solid var(--line); border-radius:12px; padding:6px 18px; margin:0 0 12px}
+  .check li{list-style:none; padding:11px 0 11px 30px; border-bottom:1px solid var(--line); position:relative; margin:0; font-size:14px}
+  .check li:last-child{border-bottom:none}
+  .check li::before{content:''; position:absolute; left:0; top:15px; width:15px; height:15px; border:2px solid var(--line); border-radius:4px}
+  .check ul{padding:0; margin:0}
+
+  /* ---- modules en production ---- */
+  .mods{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; margin:0 0 12px}
+  .mod{background:var(--white); border:1px solid var(--line); border-radius:10px; padding:12px 14px}
+  .mod b{display:block; font-size:14px; margin-bottom:2px}
+  .mod span{font-size:13px; color:var(--ink-2); line-height:1.45}
+
+  /* ---- règles ---- */
+  .regle{border-left:3px solid var(--ink); background:var(--white); border-radius:0 10px 10px 0; padding:12px 16px; margin:0 0 10px}
+  .regle b{display:block; margin-bottom:3px; font-size:14px}
+  .regle span{font-size:13.5px; color:var(--ink-2)}
+
+  details{background:var(--white); border:1px solid var(--line); border-radius:10px; padding:0 16px; margin:0 0 10px}
+  summary{cursor:pointer; padding:12px 0; font-weight:600; font-size:14px; list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:'+ '; font-family:var(--mono); color:var(--red); font-weight:700}
+  details[open] summary::before{content:'– '}
+  details > *:not(summary){font-size:13.5px; color:var(--ink-2)}
+  details > *:last-child{padding-bottom:14px}
+
+  .foot{margin-top:52px; padding-top:18px; border-top:1px solid var(--line); font-family:var(--mono); font-size:12px; color:var(--ink-3); text-align:center; line-height:1.8}
+
+  @media (max-width:600px){
+    body{padding:24px 14px 60px} h1{font-size:25px}
+    .etat-v{font-size:15px}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .jalon.chaud::before{animation:pulse 2.6s ease-in-out infinite}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 4px var(--red-soft)}50%{box-shadow:0 0 0 8px rgba(206,17,38,.10)}}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow"><span class="flag"><span class="r"></span><span class="w"></span></span>Roadmap</p>
+  <h1>Planning-CHPG</h1>
+  <p class="lede">Document de pilotage : ce qui tourne, ce qui vient, ce qu'on ne refait pas.
+  Le dépôt en ligne fait foi pour le code ; le classeur maître pour les données.</p>
+
+  <div class="etat">
+    <h2>État vérifié</h2>
+    <div class="etat-grid">
+      <div><div class="etat-k">Site</div><div class="etat-v">v1.30.1</div></div>
+      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">510 <small>vérifs · 29 scripts</small></div></div>
+      <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
+      <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
+    </div>
+    <div class="etat-grid" style="margin-top:16px">
+      <div><div class="etat-k">code.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
+      <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.1</div></div>
+      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.1</div></div>
+      <div><div class="etat-k">veille.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.5</div></div>
+      <div><div class="etat-k">portail.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.2</div></div>
+      <div><div class="etat-k">journal.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
+      <div><div class="etat-k">generateur.gs</div><div class="etat-v" style="font-size:13px">2026-07-31.3</div></div>
+      <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-08.1</div></div>
+    </div>
+  </div>
+  <p class="verif">Relevé dans le dépôt et le banc exécuté — 8 août 2026</p>
+
+  <h2>Échéancier</h2>
+  <div class="ech" id="ech">
+    <div class="jalon chaud" data-d="2026-09-04">
+      <div class="jalon-t"><span class="jalon-d">4 sept. 2026</span><span class="jalon-n">Staff — démonstration</span><span class="cd"></span></div>
+      <p class="jalon-p">Le seul jalon avec un public. Tout le reste attend derrière.</p>
+    </div>
+    <div class="jalon" data-d="2026-10-15">
+      <div class="jalon-t"><span class="jalon-d">mi-oct. 2026</span><span class="jalon-n">Renouvellement du jeton GitHub</span><span class="cd"></span></div>
+      <p class="jalon-p">Passé cette date, plus aucune publication ne part. Alerte automatique à 30 puis 10 jours.</p>
+    </div>
+    <div class="jalon" data-d="2026-10-01">
+      <div class="jalon-t"><span class="jalon-d">1<sup>er</sup> oct. 2026</span><span class="jalon-n">Butoir dur du ménage post-démo</span><span class="cd"></span></div>
+      <p class="jalon-p">À partir de cette date le dashboard va chercher l'année suivante tout seul : les fichiers de démo 2027 deviendraient visibles par les 23 MARs.</p>
+    </div>
+    <div class="jalon" data-d="2026-10-05">
+      <div class="jalon-t"><span class="jalon-d">octobre 2026</span><span class="jalon-n">Campagne d'indisponibilités 2027</span><span class="cd"></span></div>
+      <p class="jalon-p">Bloquée si les onglets <code>_2027</code> de la démo n'ont pas été supprimés.</p>
+    </div>
+    <div class="jalon" data-d="2026-11-01">
+      <div class="jalon-t"><span class="jalon-d">nov. 2026</span><span class="jalon-n">Génération des gardes 2027</span><span class="cd"></span></div>
+      <p class="jalon-p">Deux données à trancher avant : le départ de FERRIERO et l'exemption des 60 ans.</p>
+    </div>
+    <div class="jalon" data-d="2027-01-01">
+      <div class="jalon-t"><span class="jalon-d">janv. 2027</span><span class="jalon-n">Déménagement NCHPG</span><span class="cd"></span></div>
+      <p class="jalon-p">Les codes de secteurs changent. Rien à coder tant que l'organisation cible n'est pas connue.</p>
+    </div>
+    <div class="jalon" data-d="2027-03-01">
+      <div class="jalon-t"><span class="jalon-d">mars 2027</span><span class="jalon-n">Régénération de l'index CCAM</span><span class="cd"></span></div>
+      <p class="jalon-p">Version actuelle v84 (27 juillet 2026). Alerte d'obsolescence à 8 puis 14 mois.</p>
+    </div>
+  </div>
+
+  <h2>Ce qui tourne aujourd'hui</h2>
+  <div class="mods">
+    <div class="mod"><b>Planning quotidien</b><span>Grille du comité, placement, publication, export Excel du vendredi.</span></div>
+    <div class="mod"><b>Gardes</b><span>Équité annuelle sur ~730 gardes. 0 journée sans binôme sur 140 années simulées.</span></div>
+    <div class="mod"><b>Portail MAR</b><span>Planning, gardes, congés, messagerie, rafraîchissement en tirant la page.</span></div>
+    <div class="mod"><b>Indisponibilités</b><span>Campagne annuelle, souhaits, staff vacances.</span></div>
+    <div class="mod"><b>Module libéral</b><span>Cotation, devis, déclaration. Lots 0, 1, 2A, 2B et 3 en production.</span></div>
+    <div class="mod"><b>Contrôle d'absence</b><span>Porte MAR et porte secrétariat. Motifs jamais transmis au secrétariat.</span></div>
+    <div class="mod"><b>Veille bibliographique</b><span>41 revues, 21 thèmes, lu/★ par MAR depuis le 8 août.</span></div>
+    <div class="mod"><b>CR d'anesthésie</b><span>Générateur autonome.</span></div>
+    <div class="mod"><b>Copie de lecture</b><span>Ouverture des pages en 100–270 ms sans appel Google.</span></div>
+    <div class="mod"><b>Sauvegarde du code</b><span>Archive du dépôt vers Drive chaque dimanche, 6 semaines conservées. Ne contient pas le classeur.</span></div>
+  </div>
+
+  <h2>1 · Le 4 septembre</h2>
+
+  <h3>Avant</h3>
+  <div class="card risque">
+    <h4>Répétition à blanc chronométrée <span class="tag t-red">non fait</span></h4>
+    <p>Le seul jalon qui reste vraiment ouvert. Le deck annonce « 15 secondes » deux fois. Ce qui compte n'est pas le temps de l'algorithme mais celui que la salle verra — on a déjà observé 30 à 56 s côté écran pour 2 s côté serveur.</p>
+  </div>
+  <div class="card attente">
+    <h4>Relecture du deck en projection <span class="tag t-amber">à l'œil</span></h4>
+    <p>Tout est vérifié par machine, rien à l'œil. Points sensibles : diapo 10 (tableau le plus large), diapo 19 (densifiée), diapo 16 (le rosé du repos peut passer pour du blanc au vidéoprojecteur).</p>
+  </div>
+  <div class="card attente">
+    <h4>Répétition générale du cahier de tests <span class="tag t-amber">fin août</span></h4>
+    <p>Parcours P1 à P6, sur un PC tranquille, chaque page ×10 en PC, mobile et navigation privée. Verdict « prêt » = 10 fois sous 2 s, pas une moyenne.</p>
+  </div>
+  <div class="card risque">
+    <h4>Aucun PDF ouvert en direct <span class="tag t-red">note d'orateur</span></h4>
+    <p>Ouvrir un topo prend 11,5 s, un protocole 6,1 s — 50 à 100 fois plus cher que tout autre geste. Ne jamais inviter la salle à ouvrir le même document ensemble : tout ce qui sera projeté se pré-ouvre avant la séance.</p>
+  </div>
+  <div class="card">
+    <h4>Profils d'indispos 2027 remplis</h4>
+    <p>Annoncé à la salle : vérifier que les profils fictifs des autres MARs sont bien en place. <code>PERIODES_VAC</code> est déjà réglé sur 2027.</p>
+  </div>
+
+  <h3>Le soir même — ménage</h3>
+  <p style="color:var(--ink-2);font-size:14px">Six gestes, dans cet ordre. Le premier n'est pas cosmétique : sans lui, la campagne d'octobre est bloquée.</p>
+  <div class="check"><ul>
+    <li><b>Supprimer les onglets <code>INDISPOS_2027</code> et <code>AFFECTATIONS_2027</code>.</b> Le premier bloque le lancement de la campagne d'octobre ; le second laisserait les affectations fictives en place. Si une génération a été relancée pendant la démo, resupprimer aussi <code>GARDES_2027</code> et <code>STATS_GARDES_2027</code>. <b>Ne jamais toucher à <code>STATS_GARDES_2026</code></b> — il porte les cibles d'équité de la vraie génération de novembre.</li>
+    <li><b>Supprimer les fichiers de démo du Drive</b> (dossier Planning-CHPG-JSON) : <code>planning_2027.json</code>, <code>affectations_2027.json</code> et <code>planning_2027_notifie.json</code>. Butoir dur : avant le 1<sup>er</sup> octobre.</li>
+    <li><b>Refermer la campagne</b> si <code>INDISPOS_ACTIVE = 2027</code> a été posé pour la démo. Tant qu'elle est ouverte, les 23 MARs peuvent saisir sur une année fictive.</li>
+    <li><b>Régénérer le code d'accès</b> de tout MAR dont le code a été saisi devant la salle, et le code administrateur s'il a été projeté.</li>
+    <li><b>Allumer les notifications</b> : supprimer la propriété de redirection de test. Jamais avant ce point — la démo publie un planning 2027 fictif et le notifieur s'arme dessus.</li>
+    <li><b>Terminer par le Diagnostic système</b> (onglet Maintenance) : onglets, fichiers du Drive, concordance des versions.</li>
+  </ul></div>
+
+  <h2>2 · Juste après le staff</h2>
+  <div class="card">
+    <h4>Ouvrir le module libéral au groupement <span class="tag t-viol">v2.0</span></h4>
+    <p>Le passage à la version 2.0 est réservé à ce moment-là. Les 19 membres éligibles y accèdent alors que seul Arthur l'utilise aujourd'hui.</p>
+  </div>
+  <div class="card">
+    <h4>PDF par la copie de lecture <span class="tag t-blue">à l'étude</span></h4>
+    <p>Ferait passer l'ouverture d'un topo de 11 s à un quart de seconde. Déposer un document resterait le geste d'aujourd'hui. <b>Trois mesures avant toute décision</b> : poids réel des dossiers, temps de transfert de la synchro, et repli pour un document trop lourd.</p>
+  </div>
+  <div class="card">
+    <h4>Nettoyage de code mort <span class="tag t-blue">lot unique</span></h4>
+    <p>Trois morceaux à retirer ensemble : l'écran « Paramètres » (jamais affiché, son rebranchement a été écarté pour raison de sécurité), l'ancien système <code>OVERRIDES</code> (6 endroits — il fait afficher en permanence « aucune modification en attente »), et <code>gardeExceptionnelle</code>, qu'aucun bouton n'appelle.</p>
+  </div>
+  <div class="card">
+    <h4>Localiser l'appelant de la déclaration libérale <span class="tag t-amber">audit</span></h4>
+    <p>Dernière case de l'audit des écritures : classer <code>declareLiberal</code> et <code>deleteLiberal</code> selon la doctrine (aucune écriture à fond perdu avec échec avalé).</p>
+  </div>
+  <div class="card risque">
+    <h4>Échange de deux gardes qui se suivent <span class="tag t-red">refusé aujourd'hui</span></h4>
+    <p>Le système refuse et affiche « dates trop proches ». Ce n'est pas une règle médicale mais une limite du programme : en déplaçant aussi le repos du lendemain, l'écriture tombe sur la case de l'autre garde et l'écrase. L'échange se fait à la main dans le tableau en attendant.</p>
+    <p><b>Correction :</b> lire les cases avant d'écrire, écrire dans le bon ordre, n'assouplir le garde-fou que pour les repos de l'échange en cours. <b>Traiter aussi le cas du samedi</b>, dont la récupération n'est jamais déplacée. Scénario de banc dans les deux sens, puis essai sur une copie du classeur avant la production.</p>
+    <p><b>Pourquoi c'était reporté :</b> aujourd'hui ça refuse, personne ne perd de garde. Une correction ratée écrit — et une garde effacée en silence ne se voit pas passer.</p>
+  </div>
+  <div class="card ok">
+    <h4>Sauvegarde du code — active <span class="tag t-green">confirmé</span></h4>
+    <p>Chaque dimanche vers 3h, une archive de tout le dépôt est déposée dans le dossier Drive « Sauvegardes Planning-CHPG », les copies de plus de 6 semaines étant supprimées. Déclencheur installé et confirmé le 8 août 2026.</p>
+    <p><b>Deux limites à connaître :</b> c'est une copie du <b>code</b>, jamais des données — le classeur maître n'est pas dedans. Et la purge supprime tout fichier de plus de 42 jours présent dans ce dossier : ne rien y ranger d'autre.</p>
+  </div>
+
+  <h2>3 · Avant la génération de novembre</h2>
+  <div class="card risque">
+    <h4>Deux données à trancher <span class="tag t-red">fausse tout si non réglé</span></h4>
+    <p><b>Le départ de FERRIERO.</b> Si le départ est réel et la colonne de fin vide, l'algorithme lui donne une cible pleine de 34,6 gardes au lieu d'environ 5,4 — et les cibles des 21 autres sont fausses d'environ 1,5 garde chacune.</p>
+    <p><b>L'exemption de garde à 60 ans.</b> Si elle est invoquée en 2027, la cible de chacun passe de 34,6 à 36,3, soit +1,7 garde pour tous les autres.</p>
+  </div>
+  <div class="card attente">
+    <h4>Dérive de l'instantané d'équité <span class="tag t-amber">à corriger</span></h4>
+    <p>La dette d'une année lit une photo figée au moment de la génération. Un don ou un échange survenu ensuite modifie les gardes réelles mais pas la photo : la dette reportée sur l'année suivante ignore les échanges.</p>
+  </div>
+  <div class="card">
+    <h4>Solde des récupérations de samedi <span class="tag t-blue">mesurer d'abord</span></h4>
+    <p>Qui donne son samedi garde sa récupération. Le déséquilibre est détectable sans donnée nouvelle, mais l'écart n'est pas nul même sans échange (les samedis de fin d'année repartent sans récup). <b>À mesurer sur la génération 2027 réelle avant de coder l'écran.</b> Décision actée : le replacement reste manuel — l'outil affiche, il ne corrige pas.</p>
+  </div>
+
+  <h2>4 · Déménagement NCHPG</h2>
+  <p style="color:var(--ink-2);font-size:14px">Les codes de secteurs changent, c'est certain. L'organisation cible n'est pas connue — <b>ne rien coder avant</b>. Ce qui suit est l'inventaire de ce que le changement casse. Détail dans <code>docs/guide-demenagement-nchpg.html</code>.</p>
+  <div class="card risque">
+    <h4>Le « + » des cases à pourvoir s'éteindra partout, en silence <span class="tag t-red">le point le plus dangereux</span></h4>
+    <p>La liste des secteurs à couvrir est figée dans le code : avec de nouveaux codes, elle devient une liste de codes morts. Ni erreur, ni message — juste un signal de sécurité qui disparaît.</p>
+    <p>Correctif décidé : une colonne <b>COUVERTURE (O/N)</b> dans l'onglet des secteurs. Conserver l'exception de la réanimation, volontairement hors couverture.</p>
+  </div>
+  <div class="card attente">
+    <h4>Un secteur désactivé efface l'historique de l'écran <span class="tag t-amber">vérifié au banc</span></h4>
+    <p>Un secteur mis à l'arrêt mais présent dans un planning déjà publié perd sa ligne dans la grille, semaines passées comprises, et le MAR placé dedans est ignoré sans message. Les données restent intactes. Deux issues : garder les anciens secteurs actifs, ou afficher les secteurs inactifs encore présents dans un planning publié.</p>
+  </div>
+  <div class="card">
+    <h4>Question de fond, à trancher avant tout code</h4>
+    <p>Un MAR est aujourd'hui affecté à <b>un</b> code de secteur. Avec des grands secteurs contenant des sous-secteurs : est-on affecté au grand secteur ou au sous-secteur ? Cette réponse fixe la maille de tout le reste — couverture, volet de placement, export Excel.</p>
+  </div>
+  <details>
+    <summary>Export Excel : la forme retenue le 30 juillet</summary>
+    <p>Option A, un bandeau par grand secteur — le mécanisme déjà utilisé par la ligne « anesthésistes aux blocs ». Une colonne <code>PARENT</code> dans l'onglet des secteurs et une boucle imbriquée suffisent : pas de réécriture de l'export. Maquette dans <code>docs/maquette-export-excel-secteurs.xlsx</code>, tenue sur une page A4 paysage vérifiée au rendu PDF, pas dans le vrai Excel.</p>
+    <p>Écartée : la colonne mère à gauche. La contrainte d'impression est la largeur — déjà ~30 cm pour 28,7 cm utiles. Une ligne de plus est gratuite, une colonne de plus se paie en réduction de police sur tout le document.</p>
+  </details>
+
+  <h2>5 · Plus loin</h2>
+  <div class="card">
+    <h4>Entretien de la veille <span class="tag t-blue">~novembre 2026</span></h4>
+    <p>Aucun nettoyage automatique aujourd'hui : environ 2 000 articles par semestre s'accumulent sans fin. Prévoir une purge <b>manuelle</b> — jamais un déclencheur — qui ne touche jamais un article encore marqué par quelqu'un.</p>
+  </div>
+  <div class="card">
+    <h4>Module libéral, lots 2C puis 4 <span class="tag t-blue">mi-2027</span></h4>
+    <p>Le lot 4 demande des rendements mesurés, donc plusieurs mois de déclarations. Chantier de conception, pas de code. Le lot 5 (orientation financière par la secrétaire) reste gelé.</p>
+  </div>
+
+  <h2>6 · Règles à ne jamais casser</h2>
+  <div class="regle"><b>Ne jamais régénérer une année de gardes déjà générée.</b><span>Un verrou l'empêche. Il ne s'arme que sur l'onglet des gardes de l'année.</span></div>
+  <div class="regle"><b>Jamais d'archivage automatique.</b><span>Un déclencheur annuel est du code jamais testé qui s'exécute sans surveillance : il transformerait un oubli en erreur grave. Archivage au premier lundi de la nouvelle année de planning, à la main.</span></div>
+  <div class="regle"><b>Dès qu'une ressource a deux propriétaires, on fusionne — on ne remplace pas.</b><span>L'onglet des indisponibilités appartient au comité et aux MARs. Écrire une ligne entière efface ce qu'on n'a pas chargé, sans le moindre message.</span></div>
+  <div class="regle"><b>Toute écriture dérivée refuse d'écraser une case occupée.</b><span>Un don de garde a effacé deux jours de garde de réanimation sans aucun signal.</span></div>
+  <div class="regle"><b>Jamais d'appel supplémentaire pour accélérer.</b><span>Apps Script sérialise les exécutions d'un même utilisateur. Un « appel de réveil » et un délai d'abandon court ont chacun cassé l'ouverture de l'interface le jour de leur livraison.</span></div>
+  <div class="regle"><b>Une règle métier écrite à plusieurs endroits finit par diverger.</b><span>La rotation A/B/C tournait à l'envers côté serveur : les deux ordres coïncident une année sur trois. Chercher toutes les copies dans tout le dépôt, pas seulement celle qu'on a sous les yeux.</span></div>
+  <div class="regle"><b>Un contrôle sans destinataire ne sert à rien.</b><span>Un trou de garde était détecté depuis trois jours avec la mention « à traiter immédiatement ». Personne ne lançait le diagnostic.</span></div>
+  <div class="regle"><b>Un indicateur qui ne détecte jamais rien doit prouver qu'il sait détecter.</b><span>Fabriquer le défaut, vérifier qu'il est vu. Le compteur « 0 journée sans binôme » répondait 0 quoi qu'il arrive.</span></div>
+  <div class="regle"><b>Le banc prouve la logique, jamais l'infrastructure.</b><span>Vert ne veut pas dire « ça marche ». Et une validation ne vaut que pour le chemin qu'elle emprunte.</span></div>
+  <div class="regle"><b>Un chiffre dont on n'a pas lu le calcul est une rumeur.</b><span>Marquer la provenance : lu dans le code · mesuré, et par quoi · supposé. Sans provenance, c'est supposé.</span></div>
+
+  <h2>7 · Écarté — ne pas reproposer</h2>
+  <details>
+    <summary>Protection anti-force-brute sur les codes d'accès</summary>
+    <p>Chiffré le 20 juillet : environ 1 100 milliards de combinaisons, ~50 essais par seconde au mieux, soit ~350 ans. Surtout, la vérification du code tourne à chaque requête et non au seul login : un disjoncteur global aurait coupé le service pour les 23 MARs après 30 essais ratés. Et la temporisation épuise le quota au lieu de le protéger.</p>
+  </details>
+  <details>
+    <summary>Généraliser l'installation sur écran d'accueil aux autres pages</summary>
+    <p>Tout le monde passe par le portail, qui la porte déjà.</p>
+  </details>
+  <details>
+    <summary>Embarquer les icônes des secteurs dans le site</summary>
+    <p>Les icônes se choisissent depuis l'onglet des secteurs — 1 728 possibles. Une liste figée ferait disparaître un pictogramme en silence. À ne reproposer qu'avec un repli visible.</p>
+  </details>
+  <details>
+    <summary>Réduction automatique du devis à l'impression</summary>
+    <p>95 % des dossiers font 2 actes, 3 au maximum. Réglé par la mise en page seule.</p>
+  </details>
+  <details>
+    <summary>Rebrancher l'écran « Paramètres » sur la configuration</summary>
+    <p>Écarté le 7 août pour raison de sécurité : les secrets restent dans le classeur, ils ne transitent pas par une page web.</p>
+  </details>
+  <details>
+    <summary>Indisponibilité saisie avant le staff, écrasée par une vacance</summary>
+    <p>Examiné le 30 juillet, décision : on laisse comme ça. Aucun impact sur les gardes, les deux statuts bloquant identiquement. Les deux correctifs étudiés — verrou sur la page d'indispos, marqueur de conflit dans l'écran d'équipe — ont été refusés.</p>
+  </details>
+  <details>
+    <summary>Migration hors Apps Script · page de configuration dédiée · optimisation du format publié</summary>
+    <p>Étudiés et chiffrés. Voir la partie historique de <code>ROADMAP-Planning-CHPG.md</code> pour le détail.</p>
+  </details>
+
+  <div class="foot">
+    Planning-CHPG · roadmap de pilotage · 8 août 2026<br>
+    Détail et historique : <code>docs/ROADMAP-Planning-CHPG.md</code> · méthode : <code>docs/CONTEXTE-Planning-CHPG.md</code><br>
+    architecture et dépannage : <code>docs/guide-technique.html</code>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var today = new Date(); today.setHours(0,0,0,0);
+  document.querySelectorAll('.jalon').forEach(function(j){
+    var cible = new Date(j.getAttribute('data-d') + 'T00:00:00');
+    var jours = Math.round((cible - today) / 86400000);
+    var el = j.querySelector('.cd');
+    if (!el) return;
+    if (jours < 0) { el.textContent = 'passé'; return; }
+    if (jours === 0) { el.textContent = "aujourd'hui"; el.className = 'cd urgent'; return; }
+    el.textContent = 'J-' + jours;
+    if (jours <= 30) el.className = 'cd urgent';
+    else if (jours <= 90) el.className = 'cd proche';
+  });
+})();
+</script>
+</body>
+</html>
