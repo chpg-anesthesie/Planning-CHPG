@@ -47,6 +47,24 @@ le matin, commit `49e6465`, puis corrigé trois fois dans la journée) ;
   dates, et l'interface **pilotée au clic** dans la vraie page. Stubs complétés
   (`setFrozenRows`, `clearContent`).
 
+### Doctrine des écritures (08/08/2026, gravée après audit)
+
+**Toute écriture de données utilisateur est soit journalisée, soit attendue avec
+erreur affichée, soit rejouable depuis une file locale. Jamais à fond perdu avec
+échec avalé.** Inventaire du 08/08, à l'origine de la règle :
+- **Journalisées** (fiches persistantes, filet horaire) : placements, statuts,
+  publication — aucune disparition possible, prouvé au banc.
+- **Attendues, erreur affichée** : `saveIndispos` (toast ✅/❌), outils admin hors
+  journal (timeout 90 s, échec à l'écran, rejeu limité à `getAdminBootstrap` seul
+  — mesure du 28/07 : rejouer sur file saturée AGGRAVE).
+- **À fond perdu assumé** (perte sans conséquence, documentée) : journal de
+  connexion (`sendBeacon`), appel de réveil.
+- **La violation identifiée** : `markVeille` — écriture de données utilisateur,
+  `.catch` vide, écran optimiste → marque fantôme possible (timeout GAS ou page
+  suspendue par iOS). À corriger par **file locale** dans le chantier Lu/★ par MAR.
+- Case restante à classer : l'appelant client de `declareLiberal`/`deleteLiberal`
+  (absent des pages de la racine).
+
 ### Leçons du 8 août
 
 - **Un correctif de filtre se mesure sur TOUS les axes** : annoncer un sous-total a
