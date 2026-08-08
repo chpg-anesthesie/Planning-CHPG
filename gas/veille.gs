@@ -57,7 +57,7 @@
 //  instantané unique et partagé : chantier séparé.
 // ══════════════════════════════════════════════════════════════════════
 
-const GAS_VERSION_VEILLE = '2026-08-08.2';
+const GAS_VERSION_VEILLE = '2026-08-08.3';
 
 const VEILLE_CFG_TAB = 'VEILLE_CFG';
 const VEILLE_TAB     = 'VEILLE';
@@ -522,7 +522,21 @@ function _veilleDoi(obj) {
   return '';
 }
 
+/* (2026-08-08.3, MESURÉ) 925 articles sur 2 044 n'avaient que le MOIS de
+   parution (numéro de revue) : sortpubdate les datait tous au « 01 », le
+   tri par date les laissait en blocs par revue (PMID contigus d'un même
+   numéro). Or epubdate — la date de MISE EN LIGNE — est au jour près pour
+   27 échantillons sur 30. On la préfère quand elle porte un jour ; sinon
+   repli sur sortpubdate/pubdate comme avant. */
+const _VEILLE_MOIS = { Jan:'01', Feb:'02', Mar:'03', Apr:'04', May:'05', Jun:'06',
+                       Jul:'07', Aug:'08', Sep:'09', Oct:'10', Nov:'11', Dec:'12' };
+
 function _veilleDatePub(obj) {
+  const epub = String((obj && obj.epubdate) || '').trim();
+  const e = epub.match(/^(\d{4})\s+([A-Za-z]{3})\s+(\d{1,2})$/);   // "2026 Feb 7"
+  if (e && _VEILLE_MOIS[e[2]]) {
+    return e[1] + '-' + _VEILLE_MOIS[e[2]] + '-' + ('0' + e[3]).slice(-2);
+  }
   const raw = String((obj && (obj.sortpubdate || obj.pubdate)) || '').trim();
   if (!raw) return '';
   const m = raw.match(/^(\d{4})[\/\-\s]?(\d{2})?[\/\-\s]?(\d{2})?/);

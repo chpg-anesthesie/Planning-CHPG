@@ -124,6 +124,22 @@ function monde(plan) {
     V('après réécriture, les 5 types sont revenus', cfg.pubtypes.length === 5, cfg.pubtypes);
   }
 
+  console.log('\n═══ 5. Dates : epubdate au jour près prime, sinon repli (défaut des blocs par revue) ═══');
+  {
+    /* Mesuré le 08/08 : 925/2 044 articles datés au « 01 » par sortpubdate
+       → blocs par revue à l'écran. epubdate au jour près pour 27/30. */
+    const { ctx } = monde(() => ({}));
+    const d = o => vm.runInContext('_veilleDatePub(' + JSON.stringify(o) + ')', ctx);
+    V('epubdate "2026 Feb 7" prime sur le sortpubdate au 01',
+      d({ epubdate: '2026 Feb 7', sortpubdate: '2026/06/01 00:00' }) === '2026-02-07',
+      d({ epubdate: '2026 Feb 7', sortpubdate: '2026/06/01 00:00' }));
+    V('jour sur un chiffre → zéro devant', d({ epubdate: '2026 Jun 1' }) === '2026-06-01', d({ epubdate: '2026 Jun 1' }));
+    V('epubdate vide → repli sortpubdate', d({ epubdate: '', sortpubdate: '2026/04/01 00:00' }) === '2026-04-01');
+    V('epubdate au mois seul ("2026 Feb") → repli', d({ epubdate: '2026 Feb', sortpubdate: '2026/05/01 00:00' }) === '2026-05-01');
+    V('epubdate exotique ("2026 Jan-Feb") → repli', d({ epubdate: '2026 Jan-Feb', sortpubdate: '2026/05/01 00:00' }) === '2026-05-01');
+    V('rien du tout → chaîne vide', d({}) === '');
+  }
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   process.exit(ko ? 1 : 0);
 })();
