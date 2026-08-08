@@ -482,3 +482,55 @@ function veilleDryRunDelai() {
   Logger.log('Si le % monte fortement au-delà de 90 j : élargir la fenêtre.');
   Logger.log('S\'il reste plat et bas : la revue n\'est pas indexée MEDLINE du tout.');
 }
+
+// ══════════════════════════════════════════════════════════════════════
+//  8. RÉGIME ÉTABLI à 180 jours
+//     Deux chiffres différents, souvent confondus :
+//      · le STOCK      = ce que le tout premier passage va ingérer d'un coup ;
+//      · le RÉGIME     = le flux hebdomadaire une fois le rattrapage fait.
+//     Le régime se mesure sur une tranche ANCIENNE (180-360 j), entièrement
+//     indexée : c'est ce que la veille récoltera chaque semaine à terme.
+//     Mesure aussi le plus gros comptage d'une seule requête, pour
+//     dimensionner retmax et savoir si la pagination est indispensable.
+//     Les deux axes portent sur des revues disjointes : pas de doublon,
+//     l'addition est exacte.
+// ══════════════════════════════════════════════════════════════════════
+
+function veilleDryRunRegime() {
+  const filtre   = _drFiltre(DRY_PUBTYPES, DRY_HUMANS, DRY_LANGS, true);
+  const themesOr = _drOrThemes(DRY_THEMES.map(function (t) { return t.val; }));
+  const tDirect  = _drAvec(_drOrJournals(DRY_REVUES_DIRECT), filtre);
+  const tCroise  = _drAvec('(' + _drOrJournals(DRY_REVUES_THEMED) + ') AND (' + themesOr + ')', filtre);
+
+  Logger.log('═══ RÉGIME À 180 JOURS ═══');
+  Logger.log('Univers : ' + DRY_REVUES_DIRECT.length + ' revues directes · ' +
+             DRY_REVUES_THEMED.length + ' croisées · ' + DRY_THEMES.length + ' thèmes');
+  Logger.log('');
+
+  const lignes = [
+    ['STOCK initial (0-180 j)',  0,   180, 0],
+    ['dont 0-90 j',              0,   90,  0],
+    ['RÉGIME (180-360 j)',       180, 360, 26],
+  ];
+  let maxUneRequete = 0;
+  lignes.forEach(function (L) {
+    const d = _drCountTranche(tDirect, L[1], L[2]);
+    const c = _drCountTranche(tCroise, L[1], L[2]);
+    maxUneRequete = Math.max(maxUneRequete, d, c);
+    const tot = d + c;
+    let txt = '  ' + _drPad(L[0], 26) + _drPadL(tot, 5) + ' articles' +
+              '   (directes ' + d + ' · croisées ' + c + ')';
+    if (L[3]) txt += '   → ' + (tot / L[3]).toFixed(1) + ' /semaine';
+    Logger.log(txt);
+  });
+
+  Logger.log('');
+  Logger.log('Plus gros comptage d\'une seule requête : ' + maxUneRequete);
+  Logger.log(maxUneRequete > 200
+    ? '⚠️ Le code actuel plafonne à retmax=200 avec sort=date : il garderait'
+    : 'Le plafond retmax=200 actuel suffirait.');
+  if (maxUneRequete > 200) {
+    Logger.log('   les ' + 200 + ' plus RÉCENTS, donc les moins indexés — le pire choix.');
+    Logger.log('   La pagination est indispensable avant de passer JOURS à 180.');
+  }
+}
