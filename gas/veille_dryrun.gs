@@ -537,3 +537,197 @@ function veilleDryRunRegime() {
     Logger.log('   La pagination est indispensable avant de passer JOURS à 180.');
   }
 }
+
+// ══════════════════════════════════════════════════════════════════════
+//  9. VOCABULAIRE V2 — 21 thèmes exprimés en TITRE/RÉSUMÉ
+//
+//  Différence majeure avec les thèmes actuels : ceux-ci sont écrits en
+//  [tiab] (titre + résumé), disponibles dès la parution, et non en MeSH,
+//  attribué des semaines plus tard. Plus de retard d'indexation.
+//
+//  Deux pièges PubMed pris en compte :
+//   · les MOTS VIDES (of, for, the, a, and, in, after…) sont ignorés dans
+//     une recherche de phrase, qui alors ne correspond à RIEN. D'où
+//     l'absence de tournures comme "point of care" ou "enhanced recovery
+//     after surgery". C'est ce défaut qui rendait inopérante l'exclusion
+//     "protocol for a"[Title].
+//   · l'orthographe britannique ET américaine doit être écrite en toutes
+//     lettres : anaesthesia / anesthesia ne se déduisent pas l'une l'autre.
+// ══════════════════════════════════════════════════════════════════════
+
+const DRY_THEMES_V2 = [
+  { cle: 'Voies aériennes', val:
+    '"intubation"[tiab] OR "extubation"[tiab] OR "difficult airway"[tiab] OR "airway management"[tiab] OR ' +
+    '"videolaryngoscopy"[tiab] OR "video laryngoscopy"[tiab] OR "laryngoscopy"[tiab] OR "laryngeal mask"[tiab] OR ' +
+    '"supraglottic airway"[tiab] OR "preoxygenation"[tiab] OR "preoxygenation"[tiab] OR "cricothyroidotomy"[tiab] OR ' +
+    '"tracheostomy"[tiab] OR "intubation, intratracheal"[MeSH Terms]' },
+
+  { cle: 'Anesthésie locorégionale', val:
+    '"regional anesthesia"[tiab] OR "regional anaesthesia"[tiab] OR "nerve block"[tiab] OR "nerve blocks"[tiab] OR ' +
+    '"spinal anesthesia"[tiab] OR "spinal anaesthesia"[tiab] OR "epidural"[tiab] OR "neuraxial"[tiab] OR ' +
+    '"local anesthetic"[tiab] OR "local anaesthetic"[tiab] OR "ropivacaine"[tiab] OR "bupivacaine"[tiab] OR ' +
+    '"plane block"[tiab] OR "anesthesia, conduction"[MeSH Terms]' },
+
+  { cle: 'Douleur périopératoire', val:
+    '"postoperative pain"[tiab] OR "acute pain"[tiab] OR "analgesia"[tiab] OR "analgesic"[tiab] OR ' +
+    '"opioid"[tiab] OR "opioids"[tiab] OR "morphine"[tiab] OR "ketamine"[tiab] OR ' +
+    '"chronic postsurgical pain"[tiab] OR "multimodal analgesia"[tiab] OR "opioid free"[tiab]' },
+
+  { cle: 'Hémodynamique', val:
+    '"hemodynamic"[tiab] OR "haemodynamic"[tiab] OR "vasopressor"[tiab] OR "vasopressors"[tiab] OR ' +
+    '"norepinephrine"[tiab] OR "noradrenaline"[tiab] OR "fluid responsiveness"[tiab] OR "fluid therapy"[tiab] OR ' +
+    '"cardiac output"[tiab] OR "intraoperative hypotension"[tiab] OR "hypotension"[tiab] OR ' +
+    '"shock"[tiab] OR "microcirculation"[tiab] OR "capillary refill"[tiab] OR "lactate"[tiab]' },
+
+  { cle: 'Ventilation & SDRA', val:
+    '"mechanical ventilation"[tiab] OR "ARDS"[tiab] OR "acute respiratory distress syndrome"[tiab] OR ' +
+    '"prone position"[tiab] OR "prone positioning"[tiab] OR "PEEP"[tiab] OR "positive end expiratory pressure"[tiab] OR ' +
+    '"tidal volume"[tiab] OR "weaning"[tiab] OR "extubation failure"[tiab] OR "one lung ventilation"[tiab] OR ' +
+    '"high flow nasal"[tiab] OR "noninvasive ventilation"[tiab] OR "ECMO"[tiab] OR "oxygenation"[tiab]' },
+
+  { cle: 'Sepsis & infection', val:
+    '"sepsis"[tiab] OR "septic shock"[tiab] OR "bacteremia"[tiab] OR "bacteraemia"[tiab] OR ' +
+    '"antibiotic"[tiab] OR "antibiotics"[tiab] OR "antimicrobial"[tiab] OR "pneumonia"[tiab] OR ' +
+    '"nosocomial"[tiab] OR "surgical site infection"[tiab] OR "sepsis"[MeSH Terms]' },
+
+  { cle: 'Arrêt cardiaque', val:
+    '"cardiac arrest"[tiab] OR "cardiopulmonary resuscitation"[tiab] OR "resuscitation"[tiab] OR ' +
+    '"defibrillation"[tiab] OR "ROSC"[tiab] OR "post cardiac arrest"[tiab] OR ' +
+    '"targeted temperature management"[tiab] OR "heart arrest"[MeSH Terms]' },
+
+  { cle: 'Hémorragie & transfusion', val:
+    '"hemorrhage"[tiab] OR "haemorrhage"[tiab] OR "bleeding"[tiab] OR "transfusion"[tiab] OR ' +
+    '"tranexamic acid"[tiab] OR "coagulopathy"[tiab] OR "fibrinogen"[tiab] OR "massive transfusion"[tiab] OR ' +
+    '"patient blood management"[tiab] OR "anemia"[tiab] OR "anaemia"[tiab] OR "viscoelastic"[tiab]' },
+
+  { cle: 'Neuro & délire', val:
+    '"delirium"[tiab] OR "postoperative cognitive"[tiab] OR "neurocognitive"[tiab] OR ' +
+    '"anesthetic depth"[tiab] OR "anaesthetic depth"[tiab] OR "processed EEG"[tiab] OR "bispectral"[tiab] OR ' +
+    '"traumatic brain injury"[tiab] OR "intracranial pressure"[tiab] OR "stroke"[tiab] OR "sedation"[tiab]' },
+
+  { cle: 'Médecine périopératoire', val:
+    '"perioperative"[tiab] OR "preoperative"[tiab] OR "postoperative complications"[tiab] OR ' +
+    '"prehabilitation"[tiab] OR "enhanced recovery"[tiab] OR "ERAS"[tiab] OR "frailty"[tiab] OR ' +
+    '"risk assessment"[tiab] OR "postoperative outcome"[tiab] OR "postoperative outcomes"[tiab] OR ' +
+    '"myocardial injury"[tiab] OR "MINS"[tiab]' },
+
+  { cle: 'Agents & pharmacologie', val:
+    '"propofol"[tiab] OR "sevoflurane"[tiab] OR "desflurane"[tiab] OR "remimazolam"[tiab] OR ' +
+    '"dexmedetomidine"[tiab] OR "remifentanil"[tiab] OR "sufentanil"[tiab] OR "neuromuscular block"[tiab] OR ' +
+    '"neuromuscular blockade"[tiab] OR "rocuronium"[tiab] OR "sugammadex"[tiab] OR "total intravenous"[tiab] OR ' +
+    '"pharmacokinetics"[tiab] OR "target controlled infusion"[tiab]' },
+
+  { cle: 'Obstétrique', val:
+    '"obstetric"[tiab] OR "obstetrical"[tiab] OR "cesarean"[tiab] OR "caesarean"[tiab] OR ' +
+    '"labor analgesia"[tiab] OR "labour analgesia"[tiab] OR "preeclampsia"[tiab] OR "pre eclampsia"[tiab] OR ' +
+    '"postpartum hemorrhage"[tiab] OR "postpartum haemorrhage"[tiab] OR "pregnancy"[tiab] OR "parturient"[tiab]' },
+
+  { cle: 'Pédiatrie', val:
+    '"pediatric"[tiab] OR "paediatric"[tiab] OR "children"[tiab] OR "infant"[tiab] OR "infants"[tiab] OR ' +
+    '"neonatal"[tiab] OR "neonate"[tiab] OR "child"[tiab]' },
+
+  { cle: 'IRA & épuration', val:
+    '"acute kidney injury"[tiab] OR "renal replacement therapy"[tiab] OR "hemodialysis"[tiab] OR ' +
+    '"haemodialysis"[tiab] OR "hemofiltration"[tiab] OR "CRRT"[tiab] OR "nephrotoxicity"[tiab] OR ' +
+    '"renal failure"[tiab] OR "oliguria"[tiab]' },
+
+  { cle: 'NVPO', val:
+    '"postoperative nausea"[tiab] OR "vomiting"[tiab] OR "antiemetic"[tiab] OR "ondansetron"[tiab] OR ' +
+    '"droperidol"[tiab] OR "PONV"[tiab]' },
+
+  { cle: 'Ambulatoire', val:
+    '"ambulatory surgery"[tiab] OR "ambulatory anesthesia"[tiab] OR "ambulatory anaesthesia"[tiab] OR ' +
+    '"day surgery"[tiab] OR "day case"[tiab] OR "outpatient surgery"[tiab] OR "same day discharge"[tiab] OR ' +
+    '"fast track"[tiab] OR "postanesthesia care"[tiab] OR "postanaesthesia care"[tiab]' },
+
+  { cle: 'Nutrition', val:
+    '"nutrition"[tiab] OR "nutritional"[tiab] OR "enteral"[tiab] OR "parenteral"[tiab] OR ' +
+    '"caloric"[tiab] OR "malnutrition"[tiab] OR "refeeding"[tiab] OR "glycemic control"[tiab] OR ' +
+    '"glycaemic control"[tiab] OR "fasting"[tiab]' },
+
+  { cle: 'Thrombose & anticoagulation', val:
+    '"venous thromboembolism"[tiab] OR "thromboprophylaxis"[tiab] OR "pulmonary embolism"[tiab] OR ' +
+    '"deep vein thrombosis"[tiab] OR "anticoagulation"[tiab] OR "anticoagulant"[tiab] OR ' +
+    '"heparin"[tiab] OR "direct oral anticoagulant"[tiab] OR "antiplatelet"[tiab]' },
+
+  { cle: 'Échographie clinique', val:
+    '"ultrasound"[tiab] OR "ultrasonography"[tiab] OR "ultrasound guided"[tiab] OR "POCUS"[tiab] OR ' +
+    '"lung ultrasound"[tiab] OR "echocardiography"[tiab] OR "gastric ultrasound"[tiab] OR ' +
+    '"transcranial doppler"[tiab] OR "focused cardiac"[tiab]' },
+
+  { cle: 'Sécurité & erreurs', val:
+    '"patient safety"[tiab] OR "medication error"[tiab] OR "medication errors"[tiab] OR "adverse event"[tiab] OR ' +
+    '"adverse events"[tiab] OR "checklist"[tiab] OR "human factors"[tiab] OR "critical incident"[tiab] OR ' +
+    '"near miss"[tiab] OR "morbidity conference"[tiab] OR "burnout"[tiab]' },
+
+  { cle: 'Simulation & formation', val:
+    '"simulation"[tiab] OR "simulation based"[tiab] OR "medical education"[tiab] OR "training"[tiab] OR ' +
+    '"competency"[tiab] OR "learning curve"[tiab] OR "curriculum"[tiab] OR "teaching"[tiab]' },
+];
+
+// Exclusions V2 : plus de liste blanche de types, une liste NOIRE courte.
+// "protocol for a"[Title] est remplacé : les mots vides le rendaient inopérant.
+const DRY_EXCL_V2 =
+  '"comment"[Publication Type] OR "editorial"[Publication Type] OR "letter"[Publication Type] ' +
+  'OR "case reports"[Publication Type] OR "retracted publication"[Publication Type] ' +
+  'OR "published erratum"[Publication Type] OR "preprint"[Publication Type] ' +
+  'OR "news"[Publication Type] OR "biography"[Publication Type] ' +
+  'OR ("protocol"[Title] AND ("randomized"[Title] OR "randomised"[Title] OR "trial"[Title] ' +
+  'OR "systematic review"[Title] OR "meta-analysis"[Title]))';
+
+function _drFiltreV2() {
+  const langs = '(' + DRY_LANGS.map(function (l) { return l + '[la]'; }).join(' OR ') + ')';
+  return langs +
+    ' NOT ("animals"[MeSH Terms] NOT "humans"[MeSH Terms])' +
+    ' NOT (' + DRY_EXCL_V2 + ')';
+}
+
+function _drThemesOrV2() {
+  return DRY_THEMES_V2.map(function (t) { return '(' + t.val + ')'; }).join(' OR ');
+}
+
+// ── 9a. Couverture : quelle part de chaque revue est captée par les thèmes ?
+function veilleDryRunV2Couverture() {
+  const jours   = 180;
+  const filtre  = _drFiltreV2();
+  const themes  = _drThemesOrV2();
+
+  Logger.log('═══ COUVERTURE DES THÈMES V2 — 180 jours ═══');
+  Logger.log('brut = articles de la revue (hors éditos, lettres, cas, protocoles)');
+  Logger.log('thème = ceux qui correspondent à au moins un des ' + DRY_THEMES_V2.length + ' thèmes');
+  Logger.log('Un taux bas sur une revue d\'anesthésie = vocabulaire à compléter.');
+  Logger.log('');
+
+  let sb = 0, st = 0;
+  DRY_REVUES_DIRECT.forEach(function (r) {
+    const j = '"' + r + '"[Journal] AND ' + filtre;
+    const brut = _drCount(j, jours);
+    const th   = _drCount(j + ' AND (' + themes + ')', jours);
+    sb += brut; st += th;
+    const pct = brut ? Math.round(th / brut * 100) : 0;
+    Logger.log('  ' + _drPad(r, 28) + 'brut ' + _drPadL(brut, 5) +
+               '   thème ' + _drPadL(th, 5) + _drPadL(pct + ' %', 7) +
+               (pct < 60 && brut > 20 ? '   ⚠️ couverture faible' : ''));
+  });
+  Logger.log('');
+  Logger.log('  ' + _drPad('TOTAL revues directes', 28) + 'brut ' + _drPadL(sb, 5) +
+             '   thème ' + _drPadL(st, 5) + _drPadL((sb ? Math.round(st / sb * 100) : 0) + ' %', 7));
+  Logger.log('  → ' + (st / (180 / 7)).toFixed(1) + ' articles/semaine sur l\'axe direct');
+}
+
+// ── 9b. Volume par thème, dans tout l'univers
+function veilleDryRunV2Themes() {
+  const jours  = 180;
+  const filtre = _drFiltreV2();
+  const univers = '(' + _drOrJournals(DRY_REVUES_DIRECT.concat(DRY_REVUES_THEMED)) + ')';
+
+  Logger.log('═══ VOLUME PAR THÈME V2 — 180 jours, dans l\'univers ═══');
+  DRY_THEMES_V2.forEach(function (t) {
+    const n = _drCount(univers + ' AND ' + filtre + ' AND (' + t.val + ')', jours);
+    Logger.log('  ' + _drPad(t.cle, 30) + _drPadL(n, 5) + _drPadL((n / (180 / 7)).toFixed(1), 8) + ' /sem');
+  });
+  Logger.log('');
+  const tot = _drCount(univers + ' AND ' + filtre + ' AND (' + _drThemesOrV2() + ')', jours);
+  Logger.log('  ' + _drPad('TOTAL dédoublonné', 30) + _drPadL(tot, 5) +
+             _drPadL((tot / (180 / 7)).toFixed(1), 8) + ' /sem');
+}
