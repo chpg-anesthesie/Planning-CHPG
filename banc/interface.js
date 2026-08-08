@@ -107,6 +107,7 @@ const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++
   const btn = d.querySelector('.auth-btn');
   V('le bouton « Accéder » existe', !!btn, btn && btn.textContent.trim());
   btn.click();                                   // le vrai bouton, le vrai gestionnaire
+  const tClic = Date.now();                      // (v1.28.1) référence : le repli mail part 6 s après le boot
   await dodo(2500);
   // Trace de diagnostic du banc : que s'est-il passé au boot ?
   try {
@@ -256,6 +257,21 @@ const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++
     V('le placement apparaît dans le planning régénéré',
       !!cellule && (cellule.morning === un[2] || cellule.afternoon === un[3]), { attendu: un.slice(0,4), obtenu: cellule });
   }
+
+  console.log('\n═══ 23. La pastille mail survit au repli des 6 secondes (défaut du 07/08) ═══');
+  /* Défaut trouvé en production le 07/08/2026 : le boot miroir affichait la
+     pastille (mail_nonlus du miroir, ici 3) puis posait mailNonLus:null dans
+     l'objet de boot ; le repli `setTimeout(majCompteurMail, 6000)` partait
+     donc SANS valeur et, depuis la v1.25, un appel sans valeur CACHE la
+     pastille. Symptôme : visible à l'ouverture, disparue 6 s plus tard.
+     Corrigé en v1.28.1 (le boot transmet le nombre du miroir). Ce scénario
+     doit s'exécuter STRICTEMENT APRÈS le déclenchement du repli. */
+  const resteAvantRepli = 7000 - (Date.now() - tClic);
+  if (resteAvantRepli > 0) await dodo(resteAvantRepli);
+  const dot = d.getElementById('mailDot');
+  V('la pastille existe dans la page', !!dot);
+  V('elle affiche le compte du miroir (3)', dot && dot.textContent.trim() === '3', dot && dot.textContent);
+  V('elle est TOUJOURS visible après le repli des 6 s', dot && dot.style.display === 'block', dot && dot.style.display);
 
   console.log(`\n${ok} OK · ${ko} en échec`);
   process.exit(ko ? 1 : 0);
