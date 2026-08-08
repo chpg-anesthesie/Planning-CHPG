@@ -16,6 +16,10 @@ le Worker ou `partage/dispo_jour.js`.
 
 *Mise à jour : 6 août 2026.*
 
+> 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
+> à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
+> à jour ensemble.
+>
 > **Le dépôt en ligne fait foi.** Ce document est un repère de pilotage, pas la source de vérité
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans

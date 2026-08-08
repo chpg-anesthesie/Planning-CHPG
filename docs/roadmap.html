@@ -158,7 +158,7 @@
     </div>
     <div class="jalon" data-d="2026-10-01">
       <div class="jalon-t"><span class="jalon-d">1<sup>er</sup> oct. 2026</span><span class="jalon-n">Butoir dur du ménage post-démo</span><span class="cd"></span></div>
-      <p class="jalon-p">À partir de cette date le dashboard va chercher l'année suivante tout seul : les fichiers de démo 2027 deviendraient visibles par les 23 MARs.</p>
+      <p class="jalon-p">Dès le 1<sup>er</sup> octobre, le portail charge <b>aussi</b> le planning de l'année suivante, sans que personne ne clique — c'est voulu, pour que les gardes et congés de janvier s'affichent. Si les fichiers de démo 2027 sont encore sur le Drive, les 23 MARs verront des gardes fictives présentées comme vraies.</p>
     </div>
     <div class="jalon" data-d="2026-10-05">
       <div class="jalon-t"><span class="jalon-d">octobre 2026</span><span class="jalon-n">Campagne d'indisponibilités 2027</span><span class="cd"></span></div>
@@ -204,8 +204,13 @@
     <p>Tout est vérifié par machine, rien à l'œil. Points sensibles : diapo 10 (tableau le plus large), diapo 19 (densifiée), diapo 16 (le rosé du repos peut passer pour du blanc au vidéoprojecteur).</p>
   </div>
   <div class="card attente">
-    <h4>Répétition générale du cahier de tests <span class="tag t-amber">fin août</span></h4>
-    <p>Parcours P1 à P6, sur un PC tranquille, chaque page ×10 en PC, mobile et navigation privée. Verdict « prêt » = 10 fois sous 2 s, pas une moyenne.</p>
+    <h4>Dérouler le cahier de tests, parcours P1 à P6 <span class="tag t-amber">fin août</span></h4>
+    <p>Les scénarios d'usage de <code>docs/cahier-de-tests.html</code>, faits à la main : se connecter, lire le planning, poser une indisponibilité, gérer une absence longue. On vérifie que <b>ça marche</b>.</p>
+  </div>
+  <div class="card attente">
+    <h4>Mesurer la vitesse d'ouverture <span class="tag t-amber">fin août</span></h4>
+    <p>Chaque page ouverte <b>dix fois</b> : sur PC, sur téléphone, et en navigation privée pour partir sans rien en mémoire. Verdict « prêt » = <b>10 fois sur 10 sous 2 secondes</b>.</p>
+    <p>Une moyenne ne vaut rien : neuf ouvertures à 0,3 s et une à 12 s donnent une bonne moyenne — et c'est celle à 12 s qui tombera devant la salle.</p>
   </div>
   <div class="card risque">
     <h4>Aucun PDF ouvert en direct <span class="tag t-red">note d'orateur</span></h4>

@@ -25,7 +25,8 @@ Système web de gestion pour le service d'anesthésie-réanimation du **CHPG (Mo
 | Fichier | Rôle |
 |---|---|
 | `CONTEXTE-Planning-CHPG.md` | Contexte, architecture, conventions — **à lire en premier** |
-| `ROADMAP-Planning-CHPG.md` | Fait / à faire / écarté — la mémoire du projet |
+| `roadmap.html` | **Roadmap de pilotage** — vue courte et lisible : échéancier, chantiers en cours, règles à ne jamais casser |
+| `ROADMAP-Planning-CHPG.md` | Fait / à faire / écarté — la mémoire longue, historique détaillé |
 | `guide-technique.html` | **La référence interne** : architecture, wizards, déploiement, sécurité, dépannage |
 | `guide-fichier-maitre.html` | Les 25 onglets du classeur, colonne par colonne |
 | `guide-comite.html` | Aide du comité (page `admin.html`) |
