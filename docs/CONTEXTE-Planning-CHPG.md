@@ -11,6 +11,57 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 8 août 2026 — v1.29, veille refondue et validée, banc à 482 vérifications
+
+**Site v1.29.** GAS veille : `veille.gs 2026-08-08.4` (module extrait de `portail.gs`
+le matin, commit `49e6465`, puis corrigé trois fois dans la journée) ;
+`portail.gs 2026-08-08.1`, `Indispos.gs 2026-08-08.1`.
+
+### La journée du 8 août — la veille, de la première collecte réelle à la validation
+
+- **Liste blanche par axe** (`2026-08-08.2`) : la première collecte réelle a rendu
+  114 art./semaine pour une cible de 50-80. Cause mesurée : la suppression de la
+  liste blanche de types, justifiée pour les 23 revues d'anesthésie-réa, avait aussi
+  été appliquée aux 18 généralistes (axe croisé : 1 040/180 j au lieu de ~31/90 j).
+  Rétablie sur l'axe GENERAL **seul**, pilotée par les lignes `PUBTYPE` de
+  `VEILLE_CFG`. Résultat mesuré : axe croisé 157, **79,5 art./semaine**. Le journal
+  d'exécution annonce désormais le total /semaine et le détail par axe.
+- **Dates de mise en ligne** (`2026-08-08.3`) : 925 articles sur 2 044 n'avaient que
+  le mois de parution → tous datés au « 01 », et le tri stable les laissait en blocs
+  par revue (PMID contigus d'un même numéro). Mesuré sur échantillon : `epubdate`
+  est au jour près pour 27/30. Elle prime désormais quand elle porte un jour.
+- **Contrat SOURCE** (`2026-08-08.4`) : la refonte écrivait `Revue`/`Généraliste` là
+  où le filtre de `dashboard.html` attend `REVUE`/`GENERAL` → filtre vide, tout
+  badgé « Revue spécialisée ». Codes rétablis à l'écriture, valeurs héritées
+  **normalisées à la lecture** (les 2 044 lignes n'ont pas été réécrites).
+  → **Leçon (répétée) : lire le consommateur.** Un test de **contrat** au banc lit
+  désormais le vrai `dashboard.html` et exige que `getVeille()` ne serve que les
+  codes que l'écran sait filtrer.
+- **v1.29 — filtre par revues cochées** : bouton « Revues » dans la veille du
+  dashboard, panneau à cases avec compte par revue, mémorisé **par appareil**
+  (`localStorage`, comme le repère « nouveau »). Guide MAR mis à jour.
+- **Diapo 29 de la présentation staff** réalignée : 41 revues, 21 thèmes, deux
+  régimes de filtrage, démo « cocher ses revues ».
+- **Banc 446 → 482** : nouveau `banc_veille.js` (20ᵉ script) — collecte face à un
+  PubMed simulé qui rendrait 1 040 articles sans bride, contrat SOURCE↔dashboard,
+  dates, et l'interface **pilotée au clic** dans la vraie page. Stubs complétés
+  (`setFrozenRows`, `clearContent`).
+
+### Leçons du 8 août
+
+- **Un correctif de filtre se mesure sur TOUS les axes** : annoncer un sous-total a
+  masqué l'explosion de l'axe croisé un jour de plus.
+- **`epubdate` avant `sortpubdate`** : `sortpubdate` invente un « 01 » pour les
+  numéros datés au mois ; l'écran en fait des blocs par revue.
+- **La clé miroir `veille` n'est rafraîchie QUE par la synchro horaire**
+  (`miroirSyncComplet`) : après toute modification de `getVeille()` ou re-collecte,
+  la lancer à la main, sinon le dashboard sert l'instantané périmé.
+- **`VEILLE_ITEMS` et l'état du filtre sont des `let` de page** : au banc, on les
+  atteint par le chemin public (`miroirTuile` remplacée puis `openVeille()`),
+  jamais par `w.VEILLE_ITEMS = …` qui crée une propriété fantôme.
+
+---
+
 ## État au 6 août 2026 — v1.28, guides refondus, banc à 436 vérifications
 
 **Site v1.28.** GAS : `code.gs 2026-08-05.3`, `Indispos.gs 2026-08-05.13`,

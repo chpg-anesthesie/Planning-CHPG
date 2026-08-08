@@ -565,7 +565,11 @@ Deux portes : tuile MAR et session secrétariat.
 `G`/`G2` ne comptent pas comme absence. Rôle secrétariat = liste blanche de deux actions.
 
 ### Veille bibliographique, CR d'anesthésie
-En production. *(L'alerte « `markVeille` sans verrou ni contrôle de rôle » a été retirée le 29/07
+En production. **Refonte du 08/08/2026 validée en production** : module autonome
+`gas/veille.gs` (2026-08-08.4), règle « revue ET thème », 41 revues (23 directes +
+18 généralistes sous liste blanche `PUBTYPE`), 21 thèmes, fenêtre 180 j, POST +
+pagination, dates `epubdate`, codes SOURCE conformes à l'écran — 79,5 art./semaine
+mesurés (cible 50-80). Filtre par revues cochées côté dashboard (v1.29). *(L'alerte « `markVeille` sans verrou ni contrôle de rôle » a été retirée le 29/07
 après vérification du code : le secrétariat est déjà refusé en amont par `SECRETARIAT_ACTIONS`,
 et l'action écrit **une seule cellule ciblée par PMID**, sans lire-modifier-écrire ni suppression
 de ligne — son exclusion de `WRITE_ACTIONS_LOCK` est délibérée et documentée.)*
@@ -583,7 +587,7 @@ La version du site vit dans **4 fichiers, 10 emplacements** : `admin.html` (3),
 ⚠️ `index.html`, `indispos.html`, `staff.html` et `absences.html` **n'en portent aucune**.
 Patch → 3ᵉ chiffre · Fonctionnalité → 2ᵉ · **v2.0 réservée à l'ouverture du module libéral au
 groupement** (la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.15.2** (01/08/2026).
+**Version en cours : v1.29** (08/08/2026).
 
 ---
 
@@ -978,11 +982,29 @@ pour éviter tout biais de confirmation). Conclusions :
   - `guide-comite.html` § 13.3 documente la différence entre *renvoyer* et *renouveler*.
   - *Non testé en production à ce stade : recopie `Indispos.gs` + redéploiement requis.*
 
-### Veille bibliographique (juillet 2026)
+### Veille bibliographique (juillet 2026, refondue le 08/08/2026)
 - Scan PubMed hebdomadaire (lundi) piloté 100 % depuis l'onglet `VEILLE_CFG` (voir `docs/VEILLE_CFG-mode-emploi.md`).
 - Tri « best match » + badge type de publication (`PUBTYPE`).
 - Tagging **par thème** (colonne `THEMES`), sélecteur de thème + filtrage dans le Dashboard.
 - Normalisation des dates ISO au read time.
+- **08/08/2026** : module extrait dans `gas/veille.gs` ; liste blanche de types sur
+  l'axe généraliste **seul** (lignes `PUBTYPE` de `VEILLE_CFG`) ; dates `epubdate`
+  au jour près ; codes `SOURCE` = contrat de l'écran, avec test de contrat au banc ;
+  filtre par revues cochées (v1.29, mémoire par appareil) ; diapo 29 du deck staff
+  réalignée. Volume validé : **79,5 art./semaine**.
+
+**Veille — reste à faire :**
+- Supprimer `gas/veille_dryrun.gs` (du dépôt ET d'Apps Script, avec la fonction de
+  mesure `mesureEpubdate` qui y a été collée) — la veille est validée.
+- **Lu/★ par MAR** : une seule colonne LU/STAR pour 23 MARs aujourd'hui — marquer
+  « lu » retire l'article de l'écran de tous. La clé miroir `veille` est un
+  instantané **unique et partagé** : l'état par MAR passera par le mécanisme
+  `{parMar:{ID:…}}` filtré par le Worker (celui des indispos, `miroir.gs` ~l.602).
+  Touche `dashboard.html` → montée de version ; y inclure le **retrait de l'option
+  morte « Thèmes »** du menu sources (vestige de l'ancien axe thème).
+- Rappel d'exploitation : après re-collecte ou modification de `getVeille()`,
+  lancer `miroirSyncComplet()` — la clé `veille` n'est rafraîchie que par la
+  synchro horaire.
 
 ### Audit des emails (20 juillet 2026)
 
