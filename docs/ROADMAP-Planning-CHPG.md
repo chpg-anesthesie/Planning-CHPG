@@ -27,6 +27,41 @@ le Worker ou `partage/dispo_jour.js`.
 
 ---
 
+## 8 août 2026 (soir) — v1.30.2 : l'année suivante ne coûte plus rien
+
+**Défaut trouvé en partant d'une question d'Arthur** (« pourquoi chercher l'année
+d'après ? »), pas d'une relecture.
+
+`dashboard.html` allait chercher le planning N+1 **dès octobre**, pour la transition
+décembre → janvier des tuiles « prochaine garde » et « mes congés ». Deux conséquences :
+
+- Du 1<sup>er</sup> octobre à la génération de novembre, `planning_{N+1}` **n'existe pas** :
+  le miroir répond vide, le code retombait sur Apps Script, et la tuile **attendait la
+  réponse** (plancher mesuré ~2,5 s). Deux appels par ouverture, par MAR, pendant six
+  semaines — en pleine campagne d'indisponibilités.
+- Du 1<sup>er</sup> au 3 janvier, l'année de planning est encore la précédente alors que le
+  mois vaut 0 : le seuil était faux, les gardes de janvier n'apparaissaient pas.
+
+**Correctif (v1.30.2)** : plus aucune date en dur. La clé `planning_{active+1}` rejoint
+**l'appel d'ouverture déjà existant** (`miroirBootDash`) — une clé de plus dans le même
+aller-retour, donc zéro coût — et les deux tuiles la lisent **sans réseau**
+(`_planDejaLa`). Tant que l'année suivante n'est pas générée, la clé revient vide et il n'y
+a rien à afficher.
+
+**Banc : 510 → 524 vérifications** (`banc/banc_annee_suivante.js`, 3 scénarios : année
+suivante absente, présente, et absence du seuil dans le code). Contrôle négatif fait.
+⚠️ Le contrôle « aucun appel Apps Script » est vert sur l'ancien code aussi — on est en
+août. C'est le contrôle sur le code source qui épingle le défaut.
+
+**Non prouvé** : que Cloudflare servira bien `planning_2027` le jour venu. Le banc prouve
+la logique, jamais l'infrastructure — à confirmer en réel après la génération de novembre.
+
+**Aussi livré ce soir** : illustrations des guides MAR et comité (6 images WebP, 59 Ko
+au total, v1.29.1 puis réduites en vignettes v1.30.1) et **`docs/roadmap.html`**, vue de
+pilotage courte, liée depuis ce document et depuis `docs/README.md`.
+
+---
+
 ## 6 août 2026 — v1.28 : plus aucun appel inutile, guides refondus
 
 **Livré**

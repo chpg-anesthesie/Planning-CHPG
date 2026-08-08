@@ -11,9 +11,9 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
-## État au 8 août 2026 — v1.29, veille refondue et validée, banc à 482 vérifications
+## État au 8 août 2026 — v1.30.2, veille refondue et validée, banc à 524 vérifications
 
-**Site v1.29.** GAS veille : `veille.gs 2026-08-08.4` (module extrait de `portail.gs`
+**Site v1.30.2.** GAS veille : `veille.gs 2026-08-08.4` (module extrait de `portail.gs`
 le matin, commit `49e6465`, puis corrigé trois fois dans la journée) ;
 `portail.gs 2026-08-08.1`, `Indispos.gs 2026-08-08.1`.
 
@@ -94,6 +94,23 @@ erreur affichée, soit rejouable depuis une file locale. Jamais à fond perdu av
 - **`VEILLE_ITEMS` et l'état du filtre sont des `let` de page** : au banc, on les
   atteint par le chemin public (`miroirTuile` remplacée puis `openVeille()`),
   jamais par `w.VEILLE_ITEMS = …` qui crée une propriété fantôme.
+- **Un seuil de date en dur est un correctif qui vieillit mal.** Le dashboard
+  allait chercher l'année suivante « dès octobre » pour la transition
+  décembre → janvier. Deux défauts en un : du 1er octobre à la génération de
+  novembre, le planning N+1 n'existe pas — chaque ouverture partait donc chercher
+  Apps Script pour rien, **et la tuile attendait la réponse** ; et les 1er-3
+  janvier, l'année de planning est encore la précédente alors que le mois vaut 0,
+  donc le seuil était faux. **Corrigé sans date** : l'année suivante voyage dans
+  l'appel d'ouverture déjà existant (`miroirBootDash`, une clé de plus, zéro
+  aller-retour supplémentaire) et se lit sans réseau (`_planDejaLa`).
+  → **Quand un correctif s'écrit avec une date, chercher d'abord la condition
+  qui la rend inutile.**
+- **Le contrôle négatif peut passer pour la mauvaise raison.** Le scénario
+  « aucun appel Apps Script » est vert sur l'ANCIEN code aussi — on est en août,
+  le seuil d'octobre ne se déclenche pas. C'est le contrôle « le seuil n'existe
+  plus dans le code » qui épingle réellement le défaut. Un test dont la
+  condition de déclenchement dépend de la date du jour ne prouve rien le reste
+  de l'année.
 
 ---
 
@@ -522,10 +539,17 @@ automatisé · Cache serveur et optimisation du JSON · Migration hors Apps Scri
 | Besoin | Document |
 |---|---|
 | Architecture, wizards, déploiement, dépannage | `docs/guide-technique.html` — **le plus fiable** |
-| État du projet, priorités, ce qui est écarté | `docs/ROADMAP-Planning-CHPG.md` |
+| **Vue courte du projet : échéancier, chantiers, règles** | `docs/roadmap.html` — le plus lisible |
+| État du projet, priorités, ce qui est écarté (détail et historique) | `docs/ROADMAP-Planning-CHPG.md` |
 | Règles de code, invariants, métier | **Ce document, partie 2** |
 | Module libéral (conception) | `docs/module-liberal/module_liberal_conception.md` |
 | Guides utilisateurs | `docs/guide-mar.html`, `guide-comite.html`, `guide-liberal.html` |
+
+**Entretien de `docs/roadmap.html`** *(règle posée le 08/08/2026)* : c'est une vue de
+pilotage, pas un doublon. Elle se met à jour **en même temps que ROADMAP et CONTEXTE**,
+en fin de session : un chantier qui bouge change de carte ou disparaît, et la date du pied
+de page suit. Une roadmap courte qui a vieilli est pire qu'un document long — elle se lit
+en confiance. Comme ROADMAP et CONTEXTE : **une seule conversation à la fois l'édite.**
 
 ---
 ---
