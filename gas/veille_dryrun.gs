@@ -22,18 +22,21 @@
 
 // ── Univers de revues PROPOSÉ ───────────────────────────────────────────
 // DIRECT = tout ce que la revue publie (dans les types retenus) remonte.
+// Retirées le 08/08/2026 : BJA Educ (revue de formation, 4,7/mois),
+// J Cardiothorac Vasc Anesth (9,3/mois, pas de chir cardiaque au CHPG),
+// Acad Emerg Med (2,7/mois, hors périmètre).
 const DRY_REVUES_DIRECT = [
   // Anesthésie (15)
   'Anesthesiology', 'Br J Anaesth', 'Anaesthesia', 'Anesth Analg', 'Eur J Anaesthesiol',
   'Anaesth Crit Care Pain Med', 'Can J Anaesth', 'Acta Anaesthesiol Scand', 'J Clin Anesth',
-  'Reg Anesth Pain Med', 'Minerva Anestesiol', 'J Cardiothorac Vasc Anesth', 'Paediatr Anaesth',
-  'Int J Obstet Anesth', 'BJA Educ',
+  'Reg Anesth Pain Med', 'Minerva Anestesiol', 'Paediatr Anaesth',
+  'Int J Obstet Anesth',
   // Réanimation (11)
   'Intensive Care Med', 'Crit Care Med', 'Crit Care', 'Ann Intensive Care',
-  'Am J Respir Crit Care Med', 'Chest', 'J Crit Care', 'Shock', 'Crit Care Explor',
-  'Lancet Respir Med', 'Thorax',
+  'Am J Respir Crit Care Med', 'J Crit Care', 'Shock', 'Crit Care Explor',
+  'Thorax',
   // Urgences / arrêt cardiaque (3)
-  'Resuscitation', 'Ann Emerg Med', 'Acad Emerg Med',
+  'Resuscitation', 'Ann Emerg Med',
   // Périopératoire (1)
   'Perioper Med',
 ];
@@ -46,6 +49,9 @@ const DRY_REVUES_THEMED = [
   'Ann Surg', 'JAMA Surg', 'Br J Surg',
   // Transversales (6)
   'Pain', 'Transfusion', 'J Thromb Haemost', 'Circulation', 'Eur Heart J', 'Clin Infect Dis',
+  // Pneumo / réa respiratoire — basculées du direct au croisé le 08/08/2026
+  // (périmètre trop large : mucoviscidose, bronchiectasies, HTAP)
+  'Chest', 'Lancet Respir Med',
 ];
 
 // ── Thèmes PROPOSÉS (identiques à l'actuel, sauf « Voies aériennes ») ────
@@ -332,4 +338,47 @@ function veilleDryRunApercu() {
     if (!o || o.error) return;
     Logger.log((k + 1) + '. [' + String(o.source || '') + '] ' + String(o.title || '').replace(/\.$/, ''));
   });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  5. Vérification des NOMS de revues
+//     Une revue qui rend 0 SANS AUCUN filtre sur 90 jours n'est pas une
+//     revue silencieuse : c'est un nom que PubMed ne reconnaît pas. Elle
+//     est alors absente de la veille sans le moindre message d'erreur.
+// ══════════════════════════════════════════════════════════════════════
+
+function veilleDryRunNoms() {
+  const jours   = 90;
+  const filtre  = _drFiltre(DRY_PUBTYPES, DRY_HUMANS, DRY_LANGS, true);
+  const themesOr = _drOrThemes(DRY_THEMES.map(function (t) { return t.val; }));
+
+  const liste = DRY_REVUES_DIRECT.map(function (r) { return { nom: r, axe: 'direct' }; })
+    .concat(DRY_REVUES_THEMED.map(function (r) { return { nom: r, axe: 'croisé' }; }));
+
+  Logger.log('═══ VÉRIFICATION DES NOMS DE REVUES — 90 jours ═══');
+  Logger.log('brut   = tout ce que la revue a publié, sans aucun filtre');
+  Logger.log('gardé  = ce que la veille en retiendrait');
+  Logger.log('');
+
+  const suspects = [];
+  liste.forEach(function (o) {
+    const j = '"' + o.nom + '"[Journal]';
+    const brut = _drCount(j, jours);
+    const base = (o.axe === 'direct') ? j : '(' + j + ') AND (' + themesOr + ')';
+    const garde = _drCount(_drAvec(base, filtre), jours);
+    const flag = (brut === 0) ? '   ⚠️ NOM NON RECONNU PAR PUBMED'
+               : (garde === 0) ? '   ⚠️ nom ok mais rien ne passe les filtres'
+               : '';
+    if (brut === 0 || garde === 0) suspects.push(o.nom + ' (' + o.axe + ', brut ' + brut + ')');
+    Logger.log('  ' + _drPad(o.nom, 28) + _drPad(o.axe, 8) +
+               'brut ' + _drPadL(brut, 5) + '   gardé ' + _drPadL(garde, 4) + flag);
+  });
+
+  Logger.log('');
+  if (!suspects.length) {
+    Logger.log('Aucune anomalie : les ' + liste.length + ' noms sont reconnus et productifs.');
+  } else {
+    Logger.log('À REVOIR (' + suspects.length + ') :');
+    suspects.forEach(function (x) { Logger.log('  · ' + x); });
+  }
 }
