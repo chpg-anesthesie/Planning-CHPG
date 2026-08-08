@@ -388,7 +388,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.30.1</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.30.2</span></span></p>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
@@ -485,7 +485,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.30.1'; // SITE_VERSION: v1.30.1
+const SITE_VERSION = 'v1.30.2'; // SITE_VERSION: v1.30.2
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -604,16 +604,25 @@ async function miroirRead(keys) {
    aller-retour. true = parti sur le miroir ; sinon l'appelant bascule GAS. */
 async function miroirBootDash() {
   const devine = new Date().getFullYear();
-  const m = await miroirRead(['annees', 'planning_' + devine]);
+  const m = await miroirRead(['annees', 'planning_' + devine, 'planning_' + (devine + 1)]);
   if (!m || !m.success) return m;
   const active = (m.data && m.data.annees && Number(m.data.annees.active)) || devine;
   let plan = m.data['planning_' + active];
+  /* (08/08/2026) L'annee SUIVANTE voyage dans le MEME appel : elle sert la
+     transition decembre -> janvier des tuiles « prochaine garde » et « mes
+     conges ». Tant qu'elle n'est pas generee, la cle revient vide et il n'y a
+     rien a afficher — zero appel supplementaire, ni miroir ni Apps Script. */
+  let planSuiv = m.data['planning_' + (active + 1)];
   if (!plan && active !== devine) {
-    const m2 = await miroirRead(['planning_' + active]);
-    if (m2 && m2.success && m2.data) plan = m2.data['planning_' + active];
+    const m2 = await miroirRead(['planning_' + active, 'planning_' + (active + 1)]);
+    if (m2 && m2.success && m2.data) {
+      plan = m2.data['planning_' + active];
+      if (!planSuiv) planSuiv = m2.data['planning_' + (active + 1)];
+    }
   }
   seedActiveYear(active);
   if (plan) { _planCache[active] = plan; _ssPlanSet(active, plan); }
+  if (planSuiv) { _planCache[active + 1] = planSuiv; _ssPlanSet(active + 1, planSuiv); }
   applyUserBadge(m.identite || {});
   /* Journal de connexion : login GAS en arriere-plan, resultat ignore. */
   /* (06/08/2026) Journal de connexion en envoi A FOND PERDU.
@@ -809,6 +818,14 @@ function _ssPlanSet(year, planning){
     sessionStorage.setItem('chpgPlan:'+year, JSON.stringify({p:planning, a:prev.a, t:Date.now()}));
   }catch(e){}
 }
+/* (08/08/2026) Lecture SANS reseau : uniquement ce qui est deja en memoire ou
+   dans le cache de session. Reservee a l'annee suivante, qui ne doit jamais
+   declencher d'appel — elle arrive avec l'ouverture (miroirBootDash). */
+function _planDejaLa(year){
+  if (_planCache[year]) return _planCache[year];
+  const c = _ssPlanGet(year);
+  return c ? c.p : null;
+}
 async function _refreshPlanSilently(year){
   try{
     const r=await apiPost({action:'getPlanningJson', year});
@@ -944,9 +961,13 @@ async function loadMyGardes(){
     let year=new Date().getFullYear();
     try{ year = await getActiveYearOnce(); }catch(e){}
     let list=_extractMyGardes(await _fetchPlanning(year), today);
-    if(new Date().getMonth()>=9){   // dès octobre : transition déc.→janv. (N+1 silencieux)
-      try{ list=list.concat(_extractMyGardes(await _fetchPlanning(year+1), today)); }catch(e){}
-    }
+    /* (08/08/2026) Transition decembre -> janvier : l'annee suivante est lue
+       SANS aucun appel. Avant, un seuil « des octobre » declenchait un appel
+       Apps Script a chaque ouverture tant que le planning N+1 n'etait pas
+       genere (novembre) — et la tuile attendait sa reponse. Le seuil de date a
+       disparu : il ratait aussi les 1er-3 janvier, ou l'annee de planning est
+       encore la precedente et le mois vaut 0. */
+    try{ const suiv=_planDejaLa(year+1); if(suiv) list=list.concat(_extractMyGardes(suiv, today)); }catch(e){}
     list.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:0; });
     MY_GARDES=list;
     renderMyGardesHero();
@@ -1047,7 +1068,8 @@ async function loadMyConges(){
   let year=new Date().getFullYear();
   try{ year = await getActiveYearOnce(); }catch(e){}
   let days=_extractMyConges(await _fetchPlanning(year), today);
-  if(new Date().getMonth()>=9){ try{ days=days.concat(_extractMyConges(await _fetchPlanning(year+1), today)); }catch(e){} }
+  /* (08/08/2026) Annee suivante : lecture sans appel (voir loadMyGardes). */
+  try{ const suiv=_planDejaLa(year+1); if(suiv) days=days.concat(_extractMyConges(suiv, today)); }catch(e){}
   MY_CONGES=_buildConges(days);
 }
 function openMesConges(){
