@@ -382,3 +382,56 @@ function veilleDryRunNoms() {
     suspects.forEach(function (x) { Logger.log('  · ' + x); });
   }
 }
+
+// ══════════════════════════════════════════════════════════════════════
+//  6. Répartition des TYPES d'article, revue par revue
+//     Pourquoi : Anesthesiology ne laisse passer que 3 articles sur 122
+//     (2 %) quand J Clin Anesth en laisse passer 35 %. L'écart ne vient
+//     pas du contenu mais de la liste DRY_PUBTYPES, qui ne retient que
+//     5 formats et exclut toute la recherche primaire non randomisée.
+//     Cette mesure dit QUELS types portent réellement leurs articles.
+// ══════════════════════════════════════════════════════════════════════
+
+// Types candidats à l'élargissement (au-delà des 5 actuels).
+const DRY_PUBTYPES_TEST = [
+  // les 5 actuellement retenus
+  'Randomized Controlled Trial', 'Meta-Analysis', 'Systematic Review',
+  'Practice Guideline', 'Guideline', 'Review',
+  // recherche primaire non randomisée — candidats
+  'Observational Study', 'Multicenter Study', 'Comparative Study',
+  'Clinical Trial', 'Controlled Clinical Trial', 'Validation Study',
+  'Evaluation Study', 'Journal Article',
+];
+
+const DRY_REVUES_TEST = [
+  'Anesthesiology', 'Anesth Analg', 'Am J Respir Crit Care Med',
+  'Br J Anaesth', 'J Clin Anesth', 'Intensive Care Med',
+];
+
+function veilleDryRunTypes() {
+  const jours = 90;
+  const langs = ' AND (' + DRY_LANGS.map(function (l) { return l + '[la]'; }).join(' OR ') + ')';
+
+  Logger.log('═══ RÉPARTITION DES TYPES D\'ARTICLE — 90 jours ═══');
+  Logger.log('Langue anglais/français appliquée. Aucun autre filtre.');
+  Logger.log('Un article peut porter plusieurs types : les colonnes ne s\'additionnent pas.');
+  Logger.log('');
+
+  DRY_REVUES_TEST.forEach(function (rev) {
+    const j = '"' + rev + '"[Journal]';
+    const brut = _drCount(j + langs, jours);
+    Logger.log('── ' + rev + ' — ' + brut + ' articles au total ──');
+    DRY_PUBTYPES_TEST.forEach(function (pt) {
+      const n = _drCount(j + langs + ' AND "' + pt + '"[Publication Type]', jours);
+      if (n === 0) return;
+      const pct = brut ? Math.round(n / brut * 100) : 0;
+      Logger.log('   ' + _drPad(pt, 30) + _drPadL(n, 5) + _drPadL(pct + ' %', 7));
+    });
+    // combien n'ont AUCUN des 5 types actuellement retenus
+    const actuels = '(' + DRY_PUBTYPES.map(function (p) { return '"' + p + '"[Publication Type]'; }).join(' OR ') + ')';
+    const rate = _drCount(j + langs + ' NOT ' + actuels, jours);
+    Logger.log('   ' + _drPad('>>> ÉCARTÉS par les 5 types actuels', 30) + _drPadL(rate, 5) +
+               _drPadL((brut ? Math.round(rate / brut * 100) : 0) + ' %', 7));
+    Logger.log('');
+  });
+}
