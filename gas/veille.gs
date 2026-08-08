@@ -21,10 +21,16 @@
 //     du mois en cours (Prone positioning in ARDS, entre autres).
 //     Désormais on ne rejette que l'animal AVÉRÉ.
 //
-//  3. PLUS DE LISTE BLANCHE DE TYPES D'ARTICLE. Elle plafonnait
-//     Anesthesiology à 20 % même entièrement indexée, et à 2 % en pratique
-//     — soit 3 articles retenus sur 122, tous des synthèses, zéro
-//     recherche originale. Remplacée par une liste NOIRE courte.
+//  3. LISTE BLANCHE DE TYPES : SUPPRIMÉE sur l'axe REVUE, RÉTABLIE sur
+//     l'axe GENERAL. Sur les revues d'anesthésie-réanimation elle
+//     plafonnait Anesthesiology à 20 % même entièrement indexée, 2 % en
+//     pratique (3 articles sur 122, tous des synthèses). Mais sa
+//     suppression sur les 18 généralistes a fait exploser l'axe croisé :
+//     1 040 articles/180 j au lieu de ~31/90 j — NEJM, BMJ, Circulation
+//     déversent tout dès qu'un mot d'un thème apparaît. D'où :
+//     axe REVUE sans liste blanche, axe GENERAL restreint aux essais
+//     randomisés, méta-analyses, revues systématiques et recommandations.
+//     La liste NOIRE, elle, s'applique aux deux axes.
 //
 //  4. PAGINATION. Avant : retmax=200 avec sort=date, sans le moindre
 //     message en cas de dépassement. Le code gardait les 200 plus RÉCENTS,
@@ -51,7 +57,7 @@
 //  instantané unique et partagé : chantier séparé.
 // ══════════════════════════════════════════════════════════════════════
 
-const GAS_VERSION_VEILLE = '2026-08-08.1';
+const GAS_VERSION_VEILLE = '2026-08-08.2';
 
 const VEILLE_CFG_TAB = 'VEILLE_CFG';
 const VEILLE_TAB     = 'VEILLE';
@@ -67,7 +73,8 @@ const VEILLE_PAUSE    = 350;    // ms entre deux appels PubMed (politesse NCBI)
 // ══════════════════════════════════════════════════════════════════════
 //  CONFIGURATION PAR DÉFAUT (onglet VEILLE_CFG)
 //  TYPE : REVUE (accès direct) · GENERAL (croisée aux thèmes) ·
-//         THEME · PARAM. Le type PUBTYPE n'est plus lu (cf. point 3).
+//         THEME · PARAM · PUBTYPE (liste blanche de l'axe GENERAL
+//         uniquement — cf. point 3 de l'en-tête).
 // ══════════════════════════════════════════════════════════════════════
 
 const VEILLE_DEFAULT_CFG = [
@@ -161,6 +168,13 @@ const VEILLE_DEFAULT_CFG = [
   ['THEME', 'Simulation et formation',
     '"simulation based"[tiab] OR "simulation training"[tiab] OR "high fidelity simulation"[tiab] OR "medical education"[tiab] OR "competency based"[tiab] OR "learning curve"[tiab] OR "curriculum"[tiab]', 'O'],
 
+  // ── Liste blanche de types — axe GENERAL uniquement ───────────────
+  ['PUBTYPE', 'ECR',        'Randomized Controlled Trial', 'O'],
+  ['PUBTYPE', 'Méta',       'Meta-Analysis',               'O'],
+  ['PUBTYPE', 'Revue syst', 'Systematic Review',           'O'],
+  ['PUBTYPE', 'Reco',       'Practice Guideline',          'O'],
+  ['PUBTYPE', 'Reco',       'Guideline',                   'O'],
+
   // ── Paramètres ────────────────────────────────────────────────────
   ['PARAM', 'JOURS',       '180',       'O'],   // fenêtre glissante (edat)
   ['PARAM', 'LANGS',       'eng,fre',   'O'],
@@ -231,9 +245,10 @@ function _ensureVeilleColumns(v) {
    À lancer UNE FOIS, à la main, après l'installation de ce fichier.
 
    Pourquoi c'est nécessaire : l'ancienne configuration contient des thèmes
-   écrits en MeSH et des lignes PUBTYPE. Les thèmes MeSH resteraient actifs
-   et continueraient d'apporter du bruit ; une simple complétion des lignes
-   manquantes ne les enlèverait pas.
+   écrits en MeSH qui resteraient actifs et continueraient d'apporter du
+   bruit ; une simple complétion des lignes manquantes ne les enlèverait
+   pas. La réécriture pose aussi les lignes PUBTYPE (liste blanche de
+   l'axe GENERAL).
 
    ÉCRIT dans le classeur maître : ne se déclenche jamais tout seul. */
 function veilleReinitConfig() {
@@ -251,7 +266,7 @@ function veilleReinitConfig() {
    c'est ce qui permet à getVeille() de ne faire aucune écriture. */
 function _readVeilleCfg() {
   const cfg = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(VEILLE_CFG_TAB);
-  const out = { revues: [], general: [], themes: [], params: {} };
+  const out = { revues: [], general: [], themes: [], params: {}, pubtypes: [] };
   if (!cfg) return out;
   const data = cfg.getDataRange().getValues();
   for (let r = 1; r < data.length; r++) {
@@ -265,7 +280,7 @@ function _readVeilleCfg() {
     if (type === 'REVUE')   out.revues.push(valeur);
     if (type === 'GENERAL') out.general.push(valeur);
     if (type === 'THEME')   out.themes.push({ cle: cle, valeur: valeur });
-    // PUBTYPE : volontairement ignoré (cf. en-tête, point 3).
+    if (type === 'PUBTYPE') out.pubtypes.push(valeur);
   }
   return out;
 }
@@ -348,6 +363,16 @@ function _veilleFiltre(cfg) {
 
 function _veilleAvec(base, filtre) { return filtre ? '(' + base + ') AND ' + filtre : base; }
 
+/* Liste blanche de types, servie UNIQUEMENT à l'axe GENERAL. Vide si
+   aucune ligne PUBTYPE active dans VEILLE_CFG : l'axe tourne alors sans
+   restriction, et runVeille() le signale au journal. */
+function _veilleListeBlanche(cfg) {
+  if (!cfg.pubtypes || !cfg.pubtypes.length) return '';
+  return '(' + cfg.pubtypes.map(function (t) {
+    return '"' + t + '"[Publication Type]';
+  }).join(' OR ') + ')';
+}
+
 // ══════════════════════════════════════════════════════════════════════
 //  COLLECTE
 // ══════════════════════════════════════════════════════════════════════
@@ -377,11 +402,18 @@ function runVeille() {
     idsDirect = _esearchTout(_veilleAvec(
       '(' + _veilleOrRevues(cfg.revues) + ') AND (' + themeOr + ')', filtre), jours);
   }
-  // ── Axe 2 : revues généralistes, croisées aux thèmes ──────────────
+  // ── Axe 2 : revues généralistes, croisées aux thèmes, RESTREINTES
+  //    à la liste blanche de types (cf. point 3 de l'en-tête) ─────────
   let idsGeneral = [];
   if (cfg.general.length) {
-    idsGeneral = _esearchTout(_veilleAvec(
-      '(' + _veilleOrRevues(cfg.general) + ') AND (' + themeOr + ')', filtre), jours);
+    const blanche = _veilleListeBlanche(cfg);
+    if (!blanche) {
+      Logger.log('⚠️ aucune ligne PUBTYPE active : axe croisé SANS liste blanche ' +
+                 '(volume attendu ×10 — vérifier VEILLE_CFG).');
+    }
+    let baseG = '(' + _veilleOrRevues(cfg.general) + ') AND (' + themeOr + ')';
+    if (blanche) baseG += ' AND ' + blanche;
+    idsGeneral = _esearchTout(_veilleAvec(baseG, filtre), jours);
   }
 
   const source = {};
@@ -452,13 +484,20 @@ function runVeille() {
   Logger.log('Veille ' + GAS_VERSION_VEILLE + ' — fenêtre ' + jours + ' j · ' +
              cfg.revues.length + ' revues directes · ' + cfg.general.length + ' croisées · ' +
              cfg.themes.length + ' thèmes');
-  Logger.log('  axe direct ' + idsDirect.length + ' · axe croisé ' + idsGeneral.length +
-             ' · uniques ' + Object.keys(source).length);
+  const uniques  = Object.keys(source).length;
+  const semaines = jours / 7;
+  const parSem   = Math.round(uniques / semaines * 10) / 10;
+  Logger.log('  axe direct ' + idsDirect.length + ' (' + Math.round(idsDirect.length / semaines) +
+             '/sem) · axe croisé ' + idsGeneral.length + ' (' + Math.round(idsGeneral.length / semaines) +
+             '/sem) · uniques ' + uniques);
+  Logger.log('  TOTAL : ' + parSem + ' articles/semaine (cible 50-80)');
   Logger.log('  nouveaux ' + trouves + (plafonne ? ' (plafonnés à ' + maxPass + ')' : '') +
              ' · écrits ' + lignes.length + ' · ' + sec + ' s');
   if (plafonne) Logger.log('  → relancer runVeille() pour absorber le reste.');
 
-  return { success: true, trouves: trouves, ecrits: lignes.length, secondes: sec };
+  return { success: true, trouves: trouves, ecrits: lignes.length,
+           parSemaine: parSem, axeDirect: idsDirect.length, axeCroise: idsGeneral.length,
+           secondes: sec };
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -612,7 +651,9 @@ function testVeille() {
   const cfg = _readVeilleCfg();
   Logger.log('Veille ' + GAS_VERSION_VEILLE);
   Logger.log('  ' + cfg.revues.length + ' revues directes · ' + cfg.general.length +
-             ' croisées · ' + cfg.themes.length + ' thèmes');
+             ' croisées · ' + cfg.themes.length + ' thèmes · ' +
+             cfg.pubtypes.length + ' types en liste blanche (axe croisé)');
+  Logger.log('  liste blanche : ' + (_veilleListeBlanche(cfg) || '(AUCUNE — axe croisé sans restriction !)'));
   Logger.log('  JOURS=' + (cfg.params.JOURS || '180') +
              ' · LANGS=' + (cfg.params.LANGS || 'eng,fre') +
              ' · ANIMAUX=' + (cfg.params.ANIMAUX || 'N') +

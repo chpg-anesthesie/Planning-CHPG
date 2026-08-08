@@ -23,9 +23,11 @@ class Sheet {
       setFontWeight() { return this; },
       getValues() { const out = []; for (let i=0;i<(nr||1);i++) out.push((s.lignes[r-1+i]||[]).slice(c-1, c-1+(nc||1))); return out; },
       getValue() { return (s.lignes[r-1]||[])[c-1]; },
+      clearContent() { for (let i=0;i<(nr||1);i++) for (let j=0;j<(nc||1);j++) if (s.lignes[r-1+i]) s.lignes[r-1+i][c-1+j] = ''; return this; },
     };
   }
   deleteRow(n) { this.lignes.splice(n-1, 1); }
+  setFrozenRows() {}
   appendRow(l) { this.lignes.push(l.slice()); }
   setColumnWidth() {}
   getLastColumn() { return Math.max(...this.lignes.map(l => l.length), 0); }
