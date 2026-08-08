@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-05.13';
+const GAS_VERSION_INDISPOS = '2026-08-08.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -197,6 +197,7 @@ function diagnosticComplet() {
       try { deployed['miroir.gs'] = GAS_VERSION_MIROIR; } catch (e) { deployed['miroir.gs'] = null; }   // (04/08/2026) le 6e fichier entre au controle de derive
       try { deployed['partage/dispo_jour.js'] = GAS_VERSION_DISPO; } catch (e) { deployed['partage/dispo_jour.js'] = null; }   // (etage 2) module partage serveur/frontend
       try { deployed['journal.gs'] = GAS_VERSION_JOURNAL; } catch (e) { deployed['journal.gs'] = null; }   // (05/08/2026) applicateur du journal d'intentions
+      try { deployed['veille.gs'] = GAS_VERSION_VEILLE; } catch (e) { deployed['veille.gs'] = null; }   // (08/08/2026) veille biblio sortie de portail.gs
       const tokSync = getGithubToken();
       Object.keys(deployed).forEach(fn => {
         let repoV = null;

@@ -112,14 +112,14 @@ function googleCapricieux(scenario) {
     const m1 = admin.match(/const SITE_VERSION = '(v[\d.]+)'/);
     const m2 = admin.match(/>(v[\d.]+)<\/span>/);
     V('la version du script et celle du bandeau concordent', m1 && m2 && m1[1] === m2[1], m1 && m2 && [m1[1], m2[1]]);
-    const gs = { 'code.gs': '../gas/code.gs', 'Indispos.gs': '../gas/Indispos.gs', 'miroir.gs': '../gas/miroir.gs', 'journal.gs': '../gas/journal.gs' };
+    const gs = { 'code.gs': '../gas/code.gs', 'Indispos.gs': '../gas/Indispos.gs', 'miroir.gs': '../gas/miroir.gs', 'journal.gs': '../gas/journal.gs', 'veille.gs': '../gas/veille.gs' };
     Object.entries(gs).forEach(([nom, f]) => {
       const v = fs.readFileSync(f, 'utf8').match(/GAS_VERSION_\w+ = '([\d-]+\.\d+)'/);
       V(`${nom} porte une version au bon format`, !!v, v && v[1]);
     });
     // le contrôle de dérive doit citer TOUS les fichiers .gs livrés
     const diag = fs.readFileSync('../gas/Indispos.gs', 'utf8');
-    ['code.gs','Indispos.gs','miroir.gs','journal.gs','generateur_gardes.gs','setup_annee.gs','portail.gs'].forEach(n => {
+    ['code.gs','Indispos.gs','miroir.gs','journal.gs','generateur_gardes.gs','setup_annee.gs','portail.gs','veille.gs'].forEach(n => {
       V(`${n} est surveillé par le contrôle de dérive`, diag.includes(`deployed['${n}']`), n);
     });
   }
