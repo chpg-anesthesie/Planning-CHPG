@@ -53,7 +53,7 @@ Système web de gestion pour le service d'anesthésie-réanimation du **CHPG (Mo
 | `tests/` | Tests JS du module |
 
 ### gas/ — backend Google Apps Script
-`code.gs`, `generateur_gardes.gs`, `Indispos.gs`, `setup_annee.gs`, `portail.gs`.
+`code.gs`, `Indispos.gs`, `generateur_gardes.gs`, `setup_annee.gs`, `portail.gs`, `miroir.gs`, `journal.gs`, `veille.gs` + `appsscript.json`. **Deux fichiers de l'éditeur vivent ailleurs** : `sauvegarde.gs` (racine du dépôt) et `dispo_jour.gs` (= `partage/dispo_jour.js`). Soit **11 fichiers** dans l'éditeur — carte détaillée dans `gas/README.md`.
 **Le dépôt fait foi à 100 %** : toute modif d'un `.gs` doit exister ici, puis être recopiée dans l'éditeur Apps Script **et redéployée** (sinon perdue à la prochaine recopie, ou sans effet).
 ⚠️ `portail.gs` porte le portail, **tout le module libéral**, la veille et la configuration des secteurs. `Indispos.gs` porte le routeur d'API, le contrôle d'absence et le verrou d'écriture.
 

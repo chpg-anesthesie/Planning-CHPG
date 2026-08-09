@@ -8,18 +8,38 @@ Ne jamais modifier un `.gs` directement dans Apps Script sans le committer aussi
 Chaque fichier commence par une constante `GAS_VERSION_*` (format `AAAA-MM-JJ.n`), **à incrémenter à CHAQUE push** du fichier.
 Le 🔍 Diagnostic (admin → onglet Maintenance) compare les versions déployées avec celles du dépôt et signale toute recopie oubliée (« DÉRIVE »).
 
-## Sauvegarde automatique (15/07/2026)
+## Sauvegardes automatiques (revu le 09/08/2026)
+Trois filets actifs, vérifiés : `backupHebdo` (classeur, lundi ~4 h, compte planning),
+`sauvegardeHebdo` de `sauvegarde.gs` (dépôt en zip, dimanche ~3 h, compte planning),
+et la sauvegarde hors-compte du classeur (dimanche ~5 h, compte personnel —
+voir `docs/sauvegarde-compte-perso.md`).
+
+### Détail historique
 `backupHebdo()` (code.gs) copie le classeur maître chaque lundi ~4 h dans le dossier Drive `Planning-CHPG-Backups` (rotation : 8 copies ≈ 2 mois).
 Installation une seule fois : exécuter `installBackupTrigger()` dans l'éditeur. Le diagnostic vérifie la présence du déclencheur et la fraîcheur de la dernière copie.
 
-## Les 5 fichiers de l'éditeur
+## Les 11 fichiers de l'éditeur (relevé le 09/08/2026)
 
-| Fichier | Rôle |
-|---------|------|
-| `code.gs` | `generatePlanningFromGardes` (placement secteurs + 3a-bis bascule CI→RI le jeudi matin), overrides (lit `PLANNING_OVERRIDES`), `pushFileToGitHub` (token via `getGithubToken`/CONFIG), `onEdit`, `savePlanningOverride`/`deletePlanningOverride`, `getJoursFeries` (report dim→lun généralisé), reconstruction 2026, `buildStats2026` |
-| `indispos.gs` | API web app (`doGet`/`doPost`), `MEDECINS_LIST`, vacances/quotas (`getVacConfig`, `getVacValidation`, `getQuotasConges`), toutes les actions admin (initYear, setActiveYear, generateGardes, archiveYear, sendCodes…) |
-| `generateur_gardes.gs` | Algorithme `generateGardes` : sélection MAR + rôles G/G2, équité (samedi/jeudi/VD), dette inter-annuelle via `STATS_GARDES_{N-1}` |
-| `setup.gs` | `setupAnnee` (init INDISPOS/AFFECTATIONS N+1), `archiveYear` (push stats/indispos, suppression onglets commentée) |
+Le projet Apps Script est **rattaché au classeur maître** (Extensions → Apps Script).
+Ses fichiers viennent de **trois endroits** du dépôt : attention aux noms exacts,
+majuscule comprise.
+
+| Dans l'éditeur | Dans le dépôt | Rôle |
+|---|---|---|
+| `appsscript.json` | `gas/appsscript.json` | Réglages : fuseau, service Gmail, web app, autorisations |
+| `Code.gs` | `gas/code.gs` *(minuscule)* | `generatePlanningFromGardes`, overrides, jours fériés, `pushFileToGitHub`, `onEdit`, sauvegarde hebdo du classeur (`backupHebdo`), notifications de changement |
+| `Indispos.gs` | `gas/Indispos.gs` | Routeur d'API (`doGet`/`doPost`), indispos, vacances/quotas, actions admin, diagnostic hebdo |
+| `generateur_gardes.gs` | `gas/generateur_gardes.gs` | Algorithme `generateGardes` : sélection MAR, rôles G/G2, équité, dette inter-annuelle |
+| `setup_annee.gs` | `gas/setup_annee.gs` | `setupAnnee` (init N+1), `archiveYear` |
+| `portail.gs` | `gas/portail.gs` | Portail/Dashboard, topos, staffs, protocoles, annuaire, module libéral |
+| `miroir.gs` | `gas/miroir.gs` | Dépôt des données de lecture vers le miroir rapide, rattrapage et sync horaire |
+| `dispo_jour.gs` | `partage/dispo_jour.js` *(extension différente)* | `calculerDispoJour` — logique partagée avec le frontend |
+| `journal.gs` | `gas/journal.gs` | Relève et application des gestes du comité déposés en attente (toutes les minutes) |
+| `sauvegarde.gs` | `sauvegarde.gs` *(racine du dépôt)* | Copie hebdomadaire du dépôt GitHub (zip) dans Drive, dimanche ~3 h |
+| `veille.gs` | `gas/veille.gs` | Veille bibliographique : requêtes PubMed, filtres, `runVeille` (lundi ~6 h) |
+
+⚠️ Un envoi automatisé du dossier `gas/` seul **effacerait** `dispo_jour` et
+`sauvegarde`, et créerait un doublon `code.gs` à côté de `Code.gs`.
 
 ## Faits clés (utiles pour les patches)
 - `savePlanningOverride` écrit dans **PLANNING_OVERRIDES** (retouches comité, indexées par date).
