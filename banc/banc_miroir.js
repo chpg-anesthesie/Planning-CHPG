@@ -97,5 +97,140 @@ console.log('\n═══ 56. Inventaire des onglets écoutés (06/08/2026) ═�
   V('aucune famille sans onglet source écouté', orphelines.length === 0, orphelines);
 }
 
+/* ═══ OUBLI DES ANNEES RETIREES (2026-08-09) ═══════════════════════════
+   Defaut trouve en production le 09/08 : supprimer les onglets et les JSON
+   2027 ne retirait PAS `planning_2027` du miroir — les 23 MARs auraient
+   continue de voir des gardes fictives. On verifie les deux sens :
+   ce qui doit partir part, et surtout ce qui ne doit PAS partir reste. */
+{
+  console.log('\n═══ 6 bis. Le miroir sait oublier une année retirée ═══');
+  const fs2 = require('fs');
+  const src2 = fs2.readFileSync('../gas/miroir.gs', 'utf8');
+
+  const monter = (onglets, archives, opts) => {
+    opts = opts || {};
+    const actif = new Classeur();
+    onglets.forEach(n => actif.ajouter(n, [[]]));
+    const arch = new Classeur();
+    (archives || []).forEach(n => arch.ajouter(n, [[]]));
+    const c = vm.createContext({
+      console, JSON, Date, Number, String, Object, Array, Set, Math, Error, RegExp,
+      SpreadsheetApp: {
+        getActiveSpreadsheet: () => { if (opts.actifKO) throw new Error('classeur injoignable'); return actif; },
+        openById: () => { if (opts.archiveKO) throw new Error('archive injoignable'); return arch; },
+      },
+      ARCHIVE_SS_ID: 'ARCH',
+      getActiveYear: () => opts.active || 2026,
+      getIndisposYear: () => opts.indispos || null,
+    });
+    c.globalThis = c;
+    ['MIROIR_PURGE_APRES', 'MIROIR_PURGE_MAX_ANNEES', 'MIROIR_CLES_PAR_ANNEE']
+      .forEach(n => vm.runInContext(src2.match(new RegExp('const ' + n + ' *=[^;]+;'))[0], c));
+    ['_miroirAnneesAttendues_', '_miroirPurgerAnnees_'].forEach(n =>
+      vm.runInContext(extraireFonction('../gas/miroir.gs', n), c));
+    return c;
+  };
+  const purger = (c, items, annee) => {
+    c.__items = items || {};
+    const r = vm.runInContext('_miroirPurgerAnnees_(__items, ' + annee + ')', c);
+    return { rapport: r, items: c.__items };
+  };
+
+  // 1. Le cas reel : 2027 retire du classeur → ses cles sont effacees
+  {
+    const c = monter(['GARDES_2026', 'MEDECINS'], [], { active: 2026 });
+    const { rapport, items } = purger(c, {}, 2026);
+    V('2027 retiré : la purge le désigne', (rapport.annees || []).indexOf(2027) >= 0, rapport);
+    V('planning_2027 marqué pour effacement', items.planning_2027 === null, Object.keys(items));
+    V('affectations_2027 aussi', items.affectations_2027 === null);
+    V('indispos_2027 aussi', items.indispos_2027 === null);
+    V('l\'effacement se fait par la valeur null (contrat du Worker)',
+      Object.keys(items).every(k => items[k] === null));
+    V('2026 (année active) n\'est JAMAIS effacée', !('planning_2026' in items), Object.keys(items));
+  }
+
+  // 2. Le garde-fou qui compte : une panne ne doit rien effacer
+  {
+    const c = monter(['GARDES_2026'], [], { active: 2026, archiveKO: true });
+    const { rapport, items } = purger(c, {}, 2026);
+    V('archive injoignable → AUCUN effacement', Object.keys(items).length === 0, rapport);
+    V('le refus est tracé', !!rapport.refus, rapport);
+  }
+  {
+    const c = monter(['GARDES_2026'], [], { active: 2026, actifKO: true });
+    const { items } = purger(c, {}, 2026);
+    V('classeur principal injoignable → AUCUN effacement', Object.keys(items).length === 0);
+  }
+
+  // 3. Une année archivée reste servie
+  {
+    const c = monter(['GARDES_2026'], ['GARDES_2025', 'GARDES_2024'], { active: 2026 });
+    const { items } = purger(c, {}, 2026);
+    V('une année ARCHIVÉE n\'est pas effacée', !('planning_2025' in items) && !('planning_2024' in items),
+      Object.keys(items));
+  }
+
+  // 4. L'année de campagne (INDISPOS_ACTIVE) est protégée même sans GARDES_
+  {
+    const c = monter(['GARDES_2026'], [], { active: 2026, indispos: 2027 });
+    const { items } = purger(c, {}, 2026);
+    V('l\'année de campagne est protégée même sans onglet GARDES_',
+      !('indispos_2027' in items), Object.keys(items));
+  }
+
+  // 5. Structure anormale : aucun onglet d'année → on n'efface rien
+  {
+    const c = monter(['MEDECINS'], [], { active: 2026 });
+    const { rapport, items } = purger(c, {}, 2026);
+    V('classeur sans aucun onglet GARDES_ → refus', !!rapport.refus, rapport);
+    V('et donc aucune clé effacée', Object.keys(items).length === 0);
+  }
+
+  // 5 bis. Le défaut trouvé au banc le 09/08 : la fenêtre ne doit pas
+  // remonter avant la plus ancienne année connue, sinon le plafond saute
+  // et la purge ne s'exécute JAMAIS.
+  {
+    const c = monter(['GARDES_2026'], ['GARDES_2025', 'GARDES_2024'], { active: 2026 });
+    const { rapport, items } = purger(c, {}, 2026);
+    V('avec 3 années connues, la purge s\'exécute (pas de refus)', !rapport.refus, rapport);
+    V('elle ne vise que l\'après (2027, 2028)',
+      JSON.stringify(rapport.annees) === JSON.stringify([2027, 2028]), rapport.annees);
+    V('aucune année connue n\'est touchée',
+      !('planning_2024' in items) && !('planning_2025' in items) && !('planning_2026' in items));
+  }
+
+  // 5 ter. Plafond réel : trop d'années à effacer d'un coup → refus
+  {
+    const c = monter(['GARDES_2020'], [], { active: 2026 });
+    const { rapport, items } = purger(c, {}, 2026);
+    V('un écart anormal déclenche le plafond', !!rapport.refus, rapport);
+    V('et rien n\'est effacé', Object.keys(items).length === 0);
+  }
+
+  // 6. Une clé construite dans la même passe n'est jamais écrasée par null
+  {
+    const c = monter(['GARDES_2026'], [], { active: 2026 });
+    const { items } = purger(c, { planning_2027: '{"months":[]}' }, 2026);
+    V('une clé déjà construite n\'est pas remplacée par un effacement',
+      items.planning_2027 === '{"months":[]}', items.planning_2027);
+  }
+
+  // 7. Les listes communes ne sont JAMAIS effaçables
+  {
+    const listes = ['topos', 'protocoles', 'annuaire', 'secteurs', 'acces', 'veille', 'staffs'];
+    const parAnnee = src2.match(/const MIROIR_CLES_PAR_ANNEE *=[\s\S]*?\];/)[0];
+    V('aucune liste commune dans les clés effaçables',
+      listes.every(l => !new RegExp("'" + l + "'").test(parAnnee)), parAnnee);
+    V('toutes les clés effaçables se terminent par un séparateur d\'année',
+      (parAnnee.match(/'[a-z_]+_'/g) || []).length >= 5, parAnnee);
+  }
+
+  // 8. La purge n'est câblée QUE dans la synchro complète
+  {
+    V('la purge n\'est appelée que si toutesAnnees',
+      /if \(toutesAnnees\) \{[\s\S]{0,200}_miroirPurgerAnnees_/.test(src2));
+  }
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);

@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-08.1';
+const GAS_VERSION_MIROIR = '2026-08-09.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -392,8 +392,114 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
     });
   }
 
+  /* (2026-08-09.1) OUBLI DES ANNEES RETIREES — voir _miroirPurgerAnnees_.
+     UNIQUEMENT en synchro complete : une accroche d'ecriture ne connait qu'une
+     annee et n'a aucune vue d'ensemble, elle n'a pas a decider d'un effacement. */
+  var _purge = null;
+  if (toutesAnnees) {
+    try { _purge = _miroirPurgerAnnees_(items, annee); }
+    catch (e) { _purge = { refus: 'exception : ' + e.message }; }
+  }
+
   if (!Object.keys(items).length) return { success: false, error: 'aucune clé construite' };
-  return _miroirEnvoyer_(items);
+  const _res = _miroirEnvoyer_(items);
+  if (_purge) _res.purge = _purge;
+  return _res;
+}
+
+/* ── OUBLI DES ANNEES RETIREES (2026-08-09.1) ────────────────────────────
+   POURQUOI. Le miroir ne savait pas OUBLIER. `_miroirAjoute_`,
+   `_miroirAjouteEnveloppe_` et `_miroirAjouteFichierDrive_` omettent la cle
+   quand la source manque : elle n'est ni mise a jour, ni supprimee — elle
+   reste servie telle quelle, sans fin. Constate le 09/08 : supprimer les
+   onglets et les JSON 2027 ne retirait pas `planning_2027` du miroir, et les
+   23 MARs auraient continue de voir des gardes fictives dans « prochaine
+   garde » et « mes conges » — d'autant que dashboard.html demande
+   `planning_{active+1}` a CHAQUE ouverture depuis la v1.30.2 (le seuil
+   « des octobre » a saute le 08/08).
+
+   PRINCIPE. Separer deux questions que le code confondait :
+     « je n'ai pas reussi a lire »  → garder l'ancienne valeur (inchange) ;
+     « cette donnee n'a plus lieu d'etre » → l'effacer.
+   La seconde se tranche sur la STRUCTURE (quels onglets GARDES_{Y} existent),
+   jamais sur le succes d'une lecture de donnees. Lister des onglets ne peut
+   pas echouer a moitie : soit le classeur s'ouvre, soit il ne s'ouvre pas.
+
+   GARDE-FOUS (un effacement automatique porte sur ce que lisent 23 MARs) :
+     1. seules les cles PAR ANNEE sont effacables — jamais une liste commune
+        (topos, protocoles, annuaire, secteurs, acces…) ;
+     2. si le balayage d'UN des deux classeurs echoue, on n'efface RIEN ;
+     3. l'annee active et l'annee de campagne ne sont jamais effacees, meme
+        absentes du balayage ;
+     4. plafond : au-dela de MIROIR_PURGE_MAX_ANNEES annees d'un coup, refus
+        et trace — une annee qui sort est normal, cinq est un defaut.
+   Envoyer `null` sur une cle deja absente est sans effet cote Worker. */
+/* La fenetre de balayage part de la PLUS ANCIENNE annee reellement connue
+   (jamais d'un nombre fixe : le projet date de 2026, remonter 5 ans en
+   arriere designait 2021-2023, qui n'ont jamais existe — sept candidates
+   pour un plafond de trois, donc refus systematique et fonction inerte.
+   Defaut trouve au banc le 09/08, invisible en lecture). */
+const MIROIR_PURGE_APRES       = 2;   // annees balayees au-dela de l'annee courante
+const MIROIR_PURGE_MAX_ANNEES  = 3;   // plafond de securite par passe
+const MIROIR_CLES_PAR_ANNEE    = ['planning_', 'affectations_', 'indispos_',
+                                  'gardes_', 'stats_', 'joursferies_', 'liberal_'];
+
+/* Balayage STRUCTUREL des deux classeurs. `complet` = les deux ont repondu.
+   Volontairement distinct de `_miroirConstruireAnnees_` : celui-ci tolere
+   l'echec en silence (c'est bon pour un selecteur, jamais pour un effacement). */
+function _miroirAnneesAttendues_() {
+  const vues = {};
+  let complet = true;
+  const balaye = function (ouvrir) {
+    try {
+      ouvrir().getSheets().forEach(function (sh) {
+        const m = String(sh.getName()).match(/^GARDES_(\d{4})$/);
+        if (m) vues[Number(m[1])] = true;
+      });
+    } catch (e) { complet = false; }
+  };
+  balaye(function () { return SpreadsheetApp.getActiveSpreadsheet(); });
+  balaye(function () { return SpreadsheetApp.openById(ARCHIVE_SS_ID); });
+  return { annees: vues, complet: complet };
+}
+
+/* Ajoute a `items` les cles a effacer (valeur null). Renvoie un compte rendu
+   destine au journal — jamais une exception : le ménage ne doit pas empecher
+   la poussee. */
+function _miroirPurgerAnnees_(items, annee) {
+  const att = _miroirAnneesAttendues_();
+  if (!att.complet) return { refus: 'balayage incomplet (classeur inaccessible) — aucun effacement' };
+
+  const gardees = {};
+  Object.keys(att.annees).forEach(function (y) { gardees[Number(y)] = true; });
+  gardees[Number(annee)] = true;                                   // garde-fou 3
+  try { gardees[Number(getActiveYear())] = true; } catch (e) {}
+  try { const iy = getIndisposYear(); if (iy) gardees[Number(iy)] = true; } catch (e) {}
+
+  const connues = Object.keys(att.annees).map(Number);
+  if (!connues.length) {
+    return { refus: 'aucun onglet GARDES_{Y} dans les deux classeurs — structure anormale, aucun effacement' };
+  }
+
+  const base = Number(annee) || new Date().getFullYear();
+  const debut = Math.min.apply(null, connues.concat([base]));
+  const aEffacer = [];
+  for (let y = debut; y <= base + MIROIR_PURGE_APRES; y++) {
+    if (!gardees[y]) aEffacer.push(y);
+  }
+  if (aEffacer.length > MIROIR_PURGE_MAX_ANNEES) {
+    return { refus: aEffacer.length + ' annees a effacer (plafond ' + MIROIR_PURGE_MAX_ANNEES
+                    + ') — aucun effacement, verifier le classeur', annees: aEffacer };
+  }
+
+  const cles = [];
+  aEffacer.forEach(function (y) {
+    MIROIR_CLES_PAR_ANNEE.forEach(function (prefixe) {
+      const cle = prefixe + y;
+      if (!(cle in items)) { items[cle] = null; cles.push(cle); }   // jamais ecraser une cle construite
+    });
+  });
+  return { annees: aEffacer, cles: cles.length };
 }
 
 /* Construit une valeur et l'ajoute aux items sous forme de chaîne JSON.
