@@ -40,7 +40,10 @@ le Worker ou `partage/dispo_jour.js`.
 
 31 ouvertures, **aucun repli Apps Script, aucun échec**. Le Worker a répondu entre 65 et
 190 ms à chaque fois. Ressenti d'Arthur : « chargement quasi instantané » — c'était l'objectif.
-⚠️ **Mesuré sur PC seulement : le téléphone reste à faire.**
+**Téléphone (données mobiles, wifi coupé) : vérifié le 09/08 — aucune ouverture ressentie
+comme une attente, sur les trois pages.** Contrôle **à l'œil, non chronométré** : le seuil de
+2 s est justement celui où l'attente devient perceptible, et un raté se compte en secondes,
+pas en millisecondes. Le jalon est donc clos, sans chiffre mobile au dossier.
 
 **Piège de mesure, à connaître avant de recommencer.** Une première ouverture en navigation
 privée contient la **frappe du code**, pas une lenteur : le dashboard affichait 5 788 ms pour
@@ -2257,9 +2260,9 @@ novembre.
 - [x] 🪞 **`staff.html` — BRANCHÉE (v1.19)** : miroir + rejeu de transport.
 - [x] 🪞 **Lot A-bis — semaines voisines ±1 préchargées** derrière la semaine courante.
 - [x] 🪞 **Périmètre démo confirmé par Arthur : dashboard + index + indispos** (admin second plan).
-- [x] 🪞 **Répétition générale chiffrée — PC FAIT le 09/08 (chiffres en tête de document)** :
+- [x] 🪞 **Répétition générale chiffrée — CLOSE le 09/08.** PC (chiffres en tête de document) :
   dashboard 295 ms médiane / 511 ms pire · index 406 / 766 · indispos ~215. 31 ouvertures,
-  0 repli, 0 échec. **Reste le téléphone** — même protocole, même verdict 10/10 sous 2 s.
+  0 repli, 0 échec. Téléphone en données mobiles : vérifié à l'œil, aucune attente perceptible.
 - [ ] 🪞 **Idée en réserve (non engagée)** : clé `panneau_{Y}` précalculée pour un premier clic
   case flash instantané — coût du calcul année entière PAR ÉCRITURE à mesurer d'abord ;
   le chauffage + voisines du 04/08 la rendent probablement inutile.
