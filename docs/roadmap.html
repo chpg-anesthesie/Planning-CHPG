@@ -257,14 +257,11 @@
     <p><b>Pourquoi c'était reporté :</b> aujourd'hui ça refuse, personne ne perd de garde. Une correction ratée écrit — et une garde effacée en silence ne se voit pas passer.</p>
   </div>
   <div class="card ok">
-    <h4>Sauvegardes et diagnostic — quatre automatismes <span class="tag t-green">vérifié le 9 août 2026</span></h4>
-    <p><b>Le classeur, lundi ~4 h</b> (<code>backupHebdo</code>, dans <code>code.gs</code>) → dossier Drive « Planning-CHPG-Backups » du compte du planning, 8 copies conservées. Constaté : 15, 20, 27 juillet et 3 août, toutes à 4 h 02.</p>
-    <p><b>Le code, dimanche ~3 h</b> (<code>sauvegardeHebdo</code>, dans <code>sauvegarde.gs</code>) → archive du dépôt en zip dans « Sauvegardes Planning-CHPG » du compte du planning, 42 jours conservés. Constaté : 6 et 9 août.</p>
-    <p><b>Le classeur hors-compte, dimanche ~5 h</b> → projet Apps Script indépendant vivant dans le compte Google <b>personnel</b>, copie déposée dans un dossier du même nom mais d'un autre compte. Constaté : 26 juillet, 2 et 9 août. <b>C'est la seule sauvegarde qui survivrait à la perte du compte du planning.</b> Code archivé dans <code>docs/sauvegarde-compte-perso.md</code>.</p>
-    <p><b>Le gardien : <code>diagHebdo</code></b> (dans <code>Indispos.gs</code>). Chaque lundi vers 2 h — donc <i>avant</i> la copie de 4 h — il exécute le diagnostic complet et en envoie le résultat par mail. L'adresse vit dans l'onglet <code>CONFIG</code>, ligne <code>DIAG_EMAIL</code> : jamais dans le code, le dépôt étant public. Absente, il ne fait rien plutôt que d'échouer — c'est déjà arrivé le 03/08/2026, sans que la cause soit lisible.</p>
-    <p><b>Son angle mort.</b> Il ne surveille qu'<b>un</b> des trois filets : présence du déclencheur <code>backupHebdo</code> et âge du dernier fichier de « Planning-CHPG-Backups », en alerte au-delà de 10 jours. L'archive du code (dimanche 3 h) n'est pas contrôlée : si elle s'arrête, rien ne le signalera. La copie hors-compte ne l'est pas non plus et ne peut pas l'être — elle vit dans un autre compte. Le classeur reste couvert deux fois, mais la surveillance, elle, ne l'est qu'une.</p>
-    <p><b>Trois choses à savoir :</b> le projet Apps Script étant rattaché au classeur, <b>chaque copie du lundi contient aussi le code</b> — d'où les projets « Planning-CHPG » multiples visibles dans l'éditeur, qui ne sont pas des doublons mais des instantanés. Les deux dossiers « Sauvegardes Planning-CHPG » sont distincts, un par compte, et ne se purgent pas l'un l'autre. Enfin la purge du zip supprime tout fichier de plus de 42 jours de <i>son</i> dossier : ne rien y ranger d'autre.</p>
-  </div>
+    <h4>Sauvegardes et diagnostic <span class="tag t-green">vérifié le 9 août 2026</span></h4>
+    <p><b>Le classeur</b> : lundi ~4 h (<code>backupHebdo</code>, 8 copies) et dimanche ~5 h dans un compte personnel distinct — seule celle-ci survivrait à la perte du compte du planning (<code>docs/sauvegarde-compte-perso.md</code>). <b>Le code</b> : dimanche ~3 h, archive du dépôt en zip (<code>sauvegarde.gs</code>, 42 jours). Les trois constatées actives.</p>
+    <p><b>Le gardien</b> : <code>diagHebdo</code> (<code>Indispos.gs</code>), lundi 2 h, envoie le diagnostic par mail à l'adresse lue dans CONFIG / <code>DIAG_EMAIL</code>. <b>Angle mort</b> : il ne surveille que la copie du lundi. L'archive du code n'est pas contrôlée ; la copie hors-compte ne peut pas l'être. Le classeur est couvert deux fois, la surveillance une seule.</p>
+    <p><b>À savoir</b> : le projet Apps Script étant rattaché au classeur, chaque copie du lundi emporte le code — les projets « Planning-CHPG » multiples de l'éditeur sont ces instantanés, pas des doublons. Les deux dossiers « Sauvegardes Planning-CHPG » sont dans des comptes différents et ne se purgent pas l'un l'autre.</p>
+    </div>
 
   <h2>3 · Avant la génération de novembre</h2>
   <div class="card risque">
