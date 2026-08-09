@@ -50,6 +50,15 @@ privée contient la **frappe du code**, pas une lenteur : le dashboard affichait
 une page prête en 45 ms. Ne jamais lire le temps absolu d'un jalon — lire *page prête + durée
 des appels*. Trois mesures ont d'abord été interprétées à tort comme des défauts.
 
+**Mesure de l'écart attribué / fait sur 2026** (lecture du `planning_2026.json` servi, Drive).
+2026 n'ayant pas été produite par le générateur, l'instantané `STATS_GARDES_2026` porte
+l'attribution manuelle initiale ; le planning porte le résultat après une année d'échanges et de
+dons. Cible et attribué collent partout (−5 à +8,4) ; **c'est le fait qui diverge : de +25 à −18
+gardes, 18 MARs sur 23 concernés, 5 à zéro.** Ces écarts ne sont donc pas exploitables comme
+mesure des échanges : ils mélangent l'héritage manuel et les mouvements réels. **La vraie mesure
+sera possible fin 2027**, en comparant `GARDES_2027` à son propre instantané — première année où
+les deux sortent du même générateur.
+
 **Constats vérifiés en lecture de code sur `indispos.html`** (aucun n'est un défaut de vitesse) :
 - **Le code d'accès n'y est jamais mémorisé** — aucun `sessionStorage` dans le fichier, alors
   que `dashboard.html` écrit `chpgViewCode`. Chaque rechargement impose de retaper le code.
@@ -2296,21 +2305,28 @@ livré — d'où la règle : vérifier le code, pas le ROADMAP.)*
      ✅ **Réglé le 01/08 : un samedi couplé à un jeudi ou un lundi férié ouvre bien un R** — le code
      le fait déjà (`if(dayByDate[dd].dow===6)`), seul le commentaire prêtait à confusion. L'unité de
      3 jours donne une récup, pas deux. Conforme à la règle d'Arthur, rien à changer.
-  2. **Dette inter-annuelle calculée sur les gardes RÉELLEMENT effectuées.** La dette lit les réels
-     de `STATS_GARDES_{N-1}`, qui est un **instantané figé à la génération** et n'est jamais
-     réécrit ensuite. Un don ou un échange modifie `GARDES_{Y}`, jamais `STATS_GARDES_{Y}` ; à
-     l'archivage (`setup_annee.gs`) **seule la colonne Noël/An est recalculée sur le réel**, les 15
-     autres partent telles quelles dans `HISTORIQUE`. Conséquence : qui donne 8 gardes les porte
-     quand même comme faites dans la dette de N+1, et se voit servir moins de gardes pour des
-     gardes qu'il n'a pas faites. **Correctif court** : réécrire les réels avec
-     `computeStatsLive(year)` **avant** la copie vers `HISTORIQUE`. Sans objet pour 2027
-     (`PREMIERE_ANNEE_STATS_FIABLES = 2027`, dette neutre) — **mord à partir de la génération 2028,
-     donc à traiter d'ici novembre 2027**. Accord de principe d'Arthur (« idée à creuser »).
-  3. **Bilan personnel annuel du MAR** (`dashboard.html`) — « votre 2026 : 31 gardes pour une cible
-     de 34,6 · 6 samedis · 2 fériés · Noël non · 6 récups dues, 6 posées ». Une autre façon de lire
-     l'onglet Équité, pour que le MAR se situe sans lire un tableau de 23 lignes. Source :
-     `getStatsLive` (qui renvoie déjà tout, échanges inclus) + `HISTORIQUE`. **Le moins cher des
-     trois : un rendu, zéro modification serveur.** Accord de principe d'Arthur.
+  2. ⛔ **Dette inter-annuelle — TRANCHÉ le 09/08/2026 : elle reste calculée sur le PLANNING
+     GÉNÉRÉ, pas sur les gardes finales.** Le point avait été ouvert le 01/08 comme un défaut à
+     corriger (`computeStatsLive` avant la copie vers `HISTORIQUE`) ; il est **écarté**.
+     **Raison :** un don comme un échange est **volontaire des deux côtés**. La dette existe pour
+     rattraper ce que l'algorithme n'a pas pu donner, pas pour défaire un arrangement entre
+     collègues. Qui prend des gardes en plus par choix ne doit pas voir sa part baisser l'année
+     suivante ; qui donne a été soulagé, il n'a pas à être remboursé.
+     **Ordre de grandeur, à connaître avant de rouvrir :** la dette est écrêtée à ±2 par axe puis
+     amortie par `DETTE_AMORTI = 0.6` (`generateur_gardes.gs` l.301-302) — l'effet maximal sur une
+     cible est de **±1,2 garde**, quel que soit l'écart d'origine. L'enjeu du choix n'a jamais été
+     de 25 gardes, il est de 1,2.
+     ⚠️ **Conséquence à tenir** : tout écran qui montrerait l'écart attribué/fait doit dire que ces
+     gardes **ne modifient pas la part de l'année suivante**. Si la décision change un jour, cette
+     phrase change avec elle.
+  3. ⛔ **Bilan personnel annuel du MAR — ABANDONNÉ le 09/08/2026, la fonction existe déjà.**
+     La vue Équité d'`index.html` porte **deux boutons, « Initiale » et « Instantané »** (l.797-798),
+     le second appelant `getStatsLive` — donc le recomptage échanges et dons compris. Chaque MAR
+     peut déjà voir l'écart entre ce qui lui a été attribué et ce qu'il a fait, en un clic, depuis
+     le planning. Le bilan proposé n'était qu'un habillage. Deux maquettes produites puis jetées.
+     Le cas PRUNET (souhaits garantis, jours choisis = cible, hors axes d'équité) est lui aussi
+     déjà traité, l.2429. **Erreur de méthode à retenir : la faisabilité avait été vérifiée dans le
+     producteur des données avant de regarder si l'écran existait.**
 
 - [ ] 🔬 **Module libéral — brique CONVERGENCE 30 % (lots 2 et 4)**, seul morceau restant. Voir `docs/module-liberal/module_liberal_conception.md`.
   - ✅ **Déjà en production** (détail dans « Module libéral — chaîne complète » de la section Fait) : estimateur, devis, branchement au portail, déclaration d'intervention, volet comité. **Ne pas les reconstruire.**
