@@ -15,7 +15,7 @@ portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'ane
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 6 août 2026.*
+*Mise à jour : 9 août 2026.*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -25,6 +25,43 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 9 août 2026 (après-midi) — répétition de vitesse sur PC : les trois pages sous 800 ms
+
+**Rien poussé côté production.** Mesures seules (`chrono()`, navigation privée, PC).
+
+| page | médiane | pire | sous 2 s |
+|---|---|---|---|
+| `dashboard.html` | 295 ms | 511 ms | 9/9 |
+| `index.html` | 406 ms | 766 ms | 11/11 |
+| `indispos.html` | ~215 ms (page 150 + miroir 65) | — | 1 ouverture décomposée |
+
+31 ouvertures, **aucun repli Apps Script, aucun échec**. Le Worker a répondu entre 65 et
+190 ms à chaque fois. Ressenti d'Arthur : « chargement quasi instantané » — c'était l'objectif.
+⚠️ **Mesuré sur PC seulement : le téléphone reste à faire.**
+
+**Piège de mesure, à connaître avant de recommencer.** Une première ouverture en navigation
+privée contient la **frappe du code**, pas une lenteur : le dashboard affichait 5 788 ms pour
+une page prête en 45 ms. Ne jamais lire le temps absolu d'un jalon — lire *page prête + durée
+des appels*. Trois mesures ont d'abord été interprétées à tort comme des défauts.
+
+**Constats vérifiés en lecture de code sur `indispos.html`** (aucun n'est un défaut de vitesse) :
+- **Le code d'accès n'y est jamais mémorisé** — aucun `sessionStorage` dans le fichier, alors
+  que `dashboard.html` écrit `chpgViewCode`. Chaque rechargement impose de retaper le code.
+  Aspérité d'usage pour la campagne d'octobre, à trancher, pas un défaut technique.
+- `getVacConfig` = **4,4 s** (Apps Script, volontairement non bloquant). Le calendrier n'attend
+  pas — mais **le quota de vacances affiché et le bouton CTP**, si : un MAR à temps partiel n'a
+  pas son bouton pendant 4,4 s et voit son compteur changer sous ses yeux.
+- Journal de connexion `login` = **3,0 s**, en appel classique. `dashboard.html` est passé à
+  l'envoi à fond perdu le 06/08, `indispos.html` non. Sans effet visible ici (cette page n'a
+  aucun témoin d'activité — vérifié). Qu'il ralentisse `getVacConfig`, parti à la même
+  milliseconde, est une **hypothèse non mesurée**.
+- **La page n'appelle jamais `PERF.jalon(...)`** : le bloc « Étapes » de `chrono()` y est
+  toujours vide. Lire le journal des appels à la place.
+- `_reveilAPI()` (l.740) est **défini et jamais appelé** (retiré le 01/08, décision documentée) —
+  fonction morte de 3 lignes, à ranger avec le lot `OVERRIDES`. Ne pas rouvrir la décision.
 
 ---
 
@@ -2220,9 +2257,9 @@ novembre.
 - [x] 🪞 **`staff.html` — BRANCHÉE (v1.19)** : miroir + rejeu de transport.
 - [x] 🪞 **Lot A-bis — semaines voisines ±1 préchargées** derrière la semaine courante.
 - [x] 🪞 **Périmètre démo confirmé par Arthur : dashboard + index + indispos** (admin second plan).
-- [ ] 🪞 **Répétition générale chiffrée — DERNIER JALON AVANT LE 04/09** : chaque page ×10,
-  PC + mobile + navigation privée. Verdict « prêt » = **10/10 sous 2 s**, pas une moyenne.
-  À caler sur une session PC tranquille (`chrono()`, lignes `miroir:`), chiffres consignés ici.
+- [x] 🪞 **Répétition générale chiffrée — PC FAIT le 09/08 (chiffres en tête de document)** :
+  dashboard 295 ms médiane / 511 ms pire · index 406 / 766 · indispos ~215. 31 ouvertures,
+  0 repli, 0 échec. **Reste le téléphone** — même protocole, même verdict 10/10 sous 2 s.
 - [ ] 🪞 **Idée en réserve (non engagée)** : clé `panneau_{Y}` précalculée pour un premier clic
   case flash instantané — coût du calcul année entière PAR ÉCRITURE à mesurer d'abord ;
   le chauffage + voisines du 04/08 la rendent probablement inutile.
