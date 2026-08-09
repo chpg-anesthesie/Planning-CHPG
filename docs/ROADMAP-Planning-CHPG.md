@@ -4,11 +4,12 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.28** ·
-**GAS** `code.gs` 2026-08-05.3 · `Indispos.gs` 2026-08-05.13 · `miroir.gs` 2026-08-05.10 ·
-`journal.gs` 2026-08-05.3 · `portail.gs` 2026-08-05.2 ·
-`generateur_gardes.gs` 2026-07-31.3 · `setup_annee.gs` 2026-08-03.1 ·
-**Worker** `cloudflare/worker.js` 2026-08-05.7
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.30.2** ·
+**GAS** (relevé dans le dépôt le 09/08/2026) `code.gs` 2026-08-05.3 ·
+`Indispos.gs` 2026-08-08.1 · `miroir.gs` 2026-08-08.1 · `journal.gs` 2026-08-05.3 ·
+`portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
+`generateur_gardes.gs` 2026-07-31.3 · `setup_annee.gs` 2026-08-08.1 ·
+**Worker** `cloudflare/worker.js` 2026-08-08.1 (version en ligne vérifiée identique)
 
 **Banc d'essai** `banc/` — 440 vérifications, `cd banc && ./lancer.sh`.
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
@@ -24,6 +25,42 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 9 août 2026 — audit des sauvegardes et des comptes, dépôt rangé
+
+**Rien poussé côté production.** Trois commits, tous de documentation.
+
+**Fait**
+- **Cartes du dépôt remises d'aplomb.** `gas/README.md` annonçait 5 fichiers dans
+  l'éditeur : il y en a 11, répartis sur 3 emplacements du dépôt. `docs/README.md`
+  corrigé de même. C'était le vrai risque de désorientation après une pause, pas le
+  nombre de fichiers.
+- **Doublon retiré** : un `gas/hors-compte/` créé à tort, `docs/sauvegarde-compte-perso.md`
+  couvrant déjà le sujet. Dépôt ramené à 126 fichiers.
+- **`docs/roadmap.html`** : l'encadré ne décrivait qu'une sauvegarde sur trois et
+  affirmait que le classeur n'était pas sauvegardé — faux pour deux des trois filets.
+- **Worker Cloudflare comparé au dépôt** : identiques au caractère près
+  (`miroir 2026-08-08.1`, même filtre de clés, mêmes 6 chemins, mêmes 11 fonctions).
+  Premier contrôle de ce type possible.
+- **Trois sauvegardes constatées actives** avec leurs dates réelles.
+
+**Écarté pour l'instant**
+- **Déploiement depuis le téléphone** : préparé, non installé (voir CONTEXTE).
+  Arthur a jugé l'installation trop lourde avant le 4 septembre. On garde le
+  copier-coller sur ordinateur.
+- **`clasp`** : écarté définitivement — exige un ordinateur, ce qui est justement
+  ce qu'on cherche à éviter.
+
+**En suspens, sans urgence**
+- Worker de test oublié chez Cloudflare (`cold-term-c753`, créé le 29/07, sans données) :
+  à supprimer au tableau de bord, le connecteur ne sait pas le faire.
+- Projet Apps Script homonyme dans le compte personnel : vestige à identifier.
+- `backupHebdo` et `sauvegardeHebdo` divergent de conventions (compte de copies contre
+  nombre de jours, Europe/Paris contre Europe/Monaco). Sans conséquence.
+- Le classeur a triplé de taille en une semaine (89 Ko le 3 août, 260 Ko le 9) :
+  cohérent avec les fichiers de démo 2027, à revérifier après le ménage.
 
 ---
 

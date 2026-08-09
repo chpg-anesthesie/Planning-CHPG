@@ -11,6 +11,58 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 9 août 2026 — session d'audit : sauvegardes, comptes, connecteurs
+
+**Aucune ligne de code de production modifiée.** Session de vérification et de rangement.
+
+### Le projet Apps Script est RATTACHÉ au classeur maître
+Confirmé : on l'ouvre par *Extensions → Apps Script* depuis le classeur. Conséquences :
+- `SpreadsheetApp.getActiveSpreadsheet()` fonctionne, et les fichiers créés par les
+  déclencheurs appartiennent au compte **planningchpg**, pas au compte personnel.
+- **Chaque sauvegarde hebdomadaire du classeur emporte le code avec elle.** Les projets
+  « Planning-CHPG » multiples visibles dans l'éditeur ne sont pas des doublons : ce sont
+  les instantanés des lundis. Ne pas les supprimer.
+- Un projet homonyme traîne en plus dans le compte **personnel** (créé le 23/05, antérieur
+  au classeur) : vestige, à ne pas confondre avec le vrai.
+
+### Les 11 fichiers de l'éditeur viennent de 3 endroits du dépôt
+`gas/` (8 + le manifeste), **plus** `sauvegarde.gs` à la racine et `dispo_jour.gs`
+(= `partage/dispo_jour.js`, extension différente). Et l'éditeur affiche **`Code.gs`**
+avec une majuscule là où le dépôt a `code.gs`.
+Carte détaillée dans `gas/README.md`. **Tout envoi automatisé réglé sur `gas/` seul
+effacerait deux fichiers et créerait un doublon.**
+
+### Trois sauvegardes, toutes vérifiées actives
+Voir l'encadré de `docs/roadmap.html` et `docs/sauvegarde-compte-perso.md`.
+La seule qui survivrait à la perte du compte planning est celle du **dimanche 5 h**,
+qui vit dans le compte personnel.
+
+### Les connecteurs : ce qu'ils donnent, ce qu'ils ne donnent pas
+- **Google Drive** doit être branché sur **planningchpg@gmail.com**. Branché sur le compte
+  personnel, on ne voit ni `Planning-CHPG-Backups` ni `Planning-CHPG-JSON` — et on conclut
+  à tort que des sauvegardes ne tournent pas. **Erreur commise ce jour.** Vérifier le compte
+  avant toute conclusion : le classeur maître apparaît « partagé avec moi » si l'on est du
+  mauvais côté.
+- **Cloudflare Developer Platform** : Workers en **lecture seule** (liste, détails, code
+  source), namespaces KV listables mais **valeurs illisibles**, **aucun log**, **aucun
+  déploiement**. Utile pour comparer le Worker en ligne au dépôt — fait ce jour, identiques.
+  Écriture possible sur KV/D1/R2 : ne jamais s'en servir sans accord.
+- **Pas de connecteur GitHub ni Apps Script** dans l'annuaire.
+
+### Déploiement sans ordinateur — préparé, non installé
+`clasp` écarté (exige un ordinateur). Retenu : un projet Apps Script **séparé** qui lit le
+dépôt et pilote l'API Apps Script — aucun jeton Google ne sort de chez Google. Écrit,
+syntaxe validée, **rien d'installé**. L'API Apps Script est activée sur le compte ;
+identifiants de script et de déploiement en possession d'Arthur (hors dépôt : public).
+Reprendre par un essai sur une **copie** du projet.
+
+### Erreur de méthode à ne pas répéter
+Un document de sauvegarde a été poussé alors que `docs/sauvegarde-compte-perso.md`
+existait déjà et couvrait mieux le sujet. **Lister `docs/` avant de créer un document.**
+Le doublon a été retiré dans la foulée.
+
+---
+
 ## État au 8 août 2026 — v1.30.2, veille refondue et validée, banc à 524 vérifications
 
 **Site v1.30.2.** GAS veille : `veille.gs 2026-08-08.4` (module extrait de `portail.gs`
