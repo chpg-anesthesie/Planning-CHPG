@@ -247,10 +247,6 @@
     <h4>Nettoyage de code mort <span class="tag t-blue">lot unique</span></h4>
     <p>Trois morceaux à retirer ensemble : l'écran « Paramètres » (jamais affiché, son rebranchement a été écarté pour raison de sécurité), l'ancien système <code>OVERRIDES</code> (6 endroits — il fait afficher en permanence « aucune modification en attente »), et <code>gardeExceptionnelle</code>, qu'aucun bouton n'appelle.</p>
   </div>
-  <div class="card">
-    <h4>Localiser l'appelant de la déclaration libérale <span class="tag t-amber">audit</span></h4>
-    <p>Dernière case de l'audit des écritures : classer <code>declareLiberal</code> et <code>deleteLiberal</code> selon la doctrine (aucune écriture à fond perdu avec échec avalé).</p>
-  </div>
   <div class="card risque">
     <h4>Échange de deux gardes qui se suivent <span class="tag t-red">refusé aujourd'hui</span></h4>
     <p>Le système refuse et affiche « dates trop proches ». Ce n'est pas une règle médicale mais une limite du programme : en déplaçant aussi le repos du lendemain, l'écriture tombe sur la case de l'autre garde et l'écrase. L'échange se fait à la main dans le tableau en attendant.</p>

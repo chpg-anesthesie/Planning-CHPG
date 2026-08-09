@@ -1143,9 +1143,15 @@ pour éviter tout biais de confirmation). Conclusions :
   données utilisateur est fermé (doctrine des écritures). Banc : deux MARs isolés,
   admin filtré, transport coupé → rejeu à la réouverture — 510 vérifications.
   **Gel jusqu'au 4/09 : plus rien ne bouge.**
-- **Audit des écritures — case restante** : localiser l'appelant client de
-  `declareLiberal`/`deleteLiberal` (absent des pages de la racine, probablement le
-  module libéral sous `docs/`) et le classer selon la doctrine des écritures.
+- ✅ **Audit des écritures — CLOS le 09/08/2026.** L'appelant était dans
+  `docs/module-liberal/estimateur-liberal.html` (l.1053 et 1068). `declareLiberal` et
+  `deleteLiberal` relèvent de la **catégorie 2 : attendues, erreur visible** — bouton désactivé
+  pendant l'appel, message « Échec : … » / « Suppression impossible : … » en cas d'échec, puis
+  relecture de la liste **depuis le serveur** (pas de confirmation optimiste). Le `catch` d'`apiLib`
+  n'avale rien : il rend `{success:false, error:'réseau'}`, que l'appelant affiche. Délai max 20 s.
+  ⚠️ **Réserve, à traiter avant l'ouverture du module aux 19 autres** : ni journal ni file de rejeu
+  local. Réseau coupé au moment de valider → le MAR voit l'erreur mais **sa saisie est perdue et
+  doit être refaite**. Acceptable tant qu'Arthur est seul ; à revoir le jour de l'ouverture.
 
 ### Ouverture des topos/protocoles — mesuré le 08/08/2026, chantier à l'étude
 **Mesure (`chrono()`, dashboard, un seul utilisateur, aucune concurrence) :**
