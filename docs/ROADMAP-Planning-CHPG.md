@@ -417,6 +417,15 @@ est **bloquant**. Mesurer l'instant d'affichage de l'information utile, pas le n
 **7. Un commentaire périmé maintenu sous un correctif.** Une décision qui ne vaut plus se
 **supprime et se remplace**, elle ne s'empile pas — git garde l'historique.
 
+### Reproposer ce qui existe déjà — deux cas le 09/08/2026
+
+Dans une même séance, deux fonctionnalités ont été proposées ou analysées alors qu'elles
+existaient : le **bilan personnel du MAR** (la vue Équité d'`index.html` a déjà ses boutons
+« Initiale » et « Instantané ») et le **solde des récups de samedi** (déjà dans le Diagnostic
+depuis le 01/08). Même cause dans les deux cas : **le ROADMAP a été lu à la place du code.**
+Le document décrivait un chantier ouvert que la production avait déjà refermé.
+→ Avant toute proposition : chercher la fonction dans le code, pas dans ce fichier.
+
 ### Pièges techniques
 
 - **ExcelJS** : écrire dans une cellule *esclave* d'une fusion casse le fichier en production.
@@ -736,10 +745,10 @@ Reste à faire, par ordre de criticité :
 2. **Répétition à blanc chronométrée.** Le deck annonce « 15 secondes » deux fois (diapos 9 et 23).
    Ce qui n'est pas mesuré, ce n'est pas l'algorithme — c'est le temps que la salle verra, aller-retour
    Apps Script compris, là où on a déjà observé 30 à 56 s côté client pour 2 s côté serveur.
-3. **Relecture du deck en projection.** Tout est vérifié par machine (structure, `<div>`, `node --check`,
-   jsdom, arithmétique des pourcentages) ; **rien n'est vérifié à l'œil**. Points sensibles : diapo 10
-   (tableau à 5 colonnes, le plus large), diapo 19 (densifiée), diapo 16 (146 cellules animées sur 5,6 s,
-   et le rosé du repos du lendemain peut passer pour du blanc en vidéoprojection).
+3. ✅ **Relecture du deck — FAITE le 09/08 (Arthur) : visuel correct.** Restait le seul contrôle
+   qu'aucune machine ne fait. Ne subsiste, non vérifié, que le rendu **au vidéoprojecteur** de la
+   diapo 16 (le rosé du repos du lendemain peut passer pour du blanc) — à regarder le jour même,
+   sur le matériel de la salle.
 4. Vérifier que les **profils indispos 2027 des autres MARs sont remplis** (annoncé à la salle).
    `PERIODES_VAC` : ✅ déjà réglé sur 2027 (Arthur, 30/07).
    📌 **`PERIODES_VAC` ne contient qu'UNE année à la fois — celle qu'on prépare, et c'est normal.**
@@ -2289,22 +2298,22 @@ livré — d'où la règle : vérifier le code, pas le ROADMAP.)*
 - [ ] 🧮 **Trois pistes ouvertes le 01/08/2026, conçues à moitié, aucune codée.** Elles partagent
   un même constat : **les règles ne sont appliquées qu'à la génération, jamais aux modifications
   manuelles qui suivent.**
-  1. **Solde des récupérations de samedi.** Le générateur ouvre un R par samedi tenu
-     (`recupDue`, `generateur_gardes.gs`) mais **le lien samedi→R n'est écrit nulle part** : la
-     cellule de `GARDES_{Y}` ne contient qu'un `R` nu. Or `donGarde` / `echangeGardeJours`
-     (`applyModification`) déplacent la garde **et le RG, jamais le R** : qui donne son samedi
-     garde sa récup. ✅ **Le lien n'est pas nécessaire** pour le détecter : `computeStatsLive`
-     compte déjà `sam` et `recupR` depuis `GARDES_{Y}` — le solde `sam − recupR` suffit, sans
-     aucune donnée nouvelle. **Décision Arthur : le replacement du R reste MANUEL** (une date
-     libérée chez le donneur n'a aucune raison d'être plaçable chez le receveur) ; l'outil affiche
-     le déséquilibre, il ne le corrige pas.
-     ⚠️ **À calibrer avant d'afficher une alerte** : `sam − recupR` n'est pas nul même sans échange.
-     Le R se place dans une fenêtre de 2 à 16 semaines **et** doit rester dans l'année
-     (`cDate.startsWith(String(year))`) : les samedis de novembre-décembre repartent sans R.
-     Mesurer sur la génération 2027 réelle avant de coder l'écran.
-     ✅ **Réglé le 01/08 : un samedi couplé à un jeudi ou un lundi férié ouvre bien un R** — le code
-     le fait déjà (`if(dayByDate[dd].dow===6)`), seul le commentaire prêtait à confusion. L'unité de
-     3 jours donne une récup, pas deux. Conforme à la règle d'Arthur, rien à changer.
+  1. ✅ **Solde des récupérations de samedi — LIVRÉ le 01/08, dans le Diagnostic système.**
+     `Indispos.gs` l.393-412 calcule `sat − recupR` par MAR via `computeStatsLive` et signale
+     nominativement « X récups manquantes » / « X récups en trop — à corriger dans l'onglet
+     Statuts ». Conditionné à `Y >= PREMIERE_ANNEE_STATS_FIABLES` : muet sur 2026, actif sur 2027.
+     **Le replacement du R reste MANUEL** (décision Arthur) : l'outil affiche, il ne corrige pas.
+     ⛔ **La calibration annoncée ici est SANS OBJET — le seuil est ZÉRO.** Le générateur garantit
+     la pose de tous les R par son repli en deux passes sur toute l'année (section 9), y compris
+     pour les samedis de fin d'année : la phrase « les samedis de novembre-décembre repartent sans
+     R », écrite le 01/08, était **fausse**. Vérifié deux fois le 09/08 — en lecture du code, et sur
+     `planning_2027.json` : **104 R posés pour 102 samedis tenus, aucun jour à deux R**.
+     Tout écart non nul est donc un geste manuel resté à faire, jamais du bruit de calendrier.
+     ⚠️ Ce relevé porte sur un planning déjà retouché (terrain de test admin d'Arthur) : seul le
+     TOTAL est exploitable, la répartition par MAR ne l'est pas. Sans conséquence, le seuil vient
+     du code, pas de la mesure.
+     ✅ **Réglé le 01/08 : un samedi couplé à un jeudi ou un lundi férié ouvre bien un R** — l'unité
+     de 3 jours donne une récup, pas deux. Rien à changer.
   2. ⛔ **Dette inter-annuelle — TRANCHÉ le 09/08/2026 : elle reste calculée sur le PLANNING
      GÉNÉRÉ, pas sur les gardes finales.** Le point avait été ouvert le 01/08 comme un défaut à
      corriger (`computeStatsLive` avant la copie vers `HISTORIQUE`) ; il est **écarté**.
