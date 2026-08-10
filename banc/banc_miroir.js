@@ -397,5 +397,81 @@ console.log('\n═══ 56. Inventaire des onglets écoutés (06/08/2026) ═�
   }
 }
 
-console.log(`\n${ok} OK · ${ko} en échec`);
-if (ko) process.exit(1);
+/* ═══ ETAPE 3 : le portail lit la copie, et REPLIE si elle manque ═══════
+   C'est la seule etape qui touche une page. Le repli est ce qui rend la
+   bascule sans risque : un document non encore copie doit rester LENT,
+   jamais casse. On le verifie dans les deux sens. */
+{
+  console.log('\n═══ 6 quater. Lecture d\'un document par le portail (miroir + repli) ═══');
+  const fs4 = require('fs');
+  const html = fs4.readFileSync('../dashboard.html', 'utf8');
+
+  const corps = html.match(/async function _lireDoc\(id, action\)\{[\s\S]*?\n\}/);
+  V('la page contient bien _lireDoc', !!corps);
+
+  const monter = (opts) => {
+    const appels = { miroir: [], gas: [] };
+    const c = vm.createContext({
+      console, JSON, Object, String, Error,
+      miroirRead: async (cles) => {
+        appels.miroir.push(cles);
+        if (opts.miroirKO) throw new Error('miroir injoignable');
+        if (!opts.copie) return { success: true, data: {} };
+        const d = {}; d[cles[0]] = opts.copie;
+        return { success: true, data: d };
+      },
+      apiPost: async (p) => { appels.gas.push(p); return { success: true, name: 'via GAS.pdf', mimeType: 'application/pdf', dataB64: 'GAS' }; },
+    });
+    c.globalThis = c;
+    vm.runInContext(corps[0], c);
+    return { c, appels, lire: (id, act) => vm.runInContext(`_lireDoc(${JSON.stringify(id)}, ${JSON.stringify(act)})`, c) };
+  };
+
+  const attendre = (p) => { let r, e; p.then(v => r = v, x => e = x); return new Promise(res => setImmediate(() => res({ r, e }))); };
+
+  (async () => {
+    // 1. Copie presente → lecture miroir, AUCUN appel serveur
+    {
+      const m = monter({ copie: { success: true, name: 'Topo.pdf', mimeType: 'application/pdf', dataB64: 'MIROIR' } });
+      const r = await m.lire('abc', 'getTopo');
+      V('copie présente → contenu servi par le miroir', r.dataB64 === 'MIROIR', r && r.name);
+      V('et AUCUN appel Apps Script', m.appels.gas.length === 0, m.appels.gas);
+      V('la clé demandée est doc_<id>', m.appels.miroir[0][0] === 'doc_abc', m.appels.miroir[0]);
+    }
+    // 2. LE REPLI : copie absente → ancien chemin, document quand même servi
+    {
+      const m = monter({ copie: null });
+      const r = await m.lire('abc', 'getTopo');
+      V('copie absente → repli sur Apps Script', r.dataB64 === 'GAS', r);
+      V('l\'action d\'origine est conservée', m.appels.gas[0].action === 'getTopo', m.appels.gas[0]);
+      V('l\'identifiant est transmis', m.appels.gas[0].id === 'abc', m.appels.gas[0]);
+    }
+    // 3. Miroir en panne → repli, jamais d'erreur remontée
+    {
+      const m = monter({ miroirKO: true });
+      const r = await m.lire('xyz', 'getProtocole');
+      V('miroir injoignable → repli, document servi', r && r.success === true, r);
+      V('et c\'est bien getProtocole qui part', m.appels.gas[0].action === 'getProtocole', m.appels.gas[0]);
+    }
+    // 4. Copie presente mais INCOMPLETE (sans contenu) → repli
+    {
+      const m = monter({ copie: { success: true, name: 'Vide.pdf' } });
+      const r = await m.lire('abc', 'getTopo');
+      V('copie sans contenu → repli (jamais un document vide à l\'écran)', r.dataB64 === 'GAS', r);
+    }
+    // 5. Le protocole passe par le MEME chemin que le topo
+    {
+      const m = monter({ copie: { success: true, name: 'P.pdf', mimeType: 'application/pdf', dataB64: 'MIROIR' } });
+      await m.lire('p1', 'getProtocole');
+      V('les protocoles lisent aussi la copie', m.appels.gas.length === 0, m.appels.gas);
+    }
+
+    // 6. Contrat de source : openDoc ne doit plus appeler apiPost en direct
+    const bloc = html.match(/async function openDoc\([\s\S]*?\n\}/)[0];
+    V('openDoc passe par _lireDoc', /_lireDoc\(/.test(bloc));
+    V('openDoc n\'appelle plus apiPost directement', !/apiPost\(\{action:action/.test(bloc), bloc.slice(0, 0));
+
+    console.log(`\n${ok} OK · ${ko} en échec`);
+    if (ko) process.exit(1);
+  })();
+}

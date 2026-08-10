@@ -388,7 +388,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.30.2</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.30.3</span></span></p>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
@@ -485,7 +485,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.30.2'; // SITE_VERSION: v1.30.2
+const SITE_VERSION = 'v1.30.3'; // SITE_VERSION: v1.30.3
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -1467,6 +1467,24 @@ function _b64ToBlob(b64, mime){
   for(let i=0;i<len;i++) bytes[i]=bin.charCodeAt(i);
   return new Blob([bytes], {type: mime||'application/pdf'});
 }
+/* (2026-08-10) LECTURE D'UN DOCUMENT — miroir d'abord, GAS en repli.
+   Mesure du 08/08 : `getProtocole` 6,1 s et `getTopo` 11,5 s, quand tout le
+   reste de la page arrive du miroir en 100-270 ms. C'était le geste le plus
+   cher du portail, et le seul appel lourd que 23 MARs pouvaient empiler.
+   La copie est déposée par `miroirDocuments` (miroir.gs) sous la clé
+   `doc_<id>`, avec EXACTEMENT la forme que renvoie `getTopo` — d'où une
+   bascule qui ne change que la SOURCE, jamais le traitement en aval.
+   REPLI : toute copie absente (document déposé il y a moins d'une heure,
+   trop lourd, ou erreur de lecture) repasse par l'ancien chemin. Un document
+   sans copie reste donc lent, JAMAIS cassé. */
+async function _lireDoc(id, action){
+  try{
+    const m = await miroirRead(['doc_' + id]);
+    const d = m && m.success && m.data && m.data['doc_' + id];
+    if(d && d.success && d.dataB64) return d;
+  }catch(e){ /* repli GAS */ }
+  return await apiPost({action:action, id:id});
+}
 async function openDoc(id, el, action){
   action = action || 'getTopo';
   // Ouvrir l'onglet TOUT DE SUITE (dans le geste utilisateur) → évite le
@@ -1474,7 +1492,7 @@ async function openDoc(id, el, action){
   const w = window.open('', '_blank');
   if(el) el.classList.add('loading');
   try{
-    const r = await apiPost({action:action, id:id});
+    const r = await _lireDoc(id, action);
     if(!(r && r.success)){ if(w) w.close(); alert((r&&r.error)||'Ouverture impossible'); return; }
     const url = URL.createObjectURL(_b64ToBlob(r.dataB64, r.mimeType));
     if(w){ w.location.href = url; }
