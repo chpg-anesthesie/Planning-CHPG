@@ -226,9 +226,10 @@
   </div>
 
   <h3>Le soir même — ménage</h3>
-  <p style="color:var(--ink-2);font-size:14px">Six gestes, dans cet ordre. Le premier n'est pas cosmétique : sans lui, la campagne d'octobre est bloquée.</p>
+  <p style="color:var(--ink-2);font-size:14px">Sept gestes, dans cet ordre. Le premier n'est pas cosmétique : sans lui, la campagne d'octobre est bloquée. Le deuxième est celui qu'on oublie, et c'est le plus durable.</p>
   <div class="check"><ul>
     <li><b>Supprimer les onglets <code>INDISPOS_2027</code> et <code>AFFECTATIONS_2027</code>.</b> Le premier bloque le lancement de la campagne d'octobre ; le second laisserait les affectations fictives en place. Si une génération a été relancée pendant la démo, resupprimer aussi <code>GARDES_2027</code> et <code>STATS_GARDES_2027</code>. <b>Ne jamais toucher à <code>STATS_GARDES_2026</code></b> — il porte les cibles d'équité de la vraie génération de novembre.</li>
+    <li><b>Nettoyer les placements de test de l'onglet <code>PLANNING_OVERRIDES</code>.</b> Cet onglet garde la trace de chaque affectation posée à la main par le comité, et il n'est <b>lié à aucune année</b> : supprimer les onglets 2027 ne l'efface pas, et régénérer le planning les remet en place par-dessus. Constaté le 10 août : <b>38 lignes de test datées 2027</b> avaient survécu à tout. Si on les laisse, elles se colleront sur le <b>vrai</b> planning de novembre, sans que rien ne les distingue de vraies affectations. Trier par date, supprimer les lignes 2027.</li>
     <li><b>Supprimer les fichiers de démo du Drive</b> (dossier Planning-CHPG-JSON) : <code>planning_2027.json</code>, <code>affectations_2027.json</code> et <code>planning_2027_notifie.json</code>. Butoir dur : avant le 1<sup>er</sup> octobre.</li>
     <li><b>Refermer la campagne</b> si <code>INDISPOS_ACTIVE = 2027</code> a été posé pour la démo. Tant qu'elle est ouverte, les 23 MARs peuvent saisir sur une année fictive.</li>
     <li><b>Régénérer le code d'accès</b> de tout MAR dont le code a été saisi devant la salle, et le code administrateur s'il a été projeté.</li>

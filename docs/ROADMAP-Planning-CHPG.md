@@ -919,6 +919,24 @@ Reste à faire, par ordre de criticité :
    existe déjà ») → le Wizard 1 d'octobre serait bloqué. Et `AFFECTATIONS_2027` n'étant recréé que s'il
    est absent, les affectations fictives resteraient en place. `GARDES_2027` / `STATS_GARDES_2027` ont
    été supprimés le 30/07 ; si une génération est relancée pendant la démo, les resupprimer.
+1 bis. ⚠️ **`PLANNING_OVERRIDES` : supprimer les lignes datées 2027** — **constat du 10/08/2026,
+   effet de bord jamais anticipé.** Cet onglet est **UNIQUE, sans année dans son nom** : une simple
+   liste `DATE | MAR_ID | SECTEUR_MATIN | SECTEUR_AM | COMMENTAIRE`. Supprimer `GARDES_2027`, les
+   JSON du Drive, et relancer la synchro **ne le touche pas**. Or les overrides sont appliqués
+   comme **dernier calque** à la construction du planning (`code.gs` l.1075) : ils se recollent sur
+   toute grille régénérée.
+   **Constaté par Arthur le 10/08** : après suppression des onglets, des JSON, synchro complète
+   ET régénération de 2027, ses placements de test étaient toujours là. **38 lignes datées 2027**
+   sur 343 au total (relevé du 10/08).
+   **Le risque n'est pas la démo, c'est NOVEMBRE** : ces lignes se colleront sur la **vraie**
+   génération 2027 et seront indiscernables de vraies affectations. Silencieux, durable.
+   ✅ **Le Diagnostic les voit déjà** : son bloc « Overrides planning » compte les dates **hors
+   année en cours** (`Indispos.gs` l.608-625). Les 38 lignes 2027 y apparaissent — il fallait
+   savoir quoi en penser.
+   **Geste** : ouvrir `PLANNING_OVERRIDES`, trier par DATE, supprimer les lignes 2027. À la main.
+   ℹ️ Une purge existe (`setup_annee.gs` l.590) mais ne couvre que **l'année archivée** à la
+   clôture — pas une année **à venir** utilisée comme terrain d'essai. Automatiser ce cas est un
+   candidat pour le lot de nettoyage d'après le 04/09.
 2. **JSON du Drive** (dossier « Planning-CHPG-JSON ») : supprimer `planning_2027.json`,
    `affectations_2027.json` **et `planning_2027_notifie.json`** *(ajouté le 01/08 : le notifieur
    dépose cette photo de référence à chaque publication, même éteint)* si la publication a été montrée. **Butoir dur : avant le 1er octobre.**
