@@ -232,5 +232,170 @@ console.log('\n═══ 56. Inventaire des onglets écoutés (06/08/2026) ═�
   }
 }
 
+/* ═══ COPIE DES DOCUMENTS AU MIROIR (2026-08-10) ══════════════════════
+   Le geste le plus cher du portail (6-11 s) doit devenir une lecture de
+   copie. On verifie surtout ce qui ne doit PAS arriver : copier en boucle,
+   effacer sur une lecture ratee, saturer une passe. */
+{
+  console.log('\n═══ 6 ter. Copie des documents (topos / protocoles) ═══');
+  const fs3 = require('fs');
+  const src3 = fs3.readFileSync('../gas/miroir.gs', 'utf8');
+
+  const faireDoc = (id, nom, maj, taille) => ({
+    getId: () => id, getName: () => nom, getSize: () => taille,
+    getMimeType: () => 'application/pdf',
+    getLastUpdated: () => new Date(maj),
+    getBlob: () => ({ getContentType: () => 'application/pdf', getBytes: () => 'OCTETS-' + id }),
+  });
+  const faireDossier = (fichiers, sous) => ({
+    getFiles: () => { let i = 0; return { hasNext: () => i < fichiers.length, next: () => fichiers[i++] }; },
+    getFolders: () => { const l = sous || []; let i = 0; return { hasNext: () => i < l.length, next: () => l[i++] }; },
+  });
+
+  const monterDocs = (parDossier, opts) => {
+    opts = opts || {};
+    const envois = [];
+    const props = { valeurs: {} };
+    const c = vm.createContext({
+      console, JSON, Date, Number, String, Object, Array, Math, Error, RegExp, Buffer,
+      Logger: { log: () => {} },
+      Utilities: {
+        formatDate: (d) => new Date(d).toISOString().replace(/\.\d+Z$/, 'Z'),
+        base64Encode: (s) => Buffer.from(String(s)).toString('base64'),
+      },
+      PropertiesService: { getScriptProperties: () => ({
+        getProperty: (k) => (k in props.valeurs ? props.valeurs[k] : null),
+        setProperty: (k, v) => { if (v.length > 9216) throw new Error('Limit exceeded: Properties value size'); props.valeurs[k] = v; },
+        deleteProperty: (k) => { delete props.valeurs[k]; },
+      }) },
+      DriveApp: {
+        getFoldersByName: (n) => {
+          if (opts.enPanne && opts.enPanne === n) throw new Error('Drive injoignable');
+          const d = parDossier[n];
+          let pris = false;
+          return { hasNext: () => !!d && !pris, next: () => { pris = true; return d; } };
+        },
+        getFileById: (id) => {
+          if (opts.blobKO && opts.blobKO === id) throw new Error('lecture impossible');
+          return { getBlob: () => ({ getContentType: () => 'application/pdf', getBytes: () => 'OCTETS-' + id }) };
+        },
+      },
+      TOPOS_FOLDER: 'Planning-CHPG-Topos',
+      PROTOS_FOLDER: 'Planning-CHPG-Protocoles',
+      _miroirEnvoyer_: (items) => { envois.push(items); return { success: opts.envoiKO ? false : true }; },
+      ScriptApp: { getProjectTriggers: () => [], newTrigger: () => ({ timeBased: () => ({ everyHours: () => ({ create: () => {} }) }) }) },
+    });
+    c.globalThis = c;
+    ['DOC_DOSSIERS', 'DOC_POIDS_MAX', 'DOC_PROP_DATES', 'DOC_PAR_PASSAGE'].forEach(n =>
+      vm.runInContext(src3.match(new RegExp('const ' + n + ' *=[^;]+;'))[0], c));
+    ['_docsRecenser_', '_docsDatesLues_', '_docsDatesEcrites_', 'miroirDocuments'].forEach(n =>
+      vm.runInContext(extraireFonction('../gas/miroir.gs', n), c));
+    return { c, envois, props, lancer: () => vm.runInContext('miroirDocuments()', c) };
+  };
+
+  const T = 'Planning-CHPG-Topos', P = 'Planning-CHPG-Protocoles';
+
+  // 1. Premiere passe : UN document copie, pas dix-sept
+  {
+    const docs = [faireDoc('a', 'Topo A.pdf', '2026-08-01T10:00:00Z', 500000),
+                  faireDoc('b', 'Topo B.pdf', '2026-08-02T10:00:00Z', 600000),
+                  faireDoc('c', 'Topo C.pdf', '2026-08-03T10:00:00Z', 700000)];
+    const m = monterDocs({ [T]: faireDossier(docs), [P]: faireDossier([]) });
+    const r = m.lancer();
+    V('un seul document par passage', r.copies.length === 1, r);
+    V('les autres sont annonces comme restants', r.restants === 2, r);
+    V('la cle porte le prefixe doc_ et l\'identifiant Drive',
+      Object.keys(m.envois[0]).every(k => /^doc_[a-z]$/.test(k)), Object.keys(m.envois[0]));
+    const v = JSON.parse(m.envois[0][Object.keys(m.envois[0])[0]]);
+    V('la valeur a la forme EXACTE de getTopo (success/name/mimeType/dataB64)',
+      v.success === true && !!v.name && v.mimeType === 'application/pdf' && !!v.dataB64,
+      Object.keys(v));
+  }
+
+  // 2. Rien ne bouge → passage a vide, aucun envoi (le cas 23 h sur 24)
+  {
+    const docs = [faireDoc('a', 'Topo A.pdf', '2026-08-01T10:00:00Z', 500000)];
+    const m = monterDocs({ [T]: faireDossier(docs), [P]: faireDossier([]) });
+    m.lancer();
+    const r2 = m.lancer();
+    V('deuxième passage : rien a faire', r2.rien === true, r2);
+    V('et AUCUN envoi supplementaire', m.envois.length === 1, m.envois.length);
+  }
+
+  // 3. Document modifie → recopie ; document inchange → jamais recopie
+  {
+    const a = faireDoc('a', 'Topo A.pdf', '2026-08-01T10:00:00Z', 500000);
+    const dossier = { fichiers: [a] };
+    const m = monterDocs({ [T]: faireDossier(dossier.fichiers), [P]: faireDossier([]) });
+    m.lancer();
+    dossier.fichiers[0] = faireDoc('a', 'Topo A.pdf', '2026-08-09T10:00:00Z', 500000);
+    const r = m.lancer();
+    V('un document modifie est recopie', r.copies.length === 1, r);
+  }
+
+  // 4. LE GARDE-FOU : un dossier injoignable → aucune copie, aucun effacement
+  {
+    const m = monterDocs({ [T]: faireDossier([faireDoc('a', 'A.pdf', '2026-08-01T10:00:00Z', 5e5)]),
+                           [P]: faireDossier([]) }, { enPanne: P });
+    const r = m.lancer();
+    V('dossier injoignable → refus explicite', !!r.refus, r);
+    V('et AUCUN envoi', m.envois.length === 0, m.envois.length);
+  }
+
+  // 5. Document disparu du Drive → sa copie est effacee (valeur null)
+  {
+    const a = faireDoc('a', 'A.pdf', '2026-08-01T10:00:00Z', 5e5);
+    const b = faireDoc('b', 'B.pdf', '2026-08-01T10:00:00Z', 5e5);
+    const etat = { l: [a, b] };
+    const m = monterDocs({ [T]: { getFiles: () => { let i = 0; return { hasNext: () => i < etat.l.length, next: () => etat.l[i++] }; }, getFolders: () => ({ hasNext: () => false }) },
+                           [P]: faireDossier([]) });
+    m.lancer(); m.lancer();                       // a puis b copies
+    etat.l = [a];                                 // b retire du Drive
+    const r = m.lancer();
+    V('un document retire est efface du miroir', r.effaces === 1, r);
+    const dernier = m.envois[m.envois.length - 1];
+    V('l\'effacement passe par la valeur null', dernier['doc_b'] === null, dernier);
+  }
+
+  // 6. Trop lourd → ecarte, JAMAIS copie, et signale
+  {
+    const gros = faireDoc('g', 'Enorme.pdf', '2026-08-01T10:00:00Z', 20 * 1024 * 1024);
+    const m = monterDocs({ [T]: faireDossier([gros]), [P]: faireDossier([]) });
+    const r = m.lancer();
+    V('un document trop lourd est ecarte', r.ecartes.length === 1, r);
+    V('il n\'est PAS copie', m.envois.length === 0, m.envois.length);
+  }
+
+  // 7. Protocoles : deux niveaux de sous-dossiers (specialite > sous-dossier)
+  {
+    const p1 = faireDoc('p1', 'Antibio.pdf', '2026-08-01T10:00:00Z', 2e5);
+    const p2 = faireDoc('p2', 'ACR.pdf', '2026-08-01T10:00:00Z', 2e5);
+    const sousSous = faireDossier([p2]);
+    const specialite = faireDossier([p1], [sousSous]);
+    const m = monterDocs({ [T]: faireDossier([]), [P]: faireDossier([], [specialite]) });
+    const rec = vm.runInContext('_docsRecenser_()', m.c);
+    V('les protocoles sont vus sur DEUX niveaux', rec.docs.length === 2, rec.docs.map(d => d.nom));
+  }
+
+  // 8. Envoi en echec → les dates ne sont PAS enregistrees (on recopiera)
+  {
+    const m = monterDocs({ [T]: faireDossier([faireDoc('a', 'A.pdf', '2026-08-01T10:00:00Z', 5e5)]),
+                           [P]: faireDossier([]) }, { envoiKO: true });
+    m.lancer();
+    const r2 = m.lancer();
+    V('envoi rate → le document reste a copier', (r2.copies || []).length === 1, r2);
+  }
+
+  // 9. Blob illisible → erreur tracee, la tache ne leve pas
+  {
+    const m = monterDocs({ [T]: faireDossier([faireDoc('x', 'X.pdf', '2026-08-01T10:00:00Z', 5e5)]),
+                           [P]: faireDossier([]) }, { blobKO: 'x' });
+    let leve = false, r = null;
+    try { r = m.lancer(); } catch (e) { leve = true; }
+    V('un document illisible ne fait pas planter la tache', !leve && !!r, r);
+    V('et l\'erreur est tracee', r && r.erreurs.length === 1, r && r.erreurs);
+  }
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);

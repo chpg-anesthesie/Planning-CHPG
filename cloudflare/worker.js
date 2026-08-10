@@ -49,12 +49,19 @@
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-08.1';
+const VERSION = 'miroir 2026-08-10.1';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
 // une clé orpheline invisible.
-const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|veille_marques)$/;
+const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|veille_marques|doc_[A-Za-z0-9_-]{10,80})$/;
+/* (2026-08-10.1) `doc_<idDrive>` : un topo ou un protocole PDF, pousse par la
+   tache dediee de miroir.gs. La valeur a la MEME forme que la reponse de
+   `getTopo`/`getProtocole` cote Apps Script — {success,name,mimeType,dataB64} —
+   pour que la bascule cote page ne change QUE la source, jamais le traitement.
+   Le controle « le fichier est-il bien dans le dossier Topos » n'a plus lieu
+   d'etre ici : seuls les documents reellement pousses existent comme cle, donc
+   un identifiant forge ne renvoie rien. */
 
 // En-têtes communs. Origin * : la protection est le code d'accès, pas
 // l'origine (les pages GitHub Pages n'ont pas d'origine secrète).
@@ -304,6 +311,7 @@ function autorise(user, cle) {
   if (cle === 'annees' || cle === 'secteurs') return true;              // MAR + admin
   if (cle === 'topos' || cle === 'staffs' || cle === 'veille' ||
       cle === 'protocoles' || cle === 'annuaire') return true;          // tuiles dashboard : MAR + admin
+  if (/^doc_/.test(cle)) return true;                                  // (10/08) PDF topo/protocole : MEME niveau que les listes ci-dessus, ni plus ni moins
   if (cle === 'vacances_admin' || /^(gardes|joursferies|stats)_\d{4}$/.test(cle))
     return user.role === 'admin';                                       // lot B : outils comite (roles GAS repliques)
   if (/^(planning|affectations)_\d{4}$/.test(cle)) return true;        // MAR + admin

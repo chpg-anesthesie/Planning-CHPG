@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-09.1';
+const GAS_VERSION_MIROIR = '2026-08-10.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -405,6 +405,182 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
   const _res = _miroirEnvoyer_(items);
   if (_purge) _res.purge = _purge;
   return _res;
+}
+
+/* ═══ COPIE DES DOCUMENTS (topos et protocoles) — 2026-08-10.1 ═══════════
+   POURQUOI. Servir un PDF par Apps Script est le geste le plus cher du
+   portail : mesure du 08/08, `getProtocole` 6,1 s et `getTopo` 11,5 s,
+   quand tout le reste de la page arrive du miroir en 100-270 ms. C'est
+   50 a 100 fois plus cher que n'importe quel autre geste, et c'est le seul
+   appel lourd que 23 MARs peuvent empiler — d'ou la consigne actuelle de ne
+   JAMAIS faire ouvrir un document collectivement en reunion.
+
+   CE QUE FAIT CETTE TACHE. Une fois par heure, elle depose au miroir UN
+   document dont la date de modification a change depuis sa derniere copie.
+   Un seul par passage : encoder puis transmettre un PDF de plusieurs Mo est
+   long, et cette tache ne doit jamais devenir celle qui sature le quota
+   quotidien de declencheurs (90 min/jour sur un compte gmail — voir
+   ROADMAP). Au premier lancement : 17 documents = 17 heures. Ensuite elle
+   ne trouve plus rien et sort en une seconde.
+
+   CE QU'ELLE NE FAIT PAS. Elle ne touche pas aux pages : tant que l'etape 3
+   n'est pas livree, `getTopo`/`getProtocole` restent le chemin de lecture.
+   Les copies sont deposees et inutilisees — donc aucune regression possible.
+
+   FORME DE LA VALEUR. STRICTEMENT celle que renvoie `getTopo` aujourd'hui
+   ({success, name, mimeType, dataB64}), pour que la bascule de l'etape 3 ne
+   change QUE la source, jamais le traitement.
+
+   POIDS. Inventaire du 10/08 : 17 PDF, 30,6 Mo, le plus lourd 5,7 Mo. La
+   contrainte n'est pas le stockage (25 Mo par cle) mais la MEMOIRE du
+   Worker (128 Mo) : recevoir un envoi le fait lire, analyser et controler,
+   soit ~3 copies en memoire. A 8 Mo de PDF (10,7 Mo encodes) on reste sous
+   la moitie ; au-dela on s'en approche. D'ou le plafond ci-dessous, qui
+   ECARTE le document sans jamais le casser : il reste servi par l'ancien
+   chemin, et le Diagnostic le signale. */
+const DOC_DOSSIERS      = [TOPOS_FOLDER, PROTOS_FOLDER];   // definis dans portail.gs
+const DOC_POIDS_MAX     = 8 * 1024 * 1024;                 // au-dela : laisse sur le chemin Apps Script
+const DOC_PROP_DATES    = 'MIROIR_DOCS_DATES';             // { idDrive: 'AAAA-MM-JJTHH:MM:SSZ' }
+const DOC_PAR_PASSAGE   = 1;                               // un document par heure
+
+/* Recense les PDF des deux dossiers (racine + sous-dossiers, 2 niveaux :
+   Topos = 1 niveau, Protocoles = specialite puis sous-dossier). Renvoie
+   { ok:true, docs:[{id,nom,maj,taille}] } ou { ok:false } si UN dossier est
+   injoignable — dans ce cas on ne conclut RIEN (regle 3 : « je n'ai pas pu
+   lire » n'est pas « ca n'existe plus »). */
+function _docsRecenser_() {
+  const docs = [];
+  let ok = true;
+  const ajouterFichiers = function (dossier) {
+    const it = dossier.getFiles();
+    while (it.hasNext()) {
+      const f = it.next();
+      const nom = String(f.getName());
+      if (f.getMimeType() !== 'application/pdf' && !/\.pdf$/i.test(nom)) continue;
+      docs.push({ id: f.getId(), nom: nom, taille: f.getSize(),
+                  maj: Utilities.formatDate(f.getLastUpdated(), 'UTC', "yyyy-MM-dd'T'HH:mm:ss'Z'") });
+    }
+  };
+  DOC_DOSSIERS.forEach(function (nomDossier) {
+    try {
+      const it = DriveApp.getFoldersByName(nomDossier);
+      if (!it.hasNext()) return;                      // dossier absent : normal si jamais cree
+      const racine = it.next();
+      ajouterFichiers(racine);
+      const n1 = racine.getFolders();
+      while (n1.hasNext()) {
+        const sous = n1.next();
+        ajouterFichiers(sous);
+        const n2 = sous.getFolders();                 // Protocoles : specialite > sous-dossier
+        while (n2.hasNext()) ajouterFichiers(n2.next());
+      }
+    } catch (e) { ok = false; }
+  });
+  return { ok: ok, docs: docs };
+}
+
+function _docsDatesLues_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(DOC_PROP_DATES) || '{}'); }
+  catch (e) { return {}; }
+}
+function _docsDatesEcrites_(obj) {
+  /* Garde-fou de taille : une propriete est plafonnee a 9 Ko. ~60 octets par
+     entree → ~150 documents. Au-dela on ne garde que les plus recentes, quitte
+     a recopier les plus anciennes une fois de trop (sans dommage). */
+  let txt = JSON.stringify(obj);
+  if (txt.length > 8000) {
+    const entrees = Object.keys(obj).map(function (k) { return [k, obj[k]]; })
+      .sort(function (a, b) { return a[1] < b[1] ? 1 : -1; }).slice(0, 100);
+    const reduit = {};
+    entrees.forEach(function (e) { reduit[e[0]] = e[1]; });
+    txt = JSON.stringify(reduit);
+  }
+  PropertiesService.getScriptProperties().setProperty(DOC_PROP_DATES, txt);
+}
+
+/* Tache horaire. Renvoie un compte rendu, ne leve jamais : un echec de copie
+   ne doit pas empecher le passage suivant. */
+function miroirDocuments() {
+  const rec = _docsRecenser_();
+  if (!rec.ok) {
+    const m = { refus: 'un dossier de documents est injoignable — aucune copie, aucun effacement' };
+    Logger.log('miroirDocuments : ' + JSON.stringify(m));
+    return m;
+  }
+
+  const dates = _docsDatesLues_();
+  const vus = {};
+  const trop = [];
+  const aFaire = [];
+  rec.docs.forEach(function (d) {
+    vus[d.id] = true;
+    if (d.taille > DOC_POIDS_MAX) { trop.push(d.nom + ' (' + Math.round(d.taille / 1048576) + ' Mo)'); return; }
+    if (dates[d.id] !== d.maj) aFaire.push(d);
+  });
+
+  /* Effacement des documents disparus du Drive (ou devenus trop lourds).
+     Meme principe que la purge des annees : on n'efface que ce dont on est
+     SUR qu'il n'a plus lieu d'etre, le recensement ayant reussi. */
+  const items = {};
+  const effaces = [];
+  Object.keys(dates).forEach(function (id) {
+    if (!vus[id]) { items['doc_' + id] = null; effaces.push(id); }
+  });
+
+  const copies = [];
+  const erreurs = [];
+  aFaire.slice(0, DOC_PAR_PASSAGE).forEach(function (d) {
+    try {
+      const blob = DriveApp.getFileById(d.id).getBlob();
+      items['doc_' + d.id] = JSON.stringify({
+        success: true,
+        name: d.nom,
+        mimeType: blob.getContentType() || 'application/pdf',
+        dataB64: Utilities.base64Encode(blob.getBytes()),
+      });
+      copies.push(d);
+    } catch (e) { erreurs.push(d.nom + ' : ' + e.message); }
+  });
+
+  /* (banc, 10/08) Ne JAMAIS renvoyer « rien a faire » quand une copie a
+     echoue : le compte rendu serait rassurant a tort, et l'echec invisible.
+     `erreurs` est toujours present dans le retour. */
+  if (!Object.keys(items).length) {
+    const m = { rien: !erreurs.length, total: rec.docs.length, ecartes: trop,
+                erreurs: erreurs, copies: [], effaces: 0,
+                restants: Math.max(0, aFaire.length - copies.length) };
+    Logger.log('miroirDocuments : ' + JSON.stringify(m));
+    return m;
+  }
+
+  const env = _miroirEnvoyer_(items);
+  if (env && env.success) {
+    copies.forEach(function (d) { dates[d.id] = d.maj; });
+    effaces.forEach(function (id) { delete dates[id]; });
+    try { _docsDatesEcrites_(dates); } catch (e) { erreurs.push('dates non enregistrees : ' + e.message); }
+  }
+
+  const m = {
+    copies: copies.map(function (d) { return d.nom; }),
+    effaces: effaces.length,
+    restants: Math.max(0, aFaire.length - copies.length),
+    ecartes: trop,
+    erreurs: erreurs,
+    envoi: env && env.success,
+  };
+  Logger.log('miroirDocuments : ' + JSON.stringify(m));
+  return m;
+}
+
+/* Installe le declencheur horaire (idempotent). A lancer UNE FOIS a la main.
+   Decale volontairement de miroirSyncComplet : deux taches lourdes qui
+   partent ensemble se disputeraient la file d'execution. */
+function miroirDocumentsInstallerDeclencheur() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'miroirDocuments') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('miroirDocuments').timeBased().everyHours(1).create();
+  Logger.log('Declencheur horaire installe sur miroirDocuments.');
 }
 
 /* ── OUBLI DES ANNEES RETIREES (2026-08-09.1) ────────────────────────────
