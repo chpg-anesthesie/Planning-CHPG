@@ -483,6 +483,39 @@ est **bloquant**. Mesurer l'instant d'affichage de l'information utile, pas le n
 **7. Un commentaire périmé maintenu sous un correctif.** Une décision qui ne vaut plus se
 **supprime et se remplace**, elle ne s'empile pas — git garde l'historique.
 
+### Écraser son propre travail avec une copie locale — 10/08/2026
+
+**Ce qui s'est passé.** La copie de travail du dépôt est extraite UNE FOIS en
+début de session (`curl .../tarball/main`). Le matin, `docs/roadmap.html` a été
+patché **directement en ligne** (commit `a119f5aa`). L'après-midi, la montée de
+version v1.30.3 a reconstruit le même fichier **depuis la copie locale du
+matin** — qui ne contenait pas le patch. Le commit `6e613794` a donc effacé une
+carte entière de la vue courte. Constaté par Arthur, pas par le contrôle.
+
+**Pourquoi le contrôle après push ne l'a pas vu.** Il comparait l'empreinte en
+ligne à celle du fichier construit : les deux correspondaient, donc « vert ».
+Ce contrôle prouve que le push a abouti, **jamais que le contenu poussé était à
+jour**. C'est un contrôle de transmission, pas de contenu.
+
+**La règle, deja écrite mais enfreinte** : repartir TOUJOURS de la version en
+ligne, jamais d'une copie locale. À compléter par ceci : **une copie de travail
+vieillit dès le premier push de la session** — y compris de ses propres pushs.
+
+**Contrôle à ajouter avant tout push d'un lot** : pour chaque fichier, comparer
+la version EN LIGNE à la version de la copie locale AVANT d'appliquer le patch.
+Si elles diffèrent, re-télécharger et rejouer le patch dessus. Un `assert
+live == base` par fichier suffit — il était présent sur les lots construits
+directement depuis le live, absent sur celui construit depuis le tarball.
+
+**Périmètre de la perte, vérifié fichier par fichier** : une seule carte. Les
+quatre autres fichiers du lot (`admin.html`, `dashboard.html`, les deux guides)
+n'avaient pas bougé depuis le 08/08, la copie locale était donc juste pour eux.
+Rétabli par `ab82eee9`.
+
+ℹ️ Au passage : l'API `contents` peut servir une version **en cache** juste
+après un push (empreinte différente de celle attendue). Relire avec
+`?ref=<sha du commit>` pour trancher — c'est ce qui a levé le doute ici.
+
 ### Reproposer ce qui existe déjà — deux cas le 09/08/2026
 
 Dans une même séance, deux fonctionnalités ont été proposées ou analysées alors qu'elles
