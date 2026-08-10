@@ -1048,11 +1048,29 @@ classeur seul) / D (contrôles), encadrés ⏳ pour ce qui attend l'organisation
   d'`OVERRIDES` — même genre de lot) · ou rebrancher **sur `SEUILS` seulement** si le besoin de
   régler les bornes souvent apparaît (pas le cas à ce jour, réglées une fois le 01/08).
   ⚠️ Lot séparé, **après le 04/09**.
-- **Code mort `OVERRIDES`** *(30/07)* — deux systèmes successifs aux noms voisins cohabitent :
-  `OVERRIDES` (ancien, **l'onglet n'existe plus**) et `PLANNING_OVERRIDES` (actuel). Conséquence
-  visible : `admin.html` porte un panneau « Modifications en attente » qui affichera
-  **toujours** « ✅ Aucune modification en attente ». Retrait = 6 endroits (3 GAS, 3 `admin.html`),
-  à faire comme lot dédié : la variable `_localOverrides` ne dit pas de quel système elle relève.
+- **Code mort — INVENTAIRE REFAIT SUR LE CODE EN LIGNE le 10/08/2026** (la description
+  précédente était périmée : elle annonçait un lot de trois morceaux dont un n'existe plus).
+  État réel, à traiter **après le 04/09** :
+  - `gardeExceptionnelle` — action serveur **complète** (`Indispos.gs` l.1750), qu'aucun bouton
+    n'appelle. Le morceau le plus substantiel et le plus délicat : c'est une **écriture dans le
+    planning**. Avant de retirer, vérifier qu'aucun chemin ne l'atteint — pas seulement qu'aucun
+    bouton ne la nomme.
+  - `PLANNING_OVERRIDES` — **18 occurrences**, 9 dans `code.gs` et 9 dans `Indispos.gs`. C'est la
+    partie sérieuse : elle touche l'écriture du planning dans les deux fichiers les plus critiques.
+    Piège nommé le 30/07 et toujours valable : `_localOverrides` ne dit pas de quel système elle
+    relève (`OVERRIDES` ancien, dont l'onglet n'existe plus, vs `PLANNING_OVERRIDES` actuel).
+    Conséquence visible aujourd'hui : le panneau « Modifications en attente » d'`admin.html`
+    affiche **toujours** « ✅ Aucune modification en attente ».
+  - `_reveilAPI()` — 3 lignes dans `indispos.html` (l.740), définie et **jamais appelée** ; son
+    appel est commenté depuis le 01/08, décision prise après mesure. Ne pas rouvrir la décision,
+    juste retirer la fonction.
+  - ✅ **L'écran « Paramètres » n'existe PLUS** dans `admin.html` — il n'en reste qu'un titre de
+    section en commentaire. Le lot annoncé était donc surdimensionné d'un tiers.
+
+  **Pourquoi ce n'est pas urgent** : rien n'est ralenti, rien n'est faux, aucun MAR n'est gêné.
+  Le seul coût est de la confusion à la lecture, plus le panneau trompeur ci-dessus. En face, le
+  risque est réel — 18 points d'écriture du planning. **Banc solide + vérification en production**,
+  pas une fin de session.
 - **Décompte de la tolérance jeudi/samedi non remesuré** sur les 400 années *(le guide n'affiche
   plus aucun chiffre faux, il dit « exceptionnelle » — c'est un confort, pas une correction)*.
   Coût mesuré le 30/07 : **1 min 14 s par scénario**, soit ~25 min pour les 20.
