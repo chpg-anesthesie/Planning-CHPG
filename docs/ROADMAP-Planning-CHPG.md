@@ -935,8 +935,15 @@ Reste à faire, par ordre de criticité :
    savoir quoi en penser.
    **Geste** : ouvrir `PLANNING_OVERRIDES`, trier par DATE, supprimer les lignes 2027. À la main.
    ℹ️ Une purge existe (`setup_annee.gs` l.590) mais ne couvre que **l'année archivée** à la
-   clôture — pas une année **à venir** utilisée comme terrain d'essai. Automatiser ce cas est un
-   candidat pour le lot de nettoyage d'après le 04/09.
+   clôture (W3) — pas une année **à venir** utilisée comme terrain d'essai.
+   ⛔ **TRANCHÉ le 10/08/2026 : ce cas restera MANUEL. Ne pas le reproposer.** Supprimer une année
+   à venir est un geste rare et volontaire ; on est déjà dans le classeur à ce moment-là, un tri
+   par DATE rend les lignes évidentes, et cela ne justifie pas d'écrire du code qui efface des
+   données. Le geste rejoint simplement la suppression des onglets : **quand on efface une année
+   à la main, on efface aussi ses lignes d'overrides.**
+   **Filet si on oublie** : le Diagnostic compte déjà les overrides hors année en cours. Il ne dit
+   pas « supprime-les », mais il les affiche — encore faut-il savoir ce que ce chiffre signifie,
+   d'où cette note.
 2. **JSON du Drive** (dossier « Planning-CHPG-JSON ») : supprimer `planning_2027.json`,
    `affectations_2027.json` **et `planning_2027_notifie.json`** *(ajouté le 01/08 : le notifieur
    dépose cette photo de référence à chaque publication, même éteint)* si la publication a été montrée. **Butoir dur : avant le 1er octobre.**
