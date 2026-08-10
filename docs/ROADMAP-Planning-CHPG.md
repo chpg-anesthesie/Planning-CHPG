@@ -492,6 +492,49 @@ depuis le 01/08). Même cause dans les deux cas : **le ROADMAP a été lu à la 
 Le document décrivait un chantier ouvert que la production avait déjà refermé.
 → Avant toute proposition : chercher la fonction dans le code, pas dans ce fichier.
 
+### Le quota de temps de calcul — épée de Damoclès mesurée le 10/08/2026
+
+**90 minutes par jour de tâches de fond** sur un compte gmail ordinaire
+(6 heures sur un compte Workspace) — chiffre **vérifié à la source officielle**
+Google, page mise à jour le 22/07/2026. Les requêtes des pages n'y comptent pas.
+
+**Où on en est.** `journalAppliquer` tourne **toutes les minutes** (1 440 fois
+par jour) à **3,5 s de moyenne** relevés sur 90 exécutions → **~84 minutes**.
+Plus la synchro horaire, la veille, les sauvegardes. **Et pourtant rien ne
+casse** : 2 échecs isolés en 7 jours sur ~10 000 exécutions, aucune rafale,
+aucun message de dépassement.
+
+**Hypothèse NON VÉRIFIÉE** expliquant l'écart : la durée affichée est le temps
+**écoulé**, le quota parle de temps **machine**. `journalAppliquer` passe sa vie
+à attendre (verrou 5 s max, puis appel réseau) sans calculer. Indice : les
+durées vont de 1,3 à 14,3 s pour un travail identique — une dispersion qui ne
+peut venir que de l'attente. Trancher demanderait d'instrumenter la fonction ;
+**décision d'Arthur : ne pas complexifier**.
+
+**Le symptôme, s'il tombe un jour** : « Service using too much computer time for
+one day ». Les tâches de fond s'arrêtent **jusqu'au lendemain**, les pages
+continuent normalement, **rien n'est perdu** — les intentions en attente
+s'appliquent au passage suivant. Le dégât est un retard.
+
+**Le remède, sans code, 30 secondes** : dans l'éditeur, passer le déclencheur de
+`journalAppliquer` de 1 minute à 5 → coût divisé par 5. Prix : une action du
+comité met jusqu'à 5 min à s'appliquer. **Sortie définitive** : compte Workspace
+(90 min → 6 h, ~20 €/mois).
+
+⚠️ Les quotas repartent **24 h après la première requête**, pas à minuit :
+observer une continuité à travers minuit ne prouve rien.
+
+**Autres plafonds passés en revue le 10/08 — aucun ne menace.** Emails 100/jour :
+**déjà surveillé** à trois endroits (diagnostic, avant tout envoi groupé, avant
+notifications) avec refus propre. Appels réseau 20 000/jour : ~1 500 utilisés.
+Exécutions simultanées 30 : 24 MARs se connectant ensemble tiennent, et un
+dépassement ne perdrait qu'une ligne de journal de connexion, l'affichage venant
+du miroir. Versions de déploiement 200/script : Apps Script prévient.
+Trace `PLANNING_CADUCS` plafonnée à 200 entrées pour une limite de 9 Ko
+(~120 entrées) : l'écriture échouerait en silence et la liste du diagnostic
+figerait — mais il faut qu'un placement soit contredit par un congé posé APRÈS,
+soit quelques cas par an. **Non-sujet, à corriger si on touche le fichier.**
+
 ### Pièges techniques
 
 - **ExcelJS** : écrire dans une cellule *esclave* d'une fusion casse le fichier en production.
@@ -1232,35 +1275,55 @@ pour éviter tout biais de confirmation). Conclusions :
   local. Réseau coupé au moment de valider → le MAR voit l'erreur mais **sa saisie est perdue et
   doit être refaite**. Acceptable tant qu'Arthur est seul ; à revoir le jour de l'ouverture.
 
-### Ouverture des topos/protocoles — mesuré le 08/08/2026, chantier à l'étude
-**Mesure (`chrono()`, dashboard, un seul utilisateur, aucune concurrence) :**
-`getProtocole` **6,1 s** (doGet 2,8 s · réseau 3,2 s) · `getTopo` **11,5 s**
-(doGet 4,2 s · réseau 7,2 s — le « réseau » contient la compilation des 545 Ko
-de .gs et le PDF gonflé en base64). Tout le reste de la page : miroir à
-100-270 ms. **L'ouverture d'un PDF est 50 à 100 fois plus chère que tout autre
-geste du dashboard** — c'est le seul appel lourd que les MARs peuvent empiler.
-Sous charge (mesure du 28/07 : 30-40 s par appel sur file saturée), 25
-ouvertures simultanées = dizaines de secondes chacun, abandons à 120 s
-possibles. Échec **visible** (alert), pas de perte silencieuse.
+### Ouverture des topos/protocoles — LIVRÉ le 10/08/2026 (v1.30.3)
+**Le geste le plus cher du portail est supprimé.** Mesure du 08/08 :
+`getProtocole` **6,1 s**, `getTopo` **11,5 s**, quand tout le reste de la page
+arrivait du miroir en 100-270 ms — 50 à 100 fois plus cher que n'importe quel
+autre geste, et le seul appel lourd que 23 MARs pouvaient empiler.
 
-**Note orateur, 4 septembre (et toute réunion)** : ne jamais inviter la salle à
-ouvrir un même PDF ensemble ; tout document à projeter se **pré-ouvre avant** la
-séance — 11 s de silence devant la salle, c'est long.
+**Livré en trois étapes séparées, la dernière seule touchant une page :**
+1. **Inventaire** (aucun code). Voir plus bas : le chiffre annoncé était faux.
+2. **Copie** (`worker.js` + `miroir.gs` 2026-08-10.1). `miroirDocuments` dépose
+   au miroir **UN document par heure** dont la date de modification a changé,
+   sous la clé `doc_<idDrive>`, avec **exactement la forme de `getTopo`**
+   ({success,name,mimeType,dataB64}) — d'où une bascule qui ne change que la
+   SOURCE. Un seul par passage : encoder puis transmettre plusieurs Mo est long,
+   et cette tâche ne doit jamais saturer le quota de déclencheurs. À la fin de
+   cette étape, les copies existent et **personne ne les lit** : régression
+   impossible.
+3. **Bascule** (`dashboard.html` v1.30.3). `_lireDoc` lit la copie ; **si elle
+   manque, repli sur l'ancien chemin**. Un document non copié reste LENT,
+   jamais cassé. Vaut pour topos et protocoles.
 
-**Chantier « PDF par le miroir » — à l'étude, APRÈS Lu/★ par MAR.** Principe :
-la synchro horaire pousse chaque document des dossiers Drive comme une clé
-(`topo_pdf_…`) ; le Worker, générique, la sert derrière l'authentification
-existante. **Ajouter un topo/protocole reste le geste d'aujourd'hui** (déposer le
-fichier dans le dossier Drive) : disponible à la synchro suivante ou via
-`miroirSyncComplet()` — zéro reprogrammation Cloudflare à l'ajout, le Worker ne
-change qu'une fois, à la mise en place. Gain attendu : de 6-11 s à l'ordre du
-¼ de seconde constaté sur les autres clés. **Trois vérifications AVANT toute
-décision** (mesurer, pas supposer) :
-1. Poids réel des dossiers topos + protocoles (Drive) contre les limites
-   Cloudflare par clé et en cumul ;
-2. Temps de poussée : la synchro qui transfère des Mo de PDF ne doit pas
-   devenir elle-même la tâche longue qui engorge la file ;
-3. Cas du document trop lourd : repli vers le chemin GAS actuel pour lui seul.
+**Installation (faite le 10/08)** : Worker d'abord → `miroir.gs` recopié (pas
+besoin de déployer : tâche de fond) → `miroirDocumentsInstallerDeclencheur()`
+une fois → 18 appels manuels de `miroirDocuments` pour tout copier d'un coup
+(les exécutions manuelles ne comptent pas dans le quota des déclencheurs).
+Résultat : `restants: 0`, 0 écarté, 0 erreur.
+
+⚠️ **L'inventaire d'étape 1 était FAUX : 18 documents, pas 17.** Cause : la
+recherche Drive interrogeait le **type déclaré**, alors que le code accepte
+aussi tout nom finissant par `.pdf` quel que soit son type. Le code est plus
+large que la recherche — et c'est lui qui fait foi. Conséquence : le total de
+30,6 Mo est un **minorant**, le 18ᵉ document n'a pas été identifié.
+
+**LIMITE POUR LES DÉPÔTS À VENIR : 8 Mo par PDF, viser 2-3 Mo.** Ce n'est pas
+le stockage qui contraint (25 Mo par clé) mais la **mémoire du Worker**
+(128 Mo) : recevoir un envoi le fait lire, analyser puis contrôler, soit ~3
+copies en mémoire. À 14 Mo on frôlait 120 Mo. Au-delà de 8 Mo le document est
+**écarté** (jamais cassé : il reste servi par l'ancien chemin) et signalé.
+
+**Compression — ce qui marche et ce qui ne marche pas.** « Ablation de la FA »
+est passé de **14,08 à 5,67 Mo** (÷2,5) : c'était un export PowerPoint, ses
+images étaient des PNG non compressés. À l'inverse **« Échographie » (4,27 Mo)
+GROSSIT** quand on le comprime — ses 236 images sont déjà optimales. Un PDF
+déjà optimisé ne descendra pas : ne pas insister, il passe de toute façon.
+
+⚠️ **RESTE À FAIRE : éprouver le repli en réel.** Le banc le prouve, pas
+l'infrastructure. Protocole : supprimer un PDF du Drive → lancer
+`miroirDocuments` (la copie s'efface) → remettre le fichier → l'ouvrir avant la
+copie suivante. Il doit s'ouvrir, lentement.
+
 - Rappel d'exploitation : après re-collecte ou modification de `getVeille()`,
   lancer `miroirSyncComplet()` — la clé `veille` n'est rafraîchie que par la
   synchro horaire.
