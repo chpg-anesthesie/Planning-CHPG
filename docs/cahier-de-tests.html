@@ -121,6 +121,36 @@
     <p>Cette page ne garde rien en mémoire : si tu la fermes, les cases se vident. Utilise le bouton <b>Copier les anomalies</b> en bas avant de fermer, et colle le résultat dans la conversation.</p><p style="margin-top:8px">Page prévue pour être ouverte <strong>depuis son adresse web</strong>, y compris sur téléphone : un fichier enregistré en local n'exécute pas les scripts, le compteur et le bouton de copie resteraient inertes.</p>
   </div>
 
+  <div class="callout rule" style="margin-bottom:26px">
+    <div class="ct">⏱ LE NOYAU — 14 tests, environ une heure</div>
+    <p><b>Ce cahier compte 180 tests. Personne ne les fera jamais tous, et ce n'est pas le but.</b>
+    Les 14 ci-dessous sont ceux dont l'échec coûterait vraiment quelque chose : ce que la salle
+    verra le 4 septembre, ce qui décide de la campagne d'octobre, et ce qui te protège toi.
+    <b>Si tu ne fais qu'une chose, fais celle-là.</b></p>
+    <ol style="margin:14px 0 6px;padding-left:22px;line-height:1.75">
+      <li><a href="#t012"><b>T012</b></a> — Se connecter, fermer le navigateur, revenir<br><span style="color:#64748B;font-size:13px">Le tout premier geste de 23 personnes le 4 septembre.</span></li>
+      <li><a href="#t013"><b>T013</b></a> — Compter les tuiles visibles avec ton code<br><span style="color:#64748B;font-size:13px">Si un MAR voit une tuile réservée au comité, ça se verra en direct.</span></li>
+      <li><a href="#t029"><b>T029</b></a> — Le planning sur téléphone, une semaine défilée<br><span style="color:#64748B;font-size:13px">Toute la salle sera sur mobile.</span></li>
+      <li><a href="#t024"><b>T024</b></a> — Comparer une semaine du planning au classeur, ligne par ligne<br><span style="color:#64748B;font-size:13px">Le seul test qui vérifie que ce qui s'affiche est VRAI.</span></li>
+      <li><a href="#t016"><b>T016</b></a> — Ouvrir un topo<br><span style="color:#64748B;font-size:13px">Chemin livré le 10/08, jamais éprouvé par quelqu'un d'autre que toi.</span></li>
+      <li><a href="#t019"><b>T019</b></a> — Veille : marquer un article comme lu, recharger<br><span style="color:#64748B;font-size:13px">Sera projeté. Le marquage « lu » est la fonction la plus récente de cette page.</span></li>
+      <li><a href="#t020"><b>T020</b></a> — Annuaire : vérifier trois numéros contre le classeur<br><span style="color:#64748B;font-size:13px">Sera projeté. Un numéro faux devant 23 personnes décrédibilise le reste.</span></li>
+      <li><a href="#t068"><b>T068</b></a> — Ouvrir les indisponibilités avec un code MAR<br><span style="color:#64748B;font-size:13px">Le geste de la campagne d'octobre.</span></li>
+      <li><a href="#t069"><b>T069</b></a> — Saisir trois jours, enregistrer, recharger<br><span style="color:#64748B;font-size:13px">Idem — et on vérifie que ça tient après rechargement.</span></li>
+      <li><a href="#t073"><b>T073</b></a> — Enregistrer une saisie avec le réseau coupé<br><span style="color:#64748B;font-size:13px">La règle « une saisie qui échoue doit se voir », mise à l'épreuve.</span></li>
+      <li><a href="#t074"><b>T074</b></a> — Saisir depuis le téléphone en 4G, à une main<br><span style="color:#64748B;font-size:13px">Conditions réelles d'octobre.</span></li>
+      <li><a href="#t034"><b>T034</b></a> — Placer un MAR et vérifier dans le classeur<br><span style="color:#64748B;font-size:13px">Le geste de base du comité.</span></li>
+      <li><a href="#t059"><b>T059</b></a> — Diagnostic complet, chaque ligne lue<br><span style="color:#64748B;font-size:13px">C'est lui qui te préviendra de tout le reste.</span></li>
+      <li><a href="#t017b"><b>T017b</b></a> — Le repli des documents<br><span style="color:#64748B;font-size:13px">Le seul filet du projet jamais éprouvé en réel.</span></li>
+    </ol>
+    <p style="margin-top:12px"><b>Le reste du cahier n'est pas à dérouler</b> : c'est un réservoir.
+    On l'ouvre quand on touche à la zone concernée, ou une fois l'an avant la génération de
+    novembre. Un test qu'on ne fait pas est moins grave qu'un cahier qu'on n'ouvre plus.</p>
+    <p style="margin-top:10px;color:#64748B;font-size:13.5px">Volontairement HORS noyau, faute
+    d'enjeu avant le 4 septembre : le module libéral, les comptes rendus, les scénarios
+    catastrophe, les assistants de démarrage et de clôture d'année.</p>
+  </div>
+
   <div class="toc">
     <h2>Parcours</h2>
     <ol>
@@ -242,7 +272,7 @@
     <div class="t-exp">Attendu : les deux cohabitent sans interférence. Une action dans l'une ne doit pas déconnecter l'autre. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc : <code>banc_acces.mjs</code>.</div>
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T011" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T011" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T011" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
-  <div class="test" data-id="T012"><div class="test-head"><span class="tid">T012</span><div class="test-body">
+  <div class="test" id="t012" data-id="T012"><div class="test-head"><span class="tid">T012</span><div class="test-body">
     <div class="t-do">Se connecter, fermer le navigateur entièrement, rouvrir et retourner sur la page.</div>
     <div class="t-exp">Attendu : comportement cohérent et explicable — soit la session persiste, soit le code est redemandé. Note lequel des deux, c'est ce que vivront les MARs.</div>
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T012" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T012" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T012" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
@@ -254,7 +284,7 @@
   <h2><span class="n">P2</span>Portail (dashboard)</h2>
   <p class="phase-sub">Le carrefour : 13 tuiles, dont certaines conditionnelles (campagne d'indispos ouverte, membre du groupement libéral, réservé à FROHLICH).</p>
 
-  <div class="test" data-id="T013"><div class="test-head"><span class="tid">T013</span><div class="test-body">
+  <div class="test" id="t013" data-id="T013"><div class="test-head"><span class="tid">T013</span><div class="test-body">
     <div class="t-do">Compter les tuiles visibles avec ton code.</div>
     <div class="t-exp">Attendu : Planning · Mes indisponibilités (si campagne ouverte) · Mes consultations · Mes congés · Topos/biblio · Protocoles · Staffs · Veille · Annuaire · CR d'anesthésie · Libéral · CRH · Guide technique. Note toute absence.</div>
   
@@ -275,18 +305,25 @@
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T015" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T015" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T015" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
-  <div class="test" data-id="T016"><div class="test-head"><span class="tid">T016</span><div class="test-body">
+  <div class="test" id="t016" data-id="T016"><div class="test-head"><span class="tid">T016</span><div class="test-body">
     <div class="t-do">Ouvrir « Topos / biblio », puis ouvrir un document.</div>
-    <div class="t-exp">Attendu : la liste se charge, le document s'ouvre réellement (pas un lien mort).</div>
+    <div class="t-exp">Attendu : la liste se charge, et le document s'ouvre <b>quasi instantanément</b>. <b>Changé le 10/08/2026 (v1.30.3)</b> : l'ouverture passait par le serveur lent (11,5 s mesurées le 08/08), elle passe désormais par la copie de lecture. Si un document met encore plusieurs secondes, ce n'est pas une panne : sa copie n'est pas encore faite (elle l'est dans l'heure), ou il dépasse 8 Mo.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T016" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T016" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T016" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
   <div class="test" data-id="T017"><div class="test-head"><span class="tid">T017</span><div class="test-body">
     <div class="t-do">Ouvrir « Protocoles » et dérouler une spécialité.</div>
-    <div class="t-exp">Attendu : classement par spécialité correct, ouverture d'un protocole fonctionnelle.</div>
+    <div class="t-exp">Attendu : classement par spécialité correct, et ouverture <b>quasi instantanée</b> (6,1 s avant le 10/08/2026). Les protocoles sont tous légers : aucun ne devrait traîner.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T017" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T017" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T017" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" id="t017b" data-id="T017b"><div class="test-head"><span class="tid">T017b</span><div class="test-body">
+    <div class="t-do"><b>Le filet des documents — à faire UNE FOIS, jamais éprouvé en réel.</b> Dans le Drive, supprimer un protocole léger. Dans l'éditeur Apps Script, lancer <code>miroirDocuments</code> : sa copie s'efface. Remettre le fichier dans le Drive. L'ouvrir depuis le portail <b>sans relancer</b> <code>miroirDocuments</code>.</div>
+    <div class="t-exp">Attendu : le document <b>s'ouvre quand même</b>, simplement plus lentement (quelques secondes) — le portail est repassé par l'ancien chemin. C'est le repli. S'il ne s'ouvre pas du tout, c'est un défaut à signaler immédiatement : le filet ne tient pas. Relancer ensuite <code>miroirDocuments</code> pour rétablir la copie, et vérifier que l'ouverture redevient instantanée. <b>Le banc prouve la logique de ce repli, jamais l'infrastructure — d'où ce test à la main.</b></div>
+  
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T017b" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T017b" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T017b" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
   <div class="test" data-id="T018"><div class="test-head"><span class="tid">T018</span><div class="test-body">
@@ -296,14 +333,14 @@
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T018" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T018" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T018" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
-  <div class="test" data-id="T019"><div class="test-head"><span class="tid">T019</span><div class="test-body">
+  <div class="test" id="t019" data-id="T019"><div class="test-head"><span class="tid">T019</span><div class="test-body">
     <div class="t-do">Ouvrir « Veille biblio », marquer un article comme lu, recharger la page.</div>
     <div class="t-exp">Attendu : le marquage a été enregistré côté serveur et survit au rechargement.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T019" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T019" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T019" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
-  <div class="test" data-id="T020"><div class="test-head"><span class="tid">T020</span><div class="test-body">
+  <div class="test" id="t020" data-id="T020"><div class="test-head"><span class="tid">T020</span><div class="test-body">
     <div class="t-do">Ouvrir « Annuaire » et vérifier trois numéros contre le classeur.</div>
     <div class="t-exp">Attendu : correspondance exacte, DECT compris.</div>
   
@@ -337,7 +374,7 @@
   <h2><span class="n">P3</span>Planning de l'équipe</h2>
   <p class="phase-sub">La page que les MARs consultent le plus. Lecture seule.</p>
 
-  <div class="test" data-id="T024"><div class="test-head"><span class="tid">T024</span><div class="test-body">
+  <div class="test" id="t024" data-id="T024"><div class="test-head"><span class="tid">T024</span><div class="test-body">
     <div class="t-do">Ouvrir le planning et comparer la semaine en cours avec le classeur, ligne par ligne.</div>
     <div class="t-exp">Attendu : gardes, secteurs et consultations identiques. Toute divergence est un défaut majeur.</div>
   
@@ -372,7 +409,7 @@
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T028" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T028" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T028" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
-  <div class="test" data-id="T029"><div class="test-head"><span class="tid">T029</span><div class="test-body">
+  <div class="test" id="t029" data-id="T029"><div class="test-head"><span class="tid">T029</span><div class="test-body">
     <div class="t-do">Ouvrir index.html sur téléphone, faire défiler une semaine entière.</div>
     <div class="t-exp">Attendu : lisible, pas de débordement horizontal qui empêche la lecture.</div>
   
@@ -410,7 +447,7 @@
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T033" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T033" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T033" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
-  <div class="test" data-id="T034"><div class="test-head"><span class="tid">T034</span><div class="test-body">
+  <div class="test" id="t034" data-id="T034"><div class="test-head"><span class="tid">T034</span><div class="test-body">
     <div class="t-do">Placer un MAR dans une case vide, puis vérifier dans le classeur.</div>
     <div class="t-exp">Attendu : la ligne apparaît dans PLANNING_OVERRIDES avec la bonne date et le bon MAR.</div>
   
@@ -584,7 +621,7 @@
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T058" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T058" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T058" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
-  <div class="test" data-id="T059"><div class="test-head"><span class="tid">T059</span><div class="test-body">
+  <div class="test" id="t059" data-id="T059"><div class="test-head"><span class="tid">T059</span><div class="test-body">
     <div class="t-do">Onglet Maintenance : lancer le 🔍 Diagnostic complet et lire chaque ligne.</div>
     <div class="t-exp">Attendu : aucune anomalie non expliquée. Recopie ici toute ligne rouge ou orange.</div>
   
@@ -642,14 +679,14 @@
   <h2><span class="n">P6</span>Indisponibilités</h2>
   <p class="phase-sub">La saisie annuelle des MARs. Elle vise l'année <code>INDISPOS_ACTIVE</code>, pas l'année active.</p>
 
-  <div class="test" data-id="T068"><div class="test-head"><span class="tid">T068</span><div class="test-body">
+  <div class="test" id="t068" data-id="T068"><div class="test-head"><span class="tid">T068</span><div class="test-body">
     <div class="t-do">Ouvrir indispos.html avec ton code MAR.</div>
     <div class="t-exp">Attendu : l'année affichée est bien celle d'<code>INDISPOS_ACTIVE</code>, et la grille couvre l'année entière.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T068" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T068" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T068" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
-  <div class="test" data-id="T069"><div class="test-head"><span class="tid">T069</span><div class="test-body">
+  <div class="test" id="t069" data-id="T069"><div class="test-head"><span class="tid">T069</span><div class="test-body">
     <div class="t-do">Saisir trois jours de vacances, enregistrer, recharger.</div>
     <div class="t-exp">Attendu : les trois jours sont dans l'onglet INDISPOS et reviennent après rechargement. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc : <code>banc_indispos.js</code>.</div>
   
@@ -677,14 +714,14 @@
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T072" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T072" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T072" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
-  <div class="test" data-id="T073"><div class="test-head"><span class="tid">T073</span><div class="test-body">
+  <div class="test" id="t073" data-id="T073"><div class="test-head"><span class="tid">T073</span><div class="test-body">
     <div class="t-do">Enregistrer une saisie avec le réseau coupé.</div>
     <div class="t-exp">Attendu : un message d'échec explicite. <b>Surtout</b> : la saisie ne doit pas sembler enregistrée alors qu'elle ne l'est pas. Recharger pour confirmer.</div>
   
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T073" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T073" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T073" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
 
-  <div class="test" data-id="T074"><div class="test-head"><span class="tid">T074</span><div class="test-body">
+  <div class="test" id="t074" data-id="T074"><div class="test-head"><span class="tid">T074</span><div class="test-body">
     <div class="t-do">Saisir depuis le téléphone, en conditions réelles (4G, une main).</div>
     <div class="t-exp">Attendu : utilisable. C'est comme ça que la moitié de l'équipe saisira en octobre.</div>
   
@@ -1417,12 +1454,12 @@
 
   <div class="test" data-id="T150"><div class="test-head"><span class="tid">T150</span><div class="test-body">
     <div class="t-do">Comparer le numéro de version affiché en bas de admin.html et de dashboard.html avec celui des guides comité et MAR.</div>
-    <div class="t-exp">Attendu : les quatre sont identiques. Un décalage signale un push incomplet.</div>
+    <div class="t-exp">Attendu : les quatre sont identiques. Un décalage signale un push incomplet. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc : <code>banc_docs.js</code>. Le banc compare les <b>5</b> fichiers porteurs (les quatre plus <code>docs/roadmap.html</code>) et ne retient que la version la plus haute de chacun — <code>admin.html</code> cite des versions anciennes dans son historique, c'est normal. <b>Ne le refaire à la main que si le banc échoue.</b></div>
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T150" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T150" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T150" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
   <div class="test" data-id="T151"><div class="test-head"><span class="tid">T151</span><div class="test-body">
     <div class="t-do">Ouvrir chaque guide de docs/ et cliquer tous les liens internes.</div>
-    <div class="t-exp">Attendu : aucun lien mort. Les renommages de fichiers sont la cause classique.</div>
+    <div class="t-exp">Attendu : aucun lien mort. Les renommages de fichiers sont la cause classique. <b style="color:#047857">✅ Déjà vérifié automatiquement</b> — banc : <code>banc_docs.js</code>. Le banc inspecte <b>18 fichiers</b> — tous les guides et toutes les pages —, vérifie chaque lien vers une page et chaque ancre interne. <b>Ne plus cliquer les liens à la main.</b></div>
     <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T151" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T151" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T151" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
   </div></div></div>
   <div class="test" data-id="T152"><div class="test-head"><span class="tid">T152</span><div class="test-body">
