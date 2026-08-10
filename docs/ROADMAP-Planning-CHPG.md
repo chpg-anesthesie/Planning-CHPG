@@ -57,6 +57,43 @@ reçoivent pas (mode test), `guide-comite.html` emploie le vocabulaire interdit 
 
 ---
 
+## 10 août 2026 — génération 2027 réelle : zéro défaut, et le piège de l'année planning
+
+**Le nettoyage du miroir livré la veille a fonctionné en réel** (confirmé par Arthur) : suppression des
+onglets et des JSON 2027 → synchronisation → disparition effective. Le banc prouvait la logique ;
+l'infrastructure est maintenant vérifiée.
+
+**Génération complète auditée** sur le `planning_2027.json` republié, fraîchement généré, **sans aucune
+retouche** — donc exploitable, contrairement au relevé du 09/08 fait sur un planning servant de terrain
+de test.
+
+| contrôle | résultat |
+|---|---|
+| couverture | **364 jours, 1 G + 1 G2 chacun — aucun trou, aucun doublon** |
+| équité (attribué vs fait) | **écart nul sur les 24 MAR** |
+| samedis − récupérations | **solde nul sur les 24 MAR** (104 samedis, 104 récups) |
+| jours portant 2 récups | **0** |
+| gardes placées | 728 |
+
+Parts : 34,6 à temps plein ; temps partiels à 29,3 · 31,1 · 27,7 · 17,3. PRUNET à 44 gardes, aucun
+samedi ni dimanche ni férié — souhaits garantis, hors axes d'équité, conforme au code. BONNET et
+BOUREGBA à zéro.
+
+⚠️ **LE PIÈGE — une année de planning n'est PAS une année civile.** `GARDES_2027` court du **lundi
+4 janvier 2027 au dimanche 2 janvier 2028** (semaines entières). Les 1ᵉʳ au 3 janvier 2027 appartiennent
+au planning **2026**, où ils sont bien pourvus ; les 1ᵉʳ et 2 janvier 2028 appartiennent au planning
+**2027** et sont comptés dans `STATS_GARDES_2027`.
+Analysé à tort sur l'année civile, le même planning affiche **4 MAR en écart d'équité** et **2 MAR avec
+une récup en trop** — tous artefacts. Recompté sur la fenêtre planning : **zéro partout**. Deux fausses
+alertes émises puis rétractées le même soir.
+
+✅ **Le seuil du contrôle des récups est donc bien ZÉRO, sans tolérance** — jusqu'ici déduit du code,
+désormais mesuré sur une génération réelle. Et **`computeStatsLive` lit déjà la bonne fenêtre** (les
+colonnes de l'onglet, pas une année civile) : aucune correction à faire au Diagnostic, contrairement à
+ce qui a été envisagé.
+
+---
+
 ## 9 août 2026 (après-midi) — répétition de vitesse sur PC : les trois pages sous 800 ms
 
 **Rien poussé côté production.** Mesures seules (`chrono()`, navigation privée, PC).
@@ -771,9 +808,22 @@ Reste à faire, par ordre de criticité :
    `INDISPOS_2027` et `AFFECTATIONS_2027` conservés : les profils fictifs sont dedans.
    ⚠️ `STATS_GARDES_2026` doit rester en place — c'est lui qui porte les colonnes `CIBLE*` de la
    dette d'équité pour la vraie génération de novembre.
-2. **Répétition à blanc chronométrée.** Le deck annonce « 15 secondes » deux fois (diapos 9 et 23).
-   Ce qui n'est pas mesuré, ce n'est pas l'algorithme — c'est le temps que la salle verra, aller-retour
-   Apps Script compris, là où on a déjà observé 30 à 56 s côté client pour 2 s côté serveur.
+2. ✅ **Répétition à blanc chronométrée — FAITE le 10/08. Le deck était faux d'un facteur trois.**
+   Mesure réelle (`chronoAPI()`, génération 2027 complète) : `generateGardes` **28,5 s** (dont 25,8 s
+   de calcul serveur), `publishPlanning` **9,5 s**, `envoyerRecapIndispos` **6,4 s** — soit **~45 s**
+   du clic au récapitulatif parti. Le deck annonçait « 15 secondes » à **cinq** endroits ; corrigé en
+   « moins d'une minute », notes d'orateur portées à ~45 s avec le détail.
+   ⚠️ **Ne PAS toucher la 6ᵉ occurrence** (« chacun vérifie, en 15 secondes ») : elle parle du temps de
+   lecture humaine du certificat, pas de la machine.
+   **Le péage Apps Script est mesuré et constant : 1,7 à 2,9 s par appel, douze fois de suite**, quelle
+   que soit la charge (19 ms de serveur pour `getJoursFeries`, 2,0 s d'attente). Les 9 appels de
+   préparation du wizard coûtent **30 s dont 19 s de péage pur**, parce que `admin.html` sérialise ses
+   appels (`_fileAPI`). Paralléliser les LECTURES les ramènerait à quelques secondes — chantier
+   d'après le 04/09, jamais avant.
+   ℹ️ Le message « toujours en cours, patience… » s'affiche automatiquement à **45 s** (`admin.html`) :
+   à 28 s la marge est confortable, mais si Google traîne le jour J il apparaîtra. C'est prévu — noté
+   dans les notes d'orateur : **ne pas recliquer**.
+   ⚠️ **Une seule mesure** : la variabilité d'Apps Script n'est pas connue.
 3. ✅ **Relecture du deck — FAITE le 09/08 (Arthur) : visuel correct.** Restait le seul contrôle
    qu'aucune machine ne fait. Ne subsiste, non vérifié, que le rendu **au vidéoprojecteur** de la
    diapo 16 (le rosé du repos du lendemain peut passer pour du blanc) — à regarder le jour même,
