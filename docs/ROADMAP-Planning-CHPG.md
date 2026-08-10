@@ -11,11 +11,11 @@ portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'ane
 `generateur_gardes.gs` 2026-07-31.3 · `setup_annee.gs` 2026-08-08.1 ·
 **Worker** `cloudflare/worker.js` 2026-08-08.1 (version en ligne vérifiée identique)
 
-**Banc d'essai** `banc/` — 440 vérifications, `cd banc && ./lancer.sh`.
+**Banc d'essai** `banc/` — 546 vérifications (relevé le 10/08/2026), `cd banc && ./lancer.sh`.
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 9 août 2026.*
+*Mise à jour : 10 août 2026.*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -25,6 +25,35 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 10 août 2026 — refonte du guide technique
+
+**Poussé** : `docs/guide-technique.html` réécrit intégralement (1 commit, page `docs/`, pas de
+montée de version du site). 24 sections en 4 parcours (architecture · cycle annuel · exploitation ·
+livrer/dépanner), chacune ouverte par un « En 2 minutes » et refermée sur un dépliable gris
+« Repères techniques » qui isole les noms de fichiers et de fonctions.
+
+**Motif de la réécriture** : la première version, livrée le matin, a été refusée — trop
+technique, jargon non expliqué, schémas en caractères ASCII illisibles. Enseignement à garder :
+*le guide technique est lu par un non-informaticien*. Le jargon va dans les blocs gris, les
+schémas sont des boîtes CSS en couleurs, et un lexique de 10 mots ouvre le document.
+
+**Faits réalignés sur la production** (l'ancien guide, du 15/07, était périmé sur cinq points) :
+9 fichiers backend et non 5 · contrôle de dérive sur 9 fichiers et non 7 · 3 sauvegardes et non 2
+(dont 2 non surveillées par `diagHebdo`) · journal d'intentions et veille refondue absents ·
+marques Lu/★ décrites comme communes alors qu'elles sont par MAR depuis la v1.30. Le « livreur »
+est volontairement omis tant qu'il n'est pas installé.
+
+**Banc relevé le même jour : 546 vérifications, 25 scripts, tout au vert** (le chiffre de 440 en
+tête de ce document datait du 05/08).
+
+**Reste à faire, identifié en vérifiant les autres guides** — voir l'entrée « documentation » du
+4 septembre : `guide-mar.html` annonce un mail de changement de planning que les MARs ne
+reçoivent pas (mode test), `guide-comite.html` emploie le vocabulaire interdit (« Miroir »,
+« Worker », « Journal d'intentions »), et `guide-fichier-maitre.html` ne documente pas l'onglet
+`VEILLE_MARQUES`.
 
 ---
 
