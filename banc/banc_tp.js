@@ -125,5 +125,39 @@ console.log('\n═══ 2. admin.html · le récap du W2 mesure le report sur l
   }
 }
 
+// ── 3. Le W2 n'exige plus de saisie d'un MAR hors année planning (v1.31.2) ──
+console.log('\n═══ 3. admin.html · marsDansAnnee : un MAR parti n\'a rien à saisir ═══');
+{
+  const ctx = vm.createContext({ Date, String, Object, Number, Math, Array, console });
+  ctx.globalThis = ctx;
+  vm.runInContext(extraireDuHtml('../admin.html', 'marsDansAnnee'), ctx);
+  const f = (mars, annee) => vm.runInContext('marsDansAnnee', ctx)(mars, annee);
+  const base = { actif: true, initiales: 'XX' };
+  /* Cas réel : TRAN, date_fin 01/09/2026, campagne 2027 (année planning
+     04/01/2027 → 02/01/2028). Le générateur l'exclut (C2-D2) — le W2 doit
+     faire pareil au lieu de réclamer une indispo fictive. */
+  V('un MAR parti avant l\'année est exclu',
+    f([Object.assign({}, base, { dateFin: '2026-09-01' })], 2027).length === 0);
+  V('un MAR arrivant après l\'année est exclu',
+    f([Object.assign({}, base, { dateDebut: '2028-02-01' })], 2027).length === 0);
+  V('un MAR partant EN COURS d\'année reste inclus',
+    f([Object.assign({}, base, { dateFin: '2027-06-30' })], 2027).length === 1);
+  V('un MAR arrivant en cours d\'année reste inclus',
+    f([Object.assign({}, base, { dateDebut: '2027-03-01' })], 2027).length === 1);
+  V('un MAR sans dates reste inclus',
+    f([Object.assign({}, base)], 2027).length === 1);
+  V('un MAR inactif reste exclu',
+    f([{ actif: false, initiales: 'YY' }], 2027).length === 0);
+  /* Frontières exactes, miroir de _horsAnnee (df < début → exclu ; df = début → gardé) */
+  V('date_fin = 1er lundi (04/01/2027) → GARDÉ (frontière du générateur)',
+    f([Object.assign({}, base, { dateFin: '2027-01-04' })], 2027).length === 1);
+  V('date_fin = veille du 1er lundi (03/01/2027) → exclu',
+    f([Object.assign({}, base, { dateFin: '2027-01-03' })], 2027).length === 0);
+  V('date_debut = dernier jour (02/01/2028) → GARDÉ',
+    f([Object.assign({}, base, { dateDebut: '2028-01-02' })], 2027).length === 1);
+  V('date_debut = lendemain (03/01/2028) → exclu',
+    f([Object.assign({}, base, { dateDebut: '2028-01-03' })], 2027).length === 0);
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);
