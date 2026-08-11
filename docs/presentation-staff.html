@@ -320,6 +320,14 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
   .slide.on .reveal-svg{animation:none}
   .slide.on mark.hl{animation:none;background-size:100% 100%}
 }
+
+    table.lit{width:100%;border-collapse:collapse}
+    table.lit td{padding:1.15vh 0;vertical-align:baseline;border-bottom:1px solid var(--line)}
+    table.lit tr:last-child td{border-bottom:0}
+    table.lit tr.lit-sep td{border-top:2px solid var(--ink-4);padding-top:2vh}
+    .lit-n{font-family:var(--mono);font-size:1.15em;font-weight:500;color:var(--red);white-space:nowrap;padding-right:2.2em!important;text-align:right;width:1%}
+    .lit-d{font-size:.86em;color:var(--ink-2);line-height:1.5}
+    .lit-s{display:block;font-size:.72em;color:var(--ink-4);margin-top:.25em;font-style:italic}
 </style>
 </head>
 <body>
@@ -783,6 +791,31 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
   </div>
   <div class="secnum">03</div>
 </section>
+
+<section class="slide s2" data-notes="Diapo de données, pas d'argumentaire. On lit les chiffres, on ne les commente pas — la salle fait le lien elle-même. TOUS les chiffres viennent d'articles publiés : rien des plaquettes d'éditeurs (les 68 h/mois qui circulent partout sont une donnée commerciale de PerfectServe, volontairement écartée). Ne rien promettre pour nous : ces résultats sont ceux d'autres services. Si on demande d'où ça sort : enquête ASA publiée dans Anesthesiology en 2023, et Ochsner Journal 2025 (Sumrall). DEUX CHIFFRES ONT ETE VOLONTAIREMENT RETIRES parce que notre outil n'agit pas dessus : les transitions d'anesthésie en cours d'intervention (elles dépendent des affectations quotidiennes, que le comité pose à la main — notre système ne les change pas), et le facteur x10 des causes organisationnelles (facteur de risque global : charge, effectifs, soutien — nous n'en touchons qu'une fraction). Regle appliquee a cette diapo : chaque chiffre montre doit correspondre a quelque chose que l'outil fait reellement. TROIS chiffres ont ete retires pour cette raison : les transitions d'anesthesie (dependent des affectations quotidiennes, posees a la main), le facteur x10 des causes organisationnelles (risque global : charge, effectifs, soutien — on n'en touche qu'une fraction), et les -82 % de refus de conges (chez eux les conges sont arbitres par l'algorithme ; chez nous non — la bande de presence informe le comite, elle ne decide pas). A DIRE A L'ORAL en revanche : le comite voit desormais les jours de sureffectif, donc accorder un jour supplementaire devient une decision informee plutot qu'un pari. Le lien de l'etude d'Ochsner est en bas de diapo pour ceux que ca interesse — ne pas s'y attarder a l'oral, c'est une ressource, pas un argument. A DIRE A L'ORAL, en montrant le tableau, sans le projeter : ce sur quoi l'outil agit, c'est declarer ses contraintes avant la generation, echanger ses gardes, voir son planning a l'avance, et verifier le partage soi-meme.">
+  <div class="eyebrow">Ce que dit la littérature</div>
+  <h2>Quelques chiffres</h2>
+
+  <table class="lit" style="margin-top:3vh">
+    <tr>
+      <td class="lit-n">67,7&nbsp;%</td>
+      <td class="lit-d">des anesthésistes interrogés à haut risque d'épuisement professionnel (2022)<span class="lit-s">Enquête ASA, Anesthesiology 2023 — contexte de la spécialité</span></td>
+    </tr>
+    <tr>
+      <td class="lit-n">51,7&nbsp;%</td>
+      <td class="lit-d">citent <b>plus de souplesse d'organisation</b> parmi les réponses attendues<span class="lit-s">Enquête ASA, Anesthesiology 2023</span></td>
+    </tr>
+    <tr class="lit-sep">
+      <td class="lit-n">3,3 → 4,2</td>
+      <td class="lit-d">satisfaction des médecins (sur 5), avant puis 6&nbsp;mois après le passage à un planning outillé<span class="lit-s">Sumrall&nbsp;WD et al., Ochsner J 2025;25:44-49</span></td>
+    </tr>
+  </table>
+
+  <p style="margin-top:2.8vh;font-size:.72em;color:var(--ink-4)">Ces résultats sont ceux d'autres services. Aucun ne préjuge des nôtres.<br>
+  L'étude complète est en accès libre&nbsp;: <span style="font-family:var(--mono);color:var(--ink-3)">Ochsner J 2025;25:44-49</span> — doi 10.31486/toj.24.0104</p>
+  <div class="secnum">03</div>
+</section>
+
 
 <section class="slide s2" data-notes="Laisser ce slide affiché pendant les questions. Rappeler que le lien est aussi dans le mail d'hier.">
   <div class="qr-wrap">

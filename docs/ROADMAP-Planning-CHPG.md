@@ -1115,6 +1115,34 @@ La ligne `markVeille` a été supprimée : c'était une fausse alerte.*
 
 ---
 
+### Jours de congé accordés en sureffectif — équité à surveiller *(piste du 10/08/2026)*
+
+**D'où ça vient.** La bande de présence montre au comité, pour chaque jour ouvré, le nombre de
+médecins présents en journée et les jours de sureffectif. Elle rend possible une décision qui était
+auparavant un pari : accorder un jour de congé supplémentaire un jour où l'effectif le permet.
+
+**Le risque, soulevé par Arthur.** Ces jours sont un avantage réel. S'ils profitent toujours aux
+mêmes — les plus rapides à demander, les plus proches du comité, ceux qui pensent à regarder — le
+mécanisme censé améliorer les choses crée une inéquité. Et **invisible** : ces jours ne sont ni
+des gardes, ni des récupérations, ni des congés statutaires. Ils n'entrent dans aucun compteur.
+
+> Le principe qui a fait l'équité des gardes s'applique tel quel :
+> **ce qui se compte se répartit, ce qui ne se compte pas dérive.**
+
+**Piste, non instruite** : tracer ces jours avec un motif distinct, et exposer un compteur par MAR
+au même titre que les gardes et les récupérations.
+
+**⚠️ Trois précautions avant toute ligne de code :**
+1. **Vérifier d'abord que ça n'existe pas déjà.** Il y a des statuts de congés, une gestion des
+   absences longues et un suivi par MAR — la recherche n'a pas été faite. Reproposer l'existant est
+   l'anti-pattern nommé plus haut, commis plusieurs fois cette semaine.
+2. **La question n'est pas technique.** C'est au comité de décider si ces jours doivent être
+   équilibrés ou relever du cas par cas. Le système peut compter ; il ne peut pas trancher ça.
+3. **Rien avant le 04/09.**
+
+**À mesurer pour le retour d'expérience** (poster SFAR 2027) : nombre de congés supplémentaires
+accordés avant et après. Ce serait un chiffre du service, pas un chiffre emprunté à la littérature.
+
 ## 🚫 Écarté — ne pas reproposer sans élément nouveau
 
 - **Protection anti-force-brute sur `checkCode()`** *(20/07, chiffré)*. 32⁸ ≈ 1 100 milliards de
