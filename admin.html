@@ -1015,7 +1015,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.30.5'; // SITE_VERSION: v1.30.5
+const SITE_VERSION = 'v1.31'; // SITE_VERSION: v1.31
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1108,7 +1108,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.30.5</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.31</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -7028,6 +7028,66 @@ async function renderDetteExplication(genY) {
   return html;
 }
 
+/* ── (v1.31) TP concentrés sur un même type de jour ──────────────────────
+   Un temps partiel qui pose ses jours de TP toujours le même jour de la semaine
+   se retire d'un axe entier du planning (samedi, vendredi-dimanche, jeudi). Or le
+   générateur ne réduit PAS sa cible sur cet axe — seul un jour fixe déclaré dans
+   MEDECINS le fait (generateur_gardes.gs, tpJoursFixes). Les gardes qu'il ne peut
+   plus tenir retombent donc sur les autres.
+   On mesure ici le report que sa pose produirait ; le W2 bloque au-delà d'une garde.
+   Mesuré au banc : 26 TP sur un même jour ne coûtent rien, 52 sur un même jour
+   coûtent ~5 gardes de cet axe aux autres.
+   Fonction globale (et non repliée dans le wizard) pour être éprouvable au banc. */
+function tpDesequilibres(actifs, indisposParMar, feries, annee) {
+  const alertes = [];
+  if (!Array.isArray(actifs) || !indisposParMar) return alertes;
+  const premierLundi = y => { const d = new Date(y, 0, 1); while (d.getDay() !== 1) d.setDate(d.getDate() + 1); return d; };
+  const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const jours = [];
+  { const d = premierLundi(annee), f = premierLundi(annee + 1);
+    while (d < f) { jours.push(iso(d)); d.setDate(d.getDate() + 1); } }
+  const estFerie = ds => !!(feries && feries.has && feries.has(ds));
+  const dow = ds => new Date(ds + 'T12:00:00').getDay();
+  const AXES = [
+    { nom: 'samedi',            we: true,  test: ds => dow(ds) === 6 },
+    { nom: 'vendredi-dimanche', we: true,  test: ds => dow(ds) === 5 },
+    { nom: 'jeudi',             we: false, test: ds => dow(ds) === 4 && !estFerie(ds) },
+  ];
+  const gardeurs = actifs.filter(m => !m.noGarde);
+  const sommePct = gardeurs.reduce((s, m) => s + (Number(m.pctGardes) || 100), 0) || 1;
+  gardeurs.forEach(m => {
+    const ind = indisposParMar[m.id] || indisposParMar[m.initiales] || {};
+    const tp = Object.keys(ind).filter(d => String(ind[d]).trim().toUpperCase() === 'TP');
+    if (!tp.length) return;
+    // 1) TP hors jour ouvré : irrecevable quel que soit le nombre (un TP est un jour travaillé en moins)
+    const horsOuvre = tp.filter(d => dow(d) === 0 || dow(d) === 6 || estFerie(d));
+    if (horsOuvre.length) alertes.push({ init: m.initiales || m.id, grave: true,
+      texte: horsOuvre.length + ' jour(s) de TP posés un week-end ou un férié — un TP se pose sur un jour travaillé',
+      detail: horsOuvre.slice(0, 6).map(d => d.slice(8) + '/' + d.slice(5, 7)).join(', ') });
+    // 2) part d'un axe bloquée × cible de l'axe = gardes reportées sur les autres
+    AXES.forEach(ax => {
+      if (ax.we && m.noWeekend) return;                 // déjà hors de cet axe
+      const total = jours.filter(ax.test).length;
+      const pris  = tp.filter(ax.test).length;
+      if (!total || !pris) return;
+      /* Ce qui coûte aux autres n'est pas la part bloquée, c'est le manque de
+         place restante : tant qu'il lui reste au moins autant de jours de cet
+         axe que sa cible, il peut tenir sa part. Vérifié au banc contre le vrai
+         générateur : 26 jeudis bloqués sur 52 (cible 5) ne déplacent RIEN ;
+         52 bloqués sur 52 reportent bien 5 gardes sur les autres. */
+      const cible  = 2 * total * ((Number(m.pctGardes) || 100) / sommePct);
+      const report = Math.max(0, cible - (total - pris));
+      if (report < 1) return;
+      alertes.push({ init: m.initiales || m.id, grave: false,
+        texte: pris + ' de ses ' + tp.length + ' jours de TP tombent un ' + ax.nom
+             + ' (' + Math.round(100 * pris / total) + '% des ' + ax.nom + 's de l\'année, il ne lui en reste que '
+             + (total - pris) + ' pour ' + cible.toFixed(1) + ' garde(s) dues)',
+        detail: '≈ ' + report.toFixed(1) + ' garde(s) du ' + ax.nom + ' reportée(s) sur les autres' });
+    });
+  });
+  return alertes;
+}
+
 async function renderWizGStep() {
   updateWizGNav();
   const body = document.getElementById('wizGBody');
@@ -7093,7 +7153,8 @@ async function renderWizGStep() {
           dates: j.map(d => d.slice(8) + '/' + d.slice(5, 7))});
       });
     }
-    const blocked = sansIndispo.length > 0 || nbConflits > 0;
+    const _tpAlertes = tpDesequilibres(actifs, wizGIndisposData, wizGFeries, INDISPOS_YEAR);
+    const blocked = sansIndispo.length > 0 || nbConflits > 0 || _tpAlertes.length > 0;
 
     // Bloquer ou débloquer le bouton Suivant
     document.getElementById('wizGNextBtn').disabled = blocked;
@@ -7104,6 +7165,21 @@ async function renderWizGStep() {
       html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">❌ <strong>' + sansIndispo.length + ' MAR(s) n\'ont pas encore saisi leurs indispos</strong> : ' + sansIndispo.map(m => m.initiales).join(', ') + '<br><small>La génération est impossible tant que tout le monde n\'a pas rempli.</small></div>';
     } else {
       html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534">✅ Tous les MARs ont saisi leurs indispos.</div>';
+    }
+
+    // Bloc TP concentrés (v1.31)
+    if (_tpAlertes.length > 0) {
+      html += '<div class="wizard-warning" style="background:#FEF2F2;border-left:3px solid #F97316;color:#B91C1C;margin-top:8px">'
+           +  '🔴 <strong>' + _tpAlertes.length + ' pose(s) de temps partiel déséquilibrent les gardes</strong>'
+           +  '<br><small>La génération est bloquée : ces jours de TP retirent leur auteur d\'un type de jour entier, '
+           +  'sans réduire sa part de gardes. Demandez-lui de répartir ses jours autrement, puis rechargez cette fenêtre.</small></div>';
+      html += '<div class="wiz-mar-list" style="margin-top:8px">';
+      _tpAlertes.forEach(a => {
+        html += '<div class="wiz-mar-row"><div class="wiz-mar-init" style="background:' + (a.grave ? '#FECACA;color:#991B1B' : '#FED7AA;color:#C2410C') + '">'
+             +  a.init.slice(0,3) + '</div><div class="wiz-mar-name">' + a.texte + '</div>'
+             +  '<div class="wiz-mar-meta"><span class="wiz-warn">' + a.detail + '</span></div></div>';
+      });
+      html += '</div>';
     }
 
     // Bloc conflits vacances
@@ -8289,7 +8365,7 @@ async function loadEquipe(force) {
     const data = await api({action: 'getMedecins'});
     if (!data.success) throw new Error(data.error);
     marData = data.medecins;
-    marsData = data.medecins;   // (v1.30.5) les DEUX caches suivent la meme reponse serveur : Maintenance lit marsData
+    marsData = data.medecins;   // (v1.31) les DEUX caches suivent la meme reponse serveur : Maintenance lit marsData
     renderEquipe();
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
@@ -8515,7 +8591,7 @@ async function saveMAR() {
       tpJoursFixes:   getTpDays(),
     };
     if (!medecin.id || !medecin.nom) { toast('ID et Nom obligatoires', 'error'); return; }
-    /* (v1.30.5) Garde-fou : le champ e-mail est ecrit TEL QUEL au classeur —
+    /* (v1.31) Garde-fou : le champ e-mail est ecrit TEL QUEL au classeur —
        un champ laisse vide EFFACE l'adresse existante, sans rien demander.
        On ne demande confirmation que dans ce cas precis (adresse connue ->
        champ vide) ; ajouter ou corriger une adresse ne pose aucune question. */
@@ -8528,7 +8604,7 @@ async function saveMAR() {
     if (data.rowsCreated && data.rowsCreated.length)
       toast('📋 Lignes ajoutées : ' + data.rowsCreated.join(', '), 'success');
     closeModal('modalMAR');
-    await loadEquipe(true);   // (v1.30.5) serveur obligatoire : sans force, la liste relue restait celle d'AVANT l'enregistrement
+    await loadEquipe(true);   // (v1.31) serveur obligatoire : sans force, la liste relue restait celle d'AVANT l'enregistrement
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
   } finally {
@@ -8548,7 +8624,7 @@ async function toggleActif(id) {
     toast(`✅ ${m.nom} ${newActif ? 'activé' : 'désactivé'}`, 'success');
     if (data.rowsCreated && data.rowsCreated.length)
       toast('📋 Lignes ajoutées : ' + data.rowsCreated.join(', '), 'success');
-    await loadEquipe(true);   // (v1.30.5) idem : la liste doit revenir du serveur
+    await loadEquipe(true);   // (v1.31) idem : la liste doit revenir du serveur
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
   }

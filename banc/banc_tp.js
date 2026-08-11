@@ -1,0 +1,104 @@
+/* ═══ BANC — TEMPS PARTIEL : POSE ET ÉQUITÉ (v1.31) ═══
+   Deux garde-fous, éprouvés sur le VRAI code des pages :
+   1. indispos.html — un jour de TP ne se pose que sur un jour ouvré ;
+   2. admin.html   — le récap du W2 bloque la génération quand la pose des TP
+      d'un MAR le retire d'un axe entier du planning (samedi, VD, jeudi).
+   Mesuré sur le générateur : 26 TP sur un même jour ne coûtent rien aux autres,
+   52 sur un même jour leur coûtent environ 5 gardes de cet axe. */
+const fs = require('fs'), vm = require('vm');
+let ok = 0, ko = 0;
+const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++; console.log('  ✗ ' + t + (d !== undefined ? ' → ' + JSON.stringify(d).slice(0,190) : '')); } };
+
+/* Extraction d'une fonction depuis une page HTML (même principe qu'extraireFonction
+   pour les .gs : on éprouve le code du dépôt, jamais une copie). */
+function extraireDuHtml(fichier, nom) {
+  const src = fs.readFileSync(fichier, 'utf8');
+  const i = src.indexOf('function ' + nom + '(');
+  if (i < 0) throw new Error(nom + ' introuvable dans ' + fichier);
+  let prof = 0, j = src.indexOf('{', i);
+  for (; j < src.length; j++) { if (src[j] === '{') prof++; else if (src[j] === '}') { prof--; if (!prof) break; } }
+  return src.slice(i, j + 1);
+}
+
+// ── 1. La pose : jour ouvré seulement ────────────────────────────────
+console.log('\n═══ 1. indispos.html · un jour de TP ne se pose que sur un jour ouvré ═══');
+{
+  const ctx = vm.createContext({ Date, String, Object, Number, Math, console, setTimeout: () => {},
+    window: {}, indispos: {}, currentTool: 'TP', isDragging: false,
+    joursFeries: new Set(['2027-05-06']),     // Ascension : un jeudi férié
+    vacConfig: { quotaCtp: 26 }, messages: [],
+    showToast: function (m) { ctx.messages.push(m); },
+    renderMonth: () => {}, renderCalendar: () => {}, updateStats: () => {},
+    marquerModifie: () => {}, sauvegarder: () => {}, planifierSauvegarde: () => {}, maj: () => {},
+  });
+  ctx.globalThis = ctx;
+  vm.runInContext(extraireDuHtml('../indispos.html', 'applyTool'), ctx);
+
+  const pose = d => { vm.runInContext(`applyTool('${d}')`, ctx); return ctx.indispos[d]; };
+  V('un jeudi ordinaire accepte le TP',        pose('2027-05-13') === 'TP', ctx.indispos);
+  V('un samedi le refuse',                     pose('2027-05-15') === undefined, ctx.indispos['2027-05-15']);
+  V('un dimanche le refuse',                   pose('2027-05-16') === undefined, ctx.indispos['2027-05-16']);
+  V('un jour férié le refuse',                 pose('2027-05-06') === undefined, ctx.indispos['2027-05-06']);
+  V('le refus est expliqué au MAR',            ctx.messages.some(m => /jour travaillé/i.test(m)), ctx.messages);
+  V('un seul jour posé au total',              Object.keys(ctx.indispos).length === 1, ctx.indispos);
+}
+
+// ── 2. Le récap du W2 : blocage sur pose déséquilibrante ─────────────
+console.log('\n═══ 2. admin.html · le récap du W2 mesure le report sur les autres ═══');
+{
+  const ctx = vm.createContext({ Date, String, Object, Number, Math, Array, Set, console });
+  ctx.globalThis = ctx;
+  vm.runInContext(extraireDuHtml('../admin.html', 'tpDesequilibres'), ctx);
+  const feries = new Set(['2027-05-06']);
+  // 22 MAR de garde, comme le service : la cible d'un axe vaut ~5 jours par MAR
+  const actifs = [];
+  for (let i = 1; i <= 22; i++) actifs.push({ id: 'MAR' + i, initiales: 'M' + i, pctGardes: 100, noGarde: false, noWeekend: false });
+  const jours = (annee, dow) => {   // sans les fériés : un TP n'y est pas posable
+    const out = []; const d = new Date(annee, 0, 1); while (d.getDay() !== 1) d.setDate(d.getDate() + 1);
+    const f = new Date(annee + 1, 0, 1); while (f.getDay() !== 1) f.setDate(f.getDate() + 1);
+    for (; d < f; d.setDate(d.getDate() + 1)) {
+      if (d.getDay() !== dow) continue;
+      const ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      if (!feries.has(ds)) out.push(ds);
+    }
+    return out;
+  };
+  const pose = (liste, n) => { const o = {}; liste.slice(0, n).forEach(d => { o[d] = 'TP'; }); return o; };
+  const appel = ind => vm.runInContext('tpDesequilibres', ctx)(actifs, ind, feries, 2027);
+
+  V('aucun TP : rien à signaler', appel({}).length === 0);
+  V('26 jeudis bloqués sur 51 : il lui en reste assez, aucune alerte',
+    appel({ MAR1: pose(jours(2027,4), 26) }).length === 0, appel({ MAR1: pose(jours(2027,4), 26) }));
+  {
+    const a = appel({ MAR1: pose(jours(2027,4), 51) });   // tous les jeudis ouvrés
+    V('tous les jeudis bloqués : alerte levée', a.length === 1, a);
+    V('l\'axe est nommé', /jeudi/.test((a[0]||{}).texte||''), a[0]);
+    V('le report est chiffré en gardes', /garde/.test((a[0]||{}).detail||''), a[0]);
+  }
+  {
+    const a = appel({ MAR1: pose(jours(2027,5), 52) });   // tous les vendredis ouvrés
+    V('52 TP tous les vendredis : l\'axe VD est signalé', a.some(x => /vendredi-dimanche/.test(x.texte)), a);
+  }
+  {
+    const a = appel({ MAR1: pose(jours(2027,6), 3) });    // 3 samedis
+    V('3 TP posés un samedi : alerte grave, sans seuil', a.some(x => x.grave), a);
+    V('le motif est le jour non travaillé', /jour travaillé/.test((a.find(x=>x.grave)||{}).texte||''), a);
+  }
+  {
+    const a = appel({ MAR1: { '2027-05-06': 'TP' } });    // Ascension
+    V('un TP posé un férié est signalé', a.some(x => x.grave), a);
+  }
+  {
+    const sansWe = actifs.map((m,i) => i === 0 ? Object.assign({}, m, { noWeekend: true }) : m);
+    const f = vm.runInContext('tpDesequilibres', ctx)(sansWe, { MAR1: pose(jours(2027,5), 52) }, feries, 2027);
+    V('un MAR déjà hors week-end n\'est pas accusé de fuir le VD', !f.some(x => /vendredi-dimanche/.test(x.texte)), f);
+  }
+  {
+    const horsGarde = actifs.map((m,i) => i === 0 ? Object.assign({}, m, { noGarde: true }) : m);
+    const f = vm.runInContext('tpDesequilibres', ctx)(horsGarde, { MAR1: pose(jours(2027,4), 51) }, feries, 2027);
+    V('un MAR hors gardes n\'est pas concerné', f.length === 0, f);
+  }
+}
+
+console.log(`\n${ok} OK · ${ko} en échec`);
+if (ko) process.exit(1);

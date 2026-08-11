@@ -934,6 +934,21 @@ function applyTool(date) {
     showToast('🔒 Les vacances et formations sont gérées par le comité');
     return;
   }
+  /* (v1.31) Un jour de temps partiel est un jour NON TRAVAILLÉ : il n'a de sens
+     que sur un jour ouvré. Posé un samedi, un dimanche ou un férié, il ne retire
+     aucune journée de travail — il ne fait qu'écarter son auteur des gardes les
+     plus lourdes, au détriment des autres. Refus explicite. */
+  if (currentTool === 'TP') {
+    const _dow = new Date(date + 'T12:00:00').getDay();
+    if (_dow === 0 || _dow === 6 || joursFeries.has(date)) {
+      if (!isDragging || !window._tpWeMsg) {
+        window._tpWeMsg = true;
+        setTimeout(() => { window._tpWeMsg = false; }, 2500);
+        showToast('🚫 Un jour de temps partiel se pose sur un jour travaillé');
+      }
+      return;
+    }
+  }
   if (currentTool === 'TP' && vacConfig && vacConfig.quotaCtp != null && indispos[date] !== 'TP') {
     const ctpCount = Object.values(indispos).filter(s => s === 'TP').length;
     if (ctpCount >= vacConfig.quotaCtp) {
