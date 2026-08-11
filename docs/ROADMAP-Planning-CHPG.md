@@ -82,9 +82,19 @@ prouve rien sur le volume ni sur la forme de la pose.* Le défaut n'est sorti ni
 banc : il est sorti d'une question sur le sens métier d'une case vide.
 
 **Reste ouvert :**
-- **Correctif de fond** — faire que les TP posés dans les indispos réduisent la cible d'axe, comme
-  le fait un jour fixe déclaré. Le récap du W2 deviendrait alors une alerte de confort au lieu d'un
-  barrage. Après le 4 septembre, générateur, donc avec mesure d'écart par axe avant/après.
+- **Correctif de fond, décidé le 11/08 — dans l'AUTRE sens.** La première rédaction de cette entrée
+  proposait de faire réduire la cible d'axe par les TP. **C'est interdit** : aucune façon de poser
+  ses jours ne doit alléger sa part de gardes, sinon l'équité n'existe plus. Le blocage du W2 n'est
+  donc pas un pis-aller en attendant mieux, c'est la réponse définitive.
+  Ce qui reste à corriger est l'entorse inverse, déjà présente dans le code : un jour fixe déclaré
+  dans `MEDECINS` (`tp_jours_fixes`) **met à zéro la cible de cet axe-jour** (`generateur_gardes.gs`,
+  variable `_tpA`). Quelqu'un avec « jeudi » déclaré ne doit aucun jeudi ; ses jeudis vont aux
+  autres. Sans effet aujourd'hui — la seule personne concernée ne prend pas de gardes — mais à
+  supprimer. **Règle actée : un jour fixe de temps partiel ne peut pas tomber sur un jour surveillé**
+  (samedi, jeudi, vendredi, férié) pour un MAR qui prend des gardes ; seuls lundi, mardi et mercredi
+  sont admissibles. Trois gestes : retirer la réduction d'axe du générateur, refuser la saisie d'un
+  jour surveillé dans la fiche MAR, et signaler toute configuration existante non conforme au
+  diagnostic. Générateur → après le 4 septembre, avec mesure d'écart par axe avant/après.
 - **Harnais de charge** — le banc qui exécute le vrai générateur sur une année complète avec
   260 jours de TP existe (il a produit le tableau ci-dessus) mais n'est pas intégré : il ajoute
   ~15 s au lancement. À trancher.

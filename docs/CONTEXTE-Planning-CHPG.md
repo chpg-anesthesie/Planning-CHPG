@@ -48,9 +48,24 @@ concentrés. *Un scénario qui contient le bon code de statut ne prouve rien sur
 forme de la pose.* Le défaut n'est sorti ni du code ni du banc, mais d'une question sur le sens
 métier d'une case vide.
 
-**Reste ouvert** : faire que les TP réduisent la cible d'axe comme un jour fixe (générateur, après
-le 4 septembre) ; intégrer ou non le harnais de charge au banc (~15 s) ; écrire la règle du jour
-ouvré dans les guides.
+**RÈGLE FONDAMENTALE, actée le 11/08 : la part de gardes est due, quoi qu'il arrive.**
+Aucune façon de poser ses vacances, ses indispos ou ses jours de TP ne doit réduire la part de
+gardes de son auteur — sinon l'équité, qui est le principe premier du système, n'existe plus.
+Le générateur ne compense donc JAMAIS un jour bloqué en demandant moins : il refuse de générer
+quand quelqu'un n'a plus la place de tenir sa part. Corollaire pour toute évolution future : une
+proposition qui « allège la cible » de quelqu'un est à refuser d'emblée, quel qu'en soit le motif.
+
+**Entorse identifiée dans le code actuel, à supprimer.** Un jour fixe déclaré dans `MEDECINS`
+(`tp_jours_fixes`) met à zéro la cible de cet axe-jour (`generateur_gardes.gs`, `_tpA`) : un MAR
+avec « jeudi » déclaré ne doit aucun jeudi, ses jeudis partent chez les autres. Sans effet
+aujourd'hui (la seule personne concernée ne prend pas de gardes), mais illégitime.
+**Règle actée : un jour fixe de temps partiel ne peut pas tomber sur un jour surveillé** — samedi,
+jeudi, vendredi, férié — pour un MAR qui prend des gardes. Seuls lundi, mardi et mercredi sont
+admissibles.
+
+**Reste ouvert** : retirer la réduction d'axe du générateur et contrôler la saisie du jour fixe
+(après le 4 septembre) ; intégrer ou non le harnais de charge au banc (~15 s) ; écrire la règle du
+jour ouvré dans les guides.
 
 
 ## État au 9 août 2026 — session d'audit : sauvegardes, comptes, connecteurs
