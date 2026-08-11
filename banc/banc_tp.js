@@ -66,18 +66,43 @@ console.log('\n═══ 2. admin.html · le récap du W2 mesure le report sur l
   const pose = (liste, n) => { const o = {}; liste.slice(0, n).forEach(d => { o[d] = 'TP'; }); return o; };
   const appel = ind => vm.runInContext('tpDesequilibres', ctx)(actifs, ind, feries, 2027);
 
-  V('aucun TP : rien à signaler', appel({}).length === 0);
-  V('26 jeudis bloqués sur 51 : il lui en reste assez, aucune alerte',
+  V('aucune case posée : rien à signaler', appel({}).length === 0);
+
+  // ── la place restante, et non la part bloquée ──
+  V('26 jeudis bloqués sur 51, le reste libre : il a la place, aucune alerte',
     appel({ MAR1: pose(jours(2027,4), 26) }).length === 0, appel({ MAR1: pose(jours(2027,4), 26) }));
   {
     const a = appel({ MAR1: pose(jours(2027,4), 51) });   // tous les jeudis ouvrés
-    V('tous les jeudis bloqués : alerte levée', a.length === 1, a);
+    V('plus aucun jeudi libre : alerte levée', a.length === 1, a);
     V('l\'axe est nommé', /jeudi/.test((a[0]||{}).texte||''), a[0]);
     V('le report est chiffré en gardes', /garde/.test((a[0]||{}).detail||''), a[0]);
   }
+  // ── (v1.31.1) les congés comptent autant que les TP dans la place restante ──
+  {
+    const jeudis = jours(2027,4);
+    const ind = {}; jeudis.slice(0, 44).forEach(d => { ind[d] = 'TP'; });
+    V('44 TP le jeudi, 7 jeudis encore libres : pas d\'alerte',
+      appel({ MAR1: ind }).length === 0, appel({ MAR1: ind }));
+    jeudis.slice(44).forEach(d => { ind[d] = 'VAC'; });   // les 7 restants sont ses vacances
+    const a = appel({ MAR1: ind });
+    V('mêmes TP, mais les 7 jeudis restants sont des vacances : alerte levée', a.length === 1, a);
+    V('le message dit qu\'il ne reste aucun jeudi libre', /reste que 0 jeudi/.test((a[0]||{}).texte||''), a[0]);
+  }
+  {
+    const jeudis = jours(2027,4); const ind = {};
+    jeudis.forEach(d => { ind[d] = 'VAC'; });             // aucun TP : que des congés
+    const a = appel({ MAR1: ind });
+    V('congés seuls concentrés sur un axe : vu aussi', a.length === 1, a);
+    V('le message ne parle pas de TP dans ce cas', /congés occupent/.test((a[0]||{}).texte||''), a[0]);
+  }
+  {
+    const jeudis = jours(2027,4); const ind = {};
+    jeudis.forEach(d => { ind[d] = 'SOUHAIT'; });         // un souhait n'est pas une absence
+    V('des gardes souhaitées ne bloquent rien', appel({ MAR1: ind }).length === 0, appel({ MAR1: ind }));
+  }
   {
     const a = appel({ MAR1: pose(jours(2027,5), 52) });   // tous les vendredis ouvrés
-    V('52 TP tous les vendredis : l\'axe VD est signalé', a.some(x => /vendredi-dimanche/.test(x.texte)), a);
+    V('plus aucun vendredi libre : l\'axe VD est signalé', a.some(x => /vendredi-dimanche/.test(x.texte)), a);
   }
   {
     const a = appel({ MAR1: pose(jours(2027,6), 3) });    // 3 samedis

@@ -11,7 +11,7 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
-## État au 11 août 2026 — v1.31, les temps partiels entrent dans l'équité, banc à 606 vérifications
+## État au 11 août 2026 — v1.31.1, les temps partiels entrent dans l'équité, banc à 612 vérifications
 
 **Ce qui a changé.** Les MAR à temps partiel posent leurs jours de TP eux-mêmes, dans les
 indispos, après le staff (jamais pendant) : 26 jours pour un 90 %, 52 pour un 80 %, 260 pour le
@@ -33,6 +33,13 @@ les indispos ne la réduit pas — `structAvail` ne regarde que date d'arrivée,
 au-delà d'une garde. Le seuil est calé sur la mesure : ce qui coûte aux autres n'est pas la part
 bloquée mais la place restante — 26 jeudis bloqués sur 51 ne déplacent rien, 51 sur 51 reportent
 5 gardes.
+
+**Ce qui compte comme « place prise » (corrigé le jour même en v1.31.1).** Pour savoir s'il reste
+de la place sur un axe, on compte toutes les cases occupées — `TP`, `CTP`, `VAC`, `FORM`,
+`INDISPO`, `I`, `CL` — et pas seulement les TP. Un jeudi de vacances empêche autant de prendre la
+garde qu'un jeudi de TP. La première version ne comptait que les TP et laissait passer le cas
+type : un 80 % dont les vacances occupent déjà ~7 jeudis semblait garder 7 jeudis de marge.
+`SOUHAIT` est exclu du décompte : c'est une demande de garde.
 
 **Sens des codes de saisie, à ne plus confondre :**
 - **INDISPO** — je peux travailler ce jour-là s'il est ouvré, mais pas prendre de garde.

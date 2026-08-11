@@ -4,14 +4,14 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.31** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.31.1** ·
 **GAS** (relevé dans le dépôt le 09/08/2026) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-08.1 · `miroir.gs` 2026-08-08.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
 `generateur_gardes.gs` 2026-07-31.3 · `setup_annee.gs` 2026-08-08.1 ·
 **Worker** `cloudflare/worker.js` 2026-08-08.1 (version en ligne vérifiée identique)
 
-**Banc d'essai** `banc/` — 606 vérifications (relevé le 11/08/2026), `cd banc && ./lancer.sh`.
+**Banc d'essai** `banc/` — 612 vérifications (relevé le 11/08/2026), `cd banc && ./lancer.sh`.
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
@@ -69,6 +69,17 @@ même réalité, traités différemment.
   dès le premier jour. Fonction globale et non repliée dans le wizard : pour être éprouvable au banc.
 - `banc/banc_tp.js` — 17 vérifications neuves, sur le code réel des deux pages (extraction de
   fonction depuis le HTML, même principe que `extraireFonction` pour les `.gs`).
+
+**Correctif v1.31.1, le jour même — la place restante compte TOUTES les cases occupées.**
+Première version : seuls les jours de TP étaient comptés comme pris. Défaut découvert en préparant
+le jeu de démonstration : un 80 % a ~7 jeudis déjà occupés par ses vacances, il ne peut donc poser
+des TP que sur les 44 autres, et le calcul concluait qu'il gardait 7 jeudis de marge — c'étaient
+ses congés, où il ne peut prendre aucune garde. Sa place réelle est zéro. Le contrôle laissait
+donc passer le cas qu'il devait arrêter, et le « cas bloquant » était impossible à fabriquer.
+Corrigé : sont comptés `TP`, `CTP`, `VAC`, `FORM`, `INDISPO`, `I`, `CL` — les mêmes codes que
+`ABSENT_STRUCT` dans le générateur. `SOUHAIT` en est exclu : c'est une demande de garde, pas une
+absence. Effet de bord voulu : quelqu'un qui concentre ses **vacances** sur un axe est désormais vu
+lui aussi, avec un message adapté. Banc porté de 606 à 612.
 
 **Le seuil a été corrigé par la mesure.** La première formule — cible × part bloquée — alertait dès
 26 jours sur le même jour, alors que le générateur ne déplace rien à ce niveau. Règle retenue :
