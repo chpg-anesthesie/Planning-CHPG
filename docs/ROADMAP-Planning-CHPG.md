@@ -989,6 +989,9 @@ Reste à faire, par ordre de criticité :
    diapo 16 (le rosé du repos du lendemain peut passer pour du blanc) — à regarder le jour même,
    sur le matériel de la salle.
 4. Vérifier que les **profils indispos 2027 des autres MARs sont remplis** (annoncé à la salle).
+5. **Notification de génération sur le téléphone d'Arthur** *(décision du 11/08)* — le canal push
+   de la Priorité 2 ter, phase 1, livré semaine du 18/08, gelé le 28/08. Détail, conditions et
+   check-list d'avant-séance : voir Priorité 2 ter. La démo n'en dépend pas.
    `PERIODES_VAC` : ✅ déjà réglé sur 2027 (Arthur, 30/07).
    📌 **`PERIODES_VAC` ne contient qu'UNE année à la fois — celle qu'on prépare, et c'est normal.**
    `savePeriodes` (Indispos.gs l.1765) efface tout l'onglet et réécrit les périodes envoyées. Rien à
@@ -1141,7 +1144,7 @@ classeur seul) / D (contrôles), encadrés ⏳ pour ce qui attend l'organisation
    de l'ancien hôpital doit rester consultable, **ou** ajouter au lot de code le rendu des
    secteurs inactifs encore présents dans un planning publié.
 
-### Priorité 2 ter — Échanges et dons de gardes entre MAR, par notification *(conception arrêtée le 11/08/2026 — rien avant le 04/09)*
+### Priorité 2 ter — Échanges et dons de gardes entre MAR, par notification *(conception arrêtée le 11/08/2026 — phase 1 AVANCÉE avant la démo, décision Arthur du 11/08 ; phases 2-5 après le 04/09)*
 
 **But.** Un MAR propose à un autre un don ou un échange de garde depuis son téléphone. L'autre
 reçoit une notification, accepte ou refuse. S'il accepte, le planning s'écrit tout seul — le
@@ -1193,12 +1196,26 @@ uniquement, couleurs du portail.
   l'ouverture d'un écran.
 
 **Plan en 5 phases — 1 push par phase, chacun confirmé en production avant le suivant** :
-1. **Prouver le canal.** Routes Worker (abonner / notifier), gestionnaires `push` +
-   `notificationclick` dans `sw.js`, bouton dans dashboard (admin seul), test réel : Arthur seul
-   abonné, une notification « test » depuis l'éditeur GAS. Critère de sortie : la notification
-   arrive, clic → bonne page. ⚠️ Ce push **monte la version de `sw.js`** → purge des caches
-   des 23, une seule fois, **un soir calme**. Point iOS : le push n'arrive que si l'app est
-   installée sur l'écran d'accueil — vrai pour Arthur, à vérifier avant d'imaginer les 23.
+1. **Prouver le canal — AVANCÉE : livraison semaine du 18 août, pour la démo du 04/09.**
+   Routes Worker (abonner / notifier), gestionnaires `push` + `notificationclick` dans `sw.js`,
+   bouton dans dashboard (**rôle admin seul, invisible pour les 23** — personne d'autre ne peut
+   s'abonner, verrouillé par construction), **+ un appel d'une ligne en fin de `generateGardes`**
+   vers la route d'envoi. Test réel : Arthur seul abonné. Critère : la notification arrive,
+   clic → bonne page.
+   **Scénario démo** : à la fin de la génération devant la salle, le téléphone d'Arthur, posé
+   face visible, reçoit « Les gardes 2027 sont générées » — le canal est la preuve, les échanges
+   sont la promesse. **Trois conditions strictes** :
+   - Livraison **un soir calme entre le 18 et le 20 août** (la montée de version de `sw.js`
+     purge les caches des 23, une seule fois) → **deux semaines de trempage** en conditions
+     réelles avant la démo.
+   - **Gel absolu le 28 août.** Canal non prouvé à cette date = démo sans, sans discussion.
+   - **La démo ne dépend jamais de la notification.** Si elle n'arrive pas le soir même, rien
+     ne manque — personne dans la salle ne sait qu'elle devait arriver. Bonus, pas pilier.
+   Check-list d'avant-séance : luminosité du téléphone au max, notifications en mode « bannière
+   sur écran verrouillé » (sinon arrivée silencieuse dans le centre de notifications).
+   Point iOS : le push n'arrive que si l'app est installée sur l'écran d'accueil — vrai pour
+   Arthur, à vérifier avant d'imaginer les 23. Modification de `sw.js` **minimale** : un
+   gestionnaire `push`, un `notificationclick`, rien d'autre. Banc avant push.
 2. **Boucher `donGarde`.** Refus si receveur indisponible (V, congé, indispo, TP) avant toute
    écriture. GAS seul, invisible pour les MAR, banc obligatoire (don vers MAR en congé refusé ·
    don vers MAR libre accepté · garde-fous existants intacts). Protège déjà le comité aujourd'hui.
@@ -1226,8 +1243,8 @@ phase 1 soit minuscule.
 **Les deux risques réels** : iOS et l'installation sur écran d'accueil (à vérifier tôt, phase 1) ·
 le transfert de R (la seule logique neuve, phase 3 — le reste réutilise `applyModification` tel quel).
 
-⚠️ **Ne pas toucher au numéro de version de `sw.js` avant le 04/09** — il est servi aux 23, toute
-montée purge leurs caches.
+⚠️ **`sw.js` est servi aux 23 : toute montée de version purge leurs caches.** La seule montée
+autorisée avant le 04/09 est celle de la phase 1 (18-20 août, un soir calme). Aucune autre.
 
 ### Priorité 3 — Dettes techniques
 - **Deux listes de secteurs encore figées dans `admin.html`** (`COVERAGE` l.≈3754, `targets` l.≈4761 — revérifiées 06/08)
