@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Échanges de gardes par notification — maquette du parcours</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#CE1126; --red-soft:#F8E8EB; --red-deep:#9E0C1D;
+    --blue:#1D6FB8; --blue-soft:#E8F4FD;
+    --ok:#166534; --ok-soft:#F0FDF4;
+    --amber:#D97706; --amber-soft:#FEF3C7;
+    --ink:#0F172A; --ink-2:#475569; --ink-3:#7A8699;
+    --line:#E2E8F0; --bg:#F6F8FB; --white:#fff;
+    --mono:'DM Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:'DM Sans',-apple-system,sans-serif; line-height:1.55; font-size:15px;
+    padding:34px 16px 80px}
+  .wrap{max-width:640px; margin:0 auto}
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--red); font-weight:500}
+  h1{font-size:27px; font-weight:800; letter-spacing:-.02em; margin:6px 0 8px; line-height:1.2}
+  .lede{color:var(--ink-2); margin:0 0 34px; max-width:56ch}
+  .lede b{color:var(--ink)}
+
+  /* ---- fil du parcours ---- */
+  .fil{position:relative; padding-left:0}
+  .scene{position:relative; margin:0 0 46px}
+  .scene-head{display:flex; align-items:baseline; gap:10px; margin:0 0 4px}
+  .num{font-family:var(--mono); font-size:12px; font-weight:500; color:#fff; background:var(--red);
+    border-radius:20px; padding:2px 10px; letter-spacing:.04em}
+  .scene h2{font-size:17px; font-weight:700; margin:0; letter-spacing:-.01em}
+  .scene .cap{color:var(--ink-2); font-size:14px; margin:0 0 16px; max-width:58ch}
+  .scene .cap b{color:var(--ink)}
+
+  /* ---- téléphone ---- */
+  .phone{width:300px; margin:0 auto; background:#000; border-radius:38px; padding:10px;
+    box-shadow:0 18px 40px rgba(15,23,42,.18), 0 2px 8px rgba(15,23,42,.10)}
+  .screen{border-radius:30px; overflow:hidden; position:relative; min-height:480px;
+    display:flex; flex-direction:column}
+  .notch{position:absolute; top:8px; left:50%; transform:translateX(-50%); width:88px; height:24px;
+    background:#000; border-radius:14px; z-index:5}
+
+  /* fond écran d'accueil / verrouillé */
+  .wall{background:linear-gradient(160deg,#22314F 0%,#0E1830 55%,#1B1230 100%); color:#fff; flex:1}
+
+  /* ---- scène 1 : écran d'accueil ---- */
+  .home-clock{text-align:center; padding:56px 0 22px; font-weight:500; font-size:15px; color:#C7D2E4}
+  .grid-ic{display:grid; grid-template-columns:repeat(4,1fr); gap:16px 8px; padding:8px 20px}
+  .ic{display:flex; flex-direction:column; align-items:center; gap:5px}
+  .ic .sq{width:52px; height:52px; border-radius:13px; position:relative;
+    display:flex; align-items:center; justify-content:center}
+  .ic .lbl{font-size:10px; color:#DCE4F2}
+  .sq.grey1{background:linear-gradient(145deg,#4B5D7A,#33415C)}
+  .sq.grey2{background:linear-gradient(145deg,#5C6B84,#3D4A63)}
+  .sq.grey3{background:linear-gradient(145deg,#6E7C93,#4C596F)}
+  .sq.chpg{background:linear-gradient(150deg,#E0243C,#9E0C1D)}
+  .sq.chpg svg{width:30px; height:30px}
+  .badge{position:absolute; top:-7px; right:-7px; min-width:21px; height:21px; border-radius:11px;
+    background:#FF3B30; color:#fff; font-size:12px; font-weight:700; display:flex;
+    align-items:center; justify-content:center; padding:0 5px; border:2px solid #101A2E}
+
+  /* ---- scène 2 : écran verrouillé + bannière ---- */
+  .lock-time{text-align:center; padding-top:64px}
+  .lock-time .h{font-size:56px; font-weight:300; letter-spacing:-.02em; line-height:1}
+  .lock-time .d{font-size:14px; color:#C7D2E4; margin-top:4px}
+  .banner{margin:26px 10px 0; background:rgba(245,247,252,.96); color:var(--ink);
+    border-radius:16px; padding:11px 13px; box-shadow:0 6px 22px rgba(0,0,0,.35)}
+  .banner-top{display:flex; align-items:center; gap:7px; margin-bottom:4px}
+  .banner-top .mini{width:19px; height:19px; border-radius:5px;
+    background:linear-gradient(150deg,#E0243C,#9E0C1D); display:flex; align-items:center; justify-content:center}
+  .banner-top .mini svg{width:12px; height:12px}
+  .banner-top .app{font-size:11px; font-weight:600; color:var(--ink-2); text-transform:uppercase; letter-spacing:.03em; flex:1}
+  .banner-top .when{font-size:11px; color:var(--ink-3)}
+  .banner .t{font-size:13.5px; font-weight:700; margin:0 0 1px}
+  .banner .b{font-size:13px; color:var(--ink-2); margin:0; line-height:1.4}
+
+  /* ---- écrans applicatifs (portail) ---- */
+  .app-screen{background:#F8FAFC; color:var(--ink); flex:1; display:flex; flex-direction:column}
+  .app-status{height:34px}
+  .app-head{background:var(--red); color:#fff; padding:10px 14px 11px}
+  .app-head .h1{font-size:15px; font-weight:700}
+  .app-head .h2{font-size:11px; opacity:.85; font-family:var(--mono)}
+  .app-body{padding:12px; flex:1}
+  .chips{display:flex; gap:6px; margin:0 0 10px}
+  .chip{font-size:12px; font-weight:600; padding:4px 11px; border-radius:20px; border:1px solid var(--line); color:var(--ink-2); background:#fff}
+  .chip.on{background:var(--ink); color:#fff; border-color:var(--ink)}
+  .dcard{background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px}
+  .dcard .type{font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--blue); background:var(--blue-soft); display:inline-block; padding:2px 7px; border-radius:5px; margin-bottom:7px}
+  .dcard .who{font-size:13.5px; font-weight:700; margin-bottom:6px}
+  .swap{display:flex; align-items:center; gap:8px; margin:2px 0 8px}
+  .g{flex:1; border:1px solid var(--line); border-radius:9px; padding:7px 9px; background:#FBFCFE}
+  .g .gd{font-family:var(--mono); font-size:11px; color:var(--ink-3)}
+  .g .gs{font-size:12.5px; font-weight:600}
+  .arrow{color:var(--ink-3); font-size:15px}
+  .rline{font-size:11.5px; color:var(--ink-2); background:var(--amber-soft); border-radius:7px; padding:6px 9px; margin:0 0 9px; line-height:1.4}
+  .rline b{color:var(--amber)}
+  .exp{font-family:var(--mono); font-size:10.5px; color:var(--ink-3); margin:0 0 9px}
+  .btns{display:flex; gap:8px}
+  .btn{flex:1; text-align:center; font-size:13px; font-weight:700; padding:9px 0; border-radius:9px}
+  .btn.ok{background:var(--red); color:#fff}
+  .btn.no{background:#fff; color:var(--ink-2); border:1px solid var(--line)}
+  .toast{margin:10px 12px; background:var(--ok-soft); border:1px solid #BBE3C8; color:var(--ok);
+    font-size:12.5px; font-weight:600; border-radius:10px; padding:9px 11px; display:flex; gap:7px; align-items:center}
+  .state-ok{display:inline-block; font-family:var(--mono); font-size:10px; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--ok); background:var(--ok-soft); padding:2px 7px; border-radius:5px; margin-bottom:7px}
+  .histline{font-size:11.5px; color:var(--ink-3); border-top:1px dashed var(--line); padding-top:8px; margin-top:2px}
+
+  /* carte d'activation (scène 0) */
+  .acard{background:#fff; border:1px solid var(--line); border-radius:12px; padding:13px; margin-bottom:10px}
+  .acard .at{display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; margin-bottom:5px}
+  .bell{width:26px; height:26px; border-radius:8px; background:var(--red-soft); display:flex; align-items:center; justify-content:center; color:var(--red)}
+  .acard p{font-size:12.5px; color:var(--ink-2); margin:0 0 10px; line-height:1.45}
+  .abtn{display:block; text-align:center; background:var(--red); color:#fff; font-weight:700; font-size:13px; padding:9px; border-radius:9px}
+  .mut{background:#fff; border:1px solid var(--line); border-radius:12px; padding:11px 13px; margin-bottom:10px; opacity:.55}
+  .mut .mt{font-weight:700; font-size:13px} .mut .mb{font-size:11.5px; color:var(--ink-3)}
+
+  /* deux téléphones côte à côte (scène 5) */
+  .duo{display:flex; gap:14px; justify-content:center; flex-wrap:wrap}
+  .duo .phone{width:250px}
+  .duo .screen{min-height:340px}
+  .duo .lock-time{padding-top:44px}
+  .duo .lock-time .h{font-size:42px}
+  .duo-lbl{text-align:center; font-family:var(--mono); font-size:11px; color:var(--ink-3); margin-top:8px}
+
+  .note{background:var(--white); border:1px solid var(--line); border-left:3px solid var(--red);
+    border-radius:0 10px 10px 0; padding:12px 15px; margin:8px 0 0; font-size:13.5px; color:var(--ink-2)}
+  .note b{color:var(--ink)}
+
+  .foot{margin-top:50px; padding-top:16px; border-top:1px solid var(--line);
+    font-family:var(--mono); font-size:11.5px; color:var(--ink-3); text-align:center; line-height:1.7}
+
+  @media (max-width:600px){ h1{font-size:23px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">Planning-CHPG · maquette</p>
+  <h1>Échanges de gardes par notification<br>le parcours, écran par écran</h1>
+  <p class="lede">Le Dr&nbsp;Bernard veut donner sa <b>garde du samedi 13&nbsp;mars 2027</b>.
+  Il envoie la proposition au Dr&nbsp;Petit depuis son téléphone. Voici tout ce que chacun voit,
+  dans l'ordre — habillage aux couleurs réelles du portail.</p>
+
+  <div class="fil">
+
+    <!-- ============ SCÈNE 0 ============ -->
+    <div class="scene">
+      <div class="scene-head"><span class="num">0</span><h2>Une seule fois : activer</h2></div>
+      <p class="cap">Une nouvelle carte sur la page d'accueil du portail. Un appui, le téléphone demande
+      la permission, c'est fini. <b>Condition iOS :</b> le portail doit être installé sur l'écran
+      d'accueil — c'est déjà le cas pour ceux qui l'utilisent comme une application.</p>
+      <div class="phone"><div class="screen"><div class="notch"></div>
+        <div class="app-screen">
+          <div class="app-status"></div>
+          <div class="app-head"><div class="h1">Portail · CHPG Monaco</div><div class="h2">Dr Petit — mars 2027</div></div>
+          <div class="app-body">
+            <div class="acard">
+              <div class="at"><span class="bell">🔔</span> Notifications</div>
+              <p>Recevez les demandes d'échange de garde directement sur votre téléphone, et répondez en un appui.</p>
+              <span class="abtn">Activer les notifications</span>
+            </div>
+            <div class="mut"><div class="mt">Ma semaine</div><div class="mb">lun 8 — dim 14 mars</div></div>
+            <div class="mut"><div class="mt">Mes gardes</div><div class="mb">3 à venir · prochaine : sam 13 mars</div></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============ SCÈNE 1 ============ -->
+    <div class="scene">
+      <div class="scene-head"><span class="num">1</span><h2>La pastille sur l'icône</h2></div>
+      <p class="cap">Le Dr&nbsp;Bernard a envoyé sa proposition. Sur le téléphone du Dr&nbsp;Petit,
+      l'icône du portail porte une <b>pastille rouge</b> tant qu'une demande attend sa réponse.</p>
+      <div class="phone"><div class="screen"><div class="notch"></div>
+        <div class="wall">
+          <div class="home-clock">mardi 9 mars</div>
+          <div class="grid-ic">
+            <div class="ic"><div class="sq grey1"></div><div class="lbl">Messages</div></div>
+            <div class="ic"><div class="sq grey2"></div><div class="lbl">Photos</div></div>
+            <div class="ic">
+              <div class="sq chpg">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round">
+                  <rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>
+                </svg>
+                <span class="badge">1</span>
+              </div>
+              <div class="lbl">Portail CHPG</div>
+            </div>
+            <div class="ic"><div class="sq grey3"></div><div class="lbl">Mail</div></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============ SCÈNE 2 ============ -->
+    <div class="scene">
+      <div class="scene-head"><span class="num">2</span><h2>La bannière</h2></div>
+      <p class="cap">Au même moment, la notification tombe — écran verrouillé ou téléphone en main,
+      c'est la même bannière. Elle dit <b>qui, quoi, quel jour</b> ; rien à ouvrir pour comprendre.</p>
+      <div class="phone"><div class="screen"><div class="notch"></div>
+        <div class="wall">
+          <div class="lock-time"><div class="h">18:42</div><div class="d">mardi 9 mars</div></div>
+          <div class="banner">
+            <div class="banner-top">
+              <span class="mini"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+              <span class="app">Portail CHPG</span><span class="when">maintenant</span>
+            </div>
+            <p class="t">Proposition de don de garde</p>
+            <p class="b">Dr Bernard vous propose sa garde du <b>samedi 13 mars</b> (bloc). Touchez pour répondre.</p>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============ SCÈNE 3 ============ -->
+    <div class="scene">
+      <div class="scene-head"><span class="num">3</span><h2>Le toucher ouvre la bonne page</h2></div>
+      <p class="cap">Pas la page d'accueil : <b>directement l'écran « Mes échanges »</b>, sur la demande.
+      Tout y est — les dates, le secteur, la récupération qui suivra, le délai de réponse — et les
+      deux seuls boutons qui comptent.</p>
+      <div class="phone"><div class="screen"><div class="notch"></div>
+        <div class="app-screen">
+          <div class="app-status"></div>
+          <div class="app-head"><div class="h1">Mes échanges</div><div class="h2">Dr Petit</div></div>
+          <div class="app-body">
+            <div class="chips"><span class="chip on">Mes demandes</span><span class="chip">Tout voir</span></div>
+            <div class="dcard">
+              <span class="type">Don de garde</span>
+              <div class="who">Dr Bernard → vous</div>
+              <div class="swap">
+                <div class="g"><div class="gd">sam 13 mars</div><div class="gs">Garde bloc</div></div>
+                <span class="arrow">➜</span>
+                <div class="g"><div class="gd">votre planning</div><div class="gs">Libre ce jour ✓</div></div>
+              </div>
+              <div class="rline">Avec la garde, la <b>récupération du lundi 22 mars</b> du Dr Bernard vous sera transférée.</div>
+              <div class="exp">Expire dans 47 h · rappel à mi-parcours</div>
+              <div class="btns"><span class="btn ok">Accepter</span><span class="btn no">Refuser</span></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============ SCÈNE 4 ============ -->
+    <div class="scene">
+      <div class="scene-head"><span class="num">4</span><h2>Accepter écrit le planning</h2></div>
+      <p class="cap">Un appui sur « Accepter » : le système revérifie tout — la garde existe toujours,
+      le jour est toujours libre — puis écrit. <b>Deux à trois secondes</b>, et la confirmation
+      s'affiche. Personne d'autre n'est intervenu.</p>
+      <div class="phone"><div class="screen"><div class="notch"></div>
+        <div class="app-screen">
+          <div class="app-status"></div>
+          <div class="app-head"><div class="h1">Mes échanges</div><div class="h2">Dr Petit</div></div>
+          <div class="toast">✓&nbsp; Planning mis à jour</div>
+          <div class="app-body" style="padding-top:2px">
+            <div class="dcard">
+              <span class="state-ok">Acceptée · 9 mars, 18 h 47</span>
+              <div class="who">Don du Dr Bernard</div>
+              <div class="swap">
+                <div class="g"><div class="gd">sam 13 mars</div><div class="gs">Garde bloc — vous</div></div>
+                <span class="arrow">＋</span>
+                <div class="g"><div class="gd">lun 22 mars</div><div class="gs">Récupération — vous</div></div>
+              </div>
+              <div class="histline">Le planning et vos compteurs sont à jour. Le comité n'a rien à faire.</div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- ============ SCÈNE 5 ============ -->
+    <div class="scene">
+      <div class="scene-head"><span class="num">5</span><h2>Les deux sont prévenus</h2></div>
+      <p class="cap">La réponse part en notification chez l'un comme chez l'autre — et chacune
+      <b>annonce la récupération déplacée</b>, pour que personne ne la découvre par surprise dans
+      son planning.</p>
+      <div class="duo">
+        <div>
+          <div class="phone"><div class="screen"><div class="notch"></div>
+            <div class="wall">
+              <div class="lock-time"><div class="h">18:47</div><div class="d">mardi 9 mars</div></div>
+              <div class="banner">
+                <div class="banner-top">
+                  <span class="mini"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+                  <span class="app">Portail CHPG</span><span class="when">maintenant</span>
+                </div>
+                <p class="t">Don accepté ✓</p>
+                <p class="b">Dr Petit prend votre garde du sam. 13 mars. Votre récupération du lun. 22 mars lui est transférée.</p>
+              </div>
+            </div>
+          </div></div>
+          <div class="duo-lbl">téléphone du Dr Bernard</div>
+        </div>
+        <div>
+          <div class="phone"><div class="screen"><div class="notch"></div>
+            <div class="wall">
+              <div class="lock-time"><div class="h">18:47</div><div class="d">mardi 9 mars</div></div>
+              <div class="banner">
+                <div class="banner-top">
+                  <span class="mini"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+                  <span class="app">Portail CHPG</span><span class="when">maintenant</span>
+                </div>
+                <p class="t">Garde ajoutée</p>
+                <p class="b">Garde du sam. 13 mars confirmée, récupération le lun. 22 mars. Votre planning est à jour.</p>
+              </div>
+            </div>
+          </div></div>
+          <div class="duo-lbl">téléphone du Dr Petit</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="note"><b>Et si personne ne répond ?</b> Rappel unique à mi-parcours (« Dr Bernard attend
+  toujours votre réponse »), puis à 48 h la demande expire d'elle-même : le demandeur est prévenu,
+  rien n'a été écrit, sa garde n'a pas bougé. <b>Et sans notification activée ?</b> La demande
+  reste visible dans « Mes échanges » à la prochaine ouverture du portail — la notification est un
+  raccourci, jamais le seul chemin.</p>
+
+  <div class="foot">
+    Maquette d'intention — aucun écran n'est codé · les libellés exacts se décideront à la phase&nbsp;3<br>
+    Noms fictifs · couleurs et typographies : celles du portail en production
+  </div>
+
+</div>
+</body>
+</html>

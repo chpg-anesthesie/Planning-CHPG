@@ -1147,6 +1147,11 @@ classeur seul) / D (contrôles), encadrés ⏳ pour ce qui attend l'organisation
 reçoit une notification, accepte ou refuse. S'il accepte, le planning s'écrit tout seul — le
 comité n'intervient pas.
 
+**Maquette du parcours : `docs/maquette-notifications.html`** *(11/08)* — 6 scènes (activation,
+pastille, bannière, écran « Mes échanges », acceptation, double notification avec R déplacé).
+C'est le **contrat visuel des phases 3-4** : les libellés exacts s'y figeront. Noms fictifs
+uniquement, couleurs du portail.
+
 **Existant (lu dans le dépôt le 11/08, pas dans un document)** :
 - `applyModification` (`Indispos.gs` l.1617) sait déjà faire don, échange même date, échange deux
   dates, échange de secteur — avec les garde-fous d'août : rien n'écrase une garde existante, pas
