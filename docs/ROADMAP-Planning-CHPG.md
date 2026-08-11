@@ -1141,6 +1141,89 @@ classeur seul) / D (contrôles), encadrés ⏳ pour ce qui attend l'organisation
    de l'ancien hôpital doit rester consultable, **ou** ajouter au lot de code le rendu des
    secteurs inactifs encore présents dans un planning publié.
 
+### Priorité 2 ter — Échanges et dons de gardes entre MAR, par notification *(conception arrêtée le 11/08/2026 — rien avant le 04/09)*
+
+**But.** Un MAR propose à un autre un don ou un échange de garde depuis son téléphone. L'autre
+reçoit une notification, accepte ou refuse. S'il accepte, le planning s'écrit tout seul — le
+comité n'intervient pas.
+
+**Existant (lu dans le dépôt le 11/08, pas dans un document)** :
+- `applyModification` (`Indispos.gs` l.1617) sait déjà faire don, échange même date, échange deux
+  dates, échange de secteur — avec les garde-fous d'août : rien n'écrase une garde existante, pas
+  de gardes adjacentes, tout vérifié avant la première écriture. Fermée aux MAR par
+  `if (user.role !== 'admin')` l.2216.
+- Le portail est déjà une application installable (`manifest.webmanifest` complet, `sw.js` en place).
+- Le Worker a son stockage (`env.KV`) et son jeton : c'est lui qui portera abonnements et envois.
+
+**Manque** :
+- `sw.js` : aucun gestionnaire `push` (vérifié : 0 occurrence).
+- Worker : deux routes à créer — s'abonner, envoyer (la seconde protégée par le jeton existant).
+- `donGarde` ne vérifie pas que le receveur est disponible : donner une garde à quelqu'un en congé
+  écraserait son V sans un mot. **Lu, non testé.** Aujourd'hui c'est l'œil du comité qui l'attrape.
+
+**Décisions arrêtées** :
+1. **Expiration d'une demande sans réponse : 48 h**, rappel unique à 24 h ; au-delà, état
+   « expirée » et demandeur notifié.
+2. **Filtre par défaut de l'écran : mes demandes seulement.** Tout voir = un bouton.
+3. **Les demandes vivent dans un onglet `ECHANGES` du classeur** (journalisé, relisable, cohérent
+   avec le reste). Le Worker ne porte que les abonnements push (KV) et l'envoi. Le GAS orchestre :
+   il écrit la demande, puis demande au Worker de notifier.
+4. **Aucun plafond, aucune limite de concentration** : chacun est libre de ses gardes.
+5. **Samedi qui change de mains : transfert d'un R futur** du donneur vers le receveur, jamais
+   création d'un R neuf (les sept contraintes de pose vivent dans le générateur, l.1274-1310 —
+   ne pas les dupliquer). Si le donneur n'a plus de R à venir : la demande se crée quand même, le
+   comité est notifié. La notification annonce le R déplacé, aux deux.
+6. **Bouton d'activation des notifications dans `dashboard.html`** (rôle admin d'abord) — pas dans
+   `admin.html`, atteignable seulement par Safari, où iOS refuse le push hors installation.
+
+**Contrainte posée par Arthur : les chargements restent quasi instantanés.** Conséquences :
+- **Lecture : jamais le GAS, toujours le miroir.** L'écran « Mes échanges » et le badge du
+  dashboard lisent le KV ; le GAS pousse l'état d'`ECHANGES` vers le KV à chaque écriture
+  (création, réponse, expiration) — copie du mécanisme existant. Coût à l'ouverture : une lecture
+  KV, quelques millisecondes.
+- **Écriture : GAS, 2-4 s, assumé** — geste volontaire avec bouton et spinner, pas un chargement
+  de page.
+- **Le miroir peut être en retard, jamais faux au moment qui compte** : l'acceptation rejoue tous
+  les contrôles côté GAS avant d'écrire. **Interdit** : toute « vérification fraîche » au GAS à
+  l'ouverture d'un écran.
+
+**Plan en 5 phases — 1 push par phase, chacun confirmé en production avant le suivant** :
+1. **Prouver le canal.** Routes Worker (abonner / notifier), gestionnaires `push` +
+   `notificationclick` dans `sw.js`, bouton dans dashboard (admin seul), test réel : Arthur seul
+   abonné, une notification « test » depuis l'éditeur GAS. Critère de sortie : la notification
+   arrive, clic → bonne page. ⚠️ Ce push **monte la version de `sw.js`** → purge des caches
+   des 23, une seule fois, **un soir calme**. Point iOS : le push n'arrive que si l'app est
+   installée sur l'écran d'accueil — vrai pour Arthur, à vérifier avant d'imaginer les 23.
+2. **Boucher `donGarde`.** Refus si receveur indisponible (V, congé, indispo, TP) avant toute
+   écriture. GAS seul, invisible pour les MAR, banc obligatoire (don vers MAR en congé refusé ·
+   don vers MAR libre accepté · garde-fous existants intacts). Protège déjà le comité aujourd'hui.
+   Interchangeable avec la phase 1 — peut passer en premier.
+3. **Cycle demande/réponse** (le gros morceau). Onglet `ECHANGES` : id, type (don/échange), dates,
+   secteurs, demandeur, receveur, état (en attente / acceptée / refusée / expirée), horodatages.
+   GAS : créer (contrôles de la phase 2 joués **dès la création**), accepter (rejoue les contrôles
+   puis appelle `applyModification`), refuser, expirer (déclencheur horaire). Cas samedi : transfert
+   de R (comité notifié si aucun R à venir). Poussée d'`ECHANGES` vers le KV. Notifications :
+   réception d'une demande, réponse, rappel 24 h, R déplacé (aux deux). Banc : cycle complet,
+   expiration et samedi-sans-R compris.
+4. **Écran et ouverture aux MAR.** « Mes échanges » dans `dashboard.html` (lecture miroir
+   exclusivement), bouton notifications ouvert à tous, levée du `if (user.role !== 'admin')`
+   l.2216 **en dernier**. Montée de version site (2e chiffre) ; guides dans le même push.
+   **Sas entre 4a et 4b** : quelques vrais échanges avec 1-2 volontaires (RW, WS) avant les 23 —
+   un défaut à 3 utilisateurs se corrige tranquillement, à 23 il génère des appels.
+5. **Brancher le reste sur le tuyau** (plus tard). Planning republié, génération annuelle,
+   ouverture de campagne, rappel de garde la veille — chacun un simple appel à la route d'envoi.
+   Préférences par MAR (quoi, par quel canal) en dernier.
+
+**Rollback** : chaque commit autonome, revenir = re-pousser le fichier précédent. Seule exception :
+`sw.js` — une fois la version montée, on ne redescend pas, on remonte. Raison de plus pour que la
+phase 1 soit minuscule.
+
+**Les deux risques réels** : iOS et l'installation sur écran d'accueil (à vérifier tôt, phase 1) ·
+le transfert de R (la seule logique neuve, phase 3 — le reste réutilise `applyModification` tel quel).
+
+⚠️ **Ne pas toucher au numéro de version de `sw.js` avant le 04/09** — il est servi aux 23, toute
+montée purge leurs caches.
+
 ### Priorité 3 — Dettes techniques
 - **Deux listes de secteurs encore figées dans `admin.html`** (`COVERAGE` l.≈3754, `targets` l.≈4761 — revérifiées 06/08)
   *(trouvées le 29/07, revérifiées présentes le 30/07)* : **un secteur créé dans l'onglet n'apparaît
