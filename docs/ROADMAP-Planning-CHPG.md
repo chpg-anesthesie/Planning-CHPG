@@ -4,18 +4,18 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.30.2** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.31** ·
 **GAS** (relevé dans le dépôt le 09/08/2026) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-08.1 · `miroir.gs` 2026-08-08.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
 `generateur_gardes.gs` 2026-07-31.3 · `setup_annee.gs` 2026-08-08.1 ·
 **Worker** `cloudflare/worker.js` 2026-08-08.1 (version en ligne vérifiée identique)
 
-**Banc d'essai** `banc/` — 546 vérifications (relevé le 10/08/2026), `cd banc && ./lancer.sh`.
+**Banc d'essai** `banc/` — 606 vérifications (relevé le 11/08/2026), `cd banc && ./lancer.sh`.
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 10 août 2026.*
+*Mise à jour : 11 août 2026.*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -27,6 +27,69 @@ le Worker ou `partage/dispo_jour.js`.
 > `docs/module-liberal/module_liberal_conception.md`.
 
 ---
+
+## 11 août 2026 — v1.31 : les jours de temps partiel entrent dans l'équité des gardes
+
+**Le défaut, trouvé en conversation, pas en production.** Les MAR à temps partiel posent leurs
+jours de TP eux-mêmes, dans les indispos, après le staff — 26 jours pour un 90 %, 52 pour un 80 %,
+soit **260 jours** pour le service. Or ces jours arrivent AVANT la génération des gardes, et
+personne n'avait mesuré ce que l'algorithme en faisait à cette échelle : le banc n'en semait que
+8 ou 9 par MAR, dispersés.
+
+**Mesure faite sur le vrai générateur**, année 2027 complète (364 jours), effectif de même
+structure que le service, congés et formations posés, puis 260 jours de TP ajoutés selon quatre
+façons de poser (dispersés · même jour chaque semaine · semaines de 5 · accolés aux vacances) :
+
+| profil de pose | jours non pourvus | « Manque MAR » | écart total max |
+|---|---|---|---|
+| aucun TP (référence) | 0 | 0 | 1,1 garde |
+| dispersés | 0 | 0 | 0,8 |
+| même jour chaque semaine | 0 | 0 | 0,7 |
+| semaines de 5 d'affilée | 0 | 0 | 0,8 |
+| accolés aux vacances | 0 | 0 | 0,8 |
+
+**Conclusion : l'algorithme tient.** Les MAR peuvent — et doivent — poser leurs TP en même temps
+que leurs indispos. Une seule faille, et elle est précise : dans le profil « même jour chaque
+semaine », le 80 % qui pose ses 52 jours tous les jeudis a une cible de 5 jeudis et en fait **0** ;
+ses 5 gardes retombent sur les autres. Idem pour le vendredi et l'axe vendredi-dimanche. Les 90 %
+absorbent sans rien déplacer : 26 jours ne bloquent qu'un jeudi sur deux.
+
+**Cause, vérifiée dans `generateur_gardes.gs`** : un jour fixe déclaré dans `MEDECINS`
+(`tp_jours_fixes`) réduit la cible de cet axe-jour ; un TP posé dans les indispos ne la réduit
+pas. `structAvail` ne regarde que date d'arrivée, date de départ et `CL`. Deux mécanismes pour la
+même réalité, traités différemment.
+
+**Poussé (1 commit, 8 fichiers)** :
+- `indispos.html` — l'outil Temps partiel refuse samedi, dimanche et jours fériés. Un TP est un
+  jour travaillé en moins : posé un samedi, il ne retire aucune journée de travail, il écarte
+  seulement son auteur des gardes les plus lourdes.
+- `admin.html` — `tpDesequilibres()` mesure, par MAR et par axe (samedi · vendredi-dimanche ·
+  jeudi), le report que sa pose produirait sur les autres. Le récap d'ouverture du W2 l'affiche et
+  **désactive le bouton Générer** au-delà d'une garde. Un TP posé un week-end ou un férié bloque
+  dès le premier jour. Fonction globale et non repliée dans le wizard : pour être éprouvable au banc.
+- `banc/banc_tp.js` — 17 vérifications neuves, sur le code réel des deux pages (extraction de
+  fonction depuis le HTML, même principe que `extraireFonction` pour les `.gs`).
+
+**Le seuil a été corrigé par la mesure.** La première formule — cible × part bloquée — alertait dès
+26 jours sur le même jour, alors que le générateur ne déplace rien à ce niveau. Règle retenue :
+ce qui coûte aux autres n'est pas la part bloquée, c'est **la place restante**. Tant qu'il lui
+reste au moins autant de jours de cet axe que sa cible, il tient sa part. 26 jeudis bloqués sur
+51 → silence ; 51 sur 51 → 5 gardes reportées, blocage.
+
+**Enseignement de méthode.** Le banc semait des TP, donc le cas semblait couvert ; il en semait un
+tiers du volume et sans aucune concentration. *Un scénario qui contient le bon code de statut ne
+prouve rien sur le volume ni sur la forme de la pose.* Le défaut n'est sorti ni du code ni du
+banc : il est sorti d'une question sur le sens métier d'une case vide.
+
+**Reste ouvert :**
+- **Correctif de fond** — faire que les TP posés dans les indispos réduisent la cible d'axe, comme
+  le fait un jour fixe déclaré. Le récap du W2 deviendrait alors une alerte de confort au lieu d'un
+  barrage. Après le 4 septembre, générateur, donc avec mesure d'écart par axe avant/après.
+- **Harnais de charge** — le banc qui exécute le vrai générateur sur une année complète avec
+  260 jours de TP existe (il a produit le tableau ci-dessus) mais n'est pas intégré : il ajoute
+  ~15 s au lancement. À trancher.
+- **Guides** — la règle « un jour de TP se pose sur un jour ouvré » n'est écrite dans aucun guide.
+
 
 ## 10 août 2026 — refonte du guide technique
 

@@ -11,6 +11,48 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 11 août 2026 — v1.31, les temps partiels entrent dans l'équité, banc à 606 vérifications
+
+**Ce qui a changé.** Les MAR à temps partiel posent leurs jours de TP eux-mêmes, dans les
+indispos, après le staff (jamais pendant) : 26 jours pour un 90 %, 52 pour un 80 %, 260 pour le
+service. Ces jours arrivent donc avant la génération des gardes. Personne n'avait mesuré ce que
+l'algorithme en faisait à cette échelle.
+
+**Mesuré sur le vrai générateur, année complète : il tient.** Quatre façons de poser (dispersés,
+même jour chaque semaine, semaines de 5, accolés aux vacances) : aucun jour non pourvu, aucun
+« Manque MAR », équité totale inchangée (≤ 1,1 garde d'écart, comme sans TP). **Les MAR peuvent et
+doivent poser leurs TP avec leurs indispos.**
+
+**La seule faille.** Un 80 % qui pose ses 52 jours toujours le même jour de la semaine se retire
+d'un axe entier : cible 5 jeudis, réalisé 0, les 5 gardes retombent sur les autres. Cause : un jour
+fixe déclaré dans `MEDECINS` (`tp_jours_fixes`) réduit la cible de cet axe-jour ; un TP posé dans
+les indispos ne la réduit pas — `structAvail` ne regarde que date d'arrivée, date de départ et `CL`.
+
+**Deux garde-fous en production (v1.31)** : l'outil Temps partiel n'accepte que les jours ouvrés
+(ni week-end ni férié) ; le récap d'ouverture du W2 mesure le report par axe et désactive Générer
+au-delà d'une garde. Le seuil est calé sur la mesure : ce qui coûte aux autres n'est pas la part
+bloquée mais la place restante — 26 jeudis bloqués sur 51 ne déplacent rien, 51 sur 51 reportent
+5 gardes.
+
+**Sens des codes de saisie, à ne plus confondre :**
+- **INDISPO** — je peux travailler ce jour-là s'il est ouvré, mais pas prendre de garde.
+- **TP** — je ne souhaite ni travailler ni être de garde ; réquisitionnable en cas de grosse
+  difficulté. Se pose uniquement sur un jour ouvré.
+- **VAC / FORM** — propriété du comité, posés au staff, intouchables par le MAR.
+  La fusion (`_fusionIndispos_`) sépare strictement les deux propriétaires : le comité ne possède
+  que VAC et FORM ; TP, INDISPO et SOUHAIT appartiennent au MAR et survivent à un enregistrement
+  groupé du staff.
+
+**Enseignement.** Le banc semait déjà des TP — un tiers du volume réel, dispersés, jamais
+concentrés. *Un scénario qui contient le bon code de statut ne prouve rien sur le volume ni sur la
+forme de la pose.* Le défaut n'est sorti ni du code ni du banc, mais d'une question sur le sens
+métier d'une case vide.
+
+**Reste ouvert** : faire que les TP réduisent la cible d'axe comme un jour fixe (générateur, après
+le 4 septembre) ; intégrer ou non le harnais de charge au banc (~15 s) ; écrire la règle du jour
+ouvré dans les guides.
+
+
 ## État au 9 août 2026 — session d'audit : sauvegardes, comptes, connecteurs
 
 **Aucune ligne de code de production modifiée.** Session de vérification et de rangement.
