@@ -291,6 +291,121 @@ const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++
   await dodo(50);
   V('décrémenter sous zéro ne fait rien (pas d\'erreur, pastille éteinte)', dot && dot.style.display === 'none' && erreurs.length === 0, erreurs.slice(0,1));
 
+  console.log('\n═══ 25. La fiche d\'un MAR : l\'adresse saisie reste affichée (défaut du 11/08/2026) ═══');
+  /* Défaut trouvé en production le 11/08/2026 : une adresse e-mail ajoutée à un
+     MAR était bien écrite dans le classeur, mais la page continuait d'afficher
+     « — » dans l'onglet Équipe et « ✕ pas d'email » dans Maintenance. Cause :
+     saveMAR relisait la liste avec loadEquipe() SANS force, et loadEquipe rend
+     la main immédiatement quand marData est déjà en mémoire (il l'est depuis le
+     boot). L'écran réaffichait donc l'instantané d'AVANT l'enregistrement.
+     Second effet : Maintenance lit marsData, alimenté au seul boot — même
+     l'actualisation d'Équipe ne le rafraîchissait pas.
+     Ici on simule le SERVEUR (le classeur) et on pilote la vraie fiche. */
+  const SERVEUR_MED = medecinsPage.map(m => ({ ...m, email: '' }));
+  const CIBLE = SERVEUR_MED[1].id;
+  const fetchAvant = w.fetch;
+  let ecritures = 0, lectures = 0;
+  w.fetch = async (url, opt) => {
+    if (String(url).includes('workers.dev')) return fetchAvant(url, opt);
+    let corps = {};
+    try { corps = JSON.parse(opt.body); } catch (e) {}
+    if (corps.action === 'getMedecins') {
+      lectures++;
+      return { ok:true, json: async () => ({ success:true, medecins: JSON.parse(JSON.stringify(SERVEUR_MED)) }) };
+    }
+    if (corps.action === 'saveMedecin') {
+      ecritures++;
+      const m = corps.medecin || {};
+      const l = SERVEUR_MED.find(x => x.id === m.id);
+      if (l && m.email !== undefined) l.email = String(m.email).trim();   // même règle que saveMedecin (colonne H écrite telle quelle)
+      return { ok:true, json: async () => ({ success:true, created:false, rowsCreated:[] }) };
+    }
+    return { ok:true, json: async () => ({ success:false, error:'action non simulée : ' + corps.action }) };
+  };
+
+  w.eval('showTab("equipe")'); await dodo(300);
+  const ligneCible = () => [...d.querySelectorAll('#equipeBody tr')]
+    .find(tr => tr.textContent.includes(CIBLE));
+  V('l\'onglet Équipe affiche le MAR visé', !!ligneCible(), CIBLE);
+  V('il n\'a pas encore d\'adresse', ligneCible() && /—/.test(ligneCible().textContent));
+
+  w.eval('openEditMAR(' + JSON.stringify(CIBLE) + ')'); await dodo(150);
+  V('la fiche s\'ouvre', d.getElementById('modalMAR').classList.contains('open'));
+  d.getElementById('marEmail').value = 'test.banc@chpg.mc';
+  d.getElementById('btnSaveMAR').click();
+  await dodo(900);
+
+  V('l\'enregistrement est parti au serveur', ecritures === 1, ecritures);
+  V('le classeur simulé porte la nouvelle adresse',
+    SERVEUR_MED.find(x => x.id === CIBLE).email === 'test.banc@chpg.mc',
+    SERVEUR_MED.find(x => x.id === CIBLE).email);
+  V('la liste est RELUE au serveur après l\'enregistrement (force)', lectures >= 1, lectures);
+  V('l\'onglet Équipe affiche l\'adresse tout de suite',
+    !!ligneCible() && ligneCible().textContent.includes('test.banc@chpg.mc'),
+    ligneCible() && ligneCible().textContent.replace(/\s+/g,' ').trim().slice(0,120));
+  V('la liste servant à Maintenance suit aussi',
+    w.eval('(marsData.find(function(m){return m.id===' + JSON.stringify(CIBLE) + '})||{}).email') === 'test.banc@chpg.mc',
+    w.eval('JSON.stringify((marsData.find(function(m){return m.id===' + JSON.stringify(CIBLE) + '})||{}).email)'));
+
+  w.eval('initMaintenance()'); await dodo(600);
+  const ligneMaint = [...d.querySelectorAll('#codesList label')].find(l => l.textContent.includes(CIBLE) || l.textContent.includes('test.banc@chpg.mc'));
+  V('Maintenance ne dit plus « pas d\'email » pour ce MAR',
+    !!ligneMaint && !/pas d'email/.test(ligneMaint.textContent),
+    ligneMaint && ligneMaint.textContent.replace(/\s+/g,' ').trim().slice(0,120));
+  V('sa case est cochable (envoi possible)',
+    !!ligneMaint && !ligneMaint.querySelector('input').disabled);
+
+  console.log('\n═══ 26. Un champ e-mail vidé ne peut plus effacer l\'adresse en silence ═══');
+  /* Le serveur écrit la colonne EMAIL telle qu\'elle arrive : un champ vide
+     EFFACE. Tant que l\'écran pouvait montrer une fiche périmée (défaut 25),
+     un simple ré-enregistrement suffisait à perdre l\'adresse. Garde-fou :
+     on ne demande confirmation QUE pour adresse connue → champ vide. */
+  let questions = 0;
+  w.confirm = (msg) => { questions++; w.__derniereQuestion = msg; return false; };
+  w.eval('openEditMAR(' + JSON.stringify(CIBLE) + ')'); await dodo(150);
+  V('la fiche se rouvre avec l\'adresse enregistrée',
+    d.getElementById('marEmail').value === 'test.banc@chpg.mc', d.getElementById('marEmail').value);
+  const ecrituresAvant = ecritures;
+  d.getElementById('marEmail').value = '';
+  d.getElementById('btnSaveMAR').click();
+  await dodo(600);
+  V('la suppression déclenche une question', questions === 1, questions);
+  V('la question nomme le MAR et montre l\'adresse',
+    /test\.banc@chpg\.mc/.test(w.__derniereQuestion || ''), (w.__derniereQuestion||'').replace(/\n+/g,' ').slice(0,110));
+  V('refusée, RIEN n\'est envoyé au serveur', ecritures === ecrituresAvant, ecritures - ecrituresAvant);
+  V('l\'adresse est intacte au classeur',
+    SERVEUR_MED.find(x => x.id === CIBLE).email === 'test.banc@chpg.mc');
+
+  w.confirm = () => { questions++; return true; };
+  w.eval('openEditMAR(' + JSON.stringify(CIBLE) + ')'); await dodo(150);
+  d.getElementById('marEmail').value = '';
+  d.getElementById('btnSaveMAR').click();
+  await dodo(900);
+  V('acceptée, l\'effacement se fait bien', SERVEUR_MED.find(x => x.id === CIBLE).email === '',
+    SERVEUR_MED.find(x => x.id === CIBLE).email);
+  V('l\'écran le reflète immédiatement', !!ligneCible() && /—/.test(ligneCible().textContent),
+    ligneCible() && ligneCible().textContent.replace(/\s+/g,' ').trim().slice(0,110));
+
+  questions = 0;
+  w.eval('openEditMAR(' + JSON.stringify(CIBLE) + ')'); await dodo(150);
+  d.getElementById('marEmail').value = 'autre.banc@chpg.mc';
+  d.getElementById('btnSaveMAR').click();
+  await dodo(900);
+  V('AJOUTER une adresse ne pose aucune question', questions === 0, questions);
+  V('et elle est bien enregistrée', SERVEUR_MED.find(x => x.id === CIBLE).email === 'autre.banc@chpg.mc',
+    SERVEUR_MED.find(x => x.id === CIBLE).email);
+  questions = 0;
+  w.eval('openEditMAR(' + JSON.stringify(CIBLE) + ')'); await dodo(150);
+  d.getElementById('marQuotite').value = '80';
+  d.getElementById('btnSaveMAR').click();
+  await dodo(900);
+  V('modifier autre chose que l\'e-mail ne pose aucune question', questions === 0, questions);
+  V('et l\'adresse survit à cette modification',
+    SERVEUR_MED.find(x => x.id === CIBLE).email === 'autre.banc@chpg.mc',
+    SERVEUR_MED.find(x => x.id === CIBLE).email);
+
+  w.fetch = fetchAvant;
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   process.exit(ko ? 1 : 0);
 })();

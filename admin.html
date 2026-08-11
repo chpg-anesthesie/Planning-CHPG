@@ -1015,7 +1015,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.30.4'; // SITE_VERSION: v1.30.4
+const SITE_VERSION = 'v1.30.5'; // SITE_VERSION: v1.30.5
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1108,7 +1108,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.30.4</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.30.5</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -8289,6 +8289,7 @@ async function loadEquipe(force) {
     const data = await api({action: 'getMedecins'});
     if (!data.success) throw new Error(data.error);
     marData = data.medecins;
+    marsData = data.medecins;   // (v1.30.5) les DEUX caches suivent la meme reponse serveur : Maintenance lit marsData
     renderEquipe();
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
@@ -8514,13 +8515,20 @@ async function saveMAR() {
       tpJoursFixes:   getTpDays(),
     };
     if (!medecin.id || !medecin.nom) { toast('ID et Nom obligatoires', 'error'); return; }
+    /* (v1.30.5) Garde-fou : le champ e-mail est ecrit TEL QUEL au classeur —
+       un champ laisse vide EFFACE l'adresse existante, sans rien demander.
+       On ne demande confirmation que dans ce cas precis (adresse connue ->
+       champ vide) ; ajouter ou corriger une adresse ne pose aucune question. */
+    const _ancienMAR = marData.find(x => x.id === medecin.id);
+    if (_ancienMAR && _ancienMAR.email && !medecin.email &&
+        !confirm(`Supprimer l'adresse e-mail de ${_ancienMAR.nom} ?\n\n${_ancienMAR.email}\n\nSans adresse, il ne peut plus recevoir son code d'acc\u00e8s ni les notifications.`)) return;
     const data = await api({action: 'saveMedecin', medecin});
     if (!data.success) throw new Error(data.error);
     toast(data.created ? '✅ MAR créé' : '✅ MAR mis à jour', 'success');
     if (data.rowsCreated && data.rowsCreated.length)
       toast('📋 Lignes ajoutées : ' + data.rowsCreated.join(', '), 'success');
     closeModal('modalMAR');
-    await loadEquipe();
+    await loadEquipe(true);   // (v1.30.5) serveur obligatoire : sans force, la liste relue restait celle d'AVANT l'enregistrement
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
   } finally {
@@ -8540,7 +8548,7 @@ async function toggleActif(id) {
     toast(`✅ ${m.nom} ${newActif ? 'activé' : 'désactivé'}`, 'success');
     if (data.rowsCreated && data.rowsCreated.length)
       toast('📋 Lignes ajoutées : ' + data.rowsCreated.join(', '), 'success');
-    await loadEquipe();
+    await loadEquipe(true);   // (v1.30.5) idem : la liste doit revenir du serveur
   } catch(e) {
     toast('Erreur : ' + e.message, 'error');
   }
@@ -9111,7 +9119,7 @@ async function launchWizardDepart() {
   if (allOk) {
     if (marData) { const m = marData.find(x => x.id === wizDMarId); if(m) m.actif = false; }
     setTimeout(() => {
-      document.getElementById('wizDBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">' + (mar?.nom||'') + ' désactivé</div><div style="font-size:13px;color:var(--ink-3)">Le planning a été republié.<br>Pensez à redistribuer ses gardes restantes si nécessaire.</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardDepart();loadEquipe()">Voir l\'équipe</button></div>';
+      document.getElementById('wizDBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">' + (mar?.nom||'') + ' désactivé</div><div style="font-size:13px;color:var(--ink-3)">Le planning a été republié.<br>Pensez à redistribuer ses gardes restantes si nécessaire.</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardDepart();loadEquipe(true)">Voir l\'équipe</button></div>';
       nb.style.display = 'none';
     }, 600);
   } else { nb.disabled = false; nb.textContent = 'Réessayer'; }
@@ -9274,7 +9282,7 @@ async function launchWizardRecrue() {
 
   if (allOk) {
     setTimeout(() => {
-      document.getElementById('wizRBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">' + wizRData.nom + ' ajouté !</div><div style="font-size:13px;color:var(--ink-3)">Le MAR est actif et le planning republié.</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardRecrue();loadEquipe();showTab(\'equipe\')">Voir l\'équipe</button></div>';
+      document.getElementById('wizRBody').innerHTML = '<div style="text-align:center;padding:20px 0"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:17px;font-weight:700;margin-bottom:8px">' + wizRData.nom + ' ajouté !</div><div style="font-size:13px;color:var(--ink-3)">Le MAR est actif et le planning republié.</div><button class="btn-primary" style="margin-top:20px" onclick="closeWizardRecrue();loadEquipe(true);showTab(\'equipe\')">Voir l\'équipe</button></div>';
       nb.style.display = 'none';
     }, 600);
   } else { nb.disabled = false; nb.textContent = 'Réessayer'; }
