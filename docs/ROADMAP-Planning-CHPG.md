@@ -1143,6 +1143,111 @@ au même titre que les gardes et les récupérations.
 **À mesurer pour le retour d'expérience** (poster SFAR 2027) : nombre de congés supplémentaires
 accordés avant et après. Ce serait un chiffre du service, pas un chiffre emprunté à la littérature.
 
+### Valoriser le travail : poster SFAR 2027, puis article *(cadrage du 10/08/2026)*
+
+**Objectif énoncé par Arthur : que le projet ne meure pas une fois en place.** Une publication est
+la seule forme de survie qui ne dépend de personne — un système tenu par une seule personne
+s'éteint avec elle, un travail publié reste citable et reproductible.
+
+#### Ce qui a été décidé, et ce qui a été écarté
+
+**Format retenu : retour d'expérience sur une année complète d'usage.** Cible : **poster / résumé
+au congrès SFAR 2027**, puis éventuellement un article. Le poster d'abord, délibérément : format
+court, on voit en direct si le sujet intéresse, et on rencontre ceux qui ont le même problème.
+
+⛔ **ÉCARTÉ — l'enquête de satisfaction avant/après. Ne pas la reproposer.** Trois raisons, dans
+l'ordre où elles sont apparues :
+1. **Un avant-après juge l'état antérieur**, produit pendant des années à la main par des collègues
+   du service. Demander à 24 médecins de le noter, même anonymement, revient à leur faire évaluer
+   le travail de quelques-uns d'entre eux. Arthur va cosigner avec ces personnes.
+2. **Biais d'annonce** : au moment où la mesure initiale aurait dû partir, l'équipe savait déjà
+   qu'un changement était en préparation.
+3. **Une mesure initiale après le 04/09 est impossible** — biais de rappel massif, les répondants
+   reconstruiraient leur souvenir de l'ancien système à la lumière du nouveau.
+
+*Une enquête reste possible en 2027-2028, comme travail distinct : sur le fonctionnement en place,
+sans comparaison à ce qu'il a remplacé, et portée par le comité.*
+
+**Conséquence pratique : aucune échéance avant le 04/09.** L'abandon de l'enquête supprime la seule
+contrainte de calendrier du projet de publication.
+
+#### Ce que le retour d'expérience rapportera — que des données calculées
+
+| Donnée | Source | Quand |
+|---|---|---|
+| Équité de l'attribution initiale, 2026 vs 2027 | `STATS_GARDES_*` | **déjà relevé** (voir plus bas) |
+| Couverture : jours sans effectif de garde complet | planning publié | déjà : **0** sur 364 en 2027 |
+| Consultation de l'écran d'équité (combien de MAR) | journal | 2027 |
+| Échanges et dons de gardes | journal | 2027 |
+| Congés supplémentaires accordés en sureffectif | à définir | 2027, voir section précédente |
+| Temps de production du planning par le comité | déclaratif, porte sur une **tâche** | sept.-oct. 2026 |
+| Taux de complétion de la campagne d'indispos | système | nov. 2026 |
+
+**Chiffres d'équité déjà mesurés (10/08/2026), sur l'attribution initiale avant tout échange :**
+
+| | 2026, manuel | 2027, algorithmique |
+|---|---|---|
+| écart maximal à la part théorique | **8,4 gardes** | **1,3 garde** |
+| écart absolu moyen | 3,06 | 0,55 |
+| MAR à ±1 garde de leur part | 19 % (4/21) | 95 % (21/22) |
+
+⚠️ **Mesurer sur l'attribution initiale, jamais sur le réel.** Les échanges et dons sont volontaires
+et souhaités : certains MAR veulent moins de gardes, d'autres davantage. Les compter comme des
+écarts mesurerait la liberté laissée aux gens, pas la qualité de l'attribution. *Le système
+garantit un point de départ équitable ; ce qui suit appartient aux médecins.* Cette distinction
+n'apparaît dans aucune publication existante — c'est un apport du travail, à expliciter.
+
+#### L'angle : ce que personne n'a publié
+
+**L'équité de TOUTE l'équipe est consultable par chaque MAR, à tout moment.** Ailleurs, l'équité
+est une propriété que le logiciel garantit et que l'encadrement constate ; ici c'est une
+information interne publique. Aucune des publications identifiées ne décrit cela.
+
+S'y ajoutent : la règle d'attribution **publiée** plutôt qu'enfouie chez un éditeur · la
+description complète du **coût réel** (0 €, du temps) · et la **dépendance à une personne**, à
+écrire comme un résultat et non comme un aveu — c'est la première question d'un chef de service
+qui lit l'article.
+
+#### Modalités SFAR (vérifiées le 10/08, à reconfirmer)
+
+- **3 500 caractères** maximum, espaces compris, pour l'ensemble du résumé.
+- L'orateur doit être **à jour de sa cotisation SFAR** ou avoir réglé son inscription ; aucune
+  communication n'est définitivement acceptée avant paiement de l'inscription.
+- Recevabilité examinée sur les **dispositions éthiques** — préparer la réponse : données
+  d'organisation interne, aucune donnée patient, aucune donnée de santé.
+- ⚠️ **Ne pas venir présenter un résumé accepté expose à une interdiction de soumission de trois
+  ans.** On ne soumet que si on est certain d'y aller.
+- L'appel à communications 2027 n'était pas publié au 10/08/2026. **À surveiller vers décembre.**
+
+#### Contexte bibliographique — INCOMPLET, à refaire
+
+Identifié : Sumrall (*Ochsner J* 2025, anesthésie, logiciel commercial — sa limite déclarée est un
+instrument de satisfaction **propriétaire**, ni items ni taux de réponse publiables) · Biot
+(*Cureus* 2026, pédiatrie, système fait maison par un non-informaticien) · un outil en médecine
+interne mesurant satisfaction et perception d'équité · Afonso (*Anesthesiology* 2021).
+
+⚠️ **Cette revue est partielle** : pas d'accès à une base bibliographique depuis l'environnement de
+travail (`eutils.ncbi.nlm.nih.gov` bloqué). À refaire avec des équations MeSH sur
+`"Personnel Staffing and Scheduling"[Mesh]` **avant toute rédaction** — ne pas construire sur cette
+bibliographie.
+
+⚠️ **Que d'autres aient publié n'empêche rien** : l'amélioration de la qualité vit de la
+réplication, et les auteurs d'Ochsner appellent explicitement d'autres services à reproduire avec
+une méthodologie plus solide. Un tel travail n'a pas à être le premier, il doit être rigoureux et
+transposable.
+
+#### Signature
+
+**Cosignature du comité recommandée** — non pour la méthode, mais pour le projet : un travail signé
+du service ancre l'outil dans l'institution ; signé d'une seule personne, il reste l'affaire de
+cette personne. C'est aussi la meilleure réponse au risque de dépendance à une personne.
+
+#### À ne pas perdre
+
+1. **Temps de production du planning par le comité** — à demander en septembre-octobre, pendant
+   qu'on s'en souvient.
+2. **Figer les données 2026 complètes en janvier 2027**, quand l'année de planning sera close.
+
 ## 🚫 Écarté — ne pas reproposer sans élément nouveau
 
 - **Protection anti-force-brute sur `checkCode()`** *(20/07, chiffré)*. 32⁸ ≈ 1 100 milliards de
