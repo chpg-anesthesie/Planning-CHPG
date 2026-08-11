@@ -105,7 +105,7 @@
 <div class="eyebrow">Planning-CHPG</div>
 <h1>Guide du fichier maître</h1>
 <p class="subtitle">Le classeur Google Sheets, onglet par onglet : à quoi il sert, qui l'écrit, ce qu'on peut y toucher, et ce qui casse si on se trompe.</p>
-<p class="maj">Mis à jour : 3 août 2026 — inventaire complet : <strong>30 onglets présents</strong>, soit 26 noms distincts (les onglets annuels existent en double : année en cours et année suivante). S'y ajoutent 3 onglets décrits pour mémoire mais absents du classeur : <span class="tag">NOEL_AN_HISTORIQUE</span>, <span class="tag">OVERRIDES</span> et <span class="tag">SEMAINES_VALIDEES</span>, ce dernier supprimé le 3 août 2026 après vérification qu'aucune ligne de code ne le lisait.</p>
+<p class="maj">Mis à jour : 11 août 2026 — inventaire complet : <strong>31 onglets présents</strong>, soit 27 noms distincts (les onglets annuels existent en double : année en cours et année suivante). S'y ajoutent 3 onglets décrits pour mémoire mais absents du classeur : <span class="tag">NOEL_AN_HISTORIQUE</span>, <span class="tag">OVERRIDES</span> et <span class="tag">SEMAINES_VALIDEES</span>, ce dernier supprimé le 3 août 2026 après vérification qu'aucune ligne de code ne le lisait. <strong>Ajouté depuis :</strong> <span class="tag">VEILLE_MARQUES</span> (§24 bis), créé le 8 août 2026 avec les marques personnelles de la veille. <em>Inventaire relu directement dans le classeur le 11 août 2026.</em></p>
 
 <div class="callout rule">
   <div class="ct">Ce que ce guide est, et ce qu'il n'est pas</div>
@@ -149,6 +149,7 @@
     <li><span class="n">22</span><a href="#annuaire">ANNUAIRE</a></li>
     <li><span class="n">23</span><a href="#staffs">STAFFS</a></li>
     <li><span class="n">24</span><a href="#veille">VEILLE</a></li>
+    <li><span class="n">24 bis</span><a href="#veille-marques">VEILLE_MARQUES</a></li>
     <li><span class="n">VI</span><a href="#p6"><strong>Journaux, vestiges, et ce qui n'est pas dans le classeur</strong></a></li>
     <li><span class="n">25</span><a href="#journaux">CONNEXIONS et LOGS</a></li>
     <li><span class="n">26</span><a href="#vestiges">OVERRIDES <em>(absent)</em></a></li>
@@ -749,14 +750,52 @@ Le programme des staffs affiché sur le Dashboard.</p>
 <span class="tag">PUBTYPE</span>, <span class="tag">THEMES</span>.</p>
 
 <div class="callout warn">
-  <div class="ct">LU et STAR sont référencés par leur position</div>
-  <p>Les deux dernières colonnes (<span class="tag">PUBTYPE</span>, <span class="tag">THEMES</span>) ont été
-  ajoutées <strong>en fin d'onglet exprès</strong>, pour ne pas décaler <span class="tag">LU</span> et
-  <span class="tag">STAR</span> que le code atteint par leur numéro. Toute colonne nouvelle doit suivre la
-  même règle.</p>
+  <div class="ct">LU et STAR ne sont plus lus — ne vous y fiez pas</div>
+  <p>Ces deux colonnes servaient de marques <strong>communes aux 23 MAR</strong> : un article lu par l'un
+  disparaissait de la liste de tous. Depuis le 8 août 2026, les marques sont personnelles et vivent dans
+  <span class="tag">VEILLE_MARQUES</span> (§24 bis). <span class="tag">LU</span> et
+  <span class="tag">STAR</span> restent présentes ici mais <strong>ne sont ni lues ni écrites</strong> :
+  leur contenu est un vestige, sans effet sur ce que voient les MAR.</p>
+  <p>Les colonnes sont atteintes <strong>par leur position</strong> : toute colonne nouvelle s'ajoute en
+  <strong>fin d'onglet</strong>, jamais au milieu — c'est pour cela que <span class="tag">PUBTYPE</span> et
+  <span class="tag">THEMES</span> sont les dernières.</p>
 </div>
 
 <p>Cet onglet se remplit tout seul et grossit indéfiniment : c'est normal, il n'a pas de purge.</p>
+</section>
+
+<section id="veille-marques">
+<h2><span class="n">24 bis</span>VEILLE_MARQUES</h2>
+<p>Les marques <strong>« lu »</strong> et <strong>« ★ »</strong> de la veille, <strong>personnelles à chaque
+MAR</strong> depuis le 8 août 2026. <strong>Cinq colonnes</strong> : <span class="tag">MAR_ID</span>,
+<span class="tag">PMID</span>, <span class="tag">LU</span>, <span class="tag">STAR</span>,
+<span class="tag">MAJ_LE</span>.</p>
+
+<p><strong>Une ligne par couple (MAR, article) réellement marqué</strong> — et seulement ceux-là. L'onglet
+reste donc creux : 23 MAR et des milliers d'articles ne produisent que quelques centaines de lignes.
+<span class="tag">MAR_ID</span> est l'identifiant du MAR (colonne A de <span class="tag">MEDECINS</span>),
+<span class="tag">PMID</span> le numéro de l'article dans <span class="tag">VEILLE</span> : c'est le couple
+des deux qui identifie une ligne. <span class="tag">LU</span> et <span class="tag">STAR</span> valent
+<span class="tag">O</span> ou <span class="tag">N</span> ; <span class="tag">MAJ_LE</span> horodate le
+dernier changement.</p>
+
+<div class="callout">
+  <div class="ct">Onglet masqué, créé tout seul</div>
+  <p>Il est <strong>masqué</strong> dans le classeur, comme les autres onglets que personne n'édite à la main,
+  et il se crée automatiquement à la première marque posée. Le retrouver : menu
+  <em>Affichage → Feuilles masquées</em>.</p>
+</div>
+
+<div class="callout warn">
+  <div class="ct">Ne jamais supprimer une ligne pour « faire le ménage »</div>
+  <p>Le code n'efface jamais rien ici : décocher « lu » réécrit <span class="tag">N</span> sur la ligne
+  existante, il ne la retire pas. Supprimer une ligne à la main est sans danger pour le système (la marque
+  redevient simplement « non lu »), mais c'est <strong>la marque d'un collègue</strong> qu'on efface. Une
+  correction manuelle reste possible en cas de besoin : elle sera visible côté MAR dans l'heure qui suit.</p>
+</div>
+
+<p>Comme <span class="tag">VEILLE</span>, cet onglet <strong>n'a pas de purge</strong> — mais sa croissance est
+lente : il ne grossit qu'au rythme des clics, pas des publications.</p>
 </section>
 
 <section id="p6">
