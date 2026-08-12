@@ -1015,7 +1015,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.31.4'; // SITE_VERSION: v1.31.4
+const SITE_VERSION = 'v1.31.5'; // SITE_VERSION: v1.31.5
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1053,7 +1053,7 @@ if (sessionStorage.getItem('adminCode')) {
 <!-- AUTH -->
 <div class="auth-overlay" id="authOverlay">
   <div class="auth-box">
-    <div class="auth-flag"><div class="auth-flag-top"></div><div class="auth-flag-bot"></div></div>
+    <div class="auth-flag"><img src="assets/logo.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div>
     <div class="auth-title">Espace Admin</div>
     <div class="auth-sub">Planning CHPG Monaco · Anesthésie-Réanimation</div>
     <input class="auth-input" id="authInput" type="password" placeholder="CODE ADMIN" autocomplete="off"/>
@@ -1090,7 +1090,7 @@ if (sessionStorage.getItem('adminCode')) {
 <!-- HEADER -->
 <div class="header">
   <div class="header-brand">
-    <div class="header-flag"><div class="flag-top"></div><div class="flag-bot"></div></div>
+    <div class="header-flag"><img src="assets/logo.png" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></div>
     <div>
       <div class="header-title">Planning CHPG Monaco</div>
       <div class="header-sub" style="display:flex;align-items:center;gap:8px">
@@ -1108,7 +1108,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.31.4</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.31.5</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>

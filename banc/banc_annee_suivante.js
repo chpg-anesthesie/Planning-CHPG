@@ -95,8 +95,14 @@ function planning(annee, mois, statuts) {
     V('le planning de l\'année suivante n\'est PAS en mémoire (il n\'existe pas)',
       w._planDejaLa(AN+1) === null, w._planDejaLa(AN+1));
     V('la tuile affiche quand même la garde de décembre',
-      /Prochaine garde/.test(w.document.getElementById('mgHeroMain').textContent),
+      /^\w+ \d{2}\/12 · /.test(w.document.getElementById('mgHeroMain').textContent),
       w.document.getElementById('mgHeroMain').textContent);
+    V(`l'étiquette de la tuile annonce « Prochaine garde »`,
+      /Prochaine garde/.test(w.document.getElementById('mgHeroLabel').textContent),
+      w.document.getElementById('mgHeroLabel').textContent);
+    V('le délai est passé en sous-titre, pas en ligne principale',
+      /jours|Demain|Aujourd/.test(w.document.getElementById('mgHeroSub').textContent),
+      w.document.getElementById('mgHeroSub').textContent);
   }
 
   /* ── B. Le planning de l'année suivante EXISTE (après la génération). ── */
