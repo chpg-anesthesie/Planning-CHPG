@@ -103,6 +103,16 @@ function planning(annee, mois, statuts) {
     V('le délai est passé en sous-titre, pas en ligne principale',
       /jours|Demain|Aujourd/.test(w.document.getElementById('mgHeroSub').textContent),
       w.document.getElementById('mgHeroSub').textContent);
+
+    /* Pastille du bandeau : les initiales du classeur, pas le nom recalculé.
+       Le nom complet reste lisible juste dessous dans « Bonjour Dr X ». */
+    const pastille = w.document.getElementById('mePill').textContent.trim();
+    V('la pastille du bandeau affiche les initiales du classeur',
+      pastille === 'AL', pastille);
+    V('elle ne répète plus le nom complet', !/Alpha|ALPHA/.test(pastille), pastille);
+    V(`le nom complet reste affiché dans « Bonjour »`,
+      /Alpha/i.test(w.document.getElementById('hello').textContent),
+      w.document.getElementById('hello').textContent);
   }
 
   /* ── B. Le planning de l'année suivante EXISTE (après la génération). ── */

@@ -392,7 +392,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.31.7</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.31.8</span></span></p>
     <!-- (12/08/2026, v1.31.4) Notifications push — phase 1 : visible rôle admin SEUL.
          Le serveur refuse de toute façon les autres rôles : ceci n'est que l'habillage. -->
     <div id="notifCard" class="mg-hero" style="display:none" onclick="activerNotifications()">
@@ -498,7 +498,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.31.7'; // SITE_VERSION: v1.31.7
+const SITE_VERSION = 'v1.31.8'; // SITE_VERSION: v1.31.8
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -510,6 +510,14 @@ let INDISPOS_YEAR = null;       // année concernée par la saisie
 
 function esc(s){ return String(s||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function _meName(id){ return (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase(); }
+// Libelle court de la pastille du bandeau. Admin : « ADMIN ». MAR : ses initiales
+// telles que saisies au classeur ; a defaut, les trois premieres lettres de l'identifiant.
+function _mePastille(r){
+  if(!r || r.role!=='mar') return 'ADMIN';
+  const ini = String((r && r.initials) || '').trim().toUpperCase();
+  if(ini) return ini;
+  return String(r.id || '').trim().toUpperCase().slice(0,3) || 'MAR';
+}
 
 // ── THÈME (clé localStorage partagée avec index.html : chpgTheme) ──
 function getThemePref(){ try{return localStorage.getItem('chpgTheme')||'auto';}catch(e){return 'auto';} }
@@ -713,8 +721,11 @@ function applyUserBadge(r){
   INDISPOS_YEAR = r.indisposYear || null;
   const pill = document.getElementById('mePill');
   if(!pill) return;
-  const label = MY_ID ? _meName(MY_ID) : 'Admin';
-  pill.innerHTML = '👤 ' + esc(label) + ' <span class="me-pill-logout" aria-label="Déconnexion" style="display:inline-flex;align-items:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>';
+  // Pastille du bandeau : initiales du MAR (colonne 3 de MEDECINS, deja renvoyees
+  // par la connexion sous r.initials — meme source que le tableau de staff.html).
+  // Le nom complet reste affiche juste dessous dans « Bonjour Dr X ».
+  const label = _mePastille(r);
+  pill.innerHTML = esc(label) + ' <span class="me-pill-logout" aria-label="Déconnexion" style="display:inline-flex;align-items:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>';
   pill.style.display = 'inline-flex';
   pill.style.cursor = 'pointer';
   pill.title = "Changer d'utilisateur / déconnexion";
