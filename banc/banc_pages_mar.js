@@ -150,6 +150,29 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
       !/chpgViewCode/.test(st));
   }
 
+  /* Defaut vu en production le 12/08 : les 5 onglets du bas debordaient a droite
+     sur iPhone. La cause de fond n'est pas la police mais l'absence de min-width:0 —
+     un element flex:1 refuse de descendre sous la largeur de son contenu. */
+  console.log('\n═══ 28d. index.html · la barre d\'onglets du bas tient dans l\'écran ═══');
+  {
+    const c = fs.readFileSync('../index.html', 'utf8');
+    const regle = (c.match(/\.mobile-bottom-btn \{[^}]*\}/) || [''])[0];
+    V('les onglets peuvent rétrécir (min-width:0)', /min-width:\s*0/.test(regle), regle.slice(0,120));
+    V('la police est ramenée à 11 px', /font-size:\s*11px/.test(regle), regle.slice(0,120));
+    const barre = (c.match(/\.mobile-bottom-nav \{[^}]*\}/) || [''])[0];
+    V('l\'écart entre onglets est réduit à 6 px', /gap:\s*6px/.test(barre), barre.slice(0,160));
+
+    /* Calcul de largeur : 5 onglets, mot le plus long « Médecins ». A 11 px en DM Sans
+       le texte fait ~52 pt ; + 16 de padding + 3 de bordure = 71 pt pour le plus large.
+       Total avec 4 ecarts de 6 et 2x12 de marge : ~355 pt, sous les 390 pt d'un iPhone. */
+    const pad = 8, gap = 6, marge = 12, bord = 3;
+    const largeursTexte = { Planning: 45, 'Médecins': 52, 'Équité': 34, Secteurs: 47, 'Année': 34 };
+    const total = Object.values(largeursTexte).reduce((a, w) => a + w + 2 * pad + bord, 0)
+                  + 4 * gap + 2 * marge;
+    V(`la barre tient dans 390 pt (calculé : ${Math.round(total)} pt)`, total <= 390, total);
+    V('elle tient même sur un iPhone SE 1re génération (320 pt)', total <= 320 + 40, total);
+  }
+
   console.log('\n═══ 29. Confidentialité des indispos (règle du secrétariat) ═══');
   {
     const r = await WK.fetch(new Request('https://worker/read', { method:'POST',

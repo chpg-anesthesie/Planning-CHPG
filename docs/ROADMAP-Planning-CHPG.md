@@ -4,7 +4,7 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.31.10** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.31.12** ·
 **GAS** (relevé dans le dépôt le 12/08/2026 au soir) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-12.2 · `miroir.gs` 2026-08-12.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
@@ -17,7 +17,7 @@ l'identité avec la version déployée n'a PAS été revérifiée ce jour-là)
 Le banc a un test dédié qui refuse qu'ils divergent — ne jamais se fier à une liste écrite,
 chercher les porteurs dans tout le dépôt.
 
-**Banc d'essai** `banc/` — 684 vérifications (relevé le 12/08/2026 au soir), `cd banc && ./lancer.sh`.
+**Banc d'essai** `banc/` — 700 vérifications (relevé le 12/08/2026 dans la nuit), `cd banc && ./lancer.sh`.
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
@@ -123,7 +123,7 @@ pour 23 MAR) et le vocabulaire « IA » (leur moteur est un solveur de contraint
 
 ---
 
-## 12 août 2026 (soir) — v1.31.10 : identité visuelle et bandeaux mobiles
+## 12 août 2026 (soir) — v1.31.12 : identité visuelle, bandeaux mobiles, écrans de connexion
 
 **Ce qui a changé pour l'utilisateur.** Le drapeau monégasque, qui servait d'icône et de logo
 depuis l'origine, est remplacé par une marque propre au service : un groupe de silhouettes
@@ -178,14 +178,16 @@ nœud selon la largeur, branché sur `checkMobile()`), ce qui préserve `id` et 
 Le nom du service est ensuite revenu sur mobile (« CHPG / Anesthésie-Réa »), le bandeau est centré
 et le logo porté à 34 px, comme le dashboard.
 
-**Ce que le banc a apporté** (643 → 684 vérifications) :
+**Ce que le banc a apporté** (643 → 700 vérifications) :
 - il a **détecté tout seul** la refonte de la tuile : un test cherchait « Prochaine garde » dans la
   ligne principale ; adapté, puis complété par 2 vérifications sur l'étiquette et le sous-titre ;
 - il a **rattrapé une erreur de méthode** : le test « les 5 porteurs annoncent la MÊME version »
   a échoué et révélé que les 3 guides étaient restés en `v1.31.4` après un push. La recherche des
   porteurs n'avait porté que sur les pages racine, pas sur `docs/` ;
 - 10 vérifications ajoutées sur le déplacement des sélecteurs : les deux sens, l'absence de
-  duplication après 3 rotations d'écran, la conservation de la valeur choisie.
+  duplication après 3 rotations d'écran, la conservation de la valeur choisie ;
+- 11 vérifications sur la connexion (champ masqué, clé de session commune, code refusé retiré,
+  `staff.html` qui ne doit **pas** lire la session MAR) et 5 sur la largeur de la barre d'onglets.
 
 **Un faux défaut, à ne pas rechercher à nouveau.** Le thème « automatique » affichait toujours la
 version sombre : l'iPhone était réglé en mode sombre. `matchMedia('(prefers-color-scheme: dark)')`
@@ -197,9 +199,56 @@ fichiers auraient effacé en silence** les corrections « réponse perdue » de 
 push aurait réussi, sans erreur visible. Seul le contrôle « la branche a-t-elle bougé depuis mon
 clone ? » juste avant le PUT l'a évité. **Ce contrôle n'est pas facultatif.**
 
-**Reste ouvert.** Les règles CSS `.flag-top` / `.flag-bottom` sont mortes sur 8 pages (aucun effet
-visible, mais du code qui traîne). Les bandeaux d'`indispos`, `staff`, `absences`, `crh` et
-`suivi-liberal` n'ont pas reçu le traitement d'`index` et `dashboard` : **trois styles coexistent**.
+### Les écrans de connexion, et trois défauts trouvés en production
+
+**Le drapeau se cachait ailleurs.** Après le premier lot, Arthur a vu que les écrans de connexion
+portaient encore le drapeau. Cause : ces drapeaux-là étaient écrits **en style directement dans la
+balise, sans classe** — une recherche par nom de classe ne pouvait pas les trouver. Cinq écrans
+concernés (`index`, `dashboard`, `absences`, `crh`, `suivi-liberal`), bloc strictement identique
+dans les cinq. `admin` et `staff` étaient déjà traités : ils utilisaient une classe.
+
+**Les 8 écrans de connexion sont désormais identiques** : logo 48 px, coins 12 px, même ombre.
+`admin` est passé de 40 à 48 px, `indispos` a quitté son cadenas dans un carré rouge, et
+`docs/staff_gardes_demographie.html` est aligné. **Décision : pas de pastille « ADMIN »** — l'écran
+admin annonce déjà « Espace Admin » et « CODE ADMIN », une pastille ferait redite.
+
+**Nettoyage** : 18 règles CSS des bandes du drapeau supprimées sur 8 pages, plus `.login-logo svg`
+devenue inutile. Vérifié classe par classe : plus aucune n'est utilisée dans le HTML.
+
+**Deux défauts d'`indispos.html`, vus en production, pas par le banc :**
+
+1. **Le code s'affichait en clair pendant la saisie** — `type="text"` au lieu de `type="password"`.
+   Seule page du portail dans ce cas.
+2. **La page redemandait le code alors que le MAR venait du dashboard.** Relevé complet des clés de
+   session : `chpgViewCode` sur `index`, `dashboard`, `absences`, `crh`, `suivi-liberal` ;
+   `adminCode` sur `admin` ; **rien du tout** sur `indispos` et `staff`. `indispos` lit et écrit
+   désormais `chpgViewCode` ; `doLogin()` accepte un code repris en paramètre, et un code refusé
+   est retiré sans laisser de message parasite.
+
+**`staff.html` reste volontairement à l'écart** — vérifié dans son `doLogin` : il n'accepte que
+`role === 'admin'` (le miroir renvoie `nonAdmin` sinon). Lui faire lire la session MAR n'aurait
+servi qu'à tenter un code voué au refus. Le banc verrouille ce point.
+
+### La barre d'onglets du bas débordait de l'écran
+
+**Mesure** : les 5 onglets exigeaient **410 pt** pour 390 pt d'écran (mot le plus long
+« Médecins », 56 pt de texte à 12 px, plus 20 de padding et 3 de bordure). Le texte passait déjà à
+la ligne sous l'émoji — non par choix, mais faute de place.
+
+**La cause de fond n'est pas la taille de police** : un élément `flex: 1` **refuse par défaut de
+descendre sous la largeur de son contenu**. Sans `min-width: 0`, aucun réglage de police ne
+garantit quoi que ce soit. Correction : `min-width: 0`, police 12 → 11 px, padding 10 → 8,
+écart 8 → 6, marge 16 → 12. **410 → 355 pt**, 35 pt de réserve. La barre n'existe que sur
+`index.html` (vérifié sur tout le dépôt).
+
+**Erreur d'analyse à ne pas répéter** : j'ai d'abord proposé de « passer l'icône au-dessus du
+texte », ce qui se produisait déjà à l'écran. Le HTML écrit `📋 Planning` sur une seule ligne ;
+c'est le rendu qui repliait. Lire le HTML ne suffit pas — il faut regarder la capture.
+
+**Reste ouvert.** Les bandeaux d'`indispos`, `staff`, `absences`, `crh` et `suivi-liberal` n'ont
+pas reçu le traitement d'`index` et `dashboard` : **trois styles coexistent**. Et `staff.html` et
+`admin.html` utilisent tous deux un code admin sans partager leur session (`adminCode` n'est lu
+que par `admin`) : le comité ressaisit son code en passant de l'un à l'autre.
 Une adresse en nom de domaine propre a été chiffrée (`.mc` inaccessible — réservé aux entités
 monégasques, 85 à 190 €/an ; `.fr` ≈ 10 €/an) mais écartée avant le 4 septembre : changer l'adresse
 avec des codes déjà distribués est un risque gratuit.

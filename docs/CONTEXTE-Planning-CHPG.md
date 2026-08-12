@@ -11,7 +11,7 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
-## État au 12 août 2026 (soir) — v1.31.10, identité visuelle propre, banc à 684 vérifications
+## État au 12 août 2026 (soir) — v1.31.12, identité visuelle propre, banc à 700 vérifications
 
 **Le drapeau monégasque a disparu.** Icône d'application, favicon et logo de bandeau : partout
 remplacés par une marque du service — silhouettes en groupe au-dessus d'un tracé de monitorage,
@@ -55,9 +55,25 @@ touchée.
 **Un faux défaut à ne pas rechercher à nouveau** : le thème « automatique » semblait toujours
 sombre — l'iPhone était réglé en mode sombre. Le sélecteur reste à 3 positions, inchangé.
 
-**Reste ouvert** : les règles CSS `.flag-top` / `.flag-bottom` sont mortes sur 8 pages ;
-`indispos`, `staff`, `absences`, `crh` et `suivi-liberal` n'ont pas reçu le nouveau bandeau, donc
-trois styles coexistent. Le nom de domaine propre est écarté avant le 4 septembre (le `.mc` est
+**Les 8 écrans de connexion sont identiques** (logo 48 px, coins 12 px). Attention pour la suite :
+les drapeaux de ces écrans étaient écrits **en style directement dans la balise, sans classe** —
+une recherche par nom de classe ne les trouve pas. Décision : **pas de pastille « ADMIN »**,
+l'écran admin annonce déjà « Espace Admin » et « CODE ADMIN ».
+
+**Deux défauts d'`indispos.html` corrigés, tous deux vus en production :** le code s'affichait en
+clair (`type="text"`, seule page du portail dans ce cas), et la page redemandait le code alors que
+le MAR venait du dashboard. **Clés de session, relevé complet** : `chpgViewCode` sur `index`,
+`dashboard`, `absences`, `crh`, `suivi-liberal` et désormais `indispos` ; `adminCode` sur `admin` ;
+**rien** sur `staff`. `staff.html` ne doit **pas** lire la session MAR : vérifié dans son `doLogin`,
+il n'accepte que `role === 'admin'`.
+
+**La barre d'onglets du bas d'`index.html` débordait** : 410 pt requis pour 390 d'écran. La cause
+de fond est l'absence de `min-width: 0` — **un élément `flex: 1` refuse de descendre sous la
+largeur de son contenu**, aucun réglage de police ne compense cela. Corrigé à 355 pt.
+
+**Reste ouvert** : `indispos`, `staff`, `absences`, `crh` et `suivi-liberal` n'ont pas reçu le
+nouveau bandeau, donc trois styles coexistent. `staff.html` et `admin.html` utilisent tous deux un
+code admin sans partager leur session : le comité ressaisit son code en passant de l'un à l'autre. Le nom de domaine propre est écarté avant le 4 septembre (le `.mc` est
 réservé aux entités monégasques ; un `.fr` coûte ~10 €/an, mais changer l'adresse avec des codes
 déjà distribués est un risque gratuit).
 
