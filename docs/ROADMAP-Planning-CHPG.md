@@ -989,9 +989,10 @@ Reste à faire, par ordre de criticité :
    diapo 16 (le rosé du repos du lendemain peut passer pour du blanc) — à regarder le jour même,
    sur le matériel de la salle.
 4. Vérifier que les **profils indispos 2027 des autres MARs sont remplis** (annoncé à la salle).
-5. **Notification de génération sur le téléphone d'Arthur** *(décision du 11/08)* — le canal push
-   de la Priorité 2 ter, phase 1, livré semaine du 18/08, gelé le 28/08. Détail, conditions et
-   check-list d'avant-séance : voir Priorité 2 ter. La démo n'en dépend pas.
+5. **Notification de génération sur le téléphone d'Arthur** — ✅ **canal livré et prouvé le
+   12/08** (notification de test reçue sur téléphone réel). Déjà câblé sur la fin de génération :
+   rien à faire le jour J. Check-list d'avant-séance et détail : voir Priorité 2 ter, phase 1.
+   La démo n'en dépend pas.
    `PERIODES_VAC` : ✅ déjà réglé sur 2027 (Arthur, 30/07).
    📌 **`PERIODES_VAC` ne contient qu'UNE année à la fois — celle qu'on prépare, et c'est normal.**
    `savePeriodes` (Indispos.gs l.1765) efface tout l'onglet et réécrit les périodes envoyées. Rien à
@@ -1196,26 +1197,46 @@ uniquement, couleurs du portail.
   l'ouverture d'un écran.
 
 **Plan en 5 phases — 1 push par phase, chacun confirmé en production avant le suivant** :
-1. **Prouver le canal — AVANCÉE : livraison semaine du 18 août, pour la démo du 04/09.**
-   Routes Worker (abonner / notifier), gestionnaires `push` + `notificationclick` dans `sw.js`,
-   bouton dans dashboard (**rôle admin seul, invisible pour les 23** — personne d'autre ne peut
-   s'abonner, verrouillé par construction), **+ un appel d'une ligne en fin de `generateGardes`**
-   vers la route d'envoi. Test réel : Arthur seul abonné. Critère : la notification arrive,
-   clic → bonne page.
-   **Scénario démo** : à la fin de la génération devant la salle, le téléphone d'Arthur, posé
-   face visible, reçoit « Les gardes 2027 sont générées » — le canal est la preuve, les échanges
-   sont la promesse. **Trois conditions strictes** :
-   - Livraison **un soir calme entre le 18 et le 20 août** (la montée de version de `sw.js`
-     purge les caches des 23, une seule fois) → **deux semaines de trempage** en conditions
-     réelles avant la démo.
-   - **Gel absolu le 28 août.** Canal non prouvé à cette date = démo sans, sans discussion.
-   - **La démo ne dépend jamais de la notification.** Si elle n'arrive pas le soir même, rien
-     ne manque — personne dans la salle ne sait qu'elle devait arriver. Bonus, pas pilier.
-   Check-list d'avant-séance : luminosité du téléphone au max, notifications en mode « bannière
-   sur écran verrouillé » (sinon arrivée silencieuse dans le centre de notifications).
-   Point iOS : le push n'arrive que si l'app est installée sur l'écran d'accueil — vrai pour
-   Arthur, à vérifier avant d'imaginer les 23. Modification de `sw.js` **minimale** : un
-   gestionnaire `push`, un `notificationclick`, rien d'autre. Banc avant push.
+1. **Prouver le canal — ✅ LIVRÉE ET PROUVÉE LE 12/08/2026** (16 jours avant le gel du 28/08).
+   Commit `f0462dc`, site v1.31.4, banc 626 vérifications (591 + 35 nouvelles dans
+   `banc/banc_notif.mjs`). **Test réel réussi** : notification `testNotificationPush` reçue et
+   affichée sur l'iPhone d'Arthur (app installée, code admin), chaîne complète GAS → Worker →
+   Apple → téléphone.
+   **Ce qui est en place** :
+   - `cloudflare/worker.js` (`miroir 2026-08-12.1`) : `/notif-cle` (clé publique), `/notif-abonner`
+     (authentifié par code, **rôle admin seul, refusé côté serveur** — l'élargissement aux MAR se
+     fera à la phase 4, à cet endroit et nulle part ailleurs), `/notif-envoyer` (jeton
+     `PUSH_TOKEN`, chiffrement Web Push complet VAPID + aes128gcm exigé par iOS, abonnements
+     morts 404/410 purgés au passage). Abonnements en KV sous `notif_sub_<id>`, préfixe absent
+     de `CLE_VALIDE` : illisibles par `/read`, inatteignables par `/push` — prouvé au banc.
+   - `sw.js` v3 : gestionnaires `push` + `notificationclick`, rien d'autre. Purge des caches
+     des 23 faite une fois au passage v2→v3, sans incident. L'API GAS reste non interceptée.
+   - `dashboard.html` (v1.31.4) : carte « Activer les notifications », visible **rôle admin
+     seul** et si le navigateur sait faire. ⚠️ La carte n'apparaît qu'avec un **code admin** —
+     un code de consultation MAR ne la voit pas (vécu le 12/08, premier réflexe si « je ne vois
+     pas la carte »).
+   - `gas/miroir.gs` (`2026-08-12.1`) : `notifierPush_()` **jamais bloquante** (tout échec avalé
+     et journalisé) + `testNotificationPush()` lançable depuis l'éditeur.
+   - `gas/generateur_gardes.gs` (`2026-08-12.1`) : notification « Les gardes {année} sont
+     générées » en fin de génération réussie, dans un `try` séparé — une notification ratée ne
+     fait jamais échouer une génération.
+   - Secrets Worker : `VAPID_PUBLIC` + `VAPID_PRIVATE` posés dans Cloudflare (Settings →
+     Variables and Secrets) le 12/08. La privée n'existe **nulle part ailleurs**. En cas de
+     fuite : régénérer une paire, remplacer les secrets, chacun se réabonne — rien de grave.
+   - Le banc joue l'iPhone : il s'abonne avec ses propres clés, reçoit la charge chiffrée et la
+     **déchiffre réellement** (RFC 8291) ; signature du JWT VAPID vérifiée à la clé publique.
+   **Marche de redéploiement** (si le Worker ou les .gs doivent être repris un jour) :
+   ① coller `cloudflare/worker.js` dans le tableau de bord Cloudflare → Deploy ② recopier les
+   .gs dans l'éditeur Apps Script → Déployer → Nouvelle version ③ les secrets VAPID survivent
+   aux redéploiements, ne pas y toucher.
+   **Scénario démo du 04/09** : à la fin de la génération devant la salle, le téléphone
+   d'Arthur, posé face visible, reçoit « Les gardes 2027 sont générées » ; un toucher ouvre la
+   page comité. Déjà câblé, rien à faire le jour J côté code. **La démo n'en dépend jamais** :
+   si la notification n'arrive pas, personne dans la salle ne le sait.
+   Check-list d'avant-séance : téléphone connecté avec le **code admin**, luminosité au max,
+   notifications en mode « bannière sur écran verrouillé » (sinon arrivée silencieuse dans le
+   centre de notifications).
+   **Gel** : plus aucune modification de `sw.js` ni du canal avant le 04/09.
 2. **Boucher `donGarde`.** Refus si receveur indisponible (V, congé, indispo, TP) avant toute
    écriture. GAS seul, invisible pour les MAR, banc obligatoire (don vers MAR en congé refusé ·
    don vers MAR libre accepté · garde-fous existants intacts). Protège déjà le comité aujourd'hui.
