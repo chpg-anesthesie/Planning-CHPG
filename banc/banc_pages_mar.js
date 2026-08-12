@@ -253,6 +253,54 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
   }
 
+  /* Defaut vu en production le 12/08 : on pouvait poser une indispo au-dela de la fin
+     de l'annee de planning (a partir du 3 janvier 2028 pour l'annee 2027). Les cases
+     etaient grisees mais cliquables, et le SERVEUR ignore ces dates en silence
+     (banc T072) : le MAR croyait avoir declare, rien n'etait enregistre. */
+  console.log('\n═══ 28g. indispos.html · rien ne se pose hors de l\'année de planning ═══');
+  {
+    const contenu = fs.readFileSync('../indispos.html', 'utf8');
+    const dom = new JSDOM(contenu, { runScripts:'dangerously',
+      virtualConsole:new VirtualConsole(), pretendToBeVisual:true,
+      url:'https://chpg-anesthesie.github.io/Planning-CHPG/indispos.html',
+      beforeParse(win) {
+        win.matchMedia = () => ({ matches:false, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
+        win.Element.prototype.scrollIntoView = function () {};
+        win.HTMLElement.prototype.scrollIntoView = function () {};
+        win.scrollTo = () => {};
+        win.fetch = () => new Promise(() => {});
+      } });
+    await dodo(400);
+    const w = dom.window;
+
+    /* Les bornes doivent coller a celles du serveur : du premier lundi de janvier Y
+       au jour precedant le premier lundi de janvier Y+1. */
+    const b = w.bornesAnneePlanning(2027);
+    V('année 2027 : début au premier lundi (04/01/2027)', b.debut === '2027-01-04', b.debut);
+    V('année 2027 : fin au 02/01/2028 (veille du lundi suivant)', b.fin === '2028-01-02', b.fin);
+    const b28 = w.bornesAnneePlanning(2028);
+    V('année 2028 : du 03/01/2028 au 07/01/2029', b28.debut === '2028-01-03' && b28.fin === '2029-01-07', b28);
+
+    /* Pose reelle. YEAR et indispos sont des variables de script (let) : invisibles
+       depuis l'exterieur, on pilote la page par son propre contexte via eval. */
+    w.eval(`YEAR = 2027; indispos = {}; currentTool = 'INDISPO'; isDragging = false;
+            renderMonth = function(){}; updateStats = function(){};
+            window.__toasts = []; showToast = function(m){ window.__toasts.push(m); };`);
+    const pose = d => { w.eval(`applyTool(${JSON.stringify(d)})`); };
+    const etat = () => w.eval('JSON.stringify(indispos)');
+
+    pose('2027-03-15');
+    V('une date DANS l\'année se pose', JSON.parse(etat())['2027-03-15'] === 'INDISPO', etat());
+    pose('2028-01-02');
+    V('le dernier jour de l\'année se pose encore', JSON.parse(etat())['2028-01-02'] === 'INDISPO', etat());
+    pose('2028-01-03');
+    V('le lundi 03/01/2028 est REFUSÉ (défaut vu en production)', !JSON.parse(etat())['2028-01-03'], etat());
+    pose('2027-01-01');
+    V('le 1er janvier 2027, avant le début, est refusé aussi', !JSON.parse(etat())['2027-01-01'], etat());
+    V('rien d\'autre n\'a été écrit', Object.keys(JSON.parse(etat())).length === 2, etat());
+    V('le refus est expliqué au MAR', /Hors de l'année de planning/.test((w.__toasts || []).join(' ')), w.__toasts);
+  }
+
   console.log('\n═══ 29. Confidentialité des indispos (règle du secrétariat) ═══');
   {
     const r = await WK.fetch(new Request('https://worker/read', { method:'POST',

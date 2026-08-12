@@ -11,7 +11,7 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
-## État au 12 août 2026 (soir) — v1.31.13, identité visuelle propre, banc à 714 vérifications
+## État au 12 août 2026 (soir) — v1.31.14, identité visuelle propre, banc à 723 vérifications
 
 **Le drapeau monégasque a disparu.** Icône d'application, favicon et logo de bandeau : partout
 remplacés par une marque du service — silhouettes en groupe au-dessus d'un tracé de monitorage,
@@ -72,6 +72,11 @@ l'interface.** La reprise de session d'`indispos` appelait `doLogin()`, qui dés
 affiche « Connexion… » : tant que le serveur ne répondait pas (jusqu'à 20 s au réveil d'Apps
 Script), l'écran de saisie était **figé**, le MAR ne pouvait plus rien taper. `doLogin()` prend
 désormais un argument `silencieux`. Vérifié au banc avec un serveur qui ne répond jamais.
+
+**On pouvait poser une indispo hors de l'année de planning** (à partir du 03/01/2028 pour 2027) :
+les cases étaient grisées mais `applyTool()` ne vérifiait pas les bornes, et le serveur ignore ces
+dates **en silence** — le MAR croyait avoir déclaré. Corrigé par `bornesAnneePlanning(y)`, **une
+seule définition partagée par l'affichage et la pose**. Année 2027 : du 04/01/2027 au 02/01/2028.
 
 **Le vide sous les onglets d'`index.html`** : `#mobileView` (hauteur minimale d'un écran) restait
 affiché sur tous les onglets alors qu'il ne sert qu'à Planning — ~790 pt de blanc sous les tableaux

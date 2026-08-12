@@ -32,6 +32,11 @@ console.log('\n═══ 1. indispos.html · un jour de TP ne se pose que sur un
     marquerModifie: () => {}, sauvegarder: () => {}, planifierSauvegarde: () => {}, maj: () => {},
   });
   ctx.globalThis = ctx;
+  ctx.YEAR = 2027;
+  /* applyTool refuse desormais les dates hors annee de planning : ses deux fonctions
+     de bornes doivent etre presentes, elles aussi extraites de la page (jamais recopiees). */
+  vm.runInContext(extraireDuHtml('../indispos.html', 'premierJourAnneePlanning'), ctx);
+  vm.runInContext(extraireDuHtml('../indispos.html', 'bornesAnneePlanning'), ctx);
   vm.runInContext(extraireDuHtml('../indispos.html', 'applyTool'), ctx);
 
   const pose = d => { vm.runInContext(`applyTool('${d}')`, ctx); return ctx.indispos[d]; };

@@ -470,6 +470,15 @@ function premierJourAnneePlanning(y) {
   const offset = dow === 1 ? 7 : dow === 0 ? 1 : 8 - dow;
   return new Date(y, 0, 1 + offset);
 }
+/* Bornes de l'annee de planning : du premier lundi de janvier Y au jour precedant
+   le premier lundi de janvier Y+1 (donc souvent debut janvier Y+1). UNE SEULE
+   definition, utilisee par l'affichage ET par la pose : elles ne peuvent plus diverger. */
+function bornesAnneePlanning(y) {
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const debut = premierJourAnneePlanning(y);
+  const fin = new Date(premierJourAnneePlanning(y + 1).getTime() - 86400000);
+  return { debut: iso(debut), fin: iso(fin) };
+}
 const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin',
                    'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const DAYS_FR = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
@@ -883,11 +892,8 @@ if (vacConfig) {
   const periode = vacConfig.periodes.find(p => date >= p.debut && date <= p.fin);
   if (periode && periode.joursBloqués && periode.joursBloqués.includes(date)) isBlocked = true;
 }
-    const pj = premierJourAnneePlanning(YEAR);
-    const premierJour = `${pj.getFullYear()}-${String(pj.getMonth()+1).padStart(2,'0')}-${String(pj.getDate()).padStart(2,'0')}`;
-    const dernierJour = premierJourAnneePlanning(YEAR + 1);
-    const dernierJourStr = `${dernierJour.getFullYear()}-${String(dernierJour.getMonth()+1).padStart(2,'0')}-${String(dernierJour.getDate()-1).padStart(2,'0')}`;
-    const isAvantPremierJour = date < premierJour || date > dernierJourStr;
+    const _b = bornesAnneePlanning(YEAR);
+    const isAvantPremierJour = date < _b.debut || date > _b.fin;
     const isJourFerie = joursFeries.has(date);
     let cls = 'cal-day';
     if (isWe || isJourFerie) cls += ' weekend';
@@ -947,6 +953,20 @@ function endDrag() {
 document.addEventListener('mouseup', () => { isDragging = false; });
 
 function applyTool(date) {
+  /* (12/08/2026) Hors de l'annee de planning, le SERVEUR ignore la date en silence
+     (banc T072) : le MAR croyait avoir declare, rien n'etait enregistre. Les cases
+     etaient deja grisees mais restaient cliquables. Refus explicite ici. */
+  {
+    const b = bornesAnneePlanning(YEAR);
+    if (date < b.debut || date > b.fin) {
+      if (!isDragging || !window._horsAnneeMsg) {
+        window._horsAnneeMsg = true;
+        setTimeout(() => { window._horsAnneeMsg = false; }, 2500);
+        showToast(`🚫 Hors de l'année de planning ${YEAR}`);
+      }
+      return;
+    }
+  }
   // VAC et FORM posés par le comité — non modifiables par le MAR
   if (indispos[date] === 'VAC' || indispos[date] === 'FORM') {
     showToast('🔒 Congé posé par le comité — contactez-les pour modifier');

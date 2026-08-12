@@ -4,7 +4,7 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.31.13** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.31.14** ·
 **GAS** (relevé dans le dépôt le 12/08/2026 au soir) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-12.2 · `miroir.gs` 2026-08-12.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
@@ -17,7 +17,7 @@ l'identité avec la version déployée n'a PAS été revérifiée ce jour-là)
 Le banc a un test dédié qui refuse qu'ils divergent — ne jamais se fier à une liste écrite,
 chercher les porteurs dans tout le dépôt.
 
-**Banc d'essai** `banc/` — 714 vérifications (relevé le 12/08/2026 dans la nuit), `cd banc && ./lancer.sh`.
+**Banc d'essai** `banc/` — 723 vérifications (relevé le 12/08/2026 dans la nuit), `cd banc && ./lancer.sh`.
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
@@ -211,7 +211,7 @@ pour 23 MAR) et le vocabulaire « IA » (leur moteur est un solveur de contraint
 
 ---
 
-## 12 août 2026 (soir) — v1.31.13 : identité visuelle, bandeaux mobiles, écrans de connexion
+## 12 août 2026 (soir) — v1.31.14 : identité visuelle, bandeaux mobiles, écrans de connexion
 
 **Ce qui a changé pour l'utilisateur.** Le drapeau monégasque, qui servait d'icône et de logo
 depuis l'origine, est remplacé par une marque propre au service : un groupe de silhouettes
@@ -266,7 +266,7 @@ nœud selon la largeur, branché sur `checkMobile()`), ce qui préserve `id` et 
 Le nom du service est ensuite revenu sur mobile (« CHPG / Anesthésie-Réa »), le bandeau est centré
 et le logo porté à 34 px, comme le dashboard.
 
-**Ce que le banc a apporté** (643 → 714 vérifications) :
+**Ce que le banc a apporté** (643 → 723 vérifications) :
 - il a **détecté tout seul** la refonte de la tuile : un test cherchait « Prochaine garde » dans la
   ligne principale ; adapté, puis complété par 2 vérifications sur l'étiquette et le sous-titre ;
 - il a **rattrapé une erreur de méthode** : le test « les 5 porteurs annoncent la MÊME version »
@@ -322,6 +322,27 @@ appelait `doLogin()`, qui commence par **désactiver le bouton** et afficher « 
 que le serveur ne répondait pas — jusqu'à 20 s au réveil d'Apps Script — l'écran de saisie était
 **figé** : le MAR ne pouvait même plus taper son code à la main. Vu en production par Arthur,
 capture à l'appui.
+
+**Troisième défaut d'`indispos`, trouvé par Arthur : on pouvait poser une indispo hors de
+l'année de planning.** À partir du lundi 3 janvier 2028 pour l'année 2027. Les cases étaient bien
+grisées, mais **`applyTool()` ne vérifiait jamais les bornes** — elle contrôlait les congés du
+comité, les jours de TP et le quota, pas la date. Or le **serveur ignore ces dates en silence**
+(banc T072) : le MAR croyait avoir déclaré, rien n'était enregistré. Le trou existait aussi avant
+le début d'année (1er au 3 janvier 2027).
+
+Correction : une fonction `bornesAnneePlanning(y)` — **une seule définition, utilisée par
+l'affichage ET par la pose**, elles ne peuvent plus diverger — et un refus explicite dans
+`applyTool()` avec le message « Hors de l'année de planning ». Bornes vérifiées sur cinq années :
+2027 va du 04/01/2027 au 02/01/2028.
+
+**Le banc a rattrapé un effet de bord** : `banc_tp.js` extrait `applyTool` seule et l'exécute
+isolée ; les deux fonctions de bornes lui manquaient. Elles sont extraites de la page elles aussi,
+jamais recopiées.
+
+**Piège de méthode dans le test lui-même** : `YEAR` et `indispos` sont des variables de script
+(`let`), invisibles depuis l'extérieur de la page. Un premier test les affectait depuis `window` —
+sans rien toucher, et il « passait » pour de mauvaises raisons. On pilote la page par son propre
+contexte (`window.eval`).
 
 **Règle qui en découle : une tentative automatique ne touche JAMAIS à l'interface.** `doLogin()`
 prend un second argument `silencieux` ; en mode silencieux il ne modifie ni le bouton, ni le champ,
