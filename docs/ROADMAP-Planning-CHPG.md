@@ -1237,10 +1237,18 @@ uniquement, couleurs du portail.
    notifications en mode « bannière sur écran verrouillé » (sinon arrivée silencieuse dans le
    centre de notifications).
    **Gel** : plus aucune modification de `sw.js` ni du canal avant le 04/09.
-2. **Boucher `donGarde`.** Refus si receveur indisponible (V, congé, indispo, TP) avant toute
-   écriture. GAS seul, invisible pour les MAR, banc obligatoire (don vers MAR en congé refusé ·
-   don vers MAR libre accepté · garde-fous existants intacts). Protège déjà le comité aujourd'hui.
-   Interchangeable avec la phase 1 — peut passer en premier.
+2. **Boucher `donGarde` — ✅ LIVRÉE LE 12/08/2026.** `Indispos.gs` `2026-08-12.1` :
+   `refuseSiIndisponible` vérifie AVANT toute écriture que le receveur est disponible le jour
+   de la garde ET le lendemain (son repos). Absences bloquantes : INDISPO, VAC, FORM, TP, CL,
+   CTP, CP, A (même liste que le générateur). Un SOUHAIT ne bloque pas. Banc : 8 scénarios
+   (5 refus feuille intacte, 3 non-régressions), total 634 vérifications.
+   **Décisions du 12/08** : `gardeExceptionnelle` reste sans ce contrôle (jamais 3 MAR de
+   garde le même jour — impossible en pratique, dixit Arthur) ; `echangeGardeJours` recevra
+   le sien à la phase 3, avec les contrôles joués à la création des demandes.
+   **Chantier ajouté (demande Arthur du 12/08)** : rendre possible l'échange de deux gardes
+   ADJACENTES (lundi/mardi), aujourd'hui refusé « à échanger manuellement ». Clé : vérifier
+   l'état d'ARRIVÉE, pas l'état de départ, et écrire en vidant d'abord (le bug connu « échange
+   adjacent » consigné en dette technique se résout là). En cours, AVANT/APRÈS séparé.
 3. **Cycle demande/réponse** (le gros morceau). Onglet `ECHANGES` : id, type (don/échange), dates,
    secteurs, demandeur, receveur, état (en attente / acceptée / refusée / expirée), horodatages.
    GAS : créer (contrôles de la phase 2 joués **dès la création**), accepter (rejoue les contrôles

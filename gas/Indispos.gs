@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-08.1';
+const GAS_VERSION_INDISPOS = '2026-08-12.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1714,6 +1714,22 @@ function applyModification(mod) {
     });
   }
 
+  /* (12/08/2026 — phase 2 échanges) Un don ne regardait que la grille des
+     gardes : donner une garde à un MAR en congé passait sans un mot, et son
+     absence restait posée sur le même jour que sa nouvelle garde. C'était
+     l'œil du comité qui l'attrapait — indispensable avant d'ouvrir les dons
+     aux MAR eux-mêmes (phase 4), où plus personne ne relira.
+     La source de vérité des absences est INDISPOS_{annee} (même lecture que
+     l'échange de secteurs). Un SOUHAIT n'est PAS une absence : recevoir une
+     garde un jour qu'on a souhaité est exactement le but. */
+  const ABSENCES = ['INDISPO', 'VAC', 'FORM', 'TP', 'CL', 'CTP', 'CP', 'A'];
+  function refuseSiIndisponible(who, jour, motif) {
+    const v = readCell(`INDISPOS_${year}`, who, jour).toUpperCase();
+    if (ABSENCES.indexOf(v) > -1) {
+      throw new Error(`${who} est indisponible (${v}) le ${jour} — ${motif}`);
+    }
+  }
+
   // Pre-vol : la case existe-t-elle ? Meme controle que writeCell, mais AVANT
   // d'ecrire quoi que ce soit, pour ne jamais laisser une modification a moitie faite.
   function verifieCellules(paires) {
@@ -1787,6 +1803,10 @@ function applyModification(mod) {
       refuseSiGarde(doctorId2, date,   'don impossible');
       refuseSiGarde(doctorId2, jourRG, 'le repos de garde ecraserait cette garde — don impossible');
       refuseSiAdjacente(doctorId2, date);
+      // (12/08/2026 — phase 2) Le receveur doit être disponible le jour de la
+      // garde ET le lendemain (son repos de garde) : tout vérifié avant d'écrire.
+      refuseSiIndisponible(doctorId2, date,   'don impossible');
+      refuseSiIndisponible(doctorId2, jourRG, 'son repos de garde tomberait sur cette absence — don impossible');
       writeCell(`GARDES_${year}`, doctorId,  date,   '');
       writeCell(`GARDES_${year}`, doctorId2, date,   valGarde);
       writeCell(`GARDES_${year}`, doctorId,  jourRG, '');

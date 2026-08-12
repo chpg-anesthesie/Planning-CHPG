@@ -26,6 +26,12 @@ function monde(annee) {
   const lignes = [['',''], ['',''], ['MAR',''].concat(dates.map(()=>''))];
   MARS.slice(0, 8).forEach(id => lignes.push([id, ''].concat(dates.map(() => ''))));
   cl.ajouter(`GARDES_${annee}`, lignes);
+  /* (12/08/2026 — phase 2) INDISPOS_{annee}, même géométrie de colonnes que
+     GARDES : c'est l'hypothèse du code de production (readCell partage le même
+     index de dates pour les deux onglets, comme dans echangeSecteur). */
+  const lignesInd = [['',''], ['',''], ['MAR',''].concat(dates.map(()=>''))];
+  MARS.slice(0, 8).forEach(id => lignesInd.push([id, ''].concat(dates.map(() => ''))));
+  cl.ajouter(`INDISPOS_${annee}`, lignesInd);
   cl.ajouter('PLANNING_OVERRIDES', [['DATE','MAR_ID','MATIN','APREM','COMMENTAIRE']]);
   const MOIS = ['JAN','FEV','MARS','AVRIL','MAI','JUIN','JUILLET','AOUT','SEPT','OCT','NOV','DEC'];
   cl.ajouter(`AFFECTATIONS_${annee}`, [['MAR'].concat(MOIS.map(m => `${m} ${annee}`))]
@@ -53,11 +59,15 @@ function monde(annee) {
     const f = cl.getSheetByName(`GARDES_${annee}`);
     f.lignes[f.lignes.findIndex(l => String(l[0]).trim() === mar)][colonne(date)] = code;
   };
+  const poserIndispo = (mar, date, code) => {
+    const f = cl.getSheetByName(`INDISPOS_${annee}`);
+    f.lignes[f.lignes.findIndex(l => String(l[0]).trim() === mar)][colonne(date)] = code;
+  };
   const lire = (mar, date) => {
     const f = cl.getSheetByName(`GARDES_${annee}`);
     return f.lignes[f.lignes.findIndex(l => String(l[0]).trim() === mar)][colonne(date)] || '';
   };
-  return { cl, ctx, dates, poser, lire, annee };
+  return { cl, ctx, dates, poser, lire, poserIndispo, annee };
 }
 
 console.log('\n═══ 38. Échange de gardes entre deux MAR ═══');
@@ -191,6 +201,61 @@ console.log('\n═══ 44. Atomicité : un refus ne laisse JAMAIS d\'écriture
     V(`${titre} : refusé ET feuille inchangée`, refuse && avant === apres,
       { refuse, identique: avant === apres });
   });
+}
+
+console.log('\n═══ 46 ter. Phase 2 : un don exige un receveur DISPONIBLE ═══');
+{
+  /* Le trou consigné le 11/08 : donGarde ne regardait que la grille des
+     gardes. Donner une garde à un MAR en congé passait sans un mot. On
+     éprouve le refus (feuille INTACTE) et, surtout, les non-régressions :
+     receveur libre = accepté, souhait = accepté. */
+  const etat = b => JSON.stringify(b.cl.getSheetByName('GARDES_2027').lignes);
+  const refuses = [
+    ['receveur en VAC le jour de la garde', 'VAC', 0],
+    ['receveur en congé longue durée (CL)', 'CL', 0],
+    ['receveur en temps partiel (TP)', 'TP', 0],
+    ['receveur INDISPO ce jour-là', 'INDISPO', 0],
+    ['receveur en VAC le LENDEMAIN (jour de son repos de garde)', 'VAC', 1],
+  ];
+  refuses.forEach(([titre, code, decalage]) => {
+    const b = monde(2027);
+    b.poser('ALPHA', b.dates[20], 'G'); b.poser('ALPHA', b.dates[21], 'RG');
+    b.poserIndispo('BRAVO', b.dates[20 + decalage], code);
+    const avant = etat(b);
+    let msg = '';
+    try { vm.runInContext(`applyModification({ type:'donGarde', year:2027, date:${JSON.stringify(b.dates[20])}, doctorId:'ALPHA', doctorId2:'BRAVO' })`, b.ctx); }
+    catch (e) { msg = e.message; }
+    V(`${titre} : refusé, motif lisible, feuille intacte`,
+      /indisponible/.test(msg) && new RegExp(code).test(msg) && etat(b) === avant, msg);
+  });
+
+  {
+    const b = monde(2027);
+    b.poser('ALPHA', b.dates[20], 'G'); b.poser('ALPHA', b.dates[21], 'RG');
+    vm.runInContext(`applyModification({ type:'donGarde', year:2027, date:${JSON.stringify(b.dates[20])}, doctorId:'ALPHA', doctorId2:'BRAVO' })`, b.ctx);
+    V('receveur LIBRE : le don passe comme avant (non-régression)',
+      b.lire('BRAVO', b.dates[20]) === 'G' && b.lire('BRAVO', b.dates[21]) === 'RG'
+      && b.lire('ALPHA', b.dates[20]) === '' && b.lire('ALPHA', b.dates[21]) === '');
+  }
+  {
+    const b = monde(2027);
+    b.poser('ALPHA', b.dates[20], 'G'); b.poser('ALPHA', b.dates[21], 'RG');
+    b.poserIndispo('BRAVO', b.dates[20], 'SOUHAIT');
+    let ok2 = true;
+    try { vm.runInContext(`applyModification({ type:'donGarde', year:2027, date:${JSON.stringify(b.dates[20])}, doctorId:'ALPHA', doctorId2:'BRAVO' })`, b.ctx); }
+    catch (e) { ok2 = false; }
+    V('un SOUHAIT n\'est pas une absence : le don passe', ok2 && b.lire('BRAVO', b.dates[20]) === 'G');
+  }
+  {
+    /* L'indisponibilité d'un TIERS ne bloque rien : seule celle du receveur compte. */
+    const b = monde(2027);
+    b.poser('ALPHA', b.dates[20], 'G'); b.poser('ALPHA', b.dates[21], 'RG');
+    b.poserIndispo('CHARLI', b.dates[20], 'VAC');
+    let ok3 = true;
+    try { vm.runInContext(`applyModification({ type:'donGarde', year:2027, date:${JSON.stringify(b.dates[20])}, doctorId:'ALPHA', doctorId2:'BRAVO' })`, b.ctx); }
+    catch (e) { ok3 = false; }
+    V('la VAC d\'un tiers ne bloque pas le don', ok3 && b.lire('BRAVO', b.dates[20]) === 'G');
+  }
 }
 
 console.log('\n═══ 47. La clé libérale ne contient QUE ce que l\'écran affiche ═══');
