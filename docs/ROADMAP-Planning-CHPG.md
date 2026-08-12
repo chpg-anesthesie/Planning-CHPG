@@ -162,10 +162,62 @@ recoupé avec la documentation Google). **Conséquence de méthode : ajouter un 
 l'application web ne sert à rien.** Tout chiffre de diagnostic doit revenir **dans la réponse**, jamais dans
 le journal.
 
-→ **À faire après le 04/09** : remplacer la borne de temps par un plafond de tours (17 suffisent toujours).
-Correctif d'une ligne, sans effet visible, qui rend la génération reproductible **par construction** et non
-par chance. Ce n'est pas urgent — c'est simplement le genre de dépendance silencieuse qu'on ne veut pas
-découvrir en novembre.
+→ **À faire après le 04/09 — patch validé par Arthur le 12/08, à livrer dans le même lot GAS que le lien
+samedi → R.** La borne n'est pas supprimée : elle cesse d'être silencieuse.
+
+**Pourquoi ne PAS supprimer la borne.** Un tour coûte environ 380 ms au pire mesuré. Soixante tours font
+23 s au banc, et jusqu'à trois fois plus en production : l'optimiseur seul dépasserait la minute, alors que
+le navigateur abandonne à 90 s (`admin.html`). Le filet doit rester.
+
+**AVANT** (`generateur_gardes.gs` l.1131-1162, version `2026-08-12.1`) :
+
+```js
+    const t0=Date.now();let moves=0;
+    for(let pass=0;pass<60;pass++){
+      let changed=false;
+      …
+      if(!changed||Date.now()-t0>20000)break;
+    }
+    Logger.log('Optimiseur: '+moves+' transferts');
+```
+
+**APRÈS** :
+
+```js
+    const t0=Date.now();let moves=0,tours=0,arret='convergence';
+    for(let pass=0;pass<60;pass++){
+      let changed=false;
+      …
+      tours=pass+1;
+      if(!changed) break;
+      if(Date.now()-t0>20000){ arret='limite de temps'; break; }
+      if(pass===59) arret='plafond de 60 tours';
+    }
+    const _msOpt=Date.now()-t0;
+    Logger.log('Optimiseur: '+moves+' transferts');
+    logAction('Optimiseur '+year+' : '+moves+' transferts, '+tours+' tours, '+
+              Math.round(_msOpt/1000)+' s — '+arret+'.');
+    if(arret!=='convergence')
+      warnings.push('Le calcul d\'équilibrage a été interrompu avant la fin. Le planning reste '+
+        'valide, mais la répartition peut être un peu moins régulière. Prévenez l\'administrateur '+
+        'du portail.');
+```
+
+**Deux destinations, et c'est le point.** Le chiffre technique part dans `logAction()` (`Indispos.gs`
+l.789), qui écrit dans l'onglet **`LOGS`** du classeur — horodaté, 500 lignes conservées. Le comité ne le
+voit jamais ; Arthur l'ouvre quand il veut. L'avertissement, lui, ne s'affiche **que si l'arrêt est
+anormal**, en français de tous les jours, avec la conduite à tenir. Version initiale du patch rejetée par
+Arthur, à juste titre : « Optimiseur : 312 transferts en 9 tours » dans l'encadré jaune n'aurait eu aucun
+sens pour le comité.
+
+**Et ça règle le problème de mesure de la nuit.** `Logger.log` est inaccessible pour les appels de
+l'application web (exécutions `doPost` non dépliables) ; `logAction` écrit dans le classeur, donc lisible.
+Après quelques générations, l'onglet `LOGS` donnera la série réelle en production — tours, transferts,
+durée — et la variabilité d'Apps Script, aujourd'hui inconnue, se mesurera d'elle-même.
+
+**Conditions de livraison** : incrémenter `GAS_VERSION_GENERATEUR` · banc complet lancé et annoncé chiffré
+AVANT de livrer · GAS seul, donc pas de montée de version du site · Arthur recopie dans l'éditeur Apps
+Script et déploie une nouvelle version.
 
 ### Sept mécanismes de placement, pas un seul
 
