@@ -11,6 +11,58 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 12 août 2026 (soir) — v1.31.10, identité visuelle propre, banc à 684 vérifications
+
+**Le drapeau monégasque a disparu.** Icône d'application, favicon et logo de bandeau : partout
+remplacés par une marque du service — silhouettes en groupe au-dessus d'un tracé de monitorage,
+blanc sur `#CE1126`. 5 fichiers dans `assets/` + `assets/logo.png` (144 px) pour les bandeaux.
+Le drapeau était dessiné en CSS à 11 endroits sur 8 pages ; tous remplacés par `<img>`.
+
+**Ce qu'il faut savoir avant de refaire une icône** : elle doit être **carrée avec le fond
+jusqu'au dernier pixel** (les coins arrondis peints dans l'image donnent un liseré noir, iOS et
+Android appliquant leur propre masque) ; la version *maskable* a besoin de **20 % de marge** ;
+et le rouge d'un rendu généré n'est jamais `#CE1126`, il faut le recaler.
+
+**Bandeaux mobiles refaits sur `dashboard.html` et `index.html`.** « CHPG » + « Anesthésie-Réa »,
+logo 34 px, contenu centré, bloc titre en `min-width: 0` + troncature pour qu'il ne puisse plus
+déborder sur les boutons. Sur `index.html`, le bandeau portait 7 éléments et occupait 320 pt
+sur 390 : les sélecteurs année/mois sont sortis dans une **barre « période »** sous 768 px.
+Ils y sont **déplacés dans le DOM, jamais dupliqués** — un seul `#yearSelect` existe à tout
+instant, gestionnaires intacts, et le banc le prouve après 3 rotations d'écran.
+
+**La pastille du bandeau affiche les initiales**, pas le nom (`AFR`), repli sur les 3 premières
+lettres de l'identifiant, `ADMIN` pour le comité. **Aucun `.gs` modifié** : `initials` transitait
+déjà dans la réponse de connexion — colonne 3 de MEDECINS, même source que `staff.html`.
+
+**Tuile « Mes gardes »** : `PROCHAINE GARDE` / `Mardi 01/09 · Réa` / `Dans 20 jours · 45 autres à
+venir`. Fonction dédiée `_mgDateCourte()` ; `staffDateParts()`, utilisée ailleurs, n'est pas
+touchée.
+
+**Trois leçons de méthode, chèrement apprises :**
+
+1. **Le numéro de version est porté par 5 fichiers, pas 2.** `admin.html`, `dashboard.html` et
+   les trois documents `docs/guide-comite.html`, `docs/guide-mar.html`, `docs/roadmap.html`.
+   Une recherche limitée aux pages racine a laissé 3 guides en arrière pendant un push. C'est le
+   banc, et non une relecture, qui l'a détecté.
+2. **Deux conversations sur le même dépôt = collisions.** Trois en deux heures. La plus grave :
+   des fichiers partis d'un clone vieux de 20 minutes qui auraient **effacé en silence** le
+   travail de l'autre session — le push aurait réussi, sans erreur. Seul le contrôle
+   « la branche a-t-elle bougé depuis mon clone ? » juste avant le PUT l'a évité.
+3. **Vérifier avant de proposer.** Les initiales sur mobile existaient déjà dans `index.html`
+   depuis longtemps ; elles étaient simplement invisibles, la pastille étant compressée à zéro
+   par `flex-shrink: 1`. Proposer de les « ajouter » était une erreur de lecture.
+
+**Un faux défaut à ne pas rechercher à nouveau** : le thème « automatique » semblait toujours
+sombre — l'iPhone était réglé en mode sombre. Le sélecteur reste à 3 positions, inchangé.
+
+**Reste ouvert** : les règles CSS `.flag-top` / `.flag-bottom` sont mortes sur 8 pages ;
+`indispos`, `staff`, `absences`, `crh` et `suivi-liberal` n'ont pas reçu le nouveau bandeau, donc
+trois styles coexistent. Le nom de domaine propre est écarté avant le 4 septembre (le `.mc` est
+réservé aux entités monégasques ; un `.fr` coûte ~10 €/an, mais changer l'adresse avec des codes
+déjà distribués est un risque gratuit).
+
+---
+
 ## État au 11 août 2026 — v1.31.1, les temps partiels entrent dans l'équité, banc à 612 vérifications
 
 **Ce qui a changé.** Les MAR à temps partiel posent leurs jours de TP eux-mêmes, dans les

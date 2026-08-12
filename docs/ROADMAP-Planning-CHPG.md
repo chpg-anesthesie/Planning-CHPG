@@ -4,18 +4,24 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.31.1** ·
-**GAS** (relevé dans le dépôt le 09/08/2026) `code.gs` 2026-08-05.3 ·
-`Indispos.gs` 2026-08-08.1 · `miroir.gs` 2026-08-08.1 · `journal.gs` 2026-08-05.3 ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.31.10** ·
+**GAS** (relevé dans le dépôt le 12/08/2026 au soir) `code.gs` 2026-08-05.3 ·
+`Indispos.gs` 2026-08-12.2 · `miroir.gs` 2026-08-12.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
-`generateur_gardes.gs` 2026-07-31.3 · `setup_annee.gs` 2026-08-08.1 ·
-**Worker** `cloudflare/worker.js` 2026-08-08.1 (version en ligne vérifiée identique)
+`generateur_gardes.gs` 2026-08-12.1 · `setup_annee.gs` 2026-08-08.1 ·
+**Worker** `cloudflare/worker.js` en-tête « miroir 2026-08-05.7 » (relevé le 12/08 ;
+l'identité avec la version déployée n'a PAS été revérifiée ce jour-là)
 
-**Banc d'essai** `banc/` — 612 vérifications (relevé le 11/08/2026), `cd banc && ./lancer.sh`.
+**Le numéro de version du site est porté par 5 fichiers, 9 occurrences** : `admin.html`,
+`dashboard.html`, `docs/guide-comite.html`, `docs/guide-mar.html`, `docs/roadmap.html`.
+Le banc a un test dédié qui refuse qu'ils divergent — ne jamais se fier à une liste écrite,
+chercher les porteurs dans tout le dépôt.
+
+**Banc d'essai** `banc/` — 684 vérifications (relevé le 12/08/2026 au soir), `cd banc && ./lancer.sh`.
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 11 août 2026.*
+*Mise à jour : 12 août 2026 (soir).*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -25,6 +31,89 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 12 août 2026 (soir) — v1.31.10 : identité visuelle et bandeaux mobiles
+
+**Ce qui a changé pour l'utilisateur.** Le drapeau monégasque, qui servait d'icône et de logo
+depuis l'origine, est remplacé par une marque propre au service : un groupe de silhouettes
+surmontant un tracé de monitorage, blanc sur le rouge `#CE1126` déjà utilisé partout dans le site.
+
+**Cinq fichiers d'icône remplacés** (`assets/`) : `favicon.svg`, `icon-192.png`, `icon-512.png`,
+`icon-maskable-512.png`, `apple-touch-icon.png`, plus un `assets/logo.png` (144 px, 17,6 Ko)
+pour les bandeaux. Le drapeau était dessiné en CSS (deux `<div>` empilés) à **11 endroits sur
+8 pages** — tous remplacés par une balise `<img>`, sans toucher aux dimensions ni aux arrondis
+existants.
+
+**Trois pièges rencontrés, tous mesurés :**
+
+1. **Coins arrondis peints dans l'image.** Le premier rendu avait un squircle dessiné avec des
+   coins noirs. iOS et Android appliquent leur propre masque par-dessus : liseré noir garanti.
+   L'icône doit être **carrée, le fond jusqu'au dernier pixel**.
+2. **Zone de sécurité maskable.** Android rogne les bords : le motif de `icon-maskable-512.png`
+   est réduit à 76 % pour obtenir 20 % de marge (mesuré : 19,9 % / 19,7 %).
+3. **Le rouge généré n'est pas le rouge du site.** Mesuré `#DC0D1D` puis `#F0212E` selon les
+   rendus, contre `#CE1126`. Recalé par décalage de la moyenne des pixels non blancs.
+
+**Ce qui n'a pas marché** : la vectorisation automatique du dessin (potrace) ne ressort qu'un seul
+contour. `favicon.svg` contient donc l'image en base64 — 19,6 Ko. Choix assumé : aucune balise
+`<link>` à modifier dans les 7 pages qui la référencent.
+
+**Bandeau du dashboard.** « Portail CHPG Monaco » passait sur 3 lignes et débordait du bandeau de
+52 px sur iPhone. Remplacé par « CHPG » + « Anesthésie-Réa », logo porté de 28 à 34 px, et surtout
+le bloc titre reçoit `min-width: 0` + troncature : **il ne peut plus structurellement déborder sur
+les boutons**. Le sous-titre reste visible sur mobile et ne s'efface qu'en dessous de 360 px.
+
+**Tuile « Mes gardes ».** La ligne principale faisait 50 caractères et passait sur 2 lignes.
+L'étiquette disait « MES GARDES » et la ligne répétait « Prochaine garde ». Nouveau découpage :
+étiquette « PROCHAINE GARDE », ligne principale `Mardi 01/09 · Réa` (17 caractères), sous-ligne
+`Dans 20 jours · 45 autres à venir`. Fonction dédiée `_mgDateCourte()` : `staffDateParts()` sert
+ailleurs et n'est **pas** modifiée. Le « voir tout » disparaît, redondant avec le chevron.
+
+**Pastille du bandeau : les initiales, pas le nom.** Sur `dashboard.html`, la pastille affichait
+« Dr Frohlich » alors que « Bonjour Dr Frohlich » est écrit trois centimètres plus bas. Elle
+affiche désormais les initiales du classeur (`AFR`), repli sur les 3 premières lettres de
+l'identifiant, `ADMIN` pour le comité. **Aucune modification serveur** : `initials` transitait
+déjà dans la réponse de connexion (`gas/Indispos.gs` l. 2178 et `gas/miroir.gs` l. 836, colonne 3
+de MEDECINS — la même source que le tableau de `staff.html`). Gain mesuré : la pastille passe de
+134 à 67 pt.
+
+**`index.html` : le bandeau portait 7 éléments.** Mesuré sur capture réelle (échelle 3 px/pt) :
+logo 24 + Aide 75 + thème 30 + pastille 26 + année 68 + mois 97 = **320 pt sur 390**. La pastille
+était compressée à zéro par `flex-shrink: 1` — les initiales y étaient déjà implémentées depuis
+longtemps (l. 915), mais invisibles. Les sélecteurs année/mois ont été sortis du bandeau vers une
+**barre « période » propre**, visible sous 768 px, sélecteurs centrés ; la barre de jour descend de
+52 à 99 px. Les éléments sont **déplacés dans le DOM, jamais dupliqués** (`appendChild` du même
+nœud selon la largeur, branché sur `checkMobile()`), ce qui préserve `id` et gestionnaires.
+Le nom du service est ensuite revenu sur mobile (« CHPG / Anesthésie-Réa »), le bandeau est centré
+et le logo porté à 34 px, comme le dashboard.
+
+**Ce que le banc a apporté** (643 → 684 vérifications) :
+- il a **détecté tout seul** la refonte de la tuile : un test cherchait « Prochaine garde » dans la
+  ligne principale ; adapté, puis complété par 2 vérifications sur l'étiquette et le sous-titre ;
+- il a **rattrapé une erreur de méthode** : le test « les 5 porteurs annoncent la MÊME version »
+  a échoué et révélé que les 3 guides étaient restés en `v1.31.4` après un push. La recherche des
+  porteurs n'avait porté que sur les pages racine, pas sur `docs/` ;
+- 10 vérifications ajoutées sur le déplacement des sélecteurs : les deux sens, l'absence de
+  duplication après 3 rotations d'écran, la conservation de la valeur choisie.
+
+**Un faux défaut, à ne pas rechercher à nouveau.** Le thème « automatique » affichait toujours la
+version sombre : l'iPhone était réglé en mode sombre. `matchMedia('(prefers-color-scheme: dark)')`
+fonctionne. Le sélecteur reste à 3 positions (auto / clair / sombre), inchangé.
+
+**Trois collisions en deux heures avec une autre conversation.** Deux sessions ont travaillé sur le
+dépôt en parallèle. Résultat : un push refusé en 422 (sans dégât), puis une situation où **mes
+fichiers auraient effacé en silence** les corrections « réponse perdue » de l'autre session — le
+push aurait réussi, sans erreur visible. Seul le contrôle « la branche a-t-elle bougé depuis mon
+clone ? » juste avant le PUT l'a évité. **Ce contrôle n'est pas facultatif.**
+
+**Reste ouvert.** Les règles CSS `.flag-top` / `.flag-bottom` sont mortes sur 8 pages (aucun effet
+visible, mais du code qui traîne). Les bandeaux d'`indispos`, `staff`, `absences`, `crh` et
+`suivi-liberal` n'ont pas reçu le traitement d'`index` et `dashboard` : **trois styles coexistent**.
+Une adresse en nom de domaine propre a été chiffrée (`.mc` inaccessible — réservé aux entités
+monégasques, 85 à 190 €/an ; `.fr` ≈ 10 €/an) mais écartée avant le 4 septembre : changer l'adresse
+avec des codes déjà distribués est un risque gratuit.
 
 ---
 
