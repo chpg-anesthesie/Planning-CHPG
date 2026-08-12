@@ -1237,6 +1237,10 @@ uniquement, couleurs du portail.
    notifications en mode « bannière sur écran verrouillé » (sinon arrivée silencieuse dans le
    centre de notifications).
    **Gel** : plus aucune modification de `sw.js` ni du canal avant le 04/09.
+   **Décision du 12/08 (soir)** : l'ouverture du canal aux 23 avant le staff a été envisagée
+   puis écartée — le canal est prouvé, ça suffit pour la démo ; l'ouverture se fera à la
+   phase 4 avec l'écran, comme prévu. La phase 3 se construira hors production (code + banc
+   complets, poussée seulement après le 04/09 avec son écran).
 2. **Boucher `donGarde` — ✅ LIVRÉE LE 12/08/2026.** `Indispos.gs` `2026-08-12.1` :
    `refuseSiIndisponible` vérifie AVANT toute écriture que le receveur est disponible le jour
    de la garde ET le lendemain (son repos). Absences bloquantes : INDISPO, VAC, FORM, TP, CL,
@@ -1267,6 +1271,13 @@ uniquement, couleurs du portail.
    l.2216 **en dernier**. Montée de version site (2e chiffre) ; guides dans le même push.
    **Sas entre 4a et 4b** : quelques vrais échanges avec 1-2 volontaires (RW, WS) avant les 23 —
    un défaut à 3 utilisateurs se corrige tranquillement, à 23 il génère des appels.
+   **Pastille d'icône (constat du 12/08, décision : phase 4)** : une notification web ne pose
+   PAS de pastille toute seule sur iPhone — bannière et pastille sont deux mécanismes séparés,
+   la pastille se demande explicitement (API de badge, iOS 16.4+, app installée). À brancher
+   ici, où elle a un sens : posée à l'arrivée d'une demande (2 lignes dans le gestionnaire push
+   de `sw.js`), comptée sur les demandes en attente, effacée à l'ouverture du portail (1 ligne
+   dashboard). Volontairement PAS fait en phase 1 : toucher `sw.js` pour un confort sans rôle
+   dans la démo violerait le gel — un seul chantier cohérent vaut mieux que deux retouches.
 5. **Brancher le reste sur le tuyau** (plus tard). Planning republié, génération annuelle,
    ouverture de campagne, rappel de garde la veille — chacun un simple appel à la route d'envoi.
    Préférences par MAR (quoi, par quel canal) en dernier.
