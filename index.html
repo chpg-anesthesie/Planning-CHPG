@@ -104,6 +104,7 @@ body {
 .header-title { font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; }
 .header-sub { font-size: 11px; color: var(--ink-4); margin-top: 1px; }
 .header-right { display: flex; align-items: center; gap: 8px; }
+.mobile-period { display: none; }
 
 /* ── SÉLECTEURS ── */
 .year-select {
@@ -544,6 +545,14 @@ body{font-variant-numeric:tabular-nums}
   .year-select { font-size: 12px; padding: 5px 8px; min-width: 68px; }
   .month-select { font-size: 12px; padding: 5px 8px; max-width: 110px; }
 
+  /* Barre « période » (selecteurs annee/mois deplaces hors du bandeau) */
+  .mobile-period { display: flex; justify-content: center; align-items: center; gap: 10px;
+    background: var(--white); border-bottom: 1px solid var(--line); padding: 8px 16px;
+    position: sticky; top: 52px; z-index: 60; }
+  .mobile-period .year-select { min-width: 88px; }
+  .mobile-period .month-select { min-width: 112px; max-width: 112px; }
+  .mobile-day-nav { top: 99px; }
+
   /* Masquer vue desktop planning */
   .view-toggle-main { display: none; }
   .week-nav { display: none; }
@@ -731,7 +740,7 @@ body{font-variant-numeric:tabular-nums}
       <div class="header-sub">Service d'Anesthésie-Réanimation</div>
     </div>
   </div>
-  <div class="header-right">
+  <div class="header-right" id="headerRight">
     <a href="./docs/guide-mar.html" target="_blank" rel="noopener" class="header-btn" title="Guide du MAR — mode d'emploi du portail et du planning"><span class="hb-ico">?</span> Aide</a>
     <button id="themeBtn" class="theme-btn" onclick="cycleTheme()" title="Thème">🌗</button>
     <span id="mePill" class="me-pill" style="display:none"></span>
@@ -749,6 +758,11 @@ body{font-variant-numeric:tabular-nums}
     <select id="monthSelect" class="month-select"></select>
   </div>
 </div>
+
+<!-- Barre « période » : sur mobile, les selecteurs annee/mois quittent le bandeau
+     (trop etroit : la pastille du MAR y etait compressee a zero) et viennent ici.
+     Les elements sont DEPLACES, pas dupliques : memes id, memes gestionnaires. -->
+<div class="mobile-period" id="mobilePeriod"></div>
 
 <!-- VIEW TOGGLE -->
 <div class="view-toggle-main">
@@ -2622,6 +2636,22 @@ function checkMobile() {
   isMobile = window.innerWidth <= 768;
   const mv = document.getElementById('mobileView'); if (mv) mv.style.display = isMobile ? 'flex' : 'none';
   const bn = document.getElementById('mobileBottomNav'); if (bn) bn.style.display = isMobile ? 'flex' : 'none';
+  placerSelecteursPeriode();
+}
+/* Les selecteurs annee/mois vivent dans le bandeau sur grand ecran, et dans la barre
+   « periode » sur mobile (le bandeau y est trop etroit : la pastille du MAR etait
+   compressee a zero). Les elements sont DEPLACES, jamais copies : un seul #yearSelect
+   et un seul #monthSelect existent a tout instant, avec leurs gestionnaires intacts.
+   Appelee au chargement et a chaque redimensionnement (rotation du telephone). */
+function placerSelecteursPeriode() {
+  const barre = document.getElementById('mobilePeriod');
+  const bandeau = document.getElementById('headerRight');
+  const an = document.getElementById('yearSelect');
+  const mois = document.getElementById('monthSelect');
+  if (!barre || !bandeau || !an || !mois) return;
+  const cible = isMobile ? barre : bandeau;
+  if (an.parentNode !== cible) cible.appendChild(an);
+  if (mois.parentNode !== cible) cible.appendChild(mois);
 }
 window.addEventListener('resize', checkMobile);
 

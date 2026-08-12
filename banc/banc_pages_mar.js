@@ -70,6 +70,56 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('les refus sont signalés explicitement', Array.isArray(j.refuses) && j.refuses.length === 4, j.refuses);
   }
 
+  /* Les selecteurs annee/mois quittent le bandeau sur mobile (il y etait trop
+     etroit, la pastille du MAR s'y compressait a zero) et reviennent au-dessus
+     de 768 px. Regle vitale : ils sont DEPLACES, jamais dupliques. */
+  console.log('\n═══ 28b. index.html · les sélecteurs période changent de place, sans jamais se dupliquer ═══');
+  {
+    const contenu = fs.readFileSync('../index.html', 'utf8');
+    const vc = new VirtualConsole(); const erreurs = [];
+    vc.on('jsdomError', e => erreurs.push(e.message));
+    const dom = new JSDOM(contenu, { runScripts:'dangerously', virtualConsole:vc,
+      url:'https://chpg-anesthesie.github.io/Planning-CHPG/index.html', pretendToBeVisual:true,
+      beforeParse(win) {
+        win.matchMedia = () => ({ matches:false, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
+        win.Element.prototype.scrollIntoView = function () {};
+        win.HTMLElement.prototype.scrollIntoView = function () {};
+        win.scrollTo = () => {};
+      } });
+    const w = dom.window;
+    if (!w.navigator.sendBeacon) w.navigator.sendBeacon = () => true;
+    w.fetch = async () => ({ ok:true, json: async () => ({ success:false }) });
+    await dodo(400);
+    const D = w.document;
+    const compte = id => D.querySelectorAll('#' + id).length;
+    const parent = id => { const e = D.getElementById(id); return e && e.parentNode ? e.parentNode.id : null; };
+
+    const largeur = px => { Object.defineProperty(w, 'innerWidth', { value: px, configurable: true }); w.checkMobile(); };
+
+    largeur(390);
+    V('sur mobile, l\'année passe dans la barre période', parent('yearSelect') === 'mobilePeriod', parent('yearSelect'));
+    V('sur mobile, le mois aussi', parent('monthSelect') === 'mobilePeriod', parent('monthSelect'));
+    V('un seul #yearSelect existe', compte('yearSelect') === 1, compte('yearSelect'));
+    V('un seul #monthSelect existe', compte('monthSelect') === 1, compte('monthSelect'));
+
+    largeur(1200);
+    V('sur grand écran, l\'année revient dans le bandeau', parent('yearSelect') === 'headerRight', parent('yearSelect'));
+    V('sur grand écran, le mois revient aussi', parent('monthSelect') === 'headerRight', parent('monthSelect'));
+
+    // rotation du telephone : plusieurs allers-retours ne doivent rien casser
+    for (let i = 0; i < 3; i++) { largeur(390); largeur(1200); }
+    largeur(390);
+    V('après 3 rotations, toujours un seul exemplaire de chaque',
+      compte('yearSelect') === 1 && compte('monthSelect') === 1,
+      [compte('yearSelect'), compte('monthSelect')]);
+    V('après 3 rotations, ils sont au bon endroit',
+      parent('yearSelect') === 'mobilePeriod' && parent('monthSelect') === 'mobilePeriod',
+      [parent('yearSelect'), parent('monthSelect')]);
+    V('la valeur choisie survit au déplacement',
+      (() => { const e = D.getElementById('yearSelect'); const v = e.value; largeur(1200); largeur(390); return D.getElementById('yearSelect').value === v; })());
+    V('aucune erreur JavaScript pendant les déplacements', erreurs.length === 0, erreurs.slice(0,2));
+  }
+
   console.log('\n═══ 29. Confidentialité des indispos (règle du secrétariat) ═══');
   {
     const r = await WK.fetch(new Request('https://worker/read', { method:'POST',
