@@ -1245,10 +1245,16 @@ uniquement, couleurs du portail.
    **Décisions du 12/08** : `gardeExceptionnelle` reste sans ce contrôle (jamais 3 MAR de
    garde le même jour — impossible en pratique, dixit Arthur) ; `echangeGardeJours` recevra
    le sien à la phase 3, avec les contrôles joués à la création des demandes.
-   **Chantier ajouté (demande Arthur du 12/08)** : rendre possible l'échange de deux gardes
-   ADJACENTES (lundi/mardi), aujourd'hui refusé « à échanger manuellement ». Clé : vérifier
-   l'état d'ARRIVÉE, pas l'état de départ, et écrire en vidant d'abord (le bug connu « échange
-   adjacent » consigné en dette technique se résout là). En cours, AVANT/APRÈS séparé.
+   **Échange de gardes ADJACENTES — ✅ LIVRÉ LE 12/08/2026** (demande Arthur du même jour).
+   `Indispos.gs` `2026-08-12.2` : le cas `date2 = lendemain de date` est traité à part dans
+   `echangeGardeJours`. Les contrôles jugent l'état d'ARRIVÉE (vraies adjacences, disponibilité
+   des jours reçus — règle de la phase 2 appliquée) et exigent l'état de départ exact du
+   générateur (repos en place, cases libres), sinon « à traiter manuellement » — on ne devine
+   jamais. Écriture de l'état final cellule par cellule : le repos de chacun suit sa nouvelle
+   garde, les rôles G/G2 restent attachés aux dates. L'échange non adjacent est inchangé.
+   Banc : 9 scénarios (nominal 6 cellules vérifiées, ordre inversé, G2, 5 refus feuille
+   intacte, non-régression), total 643 vérifications. La dette technique « bug d'échange
+   adjacent » est soldée par ce chemin.
 3. **Cycle demande/réponse** (le gros morceau). Onglet `ECHANGES` : id, type (don/échange), dates,
    secteurs, demandeur, receveur, état (en attente / acceptée / refusée / expirée), horodatages.
    GAS : créer (contrôles de la phase 2 joués **dès la création**), accepter (rejoue les contrôles

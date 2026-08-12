@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-12.1';
+const GAS_VERSION_INDISPOS = '2026-08-12.2';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1820,8 +1820,57 @@ function applyModification(mod) {
       const codeB = readCell(`GARDES_${year}`, doctorId2, date2);
       if (!/^G2?$/.test(String(codeA).toUpperCase())) throw new Error(`Pas de garde G/G2 pour ${doctorId} le ${date}`);
       if (!/^G2?$/.test(String(codeB).toUpperCase())) throw new Error(`Pas de garde G/G2 pour ${doctorId2} le ${date2}`);
+      /* (12/08/2026 — demande Arthur) L'échange de deux gardes ADJACENTES
+         (lundi/mardi) était refusé « à échanger manuellement ». La raison
+         historique : les contrôles regardaient l'état de DÉPART, où le repos
+         de l'un tombe sur la garde de l'autre — alors que l'état d'ARRIVÉE
+         est parfaitement sain. On traite donc ce cas à part : préconditions
+         strictes sur l'état de départ (celui que pose le générateur), puis
+         écriture de l'état final calculé, cellule par cellule.
+         A garde J, B garde J+1. Après échange : B garde J (repos J+1),
+         A garde J+1 (repos J+2). Chaque date conserve son rôle G/G2. */
+      const adjacent = (date2 === nextDay(date)) || (date === nextDay(date2));
+      if (adjacent) {
+        // Normalisation : dA = le premier jour, son titulaire tA ; dB = le lendemain, titulaire tB.
+        const ordreDirect = (date2 === nextDay(date));
+        const dA = ordreDirect ? date : date2;
+        const dB = ordreDirect ? date2 : date;
+        const tA = ordreDirect ? doctorId : doctorId2;
+        const tB = ordreDirect ? doctorId2 : doctorId;
+        const dC = nextDay(dB); // le surlendemain : repos final de tA
+        const codeJ1 = readCell(`GARDES_${year}`, tA, dA); // rôle du 1er jour
+        const codeJ2 = readCell(`GARDES_${year}`, tB, dB); // rôle du 2e jour
+        verifieCellules([[tA, dA], [tB, dA], [tA, dB], [tB, dB], [tA, dC], [tB, dC]]);
+        // Préconditions : l'état exact que pose le générateur, sinon on ne devine pas.
+        if (String(readCell(`GARDES_${year}`, tA, dB)).toUpperCase() !== 'RG')
+          throw new Error(`${tA} n'a pas son repos de garde le ${dB} — échange à traiter manuellement`);
+        if (String(readCell(`GARDES_${year}`, tB, dC)).toUpperCase() !== 'RG')
+          throw new Error(`${tB} n'a pas son repos de garde le ${dC} — échange à traiter manuellement`);
+        if (readCell(`GARDES_${year}`, tB, dA) !== '')
+          throw new Error(`${tB} n'est pas libre le ${dA} — échange à traiter manuellement`);
+        if (readCell(`GARDES_${year}`, tA, dC) !== '')
+          throw new Error(`${tA} n'est pas libre le ${dC} — échange à traiter manuellement`);
+        // Vraies adjacences à l'ARRIVÉE : tB garderait dA avec une garde la veille,
+        // tA garderait dB avec une garde le surlendemain.
+        const veille = prevDay(dA);
+        if (estGarde(readCell(`GARDES_${year}`, tB, veille)))
+          throw new Error(`${tB} est de garde le ${veille} — deux gardes consecutives sont impossibles`);
+        if (estGarde(readCell(`GARDES_${year}`, tA, nextDay(dC))))
+          throw new Error(`${tA} est de garde le ${nextDay(dC)} — deux gardes consecutives sont impossibles`);
+        // Disponibilité des jours nouvellement reçus (même règle que le don) :
+        // tB reçoit la garde du ${dA}, tA reçoit celle du ${dB} et son repos glisse au ${dC}.
+        refuseSiIndisponible(tB, dA, 'echange impossible');
+        refuseSiIndisponible(tA, dC, 'son repos de garde tomberait sur cette absence — echange impossible');
+        // Écriture de l'état final. Tout est vérifié : plus rien ne peut échouer.
+        writeCell(`GARDES_${year}`, tA, dA, '');       // tA quitte le 1er jour
+        writeCell(`GARDES_${year}`, tB, dA, codeJ1);   // tB le prend (rôle conservé)
+        writeCell(`GARDES_${year}`, tA, dB, codeJ2);   // tA prend le 2e jour (écrase son propre RG)
+        writeCell(`GARDES_${year}`, tB, dB, 'RG');     // repos de tB après sa nouvelle garde
+        writeCell(`GARDES_${year}`, tA, dC, 'RG');     // repos de tA après la sienne
+        writeCell(`GARDES_${year}`, tB, dC, '');       // l'ancien repos de tB s'efface
+        break;
+      }
       const rg1 = nextDay(date), rg2 = nextDay(date2);
-      if (rg1 === date2 || rg2 === date) throw new Error('Dates trop proches (gardes adjacentes) — à échanger manuellement');
       // refus si un MAR a déjà quelque chose à la date d'arrivée (évite d'écraser une garde existante)
       if (readCell(`GARDES_${year}`, doctorId, date2) || readCell(`GARDES_${year}`, doctorId2, date))
         throw new Error('Un des médecins a déjà une garde à l\'autre date — échange à traiter manuellement');

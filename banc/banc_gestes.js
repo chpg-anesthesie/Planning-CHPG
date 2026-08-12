@@ -258,6 +258,72 @@ console.log('\n═══ 46 ter. Phase 2 : un don exige un receveur DISPONIBLE �
   }
 }
 
+console.log('\n═══ 46 quater. Échange de deux gardes ADJACENTES (demande du 12/08) ═══');
+{
+  const etat = b => JSON.stringify(b.cl.getSheetByName('GARDES_2027').lignes);
+  /* Monde nominal : ALPHA garde J20 (repos J21), BRAVO garde J21 (repos J22). */
+  const nominal = () => {
+    const b = monde(2027);
+    b.poser('ALPHA', b.dates[20], 'G');  b.poser('ALPHA', b.dates[21], 'RG');
+    b.poser('BRAVO', b.dates[21], 'G');  b.poser('BRAVO', b.dates[22], 'RG');
+    return b;
+  };
+  const lancer = (b, date, id, date2, id2) =>
+    vm.runInContext(`applyModification({ type:'echangeGardeJours', year:2027, date:${JSON.stringify(date)}, doctorId:${JSON.stringify(id)}, date2:${JSON.stringify(date2)}, doctorId2:${JSON.stringify(id2)} })`, b.ctx);
+
+  {
+    const b = nominal();
+    lancer(b, b.dates[20], 'ALPHA', b.dates[21], 'BRAVO');
+    V('lundi/mardi : l\'échange PASSE, état final exact (6 cellules)',
+      b.lire('ALPHA', b.dates[20]) === '' && b.lire('BRAVO', b.dates[20]) === 'G'
+      && b.lire('ALPHA', b.dates[21]) === 'G' && b.lire('BRAVO', b.dates[21]) === 'RG'
+      && b.lire('ALPHA', b.dates[22]) === 'RG' && b.lire('BRAVO', b.dates[22]) === '',
+      [b.lire('ALPHA', b.dates[20]), b.lire('BRAVO', b.dates[20]), b.lire('ALPHA', b.dates[21]),
+       b.lire('BRAVO', b.dates[21]), b.lire('ALPHA', b.dates[22]), b.lire('BRAVO', b.dates[22])]);
+  }
+  {
+    const b = nominal();
+    lancer(b, b.dates[21], 'BRAVO', b.dates[20], 'ALPHA'); // ordre inversé
+    V('ordre inversé (mardi cité en premier) : même état final',
+      b.lire('BRAVO', b.dates[20]) === 'G' && b.lire('ALPHA', b.dates[21]) === 'G'
+      && b.lire('ALPHA', b.dates[22]) === 'RG' && b.lire('BRAVO', b.dates[22]) === '');
+  }
+  {
+    const b = nominal();
+    b.poser('ALPHA', b.dates[20], 'G2'); // le lundi est un G2
+    lancer(b, b.dates[20], 'ALPHA', b.dates[21], 'BRAVO');
+    V('les rôles restent attachés aux dates (lundi G2 → BRAVO reçoit G2)',
+      b.lire('BRAVO', b.dates[20]) === 'G2' && b.lire('ALPHA', b.dates[21]) === 'G');
+  }
+  const refus = [
+    ['ALPHA a une garde au surlendemain+1 : vraie adjacence à l\'arrivée', b => b.poser('ALPHA', b.dates[23], 'G'), /consecutives/],
+    ['BRAVO est de garde la veille du lundi : vraie adjacence à l\'arrivée', b => b.poser('BRAVO', b.dates[19], 'G'), /consecutives/],
+    ['BRAVO en VAC le lundi qu\'il recevrait', b => b.poserIndispo('BRAVO', b.dates[20], 'VAC'), /indisponible/],
+    ['ALPHA en VAC le mercredi (son nouveau repos)', b => b.poserIndispo('ALPHA', b.dates[22], 'VAC'), /indisponible/],
+    ['état anormal : BRAVO sans repos au surlendemain', b => { const f = b.cl.getSheetByName('GARDES_2027');
+      f.lignes[f.lignes.findIndex(l => l[0] === 'BRAVO')][b.dates.indexOf(b.dates[22]) + 1] = ''; }, /manuellement/],
+  ];
+  refus.forEach(([titre, saboter, attendu]) => {
+    const b = nominal();
+    saboter(b);
+    const avant = etat(b);
+    let msg = '';
+    try { lancer(b, b.dates[20], 'ALPHA', b.dates[21], 'BRAVO'); } catch (e) { msg = e.message; }
+    V(`${titre} : refusé, feuille intacte`, attendu.test(msg) && etat(b) === avant, msg);
+  });
+  {
+    /* Non-régression : l'échange NON adjacent passe exactement comme avant. */
+    const b = monde(2027);
+    b.poser('ALPHA', b.dates[10], 'G'); b.poser('ALPHA', b.dates[11], 'RG');
+    b.poser('BRAVO', b.dates[30], 'G'); b.poser('BRAVO', b.dates[31], 'RG');
+    lancer(b, b.dates[10], 'ALPHA', b.dates[30], 'BRAVO');
+    V('non adjacent : comportement inchangé (gardes et repos suivent)',
+      b.lire('BRAVO', b.dates[10]) === 'G' && b.lire('ALPHA', b.dates[30]) === 'G'
+      && b.lire('BRAVO', b.dates[11]) === 'RG' && b.lire('ALPHA', b.dates[31]) === 'RG'
+      && b.lire('ALPHA', b.dates[10]) === '' && b.lire('BRAVO', b.dates[30]) === '');
+  }
+}
+
 console.log('\n═══ 47. La clé libérale ne contient QUE ce que l\'écran affiche ═══');
 {
   /* Contrôle de non-régression sur la confidentialité : le constructeur du
