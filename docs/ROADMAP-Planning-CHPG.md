@@ -34,6 +34,94 @@ le Worker ou `partage/dispo_jour.js`.
 
 ---
 
+## 12 août 2026 (nuit) — échanges et dons de gardes entre MAR : décisions de conception
+
+**Objectif fixé par Arthur** : les échanges et dons de gardes se font **directement entre MAR depuis le
+dashboard**, avec notification, **sans passage par le comité**. Le comité n'est pas dans la boucle, mais son
+planning reste juste en permanence.
+
+**Rien n'est implémenté. Ce bloc consigne les décisions et les questions ouvertes, avant tout code.**
+
+### Ce qui existe déjà, et qui rend le projet plus court que prévu
+
+- **Le chemin d'écriture est le bon.** `donGarde`, `echangeGarde` et `echangeGardeJours` (`Indispos.gs`
+  l.1775-1830) écrivent déjà dans `GARDES_{année}` et republient. « Le comité voit le planning à jour en
+  direct » est donc acquis sans rien construire — il suffit de changer qui déclenche.
+- **Les règles dures sont côté serveur** : jamais deux gardes d'affilée, receveur libre le jour ET le
+  lendemain pour son repos de garde, tout vérifié AVANT la première écriture (correctif 2026-08-05.12 :
+  un geste est entièrement fait ou entièrement refusé). Elles s'appliqueront quel que soit l'appelant.
+- **Le canal de notification existe** depuis le 12/08 (`notifierPush_` dans `miroir.gs` → Worker →
+  abonnés, clés stockées par personne `notif_sub_{id}`).
+- **Le contrôle des récups existe** (`admin.html` l.5461) : « chaque samedi tenu a sa récup, chaque récup
+  son samedi ». Il deviendra le tableau de bord des R à replacer, sans rien ajouter.
+
+### Décisions arrêtées
+
+| sujet | décision |
+|---|---|
+| Circuit | MAR ↔ MAR, **aucune validation du comité** |
+| Écriture | `GARDES_{année}`, chemin actuel inchangé |
+| Récup du samedi, 2027+ | **suit automatiquement** — le lien samedi → R sera enregistré à la génération |
+| Récup du samedi, 2026 | reste **manuelle** ; outil d'échange ouvert quand même |
+| R impossible chez le receveur | **le comité tranche et le place à la main** |
+| Unité vendredi-dimanche | contrainte de **génération seulement** ; après publication, chacun échange librement |
+| Périmètre de départ | **le don à un collègue nommé**, pas la bourse ouverte |
+
+**Pourquoi le don nommé et pas la bourse.** Chez Petal, la bourse aux gardes est précisément la
+fonctionnalité qui suscite le plus de plaintes (règles de publication mal comprises, parcours mobile
+pénible sur les cas complexes). « Je propose ma garde du 12 à Untel, il accepte » couvre l'essentiel et se
+comprend sans notice.
+
+### Le lien samedi → R : plus simple qu'attendu
+
+**Vérifié, `generateur_gardes.gs` l.1274-1313** : le générateur parcourt `recupDue[id]` — la liste des
+samedis tenus par chacun — et pose un R pour chacun, sous contraintes fortes (hors week-end, hors férié,
+hors vacances scolaires, 2 à 16 semaines après le samedi, jamais deux R du même MAR à moins de 3 jours,
+effectif minimum présent respecté). **Le couple samedi → date du R existe donc en mémoire à la génération,
+et n'est jamais écrit.** L'enregistrer est un ajout de quelques lignes, sans toucher à la logique de
+placement.
+
+Aujourd'hui, faute de ce lien, `applyModification` déplace la garde et le repos du lendemain **mais jamais
+le R** — le donneur garde sa récup, le receveur n'en a aucune. `admin.html` l.5071-5077 le documente et
+avertit le comité au moment du geste. Ce garde-fou tient parce que le comité est dans la boucle et que le
+volume est faible ; **il ne tiendra pas à 21 personnes sur téléphone.**
+
+Note : un R transféré **à la même date** ne change pas l'effectif présent ce jour-là — ce critère de
+placement est neutre lors d'un transfert.
+
+### Règle d'échange retenue
+
+Le nombre de samedis ne bouge que si **exactement un** des deux jours échangés est un samedi :
+
+| échange | samedis modifiés | R à déplacer |
+|---|---|---|
+| samedi ↔ samedi | non | non |
+| samedi ↔ autre jour | **oui** | **oui** |
+| autre ↔ autre | non | non |
+
+### Ce qui reste à construire
+
+1. **Générateur** : enregistrer le lien samedi → R. GAS seul, testable au banc. ⚠️ **À livrer AVANT la
+   génération de novembre**, sinon 2027 n'aura pas la correspondance et le mécanisme ne servira qu'à partir
+   de 2028.
+2. **Worker** : ouvrir l'abonnement aux notifications au rôle `mar` (`cloudflare/worker.js` l.407 —
+   « phase 1 : rôle admin seul, à élargir à la phase 4, ICI et nulle part ailleurs »), et ajouter un
+   **destinataire** à `/notif-envoyer`, qui diffuse aujourd'hui à tous les abonnés. Les clés étant déjà
+   nominatives, c'est un argument à ajouter, pas une refonte. ⚠️ Déploiement du Worker **manuel** (tableau
+   de bord Cloudflare) : chaque modification demande une manipulation d'Arthur.
+3. **Demandes en attente** : état intermédiaire proposé / accepté / refusé / expiré — la seule pièce
+   entièrement neuve. Onglet dédié au classeur.
+4. **Écran dashboard** : proposer, accepter, refuser. Avertissement explicite au donneur d'un samedi en
+   2026 : « votre récupération ne suit pas, le comité la replacera ».
+
+### Question encore ouverte
+
+**2026 : faut-il autoriser le don d'un samedi côté MAR ?** Décision d'Arthur : oui, les échanges et dons
+sont ouverts dès 2026, la récup restant manuelle. Il reste une vingtaine de samedis sur l'année, volume
+tenable à la main. À reconsidérer si le comité se retrouve débordé de R à replacer.
+
+---
+
 ## 12 août 2026 (nuit) — la passe d'optimisation mesurée, et ce qu'un concurrent a fait découvrir
 
 **D'où ça vient.** Comparaison avec Hopia, éditeur français de planification hospitalière (70+ établissements
