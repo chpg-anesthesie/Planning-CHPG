@@ -46,8 +46,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .auth-overlay { position: fixed; inset: 0; background: linear-gradient(135deg, var(--ink) 0%, #1a0508 100%); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .auth-box { background: var(--white); border-radius: 20px; padding: 48px 40px; width: 380px; text-align: center; box-shadow: var(--shadow-lg); animation: slideUp .4s cubic-bezier(.16,1,.3,1); }
 @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-.auth-flag { display:flex; flex-direction:column; width:40px; height:40px; border-radius:10px; overflow:hidden; margin:0 auto 20px; box-shadow:0 4px 12px rgba(206,17,38,.3); }.auth-flag-top { flex:1; background:var(--red); }
-.auth-flag-bot { flex:1; background:var(--white); border-top:1px solid var(--line); }
+.auth-flag { display:flex; flex-direction:column; width:48px; height:48px; border-radius:12px; overflow:hidden; margin:0 auto 20px; box-shadow:0 4px 12px rgba(206,17,38,.3); }
 .auth-title { font-size:22px; font-weight:700; margin-bottom:4px; }
 .auth-sub { font-size:12px; color:var(--ink-4); margin-bottom:32px; }
 .auth-input { width:100%; border:2px solid var(--line); border-radius:12px; padding:14px 16px; font-size:16px; font-family:var(--mono); text-align:center; text-transform:uppercase; letter-spacing:.14em; outline:none; margin-bottom:12px; transition:border-color .15s; background:var(--line-light); }
@@ -59,8 +58,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 /* ── HEADER ── */
 .header { background:var(--white); border-bottom:1px solid var(--line); padding:0 32px; display:flex; align-items:center; justify-content:space-between; height:60px; position:sticky; top:0; z-index:200; }
 .header-brand { display:flex; align-items:center; gap:12px; }
-.header-flag { display:flex; flex-direction:column; width:26px; height:26px; border-radius:5px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.15); }.flag-top { flex:1; background:var(--red); }
-.flag-bot { flex:1; background:var(--white); border-top:1px solid var(--line); }
+.header-flag { display:flex; flex-direction:column; width:26px; height:26px; border-radius:5px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.15); }
 .header-title { font-size:14px; font-weight:700; color:var(--ink); }
 .header-sub { font-size:11px; color:var(--ink-4); }
 .header-right { display:flex; align-items:center; gap:10px; }
@@ -1015,7 +1013,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.31.10'; // SITE_VERSION: v1.31.10
+const SITE_VERSION = 'v1.31.11'; // SITE_VERSION: v1.31.11
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1108,7 +1106,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.31.10</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.31.11</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>

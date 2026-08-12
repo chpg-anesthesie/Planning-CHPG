@@ -28,8 +28,6 @@ svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;
 .header-brand{display:flex;align-items:center;gap:13px}
 .header-flag{display:flex;flex-direction:column;width:26px;height:26px;border-radius:6px;
              overflow:hidden;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.15)}
-.flag-top{flex:1;background:var(--red)}
-.flag-bottom{flex:1;background:var(--white);border-top:1px solid var(--line)}
 .header-title{font-size:14.5px;font-weight:700;letter-spacing:-.02em}
 .header-sub{font-size:11px;color:var(--ink-4);margin-top:1px}
 .header-right{display:flex;align-items:center;gap:9px}
@@ -133,9 +131,7 @@ table.grid td.pick{outline:2px solid var(--rose);outline-offset:1px}
 <!-- ── CONNEXION — skin identique a dashboard.html / index.html ────────── -->
 <div id="authOverlay" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--white);border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px rgba(15,23,42,.08);padding:36px 32px;width:100%;max-width:380px;text-align:center">
-    <div style="display:inline-flex;flex-direction:column;width:34px;height:24px;border-radius:4px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.2)">
-      <div style="flex:1;background:var(--red)"></div><div style="flex:1;background:#fff;border:1px solid var(--line);border-top:none"></div>
-    </div>
+    <img src="assets/logo.png" alt="" style="width:48px;height:48px;border-radius:12px;display:block;margin:0 auto 16px;box-shadow:0 4px 12px rgba(206,17,38,.30)">
     <div style="font-size:18px;font-weight:800;color:var(--ink)">Portail CHPG Monaco</div>
     <div style="font-size:13px;color:var(--ink-3);margin:4px 0 22px">Service d'Anesthésie-Réanimation</div>
     <input id="authInput" type="password" placeholder="Code d'acc&egrave;s" autocomplete="off" autocapitalize="characters"

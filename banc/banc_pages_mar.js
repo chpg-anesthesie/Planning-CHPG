@@ -120,6 +120,36 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('aucune erreur JavaScript pendant les déplacements', erreurs.length === 0, erreurs.slice(0,2));
   }
 
+  /* Deux defauts vus en production le 12/08 sur indispos.html : le code
+     s'affichait en clair pendant la saisie, et la page redemandait le code
+     alors que le MAR etait deja connecte au portail. */
+  console.log('\n═══ 28c. indispos.html · code masqué et session partagée avec le portail ═══');
+  {
+    const contenu = fs.readFileSync('../indispos.html', 'utf8');
+    V('le champ de code est de type password (jamais en clair)',
+      /id="codeInput"[^>]*type="password"/.test(contenu),
+      (contenu.match(/id="codeInput"[^>]*type="[a-z]+"/) || [''])[0]);
+    V('la page mémorise le code sous la clé commune du portail',
+      /sessionStorage\.setItem\('chpgViewCode'/.test(contenu));
+    V('elle relit cette clé à l\'ouverture',
+      /sessionStorage\.getItem\('chpgViewCode'/.test(contenu));
+    V('un code refusé est retiré de la session',
+      /removeItem\('chpgViewCode'\)/.test(contenu));
+    V('doLogin accepte un code repris (paramètre)',
+      /async function doLogin\(codeAuto\)/.test(contenu));
+
+    /* La cle doit etre la MEME que sur les autres pages MAR, sinon la session
+       ne se partage pas. staff.html et admin.html sont exclus : ils exigent
+       le role admin, leur code n'est pas celui des MAR. */
+    for (const p of ['index.html', 'dashboard.html', 'absences.html', 'crh.html', 'suivi-liberal.html']) {
+      const c = fs.readFileSync('../' + p, 'utf8');
+      V(`${p} utilise la même clé de session`, /chpgViewCode/.test(c));
+    }
+    const st = fs.readFileSync('../staff.html', 'utf8');
+    V('staff.html ne lit PAS la session MAR (réservé au comité)',
+      !/chpgViewCode/.test(st));
+  }
+
   console.log('\n═══ 29. Confidentialité des indispos (règle du secrétariat) ═══');
   {
     const r = await WK.fetch(new Request('https://worker/read', { method:'POST',

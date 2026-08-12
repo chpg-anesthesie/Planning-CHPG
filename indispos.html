@@ -56,8 +56,6 @@ body {
   width:24px; height:24px; border-radius:5px;
   overflow:hidden; display:flex; flex-direction:column;
 }
-.flag-top { flex:1; background:var(--red); }
-.flag-bottom { flex:1; background:white; }
 .header-title { color:white; font-size:15px; font-weight:700; }
 .header-user {
   color:rgba(255,255,255,.8);
@@ -83,12 +81,11 @@ body {
 }
 .login-logo {
   width:48px; height:48px;
-  background:var(--red);
-  border-radius:10px;
-  display:flex; align-items:center; justify-content:center;
+  border-radius:12px;
+  display:block;
   margin:0 auto 20px;
+  box-shadow:0 4px 12px rgba(206,17,38,.30);
 }
-.login-logo svg { color:white; }
 .login-title {
   font-size:20px; font-weight:700;
   text-align:center; margin-bottom:6px;
@@ -399,12 +396,7 @@ body {
 <!-- LOGIN -->
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
-    <div class="login-logo">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="3" y="11" width="18" height="11" rx="2"/>
-        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-      </svg>
-    </div>
+    <img class="login-logo" src="assets/logo.png" alt="">
     <div class="login-title">Accès sécurisé</div>
     <div class="login-sub">CHPG Monaco · Anesthésie-Réanimation<br>Saisissez votre code d'accès personnel</div>
     <label class="login-label" for="codeInput">Code d'accès</label>
@@ -412,7 +404,7 @@ body {
          Un code saisi a la main dans MEDECINS peut etre plus long — le champ refusait
          alors les caracteres suivants SANS RIEN DIRE, et le code etait declare invalide.
          Aucune limite haute cote serveur : checkCode compare la chaine entiere. -->
-    <input class="login-input" id="codeInput" type="text"
+    <input class="login-input" id="codeInput" type="password"
       placeholder="Votre code d'accès" autocomplete="off" autocorrect="off"
       autocapitalize="characters" spellcheck="false"/>
     <button class="login-btn" id="loginBtn" onclick="doLogin()">Accéder →</button>
@@ -503,8 +495,10 @@ document.getElementById('codeInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') doLogin();
 });
 
-async function doLogin() {
-  const code = document.getElementById('codeInput').value.trim().toUpperCase();
+async function doLogin(codeAuto) {
+  /* codeAuto : code repris de la session du portail (chpgViewCode). Sans argument,
+     on lit le champ de saisie comme avant. */
+  const code = (codeAuto || document.getElementById('codeInput').value).trim().toUpperCase();
   if (code.length < 4) return;
 
   const btn = document.getElementById('loginBtn');
@@ -528,6 +522,7 @@ async function doLogin() {
       document.getElementById('app').style.display = 'block';
       document.getElementById('headerUser').textContent = mb.identite.name || mb.identite.id;
       indispos = mb.indispos || {};
+      try { sessionStorage.setItem('chpgViewCode', code); } catch (e) {}
       updateStats();
       renderMonth();
       selectTool('INDISPO');
@@ -546,20 +541,45 @@ async function doLogin() {
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('app').style.display = 'block';
         document.getElementById('headerUser').textContent = res.name || res.id;
+        try { sessionStorage.setItem('chpgViewCode', code); } catch (e) {}
         await loadIndispos();
         await loadVacConfig();
         renderMonth();
         selectTool('INDISPO');   // outil actif + surlignage de la barre des l'ouverture
       } else {
+        try { sessionStorage.removeItem('chpgViewCode'); } catch (e) {}
         document.getElementById('loginError').style.display = 'block';
       }
     }
   } catch(e) {
+    try { sessionStorage.removeItem('chpgViewCode'); } catch (_) {}
     document.getElementById('loginError').style.display = 'block';
   }
   btn.textContent = 'Accéder →';
   btn.disabled = false;
 }
+
+/* Reprise de session : le MAR deja connecte au portail (dashboard, planning,
+   absences...) n'a pas a ressaisir son code ici. Meme cle sessionStorage que
+   les autres pages MAR ; elle s'efface a la fermeture de l'onglet. Un code
+   devenu invalide est retire, et l'ecran de saisie reprend la main. */
+(async function repriseSession() {
+  let saved = '';
+  try { saved = sessionStorage.getItem('chpgViewCode') || ''; } catch (e) {}
+  if (!saved) return;
+  const err = document.getElementById('loginError');
+  try {
+    await doLogin(saved);
+    /* Echec silencieux : doLogin a affiche l'erreur. On efface le code memorise
+       et on masque le message, l'utilisateur n'a rien saisi. */
+    if (err && err.style.display === 'block') {
+      err.style.display = 'none';
+      try { sessionStorage.removeItem('chpgViewCode'); } catch (_) {}
+    }
+  } catch (e) {
+    try { sessionStorage.removeItem('chpgViewCode'); } catch (_) {}
+  }
+})();
 
 // ── PANNEAU PRIORITÉ VACANCES ─────────────────────────────────────────
 function openPrioPanel() {
