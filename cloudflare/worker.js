@@ -49,7 +49,7 @@
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-10.1';
+const VERSION = 'miroir 2026-08-12.1';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
@@ -111,6 +111,10 @@ export default {
     if (url.pathname === '/tirer') return jTirer(corps, env);
     if (url.pathname === '/purger') return jPurger(corps, env);
     if (url.pathname === '/journal-etat') return jEtat(corps, env);
+    // ── Notifications push (12/08/2026, phase 1) ──
+    if (url.pathname === '/notif-cle') return notifCle(env);
+    if (url.pathname === '/notif-abonner') return notifAbonner(corps, env);
+    if (url.pathname === '/notif-envoyer') return notifEnvoyer(corps, env);
     return reponse({ success: false, error: 'Chemin inconnu' }, 404);
   }
 };
@@ -340,4 +344,178 @@ async function sha256hex(texte) {
 
 function reponse(objet, statut) {
   return new Response(JSON.stringify(objet), { status: statut || 200, headers: CORS });
+}
+
+
+/* ═══ NOTIFICATIONS PUSH (12/08/2026 — phase 1 échanges de gardes) ═══════
+
+   Trois routes :
+   - /notif-cle      : publique. Livre la clé VAPID publique au navigateur
+                       (nécessaire à l'abonnement). Une clé publique est
+                       publique : la servir n'expose rien.
+   - /notif-abonner  : authentifiée par CODE utilisateur (même circuit que
+                       /read). Phase 1 : rôle admin SEUL — personne d'autre
+                       ne peut s'abonner, verrouillé ici, côté serveur.
+                       Abonnement rangé en KV sous notif_sub_<id> : préfixe
+                       ABSENT de CLE_VALIDE, donc illisible par /read et
+                       inatteignable par /push. Seule cette route y écrit.
+   - /notif-envoyer  : réservée au GAS (jeton PUSH_TOKEN). Chiffre et envoie
+                       la notification à chaque abonné (norme Web Push :
+                       VAPID + aes128gcm — exigence d'iOS). Un abonnement
+                       mort (410/404) est supprimé au passage.
+
+   Secrets attendus côté Worker (Settings → Variables and Secrets) :
+   VAPID_PUBLIC (clé publique, base64url, 87 caractères) et
+   VAPID_PRIVATE (clé privée, base64url, 43 caractères).
+   JAMAIS dans ce fichier ni dans le dépôt. */
+
+const NOTIF_SUJET = 'mailto:planningchpg@gmail.com';
+
+function b64uVersOctets(s) {
+  s = String(s || '').replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  const bin = atob(s), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+function octetsVersB64u(buf) {
+  const u = new Uint8Array(buf); let s = '';
+  for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function concatOctets() {
+  let n = 0; for (const a of arguments) n += a.length;
+  const r = new Uint8Array(n); let o = 0;
+  for (const a of arguments) { r.set(a, o); o += a.length; }
+  return r;
+}
+
+function notifCle(env) {
+  if (!env.VAPID_PUBLIC) return reponse({ success: false, error: 'VAPID_PUBLIC absent des secrets du Worker' }, 500);
+  return reponse({ success: true, cle: env.VAPID_PUBLIC });
+}
+
+/* corps : { code, subscription: { endpoint, keys: { p256dh, auth } } } */
+async function notifAbonner(corps, env) {
+  const code = String(corps.code == null ? '' : corps.code).trim().toUpperCase();
+  if (!code) return reponse({ success: false, error: 'Code absent' });
+  const accesBrut = await env.KV.get('acces');
+  if (!accesBrut) return reponse({ success: false, error: 'Miroir vide' });
+  let acces; try { acces = JSON.parse(accesBrut); } catch (e) { return reponse({ success: false, error: 'acces illisible' }); }
+  const empreinte = await sha256hex(code);
+  const user = (acces.users || []).find(u => u && u.h === empreinte);
+  if (!user) return reponse({ success: false, error: 'Code invalide' });
+  // Phase 1 : rôle admin seul. À élargir à la phase 4, ICI et nulle part ailleurs.
+  if (user.role !== 'admin') return reponse({ success: false, error: 'Réservé au comité pour le moment' }, 403);
+
+  const sub = corps.subscription;
+  if (!sub || typeof sub.endpoint !== 'string' || sub.endpoint.indexOf('https://') !== 0 ||
+      !sub.keys || typeof sub.keys.p256dh !== 'string' || typeof sub.keys.auth !== 'string') {
+    return reponse({ success: false, error: 'Abonnement incomplet' });
+  }
+  await env.KV.put('notif_sub_' + user.id, JSON.stringify({
+    endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth },
+    depuis: new Date().toISOString(),
+  }));
+  return reponse({ success: true, id: user.id, version: VERSION });
+}
+
+/* corps : { token, titre, corps, url } — GAS uniquement. */
+async function notifEnvoyer(corps, env) {
+  if (!env.PUSH_TOKEN || corps.token !== env.PUSH_TOKEN) {
+    return reponse({ success: false, error: 'Jeton invalide' }, 403);
+  }
+  if (!env.VAPID_PUBLIC || !env.VAPID_PRIVATE) {
+    return reponse({ success: false, error: 'Clés VAPID absentes des secrets du Worker' }, 500);
+  }
+  const message = JSON.stringify({
+    titre: String(corps.titre || 'Portail CHPG').slice(0, 120),
+    corps: String(corps.corps || '').slice(0, 300),
+    url: String(corps.url || './dashboard.html').slice(0, 300),
+  });
+
+  const liste = await env.KV.list({ prefix: 'notif_sub_' });
+  const resultats = [];
+  for (const k of liste.keys) {
+    const brut = await env.KV.get(k.name);
+    if (!brut) continue;
+    let sub; try { sub = JSON.parse(brut); } catch (e) { continue; }
+    try {
+      const statut = await notifExpedier(sub, message, env);
+      if (statut === 404 || statut === 410) {
+        await env.KV.delete(k.name); // abonnement mort : purgé au passage
+        resultats.push({ id: k.name.slice(10), statut: statut, purge: true });
+      } else {
+        resultats.push({ id: k.name.slice(10), statut: statut });
+      }
+    } catch (err) {
+      resultats.push({ id: k.name.slice(10), erreur: String(err && err.message || err).slice(0, 120) });
+    }
+  }
+  const envoyees = resultats.filter(r => r.statut >= 200 && r.statut < 300).length;
+  return reponse({ success: true, envoyees: envoyees, abonnes: liste.keys.length, resultats: resultats, version: VERSION });
+}
+
+/* Web Push complet : JWT VAPID (ES256) + charge chiffrée RFC 8291
+   (aes128gcm). iOS n'affiche RIEN sans charge chiffrée : pas de raccourci. */
+async function notifExpedier(sub, message, env) {
+  // — 1. JWT VAPID, signé avec la clé privée du service —
+  const origine = new URL(sub.endpoint).origin;
+  const maintenant = Math.floor(Date.now() / 1000);
+  const tete = octetsVersB64u(new TextEncoder().encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const charge = octetsVersB64u(new TextEncoder().encode(JSON.stringify({
+    aud: origine, exp: maintenant + 12 * 3600, sub: NOTIF_SUJET,
+  })));
+  const aSigner = tete + '.' + charge;
+  const pubOctets = b64uVersOctets(env.VAPID_PUBLIC); // 65 octets : 0x04 || x || y
+  const jwk = {
+    kty: 'EC', crv: 'P-256', d: env.VAPID_PRIVATE,
+    x: octetsVersB64u(pubOctets.slice(1, 33)), y: octetsVersB64u(pubOctets.slice(33, 65)),
+  };
+  const clePrivee = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, clePrivee, new TextEncoder().encode(aSigner));
+  const jwt = aSigner + '.' + octetsVersB64u(signature);
+
+  // — 2. Chiffrement de la charge (RFC 8291, aes128gcm) —
+  const uaPub = b64uVersOctets(sub.keys.p256dh);      // clé publique du navigateur (65)
+  const authSecret = b64uVersOctets(sub.keys.auth);   // secret partagé (16)
+  const paire = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const asPub = new Uint8Array(await crypto.subtle.exportKey('raw', paire.publicKey)); // 65
+  const cleUA = await crypto.subtle.importKey('raw', uaPub, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const secretECDH = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: cleUA }, paire.privateKey, 256));
+
+  const hkdf = async (sel, ikm, info, longueur) => {
+    const cle = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
+    return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: sel, info: info }, cle, longueur * 8));
+  };
+  const te = (s) => new TextEncoder().encode(s);
+
+  const ikm = await hkdf(authSecret, secretECDH, concatOctets(te('WebPush: info\0'), uaPub, asPub), 32);
+  const sel = crypto.getRandomValues(new Uint8Array(16));
+  const cek = await hkdf(sel, ikm, te('Content-Encoding: aes128gcm\0'), 16);
+  const nonce = await hkdf(sel, ikm, te('Content-Encoding: nonce\0'), 12);
+
+  const clair = concatOctets(te2octets(message), new Uint8Array([2])); // 0x02 : dernier bloc
+  const cleAES = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']);
+  const chiffre = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, cleAES, clair));
+
+  const rs = new Uint8Array(4); new DataView(rs.buffer).setUint32(0, 4096);
+  const entete = concatOctets(sel, rs, new Uint8Array([asPub.length]), asPub);
+  const corpsHTTP = concatOctets(entete, chiffre);
+
+  // — 3. Envoi au service de push (Apple, Google, Mozilla — même norme) —
+  const rep = await fetch(sub.endpoint, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'vapid t=' + jwt + ', k=' + env.VAPID_PUBLIC,
+      'Content-Encoding': 'aes128gcm',
+      'Content-Type': 'application/octet-stream',
+      'TTL': '86400',
+      'Urgency': 'high',
+    },
+    body: corpsHTTP,
+  });
+  return rep.status;
+
+  function te2octets(s) { return new TextEncoder().encode(s); }
 }

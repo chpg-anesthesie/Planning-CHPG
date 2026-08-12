@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-10.1';
+const GAS_VERSION_MIROIR = '2026-08-12.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -998,4 +998,35 @@ function _miroirConstruireVacancesAdmin_() {
     });
   }
   return { success: true, periodes: periodes, groupes: groupes };
+}
+
+
+/* ═══ NOTIFICATIONS PUSH (12/08/2026 — phase 1) ══════════════════════
+   Le GAS ne chiffre rien : il demande au Worker d'envoyer (jeton
+   MIROIR_PUSH_TOKEN, le même que le miroir). JAMAIS bloquant : une
+   notification qui rate ne doit jamais faire échouer le geste qui la
+   déclenche — tout est avalé, le résultat est journalisé via Logger. */
+function notifierPush_(titre, corps, url) {
+  try {
+    const jeton = PropertiesService.getScriptProperties().getProperty('MIROIR_PUSH_TOKEN');
+    if (!jeton) { Logger.log('notifierPush_ : MIROIR_PUSH_TOKEN absent'); return { success: false }; }
+    const rep = UrlFetchApp.fetch(MIROIR_URL + '/notif-envoyer', {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ token: jeton, titre: titre, corps: corps, url: url }),
+      muteHttpExceptions: true,
+    });
+    const r = JSON.parse(rep.getContentText());
+    Logger.log('notifierPush_ : ' + rep.getResponseCode() + ' — ' + rep.getContentText().slice(0, 200));
+    return r;
+  } catch (err) {
+    Logger.log('notifierPush_ : échec — ' + err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/* À lancer depuis l'éditeur Apps Script pour le test réel du canal. */
+function testNotificationPush() {
+  const r = notifierPush_('Test du canal', 'Si vous lisez ceci sur votre téléphone, le canal fonctionne.', './dashboard.html');
+  Logger.log(JSON.stringify(r));
 }

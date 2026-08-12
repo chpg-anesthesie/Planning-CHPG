@@ -388,7 +388,16 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.31.3</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.31.4</span></span></p>
+    <!-- (12/08/2026, v1.31.4) Notifications push — phase 1 : visible rôle admin SEUL.
+         Le serveur refuse de toute façon les autres rôles : ceci n'est que l'habillage. -->
+    <div id="notifCard" class="mg-hero" style="display:none" onclick="activerNotifications()">
+      <div class="mg-hero-ico"><i data-lucide="bell"></i></div>
+      <div class="mg-hero-body">
+        <div class="mg-hero-t">Activer les notifications</div>
+        <div class="mg-hero-s" id="notifEtat">Recevez les annonces du planning directement sur ce téléphone.</div>
+      </div>
+    </div>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
       <div class="mg-hero-body">
@@ -485,7 +494,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.31.3'; // SITE_VERSION: v1.31.3
+const SITE_VERSION = 'v1.31.4'; // SITE_VERSION: v1.31.4
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -684,6 +693,14 @@ async function _apiPostDirect(payload) {
 // ── BADGE UTILISATEUR + DÉCONNEXION ──
 function applyUserBadge(r){
   MY_ROLE = r.role;
+  /* (12/08/2026) Carte notifications : admin seul, et seulement si le
+     navigateur sait faire (iOS : uniquement depuis l'app installée). */
+  try {
+    if (r.role === 'admin' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
+      const nc = document.getElementById('notifCard');
+      if (nc && Notification.permission !== 'granted') nc.style.display = '';
+    }
+  } catch(e) {}
   MY_ID = (r.role==='mar') ? r.id : null;
   // État de la campagne de saisie (pilote la tuile « Mes indisponibilités »).
   INDISPOS_OUVERTE = !!r.indisposOuverte;
@@ -1985,6 +2002,36 @@ window.addEventListener('hashchange', route);
 viewAutoLogin();
 
 // ── PWA : service worker (cache des assets ; API/HTML/.json jamais interceptés) ──
+/* ── NOTIFICATIONS PUSH (12/08/2026, phase 1) ──────────────────────────
+   Un appui : permission → abonnement auprès du navigateur (clé publique
+   VAPID servie par le miroir) → dépôt de l'abonnement au miroir, qui
+   vérifie le code et le rôle. Tout échec est dit à l'écran, sans jargon. */
+async function activerNotifications(){
+  const etat = document.getElementById('notifEtat');
+  const dire = function(t){ if(etat) etat.textContent = t; };
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) { dire('Ce navigateur ne sait pas faire.'); return; }
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { dire('Permission refusée — réglages du téléphone → Notifications.'); return; }
+    dire('Activation…');
+    const reg = await navigator.serviceWorker.ready;
+    const rc = await fetch(MIROIR_URL + '/notif-cle', { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: '{}' });
+    const jc = await rc.json();
+    if (!jc.success) { dire('Serveur pas prêt (' + (jc.error || 'clé absente') + ').'); return; }
+    const brut = atob(jc.cle.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - jc.cle.length % 4) % 4));
+    const cle = new Uint8Array(brut.length); for (let i = 0; i < brut.length; i++) cle[i] = brut.charCodeAt(i);
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: cle });
+    const ra = await fetch(MIROIR_URL + '/notif-abonner', { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ code: VIEW_CODE, subscription: sub.toJSON() }) });
+    const ja = await ra.json();
+    if (!ja.success) { dire('Refusé : ' + (ja.error || 'erreur inconnue')); return; }
+    dire('Notifications activées sur ce téléphone ✓');
+    setTimeout(function(){ const nc = document.getElementById('notifCard'); if (nc) nc.style.display = 'none'; }, 2500);
+  } catch (err) {
+    dire('Échec : ' + (err && err.message ? err.message : 'erreur inconnue'));
+  }
+}
+
 if('serviceWorker' in navigator){
   window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
 }

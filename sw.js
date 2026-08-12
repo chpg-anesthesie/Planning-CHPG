@@ -3,7 +3,7 @@
  * Ne met en cache QUE les assets figés (js/css/images/polices).
  * API Google Apps Script, .json et HTML : réseau direct, JAMAIS interceptés.
  */
-var VERSION = 'chpg-sw-v2';
+var VERSION = 'chpg-sw-v3';
 var ASSET_CACHE = VERSION + '-assets';
 var FONT_CACHE  = VERSION + '-fonts';
 
@@ -44,3 +44,29 @@ async function cacheFirst(req, cacheName) {
     return res;
   } catch (e) { return cached || Response.error(); }
 }
+
+/* ── NOTIFICATIONS PUSH (12/08/2026, v3) ─────────────────────────────
+   Deux gestionnaires, rien d'autre : afficher ce qui arrive, ouvrir la
+   bonne page au toucher. La charge est déjà déchiffrée par le navigateur. */
+self.addEventListener('push', function (e) {
+  var d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) {}
+  var titre = d.titre || 'Portail CHPG';
+  e.waitUntil(self.registration.showNotification(titre, {
+    body: d.corps || '',
+    icon: 'assets/icon-192.png',
+    badge: 'assets/icon-192.png',
+    data: { url: d.url || './dashboard.html' },
+  }));
+});
+
+self.addEventListener('notificationclick', function (e) {
+  e.notification.close();
+  var url = (e.notification.data && e.notification.data.url) || './dashboard.html';
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (fen) {
+    for (var i = 0; i < fen.length; i++) {
+      if ('focus' in fen[i]) { if (fen[i].navigate) fen[i].navigate(url); return fen[i].focus(); }
+    }
+    return clients.openWindow(url);
+  }));
+});

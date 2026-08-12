@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-07-31.3';
+const GAS_VERSION_GENERATEUR = '2026-08-12.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -1464,6 +1464,13 @@ function generateGardes(year){
       `Exceptions VD : ${warnings.filter(w=>w.includes('VD')).length}`
     );
   }catch(e){Logger.log('✅ généré');}
+  /* (12/08/2026) Notification de fin de génération — phase 1 du canal push.
+     Dans un try à part : ne doit JAMAIS faire échouer une génération réussie. */
+  try {
+    notifierPush_('Les gardes ' + year + ' sont générées',
+      'Planning annuel complet' + (warnings.length ? ' — ' + warnings.length + ' avertissement(s)' : ', sans avertissement') + '.',
+      './admin.html');
+  } catch (e) { /* silencieux : la génération, elle, a réussi */ }
   return { warnings: warnings.slice(0, 60), nbWarnings: warnings.length };
 }
 
