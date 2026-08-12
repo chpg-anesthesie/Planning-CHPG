@@ -135,8 +135,9 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
       /sessionStorage\.getItem\('chpgViewCode'/.test(contenu));
     V('un code refusé est retiré de la session',
       /removeItem\('chpgViewCode'\)/.test(contenu));
-    V('doLogin accepte un code repris (paramètre)',
-      /async function doLogin\(codeAuto\)/.test(contenu));
+    V('doLogin accepte un code repris et un mode silencieux',
+      /async function doLogin\(codeAuto, silencieux\)/.test(contenu),
+      (contenu.match(/async function doLogin\([^)]*\)/) || [''])[0]);
 
     /* La cle doit etre la MEME que sur les autres pages MAR, sinon la session
        ne se partage pas. staff.html et admin.html sont exclus : ils exigent
@@ -171,6 +172,85 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
                   + 4 * gap + 2 * marge;
     V(`la barre tient dans 390 pt (calculé : ${Math.round(total)} pt)`, total <= 390, total);
     V('elle tient même sur un iPhone SE 1re génération (320 pt)', total <= 320 + 40, total);
+  }
+
+  /* Defaut vu le 12/08 : ~790 pt de blanc sous les tableaux des onglets Medecins,
+     Equite, Secteurs et Annee. #mobileView (hauteur minimale d'un ecran) restait
+     affiche sur tous les onglets alors qu'il ne sert qu'a l'onglet Planning. */
+  console.log('\n═══ 28e. index.html · pas de blanc sous les onglets autres que Planning ═══');
+  {
+    const contenu = fs.readFileSync('../index.html', 'utf8');
+    const vc = new VirtualConsole(); const erreurs = [];
+    vc.on('jsdomError', e => erreurs.push(e.message));
+    const dom = new JSDOM(contenu, { runScripts:'dangerously', virtualConsole:vc,
+      url:'https://chpg-anesthesie.github.io/Planning-CHPG/index.html', pretendToBeVisual:true,
+      beforeParse(win) {
+        win.matchMedia = () => ({ matches:false, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
+        win.Element.prototype.scrollIntoView = function () {};
+        win.HTMLElement.prototype.scrollIntoView = function () {};
+        win.scrollTo = () => {};
+      } });
+    const w = dom.window;
+    if (!w.navigator.sendBeacon) w.navigator.sendBeacon = () => true;
+    w.fetch = async () => ({ ok:true, json: async () => ({ success:false }) });
+    await dodo(400);
+    const D = w.document;
+    Object.defineProperty(w, 'innerWidth', { value: 390, configurable: true });
+    w.checkMobile();
+    const vue = D.getElementById('mobileView');
+
+    /* Le rendu des tableaux echoue faute de donnees chargees ici ; seul l'affichage
+       du conteneur nous interesse, et il est fixe AVANT l'appel au rendu. */
+    const bascule = v => { try { w.mobileSetView(v); } catch (e) {} };
+
+    bascule('planning');
+    V('onglet Planning : le conteneur jour est affiché', vue.style.display === 'flex', vue.style.display);
+    for (const onglet of ['medecins', 'equite', 'affect', 'annee']) {
+      bascule(onglet);
+      V(`onglet ${onglet} : le conteneur jour est masqué (plus de blanc)`,
+        vue.style.display === 'none', vue.style.display);
+    }
+    bascule('planning');
+    V('retour sur Planning : il revient', vue.style.display === 'flex', vue.style.display);
+    V('un redimensionnement ne le rallume pas sur un autre onglet',
+      (() => { bascule('annee'); w.checkMobile(); return vue.style.display === 'none'; })(),
+      vue.style.display);
+    V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
+  }
+
+  /* Defaut vu en production le 12/08 : la reprise de session appelait doLogin, qui
+     desactive le bouton et ecrit « Connexion... ». Tant que le serveur ne repondait
+     pas (jusqu'a 20 s au reveil d'Apps Script), l'ecran de saisie etait FIGE : le MAR
+     ne pouvait meme plus taper son code a la main. Regle : la tentative automatique
+     est silencieuse et ne touche jamais a l'interface. */
+  console.log('\n═══ 28f. indispos.html · la reprise de session ne fige jamais l\'écran ═══');
+  {
+    const contenu = fs.readFileSync('../indispos.html', 'utf8');
+    const vc = new VirtualConsole(); const erreurs = [];
+    vc.on('jsdomError', e => erreurs.push(e.message.split('\n')[0]));
+    const dom = new JSDOM(contenu, { runScripts:'dangerously', virtualConsole:vc,
+      url:'https://chpg-anesthesie.github.io/Planning-CHPG/indispos.html', pretendToBeVisual:true,
+      beforeParse(win) {
+        win.matchMedia = () => ({ matches:false, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
+        win.Element.prototype.scrollIntoView = function () {};
+        win.HTMLElement.prototype.scrollIntoView = function () {};
+        win.scrollTo = () => {};
+        try { win.sessionStorage.setItem('chpgViewCode', 'ABCD1234'); } catch (e) {}
+        /* Le pire cas : un serveur qui ne repond JAMAIS. */
+        win.fetch = () => new Promise(() => {});
+      } });
+    await dodo(600);
+    const D = dom.window.document;
+    const btn = D.getElementById('loginBtn'), champ = D.getElementById('codeInput');
+    V('le bouton reste sur « Accéder → »', /Accéder/.test(btn.textContent), btn.textContent);
+    V('le bouton reste CLIQUABLE pendant la tentative', btn.disabled === false, btn.disabled);
+    V('le champ de code reste saisissable', champ.disabled === false, champ.disabled);
+    V('aucun message d\'erreur n\'est affiché au MAR qui n\'a rien tapé',
+      D.getElementById('loginError').style.display !== 'block',
+      D.getElementById('loginError').style.display);
+    V('la tentative automatique passe bien le drapeau silencieux',
+      /doLogin\(saved, true\)/.test(contenu));
+    V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
   }
 
   console.log('\n═══ 29. Confidentialité des indispos (règle du secrétariat) ═══');

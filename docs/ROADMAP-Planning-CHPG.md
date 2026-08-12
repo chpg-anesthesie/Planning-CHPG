@@ -4,7 +4,7 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.31.12** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.31.13** ·
 **GAS** (relevé dans le dépôt le 12/08/2026 au soir) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-12.2 · `miroir.gs` 2026-08-12.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
@@ -17,7 +17,7 @@ l'identité avec la version déployée n'a PAS été revérifiée ce jour-là)
 Le banc a un test dédié qui refuse qu'ils divergent — ne jamais se fier à une liste écrite,
 chercher les porteurs dans tout le dépôt.
 
-**Banc d'essai** `banc/` — 700 vérifications (relevé le 12/08/2026 dans la nuit), `cd banc && ./lancer.sh`.
+**Banc d'essai** `banc/` — 714 vérifications (relevé le 12/08/2026 dans la nuit), `cd banc && ./lancer.sh`.
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
@@ -123,7 +123,7 @@ pour 23 MAR) et le vocabulaire « IA » (leur moteur est un solveur de contraint
 
 ---
 
-## 12 août 2026 (soir) — v1.31.12 : identité visuelle, bandeaux mobiles, écrans de connexion
+## 12 août 2026 (soir) — v1.31.13 : identité visuelle, bandeaux mobiles, écrans de connexion
 
 **Ce qui a changé pour l'utilisateur.** Le drapeau monégasque, qui servait d'icône et de logo
 depuis l'origine, est remplacé par une marque propre au service : un groupe de silhouettes
@@ -178,7 +178,7 @@ nœud selon la largeur, branché sur `checkMobile()`), ce qui préserve `id` et 
 Le nom du service est ensuite revenu sur mobile (« CHPG / Anesthésie-Réa »), le bandeau est centré
 et le logo porté à 34 px, comme le dashboard.
 
-**Ce que le banc a apporté** (643 → 700 vérifications) :
+**Ce que le banc a apporté** (643 → 714 vérifications) :
 - il a **détecté tout seul** la refonte de la tuile : un test cherchait « Prochaine garde » dans la
   ligne principale ; adapté, puis complété par 2 vérifications sur l'étiquette et le sous-titre ;
 - il a **rattrapé une erreur de méthode** : le test « les 5 porteurs annoncent la MÊME version »
@@ -228,6 +228,18 @@ devenue inutile. Vérifié classe par classe : plus aucune n'est utilisée dans 
 **`staff.html` reste volontairement à l'écart** — vérifié dans son `doLogin` : il n'accepte que
 `role === 'admin'` (le miroir renvoie `nonAdmin` sinon). Lui faire lire la session MAR n'aurait
 servi qu'à tenter un code voué au refus. Le banc verrouille ce point.
+
+**Défaut introduit par cette correction, et corrigé dans la foulée.** La reprise de session
+appelait `doLogin()`, qui commence par **désactiver le bouton** et afficher « Connexion… ». Tant
+que le serveur ne répondait pas — jusqu'à 20 s au réveil d'Apps Script — l'écran de saisie était
+**figé** : le MAR ne pouvait même plus taper son code à la main. Vu en production par Arthur,
+capture à l'appui.
+
+**Règle qui en découle : une tentative automatique ne touche JAMAIS à l'interface.** `doLogin()`
+prend un second argument `silencieux` ; en mode silencieux il ne modifie ni le bouton, ni le champ,
+ni le message d'erreur, et renvoie `true`/`false`. Si le MAR se connecte à la main pendant la
+tentative, c'est sa saisie qui gagne. Reproduit puis vérifié au banc avec **un serveur qui ne
+répond jamais** — le pire cas.
 
 ### La barre d'onglets du bas débordait de l'écran
 

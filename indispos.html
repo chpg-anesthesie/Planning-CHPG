@@ -495,15 +495,17 @@ document.getElementById('codeInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') doLogin();
 });
 
-async function doLogin(codeAuto) {
-  /* codeAuto : code repris de la session du portail (chpgViewCode). Sans argument,
-     on lit le champ de saisie comme avant. */
+async function doLogin(codeAuto, silencieux) {
+  /* codeAuto  : code repris de la session du portail (chpgViewCode).
+     silencieux: tentative automatique — elle ne doit JAMAIS toucher au bouton ni
+     afficher d'erreur. Defaut du 12/08 : la reprise desactivait le bouton et le
+     laissait sur « Connexion... » pendant tout l'appel serveur (jusqu'a 20 s au
+     reveil d'Apps Script), rendant l'ecran inutilisable. */
   const code = (codeAuto || document.getElementById('codeInput').value).trim().toUpperCase();
-  if (code.length < 4) return;
+  if (code.length < 4) return false;
 
   const btn = document.getElementById('loginBtn');
-  btn.textContent = 'Connexion...';
-  btn.disabled = true;
+  if (!silencieux) { btn.textContent = 'Connexion...'; btn.disabled = true; }
 
   try {
     /* (miroir, 04/08/2026) Miroir d'abord : identite + mes indispos en
@@ -528,6 +530,8 @@ async function doLogin(codeAuto) {
       selectTool('INDISPO');
       loadVacConfig();                                                    // non bloquant
       try { apiCall('login', {code}).catch(function () {}); } catch (e) {} // journal de connexion
+      if (!silencieux) { btn.textContent = 'Accéder →'; btn.disabled = false; }
+      return true;
     } else {
       const res = await apiCall('login', {code});
       if (res.success) {
@@ -546,36 +550,37 @@ async function doLogin(codeAuto) {
         await loadVacConfig();
         renderMonth();
         selectTool('INDISPO');   // outil actif + surlignage de la barre des l'ouverture
+        if (!silencieux) { btn.textContent = 'Accéder →'; btn.disabled = false; }
+        return true;
       } else {
         try { sessionStorage.removeItem('chpgViewCode'); } catch (e) {}
-        document.getElementById('loginError').style.display = 'block';
+        if (!silencieux) document.getElementById('loginError').style.display = 'block';
       }
     }
   } catch(e) {
     try { sessionStorage.removeItem('chpgViewCode'); } catch (_) {}
-    document.getElementById('loginError').style.display = 'block';
+    if (!silencieux) document.getElementById('loginError').style.display = 'block';
   }
-  btn.textContent = 'Accéder →';
-  btn.disabled = false;
+  if (!silencieux) { btn.textContent = 'Accéder →'; btn.disabled = false; }
+  return false;
 }
 
 /* Reprise de session : le MAR deja connecte au portail (dashboard, planning,
    absences...) n'a pas a ressaisir son code ici. Meme cle sessionStorage que
-   les autres pages MAR ; elle s'efface a la fermeture de l'onglet. Un code
-   devenu invalide est retire, et l'ecran de saisie reprend la main. */
+   les autres pages MAR ; elle s'efface a la fermeture de l'onglet.
+   REGLE : la tentative est SILENCIEUSE. L'ecran de saisie reste utilisable
+   pendant tout ce temps — bouton actif, champ libre. Si le MAR tape son code
+   avant que la tentative aboutisse, c'est sa saisie qui gagne. */
 (async function repriseSession() {
   let saved = '';
   try { saved = sessionStorage.getItem('chpgViewCode') || ''; } catch (e) {}
   if (!saved) return;
-  const err = document.getElementById('loginError');
   try {
-    await doLogin(saved);
-    /* Echec silencieux : doLogin a affiche l'erreur. On efface le code memorise
-       et on masque le message, l'utilisateur n'a rien saisi. */
-    if (err && err.style.display === 'block') {
-      err.style.display = 'none';
-      try { sessionStorage.removeItem('chpgViewCode'); } catch (_) {}
-    }
+    const ecran = document.getElementById('loginScreen');
+    const ok = await doLogin(saved, true);
+    if (!ok) { try { sessionStorage.removeItem('chpgViewCode'); } catch (_) {} }
+    /* Le MAR s'est connecte a la main pendant la tentative : on ne touche a rien. */
+    if (ecran && ecran.style.display === 'none') return;
   } catch (e) {
     try { sessionStorage.removeItem('chpgViewCode'); } catch (_) {}
   }

@@ -11,7 +11,7 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
-## État au 12 août 2026 (soir) — v1.31.12, identité visuelle propre, banc à 700 vérifications
+## État au 12 août 2026 (soir) — v1.31.13, identité visuelle propre, banc à 714 vérifications
 
 **Le drapeau monégasque a disparu.** Icône d'application, favicon et logo de bandeau : partout
 remplacés par une marque du service — silhouettes en groupe au-dessus d'un tracé de monitorage,
@@ -66,6 +66,16 @@ le MAR venait du dashboard. **Clés de session, relevé complet** : `chpgViewCod
 `dashboard`, `absences`, `crh`, `suivi-liberal` et désormais `indispos` ; `adminCode` sur `admin` ;
 **rien** sur `staff`. `staff.html` ne doit **pas** lire la session MAR : vérifié dans son `doLogin`,
 il n'accepte que `role === 'admin'`.
+
+**Règle apprise le 12/08, à ne jamais oublier : une tentative automatique ne touche JAMAIS à
+l'interface.** La reprise de session d'`indispos` appelait `doLogin()`, qui désactive le bouton et
+affiche « Connexion… » : tant que le serveur ne répondait pas (jusqu'à 20 s au réveil d'Apps
+Script), l'écran de saisie était **figé**, le MAR ne pouvait plus rien taper. `doLogin()` prend
+désormais un argument `silencieux`. Vérifié au banc avec un serveur qui ne répond jamais.
+
+**Le vide sous les onglets d'`index.html`** : `#mobileView` (hauteur minimale d'un écran) restait
+affiché sur tous les onglets alors qu'il ne sert qu'à Planning — ~790 pt de blanc sous les tableaux
+Médecins, Équité, Secteurs et Année.
 
 **La barre d'onglets du bas d'`index.html` débordait** : 410 pt requis pour 390 d'écran. La cause
 de fond est l'absence de `min-width: 0` — **un élément `flex: 1` refuse de descendre sous la

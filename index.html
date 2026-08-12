@@ -559,7 +559,8 @@ body{font-variant-numeric:tabular-nums}
   #medecinsView.mobile-hidden { display: none !important; }
 
   /* Vue jour mobile */
-  .mobile-view { display: flex; flex-direction: column; min-height: calc(100vh - 52px); }
+  /* 98px = bandeau (52) + barre « période » (46), qui sont tous deux collants. */
+  .mobile-view { display: flex; flex-direction: column; min-height: calc(100vh - 98px); }
   .mobile-day-nav {
     background: var(--white); border-bottom: 1px solid var(--line);
     padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;
@@ -2637,7 +2638,11 @@ const MONTHS_FR_FULL = ['Janvier','Février','Mars','Avril','Mai','Juin','Juille
 
 function checkMobile() {
   isMobile = window.innerWidth <= 768;
-  const mv = document.getElementById('mobileView'); if (mv) mv.style.display = isMobile ? 'flex' : 'none';
+  /* #mobileView porte une hauteur minimale d'un ecran : il ne doit rester affiche
+     que sur l'onglet Planning. Sur les autres onglets il etait vide mais gardait
+     sa hauteur, d'ou ~790 pt de blanc sous les tableaux (defaut vu le 12/08). */
+  const mv = document.getElementById('mobileView');
+  if (mv) mv.style.display = (isMobile && mobilePlanningView === 'planning') ? 'flex' : 'none';
   const bn = document.getElementById('mobileBottomNav'); if (bn) bn.style.display = isMobile ? 'flex' : 'none';
   placerSelecteursPeriode();
 }
@@ -2673,6 +2678,8 @@ function mobileSetView(v) {
   const dayNav = document.getElementById('mobileDayNav');
   if(dayNav) dayNav.style.display = v==='planning' ? '' : 'none';
   content.style.display = v==='planning' ? '' : 'none';
+  const mv = document.getElementById('mobileView');
+  if (mv) mv.style.display = (isMobile && v==='planning') ? 'flex' : 'none';
   medView.style.display = v==='medecins' ? 'block' : 'none';
   if(eqView) eqView.style.display = v==='equite' ? 'block' : 'none';
   if(afView) afView.style.display = v==='affect' ? 'block' : 'none';
