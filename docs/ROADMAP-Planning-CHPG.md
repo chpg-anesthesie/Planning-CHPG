@@ -21,7 +21,7 @@ chercher les porteurs dans tout le dépôt.
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 12 août 2026 (soir).*
+*Mise à jour : 12 août 2026 (nuit).*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -31,6 +31,95 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 12 août 2026 (nuit) — la passe d'optimisation mesurée, et ce qu'un concurrent a fait découvrir
+
+**D'où ça vient.** Comparaison avec Hopia, éditeur français de planification hospitalière (70+ établissements
+annoncés, levée de 3,5 M€ en janvier 2025). Leur argument central est l'explicabilité : chaque décision de
+l'algorithme doit pouvoir être justifiée. Point de départ d'un audit de notre propre générateur — dont trois
+idées sur quatre ont été **écartées après mesure ou parce qu'elles existaient déjà**. Ce qui suit est le
+résidu utile : des faits sur l'algorithme, pas des fonctionnalités.
+
+### La borne de temps de l'optimiseur — mesurée, pas supposée
+
+`generateur_gardes.gs` l.1160 : la recherche locale s'arrête sur `!changed` (convergence), 60 tours,
+**ou 20 secondes**. Cette troisième porte est imprévisible : elle dépend de la charge du serveur Google.
+Mesure sur **24 générations** (2027, 2028, 2029, 2032 × 6 tirages de congés, effectif démographique réel),
+instrumentation appliquée **en mémoire** — le fichier du dépôt n'a pas été modifié :
+
+| | |
+|---|---|
+| arrêts sur convergence | **24 / 24** |
+| arrêts sur la borne de temps | **0** |
+| tours effectués | 5 à 17 |
+| durée de la passe | 1 854 à 6 519 ms (médiane 3 603) |
+| marge avant la borne, pire cas | **3,1×** |
+
+**Déterminisme vérifié** : 4 générations sur 2 jeux d'indispos → planning identique au caractère près
+(empreinte SHA-256 des 728 affectations), même nombre de tours, même nombre de transferts. Cohérent avec
+l'observation d'Arthur en production : mêmes données, même planning.
+
+**Ce qu'on n'a PAS pu mesurer, et pourquoi.** La génération réelle du 10/08 tourne en **27,3 s**
+(`doPost`, Version 262 ; 25,8 s de serveur au `chronoAPI`), contre 3 à 6,5 s au banc — mais ces 25,8 s
+incluent la lecture des onglets et l'écriture de `GARDES_2027`, neutralisées au banc. Le facteur applicable
+à la seule boucle d'optimisation (calcul pur, aucun accès tableur) est donc compris entre 1× et 5,7×.
+**À 3× la borne des 20 s serait atteinte.** L'incertitude n'est pas levée.
+
+⚠️ **Et le journal ne permettra pas de la lever.** Les exécutions de l'application web (`doPost`,
+Version 262) **ne se déplient pas** dans le panneau Exécutions — seules celles lancées sur *Head* le font,
+et « Journaux Cloud » est grisé faute de projet Cloud rattaché (constat d'observation du 12/08, non
+recoupé avec la documentation Google). **Conséquence de méthode : ajouter un `Logger.log` pour diagnostiquer
+l'application web ne sert à rien.** Tout chiffre de diagnostic doit revenir **dans la réponse**, jamais dans
+le journal.
+
+→ **À faire après le 04/09** : remplacer la borne de temps par un plafond de tours (17 suffisent toujours).
+Correctif d'une ligne, sans effet visible, qui rend la génération reproductible **par construction** et non
+par chance. Ce n'est pas urgent — c'est simplement le genre de dépendance silencieuse qu'on ne veut pas
+découvrir en novembre.
+
+### Sept mécanismes de placement, pas un seul
+
+Relevé dans le code : rotation Noël/Jour de l'an (l.570), jours critiques résolus par série avec retour
+arrière (l.687), souhaits (l.796), unité vendredi-dimanche (l.919), passe ordinaire par score (l.951),
+ajustement de couverture (l.975), optimiseur global (l.1130), passe confort (l.1164).
+**Seule la passe ordinaire répond littéralement à « X était mieux classé que Y ».**
+
+### Un tiers des gardes sont déplacées après coup
+
+Comparaison du planning **avant** et **après** l'optimiseur, sur 5 années simulées :
+**222 à 267 affectations changées sur 728, soit 30 à 37 %**. Ce n'est pas un défaut — c'est ce qui fait
+passer l'écart maximal de 5,0 à 1,3. Mais c'est un fait à connaître avant d'affirmer quoi que ce soit sur
+« la règle qui a désigné untel ».
+
+Un prototype de trace a été exécuté (six ancres d'instrumentation en mémoire) : sur **241 journées tracées**,
+**66** ont retenu exactement les deux premiers du classement initial, **149** non — optimiseur ou passe
+confort passés après. Une fiche « pourquoi ce MAR » aurait donc donné une réponse décevante deux fois sur
+trois. **Idée écartée**, prototype non conservé.
+
+### Deux idées écartées parce qu'elles existaient déjà
+
+- **Le « mur des empêchés »** (qui pouvait prendre la garde ce jour-là, et pourquoi les autres non) :
+  `admin.html` l.7335-7400 le fait déjà, et mieux — l'audit de couverture du W2 compte les MAR disponibles
+  chaque jour de l'année, seuils 🔴 <4 / 🟠 4-5 / ✅ ≥6 calibrés sur 400 années simulées, **et liste qui
+  libérer en priorité** par rang de vacances. Un outil d'action, pas seulement de constat.
+- **La diapo « ce que dit la littérature »** : elle est dans `docs/presentation-staff.html` depuis juillet,
+  avec ses trois chiffres sourcés et sa règle d'exclusion des données commerciales.
+
+**Leçon de méthode, la même que d'habitude** : lire le dépôt avant de proposer. Les deux idées ont été
+construites (maquettes HTML) avant d'être reconnues comme déjà présentes.
+
+### Ce qui reste ouvert du côté concurrent
+
+**Afficher l'horizon.** Hopia met en avant le passage de 3 semaines à 3 mois d'anticipation ; nous produisons
+douze mois, et ce chiffre n'apparaît nulle part dans l'interface. Une ligne sur le dashboard MAR
+(« planning publié jusqu'à fin 2027 ») suffirait — le bootstrap renvoie déjà `_boot.anneeSuivante`
+(consommé dans `admin.html` l.3447). Petit patch, 3ᵉ chiffre. **Non fait, non urgent.**
+
+**Ce qu'il ne faut PAS copier** : l'interopérabilité SIH/GTA (50+ flux : leur modèle économique, sans objet
+pour 23 MAR) et le vocabulaire « IA » (leur moteur est un solveur de contraintes, comme le nôtre ; dire
+« algorithme » reste plus juste devant des médecins).
 
 ---
 
