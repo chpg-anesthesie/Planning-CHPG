@@ -687,10 +687,16 @@ body{font-variant-numeric:tabular-nums}
 </style>
   <style>
 .eqv-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.eq-switchbar{padding:16px 32px 0}
-.eqv-switch{display:inline-flex;background:var(--surface-2);border-radius:9px;padding:3px;gap:2px}
-.eqv-sw-btn{border:0;background:transparent;padding:6px 16px;border-radius:7px;font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-3);cursor:pointer}
-.eqv-sw-btn.active{background:var(--white);color:var(--ink);box-shadow:0 1px 2px rgba(15,23,42,.14)}
+/* (13/08/2026) Onglets pleine largeur, souligne actif. AVANT : un interrupteur
+   qui epousait la largeur de son texte, cale a 32 px du bord — sur telephone il
+   flottait dans le coin gauche, et la touche ne faisait que 27 px de haut.
+   La barre n'a plus de marge laterale propre : elle partage le bord gauche de
+   .eq-wrap, son voisin dans #equiteView, donc les onglets s'alignent sur les
+   cartes quelle que soit la marge du conteneur. */
+.eq-switchbar{padding:14px 0 0}
+.eqv-switch{display:grid;grid-template-columns:1fr 1fr;background:transparent;border-radius:0;padding:0;gap:0;border-bottom:1px solid var(--line)}
+.eqv-sw-btn{border:0;background:transparent;padding:9px 4px 10px;border-radius:0;font-family:inherit;font-size:14.5px;font-weight:700;color:var(--ink-4);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px}
+.eqv-sw-btn.active{background:transparent;color:var(--red);border-bottom-color:var(--red);box-shadow:none}
 .eqv-card{border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--white)}
 /* ── Personnalisation MAR connecté (pastel bleu ciel) ── */
 .me-pill{display:inline-flex;align-items:center;gap:6px;background:var(--me-soft);color:var(--me);border:1px solid var(--me-border);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:700;white-space:nowrap}

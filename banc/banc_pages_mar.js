@@ -301,6 +301,28 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('le refus est expliqué au MAR', /Hors de l'année de planning/.test((w.__toasts || []).join(' ')), w.__toasts);
   }
 
+  console.log('\n═══ 28h. index.html · les onglets Équité sont larges et alignés ═══');
+  {
+    /* (13/08/2026) AVANT : un interrupteur cale a 32 px du bord, epousant la
+       largeur de son texte — decentre sur telephone, touche de 27 px. */
+    const c = fs.readFileSync('../index.html', 'utf8');
+    const barre = (c.match(/\.eq-switchbar\{[^}]*\}/) || [''])[0];
+    const sw    = (c.match(/\.eqv-switch\{[^}]*\}/) || [''])[0];
+    const btn   = (c.match(/\.eqv-sw-btn\{[^}]*\}/) || [''])[0];
+    const actif = (c.match(/\.eqv-sw-btn\.active\{[^}]*\}/) || [''])[0];
+    V('la barre n\'a plus de marge latérale propre (alignement sur les cartes)',
+      /padding:14px 0 0/.test(barre), barre);
+    V('les deux onglets partagent la largeur en deux',
+      /display:grid/.test(sw) && /grid-template-columns:1fr 1fr/.test(sw), sw);
+    V('l\'onglet actif est souligné, plus encadré de blanc',
+      /border-bottom-color:var\(--red\)/.test(actif) && /background:transparent/.test(actif), actif);
+    V('la touche est assez haute pour le doigt (≥ 38 px)',
+      /padding:9px 4px 10px/.test(btn) && /font-size:14\.5px/.test(btn), btn);
+    V('les deux onglets sont toujours là, et un seul actif au départ',
+      (c.match(/class="eqv-sw-btn[^"]*"/g) || []).length === 2 &&
+      (c.match(/class="eqv-sw-btn active"/g) || []).length === 1);
+  }
+
   console.log('\n═══ 29. Confidentialité des indispos (règle du secrétariat) ═══');
   {
     const r = await WK.fetch(new Request('https://worker/read', { method:'POST',
