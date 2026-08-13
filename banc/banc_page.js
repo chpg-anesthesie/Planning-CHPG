@@ -210,6 +210,40 @@ async function page(transport) {
       /if \(name==='equipe'\) \{ loadEquipe\(\); loadVacances\(\); \}/.test(c));
   }
 
+  console.log('\n═══ 58. Avancement de la campagne d\'indisponibilités ═══');
+  {
+    /* (13/08/2026) Le comite ne savait qui avait saisi qu'a l'etape 1 de
+       l'assistant de generation — en novembre, trop tard pour relancer.
+       Regle : chacun doit poser AU MOINS une ligne, meme sans contrainte. */
+    const c = fs.readFileSync('../admin.html', 'utf8');
+    const fn = (c.match(/async function majIndChip\(force\)[\s\S]*?\n\}/) || [''])[0];
+    V('la fonction a bien été retrouvée', fn.length > 0);
+    V('hors campagne, la pastille disparaît',
+      /if \(!INDISPOS_YEAR\)\{ chip\.style\.display='none'/.test(fn));
+    V('elle emploie la MÊME règle que le contrôle bloquant (marsDansAnnee)',
+      /marsDansAnnee\(marsData, INDISPOS_YEAR\)/.test(fn) &&
+      /marsDansAnnee\(marsData, INDISPOS_YEAR\)/.test(c.slice(c.indexOf('renderWizGStep'))));
+    V('un MAR sans aucune ligne compte comme manquant',
+      /Object\.keys\(ind\)\.length === 0/.test(fn));
+    V('les initiales sont acceptées comme l\'identifiant',
+      /parMar\[m\.id\] \|\| parMar\[m\.initiales\]/.test(fn));
+    /* (13/08/2026) Le banc a rattrape la premiere version : elle se rabattait sur
+       Apps Script quand la copie etait vide — donc un appel A L'OUVERTURE, ce que
+       le portail s'interdit depuis la v1.25 (voir scenario 18). */
+    V('à l\'ouverture, la copie rapide et RIEN d\'autre',
+      /if \(force\)\{\s*const r = await api\(\{action:'getAllIndispos'/.test(fn) &&
+      /\} else \{\s*const m = await miroirRead\(\['indispos_'/.test(fn));
+    V('copie vide : la pastille reste muette plutôt que d\'appeler Google',
+      /if \(!parMar\) return;/.test(fn));
+    V('le repli lit « data », le nom que le serveur emploie vraiment',
+      /r\.success && r\.data\) parMar = r\.data/.test(fn));
+    V('le clic force un compte frais', /majIndChip\(true\)/.test(c));
+    V('un échec laisse la pastille en l\'état plutôt que d\'afficher un faux compte',
+      /catch\(e\)\{ \/\* information de confort/.test(fn));
+    V('la pastille est mise à jour quand la liste des MAR arrive',
+      /marsData = medData\.medecins;[\s\S]{0,200}majIndChip\(\)/.test(c));
+  }
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   process.exit(ko ? 1 : 0);
 })();

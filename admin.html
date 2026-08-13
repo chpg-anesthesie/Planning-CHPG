@@ -88,6 +88,23 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .nav-tab:hover { color:var(--ink); }
 .nav-tab.active { color:var(--red); border-bottom-color:var(--red); }
 
+/* (13/08/2026) Pastille d'avancement des indisponibilites : discrete, a droite
+   de la barre d'onglets, invisible hors campagne. */
+.ind-chip { margin-left:auto; align-self:center; border:1px solid var(--line); background:var(--white);
+  border-radius:999px; padding:4px 12px; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:600;
+  color:var(--ink-3); cursor:pointer; white-space:nowrap; }
+.ind-chip:hover { border-color:var(--ink-4); color:var(--ink); }
+.ind-chip.complet { color:#166534; border-color:#BBF7D0; background:#F0FDF4; }
+.ind-chip.attente { color:#92400E; border-color:#FBD38D; background:#FFF7E6; }
+.ind-pop { position:fixed; right:16px; top:104px; z-index:300; background:var(--white);
+  border:1px solid var(--line); border-radius:12px; box-shadow:0 6px 24px rgba(15,23,42,.14);
+  padding:14px 16px; max-width:300px; font-size:13px; }
+.ind-pop h4 { margin:0 0 8px; font-size:13px; }
+.ind-pop ul { margin:0; padding-left:18px; color:var(--ink-2); }
+.ind-pop li { margin-bottom:3px; }
+.ind-pop .ok { color:#166534; }
+.ind-pop .fin { margin-top:10px; font-size:11.5px; color:var(--ink-4); }
+
 /* ── MAIN ── */
 .main { padding:24px 32px; }
 .tab-panel { display:none; }
@@ -1013,7 +1030,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.32.9'; // SITE_VERSION: v1.32.9
+const SITE_VERSION = 'v1.33'; // SITE_VERSION: v1.33
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1106,7 +1123,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.32.9</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.33</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1163,7 +1180,11 @@ if (sessionStorage.getItem('adminCode')) {
   <button class="nav-tab" onclick="showTab('equite')" id="tab-equite">📊 Équité</button>
   <button class="nav-tab" onclick="showTab('statuts')" id="tab-statuts">✏️ Statuts</button>
   <button class="nav-tab" onclick="showTab('maintenance')" id="tab-maintenance">🔧 Maintenance</button>
+  <!-- (13/08/2026) Avancement de la campagne d'indisponibilites. N'apparait QUE
+       pendant la campagne (INDISPOS_YEAR non nul) et disparait des sa cloture. -->
+  <button class="ind-chip" id="indChip" style="display:none" onclick="basculerIndChip()"></button>
 </div>
+<div class="ind-pop" id="indPop" style="display:none"></div>
 
 <!-- MAIN -->
 <div class="main">
@@ -2792,6 +2813,87 @@ async function fetchTimeout(url, options={}, ms=8000) {
   }
 }
 
+/* ══ AVANCEMENT DE LA CAMPAGNE D'INDISPONIBILITES ════════════════════════
+   (13/08/2026) Le comite ne savait qui avait saisi qu'a l'etape 1 de l'assistant
+   de generation des gardes — en novembre, quand il est trop tard pour relancer
+   sans bousculer. La pastille donne le compte pendant la campagne, et nomme les
+   manquants au clic.
+
+   REGLE : chacun doit poser AU MOINS une ligne. Un MAR sans contrainte en pose
+   une quand meme — c'est ce qui distingue « rien a declarer » de « pas encore
+   regarde », et l'assistant bloque deja sur ce critere.
+
+   ACCORD AVEC L'ASSISTANT : on reutilise marsDansAnnee(), la MEME regle que le
+   controle bloquant, sinon la pastille annoncerait 23/23 pendant que la
+   generation refuserait de demarrer.
+
+   La donnee vient de la copie rapide (deja deposee, deja autorisee au comite) ;
+   l'appel direct reste le repli. Elle peut retarder d'une minute : sans
+   consequence pour un compteur, et le clic la rafraichit. */
+let IND_ETAT = null;
+
+async function majIndChip(force){
+  const chip = document.getElementById('indChip');
+  if (!chip) return;
+  if (!INDISPOS_YEAR){ chip.style.display='none'; fermerIndPop(); return; }   /* hors campagne : rien */
+  try{
+    /* A L'OUVERTURE : la copie rapide, et RIEN D'AUTRE. Le portail s'interdit
+       tout appel Apps Script au demarrage depuis la v1.25 — le banc le verifie,
+       et il a rattrape cette regression le 13/08. Si la copie n'a rien, la
+       pastille reste invisible plutot que de couter un aller-retour pour un
+       compteur de confort.
+       SUR CLIC (force) : appel direct, puisque c'est un geste volontaire et
+       qu'on veut alors le compte du moment.
+       Le serveur nomme le dictionnaire « data », la copie rapide « parMar » :
+       deux noms, meme forme. */
+    let parMar = null;
+    if (force){
+      const r = await api({action:'getAllIndispos', year: INDISPOS_YEAR});
+      if (r && r.success && r.data) parMar = r.data;
+    } else {
+      const m = await miroirRead(['indispos_' + INDISPOS_YEAR], ADMIN_CODE);
+      const b = m && m.success && m.data && m.data['indispos_' + INDISPOS_YEAR];
+      if (b && b.parMar) parMar = b.parMar;
+    }
+    if (!parMar) return;
+    const actifs = marsDansAnnee(marsData, INDISPOS_YEAR);
+    if (!actifs.length) { chip.style.display='none'; return; }
+    const manquants = actifs.filter(m => {
+      const ind = parMar[m.id] || parMar[m.initiales] || {};
+      return Object.keys(ind).length === 0;
+    });
+    IND_ETAT = { total: actifs.length, faits: actifs.length - manquants.length, manquants: manquants };
+    chip.textContent = 'Indispos ' + INDISPOS_YEAR + ' · ' + IND_ETAT.faits + '/' + IND_ETAT.total;
+    chip.className = 'ind-chip ' + (manquants.length ? 'attente' : 'complet');
+    chip.style.display = '';
+    if (document.getElementById('indPop').style.display !== 'none') dessinerIndPop();
+  }catch(e){ /* information de confort : en cas d'echec, la pastille reste en l'etat */ }
+}
+
+function dessinerIndPop(){
+  const pop = document.getElementById('indPop');
+  if (!IND_ETAT) return;
+  const nom = m => m.nom || m.name || m.id;
+  pop.innerHTML = IND_ETAT.manquants.length
+    ? '<h4>Pas encore saisi — ' + IND_ETAT.manquants.length + '</h4><ul>'
+      + IND_ETAT.manquants.map(m => '<li>' + nom(m) + '</li>').join('')
+      + '</ul><div class="fin">Chacun doit poser au moins une ligne, même sans contrainte.</div>'
+    : '<h4 class="ok">Les ' + IND_ETAT.total + ' MAR ont saisi</h4>'
+      + '<div class="fin">La génération des gardes ne sera pas bloquée.</div>';
+  pop.style.display = '';
+}
+
+function basculerIndChip(){
+  const pop = document.getElementById('indPop');
+  if (pop.style.display !== 'none'){ fermerIndPop(); return; }
+  dessinerIndPop();
+  majIndChip(true);   /* le clic rafraichit : on veut le compte du moment */
+}
+function fermerIndPop(){ const p = document.getElementById('indPop'); if (p) p.style.display='none'; }
+document.addEventListener('click', function(ev){
+  if (ev.target.closest && !ev.target.closest('#indPop') && !ev.target.closest('#indChip')) fermerIndPop();
+});
+
 // ── TOAST ──────────────────────────────────────────────────────────────
 function toast(msg, type='') {
   const el = document.getElementById('toast');
@@ -3491,6 +3593,7 @@ async function loadStatusBar(pre) {
   try {
     const medData = pre || await api({action:'getMedecins'});
     if (medData.success) { marsData = medData.medecins; document.getElementById('statusMars').textContent = medData.medecins.filter(m=>m.actif).length; if (DATA && typeof renderWeek === 'function') renderWeek(); }
+    majIndChip();   // (13/08/2026) la pastille a besoin de marsData : on la met a jour ici
     document.getElementById('statusSys').textContent = 'OK';
   } catch(e) { document.getElementById('statusSys').textContent = 'Erreur'; document.getElementById('dotStatus').className='status-dot red'; }
 }
