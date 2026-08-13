@@ -49,12 +49,12 @@
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-13.3';
+const VERSION = 'miroir 2026-08-13.4';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
 // une clé orpheline invisible.
-const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|veille_marques|ordre_vac|equite_live_\d{4}|doc_[A-Za-z0-9_-]{10,80})$/;
+const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|veille_marques|ordre_vac|echanges|notif_config|equite_live_\d{4}|doc_[A-Za-z0-9_-]{10,80})$/;
 /* (2026-08-10.1) `doc_<idDrive>` : un topo ou un protocole PDF, pousse par la
    tache dediee de miroir.gs. La valeur a la MEME forme que la reponse de
    `getTopo`/`getProtocole` cote Apps Script — {success,name,mimeType,dataB64} —
@@ -183,10 +183,25 @@ async function lire(corps, env) {
 
   // Lectures KV en parallèle (interne au Worker : pas de file d'attente,
   // contrairement à Apps Script).
+  /* (13/08 — interrupteur) L'etat d'ouverture des echanges, lu UNE fois par
+     requete s'il est demande. La cle `echanges` n'est servie qu'a ceux que
+     l'interrupteur autorise : avant la mise en service, un dashboard MAR
+     recoit un refus et n'affiche RIEN — l'invisibilite est cote serveur. */
+  let etatEchanges = null;
+  const echangesAutorise = async (u) => {
+    if (u.role === 'admin') return true;
+    if (etatEchanges === null) {
+      try { etatEchanges = JSON.parse((await env.KV.get('notif_config')) || 'null') || {}; }
+      catch (e) { etatEchanges = {}; }
+    }
+    if (etatEchanges.ouvert) return true;
+    return Array.isArray(etatEchanges.pilotes) && etatEchanges.pilotes.indexOf(String(u.id).toUpperCase()) > -1;
+  };
   const taches = demandes.map(async (cle) => {
     cle = String(cle || '');
-    if (!CLE_VALIDE.test(cle) || cle === 'acces') { refuses.push(cle); return; }
+    if (!CLE_VALIDE.test(cle) || cle === 'acces' || cle === 'notif_config') { refuses.push(cle); return; }
     if (!autorise(user, cle)) { refuses.push(cle); return; }
+    if (cle === 'echanges' && !(await echangesAutorise(user))) { refuses.push(cle); return; }
     const brut = await env.KV.get(cle);
     if (brut == null) { manquants.push(cle); return; }
     let valeur;
@@ -335,6 +350,11 @@ function autorise(user, cle) {
      le planning — c'est ce que le comite projette a l'ecran au staff. Aucun
      rang personnel dedans : la page cherche son identifiant dans les listes. */
   if (cle === 'ordre_vac') return true;                                // MAR + admin
+  /* (13/08 — phase 3) Demandes d'echange/don entre MAR. Noms + dates de
+     gardes : rien que planning_{annee} ne montre deja a tout MAR. Le filtre
+     « mes demandes seulement » est un confort d'ECRAN, pas une regle
+     d'acces. Le secretariat, lui, n'atteint jamais /read. */
+  if (cle === 'echanges') return true;                                 // MAR + admin
   if (cle === 'config_admin') return user.role === 'admin';            // admin seul
   if (cle === 'mail_nonlus') return user.role === 'admin';             // (05/08) compteur de non-lus : un NOMBRE, jamais de contenu
   if (/^liberal_\d{4}$/.test(cle)) return user.role === 'admin';       // (05/08) volet du panneau : qui opere, ou — jamais de montant
@@ -419,8 +439,16 @@ async function notifAbonner(corps, env) {
   const empreinte = await sha256hex(code);
   const user = (acces.users || []).find(u => u && u.h === empreinte);
   if (!user) return reponse({ success: false, error: 'Code invalide' });
-  // Phase 1 : rôle admin seul. À élargir à la phase 4, ICI et nulle part ailleurs.
-  if (user.role !== 'admin') return reponse({ success: false, error: 'Réservé au comité pour le moment' }, 403);
+  /* Phase 1 : role admin seul. (13/08 — interrupteur) L'elargissement prevu
+     « ICI et nulle part ailleurs » est branche : notif_config (poussee par le
+     GAS) ouvre l'abonnement aux pilotes du test, puis a tous a la mise en
+     service — sans redeploiement du Worker. Cle absente = ferme. */
+  if (user.role !== 'admin') {
+    let cfg = {};
+    try { cfg = JSON.parse((await env.KV.get('notif_config')) || 'null') || {}; } catch (e) {}
+    const pilote = Array.isArray(cfg.pilotes) && cfg.pilotes.indexOf(String(user.id).toUpperCase()) > -1;
+    if (!cfg.ouvert && !pilote) return reponse({ success: false, error: 'Réservé au comité pour le moment' }, 403);
+  }
 
   const sub = corps.subscription;
   if (!sub || typeof sub.endpoint !== 'string' || sub.endpoint.indexOf('https://') !== 0 ||
@@ -434,7 +462,10 @@ async function notifAbonner(corps, env) {
   return reponse({ success: true, id: user.id, version: VERSION });
 }
 
-/* corps : { token, titre, corps, url } — GAS uniquement. */
+/* corps : { token, titre, corps, url, cible? } — GAS uniquement.
+   (13/08 — phase 3) `cible` optionnelle : { id } notifie UNE personne,
+   { role } notifie tous les abonnés de ce rôle (le comité, en pratique).
+   Absente : tous les abonnés — comportement de la phase 1, inchangé. */
 async function notifEnvoyer(corps, env) {
   if (!env.PUSH_TOKEN || corps.token !== env.PUSH_TOKEN) {
     return reponse({ success: false, error: 'Jeton invalide' }, 403);
@@ -446,28 +477,53 @@ async function notifEnvoyer(corps, env) {
     titre: String(corps.titre || 'Portail CHPG').slice(0, 120),
     corps: String(corps.corps || '').slice(0, 300),
     url: String(corps.url || './dashboard.html').slice(0, 300),
+    /* (pastille) Transporté tel quel jusqu'au service worker du téléphone,
+       qui le pose sur l'icône. Absent = pas de pastille. */
+    pastille: (typeof corps.pastille === 'number' && corps.pastille >= 0) ? Math.min(corps.pastille, 99) : undefined,
   });
 
-  const liste = await env.KV.list({ prefix: 'notif_sub_' });
+  /* Quelles clés d'abonnement viser ? Les clés étant nominatives
+     (notif_sub_<id>), une cible par id est un accès direct ; une cible par
+     rôle passe par `acces` (la même table que l'authentification). */
+  let clesVisees = null; // null = tous
+  const cible = corps.cible;
+  if (cible && cible.id) {
+    clesVisees = ['notif_sub_' + String(cible.id).trim()];
+  } else if (cible && cible.role) {
+    const accesBrut = await env.KV.get('acces');
+    let acces = null; try { acces = JSON.parse(accesBrut || 'null'); } catch (e) {}
+    if (!acces || !acces.users) return reponse({ success: false, error: 'Miroir vide — cible par rôle impossible' });
+    const roleVise = String(cible.role).trim();
+    clesVisees = acces.users.filter(u => u && u.role === roleVise).map(u => 'notif_sub_' + u.id);
+  }
+
   const resultats = [];
-  for (const k of liste.keys) {
-    const brut = await env.KV.get(k.name);
-    if (!brut) continue;
-    let sub; try { sub = JSON.parse(brut); } catch (e) { continue; }
+  let nbVises = 0;
+  const traiter = async (nom) => {
+    const brut = await env.KV.get(nom);
+    if (!brut) return; // pas abonné : rien à envoyer, rien à signaler
+    nbVises++;
+    let sub; try { sub = JSON.parse(brut); } catch (e) { return; }
     try {
       const statut = await notifExpedier(sub, message, env);
       if (statut === 404 || statut === 410) {
-        await env.KV.delete(k.name); // abonnement mort : purgé au passage
-        resultats.push({ id: k.name.slice(10), statut: statut, purge: true });
+        await env.KV.delete(nom); // abonnement mort : purgé au passage
+        resultats.push({ id: nom.slice(10), statut: statut, purge: true });
       } else {
-        resultats.push({ id: k.name.slice(10), statut: statut });
+        resultats.push({ id: nom.slice(10), statut: statut });
       }
     } catch (err) {
-      resultats.push({ id: k.name.slice(10), erreur: String(err && err.message || err).slice(0, 120) });
+      resultats.push({ id: nom.slice(10), erreur: String(err && err.message || err).slice(0, 120) });
     }
+  };
+  if (clesVisees) {
+    for (const nom of clesVisees) await traiter(nom);
+  } else {
+    const liste = await env.KV.list({ prefix: 'notif_sub_' });
+    for (const k of liste.keys) await traiter(k.name);
   }
   const envoyees = resultats.filter(r => r.statut >= 200 && r.statut < 300).length;
-  return reponse({ success: true, envoyees: envoyees, abonnes: liste.keys.length, resultats: resultats, version: VERSION });
+  return reponse({ success: true, envoyees: envoyees, abonnes: nbVises, resultats: resultats, version: VERSION });
 }
 
 /* Web Push complet : JWT VAPID (ES256) + charge chiffrée RFC 8291

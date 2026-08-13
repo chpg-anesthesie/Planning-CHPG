@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-13.2';
+const GAS_VERSION_MIROIR = '2026-08-13.3';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -69,6 +69,8 @@ const MIROIR_APRES_ECRITURE = {
   publishPlanning:            ['planning', 'affectations', 'annees', 'config_admin', 'gardes', 'stats'],
   setDailyStatus:             ['gardes', 'indispos'],
   applyModification:          ['planning', 'config_admin', 'gardes', 'stats'],
+  creerEchange:               ['echanges'],   // (13/08/2026) une demande créée → l'écran des 23 suit
+  repondreEchange:            ['planning', 'config_admin', 'gardes', 'stats', 'echanges'],   // acceptation = écriture planning
   deleteOverride:             ['config_admin'],
   savePlanningOverridesBatch: ['config_admin'],
   generateGardes:             ['annees', 'config_admin', 'gardes', 'stats'],
@@ -212,7 +214,7 @@ function miroirSyncComplet() {
   const familles = ['acces', 'annees', 'secteurs', 'config_admin',
                     'planning', 'affectations', 'indispos', 'tuiles',
                     'gardes', 'joursferies', 'stats', 'vacances_admin', 'mail', 'liberal',
-                    'veille_marques', 'ordre_vac'];
+                    'veille_marques', 'ordre_vac', 'echanges'];
   try { PropertiesService.getScriptProperties().deleteProperty(MIROIR_CLE_ATTENTE); } catch (e) {}   // la synchro pousse un sur-ensemble : la note devient caduque
   const res = miroirPousserFamilles_(familles, getActiveYear(), true);   // synchro : toutes les annees consultables
   Logger.log('miroirSyncComplet : ' + JSON.stringify(res));
@@ -250,6 +252,7 @@ const MIROIR_ONGLETS_SUIVIS = {
   PERIODES_VAC: ['vacances_admin', 'stats'],
   GROUPES_VAC:  ['vacances_admin', 'ordre_vac'],
   VEILLE_MARQUES: ['veille_marques'],              // (2026-08-08.1) correction manuelle d'une marque
+  ECHANGES:     ['echanges'],                      // (13/08/2026) correction manuelle d'une demande
 };
 
 function miroirSurEdition(e) {
@@ -325,6 +328,12 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
       if (uniq['planning'])     _miroirAjouteFichierDrive_(items, 'planning_' + y,     'planning_' + y + '.json');
       if (uniq['affectations']) _miroirAjouteFichierDrive_(items, 'affectations_' + y, 'affectations_' + y + '.json');
     });
+  }
+
+  if (uniq['echanges']) {
+    // (13/08/2026 — phase 3) Même contrat que les tuiles : enveloppe stockée
+    // telle quelle, jamais poussée en échec.
+    _miroirAjouteEnveloppe_(items, 'echanges', function () { return getEchangesEnveloppe(); });
   }
 
   if (uniq['tuiles']) {
@@ -1042,14 +1051,22 @@ function _miroirConstruireVacancesAdmin_() {
    MIROIR_PUSH_TOKEN, le même que le miroir). JAMAIS bloquant : une
    notification qui rate ne doit jamais faire échouer le geste qui la
    déclenche — tout est avalé, le résultat est journalisé via Logger. */
-function notifierPush_(titre, corps, url) {
+function notifierPush_(titre, corps, url, cible) {
   try {
     const jeton = PropertiesService.getScriptProperties().getProperty('MIROIR_PUSH_TOKEN');
     if (!jeton) { Logger.log('notifierPush_ : MIROIR_PUSH_TOKEN absent'); return { success: false }; }
+    /* (13/08/2026 — phase 3) `cible` optionnelle : { id: 'FROHLICH' } pour UNE
+       personne, { role: 'admin' } pour le comité. Absente = tous les abonnés
+       (comportement de la phase 1, inchangé — la génération annonce à tous). */
+    const charge = { token: jeton, titre: titre, corps: corps, url: url };
+    if (cible && (cible.id || cible.role)) charge.cible = cible;
+    /* (pastille) Nombre à poser sur l'icône de l'app du destinataire —
+       calculé par l'appelant, transporté tel quel jusqu'au téléphone. */
+    if (cible && typeof cible.pastille === 'number') charge.pastille = cible.pastille;
     const rep = UrlFetchApp.fetch(MIROIR_URL + '/notif-envoyer', {
       method: 'post',
       contentType: 'application/json',
-      payload: JSON.stringify({ token: jeton, titre: titre, corps: corps, url: url }),
+      payload: JSON.stringify(charge),
       muteHttpExceptions: true,
     });
     const r = JSON.parse(rep.getContentText());

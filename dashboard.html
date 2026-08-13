@@ -192,6 +192,47 @@ a.tile:hover, .tile.clickable:hover {
 .mg-hero-arrow svg { width:20px; height:20px; }
 .mg-hero.loading .mg-hero-main { opacity:.45; }
 
+/* ── Mes échanges (13/08/2026, phase 4) ── */
+.ech-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 14px; }
+.ech-filtres { display:flex; gap:6px; }
+.ech-filtre { border:1px solid #E2E8F0; background:#fff; color:#475569; border-radius:999px;
+  padding:6px 14px; font-size:13px; font-weight:600; cursor:pointer; }
+.ech-filtre.actif { background:#0F172A; border-color:#0F172A; color:#fff; }
+.ech-proposer { display:inline-flex; align-items:center; gap:6px; border:none; background:#CE1126; color:#fff;
+  border-radius:10px; padding:8px 14px; font-size:13.5px; font-weight:700; cursor:pointer; }
+.ech-card { background:#fff; border:1px solid #E8ECF2; border-radius:14px; padding:14px 16px; margin:0 0 10px;
+  box-shadow:0 2px 8px rgba(15,23,42,.05); }
+.ech-card .ech-titre { font-size:14.5px; font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.ech-card .ech-detail { font-size:13px; color:#475569; margin-top:5px; line-height:1.5; }
+.ech-card .ech-meta { font-size:12px; color:#94A3B8; margin-top:7px; }
+.ech-etat { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  border-radius:999px; padding:3px 9px; }
+.ech-etat.attente { background:#FEF3C7; color:#92400E; }
+.ech-etat.acceptee { background:#DCFCE7; color:#166534; }
+.ech-etat.refusee, .ech-etat.expiree, .ech-etat.impossible { background:#F1F5F9; color:#64748B; }
+.ech-actions { display:flex; gap:8px; margin-top:11px; }
+.ech-actions button { flex:1; border-radius:10px; padding:10px 0; font-size:14px; font-weight:700; cursor:pointer; border:none; }
+.ech-accepter { background:#16A34A; color:#fff; }
+.ech-refuser { background:#F1F5F9; color:#334155; }
+.ech-actions button:disabled { opacity:.5; cursor:default; }
+.ech-panneau { background:#fff; border:1px solid #E8ECF2; border-radius:14px; padding:16px; margin:0 0 14px;
+  box-shadow:0 4px 14px rgba(15,23,42,.08); }
+.ech-panneau label { display:block; font-size:12px; font-weight:700; color:#475569; text-transform:uppercase;
+  letter-spacing:.04em; margin:12px 0 5px; }
+.ech-panneau label:first-child { margin-top:0; }
+.ech-panneau select { width:100%; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; font-size:14.5px; background:#fff; }
+.ech-types { display:flex; gap:8px; }
+.ech-types button { flex:1; border:1px solid #E2E8F0; background:#fff; border-radius:10px; padding:9px 0;
+  font-size:13.5px; font-weight:600; color:#475569; cursor:pointer; }
+.ech-types button.actif { border-color:#CE1126; color:#CE1126; background:#FEF2F2; }
+.ech-avert { background:#FEF3C7; border-radius:10px; padding:10px 12px; font-size:13px; color:#92400E; margin-top:12px; line-height:1.45; }
+.ech-envoyer { width:100%; margin-top:14px; border:none; background:#CE1126; color:#fff; border-radius:10px;
+  padding:12px 0; font-size:15px; font-weight:700; cursor:pointer; }
+.ech-envoyer:disabled { opacity:.5; }
+.ech-msg { font-size:13px; margin-top:10px; padding:10px 12px; border-radius:10px; line-height:1.45; }
+.ech-msg.err { background:#FEF2F2; color:#B91C1C; }
+.ech-msg.ok { background:#DCFCE7; color:#166534; }
+
 /* ── VUE MES GARDES (détail) ── */
 .mg-tag { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
   border-radius:999px; padding:2px 9px; margin-left:8px; vertical-align:middle; }
@@ -431,7 +472,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.33.2</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.34</span></span></p>
     <!-- (12/08/2026, v1.31.4) Notifications push — phase 1 : visible rôle admin SEUL.
          Le serveur refuse de toute façon les autres rôles : ceci n'est que l'habillage. -->
     <div id="notifCard" class="mg-hero" style="display:none" onclick="activerNotifications()">
@@ -440,6 +481,15 @@ a.tile:hover, .tile.clickable:hover {
         <div class="mg-hero-t">Activer les notifications</div>
         <div class="mg-hero-s" id="notifEtat">Recevez les annonces du planning directement sur ce téléphone.</div>
       </div>
+    </div>
+    <div id="echangesHero" class="mg-hero" style="display:none" onclick="location.hash='#echanges'">
+      <div class="mg-hero-ico"><i data-lucide="repeat"></i></div>
+      <div class="mg-hero-body">
+        <div class="mg-hero-label">Échanges de gardes</div>
+        <div class="mg-hero-main" id="echHeroMain">Mes échanges</div>
+        <div class="mg-hero-sub" id="echHeroSub">Donner ou échanger une garde avec un collègue.</div>
+      </div>
+      <div class="mg-hero-arrow"><i data-lucide="chevron-right"></i></div>
     </div>
     <div id="myGardesHero" class="mg-hero" style="display:none" onclick="location.hash='#mes-gardes'">
       <div class="mg-hero-ico"><i data-lucide="moon"></i></div>
@@ -525,6 +575,24 @@ a.tile:hover, .tile.clickable:hover {
     </div>
     <div id="mesGardesList"></div>
   </div>
+  <div id="echangesView" style="display:none">
+    <div class="topos-head">
+      <button class="btn-back" onclick="backToHome()"><i data-lucide="arrow-left" style="width:16px;height:16px"></i> Retour</button>
+      <h2>Mes échanges</h2>
+      <span class="topos-count" id="echCount"></span>
+    </div>
+    <div class="ech-bar">
+      <div class="ech-filtres">
+        <button id="echFiltreMoi" class="ech-filtre actif" onclick="echFiltrer(false)">Mes demandes</button>
+        <button id="echFiltreTous" class="ech-filtre" onclick="echFiltrer(true)">Tout voir</button>
+      </div>
+      <button id="echProposerBtn" class="ech-proposer" style="display:none" onclick="echOuvrirProposition()">
+        <i data-lucide="plus" style="width:15px;height:15px"></i> Proposer
+      </button>
+    </div>
+    <div id="echProposition" class="ech-panneau" style="display:none"></div>
+    <div id="echList"><div class="topos-loading">Chargement…</div></div>
+  </div>
   <div id="mesCongesView" style="display:none">
     <div class="topos-head">
       <button class="btn-back" onclick="backToHome()"><i data-lucide="arrow-left" style="width:16px;height:16px"></i> Retour</button>
@@ -538,7 +606,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.33.2'; // SITE_VERSION: v1.33.2
+const SITE_VERSION = 'v1.34'; // SITE_VERSION: v1.34
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -665,7 +733,11 @@ async function miroirRead(keys) {
    aller-retour. true = parti sur le miroir ; sinon l'appelant bascule GAS. */
 async function miroirBootDash() {
   const devine = new Date().getFullYear();
-  const m = await miroirRead(['annees', 'planning_' + devine, 'planning_' + (devine + 1), 'ordre_vac']);
+  /* (13/08/2026) `echanges` voyage dans CE même appel — la règle de la maison :
+     une clé de plus dans une requête existante coûte des octets, une requête
+     de plus coûte un aller-retour. Refusée par le serveur (échanges pas
+     ouverts pour ce code) : elle revient dans `refuses`, coût nul. */
+  const m = await miroirRead(['annees', 'planning_' + devine, 'planning_' + (devine + 1), 'ordre_vac', 'echanges']);
   if (!m || !m.success) return m;
   const active = (m.data && m.data.annees && Number(m.data.annees.active)) || devine;
   let plan = m.data['planning_' + active];
@@ -689,6 +761,7 @@ async function miroirBootDash() {
      applyUserBadge, qui declenche le repli Apps Script s'il ne trouve rien. */
   _ovDepuisMiroir(m.data && m.data.ordre_vac);
   applyUserBadge(m.identite || {});
+  _echDepuisMiroir(m.data && m.data.echanges);   // (13/08) après applyUserBadge : le compteur a besoin de MY_ID
   /* Journal de connexion : login GAS en arriere-plan, resultat ignore. */
   /* (06/08/2026) Journal de connexion en envoi A FOND PERDU.
      Il n'apporte rien a l'ecran : il alimente l'onglet CONNEXIONS. En passant
@@ -764,6 +837,7 @@ function applyUserBadge(r){
   MY_LIBERAL = !!r.liberal;
   INDISPOS_YEAR = r.indisposYear || null;
   prechargerOrdreVac();   // en tache de fond : le bandeau de Mes conges sera deja pret
+
   const pill = document.getElementById('mePill');
   if(!pill) return;
   // Pastille du bandeau : initiales du MAR (colonne 3 de MEDECINS, deja renvoyees
@@ -1393,9 +1467,9 @@ function renderMesConges(){
 
 // ── VUE TOPOS ──
 // ── ROUTING PAR HASH (retour natif, liens partageables, réouverture PWA) ──
-const NAV = { 'topos':openTopos, 'staffs':openStaffs, 'veille':openVeille, 'protocoles':openProtocoles, 'annuaire':openAnnuaire, 'mes-gardes':openMesGardes, 'conges':openMesConges };
+const NAV = { 'topos':openTopos, 'staffs':openStaffs, 'veille':openVeille, 'protocoles':openProtocoles, 'annuaire':openAnnuaire, 'mes-gardes':openMesGardes, 'conges':openMesConges, 'echanges':openEchanges };
 function _hideAllViews(){
-  ['tilesView','toposView','staffsView','veilleView','protocolesView','annuaireView','mesGardesView','mesCongesView']
+  ['tilesView','toposView','staffsView','veilleView','protocolesView','annuaireView','mesGardesView','mesCongesView','echangesView']
     .forEach(function(id){ const el=document.getElementById(id); if(el) el.style.display='none'; });
 }
 function route(){
@@ -1438,6 +1512,296 @@ async function openTopos(){
   }catch(e){ box.innerHTML='<div class="topos-empty">Erreur réseau — réessayez.</div>'; }
 }
 function backToHome(){ location.hash=''; route(); }
+
+/* ══ MES ÉCHANGES (13/08/2026 — phase 4, contrat visuel : maquette-notifications) ══
+   LECTURE : le miroir SEUL (clé `echanges`). Le serveur décide qui voit quoi :
+   tant que les échanges ne sont pas ouverts (ou hors pilotes), la clé est
+   REFUSÉE et la carte d'accueil reste invisible — aucune logique d'ouverture
+   côté page. ÉCRITURE : les deux verbes Apps Script, geste volontaire avec
+   bouton et attente assumée (2-4 s). */
+let ECH_LISTE = null;        // dernière lecture réussie
+let ECH_TOUT = false;        // filtre : false = mes demandes seulement
+let ECH_AUTORISE = false;    // la clé m'a été servie au moins une fois
+
+/* (pastille) Effacée dès que le portail s'ouvre : ce qu'on est venu voir
+   est vu. Sans effet sur les navigateurs qui ne savent pas faire. */
+try { if (navigator.clearAppBadge) navigator.clearAppBadge().catch(function(){}); } catch(e) {}
+
+function _echDepuisMiroir(env){
+  /* Enveloppe {success:true, echanges:[…]} reçue dans l'appel d'ouverture.
+     Absente ou refusée : la carte reste invisible, aucun appel de rattrapage
+     — l'interrupteur est côté serveur et le boot ne se paie qu'une fois. */
+  if (!env || !env.success) return;
+  ECH_AUTORISE = true;
+  ECH_LISTE = env.echanges || [];
+  majEchangesHero();
+}
+
+async function chargerEchanges(force){
+  if (ECH_LISTE !== null && !force) return ECH_LISTE;
+  const m = await miroirRead(['echanges']);
+  if (m && m.success && m.data && m.data.echanges && m.data.echanges.success) {
+    ECH_AUTORISE = true;
+    ECH_LISTE = m.data.echanges.echanges || [];
+    majEchangesHero();
+    return ECH_LISTE;
+  }
+  /* Clé refusée (échanges pas encore ouverts pour moi) ou miroir en panne :
+     dans les deux cas, rien à montrer — la carte reste cachée. */
+  return null;
+}
+
+function majEchangesHero(){
+  const hero = document.getElementById('echangesHero');
+  if (!hero) return;
+  if (!ECH_AUTORISE) { hero.style.display='none'; return; }
+  hero.style.display='flex';
+  const enAttente = (ECH_LISTE||[]).filter(function(e){ return e.etat==='attente' && e.receveur===MY_ID; }).length;
+  const sub = document.getElementById('echHeroSub');
+  const main = document.getElementById('echHeroMain');
+  if (enAttente) {
+    main.textContent = enAttente + (enAttente>1 ? ' demandes attendent votre réponse' : ' demande attend votre réponse');
+    sub.textContent = 'Touchez pour répondre.';
+  } else {
+    main.textContent = 'Mes échanges';
+    sub.textContent = 'Donner ou échanger une garde avec un collègue.';
+  }
+}
+
+async function openEchanges(){
+  document.getElementById('tilesView').style.display='none';
+  document.getElementById('echangesView').style.display='block';
+  document.getElementById('echProposerBtn').style.display = MY_ID ? 'inline-flex' : 'none';
+  const liste = await chargerEchanges(true);
+  if (liste === null) {
+    document.getElementById('echList').innerHTML = '<div class="topos-empty">Les échanges de gardes ne sont pas encore ouverts.<br><span>Cet écran s\'activera à la mise en service.</span></div>';
+    document.getElementById('echCount').textContent='';
+    return;
+  }
+  renderEchanges();
+}
+
+function echFiltrer(tout){
+  ECH_TOUT = !!tout;
+  document.getElementById('echFiltreMoi').classList.toggle('actif', !ECH_TOUT);
+  document.getElementById('echFiltreTous').classList.toggle('actif', ECH_TOUT);
+  renderEchanges();
+}
+
+function _echHeuresRestantes(creeLe){
+  const fin = new Date(creeLe).getTime() + 48*3600*1000;
+  return Math.max(0, Math.round((fin - Date.now())/3600000));
+}
+function _echDrLisible(id){ return 'Dr ' + _mgCap(String(id||'').toLowerCase()); }
+
+function renderEchanges(){
+  const box = document.getElementById('echList'), cnt = document.getElementById('echCount');
+  let liste = (ECH_LISTE||[]).slice();
+  if (!ECH_TOUT) liste = liste.filter(function(e){ return e.demandeur===MY_ID || e.receveur===MY_ID; });
+  /* En attente d'abord, puis du plus récent au plus ancien. */
+  liste.sort(function(a,b){
+    const pa = a.etat==='attente'?0:1, pb = b.etat==='attente'?0:1;
+    if (pa!==pb) return pa-pb;
+    return a.creeLe<b.creeLe?1:-1;
+  });
+  cnt.textContent = liste.length ? String(liste.length) : '';
+  if (!liste.length) {
+    box.innerHTML = '<div class="topos-empty">Aucun échange pour le moment.<br><span>Proposez une garde à un collègue : il recevra une notification et pourra accepter en un geste.</span></div>';
+    return;
+  }
+  const ETATS = { attente:'En attente', acceptee:'Acceptée', refusee:'Refusée', expiree:'Expirée', impossible:'Impossible' };
+  let html = '';
+  liste.forEach(function(e){
+    const don = e.type==='don';
+    const titre = don
+      ? 'Don de garde — ' + _echDrLisible(e.demandeur) + ' → ' + _echDrLisible(e.receveur)
+      : 'Échange — ' + _echDrLisible(e.demandeur) + ' ↔ ' + _echDrLisible(e.receveur);
+    let detail = don
+      ? 'Garde du <b>' + esc(fmtDate(e.date)) + '</b> → planning de ' + esc(_echDrLisible(e.receveur))
+      : esc(_echDrLisible(e.demandeur)) + ' prend le <b>' + esc(fmtDate(e.date2)) + '</b>, ' + esc(_echDrLisible(e.receveur)) + ' prend le <b>' + esc(fmtDate(e.date)) + '</b>';
+    if (e.etat==='acceptee' && e.info) detail += '<br>' + esc(e.info);
+    if (e.etat==='impossible' && e.info) detail += '<br>Motif : ' + esc(e.info);
+    let meta = '';
+    if (e.etat==='attente') meta = 'Expire dans ' + _echHeuresRestantes(e.creeLe) + ' h · rappel à mi-parcours';
+    else if (e.reponduLe) meta = ETATS[e.etat] + ' · ' + esc(fmtDate(String(e.reponduLe).slice(0,10)));
+    const repondable = e.etat==='attente' && e.receveur===MY_ID;
+    html += '<div class="ech-card">'
+      + '<div class="ech-titre">' + esc(titre) + ' <span class="ech-etat ' + esc(e.etat) + '">' + (ETATS[e.etat]||e.etat) + '</span></div>'
+      + '<div class="ech-detail">' + detail + '</div>'
+      + (meta ? '<div class="ech-meta">' + meta + '</div>' : '')
+      + (repondable
+        ? '<div class="ech-actions">'
+          + '<button class="ech-accepter" onclick="repondreEch(\'' + esc(e.id) + '\',\'accepter\',this)">Accepter</button>'
+          + '<button class="ech-refuser" onclick="repondreEch(\'' + esc(e.id) + '\',\'refuser\',this)">Refuser</button>'
+          + '</div>'
+        : '')
+      + '<div class="ech-msg" id="echMsg-' + esc(e.id) + '" style="display:none"></div>'
+      + '</div>';
+  });
+  box.innerHTML = html;
+}
+
+async function repondreEch(id, reponse, btn){
+  const carte = btn.closest('.ech-card');
+  carte.querySelectorAll('button').forEach(function(b){ b.disabled = true; });
+  btn.textContent = reponse==='accepter' ? 'Écriture du planning…' : 'Envoi…';
+  const msg = document.getElementById('echMsg-'+id);
+  try {
+    const r = await apiPost({ action:'repondreEchange', id:id, reponse:reponse });
+    if (r && r.success) {
+      await chargerEchanges(true);
+      renderEchanges();
+      if (typeof loadMyGardes === 'function') { try { window.__rafraichirDonnees(); } catch(e){} }
+      return;
+    }
+    msg.className='ech-msg err'; msg.style.display='block';
+    msg.textContent = (r && r.error) || 'Réponse impossible — réessayez.';
+    carte.querySelectorAll('button').forEach(function(b){ b.disabled=false; });
+    btn.textContent = reponse==='accepter' ? 'Accepter' : 'Refuser';
+  } catch(e) {
+    msg.className='ech-msg err'; msg.style.display='block';
+    msg.textContent='Erreur réseau — votre réponse n\'est pas partie. Réessayez.';
+    carte.querySelectorAll('button').forEach(function(b){ b.disabled=false; });
+    btn.textContent = reponse==='accepter' ? 'Accepter' : 'Refuser';
+  }
+}
+
+/* ── Proposer : ma garde, don ou échange, à qui, contre quoi ─────────── */
+let ECH_PROP = { type:'don' };
+
+async function _echMesGardesAvecAnnee(){
+  /* MY_GARDES ne porte pas l'année de PLANNING (une garde de début janvier
+     appartient à l'année d'avant). On la retrouve dans le fichier qui la
+     contient — la même règle que partout ailleurs. */
+  const out = [];
+  let year = new Date().getFullYear();
+  try { year = await getActiveYearOnce(); } catch(e){}
+  const today = _todayStr();
+  for (const y of [year, year+1]) {
+    let plan = null;
+    try { plan = _planDejaLa(y) || await _fetchPlanning(y); } catch(e){}
+    if (!plan || !plan.months) continue;
+    plan.months.forEach(function(m){
+      const doc=(m.doctors||[]).find(function(d){ return d.id===MY_ID; });
+      if(!doc||!doc.days) return;
+      for(let i=0;i<doc.days.length;i++){
+        const st=(doc.days[i]||{}).status;
+        if((st==='G'||st==='G2') && m.days[i] && m.days[i].date>=today)
+          out.push({date:m.days[i].date, type:st, annee:y});
+      }
+    });
+  }
+  out.sort(function(a,b){ return a.date<b.date?-1:1; });
+  return out;
+}
+
+function _echGardesDe(plan, id, today){
+  const out=[];
+  if(!plan||!plan.months) return out;
+  plan.months.forEach(function(m){
+    const doc=(m.doctors||[]).find(function(d){ return d.id===id; });
+    if(!doc||!doc.days) return;
+    for(let i=0;i<doc.days.length;i++){
+      const st=(doc.days[i]||{}).status;
+      if((st==='G'||st==='G2') && m.days[i] && m.days[i].date>=today) out.push({date:m.days[i].date, type:st});
+    }
+  });
+  return out;
+}
+
+async function echOuvrirProposition(){
+  const p = document.getElementById('echProposition');
+  if (p.style.display !== 'none') { p.style.display='none'; return; }
+  p.style.display='block';
+  p.innerHTML = '<div class="topos-loading">Chargement de vos gardes…</div>';
+  const gardes = await _echMesGardesAvecAnnee();
+  if (!gardes.length) { p.innerHTML = '<div class="topos-empty">Aucune garde à venir à proposer.</div>'; return; }
+  ECH_PROP = { type:'don', gardes:gardes };
+  let plan = null;
+  try { plan = _planDejaLa(gardes[0].annee) || await _fetchPlanning(gardes[0].annee); } catch(e){}
+  const medecins = [];
+  if (plan && plan.months && plan.months[0]) (plan.months[0].doctors||[]).forEach(function(d){ if(d.id && d.id!==MY_ID) medecins.push(d.id); });
+  medecins.sort();
+  p.innerHTML =
+      '<label>Ma garde</label>'
+    + '<select id="echSelGarde" onchange="echMajProposition()">'
+    + gardes.map(function(g,i){ return '<option value="'+i+'">'+esc(fmtDate(g.date))+' — '+(g.type==='G2'?'Mater/Bloc':'Réa')+'</option>'; }).join('')
+    + '</select>'
+    + '<label>Je souhaite</label>'
+    + '<div class="ech-types">'
+    + '<button id="echTypeDon" class="actif" onclick="echType(\'don\')">La donner</button>'
+    + '<button id="echTypeEch" onclick="echType(\'echange\')">L\'échanger</button>'
+    + '</div>'
+    + '<label>À</label>'
+    + '<select id="echSelQui" onchange="echMajProposition()">'
+    + '<option value="">Choisir un collègue…</option>'
+    + medecins.map(function(id){ return '<option value="'+esc(id)+'">'+esc(_echDrLisible(id))+'</option>'; }).join('')
+    + '</select>'
+    + '<div id="echBlocContre" style="display:none"><label>Contre sa garde du</label><select id="echSelContre"><option value="">Choisir…</option></select></div>'
+    + '<div id="echAvert" class="ech-avert" style="display:none"></div>'
+    + '<button id="echEnvoyer" class="ech-envoyer" onclick="envoyerProposition(this)">Envoyer la proposition</button>'
+    + '<div class="ech-msg" id="echMsgProp" style="display:none"></div>';
+  echMajProposition();
+}
+
+function echType(t){
+  ECH_PROP.type = t;
+  document.getElementById('echTypeDon').classList.toggle('actif', t==='don');
+  document.getElementById('echTypeEch').classList.toggle('actif', t==='echange');
+  echMajProposition();
+}
+
+async function echMajProposition(){
+  const g = ECH_PROP.gardes[Number(document.getElementById('echSelGarde').value)||0];
+  const qui = document.getElementById('echSelQui').value;
+  const blocContre = document.getElementById('echBlocContre');
+  if (ECH_PROP.type==='echange') {
+    blocContre.style.display='block';
+    const sel = document.getElementById('echSelContre');
+    if (qui) {
+      let plan=null; try { plan=_planDejaLa(g.annee) || await _fetchPlanning(g.annee); } catch(e){}
+      const siennes=_echGardesDe(plan, qui, _todayStr()).filter(function(s){ return s.date!==g.date; });
+      sel.innerHTML = siennes.length
+        ? '<option value="">Choisir…</option>' + siennes.map(function(s){ return '<option value="'+esc(s.date)+'">'+esc(fmtDate(s.date))+' — '+(s.type==='G2'?'Mater/Bloc':'Réa')+'</option>'; }).join('')
+        : '<option value="">Aucune garde à venir chez ce collègue</option>';
+    } else sel.innerHTML='<option value="">Choisir d\'abord un collègue…</option>';
+  } else blocContre.style.display='none';
+  /* Samedi d'une année SANS lien samedi→R (2026) : la récup ne suit pas,
+     le comité replacera — averti AVANT l'envoi, comme convenu. */
+  const av = document.getElementById('echAvert');
+  const samedi = new Date(g.date+'T12:00:00').getDay()===6;
+  if (samedi && g.annee <= 2026) {
+    av.style.display='block';
+    av.textContent='Garde d\'un samedi ' + g.annee + ' : votre récupération ne suivra pas automatiquement, elle sera replacée à la main.';
+  } else av.style.display='none';
+}
+
+async function envoyerProposition(btn){
+  const g = ECH_PROP.gardes[Number(document.getElementById('echSelGarde').value)||0];
+  const qui = document.getElementById('echSelQui').value;
+  const msg = document.getElementById('echMsgProp');
+  msg.style.display='none';
+  const erreur = function(t){ msg.className='ech-msg err'; msg.style.display='block'; msg.textContent=t; };
+  if (!qui) return erreur('Choisissez un collègue.');
+  const charge = { action:'creerEchange', type:ECH_PROP.type, year:g.annee, date:g.date, receveur:qui };
+  if (ECH_PROP.type==='echange') {
+    const contre = document.getElementById('echSelContre').value;
+    if (!contre) return erreur('Choisissez la garde à recevoir en échange.');
+    charge.date2 = contre;
+  }
+  btn.disabled = true; btn.textContent='Vérification et envoi…';
+  try {
+    const r = await apiPost(charge);
+    if (r && r.success) {
+      document.getElementById('echProposition').style.display='none';
+      await chargerEchanges(true);
+      renderEchanges();
+      return;
+    }
+    erreur((r && r.error) || 'Envoi impossible — réessayez.');
+  } catch(e) { erreur('Erreur réseau — la proposition n\'est pas partie. Réessayez.'); }
+  btn.disabled=false; btn.textContent='Envoyer la proposition';
+}
 
 // ── VUE STAFFS ──
 const _JOURS=['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'];

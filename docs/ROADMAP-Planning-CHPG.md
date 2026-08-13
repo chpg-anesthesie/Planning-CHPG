@@ -40,6 +40,77 @@ le Worker ou `partage/dispo_jour.js`.
 
 ---
 
+## 13-14 août 2026 (nuit) — échanges de gardes : TOUT est construit, prouvé au banc, en attente du push
+
+**Décision d'Arthur (13/08)** : tout doit être déployé et éprouvé AVANT le staff du 4/09, mais
+INVISIBLE pour les 23 ; test réel à deux (Arthur + un MAR pilote) sur le bac à sable 2027 ; mise en
+service juste après le staff, en un geste. Les phases 1-4 de la Priorité 2 ter sont donc TOUTES
+construites, hors production, dans une copie de travail complète — **rien n'est poussé**.
+
+### Ce qui est prêt (banc complet AU VERT, 28 scripts)
+
+1. **Lot 1 — lien samedi → R** (`generateur_gardes.gs`) : le couple est écrit dans un onglet
+   `LIENS_R_{année}` (SAMEDI · MEDECIN · DATE R, 104 lignes en 2027 = 52 samedis × 2 tenants),
+   collecté aux DEUX chemins de pose, ajouté à l'archiveur. `banc_liens_r.js` (15 vérifs) exécute le
+   VRAI générateur via `simulateur/harness.js` (chemins absolus corrigés en relatifs au passage).
+   **Appris au banc : 22 R sur 104 sont posés AVANT leur samedi** — voulu (repli quand la fenêtre
+   2-16 semaines est mangée par les vacances scolaires ou la fin d'année). Conséquence intégrée à la
+   phase 3 : un R déjà pris ne se transfère pas, comité notifié.
+2. **Nouveau `gas/echanges.gs`** — cycle complet : `creerEchange` (contrôles joués dès la création
+   par `applyModification` en **dryRun** — writeCell neutralisé, contrôles intacts, doctrine
+   2026-08-05.12), `repondreEchange` (rejoue tout ; planning bougé entre-temps → état `impossible`,
+   5e état ajouté, grille INTACTE, les deux prévenus), `expirerEchanges` (48 h, rappel unique 24 h,
+   déclencheur horaire via `installerDeclencheurEchanges`), `_transfererR_` via LIENS_R (échec = don
+   valide + comité notifié, JAMAIS de R créé ; samedi↔samedi : aucun R ne bouge, les lignes LIENS_R
+   gardent alors leur tenant d'origine — assumé), poussée KV `echanges` à chaque écriture.
+3. **L'INTERRUPTEUR** : propriétés de script `ECHANGES_OUVERTS` ('O') et `ECHANGES_PILOTES`
+   ('ID1,ID2' — AUCUN nom dans le dépôt), répliquées au KV sous `notif_config` (poussable, JAMAIS
+   lisible par /read). `ouvrirEchanges()` / `fermerEchanges()` / `synchroniserEtatEchanges()` depuis
+   l'éditeur — effet dans la minute, sans redéploiement. Le Worker applique le MÊME interrupteur à
+   la lecture de la clé `echanges` ET à `/notif-abonner` (l'élargissement promis « ICI et nulle part
+   ailleurs » est branché). Circuit fermé : le RECEVEUR d'une demande doit aussi être autorisé.
+4. **`Indispos.gs`** : dryRun, type `transfertR` (mêmes garde-fous cellule à cellule), routage
+   `creerEchange`/`repondreEchange` (rôles mar + admin, demandeur = user.id TOUJOURS, verrou
+   d'écriture, verrou d'interrupteur), `echanges.gs` au contrôle de dérive.
+5. **`miroir.gs`** : `notifierPush_(titre, corps, url, cible)` — cible {id} ou {role:'admin'},
+   rétrocompatible ; famille `echanges` câblée aux 4 endroits ; transport de `pastille`.
+6. **`cloudflare/worker.js`** : clé `echanges` (lecture soumise à l'interrupteur), `notif_config`,
+   `/notif-envoyer` ciblé par id (clé nominative directe) ou rôle (via `acces`), `pastille` dans la
+   charge chiffrée (plafonnée 99).
+7. **Écran « Mes échanges »** (`dashboard.html`, v1.33.2 → **v1.34**, 9 marqueurs sur 5 fichiers) :
+   carte d'accueil avec compteur de demandes en attente, vue liste (« Mes demandes » par défaut /
+   « Tout voir »), Accepter/Refuser, panneau Proposer (don/échange, avertissement samedi 2026),
+   contrat visuel = maquette-notifications. **PERF : la clé `echanges` voyage dans l'appel
+   d'ouverture existant (miroirBootDash) — ZÉRO requête ajoutée au chargement, refus = coût nul.**
+   L'invisibilité avant ouverture est CÔTÉ SERVEUR (clé refusée → carte absente, aucune logique
+   d'ouverture dans la page). Guides MAR (section 10) et comité (section 04 réécrite) dans le lot.
+8. **Pastille d'icône (demande Arthur du 13/08)** : chaîne complète compteur GAS
+   (`_echangesEnAttentePour_`) → miroir → Worker → **`sw.js` v4** (`setAppBadge` dans le
+   gestionnaire push) → effacée à l'ouverture du portail (`clearAppBadge`, déjà dans dashboard,
+   inoffensif sous v3). ⚠️ **`sw.js` v4 NE PART PAS avec le premier push** : le gel du canal tient
+   jusqu'au 4/09 — il partira dans un second micro-push le 5/09 avec `ouvrirEchanges()`. La pastille
+   ne sert qu'aux 23 ; le test pilote s'en passe.
+
+### Bancs nouveaux
+`banc_echanges.js` (87 vérifs : cycle, sécurité, R, interrupteur, pastille) ·
+`banc_ecran_echanges.js` (21 vérifs : dashboard RÉEL en navigateur simulé contre le VRAI Worker —
+interrupteur fermé = rien à l'écran, pilote = carte + compteur + Accepter qui écrit et rafraîchit,
+Proposer = bon verbe, bonnes valeurs, et AUCUNE requête miroir ajoutée au boot) ·
+`banc_liens_r.js` (15). Doublures corrigées : `stubs.js` (setValue/setValues rechaînés,
+getSpreadsheetTimeZone), harnais du simulateur (chemins relatifs). Deux tests d'inventaire
+assouplis (`banc_ordre_vac.js` : ils exigeaient la POSITION dans une liste au lieu de
+l'APPARTENANCE — cassés par tout ajout légitime derrière).
+
+### Séquence de déploiement (prévue ~25-27/08, AVANT le staff)
+Push atomique 1 (tout SAUF sw.js) → Arthur : ① Worker (Cloudflare, EN PREMIER) ② les .gs + le
+NOUVEAU fichier echanges.gs ③ propriété `ECHANGES_PILOTES` = 2 identifiants, puis
+`installerDeclencheurEchanges`, `synchroniserEtatEchanges`, `miroirSyncComplet` ④ test à deux sur
+2027. Le 5/09 : push 2 (sw.js v4 seul) + `ouvrirEchanges()`.
+**Nettoyage post-démo, AJOUTS** : lignes de test de l'onglet ECHANGES, onglet LIENS_R_2027,
+vider ECHANGES_PILOTES après l'ouverture.
+
+---
+
 ## 13 août 2026 (soir) — v1.33.2 : plus rien n'attend Google, et trois listes qui mentaient
 
 Sept commits de plus : `c544d19f`, `87e8ce41`, `c439bb25`, `8e2198ef`, `4b5e2532`, `9ddf3766`

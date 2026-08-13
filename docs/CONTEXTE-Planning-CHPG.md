@@ -11,6 +11,33 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 14 août 2026 — v1.34 en attente de push : les échanges de gardes sont construits de bout en bout
+
+**Le chantier « échanges et dons de gardes entre MAR » est TERMINÉ dans la copie de travail — rien
+n'est encore poussé.** Un MAR proposera (don ou échange), l'autre recevra une notification avec
+pastille rouge sur l'icône, acceptera ou refusera, et le planning s'écrira tout seul — comité hors
+boucle sauf pour replacer un R intransférable. Décision d'Arthur : tout déployé et testé AVANT le
+staff du 4/09, INVISIBLE pour les 23 (interrupteur côté serveur, pilotes nominatifs hors dépôt),
+mise en service en un geste (`ouvrirEchanges()`) juste après. Le détail complet, la séquence de
+déploiement et les ajouts à la check-list de nettoyage sont dans la ROADMAP (bloc du 13-14/08).
+
+**Quatre règles apprises ou confirmées dans ce chantier.**
+1. **Une clé de plus dans une requête existante coûte des octets ; une requête de plus coûte un
+   aller-retour.** La clé `echanges` voyage dans l'appel d'ouverture du dashboard — zéro requête
+   ajoutée, un refus serveur = coût nul ET invisibilité garantie sans aucune logique côté page.
+2. **Le dryRun d'`applyModification` tient par la doctrine « tout vérifié avant la première
+   écriture »** : neutraliser writeCell suffit à juger une demande sans rien dupliquer. Si cette
+   doctrine cassait un jour, le dryRun casserait avec elle.
+3. **Un R peut être ANTICIPÉ (posé avant son samedi)** — comportement voulu du générateur (repli
+   hors vacances scolaires). Tout raisonnement « le R est après le samedi » est FAUX.
+4. **Les tests d'inventaire vérifient l'APPARTENANCE, jamais la POSITION** : deux regex du banc
+   figeaient la liste exacte (dernier élément, liste complète d'un appel) et cassaient à chaque
+   ajout légitime. Le banc a attrapé les deux — c'est son travail — mais la règle vaut pour tout
+   nouveau test.
+
+**Le gel de `sw.js` tient jusqu'au 4/09.** La v4 (pastille d'icône) est écrite et testée mais
+partira dans un second micro-push le 5/09, avec l'ouverture. Aucune exception au gel.
+
 ## État au 13 août 2026 (soir) — v1.33.2, plus rien n'attend Google, banc à 863 vérifications
 
 **Le bandeau « mon ordre de passage » est en service dans « Mes congés ».** Chaque MAR y voit son

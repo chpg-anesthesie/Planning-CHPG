@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-08-12.1';
+const GAS_VERSION_GENERATEUR = '2026-08-13.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -1272,6 +1272,12 @@ function generateGardes(year){
   }
 
   // ── 9. Placer les R ──────────────────────────────────────────────────
+  /* (13/08/2026 — échanges de gardes, lot 1) Le couple « samedi tenu → date
+     du R posé » n'existait qu'ici, en mémoire, et n'était jamais écrit.
+     Sans lui, impossible de transférer LE R d'un samedi qui change de mains.
+     On le collecte au moment exact de la pose, puis LIENS_R_{year} est écrit
+     avec GARDES et STATS. Un samedi a DEUX tenants (G et G2) : deux lignes. */
+  const liensR=[]; // [samedi, id, dateR]
   const rAssigned={};
   allDoctors.forEach(id=>{
     if(!recupDue[id]) return;
@@ -1295,7 +1301,7 @@ function generateGardes(year){
             const present=allDoctors.filter(m=>!blocked(m,cDate)&&!gSet[m]?.has(cDate)&&!g2Set[m]?.has(cDate)).length;
             if(present-1<(MIN_PRESENT[cDow]||15)) continue;
           }
-          rSet[id].add(cDate);rAssigned[cDate]=true;placed=true;
+          rSet[id].add(cDate);rAssigned[cDate]=true;placed=true;liensR.push([samDate,id,cDate]);
         }
       }
       if(!placed){
@@ -1305,7 +1311,7 @@ function generateGardes(year){
             if(!d.isWeekday||d.isFerie||rAssigned[d.date]||isVacancesScolaires(d.date,year)) continue;
             if(blocked(id,d.date)||gSet[id]?.has(d.date)||g2Set[id]?.has(d.date)||rSet[id].has(d.date)) continue;
             if(_gap&&[-3,-2,-1,1,2,3].some(k=>{const x=new Date(d.date+'T12:00:00');x.setDate(x.getDate()+k);return rSet[id].has(toDateStr(x));})) continue;
-            rSet[id].add(d.date);rAssigned[d.date]=true;placed=true;break;
+            rSet[id].add(d.date);rAssigned[d.date]=true;placed=true;liensR.push([samDate,id,d.date]);break;
           }
         }
       }
@@ -1442,6 +1448,21 @@ function generateGardes(year){
   st.getRange(2,2,sRows.length,1).setNumberFormat('@STRING@');
   st.setColumnWidth(1,140);
 
+  // ── LIENS_R : quel R appartient à quel samedi ─────────────────────────
+  /* (13/08/2026 — échanges de gardes, lot 1) Une ligne par (samedi, tenant).
+     Consommateur : le cycle d'échange (phase 3) — un samedi qui change de
+     mains y retrouve SON R par le couple (SAMEDI, MEDECIN) et le transfère ;
+     la ligne est alors mise à jour (MEDECIN = receveur). Lecture seule pour
+     tout le reste. Un R jamais posé (cas théorique) = pas de ligne. */
+  let lr=ss.getSheetByName(`LIENS_R_${year}`);if(lr)ss.deleteSheet(lr);
+  lr=ss.insertSheet(`LIENS_R_${year}`);
+  lr.getRange(1,1,1,3).setValues([['SAMEDI','MEDECIN','DATE R']]).setFontWeight('bold');
+  if(liensR.length){
+    liensR.sort((x,y)=>x[0]<y[0]?-1:x[0]>y[0]?1:(x[1]<y[1]?-1:1));
+    lr.getRange(2,1,liensR.length,3).setValues(liensR);
+  }
+  lr.setColumnWidth(1,110);lr.setColumnWidth(2,140);lr.setColumnWidth(3,110);
+
   // (31/07/2026) Les avertissements partaient UNIQUEMENT dans Logger.log (journal
   // d'execution Apps Script, invisible depuis l'application) et dans un getUi().alert()
   // qui leve une exception quand la fonction est appelee par la Web App — exception
@@ -1479,7 +1500,7 @@ function generateGardes(year){
 function archiveMoveTabs_(year) {
   const master = SpreadsheetApp.getActiveSpreadsheet();
   const arch   = SpreadsheetApp.openById(ARCHIVE_SS_ID);
-  const noms = ['GARDES_'+year, 'INDISPOS_'+year, 'STATS_GARDES_'+year, 'AFFECTATIONS_'+year];
+  const noms = ['GARDES_'+year, 'INDISPOS_'+year, 'STATS_GARDES_'+year, 'AFFECTATIONS_'+year, 'LIENS_R_'+year]; // (13/08/2026) LIENS_R suit le même cycle de vie annuel
   const rapport = [];
   noms.forEach(nom => {
     const src = master.getSheetByName(nom);

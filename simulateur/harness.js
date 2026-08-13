@@ -77,8 +77,13 @@ function buildContext(ss, logs) {
   };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  const code = fs.readFileSync('/home/claude/repo/gas/code.gs', 'utf8');
-  const gen  = fs.readFileSync('/home/claude/repo/gas/generateur_gardes.gs', 'utf8');
+  /* (13/08/2026) Chemins RELATIFS au fichier : les chemins absolus d'un
+     environnement de travail ne tournaient ailleurs que par coïncidence.
+     Depuis que le banc (banc_liens_r.js) s'appuie sur ce harnais, il doit
+     fonctionner partout. */
+  const path = require('path');
+  const code = fs.readFileSync(path.join(__dirname, '..', 'gas', 'code.gs'), 'utf8');
+  const gen  = fs.readFileSync(path.join(__dirname, '..', 'gas', 'generateur_gardes.gs'), 'utf8');
   vm.runInContext(code, ctx, { filename: 'code.gs' });
   vm.runInContext(gen, ctx, { filename: 'generateur_gardes.gs' });
   return ctx;

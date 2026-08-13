@@ -276,13 +276,19 @@ console.log('\n═══ 5. L\'écran : le bandeau, puis la file au clic ══�
     V('le Worker la sert aux MAR comme aux admin',
       /cle === 'ordre_vac'\) return true/.test(worker));
     V('le miroir sait la construire', /_miroirAjoute_\(items, 'ordre_vac'/.test(miroir));
-    V('elle est reconstruite à la synchro horaire', /'veille_marques', 'ordre_vac'\]/.test(miroir));
+    /* (13/08/2026) La regex exigeait qu'ordre_vac soit la DERNIÈRE famille de
+       la liste — cassée dès qu'une famille s'ajoute derrière (echanges).
+       L'intention du test est l'APPARTENANCE, pas la position. */
+    V('elle est reconstruite à la synchro horaire', /'ordre_vac'[,\]]/.test(miroir));
     V('une retouche de GROUPES_VAC la republie',
       /GROUPES_VAC:\s*\['vacances_admin', 'ordre_vac'\]/.test(miroir));
     V('enregistrer les groupes depuis le portail aussi',
       /saveGroupes:\s*\['config_admin', 'vacances_admin', 'ordre_vac'\]/.test(miroir));
+    /* (13/08/2026) Même défaut que le test « synchro horaire » plus haut : la
+       regex figeait la liste EXACTE de l'appel d'ouverture — cassée dès qu'une
+       clé s'y ajoute (echanges). L'intention est l'APPARTENANCE au même appel. */
     V('la page la demande dans le même appel que le planning',
-      /miroirRead\(\['annees', 'planning_' \+ devine, 'planning_' \+ \(devine \+ 1\), 'ordre_vac'\]\)/.test(contenu));
+      /miroirRead\(\['annees', 'planning_' \+ devine[^\]]*'ordre_vac'/.test(contenu));
     V('la copie commune ne transporte aucun rang personnel',
       !/monRang/.test((miroir.match(/if \(uniq\['ordre_vac'\]\)[\s\S]{0,900}?\n  \}/) || [''])[0]));
 

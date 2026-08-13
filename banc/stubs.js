@@ -18,8 +18,8 @@ class Sheet {
   getRange(r, c, nr, nc) {
     const s = this;
     return {
-      setValue(v) { while (s.lignes.length < r) s.lignes.push([]); s.lignes[r-1][c-1] = v; },
-      setValues(vals) { vals.forEach((ligne, i) => { while (s.lignes.length < r+i) s.lignes.push([]); ligne.forEach((v,j) => s.lignes[r-1+i][c-1+j] = v); }); },
+      setValue(v) { while (s.lignes.length < r) s.lignes.push([]); s.lignes[r-1][c-1] = v; return this; },
+      setValues(vals) { vals.forEach((ligne, i) => { while (s.lignes.length < r+i) s.lignes.push([]); ligne.forEach((v,j) => s.lignes[r-1+i][c-1+j] = v); }); return this; },
       setFontWeight() { return this; },
       getValues() { const out = []; for (let i=0;i<(nr||1);i++) out.push((s.lignes[r-1+i]||[]).slice(c-1, c-1+(nc||1))); return out; },
       getValue() { return (s.lignes[r-1]||[])[c-1]; },
@@ -37,6 +37,7 @@ class Classeur {
   ajouter(nom, lignes) { this.feuilles[nom] = new Sheet(nom, lignes); return this.feuilles[nom]; }
   getSheetByName(n) { return this.feuilles[n] || null; }
   insertSheet(n) { return this.ajouter(n, []); }
+  getSpreadsheetTimeZone() { return 'Europe/Monaco'; }
   getSheets() { return Object.values(this.feuilles); }
 }
 

@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-13.1';
+const GAS_VERSION_INDISPOS = '2026-08-13.2';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -198,6 +198,7 @@ function diagnosticComplet() {
       try { deployed['partage/dispo_jour.js'] = GAS_VERSION_DISPO; } catch (e) { deployed['partage/dispo_jour.js'] = null; }   // (etage 2) module partage serveur/frontend
       try { deployed['journal.gs'] = GAS_VERSION_JOURNAL; } catch (e) { deployed['journal.gs'] = null; }   // (05/08/2026) applicateur du journal d'intentions
       try { deployed['veille.gs'] = GAS_VERSION_VEILLE; } catch (e) { deployed['veille.gs'] = null; }   // (08/08/2026) veille biblio sortie de portail.gs
+      try { deployed['echanges.gs'] = GAS_VERSION_ECHANGES; } catch (e) { deployed['echanges.gs'] = null; }   // (13/08/2026) échanges de gardes pair-à-pair
       const tokSync = getGithubToken();
       Object.keys(deployed).forEach(fn => {
         let repoV = null;
@@ -1739,6 +1740,12 @@ function applyModification(mod) {
     const row = getDoctorRow(sheet, doctorId);
     if (col < 0) throw new Error(`Date ${date} introuvable dans ${sheetName}`);
     if (row < 0) throw new Error(`Médecin ${doctorId} introuvable dans ${sheetName}`);
+    /* (13/08/2026 — échanges, phase 3) Mode dryRun : TOUS les contrôles sont
+       joués (la doctrine 2026-08-05.12 garantit qu'ils précèdent la première
+       écriture), l'existence des cellules visées comprise — seule l'écriture
+       elle-même est neutralisée. C'est ce qui permet de juger une demande
+       d'échange DÈS SA CRÉATION sans dupliquer un seul contrôle. */
+    if (mod.dryRun) return;
     sheet.getRange(row, col).setValue(value);
   }
 
@@ -1835,6 +1842,21 @@ function applyModification(mod) {
       const valB = readCell(`INDISPOS_${year}`, doctorId2, date);
       writeCell(`INDISPOS_${year}`, doctorId,  date, valB);
       writeCell(`INDISPOS_${year}`, doctorId2, date, valA);
+      break;
+    }
+    case 'transfertR': {
+      /* (13/08/2026 — échanges, phase 3) La récupération d'un samedi transféré
+         suit son samedi : le R du donneur (doctorId@date) passe au receveur
+         (doctorId2@date), MÊME date — neutre pour l'effectif présent ce
+         jour-là, donc aucun critère de pose à rejouer. Jamais de création
+         d'un R neuf : les contraintes de pose vivent dans le générateur. */
+      verifieCellules([[doctorId, date], [doctorId2, date]]);
+      const valR = readCell(`GARDES_${year}`, doctorId, date);
+      if (String(valR).toUpperCase() !== 'R') throw new Error(`${doctorId} n'a pas de R le ${date} — rien à transférer`);
+      if (readCell(`GARDES_${year}`, doctorId2, date) !== '') throw new Error(`${doctorId2} n'est pas libre le ${date} — R à replacer manuellement`);
+      refuseSiIndisponible(doctorId2, date, 'R à replacer manuellement');
+      writeCell(`GARDES_${year}`, doctorId, date, '');
+      writeCell(`GARDES_${year}`, doctorId2, date, 'R');
       break;
     }
     case 'gardeExceptionnelle': {
@@ -1972,8 +1994,12 @@ function applyModification(mod) {
   // don, d'un echange ou d'une garde exceptionnelle. Diagnostic aveugle garanti.
   logAction(`applyModification ${type} — ${date || ''}${date2 ? ' / ' + date2 : ''}`
     + `${doctorId ? ' | ' + doctorId : ''}${doctorId2 ? ' -> ' + doctorId2 : ''}`
+    + `${mod.dryRun ? ' [contrôle seul]' : ''}`
     + `${_echec ? ' — REFUSE : ' + _echec.message : ' — OK'}`);
   if (_echec) throw _echec;
+
+  // (13/08/2026) dryRun : rien n'a été écrit — pas de republication, pas de notifieur.
+  if (mod.dryRun) return true;
 
   generatePlanning();
   // (01/08/2026) Un don, un echange de gardes ou de secteurs modifie le statut ou le
@@ -2104,8 +2130,9 @@ function _rangRole_(role, ordre) {
 
 const WRITE_ACTIONS_LOCK = new Set([
   'addMedecinToGroupe', 'annulerAbsenceLongue', 'applyModification',
-  'archiveYear', 'clearIndisposYear', 'deleteOverride',
+  'archiveYear', 'clearIndisposYear', 'creerEchange', 'deleteOverride',
   'generateGardes', 'initYear', 'poserAbsenceLongue', 'publishPlanning',
+  'repondreEchange',
   'saveAffectations', 'saveAffectationsMar', 'saveConfig', 'saveGroupes',
   'resetCodeMar',
   'saveIndispos', 'saveIndisposBatch', 'saveMedecin', 'savePeriodes', 'setActiveYear',
@@ -2361,6 +2388,37 @@ function _routeRequete_(e) {
       return ContentService.createTextOutput(JSON.stringify({
         success: applyModification(payload.modification)
       })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    /* (13/08/2026 — échanges, phase 3) Les DEUX verbes du circuit pair-à-pair.
+       Ouverts aux rôles mar ET admin (le secrétariat est déjà refusé par
+       défaut en amont). Le demandeur est TOUJOURS user.id — résolu par
+       checkCode, jamais lu du payload. Toute erreur (contrôle refusé à la
+       création, demande introuvable, mauvais répondeur…) revient en
+       success:false avec son motif : c'est un verdict, pas une panne. */
+    if (action === 'creerEchange') {
+      if (!_echangesAutorise_(user)) return _deny();
+      try {
+        return ContentService.createTextOutput(JSON.stringify(Object.assign(
+          { success: true }, creerEchange(user, payload)
+        ))).setMimeType(ContentService.MimeType.JSON);
+      } catch (err) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false, error: String(err.message)
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+    if (action === 'repondreEchange') {
+      if (!_echangesAutorise_(user)) return _deny();
+      try {
+        return ContentService.createTextOutput(JSON.stringify(Object.assign(
+          { success: true }, repondreEchange(user, payload)
+        ))).setMimeType(ContentService.MimeType.JSON);
+      } catch (err) {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: false, error: String(err.message)
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
     }
 
     if (action === 'getStats') {
