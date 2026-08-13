@@ -1583,13 +1583,33 @@ async function loadYear(year) {
     return false;
   }
 
-  // Affectations sectorielles : cache d'init(), sinon API protégée
+  /* Affectations sectorielles : cache d'init(), puis miroir, puis API protégée.
+     (13/08/2026) DEFAUT VU EN PRODUCTION — bascule sur 2027 interminable.
+     Le dashboard precharge le planning de l'annee SUIVANTE et le range dans la
+     memoire de session partagee (chpgPlan:{Y}), mais il n'a que faire des
+     affectations : il ne les y met pas. En arrivant ici, la page trouvait donc
+     le planning tout de suite et partait chercher les affectations chez Google
+     — appel lent, rejoue une fois, et ATTENDU avant le moindre affichage.
+     Pendant deux a quatre minutes : temoin d'activite allume, et l'ecran
+     conservant l'annee precedente sous le libelle de la nouvelle.
+     L'annee en cours n'en souffrait pas : miroirBoot() charge planning ET
+     affectations dans le meme appel. C'est le demi-remplissage du cache par une
+     AUTRE page qui creait le piege — on ne se fie pas a un cache partiel.
+     Le miroir sert la meme donnee en une fraction de seconde ; Google reste le
+     dernier recours. */
   try {
     if (AFF_CACHE[year]) {
       AFFECTATIONS_DATA = AFF_CACHE[year];
     } else {
-      const affRes = await apiPost({action: 'getAffectationsJson', year});
-      AFFECTATIONS_DATA = (affRes && affRes.success && affRes.affectations && affRes.affectations.affectations) || {};
+      let _aff = null;
+      const _ma = await miroirRead(['affectations_' + year]);
+      const _ab = _ma && _ma.success && _ma.data && _ma.data['affectations_' + year];
+      if (_ab && _ab.affectations) _aff = _ab.affectations;
+      if (!_aff) {
+        const affRes = await apiPost({action: 'getAffectationsJson', year});
+        _aff = (affRes && affRes.success && affRes.affectations && affRes.affectations.affectations) || {};
+      }
+      AFFECTATIONS_DATA = _aff;
       AFF_CACHE[year] = AFFECTATIONS_DATA;
       _ssPlanWrite(year, DATA, AFFECTATIONS_DATA);
     }

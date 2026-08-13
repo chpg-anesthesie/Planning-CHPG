@@ -376,6 +376,32 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
   }
 
+  console.log('\n═══ 28l. index.html · une année préchargée à moitié ne bloque plus ═══');
+  {
+    /* (13/08/2026) DÉFAUT VU EN PRODUCTION. Le dashboard précharge le planning de
+       l'année SUIVANTE dans la mémoire de session partagée (chpgPlan:{Y}) mais
+       pas ses affectations. index.html trouvait donc le planning tout de suite et
+       partait chercher les affectations chez Google : appel lent, rejoué une fois,
+       ATTENDU avant tout affichage. Deux à quatre minutes de témoin d'activité,
+       écran figé sur l'année précédente sous le libellé de la nouvelle. */
+    const c = fs.readFileSync('../index.html', 'utf8');
+    const bloc = (c.match(/\/\* Affectations sectorielles[\s\S]*?AFFECTATIONS_DATA = \{\}; \}/) || [''])[0];
+    V('le bloc des affectations a bien été retrouvé', bloc.length > 0);
+    V('le miroir est interrogé quand elles manquent',
+      /miroirRead\(\['affectations_' \+ year\]\)/.test(bloc));
+    V('Google n\'est appelé qu\'en dernier recours',
+      bloc.indexOf('miroirRead') > -1 &&
+      bloc.indexOf('miroirRead') < bloc.indexOf("apiPost({action: 'getAffectationsJson'"));
+    V('l\'appel direct reste présent comme repli',
+      /apiPost\(\{action: 'getAffectationsJson', year\}\)/.test(bloc));
+    V('le cache mémoire reste prioritaire sur les deux',
+      bloc.indexOf('AFF_CACHE[year]') < bloc.indexOf('miroirRead'));
+    V('le résultat est réécrit dans la mémoire de session, affectations comprises',
+      /_ssPlanWrite\(year, DATA, AFFECTATIONS_DATA\)/.test(bloc));
+    V('une panne du miroir ne laisse pas la page sans affectations',
+      /catch\(e\) \{ AFFECTATIONS_DATA = \{\}; \}/.test(bloc));
+  }
+
   console.log('\n═══ 28k. index.html · changer d\'année redessine la vue affichée ═══');
   {
     /* (13/08/2026) DÉFAUT VU EN PRODUCTION. Le sélecteur passait à 2027 et
