@@ -262,6 +262,60 @@ console.log('\n═══ 5. L\'écran : le bandeau, puis la file au clic ══�
     V('la page expose un préchargement différé', typeof w.prechargerOrdreVac === 'function');
   }
 
+  /* ── La copie rapide (13/08/2026) ──
+     Le bandeau doit arriver AVEC le planning, sans requete supplementaire.
+     Trois choses a prouver : la chaine est branchee de bout en bout (Worker,
+     miroir, page), la page sait se trouver dans une copie qui ne contient
+     aucun rang personnel, et elle refuse une copie perimee plutot que
+     d'afficher un rang faux. */
+  console.log('\n═══ 7. L\'ordre de passage arrive avec le planning ═══');
+  {
+    const worker = fs.readFileSync('../cloudflare/worker.js', 'utf8');
+    const miroir = fs.readFileSync('../gas/miroir.gs', 'utf8');
+    V('le Worker accepte la clé à l\'écriture', /veille_marques\|ordre_vac\|/.test(worker));
+    V('le Worker la sert aux MAR comme aux admin',
+      /cle === 'ordre_vac'\) return true/.test(worker));
+    V('le miroir sait la construire', /_miroirAjoute_\(items, 'ordre_vac'/.test(miroir));
+    V('elle est reconstruite à la synchro horaire', /'veille_marques', 'ordre_vac'\]/.test(miroir));
+    V('une retouche de GROUPES_VAC la republie',
+      /GROUPES_VAC:\s*\['vacances_admin', 'ordre_vac'\]/.test(miroir));
+    V('enregistrer les groupes depuis le portail aussi',
+      /saveGroupes:\s*\['config_admin', 'vacances_admin', 'ordre_vac'\]/.test(miroir));
+    V('la page la demande dans le même appel que le planning',
+      /miroirRead\(\['annees', 'planning_' \+ devine, 'planning_' \+ \(devine \+ 1\), 'ordre_vac'\]\)/.test(contenu));
+    V('la copie commune ne transporte aucun rang personnel',
+      !/monRang/.test((miroir.match(/if \(uniq\['ordre_vac'\]\)[\s\S]{0,900}?\n  \}/) || [''])[0]));
+
+    /* La page, mise devant une copie commune : elle doit s'y trouver seule. */
+    const an = new Date().getFullYear();
+    const commune = { annees:[an, an+1].map(function(y, k){
+      return { annee:y, groupes:rep.annees[k].groupes, periodes:rep.annees[k].periodes }; }) };
+    dansLaPage("MY_ORDRE_VAC=null; MY_ID='MOI'; try{sessionStorage.removeItem(OV_CLE);}catch(e){}");
+    let appels = 0;
+    w.fetch = async () => { appels++; return { ok:true, json: async () => ({ success:false }) }; };
+    V('elle se reconnaît dans la copie et affiche le bandeau',
+      w.eval('_ovDepuisMiroir(' + JSON.stringify(commune) + ')') === true &&
+      D.getElementById('ordreVacBox').querySelectorAll('.ov-bd').length === 2);
+    V('sans avoir rien demandé au serveur', appels === 0, appels);
+    V('mon groupe et mon rang sont retrouvés sans règle de rotation dans la page',
+      w.eval('MY_ORDRE_VAC.annees[0].monGroupe') === 'B' &&
+      w.eval('MY_ORDRE_VAC.annees[0].monRang') === 2);
+
+    /* Copie périmée : des années qui ne sont plus celles qu'on attend. */
+    dansLaPage('MY_ORDRE_VAC=null;');
+    const vieille = { annees:[{ annee:2019, groupes:rep.annees[0].groupes, periodes:rep.annees[0].periodes }] };
+    V('une copie d\'avant un changement d\'année est refusée',
+      w.eval('_ovDepuisMiroir(' + JSON.stringify(vieille) + ')') === false &&
+      w.eval('MY_ORDRE_VAC') === null);
+    V('et le repli par appel direct reste disponible',
+      typeof w.loadOrdreVac === 'function');
+
+    /* Un MAR absent des groupes ne doit pas voir de bandeau vide. */
+    dansLaPage("MY_ORDRE_VAC=null; MY_ID='INCONNU';");
+    V('un MAR hors groupes n\'est pas affiché à tort',
+      w.eval('_ovDepuisMiroir(' + JSON.stringify(commune) + ')') === false);
+  }
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   if (ko) process.exit(1);
 })();

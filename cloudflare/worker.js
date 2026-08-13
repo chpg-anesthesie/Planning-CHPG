@@ -49,12 +49,12 @@
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-12.1';
+const VERSION = 'miroir 2026-08-13.1';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
 // une clé orpheline invisible.
-const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|veille_marques|doc_[A-Za-z0-9_-]{10,80})$/;
+const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|veille_marques|ordre_vac|doc_[A-Za-z0-9_-]{10,80})$/;
 /* (2026-08-10.1) `doc_<idDrive>` : un topo ou un protocole PDF, pousse par la
    tache dediee de miroir.gs. La valeur a la MEME forme que la reponse de
    `getTopo`/`getProtocole` cote Apps Script — {success,name,mimeType,dataB64} —
@@ -321,6 +321,11 @@ function autorise(user, cle) {
   if (/^(planning|affectations)_\d{4}$/.test(cle)) return true;        // MAR + admin
   if (/^indispos_\d{4}$/.test(cle)) return true;                       // filtré plus loin
   if (cle === 'veille_marques') return true;                           // (08/08) MAR + admin — filtré plus loin, POUR TOUS
+  /* (13/08) Ordre de passage des vacances : composition ORDONNEE des trois
+     groupes et ordre des groupes par periode, pour deux annees. Meme niveau que
+     le planning — c'est ce que le comite projette a l'ecran au staff. Aucun
+     rang personnel dedans : la page cherche son identifiant dans les listes. */
+  if (cle === 'ordre_vac') return true;                                // MAR + admin
   if (cle === 'config_admin') return user.role === 'admin';            // admin seul
   if (cle === 'mail_nonlus') return user.role === 'admin';             // (05/08) compteur de non-lus : un NOMBRE, jamais de contenu
   if (/^liberal_\d{4}$/.test(cle)) return user.role === 'admin';       // (05/08) volet du panneau : qui opere, ou — jamais de montant

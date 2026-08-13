@@ -431,7 +431,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.32.1</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.32.2</span></span></p>
     <!-- (12/08/2026, v1.31.4) Notifications push — phase 1 : visible rôle admin SEUL.
          Le serveur refuse de toute façon les autres rôles : ceci n'est que l'habillage. -->
     <div id="notifCard" class="mg-hero" style="display:none" onclick="activerNotifications()">
@@ -538,7 +538,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.32.1'; // SITE_VERSION: v1.32.1
+const SITE_VERSION = 'v1.32.2'; // SITE_VERSION: v1.32.2
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -665,7 +665,7 @@ async function miroirRead(keys) {
    aller-retour. true = parti sur le miroir ; sinon l'appelant bascule GAS. */
 async function miroirBootDash() {
   const devine = new Date().getFullYear();
-  const m = await miroirRead(['annees', 'planning_' + devine, 'planning_' + (devine + 1)]);
+  const m = await miroirRead(['annees', 'planning_' + devine, 'planning_' + (devine + 1), 'ordre_vac']);
   if (!m || !m.success) return m;
   const active = (m.data && m.data.annees && Number(m.data.annees.active)) || devine;
   let plan = m.data['planning_' + active];
@@ -684,6 +684,10 @@ async function miroirBootDash() {
   seedActiveYear(active);
   if (plan) { _planCache[active] = plan; _ssPlanSet(active, plan); }
   if (planSuiv) { _planCache[active + 1] = planSuiv; _ssPlanSet(active + 1, planSuiv); }
+  /* (13/08/2026) L'ordre de passage voyage dans CE meme appel : le bandeau de
+     Mes conges est pret avant meme qu'on ouvre la tuile. Il faut le poser AVANT
+     applyUserBadge, qui declenche le repli Apps Script s'il ne trouve rien. */
+  _ovDepuisMiroir(m.data && m.data.ordre_vac);
   applyUserBadge(m.identite || {});
   /* Journal de connexion : login GAS en arriere-plan, resultat ignore. */
   /* (06/08/2026) Journal de connexion en envoi A FOND PERDU.
@@ -1258,6 +1262,39 @@ function renderOrdreVac(){
    Le prechargement est DIFFERE : les appels d'un meme utilisateur sont
    serialises par Apps Script, et le planning passe avant. */
 const OV_CLE = 'chpgOrdreVac';
+/* La copie rapide ne contient AUCUN rang personnel : elle donne les listes
+   ordonnees des groupes. On s'y cherche par son identifiant — une recherche
+   dans une liste, pas une regle de rotation recopiee ici.
+   Deux garde-fous : les annees annoncees doivent etre celles qu'on attend
+   (sinon la copie date d'avant un 1er janvier), et l'identifiant doit y
+   figurer (sinon on n'affiche rien plutot qu'un rang faux). */
+let _OV_BRUT = null;
+function _ovDepuisMiroir(brut){
+  _OV_BRUT = brut || null;
+  return _ovConstruire();
+}
+function _ovConstruire(){
+  if (MY_ORDRE_VAC || !MY_ID || !_OV_BRUT || !Array.isArray(_OV_BRUT.annees)) return false;
+  const y = new Date().getFullYear();
+  const attendues = [y, y + 1].join(',');
+  const recues = _OV_BRUT.annees.map(function(a){ return a.annee; }).sort().join(',');
+  if (attendues !== recues) return false;            // copie d'avant un changement d'annee
+  const annees = _OV_BRUT.annees.map(function(a){
+    let g = null, rang = 0;
+    ['A','B','C'].forEach(function(x){
+      const i = (a.groupes[x] || []).indexOf(MY_ID);
+      if (i > -1) { g = x; rang = i + 1; }
+    });
+    return { annee:a.annee, monGroupe:g, monRang:rang,
+             tailleGroupe: g ? a.groupes[g].length : 0,
+             groupes:a.groupes, periodes:a.periodes };
+  });
+  if (!annees.some(function(a){ return a.monGroupe; })) return false;
+  MY_ORDRE_VAC = { success:true, annees:annees,
+    anneePrincipale: (new Date().getMonth() + 1) >= 9 ? y + 1 : y };
+  renderOrdreVac();
+  return true;
+}
 function _ovDuCache(){
   try {
     const brut = sessionStorage.getItem(OV_CLE);
@@ -1281,9 +1318,10 @@ async function loadOrdreVac(){
 }
 function prechargerOrdreVac(){
   if (!MY_ID) return;
+  if (_ovConstruire()) return;                       // deja arrive avec le planning
   const cache = _ovDuCache();
   if (cache) { MY_ORDRE_VAC = cache; return; }
-  setTimeout(function(){ loadOrdreVac(); }, 1500);
+  setTimeout(function(){ loadOrdreVac(); }, 1500);   // repli : demande directe, differee
 }
 
 document.addEventListener('click', function(ev){

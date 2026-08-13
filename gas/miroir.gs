@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-12.1';
+const GAS_VERSION_MIROIR = '2026-08-13.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -86,7 +86,7 @@ const MIROIR_APRES_ECRITURE = {
   addMedecinToGroupe:         ['config_admin'],
   saveConfig:                 ['acces', 'config_admin'],
   savePeriodes:               ['config_admin', 'vacances_admin'],
-  saveGroupes:                ['config_admin', 'vacances_admin'],
+  saveGroupes:                ['config_admin', 'vacances_admin', 'ordre_vac'],
   // Indisponibilités (l'année de campagne et son état vivent dans `acces`)
   saveIndispos:               ['indispos', 'acces'],
   saveIndisposBatch:          ['indispos', 'acces'],
@@ -212,7 +212,7 @@ function miroirSyncComplet() {
   const familles = ['acces', 'annees', 'secteurs', 'config_admin',
                     'planning', 'affectations', 'indispos', 'tuiles',
                     'gardes', 'joursferies', 'stats', 'vacances_admin', 'mail', 'liberal',
-                    'veille_marques'];
+                    'veille_marques', 'ordre_vac'];
   try { PropertiesService.getScriptProperties().deleteProperty(MIROIR_CLE_ATTENTE); } catch (e) {}   // la synchro pousse un sur-ensemble : la note devient caduque
   const res = miroirPousserFamilles_(familles, getActiveYear(), true);   // synchro : toutes les annees consultables
   Logger.log('miroirSyncComplet : ' + JSON.stringify(res));
@@ -248,7 +248,7 @@ const MIROIR_ONGLETS_SUIVIS = {
   SEUILS:       ['config_admin'],                  // bornes de la carte de tension
   LIBERAL:      ['liberal'],
   PERIODES_VAC: ['vacances_admin', 'stats'],
-  GROUPES_VAC:  ['vacances_admin'],
+  GROUPES_VAC:  ['vacances_admin', 'ordre_vac'],
   VEILLE_MARQUES: ['veille_marques'],              // (2026-08-08.1) correction manuelle d'une marque
 };
 
@@ -382,6 +382,28 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
   if (uniq['indispos']) {
     const iy = (function () { try { return getIndisposYear(); } catch (e) { return annee; } })();
     _miroirAjoute_(items, 'indispos_' + iy, function () { return _miroirConstruireIndispos_(iy); });
+  }
+
+  if (uniq['ordre_vac']) {
+    /* (2026-08-13.1) Ordre de passage des vacances, pour l'annee en cours et la
+       suivante. Copie COMMUNE : elle ne contient aucun rang personnel — la page
+       cherche son propre identifiant dans les listes ordonnees.
+       Pourquoi au miroir : le bandeau de « Mes conges » attendait un
+       aller-retour Apps Script a chaque ouverture. Ici il voyage dans le MEME
+       appel que le planning, a l'ouverture du portail — aucune requete de plus.
+       Les annees sont FIGEES a la poussee : la synchro horaire les reactualise
+       au plus tard une heure apres le 1er janvier, et la page compare de toute
+       facon les annees recues a celles qu'elle attend. */
+    _miroirAjoute_(items, 'ordre_vac', function () {
+      const y = new Date().getFullYear();
+      const r = getOrdreVacances(null, [y, y + 1]);
+      return {
+        annees: (r.annees || []).map(function (a) {
+          return { annee: a.annee, groupes: a.groupes, periodes: a.periodes };
+        }),
+        t: Date.now(),
+      };
+    });
   }
 
   if (uniq['veille_marques']) {
