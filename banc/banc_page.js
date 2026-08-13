@@ -179,6 +179,37 @@ async function page(transport) {
       /disait « getStatsLive = calcul vivant, jamais mirore » : c'est/.test(c));
   }
 
+  console.log('\n═══ 57. Onglet Équité : plus d\'appel fantôme aux vacances ═══');
+  {
+    /* (13/08/2026) loadVacancesValidation() appelait Google a CHAQUE ouverture de
+       l'onglet Equite pour ecrire dans #vacContent — le conteneur de la section
+       « Gestion des vacances » de l'onglet EQUIPE. Le tableau n'etait donc jamais
+       visible et ecrasait l'affichage d'un autre onglet. Elle manipulait aussi
+       #vacEmpty, absent de la page. */
+    const c = fs.readFileSync('../admin.html', 'utf8');
+    V('ouvrir Équité ne charge plus que les statistiques',
+      /if \(name==='equite'\) \{ loadStats\(ADMIN_YEAR\); \}/.test(c));
+    V('la fonction fantôme a disparu', !/async function loadVacancesValidation/.test(c));
+    V('son rendu aussi', !/function renderVacances\(periodes\)/.test(c));
+    /* getVacValidation subsiste dans les ASSISTANTS de generation (placement des
+       vacances, etape 1 des gardes) : la, il est demande a la demande et son
+       resultat est affiche. Ce qui devait disparaitre, c'est l'appel a
+       l'OUVERTURE d'un onglet. */
+    V('getVacValidation ne subsiste que dans les assistants',
+      (c.match(/action:\s*'getVacValidation'/g) || []).length === 2 &&
+      !/name==='equite'[\s\S]{0,200}getVacValidation/.test(c),
+      (c.match(/action:\s*'getVacValidation'/g) || []).length);
+    V('#vacContent n\'est plus manipule que par l\'onglet Equipe',
+      (() => { const f = (c.match(/async function loadVacances\(\)[\s\S]*?\n\}/) || [''])[0];
+               return (c.match(/getElementById\('vacContent'\)/g) || []).length ===
+                      (f.match(/getElementById\('vacContent'\)/g) || []).length; })(),
+      (c.match(/getElementById\('vacContent'\)/g) || []).length);
+    V('plus de reference a #vacEmpty, qui n\'existe pas dans la page',
+      !/getElementById\('vacEmpty'\)/.test(c) && !/id="vacEmpty"/.test(c));
+    V('l\'onglet Equipe charge toujours les periodes et les groupes',
+      /if \(name==='equipe'\) \{ loadEquipe\(\); loadVacances\(\); \}/.test(c));
+  }
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   process.exit(ko ? 1 : 0);
 })();
