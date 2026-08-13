@@ -35,7 +35,6 @@ body{font-family:var(--sans);color:var(--ink)}
 .slide.dark .lead b,.slide.dark .lead strong{color:#fff}
 .slide.dark .cover-meta{color:var(--ink-4)}
 .slide.dark .cover-meta b{color:#fff}
-.slide.dark .flagline{border-color:rgba(255,255,255,.25)}
 .slide.dark .foot{color:rgba(255,255,255,.45)}
 
 /* ── Typo ── */
@@ -163,8 +162,10 @@ h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-
 .va li b{color:var(--ink);font-weight:700}
 
 /* ── Couverture ── */
-.flagline{height:14px;width:120px;border-radius:4px;overflow:hidden;border:1px solid var(--line);margin-bottom:3.4vh}
-.flagline div{height:50%}
+/* Logo du service sur la couverture : c'est l'icone que les MAR installeront
+   sur leur ecran d'accueil — la montrer d'emblee fait le lien. */
+.cover-logo{width:11.5vh;height:11.5vh;border-radius:2.6vh;display:block;margin-bottom:3.4vh;
+  box-shadow:0 6px 24px rgba(206,17,38,.32)}
 .cover-meta{margin-top:4.5vh;font-size:clamp(13px,1.4vw,17px);color:var(--ink-3);display:flex;gap:26px;flex-wrap:wrap}
 .cover-meta b{color:var(--ink)}
 .foot{font-size:12.5px;color:var(--ink-3);margin-top:auto;padding-top:4vh}
@@ -232,10 +233,6 @@ h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-
 .live-dot{width:.6em;height:.6em;border-radius:50%;background:#fff;animation:pulse 1.2s ease infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
 @media(prefers-reduced-motion:reduce){.live-dot{animation:none}}
-  color:var(--ink);border-radius:12px;padding:.7em 1.6em;cursor:pointer;transition:all .15s}
-.cbtn:hover{background:var(--ink);color:#fff}
-.cbtn.primary{background:var(--red);border-color:var(--red);color:#fff}
-.cbtn.primary:hover{filter:brightness(.9)}
 .qr-wrap{display:flex;align-items:center;gap:6vw;flex-wrap:wrap}
 .qr-box{flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:24px;
   padding:2.5vh;box-shadow:0 20px 60px rgba(15,23,42,.12)}
@@ -335,6 +332,7 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
 <div id="bar"></div>
 
 <section class="slide s2 dark" data-notes="Accueil. Annoncer le menu : les gardes, l'année au quotidien, le portail, la suite. Les codes d'accès ont été envoyés hier — gardez vos téléphones à portée.">
+  <img class="cover-logo" src="../assets/icon-512.png" alt="">
   <div class="eyebrow">Staff MAR · vendredi 4 septembre 2026</div>
   <h1>Planning-CHPG</h1>
   <p class="sub" style="margin-top:2.5vh">Le planning du service, facilement accessible.<br>Gardes · planning quotidien · portail personnel.</p>
