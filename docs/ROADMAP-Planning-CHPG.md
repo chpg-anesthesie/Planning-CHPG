@@ -4,7 +4,7 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.32.4** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.32.6** ·
 **GAS** (relevé dans le dépôt le 13/08/2026) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-13.1 · `miroir.gs` 2026-08-13.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
@@ -21,7 +21,7 @@ chiffre**. `index.html`, `indispos.html` et `staff.html` n'en portent AUCUN : un
 de ces pages impose quand même la montée de version chez les 5 porteurs. Le banc a un test dédié
 qui refuse qu'ils divergent.
 
-**Banc d'essai** `banc/` — 793 vérifications (relevé le 13/08/2026), `cd banc && ./lancer.sh`.
+**Banc d'essai** `banc/` — 807 vérifications (relevé le 13/08/2026), `cd banc && ./lancer.sh`.
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
@@ -38,9 +38,10 @@ le Worker ou `partage/dispo_jour.js`.
 
 ---
 
-## 13 août 2026 — v1.32.4 : chacun voit son tour de vacances, et l'écran cesse d'attendre Google
+## 13 août 2026 — v1.32.6 : chacun voit son tour de vacances, et deux affichages menteurs tombent
 
-Cinq commits poussés : `9a23862e`, `917474ce`, `f677abb6`, `b1c73fd8`, `ed227434`. Banc 707 → 793.
+Huit commits poussés : `9a23862e`, `917474ce`, `f677abb6`, `b1c73fd8`, `ed227434`, `744a5a9b`,
+`f7d79e99`, `174b03b1`. Banc 707 → 807.
 
 ### Le besoin
 
@@ -137,7 +138,7 @@ en silence et le miroir pousse dans le vide), puis les `.gs`, puis `miroirSyncCo
 `miroir.gs` a besoin de `getOrdreVacances`, qui vit dans `Indispos.gs` : recopier l'un sans l'autre
 fait OMETTRE la clé, sans le moindre message.
 
-### Ce que le banc a gagné (+86)
+### Ce que le banc a gagné (+100)
 
 - `banc_docs.js` §6 : la table de référence des vacances et le SENS de rotation doivent concorder
   entre `gas/Indispos.gs`, `staff.html`, `admin.html` et le guide — **six copies au total**, une de
@@ -146,11 +147,71 @@ fait OMETTRE la clé, sans le moindre message.
   exige qu'elles s'accordent.
 - `banc_ordre_vac.js` (nouveau, 65 vérifications) : serveur sur classeur simulé de 21 MAR inventés,
   page pilotée au clic, récapitulatif par type, cache de session, chaîne complète du miroir.
-- `banc_pages_mar.js` §28h, §28i, §28j : onglets d'équité, sélecteur de mois, ouverture de
-  `stats_{Y}` (avec la garde sur l'absence de contrôle de rôle de `getStatsLive`).
+- `banc_pages_mar.js` §28h, §28i, §28j, §28k : onglets d'équité, sélecteur de mois, ouverture de
+  `stats_{Y}` (avec la garde sur l'absence de contrôle de rôle de `getStatsLive`), le redessin des
+  vues au changement d'année, et l'ordre des recours pour les affectations manquantes.
 
 Chaque test a été éprouvé par l'échec : sens de rotation inversé dans le `.gs` → 4 vérifications
 tombent ; une ligne du tableau du guide inversée → le banc dit « Hiver 2026 : ABC ≠ CAB ».
+
+### Le défaut le plus grave de la journée, trouvé par accident
+
+**Changer d'année ne redessinait que la vue « Médecins ».** Le sélecteur passait à 2027 et l'écran
+Équité continuait d'afficher 2026 — totaux ET cibles — sous le libellé de la nouvelle année. Le
+certificat annonçait « À examiner — 19 écart(s) au-delà de 2 gardes » sur un planning 2027 qui n'en
+compte **aucun** : écart maximal réel 1,4 garde, zéro dépassement.
+
+**Comment il a été identifié.** Arthur signale un affichage faux sur 2027. Première hypothèse — la
+mienne — : la copie rapide sert une photographie périmée des cibles, donc retour en arrière sur le
+raccourci du jour. Arthur refuse le retour en arrière et exige une correction. C'est ce refus qui a
+mené au vrai coupable : en téléchargeant le planning 2026 publié et en recalculant les écarts avec
+ses propres cibles, les **six** valeurs de la capture tombent exactement — Albouy −2,4 samedis,
+Armando −4,0 total, Catineau −3,0 total, Frohlich +2,2 jeudis, Ferriero +5,0 total, Guerin −3,0
+total. Six sur six : l'écran affichait 2026.
+
+**Trois leçons.**
+
+1. **Accuser le changement du jour est un réflexe, pas un diagnostic.** Le raccourci par la copie
+   rapide était innocent ; le défaut lui était antérieur, et touchait aussi Affectations et Année,
+   plus silencieusement.
+2. **Reproduire hors ligne vaut mieux que raisonner.** Les six valeurs recalculées ont tranché en
+   une commande ce que trois hypothèses n'avaient pas su départager.
+3. **Un affichage faux est pire qu'un affichage absent.** Un écran vide se remarque ; un certificat
+   rouge, chiffré et nominatif, se croit. Celui-ci aurait pu se révéler **le 4 septembre**, pendant
+   la démonstration de Wajdi, sur le planning 2027 généré — c'est-à-dire sur la preuve même que le
+   générateur produit un planning équitable.
+
+Correctif : toute vue dérivée de `DATA` est redessinée au changement d'année, ordinateur et mobile.
+Les flèches ‹ Année › passent par le même chemin (`stepYear` appelle `onchange`). `banc_pages_mar`
+§28k, 7 vérifications.
+
+### Le second défaut : une année préchargée à moitié
+
+Le correctif précédent restait **inatteignable** : il redessine la vue APRÈS le chargement de
+l'année, et le chargement de 2027 ne se terminait pas. Témoin d'activité allumé deux à quatre
+minutes, écran figé sur 2026.
+
+**La chaîne.** `dashboard.html` précharge le planning de l'année SUIVANTE et le range dans la
+mémoire de session partagée (`chpgPlan:{Y}`) — mais pas ses affectations, dont il n'a que faire.
+`index.html` trouvait donc le planning tout de suite (`fromSS`) et partait chercher les affectations
+chez Google : appel lent, rejoué une fois, et **attendu avant `render()`**. L'année en cours n'en
+souffrait pas, `miroirBoot()` chargeant planning ET affectations dans le même appel. C'est le
+**demi-remplissage du cache par une AUTRE page** qui piégeait — une optimisation utile ailleurs.
+
+Correctif : les affectations manquantes sont demandées au miroir d'abord, à Google ensuite ; le
+cache mémoire reste prioritaire sur les deux ; le résultat est réécrit dans la mémoire de session
+AVEC les affectations, pour que le piège ne se reforme pas. `banc_pages_mar` §28l, 7 vérifications.
+Confirmé en production par Arthur.
+
+**Trois fausses pistes avant celle-là**, toutes plausibles, aucune vérifiable depuis ma place : une
+copie rapide périmée, une purge d'année malheureuse, un paquet de dépôt en échec. La méthode qui a
+fini par payer : lire le producteur ET le consommateur du cache, page par page, au lieu d'accuser la
+dernière modification.
+
+**La règle à retenir : quand je ne peux pas mesurer, je dois fournir le moyen de mesurer, pas
+empiler les hypothèses.** Le portail est instrumenté (`chrono()`), mais uniquement vers la console —
+inaccessible depuis un iPhone. Un affichage de mesure lisible sur téléphone est le chantier que
+cette soirée a rendu évident.
 
 ### Ce qui reste ouvert
 

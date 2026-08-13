@@ -11,7 +11,7 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
-## État au 13 août 2026 — v1.32.4, chacun voit son tour de vacances, banc à 793 vérifications
+## État au 13 août 2026 — v1.32.6, chacun voit son tour de vacances, banc à 807 vérifications
 
 **Le bandeau « mon ordre de passage » est en service dans « Mes congés ».** Chaque MAR y voit son
 groupe, son rang, et — d'un appui — qui choisit avant lui, période par période, pour l'année en
@@ -66,6 +66,31 @@ quand même la montée de version chez les 5 porteurs. **Compter, ne jamais reco
 exécutions longues (travers documenté depuis le 28/07) et le diagnostic est le plus long appel du
 portail. Une relance passe. Le panneau Exécutions d'Apps Script tranche : « Terminée » = le script
 a tourné.
+
+**Changer d'année redessine désormais la vue affichée.** Le sélecteur ne rappelait que
+`renderMedecins` : Équité, Affectations et Année gardaient les données de l'année précédente sous le
+libellé de la nouvelle. Sur Équité, ça produisait un certificat rouge nominatif — « 19 écarts au-delà
+de 2 gardes » — sur un planning qui n'en comptait aucun.
+
+**La leçon de méthode compte plus que le correctif.** J'ai d'abord accusé le changement du jour (le
+raccourci par la copie rapide) et proposé un retour en arrière. Arthur l'a refusé et a exigé une
+correction : c'est ce refus qui a mené au vrai coupable. **Accuser la dernière modification est un
+réflexe, pas un diagnostic.** **Reproduire hors ligne** — ici recalculer les écarts à partir du
+planning publié, six valeurs sur six retrouvées — tranche en une commande ce que trois hypothèses ne
+départagent pas. Et **un affichage faux est pire qu'un affichage absent** : un écran vide se
+remarque, un certificat chiffré et nominatif se croit.
+
+**Un cache partagé se remplit parfois à moitié, et c'est un piège.** `dashboard.html` précharge le
+planning de l'année suivante dans `chpgPlan:{Y}` sans ses affectations. `index.html` y voyait une
+année « déjà chargée » et partait chercher les affectations chez Google — appel lent, rejoué,
+attendu avant tout affichage. **Ne jamais se fier à un cache rempli par une autre page sans vérifier
+qu'il est complet.** Les affectations manquantes passent désormais par le miroir avant Google.
+
+**Et la règle de méthode que cette soirée a imposée : quand je ne peux pas mesurer, je dois fournir
+le moyen de mesurer, pas empiler les hypothèses.** Trois fausses pistes sur ce seul défaut — copie
+rapide périmée, purge d'année, paquet de dépôt en échec — toutes plausibles, aucune vérifiable
+depuis ma place. Le portail est instrumenté (`chrono()`) mais vers la console seule, inaccessible
+depuis un iPhone. Un affichage de mesure lisible sur téléphone reste à faire.
 
 **Ce qui n'est pas prouvé, et doit être dit.** Le banc éprouve la mécanique de l'ordre de passage
 sur 21 MAR inventés. Que le rang RÉEL soit juste n'a été vérifié que sur le cas d'Arthur, à l'œil.
