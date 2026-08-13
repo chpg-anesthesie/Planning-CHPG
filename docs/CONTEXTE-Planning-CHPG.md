@@ -11,7 +11,7 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
-## État au 13 août 2026 — v1.32.6, chacun voit son tour de vacances, banc à 807 vérifications
+## État au 13 août 2026 (soir) — v1.33.2, plus rien n'attend Google, banc à 863 vérifications
 
 **Le bandeau « mon ordre de passage » est en service dans « Mes congés ».** Chaque MAR y voit son
 groupe, son rang, et — d'un appui — qui choisit avant lui, période par période, pour l'année en
@@ -37,6 +37,29 @@ bascule**, pas le téléphone.
 **Le guide MAR n'est plus seulement un document : il porte un calcul.** Le tableau de l'ordre des
 groupes y est écrit en dur ET recalculé au chargement, pour ne jamais périmer — et pour rester juste
 si le script ne s'exécute pas.
+
+**Plus aucune lecture systématique chez Google, ni côté MAR ni côté comité.** Le dernier appel était
+`getStatsLive`, l'onglet Instantané — le calcul le plus lourd du portail, payé par chaque MAR à
+chaque clic. Il tourne désormais une fois pour les 23, dans le déclencheur différé du miroir.
+**La charge d'un calcul lourd se met là où elle est payée une fois, jamais dans la requête de
+quelqu'un.** Contrepartie assumée et annoncée à l'écran : « à la minute près » au lieu de « à
+l'instant T », avec un lien pour forcer le calcul frais.
+
+**Une donnée déposée que personne ne lit ne sert à rien.** `vacances_admin` et `indispos_{Y}`
+étaient dans la copie rapide et autorisées au comité depuis le 04/08 : aucun écran ne les demandait.
+Avant d'ajouter une clé, vérifier que celles qui existent sont consommées.
+
+**Les listes de codes métier recopiées à la main finissent TOUJOURS par diverger.** `index.html` en
+portait cinq pour les absences ; aucune ne connaissait `V`, `TP` ni `CL`. Le vocabulaire ayant
+changé entre 2026 (`A`) et 2027 (`V`), la vue MAR ignorait 1013 cases de vacances sur toute l'année
+à venir — et ses quatre compteurs de présents étaient faux sans que rien ne le signale. Une seule
+liste désormais, avec le relevé du classeur en commentaire. **Le symptôme signalé (un nom manquant
+dans un panneau) était infiniment plus petit que le défaut.** C'est la troisième fois de la journée.
+
+**Le banc voit ce que je ne vois pas.** La pastille des indisponibilités, première version, appelait
+Apps Script à l'ouverture de la page — interdit depuis la v1.25. Un scénario existant l'a signalé
+avant qu'Arthur ne le voie. Ne jamais proposer un push sans l'avoir lancé, même pour un ajout qui
+paraît anodin.
 
 **Une clé nouvelle dans la copie rapide, et une ouverte.** `ordre_vac` (composition ordonnée des
 groupes, sans aucun rang personnel : la page s'y cherche par son identifiant) voyage dans le même

@@ -4,15 +4,17 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.32.6** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.33.2** ·
 **GAS** (relevé dans le dépôt le 13/08/2026) `code.gs` 2026-08-05.3 ·
-`Indispos.gs` 2026-08-13.1 · `miroir.gs` 2026-08-13.1 · `journal.gs` 2026-08-05.3 ·
+`Indispos.gs` 2026-08-13.1 · `miroir.gs` 2026-08-13.2 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
 `generateur_gardes.gs` 2026-08-12.1 · `setup_annee.gs` 2026-08-08.1 ·
-**Worker** `cloudflare/worker.js` en-tête « miroir 2026-08-13.2 ». `Indispos.gs` 2026-08-13.1,
+**Worker** `cloudflare/worker.js` en-tête « miroir 2026-08-13.3 ». `Indispos.gs` 2026-08-13.1,
 `miroir.gs` 2026-08-13.1 et le Worker 2026-08-13.1 ont été recopiés, déployés et confirmés en
 production par Arthur le 13/08. Le Worker 2026-08-13.2 (ouverture de `stats_{Y}` aux MAR) attend
 son déploiement — aucun `.gs` n'est concerné.
+**(13/08 au soir)** `Indispos.gs` 2026-08-13.1, `miroir.gs` 2026-08-13.2 et le Worker 2026-08-13.3
+sont recopiés, déployés et confirmés en production par Arthur. Rien n'est en attente côté serveur.
 
 **Le numéro de version du site est porté par 5 fichiers, 11 occurrences** : `admin.html` (3),
 `dashboard.html` (3), `docs/guide-comite.html` (2), `docs/guide-mar.html` (2),
@@ -21,11 +23,11 @@ chiffre**. `index.html`, `indispos.html` et `staff.html` n'en portent AUCUN : un
 de ces pages impose quand même la montée de version chez les 5 porteurs. Le banc a un test dédié
 qui refuse qu'ils divergent.
 
-**Banc d'essai** `banc/` — 807 vérifications (relevé le 13/08/2026), `cd banc && ./lancer.sh`.
+**Banc d'essai** `banc/` — 863 vérifications (relevé le 13/08/2026 au soir), `cd banc && ./lancer.sh`.
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 13 août 2026.*
+*Mise à jour : 13 août 2026 (soir).*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -35,6 +37,92 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 13 août 2026 (soir) — v1.33.2 : plus rien n'attend Google, et trois listes qui mentaient
+
+Sept commits de plus : `c544d19f`, `87e8ce41`, `c439bb25`, `8e2198ef`, `4b5e2532`, `9ddf3766`
+(et `a134d6e1` pour la documentation). Banc 807 → 863.
+
+### Plus aucune lecture systématique chez Google
+
+Inventaire fait écran par écran, en remontant chaque appel jusqu'à la fonction qui le déclenche.
+
+**Côté MAR** — il restait `getStatsLive`, l'onglet Instantané. C'est le calcul le plus lourd du
+portail : il recompte les gardes réellement faites sur toute l'année, échanges et dons compris.
+Il était payé par CHAQUE MAR à CHAQUE clic. Nouvelle clé `equite_live_{Y}`, construite aux mêmes
+moments que la famille `stats` — un échange de gardes la republie dans la minute.
+
+**Mesure préalable, et c'est elle qui a levé la seule réserve** : depuis le 05/08, une écriture du
+comité se contente de NOTER la poussée ; un déclencheur pousse ensuite. La charge du recalcul ne
+tombe donc ni dans la requête d'un MAR, ni dans l'écriture du comité.
+
+**Contrepartie assumée** : l'écran n'est plus exact à la seconde mais à la minute. La légende le dit
+(« à la minute près » remplace « à l'instant T ») et un lien **recalculer maintenant** force le
+calcul frais. Arthur : « si c'est à la minute ça va, personne ne va analyser ça à la loupe toutes
+les 5 minutes. »
+
+**Côté comité** — même bascule pour l'onglet Instantané, avec la garde des 90 s désormais étendue
+aux DEUX sources. Et deux données qui étaient **déposées depuis le 04/08 sans que personne ne les
+lise** : `vacances_admin` (périodes, seuils, groupes) alimente maintenant l'onglet Équipe.
+
+### Trois défauts de fond, chacun caché derrière un symptôme plus petit
+
+**1. L'appel fantôme aux vacances.** `loadVacancesValidation()` appelait Google à chaque ouverture
+de l'onglet Équité pour écrire dans `#vacContent` — le conteneur de l'onglet ÉQUIPE, le seul de la
+page à porter ce nom. Le tableau n'était donc jamais visible, et il écrasait au passage l'affichage
+d'un autre onglet. Elle manipulait en outre `#vacEmpty`, absent de la page : toute erreur levait là,
+silencieusement. Retiré, avec une trace en commentaire de ce qu'il faudrait pour un vrai suivi.
+
+**2. Un appel Apps Script à l'ouverture, rattrapé par le banc.** La première version de la pastille
+des indisponibilités se rabattait sur Google quand la copie rapide était vide. Le scénario 18
+(« AUCUN appel Apps Script à l'ouverture », v1.25) l'a signalé immédiatement. Corrigé : à
+l'ouverture, la copie rapide et rien d'autre ; l'appel direct n'a lieu que sur le clic.
+**C'est le banc qui a vu ce que je n'avais pas vu.**
+
+**3. Les codes d'absence — le plus grave.** Arthur signale qu'un MAR mis en « V » pour le lendemain
+apparaît dans les absents côté comité, pas côté MAR. `index.html` portait CINQ listes de codes
+recopiées à la main, divergentes, et aucune ne connaissait `V`, `TP` ni `CL`.
+
+Relevé du classeur, le même jour :
+
+| | `A` | `V` | `TP` | `CL` |
+|---|---|---|---|---|
+| `GARDES_2026` | 855 | 1 | 131 | 126 |
+| `GARDES_2027` | **0** | **1013** | 224 | 56 |
+
+Le vocabulaire a **changé entre les années** : 2026 note les vacances `A`, 2027 les note `V`. Les
+deux sont désormais retenus — 2026 reste consultable.
+
+**La portée dépassait de loin le panneau signalé** : les QUATRE compteurs de présents employaient la
+même liste incomplète. Sur 2027, ils comptaient comme présents 1013 cases de vacances, 224 de temps
+partiel et 56 de congé long. Les chiffres de présence de la vue MAR étaient faux sur toute l'année
+à venir, et rien ne l'aurait révélé avant que quelqu'un ne compte à la main.
+
+Une seule liste désormais, `ABSENT_PANNEAU` (+ `RG` pour `ABSENT_STATUSES`), avec le relevé du
+classeur inscrit en commentaire.
+
+### La pastille des indisponibilités
+
+Le comité ne savait qui avait saisi qu'à l'étape 1 de l'assistant de génération — en novembre, trop
+tard pour relancer sans bousculer. Une pastille discrète, à droite de la barre d'onglets, affiche
+« Indispos 2028 · 17/23 » **pendant la campagne seulement** ; au clic, la liste des manquants.
+
+**Règle posée par Arthur** : chacun doit poser AU MOINS une ligne, même sans contrainte — c'est ce
+qui distingue « rien à déclarer » de « pas encore regardé ». Et la pastille réutilise
+`marsDansAnnee()`, la MÊME règle que le contrôle bloquant, sinon elle annoncerait 23/23 pendant que
+la génération refuserait de démarrer.
+
+### Ce qui reste ouvert
+
+- **Le panneau de mesure lisible sur téléphone.** Arthur hésite à charger l'interface d'un outil de
+  diagnostic — réserve légitime. Il pourrait n'apparaître que sur une adresse spéciale.
+- **Le suivi des vacances du comité** (qui a obtenu quoi) : il lui faudrait son propre conteneur, et
+  `getVacValidation` n'est PAS dans le miroir — c'est un calcul croisant indispos et seuils.
+- **Les indisponibilités des assistants** : déposées mais non lues. Volontairement laissées ainsi —
+  deux usages par an, et ce sont les écrans où une donnée en retard d'une minute serait la plus
+  gênante, puisqu'on y lance une génération sur ce qu'on vient de lire.
 
 ---
 
