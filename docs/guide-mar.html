@@ -113,12 +113,13 @@
   .geste b{color:#14532D}
 
 
-  /* ═══ Démonstrations animées — copie conforme de l'interface ═══
+  /* ═══ Démonstration animée — copie conforme de l'interface ═══
      Toutes les valeurs (tailles, couleurs, bordures, graisses) sont relevées
      dans admin.html : th-sector, day-name/day-date, am-pm-label, td-day,
-     slot-flash, slot-name, slot-new. CSS pur, aucune bibliothèque.
-     Elles illustrent le texte sans le remplacer, et se figent si l'appareil
-     demande de réduire les animations. */
+     slot-name. CSS pur, aucune bibliothèque. Elle illustre le texte sans le
+     remplacer, et se fige si l'appareil demande de réduire les animations.
+     (12/08/2026) Le CSS de deux démonstrations qui n'existent que dans le
+     guide du comité a été retiré d'ici : il n'était appelé par rien. */
   .demo{background:var(--white); border:1px solid var(--line); border-radius:14px; padding:16px 18px 18px; margin:18px 0}
   .demo-t{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3); margin-bottom:12px}
   .scene{position:relative; background:var(--white); border:1px solid var(--line); border-radius:10px; overflow:hidden}
@@ -143,57 +144,8 @@
          display:grid; grid-template-columns:1fr 1fr; gap:2px; align-content:start}
   .nom{display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;
        font-family:var(--mono); padding:2px 4px; border-radius:5px; background:#F1F5F9; color:var(--ink-2)}
-  .flash{display:inline-flex; align-items:center; justify-content:center; width:28px; height:20px;
-         border-radius:4px; font-size:14px; font-weight:700; border:1.5px dashed #F97316;
-         background:#FFF7ED; color:#F97316; justify-self:center}
   .curseur{position:absolute; width:15px; height:15px; border-radius:50%; background:rgba(220,38,38,.20);
            border:2px solid var(--red); opacity:0; z-index:6; pointer-events:none}
-
-  .pan{position:absolute; right:8px; top:30px; width:172px; background:var(--white); border:1px solid var(--line);
-       border-radius:14px; box-shadow:0 12px 32px rgba(15,23,42,.16); overflow:hidden; opacity:0;
-       transform:translateY(-6px); z-index:5}
-  .pan-h{padding:10px 12px 8px; border-bottom:1px solid var(--line)}
-  .pan-t{font-size:13px; font-weight:700; color:var(--ink)}
-  .pan-s{font-size:10.5px; color:var(--ink-3); margin-top:2px}
-  .pan-i{padding:7px 12px; font-size:11.5px; color:var(--ink-2); display:flex; justify-content:space-between; align-items:center}
-  .pan-i b{font-weight:700; font-family:var(--mono)}
-  .pan-i span{font-size:9.5px; color:var(--ink-3); text-transform:uppercase; letter-spacing:.05em}
-  .pan-i.choisi{background:var(--red-soft); color:var(--red)}
-  .pan-i.choisi span{color:var(--red)}
-
-  @keyframes c1{0%,6%{opacity:0;left:26%;top:78%} 10%{opacity:1;left:26%;top:78%}
-                26%{opacity:1;left:57%;top:56%} 32%{opacity:1;left:57%;top:56%;transform:scale(.72)}
-                37%{transform:scale(1)} 54%{opacity:1;left:82%;top:47%} 59%{transform:scale(.72)}
-                64%{transform:scale(1)} 72%,100%{opacity:0;left:82%;top:47%}}
-  @keyframes p1{0%,30%{opacity:0;transform:translateY(-6px)} 36%,62%{opacity:1;transform:translateY(0)}
-                68%,100%{opacity:0;transform:translateY(-6px)}}
-  @keyframes f1{0%,62%{opacity:1} 65%,100%{opacity:0}}
-  @keyframes n1{0%,64%{opacity:0;transform:scale(.9)} 68%,93%{opacity:1;transform:scale(1)} 97%,100%{opacity:0}}
-  .demo1 .curseur{animation:c1 8s ease-in-out infinite}
-  .demo1 .pan{animation:p1 8s ease-in-out infinite}
-  .demo1 .flash.cible{animation:f1 8s ease-in-out infinite}
-  .demo1 .nom.pose{position:absolute; opacity:0; outline:2px solid #86EFAC; background:#F0FDF4 !important;
-                   color:#166534 !important; animation:n1 8s ease-in-out infinite}
-
-  .voyant{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--ink-2)}
-  .voyant i{width:7px; height:7px; border-radius:50%; background:#F59E0B}
-  .btnpub{display:inline-flex; align-items:center; gap:5px; background:var(--red); color:#fff;
-          font-size:11.5px; font-weight:700; padding:7px 15px; border-radius:9px}
-  .msg{position:absolute; left:10px; right:10px; bottom:9px; background:#065F46; color:#fff; font-size:11px;
-       font-weight:600; padding:8px 11px; border-radius:9px; opacity:0; z-index:6}
-  @keyframes c2{0%,8%{opacity:0;left:22%;top:62%} 14%{opacity:1;left:22%;top:62%}
-                36%{opacity:1;left:78%;top:32%} 42%{transform:scale(.72)} 47%{transform:scale(1)} 58%,100%{opacity:0}}
-  @keyframes m2{0%,44%{opacity:0;transform:translateY(6px)} 50%,88%{opacity:1;transform:translateY(0)} 94%,100%{opacity:0}}
-  @keyframes v2{0%,46%{background:#F59E0B} 52%,100%{background:#16A34A}}
-  @keyframes b2{0%,42%{background:var(--red)} 46%,52%{background:#991B1B} 58%,100%{background:var(--red)}}
-  @keyframes e2a{0%,48%{opacity:1} 52%,100%{opacity:0}}
-  @keyframes e2b{0%,48%{opacity:0} 52%,100%{opacity:1}}
-  .demo2 .curseur{animation:c2 8s ease-in-out infinite}
-  .demo2 .msg{animation:m2 8s ease-in-out infinite}
-  .demo2 .voyant i{animation:v2 8s ease-in-out infinite}
-  .demo2 .btnpub{animation:b2 8s ease-in-out infinite}
-  .demo2 .etat1{animation:e2a 8s ease-in-out infinite}
-  .demo2 .etat2{opacity:0; position:absolute; left:0; animation:e2b 8s ease-in-out infinite}
 
   @keyframes d3{0%,10%{opacity:0;top:24%} 16%{opacity:1;top:24%} 42%{opacity:1;top:60%}
                 52%{opacity:1;top:60%} 64%{opacity:0;top:24%} 100%{opacity:0}}
@@ -206,14 +158,9 @@
                  opacity:0; z-index:2; animation:fl3 6.5s ease-in-out infinite}
 
   @media (prefers-reduced-motion: reduce){
-    .demo1 *,.demo2 *,.demo3 *{animation:none !important}
-    .demo1 .pan,.demo1 .curseur,.demo2 .curseur,.demo3 .curseur,.demo2 .msg{opacity:1}
-    .demo1 .nom.pose{opacity:0}
+    .demo3 *{animation:none !important}
+    .demo3 .curseur{opacity:1}
   }
-  @media print{ .demo{display:none} }
-
-  @media print{ .demo{display:none} }
-
   @media print{ .demo{display:none} }
 
   @media print{
@@ -221,6 +168,60 @@
     .toc ol{columns:2}
     .backtop{display:none}
     section{break-inside:avoid-page; margin-top:28px}
+  }
+
+  /* ═══ Ordre de passage des groupes de vacances ═══
+     Pastilles A / B / C. Mêmes teintes que l'écran d'arbitrage du staff,
+     assombries d'un cran pour rester lisibles en texte blanc. */
+  .grp{display:inline-flex; align-items:center; justify-content:center; min-width:23px; height:23px;
+       border-radius:7px; color:#fff; font-family:var(--mono); font-size:12.5px; font-weight:500}
+  .grp.a{background:#2563EB} .grp.b{background:#059669} .grp.c{background:#D97706}
+  .grp-sep{color:var(--ink-3); font-size:11px; margin:0 3px}
+  table.ordre td{white-space:nowrap}
+  table.ordre td:first-child{white-space:nowrap}
+  .legende{font-size:13px; color:var(--ink-3); margin:-4px 0 16px}
+  .legende .grp{vertical-align:middle}
+
+  /* ═══ Téléphone ═══
+     Le guide se lit à 90 % sur mobile : marges resserrées, titres réduits,
+     libellés de tableau qui reviennent à la ligne au lieu de déborder,
+     et démonstration du planning recalibrée sur un écran de 360 px. */
+  @media (max-width:600px){
+    body{padding:20px 13px 56px}
+    h1{font-size:24px}
+    .subtitle{font-size:14px}
+    .maj{font-size:11.5px}
+    .hero{padding:17px 15px; border-radius:12px}
+    .hero h2{font-size:17px}
+    .hero p{font-size:14.5px}
+    .hero ol{padding-left:18px}
+    .toc{padding:16px 15px; margin:20px 0 26px}
+    section{margin-top:34px}
+    h2{font-size:18.5px; gap:9px}
+    h2 .n{font-size:13px; padding:2px 7px}
+    h3{font-size:15px}
+    ul{padding-left:19px}
+    .callout{padding:12px 14px}
+    .geste{padding:12px 14px; font-size:14px}
+    details.pourquoi{padding:0 14px}
+    .faq .q,.faq .a{padding:11px 14px; font-size:14px}
+    /* Un libellé long ne pousse plus le tableau hors de l'écran. */
+    table{font-size:13.5px}
+    th{padding:8px 10px}
+    td{padding:8px 10px}
+    td:first-child{white-space:normal}
+    table.ordre td,table.ordre td:first-child{white-space:nowrap}
+    .steps li{padding-left:34px}
+    .steps li::before{width:22px; height:22px; top:8px; font-size:12px}
+    /* Démo « rafraîchir » : la colonne Secteur passe de 118 px à 76 px. */
+    .demo{padding:12px 12px 14px}
+    .gt,.grow{grid-template-columns:76px 1fr 1fr}
+    .gt-s{padding:8px 8px; font-size:9.5px; letter-spacing:.05em}
+    .gt-j .jd{font-size:16px}
+    .gsect{padding:6px 8px; font-size:11.5px; gap:6px}
+    .gsect i{width:8px; height:8px}
+    .nom{font-size:10px; padding:2px 3px}
+    .gcell{padding:4px 2px; min-height:34px}
   }
   
   </style>
@@ -230,7 +231,7 @@
   <div class="eyebrow">Planning-CHPG</div>
   <h1><span class="flag"><i class="r"></i><i class="w"></i></span>Guide du MAR</h1>
   <p class="subtitle">Votre planning, vos congés, vos indisponibilités — tout ce qu'il faut savoir, et rien d'autre.</p>
-  <p class="maj">Mis à jour le 12 août 2026 · <span id="verBadge">v1.31.14</span></p>
+  <p class="maj">Mis à jour le 12 août 2026 · <span id="verBadge">v1.31.15</span></p>
 
   <div class="hero">
     <h2>En 2 minutes</h2>
@@ -398,6 +399,25 @@
       <p>La rotation joue <b>entre</b> les groupes et <b>à l'intérieur</b> de chaque groupe. Autrement dit, ni un groupe ni une personne ne reste durablement en fin de file : celui qui choisit en dernier cette année remontera l'an prochain.</p>
     </div>
 
+    <h3 id="ordre-groupes">Quel groupe choisit en premier</h3>
+    <p>L'ordre est connu d'avance, période par période. Vous pouvez donc situer votre groupe <b>avant</b> le staff.</p>
+    <table class="ordre">
+      <thead><tr><th>Période</th><th id="ordreAn1">2026</th><th id="ordreAn2">2027</th></tr></thead>
+      <tbody id="ordreCorps">
+      <tr><td>Hiver</td><td><span class="grp c">C</span><span class="grp-sep">›</span><span class="grp a">A</span><span class="grp-sep">›</span><span class="grp b">B</span></td><td><span class="grp b">B</span><span class="grp-sep">›</span><span class="grp c">C</span><span class="grp-sep">›</span><span class="grp a">A</span></td></tr>
+      <tr><td>Printemps</td><td><span class="grp a">A</span><span class="grp-sep">›</span><span class="grp b">B</span><span class="grp-sep">›</span><span class="grp c">C</span></td><td><span class="grp c">C</span><span class="grp-sep">›</span><span class="grp a">A</span><span class="grp-sep">›</span><span class="grp b">B</span></td></tr>
+      <tr><td>Été</td><td><span class="grp a">A</span><span class="grp-sep">›</span><span class="grp b">B</span><span class="grp-sep">›</span><span class="grp c">C</span></td><td><span class="grp c">C</span><span class="grp-sep">›</span><span class="grp a">A</span><span class="grp-sep">›</span><span class="grp b">B</span></td></tr>
+      <tr><td>Toussaint</td><td><span class="grp b">B</span><span class="grp-sep">›</span><span class="grp c">C</span><span class="grp-sep">›</span><span class="grp a">A</span></td><td><span class="grp a">A</span><span class="grp-sep">›</span><span class="grp b">B</span><span class="grp-sep">›</span><span class="grp c">C</span></td></tr>
+      <tr><td>Noël</td><td><span class="grp c">C</span><span class="grp-sep">›</span><span class="grp a">A</span><span class="grp-sep">›</span><span class="grp b">B</span></td><td><span class="grp b">B</span><span class="grp-sep">›</span><span class="grp c">C</span><span class="grp-sep">›</span><span class="grp a">A</span></td></tr>
+      </tbody>
+    </table>
+    <p class="legende">Le groupe placé à gauche choisit en premier. Chaque année, <b>tout recule d'un cran</b> — votre groupe comme vous-même à l'intérieur de votre groupe — et celui qui était dernier repasse premier.</p>
+
+    <div class="callout tip">
+      <div class="ct">Et votre place à vous ?</div>
+      <p>Ce tableau donne l'ordre des <b>groupes</b>, pas celui des personnes. Votre rang à l'intérieur de votre groupe vous est rappelé au staff, à l'écran, au moment du placement — et il avance d'une place chaque année.</p>
+    </div>
+
     <a class="backtop" href="#">↑ Sommaire</a>
   </section>
 
@@ -477,8 +497,47 @@
     <a class="backtop" href="#">↑ Sommaire</a>
   </section>
 
-  <div class="foot">Planning-CHPG · Guide du MAR · version <span>v1.31.14</span></div>
+  <div class="foot">Planning-CHPG · Guide du MAR · version <span>v1.31.15</span></div>
 
 </div>
+
+<script>
+/* Ordre des groupes — même règle que l'écran d'arbitrage du staff : un ordre de
+   référence par période, qui recule d'un cran chaque année (le dernier repasse
+   premier). Le tableau écrit dans la page vaut pour 2026-2027 ; ce script le
+   recalcule pour l'année en cours et la suivante, afin qu'il ne périme jamais.
+   Si le script ne s'exécute pas, le tableau écrit reste affiché. */
+(function () {
+  var REF = { HIVER:'CAB', PRINTEMPS:'ABC', ETE:'ABC', TOUSSAINT:'BCA', NOEL:'CAB' };
+  var PERIODES = [['Hiver','HIVER'], ['Printemps','PRINTEMPS'], ['Été','ETE'],
+                  ['Toussaint','TOUSSAINT'], ['Noël','NOEL']];
+  function ordre(cle, annee) {
+    var base = REF[cle] || 'ABC';
+    var dec = (((annee - 2026) % 3) + 3) % 3;
+    var pas = (3 - dec) % 3;
+    return base.slice(pas) + base.slice(0, pas);
+  }
+  function pastilles(txt) {
+    var out = '';
+    for (var i = 0; i < txt.length; i++) {
+      if (i) out += '<span class="grp-sep">›</span>';
+      out += '<span class="grp ' + txt[i].toLowerCase() + '">' + txt[i] + '</span>';
+    }
+    return out;
+  }
+  var corps = document.getElementById('ordreCorps');
+  var t1 = document.getElementById('ordreAn1'), t2 = document.getElementById('ordreAn2');
+  if (!corps || !t1 || !t2) return;
+  var a1 = new Date().getFullYear(), a2 = a1 + 1;
+  if (a1 < 2026) return;
+  t1.textContent = a1; t2.textContent = a2;
+  var html = '';
+  PERIODES.forEach(function (p) {
+    html += '<tr><td>' + p[0] + '</td><td>' + pastilles(ordre(p[1], a1))
+          + '</td><td>' + pastilles(ordre(p[1], a2)) + '</td></tr>';
+  });
+  corps.innerHTML = html;
+})();
+</script>
 </body>
 </html>

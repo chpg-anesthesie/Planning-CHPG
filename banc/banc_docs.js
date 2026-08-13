@@ -128,5 +128,63 @@ console.log('\n═══ 5. Le cahier de tests ne décrit pas de fonctions dispa
     !/id="parametresView"/.test(admin) && !/function viewParametres/.test(admin));
 }
 
+console.log('\n═══ 6. L\'ordre de passage des vacances : une seule règle, plusieurs copies ═══');
+{
+  /* (12/08/2026) La table de référence des groupes et le SENS de la rotation
+     sont recopiés dans plusieurs endroits : trois fois dans Indispos.gs
+     (getVacConfig, getVacValidation et une fonction de diagnostic),
+     staff.html, admin.html, et depuis aujourd'hui docs/guide-mar.html,
+     qui affiche le tableau aux MARs.
+     Une divergence est invisible à l'œil et fait mentir le guide : c'est
+     exactement le défaut du 30/07 (serveur tournant à gauche, écrans à
+     droite), qui n'avait été vu qu'en réel, sur l'hiver 2027. */
+  const PORTEURS = ['gas/Indispos.gs', 'staff.html', 'admin.html', 'docs/guide-mar.html'];
+  const tables = [];
+  PORTEURS.forEach(f => {
+    const h = lire(f);
+    /* Toute table qui associe les cinq périodes à un ordre de trois lettres. */
+    [...h.matchAll(/HIVER\s*:\s*'([ABC]{3})'[\s\S]{0,200}?PRINTEMPS\s*:\s*'([ABC]{3})'[\s\S]{0,200}?ETE\s*:\s*'([ABC]{3})'[\s\S]{0,200}?TOUSSAINT\s*:\s*'([ABC]{3})'[\s\S]{0,200}?NOEL\s*:\s*'([ABC]{3})'/g)]
+      .forEach(m => tables.push({ f, ordre: m.slice(1, 6).join('|') }));
+  });
+  /* Pas de compte figé : un porteur de plus n'est pas un défaut, une
+     divergence en est un. On exige seulement que chaque fichier en porte
+     au moins une. */
+  PORTEURS.forEach(f => V(f.replace('docs/', '') + ' : porte la table de référence',
+    tables.some(t => t.f === f), tables.map(t => t.f)));
+  const distinctes = [...new Set(tables.map(t => t.ordre))];
+  V('elles disent toutes la même chose', distinctes.length === 1, tables);
+  V('la table est bien celle de référence (CAB / ABC / ABC / BCA / CAB)',
+    distinctes[0] === 'CAB|ABC|ABC|BCA|CAB', distinctes);
+
+  /* Le sens : rotation à DROITE, le dernier groupe devient premier. */
+  const sensDroite = /\(\s*3\s*-\s*(?:\(\s*[A-Za-z_$][\w$]*\s*%\s*3\s*\)|[A-Za-z_$][\w$]*)\s*\)\s*%\s*3/;
+  PORTEURS.forEach(f => {
+    V(f.replace('docs/', '') + ' : rotation à droite (le dernier repasse premier)',
+      sensDroite.test(lire(f)));
+  });
+
+  /* Le guide affiche un tableau écrit en dur, valable si le script ne tourne
+     pas : il doit correspondre au calcul, sinon il ment aux MARs. */
+  const guide = lire('docs/guide-mar.html');
+  const REF = { HIVER: 'CAB', PRINTEMPS: 'ABC', ETE: 'ABC', TOUSSAINT: 'BCA', NOEL: 'CAB' };
+  const attendu = (cle, annee) => {
+    const b = REF[cle];
+    const pas = (3 - (((annee - 2026) % 3) + 3) % 3) % 3;
+    return b.slice(pas) + b.slice(0, pas);
+  };
+  const lignes = [...guide.matchAll(/<tr><td>(Hiver|Printemps|Été|Toussaint|Noël)<\/td>([\s\S]*?)<\/tr>/g)];
+  V('le tableau écrit du guide porte les cinq périodes', lignes.length === 5, lignes.length);
+  const CLE = { 'Hiver': 'HIVER', 'Printemps': 'PRINTEMPS', 'Été': 'ETE', 'Toussaint': 'TOUSSAINT', 'Noël': 'NOEL' };
+  const ecarts = [];
+  lignes.forEach(m => {
+    const cellules = m[2].split('</td>').filter(c => /grp /.test(c));
+    const lus = cellules.map(c => [...c.matchAll(/class="grp [abc]">([ABC])</g)].map(x => x[1]).join(''));
+    [2026, 2027].forEach((an, i) => {
+      if (lus[i] !== attendu(CLE[m[1]], an)) ecarts.push(m[1] + ' ' + an + ' : ' + lus[i] + ' ≠ ' + attendu(CLE[m[1]], an));
+    });
+  });
+  V('il correspond exactement au calcul, année par année', ecarts.length === 0, ecarts);
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);
