@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-12.2';
+const GAS_VERSION_INDISPOS = '2026-08-13.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1265,6 +1265,80 @@ function _getVacShared(year) {
   return _VAC_SHARED[year];
 }
 
+/* ── ORDRE DE PASSAGE DES VACANCES — bandeau « Mes congés » ───────────────
+   (13/08/2026) Répond pour DEUX années d'un coup, et c'est ce qui impose une
+   fonction séparée de getVacConfig : celle-ci part de PERIODES_VAC, qui ne
+   contient que les périodes de l'année de campagne, et de INDISPOS_{Y}, qui
+   n'existe pas encore pour l'année suivante. L'ordre de passage, lui, ne
+   dépend que de GROUPES_VAC et de l'année : il est donc calculable pour
+   n'importe quelle année, même sans campagne ouverte.
+
+   SENS DE ROTATION : à DROITE, le dernier repasse premier — pour les groupes
+   entre eux comme pour les membres d'un groupe. C'est le sens de l'écran
+   d'arbitrage, seul à faire foi (défaut du 30/07/2026 : le serveur tournait à
+   gauche, les deux ordres ne coïncidaient qu'une année sur trois).
+
+   NE RENVOIE QUE DES IDENTIFIANTS de MAR, jamais d'adresse ni de code. */
+function getOrdreVacances(doctorId, annees) {
+  const ORDRE_BASE_2026 = {
+    HIVER:'CAB', PRINTEMPS:'ABC', ETE:'ABC', TOUSSAINT:'BCA', NOEL:'CAB',
+  };
+  const PERIODES = [
+    ['Hiver','HIVER'], ['Printemps','PRINTEMPS'], ['Été','ETE'],
+    ['Toussaint','TOUSSAINT'], ['Noël','NOEL'],
+  ];
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const gs = ss.getSheetByName('GROUPES_VAC');
+  if (!gs) return { annees: [] };
+  const gd = gs.getDataRange().getValues();
+
+  const groupes = { A: [], B: [], C: [] };
+  const ordreBase = { A: {}, B: {}, C: {} };
+  for (let r = 1; r < gd.length; r++) {
+    const grp = String(gd[r][0]).trim();
+    const id  = String(gd[r][1]).trim();
+    const ord = Number(gd[r][2]);
+    if (!id || !groupes[grp]) continue;
+    groupes[grp].push(id);
+    ordreBase[grp][id] = ord;
+  }
+
+  const out = [];
+  (annees || []).forEach(function (an) {
+    const offset = Number(an) - 2026;
+    const ordonne = {};
+    ['A','B','C'].forEach(function (g) {
+      const tri = [...groupes[g]].sort((a,b) => ordreBase[g][a] - ordreBase[g][b]);
+      const n = tri.length;
+      const sh = n ? (((n - (offset % n)) % n) + n) % n : 0;
+      ordonne[g] = [...tri.slice(sh), ...tri.slice(0, sh)];
+    });
+
+    let monGroupe = null, monRang = 0;
+    ['A','B','C'].forEach(function (g) {
+      const i = ordonne[g].indexOf(doctorId);
+      if (i > -1) { monGroupe = g; monRang = i + 1; }
+    });
+
+    const gsh = (((3 - (offset % 3)) % 3) + 3) % 3;
+    const periodes = PERIODES.map(function (p) {
+      const arr = (ORDRE_BASE_2026[p[1]] || 'ABC').split('');
+      return { nom: p[0], ordre: [...arr.slice(gsh), ...arr.slice(0, gsh)] };
+    });
+
+    out.push({
+      annee: Number(an),
+      monGroupe: monGroupe,
+      monRang: monRang,
+      tailleGroupe: monGroupe ? ordonne[monGroupe].length : 0,
+      groupes: ordonne,
+      periodes: periodes,
+    });
+  });
+  return { annees: out };
+}
+
 function getVacConfig(doctorId, year) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const _ctx = _getVacShared(year);
@@ -2404,6 +2478,26 @@ try {
       return ContentService.createTextOutput(JSON.stringify({success:true, joursFeries: jf, year: fYear}))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    /* (13/08/2026) Bandeau « mon ordre de passage » de la vue Mes congés.
+       Lecture seule, réservée aux MAR : un code secrétariat n'y accède pas
+       (liste blanche SECRETARIAT_ACTIONS), un code admin n'a pas d'identifiant
+       de MAR et n'aurait donc pas de rang à afficher.
+       L'année mise en avant bascule le 1er septembre : jusqu'au 31 août on
+       regarde l'année en cours, après on prépare le staff de la suivante.
+       C'est une règle d'affichage, tranchée ici pour que la date de référence
+       soit celle du service et non celle du téléphone. */
+    if (action === 'getOrdreVacances') {
+      if (user.role !== 'mar') return _deny();
+      const _now = new Date();
+      const _an = _now.getFullYear();
+      const res = getOrdreVacances(user.id, [_an, _an + 1]);
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        annees: res.annees,
+        anneePrincipale: (_now.getMonth() + 1) >= 9 ? _an + 1 : _an,
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (action === 'getVacConfig') {
       const indYear = getIndisposYear();
       const cfg = getVacConfig(user.id, indYear);

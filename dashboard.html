@@ -212,6 +212,45 @@ a.tile:hover, .tile.clickable:hover {
 .cg-range { flex:1; font-size:14px; color:var(--ink); min-width:0; }
 .cg-days { font-size:12px; color:var(--ink-4); font-weight:600; flex-shrink:0; }
 
+/* ── MON ORDRE DE PASSAGE (vacances) ──
+   Bandeau replie par defaut ; l'annee mise en avant est decidee par le serveur
+   (bascule au 1er septembre). Un seul panneau ouvert a la fois. */
+.ov-bd { width:100%; text-align:left; display:flex; align-items:center; gap:11px; background:var(--me-soft); border:1px solid var(--me-border); border-radius:11px; padding:11px 12px; cursor:pointer; font:inherit; color:inherit; margin-bottom:9px; transition:border-color .15s, box-shadow .15s; }
+.ov-bd:hover { border-color:var(--me); box-shadow:0 1px 6px rgba(29,111,184,.14); }
+.ov-bd.sec { background:var(--white); border-color:var(--line); }
+.ov-bd .ov-r { font-family:var(--mono); font-size:21px; font-weight:500; color:var(--me); line-height:1; flex:none; }
+.ov-bd .ov-r sup { font-size:11px; top:-.6em; }
+.ov-bd.sec .ov-r { color:var(--ink-3); }
+.ov-bd .ov-t { flex:1; font-size:13px; color:var(--ink-2); line-height:1.42; }
+.ov-bd .ov-t b { color:var(--ink); }
+.ov-bd .ov-t em { font-style:normal; color:var(--ink-3); font-size:12px; }
+.ov-bd .ov-c { flex:none; color:var(--ink-4); font-size:13px; transition:transform .18s ease; }
+.ov-bd[aria-expanded="true"] .ov-c { transform:rotate(180deg); }
+.ov-pan { border:1px solid var(--line); border-top:none; border-radius:0 0 11px 11px; background:var(--white); margin:-13px 0 11px; padding:13px 12px 11px; }
+.ov-ongs { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:12px; }
+.ov-ong { font-size:11.5px; padding:4px 10px; border-radius:999px; border:1px solid var(--line); background:var(--white); color:var(--ink-3); cursor:pointer; font-family:inherit; }
+.ov-ong.on { background:var(--ink); border-color:var(--ink); color:#fff; }
+.ov-h { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px; }
+.ov-h .ov-p { font-size:13.5px; font-weight:700; }
+.ov-h .ov-q { font-size:12px; color:var(--ink-3); }
+.ov-grps { margin-bottom:10px; }
+.ov-g { display:inline-flex; align-items:center; justify-content:center; min-width:21px; height:21px; border-radius:6px; color:#fff; font-family:var(--mono); font-size:11.5px; }
+.ov-g.a { background:#2563EB; } .ov-g.b { background:#059669; } .ov-g.c { background:#D97706; }
+.ov-g.pale { opacity:.3; }
+.ov-sep { color:var(--ink-4); font-size:10px; margin:0 2px; }
+.ov-l { display:flex; align-items:center; gap:9px; padding:6px 2px; border-bottom:1px solid var(--line-light); }
+.ov-l:last-of-type { border-bottom:none; }
+.ov-l .ov-n { font-family:var(--mono); font-size:11.5px; color:var(--ink-4); width:22px; text-align:right; flex:none; }
+.ov-l .ov-i { font-size:13px; color:var(--ink-2); }
+.ov-l .ov-gg { margin-left:auto; }
+.ov-l.moi { background:var(--me-soft); border-radius:8px; padding:7px 8px; margin:2px -6px; border-bottom:none; }
+.ov-l.moi .ov-i { color:var(--me); font-weight:700; }
+.ov-l.moi .ov-n { color:var(--me); }
+.ov-l.trou .ov-i { color:var(--ink-4); font-size:12px; }
+.ov-tout { width:100%; text-align:center; font:inherit; font-size:12.5px; color:var(--ink-3); cursor:pointer; background:none; border:none; border-top:1px solid var(--line); margin-top:8px; padding:9px 0 2px; }
+.ov-tout:hover { color:var(--me); }
+.ov-vide { font-size:12.5px; color:var(--ink-4); padding:2px 0 6px; }
+
 /* ── VUE TOPOS ── */
 .topos-head { display:flex; align-items:center; gap:12px; margin-bottom:22px; flex-wrap:wrap; }
 .btn-back {
@@ -388,7 +427,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.31.15</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.32</span></span></p>
     <!-- (12/08/2026, v1.31.4) Notifications push — phase 1 : visible rôle admin SEUL.
          Le serveur refuse de toute façon les autres rôles : ceci n'est que l'habillage. -->
     <div id="notifCard" class="mg-hero" style="display:none" onclick="activerNotifications()">
@@ -488,13 +527,14 @@ a.tile:hover, .tile.clickable:hover {
       <h2>Mes congés</h2>
       <span class="topos-count" id="mesCongesCount"></span>
     </div>
+    <div id="ordreVacBox"></div>
     <div id="mesCongesBody"></div>
   </div>
 </div>
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.31.15'; // SITE_VERSION: v1.31.15
+const SITE_VERSION = 'v1.32'; // SITE_VERSION: v1.32
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -733,7 +773,7 @@ function applyUserBadge(r){
 function logout(){
   if(!confirm('Se déconnecter et changer d\'utilisateur ?')) return;
   try{ sessionStorage.removeItem('chpgViewCode'); }catch(e){}
-  VIEW_CODE=''; MY_ID=null; MY_ROLE=null; MY_LIBERAL=false;
+  VIEW_CODE=''; MY_ID=null; MY_ROLE=null; MY_LIBERAL=false; MY_ORDRE_VAC=null;
   location.reload();
 }
 
@@ -1075,6 +1115,8 @@ const CAT_META = {
 };
 const CAT_ORDER = ['vac','form','tp','recup','cl'];
 let MY_CONGES = null;   // { days:[{date,type}], periods:[{type,start,end,n}], counts:{} }
+let MY_ORDRE_VAC = null;   // reponse de getOrdreVacances : { annees:[...], anneePrincipale }
+const OV_ETAT = {};        // par annee : { ouvert, periode, tout }
 
 function _extractMyConges(planning, today){
   const out=[];
@@ -1110,9 +1152,131 @@ async function loadMyConges(){
   try{ const suiv=_planDejaLa(year+1); if(suiv) days=days.concat(_extractMyConges(suiv, today)); }catch(e){}
   MY_CONGES=_buildConges(days);
 }
+/* ══ MON ORDRE DE PASSAGE POUR LES VACANCES ══════════════════════════════
+   (13/08/2026) Deux bandeaux replies : l'annee en cours et la suivante.
+   Un appui ouvre la file de la periode — qui passe avant vous, et de combien.
+
+   Le rang et la composition des groupes viennent du SERVEUR (getOrdreVacances) :
+   aucune regle de rotation n'est recopiee ici, pour qu'il n'existe pas une
+   version « ecran » de l'ordre a cote de la version qui fait foi.
+
+   Le chargement est INDEPENDANT de celui des conges : la liste des conges
+   s'affiche sans attendre cet appel, et le bandeau apparait quand il arrive.
+   Un echec n'affiche rien du tout — pas de message d'erreur pour une
+   information de confort. */
+function _ovNom(id){ return _meName(id); }
+
+function _ovLigne(rang, id, grp, moi){
+  return '<div class="ov-l' + (moi ? ' moi' : '') + '">'
+       + '<span class="ov-n">' + rang + '</span>'
+       + '<span class="ov-i">' + (moi ? 'Vous' : _ovNom(id)) + '</span>'
+       + '<span class="ov-gg"><span class="ov-g ' + grp.toLowerCase() + '">' + grp + '</span></span>'
+       + '</div>';
+}
+
+function _ovPanneau(an){
+  const bloc = (MY_ORDRE_VAC.annees || []).find(function(a){ return a.annee === an; });
+  const st = OV_ETAT[an];
+  if (!bloc || !bloc.periodes || !bloc.periodes.length) return '';
+  const per = bloc.periodes[st.periode] || bloc.periodes[0];
+
+  let file = [];
+  per.ordre.forEach(function(g){ file = file.concat(bloc.groupes[g] || []); });
+  const moi = file.indexOf(MY_ID);
+
+  let h = '<div class="ov-ongs">';
+  bloc.periodes.forEach(function(p, k){
+    h += '<button class="ov-ong' + (k === st.periode ? ' on' : '') + '" data-ov-an="' + an + '" data-ov-per="' + k + '">' + p.nom + '</button>';
+  });
+  h += '</div>';
+
+  h += '<div class="ov-h"><span class="ov-p">' + per.nom + ' ' + an + '</span><span class="ov-q">'
+     + (moi < 0 ? '' : moi === 0 ? 'vous ouvrez le tour' : moi + (moi > 1 ? ' avant vous' : ' avant vous'))
+     + '</span></div>';
+  h += '<div class="ov-grps">' + per.ordre.map(function(g, i){
+         return '<span class="ov-g ' + g.toLowerCase() + (g === bloc.monGroupe ? '' : ' pale') + '">' + g + '</span>'
+              + (i < per.ordre.length - 1 ? '<span class="ov-sep">›</span>' : '');
+       }).join('') + '</div>';
+
+  if (!file.length) { h += '<div class="ov-vide">Groupes de vacances non renseignés.</div>'; return h; }
+
+  const grpDe = function(id){
+    let g = ''; ['A','B','C'].forEach(function(x){ if ((bloc.groupes[x] || []).indexOf(id) > -1) g = x; }); return g;
+  };
+  if (st.tout || moi < 0) {
+    file.forEach(function(id, k){ h += _ovLigne(k + 1, id, grpDe(id), id === MY_ID); });
+  } else {
+    /* Les trois premiers, puis vos voisins immediats : c'est ce qu'on regarde
+       avant un staff — qui ouvre, et qui parle juste avant moi. */
+    const vus = {};
+    [0,1,2].forEach(function(k){ if (file[k] !== undefined){ h += _ovLigne(k+1, file[k], grpDe(file[k]), file[k] === MY_ID); vus[k] = 1; } });
+    const fen = [moi-2, moi-1, moi, moi+1].filter(function(k){ return k >= 0 && k < file.length && !vus[k]; });
+    if (fen.length && fen[0] > 3) {
+      h += '<div class="ov-l trou"><span class="ov-n">…</span><span class="ov-i">' + (fen[0] - 3) + ' autres</span></div>';
+    }
+    fen.forEach(function(k){ h += _ovLigne(k+1, file[k], grpDe(file[k]), file[k] === MY_ID); });
+  }
+  h += '<button class="ov-tout" data-ov-an="' + an + '" data-ov-tout="1">'
+     + (st.tout ? 'Réduire' : 'Voir les ' + file.length) + '</button>';
+  return h;
+}
+
+function _ovBandeau(bloc, principal){
+  const an = bloc.annee, st = OV_ETAT[an];
+  if (!bloc.monGroupe) return '';   /* MAR hors groupes : rien a annoncer */
+  let h = '<button class="ov-bd' + (principal ? '' : ' sec') + '" data-ov-an="' + an + '" data-ov-bd="1"'
+        + ' aria-expanded="' + (st.ouvert ? 'true' : 'false') + '">'
+        + '<span class="ov-r">' + bloc.monRang + '<sup>' + (bloc.monRang === 1 ? 'er' : 'e') + '</sup></span>'
+        + '<span class="ov-t"><b>Groupe ' + bloc.monGroupe + '</b>, sur ' + bloc.tailleGroupe + ' — vacances ' + an
+        + '<br><em>' + (principal ? 'Appuyez pour voir qui passe avant vous' : 'L’année suivante') + '</em></span>'
+        + '<span class="ov-c">⌄</span></button>';
+  if (st.ouvert) h += '<div class="ov-pan">' + _ovPanneau(an) + '</div>';
+  return h;
+}
+
+function renderOrdreVac(){
+  const box = document.getElementById('ordreVacBox');
+  if (!box) return;
+  if (!MY_ID || !MY_ORDRE_VAC || !(MY_ORDRE_VAC.annees || []).length) { box.innerHTML = ''; return; }
+  const principale = MY_ORDRE_VAC.anneePrincipale;
+  const liste = MY_ORDRE_VAC.annees.slice().sort(function(a,b){ return a.annee - b.annee; });
+  box.innerHTML = liste.map(function(bloc){
+    if (!OV_ETAT[bloc.annee]) OV_ETAT[bloc.annee] = { ouvert:false, periode:0, tout:false };
+    return _ovBandeau(bloc, bloc.annee === principale);
+  }).join('');
+}
+
+async function loadOrdreVac(){
+  if (!MY_ID) return;
+  try {
+    const r = await apiPost({ action:'getOrdreVacances', code: VIEW_CODE });
+    if (r && r.success) { MY_ORDRE_VAC = r; renderOrdreVac(); }
+  } catch (e) { /* information de confort : un echec ne dit rien a l'ecran */ }
+}
+
+document.addEventListener('click', function(ev){
+  const b = ev.target.closest ? ev.target.closest('[data-ov-an]') : null;
+  if (!b) return;
+  const an = Number(b.dataset.ovAn);
+  if (!OV_ETAT[an]) return;
+  if (b.dataset.ovBd) {
+    const ouvrir = !OV_ETAT[an].ouvert;
+    Object.keys(OV_ETAT).forEach(function(k){ OV_ETAT[k].ouvert = false; });
+    OV_ETAT[an].ouvert = ouvrir; OV_ETAT[an].tout = false;
+  } else if (b.dataset.ovPer !== undefined) {
+    OV_ETAT[an].periode = Number(b.dataset.ovPer); OV_ETAT[an].tout = false;
+  } else if (b.dataset.ovTout) {
+    OV_ETAT[an].tout = !OV_ETAT[an].tout;
+  }
+  renderOrdreVac();
+});
+
 function openMesConges(){
   document.getElementById('tilesView').style.display='none';
   document.getElementById('mesCongesView').style.display='block';
+  /* Chargement independant : le bandeau arrive quand il arrive, la liste des
+     conges ne l'attend pas. */
+  if(MY_ORDRE_VAC===null){ loadOrdreVac(); } else { renderOrdreVac(); }
   if(MY_CONGES===null){
     document.getElementById('mesCongesBody').innerHTML='<div class="topos-loading">Chargement…</div>';
     document.getElementById('mesCongesCount').textContent='';
