@@ -1442,7 +1442,27 @@ function buildYearSelect(availableYears) {
       const msel=document.getElementById('monthSelect');
       if(msel && msel.options.length){ msel.value=msel.options[msel.options.length-1].value; msel.onchange(); }
     }
+    /* (13/08/2026) CHANGER D'ANNÉE NE REDESSINAIT QUE « Médecins ».
+       Constaté en réel : le sélecteur affichait 2027, l'écran Équité montrait
+       encore les chiffres de 2026 — totaux ET cibles de l'année précédente, sous
+       le libellé de la nouvelle. Reproduit à l'identique hors ligne : les six
+       écarts affichés (Albouy -2,4 samedis · Armando -4,0 · Catineau -3,0 ·
+       Frohlich +2,2 jeudis · Ferriero +5,0 · Guerin -3,0) sont exactement ceux
+       du planning 2026 comparé à ses propres cibles.
+       C'est pire qu'un écran vide : le certificat annonçait « 19 écarts au-delà
+       de 2 gardes » sur un planning 2027 qui n'en compte aucun.
+       Affectations et Année souffraient du même oubli, plus silencieusement.
+       Toute vue dérivée de DATA doit être redessinée ici. */
     if(currentMainView === 'medecins') renderMedecins();
+    else if(currentMainView === 'equite') renderEquite();
+    else if(currentMainView === 'affect') renderAffectations();
+    else if(currentMainView === 'annee') renderAnnee();
+    if(isMobile){
+      if(mobilePlanningView === 'medecins') renderMedecins();
+      else if(mobilePlanningView === 'equite') renderEquite();
+      else if(mobilePlanningView === 'affect') renderAffectations();
+      else if(mobilePlanningView === 'annee') renderAnnee();
+    }
     updateHeaderSteppers();
   };
 }

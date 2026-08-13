@@ -376,6 +376,25 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
   }
 
+  console.log('\n═══ 28k. index.html · changer d\'année redessine la vue affichée ═══');
+  {
+    /* (13/08/2026) DÉFAUT VU EN PRODUCTION. Le sélecteur passait à 2027 et
+       l'écran Équité continuait d'afficher 2026 — totaux ET cibles — sous le
+       libellé de la nouvelle année. Le certificat annonçait « 19 écarts au-delà
+       de 2 gardes » sur un planning 2027 qui n'en compte aucun. Seul « Médecins »
+       était redessiné ; Équité, Affectations et Année étaient oubliés. */
+    const c = fs.readFileSync('../index.html', 'utf8');
+    const onchange = (c.match(/sel\.onchange = async \(\) => \{[\s\S]*?\n  \};/) || [''])[0];
+    V('le gestionnaire du sélecteur d\'année a bien été retrouvé', onchange.length > 0);
+    ['renderMedecins', 'renderEquite', 'renderAffectations', 'renderAnnee'].forEach(f => {
+      V('changer d\'année rappelle ' + f, onchange.indexOf(f + '()') > -1);
+    });
+    V('la bascule mobile est traitée aussi (mobilePlanningView)',
+      /mobilePlanningView === 'equite'\) renderEquite\(\)/.test(onchange));
+    V('les flèches ‹ Année › passent par le même chemin',
+      /function stepYear[\s\S]{0,300}ysel\.onchange\(\)/.test(c));
+  }
+
   console.log('\n═══ 28j. Les cibles d\'équité voyagent par la copie rapide ═══');
   {
     const c = fs.readFileSync('../index.html', 'utf8');
