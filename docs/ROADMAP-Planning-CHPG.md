@@ -4,24 +4,28 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.31.14** ·
-**GAS** (relevé dans le dépôt le 12/08/2026 au soir) `code.gs` 2026-08-05.3 ·
-`Indispos.gs` 2026-08-12.2 · `miroir.gs` 2026-08-12.1 · `journal.gs` 2026-08-05.3 ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.32.4** ·
+**GAS** (relevé dans le dépôt le 13/08/2026) `code.gs` 2026-08-05.3 ·
+`Indispos.gs` 2026-08-13.1 · `miroir.gs` 2026-08-13.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
 `generateur_gardes.gs` 2026-08-12.1 · `setup_annee.gs` 2026-08-08.1 ·
-**Worker** `cloudflare/worker.js` en-tête « miroir 2026-08-05.7 » (relevé le 12/08 ;
-l'identité avec la version déployée n'a PAS été revérifiée ce jour-là)
+**Worker** `cloudflare/worker.js` en-tête « miroir 2026-08-13.2 ». `Indispos.gs` 2026-08-13.1,
+`miroir.gs` 2026-08-13.1 et le Worker 2026-08-13.1 ont été recopiés, déployés et confirmés en
+production par Arthur le 13/08. Le Worker 2026-08-13.2 (ouverture de `stats_{Y}` aux MAR) attend
+son déploiement — aucun `.gs` n'est concerné.
 
-**Le numéro de version du site est porté par 5 fichiers, 9 occurrences** : `admin.html`,
-`dashboard.html`, `docs/guide-comite.html`, `docs/guide-mar.html`, `docs/roadmap.html`.
-Le banc a un test dédié qui refuse qu'ils divergent — ne jamais se fier à une liste écrite,
-chercher les porteurs dans tout le dépôt.
+**Le numéro de version du site est porté par 5 fichiers, 11 occurrences** : `admin.html` (3),
+`dashboard.html` (3), `docs/guide-comite.html` (2), `docs/guide-mar.html` (2),
+`docs/roadmap.html` (1). Le compte est passé de 9 à 11 — **compter, ne jamais recopier ce
+chiffre**. `index.html`, `indispos.html` et `staff.html` n'en portent AUCUN : une modification
+de ces pages impose quand même la montée de version chez les 5 porteurs. Le banc a un test dédié
+qui refuse qu'ils divergent.
 
-**Banc d'essai** `banc/` — 723 vérifications (relevé le 12/08/2026 dans la nuit), `cd banc && ./lancer.sh`.
+**Banc d'essai** `banc/` — 793 vérifications (relevé le 13/08/2026), `cd banc && ./lancer.sh`.
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 12 août 2026 (nuit).*
+*Mise à jour : 13 août 2026.*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -31,6 +35,139 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 13 août 2026 — v1.32.4 : chacun voit son tour de vacances, et l'écran cesse d'attendre Google
+
+Cinq commits poussés : `9a23862e`, `917474ce`, `f677abb6`, `b1c73fd8`, `ed227434`. Banc 707 → 793.
+
+### Le besoin
+
+Avant le staff du 4 septembre, chaque MAR doit pouvoir anticiper ses vacances : à quel tour
+vais-je choisir, et qui passe avant moi ? L'information existait, mais seulement sur l'écran
+d'arbitrage du comité, projeté le jour du staff. Trop tard pour réfléchir.
+
+### Ce qui a été livré
+
+**Le guide MAR lisible sur téléphone.** Il n'avait qu'une seule règle mobile (les colonnes du
+sommaire). Bloc `@media (max-width:600px)` : marges 36/20 → 20/13 px, titre 30 → 24 px, première
+colonne des tableaux qui revient à la ligne au lieu de déborder, démonstration du planning
+recalibrée — sa colonne « Secteur » était figée à 118 px sur 284 px utiles. Retrait au passage de
+46 lignes de CSS mort : les habillages de deux démonstrations animées qui n'existent que dans le
+guide du comité, et deux règles d'impression écrites trois fois.
+
+**Le tableau de l'ordre des groupes dans le guide** (§06), année en cours et suivante, sans aucun
+nom. Écrit en dur ET recalculé au chargement : il ne périme jamais, et si le script ne s'exécute
+pas, le tableau écrit reste juste.
+
+**Le bandeau « mon ordre de passage » dans « Mes congés »** — le rang nominatif, derrière le code.
+Deux bandeaux, l'année en cours et la suivante. Un appui ouvre la file de la période : les trois
+premiers, un trou, puis vos deux prédécesseurs, vous, et votre suivant. « Voir les 21 » déplie tout.
+
+**Les étiquettes de comptage remises au propre.** Elles disaient « 67 Vacances j » ; elles disent
+« Vacances 67 j ». Posées en grille de largeurs égales : une étiquette seule sur sa ligne occupe
+toute la largeur au lieu de flotter à gauche.
+
+**Les onglets Initiale / Instantané de la vue Équité**, pleine largeur, actif souligné au rouge du
+service. Ils étaient calés à 32 px du bord gauche et épousaient la largeur de leur texte :
+décentrés sur téléphone, touche de 27 px. Désormais 42 px. La barre n'a plus de marge latérale
+propre — elle partage le bord gauche de `.eq-wrap`, son voisin dans `#equiteView`, donc
+l'alignement tient quelle que soit la marge du conteneur.
+
+**Le sélecteur de mois disparaît des vues Équité, Affectations et Année.** Sur grand écran les
+steppers le savaient déjà ; sur mobile les deux listes restaient côte à côte, et choisir un mois
+dans la vue Équité ne produisait rien.
+
+### Trois décisions d'architecture
+
+**1. `getOrdreVacances` est une fonction SÉPARÉE de `getVacConfig`, et ce n'est pas un doublon.**
+`getVacConfig` part de `PERIODES_VAC` — qui ne contient que les périodes de l'année de campagne,
+vérifié dans le classeur : uniquement des lignes 2027 — et de `INDISPOS_{Y}`, qui n'existe pas
+encore pour l'année suivante. Répondre pour DEUX années par cette voie était impossible. L'ordre de
+passage, lui, ne dépend que de `GROUPES_VAC` et de l'année : calculable pour n'importe quelle
+année, même sans campagne ouverte.
+
+**2. La bascule du 1er septembre est tranchée au serveur.** Jusqu'au 31 août l'année en cours est
+mise en avant ; à partir du 1er septembre, la suivante — le staff se rapproche. C'est la date de
+Monaco qui décide, jamais celle du téléphone.
+
+**3. Rien de nominatif n'entre dans le dépôt.** Le guide est une page publique sans code d'accès :
+un formulaire de code n'y protégerait rien, le fichier étant téléchargeable par
+`raw.githubusercontent.com`. Le guide porte donc les lettres A/B/C ; les noms transitent à
+l'affichage, derrière le code, comme sur le portail.
+
+### Le miroir : deux clés nouvelles
+
+**`ordre_vac`** — composition ORDONNÉE des trois groupes et ordre des groupes par période, pour
+deux années. Copie COMMUNE : aucun rang personnel dedans, la page s'y cherche par son identifiant.
+Elle voyage dans le MÊME `miroirRead` que le planning à l'ouverture du dashboard — zéro requête
+supplémentaire, bandeau prêt avant l'ouverture de la tuile.
+
+**`stats_{Y}` ouverte aux MAR.** La vue Équité d'`index.html` allait chercher les cibles — le trait
+de chaque barre, pour les 21 MAR — par un appel Apps Script : les barres s'affichaient, les traits
+une seconde plus tard. La clé `stats_{Y}` existait déjà, réservée au comité ; elle passe aux MAR.
+
+**Ce n'est pas un élargissement, et la vérification compte plus que l'intuition.** J'avais d'abord
+fabriqué une clé dédiée `cibles_{Y}`, par prudence — donner le strict nécessaire — et je l'avais
+présentée à Arthur comme un fait acquis. Reproche justifié de sa part : c'est une décision de
+service, pas un choix technique. En allant vérifier, le fondement de ma prudence est tombé :
+**`getStatsLive` ne porte AUCUN contrôle de rôle** dans `Indispos.gs`, et l'onglet « Instantané »
+affiche déjà ces compteurs nominatifs à tout MAR. La clé dédiée aurait coûté une recopie Apps
+Script de plus pour protéger une donnée déjà accessible. `cibles_{Y}` a été abandonnée, `miroir.gs`
+remis à l'identique de la version en ligne. Le banc vérifie désormais l'absence de contrôle de rôle
+sur `getStatsLive` : le jour où elle sera ajoutée, la vérification tombera et rappellera de
+refermer la clé.
+
+**Ce qui reste au comité** : `gardes_{Y}`, `joursferies_{Y}`, `config_admin`, `vacances_admin`,
+`mail_nonlus`, `liberal_{Y}`.
+
+**L'onglet « Instantané » n'est PAS servi par la copie rapide** et ne peut pas l'être tel quel :
+`stats_{Y}` est la photographie figée à la génération, tandis que l'instantané recompte les gardes
+réellement faites, échanges et dons inclus. Le déporter demanderait de faire tourner ce calcul à
+chaque republication de la copie — envisageable, non fait.
+
+**Garde-fou des années.** `ordre_vac` fige l'année en cours et la suivante au moment de la poussée.
+Le 1er janvier, la clé est fausse jusqu'à la synchro horaire. La page compare donc les années reçues
+à celles qu'elle attend et bascule sur l'appel direct si ça ne colle pas. Mieux vaut une seconde
+d'attente qu'un rang faux.
+
+**Ordre de mise en service, non négociable** : le Worker D'ABORD (sinon `CLE_VALIDE` refuse la clé
+en silence et le miroir pousse dans le vide), puis les `.gs`, puis `miroirSyncComplet`. Et
+`miroir.gs` a besoin de `getOrdreVacances`, qui vit dans `Indispos.gs` : recopier l'un sans l'autre
+fait OMETTRE la clé, sans le moindre message.
+
+### Ce que le banc a gagné (+86)
+
+- `banc_docs.js` §6 : la table de référence des vacances et le SENS de rotation doivent concorder
+  entre `gas/Indispos.gs`, `staff.html`, `admin.html` et le guide — **six copies au total**, une de
+  plus que ce qu'on croyait (`Indispos.gs` en porte trois, dont une de diagnostic). Le tableau écrit
+  du guide est comparé au calcul, année par année. Le test ne fige pas le NOMBRE de copies : il
+  exige qu'elles s'accordent.
+- `banc_ordre_vac.js` (nouveau, 65 vérifications) : serveur sur classeur simulé de 21 MAR inventés,
+  page pilotée au clic, récapitulatif par type, cache de session, chaîne complète du miroir.
+- `banc_pages_mar.js` §28h, §28i, §28j : onglets d'équité, sélecteur de mois, ouverture de
+  `stats_{Y}` (avec la garde sur l'absence de contrôle de rôle de `getStatsLive`).
+
+Chaque test a été éprouvé par l'échec : sens de rotation inversé dans le `.gs` → 4 vérifications
+tombent ; une ligne du tableau du guide inversée → le banc dit « Hiver 2026 : ABC ≠ CAB ».
+
+### Ce qui reste ouvert
+
+- **La liste nominative est visible par tous les MAR.** Choix assumé — c'est ce que le comité
+  projette déjà au staff — mais à ANNONCER le 4 septembre plutôt qu'à laisser découvrir.
+- **Le rang affiché n'a pas été recoupé avec le classeur.** Le banc prouve la mécanique sur des MAR
+  inventés ; seul Arthur a vérifié son propre cas. Un contrôle croisé sur deux ou trois collègues
+  avant le staff serait prudent.
+- **Le diagnostic de maintenance renvoie parfois un 404.** Ce n'est pas une panne : c'est le travers
+  documenté depuis le 28/07 (Google perd l'accusé de réception sur les exécutions longues), et le
+  diagnostic est le plus long appel du portail — il recalcule les gardes réellement faites, année
+  par année. Une relance passe. Correctif possible et refusé le 13/08 : ajouter `diagComplet` aux
+  appels rejouables, ou découper le contrôle de l'historique.
+- **Le « +0.0 garde · · » et le « (, ) » de la carte Équité** sont l'état AVANT réception des
+  cibles, pas un défaut : le nom du MAR et l'axe restent vides tant que le calcul n'a pas de cibles.
+  Arthur a refusé la correction — l'affichage se remplit seul, et la clé `cibles_{Y}` réduit encore
+  la fenêtre.
 
 ---
 

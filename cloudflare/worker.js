@@ -49,7 +49,7 @@
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-13.1';
+const VERSION = 'miroir 2026-08-13.2';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
@@ -316,8 +316,14 @@ function autorise(user, cle) {
   if (cle === 'topos' || cle === 'staffs' || cle === 'veille' ||
       cle === 'protocoles' || cle === 'annuaire') return true;          // tuiles dashboard : MAR + admin
   if (/^doc_/.test(cle)) return true;                                  // (10/08) PDF topo/protocole : MEME niveau que les listes ci-dessus, ni plus ni moins
-  if (cle === 'vacances_admin' || /^(gardes|joursferies|stats)_\d{4}$/.test(cle))
+  if (cle === 'vacances_admin' || /^(gardes|joursferies)_\d{4}$/.test(cle))
     return user.role === 'admin';                                       // lot B : outils comite (roles GAS repliques)
+  /* (13/08) stats_{annee} passe aux MAR. Ce n'est pas un elargissement : la vue
+     Equite d'index.html affiche deja ces compteurs nominatifs a tout MAR, par
+     l'action getStatsLive — qui, verifie dans Indispos.gs, ne porte AUCUN
+     controle de role. La copie rapide sert donc ce que le portail donnait deja,
+     mais sans faire attendre l'ecran. */
+  if (/^stats_\d{4}$/.test(cle)) return true;                          // MAR + admin
   if (/^(planning|affectations)_\d{4}$/.test(cle)) return true;        // MAR + admin
   if (/^indispos_\d{4}$/.test(cle)) return true;                       // filtré plus loin
   if (cle === 'veille_marques') return true;                           // (08/08) MAR + admin — filtré plus loin, POUR TOUS

@@ -11,6 +11,68 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 13 août 2026 — v1.32.4, chacun voit son tour de vacances, banc à 793 vérifications
+
+**Le bandeau « mon ordre de passage » est en service dans « Mes congés ».** Chaque MAR y voit son
+groupe, son rang, et — d'un appui — qui choisit avant lui, période par période, pour l'année en
+cours et la suivante. L'année mise en avant bascule le 1er septembre : jusqu'au 31 août on regarde
+l'année en cours, après on prépare le staff de la suivante. **C'est le serveur qui tranche cette
+bascule**, pas le téléphone.
+
+**Trois choses à ne pas refaire autrement.**
+
+1. **`getOrdreVacances` n'est pas un doublon de `getVacConfig`.** `getVacConfig` part de
+   `PERIODES_VAC`, qui ne contient QUE l'année de campagne, et de `INDISPOS_{Y}`, qui n'existe pas
+   encore pour l'année d'après. L'ordre de passage ne dépend que de `GROUPES_VAC` et de l'année :
+   d'où une fonction séparée, capable de répondre pour deux années.
+2. **Aucun nom dans le dépôt.** Un formulaire de code sur une page GitHub Pages ne protège RIEN :
+   le fichier se télécharge par `raw.githubusercontent.com` sans jamais exécuter le JavaScript. Les
+   guides portent les lettres A/B/C ; les noms transitent à l'affichage, derrière le code.
+3. **La règle de rotation des vacances existe en SIX exemplaires** — trois dans `Indispos.gs`
+   (`getVacConfig`, `getVacValidation`, une fonction de diagnostic), `staff.html`, `admin.html`,
+   `docs/guide-mar.html`. `banc_docs.js` §6 les compare et vérifie que le tableau écrit du guide
+   correspond au calcul. Toute nouvelle copie doit rejoindre ce test. Sens : rotation à DROITE, le
+   dernier repasse premier, pour les groupes entre eux comme à l'intérieur de chacun.
+
+**Le guide MAR n'est plus seulement un document : il porte un calcul.** Le tableau de l'ordre des
+groupes y est écrit en dur ET recalculé au chargement, pour ne jamais périmer — et pour rester juste
+si le script ne s'exécute pas.
+
+**Une clé nouvelle dans la copie rapide, et une ouverte.** `ordre_vac` (composition ordonnée des
+groupes, sans aucun rang personnel : la page s'y cherche par son identifiant) voyage dans le même
+appel que le planning à l'ouverture du dashboard. Et `stats_{Y}`, jusque-là réservée au comité,
+passe aux MAR pour que la vue Équité affiche les cibles sans attendre.
+
+**Deux leçons de cette ouverture.** D'abord : **demander avant de trancher**. Qui voit quoi est une
+décision de service, pas un choix technique — je l'avais tranchée seul en fabriquant une clé
+dédiée, à tort. Ensuite : **vérifier le fondement d'une prudence avant de la payer**. `getStatsLive`
+ne porte AUCUN contrôle de rôle et l'onglet « Instantané » montre déjà ces compteurs nominatifs à
+tout MAR : la clé dédiée aurait coûté une recopie Apps Script pour protéger une donnée déjà
+accessible. Le banc garde désormais cette absence de contrôle sous surveillance.
+
+Restent au comité : `gardes_{Y}`, `joursferies_{Y}`, `config_admin`, `vacances_admin`,
+`mail_nonlus`, `liberal_{Y}`.
+
+**Ordre de mise en service d'une nouvelle clé, non négociable** : le Worker D'ABORD, puis le `.gs`,
+puis `miroirSyncComplet`. Inversé, la clé est refusée en silence et poussée dans le vide. Et si la
+clé s'appuie sur une fonction d'un AUTRE `.gs`, recopier l'un sans l'autre la fait OMETTRE, sans
+message. Rien ne signale l'erreur : seule la lenteur persistante la trahit.
+
+**Le compte des porteurs de version a changé : 5 fichiers, 11 occurrences**, pas 9. `index.html`,
+`indispos.html` et `staff.html` n'en portent aucun — mais une modification de ces pages impose
+quand même la montée de version chez les 5 porteurs. **Compter, ne jamais recopier ce chiffre.**
+
+**Un 404 sur le diagnostic n'est pas une panne.** Google perd l'accusé de réception sur les
+exécutions longues (travers documenté depuis le 28/07) et le diagnostic est le plus long appel du
+portail. Une relance passe. Le panneau Exécutions d'Apps Script tranche : « Terminée » = le script
+a tourné.
+
+**Ce qui n'est pas prouvé, et doit être dit.** Le banc éprouve la mécanique de l'ordre de passage
+sur 21 MAR inventés. Que le rang RÉEL soit juste n'a été vérifié que sur le cas d'Arthur, à l'œil.
+Un contrôle croisé sur deux ou trois collègues avant le 4 septembre reste à faire. Et la liste
+nominative étant désormais visible par tous les MAR — choix assumé, c'est ce que le comité projette
+déjà au staff — mieux vaut l'annoncer que la laisser découvrir.
+
 ## État au 12 août 2026 (soir) — v1.31.14, identité visuelle propre, banc à 723 vérifications
 
 **Le drapeau monégasque a disparu.** Icône d'application, favicon et logo de bandeau : partout

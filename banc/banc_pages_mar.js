@@ -323,6 +323,87 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
       (c.match(/class="eqv-sw-btn active"/g) || []).length === 1);
   }
 
+  console.log('\n═══ 28i. index.html · le mois disparaît des vues qui l\'ignorent ═══');
+  {
+    /* (13/08/2026) Équité, Affectations et Année raisonnent à l'année. Sur mobile,
+       la liste des mois restait pourtant affichée à côté de celle des années, et
+       en choisir un ne produisait rien. */
+    const contenu = fs.readFileSync('../index.html', 'utf8');
+    const vc = new VirtualConsole(); const erreurs = [];
+    vc.on('jsdomError', e => erreurs.push(e.message));
+    const dom = new JSDOM(contenu, { runScripts:'dangerously', virtualConsole:vc,
+      url:'https://chpg-anesthesie.github.io/Planning-CHPG/index.html', pretendToBeVisual:true,
+      beforeParse(win) {
+        win.matchMedia = () => ({ matches:false, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
+        win.Element.prototype.scrollIntoView = function () {};
+        win.HTMLElement.prototype.scrollIntoView = function () {};
+        win.scrollTo = () => {};
+      } });
+    const w = dom.window, D = w.document;
+    if (!w.navigator.sendBeacon) w.navigator.sendBeacon = () => true;
+    w.fetch = async () => ({ ok:true, json: async () => ({ success:false }) });
+    await dodo(400);
+    Object.defineProperty(w, 'innerWidth', { value: 390, configurable: true });
+    w.checkMobile();
+    const moisVisible = () => D.getElementById('monthSelect').style.display !== 'none';
+    const anVisible   = () => D.getElementById('yearSelect').style.display !== 'none';
+
+    w.mobileSetView('planning'); await dodo(20);
+    V('vue Planning : le mois est proposé', moisVisible());
+    w.mobileSetView('equite'); await dodo(20);
+    V('vue Équité : le mois disparaît', !moisVisible());
+    V('mais l\'année reste', anVisible());
+    w.mobileSetView('affect'); await dodo(20);
+    V('vue Affectations : le mois disparaît aussi', !moisVisible());
+    w.mobileSetView('annee'); await dodo(20);
+    V('vue Année : idem', !moisVisible());
+    /* La vue Médecins dessine à partir du planning, absent de ce banc : son rendu
+       lève, mais le réglage du sélecteur est déjà posé quand il lève. On isole. */
+    try { w.mobileSetView('medecins'); } catch (e) {}
+    await dodo(20);
+    V('vue Médecins : le mois revient', moisVisible());
+    try { w.mobileSetView('planning'); } catch (e) {}
+    await dodo(20);
+    V('retour au Planning : le mois est toujours là', moisVisible());
+    /* Le masquage ne doit pas survivre au passage sur grand écran, où c'est la
+       feuille de style qui commande les deux listes. */
+    w.mobileSetView('equite'); await dodo(20);
+    Object.defineProperty(w, 'innerWidth', { value: 1200, configurable: true });
+    w.checkMobile(); await dodo(20);
+    V('sur grand écran, aucune valeur en dur ne court-circuite la feuille de style',
+      D.getElementById('monthSelect').style.display === '',
+      D.getElementById('monthSelect').style.display);
+    V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
+  }
+
+  console.log('\n═══ 28j. Les cibles d\'équité voyagent par la copie rapide ═══');
+  {
+    const c = fs.readFileSync('../index.html', 'utf8');
+    const worker = fs.readFileSync('../cloudflare/worker.js', 'utf8');
+    /* (13/08/2026) stats_{annee} passe aux MAR. Ce n'est pas un elargissement :
+       getStatsLive, qui sert les MEMES chiffres, ne porte aucun controle de role
+       dans Indispos.gs, et l'onglet Instantane les affiche deja a tout MAR. */
+    const gas = fs.readFileSync('../gas/Indispos.gs', 'utf8');
+    const bloc = (gas.match(/if \(action === 'getStatsLive'\)[\s\S]{0,400}?\n    \}/) || [''])[0];
+    V('getStatsLive ne filtre effectivement aucun rôle (le fondement de la décision)',
+      bloc.length > 0 && !/_deny\(\)/.test(bloc), bloc.slice(0, 120));
+    V('la copie rapide sert stats_{année} aux MAR',
+      /\^stats_\\d\{4\}\$\/\.test\(cle\)\) return true/.test(worker));
+    V('gardes_{année} et joursferies_{année} restent au comité',
+      /\(gardes\|joursferies\)_\\d\{4\}[\s\S]{0,120}role === 'admin'/.test(worker));
+    V('config_admin et vacances_admin aussi',
+      /cle === 'config_admin'\) return user\.role === 'admin'/.test(worker) &&
+      /cle === 'vacances_admin' \|\|/.test(worker));
+    V('la vue Équité lit la copie avant de demander à Google',
+      /miroirRead\(\['stats_' \+ year\]\)/.test(c));
+    V('elle garde l\'appel direct en repli',
+      /catch\(e\)\{[^}]*\}\s*try\{\s*const j = await apiPost\(\{action:'getStatsLive'/.test(c));
+    V('l\'instantané, lui, reste un vrai calcul (jamais servi par la copie)',
+      (() => { const i = c.indexOf('async function loadEquiteLive');
+               const j = c.indexOf("apiPost({action:'getStatsLive'", i);
+               return i > 0 && j > i && c.slice(i, j).indexOf('miroirRead') === -1; })());
+  }
+
   console.log('\n═══ 29. Confidentialité des indispos (règle du secrétariat) ═══');
   {
     const r = await WK.fetch(new Request('https://worker/read', { method:'POST',

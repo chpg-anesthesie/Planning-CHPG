@@ -1678,6 +1678,7 @@ function renderAnnee(){
 function setMainView(v){
   setTimeout(updateHeaderSteppers, 0);
   currentMainView=v;
+  setTimeout(majSelecteurMois, 0);
   document.getElementById('btnPlanning').classList.toggle('active',v==='planning');
   document.getElementById('btnMedecins').classList.toggle('active',v==='medecins');
   const be=document.getElementById('btnEquite'); if(be) be.classList.toggle('active',v==='equite');
@@ -2405,6 +2406,24 @@ let EQ_SRC_IDX = 'initiale';
 let CIBLES_CACHE = {};
 async function getCiblesFromStats(year){
   if(CIBLES_CACHE[year]) return CIBLES_CACHE[year];
+  /* (13/08/2026) Le trait de chaque barre — la cible — arrivait d'un appel
+     Apps Script : les barres s'affichaient, puis les traits apparaissaient une
+     seconde plus tard, pour les 21 MAR d'un coup. La copie rapide sert
+     desormais stats_{annee}, ou ces cibles sont deja deposees pour le comite.
+     Ce n'est pas un elargissement : la vue Equite montre deja ces compteurs
+     nominatifs a tout MAR, et getStatsLive ne porte aucun controle de role.
+     L'appel direct reste le repli — et reste seul a fournir l'INSTANTANE, qui
+     recompte les gardes reellement faites. */
+  try{
+    const m = await miroirRead(['stats_' + year]);
+    const c = m && m.success && m.data && m.data['stats_' + year];
+    if(c && Array.isArray(c.stats) && c.stats.length){
+      const mm = {};
+      c.stats.forEach(s=>{ mm[s.medecin] = {cible:s.cible||0, cSat:s.cSat||0, cJeu:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0}; });
+      CIBLES_CACHE[year] = mm;
+      return mm;
+    }
+  }catch(e){ /* copie indisponible : on continue par l'appel direct */ }
   try{
     const j = await apiPost({action:'getStatsLive', year});
     if(!j || !j.success || !Array.isArray(j.stats)) return {};
@@ -2666,11 +2685,26 @@ function placerSelecteursPeriode() {
   const cible = isMobile ? barre : bandeau;
   if (an.parentNode !== cible) cible.appendChild(an);
   if (mois.parentNode !== cible) cible.appendChild(mois);
+  majSelecteurMois();
+}
+/* (13/08/2026) Equite, Affectations et Annee raisonnent a l'ANNEE : le mois n'y
+   change rien. Sur grand ecran les steppers le savaient deja (updateHeaderSteppers),
+   mais sur mobile les deux listes deroulantes restaient affichees cote a cote, et
+   choisir un mois dans la vue Equite ne produisait aucun effet.
+   ⚠️ On ne remet JAMAIS display:'block' : la regle @media (min-width:769px) masque
+   les deux listes sur grand ecran, et une valeur en dur la court-circuiterait.
+   On repose la chaine vide, qui rend la main a la feuille de style. */
+function majSelecteurMois() {
+  const mois = document.getElementById('monthSelect');
+  if (!mois) return;
+  const vue = isMobile ? mobilePlanningView : currentMainView;
+  mois.style.display = (vue === 'planning' || vue === 'medecins') ? '' : 'none';
 }
 window.addEventListener('resize', checkMobile);
 
 function mobileSetView(v) {
   mobilePlanningView = v;
+  setTimeout(majSelecteurMois, 0);
   document.getElementById('mbtnPlanning').classList.toggle('active', v==='planning');
   document.getElementById('mbtnMedecins').classList.toggle('active', v==='medecins');
   const mbe = document.getElementById('mbtnEquite'); if(mbe) mbe.classList.toggle('active', v==='equite');
