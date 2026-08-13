@@ -717,6 +717,7 @@ body{font-variant-numeric:tabular-nums}
 .eqv-val{width:52px;font-size:10.5px;color:var(--ink);font-weight:700;text-align:right}
 .eqv-val span{color:var(--ink-3);font-weight:600}
 .eqv-legend{font-size:11px;color:var(--ink-3);margin:4px 0 14px}
+.eqv-recalc{border:0;background:none;padding:0;font:inherit;color:var(--me);text-decoration:underline;cursor:pointer}
 .eqv-row-tot{margin-bottom:7px;padding-bottom:8px;border-bottom:1px solid var(--surface-2)}
 .eqv-row-tot .eqv-lbl{font-weight:800;color:var(--ink)}
 .eqv-track-tot{height:14px}
@@ -2574,7 +2575,17 @@ function setEquiteSourceIdx(src){
   document.querySelectorAll('#eqSwitchIdx .eqv-sw-btn').forEach(b=>b.classList.toggle('active', b.dataset.src===src));
   if(src==='live') loadEquiteLive(); else renderEquite();
 }
-async function loadEquiteLive(){
+/* (13/08/2026) L'instantane arrive par la copie rapide.
+   AVANT : chaque clic sur l'onglet declenchait computeStatsLive chez Google —
+   le calcul le plus lourd du portail, plusieurs dizaines de secondes ressenties,
+   payees par CHAQUE MAR a CHAQUE consultation.
+   APRES : le calcul tourne une fois pour les 23, dans le declencheur differe du
+   miroir, aux memes moments que les statistiques — un echange de garde le
+   republie dans la minute. L'ecran n'est donc plus exact a la seconde mais a la
+   minute : c'est assume, et le lien « recalculer » force le calcul direct pour
+   qui veut la valeur fraiche.
+   force = true : on saute la copie rapide ET la memoire, on redemande a Google. */
+async function loadEquiteLive(force){
   const wrap = document.getElementById('eqWrap');
   if(!wrap) return;
   const nameOf = id => (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase();
@@ -2594,17 +2605,26 @@ async function loadEquiteLive(){
       <div class="eq-kpi"><div class="eq-kpi-num">${mean.toFixed(1)}</div><div class="eq-kpi-lbl">Moyenne / MAR</div></div>
       <div class="eq-kpi"><div class="eq-kpi-num">${min}\u2013${max}</div><div class="eq-kpi-lbl">Étendue</div></div>
     </div>
-    <div class="eqv-legend">Instantané — gardes réelles à l'instant T (échanges/dons inclus) · trait = cible (STATS_GARDES) · Lun/Mar/Mer neutres.</div>`;
+    <div class="eqv-legend">Instantané — gardes réelles, échanges et dons compris · à la minute près · trait = cible (STATS_GARDES) · Lun/Mar/Mer neutres · <button type="button" class="eqv-recalc" onclick="loadEquiteLive(true)">recalculer maintenant</button></div>`;
     paintEquite(wrap, html, list);
   };
-  const cached = LIVE_CACHE[currentYear];
-  if(cached){ build(cached); }
-  else if(!wrap.querySelector('.eqv-grid')){ wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Chargement de l\'instantané…</div>'; }
+  const cached = force ? null : LIVE_CACHE[currentYear];
+  if(cached){ build(cached); return; }
+  if(!wrap.querySelector('.eqv-grid')){ wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Chargement de l\'instantané…</div>'; }
   try{
-    const j = await apiPost({action:'getStatsLive', year: currentYear});
-    if(!j.success) throw new Error(j.error||'erreur');
-    LIVE_CACHE[currentYear] = j.stats;
-    build(j.stats);
+    let stats = null;
+    if(!force){
+      const m = await miroirRead(['equite_live_' + currentYear]);
+      const c = m && m.success && m.data && m.data['equite_live_' + currentYear];
+      if(c && c.success && Array.isArray(c.stats) && c.stats.length) stats = c.stats;
+    }
+    if(!stats){
+      const j = await apiPost({action:'getStatsLive', year: currentYear});
+      if(!j.success) throw new Error(j.error||'erreur');
+      stats = j.stats;
+    }
+    LIVE_CACHE[currentYear] = stats;
+    build(stats);
   }catch(e){
     if(!cached && EQ_SRC_IDX==='live') wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#CE1126">Instantané indisponible : '+(e.message||e)+'</div>';
   }

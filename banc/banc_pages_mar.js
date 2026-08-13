@@ -376,6 +376,36 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
   }
 
+  console.log('\n═══ 28m. index.html · l\'instantané d\'équité passe par la copie rapide ═══');
+  {
+    /* (13/08/2026) computeStatsLive recompte les gardes reellement faites sur
+       toute l'annee : le calcul le plus lourd du portail, jusqu'ici paye par
+       CHAQUE MAR a CHAQUE clic. Il tourne desormais une fois pour les 23, dans
+       le declencheur differe du miroir. L'ecran perd l'exactitude a la seconde
+       et gagne l'affichage immediat — le lien « recalculer » rend le choix. */
+    const c = fs.readFileSync('../index.html', 'utf8');
+    const worker = fs.readFileSync('../cloudflare/worker.js', 'utf8');
+    const miroir = fs.readFileSync('../gas/miroir.gs', 'utf8');
+    const fn = (c.match(/async function loadEquiteLive[\s\S]*?\n\}/) || [''])[0];
+    V('le Worker accepte la nouvelle clé', /equite_live_\\d\{4\}\|doc_/.test(worker));
+    V('il la sert aux MAR comme aux admin',
+      /\^equite_live_\\d\{4\}\$\/\.test\(cle\)\) return true/.test(worker));
+    V('le miroir la construit sur les mêmes années que les statistiques',
+      /_miroirAjouteEnveloppe_\(items, 'equite_live_' \+ y/.test(miroir));
+    V('elle contient bien le recalcul, pas la photographie figée',
+      /equite_live_[\s\S]{0,300}computeStatsLive\(y\)/.test(miroir));
+    V('la page lit la copie avant d\'appeler Google',
+      fn.indexOf("miroirRead(['equite_live_'") > -1 &&
+      fn.indexOf("miroirRead(['equite_live_'") < fn.indexOf("apiPost({action:'getStatsLive'"));
+    V('l\'appel direct reste le repli', /apiPost\(\{action:'getStatsLive'/.test(fn));
+    V('« recalculer maintenant » force le calcul direct',
+      /loadEquiteLive\(true\)/.test(c) && /if\(!force\)\{/.test(fn));
+    V('forcer ignore aussi la mémoire de la page',
+      /const cached = force \? null : LIVE_CACHE\[currentYear\]/.test(fn));
+    V('la légende annonce la minute, plus « l\'instant T »',
+      /à la minute près/.test(c) && !/gardes réelles à l'instant T/.test(c));
+  }
+
   console.log('\n═══ 28l. index.html · une année préchargée à moitié ne bloque plus ═══');
   {
     /* (13/08/2026) DÉFAUT VU EN PRODUCTION. Le dashboard précharge le planning de
@@ -443,10 +473,20 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
       /miroirRead\(\['stats_' \+ year\]\)/.test(c));
     V('elle garde l\'appel direct en repli',
       /catch\(e\)\{[^}]*\}\s*try\{\s*const j = await apiPost\(\{action:'getStatsLive'/.test(c));
-    V('l\'instantané, lui, reste un vrai calcul (jamais servi par la copie)',
-      (() => { const i = c.indexOf('async function loadEquiteLive');
-               const j = c.indexOf("apiPost({action:'getStatsLive'", i);
-               return i > 0 && j > i && c.slice(i, j).indexOf('miroirRead') === -1; })());
+    /* (13/08/2026, révisé le soir) L'instantané passe lui aussi par la copie
+       rapide — voir 28m. Ce qui doit rester vrai ici : les deux onglets ne
+       lisent PAS la même clé. stats_{annee} est la photographie figée à la
+       génération, equite_live_{annee} le recompte sur la grille réelle. Les
+       confondre afficherait l'un sous le libellé de l'autre. */
+    V('Initiale et Instantané lisent deux clés distinctes',
+      (() => { const i = c.indexOf('async function getCiblesFromStats');
+               const j = c.indexOf('async function loadEquiteLive');
+               const ini = c.slice(i, c.indexOf('\n}', i));
+               const liv = c.slice(j, c.indexOf('\n}', j));
+               return ini.indexOf("miroirRead(['stats_' + year]") > -1
+                   && ini.indexOf('equite_live_') === -1
+                   && liv.indexOf("miroirRead(['equite_live_'") > -1
+                   && liv.indexOf("miroirRead(['stats_") === -1; })());
   }
 
   console.log('\n═══ 29. Confidentialité des indispos (règle du secrétariat) ═══');

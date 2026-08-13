@@ -49,12 +49,12 @@
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-13.2';
+const VERSION = 'miroir 2026-08-13.3';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
 // une clé orpheline invisible.
-const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|veille_marques|ordre_vac|doc_[A-Za-z0-9_-]{10,80})$/;
+const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|veille_marques|ordre_vac|equite_live_\d{4}|doc_[A-Za-z0-9_-]{10,80})$/;
 /* (2026-08-10.1) `doc_<idDrive>` : un topo ou un protocole PDF, pousse par la
    tache dediee de miroir.gs. La valeur a la MEME forme que la reponse de
    `getTopo`/`getProtocole` cote Apps Script — {success,name,mimeType,dataB64} —
@@ -324,6 +324,9 @@ function autorise(user, cle) {
      controle de role. La copie rapide sert donc ce que le portail donnait deja,
      mais sans faire attendre l'ecran. */
   if (/^stats_\d{4}$/.test(cle)) return true;                          // MAR + admin
+  /* (13/08) Instantane d'equite : le meme contenu que stats_{annee}, mais
+     recompte sur la grille reelle. Meme niveau d'acces, pour la meme raison. */
+  if (/^equite_live_\d{4}$/.test(cle)) return true;                    // MAR + admin
   if (/^(planning|affectations)_\d{4}$/.test(cle)) return true;        // MAR + admin
   if (/^indispos_\d{4}$/.test(cle)) return true;                       // filtré plus loin
   if (cle === 'veille_marques') return true;                           // (08/08) MAR + admin — filtré plus loin, POUR TOUS

@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-13.1';
+const GAS_VERSION_MIROIR = '2026-08-13.2';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -348,6 +348,20 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
       if (uniq['gardes'])      _miroirAjouteEnveloppe_(items, 'gardes_' + y,      function () { return _miroirConstruireGardes_(y); });
       if (uniq['joursferies']) _miroirAjouteEnveloppe_(items, 'joursferies_' + y, function () { return { success: true, joursFeries: getJoursFeries(y).concat(getJoursFeries(y + 1)), year: y }; });
       if (uniq['stats'])       _miroirAjouteEnveloppe_(items, 'stats_' + y,       function () { return _miroirConstruireStats_(y); });
+      /* (2026-08-13.2) INSTANTANE D'EQUITE. computeStatsLive recompte les gardes
+         REELLEMENT faites sur toute l'annee, echanges et dons compris. C'est le
+         calcul le plus lourd du portail : mesure du 13/08, plusieurs dizaines de
+         secondes ressenties cote MAR, et c'est lui qui rend le diagnostic long.
+         Le faire ici, c'est le payer UNE fois pour les 23, dans le declencheur
+         differe — jamais dans la requete d'un MAR, jamais dans l'ecriture du
+         comite (celle-ci se contente de noter la poussee depuis le 05/08).
+         Memes declencheurs que la famille stats : un echange de garde republie
+         donc l'instantane dans la minute. Contrepartie assumee : l'ecran n'est
+         plus exact a la seconde mais a la minute — le lien « recalculer » de la
+         page reste la pour qui veut la valeur fraiche. */
+      if (uniq['stats'])       _miroirAjouteEnveloppe_(items, 'equite_live_' + y, function () {
+        return { success: true, stats: computeStatsLive(y) };
+      });
     });
   }
 
