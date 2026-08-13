@@ -208,6 +208,60 @@ console.log('\n═══ 5. L\'écran : le bandeau, puis la file au clic ══�
     D.getElementById('ordreVacBox').innerHTML === '');
   V('aucune erreur JavaScript pendant toute la manipulation', erreurs.length === 0, erreurs.slice(0,2));
 
+  /* ── Le bandeau ne doit plus se faire attendre (13/08/2026) ──
+     Constaté en réel : la tuile s'ouvrait, puis le bandeau apparaissait après
+     l'aller-retour. La réponse est gardée pour la session et préchargée dès la
+     connexion. On vérifie ici les deux mécanismes, et surtout qu'un second
+     affichage ne redemande RIEN au serveur. */
+  /* ── Le récapitulatif par type (13/08/2026) ──
+     Vu en réel : « 67 Vacances j », et une pastille seule, décentrée, sur la
+     ligne du dessous. Le libellé passe devant, le nombre et son unité restent
+     collés, et les pastilles ont toutes la même largeur. */
+  console.log('\n═══ 5b. Le récapitulatif par type de congé ═══');
+  {
+    dansLaPage("MY_CONGES={days:new Array(86).fill(0).map(function(_,i){return {date:'2026-09-01',cat:'vac'};}),"
+      + "periods:[{cat:'vac',start:'2026-09-14',end:'2026-09-25',n:10}],"
+      + "counts:{vac:67,form:11,recup:8}}; renderMesConges();");
+    const chips = D.querySelectorAll('#mesCongesBody .cg-count');
+    V('une pastille par type présent', chips.length === 3, chips.length);
+    V('le libellé vient avant le nombre',
+      /^Vacances\s*67\s*j$/.test(chips[0].textContent.replace(/\s+/g,' ').trim()),
+      chips[0].textContent.replace(/\s+/g,' ').trim());
+    V('le « j » est collé au nombre, pas au libellé',
+      chips[0].querySelector('.cg-n').textContent.trim() === '67' &&
+      /^\s*j\s*$/.test(chips[0].querySelector('.cg-u').textContent),
+      chips[0].innerHTML);
+    V('les types absents ne fabriquent pas de pastille vide',
+      ![...chips].some(c => /Temps partiel|Congé long/.test(c.textContent)));
+    V('les pastilles sont posées en grille (largeurs égales, pas de ligne bancale)',
+      /\.cg-counts\s*\{[^}]*display:grid/.test(contenu),
+      (contenu.match(/\.cg-counts\s*\{[^}]*\}/) || [''])[0].slice(0, 120));
+  }
+
+  console.log('\n═══ 6. Le bandeau est déjà là quand on ouvre la tuile ═══');
+  {
+    let appels = 0;
+    w.fetch = async () => { appels++; return { ok:true, json: async () => Object.assign({success:true}, rep) }; };
+    dansLaPage("MY_ORDRE_VAC=null; try{sessionStorage.removeItem(OV_CLE);}catch(e){}");
+    await w.eval('loadOrdreVac()');
+    await dodo(60);
+    V('le premier chargement interroge le serveur une seule fois', appels === 1, appels);
+    V('la réponse est gardée pour la session',
+      !!w.eval('sessionStorage.getItem(OV_CLE)'));
+    dansLaPage('MY_ORDRE_VAC=null;');
+    await w.eval('loadOrdreVac()');
+    await dodo(60);
+    V('un second affichage ne redemande rien au serveur', appels === 1, appels);
+    V('et le bandeau est bien redessiné depuis la session',
+      D.getElementById('ordreVacBox').querySelectorAll('.ov-bd').length === 2);
+    /* Le cache est nominatif : changer de MAR ne doit jamais montrer le rang du précédent. */
+    dansLaPage("MY_ORDRE_VAC=null; MY_ID='AUTRE';");
+    await w.eval('loadOrdreVac()');
+    await dodo(60);
+    V('un autre MAR ne récupère pas le rang du précédent', appels === 2, appels);
+    V('la page expose un préchargement différé', typeof w.prechargerOrdreVac === 'function');
+  }
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   if (ko) process.exit(1);
 })();

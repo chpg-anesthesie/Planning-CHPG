@@ -202,10 +202,14 @@ a.tile:hover, .tile.clickable:hover {
 .mg-month:first-child { margin-top:0; }
 
 /* ── VUE MES CONGÉS ── */
-.cg-counts { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
-.cg-count { border-radius:999px; padding:6px 13px; font-size:13px; font-weight:600; }
+/* (13/08/2026) Pastilles de largeur egale plutot qu'un alignement a gauche qui
+   laissait la derniere seule et decentree sur la ligne suivante. Une pastille
+   orpheline occupe alors toute la largeur : c'est regulier, quel que soit le
+   nombre de categories (de 1 a 5). */
+.cg-counts { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; margin-bottom:18px; }
+.cg-count { border-radius:999px; padding:7px 13px; font-size:13px; font-weight:600; text-align:center; }
 .cg-count .cg-n { font-weight:800; }
-.cg-count .cg-u { opacity:.7; }
+.cg-count .cg-u { font-weight:600; opacity:.7; }
 .cg-list { display:flex; flex-direction:column; gap:8px; }
 .cg-item { display:flex; align-items:center; gap:10px; background:var(--white); border:1px solid var(--line); border-radius:12px; padding:11px 14px; }
 .cg-tag { font-size:11px; font-weight:700; border-radius:7px; padding:3px 9px; flex-shrink:0; }
@@ -427,7 +431,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.32</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.32.1</span></span></p>
     <!-- (12/08/2026, v1.31.4) Notifications push — phase 1 : visible rôle admin SEUL.
          Le serveur refuse de toute façon les autres rôles : ceci n'est que l'habillage. -->
     <div id="notifCard" class="mg-hero" style="display:none" onclick="activerNotifications()">
@@ -534,7 +538,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.32'; // SITE_VERSION: v1.32
+const SITE_VERSION = 'v1.32.1'; // SITE_VERSION: v1.32.1
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -755,6 +759,7 @@ function applyUserBadge(r){
   // Membre du groupement liberal : pilote la tuile Module liberal.
   MY_LIBERAL = !!r.liberal;
   INDISPOS_YEAR = r.indisposYear || null;
+  prechargerOrdreVac();   // en tache de fond : le bandeau de Mes conges sera deja pret
   const pill = document.getElementById('mePill');
   if(!pill) return;
   // Pastille du bandeau : initiales du MAR (colonne 3 de MEDECINS, deja renvoyees
@@ -774,6 +779,7 @@ function logout(){
   if(!confirm('Se déconnecter et changer d\'utilisateur ?')) return;
   try{ sessionStorage.removeItem('chpgViewCode'); }catch(e){}
   VIEW_CODE=''; MY_ID=null; MY_ROLE=null; MY_LIBERAL=false; MY_ORDRE_VAC=null;
+  try{ sessionStorage.removeItem(OV_CLE); }catch(e){}
   location.reload();
 }
 
@@ -1246,12 +1252,38 @@ function renderOrdreVac(){
   }).join('');
 }
 
+/* (13/08/2026) L'ordre de passage ne bouge pas d'une minute a l'autre : il est
+   garde pour la duree de la session, et prechargé en tache de fond des la
+   connexion. Ouvrir « Mes conges » n'attend donc plus d'aller-retour.
+   Le prechargement est DIFFERE : les appels d'un meme utilisateur sont
+   serialises par Apps Script, et le planning passe avant. */
+const OV_CLE = 'chpgOrdreVac';
+function _ovDuCache(){
+  try {
+    const brut = sessionStorage.getItem(OV_CLE);
+    if (!brut) return null;
+    const c = JSON.parse(brut);
+    return (c && c.id === MY_ID && c.rep) ? c.rep : null;
+  } catch (e) { return null; }
+}
 async function loadOrdreVac(){
-  if (!MY_ID) return;
+  if (!MY_ID || MY_ORDRE_VAC) return;
+  const cache = _ovDuCache();
+  if (cache) { MY_ORDRE_VAC = cache; renderOrdreVac(); return; }
   try {
     const r = await apiPost({ action:'getOrdreVacances', code: VIEW_CODE });
-    if (r && r.success) { MY_ORDRE_VAC = r; renderOrdreVac(); }
+    if (r && r.success) {
+      MY_ORDRE_VAC = r;
+      try { sessionStorage.setItem(OV_CLE, JSON.stringify({ id: MY_ID, rep: r })); } catch (e) {}
+      renderOrdreVac();
+    }
   } catch (e) { /* information de confort : un echec ne dit rien a l'ecran */ }
+}
+function prechargerOrdreVac(){
+  if (!MY_ID) return;
+  const cache = _ovDuCache();
+  if (cache) { MY_ORDRE_VAC = cache; return; }
+  setTimeout(function(){ loadOrdreVac(); }, 1500);
 }
 
 document.addEventListener('click', function(ev){
@@ -1276,7 +1308,7 @@ function openMesConges(){
   document.getElementById('mesCongesView').style.display='block';
   /* Chargement independant : le bandeau arrive quand il arrive, la liste des
      conges ne l'attend pas. */
-  if(MY_ORDRE_VAC===null){ loadOrdreVac(); } else { renderOrdreVac(); }
+  renderOrdreVac(); loadOrdreVac();   /* affiche ce qu'on a deja, complete si besoin */
   if(MY_CONGES===null){
     document.getElementById('mesCongesBody').innerHTML='<div class="topos-loading">Chargement…</div>';
     document.getElementById('mesCongesCount').textContent='';
@@ -1299,7 +1331,10 @@ function renderMesConges(){
   order.forEach(function(t){
     const n=MY_CONGES.counts[t]||0; if(!n) return;
     const c=CAT_META[t];
-    chips+='<span class="cg-count" style="background:'+c.bg+';color:'+c.fg+'"><span class="cg-n">'+n+'</span> '+c.label+' <span class="cg-u">j</span></span>';
+    /* « Vacances 67 j » — le nombre et son unite restent colles, le libelle passe
+       devant : « 67 Vacances j » se lisait comme une faute. */
+    chips+='<span class="cg-count" style="background:'+c.bg+';color:'+c.fg+'">'+c.label
+         +' <span class="cg-n">'+n+'</span><span class="cg-u"> j</span></span>';
   });
   chips+='</div>';
   let list='<div class="cg-list">';
