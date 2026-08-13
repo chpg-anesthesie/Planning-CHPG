@@ -1013,7 +1013,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.32.7'; // SITE_VERSION: v1.32.7
+const SITE_VERSION = 'v1.32.8'; // SITE_VERSION: v1.32.8
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1106,7 +1106,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.32.7</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.32.8</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -5360,13 +5360,24 @@ async function loadStats(year, force){
   if(cached){ renderStats(cached); document.getElementById('gardesLoading').style.display='none'; document.getElementById('gardesEmpty').style.display='none'; }
   else { document.getElementById('gardesLoading').style.display='flex'; document.getElementById('gardesEmpty').style.display='none'; }
   try{
-    /* (04/08/2026, lot B) Miroir pour la source « feuille » uniquement
-       (getStatsLive = calcul vivant, jamais mirore) + meme garde 90 s. */
+    /* (04/08/2026, lot B) Miroir + garde de 90 s : dans les 90 secondes suivant
+       une ecriture planning, la copie rapide peut retarder (~60 s) et un editeur
+       ne doit JAMAIS voir du perime — le circuit direct tranche.
+       (13/08/2026) L'INSTANTANE passe lui aussi par le miroir. Le commentaire
+       precedent disait « getStatsLive = calcul vivant, jamais mirore » : c'est
+       devenu faux ce soir. La cle equite_live_{annee} porte ce recalcul, republie
+       aux memes moments que les statistiques — donc dans la minute qui suit un
+       echange de gardes. La garde des 90 s vaut pour les DEUX sources, et le
+       bouton Actualiser (force) court-circuite tout.
+       Les deux sources lisent des cles DISTINCTES : stats_{annee} est la photo
+       figee a la generation, equite_live_{annee} le recompte sur la grille
+       reelle. Les confondre afficherait l'une sous le libelle de l'autre. */
+    const _cleMiroir = (src === 'live' ? 'equite_live_' : 'stats_') + year;
     let data = null;
-    if (src !== 'live' && Date.now() - _tsEcriturePlanning > 90000) {
+    if (!force && Date.now() - _tsEcriturePlanning > 90000) {
       try {
-        const _mi = await miroirRead(['stats_' + year], ADMIN_CODE);
-        if (_mi && _mi.success && _mi.data && _mi.data['stats_' + year] && _mi.data['stats_' + year].success) data = _mi.data['stats_' + year];
+        const _mi = await miroirRead([_cleMiroir], ADMIN_CODE);
+        if (_mi && _mi.success && _mi.data && _mi.data[_cleMiroir] && _mi.data[_cleMiroir].success) data = _mi.data[_cleMiroir];
       } catch (e) { /* repli GAS */ }
     }
     if (!data) data = await api({action: src==='live'?'getStatsLive':'getStats', year});

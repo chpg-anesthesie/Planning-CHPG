@@ -154,6 +154,31 @@ async function page(transport) {
     V('le message d\'échec et le bouton Réessayer existent', typeof w2._gardesReessayer === 'function');
   }
 
+  console.log('\n═══ 56. Équité admin : l\'instantané passe aussi par le miroir ═══');
+  {
+    /* (13/08/2026) Le commentaire du 04/08 disait « getStatsLive = calcul vivant,
+       jamais mirore ». La cle equite_live_{annee} l'a rendu faux le soir meme.
+       Ce qui doit rester vrai : les deux sources lisent des cles DISTINCTES, la
+       garde des 90 s apres une ecriture vaut pour LES DEUX, et Actualiser
+       court-circuite la copie. */
+    const c = fs.readFileSync('../admin.html', 'utf8');
+    const fn = (c.match(/async function loadStats\(year, force\)[\s\S]*?\n\}/) || [''])[0];
+    V('loadStats a bien été retrouvée', fn.length > 0);
+    V('la clé dépend de la source affichée',
+      /_cleMiroir = \(src === 'live' \? 'equite_live_' : 'stats_'\) \+ year/.test(fn), fn.slice(0, 80));
+    V('la garde des 90 s après écriture couvre les DEUX sources',
+      /if \(!force && Date\.now\(\) - _tsEcriturePlanning > 90000\)/.test(fn) &&
+      !/src !== 'live' && Date\.now\(\)/.test(fn));
+    V('Actualiser court-circuite la copie rapide', /!force &&/.test(fn));
+    V('l\'appel direct reste le repli, avec la bonne action',
+      /api\(\{action: src==='live'\?'getStatsLive':'getStats', year\}\)/.test(fn));
+    /* Le commentaire du 04/08 n'est pas efface : il est CITE et corrige, pour que
+       la lecture du code raconte ce qui a change et pourquoi. On verifie donc
+       qu'il n'est plus affirme, pas qu'il a disparu. */
+    V('l\'ancien commentaire n\'est plus affirmé mais cité comme dépassé',
+      /disait « getStatsLive = calcul vivant, jamais mirore » : c'est/.test(c));
+  }
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   process.exit(ko ? 1 : 0);
 })();
