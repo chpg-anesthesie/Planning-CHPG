@@ -1225,7 +1225,28 @@ let SECTORS_DEF = [
   { code:'CS',  label:'Consultation',               icon:'Stethoscope' },
 ];
 
-const ABSENT_STATUSES = new Set(['RG','CP','A','F','R']);
+/* ══ CODES D'ABSENCE — UNE SEULE LISTE POUR TOUTE LA PAGE ════════════════
+   (13/08/2026) Il y en avait CINQ, recopiees a la main, et elles avaient
+   diverge : la grille des secteurs en connaissait 5, le panneau des absents 4,
+   les compteurs de presents 5. Aucune ne connaissait V, TP ni CL.
+
+   Ce que le classeur dit (releve du 13/08/2026) :
+     GARDES_2026 → A 855 · TP 131 · CL 126 · V 1
+     GARDES_2027 → V 1013 · TP 224 · CL 56 · A 0
+   Le vocabulaire a CHANGE entre les deux annees : 2026 note les vacances « A »,
+   2027 les note « V ». La page ignorait donc, sur toute l'annee 2027, 1013 cases
+   de vacances, 224 de temps partiel et 56 de conge long — et ses compteurs de
+   presents comptaient ces MAR comme presents.
+   Les deux vocabulaires sont gardes : 2026 reste consultable.
+
+   CTP n'apparait dans aucune des deux annees ; il est retenu par precaution,
+   pour qu'un code ressuscite ne cree pas un trou silencieux.
+
+   ABSENT_STATUSES  : retire des grilles de secteur et des compteurs de presents.
+   ABSENT_PANNEAU   : affiche dans « Absents ». RG en est exclu — les sorties de
+                      garde ont leur propre ligne, juste au-dessus. */
+const ABSENT_PANNEAU  = ['A','V','F','R','CP','TP','CTP','CL'];
+const ABSENT_STATUSES = new Set(['RG'].concat(ABSENT_PANNEAU));
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
@@ -2015,7 +2036,7 @@ function renderBottom(month,daySlots,week){
       if(st==='G'||st==='G2') guards[dow].push(doc.initials);
       if(st==='18') h18[dow]=doc.initials;
       if(st==='RG') sorties[dow].push(doc.initials);
-      if(['A','CP','F','R'].includes(st)) absents[dow].push({init:doc.initials,reason:st});
+      if(ABSENT_PANNEAU.includes(st)) absents[dow].push({init:doc.initials,reason:st});
     });
   });
 
@@ -2160,7 +2181,7 @@ function renderMedecins(){
       if(counts[st]!==undefined) counts[st]++;
       const isWe=isWeekend(day.weekday);
       if(isWe){if(st==='G')counts.presents++;}
-      else{if(!['RG','A','CP','F','R'].includes(st))counts.presents++;}
+      else{if(!ABSENT_STATUSES.has(st))counts.presents++;}
       (entry.morning||'').split('+').forEach(raw=>{const s=raw.trim();if(s&&!s.startsWith('CS-'))sectorCounts[s]=(sectorCounts[s]||0)+1;});
     });
     // Secteur depuis affectations JSON (source de vérité), fallback mode statistique
@@ -2271,7 +2292,7 @@ function renderDocPanel(){
     if(counts[st]!==undefined) counts[st]++;
     const isWe=isWeekend(day.weekday);
     if(isWe){if(st==='G')counts.presents++;}
-    else{if(!['RG','A','CP','F','R'].includes(st))counts.presents++;}
+    else{if(!ABSENT_STATUSES.has(st))counts.presents++;}
   });
   const absTotal=counts.A+counts.CP+counts.F;
 
@@ -2285,7 +2306,7 @@ function renderDocPanel(){
       if(st==='G'||st==='G2') annualG++;
       const isWe=isWeekend(day.weekday);
       if(isWe){if(st==='G')annualPresents++;}
-      else{if(!['RG','A','CP','F','R'].includes(st))annualPresents++;}
+      else{if(!ABSENT_STATUSES.has(st))annualPresents++;}
     });
   });
 
@@ -2359,7 +2380,7 @@ function renderDocPanel(){
       if(mc[st2]!==undefined) mc[st2]++;
       const isWe2=isWeekend(day.weekday);
       if(isWe2){if(st2==='G')mc.presents++;}
-      else{if(!['RG','A','CP','F','R'].includes(st2))mc.presents++;}
+      else{if(!ABSENT_STATUSES.has(st2))mc.presents++;}
     });
     const abs2=mc.A+mc.CP+mc.F;
     const isCurrentPanel=mi===docPanelMonthIdx;
@@ -2876,7 +2897,7 @@ function renderMobileDay() {
     if (st==='G'||st==='G2') guards.push(doc.initials);
     if (st==='18') h18arr.push(doc.initials);
     if (st==='RG') rg.push(doc.initials);
-    if (['A','CP','F','R'].includes(st)) absents.push(doc.initials);
+    if (ABSENT_PANNEAU.includes(st)) absents.push(doc.initials);
     if (ABSENT_STATUSES.has(st)) return;
     // multi-secteur "VIS+REA" → le MAR apparaît dans chaque secteur
     [['am',entry.morning],['pm',entry.afternoon]].forEach(([half,val])=>{

@@ -376,6 +376,37 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
   }
 
+  console.log('\n═══ 28n. index.html · les codes d\'absence, une seule liste ═══');
+  {
+    /* (13/08/2026) DEFAUT VU EN PRODUCTION : un MAR mis en « V » pour le lendemain
+       apparaissait dans les absents cote comite, pas cote MAR.
+       Il y avait CINQ listes recopiees a la main, divergentes, et aucune ne
+       connaissait V, TP ni CL. Releve du classeur le meme jour :
+         GARDES_2026 → A 855 · TP 131 · CL 126 · V 1
+         GARDES_2027 → V 1013 · TP 224 · CL 56 · A 0
+       Le vocabulaire a change entre les annees : la page ignorait donc, sur toute
+       l'annee 2027, 1013 cases de vacances — et comptait ces MAR comme presents. */
+    const c = fs.readFileSync('../index.html', 'utf8');
+    const pan = (c.match(/const ABSENT_PANNEAU\s*=\s*\[([^\]]*)\]/) || [null,''])[1];
+    const codes = pan.split(',').map(x => x.trim().replace(/'/g, '')).filter(Boolean);
+    ['A','V','F','R','CP','TP','CL'].forEach(k => {
+      V('« ' + k + ' » compte comme une absence', codes.indexOf(k) > -1, codes);
+    });
+    V('les deux vocabulaires cohabitent (A pour 2026, V pour 2027)',
+      codes.indexOf('A') > -1 && codes.indexOf('V') > -1);
+    V('RG n\'est PAS dans le panneau : les sorties de garde ont leur ligne',
+      codes.indexOf('RG') === -1);
+    V('mais RG retire bien des grilles et des compteurs',
+      /const ABSENT_STATUSES = new Set\(\['RG'\]\.concat\(ABSENT_PANNEAU\)\)/.test(c));
+    V('plus aucune liste recopiée à la main',
+      !/\['RG','A','CP','F','R'\]/.test(c) && !/\['A','CP','F','R'\]/.test(c));
+    V('les quatre compteurs de présents emploient la liste commune',
+      (c.match(/!ABSENT_STATUSES\.has\(st2?\)/g) || []).length === 4,
+      (c.match(/!ABSENT_STATUSES\.has\(st2?\)/g) || []).length);
+    V('le panneau hebdomadaire et la vue mobile du jour aussi',
+      (c.match(/ABSENT_PANNEAU\.includes\(st\)/g) || []).length === 2);
+  }
+
   console.log('\n═══ 28m. index.html · l\'instantané d\'équité passe par la copie rapide ═══');
   {
     /* (13/08/2026) computeStatsLive recompte les gardes reellement faites sur
