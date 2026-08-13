@@ -1030,7 +1030,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 <script src="partage/dispo_jour.js"></script>   <!-- (etage 2) coeur partage du tri des disponibles — source unique avec le serveur -->
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.33'; // SITE_VERSION: v1.33
+const SITE_VERSION = 'v1.33.1'; // SITE_VERSION: v1.33.1
 // Masquer l'overlay immédiatement si un code est en sessionStorage
 if (sessionStorage.getItem('adminCode')) {
   document.addEventListener('DOMContentLoaded', () => {
@@ -1123,7 +1123,7 @@ if (sessionStorage.getItem('adminCode')) {
     </div>
   </div>
   <div class="header-right">
-    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.33</span></span>
+    <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.33.1</span></span>
     <button class="header-btn" id="btnMail" onclick="ouvrirMail()" title="Messages reçus sur planningchpg@gmail.com" style="position:relative;cursor:pointer;font:inherit">
       <span class="hb-ico">✉</span> Messages
       <span id="mailDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center"></span>
@@ -1357,7 +1357,7 @@ if (sessionStorage.getItem('adminCode')) {
         <div class="section-title">Gestion des vacances</div>
         <div class="section-sub">Périodes, seuils et groupes de priorité A/B/C</div>
       </div>
-      <button class="btn-secondary" onclick="loadVacances()">↻ Actualiser</button>
+      <button class="btn-secondary" onclick="loadVacances(true)">↻ Actualiser</button>
     </div>
 
     <div id="vacLoading" class="loading"><div class="spinner"></div> Chargement...</div>
@@ -5949,11 +5949,33 @@ function toggleTension() {
 }
 
 // ── VACANCES ──────────────────────────────────────────────────────────
-async function loadVacances() {
+/* (13/08/2026) Periodes et groupes par la copie rapide.
+   La cle vacances_admin etait deposee et autorisee au comite depuis le 04/08,
+   mais AUCUN ecran ne la lisait : l'onglet Equipe appelait Google a chaque
+   ouverture. J'ai compare les deux producteurs ligne a ligne — le constructeur
+   du miroir et l'action getVacancesConfig lisent les MEMES colonnes de
+   PERIODES_VAC et GROUPES_VAC et produisent la meme forme
+   ({periodes:[{nom,debut,fin,seuil}], groupes:{A:[{id}],B,C}}), qui est
+   exactement ce que renderPeriodes() et renderGroupes() consomment.
+   Une seule difference, sans effet ici : l'action accepte un parametre `year`
+   qui filtre les periodes — utilise par l'ASSISTANT, jamais par cet ecran.
+   GARDE DE 90 s : cet ecran ECRIT (periodes, groupes). Apres un enregistrement,
+   la copie peut retarder d'une minute et afficherait la version d'avant — on
+   passe alors par le circuit direct. Le bouton Actualiser force de meme. */
+let _tsEcritureVacances = 0;
+async function loadVacances(force) {
   document.getElementById('vacLoading').style.display = 'flex';
   document.getElementById('vacContent').style.display = 'none';
   try {
-    const data = await api({action: 'getVacancesConfig'});
+    let data = null;
+    if (!force && Date.now() - _tsEcritureVacances > 90000) {
+      try {
+        const _mv = await miroirRead(['vacances_admin'], ADMIN_CODE);
+        const _b = _mv && _mv.success && _mv.data && _mv.data['vacances_admin'];
+        if (_b && _b.success && Array.isArray(_b.periodes)) data = _b;
+      } catch (e) { /* repli GAS */ }
+    }
+    if (!data) data = await api({action: 'getVacancesConfig'});
     if (!data.success) throw new Error(data.error);
     periodesData = data.periodes || [];
     groupesData = data.groupes || {A:[], B:[], C:[]};
@@ -8792,6 +8814,7 @@ function removePeriode(i) {
 
 async function savePeriodes() {
   try {
+    _tsEcritureVacances = Date.now();   // (13/08/2026) la copie retarde : on l'ignore 90 s
     const data = await api({action: 'savePeriodes', periodes: periodesData});
     if (!data.success) throw new Error(data.error);
     toast('✅ Périodes enregistrées', 'success');
@@ -8857,6 +8880,7 @@ function moveToGroup(marId, fromGrp, direction) {
 
 async function saveGroupes() {
   try {
+    _tsEcritureVacances = Date.now();   // (13/08/2026) idem
     const data = await api({action: 'saveGroupes', groupes: groupesData});
     if (!data.success) throw new Error(data.error);
     toast('✅ Groupes enregistrés', 'success');

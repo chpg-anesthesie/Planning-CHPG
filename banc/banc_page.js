@@ -200,7 +200,7 @@ async function page(transport) {
       !/name==='equite'[\s\S]{0,200}getVacValidation/.test(c),
       (c.match(/action:\s*'getVacValidation'/g) || []).length);
     V('#vacContent n\'est plus manipule que par l\'onglet Equipe',
-      (() => { const f = (c.match(/async function loadVacances\(\)[\s\S]*?\n\}/) || [''])[0];
+      (() => { const f = (c.match(/async function loadVacances\(force\)[\s\S]*?\n\}/) || [''])[0];
                return (c.match(/getElementById\('vacContent'\)/g) || []).length ===
                       (f.match(/getElementById\('vacContent'\)/g) || []).length; })(),
       (c.match(/getElementById\('vacContent'\)/g) || []).length);
@@ -242,6 +242,38 @@ async function page(transport) {
       /catch\(e\)\{ \/\* information de confort/.test(fn));
     V('la pastille est mise à jour quand la liste des MAR arrive',
       /marsData = medData\.medecins;[\s\S]{0,200}majIndChip\(\)/.test(c));
+  }
+
+  console.log('\n═══ 59. Onglet Équipe : périodes et groupes par le miroir ═══');
+  {
+    /* (13/08/2026) La cle vacances_admin etait deposee et autorisee au comite
+       depuis le 04/08, mais aucun ecran ne la lisait. Producteur et consommateur
+       ont ete compares : memes colonnes, meme forme. */
+    const c = fs.readFileSync('../admin.html', 'utf8');
+    const miroir = fs.readFileSync('../gas/miroir.gs', 'utf8');
+    const fn = (c.match(/async function loadVacances\(force\)[\s\S]*?\n\}/) || [''])[0];
+    V('loadVacances a bien été retrouvée', fn.length > 0);
+    V('la copie rapide est lue avant Google',
+      fn.indexOf("miroirRead(['vacances_admin']") > -1 &&
+      fn.indexOf("miroirRead(['vacances_admin']") < fn.indexOf("api({action: 'getVacancesConfig'}"));
+    V('l\'appel direct reste le repli', /api\(\{action: 'getVacancesConfig'\}\)/.test(fn));
+    V('la garde de 90 s après une écriture est là',
+      /Date\.now\(\) - _tsEcritureVacances > 90000/.test(fn));
+    V('enregistrer des périodes horodate cette garde',
+      /_tsEcritureVacances = Date\.now\(\);[\s\S]{0,120}action: 'savePeriodes'/.test(c));
+    V('enregistrer des groupes aussi',
+      /_tsEcritureVacances = Date\.now\(\);[\s\S]{0,120}action: 'saveGroupes'/.test(c));
+    V('le bouton Actualiser court-circuite la copie',
+      /onclick="loadVacances\(true\)"/.test(c));
+    /* Le contrat de forme, des deux cotes : si l'un des deux change, l'ecran
+       afficherait du vide sans rien dire. */
+    V('le miroir produit bien periodes[] et groupes{A,B,C}',
+      /return \{ success: true, periodes: periodes, groupes: groupes \};/.test(miroir));
+    V('l\'écran consomme exactement ces deux champs',
+      /periodesData = data\.periodes \|\| \[\]/.test(fn) &&
+      /groupesData = data\.groupes \|\| \{A:\[\], B:\[\], C:\[\]\}/.test(fn));
+    V('la copie n\'est acceptée que si elle porte bien un tableau de périodes',
+      /Array\.isArray\(_b\.periodes\)/.test(fn));
   }
 
   console.log(`\n${ok} OK · ${ko} en échec`);
