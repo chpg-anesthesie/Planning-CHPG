@@ -472,7 +472,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.34</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.34.1</span></span></p>
     <!-- (12/08/2026, v1.31.4) Notifications push — phase 1 : visible rôle admin SEUL.
          Le serveur refuse de toute façon les autres rôles : ceci n'est que l'habillage. -->
     <div id="notifCard" class="mg-hero" style="display:none" onclick="activerNotifications()">
@@ -606,7 +606,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.34'; // SITE_VERSION: v1.34
+const SITE_VERSION = 'v1.34.1'; // SITE_VERSION: v1.34.1
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
@@ -822,13 +822,13 @@ async function _apiPostDirect(payload) {
 // ── BADGE UTILISATEUR + DÉCONNEXION ──
 function applyUserBadge(r){
   MY_ROLE = r.role;
-  /* (12/08/2026) Carte notifications : admin seul, et seulement si le
-     navigateur sait faire (iOS : uniquement depuis l'app installée). */
+  /* (12/08/2026) Carte notifications : seulement si le navigateur sait faire
+     (iOS : uniquement depuis l'app installée) et si la permission n'est pas
+     déjà donnée. (14/08) Qui la voit suit l'INTERRUPTEUR des échanges :
+     admin toujours, pilotes pendant le test, les 23 à l'ouverture — le
+     serveur decide (il refuse l'abonnement aux autres de toute façon). */
   try {
-    if (r.role === 'admin' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
-      const nc = document.getElementById('notifCard');
-      if (nc && Notification.permission !== 'granted') nc.style.display = '';
-    }
+    if (r.role === 'admin') _notifCarteSiPossible();
   } catch(e) {}
   MY_ID = (r.role==='mar') ? r.id : null;
   // État de la campagne de saisie (pilote la tuile « Mes indisponibilités »).
@@ -1527,6 +1527,15 @@ let ECH_AUTORISE = false;    // la clé m'a été servie au moins une fois
    est vu. Sans effet sur les navigateurs qui ne savent pas faire. */
 try { if (navigator.clearAppBadge) navigator.clearAppBadge().catch(function(){}); } catch(e) {}
 
+function _notifCarteSiPossible(){
+  try {
+    if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
+      const nc = document.getElementById('notifCard');
+      if (nc && Notification.permission !== 'granted') nc.style.display = '';
+    }
+  } catch(e) {}
+}
+
 function _echDepuisMiroir(env){
   /* Enveloppe {success:true, echanges:[…]} reçue dans l'appel d'ouverture.
      Absente ou refusée : la carte reste invisible, aucun appel de rattrapage
@@ -1535,6 +1544,7 @@ function _echDepuisMiroir(env){
   ECH_AUTORISE = true;
   ECH_LISTE = env.echanges || [];
   majEchangesHero();
+  _notifCarteSiPossible();   // autorisé aux échanges = la carte notifications se montre aussi
 }
 
 async function chargerEchanges(force){
@@ -1544,6 +1554,7 @@ async function chargerEchanges(force){
     ECH_AUTORISE = true;
     ECH_LISTE = m.data.echanges.echanges || [];
     majEchangesHero();
+    _notifCarteSiPossible();
     return ECH_LISTE;
   }
   /* Clé refusée (échanges pas encore ouverts pour moi) ou miroir en panne :

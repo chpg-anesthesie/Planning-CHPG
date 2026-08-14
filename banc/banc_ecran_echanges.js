@@ -65,6 +65,11 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
            → miroirBootDash) part pendant le chargement de la page. */
         win.fetch = fauxFetch;
         if (!win.navigator.sendBeacon) win.navigator.sendBeacon = () => true;
+        /* Un navigateur « capable » de notifications : la carte ne dépend
+           alors QUE de l'interrupteur côté serveur. */
+        Object.defineProperty(win.navigator, 'serviceWorker', { value: { register: async () => ({}) } });
+        win.PushManager = function () {};
+        win.Notification = { permission: 'default' };
         try { win.sessionStorage.setItem('chpgViewCode', CODE); } catch(e) {}
       } });
     const w = dom.window;
@@ -86,6 +91,8 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('la page se charge sans erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
     const hero = w.document.getElementById('echangesHero');
     V('la carte « Mes échanges » est INVISIBLE', hero && hero.style.display === 'none');
+    V('la carte « Activer les notifications » aussi (même interrupteur)',
+      w.document.getElementById('notifCard').style.display === 'none');
     V('la clé a bien été demandée dans l\'appel d\'ouverture (et refusée)',
       appelsMiroir.some(k => Array.isArray(k) && k.indexOf('echanges') > -1), appelsMiroir);
     V('AUCUNE requête miroir dédiée aux échanges (elle voyage avec le reste)',
@@ -109,6 +116,8 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('la page se charge sans erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
     const hero = w.document.getElementById('echangesHero');
     V('la carte est VISIBLE pour le pilote', hero && hero.style.display !== 'none');
+    V('la carte « Activer les notifications » se montre au pilote (correctif v1.34.1)',
+      w.document.getElementById('notifCard').style.display !== 'none');
     V('le compteur annonce la demande en attente', /1 demande attend/.test(w.document.getElementById('echHeroMain').textContent));
 
     w.location.hash = '#echanges';
