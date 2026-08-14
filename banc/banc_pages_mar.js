@@ -376,6 +376,49 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
   }
 
+  console.log('\n═══ 28o. index.html · vue Année : le nom du mois est écrit en toutes lettres ═══');
+  {
+    /* (14/08/2026) DEFAUT VU EN PRODUCTION : la bande du haut de la vue Année
+       affichait « Aoû » alors que la colonne fait tout le mois — largement la
+       place. Un mois de bord de fenêtre (janvier 2027 : 3 jours) reste abrégé,
+       sinon son titre élargirait ses trois colonnes. */
+    const contenu = fs.readFileSync('../index.html', 'utf8');
+    const vc = new VirtualConsole(); const erreurs = [];
+    vc.on('jsdomError', e => erreurs.push(e.message));
+    const dom = new JSDOM(contenu, { runScripts:'dangerously', virtualConsole:vc,
+      url:'https://chpg-anesthesie.github.io/Planning-CHPG/index.html', pretendToBeVisual:true,
+      beforeParse(win) {
+        win.matchMedia = () => ({ matches:false, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
+        win.Element.prototype.scrollIntoView = function () {};
+        win.HTMLElement.prototype.scrollIntoView = function () {};
+        win.scrollTo = () => {};
+      } });
+    const w = dom.window, D = w.document;
+    if (!w.navigator.sendBeacon) w.navigator.sendBeacon = () => true;
+    w.fetch = async () => ({ ok:true, json: async () => ({ success:false }) });
+    await dodo(400);
+
+    const mois = (an, m, nb) => ({
+      year: an, month: m,
+      days: Array.from({ length: nb }, (_, k) => ({
+        date: an + '-' + String(m).padStart(2,'0') + '-' + String(k+1).padStart(2,'0'),
+        day: k+1, isWeekend:false, isFerie:false })),
+      doctors: [{ id:'AFR', initials:'AFR', days: Array.from({ length: nb }, () => ({ status:'' })) }]
+    });
+    /* Aout complet, puis les 3 jours de janvier 2027 qui ferment l'annee de planning. */
+    w.eval('DATA = ' + JSON.stringify({ months: [mois(2026,8,31), mois(2027,1,3)] }) + '; renderAnnee();');
+    await dodo(20);
+
+    const bande = [...D.querySelectorAll('.ann-month')].map(t => t.textContent);
+    V('un mois complet est ecrit en entier', bande[0] === 'Août', bande);
+    V('plus aucune abreviation a trois lettres sur un mois complet',
+      !/^(Jan|Fév|Mar|Avr|Jun|Jul|Aoû|Sep|Oct|Nov|Déc)$/.test(bande[0] || ''), bande);
+    V('un mois de bord (3 jours) reste abrege avec son annee', bande[1] === 'Jan 2027', bande);
+    V('la bande couvre bien tous les jours dessines',
+      [...D.querySelectorAll('.ann-month')].reduce((s2,t) => s2 + Number(t.getAttribute('colspan')), 0) === 34);
+    V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
+  }
+
   console.log('\n═══ 28n. index.html · les codes d\'absence, une seule liste ═══');
   {
     /* (13/08/2026) DEFAUT VU EN PRODUCTION : un MAR mis en « V » pour le lendemain

@@ -1700,6 +1700,7 @@ function renderAnnee(){
   const _now=new Date();
   const todayStr=_now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0')+'-'+String(_now.getDate()).padStart(2,'0');
   const MOIS=['','Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  const MOIS_LONG=['','Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
   const allDays=[]; DATA.months.forEach(m=>m.days.forEach((d,i)=>allDays.push({d,m,i})));
   const order=[], init={};
   DATA.months.forEach(m=>m.doctors.forEach(dc=>{ if(!(dc.id in init)){ init[dc.id]=dc.initials||dc.id; order.push(dc.id); } }));
@@ -1709,7 +1710,8 @@ function renderAnnee(){
   while(i<allDays.length){
     const refY=allDays[i].m.year, refM=allDays[i].m.month; let span=0;
     while(i+span<allDays.length && allDays[i+span].m.year===refY && allDays[i+span].m.month===refM) span++;
-    band+=`<th class="ann-month" colspan="${span}">${MOIS[refM]}${refY!==baseYear?' '+refY:''}</th>`; i+=span;
+    const libM=span>=6?MOIS_LONG[refM]:MOIS[refM];
+    band+=`<th class="ann-month" colspan="${span}">${libM}${refY!==baseYear?' '+refY:''}</th>`; i+=span;
   }
   band+='</tr>';
   allDays.forEach(x=>{ const we=x.d.isWeekend||x.d.isFerie; const td=x.d.date===todayStr?' today':''; drow+=`<th class="ann-day${we?' we':''}${td}">${x.d.day}</th>`; });
