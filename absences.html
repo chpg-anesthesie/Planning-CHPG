@@ -22,14 +22,17 @@ svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;
     stroke-linecap:round;stroke-linejoin:round}
 
 .header{background:var(--white);border-bottom:1px solid var(--line);padding:0 26px;
-        display:flex;align-items:center;justify-content:space-between;height:58px;
+        display:flex;align-items:center;justify-content:space-between;min-height:58px;
         position:sticky;top:0;z-index:300}
-.header-brand{display:flex;align-items:center;gap:13px}
+.header-brand{display:flex;align-items:center;gap:13px;min-width:0}
+.header-brand>div:last-child{min-width:0}
 .header-flag{display:flex;flex-direction:column;width:26px;height:26px;border-radius:6px;
              overflow:hidden;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.15)}
-.header-title{font-size:14.5px;font-weight:700;letter-spacing:-.02em}
-.header-sub{font-size:11px;color:var(--ink-4);margin-top:1px}
-.header-right{display:flex;align-items:center;gap:9px}
+.header-title{font-size:14.5px;font-weight:700;letter-spacing:-.02em;
+             white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-sub{font-size:11px;color:var(--ink-4);margin-top:1px;
+           white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-right{display:flex;align-items:center;gap:9px;flex-shrink:0}
 .hbtn{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12px;font-weight:700;
       color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:999px;
       padding:5px 12px;text-decoration:none;cursor:pointer}
@@ -123,6 +126,18 @@ table.grid td.pick{outline:2px solid var(--rose);outline-offset:1px}
 .loading{padding:50px 20px;text-align:center;color:var(--ink-3);font-size:13.5px}
 @media(max-width:900px){.cols{grid-template-columns:1fr}.wrap{padding:22px 15px 40px}
   .header{padding:0 15px}.scroller{max-height:40vh}}
+/* ── Bandeau du haut : ne peut plus deborder, quelle que soit la largeur ──
+   (14/08/2026) Sur iPhone, le titre et le sous-titre s'enroulaient sur
+   plusieurs lignes ; la hauteur du bandeau etant figee, le debordement
+   partait AU-DESSUS du bord de l'ecran et le titre etait coupe.
+   Meme regle que index.html / dashboard.html. */
+@media(max-width:640px){
+  .header{min-height:52px;padding:0 12px;gap:8px}
+  .header-sub{display:none}
+  .header-right{gap:6px}
+  .me-pill{padding:4px 9px;font-size:11.5px}
+  .hbtn{padding:4px 10px;font-size:11.5px}
+}
 </style>
 </head>
 <body>

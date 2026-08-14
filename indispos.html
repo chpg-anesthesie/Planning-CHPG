@@ -43,7 +43,7 @@ body {
 .header {
   background:var(--red);
   padding:0 20px;
-  height:56px;
+  min-height:56px;
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -51,15 +51,17 @@ body {
   top:0;
   z-index:100;
 }
-.header-brand { display:flex; align-items:center; gap:10px; }
+.header-brand { display:flex; align-items:center; gap:10px; min-width:0; }
 .header-flag {
   width:24px; height:24px; border-radius:5px;
   overflow:hidden; display:flex; flex-direction:column;
 }
-.header-title { color:white; font-size:15px; font-weight:700; }
+.header-title { color:white; font-size:15px; font-weight:700;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .header-user {
   color:rgba(255,255,255,.8);
   font-size:13px; font-weight:600;
+  white-space:nowrap; flex-shrink:0;
 }
 
 /* ── LOGIN ── */

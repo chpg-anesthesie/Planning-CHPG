@@ -210,5 +210,58 @@ console.log('\n═══ Présentation du staff : couverture et CSS ═══');
   }
 }
 
+console.log('\n═══ 9. Le bandeau du haut ne peut pas deborder de sa hauteur ═══');
+{
+  /* (14/08/2026) DEFAUT VU EN PRODUCTION sur iPhone (absences.html) : le titre
+     « Portail CHPG Monaco » et son sous-titre s'enroulaient sur trois lignes ;
+     la hauteur du bandeau etant figee par `height`, le debordement partait
+     AU-DESSUS du bord de l'ecran et le titre etait coupe.
+     Trois regles evitent ce cas, et il en faut les trois :
+       1. le titre tient sur une ligne, coupee par « … » si besoin ;
+       2. la zone du titre accepte de retrecir (min-width:0) — sans quoi
+          l'ellipsis ne se declenche jamais dans un conteneur flex ;
+       3. la hauteur est un minimum, pas une valeur figee.
+     jsdom ne calcule aucune largeur : ce test prouve la REGLE, pas le rendu. */
+  const BANDEAUX = ['absences.html', 'suivi-liberal.html', 'indispos.html',
+                    'staff.html', 'index.html', 'dashboard.html'];
+  const bloc = (css, sel) => {
+    const i = css.indexOf(sel + '{') > -1 ? css.indexOf(sel + '{') : css.indexOf(sel + ' {');
+    if (i < 0) return '';
+    return css.slice(i, css.indexOf('}', i));
+  };
+  BANDEAUX.forEach(f => {
+    const css = lire(f).replace(/\s*\n\s*/g, ' ');
+    const h = bloc(css, '.header');
+    V(`${f} · la hauteur du bandeau est un minimum, pas une valeur figee`,
+      /min-height:\s*\d/.test(h) && !/[^-]height:\s*\d+px/.test(h), h.slice(0, 160));
+    const t = bloc(css, '.header-title');
+    V(`${f} · le titre tient sur une ligne et se coupe par « … »`,
+      /white-space:\s*nowrap/.test(t) && /text-overflow:\s*ellipsis/.test(t), t.slice(0, 160));
+    V(`${f} · la zone du titre accepte de retrecir`,
+      /min-width:\s*0/.test(bloc(css, '.header-brand')) ||
+      /min-width:\s*0/.test(bloc(css, '.header-left')), f);
+  });
+  /* Les boutons de droite ne doivent jamais ecraser le titre a leur place. */
+  ['absences.html', 'suivi-liberal.html', 'staff.html'].forEach(f => {
+    const css = lire(f).replace(/\s*\n\s*/g, ' ');
+    V(`${f} · les boutons de droite ne s'ecrasent pas`,
+      /flex-shrink:\s*0/.test(bloc(css, '.header-right')), f);
+  });
+  /* Sur telephone, le sous-titre s'efface plutot que de forcer une 2e ligne. */
+  ['absences.html', 'suivi-liberal.html'].forEach(f => {
+    V(`${f} · sous 640px le sous-titre s'efface`,
+      /@media\(max-width:640px\)[\s\S]{0,400}\.header-sub\{display:none\}/.test(lire(f)), f);
+  });
+  /* La page libérale porte TROIS boutons a droite : son retour raccourcit. */
+  {
+    const c = lire('suivi-liberal.html');
+    V('suivi-liberal · le retour a un libelle long et un libelle court',
+      /class="lbl-long">Retour au portail</.test(c) && /class="lbl-court">Portail</.test(c));
+    V('suivi-liberal · un seul des deux s\'affiche a la fois',
+      /\.lbl-court\{display:none\}/.test(c.replace(/\s*\n\s*/g, ' ')) &&
+      /\.lbl-long\{display:none\}/.test(c.replace(/\s*\n\s*/g, ' ')));
+  }
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);

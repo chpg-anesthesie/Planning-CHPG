@@ -89,7 +89,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 60px;
+  min-height: 60px;
   position: sticky;
   top: 0;
   z-index: 300;
@@ -534,7 +534,7 @@ body{font-variant-numeric:tabular-nums}
   /* Header compact */
   /* Le nom du service revient sur mobile : les selecteurs annee/mois ayant quitte
      le bandeau, la place existe. Le contenu est centre plutot que colle aux bords. */
-  .header { padding: 0 10px; height: 52px; flex-wrap: nowrap; gap: 6px; justify-content: center; }
+  .header { padding: 0 10px; min-height: 52px; flex-wrap: nowrap; gap: 6px; justify-content: center; }
   .header-brand { flex-shrink: 1; min-width: 0; }
   .header-right { gap: 6px; flex-shrink: 0; margin-left: 14px; }
   .me-pill { padding: 4px 9px; font-size: 11.5px; flex-shrink: 0; white-space: nowrap; }

@@ -25,12 +25,12 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .auth-btn{width:100%;background:var(--red);color:white;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s;}
 .auth-btn:hover{opacity:.88;}
 .auth-err{font-size:12px;color:var(--red);margin-top:8px;display:none;}
-.header{background:var(--red);height:58px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
-.header-left{display:flex;align-items:center;gap:12px;}
+.header{background:var(--red);min-height:58px;padding:0 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.header-left{display:flex;align-items:center;gap:12px;min-width:0;}
 .header-flag{width:28px;height:28px;border-radius:6px;overflow:hidden;display:flex;flex-direction:column;}
-.header-title{color:white;font-size:16px;font-weight:700;}
+.header-title{color:white;font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .header-pill{background:rgba(255,255,255,.2);border-radius:20px;padding:3px 12px;font-size:11px;color:rgba(255,255,255,.9);font-weight:600;}
-.header-right{display:flex;align-items:center;gap:10px;}
+.header-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
 .btn-ghost{background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background .15s;}
 .btn-ghost:hover{background:rgba(255,255,255,.25);}
 .btn-validate{background:white;color:var(--red);border:none;border-radius:8px;padding:7px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;}

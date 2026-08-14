@@ -72,7 +72,7 @@ body {
   border-bottom: 1px solid var(--line);
   padding: 0 32px;
   display: flex; align-items: center; justify-content: space-between;
-  height: 60px; position: sticky; top: 0; z-index: 300;
+  min-height: 60px; position: sticky; top: 0; z-index: 300;
 }
 .header-brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .header-brand > div:last-child { min-width: 0; overflow: hidden; }
@@ -425,7 +425,7 @@ a.tile:hover, .tile.clickable:hover {
 #apiBar.on{width:80%;opacity:1}
 
 @media(max-width:640px){
-  .header { padding: 0 14px; height: 52px; }
+  .header { padding: 0 14px; min-height: 52px; }
   .header-right { flex-shrink: 0; }
   .wrap { padding: 28px 16px 48px; }
   .hello { font-size: 21px; }
@@ -472,7 +472,7 @@ a.tile:hover, .tile.clickable:hover {
 <div class="wrap" id="portal" style="display:none">
   <div id="tilesView">
     <h1 class="hello" id="hello">Bienvenue</h1>
-    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.34.3</span></span></p>
+    <p class="hello-sub">Choisissez une rubrique du service. <span class="ver-badge"><span class="ver-dot"></span><span id="verBadge">v1.34.4</span></span></p>
     <!-- (12/08/2026, v1.31.4) Notifications push — phase 1 : visible rôle admin SEUL.
          Le serveur refuse de toute façon les autres rôles : ceci n'est que l'habillage. -->
     <div id="notifCard" class="mg-hero" style="display:none" onclick="activerNotifications()">
@@ -606,7 +606,7 @@ a.tile:hover, .tile.clickable:hover {
 
 <script>
 // Version du site (source unique — tenue à la main, alignée sur les guides).
-const SITE_VERSION = 'v1.34.3'; // SITE_VERSION: v1.34.3
+const SITE_VERSION = 'v1.34.4'; // SITE_VERSION: v1.34.4
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
 let VIEW_CODE = '';
