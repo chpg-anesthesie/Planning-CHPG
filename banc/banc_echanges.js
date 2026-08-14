@@ -11,7 +11,7 @@
    R d'un samedi via LIENS_R — et ses trois échecs prévus (pas de lien,
    R passé, receveur occupé) qui n'empêchent JAMAIS l'échange. */
 const vm = require('vm'), fs = require('fs'), path = require('path');
-const { Classeur, fabriqueVerrou, VERROUS, extraireFonction } = require('./stubs');
+const { Classeur, fabriqueVerrou, VERROUS, extraireFonction , brancherSurEcriture } = require('./stubs');
 const { MARS } = require('./jeu_donnees');
 let ok = 0, ko = 0;
 const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++; console.log('  ✗ ' + t + (d !== undefined ? ' → ' + JSON.stringify(d).slice(0, 200) : '')); } };
@@ -35,8 +35,13 @@ function monde(annee, opts) {
   if (opts.liensR) cl.ajouter(`LIENS_R_${annee}`, [['SAMEDI','MEDECIN','DATE R']].concat(opts.liensR));
 
   const notifs = [], kv = [], journal = [];
+  /* Le piège du 14/08 : des écritures « en attente » tant que flush n'est
+     pas appelé. Toute poussée au relais partie dans cet état aurait, en
+     vrai, pu embarquer l'ancien état de l'onglet. */
+  const attente = { ecritures: false, poussesSansFlush: 0 };
+  brancherSurEcriture(() => { attente.ecritures = true; });
   const ctx = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Set, Math, Error, isNaN, parseInt, RegExp,
-    SpreadsheetApp: { getActiveSpreadsheet: () => cl },
+    SpreadsheetApp: { getActiveSpreadsheet: () => cl, flush: () => { attente.ecritures = false; } },
     PropertiesService: { getScriptProperties: () => ({ getProperty: k => (k === 'MIROIR_PUSH_TOKEN' ? 'JETON' : (k === 'ECHANGES_OUVERTS' ? 'O' : null)), setProperty: () => {}, deleteProperty: () => {} }) },
     LockService: { getScriptLock: () => fabriqueVerrou('script'), getDocumentLock: () => fabriqueVerrou('document') },
     ScriptApp: { getProjectTriggers: () => [], newTrigger: () => ({ timeBased: () => ({ everyHours: () => ({ create: () => {} }) }) }), deleteTrigger: () => {} },
@@ -47,7 +52,7 @@ function monde(annee, opts) {
     notifPlanifier: () => {},
     /* Doublures ENREGISTREUSES : le banc vérifie les destinataires réels. */
     notifierPush_: (titre, corps, url, cible) => { notifs.push({ titre, corps, url, cible }); return { success: true }; },
-    _miroirEnvoyerLot_: (items) => { kv.push(Object.keys(items)); return { success: true }; },
+    _miroirEnvoyerLot_: (items) => { if (attente.ecritures) attente.poussesSansFlush++; kv.push(Object.keys(items)); return { success: true }; },
   });
   ctx.globalThis = ctx;
   vm.runInContext(extraireFonction('../gas/Indispos.gs', 'applyModification'), ctx);
@@ -67,7 +72,7 @@ function monde(annee, opts) {
     const f = feuille('ECHANGES');
     return f ? f.lignes.slice(1).filter(l => l[0]) : [];
   };
-  return { cl, ctx, dates, poser, lire, echanges, notifs, kv, journal, annee };
+  return { cl, ctx, dates, poser, lire, echanges, notifs, kv, journal, annee, attente };
 }
 const ctxCompteurs = { republications: 0 };
 const COL = { ID:0, CREE_LE:1, TYPE:2, ANNEE:3, DATE:4, DATE2:5, DEMANDEUR:6, RECEVEUR:7, ETAT:8, REPONDU_LE:9, RAPPEL_LE:10, INFO:11 };
@@ -432,6 +437,31 @@ console.log('\n═══ 18. La pastille d\'icône : la chaîne complète, du co
   /* La pose par sw.js (v4) est vérifiée dans banc_notif.mjs : elle part avec
      lui dans le SECOND push (le gel du canal tient jusqu'au 4/09). */
   V('le portail l\'efface à l\'ouverture', /clearAppBadge/.test(dash));
+}
+
+console.log('\n═══ 19. Le piège du 14/08 : jamais de poussée au relais avec des écritures non validées ═══');
+{
+  /* Le vrai Apps Script peut servir une relecture d'AVANT les écritures de la
+     même exécution tant que flush n'a pas été appelé : l'acceptation restait
+     « en attente » sur les téléphones alors que le classeur disait acceptee.
+     Ici, chaque geste du circuit tourne, et la doublure compte toute poussée
+     partie avec des écritures encore en attente. Attendu : ZÉRO. */
+  const b = monde(2027, { liensR: [] });
+  const j = b.dates[9];
+  b.poser('ALPHA', j, 'G');
+  vm.runInContext(`creerEchange(${JSON.stringify(user('ALPHA'))}, { type:'don', year:2027, date:${JSON.stringify(j)}, receveur:'BRAVO' })`, b.ctx);
+  const id = String(b.echanges()[0][COL.ID]);
+  vm.runInContext(`repondreEchange(${JSON.stringify(user('BRAVO'))}, { id:${JSON.stringify(id)}, reponse:'accepter' })`, b.ctx);
+  V('création puis acceptation : aucune poussée avec écritures en attente', b.attente.poussesSansFlush === 0, b.attente);
+  V('l\'onglet dit bien acceptee', String(b.echanges()[0][COL.ETAT]) === 'acceptee');
+
+  const c = monde(2027);
+  const k = c.dates[16];
+  c.poser('ALPHA', k, 'G');
+  vm.runInContext(`creerEchange(${JSON.stringify(user('ALPHA'))}, { type:'don', year:2027, date:${JSON.stringify(k)}, receveur:'BRAVO' })`, c.ctx);
+  const id2 = String(c.echanges()[0][COL.ID]);
+  vm.runInContext(`repondreEchange(${JSON.stringify(user('BRAVO'))}, { id:${JSON.stringify(id2)}, reponse:'refuser' })`, c.ctx);
+  V('refus : aucune poussée avec écritures en attente', c.attente.poussesSansFlush === 0, c.attente);
 }
 
 console.log('\n' + ok + ' OK · ' + ko + ' en échec');

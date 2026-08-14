@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-13.3';
+const GAS_VERSION_MIROIR = '2026-08-14.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -299,6 +299,11 @@ function miroirInstallerDeclencheur() {
    lentes du 04/08 : chaque pose reconstruisait gardes+stats+planning de
    TOUTES les annees, dans la requete, avant de repondre. */
 function miroirPousserFamilles_(familles, annee, toutesAnnees) {
+  /* (14/08/2026) Les enveloppes se bâtissent en relisant le classeur DANS la
+     même exécution que les écritures de l'action : sans flush, la relecture
+     peut être servie d'avant. Un seul flush ici protège toutes les familles
+     (gardes, stats, echanges, indispos…). */
+  try { SpreadsheetApp.flush(); } catch (e) {}
   const items = {};
   const uniq = {};
   familles.forEach(function (f) { uniq[f] = true; });

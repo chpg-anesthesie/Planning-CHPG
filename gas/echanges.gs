@@ -38,7 +38,7 @@
    depuis l'éditeur : installerDeclencheurEchanges().
    ═══════════════════════════════════════════════════════════════════════ */
 
-const GAS_VERSION_ECHANGES = '2026-08-14.1';
+const GAS_VERSION_ECHANGES = '2026-08-14.2';
 
 const ECHANGES_ONGLET = 'ECHANGES';
 const ECHANGES_ENTETE = ['ID', 'CREE_LE', 'TYPE', 'ANNEE', 'DATE', 'DATE2',
@@ -430,6 +430,12 @@ function _echangesVersKV_() {
   try {
     const jeton = PropertiesService.getScriptProperties().getProperty('MIROIR_PUSH_TOKEN');
     if (!jeton) return;
+    /* (14/08/2026 — vu en test réel) Sans flush, la relecture qui bâtit
+       l'enveloppe peut être servie d'AVANT les écritures de la même
+       exécution : on poussait « attente » au relais alors que le classeur
+       finissait bien en « acceptee ». Les écritures d'abord, l'enveloppe
+       ensuite. */
+    SpreadsheetApp.flush();
     _miroirEnvoyerLot_({ echanges: JSON.stringify(getEchangesEnveloppe()) }, jeton);
   } catch (e) { try { Logger.log('_echangesVersKV_ : ' + e.message); } catch (_) {} }
 }

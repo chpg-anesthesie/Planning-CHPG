@@ -18,18 +18,18 @@ class Sheet {
   getRange(r, c, nr, nc) {
     const s = this;
     return {
-      setValue(v) { while (s.lignes.length < r) s.lignes.push([]); s.lignes[r-1][c-1] = _coerceSheets(v); return this; },
-      setValues(vals) { vals.forEach((ligne, i) => { while (s.lignes.length < r+i) s.lignes.push([]); ligne.forEach((v,j) => s.lignes[r-1+i][c-1+j] = _coerceSheets(v)); }); return this; },
+      setValue(v) { _surEcriture(); while (s.lignes.length < r) s.lignes.push([]); s.lignes[r-1][c-1] = _coerceSheets(v); return this; },
+      setValues(vals) { _surEcriture(); vals.forEach((ligne, i) => { while (s.lignes.length < r+i) s.lignes.push([]); ligne.forEach((v,j) => s.lignes[r-1+i][c-1+j] = _coerceSheets(v)); }); return this; },
       setNumberFormat() { return this; },   // le format texte du vrai Sheets empêche la coercition ; la doublure reste au PIRE cas : le code doit résister même sans lui
       setFontWeight() { return this; },
       getValues() { const out = []; for (let i=0;i<(nr||1);i++) out.push((s.lignes[r-1+i]||[]).slice(c-1, c-1+(nc||1))); return out; },
       getValue() { return (s.lignes[r-1]||[])[c-1]; },
-      clearContent() { for (let i=0;i<(nr||1);i++) for (let j=0;j<(nc||1);j++) if (s.lignes[r-1+i]) s.lignes[r-1+i][c-1+j] = ''; return this; },
+      clearContent() { _surEcriture(); for (let i=0;i<(nr||1);i++) for (let j=0;j<(nc||1);j++) if (s.lignes[r-1+i]) s.lignes[r-1+i][c-1+j] = ''; return this; },
     };
   }
-  deleteRow(n) { this.lignes.splice(n-1, 1); }
+  deleteRow(n) { _surEcriture(); this.lignes.splice(n-1, 1); }
   setFrozenRows() {}
-  appendRow(l) { this.lignes.push(l.map(_coerceSheets)); }
+  appendRow(l) { _surEcriture(); this.lignes.push(l.map(_coerceSheets)); }
   setColumnWidth() {}
   getLastColumn() { return Math.max(...this.lignes.map(l => l.length), 0); }
 }
@@ -38,6 +38,16 @@ class Sheet {
    La doublure était trop polie et rendait les textes tels quels : le banc ne
    pouvait pas voir le défaut. Elle coerce désormais comme le vrai — et
    VOLONTAIREMENT sans tenir compte du format texte (pire cas permanent). */
+/* (14/08/2026 — défaut trouvé au deuxième test réel) Dans le vrai Apps
+   Script, une relecture faite APRÈS des écritures de la même exécution peut
+   être servie d'AVANT elles tant que SpreadsheetApp.flush() n'a pas été
+   appelé : la poussée au relais partait avec l'ancien état. Chaque écriture
+   passe par ce point d'observation ; un scénario peut s'y brancher pour
+   vérifier qu'aucune poussée ne part avec des écritures non validées. */
+let _observateurEcriture = null;
+function brancherSurEcriture(f) { _observateurEcriture = f; }
+function _surEcriture() { if (_observateurEcriture) _observateurEcriture(); }
+
 function _coerceSheets(v) {
   if (typeof v === 'string') {
     if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return new Date(v + 'T00:00:00');
@@ -87,4 +97,4 @@ function extraireFonction(fichier, nom) {
   return src.slice(i, j + 1);
 }
 
-module.exports = { Sheet, Classeur, fabriqueVerrou, VERROUS, journalVerrous, extraireFonction };
+module.exports = { Sheet, Classeur, fabriqueVerrou, VERROUS, journalVerrous, extraireFonction, brancherSurEcriture };
