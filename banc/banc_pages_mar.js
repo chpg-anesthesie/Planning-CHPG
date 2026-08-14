@@ -419,6 +419,92 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
   }
 
+  console.log('\n═══ 28p. index.html · fiche MAR : les absences de 2027 comptent, la recup se voit ═══');
+  {
+    /* (14/08/2026) DEFAUT TROUVE AVANT PRODUCTION : les trois compteurs
+       d'absences de l'onglet Medecins additionnaient A + CP + F en dur.
+       Releve du classeur le meme jour :
+         GARDES_2026 → A 855 · CP 23 · F 114 · V 3   · TP 131 · CL 124
+         GARDES_2027 → A   0 · CP  0 · F 207 · V 1013 · TP 224 · CL  56
+       A partir de 2027 un mois entier de vacances se serait affiche
+       « aucune absence », et le recapitulatif serait tombe sur son repli
+       « X jours presents » — deja visible sur janvier 2027.
+       Au passage : « 1h » se lisait comme une heure alors que le code 18
+       est une JOURNEE 8h-18h, et la recuperation de samedi n'apparaissait
+       nulle part. */
+    const contenu = fs.readFileSync('../index.html', 'utf8');
+    const vc = new VirtualConsole(); const erreurs = [];
+    vc.on('jsdomError', e => erreurs.push(e.message));
+    const dom = new JSDOM(contenu, { runScripts:'dangerously', virtualConsole:vc,
+      url:'https://chpg-anesthesie.github.io/Planning-CHPG/index.html', pretendToBeVisual:true,
+      beforeParse(win) {
+        win.matchMedia = () => ({ matches:false, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
+        win.Element.prototype.scrollIntoView = function () {};
+        win.HTMLElement.prototype.scrollIntoView = function () {};
+        win.scrollTo = () => {};
+      } });
+    const w = dom.window, D = w.document;
+    if (!w.navigator.sendBeacon) w.navigator.sendBeacon = () => true;
+    w.fetch = async () => ({ ok:true, json: async () => ({ success:false }) });
+    await dodo(400);
+
+    /* Un mois au vocabulaire 2027 : 10 V, 2 TP, 1 CL, 1 F, 2 gardes,
+       1 journee 18h, 1 recuperation de samedi. Aucun A, aucun CP. */
+    const codes = ['G','RG','18','R','V','V','V','V','V','V','V','V','V','V',
+                   'TP','TP','CL','F','G','RG'];
+    const mois = {
+      id:'2027-03', year:2027, month:3, label:'Mars 2027',
+      days: codes.map((_, k) => ({
+        date:'2027-03-' + String(k+1).padStart(2,'0'), day:k+1,
+        weekday:(k % 7) + 1, isWeekend:false, isFerie:false })),
+      doctors: [{ id:'AFR', initials:'AFR',
+        days: codes.map(c => ({ status:c, morning:'', afternoon:'' })) }]
+    };
+    w.eval('DATA = ' + JSON.stringify({ months:[mois] }) + ';'
+         + 'AFFECTATIONS_DATA = {};'
+         + 'currentMonthId = "2027-03";'
+         + 'renderMedecins();'
+         + 'openDocPanel("AFR");');
+    await dodo(30);
+
+    /* 14 absences : 10 V + 2 TP + 1 CL + 1 F. Ni R ni RG ni 18. */
+    const carte = D.getElementById('medGrid').textContent.replace(/\s+/g, ' ');
+    V('carte Medecins : les vacances 2027 comptent comme des absences',
+      /14 abs\./.test(carte), carte.slice(0, 220));
+    const stats = [...D.querySelectorAll('.doc-stat-num')].map(e => e.textContent);
+    V('fiche : la case Absences affiche 14, pas 1', stats[2] === '14', stats);
+    V('fiche : les gardes et le 18h restent justes',
+      stats[0] === '2' && stats[1] === '1', stats);
+
+    const recap = [...D.querySelectorAll('.doc-annual-month-stats')]
+      .map(e => e.textContent.replace(/\s+/g, ' ').trim())[0] || '';
+    V('recapitulatif : la journee 8h-18h ne se lit plus comme une heure',
+      recap.includes('1×18') && !/\b1h\b/.test(recap), recap);
+    V('recapitulatif : la recuperation de samedi a sa pastille', /1R/.test(recap), recap);
+    V('recapitulatif : les 14 absences y sont aussi', /14A/.test(recap), recap);
+    V('recapitulatif : le repli « X jours » ne s\'affiche plus a tort',
+      !/\d+j\b/.test(recap), recap);
+    /* (14/08/2026) La recuperation de samedi et la journee 8h-18h portaient
+       la MEME couleur verte sur la fiche et sur la vue Annee : rien ne les
+       distinguait a l'oeil. Le 18 reste vert — comme sur la vue Planning —
+       et R prend une teinte propre. */
+    const feuille = contenu.replace(/\s*\n\s*/g, ' ');
+    V('la recuperation de samedi a sa propre teinte, declaree dans les deux themes',
+      (feuille.match(/--recup:/g) || []).length === 2 &&
+      (feuille.match(/--recup-soft:/g) || []).length === 2);
+    V('la case R du calendrier ne reprend plus le vert du 18h',
+      /\.dc-R\s*\{[^}]*var\(--recup-soft\)/.test(feuille) &&
+      !/\.dc-R\s*\{[^}]*var\(--ok-soft\)/.test(feuille));
+    V('l\'etiquette R et la pastille R du recapitulatif suivent la meme teinte',
+      (feuille.match(/background:var\(--recup-soft\);color:var\(--recup\)/g) || []).length === 2);
+    V('vue Annee : R et 18 ne partagent plus la meme couleur',
+      /'18':\{bg:'#F0FDF4',fg:'#166534'\},'R':\{bg:'#ECFEFF',fg:'#0E7490'\}/.test(feuille));
+    V('la journee 8h-18h reste verte sur la vue Planning',
+      /\.chip-h18\s*\{\s*background: var\(--ok-soft\); color: var\(--ok\); \}/.test(feuille) &&
+      /\.name-tag\.h18\s*\{\s*background: var\(--ok-soft\); color: var\(--ok\); \}/.test(feuille));
+    V('aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
+  }
+
   console.log('\n═══ 28n. index.html · les codes d\'absence, une seule liste ═══');
   {
     /* (13/08/2026) DEFAUT VU EN PRODUCTION : un MAR mis en « V » pour le lendemain

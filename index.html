@@ -48,6 +48,9 @@
   --today-soft:#FFF5F5; --rose-soft:#FFF1F2;
   --info-bd:#BFDBFE; --rose-bd:#FECDD3; --ok-bd:#BBF7D0; --viol-bd:#DDD6FE;
   --me-ring:#DCEEFB;
+  /* Recuperation de samedi (R) : teinte propre, pour ne plus se confondre
+     avec la journee 8h-18h, qui reste verte comme sur la vue Planning. */
+  --recup:#0E7490; --recup-soft:#ECFEFF; --recup-bd:#A5F3FC;
 }
 
 /* ── MODE SOMBRE ── (activé par html[data-theme="dark"]) */
@@ -63,6 +66,7 @@ html[data-theme="dark"] {
   --today-soft:#261620; --rose-soft:#2B1822;
   --info-bd:#2E4A73; --rose-bd:#5A2A38; --ok-bd:#1F4634; --viol-bd:#3A2F5C;
   --me-ring:#1C3550;
+  --recup:#5FC5DA; --recup-soft:#0F2A31; --recup-bd:#1C4551;
 }
 html[data-theme="dark"] body{background:var(--bg)}
 html[data-theme="dark"] .med-card:hover,html[data-theme="dark"] .eqv-card:hover{box-shadow:0 6px 16px rgba(0,0,0,.5)}
@@ -521,7 +525,7 @@ body{font-variant-numeric:tabular-nums}
 .dc-18   { background: var(--ok-soft); color: var(--ok); border-color: var(--ok-bd); }
 .dc-RG   { background: var(--viol-soft); color: var(--viol); border-color: var(--viol-bd); }
 .dc-A,.dc-CP,.dc-F { background: var(--line-light); color: var(--ink-3); }
-.dc-R    { background: var(--ok-soft); color: var(--ok); }
+.dc-R    { background: var(--recup-soft); color: var(--recup); border-color: var(--recup-bd); }
 .dc-work { background: var(--white); color: var(--ink-2); border-color: var(--line); }
 
 /* Annuel */
@@ -1256,6 +1260,13 @@ let SECTORS_DEF = [
                       garde ont leur propre ligne, juste au-dessus. */
 const ABSENT_PANNEAU  = ['A','V','F','R','CP','TP','CTP','CL'];
 const ABSENT_STATUSES = new Set(['RG'].concat(ABSENT_PANNEAU));
+/* ABSENT_COMPTEUR : ce qui s'additionne dans « absences » cote Medecins.
+   (14/08/2026) Les trois compteurs additionnaient A + CP + F en dur. Releve
+   du classeur le meme jour : GARDES_2027 ne contient AUCUN A ni CP, mais
+   1013 V, 224 TP et 56 CL — a partir de 2027 un mois de vacances complet
+   se serait affiche « aucune absence ».
+   R en est exclu : la recuperation de samedi a sa propre pastille. */
+const ABSENT_COMPTEUR = new Set(ABSENT_PANNEAU.filter(c => c !== 'R'));
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
@@ -1704,7 +1715,7 @@ function renderAnnee(){
   const META=_themeMap({'':{bg:'#fff',fg:'#94A3B8'},'V':{bg:'#EEF4FB',fg:'#1D6FB8'},'F':{bg:'#FDF3E3',fg:'#B45309'},
     'TP':{bg:'#FEF3C7',fg:'#92400E'},'CL':{bg:'#F3E8FF',fg:'#7C3AED'},'A':{bg:'#F8FAFC',fg:'#94A3B8'},
     'G':{bg:'#1E293B',fg:'#fff'},'G2':{bg:'#334155',fg:'#fff'},'RG':{bg:'#FFF7ED',fg:'#C2410C'},
-    '18':{bg:'#F0FDF4',fg:'#166534'},'R':{bg:'#DCFCE7',fg:'#166534'}});
+    '18':{bg:'#F0FDF4',fg:'#166534'},'R':{bg:'#ECFEFF',fg:'#0E7490'}});
   const meta=c=>META[c]||{bg:'#fff',fg:'#334155'};
   const _now=new Date();
   const todayStr=_now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0')+'-'+String(_now.getDate()).padStart(2,'0');
@@ -2184,12 +2195,13 @@ function renderMedecins(){
   // Construire stats par doc pour le mois courant
   const docStats = {};
   month.doctors.forEach((doc,di)=>{
-    const counts={G:0,G2:0,'18':0,RG:0,A:0,CP:0,F:0,R:0,presents:0};
+    const counts={G:0,G2:0,'18':0,RG:0,A:0,CP:0,F:0,R:0,abs:0,presents:0};
     const sectorCounts={};
     month.days.forEach((day,i)=>{
       const entry=doc.days[i]||{};
       const st=entry.status||'';
       if(counts[st]!==undefined) counts[st]++;
+      if(ABSENT_COMPTEUR.has(st)) counts.abs++;
       const isWe=isWeekend(day.weekday);
       if(isWe){if(st==='G')counts.presents++;}
       else{if(!ABSENT_STATUSES.has(st))counts.presents++;}
@@ -2221,7 +2233,7 @@ function renderMedecins(){
   _docsOrdered.forEach((doc)=>{
     const s=docStats[doc.id];
     const sc=SECTOR_COLORS[s.sector]||SECTOR_COLORS.VOLANT;
-    const absTotal=s.counts.A+s.counts.CP+s.counts.F;
+    const absTotal=s.counts.abs;
     const name=(doc.id==='PRUNET'?'PR ':'DR ')+doc.id.charAt(0)+doc.id.slice(1).toLowerCase();
     html+=`<div class="med-card${doc.id===MY_ID?' me-card':''}" onclick="openDocPanel('${doc.id}')">
       <div class="med-accent" style="background:${sc.fg}"></div>
@@ -2296,16 +2308,17 @@ function renderDocPanel(){
   document.getElementById('dpMeta').innerHTML=`<span style="background:${sc.bg};color:${sc.fg};padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700;font-family:var(--mono)">${sector}</span>`;
 
   // Stats mois
-  const counts={G:0,G2:0,'18':0,RG:0,A:0,CP:0,F:0,R:0,presents:0};
+  const counts={G:0,G2:0,'18':0,RG:0,A:0,CP:0,F:0,R:0,abs:0,presents:0};
   month.days.forEach((day,i)=>{
     const entry=doc.days[i]||{};
     const st=entry.status||'';
     if(counts[st]!==undefined) counts[st]++;
+    if(ABSENT_COMPTEUR.has(st)) counts.abs++;
     const isWe=isWeekend(day.weekday);
     if(isWe){if(st==='G')counts.presents++;}
     else{if(!ABSENT_STATUSES.has(st))counts.presents++;}
   });
-  const absTotal=counts.A+counts.CP+counts.F;
+  const absTotal=counts.abs;
 
   // Stats annuelles
   let annualG=0,annualPresents=0;
@@ -2353,7 +2366,7 @@ function renderDocPanel(){
     else if(st==='18'){ stClass='dc-18'; tags.push(`<div class="doc-cal-tag" style="background:#F0FDF4;color:#166534">18h</div>`); }
     else if(st==='RG'){ stClass='dc-RG'; tags.push(`<div class="doc-cal-tag" style="background:#F5F3FF;color:#6D28D9">RG</div>`); }
     else if(['A','CP','F'].includes(st)){ stClass=`dc-${st}`; tags.push(`<div class="doc-cal-tag" style="background:var(--line-light);color:var(--ink-3)">${st}</div>`); }
-    else if(st==='R'){ stClass='dc-R'; tags.push(`<div class="doc-cal-tag" style="background:#F0FDF4;color:#166534">R</div>`); }
+    else if(st==='R'){ stClass='dc-R'; tags.push(`<div class="doc-cal-tag" style="background:var(--recup-soft);color:var(--recup)">R</div>`); }
     else if(morning&&!isWe){
       stClass='dc-work';
       // multi-secteur "VIS+REA" → un tag coloré par secteur
@@ -2385,23 +2398,25 @@ function renderDocPanel(){
   DATA.months.forEach((mo,mi)=>{
     const d2=mo.doctors.find(x=>x.id===currentDocId);
     if(!d2) return;
-    const mc={G:0,G2:0,'18':0,A:0,CP:0,F:0,RG:0,presents:0};
+    const mc={G:0,G2:0,'18':0,A:0,CP:0,F:0,RG:0,R:0,abs:0,presents:0};
     mo.days.forEach((day,i)=>{
       const st2=(d2.days[i]||{}).status||'';
       if(mc[st2]!==undefined) mc[st2]++;
+      if(ABSENT_COMPTEUR.has(st2)) mc.abs++;
       const isWe2=isWeekend(day.weekday);
       if(isWe2){if(st2==='G')mc.presents++;}
       else{if(!ABSENT_STATUSES.has(st2))mc.presents++;}
     });
-    const abs2=mc.A+mc.CP+mc.F;
+    const abs2=mc.abs;
     const isCurrentPanel=mi===docPanelMonthIdx;
     annualHtml+=`<div class="doc-annual-month" style="${isCurrentPanel?'background:var(--rose-soft);border:1px solid var(--rose-bd)':''}">
       <span class="doc-annual-month-name">${mo.label||MONTH_NAMES_FR[mo.month-1]}</span>
       <div class="doc-annual-month-stats">
         ${(mc.G+mc.G2)?`<span class="doc-annual-stat" style="background:#EFF6FF;color:#1D4ED8">${mc.G+mc.G2}G</span>`:''}
-        ${mc['18']?`<span class="doc-annual-stat" style="background:#F0FDF4;color:#166534">${mc['18']}h</span>`:''}
+        ${mc['18']?`<span class="doc-annual-stat" style="background:#F0FDF4;color:#166534">${mc['18']}×18</span>`:''}
+        ${mc.R?`<span class="doc-annual-stat" style="background:var(--recup-soft);color:var(--recup)">${mc.R}R</span>`:''}
         ${abs2?`<span class="doc-annual-stat" style="background:var(--line-light);color:var(--ink-3)">${abs2}A</span>`:''}
-        ${!(mc.G+mc.G2)&&!mc['18']&&!abs2?`<span style="font-size:10px;color:var(--ink-4)">${mc.presents}j</span>`:''}
+        ${!(mc.G+mc.G2)&&!mc['18']&&!mc.R&&!abs2?`<span style="font-size:10px;color:var(--ink-4)">${mc.presents}j</span>`:''}
       </div>
     </div>`;
   });
