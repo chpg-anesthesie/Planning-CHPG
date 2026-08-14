@@ -96,8 +96,10 @@ de référence en cas de doute.
 
 ### PUSH 2 — contenu EXACT (le 5/09, sur « ok push 2 » d'Arthur)
 
-Les copies de travail ne survivent pas aux sessions : voici la spécification complète pour
-n'importe quelle session future.
+Les copies de travail ne survivent pas aux sessions : les fichiers FINIS attendent dans
+**`deploiement-v2/`** (sw.js v4 + banc_notif.mjs + LISEZMOI avec les gestes mécaniques) —
+le push 2 est une copie de fichiers, pas une reconstruction. La spécification ci-dessous
+reste la référence si le dossier devait manquer.
 1. **`sw.js`** : `VERSION = 'chpg-sw-v4'` + dans le gestionnaire `push`, avant `showNotification` :
    si `d.pastille` est un nombre et `navigator.setAppBadge` existe → `navigator.setAppBadge(d.pastille)`
    dans un try silencieux (commentaire : bannière et pastille sont deux mécanismes séparés sur
