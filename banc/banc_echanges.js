@@ -30,11 +30,12 @@ function monde(annee, opts) {
   const cl = new Classeur();
   const grille = () => [['',''], ['',''], ['MAR',''].concat(dates.map(()=>''))]
     .concat(MARS.slice(0, 8).map(id => [id, ''].concat(dates.map(() => ''))));
+  cl.ajouter('CONFIG', [['CLE','VALEUR'], ['DIAG_EMAIL','comite@example.test']]);
   cl.ajouter(`GARDES_${annee}`, grille());
   cl.ajouter(`INDISPOS_${annee}`, grille());
   if (opts.liensR) cl.ajouter(`LIENS_R_${annee}`, [['SAMEDI','MEDECIN','DATE R']].concat(opts.liensR));
 
-  const notifs = [], kv = [], journal = [];
+  const notifs = [], kv = [], journal = [], mails = [];
   /* Le piège du 14/08 : des écritures « en attente » tant que flush n'est
      pas appelé. Toute poussée au relais partie dans cet état aurait, en
      vrai, pu embarquer l'ancien état de l'onglet. */
@@ -47,6 +48,9 @@ function monde(annee, opts) {
     ScriptApp: { getProjectTriggers: () => [], newTrigger: () => ({ timeBased: () => ({ everyHours: () => ({ create: () => {} }) }) }), deleteTrigger: () => {} },
     Utilities: { formatDate: (d) => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; } },
     Logger: { log: () => {} }, logAction: m => journal.push(String(m)),
+    /* (14/08/2026) L'alerte comité passe par mail, jamais par push. */
+    MailApp: { sendEmail: (to, sujet, corps) => { mails.push({ to, sujet, corps }); },
+               getRemainingDailyQuota: () => 100 },
     TEST_YEAR: annee,
     generatePlanning: () => { ctxCompteurs.republications++; },
     notifPlanifier: () => {},
@@ -72,7 +76,7 @@ function monde(annee, opts) {
     const f = feuille('ECHANGES');
     return f ? f.lignes.slice(1).filter(l => l[0]) : [];
   };
-  return { cl, ctx, dates, poser, lire, echanges, notifs, kv, journal, annee, attente };
+  return { cl, ctx, dates, poser, lire, echanges, notifs, kv, journal, annee, attente, mails };
 }
 const ctxCompteurs = { republications: 0 };
 const COL = { ID:0, CREE_LE:1, TYPE:2, ANNEE:3, DATE:4, DATE2:5, DEMANDEUR:6, RECEVEUR:7, ETAT:8, REPONDU_LE:9, RAPPEL_LE:10, INFO:11 };
@@ -224,7 +228,7 @@ console.log('\n═══ 9. Don d\'un samedi AVEC lien : le R suit, le lien est 
   const lien = b.cl.getSheetByName('LIENS_R_2027').lignes[1];
   V('la ligne LIENS_R porte le nouveau tenant', lien[1] === 'BRAVO', lien);
   V('la notification annonce le R transféré, aux deux', b.notifs.filter(n => /récupération du/.test(n.corps)).length === 2, b.notifs);
-  V('AUCUNE alerte au comité (le transfert a réussi)', !b.notifs.some(n => n.cible && n.cible.role === 'admin'), b.notifs);
+  V('AUCUNE alerte au comité (le transfert a réussi)', b.mails.length === 0 && !b.notifs.some(n => n.cible && n.cible.role === 'admin'), { mails: b.mails });
 }
 
 console.log('\n═══ 10. Don d\'un samedi SANS lien (2026) : l\'échange aboutit, le comité replace ═══');
@@ -237,12 +241,18 @@ console.log('\n═══ 10. Don d\'un samedi SANS lien (2026) : l\'échange abo
   b.notifs.length = 0;
   const rep = vm.runInContext(`repondreEchange(${JSON.stringify(user('BRAVO'))}, { id:${JSON.stringify(r.id)}, reponse:'accepter' })`, b.ctx);
   V('l\'échange aboutit QUAND MÊME', rep.etat === 'acceptee' && b.lire('BRAVO', samedi) === 'G');
-  const alerte = b.notifs.find(n => n.cible && n.cible.role === 'admin');
-  V('le comité est notifié pour replacer le R', !!alerte, b.notifs);
-  V('l\'alerte nomme le samedi (en date lisible) et les deux MAR', (() => {
+  /* (14/08/2026) L'alerte comité part par MAIL, jamais en push : le portail
+     personnel n'est pas le poste de travail du comité. */
+  const alerte = b.mails[0];
+  V('le comité reçoit un MAIL pour replacer le R', !!alerte, b.mails);
+  V('aucune notification ne cible plus le rôle admin', !b.notifs.some(n => n.cible && n.cible.role === 'admin'), b.notifs);
+  V('le mail part à l\'adresse DIAG_EMAIL de CONFIG', alerte && alerte.to === 'comite@example.test', alerte);
+  V('l\'objet nomme le samedi en date lisible', (() => {
     const joli = samedi.slice(8,10)+'/'+samedi.slice(5,7)+'/'+samedi.slice(0,4);
-    return alerte && alerte.corps.indexOf(joli) > -1 && /ALPHA/.test(alerte.corps) && /BRAVO/.test(alerte.corps);
+    return alerte && alerte.sujet.indexOf(joli) > -1;
   })(), alerte);
+  V('le corps nomme les deux MAR avec civilité et dit le geste', alerte
+    && /Dr Alpha/.test(alerte.corps) && /Dr Bravo/.test(alerte.corps) && /replacer à la main/i.test(alerte.corps), alerte);
 }
 
 console.log('\n═══ 11. Samedi dont le receveur est occupé le jour du R : échange fait, comité prévenu ═══');
@@ -260,10 +270,11 @@ console.log('\n═══ 11. Samedi dont le receveur est occupé le jour du R : 
   V('l\'échange aboutit', rep.etat === 'acceptee');
   V('le R n\'a PAS bougé (rien d\'écrasé)', b.lire('ALPHA', dateR) === 'R' && b.lire('BRAVO', dateR) === '18');
   V('la ligne LIENS_R garde son tenant d\'origine', b.cl.getSheetByName('LIENS_R_2027').lignes[1][1] === 'ALPHA');
-  V('le comité est prévenu, avec le motif', (() => {
-    const a = b.notifs.find(n => n.cible && n.cible.role === 'admin');
-    return !!a && /replacer/i.test(a.corps);
-  })(), b.notifs);
+  V('le comité est prévenu par mail, avec le motif ET la date du R', (() => {
+    const a = b.mails[0];
+    const joliR = dateR.slice(8,10)+'/'+dateR.slice(5,7)+'/'+dateR.slice(0,4);
+    return !!a && /replacer/i.test(a.corps) && a.corps.indexOf(joliR) > -1;
+  })(), b.mails);
 }
 
 console.log('\n═══ 12. Échange samedi ↔ samedi : AUCUN R ne bouge (décision du 12/08) ═══');
@@ -281,7 +292,7 @@ console.log('\n═══ 12. Échange samedi ↔ samedi : AUCUN R ne bouge (déc
   vm.runInContext(`repondreEchange(${JSON.stringify(user('BRAVO'))}, { id:${JSON.stringify(r.id)}, reponse:'accepter' })`, b.ctx);
   V('les gardes sont échangées', b.lire('BRAVO', s1) === 'G' && b.lire('ALPHA', s2) === 'G');
   V('les R restent en place', b.lire('ALPHA', r1) === 'R' && b.lire('BRAVO', r2) === 'R');
-  V('aucune alerte comité', !b.notifs.some(n => n.cible && n.cible.role === 'admin'));
+  V('aucune alerte comité (ni mail ni push)', b.mails.length === 0 && !b.notifs.some(n => n.cible && n.cible.role === 'admin'));
 }
 
 console.log('\n═══ 13. Expiration : rappel UNIQUE à 24 h, expirée à 48 h ═══');
@@ -462,6 +473,68 @@ console.log('\n═══ 19. Le piège du 14/08 : jamais de poussée au relais a
   const id2 = String(c.echanges()[0][COL.ID]);
   vm.runInContext(`repondreEchange(${JSON.stringify(user('BRAVO'))}, { id:${JSON.stringify(id2)}, reponse:'refuser' })`, c.ctx);
   V('refus : aucune poussée avec écritures en attente', c.attente.poussesSansFlush === 0, c.attente);
+}
+
+console.log('\n═══ 20. Un humain lit ces messages : « Dr Frohlich », jamais « FROHLICH » ═══');
+{
+  const b = monde(2027);
+  const j = b.dates[9], lendemain = b.dates[10];
+  const k = b.dates[16], klendemain = b.dates[17];
+  b.poser('ALPHA', j, 'G'); b.poser('ALPHA', lendemain, 'RG');
+  b.poser('BRAVO', k, 'G'); b.poser('BRAVO', klendemain, 'RG');
+
+  // 1. proposition de don
+  const r1 = vm.runInContext(`creerEchange(${JSON.stringify(user('ALPHA'))}, { type:'don', year:2027, date:${JSON.stringify(j)}, receveur:'BRAVO' })`, b.ctx);
+  V('la proposition dit « Dr Alpha », pas « ALPHA »',
+    /Dr Alpha vous propose/.test(b.notifs[0].corps) && !/ALPHA/.test(b.notifs[0].corps), b.notifs[0]);
+
+  // 2. refus
+  b.notifs.length = 0;
+  vm.runInContext(`repondreEchange(${JSON.stringify(user('BRAVO'))}, { id:${JSON.stringify(r1.id)}, reponse:'refuser' })`, b.ctx);
+  V('le refus dit « Dr Bravo a décliné »',
+    /Dr Bravo a décliné/.test(b.notifs[0].corps) && !/BRAVO/.test(b.notifs[0].corps), b.notifs[0]);
+
+  // 3. confirmation d'un don
+  const r2 = vm.runInContext(`creerEchange(${JSON.stringify(user('ALPHA'))}, { type:'don', year:2027, date:${JSON.stringify(j)}, receveur:'BRAVO' })`, b.ctx);
+  b.notifs.length = 0;
+  vm.runInContext(`repondreEchange(${JSON.stringify(user('BRAVO'))}, { id:${JSON.stringify(r2.id)}, reponse:'accepter' })`, b.ctx);
+  V('la confirmation dit « du Dr Alpha au Dr Bravo »',
+    /passe du Dr Alpha au Dr Bravo/.test(b.notifs[0].corps), b.notifs[0]);
+  V('les deux MAR reçoivent la confirmation', b.notifs.filter(n => /Échange confirmé/.test(n.titre)).length === 2);
+
+  // 4. proposition d'échange (deux dates)
+  const c = monde(2027);
+  c.poser('ALPHA', c.dates[9], 'G'); c.poser('ALPHA', c.dates[10], 'RG');
+  c.poser('BRAVO', c.dates[16], 'G'); c.poser('BRAVO', c.dates[17], 'RG');
+  const r3 = vm.runInContext(`creerEchange(${JSON.stringify(user('ALPHA'))}, { type:'echange', year:2027, date:${JSON.stringify(c.dates[9])}, date2:${JSON.stringify(c.dates[16])}, receveur:'BRAVO' })`, c.ctx);
+  V('la proposition d\'échange dit « Dr Alpha »', /Dr Alpha vous propose/.test(c.notifs[0].corps), c.notifs[0]);
+  c.notifs.length = 0;
+  vm.runInContext(`repondreEchange(${JSON.stringify(user('BRAVO'))}, { id:${JSON.stringify(r3.id)}, reponse:'accepter' })`, c.ctx);
+  V('la confirmation d\'échange dit « le Dr Alpha … le Dr Bravo »',
+    /le Dr Alpha prend le/.test(c.notifs[0].corps) && /le Dr Bravo prend le/.test(c.notifs[0].corps), c.notifs[0]);
+
+  // 5-6. rappel à 24 h et expiration à 48 h
+  const d = monde(2027);
+  d.poser('ALPHA', d.dates[9], 'G'); d.poser('ALPHA', d.dates[10], 'RG');
+  vm.runInContext(`creerEchange(${JSON.stringify(user('ALPHA'))}, { type:'don', year:2027, date:${JSON.stringify(d.dates[9])}, receveur:'BRAVO' })`, d.ctx);
+  const f = d.cl.getSheetByName('ECHANGES');
+  const vieux = new Date(Date.now() - 30 * 3600 * 1000).toISOString();
+  f.lignes[1][COL.CREE_LE] = vieux;
+  d.notifs.length = 0;
+  vm.runInContext('expirerEchanges()', d.ctx);
+  V('le rappel à 24 h dit « Dr Alpha attend votre réponse »',
+    d.notifs.some(n => /Dr Alpha attend votre réponse/.test(n.corps)), d.notifs);
+  f.lignes[1][COL.CREE_LE] = new Date(Date.now() - 60 * 3600 * 1000).toISOString();
+  d.notifs.length = 0;
+  vm.runInContext('expirerEchanges()', d.ctx);
+  V('l\'expiration dit « au Dr Bravo »',
+    d.notifs.some(n => /au Dr Bravo est restée/.test(n.corps)), d.notifs);
+
+  // Le cas particulier de l'écran : PRUNET est Pr, pas Dr
+  const dash = fs.readFileSync(path.join(__dirname, '..', 'dashboard.html'), 'utf8');
+  V('l\'écran traite PRUNET en « Pr »', /id==='PRUNET'\?'Pr':'Dr'/.test(dash.replace(/\s/g, '')), 'règle de _meName');
+  const gs = fs.readFileSync(path.join(__dirname, '..', 'gas', 'echanges.gs'), 'utf8');
+  V('les notifications suivent LA MÊME règle pour PRUNET', /PRUNET' \? 'Pr ' : 'Dr '/.test(gs));
 }
 
 console.log('\n' + ok + ' OK · ' + ko + ' en échec');

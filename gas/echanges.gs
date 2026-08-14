@@ -38,7 +38,7 @@
    depuis l'éditeur : installerDeclencheurEchanges().
    ═══════════════════════════════════════════════════════════════════════ */
 
-const GAS_VERSION_ECHANGES = '2026-08-14.2';
+const GAS_VERSION_ECHANGES = '2026-08-14.3';
 
 const ECHANGES_ONGLET = 'ECHANGES';
 const ECHANGES_ENTETE = ['ID', 'CREE_LE', 'TYPE', 'ANNEE', 'DATE', 'DATE2',
@@ -165,6 +165,17 @@ function _echangesLignes_() {
 
 function _echangesMaintenant_() { return new Date().toISOString(); }
 
+/* (14/08/2026) Un humain lit ces messages : « Dr Frohlich », pas « FROHLICH ».
+   MÊME règle que l'écran (dashboard.html, _meName) — dont le cas particulier
+   PRUNET, qui est Pr et non Dr. Mise en forme d'AFFICHAGE seule : les noms
+   stockés dans l'onglet ne changent pas, les correspondances non plus. */
+function _echangesDr_(id) {
+  const brut = String(id == null ? '' : id).trim();
+  if (!brut) return '';
+  const titre = brut.toUpperCase() === 'PRUNET' ? 'Pr ' : 'Dr ';
+  return titre + brut.charAt(0).toUpperCase() + brut.slice(1).toLowerCase();
+}
+
 function _echangesEstSamedi_(date) {
   return new Date(date + 'T12:00:00').getDay() === 6;
 }
@@ -227,8 +238,8 @@ function creerEchange(user, p) {
   notifierPush_(
     type === 'don' ? 'Proposition de garde' : 'Proposition d\'échange',
     type === 'don'
-      ? user.id + ' vous propose sa garde du ' + _echangesJoli_(date) + '.'
-      : user.id + ' vous propose sa garde du ' + _echangesJoli_(date) + ' contre la vôtre du ' + _echangesJoli_(demande.DATE2) + '.',
+      ? _echangesDr_(user.id) + ' vous propose sa garde du ' + _echangesJoli_(date) + '.'
+      : _echangesDr_(user.id) + ' vous propose sa garde du ' + _echangesJoli_(date) + ' contre la vôtre du ' + _echangesJoli_(demande.DATE2) + '.',
     './dashboard.html', { id: receveur, pastille: _echangesEnAttentePour_(receveur) });
   return { id: id };
 }
@@ -256,7 +267,7 @@ function repondreEchange(user, p) {
     logAction('repondreEchange ' + id + ' — refusée par ' + user.id);
     _echangesVersKV_();
     notifierPush_('Proposition déclinée',
-      d.RECEVEUR + ' a décliné votre proposition du ' + _echangesJoli_(d.DATE) + '.',
+      _echangesDr_(d.RECEVEUR) + ' a décliné votre proposition du ' + _echangesJoli_(d.DATE) + '.',
       './dashboard.html', { id: String(d.DEMANDEUR) });
     return { etat: 'refusee' };
   }
@@ -301,22 +312,55 @@ function repondreEchange(user, p) {
   _echangesVersKV_();
 
   let corps = (d.TYPE === 'don')
-    ? 'La garde du ' + _echangesJoli_(d.DATE) + ' passe de ' + d.DEMANDEUR + ' à ' + d.RECEVEUR + '.'
-    : 'Gardes échangées : ' + d.DEMANDEUR + ' prend le ' + _echangesJoli_(d.DATE2) + ', ' + d.RECEVEUR + ' prend le ' + _echangesJoli_(d.DATE) + '.';
+    ? 'La garde du ' + _echangesJoli_(d.DATE) + ' passe du ' + _echangesDr_(d.DEMANDEUR) + ' au ' + _echangesDr_(d.RECEVEUR) + '.'
+    : 'Gardes échangées : le ' + _echangesDr_(d.DEMANDEUR) + ' prend le ' + _echangesJoli_(d.DATE2) + ', le ' + _echangesDr_(d.RECEVEUR) + ' prend le ' + _echangesJoli_(d.DATE) + '.';
   rInfos.forEach(r => { if (r.fait) corps += ' La récupération du ' + _echangesJoli_(r.dateR) + ' est transférée.'; });
   notifierPush_('Échange confirmé', corps, './dashboard.html', { id: String(d.DEMANDEUR) });
   notifierPush_('Échange confirmé', corps, './dashboard.html', { id: String(d.RECEVEUR) });
 
   // R non transférable : le comité replace à la main (seul cas où il entre en scène).
-  rInfos.forEach(r => {
-    if (!r.fait) {
-      notifierPush_('Récupération à replacer',
-        'Samedi ' + _echangesJoli_(r.samedi) + ' transféré (' + r.donneur + ' → ' + r.receveur + ') mais son R ne suit pas : '
-        + r.motif + '. À replacer à la main.',
-        './admin.html', { role: 'admin' });
-    }
-  });
+  rInfos.forEach(r => { if (!r.fait) _echangesAlerterComite_(r); });
   return { etat: 'acceptee', r: rInfos };
+}
+
+/* ── Alerte du comité : E-MAIL, jamais push ─────────────────────────────
+   (14/08/2026) Le push est le canal du MAR : il ne vit que dans l'app
+   installée, c'est-à-dire le portail personnel. Un membre du comité n'ouvre
+   pas ce portail en tant que comité — il ouvre l'écran d'administration,
+   exprès. Une alerte comité doit donc arriver là où le comité regarde : sa
+   boîte mail. MÊME adresse et MÊME source que le diagnostic du lundi
+   (DIAG_EMAIL dans l'onglet CONFIG), et MÊME mode d'essai que les mails de
+   planning (NOTIF_EMAIL_TEST détourne tout tant qu'il existe).
+   Aucune notification du circuit ne cible plus le rôle admin.
+   Échec d'envoi = échange VALIDE quand même : la mention « R non transféré »
+   reste écrite dans la demande, l'onglet fait foi. */
+function _echangesAlerterComite_(r) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    let dest = props.getProperty('NOTIF_EMAIL_TEST');   // essais : tout arrive là
+    if (!dest) {
+      const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG');
+      const data = sh ? sh.getDataRange().getValues() : [];
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][0]).trim() === 'DIAG_EMAIL') { dest = String(data[i][1]).trim(); break; }
+      }
+    }
+    if (!dest) { logAction('alerte comité — annulée : DIAG_EMAIL absent de CONFIG'); return; }
+    const corps =
+      'Le samedi ' + _echangesJoli_(r.samedi) + ' a été transféré du ' + _echangesDr_(r.donneur)
+        + ' au ' + _echangesDr_(r.receveur) + '.\n\n'
+      + (r.dateR
+          ? 'Sa récupération du ' + _echangesJoli_(r.dateR) + ' n\'a PAS pu suivre :\n'
+          : 'Sa récupération n\'a PAS pu suivre :\n')   // deux cas d'échec n'ont pas de date (lien absent ou introuvable)
+      + r.motif + '\n\n'
+      + 'À replacer à la main dans le planning.\n\n'
+      + '— Message automatique du portail. Répondre à ce mail ne sert à rien.';
+    MailApp.sendEmail(dest,
+      '⚠️ Récupération à replacer — samedi ' + _echangesJoli_(r.samedi), corps);
+    logAction('alerte comité envoyée (R non transféré, samedi ' + r.samedi + ')');
+  } catch (e) {
+    try { logAction('alerte comité — envoi impossible : ' + e.message); } catch (_) {}
+  }
 }
 
 /* ── Transfert du R d'un samedi ─────────────────────────────────────────
@@ -377,14 +421,14 @@ function expirerEchanges() {
       changements++;
       logAction('expirerEchanges ' + d.ID + ' — expirée (48 h sans réponse)');
       notifierPush_('Proposition expirée',
-        'Votre proposition du ' + _echangesJoli_(d.DATE) + ' à ' + d.RECEVEUR + ' est restée 48 h sans réponse.',
+        'Votre proposition du ' + _echangesJoli_(d.DATE) + ' au ' + _echangesDr_(d.RECEVEUR) + ' est restée 48 h sans réponse.',
         './dashboard.html', { id: String(d.DEMANDEUR) });
     } else if (age > ECHANGES_RAPPEL_H * 3600 * 1000 && !String(d.RAPPEL_LE).trim()) {
       sh.getRange(d._row, colRap).setValue(_echangesMaintenant_());
       changements++;
       logAction('expirerEchanges ' + d.ID + ' — rappel 24 h');
       notifierPush_('Proposition en attente',
-        d.DEMANDEUR + ' attend votre réponse pour la garde du ' + _echangesJoli_(d.DATE) + ' (expire dans 24 h).',
+        _echangesDr_(d.DEMANDEUR) + ' attend votre réponse pour la garde du ' + _echangesJoli_(d.DATE) + ' (expire dans 24 h).',
         './dashboard.html', { id: String(d.RECEVEUR), pastille: _echangesEnAttentePour_(String(d.RECEVEUR)) });
     }
   });
