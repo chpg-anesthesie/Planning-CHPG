@@ -19,12 +19,16 @@ chiffres concrets plutôt que des généralités.
 dans `ECHANGES_PILOTES`, propriété de script — jamais dans le dépôt) voient quoi que ce soit.
 Le bac à sable 2027 a été régénéré avec le nouveau générateur : `LIENS_R_2027` existe (~104
 lignes), le planning est publié, et la notification de génération est arrivée sur le téléphone
-d'Arthur — canal prouvé de bout en bout en production. **Gel de sw.js LEVÉ le 14/08 par Arthur** — argument retenu : mieux vaut éprouver la v4
-(pastille) trois semaines à deux qu'y toucher le jour où 23 personnes s'équipent. La v4 est
-EN LIGNE, toute la chaîne de la pastille est donc en production. Reste : le test à deux
-(phase 5, pastille comprise désormais), la répétition du 28/08, le staff du 4/09, puis le
-**push 2 devenu symbolique : montée v2.0 seule** + `ouvrirEchanges()` — décision d'Arthur :
-l'ouverture vaut un premier chiffre, pas un v1.35.
+d'Arthur — canal prouvé de bout en bout en production. **Gel de sw.js LEVÉ le 14/08 par Arthur** (mieux vaut éprouver la v4 trois semaines à deux
+qu'y toucher quand 23 personnes s'équipent) — puis, le même jour, **OUVERTURE ANTICIPÉE** :
+`ouvrirEchanges()` exécuté AVANT le staff, sur le constat qu'aucun MAR n'a de code avant le
+4/09 (l'invisibilité ne protégeait personne et cassait la chronologie de démo : installation
+en séance → activation des notifications → génération en direct → toute la salle sonne).
+Tout est donc EN LIGNE ET OUVERT ; `ECHANGES_PILOTES` supprimée. Reste : le test à deux
+(phase 5), la répétition du 28/08, le staff du 4/09 (nettoyage `_2027` le soir même), puis le
+**push 2 purement symbolique : montée v2.0 seule, après le staff** — l'ouverture vaut un
+premier chiffre, pas un v1.35. À faire avant le 4/09 : re-capturer
+`assets/dashboard-accueil.png` (la carte Échanges y manque).
 
 **Trois leçons de la journée.**
 1. **Un avertissement en commentaire ne protège personne ; un test, si.** Le mini-bundle

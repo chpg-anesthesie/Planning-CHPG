@@ -94,6 +94,26 @@ de référence en cas de doute.
   abonnements morts déjà en place ; un bouton « désactiver » dans le portail attendra une
   demande réelle (lot 5).
 
+### OUVERTURE ANTICIPÉE (14/08, décision d'Arthur) — `ouvrirEchanges()` exécuté AVANT le staff
+
+Seconde révision du plan le même jour, sur un constat d'Arthur qui invalidait la prémisse :
+**personne n'a de code d'accès avant le 4/09** (codes distribués la veille du staff), hormis le
+pilote — l'« invisibilité jusqu'après le staff » ne protégeait donc personne et ne faisait que
+casser la chronologie de démo voulue (installer l'app en séance → activer les notifications →
+génération en direct → TOUTE la salle sonne en même temps). Décision : tout ouvrir tout de suite,
+zéro code nouveau (l'interrupteur double envisagé devient inutile). Arthur exécute
+`ouvrirEchanges()`, supprime `ECHANGES_PILOTES`, relance `synchroniserEtatEchanges()`.
+Conséquences assumées : un MAR curieux peut créer un vrai échange dès le 4/09 (c'est la
+fonctionnalité) ; les demandes créées sur le bac à sable 2027 deviendraient orphelines à sa
+suppression (échec propre en `impossible`) → **nettoyage `_2027` le soir même du staff** ; le
+secrétariat peut s'abonner aux notifications (les échanges lui restent fermés par rôle) ; la
+capture `assets/dashboard-accueil.png` projetée ne montre PAS la carte Échanges que la salle
+verra — à re-capturer avant le 4/09 (Arthur fournit la capture, une session la pousse).
+La v2.0 reste une montée de numéro symbolique APRÈS le staff (décision maintenue).
+Diapos alignées en v1.34.8 : le geste d'activation ajouté à la diapo d'installation (2 gestes,
+notes orateur : ne pas déflorer le clou de la démo), diapo de fin passée de « la semaine
+prochaine » à « dès aujourd'hui ».
+
 ### GEL LEVÉ LE 14/08 (décision d'Arthur) — sw.js v4 DÉPLOYÉ, le push 2 se réduit à la v2.0
 
 Arthur a renversé l'arbitrage, avec un argument que la prudence initiale n'avait pas pesé
