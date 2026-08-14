@@ -140,7 +140,8 @@ V('sans abonné : succès, zéro envoi', rVide.success && rVide.abonnes === 0, r
 console.log('\n═══ N5. sw.js : les gestionnaires existent, la version a monté ═══');
 {
   const sw = fs.readFileSync('../sw.js', 'utf8');
-  V('version montée (chpg-sw-v3)', sw.includes("VERSION = 'chpg-sw-v3'"));
+  V('version montée (chpg-sw-v4)', sw.includes("VERSION = 'chpg-sw-v4'"));
+V("v4 : la pastille est posée à l'arrivée d'une notification", /setAppBadge\(d\.pastille\)/.test(sw));
   V("gestionnaire 'push' présent", /addEventListener\('push'/.test(sw));
   V("gestionnaire 'notificationclick' présent", /addEventListener\('notificationclick'/.test(sw));
   V('le toucher ouvre une page (openWindow)', sw.includes('clients.openWindow'));

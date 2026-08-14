@@ -19,11 +19,12 @@ chiffres concrets plutôt que des généralités.
 dans `ECHANGES_PILOTES`, propriété de script — jamais dans le dépôt) voient quoi que ce soit.
 Le bac à sable 2027 a été régénéré avec le nouveau générateur : `LIENS_R_2027` existe (~104
 lignes), le planning est publié, et la notification de génération est arrivée sur le téléphone
-d'Arthur — canal prouvé de bout en bout en production. Reste : le test à deux (phase 5), la
-répétition du 28/08, le staff du 4/09, puis **push 2 (`sw.js` v4, pastille) + `ouvrirEchanges()`
-= la v2.0** — décision d'Arthur : l'ouverture vaut un premier chiffre, pas un v1.35. La
-spécification EXACTE du push 2 est dans la ROADMAP (bloc du 14/08) : les copies de travail ne
-survivent pas aux sessions, le bloc suffit à n'importe quelle session pour l'exécuter.
+d'Arthur — canal prouvé de bout en bout en production. **Gel de sw.js LEVÉ le 14/08 par Arthur** — argument retenu : mieux vaut éprouver la v4
+(pastille) trois semaines à deux qu'y toucher le jour où 23 personnes s'équipent. La v4 est
+EN LIGNE, toute la chaîne de la pastille est donc en production. Reste : le test à deux
+(phase 5, pastille comprise désormais), la répétition du 28/08, le staff du 4/09, puis le
+**push 2 devenu symbolique : montée v2.0 seule** + `ouvrirEchanges()` — décision d'Arthur :
+l'ouverture vaut un premier chiffre, pas un v1.35.
 
 **Trois leçons de la journée.**
 1. **Un avertissement en commentaire ne protège personne ; un test, si.** Le mini-bundle
@@ -91,8 +92,9 @@ déploiement et les ajouts à la check-list de nettoyage sont dans la ROADMAP (b
    ajout légitime. Le banc a attrapé les deux — c'est son travail — mais la règle vaut pour tout
    nouveau test.
 
-**Le gel de `sw.js` tient jusqu'au 4/09.** La v4 (pastille d'icône) est écrite et testée mais
-partira dans un second micro-push le 5/09, avec l'ouverture. Aucune exception au gel.
+**Le gel de `sw.js`, posé le 12/08, a tenu jusqu'au 14/08** — puis Arthur l'a levé lui-même,
+en connaissance de cause (voir l'état du 14/08 après-midi) : la v4 est en ligne, éprouvée par
+les pilotes avant le staff plutôt qu'après l'ouverture.
 
 ## État au 13 août 2026 (soir) — v1.33.2, plus rien n'attend Google, banc à 863 vérifications
 

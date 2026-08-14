@@ -3,7 +3,7 @@
  * Ne met en cache QUE les assets figés (js/css/images/polices).
  * API Google Apps Script, .json et HTML : réseau direct, JAMAIS interceptés.
  */
-var VERSION = 'chpg-sw-v3';
+var VERSION = 'chpg-sw-v4';
 var ASSET_CACHE = VERSION + '-assets';
 var FONT_CACHE  = VERSION + '-fonts';
 
@@ -52,6 +52,13 @@ self.addEventListener('push', function (e) {
   var d = {};
   try { d = e.data ? e.data.json() : {}; } catch (_) {}
   var titre = d.titre || 'Portail CHPG';
+  /* (v4) Pastille sur l'icône de l'app : bannière et pastille sont deux
+     mécanismes séparés sur iPhone — la pastille se demande explicitement
+     (iOS 16.4+, app installée). Posée seulement si la charge porte un
+     nombre ; effacée par le portail à son ouverture. Jamais bloquant. */
+  if (typeof d.pastille === 'number' && navigator.setAppBadge) {
+    try { navigator.setAppBadge(d.pastille); } catch (_) {}
+  }
   e.waitUntil(self.registration.showNotification(titre, {
     body: d.corps || '',
     icon: 'assets/icon-192.png',

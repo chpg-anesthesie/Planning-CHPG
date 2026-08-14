@@ -94,12 +94,22 @@ de référence en cas de doute.
   abonnements morts déjà en place ; un bouton « désactiver » dans le portail attendra une
   demande réelle (lot 5).
 
-### PUSH 2 — contenu EXACT (le 5/09, sur « ok push 2 » d'Arthur)
+### GEL LEVÉ LE 14/08 (décision d'Arthur) — sw.js v4 DÉPLOYÉ, le push 2 se réduit à la v2.0
 
-Les copies de travail ne survivent pas aux sessions : les fichiers FINIS attendent dans
-**`deploiement-v2/`** (sw.js v4 + banc_notif.mjs + LISEZMOI avec les gestes mécaniques) —
-le push 2 est une copie de fichiers, pas une reconstruction. La spécification ci-dessous
-reste la référence si le dossier devait manquer.
+Arthur a renversé l'arbitrage, avec un argument que la prudence initiale n'avait pas pesé
+à sa juste valeur : toucher au moteur des notifications APRÈS l'ouverture, quand 23 personnes
+s'équipent, c'est risquer de casser au vu de tous — alors que le déployer MAINTENANT le fait
+éprouver trois semaines en conditions réelles par les deux pilotes avant le staff. Le risque
+résiduel (5 lignes dans un try silencieux ; un échec de pastille laisse la bannière intacte,
+comme en v3) est pris en petit comité. sw.js v4 + banc_notif.mjs sont donc EN LIGNE depuis le
+14/08, SANS montée de version site (aucune page ne change — même règle que « GAS seul »),
+et le dossier d'attente `deploiement-v2/` est supprimé.
+
+**Le PUSH 2 du 5/09 devient purement symbolique** : montée **v2.0** sur tous les marqueurs
+(les recompter dans le dépôt — au 14/08 : 9 emplacements, 5 fichiers), consignation
+ROADMAP/CONTEXTE de l'ouverture, rien d'autre. Puis Arthur : `ouvrirEchanges()`, suppression
+de `ECHANGES_PILOTES`, annonce aux 23. La spécification historique ci-dessous reste pour
+mémoire (elle décrivait la v4 avant son déploiement).
 1. **`sw.js`** : `VERSION = 'chpg-sw-v4'` + dans le gestionnaire `push`, avant `showNotification` :
    si `d.pastille` est un nombre et `navigator.setAppBadge` existe → `navigator.setAppBadge(d.pastille)`
    dans un try silencieux (commentaire : bannière et pastille sont deux mécanismes séparés sur
