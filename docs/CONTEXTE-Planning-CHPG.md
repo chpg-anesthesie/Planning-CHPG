@@ -11,6 +11,33 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 14 août 2026 (midi) — v1.34.6 en ligne : cinq défauts d'affichage, dont un qui attendait 2027
+
+Session partie de captures d'écran, pas d'une relecture. Cinq push, banc à **1098 vérifications**
+sur 28 scripts. Le détail est dans la ROADMAP (bloc du 14/08 matin). Ce qu'il faut retenir ici :
+
+1. **Les additions de codes sont des listes déguisées.** Trois compteurs d'`index.html` faisaient
+   `A + CP + F` en dur. Or `GARDES_2027` ne contient **aucun A ni CP** — mais 1013 V, 224 TP et
+   56 CL. À partir de janvier, un mois de vacances complet se serait affiché « aucune absence ».
+   C'était la **sixième** liste divergente de cette famille, et elle avait échappé à l'inventaire du
+   13/08 parce qu'elle n'a pas la forme d'une liste. **Chercher `['A','V',…]` ne suffit pas :
+   chercher aussi `.A + .CP + .F`.**
+2. **Un chiffre affiché se revérifie au classeur, y compris quand il « a l'air » juste.** La pastille
+   verte « 1h » ne comptait pas des heures mais des **journées 8 h – 18 h**. Confirmé ligne par ligne
+   au classeur avant de toucher au code.
+3. **Une capture d'écran ne prouve rien.** Un zoom a été pris pour un débordement, et le défaut
+   annoncé à Arthur avant vérification. Une image motive une hypothèse ; elle ne la conclut pas.
+4. **jsdom ne mesure pas.** Un test de mise en page prouve que la règle CSS est écrite, jamais que
+   ça tient à l'écran. Le banc vert ne dit rien de l'affichage : la preuve est le téléphone.
+5. **Coder n'est pas livrer.** Un push est parti sur un « Ok » qui répondait à « je code et je lance
+   le banc ? ». Signalé, retour en arrière proposé. Un accord ne vaut que pour la question posée.
+6. **Le tableau des porteurs de version de la ROADMAP était faux** (4 fichiers, il y en a 5 depuis la
+   création de `docs/roadmap.html`). Le banc a refusé le push. **Compter les marqueurs dans le
+   dépôt ; ne jamais recopier un tableau, même interne au projet.**
+
+**Reste ouvert** : `admin.html` porte le même panneau latéral non adapté au téléphone que celui
+corrigé dans `index.html` (`.panel`, 420 px, `100vh`, collé en bas). Non traité — écran comité sur PC.
+
 ## État au 14 août 2026 — v1.34 en attente de push : les échanges de gardes sont construits de bout en bout
 
 **Le chantier « échanges et dons de gardes entre MAR » est TERMINÉ dans la copie de travail — rien

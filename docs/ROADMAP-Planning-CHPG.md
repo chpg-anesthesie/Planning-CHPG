@@ -4,7 +4,7 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.33.2** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.34.6** ·
 **GAS** (relevé dans le dépôt le 13/08/2026) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-13.1 · `miroir.gs` 2026-08-13.2 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
@@ -23,11 +23,14 @@ chiffre**. `index.html`, `indispos.html` et `staff.html` n'en portent AUCUN : un
 de ces pages impose quand même la montée de version chez les 5 porteurs. Le banc a un test dédié
 qui refuse qu'ils divergent.
 
-**Banc d'essai** `banc/` — 863 vérifications (relevé le 13/08/2026 au soir), `cd banc && ./lancer.sh`.
+**Banc d'essai** `banc/` — 1098 vérifications sur 28 scripts (relevé le 14/08/2026 à midi),
+`cd banc && ./lancer.sh`. *(Comptage : somme des récapitulatifs de fin de chaque script, MOINS le
+sous-total de 9 que `banc.js` imprime au milieu et réintègre ensuite dans son propre total de 19,
+PLUS `banc_notif.mjs` qui compte au format `35 ✓ / 0 ✗`. Recompter, ne pas recopier.)*
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 13 août 2026 (soir).*
+*Mise à jour : 14 août 2026 (midi).*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -37,6 +40,130 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 14 août 2026 (matin) — v1.34.2 → v1.34.6 : cinq défauts vus sur un iPhone, dont un qui attendait 2027
+
+Session déclenchée par trois captures d'écran d'Arthur, pas par une relecture de code. Cinq push
+atomiques, tous vérifiés en ligne par comparaison SHA-256 après relecture. Banc 1085 → **1098**.
+
+| Version | Commit | Ce qui change |
+|---|---|---|
+| v1.34.2 | `0046953` | Vue Année : le nom du mois s'écrit en entier |
+| v1.34.4 | `e656516` | Le bandeau du haut ne peut plus déborder de sa hauteur (6 pages) |
+| v1.34.5 | `663e891` | La fiche d'un MAR tient dans l'écran du téléphone |
+| v1.34.6 | `8c86878` | Absences du vocabulaire 2027, journée 18h lisible, récup de samedi visible |
+
+*(v1.34.3 vient d'une autre session : les icônes `bell`, `plus`, `repeat` ajoutées au bundle local.
+Elle s'est intercalée pendant celle-ci — d'où la règle « repartir de la version en ligne » appliquée
+littéralement à chaque lot.)*
+
+### Le défaut qui comptait vraiment : les absences de 2027
+
+Question d'Arthur, pas une découverte de relecture : *« pour 2027 il n'y aura plus de code A, ce
+sera TP, V… donc il va tout écrire ? »* Réponse mesurée : **l'inverse, il n'aurait rien écrit.**
+
+Les trois compteurs d'absences de l'onglet Médecins (carte du MAR, case « Absences » de la fiche,
+récapitulatif annuel) additionnaient `A + CP + F` **en dur**. Relevé dans le classeur le même jour :
+
+| Code | GARDES_2026 | GARDES_2027 |
+|---|---|---|
+| A | 855 | **0** |
+| CP | 23 | **0** |
+| F | 114 | 207 |
+| V | 3 | **1013** |
+| TP | 131 | **224** |
+| CL | 124 | **56** |
+
+À partir de janvier 2027, un mois entier de vacances se serait affiché « aucune absence », et le
+récapitulatif serait tombé sur son repli « X jours présents » — **déjà visible sur la capture
+d'Arthur : « Janvier 2027 · 1j »**. Corrigé en dérivant `ABSENT_COMPTEUR` de `ABSENT_PANNEAU`, la
+liste juste qui vivait déjà dans le fichier ; `R` en est retiré puisqu'il a désormais sa propre
+pastille. **Plus aucune liste de codes écrite à la main dans `index.html`.**
+
+C'est la **sixième** liste divergente de cette famille — les cinq autres avaient été unifiées le
+13/08 au soir. Celle-ci avait échappé à l'inventaire parce qu'elle ne ressemble pas aux autres :
+ce n'est pas un tableau de codes, ce sont trois additions `A + CP + F` noyées dans du calcul.
+**Chercher les listes ne suffit pas : il faut chercher aussi les additions de codes.**
+
+Contre-épreuve faite avant le push, sur le code alors EN LIGNE, avec un mois au vocabulaire 2027
+(10 V, 2 TP, 1 CL, 1 F, 2 gardes, 1 journée 18h, 1 récup) : en ligne « **1 abs.** », récapitulatif
+`2G 1h 1A` ; après patch « **14 abs.** », récapitulatif `2G 1×18 1R 14A`.
+
+### Deux libellés qui mentaient
+
+1. **`1h` ne voulait pas dire une heure.** La pastille verte du récapitulatif comptait les
+   **journées 8 h – 18 h** (code `18`) et collait un `h` derrière le nombre. Vérifié sur la ligne
+   d'Arthur au classeur : février, mars, avril, mai, juillet, octobre, décembre → une journée 18 h
+   chacun, ce qui correspond exactement aux « 1h » de son écran. Devient **`1×18`** (« 1×18h » a été
+   refusé par Arthur : trop long).
+2. **La récupération de samedi n'apparaissait nulle part** dans le récapitulatif — sept dans
+   l'année pour Arthur, aucune pastille. Elle en a une désormais, et **une teinte propre**
+   (`--recup`, bleu-canard, déclarée dans les deux thèmes) : elle partageait le vert du 18 h dans
+   le mini-calendrier ET dans la vue Année. **Le 18 reste vert**, comme sur la vue Planning
+   (`.chip-h18` / `.name-tag.h18`) — vérifié dans le fichier, et le banc le verrouille pour que
+   personne ne le déplace plus tard.
+
+### Trois défauts de mise en page sur téléphone
+
+1. **Vue Année** : la bande du haut affichait `Aoû` alors que la colonne couvre tout le mois
+   (31 × 20 px). Nom complet dès que le mois affiché fait 6 jours ou plus ; en deçà (janvier 2027 =
+   3 jours, fin de l'année de planning) l'abrégé reste, sinon le titre élargirait ses colonnes.
+2. **Bandeau du haut** : `absences.html` et `suivi-liberal.html` n'avaient AUCUNE des protections
+   qu'`index.html` et `dashboard.html` ont depuis longtemps. Titre et sous-titre s'enroulaient sur
+   trois lignes ; la hauteur étant figée par `height`, le débordement partait **au-dessus du bord
+   de l'écran**. Règle unique appliquée aux 6 pages : `min-height` au lieu de `height`, titre en
+   `nowrap` + `ellipsis`, `min-width:0` sur la zone du titre (sans quoi l'ellipsis ne se déclenche
+   jamais dans un conteneur flex), `flex-shrink:0` sur les boutons. Sous 640 px : sous-titre masqué,
+   pastilles réduites, et sur `suivi-liberal.html` — seule page à porter TROIS boutons à droite —
+   « Retour au portail » devient « Portail ». **`index.html` et `dashboard.html` gardaient eux aussi
+   une hauteur figée** : ils s'en sortaient par l'ellipsis seule, le garde-fou manquait. C'est le
+   test écrit AVANT le patch qui les a dénoncés.
+3. **Fiche d'un MAR** (`.doc-panel`) : `width: 480px` en dur sur un écran de 390 px — l'avatar
+   sortait à gauche — et `height: 100vh` **collé en bas** de son enveloppe (`align-items: flex-end`),
+   donc tout dépassement partait vers le haut et coupait le nom, le secteur et la croix. Devient
+   `min(480px, 100%)`, étiré (`stretch`), `height: 100%` de l'enveloppe qui est déjà
+   `position:fixed; inset:0`. Place réservée pour la barre d'état iOS en haut
+   (`env(safe-area-inset-top)`) et la barre home en bas. **`admin.html` porte exactement le même
+   panneau** (`.panel`, 420 px, `100vh`, collé en bas) : NON traité, écran comité sur PC — le défaut
+   y est identique si on l'ouvre un jour sur téléphone.
+
+### Bancs
+
+Trois scénarios nouveaux, tous écrits avant leur correctif :
+- `banc_pages_mar.js` **28o** — vue Année rendue pour de vrai : « Août » en entier, « Jan 2027 »
+  abrégé, la bande couvre bien les 34 jours.
+- `banc_docs.js` **§9** — le bandeau des 6 pages : hauteur minimale, titre coupé par « … », zone du
+  titre capable de rétrécir, boutons non écrasables, sous-titre effacé sous 640 px.
+- `banc_docs.js` **§10** — la fiche d'un MAR : enveloppe, étirement, largeur plafonnée, hauteur,
+  barres d'état.
+- `banc_pages_mar.js` **28p** (13 vérifs) — vocabulaire 2027 rendu dans un navigateur simulé, les
+  deux libellés, et le verrou « le 18 reste vert sur la vue Planning ».
+
+⚠️ **Ce que ces tests ne prouvent PAS.** jsdom ne calcule aucune largeur ni hauteur : un test de
+mise en page y vérifie que la RÈGLE CSS est écrite, jamais que ça tient à l'écran. La preuve reste
+le téléphone d'Arthur. Ne jamais présenter « le banc est vert » comme « l'affichage est bon ».
+
+### Trois fautes de méthode de cette session, à ne pas refaire
+
+1. **Un push est parti sans accord explicite.** La question posée était « je code et je lance le
+   banc ? » ; le « Ok » d'Arthur portait sur ça, pas sur la livraison. Le patch a été poussé dans la
+   foulée (v1.34.5). Signalé immédiatement, retour en arrière proposé, refusé par Arthur. La règle
+   ne souffre aucune interprétation : **coder ≠ livrer**, et un « ok » ne vaut que pour la question
+   effectivement posée.
+2. **Un défaut a été affirmé sur la foi d'une capture d'écran.** Une image zoomée du récapitulatif
+   a été lue comme un débordement horizontal, et présentée comme « un défaut que j'ai créé ».
+   Arthur : *« non c'est une capture zoomée, rien ne dépasse »*. **Une capture ne se mesure pas :
+   elle motive une hypothèse, elle ne la conclut jamais.**
+3. **Le tableau des porteurs de version, dans ce fichier, était périmé** (4 fichiers au lieu de 5) ;
+   la session s'y est fiée et a oublié `docs/roadmap.html`. C'est le banc qui a refusé le push.
+   Tableau corrigé ci-dessous, avec son historique — il a désormais eu faux deux fois.
+
+### Au passage
+
+`docs/roadmap.html` annonçait **723 vérifications** alors que le banc en comptait 1048 : compteur
+remis à jour à chaque push de la session (1053 → 1079 → 1085 → 1093 → 1098).
 
 ---
 
@@ -2605,10 +2732,13 @@ alignés (v1.4) » pendant que 3 sur 4 montraient v1.0 aux utilisateurs.
   détail. Vérifié en rejouant le nouveau contrôle sur les fichiers d'avant patch : il aurait bien
   signalé les 3 fichiers fautifs.
 
-⚠️ **Pour bumper la version : 4 fichiers, 10 emplacements.** *(Corrigé le 29/07/2026 : ce
-paragraphe annonçait « 5 fichiers, 9 emplacements » et comptait `docs/guide-technique.html`, qui
-ne porte aucune version — vérifié dans le fichier ET dans le code du Diagnostic, qui ne contrôle
-que les 4 ci-dessous. La même erreur vivait dans le CONTEXTE, corrigée le même jour.)*
+⚠️ **Pour bumper la version : 5 fichiers, 11 emplacements.** *(Historique de ce compte, qui a
+faux deux fois : le paragraphe annonçait « 5 fichiers, 9 emplacements » en comptant
+`docs/guide-technique.html`, qui ne porte aucune version — corrigé le 29/07/2026 en « 4 fichiers,
+10 emplacements ». Ce chiffre-là était juste le jour où il a été écrit, puis `docs/roadmap.html`
+a été créé et personne n'a rouvert la table : le 14/08/2026, une session s'y est fiée et a oublié
+ce cinquième porteur. **C'est le banc qui a refusé le push**, pas la relecture. Morale inchangée
+et vérifiée deux fois : chercher les marqueurs dans le dépôt, ne jamais recopier ce tableau.)*
 
 | Fichier | Emplacements |
 |---|---|
@@ -2616,6 +2746,7 @@ que les 4 ci-dessous. La même erreur vivait dans le CONTEXTE, corrigée le mêm
 | `admin.html` | idem (3 emplacements) |
 | `docs/guide-mar.html` | `Version <strong>vX.Y</strong>` · marqueur `<!-- SITE_VERSION: -->` |
 | `docs/guide-comite.html` | idem (2 emplacements) |
+| `docs/roadmap.html` | bloc « État vérifié », ligne `Site` (1 emplacement) |
 
 Le **badge HTML en dur** compte : il est visible *avant* connexion, jusqu'à ce que le JS le remplace.
 Le diagnostic signale tout oubli — c'est précisément ce qu'il ne savait pas faire.
