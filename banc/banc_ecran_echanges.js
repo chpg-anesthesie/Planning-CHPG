@@ -123,8 +123,10 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     kv.notif_config = JSON.stringify({ ouvert:false, pilotes:['ALPHA','BRAVO'] });
     const surGas = (charge, M) => {
       if (charge.action === 'repondreEchange') {
-        const acc = Object.assign({}, demande, { etat:'acceptee', reponduLe:new Date().toISOString() });
-        M.set('echanges', JSON.stringify({ success:true, echanges:[acc] }));   // le verbe réel pousse au KV avant de répondre
+        /* (14/08/2026 — vu en test réel) La copie rapide reste VOLONTAIREMENT
+           en retard : la propagation peut prendre quelques secondes en vrai,
+           et l'écran affichait « EN ATTENTE » sur une demande acceptée.
+           L'écran doit croire la réponse du serveur, pas la relecture. */
         return { success:true, etat:'acceptee' };
       }
       if (charge.action === 'login') return { success:true, role:'mar', id:'ALPHA', year:2027 };
@@ -153,7 +155,7 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     const gas = appelsGas.find(c => c.action === 'repondreEchange');
     V('le verbe part au serveur avec l\'identifiant et la réponse', !!gas && gas.id === 'E1' && gas.reponse === 'accepter', gas);
     const apres = w.document.getElementById('echList').innerHTML;
-    V('l\'écran se met à jour : Acceptée, plus aucun bouton', /Acceptée/.test(apres) && !/ech-accepter/.test(apres), apres.slice(0,200));
+    V('l\'écran passe à Acceptée MALGRÉ la copie rapide en retard (défaut du 14/08)', /Acceptée/.test(apres) && !/ech-accepter/.test(apres), apres.slice(0,200));
     V('le compteur de la carte s\'éteint', /Mes échanges/.test(w.document.getElementById('echHeroMain').textContent));
   }
 
@@ -166,8 +168,7 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     const surGas = (charge, M) => {
       if (charge.action === 'creerEchange') {
         cree = charge;
-        M.set('echanges', JSON.stringify({ success:true, echanges:[Object.assign({}, demande,
-          { id:'E2', type:charge.type, date:charge.date, demandeur:'ALPHA', receveur:charge.receveur })] }));
+        // Miroir volontairement en retard : la demande doit apparaître depuis la réponse.
         return { success:true, id:'E2' };
       }
       if (charge.action === 'login') return { success:true, role:'mar', id:'ALPHA', year:2027 };
@@ -190,7 +191,7 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     await dodo(500);
     V('creerEchange part avec type, année, date et receveur exacts',
       !!cree && cree.type === 'don' && cree.year === 2027 && cree.date === '2027-03-09' && cree.receveur === 'BRAVO', cree);
-    V('la nouvelle demande apparaît dans la liste', /Don de garde/.test(w.document.getElementById('echList').innerHTML));
+    V('la nouvelle demande apparaît MALGRÉ la copie rapide en retard', /Don de garde/.test(w.document.getElementById('echList').innerHTML));
     V('le panneau se referme', w.document.getElementById('echProposition').style.display === 'none');
   }
 
