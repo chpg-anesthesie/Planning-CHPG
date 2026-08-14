@@ -13,6 +13,24 @@ const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++
 const dodo = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
+  console.log('\n═══ 0. Chaque icône demandée par les pages existe dans le fichier maison ═══');
+  {
+    /* Défaut trouvé en production le 14/08 : data-lucide="repeat" (et "bell",
+       et "plus") demandés par dashboard.html, ABSENTS du mini-bundle local —
+       carré vide, sans erreur, exactement comme l'avertissement du fichier
+       le prédit. Ce garde-fou rend la récidive impossible : tout nouveau nom
+       d'icône doit être ajouté au bundle DANS LE MÊME push. */
+    const bundle = fs.readFileSync(path.join(__dirname, '..', 'assets', 'vendor', 'lucide-icons.js'), 'utf8');
+    for (const page of ['dashboard.html', 'index.html', 'admin.html', 'staff.html', 'indispos.html', 'absences.html']) {
+      let html = '';
+      try { html = fs.readFileSync(path.join(__dirname, '..', page), 'utf8'); } catch (e) { continue; }
+      if (!/lucide-icons\.js/.test(html)) continue;   // la page n'utilise pas le bundle
+      const demandes = [...new Set([...html.matchAll(/data-lucide="([a-z0-9-]+)"/g)].map(m => m[1]))];
+      const absentes = demandes.filter(n => bundle.indexOf('"' + n + '":[') === -1);
+      V(page + ' : ' + demandes.length + ' icône(s), toutes présentes dans le bundle', absentes.length === 0, absentes);
+    }
+  }
+
   const src = fs.readFileSync(path.join(__dirname, '..', 'cloudflare', 'worker.js'), 'utf8').replace('export default', 'globalThis.__W =');
   const sha = async t => { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); };
   const CODE = 'MARCODE77';
