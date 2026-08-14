@@ -97,9 +97,14 @@ console.log('\n═══ T147 · apostrophes et accents restitués à l\'identiq
   textes.forEach((t, i) => {
     vm.runInContext(`savePlanningOverridesBatch([{date:'2027-04-0${i+1}',marId:'DELTA',morning:'REA',comment:${JSON.stringify(t)}}])`, b.ctx);
   });
+  /* (14/08/2026) La doublure coerce les dates comme le vrai Sheets ; la
+     recherche du test se normalise, comme le code de production le fait. */
+  const dstr = v => v instanceof Date
+    ? `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`
+    : String(v).trim();
   const l = b.cl.getSheetByName('PLANNING_OVERRIDES').lignes.slice(1);
   textes.forEach((t, i) => {
-    const ligne = l.find(x => x[0] === `2027-04-0${i+1}`);
+    const ligne = l.find(x => dstr(x[0]) === `2027-04-0${i+1}`);
     V(`« ${t.slice(0,22)} » restitué exactement`, ligne && ligne[4] === t, ligne && ligne[4]);
   });
 }

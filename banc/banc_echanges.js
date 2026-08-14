@@ -208,7 +208,8 @@ console.log('\n═══ 9. Don d\'un samedi AVEC lien : le R suit, le lien est 
   const lendemain = b.dates[b.dates.indexOf(samedi) + 1];
   const dateR = b.dates[60]; // un jour de semaine lointain, PAS ENCORE PASSÉ (2027 > aujourd'hui)
   b.poser('ALPHA', samedi, 'G'); b.poser('ALPHA', lendemain, 'RG'); b.poser('ALPHA', dateR, 'R');
-  b.cl.getSheetByName('LIENS_R_2027') || b.cl.ajouter('LIENS_R_2027', [['SAMEDI','MEDECIN','DATE R'], [samedi, 'ALPHA', dateR]]);
+  /* Comme en PRODUCTION : Sheets a coercé les cellules en objets Date. */
+  b.cl.getSheetByName('LIENS_R_2027') || b.cl.ajouter('LIENS_R_2027', [['SAMEDI','MEDECIN','DATE R'], [new Date(samedi+'T00:00:00'), 'ALPHA', new Date(dateR+'T00:00:00')]]);
   const r = vm.runInContext(`creerEchange(${JSON.stringify(user('ALPHA'))}, { type:'don', year:2027, date:${JSON.stringify(samedi)}, receveur:'BRAVO' })`, b.ctx);
   b.notifs.length = 0;
   const rep = vm.runInContext(`repondreEchange(${JSON.stringify(user('BRAVO'))}, { id:${JSON.stringify(r.id)}, reponse:'accepter' })`, b.ctx);
@@ -233,7 +234,10 @@ console.log('\n═══ 10. Don d\'un samedi SANS lien (2026) : l\'échange abo
   V('l\'échange aboutit QUAND MÊME', rep.etat === 'acceptee' && b.lire('BRAVO', samedi) === 'G');
   const alerte = b.notifs.find(n => n.cible && n.cible.role === 'admin');
   V('le comité est notifié pour replacer le R', !!alerte, b.notifs);
-  V('l\'alerte nomme le samedi et les deux MAR', alerte && alerte.corps.indexOf(samedi) > -1 && /ALPHA/.test(alerte.corps) && /BRAVO/.test(alerte.corps), alerte);
+  V('l\'alerte nomme le samedi (en date lisible) et les deux MAR', (() => {
+    const joli = samedi.slice(8,10)+'/'+samedi.slice(5,7)+'/'+samedi.slice(0,4);
+    return alerte && alerte.corps.indexOf(joli) > -1 && /ALPHA/.test(alerte.corps) && /BRAVO/.test(alerte.corps);
+  })(), alerte);
 }
 
 console.log('\n═══ 11. Samedi dont le receveur est occupé le jour du R : échange fait, comité prévenu ═══');
@@ -386,6 +390,27 @@ console.log('\n═══ 17. Le Worker applique le MÊME interrupteur (lecture `
   V('notif_config n\'est JAMAIS servie par /read', /cle === 'notif_config'\) \{ refuses/.test(worker) || /\|\| cle === 'notif_config'/.test(worker));
   V('la clé `echanges` est soumise à l\'interrupteur', /cle === 'echanges' && !\(await echangesAutorise/.test(worker));
   V('l\'abonnement s\'ouvre par notif_config, pas par redéploiement', /notif_config/.test(worker.split('notifAbonner')[1] || ''));
+}
+
+console.log('\n═══ 17 bis. Le classeur transforme les dates (vrai Sheets) : le module résiste ═══');
+{
+  /* La doublure coerce désormais '2027-03-XX' en objets Date à CHAQUE écriture,
+     comme la production. La création, la lecture, la notification et surtout
+     l'ACCEPTATION doivent rendre des textes propres — c'est le défaut du
+     14/08 (« Fri Sep 03 2027… introuvable dans GARDES_2027 ») rejoué. */
+  const b = monde(2027);
+  const j = b.dates[9], lendemain = b.dates[10];
+  b.poser('ALPHA', j, 'G'); b.poser('ALPHA', lendemain, 'RG');
+  const r = vm.runInContext(`creerEchange(${JSON.stringify(user('ALPHA'))}, { type:'don', year:2027, date:${JSON.stringify(j)}, receveur:'BRAVO' })`, b.ctx);
+  const brutDate = b.cl.getSheetByName('ECHANGES').lignes[1][COL.DATE];
+  V('la doublure a bien coercé la date écrite (objet Date)', brutDate instanceof Date, typeof brutDate);
+  V('la notification est en date LISIBLE (jj/mm/aaaa), jamais « GMT »',
+    /\d{2}\/\d{2}\/\d{4}/.test(b.notifs[0].corps) && b.notifs[0].corps.indexOf('GMT') === -1, b.notifs[0].corps);
+  const env = vm.runInContext('getEchangesEnveloppe()', b.ctx);
+  V('la lecture rend « AAAA-MM-JJ », pas la date verbeuse', env.echanges[0].date === j, env.echanges[0].date);
+  const rep = vm.runInContext(`repondreEchange(${JSON.stringify(user('BRAVO'))}, { id:${JSON.stringify(r.id)}, reponse:'accepter' })`, b.ctx);
+  V('l\'ACCEPTATION passe malgré la coercition (le défaut du 14/08)', rep.etat === 'acceptee', rep);
+  V('la garde a réellement changé de mains', b.lire('BRAVO', j) === 'G' && b.lire('ALPHA', j) === '');
 }
 
 console.log('\n═══ 18. La pastille d\'icône : la chaîne complète, du compteur au téléphone ═══');

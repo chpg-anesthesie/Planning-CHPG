@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-08-13.1';
+const GAS_VERSION_GENERATEUR = '2026-08-14.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -1459,7 +1459,10 @@ function generateGardes(year){
   lr.getRange(1,1,1,3).setValues([['SAMEDI','MEDECIN','DATE R']]).setFontWeight('bold');
   if(liensR.length){
     liensR.sort((x,y)=>x[0]<y[0]?-1:x[0]>y[0]?1:(x[1]<y[1]?-1:1));
-    lr.getRange(2,1,liensR.length,3).setValues(liensR);
+    // (14/08/2026) Format TEXTE d'abord : sans lui, Sheets transforme les
+    // dates écrites en vraies dates, et le transfert de R ne les retrouve
+    // plus (même défaut que l'onglet ECHANGES, trouvé au premier test réel).
+    lr.getRange(2,1,liensR.length,3).setNumberFormat('@').setValues(liensR);
   }
   lr.setColumnWidth(1,110);lr.setColumnWidth(2,140);lr.setColumnWidth(3,110);
 

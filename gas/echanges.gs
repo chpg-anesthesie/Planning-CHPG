@@ -38,13 +38,42 @@
    depuis l'éditeur : installerDeclencheurEchanges().
    ═══════════════════════════════════════════════════════════════════════ */
 
-const GAS_VERSION_ECHANGES = '2026-08-13.1';
+const GAS_VERSION_ECHANGES = '2026-08-14.1';
 
 const ECHANGES_ONGLET = 'ECHANGES';
 const ECHANGES_ENTETE = ['ID', 'CREE_LE', 'TYPE', 'ANNEE', 'DATE', 'DATE2',
   'DEMANDEUR', 'RECEVEUR', 'ETAT', 'REPONDU_LE', 'RAPPEL_LE', 'INFO'];
 const ECHANGES_EXPIRATION_H = 48;
 const ECHANGES_RAPPEL_H = 24;
+
+/* ── LES DATES FACE À GOOGLE SHEETS (14/08/2026 — défaut trouvé au premier
+   test réel) ──────────────────────────────────────────────────────────
+   Sheets transforme d'office un texte « 2027-09-03 » en VRAIE date. À la
+   relecture : un objet Date, qui s'affiche « Fri Sep 03 2027 00:00:00
+   GMT+0200… » et que getDateIndex ne reconnaît pas — l'acceptation partait
+   en `impossible`. Double blindage : (1) TOUTE lecture normalise (répare
+   aussi les lignes déjà écrites), (2) toute écriture passe la plage en
+   format texte d'abord. Même défaut, même remède pour LIENS_R (générateur
+   + _transfererR_). La doublure du banc coerce désormais comme le vrai. */
+function _echangesTz_() {
+  try { return SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(); }
+  catch (e) { return 'Europe/Monaco'; }
+}
+/* Date calendaire → toujours 'AAAA-MM-JJ' (fuseau du classeur). */
+function _echangesTexteDate_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, _echangesTz_(), 'yyyy-MM-dd');
+  return String(v == null ? '' : v).trim();
+}
+/* Horodatage → toujours l'instant ISO (absolu, fuseau indifférent). */
+function _echangesTexteInstant_(v) {
+  if (v instanceof Date) return v.toISOString();
+  return String(v == null ? '' : v).trim();
+}
+/* Pour les yeux : '2027-09-03' → '03/09/2027' (notifications, motifs). */
+function _echangesJoli_(d) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d));
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : String(d);
+}
 
 /* ── L'INTERRUPTEUR (13/08/2026 — décision Arthur) ─────────────────────
    Tout est déployé et éprouvé AVANT le staff, mais reste INVISIBLE pour
@@ -104,6 +133,8 @@ function _echangesFeuille_() {
   if (!sh) {
     sh = ss.insertSheet(ECHANGES_ONGLET);
     sh.getRange(1, 1, 1, ECHANGES_ENTETE.length).setValues([ECHANGES_ENTETE]).setFontWeight('bold');
+    // Tout l'onglet en TEXTE : Sheets ne transformera jamais nos dates.
+    try { sh.getRange(1, 1, sh.getMaxRows(), ECHANGES_ENTETE.length).setNumberFormat('@'); } catch (e) {}
   }
   return sh;
 }
@@ -117,9 +148,15 @@ function _echangesLignes_() {
   if (!sh) return { sh: null, lignes: [] };
   const data = sh.getDataRange().getValues();
   const lignes = [];
+  const DATES = { DATE: 1, DATE2: 1 }, INSTANTS = { CREE_LE: 1, REPONDU_LE: 1, RAPPEL_LE: 1 };
   for (let r = 1; r < data.length; r++) {
     if (!String(data[r][0]).trim()) continue;
-    const o = {}; ECHANGES_ENTETE.forEach((h, i) => { o[h] = data[r][i]; });
+    const o = {};
+    ECHANGES_ENTETE.forEach((h, i) => {
+      o[h] = DATES[h] ? _echangesTexteDate_(data[r][i])
+           : INSTANTS[h] ? _echangesTexteInstant_(data[r][i])
+           : data[r][i];
+    });
     o._row = r + 1;
     lignes.push(o);
   }
@@ -178,8 +215,11 @@ function creerEchange(user, p) {
 
   const id = 'E' + Date.now() + '-' + Math.floor(Math.random() * 1000);
   const sh = _echangesFeuille_();
-  sh.appendRow([id, _echangesMaintenant_(), type, year, date, demande.DATE2,
-                user.id, receveur, 'attente', '', '', '']);
+  const ligne = sh.getLastRow() + 1;
+  const plage = sh.getRange(ligne, 1, 1, ECHANGES_ENTETE.length);
+  try { plage.setNumberFormat('@'); } catch (e) {}   // ceinture : l'onglet hérité d'avant le correctif n'est pas en texte
+  plage.setValues([[id, _echangesMaintenant_(), type, year, date, demande.DATE2,
+                    user.id, receveur, 'attente', '', '', '']]);
   logAction('creerEchange ' + id + ' — ' + type + ' ' + date + (demande.DATE2 ? '/' + demande.DATE2 : '')
     + ' | ' + user.id + ' -> ' + receveur);
 
@@ -187,8 +227,8 @@ function creerEchange(user, p) {
   notifierPush_(
     type === 'don' ? 'Proposition de garde' : 'Proposition d\'échange',
     type === 'don'
-      ? user.id + ' vous propose sa garde du ' + date + '.'
-      : user.id + ' vous propose sa garde du ' + date + ' contre la vôtre du ' + demande.DATE2 + '.',
+      ? user.id + ' vous propose sa garde du ' + _echangesJoli_(date) + '.'
+      : user.id + ' vous propose sa garde du ' + _echangesJoli_(date) + ' contre la vôtre du ' + _echangesJoli_(demande.DATE2) + '.',
     './dashboard.html', { id: receveur, pastille: _echangesEnAttentePour_(receveur) });
   return { id: id };
 }
@@ -216,7 +256,7 @@ function repondreEchange(user, p) {
     logAction('repondreEchange ' + id + ' — refusée par ' + user.id);
     _echangesVersKV_();
     notifierPush_('Proposition déclinée',
-      d.RECEVEUR + ' a décliné votre proposition du ' + d.DATE + '.',
+      d.RECEVEUR + ' a décliné votre proposition du ' + _echangesJoli_(d.DATE) + '.',
       './dashboard.html', { id: String(d.DEMANDEUR) });
     return { etat: 'refusee' };
   }
@@ -232,7 +272,7 @@ function repondreEchange(user, p) {
     sh.getRange(d._row, colInfo).setValue(String(err.message).slice(0, 200));
     logAction('repondreEchange ' + id + ' — IMPOSSIBLE : ' + err.message);
     _echangesVersKV_();
-    const corps = 'Le planning a changé depuis la proposition du ' + d.DATE + ' : ' + err.message;
+    const corps = 'Le planning a changé depuis la proposition du ' + _echangesJoli_(d.DATE) + ' : ' + err.message;
     notifierPush_('Échange impossible', corps, './dashboard.html', { id: String(d.DEMANDEUR) });
     notifierPush_('Échange impossible', corps, './dashboard.html', { id: String(d.RECEVEUR) });
     return { etat: 'impossible', error: String(err.message) };
@@ -261,9 +301,9 @@ function repondreEchange(user, p) {
   _echangesVersKV_();
 
   let corps = (d.TYPE === 'don')
-    ? 'La garde du ' + d.DATE + ' passe de ' + d.DEMANDEUR + ' à ' + d.RECEVEUR + '.'
-    : 'Gardes échangées : ' + d.DEMANDEUR + ' prend le ' + d.DATE2 + ', ' + d.RECEVEUR + ' prend le ' + d.DATE + '.';
-  rInfos.forEach(r => { if (r.fait) corps += ' La récupération du ' + r.dateR + ' est transférée.'; });
+    ? 'La garde du ' + _echangesJoli_(d.DATE) + ' passe de ' + d.DEMANDEUR + ' à ' + d.RECEVEUR + '.'
+    : 'Gardes échangées : ' + d.DEMANDEUR + ' prend le ' + _echangesJoli_(d.DATE2) + ', ' + d.RECEVEUR + ' prend le ' + _echangesJoli_(d.DATE) + '.';
+  rInfos.forEach(r => { if (r.fait) corps += ' La récupération du ' + _echangesJoli_(r.dateR) + ' est transférée.'; });
   notifierPush_('Échange confirmé', corps, './dashboard.html', { id: String(d.DEMANDEUR) });
   notifierPush_('Échange confirmé', corps, './dashboard.html', { id: String(d.RECEVEUR) });
 
@@ -271,7 +311,7 @@ function repondreEchange(user, p) {
   rInfos.forEach(r => {
     if (!r.fait) {
       notifierPush_('Récupération à replacer',
-        'Samedi ' + r.samedi + ' transféré (' + r.donneur + ' → ' + r.receveur + ') mais son R ne suit pas : '
+        'Samedi ' + _echangesJoli_(r.samedi) + ' transféré (' + r.donneur + ' → ' + r.receveur + ') mais son R ne suit pas : '
         + r.motif + '. À replacer à la main.',
         './admin.html', { role: 'admin' });
     }
@@ -294,8 +334,10 @@ function _transfererR_(year, samedi, donneur, receveur) {
   const data = sh.getDataRange().getValues();
   let row = -1, dateR = '';
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][0]).trim() === samedi && String(data[r][1]).trim() === donneur) {
-      row = r + 1; dateR = String(data[r][2]).trim(); break;
+    // Blindage Sheets : les cellules peuvent être de VRAIES dates (coercition
+    // à l'écriture) — on compare toujours des textes 'AAAA-MM-JJ'.
+    if (_echangesTexteDate_(data[r][0]) === samedi && String(data[r][1]).trim() === donneur) {
+      row = r + 1; dateR = _echangesTexteDate_(data[r][2]); break;
     }
   }
   if (row < 0) return Object.assign(base, { motif: 'lien introuvable pour ce samedi et ce MAR', resume: 'R non transféré (lien introuvable)' });
@@ -335,14 +377,14 @@ function expirerEchanges() {
       changements++;
       logAction('expirerEchanges ' + d.ID + ' — expirée (48 h sans réponse)');
       notifierPush_('Proposition expirée',
-        'Votre proposition du ' + d.DATE + ' à ' + d.RECEVEUR + ' est restée 48 h sans réponse.',
+        'Votre proposition du ' + _echangesJoli_(d.DATE) + ' à ' + d.RECEVEUR + ' est restée 48 h sans réponse.',
         './dashboard.html', { id: String(d.DEMANDEUR) });
     } else if (age > ECHANGES_RAPPEL_H * 3600 * 1000 && !String(d.RAPPEL_LE).trim()) {
       sh.getRange(d._row, colRap).setValue(_echangesMaintenant_());
       changements++;
       logAction('expirerEchanges ' + d.ID + ' — rappel 24 h');
       notifierPush_('Proposition en attente',
-        d.DEMANDEUR + ' attend votre réponse pour la garde du ' + d.DATE + ' (expire dans 24 h).',
+        d.DEMANDEUR + ' attend votre réponse pour la garde du ' + _echangesJoli_(d.DATE) + ' (expire dans 24 h).',
         './dashboard.html', { id: String(d.RECEVEUR), pastille: _echangesEnAttentePour_(String(d.RECEVEUR)) });
     }
   });

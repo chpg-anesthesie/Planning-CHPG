@@ -9,6 +9,9 @@ const { Classeur, fabriqueVerrou, VERROUS, extraireFonction } = require('./stubs
 
 let ok = 0, ko = 0;
 const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++; console.log('  ✗ ' + t + (d !== undefined ? ' → ' + JSON.stringify(d) : '')); } };
+const dstr = v => v instanceof Date
+  ? `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`
+  : String(v).trim();   // (14/08/2026) la doublure coerce les dates comme le vrai Sheets
 const dodo = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
@@ -103,7 +106,7 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
   applicateur();
   const lignes = cl.getSheetByName('PLANNING_OVERRIDES').lignes;
   V('le classeur contient les 2 placements', lignes.length === 3, lignes.map(l=>l.slice(0,4)));
-  V('CATINEAU 03/03 matin ET après-midi', lignes.some(l => l[0]==='2027-03-03' && l[1]==='CATINEAU' && l[2]==='MAT' && l[3]==='MAT'), lignes[1]);
+  V('CATINEAU 03/03 matin ET après-midi', lignes.some(l => dstr(l[0])==='2027-03-03' && l[1]==='CATINEAU' && l[2]==='MAT' && l[3]==='MAT'), lignes[1]);
   V('la file du journal est vidée', [...M.keys()].filter(k=>k.startsWith('j_')).length === 0);
   V('le registre d\'audit garde la trace', [...M.keys()].some(k=>k.startsWith('jfait_')));
   V('le miroir est noté (copie de lecture à rafraîchir)', notes.length >= 1, notes);
@@ -112,7 +115,7 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
   const r = vm.runInContext("appliquerStatutJour(2027,'SEVERAC','TP',['2027-03-04'])", gctx);
   V('statut TP posé', r.applied.length === 1, r);
   V('le placement SEVERAC du 04/03 a disparu tout seul',
-    !cl.getSheetByName('PLANNING_OVERRIDES').lignes.some(l => l[0]==='2027-03-04' && l[1]==='SEVERAC'),
+    !cl.getSheetByName('PLANNING_OVERRIDES').lignes.some(l => dstr(l[0])==='2027-03-04' && l[1]==='SEVERAC'),
     cl.getSheetByName('PLANNING_OVERRIDES').lignes.map(l=>l.slice(0,2)));
   V('les placements de CATINEAU sont intacts',
     cl.getSheetByName('PLANNING_OVERRIDES').lignes.some(l => l[1]==='CATINEAU'));
@@ -121,7 +124,7 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
   w.queueOverride('2027-03-04','SEVERAC','am','REA','Comité — réquisition');
   await w.flushBatch(); await dodo(30); applicateur();
   V('la réquisition (placement postérieur au TP) tient',
-    cl.getSheetByName('PLANNING_OVERRIDES').lignes.some(l => l[0]==='2027-03-04' && l[1]==='SEVERAC'),
+    cl.getSheetByName('PLANNING_OVERRIDES').lignes.some(l => dstr(l[0])==='2027-03-04' && l[1]==='SEVERAC'),
     cl.getSheetByName('PLANNING_OVERRIDES').lignes.map(l=>l.slice(0,2)));
 
   // (e) publication : lot + publier dans le même geste, puis fermeture de la page

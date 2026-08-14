@@ -18,8 +18,9 @@ class Sheet {
   getRange(r, c, nr, nc) {
     const s = this;
     return {
-      setValue(v) { while (s.lignes.length < r) s.lignes.push([]); s.lignes[r-1][c-1] = v; return this; },
-      setValues(vals) { vals.forEach((ligne, i) => { while (s.lignes.length < r+i) s.lignes.push([]); ligne.forEach((v,j) => s.lignes[r-1+i][c-1+j] = v); }); return this; },
+      setValue(v) { while (s.lignes.length < r) s.lignes.push([]); s.lignes[r-1][c-1] = _coerceSheets(v); return this; },
+      setValues(vals) { vals.forEach((ligne, i) => { while (s.lignes.length < r+i) s.lignes.push([]); ligne.forEach((v,j) => s.lignes[r-1+i][c-1+j] = _coerceSheets(v)); }); return this; },
+      setNumberFormat() { return this; },   // le format texte du vrai Sheets empêche la coercition ; la doublure reste au PIRE cas : le code doit résister même sans lui
       setFontWeight() { return this; },
       getValues() { const out = []; for (let i=0;i<(nr||1);i++) out.push((s.lignes[r-1+i]||[]).slice(c-1, c-1+(nc||1))); return out; },
       getValue() { return (s.lignes[r-1]||[])[c-1]; },
@@ -28,10 +29,23 @@ class Sheet {
   }
   deleteRow(n) { this.lignes.splice(n-1, 1); }
   setFrozenRows() {}
-  appendRow(l) { this.lignes.push(l.slice()); }
+  appendRow(l) { this.lignes.push(l.map(_coerceSheets)); }
   setColumnWidth() {}
   getLastColumn() { return Math.max(...this.lignes.map(l => l.length), 0); }
 }
+/* (14/08/2026 — défaut trouvé au premier test réel) Le VRAI Sheets transforme
+   un texte « 2027-09-03 » ou un horodatage ISO en objet Date à l'écriture.
+   La doublure était trop polie et rendait les textes tels quels : le banc ne
+   pouvait pas voir le défaut. Elle coerce désormais comme le vrai — et
+   VOLONTAIREMENT sans tenir compte du format texte (pire cas permanent). */
+function _coerceSheets(v) {
+  if (typeof v === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return new Date(v + 'T00:00:00');
+    if (/^\d{4}-\d{2}-\d{2}T[\d:.]+Z?$/.test(v)) return new Date(v);
+  }
+  return v;
+}
+
 class Classeur {
   constructor() { this.feuilles = {}; }
   ajouter(nom, lignes) { this.feuilles[nom] = new Sheet(nom, lignes); return this.feuilles[nom]; }

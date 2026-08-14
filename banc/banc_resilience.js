@@ -9,6 +9,11 @@ const { MARS, feuilleGardes, feuilleOverrides } = require('./jeu_donnees');
 
 let ok = 0, ko = 0;
 const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++; console.log('  ✗ ' + t + (d !== undefined ? ' → ' + JSON.stringify(d) : '')); } };
+/* (14/08/2026) La doublure coerce les dates comme le vrai Sheets : toute
+   comparaison du test se normalise, comme le fait le code de production. */
+const dstr = v => v instanceof Date
+  ? `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`
+  : String(v).trim();
 
 function monter(optionsTransport) {
   VERROUS.script = false; VERROUS.document = false;
@@ -104,8 +109,8 @@ console.log('\n═══ 11. Deux membres du comité en même temps ═══');
   deposer(b.KV, { type: 'placements', year: 2027, items: [{ date: b.dates[7], marId: 'BRAVO', morning: 'REA' }], par: 'FROHLICH' });
   deposer(b.KV, { type: 'placements', year: 2027, items: [{ date: b.dates[7], marId: 'BRAVO', morning: 'MAT' }], par: 'SULTAN' });
   b.appliquer();
-  const ligne = b.cl.getSheetByName('PLANNING_OVERRIDES').lignes.find(l => l[0] === b.dates[7] && l[1] === 'BRAVO');
-  V('une seule ligne pour la case disputée', b.cl.getSheetByName('PLANNING_OVERRIDES').lignes.filter(l => l[0]===b.dates[7] && l[1]==='BRAVO').length === 1);
+  const ligne = b.cl.getSheetByName('PLANNING_OVERRIDES').lignes.find(l => dstr(l[0]) === b.dates[7] && l[1] === 'BRAVO');
+  V('une seule ligne pour la case disputée', b.cl.getSheetByName('PLANNING_OVERRIDES').lignes.filter(l => dstr(l[0])===b.dates[7] && l[1]==='BRAVO').length === 1);
   V('le DERNIER déposé gagne (ordre du journal)', ligne && ligne[2] === 'MAT', ligne);
 }
 

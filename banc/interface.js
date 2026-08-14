@@ -10,6 +10,9 @@ const monde = require('./monde');
 const dodo = ms => new Promise(r => setTimeout(r, ms));
 let ok = 0, ko = 0;
 const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++; console.log('  ✗ ' + t + (d !== undefined ? ' → ' + JSON.stringify(d).slice(0,220) : '')); } };
+const dstr = v => v instanceof Date
+  ? `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`
+  : String(v).trim();   // (14/08/2026) la doublure coerce les dates comme le vrai Sheets ; les pages, elles, envoient toujours 'AAAA-MM-JJ'
 
 (async () => {
   // ── 1. Le serveur : monde complet + planning réel ──
@@ -231,10 +234,10 @@ const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++
     const ovs0 = W.cl.getSheetByName('PLANNING_OVERRIDES').lignes.slice(1);
     const cible = ovs0[0];
     if (cible) {
-      const r = vm.runInContext(`appliquerStatutJour(2027, ${JSON.stringify(cible[1])}, 'TP', ${JSON.stringify([cible[0]])})`, W.ctx);
+      const r = vm.runInContext(`appliquerStatutJour(2027, ${JSON.stringify(cible[1])}, 'TP', ${JSON.stringify([dstr(cible[0])])})`, W.ctx);
       V('le statut TP est posé sur le MAR placé', r.applied.length === 1, r);
       V('son placement de ce jour a disparu tout seul',
-        !W.cl.getSheetByName('PLANNING_OVERRIDES').lignes.some(l => l[0] === cible[0] && l[1] === cible[1]),
+        !W.cl.getSheetByName('PLANNING_OVERRIDES').lignes.some(l => dstr(l[0]) === dstr(cible[0]) && l[1] === cible[1]),
         { date: cible[0], mar: cible[1] });
       const moisTP = vm.runInContext('generatePlanningFromGardes(2027)', W.ctx);
       const mTP = moisTP.find(m => m.id === String(cible[0]).slice(0, 7));
@@ -250,9 +253,9 @@ const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++
   const ovs = W.cl.getSheetByName('PLANNING_OVERRIDES').lignes.slice(1);
   const un = ovs[0];
   if (un) {
-    const moisCible = moisApres.find(m => m.id === String(un[0]).slice(0, 7));
+    const moisCible = moisApres.find(m => m.id === dstr(un[0]).slice(0, 7));
     const doc = moisCible && moisCible.doctors.find(x => x.id === un[1]);
-    const jourIdx = moisCible && moisCible.days.findIndex(j => j.date === un[0]);
+    const jourIdx = moisCible && moisCible.days.findIndex(j => j.date === dstr(un[0]));
     const cellule = doc && jourIdx >= 0 ? doc.days[jourIdx] : null;
     V('le placement apparaît dans le planning régénéré',
       !!cellule && (cellule.morning === un[2] || cellule.afternoon === un[3]), { attendu: un.slice(0,4), obtenu: cellule });

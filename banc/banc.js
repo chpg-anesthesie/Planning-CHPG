@@ -86,8 +86,15 @@ console.log('\n═══ 1. Le dernier geste gagne (cas SEVERAC) ═══');
   // Réquisition : replacer APRÈS le TP
   cl.getSheetByName('PLANNING_OVERRIDES').appendRow(['2027-03-03','SEVERAC','REA','REA','Comité — réquisition']);
   const res2 = vm.runInContext("appliquerStatutJour(2027, 'SEVERAC', '18', ['2027-03-03'])", ctx);
+  /* (14/08/2026) La doublure coerce désormais les dates écrites (appendRow
+     ci-dessus) en objets Date, comme le vrai Sheets. La comparaison du test
+     se normalise donc comme le fait le code de production — qui, lui, était
+     déjà blindé (`brut instanceof Date`). */
+  const dstr = v => v instanceof Date
+    ? `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`
+    : String(v).trim();
   verifier('« 18 » ne retire PAS le placement (pas une absence)',
-    cl.getSheetByName('PLANNING_OVERRIDES').lignes.some(l => l[0] === '2027-03-03' && l[1] === 'SEVERAC'), res2);
+    cl.getSheetByName('PLANNING_OVERRIDES').lignes.some(l => dstr(l[0]) === '2027-03-03' && l[1] === 'SEVERAC'), res2);
 }
 
 // ══════════ SCÉNARIO 2 : verrous imbriqués (le défaut corrigé) ══════════

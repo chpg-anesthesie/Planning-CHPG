@@ -10,24 +10,31 @@ function makeSheet(name, rows) {
     getDataRange: () => ({ getValues: () => self._rows.map(r => r.slice()) }),
     getLastRow: () => self._rows.length,
     getLastColumn: () => Math.max(0, ...self._rows.map(r => r.length)),
-    getRange: (r, c, nr, nc) => ({
-      setValues: (vals) => {
+    getRange: (r, c, nr, nc) => {
+      /* (14/08/2026) Chaque méthode renvoie LE RANGE LUI-MÊME : la production
+         enchaîne désormais setNumberFormat('@').setValues(...) — le format
+         AVANT l'écriture, seul ordre qui empêche la coercition de dates du
+         vrai Sheets. L'ancien `chain()` générique perdait le setValues réel
+         et l'écriture devenait silencieusement un no-op. */
+      const rng = {};
+      rng.setValues = (vals) => {
         for (let i = 0; i < vals.length; i++) {
           while (self._rows.length < r - 1 + i + 1) self._rows.push([]);
           const row = self._rows[r - 1 + i];
           for (let j = 0; j < vals[i].length; j++) row[c - 1 + j] = vals[i][j];
         }
-        return chain();
-      },
-      setValue: (v) => { while (self._rows.length < r) self._rows.push([]); self._rows[r-1][c-1] = v; return chain(); },
-      getValues: () => { const out=[]; for(let i=0;i<(nr||1);i++){const row=self._rows[r-1+i]||[];const o=[];for(let j=0;j<(nc||1);j++)o.push(row[c-1+j]);out.push(o);} return out; },
-      merge: chain, breakApart: chain, mergeAcross: chain,
-      setBackgrounds: chain, setFontColors: chain, setFontWeights: chain,
-      setNumberFormats: chain, setHorizontalAlignments: chain, setNotes: chain, setNote: chain,
-      setDataValidation: chain, clearDataValidations: chain, setTextRotation: chain, setVerticalAlignment: chain,
-      setFontWeight: chain, setBackground: chain, setFontColor: chain,
-      setHorizontalAlignment: chain, setNumberFormat: chain, setBorder: chain, setFontSize: chain, setWrap: chain,
-    }),
+        return rng;
+      };
+      rng.setValue = (v) => { while (self._rows.length < r) self._rows.push([]); self._rows[r-1][c-1] = v; return rng; };
+      rng.getValues = () => { const out=[]; for(let i=0;i<(nr||1);i++){const row=self._rows[r-1+i]||[];const o=[];for(let j=0;j<(nc||1);j++)o.push(row[c-1+j]);out.push(o);} return out; };
+      ['merge','breakApart','mergeAcross','setBackgrounds','setFontColors','setFontWeights',
+       'setNumberFormats','setHorizontalAlignments','setNotes','setNote',
+       'setDataValidation','clearDataValidations','setTextRotation','setVerticalAlignment',
+       'setFontWeight','setBackground','setFontColor',
+       'setHorizontalAlignment','setNumberFormat','setBorder','setFontSize','setWrap']
+        .forEach(m => { rng[m] = () => rng; });
+      return rng;
+    },
     setFrozenRows: chain, setFrozenColumns: chain, setColumnWidth: chain, setColumnWidths: chain,
     autoResizeColumns: chain, hideSheet: chain, appendRow: (r)=>{self._rows.push(r);return chain();},
     clear: () => { self._rows = []; return chain(); },
