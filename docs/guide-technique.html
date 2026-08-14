@@ -1547,62 +1547,62 @@ donne, par clic : attente, traitement, dessin (repères : au-delà de 0,2 s un c
 <h2 id="c12"><span class="num">C12</span>Les échanges de gardes &amp; les notifications</h2>
 
 <div class="r2"><div class="titre">En 2 minutes</div>
-<p>Les MAR se donnent ou s'échangent des gardes directement, sans le comité : l'un propose depuis
-<code>dashboard.html</code>, l'autre reçoit une notification (bannière + pastille sur l'icône),
-accepte ou refuse. L'acceptation écrit le planning par <code>applyModification</code> — le chemin
-d'écriture historique, avec tous ses garde-fous. Tout le module vit dans <code>gas/echanges.gs</code> ;
-l'onglet <code>ECHANGES</code> du classeur porte chaque demande et son état
-(<code>attente → acceptee | refusee | expiree | impossible</code>).</p></div>
+<p>Les MARs se donnent ou s'échangent des gardes directement, sans le comité : l'un propose depuis
+son portail, l'autre reçoit une notification sur son téléphone, accepte ou refuse. S'il accepte,
+le planning s'écrit par le chemin d'écriture historique (<code>applyModification</code>), avec tous
+ses garde-fous — rien de nouveau ne touche à la grille. Chaque demande vit dans l'onglet
+<code>ECHANGES</code> du classeur, avec son état : en attente, acceptée, refusée, expirée, ou
+impossible (le planning a bougé entre la proposition et l'acceptation — rien n'est écrit, les deux
+sont prévenus). Sans réponse : rappel unique à 24&nbsp;h, expiration à 48&nbsp;h.</p></div>
 
-<h3>L'interrupteur d'ouverture</h3>
-<p>Deux propriétés de script commandent qui a accès : <code>ECHANGES_OUVERTS</code> (« O » = ouvert
-à tous) et <code>ECHANGES_PILOTES</code> (identifiants séparés par des virgules, autorisés avant
-l'ouverture — jamais écrits dans le dépôt). Trois fonctions à lancer depuis l'éditeur :
-<code>ouvrirEchanges()</code>, <code>fermerEchanges()</code>, et
-<code>synchroniserEtatEchanges()</code> après toute retouche manuelle des propriétés. L'état est
-répliqué au KV (clé <code>notif_config</code>, poussable mais jamais servie en lecture) : le
-Worker applique le <b>même</b> interrupteur à la lecture de la clé <code>echanges</code>, à
-l'abonnement aux notifications, et le dashboard en déduit la visibilité des cartes — l'invisibilité
-est côté serveur, la page n'a aucune logique d'ouverture. Effet dans la minute, sans redéploiement.</p>
+<h3>Ouvrir, fermer : l'interrupteur</h3>
+<p>Qui a accès aux échanges (et à la carte d'activation des notifications) se commande depuis
+l'éditeur Apps Script, sans rien redéployer — effet dans la minute :</p>
+<ul>
+<li><b>Ouvrir à tout le service</b> : exécuter <code>ouvrirEchanges()</code> (fichier
+<code>echanges</code>). <b>Refermer</b> : <code>fermerEchanges()</code>.</li>
+<li><b>Avant l'ouverture</b>, seuls le comité et les éventuels pilotes d'essai voient quelque
+chose. Les pilotes se déclarent dans la propriété de script <code>ECHANGES_PILOTES</code>
+(identifiants séparés par des virgules — ils restent dans les propriétés, jamais dans le dépôt).
+Après toute retouche de cette propriété : exécuter <code>synchroniserEtatEchanges()</code>.</li>
+</ul>
+<p>Le verrou est tenu <b>côté serveur</b> : tant que l'interrupteur est fermé, le relais refuse de
+servir les demandes d'échange et refuse les abonnements aux notifications — les pages n'ont donc
+rien à cacher, elles ne reçoivent simplement rien. Personne ne peut « deviner l'adresse ».</p>
 
-<h3>Le circuit d'une demande</h3>
-<p><code>creerEchange</code> joue TOUS les contrôles dès la création — <code>applyModification</code>
-en mode <code>dryRun</code> (les écritures sont neutralisées, les contrôles restent entiers) : un
-refus est immédiat, jamais 48&nbsp;h plus tard. <code>repondreEchange</code> rejoue tout pour de
-vrai à l'acceptation ; si le planning a bougé entre-temps, l'état passe à <code>impossible</code>,
-la grille reste intacte, les deux MAR sont prévenus. <code>expirerEchanges</code> (déclencheur
-horaire, installé par <code>installerDeclencheurEchanges()</code>) pose un rappel unique à 24&nbsp;h
-et expire à 48&nbsp;h. Chaque écriture pousse la clé <code>echanges</code> au miroir — les écrans ne
-lisent jamais le GAS.</p>
+<h3>Les contrôles : joués deux fois, écrits une</h3>
+<p>À la <b>création</b> d'une demande, toutes les règles du service sont vérifiées immédiatement —
+mêmes juges que l'écriture réelle, mais sans rien écrire : un refus (collègue en congé, repos qui
+tomberait sur une absence…) s'affiche sur-le-champ, jamais 48&nbsp;h plus tard. À
+l'<b>acceptation</b>, tout est rejoué pour de vrai, car le planning a pu bouger entre-temps.
+Aucune règle n'est écrite deux fois dans le code : c'est le même juge qui tranche aux deux
+moments.</p>
 
 <h3>Le samedi et sa récupération</h3>
-<p>Le générateur écrit <code>LIENS_R_{année}</code> (SAMEDI · MEDECIN · DATE&nbsp;R, une ligne par
-samedi et par tenant) depuis la version 2026-08-13.1 — les années générées avant n'ont pas de
-liens. Quand un samedi change de mains, <code>_transfererR_</code> y retrouve LE R de ce samedi et
-le déplace via le type <code>transfertR</code> d'<code>applyModification</code> (même date, mêmes
-garde-fous) ; la ligne suit (MEDECIN = receveur). Tout échec prévu — pas de lien, R déjà pris,
-receveur occupé — laisse l'échange valide et notifie le comité (rôle admin) pour replacer à la
-main. Échange samedi↔samedi : aucun R ne bouge (le compte de chacun ne change pas) ; les lignes
-LIENS_R gardent alors leur tenant d'origine, c'est assumé. L'onglet suit le cycle de vie annuel
-(archivé avec GARDES/STATS/INDISPOS/AFFECTATIONS).</p>
+<p>Depuis la génération de novembre 2026, le générateur note dans l'onglet
+<code>LIENS_R_{année}</code> quel jour de récupération correspond à quel samedi (une ligne par
+samedi et par tenant — un samedi a deux gardes, donc deux lignes). Quand un samedi change de
+mains, la récupération de <b>ce</b> samedi est transférée au receveur, à sa date, et la ligne suit.
+Trois cas d'échec prévus — année sans lien (2026), récupération déjà prise, receveur occupé ce
+jour-là — laissent l'échange valide et déclenchent une notification au comité : « Récupération à
+replacer ». Un échange samedi contre samedi ne déplace aucune récupération (le compte de chacun ne
+change pas). L'onglet suit le même cycle annuel que GARDES et STATS (archivé avec eux).</p>
 
-<h3>Les notifications ciblées et la pastille</h3>
-<p><code>notifierPush_(titre, corps, url, cible)</code> accepte une cible <code>{id}</code> (une
-personne — les clés d'abonnement sont nominatives) ou <code>{role:'admin'}</code> (le comité, via
-la table <code>acces</code>) ; sans cible, tous les abonnés — le canal de la génération. La cible
-peut porter <code>pastille</code> : le nombre de demandes en attente du destinataire
-(<code>_echangesEnAttentePour_</code>), transporté tel quel jusqu'au service worker
-(<code>sw.js</code> v4, <code>setAppBadge</code>, iOS&nbsp;16.4+ et app installée) et plafonné à 99
-par le Worker. Le portail efface la pastille à chaque ouverture (<code>clearAppBadge</code>). Un
-échec de pastille n'empêche jamais la bannière ; une notification qui rate n'empêche jamais le
-geste. Les abonnements morts (404/410) sont purgés automatiquement à l'envoi.</p>
+<h3>Les notifications : ciblées, avec pastille</h3>
+<p>Les notifications d'échange ne partent qu'à la personne concernée — jamais de bruit pour les
+autres. Celles qui annoncent une demande portent aussi le nombre de demandes en attente du
+destinataire : c'est la <b>pastille rouge</b> posée sur l'icône de l'app (téléphone à jour et app
+installée sur l'écran d'accueil), effacée dès que le portail s'ouvre. Deux garanties de
+conception : une pastille qui échoue n'empêche jamais la bannière de s'afficher, et une
+notification qui échoue n'empêche jamais le geste d'aboutir. Les abonnements de téléphones
+disparus se purgent tout seuls au premier envoi qui les trouve morts.</p>
 
 <div class="attention"><div class="titre">Trois pièges connus</div>
-<p>1) Une icône <code>data-lucide</code> absente du mini-bundle local donne un carré vide sans
-erreur — le banc le vérifie désormais pour toute page. 2) La clé <code>echanges</code> voyage dans
-l'appel d'ouverture du dashboard : ne jamais lui créer une requête dédiée. 3) La lecture de
-l'onglet <code>ECHANGES</code> ne le crée jamais (la synchro horaire passe par là) — seule la
-création d'une demande le fait.</p></div>
+<p>1) Une icône demandée par une page mais absente du petit fichier d'icônes local s'affiche en
+carré vide, sans erreur — le banc le vérifie désormais pour toutes les pages. 2) La liste des
+échanges voyage dans l'appel d'ouverture du portail, avec le planning : ne jamais lui créer un
+appel séparé. 3) La lecture de l'onglet <code>ECHANGES</code> ne le crée jamais (la
+synchronisation horaire passe par là) — seule la création d'une demande le fait.</p></div>
 
 <h2 id="d1"><span class="num">D1</span>Les trois chemins de mise en ligne &amp; le numéro de version</h2>
 
