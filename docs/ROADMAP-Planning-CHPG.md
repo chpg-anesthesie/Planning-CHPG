@@ -43,6 +43,82 @@ le Worker ou `partage/dispo_jour.js`.
 
 ---
 
+## 14 août 2026 — LE DÉPLOIEMENT : les échanges tournent en production (éteints), v1.34.1 + v1.34.3
+
+La session de la nuit avait tout construit ; celle-ci l'a MIS EN PLACE. Arthur a déroulé les phases
+1 à 4 de la feuille de route sans accroc : Worker `miroir 2026-08-13.4` déployé, les 4 `.gs`
+recopiés (dont le nouveau fichier `echanges`) + nouvelle version, `ECHANGES_PILOTES` renseignée
+(2 identifiants — ils vivent dans les propriétés du script, PAS ici), `installerDeclencheurEchanges`
++ `synchroniserEtatEchanges` exécutés, bac à sable 2027 régénéré (`LIENS_R_2027` créé, ~104
+lignes), publié, `miroirSyncComplet` passé.
+
+**Preuves de vie relevées en production :**
+- Notification « Les gardes 2027 sont générées » reçue sur le téléphone d'Arthur à la
+  régénération — le canal de la phase 1 est vivant de bout en bout, abonnement d'origine compris.
+- Chrono API de la génération : 36,9 s (l'écriture de LIENS_R y est comprise, négligeable),
+  publication 11,3 s, lectures rapides 100-220 ms, aucun appel repris. La ligne « ÉCHEC — Code
+  invalide » du chrono est la lecture rapide tentée AVANT la saisie du code (préexistante,
+  cosmétique, 161 ms perdus au premier chargement — à faire taire un jour si l'envie prend).
+- Carte « Mes échanges » visible chez Arthur, invisibilité côté serveur confirmée par construction.
+
+### Deux correctifs nés des questions d'Arthur (pas d'une relecture de code)
+
+**v1.34.1 — la carte notifications suit l'interrupteur.** « Détaille-moi le test avec RW » a fait
+relire la condition d'affichage : la carte « Activer les notifications » était réservée au rôle
+admin — un pilote MAR n'aurait JAMAIS vu le bouton que le Worker lui autorisait pourtant.
+Désormais : admin toujours, puis quiconque reçoit la clé `echanges` (pilotes du test, les 23 à
+l'ouverture). La « levée du verrou » prévue en phase 4 devient AUTOMATIQUE à `ouvrirEchanges()`.
+La carte disparaît seule une fois la permission accordée (et ne revient que sur un nouveau
+téléphone ou après un refus) — comportement confirmé en production chez Arthur.
+
+**v1.34.3 — trois icônes fantômes.** Capture d'Arthur : carré vide sur la carte Échanges. Cause :
+`repeat`, `plus` ET `bell` (la carte notifications du 12/08 !) demandés par dashboard.html mais
+absents du mini-bundle local `assets/vendor/lucide-icons.js` — le piège que l'en-tête du fichier
+documente lui-même. Ajout des 3 formes officielles (~600 octets), et GARDE-FOU au banc
+(`banc_ecran_echanges.js` §0) : toute icône `data-lucide` d'une page utilisant le bundle doit
+exister dedans. **Un avertissement en commentaire ne protège personne ; un test, si.**
+
+À noter aussi : à la vérification post-push de v1.34.3, l'API de contenu GitHub a servi quelques
+minutes des versions en retard (3 « écarts » fantômes). Tranché par la source autoritaire : les
+SHA git des blobs de l'arbre de `main` — cette comparaison-là ne ment pas et devient la méthode
+de référence en cas de doute.
+
+### Décisions prises avec Arthur
+
+- **L'ouverture du 5/09 sera la v2.0** (pas v1.35) : premier circuit où le planning s'écrit sans
+  le comité + notifications + pastille = changement de nature, pas de degré.
+- Périmètre notifications actuel confirmé à Arthur (7 déclencheurs, doctrine « une notification =
+  une information qui appelle un geste ») ; les candidats du lot 5 (planning republié, rappel
+  veille de garde, campagne d'indispos) restent NON câblés, à décider après la v2.0.
+- Désactivation des notifications : chemin Réglages iOS documenté, purge automatique des
+  abonnements morts déjà en place ; un bouton « désactiver » dans le portail attendra une
+  demande réelle (lot 5).
+
+### PUSH 2 — contenu EXACT (le 5/09, sur « ok push 2 » d'Arthur)
+
+Les copies de travail ne survivent pas aux sessions : voici la spécification complète pour
+n'importe quelle session future.
+1. **`sw.js`** : `VERSION = 'chpg-sw-v4'` + dans le gestionnaire `push`, avant `showNotification` :
+   si `d.pastille` est un nombre et `navigator.setAppBadge` existe → `navigator.setAppBadge(d.pastille)`
+   dans un try silencieux (commentaire : bannière et pastille sont deux mécanismes séparés sur
+   iPhone, iOS 16.4+, app installée ; effacée par le portail via le `clearAppBadge` DÉJÀ poussé).
+2. **`banc/banc_notif.mjs`** : attendre `chpg-sw-v4` (au lieu de v3) + une vérification
+   « v4 : la pastille est posée » (`/setAppBadge\(d\.pastille\)/` sur sw.js).
+3. **Montée v2.0** sur les 9 marqueurs (5 fichiers — recompter, ne pas se fier à cette liste).
+4. ROADMAP + CONTEXTE : consigner l'ouverture.
+Toute la chaîne amont de la pastille (compteur GAS → miroir → Worker) est DÉJÀ en production
+depuis le push du 14/08. Après le push : Arthur exécute `ouvrirEchanges()`, vide
+`ECHANGES_PILOTES`, annonce aux 23 (app sur l'écran d'accueil + carte notifications + guide
+section 10), envoie les codes manquants.
+
+### Reste à faire (dans l'ordre)
+Phase 5 : test à deux avec le pilote (don, refus, échange, don de samedi avec R qui suit,
+refus immédiat sur indispo). Phase 6 : remise à zéro du bac à sable. 28/08 : répétition
+générale. 4/09 : staff (rien à faire). Phase 8 : nettoyage post-démo (+ lignes ECHANGES de
+test, LIENS_R_2027). Phase 9 : push 2 + `ouvrirEchanges()` = v2.0.
+
+---
+
 ## 14 août 2026 (matin) — v1.34.2 → v1.34.6 : cinq défauts vus sur un iPhone, dont un qui attendait 2027
 
 Session déclenchée par trois captures d'écran d'Arthur, pas par une relecture de code. Cinq push

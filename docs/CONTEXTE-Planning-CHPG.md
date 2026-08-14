@@ -11,6 +11,35 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 14 août 2026 (après-midi) — les échanges de gardes TOURNENT EN PRODUCTION, éteints, prêts pour la v2.0
+
+**Le circuit d'échange/don est déployé et vivant côté serveur** : Worker `2026-08-13.4`, les 4
+`.gs` (dont le nouveau `echanges.gs`) en nouvelle version, déclencheur d'expiration installé,
+état répliqué au KV. **L'interrupteur est FERMÉ** : seuls l'admin et les 2 pilotes (identifiants
+dans `ECHANGES_PILOTES`, propriété de script — jamais dans le dépôt) voient quoi que ce soit.
+Le bac à sable 2027 a été régénéré avec le nouveau générateur : `LIENS_R_2027` existe (~104
+lignes), le planning est publié, et la notification de génération est arrivée sur le téléphone
+d'Arthur — canal prouvé de bout en bout en production. Reste : le test à deux (phase 5), la
+répétition du 28/08, le staff du 4/09, puis **push 2 (`sw.js` v4, pastille) + `ouvrirEchanges()`
+= la v2.0** — décision d'Arthur : l'ouverture vaut un premier chiffre, pas un v1.35. La
+spécification EXACTE du push 2 est dans la ROADMAP (bloc du 14/08) : les copies de travail ne
+survivent pas aux sessions, le bloc suffit à n'importe quelle session pour l'exécuter.
+
+**Trois leçons de la journée.**
+1. **Un avertissement en commentaire ne protège personne ; un test, si.** Le mini-bundle
+   d'icônes prévenait noir sur blanc qu'une icône absente donne un carré vide — trois cartes
+   l'affichaient quand même (`bell` depuis le 12/08 !). Le banc porte désormais le garde-fou :
+   toute icône demandée doit exister dans le bundle.
+2. **Les questions d'Arthur valent une relecture de code.** « Détaille-moi le test avec RW » a
+   révélé que la carte notifications était invisible aux pilotes (v1.34.1) ; « comment tu
+   retrouves les R d'une année déjà générée ? » a révélé le trou du bac à sable (résolu par
+   régénération, plus simple que toute reconstruction) ; « le sw doit-il partir avant
+   l'installation de l'app ? » a permis de confirmer que l'ordre est indifférent (le service
+   worker se met à jour à chaque ouverture).
+3. **En cas de doute post-push, la source autoritaire est l'arbre git** (SHA des blobs de
+   `main`), pas l'API de contenu — elle a servi des versions en retard pendant quelques minutes
+   et fait croire à 3 écarts fantômes.
+
 ## État au 14 août 2026 (midi) — v1.34.6 en ligne : cinq défauts d'affichage, dont un qui attendait 2027
 
 Session partie de captures d'écran, pas d'une relecture. Cinq push, banc à **1098 vérifications**
