@@ -431,20 +431,28 @@ body{font-variant-numeric:tabular-nums}
 @media (max-width:768px){ .cons-grid { grid-template-columns:repeat(2,1fr); } .cons-panel { padding:0 16px; } }
 
 /* ── FICHE MÉDECIN ── */
+/* (14/08/2026) DEFAUT VU EN PRODUCTION sur iPhone : la fiche d'un MAR
+   sortait de l'ecran a gauche (largeur figee a 480px) et son en-tete
+   — nom, secteur, croix de fermeture — etait coupe par le haut.
+   Le panneau epouse desormais la zone REELLEMENT visible : l'enveloppe
+   est en position:fixed inset:0, le panneau s'y etire au lieu d'etre
+   colle en bas avec une hauteur de 100vh qui pouvait la depasser. */
 .doc-panel-overlay {
   position: fixed; inset: 0; background: rgba(13,17,23,.45);
-  z-index: 400; display: none; align-items: flex-end; justify-content: flex-end;
+  z-index: 400; display: none; align-items: stretch; justify-content: flex-end;
 }
 .doc-panel-overlay.open { display: flex; }
 .doc-panel {
-  background: var(--white); width: 480px; height: 100vh;
+  background: var(--white); width: min(480px, 100%); height: 100%;
   box-shadow: -8px 0 32px rgba(0,0,0,.12);
   display: flex; flex-direction: column;
   animation: slideInRight .25s cubic-bezier(.16,1,.3,1);
 }
 @keyframes slideInRight { from{transform:translateX(40px);opacity:0;} to{transform:translateX(0);opacity:1;} }
 .doc-panel-header {
-  padding: 20px 20px 16px; border-bottom: 1px solid var(--line);
+  /* + la barre d'etat iOS en mode application (vaut 0 partout ailleurs) */
+  padding: calc(20px + env(safe-area-inset-top)) 20px 16px;
+  border-bottom: 1px solid var(--line);
   display: flex; align-items: center; gap: 14px; flex-shrink: 0;
 }
 .doc-panel-avatar {
@@ -472,7 +480,8 @@ body{font-variant-numeric:tabular-nums}
 }
 .doc-nav-btn:hover { border-color: var(--red); color: var(--red); }
 .doc-nav-label { font-size: 13px; font-weight: 700; color: var(--ink); flex: 1; text-align: center; }
-.doc-panel-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+.doc-panel-body { flex: 1; overflow-y: auto;
+  padding: 16px 20px calc(16px + env(safe-area-inset-bottom)); }
 
 /* Stats résumé */
 .doc-stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }

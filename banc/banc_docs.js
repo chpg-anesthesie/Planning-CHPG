@@ -263,5 +263,34 @@ console.log('\n═══ 9. Le bandeau du haut ne peut pas deborder de sa hauteu
   }
 }
 
+console.log('\n═══ 10. La fiche d\'un MAR tient dans l\'ecran du telephone ═══');
+{
+  /* (14/08/2026) DEFAUT VU EN PRODUCTION sur iPhone : la fiche s'ouvrait
+     avec une largeur figee de 480px (l'ecran en fait 390) — l'avatar sortait
+     a gauche — et une hauteur de 100vh collee EN BAS de son enveloppe : tout
+     depassement partait vers le haut et coupait le nom, le secteur et la
+     croix de fermeture.
+     jsdom ne calcule aucune largeur : ce test prouve la REGLE, pas le rendu. */
+  const css = lire('index.html').replace(/\s*\n\s*/g, ' ');
+  const bloc = (sel) => {
+    const i = css.indexOf(sel + ' {') > -1 ? css.indexOf(sel + ' {') : css.indexOf(sel + '{');
+    return i < 0 ? '' : css.slice(i, css.indexOf('}', i));
+  };
+  const env = bloc('.doc-panel-overlay'), pan = bloc('.doc-panel');
+  V('l\'enveloppe couvre exactement la zone visible',
+    /position:\s*fixed/.test(env) && /inset:\s*0/.test(env), env.slice(0, 120));
+  V('la fiche s\'etire dans l\'enveloppe au lieu d\'etre collee en bas',
+    /align-items:\s*stretch/.test(env) && !/align-items:\s*flex-end/.test(env), env.slice(0, 160));
+  V('la largeur ne peut pas depasser l\'ecran',
+    /width:\s*min\(\s*480px\s*,\s*100%\s*\)/.test(pan), pan.slice(0, 160));
+  V('la hauteur suit l\'enveloppe, pas 100vh',
+    /height:\s*100%/.test(pan) && !/height:\s*100vh/.test(pan), pan.slice(0, 160));
+  V('l\'en-tete reserve la place de la barre d\'etat du telephone',
+    /padding:\s*calc\(20px \+ env\(safe-area-inset-top\)\)/.test(bloc('.doc-panel-header')),
+    bloc('.doc-panel-header').slice(0, 160));
+  V('le bas de la fiche reste atteignable au pouce',
+    /env\(safe-area-inset-bottom\)/.test(bloc('.doc-panel-body')), bloc('.doc-panel-body'));
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);
