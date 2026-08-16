@@ -4,20 +4,21 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.36** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.37** ·
 **GAS** (relevé fichier par fichier dans le dépôt le 16/08/2026) `code.gs` 2026-08-05.3 ·
-`Indispos.gs` 2026-08-16.1 · `miroir.gs` 2026-08-14.1 · `journal.gs` 2026-08-05.3 ·
+`Indispos.gs` 2026-08-16.1 · `miroir.gs` 2026-08-16.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
 `echanges.gs` 2026-08-14.3 · `generateur_gardes.gs` 2026-08-14.1 · `setup_annee.gs` 2026-08-08.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-13.4'`.
 ⚠️ L'en-tête en commentaire du même fichier annonce encore « miroir 2026-08-05.7 » — périmé, sans
 effet sur le fonctionnement (c'est la constante qui est servie), à corriger au prochain passage.
 
-**En attente de recopie** : `Indispos.gs` **2026-08-16.1** (poussé le 16/08 au soir). Tant qu'il
-n'est pas recopié dans l'éditeur Apps Script ET déployé en nouvelle version, l'ancien code tourne —
-le bloc « Version du site » du Diagnostic continuera d'afficher 4 ❌ imaginaires. Tout le reste a
-été recopié, déployé et confirmé en production par Arthur (diagnostic du 16/08 : les 10 fichiers
-« à jour »).
+**En attente de recopie** : `Indispos.gs` **2026-08-16.1** et `miroir.gs` **2026-08-16.1** (poussés
+le 16/08 au soir). Tant qu'ils ne sont pas recopiés dans l'éditeur Apps Script ET déployés en nouvelle
+version, l'ancien code tourne — le bloc « Version du site » du Diagnostic continuera d'afficher 4 ❌
+imaginaires, et `equite_live_{Y}` échappera encore à l'oubli du miroir (à faire **avant** le ménage du
+4 septembre). Tout le reste a été recopié, déployé et confirmé en production par Arthur (diagnostic du
+16/08 : les 10 fichiers « à jour »).
 
 **Le numéro de version du site vit dans UN seul fichier : `version.js`** (`window.SITE_VERSION`,
 depuis le 14/08/2026). Il n'y a plus de marqueurs à compter ni à recopier : toute page qui doit
@@ -27,7 +28,7 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **1119 vérifications** sur 28 scripts (relevé le 16/08/2026 au soir),
+**Banc d'essai** `banc/` — **1123 vérifications** sur 28 scripts (relevé le 16/08/2026 au soir),
 `cd banc && ./lancer.sh`. *(Comptage : somme des récapitulatifs de fin de chaque script, MOINS le
 sous-total de 9 que `banc.js` imprime au milieu et réintègre ensuite dans son propre total de 19,
 PLUS `banc_notif.mjs` qui compte au format `35 ✓ / 0 ✗`. Recompter, ne pas recopier.)*
@@ -111,6 +112,32 @@ au banc, sur le dépôt réel puis sur cinq fichiers fabriqués fautifs.
   À trancher plus tard : déclarer ces gardes, ou apprendre au contrôle à les ignorer.
 - Jeton GitHub : **63 jours**, expiration vers le **18 octobre 2026**.
 
+**Troisième push — `gas/miroir.gs` (2026-08-16.1), `banc_miroir.js`, la check-list de ménage révisée
+et sa vue courte (`docs/roadmap.html`, v1.37).** Arthur pensait la check-list du 4/09 complète ; relue contre le code, elle l'était **le
+10/08**. Trois choses sont entrées depuis :
+
+- **`LIENS_R_{Y}`** (13/08) : cinquième onglet annuel, absent de la liste des suppressions.
+- **`ECHANGES`** (13-14/08) : onglet **unique, sans année dans son nom** — le piège de
+  `PLANNING_OVERRIDES`, à l'identique. Il porte 3 dons acceptés sur 2027, faits pendant le test à deux,
+  et `getEchangesEnveloppe` publie **toutes** les lignes au miroir, sans filtre d'année ni d'état.
+- **L'oubli des années au miroir** (09/08) : il protège explicitement l'année de campagne. Avec
+  `INDISPOS_ACTIVE = 2027` encore posé, une synchro lancée trop tôt **n'efface rien**, en silence.
+  D'où une check-list désormais numérotée **dans l'ordre d'exécution**, la synchro en 6, après le
+  retrait de la ligne CONFIG en 4.
+
+**Et un vrai trou dans le code** : `MIROIR_CLES_PAR_ANNEE` ne contenait pas `equite_live_`, poussé par
+année depuis le 13/08. Cette clé aurait survécu au ménage — le défaut du 09/08 revenu par une famille
+ajoutée depuis. Les tests existants ne pouvaient pas le voir : ils nommaient trois préfixes **à la
+main**. Le nouveau ne compare plus la liste à des noms écrits dans le test, mais **aux clés que le
+miroir construit réellement par année** ; contre-épreuve faite, sans le correctif il tombe.
+
+**La vue courte disait autre chose que la vue longue.** `docs/roadmap.html` portait déjà l'onglet
+`ECHANGES` et l'allumage des notifications, absents du fichier long ; le long portait `LIENS_R` et
+l'ordre de la synchro, absents de la vue courte. Les deux listes ont donc été écrites l'une après
+l'autre sans être relues ensemble, et chacune était incomplète d'une manière différente. Elles sont
+désormais alignées sur les mêmes 9 étapes. Au passage : la vue courte annonçait « 1120 vérifs ·
+29 scripts » — le banc en compte 28, listés dans `lancer.sh`.
+
 **Trois leçons.**
 
 1. **Un guide se relit contre le code, pas contre le souvenir qu'on en a.** Les trois erreurs
@@ -123,6 +150,13 @@ au banc, sur le dépôt réel puis sur cinq fichiers fabriqués fautifs.
 3. **Un correctif de diagnostic doit être testable sans réseau.** Tant que la comparaison vivait au
    milieu des `UrlFetchApp`, aucun banc ne pouvait l'atteindre — et c'est précisément pour ça que le
    défaut a survécu deux jours à la centralisation qui l'avait créé.
+4. **Un test qui recopie une liste ne protège que les lignes recopiées.** Trois préfixes écrits à la
+   main dans `banc_miroir.js` donnaient l'illusion de couvrir la purge ; ils ne pouvaient rien dire
+   d'une famille ajoutée après eux. Un test doit lire la source, jamais la redire — c'est la même
+   règle que « compter les marqueurs dans le dépôt », appliquée au banc lui-même.
+5. **Une check-list vieillit sans prévenir.** Celle du ménage était juste le jour de son écriture ;
+   trois ajouts au système l'ont rendue incomplète en dix jours, sans que rien ne le signale. Toute
+   liste de gestes manuels se relit contre le code avant d'être exécutée.
 
 ## 14 août 2026 — LE DÉPLOIEMENT : les échanges tournent en production (éteints), v1.34.1 + v1.34.3
 
@@ -2021,7 +2055,7 @@ aucune n'écrit plus de numéro en dur, et le banc comme le Diagnostic refusent 
 Deux chiffres, pas trois : le troisième ne disait rien à personne dans le service.
 Patch → 2ᵉ chiffre · **v2.0 réservée au 5/09**, jour où le portail s'ouvre aux 23 (l'ouverture vaut
 un premier chiffre ; la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.36** (16/08/2026).
+**Version en cours : v1.37** (16/08/2026).
 
 ---
 
@@ -2076,67 +2110,96 @@ Reste à faire, par ordre de criticité :
 
 ### Ménage post-démo — check-list (à exécuter le 04/09 au soir, puis supprimer cette section)
 
-1. **Onglets `_2027` : supprimer `INDISPOS_2027` et `AFFECTATIONS_2027`.** Impératif, pas cosmétique :
-   `initYear` (Indispos.gs l.1361) **refuse de tourner** si `INDISPOS_2027` existe (« INDISPOS_2027
-   existe déjà ») → le Wizard 1 d'octobre serait bloqué. Et `AFFECTATIONS_2027` n'étant recréé que s'il
-   est absent, les affectations fictives resteraient en place. `GARDES_2027` / `STATS_GARDES_2027` ont
-   été supprimés le 30/07 ; si une génération est relancée pendant la démo, les resupprimer.
-1 bis. ⚠️ **`PLANNING_OVERRIDES` : supprimer les lignes datées 2027** — **constat du 10/08/2026,
-   effet de bord jamais anticipé.** Cet onglet est **UNIQUE, sans année dans son nom** : une simple
-   liste `DATE | MAR_ID | SECTEUR_MATIN | SECTEUR_AM | COMMENTAIRE`. Supprimer `GARDES_2027`, les
-   JSON du Drive, et relancer la synchro **ne le touche pas**. Or les overrides sont appliqués
-   comme **dernier calque** à la construction du planning (`code.gs` l.1075) : ils se recollent sur
-   toute grille régénérée.
-   **Constaté par Arthur le 10/08** : après suppression des onglets, des JSON, synchro complète
-   ET régénération de 2027, ses placements de test étaient toujours là. **38 lignes datées 2027**
-   sur 343 au total (relevé du 10/08).
-   **Le risque n'est pas la démo, c'est NOVEMBRE** : ces lignes se colleront sur la **vraie**
-   génération 2027 et seront indiscernables de vraies affectations. Silencieux, durable.
-   ✅ **Le Diagnostic les voit déjà** : son bloc « Overrides planning » compte les dates **hors
-   année en cours** (`Indispos.gs` l.608-625). Les 38 lignes 2027 y apparaissent — il fallait
-   savoir quoi en penser.
-   **Geste** : ouvrir `PLANNING_OVERRIDES`, trier par DATE, supprimer les lignes 2027. À la main.
-   ℹ️ Une purge existe (`setup_annee.gs` l.590) mais ne couvre que **l'année archivée** à la
-   clôture (W3) — pas une année **à venir** utilisée comme terrain d'essai.
-   ⛔ **TRANCHÉ le 10/08/2026 : ce cas restera MANUEL. Ne pas le reproposer.** Supprimer une année
-   à venir est un geste rare et volontaire ; on est déjà dans le classeur à ce moment-là, un tri
-   par DATE rend les lignes évidentes, et cela ne justifie pas d'écrire du code qui efface des
-   données. Le geste rejoint simplement la suppression des onglets : **quand on efface une année
-   à la main, on efface aussi ses lignes d'overrides.**
-   **Filet si on oublie** : le Diagnostic compte déjà les overrides hors année en cours. Il ne dit
-   pas « supprime-les », mais il les affiche — encore faut-il savoir ce que ce chiffre signifie,
-   d'où cette note.
-2. **JSON du Drive** (dossier « Planning-CHPG-JSON ») : supprimer `planning_2027.json`,
-   `affectations_2027.json` **et `planning_2027_notifie.json`** *(ajouté le 01/08 : le notifieur
-   dépose cette photo de référence à chaque publication, même éteint)* si la publication a été montrée. **Butoir dur : avant le 1er octobre.**
-   Tracé dans le code le 30/07 :
-   - `index.html` l.1119 sonde les années `2026 → année+1` avec `getAffectationsJson` : c'est
-     **`affectations_2027.json` qui ouvre la porte**. Dès qu'il existe, **2027 apparaît dans le
-     sélecteur de tous les MARs** (l'affichage par défaut reste `activeYear`, mais le clic est
-     disponible et charge alors `planning_2027.json`).
-   - `dashboard.html` l.729 et 832 : `if (new Date().getMonth() >= 9)` — **dès le 1er octobre**, le
-     dashboard va chercher `_fetchPlanning(year+1)` **silencieusement**, sans action de
-     l'utilisateur, et fusionne le résultat dans « prochaine garde » et « Mes congés ». Les JSON de
-     démo laissés en place afficheraient donc des **gardes 2027 fictives à 23 MARs le 1er octobre**.
-   - `admin.html` : `anneeSuivante` n'ajoute que « 2027 — N+1 » au sélecteur du comité (l.2704) et
-     fait passer le bandeau de clôture de ⛔ à 📦 (l.2805) — bandeau invisible avant le premier
-     lundi de 2027. Sans effet en septembre.
-   - Session secrétariat : `getPlanningJson` n'est pas dans la liste blanche → aucun accès.
-   - ⚠️ Non prouvé en réel : supprimer les fichiers ne vide pas le cache `sessionStorage`
-     (`chpgPlan:2027`) d'un onglet déjà ouvert — le rafraîchissement silencieux échoue sans bruit
-     et la copie en cache survit jusqu'à la fermeture de l'onglet.
-3. **CONFIG : refermer la campagne** si `INDISPOS_ACTIVE = 2027` a été posé pour la démo (bouton du
-   wizard = `clearIndisposYear`, ou suppression de la ligne). Tant qu'elle est là, la tuile
-   « Mes indispos » est ouverte aux 23 MARs sur une année fictive.
-4. **Code d'accès de WS** : saisi devant la salle → « Régénérer le code » dans MEDECINS
-   (`resetCodeMar`) : nouveau code envoyé par mail, ancien tracé dans `HISTORIQUE`. Idem `ADMIN_CODE`
-   (CONFIG, à la main) s'il a été projeté.
-5. **Mails : rien ne part tout seul.** Vérifié dans le code : `setIndisposYear` n'envoie aucun
-   message ; les envois sont des actions explicites (`sendCodesWithRecap`, `envoyerRecapIndispos`,
-   `envoyerRecapGardes`). Contrôler seulement qu'aucun bouton d'envoi n'a été cliqué — journal
-   `HISTORIQUE` en cas de doute.
-6. **Terminer par 🔍 Diagnostic système** (onglet Maintenance) : onglets, JSON du Drive, concordance
-   des versions.
+> **Révisée le 16/08/2026.** Elle était complète le 10/08 ; trois choses sont entrées dans le système
+> depuis (`LIENS_R_{Y}` le 13/08, l'onglet `ECHANGES` le 13-14/08, l'oubli des années au miroir le
+> 09/08) et la dernière **impose un ordre**. Les étapes sont désormais numérotées dans l'ordre
+> d'exécution : le ménage se termine par la synchro, jamais l'inverse.
+>
+> **Contexte 04/09 (confirmé par Arthur le 16/08)** : après la présentation on repart de zéro — tout
+> le 2027 de démonstration est effacé — puis le **W1 s'ouvre le jour du staff vacances**, sur
+> `staff.html`. La campagne qui s'ouvre en octobre est donc bien celle de **2027**.
+
+**1. Supprimer les cinq onglets `_2027`** : `INDISPOS_2027`, `AFFECTATIONS_2027`, `GARDES_2027`,
+`STATS_GARDES_2027`, **`LIENS_R_2027`** *(ajouté le 16/08 : cet onglet n'existait pas quand la liste a
+été écrite — il est créé par le générateur depuis le 13/08 et suit le même cycle de vie annuel que les
+quatre autres, `archiveMoveTabs_` le traite déjà comme tel)*.
+Impératif, pas cosmétique : `initYear` (Indispos.gs l.≈2613) **refuse de tourner** si `INDISPOS_2027`
+existe (« INDISPOS_2027 existe déjà ») → le W1 serait bloqué. Vérifié le 16/08 : c'est sa **seule**
+précondition. Et `AFFECTATIONS_2027` n'étant recréé que s'il est **absent**, les affectations fictives
+resteraient en place.
+
+**2. `PLANNING_OVERRIDES` : supprimer les lignes datées 2027** — *constat du 10/08/2026, effet de bord
+jamais anticipé.* Cet onglet est **UNIQUE, sans année dans son nom** : une simple liste
+`DATE | MAR_ID | SECTEUR_MATIN | SECTEUR_AM | COMMENTAIRE`. Supprimer les onglets, les JSON du Drive et
+relancer la synchro **ne le touche pas**. Or les overrides sont appliqués comme **dernier calque** à la
+construction du planning (`code.gs` l.≈1075) : ils se recollent sur toute grille régénérée.
+**Constaté par Arthur le 10/08** : après suppression des onglets, des JSON, synchro complète ET
+régénération de 2027, ses placements de test étaient toujours là. **38 lignes datées 2027** au relevé du
+16/08 (le Diagnostic les compte : bloc « Overrides planning », dates hors année en cours).
+**Le risque n'est pas la démo, c'est NOVEMBRE** : ces lignes se colleraient sur la **vraie** génération
+2027, indiscernables de vraies affectations. Silencieux, durable.
+**Geste** : ouvrir `PLANNING_OVERRIDES`, trier par DATE, supprimer les lignes 2027. À la main.
+⛔ **TRANCHÉ le 10/08/2026 : ce cas restera MANUEL. Ne pas le reproposer.** Supprimer une année à venir
+est un geste rare et volontaire ; on est déjà dans le classeur à ce moment-là, un tri par DATE rend les
+lignes évidentes, et cela ne justifie pas d'écrire du code qui efface des données. *(Une purge existe,
+`setup_annee.gs` l.≈590, mais ne couvre que l'année archivée à la clôture — pas une année à venir
+servant de terrain d'essai.)*
+
+**3. `ECHANGES` : supprimer les lignes d'année 2027** — *ajouté le 16/08/2026, même piège que le point 2.*
+Onglet **UNIQUE, sans année dans son nom**, créé par le circuit d'échanges le 13/08. Au relevé du 16/08 :
+4 lignes réelles, dont **3 dons acceptés portant sur 2027**, faits pendant le test à deux du 14/08.
+Vérifié dans le code : `getEchangesEnveloppe` publie **toutes** les lignes au miroir, sans filtre d'année
+ni d'état — les 23 verraient donc, dans leur écran d'échanges, des dons portant sur une année qui
+n'existe plus. Même geste : trier par ANNEE, supprimer les lignes 2027.
+
+**4. `CONFIG` : retirer `INDISPOS_ACTIVE = 2027`** (bouton du wizard = `clearIndisposYear`, ou
+suppression de la ligne). Deux raisons, dont une découverte le 16/08 :
+- tant qu'elle est là, la tuile « Mes indispos » est ouverte aux 23 MARs sur une année fictive ;
+- ⚠️ **elle bloque l'oubli du miroir** : `_miroirPurgerAnnees_` protège explicitement l'année de
+  campagne (garde-fou 3, `getIndisposYear()`). Si la synchro tourne avant que cette ligne soit retirée,
+  **aucune clé 2027 n'est effacée du miroir, et rien ne le signale.** D'où sa position ici, AVANT
+  l'étape 6.
+
+**5. JSON du Drive** (dossier « Planning-CHPG-JSON ») : supprimer `planning_2027.json`,
+`affectations_2027.json` **et `planning_2027_notifie.json`** *(le notifieur dépose cette photo de
+référence à chaque publication, même éteint)*. **Butoir dur : avant le 1er octobre.**
+Tracé dans le code le 30/07 :
+- `index.html` l.≈1119 sonde les années `2026 → année+1` avec `getAffectationsJson` : c'est
+  **`affectations_2027.json` qui ouvre la porte**. Dès qu'il existe, **2027 apparaît dans le sélecteur
+  de tous les MARs**.
+- `dashboard.html` : depuis la v1.30.2 la demande de `planning_{active+1}` part à **chaque ouverture**
+  (le seuil « dès octobre » a sauté le 08/08). Des JSON de démo laissés en place afficheraient des
+  **gardes 2027 fictives** dans « prochaine garde » et « Mes congés ».
+- `admin.html` : `anneeSuivante` n'ajoute que « 2027 — N+1 » au sélecteur du comité et fait passer le
+  bandeau de clôture de ⛔ à 📦 — bandeau invisible avant le premier lundi de 2027. Sans effet en septembre.
+- Session secrétariat : `getPlanningJson` n'est pas dans la liste blanche → aucun accès.
+- ⚠️ Non prouvé en réel : supprimer les fichiers ne vide pas le cache `sessionStorage` (`chpgPlan:2027`)
+  d'un onglet déjà ouvert — la copie en cache survit jusqu'à la fermeture de l'onglet.
+
+**6. Lancer `miroirSyncComplet` — APRÈS les étapes 1 à 5, jamais avant.** C'est cette passe qui efface
+du miroir les clés de l'année retirée (`planning_2027`, `affectations_2027`, `indispos_2027`,
+`gardes_2027`, `stats_2027`, `equite_live_2027`, `joursferies_2027`, `liberal_2027`). Elle tranche sur
+la **structure** — quels onglets `GARDES_{Y}` existent — donc l'étape 1 la conditionne, et l'étape 4
+la débloque. Sans elle, supprimer onglets et JSON ne retire rien du miroir : c'est le défaut constaté
+en production le 09/08.
+*(`equite_live_` a été ajouté à la liste des clés effaçables le 16/08 — il manquait depuis sa création
+le 13/08. Le banc compare désormais cette liste aux clés réellement construites par année : une famille
+qui échapperait à l'oubli fait échouer le banc.)*
+
+**7. Code d'accès de WS** : saisi devant la salle → « Régénérer le code » dans MEDECINS (`resetCodeMar`) :
+nouveau code envoyé par mail, ancien tracé dans `HISTORIQUE`. Idem `ADMIN_CODE` (CONFIG, à la main) s'il
+a été projeté.
+
+**8. Mails : rien ne part tout seul.** Vérifié dans le code : `setIndisposYear` n'envoie aucun message ;
+les envois sont des actions explicites (`sendCodesWithRecap`, `envoyerRecapIndispos`, `envoyerRecapGardes`).
+Contrôler seulement qu'aucun bouton d'envoi n'a été cliqué — journal `HISTORIQUE` en cas de doute.
+
+**9. Terminer par 🔍 Diagnostic système** (onglet Maintenance) : onglets, JSON du Drive, overrides hors
+année en cours (doit retomber à 0), version du site.
+
+**Avant le W1 d'octobre, indépendamment du ménage** : ⚠️ **24 MAR actifs sur 25 n'ont aucune adresse mail**
+dans `MEDECINS` (relevé au classeur le 16/08). L'assistant 1 envoie les codes par mail — la campagne 2027
+ne peut pas partir en l'état. Rien dans le code ne contourne une case vide.
 
 ### Priorité 1 bis — Deux données à trancher AVANT la génération de novembre
 

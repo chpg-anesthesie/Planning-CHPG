@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-14.1';
+const GAS_VERSION_MIROIR = '2026-08-16.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -667,8 +667,16 @@ function miroirDocumentsInstallerDeclencheur() {
    Defaut trouve au banc le 09/08, invisible en lecture). */
 const MIROIR_PURGE_APRES       = 2;   // annees balayees au-dela de l'annee courante
 const MIROIR_PURGE_MAX_ANNEES  = 3;   // plafond de securite par passe
+/* (16/08/2026) `equite_live_` manquait à cette liste : la clé est poussée PAR
+   ANNÉE depuis le 13/08 (instantané d'équité), donc elle survivait au retrait
+   d'une année — exactement le défaut du 09/08, revenu par une famille ajoutée
+   depuis. Toute nouvelle clé portant une année DOIT entrer ici le jour même,
+   sinon elle reste servie indéfiniment. Le banc compare cette liste aux clés
+   réellement construites par année dans _miroirConstruire_ : il refuse qu'une
+   famille échappe à l'oubli. */
 const MIROIR_CLES_PAR_ANNEE    = ['planning_', 'affectations_', 'indispos_',
-                                  'gardes_', 'stats_', 'joursferies_', 'liberal_'];
+                                  'gardes_', 'stats_', 'equite_live_',
+                                  'joursferies_', 'liberal_'];
 
 /* Balayage STRUCTUREL des deux classeurs. `complet` = les deux ont repondu.
    Volontairement distinct de `_miroirConstruireAnnees_` : celui-ci tolere

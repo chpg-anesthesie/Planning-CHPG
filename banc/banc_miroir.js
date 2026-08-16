@@ -225,6 +225,38 @@ console.log('\n═══ 56. Inventaire des onglets écoutés (06/08/2026) ═�
       (parAnnee.match(/'[a-z_]+_'/g) || []).length >= 5, parAnnee);
   }
 
+  /* 7 bis. (16/08/2026) LE TEST QUI MANQUAIT — et qui aurait vu le trou.
+     Les tests ci-dessus nomment trois clés à la main (planning_, affectations_,
+     indispos_). Ils ne pouvaient donc PAS voir qu'une famille poussée par année
+     échappait à l'oubli : `equite_live_{Y}`, ajoutée le 13/08, est restée quatre
+     jours hors de la purge. On ne compare plus la liste à des noms écrits ici,
+     mais à ce que le miroir CONSTRUIT réellement par année. */
+  {
+    const parAnnee = src2.match(/const MIROIR_CLES_PAR_ANNEE *=[\s\S]*?\];/)[0];
+    const efface = (parAnnee.match(/'([a-z_]+_)'/g) || []).map(x => x.replace(/'/g, ''));
+    /* Toutes les clés bâties avec l'année en suffixe, relevées dans le code :
+       _miroirAjoute*(items, 'xxx_' + y, …) — y, annee ou année. */
+    const construites = [...src2.matchAll(/items,\s*'([a-z_]+_)'\s*\+\s*(?:y|annee|année)\b/g)]
+      .map(m => m[1]);
+    const oubliees = [...new Set(construites)].filter(p => efface.indexOf(p) === -1);
+    V('toute clé construite par année figure dans les clés effaçables',
+      oubliees.length === 0, oubliees);
+    console.log('    ' + [...new Set(construites)].length + ' familles par année, '
+                + efface.length + ' effaçables');
+    V('equite_live_ en fait partie (défaut du 16/08)', efface.indexOf('equite_live_') > -1, efface);
+  }
+
+  // 7 ter. Le cas réel du 4 septembre : 2027 retiré, TOUTES ses clés partent
+  {
+    const c = monter(['GARDES_2026', 'MEDECINS'], [], { active: 2026 });
+    const { items } = purger(c, {}, 2026);
+    const parAnnee = src2.match(/const MIROIR_CLES_PAR_ANNEE *=[\s\S]*?\];/)[0];
+    const efface = (parAnnee.match(/'([a-z_]+_)'/g) || []).map(x => x.replace(/'/g, ''));
+    const manquantes = efface.filter(p => items[p + '2027'] !== null);
+    V('après le ménage du 4/09, aucune clé 2027 ne survit', manquantes.length === 0, manquantes);
+    V('equite_live_2027 est bien effacée', items['equite_live_2027'] === null);
+  }
+
   // 8. La purge n'est câblée QUE dans la synchro complète
   {
     V('la purge n\'est appelée que si toutesAnnees',

@@ -129,14 +129,14 @@
     <h2>État vérifié</h2>
     <div class="etat-grid">
       <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1120 <small>vérifs · 29 scripts</small></div></div>
+      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1123 <small>vérifs · 28 scripts</small></div></div>
       <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
       <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
     </div>
     <div class="etat-grid" style="margin-top:16px">
       <div><div class="etat-k">code.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
-      <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-13.2</div></div>
-      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.1</div></div>
+      <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-16.1</div></div>
+      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-16.1</div></div>
       <div><div class="etat-k">veille.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.5</div></div>
       <div><div class="etat-k">portail.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.2</div></div>
       <div><div class="etat-k">journal.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
@@ -145,7 +145,7 @@
       <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-13.4</div></div>
     </div>
   </div>
-  <p class="verif">Relevé dans le dépôt et le banc exécuté — 14 août 2026</p>
+  <p class="verif">Relevé dans le dépôt et le banc exécuté — 16 août 2026 · <b>Indispos.gs</b> et <b>miroir.gs</b> attendent leur recopie dans l'éditeur</p>
 
   <h2>Échéancier</h2>
   <div class="ech" id="ech">
@@ -233,17 +233,23 @@
   </div>
 
   <h3>Le soir même — ménage</h3>
-  <p style="color:var(--ink-2);font-size:14px">Sept gestes, dans cet ordre. Le premier n'est pas cosmétique : sans lui, la campagne d'octobre est bloquée. Le deuxième est celui qu'on oublie, et c'est le plus durable.</p>
+  <p style="color:var(--ink-2);font-size:14px"><b>Neuf gestes, dans cet ordre — l'ordre compte.</b> Le premier n'est pas cosmétique : sans lui, la campagne d'octobre est bloquée. Le deuxième est celui qu'on oublie, et c'est le plus durable. Et l'avant-dernier, la synchronisation, n'efface la mémoire de l'année que si les huit autres sont faits avant. <span style="color:var(--ink-3)">(Liste révisée le 16 août : elle était complète le 10, trois éléments sont entrés dans le système depuis.)</span></p>
   <div class="check"><ul>
-    <li><b>Supprimer les onglets <code>INDISPOS_2027</code> et <code>AFFECTATIONS_2027</code>.</b> Le premier bloque le lancement de la campagne d'octobre ; le second laisserait les affectations fictives en place. Si une génération a été relancée pendant la démo, resupprimer aussi <code>GARDES_2027</code> et <code>STATS_GARDES_2027</code>. <b>Ne jamais toucher à <code>STATS_GARDES_2026</code></b> — il porte les cibles d'équité de la vraie génération de novembre.</li>
+    <li><b>Supprimer les cinq onglets de l'année 2027</b> : <code>INDISPOS_2027</code>, <code>AFFECTATIONS_2027</code>, <code>GARDES_2027</code>, <code>STATS_GARDES_2027</code> et <code>LIENS_R_2027</code>. Le premier bloque le lancement de la campagne d'octobre — c'est sa <b>seule</b> condition de départ ; le deuxième laisserait les affectations fictives en place, car il n'est recréé que s'il est absent. <code>LIENS_R</code> (quel repos appartient à quel samedi) n'existait pas quand cette liste a été écrite. <b>Ne jamais toucher à <code>STATS_GARDES_2026</code></b> — il porte les cibles d'équité de la vraie génération de novembre.</li>
     <li><b>Nettoyer les placements de test de l'onglet <code>PLANNING_OVERRIDES</code>.</b> Cet onglet garde la trace de chaque affectation posée à la main par le comité, et il n'est <b>lié à aucune année</b> : supprimer les onglets 2027 ne l'efface pas, et régénérer le planning les remet en place par-dessus. Constaté le 10 août : <b>38 lignes de test datées 2027</b> avaient survécu à tout. Si on les laisse, elles se colleront sur le <b>vrai</b> planning de novembre, sans que rien ne les distingue de vraies affectations. Trier par date, supprimer les lignes 2027.</li>
+    <li><b>Supprimer les lignes 2027 de l'onglet <code>ECHANGES</code></b> — même piège, sur une donnée plus récente. Trois dons acceptés y ont été enregistrés pendant l'essai à deux du 14 août. Cet onglet n'est rattaché à aucune année et tout son contenu est publié aux MARs : sans ce geste, chacun verrait dans son écran d'échanges des dons portant sur une année qui n'existe plus. Retirer aussi l'indisponibilité de test posée pour le pilote.</li>
+    <li><b>Refermer la campagne</b> si <code>INDISPOS_ACTIVE = 2027</code> a été posé pour la démo. Deux raisons : tant qu'elle est ouverte, les 23 MARs peuvent saisir sur une année fictive ; et surtout, <b>elle empêche l'oubli de l'année</b> — l'année de campagne est délibérément protégée de tout effacement. Ce geste doit donc précéder la synchronisation, sinon celle-ci ne retire rien, sans le dire.</li>
     <li><b>Supprimer les fichiers de démo du Drive</b> (dossier Planning-CHPG-JSON) : <code>planning_2027.json</code>, <code>affectations_2027.json</code> et <code>planning_2027_notifie.json</code>. Butoir dur : avant le 1<sup>er</sup> octobre.</li>
-    <li><b>Refermer la campagne</b> si <code>INDISPOS_ACTIVE = 2027</code> a été posé pour la démo. Tant qu'elle est ouverte, les 23 MARs peuvent saisir sur une année fictive.</li>
+    <li><b>Lancer la synchronisation complète</b> (<code>miroirSyncComplet</code>) — <b>après les cinq gestes ci-dessus, jamais avant</b>. C'est elle, et elle seule, qui retire de la copie de lecture tout ce que 2027 y avait laissé. Sans elle, supprimer les onglets et les fichiers ne change rien à ce que voient les MARs : défaut constaté en production le 9 août.</li>
     <li><b>Régénérer le code d'accès</b> de tout MAR dont le code a été saisi devant la salle, et le code administrateur s'il a été projeté.</li>
     <li><b>Allumer les notifications</b> : supprimer la propriété de redirection de test. Jamais avant ce point — la démo publie un planning 2027 fictif et le notifieur s'arme dessus.</li>
-    <li><b>Supprimer les lignes d'essai de l'onglet <code>ECHANGES</code></b> et l'indisponibilité de test posée pour le pilote. Elles ne sont rattachées à aucune année : supprimer les onglets 2027 ne les efface pas.</li>
-    <li><b>Terminer par le Diagnostic système</b> (onglet Maintenance) : onglets, fichiers du Drive, concordance des versions.</li>
+    <li><b>Terminer par le Diagnostic système</b> (onglet Maintenance) : onglets, fichiers du Drive, placements hors année en cours — ce compteur doit retomber à zéro —, version du site.</li>
   </ul></div>
+
+  <div class="card">
+    <h4>Avant d'ouvrir la campagne : les adresses mail <span class="tag t-red">bloquant</span></h4>
+    <p><b>24 des 25 médecins actifs n'ont aucune adresse mail enregistrée</b> — relevé dans le classeur le 16 août. L'assistant d'octobre envoie les codes d'accès par mail ; le renvoi groupé et la régénération d'un code aussi. <b>En l'état, la campagne d'indisponibilités 2027 ne peut pas partir.</b> Aucun réglage ne contourne une case vide : les adresses se saisissent dans l'onglet des médecins.</p>
+  </div>
 
   <h2>2 · Juste après le staff</h2>
   <div class="card">
@@ -388,7 +394,7 @@
   </details>
 
   <div class="foot">
-    Planning-CHPG · roadmap de pilotage · 11 août 2026<br>
+    Planning-CHPG · roadmap de pilotage · 16 août 2026<br>
     Détail et historique : <code>docs/ROADMAP-Planning-CHPG.md</code> · méthode : <code>docs/CONTEXTE-Planning-CHPG.md</code><br>
     architecture et dépannage : <code>docs/guide-technique.html</code>
   </div>

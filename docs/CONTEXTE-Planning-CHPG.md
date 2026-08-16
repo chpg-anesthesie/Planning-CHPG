@@ -42,7 +42,17 @@ confirmés) :
 - Quatre samedis 2026 sans G2 : **garde tenue par un médecin extérieur au groupe** (Arthur), donc
   invisible du contrôle. 10 samedis sur 51 en 2026 ; **aucun en 2027**.
 
-**Trois leçons.**
+**La check-list du ménage du 4/09 était complète — le 10 août.** Relue contre le code : trois choses
+sont entrées depuis (`LIENS_R_{Y}` le 13/08, l'onglet `ECHANGES` le 13-14/08, l'oubli des années au
+miroir le 09/08), et la dernière **impose un ordre**. `_miroirPurgerAnnees_` protège l'année de
+campagne : avec `INDISPOS_ACTIVE = 2027` encore posé, une synchro lancée trop tôt n'efface **rien** du
+miroir, en silence. La check-list est désormais numérotée dans l'ordre d'exécution (retrait de la ligne
+CONFIG en 4, synchro en 6). `ECHANGES` est un onglet **unique, sans année dans son nom** — exactement
+le piège de `PLANNING_OVERRIDES` du 10/08, sur une donnée créée trois jours plus tôt.
+Trou corrigé au passage : `equite_live_{Y}` n'était pas dans les clés effaçables du miroir alors
+qu'elle est poussée par année depuis le 13/08.
+
+**Quatre leçons.**
 
 1. **Un guide se relit contre le code, jamais contre le souvenir.** Une explication bien tournée
    d'un fait faux est plus difficile à repérer qu'une omission — celle sur la session avait sa
@@ -53,6 +63,10 @@ confirmés) :
    des appels réseau : aucun banc ne pouvait l'exécuter, et le défaut a survécu deux jours à la
    centralisation qui l'avait créé. Isolée dans `_versionSiteAnomalies_` (sans réseau), elle est
    désormais couverte, cas fautifs compris.
+4. **Un test qui recopie une liste ne protège que les lignes recopiées**, et une **check-list vieillit
+   sans prévenir** : les deux défauts de cette session sont le même geste — redire au lieu de lire la
+   source. La règle « compter dans le dépôt, ne jamais recopier » vaut aussi pour le banc et pour les
+   listes de gestes manuels.
 
 ## État au 14 août 2026 (après-midi) — les échanges de gardes TOURNENT EN PRODUCTION, éteints, prêts pour la v2.0
 
@@ -1426,7 +1440,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site — actuellement **v1.36**, source unique `version.js`
+## Version du site — actuellement **v1.37**, source unique `version.js`
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
@@ -1447,7 +1461,7 @@ produisait des « v1.34.10 » qui font perdre confiance plus qu'ils n'informent.
 
 | Nature du changement | Incrément | Exemple |
 |---|---|---|
-| Nouveauté visible, correction, ajustement | **2ᵉ chiffre** — `1.35` → `1.36` | guide restructuré |
+| Nouveauté visible, correction, ajustement | **2ᵉ chiffre** — `1.36` → `1.37` | vue courte de la roadmap remise au réel |
 | Ouverture majeure | **1ᵉʳ chiffre** — `1.x` → `2.0` | ouverture du portail aux 23 (5/09) |
 
 Une modification purement GAS (sans page touchée) ne change PAS la version du site : elle a ses
