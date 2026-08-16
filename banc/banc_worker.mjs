@@ -117,5 +117,27 @@ console.log('\n═══ Lu/★ par MAR : la clé veille_marques, filtrée POUR 
   V('la nouvelle valeur est servie, toujours filtrée', r.j.data.veille_marques.parMar.BONNET.lus[0] === '999', r.j.data.veille_marques);
 }
 
+console.log('\n═══ 3 ter. La version du Worker ne vit qu'+"'"+'à un seul endroit ═══');
+{
+  /* (16/08/2026) Le fichier portait DEUX versions : un commentaire d'en-tête
+     figé à « 2026-08-05.7 » et la constante servie, « 2026-08-13.4 » — huit
+     versions d'écart. Le commentaire ne trompait personne en production (c'est
+     la constante qui est renvoyée), mais il désignait, un jour de panne, une
+     dérive de déploiement inexistante. Le commentaire est supprimé ; ce test
+     empêche qu'un second numéro réapparaisse. */
+  const brut = fs.readFileSync('../cloudflare/worker.js', 'utf8');
+  const constante = brut.match(/const VERSION = '(miroir [\d.-]+)';/);
+  V('la constante VERSION est lisible', !!constante, constante && constante[1]);
+
+  /* Toute autre écriture d'une version « miroir AAAA-MM-JJ.N » dans le fichier. */
+  const toutes = (brut.match(/miroir \d{4}-\d{2}-\d{2}\.\d+/g) || []);
+  V('elle est la SEULE version écrite dans le fichier', toutes.length === 1, toutes);
+
+  /* Et c'est bien elle que le Worker annonce à ses trois guichets. */
+  const r = await W.fetch(new Request('https://x/', { method: 'GET' }), env).then(x => x.json());
+  V('le guichet de santé annonce cette version exacte',
+    r.service === constante[1], { annonce: r.service, fichier: constante[1] });
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);

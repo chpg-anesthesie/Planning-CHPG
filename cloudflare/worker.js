@@ -1,6 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR CHPG — Worker Cloudflare
-   Version : miroir 2026-08-05.7
+   Version : voir la constante VERSION plus bas — elle est la SEULE.
+   (16/08/2026) Un numéro vivait ici en commentaire : il annonçait
+   « 2026-08-05.7 » quand la constante servie disait « 2026-08-13.4 »,
+   huit versions de retard. Personne ne le lisait sauf nous, un jour de
+   panne — et il désignait alors une dérive de déploiement inexistante.
+   Une version qu'il faut tenir à jour à deux endroits finit toujours
+   par mentir à l'un des deux. Ne pas la réintroduire ici.
 
    RÔLE. Servir en ~150 ms les données de lecture du portail (planning,
    affectations, secteurs, années, config admin, indispos), déposées ici
