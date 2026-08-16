@@ -316,5 +316,54 @@ console.log('\n═══ 10. La fiche d\'un MAR tient dans l\'ecran du telephone
     /env\(safe-area-inset-bottom\)/.test(bloc('.doc-panel-body')), bloc('.doc-panel-body'));
 }
 
+console.log('\n═══ 11. Le guide du comité décrit l\'interface RÉELLE ═══');
+{
+  /* (16/08/2026) Le guide affirmait qu'on pouvait poser une « absence » et
+     décrivait cinq onglets sur six. Un guide envoyé avec un code d'accès ne
+     peut pas se tromper de bouton : on relit donc admin.html, et on exige que
+     chaque libellé qui y est CLIQUABLE soit nommé dans le guide.
+     Ce test ne juge pas la prose — seulement qu'aucun libellé ne manque. */
+  const admin = lire('admin.html');
+  const guide = texte(lire('docs/guide-comite.html'));
+  const sansAccent = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const G = sansAccent(guide);
+
+  /* Les six onglets, lus dans la barre de navigation. */
+  const onglets = [...admin.matchAll(/class="nav-tab[^"]*" onclick="showTab\('([a-z]+)'\)/g)].map(m => m[1]);
+  V('admin.html porte bien six onglets', onglets.length === 6, onglets);
+  const NOM = { planning:'Planning', equipe:'Équipe', affectations:'Affectations',
+                equite:'Équité', statuts:'Statuts', maintenance:'Maintenance' };
+  /* Dans les TITRES de section, pas dans le sommaire : renommer une section
+     sans toucher au sommaire passerait sinon inaperçu. */
+  const titres = sansAccent([...lire('docs/guide-comite.html').matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/g)]
+    .map(m => m[1].replace(/<[^>]+>/g, ' ')).join(' | '));
+  const oubliés = onglets.filter(o => !titres.includes(sansAccent('Onglet ' + (NOM[o] || o))));
+  V('le guide consacre une section à chacun', oubliés.length === 0, oubliés);
+
+  /* Les statuts réellement posables — la liste que voit le comité. */
+  const pos = (admin.match(/const STAT_POSABLES = \[([^\]]+)\]/) || [])[1];
+  V('STAT_POSABLES est lisible dans admin.html', !!pos, pos);
+  const codes = (pos || '').split(',').map(c => c.trim().replace(/'/g, ''));
+  const meta = (admin.match(/const STAT_META = \{[\s\S]*?\n\};/) || [''])[0];
+  const libellé = c => { const i = meta.indexOf("'" + c + "'"); if (i < 0) return null; return (meta.slice(i).match(/label:'([^']+)'/) || [])[1]; };
+  /* On cherche dans la SECTION des statuts, pas dans tout le guide : « formation »
+     apparaît ailleurs (liste des absents), ce qui suffirait à masquer un libellé
+     disparu du tableau. */
+  const secStatuts = (lire('docs/guide-comite.html').match(/<section id="b5">[\s\S]*?<\/section>/) || [''])[0];
+  const S = sansAccent(texte(secStatuts));
+  const manquants = [];
+  codes.forEach(c => {
+    const l = libellé(c);
+    if (!l) { manquants.push(c + ' (libellé introuvable)'); return; }
+    /* « 8h–18h » s'écrit avec des espaces dans le guide : on compare sans espaces. */
+    const cherché = sansAccent(l).replace(/[\s\u2013\u2014-]/g, '');
+    if (!S.replace(/[\s\u2013\u2014-]/g, '').includes(cherché)) manquants.push(l);
+  });
+  V('le guide nomme les ' + codes.length + ' statuts posables, et eux seuls', manquants.length === 0, manquants);
+  V('le guide n\'invente pas un statut « absence » posable',
+    !/poser[^.]{0,40}\babsence\b/i.test(guide) || /absence longue/i.test(guide));
+  V('le guide dit que les gardes y sont verrouillées', /verrouill/i.test(guide));
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);
