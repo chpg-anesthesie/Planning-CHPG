@@ -4,33 +4,37 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.34.6** ·
-**GAS** (relevé dans le dépôt le 13/08/2026) `code.gs` 2026-08-05.3 ·
-`Indispos.gs` 2026-08-13.1 · `miroir.gs` 2026-08-13.2 · `journal.gs` 2026-08-05.3 ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.36** ·
+**GAS** (relevé fichier par fichier dans le dépôt le 16/08/2026) `code.gs` 2026-08-05.3 ·
+`Indispos.gs` 2026-08-16.1 · `miroir.gs` 2026-08-14.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
-`generateur_gardes.gs` 2026-08-12.1 · `setup_annee.gs` 2026-08-08.1 ·
-**Worker** `cloudflare/worker.js` en-tête « miroir 2026-08-13.3 ». `Indispos.gs` 2026-08-13.1,
-`miroir.gs` 2026-08-13.1 et le Worker 2026-08-13.1 ont été recopiés, déployés et confirmés en
-production par Arthur le 13/08. Le Worker 2026-08-13.2 (ouverture de `stats_{Y}` aux MAR) attend
-son déploiement — aucun `.gs` n'est concerné.
-**(13/08 au soir)** `Indispos.gs` 2026-08-13.1, `miroir.gs` 2026-08-13.2 et le Worker 2026-08-13.3
-sont recopiés, déployés et confirmés en production par Arthur. Rien n'est en attente côté serveur.
+`echanges.gs` 2026-08-14.3 · `generateur_gardes.gs` 2026-08-14.1 · `setup_annee.gs` 2026-08-08.1 ·
+**Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-13.4'`.
+⚠️ L'en-tête en commentaire du même fichier annonce encore « miroir 2026-08-05.7 » — périmé, sans
+effet sur le fonctionnement (c'est la constante qui est servie), à corriger au prochain passage.
 
-**Le numéro de version du site est porté par 5 fichiers, 11 occurrences** : `admin.html` (3),
-`dashboard.html` (3), `docs/guide-comite.html` (2), `docs/guide-mar.html` (2),
-`docs/roadmap.html` (1). Le compte est passé de 9 à 11 — **compter, ne jamais recopier ce
-chiffre**. `index.html`, `indispos.html` et `staff.html` n'en portent AUCUN : une modification
-de ces pages impose quand même la montée de version chez les 5 porteurs. Le banc a un test dédié
-qui refuse qu'ils divergent.
+**En attente de recopie** : `Indispos.gs` **2026-08-16.1** (poussé le 16/08 au soir). Tant qu'il
+n'est pas recopié dans l'éditeur Apps Script ET déployé en nouvelle version, l'ancien code tourne —
+le bloc « Version du site » du Diagnostic continuera d'afficher 4 ❌ imaginaires. Tout le reste a
+été recopié, déployé et confirmé en production par Arthur (diagnostic du 16/08 : les 10 fichiers
+« à jour »).
 
-**Banc d'essai** `banc/` — 1098 vérifications sur 28 scripts (relevé le 14/08/2026 à midi),
+**Le numéro de version du site vit dans UN seul fichier : `version.js`** (`window.SITE_VERSION`,
+depuis le 14/08/2026). Il n'y a plus de marqueurs à compter ni à recopier : toute page qui doit
+l'afficher charge `version.js` et pose un élément portant `data-version`, qui se remplit seul.
+Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/guide-comite.html`,
+`docs/guide-mar.html`, `docs/roadmap.html` — mais **une modification de n'importe quelle page
+visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
+Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
+
+**Banc d'essai** `banc/` — **1119 vérifications** sur 28 scripts (relevé le 16/08/2026 au soir),
 `cd banc && ./lancer.sh`. *(Comptage : somme des récapitulatifs de fin de chaque script, MOINS le
 sous-total de 9 que `banc.js` imprime au milieu et réintègre ensuite dans son propre total de 19,
 PLUS `banc_notif.mjs` qui compte au format `35 ✓ / 0 ✗`. Recompter, ne pas recopier.)*
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 14 août 2026 (midi).*
+*Mise à jour : 16 août 2026 (soir).*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -42,6 +46,83 @@ le Worker ou `partage/dispo_jour.js`.
 > `docs/module-liberal/module_liberal_conception.md`.
 
 ---
+
+## 16 août 2026 (soir) — v1.36 : le guide du comité restructuré, et un Diagnostic qui redit la vérité
+
+Session préparatoire à l'envoi du code et du lien aux membres du comité. Deux push, banc de **1112**
+puis **1119 vérifications**, 0 échec.
+
+**Push 1 — `docs/guide-comite.html`, `version.js`, `banc/banc_docs.js` (v1.36).** Le guide était une
+liste de 13 sections où un nouvel admin ne savait pas *où cliquer*, et il se trompait sur trois points
+vérifiés dans `admin.html` :
+
+1. **La session.** Il affirmait que le code était redemandé à chaque ouverture, « c'est voulu ».
+   Faux : `sessionStorage` le garde, l'auto-ouverture rouvre l'interface sans rien demander tant que
+   le navigateur n'est pas fermé. La consigne juste sur un poste partagé n'est pas « il redemandera »
+   mais « fermez le navigateur ». C'est le genre d'erreur qui compte double dans un document qu'on
+   envoie AVEC un code d'accès.
+2. **Les statuts.** Il annonçait qu'on pouvait poser une « absence ». `STAT_POSABLES` en contient
+   cinq et cinq seulement : V, F, TP, CL, 18. La récupération (R) s'affiche et s'efface, mais ne se
+   pose pas depuis cet écran — asymétrie réelle, désormais écrite.
+3. **Les libellés.** « panneau Modifications » pour une carte qui s'appelle « 🔁 Modifier une garde ».
+
+Onze gestes réels n'y figuraient pas du tout : `＋ aussi` (double poste), ouvrir/fermer/rouvrir une
+consultation, « ∅ Laisser vide », la bande « Présents en journée », l'export Excel de la semaine,
+« ↺ réinit. », l'écran « des MAR présents ne sont pas placés » avant publication, le bandeau
+« Récupérations de samedi », le certificat d'équité, la vue Année des statuts, « Vider le cache »,
+le renvoi groupé des codes. Le tableau de lecture du Diagnostic passe de 6 à 12 lignes.
+
+Structure retenue (choix d'Arthur) : **A · Prise en main** (se connecter, les six onglets, la séance
+type, les gestes de la semaine) puis **B · Référence, une section par onglet**, **C · Calendrier de
+l'année**, **D · Repères et dépannage**. Ancres `#a1…#d3` : aucun lien entrant n'utilisait les
+anciennes (`admin.html` est le seul à lier le guide, sans ancre — vérifié).
+
+**`banc_docs.js` bloc 11** : relit `admin.html` et exige que chaque onglet ait sa section (dans les
+TITRES, pas dans le sommaire) et que les libellés de `STAT_POSABLES` figurent dans la section
+Statuts. Première version trop faible — « formation » apparaît ailleurs dans le guide et masquait la
+disparition du libellé ; la contre-épreuve l'a montré, la recherche a été restreinte à la section.
+
+**Push 2 — `gas/Indispos.gs` (2026-08-16.1) + `banc_docs.js` bloc 12.** Le rapport de diagnostic
+d'Arthur affichait **4 ❌ « Version du site — (absente) → réaligner »**. Défaut confirmé en rejouant
+l'ancienne logique sur le dépôt : elle cherchait `SITE_VERSION = 'vX.Y'`, `id="verBadge">vX.Y<`,
+`Version <strong>vX.Y</strong>` — trois écritures supprimées par la centralisation du 14/08. Le
+contrôle ne trouvait plus rien et criait au rouge sur une chaîne parfaitement alignée.
+
+**Avec la centralisation, la question change** : non plus « quel numéro est écrit ici ? » mais
+« cette page est-elle branchée sur la source unique ? ». Le nouveau contrôle vérifie, pour cinq pages
+(`docs/roadmap.html` était oubliée), qu'elles chargent `version.js`, qu'elles ont un emplacement
+`data-version`, et qu'aucune n'a **réintroduit** un numéro en dur — l'erreur reviendrait sinon sans
+bruit. Un fichier injoignable devient un ⚠️ (incident réseau), plus un ❌.
+La comparaison vit dans `_versionSiteAnomalies_`, **sans réseau** : c'est ce qui la rend exécutable
+au banc, sur le dépôt réel puis sur cinq fichiers fabriqués fautifs.
+
+**Ce que le rapport de diagnostic a révélé d'autre** (vérifié dans le classeur, pas déduit) :
+
+- ⚠️ **24 MAR actifs sur 25 n'ont aucune adresse mail** dans `MEDECINS` (colonne EMAIL) — un seul en
+  a une. Conséquence : l'envoi des codes (assistant 1 d'octobre, renvoi groupé, bouton 🔄) n'atteint
+  personne. **Point bloquant pour la campagne d'indisponibilités**, à traiter avant octobre. Ce n'est
+  pas un défaut de code : les cases sont vides.
+- **TRAN** : actif, sans code d'accès, hors `GROUPES_VAC`, `date_fin` au 01/09/2026 — et porte une
+  **G2 le 26/09**. C'est exactement l'écart « 702 gardes publiées vs 703 » du bloc Drive : les deux
+  lignes du rapport sont le même fait.
+- **Quatre samedis 2026 sans G2** (05/09, 24/10, 07/11, 12/12) : Arthur confirme qu'une garde est
+  bien tenue ces jours-là, **par quelqu'un d'extérieur au groupe**. Le contrôle ne peut pas la voir.
+  10 samedis sur 51 sont dans ce cas en 2026 ; **2027 n'en compte aucun** (365 jours recalculés).
+  À trancher plus tard : déclarer ces gardes, ou apprendre au contrôle à les ignorer.
+- Jeton GitHub : **63 jours**, expiration vers le **18 octobre 2026**.
+
+**Trois leçons.**
+
+1. **Un guide se relit contre le code, pas contre le souvenir qu'on en a.** Les trois erreurs
+   trouvées étaient toutes des affirmations plausibles — dont une qui expliquait *pourquoi* le
+   comportement était voulu. Une explication bien tournée d'un fait faux est plus dure à repérer
+   qu'une omission.
+2. **Un contrôle qui crie au rouge sans motif finit par ne plus être lu du tout.** Les 4 ❌ étaient
+   inoffensifs techniquement ; leur coût réel, c'est l'habitude de survoler le rapport. D'autant que
+   le guide, lui, demande de le lire.
+3. **Un correctif de diagnostic doit être testable sans réseau.** Tant que la comparaison vivait au
+   milieu des `UrlFetchApp`, aucun banc ne pouvait l'atteindre — et c'est précisément pour ça que le
+   défaut a survécu deux jours à la centralisation qui l'avait créé.
 
 ## 14 août 2026 — LE DÉPLOIEMENT : les échanges tournent en production (éteints), v1.34.1 + v1.34.3
 
@@ -125,8 +206,8 @@ comme en v3) est pris en petit comité. sw.js v4 + banc_notif.mjs sont donc EN L
 14/08, SANS montée de version site (aucune page ne change — même règle que « GAS seul »),
 et le dossier d'attente `deploiement-v2/` est supprimé.
 
-**Le PUSH 2 du 5/09 devient purement symbolique** : montée **v2.0** sur tous les marqueurs
-(les recompter dans le dépôt — au 14/08 : 9 emplacements, 5 fichiers), consignation
+**Le PUSH 2 du 5/09 devient purement symbolique** : montée **v2.0** — depuis le 14/08 c'est
+**une seule ligne dans `version.js`**, plus aucun marqueur à recompter —, consignation
 ROADMAP/CONTEXTE de l'ouverture, rien d'autre. Puis Arthur : `ouvrirEchanges()`, suppression
 de `ECHANGES_PILOTES`, annonce aux 23. La spécification historique ci-dessous reste pour
 mémoire (elle décrivait la v4 avant son déploiement).
@@ -136,7 +217,7 @@ mémoire (elle décrivait la v4 avant son déploiement).
    iPhone, iOS 16.4+, app installée ; effacée par le portail via le `clearAppBadge` DÉJÀ poussé).
 2. **`banc/banc_notif.mjs`** : attendre `chpg-sw-v4` (au lieu de v3) + une vérification
    « v4 : la pastille est posée » (`/setAppBadge\(d\.pastille\)/` sur sw.js).
-3. **Montée v2.0** sur les 9 marqueurs (5 fichiers — recompter, ne pas se fier à cette liste).
+3. **Montée v2.0** : une ligne dans `version.js` (la source unique depuis le 14/08).
 4. ROADMAP + CONTEXTE : consigner l'ouverture.
 Toute la chaîne amont de la pastille (compteur GAS → miroir → Worker) est DÉJÀ en production
 depuis le push du 14/08. Après le push : Arthur exécute `ouvrirEchanges()`, vide
@@ -1934,12 +2015,13 @@ volet libéral (26/07), `getReleveLiberal` réservé aux membres du groupement (
 `annulerAbsenceLongue` n'efface que les cases valant exactement `CL`.
 
 ### Versionnement
-La version du site vit dans **4 fichiers, 10 emplacements** : `admin.html` (3),
-`dashboard.html` (3), `docs/guide-mar.html` (2), `docs/guide-comite.html` (2).
-⚠️ `index.html`, `indispos.html`, `staff.html` et `absences.html` **n'en portent aucune**.
-Patch → 3ᵉ chiffre · Fonctionnalité → 2ᵉ · **v2.0 réservée à l'ouverture du module libéral au
-groupement** (la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.29** (08/08/2026).
+La version du site vit dans **un seul fichier : `version.js`** (`window.SITE_VERSION`, centralisé
+le 14/08/2026). Les pages qui l'affichent chargent ce fichier et posent un élément `data-version` ;
+aucune n'écrit plus de numéro en dur, et le banc comme le Diagnostic refusent qu'on y revienne.
+Deux chiffres, pas trois : le troisième ne disait rien à personne dans le service.
+Patch → 2ᵉ chiffre · **v2.0 réservée au 5/09**, jour où le portail s'ouvre aux 23 (l'ouverture vaut
+un premier chiffre ; la version est un repère pour les utilisateurs, pas pour le développeur).
+**Version en cours : v1.36** (16/08/2026).
 
 ---
 

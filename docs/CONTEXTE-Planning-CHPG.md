@@ -11,6 +11,49 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 16 août 2026 (soir) — v1.36 : le guide du comité prêt à être envoyé, banc à 1119 vérifications
+
+Session de préparation à l'ouverture du comité : Arthur envoie le code et le lien de `admin.html` à
+ses collègues du comité, donc le guide devait être **exact**, pas seulement complet.
+
+**Ce que la relecture du guide contre `admin.html` a trouvé.** Trois affirmations fausses, dont
+deux plausibles : le code d'accès *n'est pas* redemandé à chaque ouverture (`sessionStorage` le
+garde tant que le navigateur n'est pas fermé — le guide expliquait même pourquoi ce comportement
+inexistant était « voulu ») ; les statuts posables sont exactement `V, F, TP, CL, 18` (`STAT_POSABLES`)
+et « absence » n'existe pas ; la récupération `R` s'efface mais ne se pose pas depuis cet écran.
+Onze gestes réels manquaient (`＋ aussi`, ouvrir/fermer une consultation, « Laisser vide », bande de
+présence, export Excel, écran des présents non placés, bandeau des récups, certificat d'équité, vue
+Année, vider le cache, renvoi groupé des codes). Restructuré en **A prise en main / B référence par
+onglet / C calendrier / D repères**, ancres `#a1…#d3`.
+
+**Le Diagnostic mentait depuis deux jours.** Le bloc « Version du site » affichait 4 ❌
+« (absente) → réaligner » : il cherchait les numéros écrits en dur que la centralisation du 14/08
+dans `version.js` avait supprimés. Vérifié en rejouant l'ancienne logique sur les quatre fichiers.
+Réécrit : il vérifie désormais que chaque page **se branche** sur la source unique (chargement,
+emplacement `data-version`, absence de numéro réintroduit en dur), sur cinq pages au lieu de quatre.
+
+**Deux constats du classeur, vérifiés ligne à ligne** (le rapport les signalait, la lecture les a
+confirmés) :
+
+- **24 MAR actifs sur 25 n'ont aucune adresse mail.** Tout l'envoi de codes en dépend (assistant 1
+  d'octobre, renvoi groupé, bouton 🔄). **Bloquant pour la campagne d'indisponibilités.**
+- **TRAN** part le 01/09 mais porte une **G2 le 26/09** : c'est l'unique écart « 702 vs 703 » du
+  bloc de publication. Deux lignes du rapport, un seul fait.
+- Quatre samedis 2026 sans G2 : **garde tenue par un médecin extérieur au groupe** (Arthur), donc
+  invisible du contrôle. 10 samedis sur 51 en 2026 ; **aucun en 2027**.
+
+**Trois leçons.**
+
+1. **Un guide se relit contre le code, jamais contre le souvenir.** Une explication bien tournée
+   d'un fait faux est plus difficile à repérer qu'une omission — celle sur la session avait sa
+   justification, sa mise en garde et son « ce n'est pas un défaut ».
+2. **Un contrôle qui crie au rouge sans motif coûte l'attention portée à tout le rapport**, pas
+   seulement à sa propre ligne.
+3. **Un test doit pouvoir atteindre ce qu'il vérifie.** La comparaison de version vivait au milieu
+   des appels réseau : aucun banc ne pouvait l'exécuter, et le défaut a survécu deux jours à la
+   centralisation qui l'avait créé. Isolée dans `_versionSiteAnomalies_` (sans réseau), elle est
+   désormais couverte, cas fautifs compris.
+
 ## État au 14 août 2026 (après-midi) — les échanges de gardes TOURNENT EN PRODUCTION, éteints, prêts pour la v2.0
 
 **Le circuit d'échange/don est déployé et vivant côté serveur** : Worker `2026-08-13.4`, les 4
@@ -1064,7 +1107,7 @@ Cycle annuel = 3 assistants dans admin.html, **tous testés en réel** :
 - L'écran de connexion **met la saisie en MAJUSCULES**. ⚠️ **(27/07/2026) La comparaison GAS est désormais INSENSIBLE À LA CASSE** — `checkCode` normalise les deux côtés par `trim().toUpperCase()` (`_normCode`). Le motif : les champs portent `autocapitalize="characters"`, donc le téléphone corrigeait tout seul et **pas l'ordinateur** — même code accepté sur mobile et refusé sur PC. Sans risque de collision : `generateCode()` n'émet que des majuscules et `resetCodeMar` vérifie l'unicité en majuscules. ⚠️ Ce paragraphe a affirmé successivement les deux thèses — **corrigé le 29/07/2026 en relisant `checkCode`, seule référence.** Un code saisi À LA MAIN dans le classeur doit rester unique une fois mis en majuscules. 🔒 **(29/07/2026) AUCUNE limite de longueur** sur les champs de saisie de code : les trois `maxlength` d'`indispos.html` (8), `staff.html` (20) et du wizard d'`admin.html` (12) ont été retirés. Ils tronquaient un code long **sans message**, qui était ensuite déclaré invalide — panne vécue par Arthur sur son propre code. `checkCode` compare la chaîne entière, aucune contrainte serveur. **Ne jamais remettre de `maxlength` sur un champ de code.** Éviter aussi un code purement numérique (Sheets peut le stocker en numérique/notation scientifique).
 - **Aucune limite de tentatives** sur `checkCode()`, et c'est **assumé** (décision du 20/07/2026, voir la section « Écarté » de la ROADMAP pour le chiffrage). Ne pas reproposer de protection anti-force-brute.
 - **Codes robustes** : `genererTousLesCodes()` (dans `setup_annee.gs`) génère un code 8 caractères non devinable (alphabet sans `0 O 1 I L`) pour chaque MAR **actif** (col D=O), efface celui des inactifs (parti = ne peut plus se connecter), et logue le récap. `genererCodeMAR("XX")` pour un seul MAR. Distribution via le flux « Envoyer les codes » du Wizard 1.
-- **Renouveler le code d'un MAR** : action GAS **`resetCodeMar`** (admin only, dans `WRITE_ACTIONS_LOCK`), déclenchée par le bouton **🔄** de sa ligne (onglet Équipe). Tire un code unique (comparé aux autres MARs **et** à `ADMIN_CODE`), l'écrit en colonne G — **l'écrasement EST la révocation**, il n'y a rien d'autre à invalider — puis l'envoie par email. **L'email est vérifié avant toute écriture** (pas d'email → refus, code inchangé) ; l'ancien code est tracé dans `LOGS` avant écrasement ; si l'envoi échoue, le nouveau code est **renvoyé dans le message d'erreur** pour transmission en main propre. ⚠️ **Les envois groupés ne régénèrent PAS** (`sendCodes`, `sendCodesMar`, `sendCodesWithRecap`) : ils renvoient le code existant. Distinction volontaire — un « envoyer à tous » ne doit jamais pouvoir casser 23 codes. Documenté dans `guide-comite.html` § 13.3.
+- **Renouveler le code d'un MAR** : action GAS **`resetCodeMar`** (admin only, dans `WRITE_ACTIONS_LOCK`), déclenchée par le bouton **🔄** de sa ligne (onglet Équipe). Tire un code unique (comparé aux autres MARs **et** à `ADMIN_CODE`), l'écrit en colonne G — **l'écrasement EST la révocation**, il n'y a rien d'autre à invalider — puis l'envoie par email. **L'email est vérifié avant toute écriture** (pas d'email → refus, code inchangé) ; l'ancien code est tracé dans `LOGS` avant écrasement ; si l'envoi échoue, le nouveau code est **renvoyé dans le message d'erreur** pour transmission en main propre. ⚠️ **Les envois groupés ne régénèrent PAS** (`sendCodes`, `sendCodesMar`, `sendCodesWithRecap`) : ils renvoient le code existant. Distinction volontaire — un « envoyer à tous » ne doit jamais pouvoir casser 23 codes. Documenté dans `guide-comite.html`, section 10 « Onglet Maintenance ».
 - **Personnalisation** : le MAR connecté (`MY_ID`) est mis en exergue partout — puce liserée `me-chip` en vue secteurs, `me-row` en vue année/affectations, `me-card` + carte en tête en médecins/équité, `me-chip` en mobile. Le code **admin** donne la vue générique sans « moi » (l'admin n'est pas un MAR).
 - **Déconnexion / changer d'utilisateur** : le badge 👤 en haut à droite est cliquable (icône ⏻) → vide la session (`sessionStorage.chpgViewCode`) et recharge → écran de connexion. Sinon l'auto-login reconnecte le dernier code.
 - Chemin d'échec robuste : une erreur d'auth pendant le chargement ne détruit plus la page — retour propre à l'écran de connexion (`loadYear` renvoie `false`, `init` s'arrête, `checkMobile` null-safe).
@@ -1383,42 +1426,47 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site (badge `vX.Y.Z`) — actuellement **v1.17**
+## Version du site — actuellement **v1.36**, source unique `version.js`
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
 **Toute modification d'une page visible DOIT s'accompagner d'une montée de version, dans le
-même push.** Le badge est porté par **4 fichiers, 8 emplacements** (comptés le 03/08/2026) :
-`admin.html`, `dashboard.html`, `docs/guide-mar.html`, `docs/guide-comite.html`. `index.html`,
-`indispos.html` et `staff.html` n'en portent pas. **Recompter avant chaque montée** plutôt que
-se fier à cette liste.
-Ne jamais livrer un changement d'interface sans incrémenter : le badge doit toujours dire la vérité.
+même push.** Ne jamais livrer un changement d'interface sans incrémenter : le numéro doit
+toujours dire la vérité.
+
+**Depuis le 14/08/2026, le numéro vit dans UN seul endroit** : `version.js`, ligne
+`window.SITE_VERSION = 'vX.Y'`. Toute page qui veut l'afficher charge ce fichier et pose un
+élément portant l'attribut `data-version` — il se remplit tout seul. **Il n'y a donc plus de
+marqueurs à compter, et plus rien à recopier.** Cinq pages l'affichent aujourd'hui
+(`admin.html`, `dashboard.html`, `docs/guide-comite.html`, `docs/guide-mar.html`,
+`docs/roadmap.html`), mais la montée s'impose dès qu'une page visible change, qu'elle affiche
+le numéro ou non.
+
+**Deux chiffres, pas trois.** Le troisième ne disait rien à personne dans le service et
+produisait des « v1.34.10 » qui font perdre confiance plus qu'ils n'informent.
 
 | Nature du changement | Incrément | Exemple |
 |---|---|---|
-| Petit patch, correction, ajustement visuel | **3ᵉ chiffre** — `1.6` → `1.6.1` | cases cliquables au survol |
-| Fonctionnalité notable, changement de comportement | **2ᵉ chiffre** — `1.6.1` → `1.7` | bascule des consultations sur l'onglet |
-| Refonte majeure | **1ᵉʳ chiffre** — `1.x` → `2.0` | branchement du module libéral |
+| Nouveauté visible, correction, ajustement | **2ᵉ chiffre** — `1.35` → `1.36` | guide restructuré |
+| Ouverture majeure | **1ᵉʳ chiffre** — `1.x` → `2.0` | ouverture du portail aux 23 (5/09) |
 
 Une modification purement GAS (sans page touchée) ne change PAS la version du site : elle a ses
 propres constantes `GAS_VERSION_*`.
 
-**4 fichiers, 10 emplacements.** *(Corrigé le 29/07/2026 : ce document annonçait « 5 fichiers,
-9 emplacements » et comptait `guide-technique.html`, qui ne porte aucune version — vérifié dans le
-fichier ET dans le code du Diagnostic, qui ne contrôle que 4 fichiers.)*
-Penser au badge HTML **en dur**, visible avant connexion tant que le JS ne l'a pas remplacé.
+**Ce qui est contrôlé, et par qui.** Le banc (`banc_docs.js`, blocs 1 et 12) et le 🔍 Diagnostic
+(section « Version du site ») vérifient la même chose : que chaque page afficheuse **charge**
+`version.js`, qu'elle porte un emplacement `data-version` réellement atteint, et qu'aucune n'a
+**réintroduit un numéro en dur**. C'est ce dernier point qui compte : sans lui, l'ancienne
+dispersion reviendrait sans bruit.
 
-| Fichier | Emplacements |
-|---|---|
-| `dashboard.html` | `const SITE_VERSION = 'vX.Y'` · `id="verBadge">vX.Y<` · `// SITE_VERSION: vX.Y` |
-| `admin.html` | idem (3) |
-| `docs/guide-mar.html` | `Version <strong>vX.Y</strong>` · `<!-- SITE_VERSION: vX.Y -->` |
-| `docs/guide-comite.html` | idem (2) |
-
-Total : 3 + 3 + 2 + 2 = **10**. Le 🔍 Diagnostic (section « Version du site ») compare **toutes**
-ces formes, dans chaque fichier et entre fichiers, et signale `INCOHÉRENT (…)` en listant les valeurs divergentes.
-⚠️ Avant le 20/07/2026 il ne lisait que le **marqueur en commentaire** : il annonçait « alignés (v1.4) »
-alors que 3 fichiers sur 4 affichaient v1.0 aux utilisateurs. Ne pas revenir à ce contrôle partiel.
+⚠️ **Histoire de ce contrôle, à ne pas rejouer.** Avant le 20/07/2026 il ne lisait que le marqueur
+en commentaire : il annonçait « alignés (v1.4) » alors que 3 fichiers sur 4 affichaient v1.0 aux
+utilisateurs. Puis, du 14 au 16/08/2026, il a cherché des écritures en dur que la centralisation
+venait de supprimer : 4 ❌ permanents sur une chaîne parfaitement alignée. **Un contrôle de version
+doit changer en même temps que la règle qu'il contrôle** — sinon il ment dans un sens ou dans
+l'autre, et un rapport qui crie au rouge sans motif finit par ne plus être lu.
+La comparaison est isolée dans `_versionSiteAnomalies_` (`Indispos.gs`), **sans réseau**, pour
+qu'elle reste exécutable au banc.
 
 ## Créer un secteur / une consultation → **§ 18 du guide technique**
 
