@@ -129,22 +129,23 @@
     <h2>État vérifié</h2>
     <div class="etat-grid">
       <div><div class="etat-k">Site</div><div class="etat-v">v1.34.10</div></div>
-      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1098 <small>vérifs · 28 scripts</small></div></div>
+      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1120 <small>vérifs · 29 scripts</small></div></div>
       <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
       <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
     </div>
     <div class="etat-grid" style="margin-top:16px">
       <div><div class="etat-k">code.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
-      <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-12.2</div></div>
-      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-12.1</div></div>
+      <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-13.2</div></div>
+      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.1</div></div>
       <div><div class="etat-k">veille.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.5</div></div>
       <div><div class="etat-k">portail.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.2</div></div>
       <div><div class="etat-k">journal.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
-      <div><div class="etat-k">generateur.gs</div><div class="etat-v" style="font-size:13px">2026-07-31.3</div></div>
-      <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-08.1</div></div>
+      <div><div class="etat-k">generateur.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.1</div></div>
+      <div><div class="etat-k">echanges.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.3</div></div>
+      <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-13.4</div></div>
     </div>
   </div>
-  <p class="verif">Relevé dans le dépôt et le banc exécuté — 8 août 2026</p>
+  <p class="verif">Relevé dans le dépôt et le banc exécuté — 14 août 2026</p>
 
   <h2>Échéancier</h2>
   <div class="ech" id="ech">
@@ -187,6 +188,7 @@
     <div class="mod"><b>Module libéral</b><span>Cotation, devis, déclaration. Lots 0, 1, 2A, 2B et 3 en production.</span></div>
     <div class="mod"><b>Contrôle d'absence</b><span>Porte MAR et porte secrétariat. Motifs jamais transmis au secrétariat.</span></div>
     <div class="mod"><b>Veille bibliographique</b><span>41 revues, 21 thèmes, lu/★ par MAR depuis le 8 août.</span></div>
+    <div class="mod"><b>Échanges de gardes</b><span>Don et échange entre MAR, sans le comité. Notification, réponse, écriture du planning. Le samedi emmène sa récupération.</span></div>
     <div class="mod"><b>CR d'anesthésie</b><span>Générateur autonome.</span></div>
     <div class="mod"><b>Copie de lecture</b><span>Ouverture des pages en 100–270 ms sans appel Google.</span></div>
     <div class="mod"><b>Sauvegardes</b><span>Trois filets vérifiés : le classeur le lundi 4 h et le dimanche 5 h, le code le dimanche 3 h. La copie de 5 h vit dans un compte personnel distinct.</span></div>
@@ -239,19 +241,27 @@
     <li><b>Refermer la campagne</b> si <code>INDISPOS_ACTIVE = 2027</code> a été posé pour la démo. Tant qu'elle est ouverte, les 23 MARs peuvent saisir sur une année fictive.</li>
     <li><b>Régénérer le code d'accès</b> de tout MAR dont le code a été saisi devant la salle, et le code administrateur s'il a été projeté.</li>
     <li><b>Allumer les notifications</b> : supprimer la propriété de redirection de test. Jamais avant ce point — la démo publie un planning 2027 fictif et le notifieur s'arme dessus.</li>
+    <li><b>Supprimer les lignes d'essai de l'onglet <code>ECHANGES</code></b> et l'indisponibilité de test posée pour le pilote. Elles ne sont rattachées à aucune année : supprimer les onglets 2027 ne les efface pas.</li>
     <li><b>Terminer par le Diagnostic système</b> (onglet Maintenance) : onglets, fichiers du Drive, concordance des versions.</li>
   </ul></div>
 
   <h2>2 · Juste après le staff</h2>
   <div class="card">
-    <h4>Ouvrir le module libéral au groupement <span class="tag t-viol">v2.0</span></h4>
-    <p>Le passage à la version 2.0 est réservé à ce moment-là. Les 19 membres éligibles y accèdent alors que seul Arthur l'utilise aujourd'hui.</p>
+    <h4>Passage en version 2.0 <span class="tag t-viol">5 septembre</span></h4>
+    <p><b>Purement symbolique, et annoncé le lendemain du staff</b> — jamais avant, pour ne pas éventer l'effet. Aucun code ne change ce jour-là : seuls les numéros de version affichés dans les pages sont repris. Ce qui justifie le premier chiffre, ce n'est pas une refonte technique, c'est l'ouverture des échanges de gardes aux 23 : le portail cesse d'être une consultation pour devenir un endroit où l'on agit.</p>
+    <p><b>Ce jour-là :</b> annonce aux 23 MARs, envoi des codes d'accès individuels, et ouverture du canal de notifications à tout le service.</p>
   </div>
   <div class="card">
-    <h4>Échanges et dons de gardes par notification <span class="tag t-blue">conception arrêtée le 11 août</span></h4>
-    <p>Un MAR propose un don ou un échange depuis son téléphone ; l'autre reçoit une notification, accepte ou refuse. S'il accepte, le planning s'écrit tout seul — le comité n'intervient pas.</p>
-    <p><b>Décidé :</b> une demande expire en 48 h (rappel à 24 h) · l'écran montre « mes demandes » par défaut · aucun plafond · un samedi donné fait suivre sa récupération par transfert d'un repos futur, jamais par création d'un neuf. Les écrans restent instantanés : la lecture passe par la copie de lecture, seul l'envoi d'une demande prend quelques secondes.</p>
-    <p><b>Cinq livraisons, une à la fois :</b> prouver le canal de notification (<b>✓ fait le 12 août</b>, voir plus haut) · combler un contrôle manquant — donner une garde à quelqu'un en congé serait aujourd'hui accepté sans un mot · le cycle demande/réponse · l'écran, essayé par 2-3 volontaires avant les 23 · plus tard, brancher sur ce même canal tout ce qui part aujourd'hui par mail.</p>
+    <h4>Ouvrir le module libéral au groupement <span class="tag t-blue">après le staff</span></h4>
+    <p>Les 19 membres éligibles y accèdent alors que seul Arthur l'utilise aujourd'hui. Sans lien avec le passage en 2.0 : c'est une ouverture d'accès, à son propre rythme.</p>
+  </div>
+  <div class="card ok">
+    <h4>Échanges et dons de gardes <span class="tag t-green">livré et ouvert le 13 août 2026</span></h4>
+    <p>Un MAR propose un don ou un échange depuis son téléphone ; l'autre reçoit une notification, accepte ou refuse. S'il accepte, <b>le planning s'écrit tout seul</b> — le comité n'intervient pas. Une demande sans réponse expire en 48 h (rappel unique à 24 h) sans rien modifier. Un samedi donné <b>emmène sa récupération</b>, par transfert d'un repos existant, jamais par création d'un neuf.</p>
+    <p><b>Éprouvé en conditions réelles, à deux, les 13 et 14 août :</b> don accepté, refus, échange de deux gardes, refus immédiat sur indisponibilité, transfert de récupération réussi — et son chemin d'échec, déclenché par hasard, qui s'est comporté exactement comme prévu.</p>
+    <p><b>Cinq défauts trouvés en production, tous corrigés et verrouillés au banc :</b> des dates converties en objets par le tableur · trois icônes absentes du jeu local · l'écran figé sur une lecture faite trop tôt · une poussée partie avec l'état d'avant l'écriture · les notifications adressées à la mauvaise identité. Chacun a d'abord été rejoué au banc, puis corrigé.</p>
+    <p><b>Le comité n'intervient que dans un cas</b> : une récupération qui ne peut pas suivre son samedi. Il en est alors prévenu <b>par mail</b>, avec le samedi, les deux médecins et la date à replacer.</p>
+    <p><b>Reste à faire :</b> ouvrir le canal de notifications aux 23 (le 5 septembre) · remettre le bac à sable à zéro avant la répétition du 28 août · plus tard, faire passer par ce même canal ce qui part aujourd'hui par mail.</p>
   </div>
   <div class="card ok">
     <h4>Ouverture des documents <span class="tag t-green">livré le 10 août 2026</span></h4>
