@@ -365,5 +365,45 @@ console.log('\n═══ 11. Le guide du comité décrit l\'interface RÉELLE �
   V('le guide dit que les gardes y sont verrouillées', /verrouill/i.test(guide));
 }
 
+console.log('\n═══ 12. Le Diagnostic dit la vérité sur la version du site ═══');
+{
+  /* (16/08/2026) DÉFAUT VU EN PRODUCTION : le rapport annonçait « (absente) →
+     réaligner » sur les quatre pages, alors que la chaîne était parfaitement
+     alignée — il cherchait encore les numéros écrits en dur, supprimés par la
+     centralisation du 14/08. Quatre ❌ imaginaires dans un rapport que le guide
+     du comité demande de lire.
+     On exécute ici la VRAIE fonction du serveur, sur les VRAIS fichiers du
+     dépôt, puis sur des fichiers fabriqués fautifs. */
+  const vm = require('vm');
+  const { extraireFonction } = require('./stubs');
+  const ctx = vm.createContext({});
+  vm.runInContext(extraireFonction('../gas/Indispos.gs', '_versionSiteAnomalies_'), ctx);
+  const anomalies = vm.runInContext('_versionSiteAnomalies_', ctx);
+
+  const AFFICHEUSES = ['dashboard.html', 'admin.html', 'docs/guide-mar.html',
+                       'docs/guide-comite.html', 'docs/roadmap.html'];
+  const vjs = lire('version.js');
+  const pages = {};
+  AFFICHEUSES.forEach(f => { pages[f] = lire(f); });
+
+  const r = anomalies(vjs, pages);
+  V('le contrôle lit la version dans la source unique', /^v\d+\.\d+$/.test(r.version || ''), r.version);
+  V('sur le dépôt réel, il ne signale RIEN', r.anomalies.length === 0, r.anomalies);
+
+  /* Contre-épreuves : chaque faute possible doit être vue, et une seule fois. */
+  const seul = (f, txt) => anomalies(vjs, Object.assign({}, pages, { [f]: txt })).anomalies;
+  V('une page qui ne charge plus la source unique est signalée',
+    seul('admin.html', pages['admin.html'].replace(/<script src="version\.js"><\/script>/, '')).length === 1);
+  V('une page sans emplacement d\'affichage est signalée',
+    seul('dashboard.html', pages['dashboard.html'].replace(/data-version/g, 'data-ancien')).length === 1);
+  V('un numéro réécrit en dur est signalé',
+    seul('admin.html', pages['admin.html'] + '<div>v9.9</div>').length === 1);
+  V('un fichier injoignable est signalé, mais comme un simple avertissement',
+    seul('docs/roadmap.html', null).length === 1 &&
+    /injoignable/.test(seul('docs/roadmap.html', null)[0].motif));
+  V('une source unique illisible arrête le contrôle proprement',
+    anomalies('', pages).version === null && anomalies('', pages).anomalies.length === 1);
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);

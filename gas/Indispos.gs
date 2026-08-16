@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-13.2';
+const GAS_VERSION_INDISPOS = '2026-08-16.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -60,6 +60,33 @@ function _indisposOuverte_() {
    sortie changent (objet au lieu de reponse HTTP).
    Retourne { ok, results, nbErr, nbWarn }.
    ───────────────────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   _versionSiteAnomalies_(sourceJs, pages) — le contrôle de version, sans réseau.
+   Reçoit le contenu de version.js et celui de chaque page qui affiche le numéro.
+   Rend { version, anomalies:[{fichier, motif}] }. Aucune anomalie = la chaîne
+   est alignée sur la source unique.
+   Séparée du diagnostic pour une seule raison : ainsi elle se teste au banc avec
+   des fichiers fabriqués, y compris les cas fautifs qu'on ne peut pas provoquer
+   en production.
+   ───────────────────────────────────────────────────────────────────────────── */
+function _versionSiteAnomalies_(sourceJs, pages) {
+  const m = String(sourceJs || '').match(/window\.SITE_VERSION\s*=\s*'(v[\d.]+)'/);
+  if (!m) return { version: null, anomalies: [{ fichier: 'version.js', motif: 'source unique illisible' }] };
+  const anomalies = [];
+  Object.keys(pages || {}).forEach(fn => {
+    const txt = pages[fn];
+    if (txt === null || txt === undefined) { anomalies.push({ fichier: fn, motif: 'illisible (dépôt injoignable)' }); return; }
+    if (!/src="\.?\.?\/?version\.js"/.test(txt)) anomalies.push({ fichier: fn, motif: 'ne charge pas la source unique → réaligner' });
+    if (!/data-version/.test(txt)) anomalies.push({ fichier: fn, motif: 'aucun emplacement où afficher le numéro → réaligner' });
+    /* Un numéro EN DUR se reconnaît à sa présence dans du texte affiché ou dans
+       une constante. Les mentions d'historique en commentaire restent légitimes. */
+    const enDur = (txt.match(/>\s*v\d+\.\d+[^<]*</g) || [])
+      .concat(txt.match(/(?:const|let|var)\s+SITE_VERSION\s*=\s*'v[\d.]+'/g) || []);
+    if (enDur.length) anomalies.push({ fichier: fn, motif: `numéro écrit en dur (${String(enDur[0]).trim().slice(0, 24)}) → réaligner` });
+  });
+  return { version: m[1], anomalies: anomalies };
+}
+
 function diagnosticComplet() {
     const results = [];
     let ok = true;
@@ -280,48 +307,39 @@ function diagnosticComplet() {
       }
     } catch (e) { check('Contrôle de sauvegarde impossible : ' + e.message, R.WARN); }
 
-    // ── 3quater. Cohérence de la version du site (4 fichiers) ──
-    // (Corrigé 20/07/2026) Ce contrôle ne lisait que le MARQUEUR en commentaire
-    // « SITE_VERSION: vX.Y » — jamais la valeur réellement AFFICHÉE. Résultat : il
-    // annonçait « les 4 fichiers sont alignés (v1.4) » alors que 3 sur 4 affichaient
-    // v1.0 depuis plusieurs itérations. On compare désormais TOUTES les occurrences
-    // de version d'un fichier (constante JS, badge HTML en dur, ligne des guides,
-    // marqueur) : elles doivent être identiques DANS chaque fichier ET entre fichiers.
+    // ── 3quater. Cohérence de la version du site ──
+    // (Corrigé 16/08/2026) Ce contrôle cherchait des numéros ÉCRITS EN DUR dans
+    // quatre fichiers (constante JS, badge HTML, ligne d'en-tête des guides).
+    // Le 14/08, le numéro a été centralisé dans version.js et ces écritures ont
+    // disparu : le contrôle ne trouvait donc plus rien et annonçait « (absente)
+    // → réaligner » sur les quatre — quatre ❌ pour une chaîne parfaitement
+    // alignée. Un rapport qui crie au rouge sans motif finit par ne plus être lu.
+    // Ce qui doit être vérifié a changé avec la centralisation : que chaque page
+    // afficheuse se BRANCHE sur la source unique, et qu'aucune ne réintroduise un
+    // numéro en dur (l'erreur reviendrait alors sans bruit). La comparaison
+    // elle-même vit dans _versionSiteAnomalies_, sans réseau, donc vérifiable au banc.
     hdr('Version du site');
     try {
-      const vFiles = ['dashboard.html', 'admin.html', 'docs/guide-mar.html', 'docs/guide-comite.html'];
       const tokV = getGithubToken();
-      const versions = {};
-      vFiles.forEach(fn => {
+      const _lireDepot = fn => {
         try {
           const r = UrlFetchApp.fetch(
             `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${fn}?ref=${GITHUB_BRANCH}`,
             { headers: { Authorization: 'token ' + tokV, Accept: 'application/vnd.github.raw' }, muteHttpExceptions: true });
-          if (r.getResponseCode() === 200) {
-            const txt = r.getContentText();
-            // Toutes les formes de version présentes dans le fichier.
-            const vus = [];
-            const push_ = re => { const m = txt.match(re); if (m) vus.push(m[1]); };
-            push_(/SITE_VERSION\s*=\s*'(v[\d.]+)'/);            // constante JS (dashboard/admin)
-            push_(/id="verBadge">(v[\d.]+)</);                    // badge HTML en dur (visible avant login)
-            push_(/Version <strong>(v[\d.]+)<\/strong>/);         // ligne d'en-tête des guides
-            push_(/SITE_VERSION:\s*(v[\d.]+)/);                  // marqueur en commentaire
-            if (!vus.length) versions[fn] = '(absente)';
-            else if (vus.some(v => v !== vus[0])) versions[fn] = 'INCOHÉRENT (' + vus.join(' / ') + ')';
-            else versions[fn] = vus[0];
-          } else versions[fn] = '(illisible)';
-        } catch (e) { versions[fn] = '(illisible)'; }
-      });
-      const vals = vFiles.map(fn => versions[fn]);
-      // Référence = première valeur PROPRE (un fichier incohérent ne fait pas foi).
-      const ref = vals.find(v => v && v[0] === 'v' && v.indexOf('INCOHÉRENT') < 0);
-      const allSame = ref && vals.every(v => v === ref);
-      if (allSame) check(`Les 4 fichiers sont alignés (${ref})`, R.OK);
-      else {
-        vFiles.forEach(fn => {
-          if (versions[fn] === ref) check(`${fn} : ${versions[fn]}`, R.OK);
-          else check(`${fn} : ${versions[fn]}${ref ? ' (attendu ' + ref + ')' : ''} → réaligner`, R.ERR);
-        });
+          return r.getResponseCode() === 200 ? r.getContentText() : null;
+        } catch (e) { return null; }
+      };
+      const pages = {};
+      ['dashboard.html', 'admin.html', 'docs/guide-mar.html', 'docs/guide-comite.html', 'docs/roadmap.html']
+        .forEach(fn => { pages[fn] = _lireDepot(fn); });
+      const v = _versionSiteAnomalies_(_lireDepot('version.js'), pages);
+      if (!v.version) check('version.js illisible — version du site non vérifiable', R.WARN);
+      else if (!v.anomalies.length) {
+        check(`Les ${Object.keys(pages).length} pages affichent la version du dépôt (${v.version})`, R.OK);
+      } else {
+        info(`Version publiée : ${v.version}`);
+        v.anomalies.forEach(a => check(`${a.fichier} : ${a.motif}`,
+          a.motif === 'illisible (dépôt injoignable)' ? R.WARN : R.ERR));
       }
     } catch (e) { check('Contrôle de version impossible : ' + e.message, R.WARN); }
 
