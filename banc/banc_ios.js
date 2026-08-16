@@ -95,8 +95,10 @@ async function charger(fichier, options) {
       V('l\'ancienne page fonctionne encore (aucune erreur)', erreurs.length === 0, erreurs.slice(0,2));
       V('elle écrit par le circuit d\'origine (pas de perte)', ecrituresGAS >= 1, { ecrituresGAS, deposesJournal });
       V('rien ne reste bloqué en attente', Object.keys(w._batchAll()).length === 0);
+      /* (14/08/2026) La page archivee porte encore son numero en dur ; la page
+         actuelle le lit dans version.js. On compare donc l'un a l'autre. */
       const vA = fs.readFileSync(ancienne,'utf8').match(/const SITE_VERSION = '(v[\d.]+)'/);
-      const vN = fs.readFileSync('../admin.html','utf8').match(/const SITE_VERSION = '(v[\d.]+)'/);
+      const vN = fs.readFileSync('../version.js','utf8').match(/window\.SITE_VERSION = '(v[\d.]+)'/);
       V('les deux versions sont bien distinctes (le test a du sens)', vA && vN && vA[1] !== vN[1], [vA && vA[1], vN && vN[1]]);
     }
   }

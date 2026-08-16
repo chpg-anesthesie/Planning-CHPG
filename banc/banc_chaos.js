@@ -108,10 +108,21 @@ function googleCapricieux(scenario) {
 
   console.log('\n═══ 27. Cohérence du dépôt : versions et marqueurs ═══');
   {
-    const admin = fs.readFileSync('../admin.html', 'utf8');
-    const m1 = admin.match(/const SITE_VERSION = '(v[\d.]+)'/);
-    const m2 = admin.match(/>(v[\d.]+)<\/span>/);
-    V('la version du script et celle du bandeau concordent', m1 && m2 && m1[1] === m2[1], m1 && m2 && [m1[1], m2[1]]);
+    /* (14/08/2026) Le numero etait recopie a la main dans 11 emplacements de
+       5 fichiers — on s'est trompes en le recomptant. Il vit desormais dans
+       version.js, une seule fois. Le banc verifie donc l'inverse de ce qu'il
+       verifiait : qu'AUCUNE page ne le porte en dur, et que la source unique
+       existe et alimente bien chaque emplacement d'affichage. */
+    const vjs = fs.readFileSync('../version.js', 'utf8');
+    const src = vjs.match(/window\.SITE_VERSION = '(v[\d.]+)'/);
+    V('version.js porte le numero, une seule fois', !!src && (vjs.match(/window\.SITE_VERSION =/g) || []).length === 1, src && src[1]);
+    V('le numero tient en DEUX chiffres (v1.35, pas v1.34.10)', !!src && /^v\d+\.\d+$/.test(src[1]), src && src[1]);
+    /* Le branchement des 5 pages afficheuses et l'absence de numero en dur
+       sont verifies par banc_docs, qui sait distinguer un numero AFFICHE d'un
+       numero cite dans un commentaire d'historique — mention legitime. Ici on
+       s'en tient a la source et a l'absence de copie locale dans admin. */
+    const adm = fs.readFileSync('../admin.html', 'utf8');
+    V('admin lit le numero depuis la source, sans copie locale', /const SITE_VERSION = window\.SITE_VERSION/.test(adm));
     const gs = { 'code.gs': '../gas/code.gs', 'Indispos.gs': '../gas/Indispos.gs', 'miroir.gs': '../gas/miroir.gs', 'journal.gs': '../gas/journal.gs', 'veille.gs': '../gas/veille.gs' };
     Object.entries(gs).forEach(([nom, f]) => {
       const v = fs.readFileSync(f, 'utf8').match(/GAS_VERSION_\w+ = '([\d-]+\.\d+)'/);

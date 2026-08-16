@@ -15,6 +15,7 @@
    ═══════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
+const { JSDOM, VirtualConsole } = require('jsdom');
 
 let ok = 0, ko = 0;
 function V(nom, cond, detail) {
@@ -33,25 +34,48 @@ const DOCS   = fs.readdirSync('../docs').filter(f => f.endsWith('.html')).map(f 
 
 console.log('\n═══ 1. Concordance des numéros de version (remplace T150) ═══');
 {
-  /* Le marqueur vit dans 5 fichiers. Une montée de version oubliée quelque
-     part est invisible à l'œil et fausse tout diagnostic ultérieur. */
-  const PORTEURS = ['admin.html', 'dashboard.html',
-                    'docs/guide-comite.html', 'docs/guide-mar.html', 'docs/roadmap.html'];
-  const versions = {};
-  PORTEURS.forEach(f => {
+  /* (14/08/2026) Le marqueur vivait dans 5 fichiers, recopié à la main : ce
+     test comparait les 5 copies entre elles. Il n'y a plus de copies — le
+     numéro vit dans version.js. Ce qui doit être vérifié a changé : que
+     chaque page AFFICHEUSE se branche sur la source, et qu'aucune ne
+     réintroduise un numéro en dur (l'erreur reviendrait sans bruit). */
+  const AFFICHEUSES = ['admin.html', 'dashboard.html',
+                       'docs/guide-comite.html', 'docs/guide-mar.html', 'docs/roadmap.html'];
+  const vjs = lire('version.js');
+  const src = vjs.match(/window\.SITE_VERSION = '(v[\d.]+)'/);
+  V('version.js est la source unique', !!src, src && src[1]);
+  V('la version a la forme vX.Y (deux chiffres)', !!src && /^v\d+\.\d+$/.test(src[1]), src && src[1]);
+  AFFICHEUSES.forEach(f => {
     const h = lire(f);
-    /* On prend la version la PLUS HAUTE du fichier : admin.html cite des
-       versions anciennes dans son historique de nouveautés, c'est normal. */
-    const toutes = (h.match(/v1\.\d+(?:\.\d+)?/g) || []);
-    const cle = (v) => v.slice(1).split('.').map(Number).concat([0]).slice(0, 3);
-    toutes.sort((a, b) => { const x = cle(a), y = cle(b);
-      return (x[0] - y[0]) || (x[1] - y[1]) || (x[2] - y[2]); });
-    versions[f] = toutes[toutes.length - 1] || '(aucune)';
+    V(`${f} charge version.js`, /src="\.?\.?\/?version\.js"/.test(h));
+    V(`${f} a un emplacement data-version`, /data-version/.test(h));
+    /* Un numéro EN DUR se reconnaît à sa présence dans du texte affiché :
+       > v1.35 < ou 'v1.35'. Les mentions en commentaire d'historique
+       (« (12/08/2026, v1.31.4) ») restent légitimes et ne comptent pas. */
+    const enDur = (h.match(/>\s*v\d+\.\d+[^<]*</g) || [])
+      .concat(h.match(/(?:const|let|var)\s+SITE_VERSION\s*=\s*'v[\d.]+'/g) || []);
+    V(`${f} n'écrit aucun numéro en dur`, enDur.length === 0, enDur.slice(0, 3));
   });
-  const uniques = [...new Set(Object.values(versions))];
-  V('les 5 porteurs annoncent la MÊME version', uniques.length === 1, versions);
-  V('la version a bien la forme vX.Y ou vX.Y.Z', /^v\d+\.\d+(\.\d+)?$/.test(uniques[0]), uniques);
-  console.log('    version courante : ' + uniques[0]);
+  console.log('    version courante : ' + (src && src[1]));
+
+  /* Le test ci-dessus lit du texte. Il ne prouve PAS que le numero s'affiche :
+     une page peut charger version.js et n'avoir aucun emplacement atteint (id
+     mal place, element cree apres coup). On execute donc reellement la source
+     unique dans chaque page et on regarde ce que l'utilisateur verrait. */
+  AFFICHEUSES.forEach(f => {
+    const vc = new VirtualConsole();
+    const dom = new JSDOM(lire(f), { runScripts: 'outside-only', virtualConsole: vc });
+    dom.window.eval(vjs);                      // ce que fait la balise <script src="version.js">
+    /* Dans un navigateur, la source s'execute PENDANT l'analyse de la page :
+       les emplacements situes plus bas n'existent pas encore, d'ou l'attente
+       de la fin du chargement. On la simule, sinon le test mesurerait autre
+       chose que ce que voit l'utilisateur. */
+    dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));
+    const cibles = [...dom.window.document.querySelectorAll('[data-version]')];
+    V(`${f} : le numero s'affiche vraiment (${cibles.length} emplacement(s))`,
+      cibles.length > 0 && cibles.every(e => e.textContent === src[1]),
+      cibles.map(e => e.textContent));
+  });
 }
 
 console.log('\n═══ 2. Liens internes et liens de page (remplace T151) ═══');
