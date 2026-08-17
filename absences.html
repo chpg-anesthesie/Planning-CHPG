@@ -308,11 +308,34 @@ document.getElementById('btnOut').addEventListener('click', ()=>{
 /* (17/08/2026) La session se lit par CHPGSession. Cette page interrogeait
    l'onglet en direct : dans l'app installée, elle redemandait le code alors que
    le portail, lui, s'en souvenait 30 jours. */
+/* REPRISE DE SESSION — AFFICHAGE OPTIMISTE (17/08/2026, même principe que crh.html).
+   Le code est déjà connu : on masque l'écran d'authentification TOUT DE SUITE et on
+   valide derrière. Attendre la réponse avant d'afficher montrait un écran de code
+   pendant quelques secondes, qui disparaissait ensuite tout seul — constaté en réel
+   sur mobile. Rien n'est dévoilé au passage : la page est vide tant que le serveur
+   n'a pas répondu. Si le code est refusé, l'écran revient et le dit. */
 (async function auto(){
   const saved = CHPGSession.lire();
   if(!saved) return;
-  try{ await doLogin(saved); }
-  catch(e){ CHPGSession.oublier(); }
+  document.getElementById('authOverlay').style.display='none';
+  document.getElementById('hdr').style.display='flex';
+  document.getElementById('main').style.display='';
+  document.getElementById('pitch').textContent = 'Chargement…';
+  try{
+    const r = await doLogin(saved);
+    if(r && r.success) return;
+    CHPGSession.oublier();
+    document.getElementById('authOverlay').style.display='flex';
+    document.getElementById('hdr').style.display='none';
+    document.getElementById('main').style.display='none';
+    authErr((r && r.error) || 'Session expirée — retapez votre code.');
+  }catch(e){
+    CHPGSession.oublier();
+    document.getElementById('authOverlay').style.display='flex';
+    document.getElementById('hdr').style.display='none';
+    document.getElementById('main').style.display='none';
+    authErr('Portail injoignable — réessayez.');
+  }
 })();
 
 /* ══ DONNÉES ═══════════════════════════════════════════════════════════ */

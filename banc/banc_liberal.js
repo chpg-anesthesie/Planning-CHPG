@@ -474,6 +474,38 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
       mir.indexOf("LIBERAL_CA:") > mir.indexOf("LIBERAL:      ['liberal']"));
   }
 
+  /* ═══════════════════════════════════════════════════════════════
+     9. L'OUVERTURE NE DOIT PAS MONTRER L'ÉCRAN DE CODE (17/08/2026)
+     Constaté sur mobile : le code était mémorisé, mais la page affichait
+     quand même l'écran d'authentification quelques secondes, le temps de
+     l'aller-retour, puis il disparaissait tout seul. Ça ressemble à une
+     panne, et sur un outil de consultation ça décide de son usage.
+     ═══════════════════════════════════════════════════════════════ */
+  console.log('\n═══ 9. Rouvrir la page ne redemande rien, et ne fait rien croire ═══');
+  {
+    const sv = fs.readFileSync('../suivi-liberal.html', 'utf8');
+    V('le suivi masque l\'écran de code AVANT d\'attendre le serveur',
+      /ouvrirEcran\('\)/.test(sv.replace(/\s/g, '')) || /ouvrirEcran\(''\)/.test(sv));
+    V('et il le remontre si le code est refusé',
+      /fermerEcran\(\)/.test(sv) && /CHPGSession\.oublier\(\)/.test(sv));
+    V('un code repris n\'appelle plus Apps Script quand la copie rapide répond',
+      sv.indexOf('miroirRead') < sv.indexOf("apiPost({action:'login'})"),
+      [sv.indexOf('miroirRead'), sv.indexOf("apiPost({action:'login'})")]);
+    V('la copie rapide sert d\'authentification : identité vérifiée avant d\'ouvrir',
+      /id\.role !== 'mar' \|\| !id\.liberal/.test(sv));
+
+    const ab = fs.readFileSync('../absences.html', 'utf8');
+    V('« Mes consultations » ouvre aussi tout de suite',
+      /authOverlay'\)\.style\.display='none';[\s\S]{0,400}doLogin\(saved\)/.test(ab));
+    V('et remet l\'écran de code si la session est refusée',
+      /Session expirée — retapez votre code/.test(ab));
+
+    /* La porte reste fermée : l'affichage optimiste montre une page VIDE,
+       jamais des donnees non authentifiees. */
+    V('rien n\'est affiché avant la réponse du serveur',
+      /pitch'\)\.textContent = 'Chargement…'/.test(ab));
+  }
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   if (ko) process.exit(1);
 })();

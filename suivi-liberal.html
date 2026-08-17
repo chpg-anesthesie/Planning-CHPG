@@ -319,15 +319,55 @@ function authErr(m){
   el.textContent = m; el.style.display = 'block';
   setTimeout(()=>{ el.style.display='none'; }, 4000);
 }
-async function doLogin(code){
-  VIEW_CODE = code;
-  const r = await apiPost({action:'login'});
-  if(!(r && r.success)){ VIEW_CODE=''; return r; }
-  CHPGSession.memoriser(code);          // session commune du portail (30 j dans l'app installée)
-  MOI = (r.role === 'mar') ? r.id : null;
-  document.getElementById('mePill').textContent = r.name || r.id || '';
+/* (17/08/2026) OUVERTURE SANS ALLER-RETOUR INUTILE. La page appelait TOUJOURS
+   l'action 'login' d'Apps Script avant d'afficher quoi que ce soit : quelques
+   secondes d'écran d'authentification alors que le code était déjà connu, puis
+   disparition toute seule. Constaté en réel sur mobile.
+   La copie rapide valide le code ET rend l'identité ET le relevé, en un seul
+   appel : plus rien à demander à Apps Script quand elle répond. */
+function ouvrirEcran(nom){
+  MOI_NOM = nom || '';
+  document.getElementById('mePill').textContent = MOI_NOM;
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('hdr').style.display = 'flex';
+}
+function fermerEcran(){
+  document.getElementById('authOverlay').style.display = 'flex';
+  document.getElementById('hdr').style.display = 'none';
+}
+let MOI_NOM = '';
+
+async function doLogin(code){
+  VIEW_CODE = code;
+  // 1) Copie rapide : elle authentifie (empreinte du code) et sert dans le même appel.
+  const an = new Date().getFullYear();
+  const m = await miroirRead(['releve_liberal_' + an, 'secteurs']);
+  if(m && m.success && m.identite){
+    const id = m.identite;
+    if(id.role !== 'mar' || !id.liberal){
+      VIEW_CODE = '';
+      return { success:false, error:'Réservé aux membres du groupement libéral.' };
+    }
+    CHPGSession.memoriser(code);
+    MOI = id.id || null;
+    ouvrirEcran(id.name || id.id || '');
+    poserSecteurs(m.data && m.data.secteurs);
+    const r = m.data && m.data['releve_liberal_' + an];
+    if(r && r.success && Array.isArray(r.items)){
+      AFF = r.affectations || {};
+      if(r.moisCourant) MOIS_COURANT = r.moisCourant;
+      rendre(r.items);
+    } else {
+      await charger();                  // clé absente du relais : le repli décide
+    }
+    return { success:true };
+  }
+  // 2) Repli Apps Script — le circuit d'avant, inchangé.
+  const r = await apiPost({action:'login'});
+  if(!(r && r.success)){ VIEW_CODE=''; return r; }
+  CHPGSession.memoriser(code);
+  MOI = (r.role === 'mar') ? r.id : null;
+  ouvrirEcran(r.name || r.id || '');
   await charger();
   return r;
 }
@@ -531,14 +571,27 @@ function poserSecteurs(list){
   });
 }
 
-// Reprise de session : le code d'accès vit dans sessionStorage, comme les autres pages.
-/* (17/08/2026) La session se lit par CHPGSession, comme sur le portail. Cette
-   page interrogeait sessionStorage directement : dans l'app installée, elle
-   redemandait le code alors que le portail, lui, s'en souvenait 30 jours.
-   Constaté en réel ce soir. */
+/* REPRISE DE SESSION — AFFICHAGE OPTIMISTE (17/08/2026, même principe que crh.html).
+   Le code est déjà connu : on masque l'écran d'authentification TOUT DE SUITE et
+   on valide derrière. L'inverse — attendre la réponse avant d'afficher — montrait
+   un écran de code pendant quelques secondes, qui disparaissait ensuite tout seul.
+   Si le code s'avère refusé (régénéré par le comité, mémoire périmée), l'écran
+   d'authentification revient et le dit. */
 (function boot(){
   const c = CHPGSession.lire();
-  if(c) doLogin(c).catch(()=>{});
+  if(!c) return;                        // aucun code : l'écran d'authentification reste
+  ouvrirEcran('');                      // pas de nom tant que le serveur n'a pas répondu
+  document.getElementById('periode').textContent = 'Chargement…';
+  doLogin(c).then(r => {
+    if(r && r.success) return;
+    CHPGSession.oublier();
+    fermerEcran();
+    authErr((r && r.error) || 'Session expirée — retapez votre code.');
+  }).catch(() => {
+    // Réseau muet : on garde l'écran ouvert et on le DIT, plutôt que de renvoyer
+    // vers un champ de code qui ne servirait à rien.
+    panne('Portail injoignable. Rien n\'est perdu : le relevé est intact dans le classeur.');
+  });
 })();
 </script>
 </body>
