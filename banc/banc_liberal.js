@@ -393,6 +393,61 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
   V('le secteur, lui, RESTE : dix endoscopies d\'affilée, zéro geste',
     d.getElementById('dclSec').value === 'END', d.getElementById('dclSec').value);
 
+  /* ═══════════════════════════════════════════════════════════════
+     8. LE RELEVÉ DANS LA COPIE RAPIDE (17/08/2026)
+     La liste rouge a été révisée : le relevé financier du groupement y est
+     désormais admis. C'est la porte qui compte — ces vérifications sont le
+     seul garde-fou entre « les membres » et « tout le monde ».
+     ═══════════════════════════════════════════════════════════════ */
+  console.log('\n═══ 8. Le relevé du groupement : qui peut le lire ═══');
+  {
+    const CODE_HORS = 'HORSGROUPE9', CODE_ADM = 'ADMINCODE9';
+    M.set('acces', JSON.stringify({ indisposYear:2026, users:[
+      { h: await sha(CODE),      role:'mar',   id:'ALPHA', name:'Dr ALPHA', initials:'AL', prenom:'Jean', liberal:true,  rpps:'1' },
+      { h: await sha(CODE_HORS), role:'mar',   id:'BRAVO', name:'Dr BRAVO', initials:'BR', prenom:'Luc',  liberal:false, rpps:'2' },
+      { h: await sha(CODE_ADM),  role:'admin', id:'COMITE', name:'Comité',  initials:'CO', prenom:'',     liberal:false, rpps:'' }]}));
+    M.set('releve_liberal_2026', JSON.stringify({ success:true, year:2026, moisCourant:8,
+      affectations:{}, items:[{ mois:'2026-07', marId:'ALPHA', nom:'Dr ALPHA', initiales:'AL',
+        tCcam:1, pctCcam:2, excCcam:3, tNgap:4, pctNgap:5, excNgap:6 }] }));
+    const lire = async (code) => {
+      const r = await WK.fetch(new Request('https://worker/read', { method:'POST',
+        body: JSON.stringify({ code, keys:['releve_liberal_2026'] }) }), env);
+      return r.json();
+    };
+    const membre = await lire(CODE);
+    V('un membre du groupement obtient le relevé',
+      !!(membre.data && membre.data.releve_liberal_2026), membre.refuses);
+    const horsG = await lire(CODE_HORS);
+    V('un MAR HORS groupement ne l\'obtient pas',
+      !(horsG.data && horsG.data.releve_liberal_2026), Object.keys(horsG.data || {}));
+    const adm = await lire(CODE_ADM);
+    V('le comité ne l\'obtient pas non plus — le libéral n\'est pas son ressort',
+      !(adm.data && adm.data.releve_liberal_2026), Object.keys(adm.data || {}));
+    const inconnu = await lire('PASUNCODE');
+    V('un code inconnu n\'obtient rien du tout', inconnu.success === false, inconnu.error);
+
+    /* La liste rouge n'a bouge que d'un cran : ce qui reste dehors doit le rester. */
+    const wk = fs.readFileSync('../cloudflare/worker.js', 'utf8');
+    V('PARAMETRES et les journaux restent hors du relais',
+      !/parametres|journal_/i.test(wk.match(/const CLE_VALIDE[^;]+;/)[0]));
+    V('la révision de la liste rouge est écrite dans les deux fichiers',
+      /LISTE ROUGE, révisée/.test(wk) &&
+      /LISTE ROUGE RÉVISÉE/.test(fs.readFileSync('../gas/miroir.gs', 'utf8')));
+
+    const suivi = fs.readFileSync('../suivi-liberal.html', 'utf8');
+    V('la page du suivi lit la copie rapide en premier',
+      /releve_liberal_/.test(suivi) && /miroirRead/.test(suivi));
+    V('elle garde Apps Script en repli', /getReleveLiberal/.test(suivi));
+    V('un échec ne s\'affiche plus « aucun relevé »',
+      /function panne\(/.test(suivi) && /Réessayer/.test(suivi));
+
+    const mir = fs.readFileSync('../gas/miroir.gs', 'utf8');
+    V('le relevé est daté sur l\'année CIVILE, pas l\'année active du planning',
+      /releve_liberal_' \+ anneeCivile/.test(mir) && /new Date\(\)\.getFullYear\(\)/.test(mir));
+    V('saisir le relevé rafraîchit le relevé, pas le volet du comité',
+      mir.indexOf("LIBERAL_CA:") > mir.indexOf("LIBERAL:      ['liberal']"));
+  }
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   if (ko) process.exit(1);
 })();

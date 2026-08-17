@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-17.1';
+const GAS_VERSION_MIROIR = '2026-08-17.2';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -27,8 +27,16 @@ const GAS_VERSION_MIROIR = '2026-08-17.1';
    - Le code du SECRÉTARIAT n'est PAS déposé, même en empreinte : ce rôle
      n'a aucune lecture au miroir (règle de _routeRequete_ conservée), son
      empreinte n'y a donc aucun usage.
-   - LISTE ROUGE inchangée : relevé libéral, marges, PARAMETRES/CONFIG,
-     Gmail, journaux — rien de tout cela ne transite ici.
+   - LISTE ROUGE RÉVISÉE le 17/08/2026 : PARAMETRES/CONFIG, Gmail et les
+     journaux n'y transitent toujours JAMAIS. Le RELEVÉ LIBÉRAL, lui, y est
+     désormais admis (clé `releve_liberal_{Y}`), sur décision d'Arthur.
+     Motif : la page du suivi tombait par intermittence — elle était la
+     dernière à ne parler qu'à Apps Script — et un échec s'y affichait
+     « aucun relevé saisi », ce qui est un mensonge.
+     Ce qui protège : la clé est réservée aux MEMBRES DU GROUPEMENT côté
+     Worker (role mar + liberal), soit exactement la règle de l'action
+     getReleveLiberal. Mêmes données, mêmes personnes, même code d'accès —
+     seul le lieu de stockage change.
 
    JAMAIS BLOQUANT. Toute fonction de ce fichier avale ses erreurs : un
    miroir en panne ne doit JAMAIS faire échouer une écriture du portail.
@@ -214,7 +222,7 @@ function miroirSyncComplet() {
   const familles = ['acces', 'annees', 'secteurs', 'config_admin',
                     'planning', 'affectations', 'indispos', 'tuiles',
                     'gardes', 'joursferies', 'stats', 'vacances_admin', 'mail', 'liberal',
-                    'specialites', 'cotations_type',
+                    'specialites', 'cotations_type', 'releve_liberal',
                     'veille_marques', 'ordre_vac', 'echanges'];
   try { PropertiesService.getScriptProperties().deleteProperty(MIROIR_CLE_ATTENTE); } catch (e) {}   // la synchro pousse un sur-ensemble : la note devient caduque
   const res = miroirPousserFamilles_(familles, getActiveYear(), true);   // synchro : toutes les annees consultables
@@ -252,6 +260,11 @@ const MIROIR_ONGLETS_SUIVIS = {
   CS_TEMPLATE:  ['config_admin'],                  // modèle de consultations
   SEUILS:       ['config_admin'],                  // bornes de la carte de tension
   LIBERAL:      ['liberal'],
+  /* ⚠️ ORDRE SIGNIFICATIF : 'LIBERAL_CA_2026' commence par 'LIBERAL_' et
+     correspond donc AUSSI à l'entrée ci-dessus. La boucle garde la DERNIÈRE
+     correspondance : cette ligne doit rester APRÈS 'LIBERAL', sans quoi une
+     saisie du relevé rafraîchirait le volet du comité au lieu du relevé. */
+  LIBERAL_CA:   ['releve_liberal'],                // (17/08/2026) saisie mensuelle du relevé
   PERIODES_VAC: ['vacances_admin', 'stats'],
   GROUPES_VAC:  ['vacances_admin', 'ordre_vac'],
   VEILLE_MARQUES: ['veille_marques'],              // (2026-08-08.1) correction manuelle d'une marque
@@ -318,6 +331,19 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
      rarement (un code de specialite, une cotation type ajoutee) mais etaient
      redemandees a Apps Script a CHAQUE ouverture de la page. */
   if (uniq['specialites'])     _miroirAjoute_(items, 'specialites',     function () { return getSpecialites(); });
+  /* (17/08/2026) Relevé du groupement. ⚠️ ANNÉE CIVILE, PAS L'ANNÉE ACTIVE :
+     le relevé de l'administration est calendaire, alors que l'année active du
+     planning bascule dès l'automne (même piège que les onglets LIBERAL_{Y},
+     corrigé le 22/07). En janvier, l'onglet de la nouvelle année n'existe pas
+     encore : getReleveLiberal rend alors une liste vide, ce qui est juste.
+     L'enveloppe complète est déposée telle quelle : la page consomme
+     exactement ce que lui rendait l'action, sans transformation. */
+  if (uniq['releve_liberal']) {
+    const anneeCivile = new Date().getFullYear();
+    _miroirAjouteEnveloppe_(items, 'releve_liberal_' + anneeCivile, function () {
+      return getReleveLiberal({ year: anneeCivile });
+    });
+  }
   if (uniq['cotations_type'])  _miroirAjoute_(items, 'cotations_type',  function () { return getCotationsType(); });
   if (uniq['config_admin']) _miroirAjoute_(items, 'config_admin', function () { return _miroirConstruireConfigAdmin_(annee); });
 

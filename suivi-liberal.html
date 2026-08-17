@@ -233,6 +233,8 @@ table.grid td.pick{outline:2px solid var(--rose);outline-offset:1px}
     </div>
   </div>
 
+  <div id="panne" style="display:none;background:#FDF3E3;border:1px solid #EAD9B4;border-radius:16px;padding:18px 20px;color:#8A6516;font-size:14px;margin-bottom:20px"></div>
+
   <div id="vide" style="display:none;background:var(--white);border:1px solid var(--line);border-radius:16px;padding:40px;text-align:center;color:var(--ink-3)">
     Aucun relevé saisi pour le moment.
   </div>
@@ -270,6 +272,32 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;'
 function marge(T, pctVal){
   if (T == null || pctVal == null) return null;
   return T * (3 - 10 * (pctVal / 100)) / 7;
+}
+
+/* (17/08/2026) LECTURE PAR LA COPIE RAPIDE. Cette page etait la derniere a ne
+   parler qu'a Apps Script : elle tombait par intermittence, et son echec
+   s'affichait « Aucun releve saisi pour le moment » — une phrase fausse, qui
+   ressemblait a une reponse. Le releve vit desormais aussi dans la copie
+   rapide, reserve aux MEMBRES DU GROUPEMENT (meme regle que l'action
+   serveur). Apps Script reste le repli, et un echec se DIT. */
+const MIROIR_URL = 'https://chpg-miroir.arthurfrohlich.workers.dev';
+
+async function miroirRead(keys){
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 6000);
+  try{
+    const res = await fetch(MIROIR_URL + '/read', {method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},   // requete « simple » : pas de preambule CORS
+      body: JSON.stringify({code:VIEW_CODE, keys}), signal:ctrl.signal});
+    return await res.json();
+  }catch(e){ return null; }                                  // panne de transport -> le repli GAS decide
+  finally{ clearTimeout(t); }
+}
+
+function panne(txt){
+  const el = document.getElementById('panne');
+  el.innerHTML = esc(txt) + ' <button onclick="charger()" style="margin-left:8px;border:1px solid #EAD9B4;background:#fff;border-radius:8px;padding:5px 11px;font:inherit;font-size:13px;font-weight:600;color:#8A6516;cursor:pointer">Réessayer</button>';
+  el.style.display = 'block';
 }
 
 async function apiPost(payload){
@@ -375,11 +403,7 @@ async function chargerSecteurs(){
   }catch(e){}
   try{
     const r = await apiPost({action:'getSecteurs'});
-    const list = (r && (r.data || r.secteurs || r)) || [];
-    (Array.isArray(list) ? list : []).forEach(x => {
-      if(x && x.code) SECTEURS[String(x.code).toUpperCase()] =
-        { bg:x.bg || null, fg:x.fg || null, label:x.label || x.code };
-    });
+    poserSecteurs((r && (r.data || r.secteurs || r)) || []);
     try{ sessionStorage.setItem('chpgSecteursSuivi_v1', JSON.stringify(SECTEURS)); }catch(e){}
   }catch(e){ /* silencieux : sans couleurs les chips restent lisibles en gris */ }
 }
@@ -461,15 +485,43 @@ function rendre(items){
 }
 
 async function charger(){
-  try{
-    await chargerSecteurs();          // couleurs d'abord : le tableau est rendu ensuite
-    const r = await apiPost({action:'getReleveLiberal', year:new Date().getFullYear()});
+  const an = new Date().getFullYear();
+  document.getElementById('panne').style.display='none';
+  document.getElementById('vide').style.display='none';
+
+  // 1) Copie rapide : releve + couleurs des secteurs en UN aller-retour.
+  const m = await miroirRead(['releve_liberal_' + an, 'secteurs']);
+  if(m && m.success && m.data && m.data['releve_liberal_' + an]){
+    const r = m.data['releve_liberal_' + an];
+    poserSecteurs(m.data.secteurs);
     AFF = (r && r.affectations) || {};
-    if(r && r.moisCourant) MOIS_COURANT = r.moisCourant;   // le serveur fait foi sur la date
-    rendre((r && r.success && Array.isArray(r.items)) ? r.items : []);
-  }catch(e){
-    document.getElementById('periode').textContent = 'Portail injoignable — réessayez.';
+    if(r && r.moisCourant) MOIS_COURANT = r.moisCourant;
+    if(r && r.success && Array.isArray(r.items)){ rendre(r.items); return; }
   }
+
+  // 2) Repli Apps Script — le circuit d'avant, inchange.
+  try{
+    await chargerSecteurs();
+    const r = await apiPost({action:'getReleveLiberal', year:an});
+    if(!r){ panne('Le portail n\'a pas répondu. Rien n\'est perdu : le relevé est intact.'); return; }
+    if(!r.success){ panne('Le portail a refusé la demande : ' + (r.error || 'raison inconnue') + '.'); return; }
+    if(!Array.isArray(r.items)){ panne('Réponse illisible du portail.'); return; }
+    AFF = r.affectations || {};
+    if(r.moisCourant) MOIS_COURANT = r.moisCourant;
+    rendre(r.items);
+  }catch(e){
+    panne('Portail injoignable. Rien n\'est perdu : le relevé est intact dans le classeur.');
+    document.getElementById('periode').textContent = '';
+  }
+}
+
+/* Couleurs des secteurs, quelle que soit leur provenance (copie rapide ou
+   Apps Script) : meme forme, une seule fonction de pose. */
+function poserSecteurs(list){
+  (Array.isArray(list) ? list : []).forEach(x => {
+    if(x && x.code) SECTEURS[String(x.code).toUpperCase()] =
+      { bg:x.bg || null, fg:x.fg || null, label:x.label || x.code };
+  });
 }
 
 // Reprise de session : le code d'accès vit dans sessionStorage, comme les autres pages.

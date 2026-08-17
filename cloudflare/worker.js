@@ -34,8 +34,19 @@
        empreintes SHA-256, calculées et déposées par le GAS.
      - Aucun secret dans ce fichier : PUSH_TOKEN vit dans les secrets
        du Worker (Settings → Variables and Secrets).
-     - Aucune donnée financière ici : le relevé libéral, les marges et
-       PARAMETRES ne transitent JAMAIS par le miroir (liste rouge).
+     - LISTE ROUGE, révisée le 17/08/2026 : PARAMETRES, Gmail et les
+       journaux ne transitent JAMAIS ici. Le RELEVÉ LIBÉRAL, lui, y est
+       désormais admis (clé releve_liberal_{Y}) — décision d'Arthur, prise
+       à froid, motif ci-dessous.
+       Pourquoi c'est acceptable : la clé est réservée aux MEMBRES DU
+       GROUPEMENT (role mar + liberal), exactement la même règle que
+       l'action getReleveLiberal côté Apps Script. Le relais n'ouvre donc
+       AUCUN accès nouveau : il sert les mêmes données aux mêmes personnes,
+       derrière le même code. Ce qui change est le lieu de stockage, pas la
+       porte. Motif du changement : la page tombait par intermittence et
+       affichait « aucun relevé » au lieu de le dire.
+       ⚠️ Ce qui reste vrai : ni le comité, ni le secrétariat, ni un MAR
+       hors groupement n'y accèdent. Une seule clé, une seule règle.
      - Cache-Control: no-store — rien n'est mis en cache par les
        navigateurs ou proxys intermédiaires.
 
@@ -60,7 +71,7 @@ const VERSION = 'miroir 2026-08-13.4';
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
 // une clé orpheline invisible.
-const CLE_VALIDE = /^(acces|annees|secteurs|specialites|cotations_type|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|veille_marques|ordre_vac|echanges|notif_config|equite_live_\d{4}|doc_[A-Za-z0-9_-]{10,80})$/;
+const CLE_VALIDE = /^(acces|annees|secteurs|specialites|cotations_type|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|releve_liberal_\d{4}|veille_marques|ordre_vac|echanges|notif_config|equite_live_\d{4}|doc_[A-Za-z0-9_-]{10,80})$/;
 /* (2026-08-10.1) `doc_<idDrive>` : un topo ou un protocole PDF, pousse par la
    tache dediee de miroir.gs. La valeur a la MEME forme que la reponse de
    `getTopo`/`getProtocole` cote Apps Script — {success,name,mimeType,dataB64} —
@@ -370,6 +381,11 @@ function autorise(user, cle) {
   if (cle === 'config_admin') return user.role === 'admin';            // admin seul
   if (cle === 'mail_nonlus') return user.role === 'admin';             // (05/08) compteur de non-lus : un NOMBRE, jamais de contenu
   if (/^liberal_\d{4}$/.test(cle)) return user.role === 'admin';       // (05/08) volet du panneau : qui opere, ou — jamais de montant
+  /* (17/08/2026) Releve financier du groupement. MEMBRES SEULS — meme regle
+     que getReleveLiberal (portail.gs) : masquer la page ne suffit pas, seul
+     le serveur ferme la porte. Le comite n'y a PAS acces : la gestion du
+     liberal n'est pas de son ressort. */
+  if (/^releve_liberal_\d{4}$/.test(cle)) return user.role === 'mar' && !!user.liberal;
   return false;
 }
 
