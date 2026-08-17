@@ -4,7 +4,7 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.42** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.43** ·
 **GAS** (relevé fichier par fichier dans le dépôt le 17/08/2026) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-16.1 · `miroir.gs` 2026-08-16.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
@@ -86,6 +86,21 @@ la clé en direct. Testé en réel par Arthur : app fermée complètement puis r
 s'ouvraient plus du tout**, le MAR ne pouvant même plus taper son code. Avec 23 téléphones sur le wifi
 de l'hôpital un 4 septembre, c'était le scénario à ne pas prendre. Chaque page retombe désormais sur
 le comportement d'avant plutôt que de planter.
+
+**La révocation est vérifiée en production** *(17/08, 12 h 11)*. Arthur a régénéré son propre code
+depuis l'onglet Équipe, téléphone connecté : l'appareil a bien été éjecté à l'ouverture suivante, et
+la reconnexion avec le nouveau code a rendu les 30 jours. C'est ce qui rend la mémoire longue
+acceptable — sans ce geste d'urgence prouvé, elle ne le serait pas.
+
+**Un effet de bord découvert à cette occasion, et documenté.** Juste après une régénération, le
+dashboard s'ouvre lentement et la carte « Mes échanges » disparaît. Une seule cause : le miroir est
+rafraîchi par l'accroche différée **dans la minute qui suit** (`resetCodeMar: ['acces','config_admin']`),
+donc pendant ce court moment il contient encore l'ANCIEN code. Le nouveau est refusé par le circuit
+rapide, la page bascule sur le circuit Google — d'où la lenteur — et la carte des échanges, alimentée
+**uniquement** par le miroir (`_echDepuisMiroir`, aucun appel de rattrapage), reste cachée.
+Rien à corriger : le comportement est correct et se répare seul. Mais Arthur l'a pris pour un défaut,
+et un membre du comité fera pareil — d'où l'encadré ajouté au guide comité, section 06, à côté du
+bouton 🔄. *Une minute d'attente non écrite coûte un appel téléphonique.*
 
 **Deux leçons.**
 
@@ -2143,7 +2158,7 @@ aucune n'écrit plus de numéro en dur, et le banc comme le Diagnostic refusent 
 Deux chiffres, pas trois : le troisième ne disait rien à personne dans le service.
 Patch → 2ᵉ chiffre · **v2.0 réservée au 5/09**, jour où le portail s'ouvre aux 23 (l'ouverture vaut
 un premier chiffre ; la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.42** (17/08/2026).
+**Version en cours : v1.43** (17/08/2026).
 
 ---
 

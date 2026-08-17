@@ -29,6 +29,16 @@ d'Arthur : le wizard 2 **ne régénère pas** une année déjà générée (donc
 être effacée, sinon la démonstration affiche « 730 gardes » sans calcul et sans message), et l'ordre
 **nettoyage puis envoi des codes** (sinon un curieux voit la veille au soir des gardes fictives).
 
+**Révocation vérifiée en production le 17/08 à 12 h 11** : code régénéré depuis l'onglet Équipe,
+téléphone éjecté à l'ouverture suivante, reconnexion et 30 jours repartis. Sans ce geste d'urgence
+prouvé, la mémoire longue ne serait pas acceptable.
+
+**Effet de bord découvert et documenté** : pendant la minute qui suit une régénération, le miroir
+contient encore l'ancien code (accroche différée). Le nouveau est refusé par le circuit rapide, la
+page bascule sur Google — d'où la lenteur — et la carte « Mes échanges », alimentée uniquement par le
+miroir, reste masquée. Comportement correct, réparation automatique, **mais invisible** : Arthur l'a
+pris pour un défaut. Encadré ajouté au guide comité. *Une minute d'attente non écrite coûte un appel.*
+
 **Deux leçons.**
 
 1. **« C'est trop risqué avant l'échéance » est un réflexe, pas un argument.** J'ai conseillé
@@ -1468,7 +1478,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site — actuellement **v1.42**, source unique `version.js`
+## Version du site — actuellement **v1.43**, source unique `version.js`
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
@@ -1489,7 +1499,7 @@ produisait des « v1.34.10 » qui font perdre confiance plus qu'ils n'informent.
 
 | Nature du changement | Incrément | Exemple |
 |---|---|---|
-| Nouveauté visible, correction, ajustement | **2ᵉ chiffre** — `1.41` → `1.42` | dates corrigées, documents au réel |
+| Nouveauté visible, correction, ajustement | **2ᵉ chiffre** — `1.42` → `1.43` | guide comité : la minute après une régénération |
 | Ouverture majeure | **1ᵉʳ chiffre** — `1.x` → `2.0` | ouverture du portail aux 23 (5/09) |
 
 Une modification purement GAS (sans page touchée) ne change PAS la version du site : elle a ses
