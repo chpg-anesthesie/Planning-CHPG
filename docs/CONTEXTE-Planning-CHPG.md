@@ -1495,7 +1495,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site — actuellement **v1.45**, source unique `version.js`
+## Version du site — actuellement **v1.46**, source unique `version.js`
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 

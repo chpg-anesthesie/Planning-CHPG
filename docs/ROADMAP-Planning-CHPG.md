@@ -4,16 +4,20 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.45** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.46** ·
 **GAS** (relevé fichier par fichier dans le dépôt le 17/08/2026) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-17.1 · `miroir.gs` 2026-08-16.1 · `journal.gs` 2026-08-05.3 ·
-`portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
+`portail.gs` 2026-08-17.1 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
 `echanges.gs` 2026-08-14.3 · `generateur_gardes.gs` 2026-08-14.1 · `setup_annee.gs` 2026-08-08.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-13.4'` — **seule** version
 écrite dans le fichier depuis le 16/08 (le commentaire d'en-tête qui la doublait a été supprimé,
 le banc refuse qu'un second numéro réapparaisse).
 
-**Rien en attente de déploiement.** `miroir.gs` (2026-08-16.1) et le Worker le 16/08 au soir ;
+⚠️ **`portail.gs` 2026-08-17.1 — déploiement À CONFIRMER.** Poussé le 17/08 au soir par une autre
+session (relevé libéral, format du mois). Non vérifié ici : le contrôle est le bloc « Code déployé »
+du Diagnostic, qui doit dire « à jour ». S'il annonce une dérive, la recopie n'a pas été faite.
+
+**Pour le reste, rien en attente.** `miroir.gs` (2026-08-16.1) et le Worker le 16/08 au soir ;
 `Indispos.gs` deux fois, en 2026-08-16.1 puis en **2026-08-17.1** (verrou de clôture), recopié et
 déployé le 17/08 dans la foulée du push. **Confirmé par Arthur au diagnostic après la première
 recopie : le bloc « Version du site » ne sonne plus en rouge.** C'est le contrôle qui fait foi ici,
@@ -27,14 +31,14 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **1147 vérifications** sur 28 scripts (relevé le 17/08/2026 à 11 h),
+**Banc d'essai** `banc/` — **1185 vérifications** sur 29 scripts (relevé le 17/08/2026 à 20 h),
 `cd banc && ./lancer.sh`. *(Comptage : somme des récapitulatifs de fin de chaque script, MOINS le
 sous-total de 9 que `banc.js` imprime au milieu et réintègre ensuite dans son propre total de 19,
 PLUS `banc_notif.mjs` qui compte au format `35 ✓ / 0 ✗`. Recompter, ne pas recopier.)*
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 17 août 2026 (12 h).*
+*Mise à jour : 17 août 2026 (20 h).*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -2183,7 +2187,7 @@ aucune n'écrit plus de numéro en dur, et le banc comme le Diagnostic refusent 
 Deux chiffres, pas trois : le troisième ne disait rien à personne dans le service.
 Patch → 2ᵉ chiffre · **v2.0 réservée au 5/09**, jour où le portail s'ouvre aux 23 (l'ouverture vaut
 un premier chiffre ; la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.45** (17/08/2026).
+**Version en cours : v1.46** (17/08/2026).
 
 ---
 

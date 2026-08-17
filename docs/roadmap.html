@@ -129,13 +129,13 @@
     <h2>État vérifié</h2>
     <div class="etat-grid">
       <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1126 <small>vérifs · 28 scripts</small></div></div>
+      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1185 <small>vérifs · 29 scripts</small></div></div>
       <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
       <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
     </div>
     <div class="etat-grid" style="margin-top:16px">
       <div><div class="etat-k">code.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
-      <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-16.1</div></div>
+      <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.1</div></div>
       <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-16.1</div></div>
       <div><div class="etat-k">veille.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.5</div></div>
       <div><div class="etat-k">portail.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.2</div></div>
@@ -369,6 +369,7 @@
   <h2>6 · Règles à ne jamais casser</h2>
   <div class="regle"><b>Ne jamais régénérer une année de gardes déjà générée.</b><span>Un verrou l'empêche. Il ne s'arme que sur l'onglet des gardes de l'année.</span></div>
   <div class="regle"><b>Jamais d'archivage automatique.</b><span>Un déclencheur annuel est du code jamais testé qui s'exécute sans surveillance : il transformerait un oubli en erreur grave. Archivage au premier lundi de la nouvelle année de planning, à la main.</span></div>
+  <div class="regle"><b>Une consigne n'est pas un verrou.</b><span>Le 17 août, à l'heure de remettre le code d'administration au comité : la carte « Clôturer l'année » n'avait aucun contrôle de date. Ses conditions portaient sur l'existence des tableaux de l'année suivante — présents depuis août, créés par la répétition. Clôturer 2026 était à deux clics, ce qui aurait déplacé le planning en cours d'usage et basculé le service sur une année fictive. Le diagnostic l'annonçait, le guide l'écrivait. Désormais refusé à deux endroits — l'écran et le serveur — avant le premier lundi de l'année suivante, et la carte affiche d'elle-même la date à partir de laquelle ce sera possible. <b>Tout geste destructeur accessible à plus d'une personne doit être empêché, pas déconseillé.</b></span></div>
   <div class="regle"><b>Dès qu'une ressource a deux propriétaires, on fusionne — on ne remplace pas.</b><span>L'onglet des indisponibilités appartient au comité et aux MARs. Écrire une ligne entière efface ce qu'on n'a pas chargé, sans le moindre message.</span></div>
   <div class="regle"><b>Toute écriture dérivée refuse d'écraser une case occupée.</b><span>Un don de garde a effacé deux jours de garde de réanimation sans aucun signal.</span></div>
   <div class="regle"><b>Jamais d'appel supplémentaire pour accélérer.</b><span>Apps Script sérialise les exécutions d'un même utilisateur. Un « appel de réveil » et un délai d'abandon court ont chacun cassé l'ouverture de l'interface le jour de leur livraison.</span></div>
