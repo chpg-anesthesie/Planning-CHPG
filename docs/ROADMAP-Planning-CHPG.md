@@ -4,21 +4,19 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.37** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.38** ·
 **GAS** (relevé fichier par fichier dans le dépôt le 16/08/2026) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-16.1 · `miroir.gs` 2026-08-16.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
 `echanges.gs` 2026-08-14.3 · `generateur_gardes.gs` 2026-08-14.1 · `setup_annee.gs` 2026-08-08.1 ·
-**Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-13.4'`.
-⚠️ L'en-tête en commentaire du même fichier annonce encore « miroir 2026-08-05.7 » — périmé, sans
-effet sur le fonctionnement (c'est la constante qui est servie), à corriger au prochain passage.
+**Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-13.4'` — **seule** version
+écrite dans le fichier depuis le 16/08 (le commentaire d'en-tête qui la doublait a été supprimé,
+le banc refuse qu'un second numéro réapparaisse).
 
-**En attente de recopie** : `Indispos.gs` **2026-08-16.1** et `miroir.gs` **2026-08-16.1** (poussés
-le 16/08 au soir). Tant qu'ils ne sont pas recopiés dans l'éditeur Apps Script ET déployés en nouvelle
-version, l'ancien code tourne — le bloc « Version du site » du Diagnostic continuera d'afficher 4 ❌
-imaginaires, et `equite_live_{Y}` échappera encore à l'oubli du miroir (à faire **avant** le ménage du
-4 septembre). Tout le reste a été recopié, déployé et confirmé en production par Arthur (diagnostic du
-16/08 : les 10 fichiers « à jour »).
+**Rien en attente de déploiement.** `Indispos.gs` et `miroir.gs` (2026-08-16.1) ont été recopiés et
+déployés, et le Worker redéployé, le 16/08 au soir. **Confirmé par Arthur au diagnostic : le bloc
+« Version du site » ne sonne plus en rouge.** C'est le contrôle qui fait foi ici, pas le fait d'avoir
+poussé — coder, livrer et déployer restent trois étapes distinctes.
 
 **Le numéro de version du site vit dans UN seul fichier : `version.js`** (`window.SITE_VERSION`,
 depuis le 14/08/2026). Il n'y a plus de marqueurs à compter ni à recopier : toute page qui doit
@@ -28,7 +26,7 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **1123 vérifications** sur 28 scripts (relevé le 16/08/2026 au soir),
+**Banc d'essai** `banc/` — **1126 vérifications** sur 28 scripts (relevé le 16/08/2026 au soir),
 `cd banc && ./lancer.sh`. *(Comptage : somme des récapitulatifs de fin de chaque script, MOINS le
 sous-total de 9 que `banc.js` imprime au milieu et réintègre ensuite dans son propre total de 19,
 PLUS `banc_notif.mjs` qui compte au format `35 ✓ / 0 ✗`. Recompter, ne pas recopier.)*
@@ -137,6 +135,26 @@ l'ordre de la synchro, absents de la vue courte. Les deux listes ont donc été 
 l'autre sans être relues ensemble, et chacune était incomplète d'une manière différente. Elles sont
 désormais alignées sur les mêmes 9 étapes. Au passage : la vue courte annonçait « 1120 vérifs ·
 29 scripts » — le banc en compte 28, listés dans `lancer.sh`.
+
+**Une carte périmée trouvée en relisant la vue courte** *(question d'Arthur)* : `roadmap.html`
+présentait encore l'échange de deux gardes adjacentes comme « refusé aujourd'hui », avec son plan de
+correction — alors qu'il est **livré depuis le 12/08** (`applyModification`, branche `adjacent` de
+`echangeGardeJours`) et couvert par **9 scénarios** de `banc_gestes.js`. Quatre jours d'écart entre le
+code et la vue de pilotage, sur une fonctionnalité livrée à la demande d'Arthur lui-même. La carte est
+remplacée par un état des lieux de ce qui est réellement vérifié avant écriture.
+*(Rien de tel dans le fichier long : il décrivait déjà correctement l'existant.)*
+
+**Quatrième push — `cloudflare/worker.js` + `banc_worker.mjs`.** Le fichier portait DEUX versions :
+un commentaire d'en-tête figé à « miroir 2026-08-05.7 » et la constante servie, « 2026-08-13.4 » —
+huit versions d'écart. Sans effet en production, mais un jour de panne on lit la première ligne qui
+ressemble à une version et on conclut à une dérive de déploiement inexistante. **Supprimé plutôt que
+corrigé** : corrigé, il serait périmé au prochain déploiement, exactement comme aujourd'hui. Le banc
+exige désormais qu'il n'existe **qu'une seule** version écrite dans le fichier, et que ce soit celle
+que le guichet de santé annonce.
+
+**Tout est déployé.** Les deux `.gs` recopiés et déployés, le Worker redéployé, dans la foulée du
+push — et Arthur confirme au diagnostic que le rouge a disparu. Aucun `miroirSyncComplet` n'était
+nécessaire : un déploiement de Worker remplace le programme, pas les données qu'il sert.
 
 **Trois leçons.**
 
@@ -2055,7 +2073,7 @@ aucune n'écrit plus de numéro en dur, et le banc comme le Diagnostic refusent 
 Deux chiffres, pas trois : le troisième ne disait rien à personne dans le service.
 Patch → 2ᵉ chiffre · **v2.0 réservée au 5/09**, jour où le portail s'ouvre aux 23 (l'ouverture vaut
 un premier chiffre ; la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.37** (16/08/2026).
+**Version en cours : v1.38** (16/08/2026).
 
 ---
 

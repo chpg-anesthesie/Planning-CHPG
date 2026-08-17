@@ -129,7 +129,7 @@
     <h2>État vérifié</h2>
     <div class="etat-grid">
       <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1123 <small>vérifs · 28 scripts</small></div></div>
+      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1126 <small>vérifs · 28 scripts</small></div></div>
       <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
       <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
     </div>
@@ -145,7 +145,7 @@
       <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-13.4</div></div>
     </div>
   </div>
-  <p class="verif">Relevé dans le dépôt et le banc exécuté — 16 août 2026 · <b>Indispos.gs</b> et <b>miroir.gs</b> attendent leur recopie dans l'éditeur</p>
+  <p class="verif">Relevé dans le dépôt et le banc exécuté — 16 août 2026 · <b>tout est déployé et confirmé en production</b> le soir même (les dix fichiers du serveur et la copie de lecture)</p>
 
   <h2>Échéancier</h2>
   <div class="ech" id="ech">
@@ -163,7 +163,7 @@
     </div>
     <div class="jalon" data-d="2026-10-05">
       <div class="jalon-t"><span class="jalon-d">octobre 2026</span><span class="jalon-n">Campagne d'indisponibilités 2027</span><span class="cd"></span></div>
-      <p class="jalon-p">Bloquée si les onglets <code>_2027</code> de la démo n'ont pas été supprimés.</p>
+      <p class="jalon-p">Bloquée par deux choses aujourd'hui : les onglets <code>_2027</code> de la démo, s'ils n'ont pas été supprimés, et surtout <b>les adresses mail manquantes</b> — les codes d'accès partent par mail.</p>
     </div>
     <div class="jalon" data-d="2026-11-01">
       <div class="jalon-t"><span class="jalon-d">nov. 2026</span><span class="jalon-n">Génération des gardes 2027</span><span class="cd"></span></div>
@@ -175,7 +175,7 @@
     </div>
     <div class="jalon" data-d="2027-03-01">
       <div class="jalon-t"><span class="jalon-d">mars 2027</span><span class="jalon-n">Régénération de l'index CCAM</span><span class="cd"></span></div>
-      <p class="jalon-p">Version actuelle v84 (27 juillet 2026). Alerte d'obsolescence à 8 puis 14 mois.</p>
+      <p class="jalon-p">Version actuelle v84, en vigueur depuis le 3 juillet 2026 — la date que reprend le diagnostic. Alerte d'obsolescence à 8 puis 14 mois.</p>
     </div>
   </div>
 
@@ -254,7 +254,7 @@
   <h2>2 · Juste après le staff</h2>
   <div class="card">
     <h4>Passage en version 2.0 <span class="tag t-viol">5 septembre</span></h4>
-    <p><b>Purement symbolique, et annoncé le lendemain du staff</b> — jamais avant, pour ne pas éventer l'effet. Aucun code ne change ce jour-là : seuls les numéros de version affichés dans les pages sont repris. Ce qui justifie le premier chiffre, ce n'est pas une refonte technique, c'est l'ouverture des échanges de gardes aux 23 : le portail cesse d'être une consultation pour devenir un endroit où l'on agit.</p>
+    <p><b>Purement symbolique, et annoncé le lendemain du staff</b> — jamais avant, pour ne pas éventer l'effet. Aucun code ne change ce jour-là : le numéro de version ne vit plus qu'à un seul endroit depuis le 14 août, c'est une ligne à reprendre. Ce qui justifie le premier chiffre, ce n'est pas une refonte technique, c'est l'ouverture des échanges de gardes aux 23 : le portail cesse d'être une consultation pour devenir un endroit où l'on agit.</p>
     <p><b>Ce jour-là :</b> annonce aux 23 MARs, envoi des codes d'accès individuels, et ouverture du canal de notifications à tout le service.</p>
   </div>
   <div class="card">
@@ -289,11 +289,11 @@
     <p>Inventaire refait le 10 août sur le code réel : une action serveur qu'aucun bouton n'appelle, un ancien mécanisme de modifications présent à dix-huit endroits, et trois lignes inutilisées dans la page des indisponibilités. L'écran « Paramètres » qu'on croyait à retirer, lui, <b>a déjà disparu</b>.</p>
     <p><b>Pourquoi attendre :</b> l'essentiel touche l'écriture du planning. Retirer du code qui ne dérange personne, à trois semaines d'une démonstration, c'est prendre un risque sans rien gagner.</p>
   </div>
-  <div class="card risque">
-    <h4>Échange de deux gardes qui se suivent <span class="tag t-red">refusé aujourd'hui</span></h4>
-    <p>Le système refuse et affiche « dates trop proches ». Ce n'est pas une règle médicale mais une limite du programme : en déplaçant aussi le repos du lendemain, l'écriture tombe sur la case de l'autre garde et l'écrase. L'échange se fait à la main dans le tableau en attendant.</p>
-    <p><b>Correction :</b> lire les cases avant d'écrire, écrire dans le bon ordre, n'assouplir le garde-fou que pour les repos de l'échange en cours. <b>Traiter aussi le cas du samedi</b>, dont la récupération n'est jamais déplacée. Scénario de banc dans les deux sens, puis essai sur une copie du classeur avant la production.</p>
-    <p><b>Pourquoi c'était reporté :</b> aujourd'hui ça refuse, personne ne perd de garde. Une correction ratée écrit — et une garde effacée en silence ne se voit pas passer.</p>
+  <div class="card ok">
+    <h4>Échange de deux gardes qui se suivent <span class="tag t-green">livré le 12 août 2026</span></h4>
+    <p>Échanger la garde du lundi contre celle du mardi était refusé — « dates trop proches ». Ce n'était pas une règle médicale mais une limite du programme : il jugeait la situation <b>de départ</b>, où le repos de l'un tombe sur la garde de l'autre, alors que la situation <b>d'arrivée</b> est parfaitement saine. <b>Ce cas passe désormais</b>, quel que soit l'ordre dans lequel on cite les deux dates.</p>
+    <p><b>Ce qui est vérifié avant d'écrire :</b> que chacun a bien son repos là où il devrait l'avoir, que les deux jours reçus sont libres, qu'aucun des deux ne se retrouve avec deux gardes qui se suivent <i>après</i> l'échange, et que personne n'est absent le jour qu'il reçoit ni le jour de son nouveau repos. Le rôle reste attaché à sa date : une garde de maternité le lundi reste une garde de maternité le lundi. Au moindre doute, l'échange est refusé et <b>la feuille reste intacte</b>.</p>
+    <p><b>Éprouvé :</b> neuf scénarios au banc d'essai — les deux sens, le rôle conservé, cinq façons de mal tourner, et la vérification que l'échange à dates éloignées se comporte exactement comme avant.</p>
   </div>
   <div class="card ok">
     <h4>Sauvegardes et diagnostic <span class="tag t-green">vérifié le 9 août 2026</span></h4>
