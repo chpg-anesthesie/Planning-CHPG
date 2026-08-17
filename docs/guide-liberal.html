@@ -148,7 +148,7 @@
   <table>
     <tr><th>Brique</th><th>Question</th><th>Où</th></tr>
     <tr><td>Calibrage du dépassement</td><td>Combien facturer pour que le reste à charge du patient soit minimal&nbsp;?</td><td>Tuile Libéral → <em>Cotation &amp; déclaration</em></td></tr>
-    <tr><td>Déclaration &amp; placement bloc</td><td>Qui doit être présent, dans quel secteur, le jour de l'intervention&nbsp;?</td><td>Même page (📅 Déclarer) → volet ◆ Libéral de l'admin</td></tr>
+    <tr><td>Déclaration &amp; placement bloc</td><td>Qui doit être présent, dans quel secteur, le jour de l'intervention&nbsp;?</td><td>Même page, encadré <em>Déclarer une intervention</em> → volet ◆ Libéral de l'admin</td></tr>
     <tr><td>Pilotage 30 %</td><td>Chacun est-il sous 30 % de libéral, par axe&nbsp;? Le groupe perd-il de l'argent&nbsp;?</td><td>Tuile Libéral → <em>Suivi des 30 %</em></td></tr>
   </table>
   <p>Les trois sont <strong>en service</strong>. Deux mesures restent à construire, faute de recul&nbsp;: le <strong>taux de couverture</strong> (comparer le déclaré au facturé) et le <strong>rendement par spécialité</strong>.</p>
@@ -160,14 +160,20 @@
 
 <section id="c2">
   <h2><span class="n">02</span>L'estimateur, pas à pas</h2>
-  <p>L'estimateur enchaîne tout le parcours d'un patient, de l'acte à la déclaration. <strong>Une ligne déclarée = un patient</strong> (voir le geste complet en §05).</p>
+  <p>L'estimateur enchaîne tout le parcours d'un patient, de l'acte à la déclaration. <strong>Un patient à la fois</strong> : le devis lui étant remis en direct, la page ne garde jamais deux patients en mémoire (voir le geste complet en §05).</p>
+  <div class="callout tip">
+    <div class="ct">Cette page ne dit pas où vous en êtes des 30 %</div>
+    <p><strong>La spécialité est obligatoire</strong> à la déclaration : c'est elle, et non le secteur, qui portera la mesure du rendement — les secteurs changent au déménagement, les spécialités non. Attention au secteur <em>ORL / Ophtalmologie</em>, qui en mélange deux : l'outil refuse de deviner et vous laisse trancher.</p>
+    <p>Elle calcule ce que <em>ce patient-là</em> représente : sa base de remboursement, son dépassement, son reste à charge. <strong>Votre position sur les 30 %</strong> — la vôtre et celle du groupe — se lit sur l'autre page de la tuile, <em>Suivi des 30 %</em>, alimentée par le relevé de l'administration (§07).</p>
+  </div>
   <ol class="steps">
     <li><strong>Chercher l'acte.</strong> Dans le bloc CCAM, tape un <strong>code</strong> (<code>NEKA014</code>), un <strong>mot</strong> (<code>hernie</code>, <code>échoguidage</code>) ou une <strong>abréviation</strong> (<code>PTH</code>, <code>TAP</code>, <code>cœlio</code>). La liste sort dans les deux sens ; un clic remplit la ligne.</li>
     <li><strong>Le tarif se pré-remplit.</strong> Le tarif d'anesthésie (activité 4) est repris automatiquement du référentiel officiel. Tu n'as qu'à cocher les modificateurs (7, A) et choisir le rôle (principal / associé / complément).</li>
     <li><strong>La BR se calcule.</strong> ×1,95 monégasque, modificateurs, décote d'association — tout est appliqué derrière. L'axe NGAP (consultations) se saisit séparément.</li>
     <li><strong>Renseigner la mutuelle.</strong> On sélectionne la formule du patient (sa ligne « honoraires » en % BR). L'outil affiche le dépassement optimal et le reste à charge.</li>
-    <li><strong>Générer les documents.</strong> Bouton <span class="tag">📄 Devis</span> sur le parcours : l'estimation de frais est entièrement pré-remplie, et un second bouton imprime <strong>devis + déclaration de choix</strong> (modèle CHPG soins externes, nom du MAR pré-rempli). <strong>Aucun nom de patient à taper</strong> : le patient l'écrit à la main sur les documents imprimés.</li>
-    <li><strong>Déclarer l'intervention.</strong> Bouton <span class="tag">📅 Déclarer</span> sur le parcours : date de bloc + secteur + chirurgie en clair (« PTH », pré-remplie depuis le parcours, modifiable). C'est ce qui alimentera le volet ◆ Libéral du comité dans la vue admin — <strong>rien d'autre ne part</strong> : ni patient, ni code CCAM.</li>
+    <li><strong>Générer les documents.</strong> Bouton <span class="tag">📄 Devis</span>, dans la barre noire en bas de l'écran : l'estimation de frais est entièrement pré-remplie, et un second bouton imprime <strong>devis + déclaration de choix</strong> (modèle CHPG soins externes, nom du MAR pré-rempli). <strong>Aucun nom de patient à taper</strong> : le patient l'écrit à la main sur les documents imprimés.</li>
+    <li><strong>Déclarer l'intervention.</strong> Encadré <span class="tag">Déclarer au comité</span> : deux choses seulement à y renseigner, le <strong>secteur</strong> et la <strong>spécialité</strong>. Les dates, la chirurgie et les montants viennent de la cotation ci-dessus. Puis <span class="tag">📅 Déclarer</span>, dans la barre du bas. C'est ce qui alimente le volet ◆ Libéral du comité dans la vue admin — <strong>rien d'autre ne part</strong> : ni patient, ni code CCAM.</li>
+    <li><strong>Patient suivant.</strong> L'écran se vide tout seul. Le <strong>secteur reste</strong> — dix endoscopies d'affilée, c'est zéro geste — mais tout ce qui appartenait au patient précédent disparaît.</li>
   </ol>
   <div class="callout rule">
     <div class="ct">Point d'entrée unique</div>

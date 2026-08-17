@@ -60,7 +60,7 @@ const VERSION = 'miroir 2026-08-13.4';
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
 // une clé orpheline invisible.
-const CLE_VALIDE = /^(acces|annees|secteurs|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|veille_marques|ordre_vac|echanges|notif_config|equite_live_\d{4}|doc_[A-Za-z0-9_-]{10,80})$/;
+const CLE_VALIDE = /^(acces|annees|secteurs|specialites|cotations_type|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|veille_marques|ordre_vac|echanges|notif_config|equite_live_\d{4}|doc_[A-Za-z0-9_-]{10,80})$/;
 /* (2026-08-10.1) `doc_<idDrive>` : un topo ou un protocole PDF, pousse par la
    tache dediee de miroir.gs. La valeur a la MEME forme que la reponse de
    `getTopo`/`getProtocole` cote Apps Script — {success,name,mimeType,dataB64} —
@@ -334,6 +334,12 @@ async function jEtat(corps, env) {
 
 function autorise(user, cle) {
   if (cle === 'annees' || cle === 'secteurs') return true;              // MAR + admin
+  /* (17/08/2026) Listes de la page de cotation : codes de specialites et
+     cotations types (codes CCAM + roles). Aucune donnee nominative, aucun
+     montant — meme niveau que 'secteurs'. Elles etaient demandees a Apps
+     Script a chaque ouverture, en meme temps que trois autres appels : les
+     dernieres tombaient par intermittence (« portail injoignable »). */
+  if (cle === 'specialites' || cle === 'cotations_type') return true;   // MAR + admin
   if (cle === 'topos' || cle === 'staffs' || cle === 'veille' ||
       cle === 'protocoles' || cle === 'annuaire') return true;          // tuiles dashboard : MAR + admin
   if (/^doc_/.test(cle)) return true;                                  // (10/08) PDF topo/protocole : MEME niveau que les listes ci-dessus, ni plus ni moins

@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-16.1';
+const GAS_VERSION_MIROIR = '2026-08-17.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -214,6 +214,7 @@ function miroirSyncComplet() {
   const familles = ['acces', 'annees', 'secteurs', 'config_admin',
                     'planning', 'affectations', 'indispos', 'tuiles',
                     'gardes', 'joursferies', 'stats', 'vacances_admin', 'mail', 'liberal',
+                    'specialites', 'cotations_type',
                     'veille_marques', 'ordre_vac', 'echanges'];
   try { PropertiesService.getScriptProperties().deleteProperty(MIROIR_CLE_ATTENTE); } catch (e) {}   // la synchro pousse un sur-ensemble : la note devient caduque
   const res = miroirPousserFamilles_(familles, getActiveYear(), true);   // synchro : toutes les annees consultables
@@ -244,6 +245,8 @@ const MIROIR_ONGLETS_SUIVIS = {
   INDISPOS:     ['indispos'],
   MEDECINS:     ['config_admin', 'annees', 'acces'],
   SECTEURS:     ['secteurs'],
+  SPECIALITES:  ['specialites'],                   // (17/08/2026) page de cotation
+  COTATIONS_TYPE: ['cotations_type'],              // (17/08/2026) page de cotation
   AFFECTATIONS: ['affectations', 'config_admin'],  // détermine les cases à pourvoir
   PLANNING_OVERRIDES: ['config_admin'],
   CS_TEMPLATE:  ['config_admin'],                  // modèle de consultations
@@ -311,6 +314,11 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
   if (uniq['acces'])        _miroirAjoute_(items, 'acces',        _miroirConstruireAcces_);
   if (uniq['annees'])       _miroirAjoute_(items, 'annees',       _miroirConstruireAnnees_);
   if (uniq['secteurs'])     _miroirAjoute_(items, 'secteurs',     function () { return getSecteurs(); });
+  /* (17/08/2026) Les deux listes de la page de cotation. Elles bougent
+     rarement (un code de specialite, une cotation type ajoutee) mais etaient
+     redemandees a Apps Script a CHAQUE ouverture de la page. */
+  if (uniq['specialites'])     _miroirAjoute_(items, 'specialites',     function () { return getSpecialites(); });
+  if (uniq['cotations_type'])  _miroirAjoute_(items, 'cotations_type',  function () { return getCotationsType(); });
   if (uniq['config_admin']) _miroirAjoute_(items, 'config_admin', function () { return _miroirConstruireConfigAdmin_(annee); });
 
   if (uniq['planning'] || uniq['affectations']) {
