@@ -250,6 +250,13 @@
   }
   footer b{color:#6b4e10}
 </style>
+<script src="../../partage/session.js"></script>   <!-- (17/08/2026) source unique : où vit le code d'accès, et 30 jours glissants -->
+<script>/* CHPG_FALLBACK — filet (17/08/2026). Si partage/session.js ne se charge pas
+(réseau, cache), les pages l'appelleraient dans le vide et NE S'OUVRIRAIENT PLUS : le MAR ne
+pourrait même plus taper son code. On retombe alors sur le comportement d'avant — le code vit
+le temps de l'onglet — au lieu de planter. Jamais de mémoire longue ici : mieux vaut retaper
+son code que le voir retenu par un filet dont personne ne vérifie l'échéance. */
+window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionStorage.getItem('chpgViewCode')||'';}catch(e){return '';}}, memoriser:function(c){try{sessionStorage.setItem('chpgViewCode',c);}catch(e){}}, oublier:function(){try{sessionStorage.removeItem('chpgViewCode');}catch(e){}}, estInstallee:function(){return false;}, joursRestants:function(){return null;}, DUREE_JOURS:0 };</script>
 </head>
 <body>
 <div class="wrap">
@@ -738,10 +745,13 @@ function fromCible(){const c=parseFloat(document.getElementById('cible').value)|
   document.getElementById('dh').value=(Math.max(0,Math.round((c-br)*100)/100)).toFixed(2);updateRac();renderSummary();}
 
 // ---- BRANCHEMENT AU PORTAIL ----------------------------------------------
-// La page est servie depuis la MEME origine que dashboard.html (GitHub Pages), et la
-// tuile l'ouvre dans le MEME onglet : le code d'acces range par le portail dans
-// sessionStorage('chpgViewCode') est donc lisible ici, sans rien redemander au MAR.
-// Aucune ecriture : on appelle uniquement l'action 'login', en lecture.
+// La page est servie depuis la MEME origine que dashboard.html (GitHub Pages) : la
+// session du portail est donc lisible ici, sans rien redemander au MAR.
+// (17/08/2026) Elle se lit par CHPGSession, JAMAIS en interrogeant le stockage du
+// navigateur en direct — c'est lui qui sait ou vit le code et combien de temps
+// (30 jours glissants dans l'app installee, duree de l'onglet ailleurs). Cette page
+// lisait l'onglet seul : elle redemandait le code quand le portail, lui, s'en
+// souvenait. Constate en reel le 17/08.
 // L'URL ci-dessous est deja publique dans dashboard.html (depot public) : rien de neuf.
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 
@@ -758,7 +768,7 @@ function sansCivilite(n){
    portail, et on renvoie a la page d'accueil. La page reste utilisable en
    « hors portail » (cotation, devis), seule la declaration s'y ferme. */
 function quitterPortail(){
-  try{ sessionStorage.removeItem('chpgViewCode'); }catch(e){}
+  CHPGSession.oublier();                // efface l'onglet ET la mémoire longue
   location.href='../../dashboard.html';
 }
 
@@ -772,7 +782,7 @@ function pbSetEtat(txt, ok){
 // la saisie manuelle. Jamais de degradation silencieuse -- c'est le defaut qu'on a
 // deja paye ailleurs (tables en dur, icone manquante).
 async function chargerPraticien(){
-  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  const code = CHPGSession.lire();
   if(!code){ pbSetEtat('hors portail — à saisir', false); return; }
   pbSetEtat('connexion…', true);
   try{
@@ -816,7 +826,7 @@ function secteurReplLibre(msg){
   if(dcl) dcl.innerHTML='<option value="">'+(msg||'secteurs indisponibles')+'</option>';
 }
 async function chargerSecteurs(){
-  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  const code = CHPGSession.lire();
   if(!code){ secteurReplLibre('Secteur (hors portail — à saisir)'); return; }
   // Cache de session : la liste bouge rarement, inutile de la redemander a chaque ouverture.
   try{
@@ -864,7 +874,7 @@ const SEC_AMBIGU={ORL:'ce secteur mélange ORL et ophtalmologie — à choisir'}
    code est absent de l'index, on le dit plutot que de poser une ligne a 0 EUR. */
 let COTTYPE=[];
 async function chargerCotationsType(){
-  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  const code = CHPGSession.lire();
   if(!code) return;
   try{
     // Cle de cache VERSIONNEE (v2) : sans le suffixe, un changement de structure de
@@ -947,7 +957,7 @@ function appliquerCotType(i){
 }
 
 async function chargerSpecialites(){
-  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  const code = CHPGSession.lire();
   const sel=document.getElementById('dclSpec');
   if(!code){ if(sel) sel.innerHTML='<option value="">Spécialité (hors portail)</option>'; return; }
   try{
@@ -1054,7 +1064,7 @@ function dclPreRemplirChir(){
 let DECL_ALL=false;     // false = fenetre (futur + 7 j) ; true = toute l'annee depliee
 
 async function apiLib(action, extra){
-  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  const code = CHPGSession.lire();
   if(!code) return {success:false, error:'hors portail'};
   const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 20000);
   try{
@@ -1144,7 +1154,7 @@ async function supprimerDecl(id, year){
 }
 
 async function chargerDecl(){
-  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  const code = CHPGSession.lire();
   if(!code){ document.getElementById('dclListWrap').style.display='none'; return; }
   const r=await apiLib('listLiberal', {year:(new Date().getFullYear())});
   MES_DECL=(r && r.success && Array.isArray(r.items)) ? r.items : [];
@@ -1388,7 +1398,7 @@ function panneListes(montrer, texte){
 
 async function demarrer(){
   panneListes(false);
-  let code=''; try{ code=sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  const code = CHPGSession.lire();
   if(!code){
     pbSetEtat('hors portail — à saisir', false);
     secteurReplLibre('Secteur (hors portail — à saisir)');

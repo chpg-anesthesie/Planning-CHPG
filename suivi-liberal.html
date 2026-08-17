@@ -144,6 +144,13 @@ table.grid td.pick{outline:2px solid var(--rose);outline-offset:1px}
   .lbl-court{display:inline}
 }
 </style>
+<script src="partage/session.js"></script>   <!-- (17/08/2026) source unique : où vit le code d'accès, et 30 jours glissants -->
+<script>/* CHPG_FALLBACK — filet (17/08/2026). Si partage/session.js ne se charge pas
+(réseau, cache), les pages l'appelleraient dans le vide et NE S'OUVRIRAIENT PLUS : le MAR ne
+pourrait même plus taper son code. On retombe alors sur le comportement d'avant — le code vit
+le temps de l'onglet — au lieu de planter. Jamais de mémoire longue ici : mieux vaut retaper
+son code que le voir retenu par un filet dont personne ne vérifie l'échéance. */
+window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionStorage.getItem('chpgViewCode')||'';}catch(e){return '';}}, memoriser:function(c){try{sessionStorage.setItem('chpgViewCode',c);}catch(e){}}, oublier:function(){try{sessionStorage.removeItem('chpgViewCode');}catch(e){}}, estInstallee:function(){return false;}, joursRestants:function(){return null;}, DUREE_JOURS:0 };</script>
 </head>
 <body>
 
@@ -316,7 +323,7 @@ async function doLogin(code){
   VIEW_CODE = code;
   const r = await apiPost({action:'login'});
   if(!(r && r.success)){ VIEW_CODE=''; return r; }
-  try{ sessionStorage.setItem('chpgViewCode', code); }catch(e){}
+  CHPGSession.memoriser(code);          // session commune du portail (30 j dans l'app installée)
   MOI = (r.role === 'mar') ? r.id : null;
   document.getElementById('mePill').textContent = r.name || r.id || '';
   document.getElementById('authOverlay').style.display = 'none';
@@ -334,7 +341,7 @@ document.getElementById('authInput').addEventListener('keydown', e => {
   if(e.key === 'Enter') document.getElementById('authBtn').click();
 });
 document.getElementById('btnOut').onclick = () => {
-  try{ sessionStorage.removeItem('chpgViewCode'); }catch(e){}
+  CHPGSession.oublier();                // efface l'onglet ET la mémoire longue
   location.reload();
 };
 
@@ -525,8 +532,12 @@ function poserSecteurs(list){
 }
 
 // Reprise de session : le code d'accès vit dans sessionStorage, comme les autres pages.
+/* (17/08/2026) La session se lit par CHPGSession, comme sur le portail. Cette
+   page interrogeait sessionStorage directement : dans l'app installée, elle
+   redemandait le code alors que le portail, lui, s'en souvenait 30 jours.
+   Constaté en réel ce soir. */
 (function boot(){
-  let c=''; try{ c = sessionStorage.getItem('chpgViewCode') || ''; }catch(e){}
+  const c = CHPGSession.lire();
   if(c) doLogin(c).catch(()=>{});
 })();
 </script>

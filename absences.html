@@ -139,6 +139,13 @@ table.grid td.pick{outline:2px solid var(--rose);outline-offset:1px}
   .hbtn{padding:4px 10px;font-size:11.5px}
 }
 </style>
+<script src="partage/session.js"></script>   <!-- (17/08/2026) source unique : où vit le code d'accès, et 30 jours glissants -->
+<script>/* CHPG_FALLBACK — filet (17/08/2026). Si partage/session.js ne se charge pas
+(réseau, cache), les pages l'appelleraient dans le vide et NE S'OUVRIRAIENT PLUS : le MAR ne
+pourrait même plus taper son code. On retombe alors sur le comportement d'avant — le code vit
+le temps de l'onglet — au lieu de planter. Jamais de mémoire longue ici : mieux vaut retaper
+son code que le voir retenu par un filet dont personne ne vérifie l'échéance. */
+window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionStorage.getItem('chpgViewCode')||'';}catch(e){return '';}}, memoriser:function(c){try{sessionStorage.setItem('chpgViewCode',c);}catch(e){}}, oublier:function(){try{sessionStorage.removeItem('chpgViewCode');}catch(e){}}, estInstallee:function(){return false;}, joursRestants:function(){return null;}, DUREE_JOURS:0 };</script>
 </head>
 <body>
 
@@ -263,7 +270,7 @@ async function doLogin(code){
      motifs === false ⇔ secretariat (avecMotifs = role !== 'secretariat'). */
   const r = await apiPost({action:'getConsultAbsences'});
   if(!(r && r.success)){ VIEW_CODE=''; return r; }
-  try{ sessionStorage.setItem('chpgViewCode', code); }catch(e){}
+  CHPGSession.memoriser(code);          // session commune du portail (30 j dans l'app installée)
   ROLE = r.role || (r.motifs ? 'mar' : 'secretariat');
   MOI  = (ROLE === 'mar') ? (r.moi || null) : null;
   document.getElementById('mePill').textContent =
@@ -295,14 +302,17 @@ document.getElementById('authInput').addEventListener('keydown', e=>{
   if(e.key==='Enter') document.getElementById('authBtn').click();
 });
 document.getElementById('btnOut').addEventListener('click', ()=>{
-  try{ sessionStorage.removeItem('chpgViewCode'); }catch(e){}
+  CHPGSession.oublier();                // efface l'onglet ET la mémoire longue
   location.reload();
 });
+/* (17/08/2026) La session se lit par CHPGSession. Cette page interrogeait
+   l'onglet en direct : dans l'app installée, elle redemandait le code alors que
+   le portail, lui, s'en souvenait 30 jours. */
 (async function auto(){
-  let saved=''; try{ saved = sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  const saved = CHPGSession.lire();
   if(!saved) return;
   try{ await doLogin(saved); }
-  catch(e){ try{ sessionStorage.removeItem('chpgViewCode'); }catch(_){} }
+  catch(e){ CHPGSession.oublier(); }
 })();
 
 /* ══ DONNÉES ═══════════════════════════════════════════════════════════ */

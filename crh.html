@@ -77,6 +77,13 @@ body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;backgroun
 .crh-copy{border:1px solid var(--line);background:var(--white);color:var(--red);border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:none}
 @media(max-width:640px){.header{padding:0 14px;height:52px}.header-sub{display:none}.wrap{padding:24px 16px 48px}}
 </style>
+<script src="partage/session.js"></script>   <!-- (17/08/2026) source unique : où vit le code d'accès, et 30 jours glissants -->
+<script>/* CHPG_FALLBACK — filet (17/08/2026). Si partage/session.js ne se charge pas
+(réseau, cache), les pages l'appelleraient dans le vide et NE S'OUVRIRAIENT PLUS : le MAR ne
+pourrait même plus taper son code. On retombe alors sur le comportement d'avant — le code vit
+le temps de l'onglet — au lieu de planter. Jamais de mémoire longue ici : mieux vaut retaper
+son code que le voir retenu par un filet dont personne ne vérifie l'échéance. */
+window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionStorage.getItem('chpgViewCode')||'';}catch(e){return '';}}, memoriser:function(c){try{sessionStorage.setItem('chpgViewCode',c);}catch(e){}}, oublier:function(){try{sessionStorage.removeItem('chpgViewCode');}catch(e){}}, estInstallee:function(){return false;}, joursRestants:function(){return null;}, DUREE_JOURS:0 };</script>
 </head>
 <body>
 
@@ -234,7 +241,7 @@ function applyUserBadge(r){
 }
 function logout(){
   if(!confirm('Se déconnecter et changer d\'utilisateur ?')) return;
-  try{ sessionStorage.removeItem('chpgViewCode'); }catch(e){}
+  CHPGSession.oublier();                // efface l'onglet ET la mémoire longue
   VIEW_CODE=''; MY_ID=null; MY_ROLE=null; location.reload();
 }
 
@@ -258,14 +265,16 @@ async function viewLogin(){
     VIEW_CODE = code;
     const r = await apiPost({action:'login'});
     if(r && r.success){
-      try{ sessionStorage.setItem('chpgViewCode', code); }catch(e){}
+      CHPGSession.memoriser(code);      // session commune du portail
       applyUserBadge(r); showPortal();
     } else { VIEW_CODE=''; _authErr(r && r.error ? r.error : 'Code incorrect'); }
   } catch(e){ VIEW_CODE=''; _authErr('Erreur réseau — réessayez'); }
   btn.disabled = false; btn.textContent = 'Accéder →';
 }
+/* (17/08/2026) Session lue par CHPGSession : l'onglet seul ne suffit pas, le
+   portail retient le code 30 jours dans l'app installée. */
 async function viewAutoLogin(){
-  let saved=''; try{ saved = sessionStorage.getItem('chpgViewCode')||''; }catch(e){}
+  const saved = CHPGSession.lire();
   if(!saved) return; // pas de code en cache → écran de connexion affiché
   // Affichage optimiste : le code étant en cache, on montre l'interface tout de suite
   // et on revalide en arrière-plan — plus de clignotement de la page d'authentification.
@@ -274,7 +283,7 @@ async function viewAutoLogin(){
     const r = await apiPost({action:'login'});
     if(r && r.success){ applyUserBadge(r); }
     else {
-      VIEW_CODE=''; try{ sessionStorage.removeItem('chpgViewCode'); }catch(e){}
+      VIEW_CODE=''; CHPGSession.oublier();
       document.getElementById('viewAuthOverlay').style.display='flex';
       document.getElementById('portal').style.display='none';
     }

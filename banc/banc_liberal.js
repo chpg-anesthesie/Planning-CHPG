@@ -277,7 +277,11 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
       win.scrollTo = () => {};
       win.alert = () => {};
       win.confirm = () => true;
+      /* La session se pose comme le portail le fait. La page ne lit plus le
+         stockage en direct : elle passe par CHPGSession (partage/session.js),
+         que jsdom ne va pas chercher — on le sert donc ici, comme le vrai site. */
       win.sessionStorage.setItem('chpgViewCode', CODE);
+      win.eval(fs.readFileSync('../partage/session.js', 'utf8'));
       win.fetch = async (url, opt) => {
         const u = String(url);
         if (u.includes('workers.dev')) {
@@ -392,6 +396,28 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
   V('la date de consultation reste à aujourd\'hui', d.getElementById('dCs').value.length === 10);
   V('le secteur, lui, RESTE : dix endoscopies d\'affilée, zéro geste',
     d.getElementById('dclSec').value === 'END', d.getElementById('dclSec').value);
+
+  /* (17/08/2026) La session du portail. Ces deux pages la lisaient en direct dans
+     l'onglet : dans l'app installée, elles redemandaient le code alors que le
+     portail s'en souvenait 30 jours. Constaté en réel. */
+  V('la page de cotation passe par la session commune',
+    typeof w.CHPGSession === 'object' && /CHPGSession\.lire\(\)/.test(html)
+    && !/getItem\('chpgViewCode'\)/.test(html.replace(/window\.CHPGSession = window\.CHPGSession[^\n]*/, '')));
+  V('elle charge la source unique de session',
+    /partage\/session\.js/.test(html) && /CHPG_FALLBACK/.test(html));
+  V('la déconnexion efface AUSSI la mémoire longue', /CHPGSession\.oublier\(\)/.test(html));
+  /* Les QUATRE pages MAR qui restaient hors de la source unique. Une seule
+     oubliée et le MAR retape son code sur elle, en pleine consultation. */
+  for (const f of ['suivi-liberal.html', 'absences.html', 'crh.html']) {
+    const c = fs.readFileSync('../' + f, 'utf8');
+    const sansFilet = c.replace(/window\.CHPGSession = window\.CHPGSession[^\n]*/, '');
+    V(f + ' passe par la session commune',
+      /partage\/session\.js/.test(c) && /CHPGSession\.lire\(\)/.test(c)
+      && /CHPGSession\.oublier\(\)/.test(c));
+    V(f + ' ne lit plus le stockage en direct',
+      !/sessionStorage\.\w+Item\('chpgViewCode'\)/.test(sansFilet),
+      (sansFilet.match(/sessionStorage\.\w+Item\('chpgViewCode'\)/g) || []).slice(0, 2));
+  }
 
   /* ═══════════════════════════════════════════════════════════════
      8. LE RELEVÉ DANS LA COPIE RAPIDE (17/08/2026)
