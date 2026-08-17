@@ -129,23 +129,23 @@
     <h2>État vérifié</h2>
     <div class="etat-grid">
       <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1185 <small>vérifs · 29 scripts</small></div></div>
+      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1255 <small>vérifs · 29 scripts</small></div></div>
       <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
       <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
     </div>
     <div class="etat-grid" style="margin-top:16px">
       <div><div class="etat-k">code.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
       <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.1</div></div>
-      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-16.1</div></div>
+      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.2</div></div>
       <div><div class="etat-k">veille.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.5</div></div>
-      <div><div class="etat-k">portail.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.2</div></div>
+      <div><div class="etat-k">portail.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.1</div></div>
       <div><div class="etat-k">journal.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
       <div><div class="etat-k">generateur.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.1</div></div>
       <div><div class="etat-k">echanges.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.3</div></div>
-      <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-13.4</div></div>
+      <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-17.1</div></div>
     </div>
   </div>
-  <p class="verif">Relevé dans le dépôt et le banc exécuté — 17 août 2026 · <b>tout est déployé et confirmé en production</b> (les dix fichiers du serveur et la copie de lecture, déployés le 16 au soir)</p>
+  <p class="verif">Relevé dans le dépôt et le banc exécuté — 17 août 2026 au soir · <b>trois éléments attendent leur déploiement</b> : le Worker, <code>miroir.gs</code> et l'exécution de la synchronisation complète. Tout le reste est confirmé en production.</p>
 
   <h2>Échéancier</h2>
   <div class="ech" id="ech">
@@ -185,7 +185,7 @@
     <div class="mod"><b>Gardes</b><span>Équité annuelle sur ~730 gardes. 0 journée sans binôme sur 140 années simulées.</span></div>
     <div class="mod"><b>Portail MAR</b><span>Planning, gardes, congés, messagerie, rafraîchissement en tirant la page.</span></div>
     <div class="mod"><b>Indisponibilités</b><span>Campagne annuelle, souhaits, staff vacances.</span></div>
-    <div class="mod"><b>Module libéral</b><span>Cotation, devis, déclaration. Lots 0, 1, 2A, 2B et 3 en production.</span></div>
+    <div class="mod"><b>Module libéral</b><span>Cotation, devis, déclaration, suivi des 30 %. Un patient à la fois. Lots 0, 1, 2A, 2B et 3 en production.</span></div>
     <div class="mod"><b>Contrôle d'absence</b><span>Porte MAR et porte secrétariat. Motifs jamais transmis au secrétariat.</span></div>
     <div class="mod"><b>Veille bibliographique</b><span>41 revues, 21 thèmes, lu/★ par MAR depuis le 8 août.</span></div>
     <div class="mod"><b>Échanges de gardes</b><span>Don et échange entre MAR, sans le comité. Notification, réponse, écriture du planning. Le samedi emmène sa récupération.</span></div>
@@ -273,8 +273,24 @@
     <p><b>Ce jour-là :</b> annonce aux 23 MARs, envoi des codes d'accès individuels, et ouverture du canal de notifications à tout le service.</p>
   </div>
   <div class="card">
-    <h4>Ouvrir le module libéral au groupement <span class="tag t-blue">après le staff</span></h4>
-    <p>Les 19 membres éligibles y accèdent alors que seul Arthur l'utilise aujourd'hui. Sans lien avec le passage en 2.0 : c'est une ouverture d'accès, à son propre rythme.</p>
+    <h4>Ouvrir le module libéral au groupement <span class="tag t-blue">septembre / octobre</span></h4>
+    <p>Les 19 membres éligibles y accèdent alors que seul Arthur l'utilise aujourd'hui. Sans lien avec le passage en 2.0 : c'est une ouverture d'accès, à son propre rythme, et elle sera <b>précédée d'une présentation au groupement</b>.</p>
+    <p><b>Ce qui reste à faire avant, et qui ne dépend pas du code :</b> renseigner les <b>RPPS et prénoms</b> des 18 autres dans l'onglet MEDECINS — sans eux, leur devis s'imprime sans numéro et la page annonce « à compléter » à chaque ouverture — et créer des <b>cotations types</b> pour l'orthopédie, le viscéral et l'ophtalmologie, seule l'endoscopie en ayant aujourd'hui.</p>
+    <p><b>Et une chose qui ne se rattrape pas :</b> quelques déclarations réelles, faites par Arthur, avant d'ouvrir. Le relevé de l'administration se recopie rétroactivement ; une intervention non déclarée est perdue définitivement. Le geste doit être rodé avant d'être montré.</p>
+  </div>
+
+  <div class="card ok">
+    <h4>Optimisation de la page libérale <span class="tag t-green">livré le 17 août 2026</span></h4>
+    <p><b>Le but tient en une phrase :</b> déclarer une intervention sans faire attendre le patient assis en face. La page servait à explorer ; elle sert maintenant à travailler, un patient à la fois — coter, imprimer le devis, déclarer, patient suivant.</p>
+    <p><b>Un chiffre faux, supprimé.</b> La page affichait à chacun « 25 % de libéral » et une marge en euros, calculés sur un exemple écrit dans le code — 50 000 € pour tout le monde. Ces deux cadrans ont disparu : la position réelle se lit sur la page <i>Suivi des 30 %</i>, alimentée par le relevé de l'administration.</p>
+    <p><b>Une panne intermittente, éliminée.</b> La page demandait quatre choses à la fois au serveur à son ouverture ; les dernières tombaient sans prévenir — le menu des secteurs affichait « portail injoignable », la barre des cotations d'endoscopie disparaissait <i>en silence</i>. Tout arrive désormais en une seule fois, par la copie de lecture.</p>
+    <p><b>Ce qui a été gagné en gestes :</b> les dates et les montants ne se saisissent plus deux fois — la déclaration les lit dans la cotation. Le secteur revient à votre dernier choix : dix endoscopies d'affilée, c'est zéro geste. Les deux boutons qui comptent, <i>Devis</i> et <i>Déclarer</i>, restent en bas de l'écran, sous le pouce. Une douzaine d'interactions ramenées à quatre ou cinq.</p>
+    <p><b>Ce qui a été gagné en secondes :</b> le référentiel des actes était retéléchargé <i>à chaque patient</i> ; il est désormais gardé par le téléphone. Il ne contient plus que les 4 726 actes réellement tarifés en anesthésie, au lieu de 8 558.</p>
+    <p><b>Deux corrections qui engagent la suite.</b> La <b>spécialité devient obligatoire</b> : c'est elle, et non le secteur, qui portera la mesure du rendement — les secteurs changent au déménagement, les spécialités non. Et le secteur <i>ORL / Ophtalmologie</i> en mélangeant deux, la page <b>refuse désormais de deviner</b> : elle étiquetait jusqu'ici toute cataracte en ORL, ce que la séparation des deux devait précisément empêcher.</p>
+    <p><b>Un défaut de fond, corrigé partout :</b> un échec s'affichait comme un vide. « Aucun relevé saisi » quand le serveur n'avait pas répondu, une liste de déclarations qui se masque, une barre de cotations qui s'évanouit. La page dit maintenant ce qui a échoué et propose de réessayer.</p>
+    <p><b>Le suivi des 30 % passe dans la copie de lecture</b> — c'était la dernière page à ne parler qu'au serveur Google. Elle s'ouvre désormais sans écran de code intermédiaire. <b>Décision associée, prise à froid :</b> le relevé financier était jusqu'ici exclu de cette copie ; il y est admis, <b>réservé aux seuls membres du groupement</b>, exactement la règle qui s'appliquait déjà côté serveur. Ni le comité, ni le secrétariat n'y accèdent.</p>
+    <p><b>Éprouvé :</b> le banc d'essai est passé de 13 à 95 vérifications sur ce module — l'écran de cotation, jusque-là le seul du site sans aucun contrôle, est désormais <b>piloté au clic</b> du choix du contexte jusqu'à la déclaration, et l'on vérifie qu'aucun code d'acte ni nom de patient ne l'accompagne.</p>
+    <p><b>Reste à faire :</b> pouvoir rouvrir le devis d'un patient déjà déclaré dans la même consultation (oubli de signature) · mettre à jour les guides du libéral · le taux de couverture, qui dira si les rendements mesurés valent quelque chose.</p>
   </div>
   <div class="card ok">
     <h4>Échanges et dons de gardes <span class="tag t-green">livré et ouvert le 13 août 2026</span></h4>

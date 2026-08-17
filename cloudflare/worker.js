@@ -66,7 +66,7 @@
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-13.4';
+const VERSION = 'miroir 2026-08-17.1';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait

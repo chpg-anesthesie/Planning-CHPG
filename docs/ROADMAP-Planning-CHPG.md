@@ -4,20 +4,23 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.46** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.51** ·
 **GAS** (relevé fichier par fichier dans le dépôt le 17/08/2026) `code.gs` 2026-08-05.3 ·
-`Indispos.gs` 2026-08-17.1 · `miroir.gs` 2026-08-16.1 · `journal.gs` 2026-08-05.3 ·
+`Indispos.gs` 2026-08-17.1 · `miroir.gs` 2026-08-17.2 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-17.1 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
 `echanges.gs` 2026-08-14.3 · `generateur_gardes.gs` 2026-08-14.1 · `setup_annee.gs` 2026-08-08.1 ·
-**Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-13.4'` — **seule** version
+**Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-17.1'` — **seule** version
 écrite dans le fichier depuis le 16/08 (le commentaire d'en-tête qui la doublait a été supprimé,
 le banc refuse qu'un second numéro réapparaisse).
 
-⚠️ **`portail.gs` 2026-08-17.1 — déploiement À CONFIRMER.** Poussé le 17/08 au soir par une autre
-session (relevé libéral, format du mois). Non vérifié ici : le contrôle est le bloc « Code déployé »
-du Diagnostic, qui doit dire « à jour ». S'il annonce une dérive, la recopie n'a pas été faite.
+⚠️ **TROIS ÉLÉMENTS EN ATTENTE DE DÉPLOIEMENT au soir du 17/08** (session module libéral) :
+le **Worker** (2026-08-17.1), **`miroir.gs`** (2026-08-17.2) et l'exécution de **`miroirSyncComplet`**.
+Ordre non négociable : Worker → `miroir.gs` → synchro. Dans l'autre sens, les pages demandent des
+clés qui n'existent pas encore et retombent en silence sur l'ancien circuit.
+`portail.gs` 2026-08-17.1 est **déployé et confirmé** : la page du suivi affiche « juillet 2026 »
+au lieu de « undefined », vérifié à l'écran par Arthur.
 
-**Pour le reste, rien en attente.** `miroir.gs` (2026-08-16.1) et le Worker le 16/08 au soir ;
+**Pour le reste, rien en attente.** Le Worker le 16/08 au soir ;
 `Indispos.gs` deux fois, en 2026-08-16.1 puis en **2026-08-17.1** (verrou de clôture), recopié et
 déployé le 17/08 dans la foulée du push. **Confirmé par Arthur au diagnostic après la première
 recopie : le bloc « Version du site » ne sonne plus en rouge.** C'est le contrôle qui fait foi ici,
@@ -48,6 +51,161 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 17 août 2026 (soir) — v1.47 à v1.51 : le module libéral optimisé pour la consultation
+
+**Fil dédié au module libéral.** Objectif fixé par Arthur : *déclarer vite pendant la consultation,
+sans faire attendre le patient*. Présentation au groupement visée en septembre/octobre, ouverture
+aux 19 dans la foulée. Six push, banc de **1 156 → 1 255** vérifications, dont **13 → 95** sur ce
+seul module.
+
+### Le défaut fondateur : le mois du relevé était une date
+
+`getOrCreateLiberalCaTab` écrit la chaîne `'2026-07'` ; **Sheets la reconnaît comme une date** et
+stocke une vraie date. Vérifié : les **228 cellules** de la colonne MOIS de `LIBERAL_CA_2026` sont
+des dates. `getReleveLiberal` renvoyait donc `'Wed Jul 01 2026 00:00:00 GMT+0200'`.
+
+Deux conséquences, vues à l'écran :
+1. `suivi-liberal.html` affichait « cumul janvier → **undefined Wed** » ;
+2. le « dernier mois », choisi par `items.map(i => i.mois).sort().pop()`, comparait des **noms de
+   jours anglais**. Simulation sur les douze mois de 2026 : le tri retenait `Wed Jul` **jusqu'en
+   décembre**. Août (Sat), septembre (Tue), octobre (Thu), novembre (Sun) perdaient tous contre Wed.
+   Arthur aurait recopié le relevé d'octobre et la page aurait continué d'afficher juillet, **en
+   silence**.
+
+Le même défaut atteignait `Indispos.gs` : le classement des remplaçants d'`absences.html` se serait
+appuyé sur un relevé périmé.
+
+**Correctif** : `_libMoisISO_()` normalise à la lecture (Date **ou** texte → `AAAA-MM`). Le classeur
+n'est pas touché, les mois déjà saisis sont rattrapés. Canard-typage volontaire (`typeof
+v.getFullYear === 'function'`) et non `instanceof Date` : au banc, la date vient d'un autre contexte
+d'exécution et `instanceof` y serait faux.
+
+⚠️ **La doublure Sheets du banc mentait.** Elle coerçait `'2026-07-01'` en date mais pas `'2026-07'` :
+1 156 vérifications n'ont donc rien vu. Corrigée dans `banc/stubs.js` — **c'est elle, autant que le
+code, qui rendait le défaut invisible**.
+
+### Un chiffre inventé, affiché à tous
+
+La page de cotation portait deux cases « Socle CCAM / Socle NGAP » **écrites en dur** (50 000 € à
+25 %, 15 000 € à 25 %) qui alimentaient deux cadrans « % projeté » et « marge ». Personne ne les
+renseignait : la page annonçait donc à chacun une marge qui n'était pas la sienne. Sur dix-neuf
+personnes dont plusieurs au-dessus de 30 %, c'est le « chiffre plausible et faux » contre lequel le
+document de conception met en garde. **Cadrans et socles retirés** — la position réelle vit sur
+`suivi-liberal.html`, alimentée par le relevé certifié.
+
+### La panne intermittente : quatre appels lancés ensemble
+
+Constaté à l'écran : « Secteur (portail injoignable) », barre des cotations d'endoscopie absente,
+**pendant que l'identité s'affichait normalement**. La page lançait quatre appels Apps Script
+simultanés au démarrage ; les exécutions d'un même utilisateur étant mises en file, les dernières
+tombaient.
+
+**Correctif** : deux clés de plus au relais (`specialites`, `cotations_type`, même niveau d'accès que
+`secteurs`), et **un seul aller-retour** qui rend l'identité *et* les trois listes. Repli Apps Script
+**en série** — c'est le parallélisme qui faisait tomber.
+
+### Un patient à la fois (décision d'Arthur)
+
+Le devis se remettant en direct au patient, empiler des cotations n'avait plus d'objet depuis le
+retrait des cadrans. « Ajouter le parcours » supprimé ; *Devis* et *Déclarer* portent sur la cotation
+affichée ; l'écran se vide après déclaration **mais le secteur reste**. La déclaration perd ses
+doublons de saisie (dates, montants) : elle les lit dans la cotation — deux endroits pour la même
+donnée, c'étaient deux valeurs possibles. Barre d'action **fixe en bas d'écran** : sur téléphone, les
+deux gestes qui comptent restent sous le pouce. D'une douzaine d'interactions à quatre ou cinq.
+
+Maquette cliquable soumise à Arthur **avant** d'écrire le code, et validée.
+
+### Ce qui s'enregistre doit rester exploitable
+
+- **Spécialité obligatoire.** Une ligne sans spécialité compte dans le volume mais sort du rendement,
+  et rien ne le signale six mois plus tard.
+- **`ORL` retiré de la table secteur → spécialité.** Le secteur s'appelle « ORL / Ophtalmologie » :
+  le pré-remplissage étiquetait **toute cataracte en ORL**, exactement ce que la séparation OPH/ORL
+  devait empêcher, la cataracte étant le moteur du rendement. La page refuse désormais de deviner et
+  le dit en rouge.
+
+### Vitesse
+
+`ccam_actes.json` réduit aux **4 726 actes tarifés** en anesthésie (8 558 avant ; 162 → 94 Ko sur le
+réseau) et **mis en cache navigateur** : il était demandé avec `cache:'no-store'`, donc retéléchargé
+et réanalysé **à chaque patient**, en consultation, sur le réseau du téléphone. Étiquette `?v=84`, à
+incrémenter avec la version CCAM.
+
+### LISTE ROUGE RÉVISÉE — décision d'Arthur
+
+Le relevé financier du groupement était explicitement exclu du relais. **Il y est désormais admis**
+(`releve_liberal_{Y}`), réservé aux membres du groupement (`role = mar` **et** `liberal`), soit
+exactement la règle de `getReleveLiberal`. Ni le comité, ni le secrétariat, ni un MAR hors
+groupement. PARAMETRES, Gmail et les journaux restent dehors.
+
+Motif : `suivi-liberal.html` était la dernière page à ne parler qu'à Apps Script. Question posée par
+Arthur, et réponse honnête : *c'est la même porte* — même code d'accès, même règle. Deux nuances
+notées : la donnée existe désormais à deux endroits (deux endroits à purger), et **ni l'un ni l'autre
+des deux points d'entrée ne limite les tentatives répétées**. Le code d'accès porte donc un peu plus
+de poids. À regarder, pas aujourd'hui.
+
+La révision est écrite, datée et motivée **dans `worker.js` et dans `miroir.gs`**.
+
+⚠️ Deux pièges traités : la clé est datée sur l'**année civile** (le relevé est calendaire, l'année
+active bascule en automne) ; et `LIBERAL_CA_2026` commençant par `LIBERAL_`, l'entrée `LIBERAL_CA`
+doit rester **après** `LIBERAL` dans `MIROIR_ONGLETS_SUIVIS` — la boucle garde la dernière
+correspondance, sinon saisir le relevé rafraîchirait le volet du comité.
+
+### Un défaut de fond, présent partout : l'échec affiché comme un vide
+
+Trois écrans traduisaient « le serveur n'a pas répondu » par « il n'y a rien » : « Aucun relevé saisi
+pour le moment », la liste des déclarations qui se masque, la barre des cotations types qui
+s'évanouit. Corrigé sur le relevé (message explicite + bouton **Réessayer**) ; **reste à faire sur les
+deux autres**.
+
+### La session, et l'écran de code qui clignotait
+
+`partage/session.js` (livré le même jour par l'autre fil) décide où vit le code d'accès — 30 jours
+glissants dans l'app installée. **Quatre pages ne l'avaient pas adopté** : `suivi-liberal.html`,
+l'estimateur, `absences.html`, `crh.html`. Elles interrogeaient le stockage de l'onglet en direct, en
+infraction avec la règle écrite dans ce fichier même. Constaté en réel : le portail se souvenait,
+la page du suivi redemandait.
+
+Puis, une fois la session réglée : la page affichait quand même l'écran d'authentification **quelques
+secondes**, le temps de valider auprès d'Apps Script, avant de disparaître toute seule. Deux
+correctifs : la copie rapide **authentifie et sert dans le même appel** (plus aucun `login` quand elle
+répond), et **affichage optimiste** — on masque l'écran de code tout de suite, on valide derrière, on
+le remontre s'il est refusé. Même principe que `crh.html` depuis longtemps.
+
+### Banc
+
+`banc/banc_liberal.js` — fichier neuf, **95 vérifications**. L'écran de cotation, jusque-là **le seul
+du site sans aucun contrôle**, est désormais **piloté au clic** dans un vrai DOM servi par le vrai
+Worker : contexte → cotation type → jour du bloc → déclarer. On vérifie que la déclaration part avec
+les bonnes dates et montants, que **ni code d'acte ni identifiant de MAR** ne l'accompagnent, que
+l'écran se vide, que le secteur reste — et, côté porte, qu'un MAR hors groupement et le comité
+n'obtiennent pas le relevé.
+
+**Contre-preuves systématiques** : ancien code du mois → 9 échecs · clés du relais retirées → 5 ·
+cache CCAM retiré → 1 · porte du relevé ouverte à tous → 2 · `crh.html` remis en l'état → 2.
+
+### Constaté en passant, non corrigé
+
+- Le test `docs/module-liberal/tests/anti_persistance_devis.test.js` — la **preuve rejouable** pour un
+  contrôle CCIN — **est cassé** (2 échecs) et n'est pas dans `lancer.sh` : personne ne le voit tomber.
+- `LIBERAL_2026` est **vide** : aucune déclaration réelle à ce jour. Le 2A n'a jamais tourné en
+  conditions réelles.
+- Les guides du libéral sont à revoir (décision d'Arthur : **après** l'optimisation).
+- La conception §10 affirme encore « index CCAM v83, tarifs v80 » : c'est v84 depuis le 27/07.
+
+### Reste à faire sur ce module
+
+1. Rouvrir le devis d'un patient **déjà déclaré dans la même consultation** (cas réel : oubli de
+   signature). Faisable **sans rien stocker** — mémoire vive de la page, perdue au rechargement.
+   Au-delà, il faudrait garder actes, carte et mutuelle : c'est la ligne qu'on ne franchit pas.
+2. L'échec affiché comme un vide, sur les déclarations et les cotations types.
+3. Les guides.
+4. Le **taux de couverture** (BR déclarées ÷ euros du relevé) — sans lui, un rendement calculé sur
+   des déclarations partielles est faux sans que rien ne le dise. N'a de sens qu'avec des
+   déclarations réelles à comparer.
 
 ---
 
