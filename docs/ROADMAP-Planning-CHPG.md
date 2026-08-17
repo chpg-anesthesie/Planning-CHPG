@@ -4,7 +4,7 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.38** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.39** ·
 **GAS** (relevé fichier par fichier dans le dépôt le 16/08/2026) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-16.1 · `miroir.gs` 2026-08-16.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
@@ -155,6 +155,24 @@ que le guichet de santé annonce.
 **Tout est déployé.** Les deux `.gs` recopiés et déployés, le Worker redéployé, dans la foulée du
 push — et Arthur confirme au diagnostic que le rouge a disparu. Aucun `miroirSyncComplet` n'était
 nécessaire : un déploiement de Worker remplace le programme, pas les données qu'il sert.
+
+**La séquence du 4 septembre, écrite en entier** *(demande d'Arthur : « que tout soit rodé avant,
+pendant et après »)*. Son plan — saisir les 24 adresses la veille pour que les codes arrivent le matin
+— a été vérifié dans le code plutôt que validé sur parole, et deux points en sont sortis :
+
+1. **Le wizard 2 ne régénère pas une année déjà générée** (garde d'idempotence, action
+   `generateGardes` : si `GARDES_{Y}` et `STATS_GARDES_{Y}` existent et sont cohérents, il renvoie les
+   stats existantes et enchaîne). Excellent en production, **fatal en démonstration** : la répétition
+   du 28/08 laisse les onglets en place, et le 4 la salle verrait « 730 gardes » s'afficher
+   instantanément **sans calcul et sans message**. D'où : remise à zéro obligatoire la veille.
+2. **L'ordre nettoyage → envoi des codes.** Dès qu'un code est reçu, son détenteur se connecte, et
+   `dashboard.html` demande `planning_{active+1}` à chaque ouverture : codes envoyés avant le
+   nettoyage, un curieux verrait des gardes 2027 fictives données pour les siennes. Envoyer après.
+
+Vérifié aussi, en faveur du plan : `sendCodes` relit `MEDECINS` sans mémoire intermédiaire (aucun
+délai entre la saisie et l'envoi), et le quota de 100 messages/jour laisse la place à 25 destinataires
+avec de quoi recommencer. Reste le risque d'indésirables sur 25 messages identiques : envoi d'essai à
+un seul destinataire d'abord.
 
 **Trois leçons.**
 
@@ -2073,7 +2091,7 @@ aucune n'écrit plus de numéro en dur, et le banc comme le Diagnostic refusent 
 Deux chiffres, pas trois : le troisième ne disait rien à personne dans le service.
 Patch → 2ᵉ chiffre · **v2.0 réservée au 5/09**, jour où le portail s'ouvre aux 23 (l'ouverture vaut
 un premier chiffre ; la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.38** (16/08/2026).
+**Version en cours : v1.39** (16/08/2026).
 
 ---
 
@@ -2125,6 +2143,78 @@ Reste à faire, par ordre de criticité :
    sauvegarder, rien à restaurer : les deux seuls consommateurs (`getVacConfig` via `getIndisposYear()`,
    `getConflitsAll` via l'année passée en paramètre) travaillent **toujours sur l'année préparée, jamais
    sur l'année en cours** — vérifié en lecture de code le 30/07. Ne pas chercher 2026 dedans.
+
+### La séquence du 04/09 — avant, pendant, après *(écrite le 16/08/2026)*
+
+Trois moments, trois listes. Celle du soir (le ménage) existait déjà ; celles d'avant et de pendant
+manquaient, et **deux points vérifiés dans le code feraient rater la démonstration** s'ils restaient
+implicites.
+
+#### AVANT — J-7, puis J-1, puis H-1
+
+**J-7 (28/08) — répétition complète.** Elle génère 2027 pour de bon. **Donc elle doit être suivie
+d'une remise à zéro**, sinon la démo du 4 ne générera rien (voir ci-dessous).
+
+**J-1 (03/09) — remise à zéro du bac à sable. ⚠️ POINT CRITIQUE, vérifié dans le code.**
+Supprimer `GARDES_2027`, `STATS_GARDES_2027` et `LIENS_R_2027` — **garder `INDISPOS_2027`**, c'est la
+matière première de la génération.
+Pourquoi c'est critique : le wizard 2 contient une **garde d'idempotence** (`Indispos.gs`, action
+`generateGardes`) — si `GARDES_{Y}` **et** `STATS_GARDES_{Y}` existent et sont cohérents, il **ne
+régénère pas** : il renvoie les statistiques existantes et enchaîne sur publication et récapitulatifs.
+Ce garde-fou est excellent en production (il empêche de détruire un planning valide après une réponse
+perdue) mais **en démonstration il est fatal** : la salle verrait « 730 gardes » s'afficher
+instantanément sans qu'aucun calcul n'ait eu lieu, et la répétition du 28/08 aurait justement laissé
+les onglets en place. *Aucun message d'erreur n'apparaît : c'est un succès silencieux.*
+
+**J-1 ou H-1 — les 24 adresses mail, puis l'envoi des codes.** *(plan d'Arthur, 16/08)*
+Les 24 MAR actifs sans adresse sont saisis dans `MEDECINS`, colonne EMAIL, puis
+Maintenance → **Envoyer aux MARs sélectionnés**. Les codes existent déjà (un seul MAR n'en a pas :
+TRAN) — l'envoi **ne régénère rien**, il transmet le code en place.
+
+Quatre points vérifiés :
+
+- **Lecture fraîche.** `sendCodes` relit `MEDECINS` directement (`getDataRange`), sans mémoire
+  intermédiaire : une adresse saisie une minute avant est prise en compte. *Aucun délai à respecter.*
+- **Quota.** Compte Google gratuit = 100 envois/jour. Avec 25 destinataires, `_quotaEmailInsuffisant_`
+  laisse passer et il reste de quoi refaire un envoi complet le même jour. Le Diagnostic affiche le
+  reste avant de partir.
+- **ORDRE IMPÉRATIF : la remise à zéro AVANT l'envoi des codes.** Dès qu'un code est reçu, son
+  détenteur peut se connecter. `dashboard.html` demande `planning_{année active + 1}` **à chaque
+  ouverture** depuis la v1.30.2 : si les fichiers 2027 de la répétition sont encore publiés, un MAR
+  curieux verrait, la veille au soir, des **gardes 2027 fictives** annoncées comme les siennes.
+  Envoyer les codes après le nettoyage supprime entièrement ce risque.
+- **TRAN** part le 01/09 : le désactiver avant l'envoi, sinon il figure dans la liste et le compte
+  rendu le signalera « sans code ».
+
+**Prudence sur l'envoi groupé** : 25 messages identiques partant d'une adresse Gmail en quelques
+secondes peuvent être classés en indésirables. Envoyer **d'abord à un seul destinataire** (le MAR
+pilote), vérifier qu'il l'a reçu **et où**, puis lancer le reste. Le mot « regardez aussi vos
+indésirables » est à dire à l'oral à la diapo 7, quoi qu'il arrive.
+
+*Choix J-1 ou H-1 :* H-1 est plus sûr (fenêtre de curiosité quasi nulle) mais ne laisse aucune marge
+si un mail n'arrive pas. J-1 au soir laisse la nuit pour rattraper un problème d'adresse — et devient
+sans risque une fois la remise à zéro faite avant l'envoi. **J-1 au soir, après nettoyage, est le
+meilleur compromis.**
+
+#### PENDANT — ce qui doit être vrai au moment de la démonstration
+
+| Ce qui doit être en place | Pourquoi |
+|---|---|
+| `INDISPOS_2027` présent et rempli | matière première de la génération en direct |
+| `GARDES_2027` **absent** | sinon le wizard ne génère pas (garde d'idempotence) |
+| Canal de notifications **ouvert** | fait le 16/08 par Arthur — sans quoi l'abonnement de la diapo 7 est refusé et aucun téléphone ne sonne à la diapo 28 |
+| Codes reçus | la diapo 7 leur demande d'installer l'app **et** de s'y connecter |
+| Quota email disponible | les récapitulatifs de génération partent en fin de démonstration |
+
+Deux gestes pendant la séance : **diapo 7**, faire installer l'app et activer les notifications
+(vérifier à la voix) ; **diapo 28**, laisser sonner les téléphones avant de commenter.
+
+#### APRÈS — le soir même
+
+C'est la check-list ci-dessous, en 9 étapes numérotées. Un point change avec la distribution des
+codes : à partir du 04/09, les 23 peuvent se connecter **et** échanger des gardes — l'interrupteur
+d'ouverture ayant été posé le 16/08. L'annonce du 05/09 décrira donc une possibilité déjà active
+depuis la veille.
 
 ### Ménage post-démo — check-list (à exécuter le 04/09 au soir, puis supprimer cette section)
 

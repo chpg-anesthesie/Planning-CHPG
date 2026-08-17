@@ -1440,7 +1440,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site — actuellement **v1.38**, source unique `version.js`
+## Version du site — actuellement **v1.39**, source unique `version.js`
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
@@ -1461,7 +1461,7 @@ produisait des « v1.34.10 » qui font perdre confiance plus qu'ils n'informent.
 
 | Nature du changement | Incrément | Exemple |
 |---|---|---|
-| Nouveauté visible, correction, ajustement | **2ᵉ chiffre** — `1.37` → `1.38` | vue courte de la roadmap remise au réel |
+| Nouveauté visible, correction, ajustement | **2ᵉ chiffre** — `1.38` → `1.39` | séquence du 4 septembre ajoutée |
 | Ouverture majeure | **1ᵉʳ chiffre** — `1.x` → `2.0` | ouverture du portail aux 23 (5/09) |
 
 Une modification purement GAS (sans page touchée) ne change PAS la version du site : elle a ses
