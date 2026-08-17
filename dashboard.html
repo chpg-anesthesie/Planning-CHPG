@@ -1535,8 +1535,27 @@ let ECH_AUTORISE = false;    // la clé m'a été servie au moins une fois
    est vu. Sans effet sur les navigateurs qui ne savent pas faire. */
 try { if (navigator.clearAppBadge) navigator.clearAppBadge().catch(function(){}); } catch(e) {}
 
+/* (17/08/2026) La carte ne se propose plus sur ORDINATEUR. Elle s'affichait
+   partout où le navigateur sait recevoir des notifications — donc sur les PC du
+   comité, avec en prime un texte écrit en dur « sur ce téléphone », faux à
+   l'écran. Or une annonce de planning n'a d'intérêt que sur le téléphone qu'on a
+   sur soi : sur un poste, elle arrive là où on est déjà en train de regarder, et
+   sur un poste PARTAGÉ elle s'afficherait chez le suivant.
+   Un abonnement déjà pris sur ordinateur continue de fonctionner : on cache la
+   proposition, on ne révoque rien. */
+function _appareilMobile(){
+  try {
+    if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean')
+      return navigator.userAgentData.mobile;
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')) return true;
+    /* iPad récent : Safari se déclare « Macintosh ». L'écran tactile tranche. */
+    return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  } catch(e) { return false; }
+}
+
 function _notifCarteSiPossible(){
   try {
+    if (!_appareilMobile()) return;
     if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
       const nc = document.getElementById('notifCard');
       if (nc && Notification.permission !== 'granted') nc.style.display = '';

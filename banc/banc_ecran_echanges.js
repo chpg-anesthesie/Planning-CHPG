@@ -49,7 +49,7 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
   const demande = { id:'E1', creeLe:new Date().toISOString(), type:'don', annee:2027,
     date:'2027-03-12', date2:'', demandeur:'BRAVO', receveur:'ALPHA', etat:'attente', reponduLe:'', info:'' };
 
-  async function monterPage(kvInitial, surGas) {
+  async function monterPage(kvInitial, surGas, mobile) {
     const wctx = vm.createContext({ globalThis:{}, console, crypto, TextEncoder, Response, Request, URL, JSON, Date, Math, Object, Array, String, Number, Set, Promise });
     wctx.globalThis = wctx; vm.runInContext(src, wctx);
     const WK = wctx.__W, M = new Map();
@@ -76,7 +76,11 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     const dom = new JSDOM(contenu, { runScripts:'dangerously', virtualConsole:vc,
       url:'https://chpg-anesthesie.github.io/Planning-CHPG/dashboard.html', pretendToBeVisual:true,
       beforeParse(win) {
-        win.matchMedia = () => ({ matches:false, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
+        /* (17/08/2026) L'appareil compte maintenant : la carte des notifications
+           ne se propose plus sur ordinateur. `mobile` simule un téléphone via
+           l'écran tactile, comme le fait _appareilMobile() pour les iPad. */
+        win.matchMedia = q => ({ matches: !!(mobile && /pointer:\s*coarse/.test(String(q))),
+          addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} });
         win.Element.prototype.scrollIntoView = function () {};
         win.scrollTo = () => {};
         /* Le faux réseau AVANT tout script : l'appel d'ouverture (viewAutoLogin
@@ -136,8 +140,12 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('la page se charge sans erreur JavaScript', erreurs.length === 0, erreurs.slice(0,2));
     const hero = w.document.getElementById('echangesHero');
     V('la carte est VISIBLE pour le pilote', hero && hero.style.display !== 'none');
-    V('la carte « Activer les notifications » se montre au pilote (correctif v1.34.1)',
-      w.document.getElementById('notifCard').style.display !== 'none');
+    /* (17/08/2026) Ce test exigeait l'inverse : la carte DEVAIT se montrer au
+       pilote, quel que soit l'appareil. Le harnais simule un ordinateur — et
+       c'est précisément là qu'elle ne doit plus se proposer. Le cas du téléphone
+       est repris au bloc 5. */
+    V('sur ordinateur, la carte « Activer les notifications » reste cachée',
+      w.document.getElementById('notifCard').style.display === 'none');
     V('le compteur annonce la demande en attente', /1 demande attend/.test(w.document.getElementById('echHeroMain').textContent));
 
     w.location.hash = '#echanges';
@@ -193,6 +201,32 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
       !!cree && cree.type === 'don' && cree.year === 2027 && cree.date === '2027-03-09' && cree.receveur === 'BRAVO', cree);
     V('la nouvelle demande apparaît MALGRÉ la copie rapide en retard', /Don de garde/.test(w.document.getElementById('echList').innerHTML));
     V('le panneau se referme', w.document.getElementById('echProposition').style.display === 'none');
+  }
+
+  console.log('\n═══ 5. La carte des notifications : téléphone oui, ordinateur non ═══');
+  {
+    /* (17/08/2026) Vu par Arthur en se connectant depuis son PC : la carte
+       s'affichait, avec un texte écrit en dur « sur ce téléphone ». Elle
+       apparaissait partout où le navigateur sait recevoir des notifications —
+       donc sur les postes du comité. Or l'annonce n'a d'intérêt que sur le
+       téléphone qu'on a sur soi, et sur un poste PARTAGÉ elle s'afficherait
+       chez le suivant. */
+    const kvA = await baseKV(); kvA.notif_config = JSON.stringify({ ouvert:true, pilotes:[] });
+    const surOrdi = await monterPage(kvA, null, false);
+    V('ordinateur : la carte ne se propose pas',
+      surOrdi.w.document.getElementById('notifCard').style.display === 'none');
+
+    const kvB = await baseKV(); kvB.notif_config = JSON.stringify({ ouvert:true, pilotes:[] });
+    const surTel = await monterPage(kvB, null, true);
+    V('téléphone : la carte se propose',
+      surTel.w.document.getElementById('notifCard').style.display !== 'none');
+    V('et son texte parle bien du téléphone',
+      /ce téléphone/.test(surTel.w.document.getElementById('notifEtat').textContent));
+
+    /* L'interrupteur serveur reste maître : fermé, même un téléphone ne voit rien. */
+    const ferme = await monterPage(await baseKV(), null, true);
+    V('canal fermé : même sur téléphone, rien ne se propose',
+      ferme.w.document.getElementById('notifCard').style.display === 'none');
   }
 
   console.log('\n' + ok + ' OK · ' + ko + ' en échec');
