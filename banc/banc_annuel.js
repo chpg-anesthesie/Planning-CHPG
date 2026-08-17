@@ -126,5 +126,65 @@ console.log('\n═══ T128 · structure d\'HISTORIQUE après clôture ══�
   V('l\'année est bien celle qu\'on clôture', l.slice(1).every(x => x[1] === 2027), l.map(x=>x[1]));
 }
 
+console.log('\n═══ T130 · la clôture est refusée tant que l\'année suivante n\'a pas commencé ═══');
+{
+  /* (17/08/2026) DÉFAUT TROUVÉ AVANT LA REMISE DU CODE AU COMITÉ.
+     Les garde-fous de `archiveYear` portaient sur l'EXISTENCE des onglets de
+     l'année suivante — jamais sur la date. Or ces onglets existaient dès août,
+     créés par le bac à sable de la démonstration du 4 septembre : clôturer 2026
+     était donc à deux clics pour n'importe quel membre du comité, alors que cela
+     déplace le planning EN COURS D'USAGE et bascule le service sur une année
+     fictive. Le Diagnostic l'annonçait, le guide l'écrivait — mais une consigne
+     n'est pas un verrou.
+
+     ⚠️ Ce test exécute le garde-fou EXTRAIT DU SERVEUR, jamais une copie de la
+     règle réécrite ici : une première version rejouait la logique dans le test,
+     et la contre-épreuve a montré qu'elle continuait de passer une fois le
+     garde-fou retiré du code. Un test qui recopie ne protège que la copie. */
+  const src   = fs.readFileSync('../gas/Indispos.gs', 'utf8');
+  const srcPJ = extraireFonction('../gas/code.gs', 'getPremierJourPlanning');
+  const bloc  = (src.match(/\{\s*\n\s*const _debutNext = getPremierJourPlanning\(_next\);[\s\S]*?\n      \}\n/) || [])[0] || '';
+  V('le garde-fou de date est présent dans le routage', !!bloc);
+  V('il est placé AVANT l\'appel à archiveYear',
+    !!bloc && src.indexOf('const _debutNext') < src.indexOf('const rapport = String(archiveYear(yearToArchive)'));
+
+  /* Le bloc est exécuté tel quel, avec le jour du calendrier pour seule variable. */
+  const refusePour = (jour, annee) => {
+    let refus = null;
+    const VraiDate = Date;
+    function DateFigee(...a) { return a.length ? new VraiDate(...a) : new VraiDate(jour.getTime()); }
+    DateFigee.now = () => jour.getTime();
+    const ctx = vm.createContext({
+      Math, Number, String, Date: DateFigee,
+      Utilities: { formatDate: () => 'DATE' },
+      logAction: () => {},
+      _error: m => { refus = m; return m; },
+      _ssArch: { getSpreadsheetTimeZone: () => 'Europe/Paris' }
+    });
+    ctx.globalThis = ctx;
+    /* Garde-fou absent : on ne veut pas d'un plantage mais d'un ÉCHEC LISIBLE —
+       « rien n'a refusé », ce qui fait tomber les sept dates ci-dessous. */
+    try {
+      vm.runInContext(srcPJ + '\nfunction essai(yearToArchive) { const _next = yearToArchive + 1; ' + bloc + ' return null; }', ctx);
+      const sortie = vm.runInContext('essai', ctx)(annee);
+      return { refuse: refus !== null || sortie !== null, message: refus };
+    } catch (e) { return { refuse: false, message: '' }; }
+  };
+
+  V('le 17/08/2026, clôturer 2026 est REFUSÉ', refusePour(new Date(2026, 7, 17), 2026).refuse === true);
+  V('le 03/09/2026 aussi — veille du staff', refusePour(new Date(2026, 8, 3), 2026).refuse === true);
+  V('le 31/12/2026 encore : 2027 n\'a pas commencé', refusePour(new Date(2026, 11, 31), 2026).refuse === true);
+  /* L'année de PLANNING 2027 commence le premier lundi, pas le 1er janvier civil. */
+  V('le 01/01/2027 : toujours refusé', refusePour(new Date(2027, 0, 1), 2026).refuse === true);
+  V('le 03/01/2027 : refusé, c\'est le dimanche', refusePour(new Date(2027, 0, 3), 2026).refuse === true);
+  V('le 04/01/2027 : ACCEPTÉ — premier lundi de planning', refusePour(new Date(2027, 0, 4, 13), 2026).refuse === false);
+  V('le 10/01/2027 : accepté', refusePour(new Date(2027, 0, 10), 2026).refuse === false);
+
+  const m = refusePour(new Date(2026, 7, 17), 2026).message || '';
+  V('le refus annonce quand ce sera possible', /sera possible à partir du/.test(m), m.slice(0, 90));
+  V('le refus dit qu\'aucune modification n\'a été faite', /Aucune modification n'a été faite/.test(m));
+  V('le refus explique le danger, pas seulement l\'interdit', /planning en cours d'usage/.test(m));
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);

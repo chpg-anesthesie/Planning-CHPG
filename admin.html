@@ -1313,7 +1313,7 @@ if (sessionStorage.getItem('adminCode')) {
         </div>
         <div>
           <div class="action-label">Clôturer l'année</div>
-          <div class="action-desc">Vérifier, récapituler l'équité et archiver</div>
+          <div class="action-desc" id="clotureCardDesc">Vérifier, récapituler l'équité et archiver</div>
         </div>
         <span class="action-badge teal">Étape 3</span>
       </div>
@@ -3468,7 +3468,23 @@ function masquerBandeauCloture() {
   const el = document.getElementById('clotureBanner');
   if (el) el.style.display = 'none';
 }
+/* (17/08/2026) La carte dit elle-même quand elle sera utilisable : personne ne
+   doit avoir à cliquer pour apprendre que c'est trop tôt. */
+function majCarteCloture() {
+  const el = document.getElementById('clotureCardDesc');
+  if (!el || !YEAR) return;
+  const debut = _premierLundiISO(YEAR + 1);
+  if (todayStr() < debut) {
+    const d = new Date(debut + 'T12:00:00');
+    el.textContent = 'Disponible à partir du '
+      + d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  } else {
+    el.textContent = "Vérifier, récapituler l'équité et archiver";
+  }
+}
+
 function majBandeauCloture() {
+  majCarteCloture();
   const el = document.getElementById('clotureBanner');
   if (!el) return;
   el.style.display = 'none';
@@ -7740,6 +7756,30 @@ let wizCStatsData = null;
 let wizCPlanningOk = false;
 
 async function openWizardCloture() {
+  /* (17/08/2026) VERROU DE DATE — posé le jour où le code administrateur a été
+     remis au comité. Les garde-fous existants (côté serveur) portaient sur
+     l'EXISTENCE des onglets de l'année suivante, jamais sur la date : or ils
+     existaient depuis août, créés par le bac à sable de la démonstration du
+     4 septembre. La clôture était donc à deux clics pour n'importe quel membre
+     du comité, alors qu'elle déplace le planning EN COURS D'USAGE et bascule le
+     service sur l'année suivante. Le Diagnostic l'annonçait, le guide l'écrivait
+     — une consigne n'est pas un verrou.
+     Ici l'assistant ne s'ouvre même pas : c'est la protection qui compte contre
+     une exploration de bonne foi. Le refus serveur (Indispos.gs 2026-08-17.1)
+     est la seconde barrière, celle qui tient quel que soit l'écran. */
+  {
+    const debut = _premierLundiISO(YEAR + 1);
+    if (todayStr() < debut) {
+      const d = new Date(debut + 'T12:00:00');
+      const txt = d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+      const jours = Math.ceil((d - new Date()) / 86400000);
+      alert("Clôture indisponible.\n\nL'année " + (YEAR + 1) + " n'a pas encore commencé : la clôture de "
+        + YEAR + " sera possible à partir du " + txt + " (dans " + jours + " jour(s)).\n\n"
+        + "Archiver maintenant déplacerait le planning en cours d'usage et basculerait le service sur "
+        + (YEAR + 1) + ".\n\nRien n'a été modifié.");
+      return;
+    }
+  }
   wizCCurrentStep = 0; wizCStatsData = null; wizCPlanningOk = false;
   window._wizCDone = new Set(); // suivi de reprise : étapes de clôture déjà réussies
   document.getElementById('wizClotureYear').textContent = YEAR;

@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-16.1';
+const GAS_VERSION_INDISPOS = '2026-08-17.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -3329,6 +3329,34 @@ if (!affSheet) {
         return _error(`Année ${_next} non préparée : lancez d'abord « Démarrer l'année » (étape 1) avant de clôturer ${yearToArchive}.`);
       if (!_ssArch.getSheetByName(`STATS_GARDES_${_next}`))
         return _error(`Gardes ${_next} non générées : lancez d'abord la génération des gardes (étape 2) avant de clôturer ${yearToArchive}.`);
+      /* ── Garde-fou de DATE (17/08/2026) ────────────────────────────────────
+         Découvert la veille de la remise du code comité : les deux conditions
+         ci-dessus portent sur l'EXISTENCE des onglets de l'année suivante, pas
+         sur la date. Or elles étaient satisfaites dès août par le bac à sable de
+         la démonstration du 4 septembre — la clôture était donc à deux clics,
+         alors qu'archiver 2026 en août déplace le planning EN COURS D'USAGE et
+         bascule le service sur une année fictive. C'est l'erreur la plus coûteuse
+         du calendrier, et rien ne l'empêchait : le Diagnostic l'annonce, le guide
+         l'écrit, mais une consigne n'est pas un verrou. Un garde-fou ne doit pas
+         reposer sur la vigilance de qui clique.
+         La clôture n'a de sens qu'une fois l'année suivante COMMENCÉE : le
+         premier lundi de planning de _next (jamais le 1er janvier civil — voir
+         getPremierJourPlanning). Avant cette date : refus net, avec le jour exact. */
+      {
+        const _debutNext = getPremierJourPlanning(_next);
+        const _now = new Date();
+        if (_now < _debutNext) {
+          const _tz  = _ssArch.getSpreadsheetTimeZone();
+          const _txt = Utilities.formatDate(_debutNext, _tz, 'EEEE d MMMM yyyy');
+          const _j   = Math.ceil((_debutNext - _now) / 86400000);
+          logAction(`archiveYear REFUSÉ — ${yearToArchive} demandée le ${Utilities.formatDate(_now, _tz, 'yyyy-MM-dd')}, avant le ${_txt}`);
+          return _error(
+            `Clôture refusée : l'année ${_next} n'a pas encore commencé. `
+            + `La clôture de ${yearToArchive} sera possible à partir du ${_txt} (dans ${_j} jour(s)). `
+            + `Archiver maintenant déplacerait le planning en cours d'usage et basculerait le service sur ${_next}. `
+            + `Aucune modification n'a été faite.`);
+        }
+      }
       try {
         const rapport = String(archiveYear(yearToArchive) || '');
         const archiveOk = !/(^|\n)❌/.test(rapport);   // une ligne « ❌ » dans le rapport = étape échouée

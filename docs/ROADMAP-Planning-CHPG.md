@@ -4,9 +4,9 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.44** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.45** ·
 **GAS** (relevé fichier par fichier dans le dépôt le 17/08/2026) `code.gs` 2026-08-05.3 ·
-`Indispos.gs` 2026-08-16.1 · `miroir.gs` 2026-08-16.1 · `journal.gs` 2026-08-05.3 ·
+`Indispos.gs` 2026-08-17.1 · `miroir.gs` 2026-08-16.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
 `echanges.gs` 2026-08-14.3 · `generateur_gardes.gs` 2026-08-14.1 · `setup_annee.gs` 2026-08-08.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-13.4'` — **seule** version
@@ -86,6 +86,29 @@ la clé en direct. Testé en réel par Arthur : app fermée complètement puis r
 s'ouvraient plus du tout**, le MAR ne pouvant même plus taper son code. Avec 23 téléphones sur le wifi
 de l'hôpital un 4 septembre, c'était le scénario à ne pas prendre. Chaque page retombe désormais sur
 le comportement d'avant plutôt que de planter.
+
+**Un verrou posé juste avant de remettre le code au comité** *(17/08, v1.45, `Indispos.gs`
+2026-08-17.1)*. Arthur s'apprêtait à envoyer le code administrateur aux 3-4 membres du comité. Contrôle
+de dernière minute : la carte « 3 · Clôturer l'année » n'avait **aucun garde-fou de date**. Ses deux
+conditions portaient sur l'EXISTENCE des onglets de l'année suivante — or ils existaient depuis août,
+créés par le bac à sable de la démonstration. **Clôturer 2026 était donc à deux clics** pour n'importe
+quel membre du comité, ce qui aurait déplacé le planning EN COURS D'USAGE et basculé le service sur
+une année fictive. Le Diagnostic l'annonçait, le guide l'écrivait : *une consigne n'est pas un verrou.*
+Refus désormais **à deux niveaux**, avant le premier lundi de planning de l'année suivante (jamais le
+1er janvier civil), avec la date exacte, le motif, et « aucune modification n'a été faite » :
+1. **Sur l'écran** (`admin.html`) — l'assistant ne s'ouvre pas, et la carte affiche d'elle-même
+   « Disponible à partir du lundi 4 janvier 2027 » : personne n'a à cliquer pour l'apprendre.
+2. **Sur le serveur** (`Indispos.gs` 2026-08-17.1) — la barrière qui tient quel que soit l'écran.
+
+⚠️ **Arthur n'avait pas accès à son PC au moment de remettre le code** : seul le verrou d'écran est
+actif, le serveur attend sa recopie. Pour le risque réel — un membre du comité qui explore de bonne
+foi — l'écran suffit ; le serveur reste à déployer dès que possible.
+
+**Et une leçon sur le banc lui-même.** Ma première version du test T130 rejouait la règle de date
+**réécrite dans le test** : la contre-épreuve a montré qu'elle continuait de passer une fois le
+garde-fou retiré du serveur. Réécrit pour **extraire et exécuter le bloc du serveur** ; sans lui,
+10 vérifications tombent. C'est le même défaut que celui relevé le matin sur `banc_miroir.js` —
+*un test qui recopie ne protège que la copie* —, commis à nouveau trois heures plus tard.
 
 **La révocation est vérifiée en production** *(17/08, 12 h 11)*. Arthur a régénéré son propre code
 depuis l'onglet Équipe, téléphone connecté : l'appareil a bien été éjecté à l'ouverture suivante, et
@@ -2158,7 +2181,7 @@ aucune n'écrit plus de numéro en dur, et le banc comme le Diagnostic refusent 
 Deux chiffres, pas trois : le troisième ne disait rien à personne dans le service.
 Patch → 2ᵉ chiffre · **v2.0 réservée au 5/09**, jour où le portail s'ouvre aux 23 (l'ouverture vaut
 un premier chiffre ; la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.44** (17/08/2026).
+**Version en cours : v1.45** (17/08/2026).
 
 ---
 

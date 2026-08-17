@@ -29,6 +29,17 @@ d'Arthur : le wizard 2 **ne régénère pas** une année déjà générée (donc
 être effacée, sinon la démonstration affiche « 730 gardes » sans calcul et sans message), et l'ordre
 **nettoyage puis envoi des codes** (sinon un curieux voit la veille au soir des gardes fictives).
 
+**Verrou de clôture posé le 17/08, juste avant la remise du code administrateur au comité.** La carte
+« Clôturer l'année » n'avait aucun contrôle de date : ses conditions portaient sur l'existence des
+onglets de l'année suivante, satisfaits depuis août par le bac à sable de la démonstration. Clôturer
+2026 était à deux clics — le planning en cours d'usage déplacé, le service basculé sur une année
+fictive. Refus côté serveur désormais, avant le premier lundi de planning de l'année suivante.
+**Une consigne dans un guide n'est pas un verrou** : c'est la règle à appliquer chaque fois qu'un
+geste destructeur devient accessible à plus d'une personne.
+Leçon jumelle sur le banc : ma première version du test rejouait la règle réécrite **dans le test**,
+et passait encore une fois le garde-fou retiré du serveur. Même défaut que le matin sur `banc_miroir`,
+commis trois heures plus tard — *un test qui recopie ne protège que la copie*.
+
 **Révocation vérifiée en production le 17/08 à 12 h 11** : code régénéré depuis l'onglet Équipe,
 téléphone éjecté à l'ouverture suivante, reconnexion et 30 jours repartis. Sans ce geste d'urgence
 prouvé, la mémoire longue ne serait pas acceptable.
@@ -1484,7 +1495,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site — actuellement **v1.44**, source unique `version.js`
+## Version du site — actuellement **v1.45**, source unique `version.js`
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
