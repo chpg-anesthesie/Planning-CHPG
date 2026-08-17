@@ -39,6 +39,12 @@ page bascule sur Google — d'où la lenteur — et la carte « Mes échanges »
 miroir, reste masquée. Comportement correct, réparation automatique, **mais invisible** : Arthur l'a
 pris pour un défaut. Encadré ajouté au guide comité. *Une minute d'attente non écrite coûte un appel.*
 
+**Envoi des codes fixé au 04/09 à 12 h 30** *(Arthur, 17/08 — le staff débute à 14 h)*. Ce choix
+supprime la fenêtre de curiosité : personne ne peut se connecter avant la séance. En contrepartie il
+n'y a plus de nuit pour rattraper une adresse fausse — d'où le Diagnostic du matin (« MARs actifs sans
+code d'accès » doit dire *aucun*), l'envoi d'essai à un seul destinataire à 12 h 30, et la lecture du
+compte rendu qui **nomme** ceux qui n'ont rien reçu.
+
 **Deux leçons.**
 
 1. **« C'est trop risqué avant l'échéance » est un réflexe, pas un argument.** J'ai conseillé
@@ -1478,7 +1484,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site — actuellement **v1.43**, source unique `version.js`
+## Version du site — actuellement **v1.44**, source unique `version.js`
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
@@ -1499,7 +1505,7 @@ produisait des « v1.34.10 » qui font perdre confiance plus qu'ils n'informent.
 
 | Nature du changement | Incrément | Exemple |
 |---|---|---|
-| Nouveauté visible, correction, ajustement | **2ᵉ chiffre** — `1.42` → `1.43` | guide comité : la minute après une régénération |
+| Nouveauté visible, correction, ajustement | **2ᵉ chiffre** — `1.43` → `1.44` | envoi des codes le 4/09 à 12 h 30 |
 | Ouverture majeure | **1ᵉʳ chiffre** — `1.x` → `2.0` | ouverture du portail aux 23 (5/09) |
 
 Une modification purement GAS (sans page touchée) ne change PAS la version du site : elle a ses

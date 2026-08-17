@@ -4,7 +4,7 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.43** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.44** ·
 **GAS** (relevé fichier par fichier dans le dépôt le 17/08/2026) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-16.1 · `miroir.gs` 2026-08-16.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
@@ -2158,7 +2158,7 @@ aucune n'écrit plus de numéro en dur, et le banc comme le Diagnostic refusent 
 Deux chiffres, pas trois : le troisième ne disait rien à personne dans le service.
 Patch → 2ᵉ chiffre · **v2.0 réservée au 5/09**, jour où le portail s'ouvre aux 23 (l'ouverture vaut
 un premier chiffre ; la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.43** (17/08/2026).
+**Version en cours : v1.44** (17/08/2026).
 
 ---
 
@@ -2233,10 +2233,26 @@ perdue) mais **en démonstration il est fatal** : la salle verrait « 730 gardes
 instantanément sans qu'aucun calcul n'ait eu lieu, et la répétition du 28/08 aurait justement laissé
 les onglets en place. *Aucun message d'erreur n'apparaît : c'est un succès silencieux.*
 
-**J-1 ou H-1 — les 24 adresses mail, puis l'envoi des codes.** *(plan d'Arthur, 16/08)*
+**LE MATIN DU 04/09 — les 24 adresses mail, puis l'envoi des codes à 12 h 30.**
+*(décidé par Arthur le 17/08 : le staff débute à 14 h, les codes partent en début d'après-midi.)*
 Les 24 MAR actifs sans adresse sont saisis dans `MEDECINS`, colonne EMAIL, puis
 Maintenance → **Envoyer aux MARs sélectionnés**. Les codes existent déjà (un seul MAR n'en a pas :
 TRAN) — l'envoi **ne régénère rien**, il transmet le code en place.
+
+**Ce que ce choix règle, et ce qu'il crée.** Envoyer une heure et demie avant la séance supprime
+*entièrement* la fenêtre de curiosité : personne ne peut se connecter avant, donc plus aucun risque
+qu'un MAR tombe sur des gardes 2027 fictives, et l'ordre nettoyage → envoi cesse d'être critique.
+En contrepartie, **il n'y a plus de nuit pour rattraper une adresse fausse** : si un code ne
+fonctionne pas à 14 h 05, c'est devant la salle. D'où la marge de 1 h 20 et le contrôle préalable.
+
+| Heure | Geste |
+|---|---|
+| Matin | Nettoyage du bac à sable, JSON du Drive, synchronisation, désactivation de TRAN, saisie des 24 adresses |
+| Matin, **en dernier** | **Diagnostic** — la ligne « MARs actifs sans code d'accès » doit dire **aucun**. Seul contrôle qui garantit que les 25 envois auront un code à transmettre |
+| 12 h 30 | **Envoi d'essai à un seul destinataire** (Arthur). Vérifier la réception *et le dossier* |
+| 12 h 40 | Envoi aux autres |
+| 12 h 45 | Lire le compte rendu : il **nomme** ceux qui n'ont rien reçu, faute d'adresse ou de code |
+| 14 h | Staff |
 
 Quatre points vérifiés :
 
@@ -2245,23 +2261,19 @@ Quatre points vérifiés :
 - **Quota.** Compte Google gratuit = 100 envois/jour. Avec 25 destinataires, `_quotaEmailInsuffisant_`
   laisse passer et il reste de quoi refaire un envoi complet le même jour. Le Diagnostic affiche le
   reste avant de partir.
-- **ORDRE IMPÉRATIF : la remise à zéro AVANT l'envoi des codes.** Dès qu'un code est reçu, son
-  détenteur peut se connecter. `dashboard.html` demande `planning_{année active + 1}` **à chaque
-  ouverture** depuis la v1.30.2 : si les fichiers 2027 de la répétition sont encore publiés, un MAR
-  curieux verrait, la veille au soir, des **gardes 2027 fictives** annoncées comme les siennes.
-  Envoyer les codes après le nettoyage supprime entièrement ce risque.
+- **L'ordre nettoyage → envoi reste la règle**, même s'il devient peu risqué à cette heure-là :
+  `dashboard.html` demande `planning_{année active + 1}` **à chaque ouverture** depuis la v1.30.2, donc
+  des fichiers 2027 encore publiés montreraient des gardes fictives au premier MAR qui se connecte.
 - **TRAN** part le 01/09 : le désactiver avant l'envoi, sinon il figure dans la liste et le compte
   rendu le signalera « sans code ».
 
 **Prudence sur l'envoi groupé** : 25 messages identiques partant d'une adresse Gmail en quelques
-secondes peuvent être classés en indésirables. Envoyer **d'abord à un seul destinataire** (le MAR
-pilote), vérifier qu'il l'a reçu **et où**, puis lancer le reste. Le mot « regardez aussi vos
-indésirables » est à dire à l'oral à la diapo 7, quoi qu'il arrive.
+secondes, c'est le profil type de ce que les filtres écartent. L'envoi d'essai de 12 h 30 dit **dans
+quel dossier** chercher — et permet de l'annoncer avec certitude plutôt que d'espérer.
 
-*Choix J-1 ou H-1 :* H-1 est plus sûr (fenêtre de curiosité quasi nulle) mais ne laisse aucune marge
-si un mail n'arrive pas. J-1 au soir laisse la nuit pour rattraper un problème d'adresse — et devient
-sans risque une fois la remise à zéro faite avant l'envoi. **J-1 au soir, après nettoyage, est le
-meilleur compromis.**
+**À dire dès l'ouverture de la séance, avant même la diapo 7** : « vous avez reçu il y a une heure un
+mail de *planningchpg@gmail.com*, objet **[Planning CHPG Monaco] Votre code d'accès**. Sortez-le
+maintenant — et regardez vos indésirables. »
 
 #### PENDANT — ce qui doit être vrai au moment de la démonstration
 
@@ -2270,7 +2282,7 @@ meilleur compromis.**
 | `INDISPOS_2027` présent et rempli | matière première de la génération en direct |
 | `GARDES_2027` **absent** | sinon le wizard ne génère pas (garde d'idempotence) |
 | Canal de notifications **ouvert** | fait le 16/08 par Arthur — sans quoi l'abonnement de la diapo 7 est refusé et aucun téléphone ne sonne à la diapo 28 |
-| Codes reçus | la diapo 7 leur demande d'installer l'app **et** de s'y connecter |
+| Codes reçus (envoyés à 12 h 30) | la diapo 7 leur demande d'installer l'app **et** de s'y connecter |
 | Quota email disponible | les récapitulatifs de génération partent en fin de démonstration |
 
 Deux gestes pendant la séance : **diapo 7**, faire installer l'app et activer les notifications
