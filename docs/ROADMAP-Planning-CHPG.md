@@ -13,10 +13,11 @@ portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'ane
 écrite dans le fichier depuis le 16/08 (le commentaire d'en-tête qui la doublait a été supprimé,
 le banc refuse qu'un second numéro réapparaisse).
 
-**Rien en attente de déploiement.** `Indispos.gs` et `miroir.gs` (2026-08-16.1) ont été recopiés et
-déployés, et le Worker redéployé, le 16/08 au soir. **Confirmé par Arthur au diagnostic : le bloc
-« Version du site » ne sonne plus en rouge.** C'est le contrôle qui fait foi ici, pas le fait d'avoir
-poussé — coder, livrer et déployer restent trois étapes distinctes.
+**Rien en attente de déploiement.** `miroir.gs` (2026-08-16.1) et le Worker le 16/08 au soir ;
+`Indispos.gs` deux fois, en 2026-08-16.1 puis en **2026-08-17.1** (verrou de clôture), recopié et
+déployé le 17/08 dans la foulée du push. **Confirmé par Arthur au diagnostic après la première
+recopie : le bloc « Version du site » ne sonne plus en rouge.** C'est le contrôle qui fait foi ici,
+pas le fait d'avoir poussé — coder, livrer et déployer restent trois étapes distinctes.
 
 **Le numéro de version du site vit dans UN seul fichier : `version.js`** (`window.SITE_VERSION`,
 depuis le 14/08/2026). Il n'y a plus de marqueurs à compter ni à recopier : toute page qui doit
@@ -33,7 +34,7 @@ PLUS `banc_notif.mjs` qui compte au format `35 ✓ / 0 ✗`. Recompter, ne pas r
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 17 août 2026 (matin).*
+*Mise à jour : 17 août 2026 (12 h).*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -100,9 +101,10 @@ Refus désormais **à deux niveaux**, avant le premier lundi de planning de l'an
    « Disponible à partir du lundi 4 janvier 2027 » : personne n'a à cliquer pour l'apprendre.
 2. **Sur le serveur** (`Indispos.gs` 2026-08-17.1) — la barrière qui tient quel que soit l'écran.
 
-⚠️ **Arthur n'avait pas accès à son PC au moment de remettre le code** : seul le verrou d'écran est
-actif, le serveur attend sa recopie. Pour le risque réel — un membre du comité qui explore de bonne
-foi — l'écran suffit ; le serveur reste à déployer dès que possible.
+**Les deux niveaux sont actifs depuis le 17/08.** Arthur n'ayant pas eu accès à son PC au moment de
+remettre le code au comité, le verrou d'écran a tenu seul pendant une heure — suffisant pour le risque
+réel, un membre du comité qui explore de bonne foi. `Indispos.gs` 2026-08-17.1 a été recopié et
+déployé dans la foulée.
 
 **Et une leçon sur le banc lui-même.** Ma première version du test T130 rejouait la règle de date
 **réécrite dans le test** : la contre-épreuve a montré qu'elle continuait de passer une fois le
