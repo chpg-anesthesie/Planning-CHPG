@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-08-08.2';
+const GAS_VERSION_PORTAIL = '2026-08-17.1';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -872,6 +872,27 @@ function getOrCreateLiberalCaTab(year) {
   return sh;
 }
 
+/* (17/08/2026) LE MOIS DU RELEVE PEUT ETRE UNE DATE, PAS DU TEXTE.
+   getOrCreateLiberalCaTab ecrit la chaine '2026-07' ; Sheets la RECONNAIT comme
+   une date et stocke une vraie date. getValues() renvoie alors un objet Date,
+   dont String() donne 'Wed Jul 01 2026 00:00:00 GMT+0200'. Constate le
+   17/08/2026 sur les 228 cellules de LIBERAL_CA_2026. Deux consequences, vues
+   a l'ecran : la page affichait « cumul janvier -> undefined Wed », et le
+   « dernier mois », choisi par un tri alphabetique, comparait des NOMS DE JOURS
+   ANGLAIS — il serait reste bloque sur juillet jusqu'en decembre (Sat, Sun,
+   Thu, Tue passent tous avant Wed).
+   On normalise ICI, a la lecture : le classeur n'est pas touche, les mois deja
+   saisis sont rattrapes, et 'AAAA-MM' se trie de nouveau dans l'ordre.
+   Canard-typage volontaire (pas `instanceof Date`) : au banc, la date vient
+   d'un autre contexte d'execution et `instanceof` y serait faux. */
+function _libMoisISO_(v) {
+  if (v && typeof v.getFullYear === 'function' && !isNaN(v.getTime())) {
+    return v.getFullYear() + '-' + ('0' + (v.getMonth() + 1)).slice(-2);
+  }
+  const m = /^(\d{4})-(\d{2})/.exec(String(v == null ? '' : v).trim());
+  return m ? (m[1] + '-' + m[2]) : '';
+}
+
 // Lecture : lignes NON VIDES de l'annee. Un mois non encore recopie n'existe pas.
 function getReleveLiberal(payload) {
   const year = parseInt(payload && payload.year, 10) || _libYearOf(_todayISO_());
@@ -899,7 +920,7 @@ function getReleveLiberal(payload) {
   }
   const items = [];
   for (let r = 1; r < rows.length; r++) {
-    const mois = String(rows[r][0] || '').trim();
+    const mois = _libMoisISO_(rows[r][0]);          // Date OU texte -> 'AAAA-MM'
     const id   = String(rows[r][1] || '').trim();
     if (!mois || !id) continue;
     const meta = noms[id] || {};

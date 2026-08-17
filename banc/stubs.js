@@ -52,6 +52,11 @@ function _coerceSheets(v) {
   if (typeof v === 'string') {
     if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return new Date(v + 'T00:00:00');
     if (/^\d{4}-\d{2}-\d{2}T[\d:.]+Z?$/.test(v)) return new Date(v);
+    /* (17/08/2026 — défaut trouvé en production, invisible au banc) Le vrai
+       Sheets transforme AUSSI « 2026-07 » (un mois sans jour) en date, au
+       1er du mois. La doublure rendait ce texte tel quel : le relevé libéral
+       paraissait sain ici alors qu'il ne l'était pas dans le classeur. */
+    if (/^\d{4}-\d{2}$/.test(v)) return new Date(v + '-01T00:00:00');
   }
   return v;
 }
