@@ -4,8 +4,8 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.39** ·
-**GAS** (relevé fichier par fichier dans le dépôt le 16/08/2026) `code.gs` 2026-08-05.3 ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.42** ·
+**GAS** (relevé fichier par fichier dans le dépôt le 17/08/2026) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-16.1 · `miroir.gs` 2026-08-16.1 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-08.2 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
 `echanges.gs` 2026-08-14.3 · `generateur_gardes.gs` 2026-08-14.1 · `setup_annee.gs` 2026-08-08.1 ·
@@ -26,14 +26,14 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **1126 vérifications** sur 28 scripts (relevé le 16/08/2026 au soir),
+**Banc d'essai** `banc/` — **1147 vérifications** sur 28 scripts (relevé le 17/08/2026 à 11 h),
 `cd banc && ./lancer.sh`. *(Comptage : somme des récapitulatifs de fin de chaque script, MOINS le
 sous-total de 9 que `banc.js` imprime au milieu et réintègre ensuite dans son propre total de 19,
 PLUS `banc_notif.mjs` qui compte au format `35 ✓ / 0 ✗`. Recompter, ne pas recopier.)*
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 16 août 2026 (soir).*
+*Mise à jour : 17 août 2026 (matin).*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -45,6 +45,58 @@ le Worker ou `partage/dispo_jour.js`.
 > `docs/module-liberal/module_liberal_conception.md`.
 
 ---
+
+## 17 août 2026 (matin) — v1.38 à v1.41 : le deck corrigé, la séquence du 4 septembre, et le code retenu 30 jours
+
+Suite directe de la session de la veille, après une nuit. **Quatre push, banc de 1126 à 1147
+vérifications, 0 échec.**
+
+**Le deck du 4 septembre — dix corrections d'Arthur.** Une seule touchait le fond : diapo 28,
+« vos téléphones vibrent ». Vérification faite, la notification de fin de génération part bien à
+**tous** les abonnés (`notifierPush_` sans cible) — mais l'abonnement était encore verrouillé aux
+seuls comité et pilotes. En l'état, une vingtaine de personnes auraient touché « Activer les
+notifications » à la diapo 7 pour recevoir un refus, et **aucun téléphone n'aurait sonné à la démo**.
+Arthur a ouvert le canal dans la foulée. Les autres corrections : `PRIORITÉ` → `AXE` avec le mot posé
+dans le texte, « 1 minute » au lieu de « 15 secondes », deux étapes sur six qui demandent quelque
+chose aux MAR, SEVERAC au féminin (diapo **et** notes d'orateur), « c'est illégal » retiré,
+« mois chargés » défini comme « mois à plus de 4 gardes », et le bandeau défilant de `staff.html`
+reproduit à l'identique sur la diapo 12 — figé, puisqu'une diapo projetée n'est pas connectée, et
+stable puisque le calcul des prioritaires ne regarde que les années passées.
+
+**La séquence du 04/09 — avant, pendant, après.** Le plan d'Arthur (saisir les 24 adresses la veille
+pour que les codes arrivent le matin) a été vérifié dans le code plutôt que validé sur parole, et
+**deux points en sont sortis** : la garde d'idempotence du wizard 2, qui ferait afficher « 730 gardes »
+sans aucun calcul si le bac à sable de la répétition n'est pas effacé ; et l'ordre nettoyage → envoi
+des codes, sans lequel un curieux verrait la veille au soir des gardes 2027 fictives données pour les
+siennes. Détail en section dédiée.
+
+**Le code d'accès retenu 30 jours glissants, et seulement dans l'app installée** (v1.40). Le code
+vivait en `sessionStorage` : iOS fermant volontiers les apps web, un MAR retapait ses 8 caractères à
+peu près chaque jour. Arthur a tranché contre mon avis sur le calendrier — et il avait raison : le
+risque est de pousser *la veille*, pas de pousser à 19 jours avec une répétition le 28 pour le
+prouver. C'est la première semaine d'adoption qui juge un outil.
+Choix : 30 jours glissants, **uniquement dans l'app posée sur l'écran d'accueil**. Depuis un
+navigateur — donc peut-être un poste du bloc — rien n'est mémorisé : gain de sécurité autant que de
+confort. Le comité garde la main, le code étant revalidé à chaque ouverture : régénérer un code éjecte
+le téléphone aussitôt. `partage/session.js` est le point unique ; le banc refuse qu'une page touche à
+la clé en direct. Testé en réel par Arthur : app fermée complètement puis rouverte, pas d'écran de code.
+
+**Le banc a trouvé un défaut avant la production.** Première version : les pages appelaient
+`CHPGSession` sans filet. Si `partage/session.js` ne se charge pas — réseau, cache — elles **ne
+s'ouvraient plus du tout**, le MAR ne pouvant même plus taper son code. Avec 23 téléphones sur le wifi
+de l'hôpital un 4 septembre, c'était le scénario à ne pas prendre. Chaque page retombe désormais sur
+le comportement d'avant plutôt que de planter.
+
+**Deux leçons.**
+
+1. **« C'est trop risqué avant l'échéance » n'est pas un argument, c'est un réflexe.** Le risque
+   dépend de la date de livraison ET du temps de vérification qui reste. À 19 jours avec une
+   répétition programmée, la friction quotidienne d'un code retapé pesait plus lourd que le risque
+   d'une modification testée.
+2. **Une date écrite est une donnée, pas une politesse.** Cette session-ci a passé minuit et j'ai daté
+   du 16 des fichiers écrits le 17 — dans un projet où l'on retrouve *quand* une décision a été prise
+   en lisant les commentaires du code. Corrigé dans les huit fichiers concernés ; l'heure se relève,
+   elle ne se suppose pas.
 
 ## 16 août 2026 (soir) — v1.36 : le guide du comité restructuré, et un Diagnostic qui redit la vérité
 
@@ -2091,7 +2143,7 @@ aucune n'écrit plus de numéro en dur, et le banc comme le Diagnostic refusent 
 Deux chiffres, pas trois : le troisième ne disait rien à personne dans le service.
 Patch → 2ᵉ chiffre · **v2.0 réservée au 5/09**, jour où le portail s'ouvre aux 23 (l'ouverture vaut
 un premier chiffre ; la version est un repère pour les utilisateurs, pas pour le développeur).
-**Version en cours : v1.39** (16/08/2026).
+**Version en cours : v1.42** (17/08/2026).
 
 ---
 
@@ -2144,7 +2196,7 @@ Reste à faire, par ordre de criticité :
    `getConflitsAll` via l'année passée en paramètre) travaillent **toujours sur l'année préparée, jamais
    sur l'année en cours** — vérifié en lecture de code le 30/07. Ne pas chercher 2026 dedans.
 
-### La séquence du 04/09 — avant, pendant, après *(écrite le 16/08/2026)*
+### La séquence du 04/09 — avant, pendant, après *(écrite le 17/08/2026)*
 
 Trois moments, trois listes. Celle du soir (le ménage) existait déjà ; celles d'avant et de pendant
 manquaient, et **deux points vérifiés dans le code feraient rater la démonstration** s'ils restaient

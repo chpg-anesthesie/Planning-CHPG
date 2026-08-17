@@ -1,6 +1,6 @@
 /* ═════════════════════════════════════════════════════════════════════════════
    SESSION DES MAR — où vit le code d'accès, et combien de temps
-   (16/08/2026) Source UNIQUE pour dashboard.html, index.html et indispos.html.
+   (17/08/2026) Source UNIQUE pour dashboard.html, index.html et indispos.html.
 
    LE PROBLÈME. Le code était gardé en sessionStorage : il ne survit pas à la
    fermeture de l'app. Or iOS ferme volontiers les apps web en arrière-plan —
@@ -8,7 +8,7 @@
    Sur un portail qu'on ouvre pour vérifier une garde en trente secondes, c'est
    la friction qui décide si l'outil est utilisé ou pas.
 
-   LE CHOIX (Arthur, 16/08/2026) : ni l'un ni l'autre des deux extrêmes.
+   LE CHOIX (Arthur, 17/08/2026) : ni l'un ni l'autre des deux extrêmes.
      · 30 JOURS GLISSANTS. L'échéance est repoussée à chaque ouverture. Qui
        consulte, même une fois par mois, ne retape jamais. Un téléphone oublié
        dans un tiroir cesse d'ouvrir le portail au bout d'un mois.

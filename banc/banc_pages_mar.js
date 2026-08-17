@@ -662,7 +662,7 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('il ne reçoit PAS celles des autres', !(parMar && parMar.BRAVO), parMar && Object.keys(parMar));
   }
 
-  /* ═══ 28d. LA MÉMOIRE DU CODE D'ACCÈS (16/08/2026) ═══
+  /* ═══ 28d. LA MÉMOIRE DU CODE D'ACCÈS (17/08/2026) ═══
      Le code était gardé le temps d'un onglet : iOS fermant les apps web en
      arrière-plan, un MAR retapait ses 8 caractères à peu près chaque jour.
      Choix d'Arthur : 30 jours glissants, MAIS seulement dans l'app installée —
@@ -771,7 +771,7 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
         .filter(l => /sessionStorage\.\w+\('chpgViewCode'/.test(l) && !/CHPG_FALLBACK|window\.CHPGSession = window\.CHPGSession/.test(l));
       const fautives = ['dashboard.html', 'index.html', 'indispos.html'].filter(f => horsFilet(f).length);
       V('aucune page ne touche à la clé sans passer par le partage', fautives.length === 0, fautives);
-      /* (16/08/2026) Le banc a trouvé ceci AVANT la production : sans filet, une page
+      /* (17/08/2026) Le banc a trouvé ceci AVANT la production : sans filet, une page
          dont le partage ne se charge pas appelle CHPGSession dans le vide et ne s'ouvre
          PLUS — le MAR ne peut même plus taper son code. */
       const sansFilet = ['dashboard.html', 'index.html', 'indispos.html']

@@ -11,6 +11,34 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 17 août 2026 (matin) — v1.41 : le code d'accès retenu 30 jours, et la séquence du 4 septembre écrite
+
+**Le code d'accès ne se retape plus.** Il vivait en `sessionStorage` — iOS ferme volontiers les apps
+web en arrière-plan, donc un MAR retapait ses 8 caractères à peu près chaque jour. Sur un portail
+qu'on ouvre trente secondes pour vérifier une garde, c'est cette friction qui décide de l'usage.
+Choix d'Arthur : **30 jours glissants, uniquement dans l'app installée**. Depuis Safari ou Chrome —
+donc peut-être un poste du bloc — rien n'est mémorisé. Le comité garde la main : le code est revalidé
+à chaque ouverture, donc régénérer un code éjecte le téléphone. `partage/session.js` est le point
+unique, et le banc refuse qu'une page touche à la clé en direct.
+
+**Le banc a trouvé le défaut avant la production** : sans filet, une page dont le partage ne se
+charge pas ne s'ouvrait plus du tout — le MAR ne pouvait même plus taper son code.
+
+**La séquence du 4 septembre est écrite en entier.** Deux points sortis de la vérification du plan
+d'Arthur : le wizard 2 **ne régénère pas** une année déjà générée (donc la répétition du 28/08 doit
+être effacée, sinon la démonstration affiche « 730 gardes » sans calcul et sans message), et l'ordre
+**nettoyage puis envoi des codes** (sinon un curieux voit la veille au soir des gardes fictives).
+
+**Deux leçons.**
+
+1. **« C'est trop risqué avant l'échéance » est un réflexe, pas un argument.** J'ai conseillé
+   d'attendre après le 4 septembre pour la mémorisation du code ; Arthur a tranché l'inverse et il
+   avait raison. Le risque dépend de la date de livraison *et* du temps de vérification qui reste —
+   à 19 jours, avec une répétition programmée, la friction quotidienne pesait plus lourd.
+2. **Une date écrite est une donnée.** La session a passé minuit et j'ai daté du 16 des fichiers
+   écrits le 17, dans un projet où l'on retrouve quand une décision a été prise en lisant les
+   commentaires. L'heure se relève, elle ne se suppose pas.
+
 ## État au 16 août 2026 (soir) — v1.36 : le guide du comité prêt à être envoyé, banc à 1119 vérifications
 
 Session de préparation à l'ouverture du comité : Arthur envoie le code et le lien de `admin.html` à
@@ -1440,7 +1468,7 @@ responsabilité → projet DSI).
 Détail complet : `docs/module-liberal/module_liberal_conception.md` §11 ter.
 
 
-## Version du site — actuellement **v1.39**, source unique `version.js`
+## Version du site — actuellement **v1.42**, source unique `version.js`
 
 ### 🔴 RÈGLE PERMANENTE (demandée par Arthur le 20/07/2026)
 
@@ -1461,7 +1489,7 @@ produisait des « v1.34.10 » qui font perdre confiance plus qu'ils n'informent.
 
 | Nature du changement | Incrément | Exemple |
 |---|---|---|
-| Nouveauté visible, correction, ajustement | **2ᵉ chiffre** — `1.38` → `1.39` | séquence du 4 septembre ajoutée |
+| Nouveauté visible, correction, ajustement | **2ᵉ chiffre** — `1.41` → `1.42` | dates corrigées, documents au réel |
 | Ouverture majeure | **1ᵉʳ chiffre** — `1.x` → `2.0` | ouverture du portail aux 23 (5/09) |
 
 Une modification purement GAS (sans page touchée) ne change PAS la version du site : elle a ses

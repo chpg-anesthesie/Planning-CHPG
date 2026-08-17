@@ -63,7 +63,7 @@ body {
   font-size:13px; font-weight:600;
   white-space:nowrap; flex-shrink:0;
 }
-/* (16/08/2026) La pastille du MAR ouvre la deconnexion, exactement comme sur
+/* (17/08/2026) La pastille du MAR ouvre la deconnexion, exactement comme sur
    dashboard.html et index.html. AUCUN bouton ajoute : le code etant desormais
    memorise 30 jours dans l'app installee, il faut pouvoir le retirer — mais pas
    au prix d'un element de plus dans un bandeau deja etroit sur telephone.
@@ -472,8 +472,8 @@ body {
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script src="partage/session.js"></script>   <!-- (16/08/2026) source unique : où vit le code d'accès, et 30 jours glissants -->
-<script>/* CHPG_FALLBACK — filet (16/08/2026). Si partage/session.js ne se charge pas
+<script src="partage/session.js"></script>   <!-- (17/08/2026) source unique : où vit le code d'accès, et 30 jours glissants -->
+<script>/* CHPG_FALLBACK — filet (17/08/2026). Si partage/session.js ne se charge pas
 (réseau, cache), les pages l'appelleraient dans le vide et NE S'OUVRIRAIENT PLUS : le MAR ne
 pourrait même plus taper son code. On retombe alors sur le comportement d'avant — le code vit
 le temps de l'onglet — au lieu de planter. Jamais de mémoire longue ici : mieux vaut retaper
@@ -593,7 +593,7 @@ async function doLogin(codeAuto, silencieux) {
   return false;
 }
 
-/* (16/08/2026) Pastille du MAR : le nom, et la deconnexion derriere.
+/* (17/08/2026) Pastille du MAR : le nom, et la deconnexion derriere.
    Efface le code des DEUX endroits (onglet + memoire de 30 jours) : un code
    retire d'un seul reviendrait a l'ouverture suivante. */
 function _poserPastilleUser(nom) {
