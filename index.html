@@ -17,6 +17,13 @@
 <meta name="apple-mobile-web-app-title" content="Planning CHPG">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="partage/session.js"></script>   <!-- (16/08/2026) source unique : où vit le code d'accès, et 30 jours glissants -->
+<script>/* CHPG_FALLBACK — filet (16/08/2026). Si partage/session.js ne se charge pas
+(réseau, cache), les pages l'appelleraient dans le vide et NE S'OUVRIRAIENT PLUS : le MAR ne
+pourrait même plus taper son code. On retombe alors sur le comportement d'avant — le code vit
+le temps de l'onglet — au lieu de planter. Jamais de mémoire longue ici : mieux vaut retaper
+son code que le voir retenu par un filet dont personne ne vérifie l'échéance. */
+window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionStorage.getItem('chpgViewCode')||'';}catch(e){return '';}}, memoriser:function(c){try{sessionStorage.setItem('chpgViewCode',c);}catch(e){}}, oublier:function(){try{sessionStorage.removeItem('chpgViewCode');}catch(e){}}, estInstallee:function(){return false;}, joursRestants:function(){return null;}, DUREE_JOURS:0 };</script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 <style>
 /* polices chargées via <link> (perf : @import bloquant supprimé) */
@@ -959,8 +966,8 @@ function applyUserBadge(r){
   }
 }
 function logout(){
-  if (!confirm('Se déconnecter et changer d\'utilisateur ?')) return;
-  try { sessionStorage.removeItem('chpgViewCode'); } catch(e){}
+  if (!confirm('Se déconnecter de ce téléphone ?')) return;
+  CHPGSession.oublier();
   VIEW_CODE = ''; MY_ID = null;
   location.reload();
 }
@@ -1185,12 +1192,12 @@ async function viewLogin() {
        seul juge de la validite d'un code (un code change il y a moins d'une
        heure peut manquer au miroir : le GAS tranche). */
     if (await miroirBoot() === true) {
-      sessionStorage.setItem('chpgViewCode', code);
+      CHPGSession.memoriser(code);
       try { if (window.PERF) PERF.jalon('ouverture via miroir'); } catch(e) {}
     } else {
       const r = await apiPost({action: 'login'});
       if (r && r.success) {
-        sessionStorage.setItem('chpgViewCode', code);
+        CHPGSession.memoriser(code);
         try { if (window.PERF) PERF.jalon('reponse serveur recue'); } catch(e) {}
         applyUserBadge(r);
         document.getElementById('viewAuthOverlay').style.display = 'none';
@@ -1205,7 +1212,7 @@ async function viewLogin() {
 }
 
 async function viewAutoLogin() {
-  const saved = sessionStorage.getItem('chpgViewCode');
+  const saved = CHPGSession.lire();
   if (!saved) return; // pas de code en cache → écran de connexion affiché
   VIEW_CODE = saved;
   document.getElementById('viewAuthOverlay').style.display = 'none'; // masqué tout de suite (code en cache) → plus de clignotement
@@ -1217,7 +1224,7 @@ async function viewAutoLogin() {
       applyUserBadge(r);
       init(r.year);   // (perf) idem : année fournie par le login
     } else {
-      VIEW_CODE = ''; sessionStorage.removeItem('chpgViewCode');
+      VIEW_CODE = ''; CHPGSession.oublier();
       document.getElementById('viewAuthOverlay').style.display = 'flex';
     }
   } catch(e) { VIEW_CODE = ''; document.getElementById('viewAuthOverlay').style.display = 'flex'; }
@@ -1611,7 +1618,7 @@ async function loadYear(year) {
     const msg = String((e && e.message) || e || '');
     if (/invalide|code/i.test(msg)) {
       // Auth : la session n'est plus valide → retour propre à l'écran de connexion
-      try { sessionStorage.removeItem('chpgViewCode'); } catch(_) {}
+      CHPGSession.oublier();
       VIEW_CODE = '';
       const ov = document.getElementById('viewAuthOverlay'); if (ov) ov.style.display = 'flex';
       if (typeof _authErr === 'function') _authErr('Session expirée — reconnectez-vous');

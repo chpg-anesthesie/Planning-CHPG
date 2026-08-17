@@ -63,6 +63,16 @@ body {
   font-size:13px; font-weight:600;
   white-space:nowrap; flex-shrink:0;
 }
+/* (16/08/2026) La pastille du MAR ouvre la deconnexion, exactement comme sur
+   dashboard.html et index.html. AUCUN bouton ajoute : le code etant desormais
+   memorise 30 jours dans l'app installee, il faut pouvoir le retirer — mais pas
+   au prix d'un element de plus dans un bandeau deja etroit sur telephone.
+   L'icone n'apparait qu'au survol sur ordinateur ; au doigt, tout le nom est
+   la zone tactile. */
+.header-user[data-deco] { cursor:pointer; }
+.header-user .hu-out { opacity:.55; margin-left:5px; vertical-align:-2px; }
+.header-user[data-deco]:hover { color:#fff; }
+.header-user[data-deco]:hover .hu-out { opacity:1; }
 
 /* ── LOGIN ── */
 .login-screen {
@@ -462,6 +472,13 @@ body {
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<script src="partage/session.js"></script>   <!-- (16/08/2026) source unique : où vit le code d'accès, et 30 jours glissants -->
+<script>/* CHPG_FALLBACK — filet (16/08/2026). Si partage/session.js ne se charge pas
+(réseau, cache), les pages l'appelleraient dans le vide et NE S'OUVRIRAIENT PLUS : le MAR ne
+pourrait même plus taper son code. On retombe alors sur le comportement d'avant — le code vit
+le temps de l'onglet — au lieu de planter. Jamais de mémoire longue ici : mieux vaut retaper
+son code que le voir retenu par un filet dont personne ne vérifie l'échéance. */
+window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionStorage.getItem('chpgViewCode')||'';}catch(e){return '';}}, memoriser:function(c){try{sessionStorage.setItem('chpgViewCode',c);}catch(e){}}, oublier:function(){try{sessionStorage.removeItem('chpgViewCode');}catch(e){}}, estInstallee:function(){return false;}, joursRestants:function(){return null;}, DUREE_JOURS:0 };</script>
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
@@ -533,9 +550,9 @@ async function doLogin(codeAuto, silencieux) {
       currentCode = code;
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('app').style.display = 'block';
-      document.getElementById('headerUser').textContent = mb.identite.name || mb.identite.id;
+      _poserPastilleUser(mb.identite.name || mb.identite.id);
       indispos = mb.indispos || {};
-      try { sessionStorage.setItem('chpgViewCode', code); } catch (e) {}
+      CHPGSession.memoriser(code);
       updateStats();
       renderMonth();
       selectTool('INDISPO');
@@ -555,8 +572,8 @@ async function doLogin(codeAuto, silencieux) {
         currentCode = code;
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('app').style.display = 'block';
-        document.getElementById('headerUser').textContent = res.name || res.id;
-        try { sessionStorage.setItem('chpgViewCode', code); } catch (e) {}
+        _poserPastilleUser(res.name || res.id);
+        CHPGSession.memoriser(code);
         await loadIndispos();
         await loadVacConfig();
         renderMonth();
@@ -564,16 +581,38 @@ async function doLogin(codeAuto, silencieux) {
         if (!silencieux) { btn.textContent = 'Accéder →'; btn.disabled = false; }
         return true;
       } else {
-        try { sessionStorage.removeItem('chpgViewCode'); } catch (e) {}
+        CHPGSession.oublier();
         if (!silencieux) document.getElementById('loginError').style.display = 'block';
       }
     }
   } catch(e) {
-    try { sessionStorage.removeItem('chpgViewCode'); } catch (_) {}
+    CHPGSession.oublier();
     if (!silencieux) document.getElementById('loginError').style.display = 'block';
   }
   if (!silencieux) { btn.textContent = 'Accéder →'; btn.disabled = false; }
   return false;
+}
+
+/* (16/08/2026) Pastille du MAR : le nom, et la deconnexion derriere.
+   Efface le code des DEUX endroits (onglet + memoire de 30 jours) : un code
+   retire d'un seul reviendrait a l'ouverture suivante. */
+function _poserPastilleUser(nom) {
+  var el = document.getElementById('headerUser');
+  if (!el) return;
+  el.textContent = nom || '';
+  el.setAttribute('data-deco', '1');
+  el.setAttribute('title', 'Se déconnecter');
+  el.insertAdjacentHTML('beforeend',
+    '<svg class="hu-out" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    + 'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/>'
+    + '<line x1="21" y1="12" x2="9" y2="12"/></svg>');
+  el.onclick = function () {
+    if (!confirm('Se déconnecter de ce téléphone ?')) return;
+    CHPGSession.oublier();
+    currentCode = '';
+    location.reload();
+  };
 }
 
 /* Reprise de session : le MAR deja connecte au portail (dashboard, planning,
@@ -584,16 +623,16 @@ async function doLogin(codeAuto, silencieux) {
    avant que la tentative aboutisse, c'est sa saisie qui gagne. */
 (async function repriseSession() {
   let saved = '';
-  try { saved = sessionStorage.getItem('chpgViewCode') || ''; } catch (e) {}
+  saved = CHPGSession.lire();
   if (!saved) return;
   try {
     const ecran = document.getElementById('loginScreen');
     const ok = await doLogin(saved, true);
-    if (!ok) { try { sessionStorage.removeItem('chpgViewCode'); } catch (_) {} }
+    if (!ok) { CHPGSession.oublier(); }
     /* Le MAR s'est connecte a la main pendant la tentative : on ne touche a rien. */
     if (ecran && ecran.style.display === 'none') return;
   } catch (e) {
-    try { sessionStorage.removeItem('chpgViewCode'); } catch (_) {}
+    CHPGSession.oublier();
   }
 })();
 

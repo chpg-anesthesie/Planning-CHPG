@@ -42,6 +42,9 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
         win.Element.prototype.scrollIntoView = function () {};
         win.HTMLElement.prototype.scrollIntoView = function () {};
         win.scrollTo = () => {};
+        /* jsdom ne va pas chercher les scripts externes : on sert partage/session.js
+           comme le fait le vrai site, sinon on ne testerait que le filet de secours. */
+        win.eval(fs.readFileSync('../partage/session.js', 'utf8'));
       } });
     const w = dom.window;
     w.Element.prototype.scrollIntoView = function () {};
@@ -657,6 +660,130 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     const parMar = j.data && j.data.indispos_2027 && j.data.indispos_2027.parMar;
     V('un MAR reçoit SES indispos', !!(parMar && parMar.ALPHA), parMar && Object.keys(parMar));
     V('il ne reçoit PAS celles des autres', !(parMar && parMar.BRAVO), parMar && Object.keys(parMar));
+  }
+
+  /* ═══ 28d. LA MÉMOIRE DU CODE D'ACCÈS (16/08/2026) ═══
+     Le code était gardé le temps d'un onglet : iOS fermant les apps web en
+     arrière-plan, un MAR retapait ses 8 caractères à peu près chaque jour.
+     Choix d'Arthur : 30 jours glissants, MAIS seulement dans l'app installée —
+     depuis un navigateur (donc peut-être un poste du bloc), rien ne reste.
+     On exécute ici le VRAI partage/session.js, avec de vrais stockages. */
+  console.log('\n═══ 28d. La mémoire du code d\'accès — 30 jours, et seulement dans l\'app ═══');
+  {
+    const source = fs.readFileSync('../partage/session.js', 'utf8');
+
+    /* Un monde minimal : deux stockages, et un drapeau « app installée ». */
+    const monter = (installee) => {
+      const mem = { s: {}, l: {} };
+      const faux = (bac) => ({
+        getItem: k => (k in bac ? bac[k] : null),
+        setItem: (k, v) => { bac[k] = String(v); },
+        removeItem: k => { delete bac[k]; }
+      });
+      const win = {
+        navigator: { standalone: installee },
+        matchMedia: q => ({ matches: installee && /standalone/.test(q) }),
+        sessionStorage: faux(mem.s), localStorage: faux(mem.l),
+        Date, JSON, Math, String, Number
+      };
+      win.window = win;
+      const ctx = vm.createContext(win);
+      vm.runInContext('var sessionStorage = window.sessionStorage, localStorage = window.localStorage;' + source, ctx);
+      return { S: win.CHPGSession, mem };
+    };
+
+    /* — Dans l'app installée — */
+    {
+      const { S, mem } = monter(true);
+      V('l\'app installée est reconnue', S.estInstallee() === true);
+      S.memoriser('MARCODE77');
+      V('le code est retenu au-delà de l\'onglet', !!mem.l['chpgViewCodeMem'], Object.keys(mem.l));
+      V('il est relu tel quel', S.lire() === 'MARCODE77', S.lire());
+      V('l\'échéance est bien à 30 jours', S.joursRestants() === 30, S.joursRestants());
+
+      /* Onglet fermé : sessionStorage disparaît, la mémoire longue reste. */
+      mem.s = {};
+      const { S: S2 } = (() => { const m = monter(true); m.mem.l['chpgViewCodeMem'] = mem.l['chpgViewCodeMem']; return m; })();
+      V('après fermeture de l\'app, le code est retrouvé', S2.lire() === 'MARCODE77', S2.lire());
+    }
+
+    /* — Le glissement : ouvrir repousse l'échéance — */
+    {
+      const { S, mem } = monter(true);
+      S.memoriser('MARCODE77');
+      const o = JSON.parse(mem.l['chpgViewCodeMem']);
+      /* 20 jours plus tard : il reste 10 jours. */
+      mem.l['chpgViewCodeMem'] = JSON.stringify({ c: o.c, exp: Date.now() + 10 * 86400000 });
+      V('sans ouverture, l\'échéance approche', S.joursRestants() === 10, S.joursRestants());
+      S.lire();
+      V('une ouverture la repousse à 30 jours', S.joursRestants() === 30, S.joursRestants());
+    }
+
+    /* — Le code périmé — */
+    {
+      const { S, mem } = monter(true);
+      mem.l['chpgViewCodeMem'] = JSON.stringify({ c: 'MARCODE77', exp: Date.now() - 1000 });
+      V('un code périmé n\'ouvre rien', S.lire() === '', S.lire());
+      V('et il est effacé, pas laissé à traîner', !mem.l['chpgViewCodeMem'], mem.l);
+    }
+
+    /* — Dans un simple navigateur : RIEN ne reste — */
+    {
+      const { S, mem } = monter(false);
+      V('un navigateur n\'est pas l\'app installée', S.estInstallee() === false);
+      S.memoriser('MARCODE77');
+      V('le code y vit le temps de l\'onglet', mem.s['chpgViewCode'] === 'MARCODE77');
+      V('RIEN n\'est écrit durablement — poste partagé', !mem.l['chpgViewCodeMem'], Object.keys(mem.l));
+      V('aucune échéance à annoncer', S.joursRestants() === null);
+    }
+
+    /* — La déconnexion efface les DEUX endroits — */
+    {
+      const { S, mem } = monter(true);
+      S.memoriser('MARCODE77');
+      S.oublier();
+      V('déconnexion : plus rien dans l\'onglet', !mem.s['chpgViewCode']);
+      V('déconnexion : plus rien dans la mémoire longue', !mem.l['chpgViewCodeMem']);
+      V('et la relecture ne rend rien', S.lire() === '');
+    }
+
+    /* — Stockage refusé (navigation privée) : la page doit s'ouvrir quand même — */
+    {
+      const mem = { s: {} };
+      const cassé = { getItem(){ throw new Error('refusé'); }, setItem(){ throw new Error('refusé'); }, removeItem(){ throw new Error('refusé'); } };
+      const win = { navigator:{ standalone:true }, matchMedia:()=>({matches:true}),
+        sessionStorage: { getItem:k=>(k in mem.s?mem.s[k]:null), setItem:(k,v)=>{mem.s[k]=v;}, removeItem:k=>{delete mem.s[k];} },
+        localStorage: cassé, Date, JSON, Math, String, Number };
+      win.window = win;
+      const ctx = vm.createContext(win);
+      vm.runInContext('var sessionStorage = window.sessionStorage, localStorage = window.localStorage;' + source, ctx);
+      const S = win.CHPGSession;
+      let leve = false;
+      try { S.memoriser('MARCODE77'); S.lire(); S.oublier(); } catch (e) { leve = true; }
+      V('un stockage refusé ne fait jamais échouer la page', leve === false);
+    }
+
+    /* — La règle : aucune page ne manipule la clé directement — */
+    {
+      /* La clé ne doit apparaître QUE dans le filet de secours, jamais dans le
+         code courant de la page. */
+      const horsFilet = f => fs.readFileSync('../' + f, 'utf8').split('\n')
+        .filter(l => /sessionStorage\.\w+\('chpgViewCode'/.test(l) && !/CHPG_FALLBACK|window\.CHPGSession = window\.CHPGSession/.test(l));
+      const fautives = ['dashboard.html', 'index.html', 'indispos.html'].filter(f => horsFilet(f).length);
+      V('aucune page ne touche à la clé sans passer par le partage', fautives.length === 0, fautives);
+      /* (16/08/2026) Le banc a trouvé ceci AVANT la production : sans filet, une page
+         dont le partage ne se charge pas appelle CHPGSession dans le vide et ne s'ouvre
+         PLUS — le MAR ne peut même plus taper son code. */
+      const sansFilet = ['dashboard.html', 'index.html', 'indispos.html']
+        .filter(f => !/CHPG_FALLBACK/.test(fs.readFileSync('../' + f, 'utf8')));
+      V('chaque page a son filet si le partage ne se charge pas', sansFilet.length === 0, sansFilet);
+      const sansPartage = ['dashboard.html', 'index.html', 'indispos.html']
+        .filter(f => !/partage\/session\.js/.test(fs.readFileSync('../' + f, 'utf8')));
+      V('les trois pages chargent bien le partage', sansPartage.length === 0, sansPartage);
+      const sansDeco = ['dashboard.html', 'index.html', 'indispos.html']
+        .filter(f => !/CHPGSession\.oublier\(\)/.test(fs.readFileSync('../' + f, 'utf8')));
+      V('les trois offrent une déconnexion', sansDeco.length === 0, sansDeco);
+    }
   }
 
   console.log(`\n${ok} OK · ${ko} en échec`);
