@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-08-17.1';
+const GAS_VERSION_PORTAIL = '2026-08-17.2';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -29,6 +29,12 @@ function portailRoute(action, payload, user) {
     case 'getSecteurs':    return _portailJson(getSecteurs());
     case 'getSpecialites': return _portailJson(getSpecialites());   // lecture : pas de verrou
     case 'getCotationsType': return _portailJson(getCotationsType());  // lecture : pas de verrou
+    /* Fabrique des cotations types (17/08/2026). listCotationsTypeEdit rend AUSSI
+       le droit de supprimer : masquer un bouton ne ferme rien, seul le serveur
+       decide. */
+    case 'listCotationsTypeEdit': return _portailJson(listCotationsTypeEdit(payload, user));
+    case 'saveCotationType':      return _portailJson(saveCotationType(payload, user));
+    case 'deleteCotationType':    return _portailJson(deleteCotationType(payload, user));
     // Releve financier du groupement : RESERVE AUX MEMBRES (LIBERAL=O de MEDECINS).
     // Decision Arthur 29/07/2026 : masquer la tuile ne suffit pas, seul le serveur
     // ferme la porte (meme principe que les marges de getConsultAbsences).
@@ -1076,6 +1082,158 @@ function getCotationsType() {
   }
   out.forEach(function (c) { c.lignes.sort(function (a, b) { return a.ordre - b.ordre; }); });
   return out;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ECRITURE DES COTATIONS TYPES (17/08/2026)
+
+   Jusqu'ici l'onglet se remplissait A LA MAIN : huit colonnes, le bon code
+   CCAM de memoire, « associe » sans accent, l'ordre en chiffres. Pour trente
+   cotations c'est long, et une erreur ne se voit qu'au moment ou quelqu'un
+   clique sur le bouton, en consultation, devant un patient.
+
+   ⚠️ CE QUE LE SERVEUR NE PEUT PAS VERIFIER : que le code existe et porte un
+   tarif d'anesthesie. Le referentiel CCAM vit dans le depot (ccam_actes.json),
+   pas dans le classeur. C'est la PAGE qui refuse un code sans tarif, a la
+   source. Le serveur ne controle donc que la FORME du code. Une cotation
+   fabriquee autrement qu'avec la page peut poser une ligne a 0 EUR.
+   ══════════════════════════════════════════════════════════════════ */
+const _COTTYPE_ROLES = { principal: 1, associe: 1, complement: 1 };
+const _COTTYPE_LC    = { '': 1, CS: 1, C: 1, APC: 1 };
+
+/* Qui a le droit de SUPPRIMER. Le depot est public : aucun nom n'y est ecrit.
+   L'onglet CONFIG porte la cle LIBERAL_ADMIN, dont la valeur est un ID de
+   MEDECINS. Absente ou vide, PERSONNE ne supprime — un droit qui s'ouvre tout
+   seul par oubli de configuration serait le mauvais defaut. */
+function _cotTypeAdminId_() {
+  try {
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG');
+    const d = sh ? sh.getDataRange().getValues() : [];
+    for (let r = 1; r < d.length; r++) {
+      if (String(d[r][0]).trim() === 'LIBERAL_ADMIN') return String(d[r][1] || '').trim().toUpperCase();
+    }
+  } catch (e) { /* CONFIG illisible : personne ne supprime */ }
+  return '';
+}
+
+function _cotTypeMembre_(user) {
+  return !!(user && user.role === 'mar' && user.liberal);
+}
+
+/* Liste + droits, en un appel. La page d'edition ne passe PAS par la copie de
+   lecture : apres un enregistrement, elle doit voir l'etat REEL du classeur,
+   pas une copie qui peut avoir jusqu'a une heure de retard. */
+function listCotationsTypeEdit(payload, user) {
+  if (!_cotTypeMembre_(user)) return { success: false, error: 'Réservé aux membres du groupement libéral.' };
+  const admin = _cotTypeAdminId_();
+  return {
+    success: true,
+    items: getCotationsType(),
+    peutSupprimer: !!admin && String(user.id || '').toUpperCase() === admin,
+  };
+}
+
+function _cotTypeValide_(payload) {
+  const groupe = String((payload && payload.groupe) || '').trim().slice(0, 40);
+  const nom    = String((payload && payload.nom)    || '').trim().slice(0, 60);
+  const lc     = String((payload && payload.lc)     || '').trim().toUpperCase();
+  const brutes = (payload && payload.lignes) || [];
+  if (!groupe) return { err: 'Contexte obligatoire.' };
+  if (!nom)    return { err: 'Nom obligatoire.' };
+  if (!_COTTYPE_LC[lc]) return { err: 'Consultation associée inconnue : ' + lc };
+  if (!brutes.length)   return { err: 'Au moins un acte est nécessaire.' };
+  if (brutes.length > 12) return { err: 'Douze actes au maximum.' };
+  const lignes = [];
+  for (let i = 0; i < brutes.length; i++) {
+    const code = String(brutes[i].code || '').trim().toUpperCase();
+    const role = String(brutes[i].role || '').trim().toLowerCase();
+    if (!/^[A-Z]{4}[0-9]{3}$/.test(code)) return { err: 'Code CCAM invalide : ' + code };
+    if (!_COTTYPE_ROLES[role])            return { err: 'Rôle inconnu : ' + role };
+    lignes.push({ code: code, role: role, modA: !!brutes[i].modA });
+  }
+  return { groupe: groupe, nom: nom, lc: lc, lignes: lignes };
+}
+
+/* Supprime les lignes d'une cotation (groupe|nom) et renvoie le nombre retire.
+   De bas en haut : supprimer par le haut decale les indices restants. */
+function _cotTypeRetirer_(sh, groupe, nom) {
+  const rows = sh.getDataRange().getValues();
+  let n = 0;
+  for (let r = rows.length - 1; r >= 1; r--) {
+    if (String(rows[r][0] || '').trim() === groupe && String(rows[r][1] || '').trim() === nom) {
+      sh.deleteRow(r + 1); n++;
+    }
+  }
+  return n;
+}
+
+function saveCotationType(payload, user) {
+  if (!_cotTypeMembre_(user)) return { success: false, error: 'Réservé aux membres du groupement libéral.' };
+  const v = _cotTypeValide_(payload);
+  if (v.err) return { success: false, error: v.err };
+  const ancienGroupe = String((payload && payload.ancienGroupe) || '').trim();
+  const ancienNom    = String((payload && payload.ancienNom)    || '').trim();
+
+  /* Verrou : l'ecriture est un RETRAIT suivi d'un AJOUT. Sans verrou, deux
+     enregistrements simultanes entrelaceraient leurs lignes et fabriqueraient
+     une cotation composite — que personne ne pourrait attribuer. */
+  const verrou = LockService.getScriptLock();
+  try { verrou.waitLock(15000); }
+  catch (e) { return { success: false, error: 'Classeur occupé, réessayez dans quelques secondes.' }; }
+  try {
+    const sh = getOrCreateCotationsTypeTab();
+
+    // Renommage : on retire l'ancienne cle. Creation ou modification sur place :
+    // on retire la cle courante (idempotent si elle n'existe pas encore).
+    if (ancienGroupe && ancienNom && (ancienGroupe !== v.groupe || ancienNom !== v.nom)) {
+      _cotTypeRetirer_(sh, ancienGroupe, ancienNom);
+    } else if (!ancienNom) {
+      // Creation : un homonyme dans le meme contexte serait indistinguable a
+      // l'ecran (deux boutons du meme nom) — on refuse plutot que d'ecraser.
+      const dejaLa = getCotationsType().some(function (c) { return c.groupe === v.groupe && c.nom === v.nom; });
+      if (dejaLa) return { success: false, error: 'Une cotation « ' + v.nom + ' » existe déjà dans ce contexte.' };
+    }
+    _cotTypeRetirer_(sh, v.groupe, v.nom);
+
+    /* MOD7 TOUJOURS 'O' : la presence permanente de l'anesthesiste est
+       systematique sur les releves observes (regle posee le 27/07). Le
+       modificateur A, lui, depend de l'AGE DU PATIENT (moins de 4 ans, plus de
+       80) : il ne peut pas etre fige dans une cotation type et reste cochable
+       acte par acte sur la page de cotation. */
+    const lignes = v.lignes.map(function (l, i) {
+      return [v.groupe, v.nom, i + 1, l.code, l.role, 'O', l.modA ? 'O' : 'N', i === 0 ? v.lc : ''];
+    });
+    sh.getRange(sh.getLastRow() + 1, 1, lignes.length, _COTTYPE_HEADER.length).setValues(lignes);
+    return { success: true, groupe: v.groupe, nom: v.nom, lignes: lignes.length };
+  } finally {
+    try { verrou.releaseLock(); } catch (e) {}
+  }
+}
+
+function deleteCotationType(payload, user) {
+  if (!_cotTypeMembre_(user)) return { success: false, error: 'Réservé aux membres du groupement libéral.' };
+  /* SUPPRESSION RESERVEE (decision d'Arthur, 17/08/2026). La bibliotheque est
+     commune : n'importe lequel des 19 pourrait sinon effacer le travail d'un
+     autre, sans trace et sans que personne s'en apercoive avant la prochaine
+     consultation. Creer et modifier restent ouverts a tous. */
+  const admin = _cotTypeAdminId_();
+  if (!admin || String(user.id || '').toUpperCase() !== admin) {
+    return { success: false, error: 'La suppression est réservée au responsable du module libéral.' };
+  }
+  const groupe = String((payload && payload.groupe) || '').trim();
+  const nom    = String((payload && payload.nom)    || '').trim();
+  if (!groupe || !nom) return { success: false, error: 'Cotation à supprimer non identifiée.' };
+
+  const verrou = LockService.getScriptLock();
+  try { verrou.waitLock(15000); }
+  catch (e) { return { success: false, error: 'Classeur occupé, réessayez dans quelques secondes.' }; }
+  try {
+    const n = _cotTypeRetirer_(getOrCreateCotationsTypeTab(), groupe, nom);
+    if (!n) return { success: false, error: 'Cotation introuvable — déjà supprimée ?' };
+    return { success: true, lignes: n };
+  } finally {
+    try { verrou.releaseLock(); } catch (e) {}
+  }
 }
 
 function getOrCreateSpecialitesTab() {

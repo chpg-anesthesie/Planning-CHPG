@@ -356,6 +356,7 @@ window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionS
       <div id="cotTypeBar" style="display:none;margin:0 0 10px;flex-wrap:wrap;gap:6px;align-items:center">
         <span style="font-size:12px;color:var(--muted)">Cotations types&nbsp;:</span>
         <select id="cotTypeGrp" onchange="choisirGroupeCotType(this.value)" style="max-width:230px"></select>
+        <a class="guidelink" id="lienFabrique" style="margin-top:0;display:none" href="cotations-types.html" title="Créer ou modifier les cotations types">🛠 gérer</a>
         <span id="cotTypeBtns"></span>
       </div>
       <div id="tarifAlerte" style="display:none;margin:0 0 10px;padding:9px 12px;border:1px solid;border-radius:9px;font-size:12.5px;line-height:1.45"></div>
@@ -880,6 +881,8 @@ function renderCotTypeBar(){
   if(COTTYPE_GRP && groupes.indexOf(COTTYPE_GRP)===-1) COTTYPE_GRP='';
   sel.value=COTTYPE_GRP;
   bar.style.display='flex';
+  const lien=document.getElementById('lienFabrique');
+  if(lien) lien.style.display='inline-flex';      // membre du groupement : la barre n'existe que pour lui
   renderCotTypeBtns();
 }
 
@@ -1386,6 +1389,38 @@ async function demarrer(){
       panneListes(true, 'Portail injoignable — cotation et devis restent utilisables, la déclaration non.');
     }
   }
+}
+
+/* (17/08/2026) RETOUR SUR LA PAGE : on redemande les cotations types. Elles
+   s'editent desormais depuis une autre page ; sans cela, un MAR qui garde sa
+   page de cotation ouverte toute la matinee ne verrait pas une cotation creee
+   entre-temps, et conclurait que « ca ne marche pas » alors que tout a
+   fonctionne. Une seule cle relue, cote copie rapide : c'est instantane. */
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState !== 'visible') return;
+  if(Date.now() - DERNIER_RAFRAICHI < 30000) return;      // pas a chaque va-et-vient
+  DERNIER_RAFRAICHI = Date.now();
+  rafraichirCotTypes();
+});
+let DERNIER_RAFRAICHI = Date.now();
+
+async function rafraichirCotTypes(){
+  const code = CHPGSession.lire(); if(!code) return;
+  try{
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 8000);
+    const r=await fetch(MIROIR_URL+'/read', {method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({code:code, keys:['cotations_type']}), signal:ctrl.signal});
+    clearTimeout(to);
+    const j=await r.json();
+    const list=j && j.success && j.data && j.data.cotations_type;
+    if(!Array.isArray(list) || !list.length) return;
+    const propre=list.filter(x=>x&&x.nom&&x.lignes&&x.lignes.length);
+    if(JSON.stringify(propre)===JSON.stringify(COTTYPE)) return;    // rien de neuf
+    COTTYPE=propre;
+    try{ sessionStorage.setItem('chpgCotTypeLib_v2', JSON.stringify(propre)); }catch(e){}
+    renderCotTypeBar();
+  }catch(e){ /* silencieux : la liste en place reste valable */ }
 }
 
 /* Identite servie par la copie rapide : meme contenu que l'action de connexion

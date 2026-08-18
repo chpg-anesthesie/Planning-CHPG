@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-17.2';
+const GAS_VERSION_MIROIR = '2026-08-17.3';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -84,6 +84,10 @@ const MIROIR_APRES_ECRITURE = {
   generateGardes:             ['annees', 'config_admin', 'gardes', 'stats'],
   declareLiberal:             ['liberal'],   // (2026-08-05.9) un MAR déclare → le volet du comité suit
   deleteLiberal:              ['liberal'],
+  // (17/08/2026) La bibliotheque de cotations types s'edite depuis une page :
+  // ce qui est enregistre doit parvenir aux 19 sans attendre la synchro horaire.
+  saveCotationType:           ['cotations_type'],
+  deleteCotationType:         ['cotations_type'],
   archiveYear:                ['planning', 'affectations', 'annees', 'config_admin', 'gardes', 'stats'],
   setActiveYear:              ['annees', 'acces', 'config_admin'],
   initYear:                   ['annees', 'config_admin'],

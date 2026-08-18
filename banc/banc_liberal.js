@@ -165,6 +165,110 @@ console.log('\n═══ 5. Ce qui n\'est pas saisi n\'existe pas ═══');
     r2.success === true && r2.items.length === 0, r2);
 }
 
+console.log('\n═══ 5bis. La fabrique de cotations types ═══');
+/* (17/08/2026) L'onglet COTATIONS_TYPE se remplissait A LA MAIN : huit colonnes,
+   le bon code CCAM de memoire, « associe » sans accent. Une erreur ne se voyait
+   qu'au moment ou quelqu'un cliquait sur le bouton, en consultation.
+   Ces verifications portent sur la PORTE (qui peut supprimer) et sur l'ECRITURE
+   (une cotation reste une unite : on ne doit jamais en fabriquer une composite). */
+{
+  const cl = new Classeur();
+  cl.ajouter('CONFIG', [['CLE', 'VALEUR'], ['LIBERAL_ADMIN', 'ALPHA']]);
+  cl.ajouter('MEDECINS', [['ID', 'NOM', 'ACTIF', 'LIBERAL'],
+    ['ALPHA', 'Dr ALPHA', 'O', 'O'], ['BRAVO', 'Dr BRAVO', 'O', 'O']]);
+  const ctx = vm.createContext({
+    console, JSON, Date, Number, String, Object, Array, Math, Error, isNaN, parseInt, parseFloat, RegExp,
+    SpreadsheetApp: { getActiveSpreadsheet: () => cl },
+    Logger: { log: () => {} },
+    LockService: { getScriptLock: () => ({ waitLock: () => {}, releaseLock: () => {} }) },
+  });
+  ctx.globalThis = ctx;
+  ['COTATIONS_TYPE_TAB', '_COTTYPE_HEADER', '_COTTYPE_SEED', '_COTTYPE_ROLES', '_COTTYPE_LC']
+    .forEach(n => vm.runInContext(extraireConst('../gas/portail.gs', n), ctx));
+  ['getOrCreateCotationsTypeTab', 'getCotationsType', '_cotTypeAdminId_', '_cotTypeMembre_',
+   'listCotationsTypeEdit', '_cotTypeValide_', '_cotTypeRetirer_', 'saveCotationType', 'deleteCotationType']
+    .forEach(n => vm.runInContext(extraireFonction('../gas/portail.gs', n), ctx));
+  ctx.MAR   = { role:'mar',   id:'ALPHA', liberal:true };
+  ctx.AUTRE = { role:'mar',   id:'BRAVO', liberal:true };
+  ctx.HORS  = { role:'mar',   id:'CHARLIE', liberal:false };
+  ctx.ADMIN = { role:'admin', id:'COMITE' };
+  const run = expr => vm.runInContext(expr, ctx);
+
+  // ── La porte ──
+  V('un MAR hors groupement ne voit pas la bibliothèque',
+    run('listCotationsTypeEdit({}, HORS).success') === false);
+  V('le comité non plus — ce n\'est pas son ressort',
+    run('listCotationsTypeEdit({}, ADMIN).success') === false);
+  V('un membre du groupement la voit', run('listCotationsTypeEdit({}, MAR).success') === true);
+  V('les trois cotations d\'endoscopie sont là', run('listCotationsTypeEdit({}, MAR).items.length') === 3);
+
+  // ── Créer ──
+  const cree = run(`saveCotationType({groupe:'Ophtalmo', nom:'Cataracte', lc:'CS',
+    lignes:[{code:'BFGA004', role:'principal'}]}, AUTRE)`);
+  V('n\'importe quel membre peut CRÉER', cree.success === true, cree);
+  const apres = run('getCotationsType()');
+  const cat = apres.find(c => c.nom === 'Cataracte');
+  V('la cotation est relue telle qu\'écrite',
+    !!cat && cat.groupe === 'Ophtalmo' && cat.lc === 'CS' && cat.lignes.length === 1, cat);
+  V('le modificateur 7 est posé d\'office', !!cat && cat.lignes[0].mod7 === true);
+  /* Le modificateur A depend de l'AGE DU PATIENT : il ne peut pas etre fige dans
+     une cotation type, il se coche acte par acte au moment de coter. */
+  V('le modificateur A, lui, ne l\'est pas', !!cat && cat.lignes[0].modA === false);
+
+  // ── Les refus ──
+  V('un code de forme invalide est refusé',
+    run(`saveCotationType({groupe:'X', nom:'Y', lc:'', lignes:[{code:'PAS-UN-CODE', role:'principal'}]}, MAR).success`) === false);
+  V('un rôle inconnu est refusé',
+    run(`saveCotationType({groupe:'X', nom:'Y', lc:'', lignes:[{code:'ABCD001', role:'chef'}]}, MAR).success`) === false);
+  V('une cotation sans acte est refusée',
+    run(`saveCotationType({groupe:'X', nom:'Y', lc:'CS', lignes:[]}, MAR).success`) === false);
+  V('une consultation inconnue est refusée',
+    run(`saveCotationType({groupe:'X', nom:'Y', lc:'ZZZ', lignes:[{code:'ABCD001', role:'principal'}]}, MAR).success`) === false);
+  V('un homonyme dans le même contexte est refusé, pas écrasé',
+    run(`saveCotationType({groupe:'Ophtalmo', nom:'Cataracte', lc:'CS', lignes:[{code:'ABCD001', role:'principal'}]}, MAR).success`) === false);
+  V('un MAR hors groupement ne peut rien écrire',
+    run(`saveCotationType({groupe:'X', nom:'Y', lc:'CS', lignes:[{code:'ABCD001', role:'principal'}]}, HORS).success`) === false);
+
+  // ── Modifier : une cotation reste UNE unité ──
+  const modif = run(`saveCotationType({groupe:'Ophtalmo', nom:'Cataracte', lc:'C',
+    lignes:[{code:'BFGA004', role:'principal'}, {code:'ABCD002', role:'associe'}],
+    ancienGroupe:'Ophtalmo', ancienNom:'Cataracte'}, MAR)`);
+  V('modifier remplace, sans laisser les anciennes lignes', modif.success === true);
+  const cat2 = run('getCotationsType()').filter(c => c.nom === 'Cataracte');
+  V('il n\'y a toujours QU\'UNE cotation « Cataracte »', cat2.length === 1, cat2.length);
+  V('elle porte bien ses deux actes, dans l\'ordre',
+    cat2[0].lignes.length === 2 && cat2[0].lignes[0].code === 'BFGA004' && cat2[0].lignes[1].role === 'associe',
+    cat2[0].lignes);
+  V('la consultation associée a suivi', cat2[0].lc === 'C', cat2[0].lc);
+
+  // ── Renommer ──
+  run(`saveCotationType({groupe:'Ophtalmo', nom:'Cataracte simple', lc:'CS',
+    lignes:[{code:'BFGA004', role:'principal'}], ancienGroupe:'Ophtalmo', ancienNom:'Cataracte'}, MAR)`);
+  const noms = run('getCotationsType()').map(c => c.nom);
+  V('renommer ne laisse pas l\'ancien nom derrière',
+    noms.indexOf('Cataracte') < 0 && noms.indexOf('Cataracte simple') >= 0, noms);
+
+  // ── Supprimer : réservé ──
+  V('un autre membre du groupement ne peut PAS supprimer',
+    run(`deleteCotationType({groupe:'Ophtalmo', nom:'Cataracte simple'}, AUTRE).success`) === false);
+  V('le responsable, lui, peut',
+    run(`deleteCotationType({groupe:'Ophtalmo', nom:'Cataracte simple'}, MAR).success`) === true);
+  V('et la cotation a bien disparu',
+    run('getCotationsType()').every(c => c.nom !== 'Cataracte simple'));
+  V('supprimer deux fois le dit, au lieu de faire semblant',
+    run(`deleteCotationType({groupe:'Ophtalmo', nom:'Cataracte simple'}, MAR).success`) === false);
+  V('les cotations d\'endoscopie n\'ont pas bougé',
+    run('getCotationsType()').filter(c => c.groupe === 'Endoscopie').length === 3);
+
+  /* Sans la clé CONFIG, PERSONNE ne supprime : un droit qui s'ouvrirait tout
+     seul par oubli de configuration serait le mauvais défaut. */
+  cl.ajouter('CONFIG', [['CLE', 'VALEUR']]);
+  V('clé LIBERAL_ADMIN absente : personne ne supprime',
+    run(`deleteCotationType({groupe:'Endoscopie', nom:'Colo seule'}, MAR).success`) === false);
+  V('et le droit de supprimer n\'est plus annoncé à l\'écran',
+    run('listCotationsTypeEdit({}, MAR).peutSupprimer') === false);
+}
+
 console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache ═══');
 /* (17/08/2026) Trois défauts corrigés le même jour, tous invisibles au banc
    parce qu'aucune vérification ne lisait cette page :
@@ -488,6 +592,25 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
       /function panne\(/.test(suivi) && /Réessayer/.test(suivi));
 
     const mir = fs.readFileSync('../gas/miroir.gs', 'utf8');
+    /* La bibliotheque s'edite depuis une page : ce qui est enregistre doit
+       parvenir aux 19 sans attendre la synchro horaire. */
+    V('un enregistrement de cotation type rafraîchit la copie rapide',
+      /saveCotationType:\s*\['cotations_type'\]/.test(mir) && /deleteCotationType:\s*\['cotations_type'\]/.test(mir));
+    const fab = fs.readFileSync('../docs/module-liberal/cotations-types.html', 'utf8');
+    const cot = fs.readFileSync('../docs/module-liberal/estimateur-liberal.html', 'utf8');
+    V('la fabrique lit le classeur en direct, pas la copie rapide',
+      /listCotationsTypeEdit/.test(fab) && !/workers\.dev/.test(fab));
+    V('elle refuse à la source un acte sans tarif d\'anesthésie',
+      /pas de tarif d'anesthésie/.test(fab) && /if\(!a \|\| !a\.t\) return;/.test(fab));
+    V('elle passe par la session commune',
+      /partage\/session\.js/.test(fab) && /CHPGSession\.lire\(\)/.test(fab));
+    V('la page de cotation y mène',
+      /href="cotations-types\.html"/.test(cot));
+    /* Un MAR qui garde sa page ouverte toute la matinee ne verrait pas une
+       cotation creee entre-temps — et conclurait que « ca ne marche pas ». */
+    V('la page de cotation redemande la liste en revenant dessus',
+      /visibilitychange/.test(cot) && /rafraichirCotTypes/.test(cot));
+
     V('le relevé est daté sur l\'année CIVILE, pas l\'année active du planning',
       /releve_liberal_' \+ anneeCivile/.test(mir) && /new Date\(\)\.getFullYear\(\)/.test(mir));
     V('saisir le relevé rafraîchit le relevé, pas le volet du comité',
