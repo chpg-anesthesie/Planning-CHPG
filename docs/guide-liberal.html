@@ -169,7 +169,7 @@
   <ol class="steps">
     <li><strong>Chercher l'acte.</strong> Dans le bloc CCAM, tape un <strong>code</strong> (<code>NEKA014</code>), un <strong>mot</strong> (<code>hernie</code>, <code>échoguidage</code>) ou une <strong>abréviation</strong> (<code>PTH</code>, <code>TAP</code>, <code>cœlio</code>). La liste sort dans les deux sens ; un clic remplit la ligne.</li>
     <li><strong>Le tarif se pré-remplit.</strong> Le tarif d'anesthésie (activité 4) est repris automatiquement du référentiel officiel. Tu n'as qu'à cocher les modificateurs (7, A) et choisir le rôle (principal / associé / complément).</li>
-    <li><strong>La BR se calcule.</strong> ×1,95 monégasque, modificateurs, décote d'association — tout est appliqué derrière. L'axe NGAP (consultations) se saisit séparément.</li>
+    <li><strong>La BR se calcule.</strong> ×1,95 monégasque, modificateurs, décote d'association — tout est appliqué derrière. La <strong>consultation</strong> du patient se choisit juste à côté, dans «&nbsp;Consultation associée&nbsp;» : elle compte sur l'autre plafond (voir §07).</li>
     <li><strong>Renseigner la mutuelle.</strong> On sélectionne la formule du patient (sa ligne « honoraires » en % BR). L'outil affiche le dépassement optimal et le reste à charge.</li>
     <li><strong>Générer les documents.</strong> Bouton <span class="tag">📄 Devis</span>, dans la barre noire en bas de l'écran : l'estimation de frais est entièrement pré-remplie, et un second bouton imprime <strong>devis + déclaration de choix</strong> (modèle CHPG soins externes, nom du MAR pré-rempli). <strong>Aucun nom de patient à taper</strong> : le patient l'écrit à la main sur les documents imprimés.</li>
     <li><strong>Déclarer l'intervention.</strong> Encadré <span class="tag">Déclarer au comité</span> : deux choses seulement à y renseigner, le <strong>secteur</strong> et la <strong>spécialité</strong>. Les dates, la chirurgie et les montants viennent de la cotation ci-dessus. Puis <span class="tag">📅 Déclarer</span>, dans la barre du bas. C'est ce qui alimente le volet ◆ Libéral du comité dans la vue admin — <strong>rien d'autre ne part</strong> : ni patient, ni code CCAM.</li>
@@ -251,9 +251,8 @@
   <ol>
     <li><strong>Choisissez votre contexte</strong> dans «&nbsp;Cotations types&nbsp;», en haut du tableau — «&nbsp;Endoscopie&nbsp;» par exemple. Une seule fois pour toute la séance&nbsp;: le choix est conservé même si vous rechargez la page. Tant que rien n'est choisi, aucun bouton ne s'affiche.</li>
     <li><strong>Cliquez sur la cotation type</strong> qui correspond — <em>Gastro + colo</em>, <em>Gastro seule</em>, <em>Colo seule</em>. Le tableau se remplit&nbsp;: les actes, les rôles, les modificateurs et la consultation associée. <strong>Attention&nbsp;: cela remplace les lignes en place</strong>, une cotation type décrit un patient entier. Pour un acte hors liste, la recherche CCAM reste disponible.</li>
-    <li><strong>Complétez la cotation</strong> (axe Bloc CCAM)&nbsp;: date de consultation et date d'intervention.</li>
+    <li><strong>Posez le jour du bloc.</strong> La date de consultation est déjà celle du jour.</li>
     <li><strong>Choisissez la consultation associée.</strong> Le champ est sur <code>CS</code> par défaut, puisqu'il y a toujours une consultation. Vous pouvez mettre <code>C</code> avec son coefficient, ou un montant libre. <strong>L'APC est une cotation française</strong>&nbsp;: elle est refusée pour un assuré monégasque (carte verte, rose, bulle, SPME).</li>
-    <li><strong>« Ajouter le parcours ».</strong> Le formulaire de déclaration, en bas de page, <strong>se remplit tout seul</strong>&nbsp;: jour du bloc, date de consultation, les deux montants, la chirurgie.</li>
     <li><strong>Imprimez le devis</strong> s'il y a un dépassement. Le patient écrit son nom à la main.</li>
     <li><strong>Choisissez le secteur</strong> — la spécialité se propose alors toute seule, et reste modifiable.</li>
     <li><strong>📅 Déclarer.</strong> Une ligne = un patient.</li>
@@ -320,7 +319,7 @@
 
 <section id="c7">
   <h2><span class="n">07</span>Le pilotage libéral / public (30 %)</h2>
-  <p>Le seuil de 30 % s'applique <strong>séparément sur deux axes</strong>&nbsp;: le CCAM (actes techniques au bloc) et le NGAP (consultations). Les deux plafonds sont indépendants&nbsp;: on peut être large sur un axe et en excédent sur l'autre.</p>
+  <p>Le seuil de 30 % s'applique <strong>séparément sur deux plafonds</strong>&nbsp;: le CCAM (actes techniques au bloc) et le NGAP (consultations). Vous n'avez rien à faire pour les séparer&nbsp;: un patient coté alimente les deux, ses actes d'un côté, sa consultation de l'autre. Les deux plafonds sont indépendants&nbsp;: on peut être large sur un axe et en excédent sur l'autre.</p>
   <p>Comme les revenus sont mutualisés et l'excédent reversé à l'hôpital au 31/12, le groupe perd de <strong>deux</strong> façons&nbsp;: un praticien <strong>au-dessus</strong> de 30 % (le surplus part à l'hôpital) ou <strong>sous-employé</strong> (une marge que personne n'utilise, et qui disparaît au 31 décembre).</p>
 
   <h3>L'écran «&nbsp;Suivi des 30&nbsp;%&nbsp;»</h3>

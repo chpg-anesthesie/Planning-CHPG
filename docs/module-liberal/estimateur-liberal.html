@@ -284,7 +284,14 @@ window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionS
   <div class="card">
     <h2>La cotation</h2>
     <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px">
-      <div><label>Axe</label><div class="seg"><button id="axC" class="on" onclick="setAxe('CCAM')">Bloc · CCAM</button><button id="axN" onclick="setAxe('NGAP')">Consult · NGAP</button></div></div>
+      <!-- (17/08/2026) LE SELECTEUR D'AXE A DISPARU. Decision d'Arthur : tout
+           patient vu en consultation liberale passe ensuite au bloc. Il n'y avait
+           donc jamais lieu de choisir, et deux endroits parlaient de consultation
+           — l'axe « Consult · NGAP » et la liste « Consultation associee » — sans
+           que rien ne dise en quoi ils different.
+           La comptabilite des deux axes, elle, ne bouge pas : la consultation
+           reste comptee en NGAP (mois de la consultation), les actes en CCAM
+           (mois du bloc). C'est de la comptabilite, pas de l'ecran. -->
       <div style="flex:1;min-width:180px"><label>Statut / carte du patient</label>
         <select id="statut" onchange="onStatut()">
           <option value="verte">Carte verte (monég. · DH 0)</option>
@@ -367,15 +374,6 @@ window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionS
       <button class="addline" onclick="addLine()">＋ ajouter une ligne de code</button>
     </div>
 
-    <!-- NGAP : consultations (lettre-clé × coefficient) -->
-    <div id="blocNGAP" style="display:none">
-      <table class="lines">
-        <thead><tr><th style="width:34%">Lettre-clé</th><th style="width:18%">Valeur (€)</th><th style="width:18%">Coefficient</th><th style="width:16%;text-align:right">BR</th><th></th></tr></thead>
-        <tbody id="ngapBody"></tbody>
-      </table>
-      <button class="addline" onclick="addNgap()">＋ ajouter une consultation</button>
-    </div>
-
     <!-- (17/08/2026) « Ajouter le parcours » a disparu. La page traite UN patient
          a la fois — le devis lui est remis en direct — et les deux gestes qui
          suivent (Devis, Declarer) portent directement sur la cotation en cours. -->
@@ -401,7 +399,6 @@ window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionS
     </div>
 
     <div class="hint" id="hintCCAM">Rôle : <b>principal</b> 100 % · <b>associé</b> 50 % (2ᵉ acte) · <b>complément</b> 100 % en sus (AHQJ021, YYYY041…). Le modificateur A vaut +23 € (français) ou +44,85 € (monégasque). Tarif officiel : à lire dans le classeur Excel des codes.</div>
-    <div class="hint" id="hintNGAP" style="display:none"><b>NGAP = lettre-clé × coefficient</b>, sans coefficient monégasque (verte, bulle, français… même BR) et sans modificateur 7/A. Valeurs : <b>C 34,40 €</b> · <b>CS 46 €</b> · <b>APC 60 €</b>. La carte ne joue que sur le <b>DH</b> : verte/SPME/AME/C2S 0 · rose +20 % · bulle/français/NAS libre.</div>
   </div>
 
   <!-- Les deux cadrans « % projeté » ont ete RETIRES le 17/08/2026. Ils se
@@ -463,7 +460,6 @@ const ROLES={principal:{lab:'Principal (100 %)',rate:1.0}, associe:{lab:'Associ�
 // NGAP : lettre-clé × coefficient, sans coeff monégasque ni modificateur
 const LC={C:34.40, CS:46.00, APC:60.00, AUTRE:0};
 // Libelles en clair des lettres-cles, pour le detail acte par acte du devis.
-const LC_LAB={C:'Consultation', CS:'Consultation de sp\u00e9cialiste', APC:'Avis ponctuel de consultant', AUTRE:'Acte NGAP'};
 // Bibliothèque de formules mutuelle — SEULE la ligne « honoraires » (en % BR) compte.
 // À enrichir au fil de la collecte des tableaux de garanties. p=0 → non renseignée ; p=-1 → saisie manuelle.
 const FORMULES=[
@@ -489,7 +485,9 @@ let axe='CCAM';
 // Tableau VIDE au demarrage (27/07/2026). Il contenait deux lignes d'orthopedie de
 // demonstration, qu'il fallait effacer a chaque patient.
 let builder=[];
-let ngap=[ {lc:'CS', val:46.00, coef:1} ];
+/* `axe` reste une CONSTANTE de comptabilite : la declaration et le devis
+   distinguent toujours les deux compteurs des 30 %. Ce qui a disparu, c'est le
+   choix offert a l'ecran — il n'en existe plus qu'un seul chemin. */
 let parcours=[];
 const eur=n=>Math.round(n).toLocaleString('fr-FR')+' €';
 const eur2=n=>n.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
@@ -499,7 +497,6 @@ function coeff(){return STATUTS[document.getElementById('statut').value].coeff;}
 function lineBR(l){const c=coeff();const pct=l.m7?0.06:0;const rate=ROLES[l.role].rate;const A=l.mA?23:0;
   return c*((l.tarif||0)*(1+pct)*rate + A);}
 // NGAP : valeur de la lettre-clé × coefficient — AUCUN coeff monégasque, aucun modificateur
-function ngapBR(n){return (n.val||0)*(n.coef||0);}
 /* ── CONSULTATION ASSOCIEE (2A) ────────────────────────────────────────────
    Rattache la BR NGAP du patient a SON parcours bloc, au moment de la cotation.
    Pourquoi ici et pas au moment de la declaration : cinq patients vus le meme jour
@@ -568,11 +565,7 @@ function renderStatutAlerte(){
   } else box.style.display='none';
 }
 
-function parcoursBR(){
-  return axe==='NGAP'
-    ? ngap.reduce((s,n)=>s+ngapBR(n),0)
-    : builder.reduce((s,l)=>s+lineBR(l),0);
-}
+function parcoursBR(){ return builder.reduce((s,l)=>s+lineBR(l),0); }
 
 // ---- MOTEUR MUTUELLE ----
 function populateMut(){
@@ -652,24 +645,12 @@ function caler(){
   updateRac(); renderSummary();
 }
 
-function setAxe(a){axe=a;
-  document.getElementById('axC').classList.toggle('on',a==='CCAM');
-  document.getElementById('axN').classList.toggle('on',a==='NGAP');
-  const n=(a==='NGAP');
-  document.getElementById('blocCCAM').style.display=n?'none':'block';
-  document.getElementById('blocNGAP').style.display=n?'block':'none';
-  document.getElementById('hintCCAM').style.display=n?'none':'block';
-  document.getElementById('hintNGAP').style.display=n?'block':'none';
-  // La date d'intervention n'a de sens que sur l'axe bloc (CCAM).
-  document.getElementById('dIntWrap').style.display=n?'none':'block';
-  // La consultation associee n'a de sens que sur un parcours BLOC : sur l'axe NGAP,
-  // la consultation EST le parcours.
-  ['assocWrap','assocCoefWrap','assocLibreWrap'].forEach(function(id){
-    const el=document.getElementById(id); if(!el) return;
-    el.style.display = n ? 'none' : (id==='assocWrap' ? 'block' : el.style.display);
-  });
-  if(!n) assocChange();
-  const ah=document.getElementById('assocHint'); if(ah && n) ah.innerHTML='';
+/* setAxe() a disparu avec le selecteur (17/08/2026). L'ecran d'ouverture se pose
+   une fois : le jour du bloc est demande, la consultation associee aussi. */
+function poserEcran(){
+  document.getElementById('dIntWrap').style.display='block';
+  const w=document.getElementById('assocWrap'); if(w) w.style.display='block';
+  assocChange();
   renderDateHint();
   onStatut();
 }
@@ -688,17 +669,7 @@ function addLine(){builder.push({code:'',lib:'',tarif:0,m7:true,mA:false,role:'c
 function rmLine(i){builder.splice(i,1);renderBuilder();}
 function upd(i,f,v){builder[i][f]=v;renderBuilder();}
 
-// --- NGAP ---
-function addNgap(){ngap.push({lc:'CS',val:LC.CS,coef:1});renderBuilder();}
-function rmNgap(i){ngap.splice(i,1);renderBuilder();}
-function updNgap(i,f,v){
-  ngap[i][f]=v;
-  if(f==='lc' && v!=='AUTRE') ngap[i].val=LC[v]; // valeur auto-remplie depuis la lettre-clé
-  renderBuilder();
-}
-
 function renderBuilder(){
-  if(axe==='NGAP') return renderNgap();
   const tb=document.getElementById('linesBody');
   tb.innerHTML=builder.map((l,i)=>`<tr>
     <td><div class="codetag">${l.code||'—'}</div><input value="${(l.lib||'').replace(/"/g,'&quot;')}" onchange="upd(${i},'lib',this.value)"></td>
@@ -730,17 +701,6 @@ function applyDH(){
   renderSummary();
 }
 
-function renderNgap(){
-  const tb=document.getElementById('ngapBody');
-  const opts=k=>Object.keys(LC).map(x=>`<option value="${x}" ${k===x?'selected':''}>${x==='AUTRE'?'Autre…':x}</option>`).join('');
-  tb.innerHTML=ngap.map((n,i)=>`<tr>
-    <td><select onchange="updNgap(${i},'lc',this.value)">${opts(n.lc)}</select></td>
-    <td><input class="mono" type="number" step="0.01" value="${n.val||''}" ${n.lc!=='AUTRE'?'readonly style=background:#F1F5F9':''} onchange="updNgap(${i},'val',parseFloat(this.value)||0)"></td>
-    <td><input class="mono" type="number" step="1" min="1" value="${n.coef||''}" onchange="updNgap(${i},'coef',parseFloat(this.value)||0)"></td>
-    <td class="brcell">${eur2(ngapBR(n))}</td>
-    <td><button class="rm" onclick="rmNgap(${i})" title="Retirer">✕</button></td></tr>`).join('');
-  applyDH();
-}
 function fromCible(){const c=parseFloat(document.getElementById('cible').value)||0;const br=parcoursBR();
   document.getElementById('dh').value=(Math.max(0,Math.round((c-br)*100)/100)).toFixed(2);updateRac();renderSummary();}
 
@@ -936,7 +896,6 @@ function renderCotTypeBtns(){
 // REMPLACE les lignes en place : une cotation type decrit un patient entier.
 function appliquerCotType(i){
   const c=COTTYPE[i]; if(!c) return;
-  if(axe!=='CCAM') setAxe('CCAM');
   const manquants=[];
   const lignes=[];
   c.lignes.forEach(function(l){
@@ -1084,9 +1043,8 @@ function dclPreview(){
   const prev=document.getElementById('dclPrev'), btn=document.getElementById('dclBtn');
   const bloqueur = !p ? (parcoursBR()<=0 ? 'Cotez d\'abord le patient, ci-dessus.'
                                          : 'Renseignez le jour du bloc, dans la cotation.')
-                 : (p.axe!=='CCAM' ? 'La déclaration ne concerne que le bloc (axe CCAM).'
                  : (!sec ? 'Choisissez le secteur.'
-                 : (!spec ? 'Choisissez la spécialité — elle est obligatoire.' : '')));
+                 : (!spec ? 'Choisissez la spécialité — elle est obligatoire.' : ''));
   if(btn) btn.disabled=!!bloqueur;
   if(!prev) return;
   if(bloqueur){ prev.innerHTML=esc(bloqueur); return; }
@@ -1133,7 +1091,7 @@ async function declarer(){
    dates, chirurgie, depassement) ; ce qui decrit le contexte de travail reste
    (secteur, contexte de cotation, statut de carte le plus frequent du creneau). */
 function patientSuivant(){
-  builder=[]; ngap=[{lc:'CS', val:LC.CS, coef:1}]; parcours=[];
+  builder=[]; parcours=[];
   ['dInt','dclChir','cible'].forEach(function(id){ const el=document.getElementById(id); if(el) el.value=''; });
   const dh=document.getElementById('dh'); if(dh) dh.value='0';
   const q=document.getElementById('ccamq'); if(q) q.value='';
@@ -1216,18 +1174,15 @@ function renderDateHint(){
    renvoie null (et le dit) si la cotation n'est pas exploitable. */
 function courant(muet){
   const br=parcoursBR();
-  if(br<=0){ if(!muet) alert(axe==='NGAP'?'Ajoute au moins une consultation avec une valeur.':'Ajoute au moins une ligne avec un tarif.'); return null; }
+  if(br<=0){ if(!muet) alert('Ajoute au moins une ligne avec un tarif.'); return null; }
   const dh=parseFloat(document.getElementById('dh').value)||0;
-  const desc = axe==='NGAP'
-    ? ngap.map(n=>`${n.lc==='AUTRE'?'NGAP':n.lc}${(n.coef&&n.coef!==1)?' '+n.coef:''}`).join(' + ')
-    : builder.map(l=>((l.code?l.code+' ':'')+(l.lib||'ligne'))).join(' + ');
-  const cnt = axe==='NGAP'?ngap.length:builder.length;
+  const desc = builder.map(l=>((l.code?l.code+' ':'')+(l.lib||'ligne'))).join(' + ');
+  const cnt = builder.length;
   const dCs=document.getElementById('dCs').value;
   const dInt=document.getElementById('dInt').value;
   if(!dCs){ if(!muet) alert("Renseigne la date de consultation."); return null; }
-  if(axe==='CCAM' && !dInt){ if(!muet) alert("Renseigne le jour du bloc : c'est lui qui pose l'alerte du comit\u00e9 sur le planning."); return null; }
-  // Date de l'acte = celle qui remonte au comite : intervention en CCAM, consultation en NGAP.
-  const dActe = (axe==='CCAM') ? dInt : dCs;
+  if(!dInt){ if(!muet) alert("Renseigne le jour du bloc : c'est lui qui pose l'alerte du comit\u00e9 sur le planning."); return null; }
+  const dActe = dInt;                       // ce qui remonte au comite : le jour du bloc
   const st=document.getElementById('statut').value, pct=currentMutPct();
   let rac=null, mut=null;
   if(pct>0 && STATUTS[st].dh!=='0'){
@@ -1237,18 +1192,12 @@ function courant(muet){
   // Detail acte par acte, memorise pour le devis (modele CNOM : un bloc par acte).
   // La BR se repartit ligne par ligne ; le DH, saisi pour l'intervention entiere, NON.
   // Il n'existe pas de cle de repartition du DH : il reste donc sur la ligne de total.
-  const lines = (axe==='CCAM')
-    ? builder.map(l=>({code:l.code||'', lib:l.lib||'Acte', br:lineBR(l),
-        mods:[l.m7?'7':null, l.mA?'A':null].filter(Boolean), role:l.role}))
-    : ngap.map(n=>{const k=(n.lc==='AUTRE'?'NGAP':n.lc);
-        return {code:k+((n.coef&&n.coef!==1)?' \u00d7 '+n.coef:''), lib:LC_LAB[n.lc]||'Acte NGAP',
-                br:ngapBR(n), mods:[]};});
+  const lines = builder.map(l=>({code:l.code||'', lib:l.lib||'Acte', br:lineBR(l),
+        mods:[l.m7?'7':null, l.mA?'A':null].filter(Boolean), role:l.role}));
   // 2A : le parcours porte desormais SES DEUX montants. brCcam/brNgap sont ce qui
   // partira dans la declaration ; br reste la BR de l'axe courant (devis, RAC, simulateur).
-  const brC = (axe==='CCAM') ? br : 0;
-  const brN = (axe==='CCAM') ? assocBR() : br;
-  return {axe,statut:st,desc,cnt,br,dh,rac,mut,dCs,dInt:(axe==='CCAM'?dInt:''),dActe,lines,
-          brCcam:brC, brNgap:brN};
+  return {axe,statut:st,desc,cnt,br,dh,rac,mut,dCs,dInt,dActe,lines,
+          brCcam:br, brNgap:assocBR()};
 }
 
 /* Devis du patient affiche. `parcours` ne sert plus que de porte-objet a un seul
@@ -1562,7 +1511,7 @@ document.getElementById('dCs').value=isoToday();
 demarrer();
 chargerDecl();
 dclPreview();
-populateMut();setAxe('CCAM');renderSummary();
+populateMut();poserEcran();renderSummary();
 </script>
 <div id="devisOverlay">
   <div class="dvbar">

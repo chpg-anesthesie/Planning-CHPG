@@ -335,6 +335,15 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
   V('le modificateur 7 est posé', ev('builder.every(l => l.m7 === true)'));
   V('la chirurgie se pré-remplit depuis l\'acte', d.getElementById('dclChir').value.length > 3, d.getElementById('dclChir').value);
 
+  /* (17/08/2026) LE SÉLECTEUR D'AXE A DISPARU — décision d'Arthur : tout patient
+     vu passe ensuite au bloc. Deux endroits parlaient de consultation sans que
+     rien ne dise en quoi ils différaient. La COMPTABILITÉ des deux axes, elle,
+     ne bouge pas : c'est ce que ces vérifications protègent. */
+  V('plus aucun choix d\'axe à l\'écran',
+    !/id="axN"/.test(html) && !/function setAxe/.test(html) && !/id="blocNGAP"/.test(html));
+  V('la consultation associée reste, elle, sur le parcours',
+    d.getElementById('assocWrap').style.display !== 'none' && d.getElementById('assocLc').value === 'CS');
+
   // ── Déclarer sans jour de bloc : refusé, et la page dit pourquoi ──
   V('sans jour de bloc, le bouton Déclarer reste gris', d.getElementById('dclBtn').disabled === true);
   V('et la page dit ce qui manque', /jour du bloc/i.test(d.getElementById('dclPrev').textContent),
@@ -345,6 +354,17 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
   await dodo(30);
   V('le secteur et la spécialité manquants bloquent encore',
     d.getElementById('dclBtn').disabled === true || d.getElementById('dclSpec').value !== '');
+
+  /* La COMPTABILITÉ des deux axes survit à la disparition du sélecteur : les actes
+     comptent en CCAM au mois du bloc, la consultation en NGAP au mois où le patient
+     a été vu. C'est tout l'intérêt de garder deux compteurs avec un seul écran. */
+  const p1 = ev('courant(true)');
+  V('la cotation alimente les DEUX compteurs des 30 %',
+    !!p1 && p1.brCcam > 0 && p1.brNgap > 0, p1 && [p1.brCcam, p1.brNgap]);
+  V('les actes en CCAM, la consultation associée en NGAP',
+    !!p1 && Math.abs(p1.brNgap - 46) < 0.01 && p1.brCcam > 100, p1 && [p1.brCcam, p1.brNgap]);
+  V('la date qui remonte au comité est le jour du bloc',
+    !!p1 && p1.dActe === p1.dInt && p1.dInt !== p1.dCs, p1 && [p1.dActe, p1.dInt, p1.dCs]);
 
   // ── Le piège de la cataracte ──
   d.getElementById('dclSec').value = 'ORL'; w.dclSecChange();

@@ -13,7 +13,7 @@
    n'informent. On monte le 2e chiffre à chaque nouveauté visible, le 1er à
    une ouverture majeure.
    ───────────────────────────────────────────────────────────────────────── */
-window.SITE_VERSION = 'v1.51';
+window.SITE_VERSION = 'v1.52';
 
 (function () {
   function poser() {
