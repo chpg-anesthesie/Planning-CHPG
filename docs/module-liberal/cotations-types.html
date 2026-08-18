@@ -193,6 +193,7 @@ window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionS
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
+const MIROIR_URL = 'https://chpg-miroir.arthurfrohlich.workers.dev';
 
 /* Mêmes constantes de calcul que la page de cotation. Elles sont ici pour une
    seule raison : montrer le montant PENDANT la construction, pour qu'il se
@@ -234,7 +235,7 @@ async function api(action, extra){
 function panne(txt, avecReessai){
   const el = $('panne');
   el.innerHTML = esc(txt) + (avecReessai
-    ? ' <button class="btn primary" style="margin-left:8px;padding:6px 12px;font-size:12.5px" onclick="charger()">Réessayer</button>' : '');
+    ? ' <button class="btn primary" style="margin-left:8px;padding:6px 12px;font-size:12.5px" onclick="charger(true)">Réessayer</button>' : '');
   el.style.display = 'block';
 }
 
@@ -253,10 +254,34 @@ const brActe = a => COEF_MONEGASQUE * (acteDe(a.code).t * MOD7 * (ROLES[a.role] 
 const brCot  = k => (k.lignes || []).reduce((s,l) => s + brActe(l), 0);
 
 /* ── Chargement ───────────────────────────────────────────────────── */
-async function charger(){
+/* (17/08/2026) LA COPIE RAPIDE D'ABORD. La liste y vit deja ; le seul motif
+   d'appeler Apps Script etait de connaitre le droit de supprimer — il voyage
+   desormais avec l'identite. Apps Script reste le repli, et il redevient la
+   source APRES un enregistrement (voir enregistrer/supprimer) : la copie se
+   rafraichit dans la foulee, mais pas dans la meme seconde. */
+async function chargerParMiroir(){
+  const code = CHPGSession.lire(); if(!code) return null;
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 8000);
+  try{
+    const r = await fetch(MIROIR_URL + '/read', { method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ code:code, keys:['cotations_type'] }), signal:ctrl.signal });
+    const j = await r.json();
+    if(!j || !j.success || !j.identite) return null;
+    if(j.identite.role !== 'mar' || !j.identite.liberal) return { interdit:true };
+    const list = j.data && j.data.cotations_type;
+    if(!Array.isArray(list)) return null;
+    return { items:list, peutSupprimer: !!j.identite.libAdmin };
+  }catch(e){ return null; }
+  finally{ clearTimeout(t); }
+}
+
+async function charger(direct){
   $('panne').style.display = 'none';
-  const r = await api('listCotationsTypeEdit', {});
-  if(!r || !r.success){
+  let r = direct ? null : await chargerParMiroir();
+  if(r && r.interdit){ panne('Réservé aux membres du groupement libéral.', false); return; }
+  if(!r) r = await api('listCotationsTypeEdit', {});
+  if(!r || (!r.success && !Array.isArray(r.items))){
     panne(r && r.error === 'hors portail'
       ? "Vous n'êtes pas identifié : ouvrez cette page depuis le portail."
       : 'Impossible de lire les cotations : ' + ((r && r.error) || 'portail injoignable') + '.', true);
@@ -414,7 +439,7 @@ async function enregistrer(){
   if(!r || !r.success){ toast(((r && r.error) || 'Échec de l\'enregistrement') + '', false); return; }
   grpActif = edit.grp;
   annuler();
-  await charger();
+  await charger(true);          // en direct : la copie rapide n'est pas encore a jour
   toast('Cotation enregistrée — disponible pour tout le groupement', true);
 }
 
@@ -424,7 +449,7 @@ async function supprimer(i){
   if(!confirm('Supprimer « ' + k.nom + ' » ?\n\nElle disparaîtra pour tous les membres du groupement.')) return;
   const r = await api('deleteCotationType', { groupe:k.groupe, nom:k.nom });
   if(!r || !r.success){ toast(((r && r.error) || 'Échec de la suppression') + '', false); return; }
-  await charger();
+  await charger(true);          // en direct : la copie rapide n'est pas encore a jour
   toast('Cotation supprimée', true);
 }
 

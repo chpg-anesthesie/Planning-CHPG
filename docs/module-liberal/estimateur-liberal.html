@@ -301,8 +301,7 @@ window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionS
           <option value="frc2s">Français — AME / C2S (précarité · DH 0)</option>
           <option value="nas">NAS / non assuré (DH libre)</option>
           <option value="spme">SPME (DH 0)</option>
-          <option value="ame">AME — Aide Médicale de l'État (DH 0)</option>
-        </select></div>
+          </select></div>
       <div><label id="coefLbl">Coeff. CCAM</label><span class="coefbadge" id="coefBadge">× 1,95</span></div>
     </div>
 
@@ -484,7 +483,12 @@ window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionS
 <script>
 const STATUTS={
  verte:{coeff:1.95,dh:'0'}, rose:{coeff:1.95,dh:'0.20'}, bulle:{coeff:1.95,dh:'libre'},
- fr:{coeff:1.00,dh:'libre'}, frc2s:{coeff:1.00,dh:'0'}, nas:{coeff:1.00,dh:'libre'}, spme:{coeff:1.95,dh:'0'}, ame:{coeff:1.95,dh:'0'}
+ fr:{coeff:1.00,dh:'libre'}, frc2s:{coeff:1.00,dh:'0'}, nas:{coeff:1.00,dh:'libre'}, spme:{coeff:1.95,dh:'0'}
+ /* (17/08/2026) « AME » RETIRE — decision d'Arthur : on ne fait pas de liberal
+    pour l'AME. L'entree portait un coefficient monegasque (1,95) quand
+    « Assure francais — AME / C2S » en portait un francais (1,00) : deux calculs
+    opposes, et rien a l'ecran ne disait lequel choisir. La question de la base
+    AME, restee ouverte depuis juillet, se ferme avec l'option. */
 };
 const ROLES={principal:{lab:'Principal (100 %)',rate:1.0}, associe:{lab:'Associé (50 %)',rate:0.5}, complement:{lab:'Complément (100 % en sus)',rate:1.0}};
 // NGAP : lettre-clé × coefficient, sans coeff monégasque ni modificateur
@@ -566,7 +570,7 @@ function assocChange(){
       alert("L'APC est une cotation francaise : elle ne peut pas etre appliquee a un assure monegasque.");
       sel.value=''; assocChange(); return;
     }
-    if(st==='nas' || st==='ame'){
+    if(st==='nas'){
       alert("APC pour ce statut : base non confirmee. A verifier avec la facturation avant remise du devis.");
     }
   }
@@ -581,18 +585,15 @@ function renderAssocHint(){
     : '';
 }
 
-// Bandeau AME : deux regimes existent (francais et monegasque), sur des bases
-// differentes, et rien ne confirme laquelle s'applique en liberal. On calcule quand
-// meme, mais on le DIT : un chiffre douteux ne s'affiche pas en silence.
+/* (17/08/2026) Le bandeau AME a disparu avec l'option : il avertissait que la
+   base de calcul n'etait pas confirmee — deux regimes, francais et monegasque,
+   sur des bases opposees. Arthur a tranche : pas de liberal pour l'AME. Un
+   avertissement de moins a expliquer aux dix-neuf, et un calcul douteux de
+   moins a l'ecran. La fonction reste : c'est ici que viendra le prochain
+   statut a signaler. */
 function renderStatutAlerte(){
   const box=document.getElementById('statutAlerte'); if(!box) return;
-  const st=statutCourant();
-  if(st==='ame'){
-    box.style.display='';
-    box.innerHTML='\u26A0\uFE0F <b>AME — base de calcul non confirmee.</b> Deux regimes existent '
-      +'(AME francaise, tarifs francais sans depassement ; AME monegasque, hors annexe III de la '
-      +'convention). A verifier aupres de la facturation avant remise du devis.';
-  } else box.style.display='none';
+  box.style.display='none';
 }
 
 function parcoursBR(){ return builder.reduce((s,l)=>s+lineBR(l),0); }
@@ -1142,17 +1143,42 @@ function dclPreRemplirChir(){
 
 let DECL_ALL=false;     // false = fenetre (futur + 7 j) ; true = toute l'annee depliee
 
-async function apiLib(action, extra){
+/* (17/08/2026) « réseau » recouvrait TROIS causes différentes — délai dépassé,
+   connexion perdue, réponse illisible — et on cherchait donc à l'aveugle.
+   Chacune a désormais son message.
+   RÉESSAI : deux tentatives de plus, espacées, pour les LECTURES seulement.
+   Relire deux fois ne change rien ; réécrire, si. Les écritures se réessaient
+   aussi, mais uniquement parce qu'elles portent un jeton unique (voir plus bas)
+   qui rend un doublon impossible. */
+const LIB_ECRITURES = { declareLiberal:1, deleteLiberal:1 };
+
+async function apiLibUneFois(action, extra){
   const code = CHPGSession.lire();
-  if(!code) return {success:false, error:'hors portail'};
+  if(!code) return {success:false, error:'hors portail', definitif:true};
   const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 20000);
   try{
     const r=await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
       body:JSON.stringify(Object.assign({action:action, code:code}, extra||{})),
       redirect:'follow', signal:ctrl.signal});
     clearTimeout(to);
-    return await r.json();
-  }catch(e){ clearTimeout(to); return {success:false, error:'réseau'}; }
+    try{ return await r.json(); }
+    catch(e){ return {success:false, error:'réponse illisible du portail'}; }
+  }catch(e){
+    clearTimeout(to);
+    return {success:false, error: (e && e.name==='AbortError') ? 'délai dépassé' : 'connexion perdue'};
+  }
+}
+
+async function apiLib(action, extra){
+  /* Une ecriture n'est reessayee que si elle porte un jeton : sans lui, la
+     reponse perdue d'une ecriture reussie ferait un doublon. */
+  const sur = !LIB_ECRITURES[action] || !!(extra && extra.jeton);
+  let r = await apiLibUneFois(action, extra);
+  for(let i=0; i<2 && sur && !(r && r.success) && !(r && r.definitif); i++){
+    await new Promise(function(res){ setTimeout(res, 700 * (i+1)); });
+    r = await apiLibUneFois(action, extra);
+  }
+  return r;
 }
 
 function dclPreview(){
@@ -1196,11 +1222,20 @@ async function declarer(){
     if(!confirm("Aucune BR CCAM.\n\nL'intervention sera bien déclarée au comité, mais elle ne comptera pas dans le rendement par spécialité.\n\nDéclarer quand même ?")) return;
   }
   const btn=document.getElementById('dclBtn'); btn.disabled=true;
+  /* Le jeton est tire UNE fois pour ce patient et ne change pas entre les
+     tentatives : c'est ce qui rend le reessai sur et le doublon impossible,
+     y compris si on appuie deux fois sur Declarer. */
+  if(!JETON_COURANT) JETON_COURANT = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const r=await apiLib('declareLiberal', {dateBloc:p.dInt, secteur:sec, chirurgie:chir,
                                           dateConsult:p.dCs, specialite:spec,
-                                          brCcam:p.brCcam, brNgap:p.brNgap});
+                                          brCcam:p.brCcam, brNgap:p.brNgap,
+                                          jeton:JETON_COURANT});
   btn.disabled=false;
-  if(!r || !r.success){ dclFlash('Échec : '+((r&&r.error)||'portail injoignable')+'.', false); return; }
+  if(!r || !r.success){
+    dclFlash('Échec : '+((r&&r.error)||'portail injoignable')+'. La liste ci-dessous est rechargée : vérifiez avant de recommencer.', false);
+    chargerDecl();
+    return;
+  }
   memoriserSecteur(sec);
   /* (17/08/2026) LE DEVIS RESTE REOUVRABLE PENDANT LA CONSULTATION. Cas reel :
      trois patients passes, on s'apercoit que le premier n'a pas signe. La
@@ -1215,6 +1250,10 @@ async function declarer(){
   patientSuivant();
   await chargerDecl();
 }
+
+/* Jeton du patient en cours. Remis a zero au patient suivant : un nouveau
+   patient est une nouvelle declaration, meme date et meme secteur compris. */
+let JETON_COURANT = '';
 
 /* Cotations des patients declares PENDANT CETTE SESSION, en memoire vive.
    Videe par tout rechargement de la page : rien ne survit a la fermeture. */
@@ -1237,7 +1276,7 @@ function patientSuivant(){
   const res=document.getElementById('ccamResults'); if(res) res.innerHTML='';
   const dcs=document.getElementById('dCs'); if(dcs) dcs.value=isoToday();
   Object.keys(DCL_TOUCHE).forEach(function(k){ DCL_TOUCHE[k]=false; });
-  lastRac=0; lastMut=null;
+  lastRac=0; lastMut=null; JETON_COURANT='';
   renderBuilder(); updateRac(); renderSummary(); renderDateHint();
   try{ window.scrollTo({top:0, behavior:'smooth'}); }catch(e){ window.scrollTo(0,0); }
 }
@@ -1259,7 +1298,26 @@ let DECL_KO = '';
 async function chargerDecl(){
   const code = CHPGSession.lire();
   if(!code){ DECL_KO=''; MES_DECL=[]; document.getElementById('dclListWrap').style.display='none'; return; }
-  const r=await apiLib('listLiberal', {year:(new Date().getFullYear())});
+  const an = new Date().getFullYear();
+  /* (17/08/2026) La copie rapide d'abord : c'est la derniere lecture de cette
+     page qui passait encore par Apps Script, et donc la derniere a tomber par
+     intermittence. La cle est filtree cote relais aux lignes du demandeur. */
+  try{
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 8000);
+    const rep=await fetch(MIROIR_URL+'/read', {method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({code:code, keys:['liberal_mar_'+an]}), signal:ctrl.signal});
+    clearTimeout(to);
+    const j=await rep.json();
+    const bloc = j && j.success && j.data && j.data['liberal_mar_'+an];
+    if(bloc && bloc.parMar){
+      const mien=[];
+      Object.keys(bloc.parMar).forEach(function(k){ (bloc.parMar[k]||[]).forEach(function(x){ mien.push(x); }); });
+      MES_DECL=mien; DECL_KO='';
+      renderDecl(); return;
+    }
+  }catch(e){ /* repli */ }
+  const r=await apiLib('listLiberal', {year:an});
   if(r && r.success && Array.isArray(r.items)){ MES_DECL=r.items; DECL_KO=''; }
   else { DECL_KO = (r && r.error) || 'portail injoignable'; }   // on GARDE la liste en place
   renderDecl();
@@ -1376,9 +1434,9 @@ function ouvrirDevisCourant(){
 function renderSummary(){ majBarre(); }
 /* renderRows() a disparu avec la liste des parcours empiles (17/08/2026). */
 // ---- GÉNÉRATEUR DE DEVIS (client-side, zéro persistance patient) ----
-const ST_LABELS={verte:'Carte verte (CCSS Monaco)',rose:'Carte rose (CCSS Monaco)',bulle:'Carte bulle (CCSS Monaco)',fr:'Assuré français (secteur 2)',frc2s:'Assuré français — AME / C2S (précarité)',nas:'NAS — non assuré social',spme:'SPME (Monaco)',ame:'AME'};
+const ST_LABELS={verte:'Carte verte (CCSS Monaco)',rose:'Carte rose (CCSS Monaco)',bulle:'Carte bulle (CCSS Monaco)',fr:'Assuré français (secteur 2)',frc2s:'Assuré français — AME / C2S (précarité)',nas:'NAS — non assuré social',spme:'SPME (Monaco)'};
 let dvHonoraire=0;
-const RO_RATE={verte:0.80,rose:0.80,bulle:0.80,spme:0.80,fr:0.70,frc2s:1.00,ame:1.00,nas:0.00};
+const RO_RATE={verte:0.80,rose:0.80,bulle:0.80,spme:0.80,fr:0.70,frc2s:1.00,nas:0.00};
 function eText(id,v){document.getElementById(id).textContent=v;}
 function fmtDate(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
 // Libelle lisible d'un code secteur ; a defaut, le code lui-meme.

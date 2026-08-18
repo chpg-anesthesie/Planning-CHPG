@@ -66,12 +66,12 @@
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-17.1';
+const VERSION = 'miroir 2026-08-17.2';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
 // une clé orpheline invisible.
-const CLE_VALIDE = /^(acces|annees|secteurs|specialites|cotations_type|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|releve_liberal_\d{4}|veille_marques|ordre_vac|echanges|notif_config|equite_live_\d{4}|doc_[A-Za-z0-9_-]{10,80})$/;
+const CLE_VALIDE = /^(acces|annees|secteurs|specialites|cotations_type|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|liberal_mar_\d{4}|releve_liberal_\d{4}|veille_marques|ordre_vac|echanges|notif_config|equite_live_\d{4}|doc_[A-Za-z0-9_-]{10,80})$/;
 /* (2026-08-10.1) `doc_<idDrive>` : un topo ou un protocole PDF, pousse par la
    tache dediee de miroir.gs. La valeur a la MEME forme que la reponse de
    `getTopo`/`getProtocole` cote Apps Script — {success,name,mimeType,dataB64} —
@@ -226,6 +226,13 @@ async function lire(corps, env) {
     if (/^indispos_\d{4}$/.test(cle) && user.role !== 'admin') {
       valeur = filtreIndispos(valeur, user.id);
     }
+    /* Filtre pour TOUS : personne n'a l'usage des lignes d'un autre ici, et une
+       liste « Mes interventions » qui en contiendrait serait inutilisable — la
+       corbeille designerait la ligne de quelqu'un d'autre. Le serveur refuse de
+       toute facon la suppression d'une ligne dont on n'est pas proprietaire. */
+    if (/^liberal_mar_\d{4}$/.test(cle)) {
+      valeur = filtreIndispos(valeur, user.id);
+    }
     if (cle === 'veille_marques') {
       // (08/08) Ce qu'un collègue lit est PERSONNEL : filtré pour TOUS les
       // rôles, admin compris — contrairement aux indispos.
@@ -241,6 +248,7 @@ async function lire(corps, env) {
     id: user.id, role: user.role, name: user.name,
     initials: user.initials, prenom: user.prenom || '',
     liberal: !!user.liberal, rpps: user.rpps || '',
+    libAdmin: !!user.libAdmin,          // (17/08) gere la bibliotheque de cotations types
     indisposYear: acces.indisposYear, indisposOuverte: !!acces.indisposOuverte,
   };
   return reponse({ success: true, identite, data, manquants, refuses, version: VERSION });
@@ -381,6 +389,10 @@ function autorise(user, cle) {
   if (cle === 'config_admin') return user.role === 'admin';            // admin seul
   if (cle === 'mail_nonlus') return user.role === 'admin';             // (05/08) compteur de non-lus : un NOMBRE, jamais de contenu
   if (/^liberal_\d{4}$/.test(cle)) return user.role === 'admin';       // (05/08) volet du panneau : qui opere, ou — jamais de montant
+  /* (17/08/2026) « Mes interventions declarees » : MEMBRES DU GROUPEMENT,
+     FILTREES a leurs propres lignes plus bas (meme mecanique que les indispos).
+     Le comite n'y a pas acces : il a sa propre cle, allegee. */
+  if (/^liberal_mar_\d{4}$/.test(cle)) return user.role === 'mar' && !!user.liberal;
   /* (17/08/2026) Releve financier du groupement. MEMBRES SEULS — meme regle
      que getReleveLiberal (portail.gs) : masquer la page ne suffit pas, seul
      le serveur ferme la porte. Le comite n'y a PAS acces : la gestion du

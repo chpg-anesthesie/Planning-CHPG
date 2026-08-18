@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-17.3';
+const GAS_VERSION_MIROIR = '2026-08-17.4';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -441,6 +441,19 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
     });
   }
 
+  if (uniq['liberal']) {
+    /* (17/08/2026) MES DECLARATIONS. La cle liberal_{Y} existante est celle du
+       COMITE : volontairement allegee (ni identifiant, ni montant, ni
+       specialite — decision du 05/08). La page « Mes interventions declarees »
+       a besoin de tout cela : identifiant pour supprimer, dates, specialite,
+       montants. D'ou une cle SEPAREE, structuree par MAR comme les indispos,
+       que le Worker filtre a ses propres lignes. Le comite garde la sienne,
+       allegee : il n'a pas besoin des montants. */
+    _miroirAjoute_(items, 'liberal_mar_' + annee, function () {
+      return _miroirConstruireLiberalMar_(annee);
+    });
+  }
+
   if (uniq['vacances_admin']) {
     _miroirAjouteEnveloppe_(items, 'vacances_admin', _miroirConstruireVacancesAdmin_);
   }
@@ -714,7 +727,11 @@ const MIROIR_PURGE_MAX_ANNEES  = 3;   // plafond de securite par passe
    famille échappe à l'oubli. */
 const MIROIR_CLES_PAR_ANNEE    = ['planning_', 'affectations_', 'indispos_',
                                   'gardes_', 'stats_', 'equite_live_',
-                                  'joursferies_', 'liberal_'];
+                                  'joursferies_', 'liberal_', 'liberal_mar_'];
+/* (17/08/2026) 'liberal_mar_' ajoute ICI en meme temps que la cle elle-meme.
+   Le banc l'a exige : toute cle datee par annee doit figurer dans les cles
+   effacables, sinon elle survit au menage de fin d'annee — c'est exactement
+   ce qui etait arrive a 'equite_live_', restee dehors depuis sa creation. */
 
 /* Balayage STRUCTUREL des deux classeurs. `complet` = les deux ont repondu.
    Volontairement distinct de `_miroirConstruireAnnees_` : celui-ci tolere
@@ -896,6 +913,17 @@ function _miroirEnvoyerLot_(items, jeton) {
 function _miroirConstruireAcces_() {
   const norm = function (v) { return String(v == null ? '' : v).trim().toUpperCase(); };
   const users = [];
+  /* (17/08/2026) Qui gere la bibliotheque de cotations types. La fabrique
+     appelait Apps Script UNIQUEMENT pour connaitre ce droit : en le faisant
+     voyager avec l'identite, elle n'a plus aucune lecture a demander au
+     serveur. Cle CONFIG / LIBERAL_ADMIN — jamais de nom dans le code. */
+  var libAdmin = '';
+  try {
+    const cfgA = _configRows_();
+    for (var ra = 1; ra < cfgA.length; ra++) {
+      if (String(cfgA[ra][0]).trim() === 'LIBERAL_ADMIN') { libAdmin = norm(cfgA[ra][1]); break; }
+    }
+  } catch (e) { /* sans la cle, personne ne gere : le bon defaut */ }
 
   // ADMIN_CODE — première occurrence gagnante, comme checkCode.
   try {
@@ -932,6 +960,7 @@ function _miroirConstruireAcces_() {
         name: data[i][1], initials: data[i][2],
         prenom: colPre >= 0 ? String(data[i][colPre] == null ? '' : data[i][colPre]).trim() : '',
         liberal: colLib >= 0 && String(data[i][colLib]).trim().toUpperCase() === 'O',
+        libAdmin: !!libAdmin && norm(data[i][0]) === libAdmin,
         rpps: colRpps >= 0 ? String(data[i][colRpps] == null ? '' : data[i][colRpps]).trim() : '',
       });
     }
@@ -1057,6 +1086,40 @@ function _miroirConstruireStats_(statsYear) {
       jf:data[r][14], vjf:data[r][15], vd:data[r][20], cSat:data[r][17], cJeu:data[r][18], cVd:data[r][19], cVjf:data[r][21]});
   }
   return { success: true, stats: stats };
+}
+
+/* Structure identique aux indispos : { parMar: { ID: [ligne, ...] } }. Le
+   Worker sait deja filtrer cette forme — une seule mecanique a maintenir. */
+function _miroirConstruireLiberalMar_(annee) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('LIBERAL_' + annee);
+  if (!sh || sh.getLastRow() < 2) return { annee: Number(annee), parMar: {} };
+  const data = sh.getDataRange().getValues();
+  const iso = function (v) {
+    if (v instanceof Date) return v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0')
+                                + '-' + String(v.getDate()).padStart(2, '0');
+    return String(v || '').trim();
+  };
+  const nombre = function (v) { const n = Number(v); return isFinite(n) ? n : 0; };
+  const parMar = {};
+  for (let r = 1; r < data.length; r++) {
+    const marId = String(data[r][3] || '').trim();
+    const dateBloc = iso(data[r][2]);
+    if (!marId || !/^\d{4}-\d{2}-\d{2}$/.test(dateBloc)) continue;
+    (parMar[marId] = parMar[marId] || []).push({
+      id:          String(data[r][0]),
+      dateConsult: iso(data[r][1]),
+      dateBloc:    dateBloc,
+      secteur:     String(data[r][4] || '').trim().toUpperCase(),
+      chirurgie:   String(data[r][5] || '').trim(),
+      specialite:  String(data[r][6] || '').trim().toUpperCase(),
+      brCcam:      nombre(data[r][7]),
+      brNgap:      nombre(data[r][8]),
+    });
+  }
+  Object.keys(parMar).forEach(function (k) {
+    parMar[k].sort(function (a, b) { return String(a.dateBloc).localeCompare(String(b.dateBloc)); });
+  });
+  return { annee: Number(annee), parMar: parMar };
 }
 
 function _miroirConstruireVacancesAdmin_() {

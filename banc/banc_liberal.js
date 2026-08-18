@@ -269,6 +269,74 @@ console.log('\n═══ 5bis. La fabrique de cotations types ═══');
     run('listCotationsTypeEdit({}, MAR).peutSupprimer') === false);
 }
 
+console.log('\n═══ 5ter. Le jeton unique : reessayer sans jamais doubler ═══');
+/* (17/08/2026) Le reseau peut perdre la REPONSE d'une ecriture qui a reussi :
+   on croit l'echec, on recommence, la declaration part deux fois. Personne ne
+   le verrait — deux endoscopies le meme jour dans le meme secteur sont
+   plausibles. Le jeton rend le reessai sur. */
+{
+  const cl = new Classeur();
+  cl.ajouter('MEDECINS', [['ID','NOM','ACTIF','LIBERAL'], ['ALPHA','Dr ALPHA','O','O']]);
+  cl.ajouter('SPECIALITES', [['CODE','LABEL','ACTIF'], ['END','Endoscopies','O']]);
+  const ctx = vm.createContext({
+    console, JSON, Date, Number, String, Object, Array, Math, Error, isNaN, isFinite, parseInt, parseFloat, RegExp,
+    SpreadsheetApp: { getActiveSpreadsheet: () => cl },
+    Logger: { log: () => {} },
+    Session: { getScriptTimeZone: () => 'Europe/Monaco' },
+    Utilities: { formatDate: (d) => d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2),
+                 getUuid: () => 'u-' + Math.random().toString(16).slice(2) + '-x' },
+  });
+  ctx.globalThis = ctx;
+  ['SPECIALITES_TAB','_SPECIALITES_HEADER','_SPECIALITES_SEED','LIBERAL_HEADER'].forEach(function(n){
+    try { vm.runInContext(extraireConst('../gas/portail.gs', n), ctx); } catch(e) {}
+  });
+  ['_isoDate','_todayISO_','_libYearOf','_libSheetName','_getOrCreateLiberalTab','_libNewId',
+   '_libMoney_','getOrCreateSpecialitesTab','getSpecialites','_specialitesActives_','declareLiberal','listLiberal','deleteLiberal']
+    .forEach(n => { try { vm.runInContext(extraireFonction('../gas/portail.gs', n), ctx); } catch(e) {} });
+  ctx.MAR = { role:'mar', id:'ALPHA', liberal:true };
+  const run = e => vm.runInContext(e, ctx);
+  const base = "{dateBloc:'2026-09-15', dateConsult:'2026-09-01', secteur:'END', specialite:'END', brCcam:100, brNgap:46";
+
+  const a = run(`declareLiberal(${base}, jeton:'abc123'}, MAR)`);
+  V('la déclaration passe', a.success === true, a);
+  V('elle porte le jeton comme identifiant', a.id === 'J-abc123', a.id);
+  const b = run(`declareLiberal(${base}, jeton:'abc123'}, MAR)`);
+  V('la MÊME déclaration rejouée ne crée pas de doublon', b.success === true && b.rejoue === true, b);
+  V('il n\'y a bien qu\'UNE ligne', run('listLiberal({year:2026}, MAR).items.length') === 1,
+    run('listLiberal({year:2026}, MAR).items.length'));
+
+  /* Patient suivant : nouveau jeton, donc nouvelle ligne — meme date, meme
+     secteur. Deux endoscopies le meme jour, c'est la normale. */
+  const c = run(`declareLiberal(${base}, jeton:'def456'}, MAR)`);
+  V('un patient suivant, même jour et même secteur, passe bien',
+    c.success === true && run('listLiberal({year:2026}, MAR).items.length') === 2);
+  /* Sans jeton, l'ancien chemin reste ouvert : entre le deploiement du serveur
+     et la mise en ligne de la page, l'ancienne page envoie encore l'ancien
+     payload. Elle ne doit pas tomber en erreur. */
+  const d0 = run(`declareLiberal(${base}}, MAR)`);
+  V('une déclaration sans jeton reste acceptée (ancienne page)', d0.success === true, d0);
+  V('un jeton mal formé ne sert pas d\'identifiant',
+    run(`declareLiberal(${base}, jeton:'../evasion'}, MAR)`).id.indexOf('J-') !== 0);
+
+  const page = fs.readFileSync('../docs/module-liberal/estimateur-liberal.html', 'utf8');
+  V('la page ne change PAS de jeton entre deux tentatives',
+    /if\(!JETON_COURANT\) JETON_COURANT/.test(page));
+  V('et en tire un neuf au patient suivant', /JETON_COURANT=''/.test(page));
+  V('une écriture SANS jeton n\'est jamais réessayée',
+    /!LIB_ECRITURES\[action\] \|\| !!\(extra && extra\.jeton\)/.test(page));
+  /* « reseau » recouvrait trois causes : on cherchait a l'aveugle. */
+  V('« réseau » a laissé place à trois messages distincts',
+    /délai dépassé/.test(page) && /connexion perdue/.test(page) && /réponse illisible du portail/.test(page));
+
+  /* Arthur : « on ne fait pas de liberal pour l'AME ». Deux entrees existaient,
+     l'une a 1,95 (monegasque), l'autre a 1,00 (francaise) : deux calculs
+     opposes sans que rien ne dise lequel choisir. */
+  V('l\'AME a disparu de la liste des statuts',
+    !/value="ame"/.test(page) && !/ame:\{coeff/.test(page));
+  V('et son bandeau d\'incertitude avec elle', !/AME — base de calcul non confirmee/.test(page));
+  V('la C2S, elle, reste intacte', /value="frc2s"/.test(page));
+}
+
 console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache ═══');
 /* (17/08/2026) Trois défauts corrigés le même jour, tous invisibles au banc
    parce qu'aucune vérification ne lisait cette page :
@@ -663,6 +731,50 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
     const adm = await lire(CODE_ADM);
     V('le comité ne l\'obtient pas non plus — le libéral n\'est pas son ressort',
       !(adm.data && adm.data.releve_liberal_2026), Object.keys(adm.data || {}));
+    /* (17/08/2026) « Mes interventions declarees » passe par la copie rapide :
+       c'etait la derniere lecture du module a dependre d'Apps Script, donc la
+       derniere a tomber par intermittence. Cle SEPAREE de celle du comite, qui
+       reste allegee (ni montant, ni specialite). */
+    M.set('liberal_mar_2026', JSON.stringify({ annee:2026, parMar:{
+      ALPHA:[{ id:'L-1', dateBloc:'2026-09-15', dateConsult:'2026-09-01', secteur:'END',
+               specialite:'END', chirurgie:'Colo', brCcam:100, brNgap:46 }],
+      BRAVO:[{ id:'L-2', dateBloc:'2026-09-16', dateConsult:'2026-09-02', secteur:'ORL',
+               specialite:'ORL', chirurgie:'Amygdales', brCcam:200, brNgap:46 }] } }));
+    const lireCle = async (code, cle) => {
+      const r = await WK.fetch(new Request('https://worker/read', { method:'POST',
+        body: JSON.stringify({ code, keys:[cle] }) }), env);
+      return r.json();
+    };
+    const mien = await lireCle(CODE, 'liberal_mar_2026');
+    const bloc = mien.data && mien.data.liberal_mar_2026;
+    V('un membre reçoit ses propres déclarations', !!bloc && !!bloc.parMar.ALPHA, Object.keys((bloc||{}).parMar||{}));
+    /* Filtre pour TOUS : une liste « Mes interventions » qui contiendrait celles
+       d'un autre serait inutilisable — la corbeille designerait sa ligne. */
+    V('et SEULEMENT les siennes', !!bloc && !bloc.parMar.BRAVO, Object.keys((bloc||{}).parMar||{}));
+    const horsG2 = await lireCle(CODE_HORS, 'liberal_mar_2026');
+    V('un MAR hors groupement n\'y a pas accès', !(horsG2.data && horsG2.data.liberal_mar_2026));
+    const adm2 = await lireCle(CODE_ADM, 'liberal_mar_2026');
+    V('le comité non plus — il a sa propre clé, allégée',
+      !(adm2.data && adm2.data.liberal_mar_2026));
+
+    /* Le droit de gerer la bibliotheque voyage avec l'identite : la fabrique
+       n'appelle plus Apps Script pour le connaitre. */
+    const idt = mien.identite || {};
+    V('l\'identité porte le droit de gérer les cotations types', 'libAdmin' in idt, Object.keys(idt));
+    const mir2 = fs.readFileSync('../gas/miroir.gs', 'utf8');
+    /* Le depot est PUBLIC : l'ayant droit se lit dans le classeur, jamais
+       ecrit ici. Un identifiant en dur serait un nom dans un historique
+       definitif — et il faudrait un push pour changer de responsable. */
+    V('ce droit vient de la clé CONFIG, jamais d\'un identifiant en dur',
+      /LIBERAL_ADMIN/.test(mir2) &&
+      !/libAdmin[^;]{0,80}===\s*[\'"][A-Z]{3,}[\'"]/.test(mir2));
+    const fab2 = fs.readFileSync('../docs/module-liberal/cotations-types.html', 'utf8');
+    V('la fabrique lit la copie rapide en premier', /chargerParMiroir/.test(fab2));
+    V('mais relit le classeur en direct après une écriture', /charger\(true\)/.test(fab2));
+    const cot2 = fs.readFileSync('../docs/module-liberal/estimateur-liberal.html', 'utf8');
+    V('la liste des déclarations passe par la copie rapide', /liberal_mar_'\+an/.test(cot2));
+    V('avec Apps Script en repli', /apiLib\('listLiberal'/.test(cot2));
+
     const inconnu = await lire('PASUNCODE');
     V('un code inconnu n\'obtient rien du tout', inconnu.success === false, inconnu.error);
 
@@ -688,8 +800,12 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
       /saveCotationType:\s*\['cotations_type'\]/.test(mir) && /deleteCotationType:\s*\['cotations_type'\]/.test(mir));
     const fab = fs.readFileSync('../docs/module-liberal/cotations-types.html', 'utf8');
     const cot = fs.readFileSync('../docs/module-liberal/estimateur-liberal.html', 'utf8');
-    V('la fabrique lit le classeur en direct, pas la copie rapide',
-      /listCotationsTypeEdit/.test(fab) && !/workers\.dev/.test(fab));
+    /* (17/08/2026) La fabrique lit desormais la copie rapide EN PREMIER — la
+       liste y vit deja, et le droit de supprimer voyage avec l'identite. Mais
+       apres une ECRITURE elle relit le classeur en direct : la copie se
+       rafraichit dans la foulee, pas dans la meme seconde. */
+    V('la fabrique relit le classeur en direct après une écriture',
+      /listCotationsTypeEdit/.test(fab) && /charger\(true\)/.test(fab));
     V('elle refuse à la source un acte sans tarif d\'anesthésie',
       /pas de tarif d'anesthésie/.test(fab) && /if\(!a \|\| !a\.t\) return;/.test(fab));
     V('elle passe par la session commune',

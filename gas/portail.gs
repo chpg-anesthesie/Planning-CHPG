@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-08-17.2';
+const GAS_VERSION_PORTAIL = '2026-08-17.3';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1346,10 +1346,29 @@ function declareLiberal(payload, user) {
 
   const sh = _getOrCreateLiberalTab(year);
 
+  /* ══ JETON UNIQUE (17/08/2026) ══════════════════════════════════
+     Le reseau peut perdre la REPONSE d'une ecriture qui a reussi : on croit
+     l'echec, on recommence, et la declaration part deux fois. Personne ne le
+     verrait — deux endoscopies le meme jour dans le meme secteur sont
+     parfaitement plausibles. La page joint donc un jeton qu'elle ne change
+     PAS entre deux tentatives ; une declaration deja portee par ce jeton
+     renvoie un succes SANS rien reecrire. Protege aussi du double appui.
+     Le jeton est range dans la colonne ID, prefixe : aucune colonne de plus,
+     et il reste unique par construction. */
+  const jeton = String((payload && payload.jeton) || '').trim().slice(0, 40);
+  if (jeton && /^[A-Za-z0-9_-]+$/.test(jeton)) {
+    const dejaVu = sh.getDataRange().getValues();
+    for (let r = 1; r < dejaVu.length; r++) {
+      if (String(dejaVu[r][0]).trim() === 'J-' + jeton) {
+        return { success: true, merged: false, id: 'J-' + jeton, rejoue: true };
+      }
+    }
+  }
+
   // Lot 2A : PLUS DE FUSION. Une ligne = UN PATIENT. L'ancienne version fusionnait
   // meme MAR + meme jour + meme secteur, ce qui rendait les interventions
   // incomptables (8 cataractes = 1 ligne) et interdisait toute mesure de rendement.
-  const id = _libNewId();
+  const id = (jeton && /^[A-Za-z0-9_-]+$/.test(jeton)) ? ('J-' + jeton) : _libNewId();
   sh.appendRow([id, dateCons, dateBloc, marId, secteur, chir, spec, brCcam, brNgap]);
   return { success: true, merged: false, id: id };
 }

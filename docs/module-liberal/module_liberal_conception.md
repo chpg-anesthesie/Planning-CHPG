@@ -757,15 +757,24 @@ secteur**, donc plusieurs mois de déclarations (Lot 2C).
   sous les deux contraintes. La V1 se contente d'afficher les marges.
 - **Trois questions pour la CSM / la facturation du CHPG** (relevées le 27/07/2026, aucune n'est
   tranchable par lecture) :
-  1. **Coefficient de l'APC** — supposé à 1, jamais confirmé. Le tarif de 60 € est confirmé (ameli,
-     tarifs conventionnels au 01/01/2026), le coefficient non.
+  1. ~~**Coefficient de l'APC**~~ — **TRANCHÉ le 17/08/2026 par Arthur.** L'APC est une cotation
+     réservée aux **assurés sociaux français** : il n'y a donc **pas de multiplicateur**. Le tarif
+     de 60 € est confirmé (ameli, tarifs conventionnels au 01/01/2026). L'outil appliquait déjà
+     60 € sans coefficient — rien à corriger, la question n'avait simplement plus lieu d'être.
+     *Reste ouvert* : l'APC doit-elle aussi être refusée pour un **non-assuré social** ? La logique
+     de la réponse s'y appliquerait ; la page se contente aujourd'hui d'avertir.
   2. **Carte rose : 241 % ou 234 % ?** L'annexe III fixe le coefficient CCAM maximal à **195 % carte
      verte, 241 % carte rose**. L'estimateur applique `1,95 + DH plafonné à +20 %`, soit **234 %**.
      Deux expressions de la même contrainte, ou divergence réelle ? Écart d'environ 13 € sur une BR
      de 190 €.
-  3. **AME en libéral** — l'AME ouvre-t-elle seulement droit à une prise en charge libérale ? Deux
-     régimes existent (français, OS 5.743/2016 pour le monégasque), et l'AME monégasque est **hors
-     annexe III**. En attendant : bandeau d'avertissement, statut inchangé.
+  3. ~~**AME en libéral**~~ — **CLOS le 17/08/2026 par Arthur** : *« on ne fait pas de libéral pour
+     l'AME »*. Le statut **AME a été retiré** de la liste, avec son bandeau d'avertissement. Il
+     portait un coefficient monégasque (1,95) quand « Assuré français — AME / C2S » en porte un
+     français (1,00) : deux calculs opposés, et rien à l'écran ne disait lequel choisir. La question
+     se ferme avec l'option plutôt que par une réponse.
+     *Reste ouvert* : le statut « Assuré français — AME / C2S » a été **laissé intact**, libellé
+     compris. La C2S est-elle bien distincte de l'AME et applicable en libéral ? Arthur doit
+     demander. D'ici là, le mot « AME » ne subsiste que dans ce libellé.
 - ⚠️ **L'index CCAM a ses tarifs en retard d'une version.** Le fichier `ccam_actes.json` le dit
   lui-même : `version: CCAM v83 (effet 2026-07-01)` pour les **codes et libellés**, mais
   `tarif_act4: CCAM v80 (2025)` pour les **tarifs**. Écart mesuré sur un relevé réel : `HHQE002` à
