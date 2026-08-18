@@ -13,12 +13,12 @@ portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'ane
 écrite dans le fichier depuis le 16/08 (le commentaire d'en-tête qui la doublait a été supprimé,
 le banc refuse qu'un second numéro réapparaisse).
 
-⚠️ **TROIS ÉLÉMENTS EN ATTENTE DE DÉPLOIEMENT au soir du 17/08** (session module libéral) :
-le **Worker** (2026-08-17.1), **`miroir.gs`** (2026-08-17.2) et l'exécution de **`miroirSyncComplet`**.
-Ordre non négociable : Worker → `miroir.gs` → synchro. Dans l'autre sens, les pages demandent des
-clés qui n'existent pas encore et retombent en silence sur l'ancien circuit.
-`portail.gs` 2026-08-17.1 est **déployé et confirmé** : la page du suivi affiche « juillet 2026 »
-au lieu de « undefined », vérifié à l'écran par Arthur.
+✅ **RIEN EN ATTENTE au soir du 17/08.** Le **Worker** (2026-08-17.1), **`miroir.gs`** (2026-08-17.2)
+et **`portail.gs`** (2026-08-17.1) sont déployés, et `miroirSyncComplet` a été exécutée — dans cet
+ordre, qui n'est pas négociable : Worker → `.gs` → synchro. Dans l'autre sens, les pages demandent
+des clés qui n'existent pas encore et retombent en silence sur l'ancien circuit.
+**Confirmé par Arthur** : diagnostic sans avertissement, et la page du suivi affiche « juillet 2026 »
+au lieu de « undefined ».
 
 **Pour le reste, rien en attente.** Le Worker le 16/08 au soir ;
 `Indispos.gs` deux fois, en 2026-08-16.1 puis en **2026-08-17.1** (verrou de clôture), recopié et
