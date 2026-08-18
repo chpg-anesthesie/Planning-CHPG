@@ -114,7 +114,7 @@
   <div class="eyebrow">Planning-CHPG · vérification du système</div>
   <h1>Cahier de tests</h1>
   <p class="subtitle">Parcours complet de vérification : accès, portail, planning, saisies, module libéral, wizards, et scénarios de panne.</p>
-  <p class="maj">Établi le 2 août 2026, <b>mis à jour le 5 août 2026</b> · année active 2027 · <b>179 points</b> de contrôle, dont <b>plus de 40 déjà couverts par le banc d'essai</b> · 4 à 5 h à la main, sécable phase par phase</p>
+  <p class="maj">Établi le 2 août 2026, <b>mis à jour le 18 août 2026</b> · année active 2027 · <b>193 points</b> de contrôle, dont <b>plus de 40 déjà couverts par le banc d'essai</b> · 4 à 5 h à la main, sécable phase par phase</p>
 
   <div class="callout rule">
     <div class="ct">Avant tout</div>
@@ -168,6 +168,8 @@
       <li><span class="n">P11</span><a href="#p10">Les trois assistants annuels</a><span class="dur">50 min</span></li>
       <li><span class="n">P12</span><a href="#p11">Scénarios catastrophe</a><span class="dur">40 min</span></li>
       <li><span class="n">P13</span><a href="#pdoc">Cohérence de la documentation</a><span class="dur">10 min</span></li>
+      <li><span class="n">P15</span><a href="#p15">Journal, miroir et vitesse</a><span class="dur">20 min</span></li>
+      <li><span class="n">P16</span><a href="#p16">Échanges, notifications, mémoire de session</a><span class="dur">45 min</span></li>
       <li><span class="n">P14</span><a href="#p12">Nettoyage et remise en état</a><span class="dur">20 min</span></li>
     </ol>
   </div>
@@ -859,6 +861,11 @@
   <h2><span class="n">P9</span>Module libéral</h2>
   <p class="phase-sub">L'estimateur (cotation, devis, déclaration) et le suivi des 30 %. La partie où une erreur de calcul coûte de l'argent réel.</p>
 
+  <div class="callout warn">
+    <div class="ct">Section à réécrire — l'écran a changé</div>
+    <p>La page de cotation a été refondue les 17 et 18 août : un patient à la fois, plus de cadran « part de libéral », bibliothèque de cotations types, dépassement calé sur celui du chirurgien. <b>Les points ci-dessous décrivent l'ancienne page.</b> Les règles de calcul (T094 à T098) restent valables ; les gestes, non. À reprendre une fois le module stabilisé.</p>
+  </div>
+
   <div class="test" data-id="T094"><div class="test-head"><span class="tid">T094</span><div class="test-body">
     <div class="t-do">Coter un acte CCAM que tu connais par cœur et recalculer la base de remboursement à la main.</div>
     <div class="t-exp">Attendu : <code>tarif × 1,95 × (1 + %modificateurs) × taux d'association + modificateurs en euros</code>. Écart toléré : zéro.</div>
@@ -1168,6 +1175,11 @@
   </div></div></div>
 
   <h3>W3 — clôture</h3>
+  <div class="callout warn">
+    <div class="ct">Impossible aujourd'hui — ce n'est pas une anomalie</div>
+    <p>Depuis le 17 août, l'assistant de clôture <b>refuse de s'ouvrir</b> avant le premier lundi de l'année de planning suivante. Les points T126 à T130 ne sont donc pas jouables en ce moment : coche « Non fait ». Le refus lui-même se vérifie en T193.</p>
+  </div>
+
 
   <div class="test" data-id="T126"><div class="test-head"><span class="tid">T126</span><div class="test-body">
     <div class="t-do">Avant de lancer : relire l'écran de statistiques du wizard de clôture.</div>
@@ -1475,6 +1487,100 @@
 </section>
 
 <!-- ─── section ─── -->
+<section id="p16">
+  <h2 id="p16h"><span class="pnum">P16</span>Échanges de gardes, notifications, mémoire de session <span style="font-size:13px;font-weight:400;color:#64748B">— ajoutés le 18/08/2026</span></h2>
+  <p style="font-size:13.5px;color:#475569;margin:0 0 14px">Tout ce qui a été livré entre le 11 et le 18 août et qui n'avait aucun point de contrôle : les <b>dons et échanges de gardes entre MAR</b>, le canal de <b>notifications</b>, la <b>mémoire de session de 30 jours</b>, et le verrou de la clôture d'année. C'est la partie la plus neuve du système, donc la moins éprouvée à la main.</p>
+  <div class="callout rule">
+    <div class="ct">Ce qu'il faut avant de commencer</div>
+    <p><b>Deux appareils</b> : le tien, et un second connecté avec un <b>autre</b> code MAR — un échange se fait à deux, il ne se simule pas seul. Les deux avec les notifications déjà autorisées. Travaille sur l'année de test, jamais sur des gardes réelles, et note les cellules du classeur <b>avant</b> chaque geste : c'est la seule façon de prouver qu'un refus n'a rien écrit.</p>
+  </div>
+
+  <div class="test" data-id="T180"><div class="test-head"><span class="tid">T180</span><div class="test-body">
+    <div class="t-do">Don d'une garde ordinaire à un collègue, depuis ton téléphone.</div>
+    <div class="t-exp">Attendu : le receveur reçoit la notification, l'accepte, et <b>le planning s'écrit tout seul</b> — le nouveau nom est dans <code>GARDES_{année}</code> sur ce jour, une ligne <i>acceptée</i> apparaît dans <code>ECHANGES</code>, et les deux écrans sont à jour sans rechargement.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T180" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T180" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T180" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T181"><div class="test-head"><span class="tid">T181</span><div class="test-body">
+    <div class="t-do">Même geste, mais le receveur refuse. Relire les cellules du jour AVANT et APRÈS.</div>
+    <div class="t-exp">Attendu : la ligne passe à <i>refusée</i>, le demandeur est prévenu, et <b>pas une seule cellule de garde n'a bougé</b>.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T181" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T181" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T181" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T182"><div class="test-head"><span class="tid">T182</span><div class="test-body">
+    <div class="t-do">Échanger deux gardes à des dates éloignées (plus de deux jours d'écart).</div>
+    <div class="t-exp">Attendu : les deux gardes <b>et les deux repos du lendemain</b> suivent. Le rôle reste attaché à sa date : une garde de maternité du lundi reste une garde de maternité du lundi.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T182" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T182" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T182" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T183"><div class="test-head"><span class="tid">T183</span><div class="test-body">
+    <div class="t-do">Échanger deux gardes <b>qui se suivent</b> (lundi contre mardi) — puis recommencer en citant les deux dates dans l'ordre inverse.</div>
+    <div class="t-exp">Attendu : accepté <b>dans les deux sens</b> (c'est le correctif du 12 août ; c'était refusé « dates trop proches » avant). Après l'échange, personne ne se retrouve avec deux gardes consécutives.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T183" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T183" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T183" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T184"><div class="test-head"><span class="tid">T184</span><div class="test-body">
+    <div class="t-do">Donner un <b>samedi</b>.</div>
+    <div class="t-exp">Attendu : la récupération suit son samedi — par <b>transfert d'un repos existant</b>, jamais par création d'un nouveau. La correspondance est mise à jour dans <code>LIENS_R_{année}</code>, et le compte de samedis de chacun reste juste.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T184" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T184" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T184" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T185"><div class="test-head"><span class="tid">T185</span><div class="test-body">
+    <div class="t-do">Donner un samedi dont la récupération <b>ne peut pas</b> suivre (le receveur a déjà quelque chose le jour du repos).</div>
+    <div class="t-exp">Attendu : le don passe quand même, et <b>le comité reçoit un mail</b> nommant le samedi, les deux médecins et la date à replacer. Rien ne doit se régler en silence.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T185" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T185" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T185" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T186"><div class="test-head"><span class="tid">T186</span><div class="test-body">
+    <div class="t-do">Proposer une garde à quelqu'un qui est indisponible ce jour-là.</div>
+    <div class="t-exp">Attendu : refus immédiat, annoncé, et la feuille reste intacte. Vérifie la cellule dans le classeur.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T186" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T186" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T186" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T187"><div class="test-head"><span class="tid">T187</span><div class="test-body">
+    <div class="t-do">Appuyer <b>deux fois</b> sur « Accepter » (ou couper le réseau puis réessayer).</div>
+    <div class="t-exp">Attendu : une seule écriture. Pas de ligne en double dans <code>ECHANGES</code>, pas de garde écrite deux fois.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T187" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T187" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T187" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T188"><div class="test-head"><span class="tid">T188</span><div class="test-body">
+    <div class="t-do">Laisser une demande sans réponse.</div>
+    <div class="t-exp">Attendu : expiration à 48 h avec un rappel unique au receveur à 24 h, sans rien modifier au planning. <b>Non testable en séance</b> : coche « Non fait » et vérifie-le au prochain passage — c'est aussi le contrôle que le déclencheur horaire est bien installé.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T188" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T188" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T188" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T189"><div class="test-head"><span class="tid">T189</span><div class="test-body">
+    <div class="t-do">Ouvrir le portail <b>sur téléphone</b> avec un code MAR, puis la même page <b>sur ordinateur</b> avec le même code.</div>
+    <div class="t-exp">Attendu : la carte « Activer les notifications » se propose sur le téléphone, et <b>pas sur l'ordinateur</b> (changement du 17 août : une annonce n'a d'intérêt que sur le téléphone qu'on a sur soi, et un poste peut être partagé). Un abonnement déjà pris sur PC continue de fonctionner.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T189" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T189" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T189" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T190"><div class="test-head"><span class="tid">T190</span><div class="test-body">
+    <div class="t-do">Faire partir une notification vers un téléphone <b>verrouillé</b>, puis toucher la notification.</div>
+    <div class="t-exp">Attendu : la bonne page s'ouvre directement, et la pastille du raccourci retombe à zéro à l'ouverture du portail.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T190" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T190" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T190" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T191"><div class="test-head"><span class="tid">T191</span><div class="test-body">
+    <div class="t-do">Sur le portail <b>installé sur l'écran d'accueil</b> : fermer complètement l'application, rouvrir. Puis ouvrir la même page dans Safari ou Chrome.</div>
+    <div class="t-exp">Attendu : dans l'application installée, <b>aucun code redemandé</b> (mémoire de 30 jours, repoussée à chaque ouverture). Dans le navigateur, le code <b>est</b> redemandé — c'est voulu.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T191" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T191" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T191" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T192"><div class="test-head"><span class="tid">T192</span><div class="test-body">
+    <div class="t-do">Utiliser le geste « m'oublier » : sur la page des indisponibilités, toucher le badge de son nom en haut ; faire l'équivalent sur les deux autres pages MAR.</div>
+    <div class="t-exp">Attendu : à la réouverture, le code est redemandé. C'est le geste à montrer à quelqu'un qui prête son téléphone.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T192" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T192" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T192" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+  <div class="test" data-id="T193"><div class="test-head"><span class="tid">T193</span><div class="test-body">
+    <div class="t-do">Dans Maintenance, essayer d'ouvrir la carte « Clôturer l'année ».</div>
+    <div class="t-exp">Attendu : <b>refus</b>, avec affichage de la date à partir de laquelle ce sera possible (le premier lundi de l'année de planning suivante). Le serveur refuse également, pas seulement l'écran. Ce verrou date du 17 août.</div>
+    <div class="verdicts"><label class="v-ok"><input type="radio" name="v-T193" value="ok"><span>Conforme</span></label><label class="v-ko"><input type="radio" name="v-T193" value="ko"><span>Anomalie</span></label><label class="v-na"><input type="radio" name="v-T193" value="na"><span>Non fait</span></label><input class="note" type="text" placeholder="Ce que tu as observé"></div>
+  </div></div></div>
+
+</section>
+
 <section id="p12">
   <h2><span class="n">P14</span>Nettoyage et remise en état</h2>
   <p class="phase-sub">À faire dans la foulée, pas le lendemain. Coche au fur et à mesure.</p>
