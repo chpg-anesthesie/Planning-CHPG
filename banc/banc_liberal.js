@@ -443,6 +443,7 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
   const vc = new VirtualConsole(); const erreurs = [];
   vc.on('jsdomError', e => erreurs.push(e.message));
   const envois = [];                       // ce qui part vers Apps Script
+  let declarees = [];                      // ce que la doublure Apps Script a retenu
   const dom = new JSDOM(html, { runScripts:'dangerously', virtualConsole:vc, pretendToBeVisual:true,
     url:'https://chpg-anesthesie.github.io/Planning-CHPG/docs/module-liberal/estimateur-liberal.html',
     beforeParse(win) {
@@ -466,8 +467,23 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
         }
         const p = JSON.parse(opt.body || '{}');
         envois.push(p);
-        if (p.action === 'declareLiberal') return { ok:true, json: async () => ({ success:true, id:'L-TEST' }) };
-        if (p.action === 'listLiberal')    return { ok:true, json: async () => ({ success:true, year:2026, items:[] }) };
+        /* La doublure Apps Script GARDE ce qu'on lui declare : sans cela, la
+           relecture qui suit l'ecriture rendait une liste vide et effacait la
+           ligne qu'on venait d'ajouter — un artefact du banc, pas du produit. */
+        if (p.action === 'declareLiberal') {
+          const id = p.jeton ? ('J-' + p.jeton) : ('L-' + (declarees.length + 1));
+          if (!declarees.some(x => x.id === id)) {
+            declarees.push({ id:id, dateConsult:p.dateConsult, dateBloc:p.dateBloc, secteur:p.secteur,
+                             chirurgie:p.chirurgie, specialite:p.specialite,
+                             brCcam:p.brCcam, brNgap:p.brNgap });
+          }
+          return { ok:true, json: async () => ({ success:true, id:id }) };
+        }
+        if (p.action === 'listLiberal')    return { ok:true, json: async () => ({ success:true, year:2026, items:declarees.slice() }) };
+        if (p.action === 'deleteLiberal') {
+          declarees = declarees.filter(x => x.id !== p.id);
+          return { ok:true, json: async () => ({ success:true }) };
+        }
         return { ok:true, json: async () => ({ success:false, error:'Apps Script ne doit pas être appelé ici' }) };
       };
     } });
@@ -627,6 +643,24 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
     V('aucun code d\'acte ne part avec la déclaration', !/HHQE002|ZZLP025/.test(brut), brut.slice(0,160));
     V('aucun identifiant de MAR n\'est envoyé par la page', !decl.marId && !decl.mar, brut.slice(0,160));
   }
+
+  /* ══ LA LIGNE APPARAIT TOUT DE SUITE (17/08/2026, correctif du soir) ══
+     La copie rapide n'est PAS rafraichie au moment de l'ecriture : un
+     declencheur s'en charge 1 a 2 minutes plus tard. miroir.gs le dit deja —
+     « l'ecran qui vient d'ecrire relit de toute facon le circuit DIRECT ».
+     En faisant lire la copie EN PREMIER, cette hypothese avait ete cassee : la
+     ligne qu'on venait de declarer n'apparaissait pas, et recharger la page
+     pour la voir faisait perdre le devis du patient. Constate par Arthur. */
+  V('la déclaration apparaît dans la liste SANS attendre la relecture',
+    ev('MES_DECL.length') >= 1 && ev('MES_DECL').some(x => x.dateBloc === '2026-09-15'),
+    ev('MES_DECL').map(x => x.dateBloc));
+  V('elle porte tout ce que la liste affiche',
+    ev("MES_DECL.filter(function(d){return d.dateBloc==='2026-09-15';})[0].secteur") === 'END' &&
+    ev("MES_DECL.filter(function(d){return d.dateBloc==='2026-09-15';})[0].brCcam") > 0);
+  V('après une écriture, la relecture ne passe PAS par la copie rapide',
+    /chargerDecl\(true\)/.test(html) && /if\(!direct\) try\{/.test(html));
+  V('à l\'ouverture, elle y passe — c\'est là qu\'elle évite les pannes',
+    /keys:\['liberal_mar_'\+an\]/.test(html));
 
   /* ══ LE DEVIS RESTE ROUVRABLE PENDANT LA CONSULTATION (17/08/2026) ══
      Cas reel d'Arthur : trois patients passes, on s'apercoit que le premier n'a

@@ -1246,9 +1246,20 @@ async function declarer(){
      jamais conserver d'acte ni de carte. Les lignes plus anciennes s'affichent
      donc SANS icone, plutot qu'avec une icone qui ne marcherait pas. */
   if(r.id) DEVIS_SESSION[r.id]=p;
+  /* (17/08/2026) LA LIGNE S'AFFICHE IMMEDIATEMENT. Le serveur vient de
+     confirmer et rend l'identifiant : la page a deja tout ce qu'il faut, elle
+     n'a aucune raison d'attendre une relecture. Sans cela il fallait patienter
+     — ou recharger, ce qui faisait perdre le devis du patient. */
+  if(r.id && !MES_DECL.some(function(d){ return d.id===r.id; })){
+    MES_DECL.push({ id:r.id, dateConsult:p.dCs, dateBloc:p.dInt, secteur:sec,
+                    chirurgie:chir, specialite:spec, brCcam:p.brCcam, brNgap:p.brNgap });
+    MES_DECL.sort(function(a,b){ return String(a.dateBloc).localeCompare(String(b.dateBloc)); });
+    DECL_KO='';
+    renderDecl();
+  }
   dclFlash('Intervention déclarée — écran vide pour le patient suivant.', true);
   patientSuivant();
-  await chargerDecl();
+  chargerDecl(true);          // recale sur le classeur, en arriere-plan, sans faire attendre
 }
 
 /* Jeton du patient en cours. Remis a zero au patient suivant : un nouveau
@@ -1286,7 +1297,9 @@ async function supprimerDecl(id, year){
   if(!confirm('Retirer cette intervention déclarée ?')) return;
   const r=await apiLib('deleteLiberal', {id:id, year:year});
   if(!r || !r.success){ dclFlash('Suppression impossible : '+((r&&r.error)||'réseau')+'.', false); return; }
-  await chargerDecl();
+  MES_DECL=MES_DECL.filter(function(d){ return d.id!==id; });   // disparait tout de suite
+  renderDecl();
+  chargerDecl(true);          // et on recale sur le classeur, sans attendre
 }
 
 /* (17/08/2026) Un ECHEC n'est pas une liste vide. Le code retenait [] dans les
@@ -1295,14 +1308,22 @@ async function supprimerDecl(id, year){
    identifie, echec, liste reellement vide — et seul le troisieme est muet. */
 let DECL_KO = '';
 
-async function chargerDecl(){
+/* (17/08/2026, correctif du soir) `direct` = NE PAS lire la copie rapide.
+   ⚠️ REGLE QUE J'AVAIS CASSEE LE MEME JOUR. La copie n'est pas rafraichie au
+   moment de l'ecriture : l'action note « il faudra pousser » et un declencheur
+   s'en charge 1 a 2 minutes plus tard. Le fichier miroir.gs le dit deja —
+   « l'ecran qui vient d'ecrire relit de toute facon le circuit DIRECT ». En
+   faisant lire la copie EN PREMIER, j'ai casse cette hypothese : la ligne
+   qu'on venait de declarer n'apparaissait pas, et recharger la page pour la
+   voir faisait perdre l'acces au devis du patient.
+   Donc : copie rapide a l'OUVERTURE (rapide, et c'est la qu'elle evite les
+   pannes), Apps Script APRES UNE ECRITURE (frais, et c'est le seul moment ou
+   la fraicheur compte). */
+async function chargerDecl(direct){
   const code = CHPGSession.lire();
   if(!code){ DECL_KO=''; MES_DECL=[]; document.getElementById('dclListWrap').style.display='none'; return; }
   const an = new Date().getFullYear();
-  /* (17/08/2026) La copie rapide d'abord : c'est la derniere lecture de cette
-     page qui passait encore par Apps Script, et donc la derniere a tomber par
-     intermittence. La cle est filtree cote relais aux lignes du demandeur. */
-  try{
+  if(!direct) try{
     const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(), 8000);
     const rep=await fetch(MIROIR_URL+'/read', {method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
