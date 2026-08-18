@@ -57,6 +57,31 @@ le Worker ou `partage/dispo_jour.js`.
 
 ---
 
+### Répétition générale : le 1er septembre, seul, en 4G
+
+Déplacée du 28 août au **1er septembre** (Arthur ne revient à l'hôpital que le 31, et il est de garde
+le 1er). **Faite seul : WS découvrira l'outil en direct devant la salle**, choix assumé — un collègue
+qui n'a jamais cliqué et qui s'en sort convainc plus qu'une démonstration rodée. Consigne unique à lui
+donner le jour J : au bout de 45 s un message « toujours en cours » peut s'afficher, ne pas recliquer.
+
+**Conditions réelles à éprouver, découvertes ce soir : il n'y a pas de poste dans la salle de staff.**
+Ce sera l'ordinateur personnel d'Arthur en partage de connexion 4G. Donc à vérifier le 1er : le câble
+ou l'adaptateur du vidéoprojecteur, la mise à l'échelle des diapos larges, et la tenue de la 4G
+pendant un appel serveur de trente secondes — une réponse perdue en route n'est pas un geste refusé,
+mais il faut savoir le lire.
+
+**Objet du test — pas le chronomètre.** Le générateur est passé en 2026-08-14.1 après la répétition du
+10 août : il écrit désormais `LIENS_R_{Y}` (une ligne par samedi tenu, avec la récupération qui lui
+appartient). **Cette version n'a jamais tourné en production.** Contrôle : cinq onglets 2027 créés,
+autant de lignes dans `LIENS_R_2027` que de samedis tenus, Diagnostic à zéro récup manquante.
+
+**Changement de doctrine sur le ménage :** l'effacement du bac à sable se fait **dans la foulée de la
+génération**, le soir même, et non plus le matin du 4. Les deux gestes sont indissociables — interrompu
+entre les deux (garde), le bac à sable reste généré et le 4 l'assistant réafficherait ce résultat sans
+calculer, en silence. Le matin du 4 ne garde plus qu'un contrôle, les adresses et le Diagnostic.
+
+---
+
 ## 18 août 2026 — v1.58 : la recette à la main trouve ce que le banc ne pouvait pas voir
 
 Journée en trois temps : relecture d'un lot de nettoyage préparé hors projet, remise au réel du

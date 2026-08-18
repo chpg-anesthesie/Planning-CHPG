@@ -183,7 +183,7 @@
 
     <ul class="reste">
       <li><span class="q">cette semaine</span><span>Finir la recette : le parcours des échanges (deux téléphones), les conflits de vacances, l'assistant de départ.</span></li>
-      <li><span class="q">28 août</span><span>Répétition générale, chronomètre en main.</span></li>
+      <li><span class="q">1<sup>er</sup> sept.</span><span>Répétition générale, seul, pendant la garde — génération puis effacement dans la foulée.</span></li>
       <li><span class="q">3 sept. au soir</span><span>Saisir les 24 adresses mail.</span></li>
       <li><span class="q">4 sept. matin</span><span>Remettre le bac à sable à zéro, puis envoyer les codes à 12h30.</span></li>
       <li><span class="q">4 sept. soir</span><span>Les neuf gestes de ménage, dans l'ordre.</span></li>
@@ -264,11 +264,23 @@
   </div>
   
 
+  <div class="card attente">
+    <h4>Répétition générale <span class="tag t-amber">1<sup>er</sup> septembre, pendant la garde</span></h4>
+    <p><b>Seul, pas avec WS.</b> Choix assumé : WS découvre l'outil en direct devant la salle. Un collègue qui n'a jamais cliqué et qui s'en sort est plus convaincant qu'une démonstration rodée. Il reçoit une seule consigne le jour J : <b>au bout de 45 secondes un message « toujours en cours » peut s'afficher — ne pas recliquer.</b></p>
+    <p><b>Pourquoi la refaire alors que le 10 août a déjà mesuré :</b> le générateur a changé depuis. Il enregistre désormais quel repos appartient à quel samedi, dans un tableau supplémentaire. <b>Cette version n'a jamais tourné en production.</b> C'est ça qu'on vérifie, pas le chronomètre.</p>
+    <p><b>Conditions réelles :</b> ordinateur personnel, partage de connexion 4G, dans la salle de staff — il n'y a pas de poste sur place. Ce sont exactement les conditions du 4 septembre, donc la répétition les éprouve aussi : le câble ou l'adaptateur pour le vidéoprojecteur, la mise à l'échelle des diapos larges, et la tenue de la 4G pendant un appel serveur de trente secondes.</p>
+    <p><b>A — La salle et le deck</b> <i>(15 min, interruptible)</i> : ouvrir le deck en projection, regarder la <b>diapo 16</b> (le rosé du repos peut passer pour du blanc) et les deux diapos larges, 10 et 19. Puis ouvrir un protocole depuis le portail.</p>
+    <p><b>B — La génération</b> <i>(20 min, à ne pas commencer si tu peux être appelé)</i> : passer en inactif le collègue dont le départ est au 1<sup>er</sup> septembre · lire l'étape 1 de l'assistant en entier (MARs sans indisponibilité, conflits de vacances, alertes de temps partiel) · aller jusqu'au bout · publier · vérifier la notification sur le téléphone · <b>contrôler que les cinq tableaux 2027 existent</b>, dont celui des liens samedi-récupération, qui est le nouveau — autant de lignes que de samedis tenus · Diagnostic : zéro récupération manquante.</p>
+    <p><b>C — Effacer, dans la foulée</b> <i>(10 min, indissociable de B)</i> : supprimer les tableaux des gardes, statistiques, affectations et liens 2027, <b>garder les indisponibilités</b> · retirer les lignes 2027 des placements du comité et des échanges · supprimer les trois fichiers 2027 du Drive · <b>en dernier</b>, lancer la synchronisation complète.</p>
+    <p><b>⚠️ B et C forment un seul geste.</b> Interrompu entre les deux, le bac à sable reste généré — et le 4 septembre l'assistant réafficherait ce résultat sans calculer, sans qu'aucun message ne le signale.</p>
+    <p><b>Deux choses à savoir :</b> la redirection d'essai est en place, <b>aucun mail ne partira</b> vers les 23. Mais la notification arrivera à ceux qui l'ont déjà activée — toi et RW : le prévenir, sinon il croira les gardes 2027 sorties pour de vrai.</p>
+  </div>
+
   <h3>La veille et le jour même</h3>
   <p style="color:var(--ink-2);font-size:14px">Deux gestes, dans cet ordre — et un piège vérifié dans le programme. Le staff débute à <b>14h</b> : le nettoyage se fait le matin, les codes partent à <b>12h30</b>.</p>
   <div class="card risque">
     <h4>Remettre le bac à sable à zéro <span class="tag t-red">sinon la démonstration ne génère rien</span></h4>
-    <p>La répétition du 28 août aura généré l'année 2027 pour de bon. <b>Il faut donc l'effacer avant le 4</b> : supprimer les tableaux des gardes 2027, des statistiques 2027 et des récupérations 2027 — mais <b>garder les indisponibilités 2027</b>, c'est la matière première du calcul.</p>
+    <p>La répétition du 1<sup>er</sup> septembre aura généré l'année 2027 pour de bon. <b>L'effacement se fait dans la foulée, le soir même</b> — pas le matin du 4 : le geste et sa raison sont frais, et le matin du 4 il ne reste alors que les adresses et le Diagnostic. Ce point n'est donc plus qu'un <b>contrôle</b> : vérifier que les tableaux 2027 ont bien disparu, sauf les indisponibilités.</p>
     <p><b>Pourquoi c'est indispensable :</b> une sécurité empêche de recalculer une année déjà calculée — elle protège un vrai planning contre une régénération accidentelle. Si les tableaux sont encore là le 4 septembre, l'assistant <b>ne calcule pas</b> : il réaffiche le résultat de la répétition. La salle verrait « 730 gardes » apparaître instantanément, sans qu'aucun calcul n'ait eu lieu, <b>et aucun message ne le signalerait</b>.</p>
   </div>
   <div class="card">
