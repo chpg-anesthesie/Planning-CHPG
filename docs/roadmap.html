@@ -129,7 +129,7 @@
     <h2>État vérifié</h2>
     <div class="etat-grid">
       <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1341 <small>vérifs · 29 scripts</small></div></div>
+      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1404 <small>vérifs · 29 scripts</small></div></div>
       <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
       <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
     </div>
@@ -145,7 +145,7 @@
       <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-17.2</div></div>
     </div>
   </div>
-  <p class="verif">Relevé dans le dépôt et le banc exécuté — 17 août 2026, fin de soirée · <b>tout est déployé et confirmé en production</b>, y compris la double déclaration au même jour, vérifiée à l'écran par Arthur.</p>
+  <p class="verif">Relevé dans le dépôt et le banc exécuté — 18 août 2026, fin d'après-midi · <b>tout est déployé et confirmé en production</b>, y compris la double déclaration au même jour, vérifiée à l'écran par Arthur.</p>
 
   <h2>Échéancier</h2>
   <div class="ech" id="ech">
@@ -209,8 +209,10 @@
     <p>Visuel jugé correct. Ne reste, non vérifié, que le rendu <b>au vidéoprojecteur</b> de la diapo 16 : le rosé du repos du lendemain peut y passer pour du blanc. À regarder le jour même, sur le matériel de la salle.</p>
   </div>
   <div class="card attente">
-    <h4>Dérouler le cahier de tests, parcours P1 à P6 <span class="tag t-amber">fin août</span></h4>
+    <h4>Dérouler le cahier de tests, parcours P1 à P6 <span class="tag t-amber">commencé le 18 août</span></h4>
     <p>Les scénarios d'usage de <code>docs/cahier-de-tests.html</code>, faits à la main : se connecter, lire le planning, poser une indisponibilité, gérer une absence longue. On vérifie que <b>ça marche</b>.</p>
+    <p><b>Le cahier a été remis au réel le 18 août</b> — il datait du 5 et ignorait six semaines de travail. Il compte désormais <b>193 points</b> : un parcours P16 pour les échanges de gardes, les notifications et la mémoire de session, jusque-là sans aucun contrôle ; les points de clôture d'année marqués injouables (le verrou de date les refuse jusqu'en janvier) ; la partie libérale signalée comme décrivant un écran qui n'existe plus.</p>
+    <p><b>Première passe, le 18 août :</b> P1 à P6 déroulés. Un défaut réel trouvé, corrigé le jour même (ci-dessous). Restent en suspens : le parcours P16, qui exige <b>deux téléphones</b> ; l'écran des conflits de vacances (T041) ; l'assistant de départ (T065-T066), à faire avant le 1<sup>er</sup> septembre puisqu'un départ réel tombe ce jour-là.</p>
   </div>
   <div class="card ok">
     <h4>Mesurer la vitesse d'ouverture <span class="tag t-green">fait le 9 août 2026</span></h4>
@@ -330,8 +332,18 @@
   <div class="card">
     <h4>Nettoyage de code mort <span class="tag t-blue">après le 4 septembre</span></h4>
     <p>Du code qui ne sert plus à rien mais qui traîne. <b>Rien n'est cassé, rien n'est ralenti</b> — le seul effet visible est un panneau de l'écran du comité qui annonce toujours « aucune modification en attente », quoi qu'il arrive.</p>
-    <p>Inventaire refait le 10 août sur le code réel : une action serveur qu'aucun bouton n'appelle, un ancien mécanisme de modifications présent à dix-huit endroits, et trois lignes inutilisées dans la page des indisponibilités. L'écran « Paramètres » qu'on croyait à retirer, lui, <b>a déjà disparu</b>.</p>
+    <p>Inventaire refait le 10 août, <b>corrigé le 18</b> après relecture du code réel : une action serveur qu'aucun bouton n'appelle, l'ancien mécanisme <code>OVERRIDES</code> (six endroits, c'est lui qui fait mentir le panneau), et une fonction inutilisée qui existe <b>dans cinq pages</b>, pas une seule. L'écran « Paramètres » qu'on croyait à retirer, lui, <b>a déjà disparu</b>.</p>
+    <p><b>⚠️ Correction d'une confusion de noms, à ne pas refaire :</b> les « dix-huit endroits » notés le 10 août désignaient <code>PLANNING_OVERRIDES</code>, qui est <b>bien vivant</b> — c'est lui qui porte les placements du comité. Rien à y toucher. Seul l'ancien <code>OVERRIDES</code>, dont l'onglet n'existe plus, est du code mort.</p>
     <p><b>Pourquoi attendre :</b> l'essentiel touche l'écriture du planning. Retirer du code qui ne dérange personne, à trois semaines d'une démonstration, c'est prendre un risque sans rien gagner.</p>
+  </div>
+  <div class="card ok">
+    <h4>Le planning d'une autre année s'affiche de nouveau tout de suite <span class="tag t-green">livré le 18 août 2026</span></h4>
+    <p><b>Trouvé pendant la recette, pas par le banc d'essai.</b> Après avoir publié, basculer sur l'année suivante prenait <b>75 secondes</b> — deux délais dépassés à 20 s, puis 12 à 17 s — pour une année que la copie de lecture rendait en <b>164 millisecondes</b>. Mesuré à l'écran, chronomètre à l'appui.</p>
+    <p><b>Deux causes, deux correctifs.</b> Une sécurité empêche de lire la copie rapide pendant 90 secondes après une écriture, pour ne jamais montrer du périmé à celui qui vient d'écrire. Elle ne regardait pas <b>quelle</b> année avait été écrite : publier 2026 fermait aussi 2027, où rien n'avait bougé. Elle le regarde désormais — et en cas de doute, elle ferme tout, comme avant.</p>
+    <p>Surtout : une fois retombé sur le serveur lent, <b>on y restait</b>. Le bouton « Réessayer » et tout rechargement de l'année repartaient sur le circuit lent, même une demi-heure plus tard. Seul un aller-retour dans le sélecteur d'années rebranchait la copie rapide — un geste que personne ne peut deviner. Ce chemin tente désormais la copie rapide comme tous les autres.</p>
+    <p><b>Ce que ça change le 4 septembre :</b> juste après la génération, la sécurité jouera toujours — c'est bien 2027 qu'on vient d'écrire — mais une lenteur passagère ne condamnera plus la séance au circuit lent.</p>
+    <p><b>Éprouvé :</b> deux scénarios au banc (64 et 65), rouges sans le correctif, dont la contre-preuve mesurée : sans lui, zéro lecture de la copie rapide et deux appels au serveur ; avec lui, l'inverse. Le banc passe de 1 386 à <b>1 404 vérifications</b>.</p>
+    <p><b>Leçon consignée :</b> le banc était vert à 1 386 vérifications pendant que la page mettait 75 secondes. Il prouve la logique, jamais l'infrastructure — c'est la recette à la main qui a trouvé le défaut.</p>
   </div>
   <div class="card ok">
     <h4>Échange de deux gardes qui se suivent <span class="tag t-green">livré le 12 août 2026</span></h4>
@@ -439,7 +451,7 @@
   </details>
 
   <div class="foot">
-    Planning-CHPG · roadmap de pilotage · 17 août 2026<br>
+    Planning-CHPG · roadmap de pilotage · 18 août 2026<br>
     Détail et historique : <code>docs/ROADMAP-Planning-CHPG.md</code> · méthode : <code>docs/CONTEXTE-Planning-CHPG.md</code><br>
     architecture et dépannage : <code>docs/guide-technique.html</code>
   </div>

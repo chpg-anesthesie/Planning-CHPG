@@ -4,7 +4,7 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.57** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.58** ·
 **GAS** (relevé fichier par fichier dans le dépôt le 17/08/2026) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-17.1 · `miroir.gs` 2026-08-17.4 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-17.3 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
@@ -54,6 +54,88 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 18 août 2026 — v1.58 : la recette à la main trouve ce que le banc ne pouvait pas voir
+
+Journée en trois temps : relecture d'un lot de nettoyage préparé hors projet, remise au réel du
+cahier de tests, puis première passe de recette — qui a sorti un vrai défaut de vitesse.
+
+### Le cahier de tests remis au réel (179 → 193 points)
+
+Il datait du 5 août et ignorait six semaines de travail : **aucun point de contrôle sur les échanges
+de gardes**, c'est-à-dire sur la fonctionnalité qui justifie le passage en v2.0. Ajouté un parcours
+**P16** (14 points) : dons et échanges — acceptation, refus qui n'écrit rien, dates éloignées,
+**dates qui se suivent dans les deux sens**, don d'un samedi avec sa récupération, le cas où elle ne
+peut pas suivre, don à un indisponible, double appui sur « Accepter », expiration à 48 h —, puis les
+notifications (carte visible sur téléphone, **absente sur PC** depuis le 17/08), la mémoire de
+session de 30 jours et son geste « m'oublier », et le refus de la carte de clôture.
+
+Deux avertissements posés là où le cahier était devenu faux : les points W3 sont **injouables**
+depuis le verrou de date du 17/08 (à cocher « Non fait », ce n'est pas une anomalie), et la section
+libérale décrit un écran refondu les 17-18 août.
+
+### Le défaut : 75 secondes pour une année que la copie rapide rend en 164 ms
+
+Mesuré au chronomètre pendant la recette. Après une publication, la bascule sur 2027 partait sur
+Apps Script : **deux délais de 20 s dépassés**, puis 12 et 17 s. Deux causes distinctes.
+
+**1. La garde des 90 s ne regardait pas l'année.** Elle interdit de lire la copie rapide pendant
+90 s après une écriture — un éditeur ne doit jamais voir du périmé. Mais elle ne portait qu'un
+horodatage : publication à T+49 s, bascule sur 2027 à T+118 s, soit 69 s, donc fermée — alors que
+l'écriture portait sur **une autre année**. La garde lit désormais `_tsEcritureAnnee`, prise sur le
+geste lui-même (`payload.year`, `modification.year`, ou `intention.year` pour les quatre intentions
+du journal). **Le doute reste protecteur** : année écrite inconnue ou année demandée inconnue → tout
+reste fermé, exactement comme avant. On ne gagne de la vitesse que là où on peut le prouver.
+
+**2. Une fois tombé sur Apps Script, on n'en revenait pas.** `loadPlanningData()` était le **seul**
+chemin sans tentative miroir. Le bouton « Réessayer », un retour sur l'onglet Planning, tout
+rechargement de l'année repartaient sur le circuit lent — même une demi-heure plus tard, garde
+retombée depuis longtemps. Seul un aller-retour dans le sélecteur d'années rebranchait la copie
+rapide : geste indevinable. Ce chemin tente désormais `planning_{Y}` + `affectations_{Y}` en tête,
+sous la même règle de fraîcheur, et tout écart (pas de code, Worker muet, clé absente) retombe sur
+le circuit d'origine, inchangé.
+
+Volontairement **non touchés** : les quatre autres lecteurs de la garde (statuts, équité, gardes du
+panneau, vacances) restent sur l'horodatage global, donc plus stricts que nécessaire. Une chose à la
+fois, confirmée en production avant la suivante.
+
+**Banc 1 386 → 1 404**, scénarios 64 et 65 de `banc_page.js`, écrits avant le correctif. Contre-preuve
+mesurée : sans le patch, `miroir: 0 · apps script: 2` ; avec, `miroir: 1 · apps script: 0`.
+
+### La leçon, à ne pas perdre
+
+**Le banc était vert à 1 386 vérifications pendant que la page mettait 75 secondes.** Ce qui a cassé
+n'était pas une règle fausse : c'était un Apps Script froid et une garde trop large — de
+l'infrastructure et un réglage, deux choses qu'aucune simulation ne voit. C'est la recette à la main
+qui l'a trouvé, et ce sont les scénarios 64 et 65 qui l'empêchent de revenir.
+
+### Le lot de nettoyage préparé hors projet : bon fond, périmètre incomplet
+
+Relu contre le dépôt. Le code visé est bien mort — vérifié : `#overridesBody` n'existe plus qu'à
+l'intérieur de la fonction qui le cherche. Mais trois défauts d'exhaustivité, tous du même type :
+`_reveilAPI` existe dans **cinq pages** (`admin`, `absences`, `dashboard`, `index`, `indispos`) et
+n'est appelée nulle part — le lot n'en retirait qu'une ; `miroir.gs` l.82 (`deleteOverride:
+['config_admin']`) et `banc/monde.js` l.25 n'étaient pas inventoriés ; et un commentaire affirmait
+« onglet supprimé du classeur » sans vérification, dans un dépôt public et définitif.
+
+**⚠️ Confusion de noms à ne plus refaire :** les « dix-huit endroits » notés le 10 août désignaient
+`PLANNING_OVERRIDES`, **bien vivant** (il porte les placements du comité). Seul l'ancien `OVERRIDES`,
+dont l'onglet n'existe plus, est du code mort. La roadmap de pilotage a été corrigée en ce sens.
+
+### Ce qui reste ouvert de la séance
+
+- **P16 non fait** : exige un second téléphone avec un autre code MAR.
+- **T041** (conflits de vacances) : la description du cahier parle d'un « écran » qui n'existe pas —
+  `getConflitsAll` n'est appelé qu'à l'étape 1 de l'assistant de génération, où il **bloque** la
+  génération. À reformuler au prochain passage.
+- **T065-T066** (assistant départ) : à faire avant le 1<sup>er</sup> septembre, un départ réel tombe ce jour-là.
+- **Documents** : une copie semblait revenue après `miroirSyncComplet`. Impossible — cette fonction
+  pousse 20 familles et **aucune n'est les documents** ; seul `miroirDocuments` les copie, à raison
+  d'**un par heure**. À reprendre avec le détail du geste fait.
+- **À reconfirmer en production** : placer, publier, basculer sur 2027 dans la minute — `chronoAPI()`
+  doit montrer `miroir:planning_2027`, pas `getPlanningJson`.
 
 ---
 
