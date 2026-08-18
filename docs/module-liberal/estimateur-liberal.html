@@ -457,6 +457,12 @@ window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionS
 
   <div class="decllist" id="dclListWrap" style="display:none">
     <h3>Mes interventions libérales déclarées</h3>
+    <!-- (17/08/2026) CE BLOC NE SE MASQUE PLUS QUAND L'APPEL ECHOUE. Il le
+         faisait, et deux declarations bien enregistrees ont paru « s'effacer
+         brutalement » — constate par Arthur, alors qu'elles etaient dans le
+         classeur ET chez le comite. Un echec et « aucune declaration »
+         produisaient exactement le meme ecran. -->
+    <div id="dclListKO" style="display:none;background:#FDF3E3;border:1px solid #EAD9B4;border-radius:9px;padding:10px 12px;font-size:12.5px;color:#8A6516;line-height:1.5"></div>
     <div id="dclRows"></div>
   </div>
 
@@ -944,10 +950,15 @@ async function chargerCotationsType(){
     const j=await r.json();
     const brut=(j && (j.data || j.cotations || j)) || [];
     const list=(Array.isArray(brut)?brut:[]).filter(x=>x && x.nom && x.lignes && x.lignes.length);
-    if(!list.length) return;                       // pas de barre plutot qu'une barre vide
+    if(!list.length) return;                       // aucune cotation type : pas de barre, c'est exact
     COTTYPE=list; renderCotTypeBar();
     try{ sessionStorage.setItem('chpgCotTypeLib_v2', JSON.stringify(list)); }catch(e){}
-  }catch(e){ /* silencieux : la barre est un raccourci, pas une donnee critique */ }
+  }catch(e){
+    /* (17/08/2026) L'ECHEC NE DOIT PLUS ETRE MUET. La barre disparaissait sans
+       un mot quand l'appel tombait : Arthur a cru la fonctionnalite perdue
+       alors que rien n'etait casse. Dire ce qui manque, et offrir de reessayer. */
+    if(!COTTYPE.length) cotTypePanne();
+  }
 }
 
 // GROUPE choisi : memorise pour la SESSION (un F5 entre deux patients ne doit pas
@@ -962,9 +973,23 @@ function choisirGroupeCotType(g){
   renderCotTypeBtns();
 }
 
+/* Affiche a la place de la barre : la raison, et un bouton pour reessayer. */
+function cotTypePanne(){
+  const bar=document.getElementById('cotTypeBar'), btns=document.getElementById('cotTypeBtns');
+  const sel=document.getElementById('cotTypeGrp');
+  if(!bar || !btns) return;
+  if(sel) sel.style.display='none';
+  const lien=document.getElementById('lienFabrique'); if(lien) lien.style.display='none';
+  btns.innerHTML='<span style="font-size:12px;color:#8A6516;background:#FDF3E3;border:1px solid #EAD9B4;'
+    +'border-radius:8px;padding:6px 10px">Cotations types indisponibles — la cotation à la main reste possible. '
+    +'<button class="declbtn" style="padding:4px 9px;font-size:11.5px;margin-left:4px" onclick="chargerCotationsType()">Réessayer</button></span>';
+  bar.style.display='flex';
+}
+
 function renderCotTypeBar(){
   const bar=document.getElementById('cotTypeBar'), sel=document.getElementById('cotTypeGrp');
   if(!bar || !sel || !COTTYPE.length) return;
+  sel.style.display='';                       // efface un eventuel etat « panne »
   const groupes=[];
   COTTYPE.forEach(function(c){ if(c.groupe && groupes.indexOf(c.groupe)===-1) groupes.push(c.groupe); });
   sel.innerHTML='<option value="">— choisir un contexte —</option>'
@@ -1177,9 +1202,28 @@ async function declarer(){
   btn.disabled=false;
   if(!r || !r.success){ dclFlash('Échec : '+((r&&r.error)||'portail injoignable')+'.', false); return; }
   memoriserSecteur(sec);
+  /* (17/08/2026) LE DEVIS RESTE REOUVRABLE PENDANT LA CONSULTATION. Cas reel :
+     trois patients passes, on s'apercoit que le premier n'a pas signe. La
+     cotation du patient declare est donc gardee EN MEMOIRE VIVE, au meme titre
+     que celle affichee a l'ecran.
+     ⚠️ RIEN N'EST ECRIT NULLE PART : pas de stockage navigateur, pas de reseau.
+     Recharger ou fermer la page efface ces devis — c'est la contrepartie de ne
+     jamais conserver d'acte ni de carte. Les lignes plus anciennes s'affichent
+     donc SANS icone, plutot qu'avec une icone qui ne marcherait pas. */
+  if(r.id) DEVIS_SESSION[r.id]=p;
   dclFlash('Intervention déclarée — écran vide pour le patient suivant.', true);
   patientSuivant();
   await chargerDecl();
+}
+
+/* Cotations des patients declares PENDANT CETTE SESSION, en memoire vive.
+   Videe par tout rechargement de la page : rien ne survit a la fermeture. */
+const DEVIS_SESSION = {};
+
+function rouvrirDevis(id){
+  const p=DEVIS_SESSION[id];
+  if(!p){ dclFlash('Ce devis n\'est plus disponible : la page a été rechargée depuis.', false); return; }
+  parcours=[p]; openDevis(0);
 }
 
 /* Remise a blanc entre deux patients. Ce qui est PROPRE au patient part (actes,
@@ -1206,18 +1250,36 @@ async function supprimerDecl(id, year){
   await chargerDecl();
 }
 
+/* (17/08/2026) Un ECHEC n'est pas une liste vide. Le code retenait [] dans les
+   deux cas et masquait le bloc : les declarations paraissaient s'effacer alors
+   qu'elles etaient enregistrees. On distingue desormais les trois etats — pas
+   identifie, echec, liste reellement vide — et seul le troisieme est muet. */
+let DECL_KO = '';
+
 async function chargerDecl(){
   const code = CHPGSession.lire();
-  if(!code){ document.getElementById('dclListWrap').style.display='none'; return; }
+  if(!code){ DECL_KO=''; MES_DECL=[]; document.getElementById('dclListWrap').style.display='none'; return; }
   const r=await apiLib('listLiberal', {year:(new Date().getFullYear())});
-  MES_DECL=(r && r.success && Array.isArray(r.items)) ? r.items : [];
+  if(r && r.success && Array.isArray(r.items)){ MES_DECL=r.items; DECL_KO=''; }
+  else { DECL_KO = (r && r.error) || 'portail injoignable'; }   // on GARDE la liste en place
   renderDecl();
 }
 
 function renderDecl(){
   const wrap=document.getElementById('dclListWrap'), box=document.getElementById('dclRows');
-  if(!MES_DECL.length){ wrap.style.display='none'; return; }
+  const ko=document.getElementById('dclListKO');
+  if(ko){
+    if(DECL_KO){
+      ko.innerHTML='<b>Liste non rafraîchie</b> — '+esc(DECL_KO)+'. '
+        +(MES_DECL.length ? 'Ce qui s\'affiche date du dernier chargement. ' : '')
+        +'<b>Rien n\'est perdu</b> : vos déclarations sont enregistrées. '
+        +'<button class="declbtn" style="padding:5px 10px;font-size:12px;margin-left:4px" onclick="chargerDecl()">Réessayer</button>';
+      ko.style.display='block';
+    } else ko.style.display='none';
+  }
+  if(!MES_DECL.length && !DECL_KO){ wrap.style.display='none'; return; }
   wrap.style.display='';
+  if(!MES_DECL.length){ box.innerHTML=''; return; }
   const today=isoToday();
   // Fenetre par defaut : futur + 7 derniers jours (encore corrigeable). Le reste est
   // masque mais JAMAIS supprime cote serveur — depliable via « voir toute l'année ».
@@ -1235,6 +1297,9 @@ function renderDecl(){
         +(d.chirurgie?' <small>— '+esc(d.chirurgie)+'</small>':'')
         +((d.brCcam||d.brNgap)?' <small style="color:var(--muted)">· '+eur2(+d.brCcam||0)+' CCAM · '+eur2(+d.brNgap||0)+' NGAP</small>':'')
         +'</span>'
+      +(DEVIS_SESSION[d.id]
+        ? '<button class="ddel" onclick="rouvrirDevis(\''+d.id+'\')" title="Rouvrir le devis de ce patient" aria-label="Rouvrir le devis">📄</button>'
+        : '')
       +'<button class="ddel" onclick="supprimerDecl(\''+d.id+'\','+year+')" aria-label="Retirer">🗑</button>'
       +'</div>';
   }).join('');

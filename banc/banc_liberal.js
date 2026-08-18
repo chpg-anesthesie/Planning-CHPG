@@ -560,6 +560,49 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
     V('aucun identifiant de MAR n\'est envoyé par la page', !decl.marId && !decl.mar, brut.slice(0,160));
   }
 
+  /* ══ LE DEVIS RESTE ROUVRABLE PENDANT LA CONSULTATION (17/08/2026) ══
+     Cas reel d'Arthur : trois patients passes, on s'apercoit que le premier n'a
+     pas signe. La cotation d'un patient DECLARE est gardee en memoire vive.
+     Rien n'est ecrit nulle part : recharger la page efface ces devis. */
+  V('la cotation du patient déclaré est gardée pour la consultation',
+    Object.keys(ev('DEVIS_SESSION')).length === 1, Object.keys(ev('DEVIS_SESSION')));
+  V('rien n\'en sort du navigateur : aucun stockage, aucun envoi',
+    !/DEVIS_SESSION[\s\S]{0,400}(sessionStorage|localStorage|fetch)/.test(
+      html.slice(html.indexOf('const DEVIS_SESSION'), html.indexOf('const DEVIS_SESSION') + 400)));
+  const idDecl = decl ? Object.keys(ev('DEVIS_SESSION'))[0] : null;
+  if (idDecl) {
+    w.rouvrirDevis(idDecl);
+    await dodo(60);
+    const ov2 = d.getElementById('devisOverlay');
+    V('un clic rouvre le devis de ce patient-là', !!ov2 && ov2.style.display !== 'none');
+    if (typeof w.closeDevis === 'function') w.closeDevis();
+    await dodo(20);
+  }
+  V('une ligne sans devis en mémoire n\'affiche pas d\'icône trompeuse',
+    !/DEVIS_SESSION\[d\.id\]\s*\?[^:]*:\s*'[^']/.test(html) || /:\s*''/.test(html));
+
+  /* ══ UN ECHEC N'EST PAS UNE LISTE VIDE (17/08/2026) ══════════════
+     Constate par Arthur : deux declarations bien enregistrees ont paru
+     « s'effacer brutalement ». Elles etaient dans le classeur ET chez le
+     comite — c'est l'ecran qui masquait tout le bloc quand l'appel echouait. */
+  ev("DECL_KO = 'portail injoignable'; renderDecl();");
+  await dodo(30);
+  const koBox = d.getElementById('dclListKO');
+  V('un échec de chargement se DIT, au lieu de tout masquer',
+    koBox.style.display === 'block' && /Rien n'est perdu/.test(koBox.textContent), koBox.style.display);
+  V('et le bloc reste visible', d.getElementById('dclListWrap').style.display !== 'none');
+  V('il propose de réessayer', /Réessayer/.test(koBox.innerHTML));
+  ev("DECL_KO = ''; renderDecl();");
+  await dodo(20);
+  V('sans échec, aucun message parasite', d.getElementById('dclListKO').style.display === 'none');
+
+  /* Meme defaut sur la barre des cotations types : elle disparaissait sans un
+     mot, et Arthur a cru la fonctionnalite perdue. */
+  V('la barre des cotations types sait dire qu\'elle a échoué',
+    /function cotTypePanne/.test(html) && /Cotations types indisponibles/.test(html));
+  V('elle rappelle que la cotation à la main reste possible',
+    /la cotation à la main reste possible/.test(html));
+
   // ── Patient suivant : écran vide ──
   V('les actes du patient précédent ont disparu', ev('builder.length') === 0, ev('builder.length'));
   V('le jour du bloc est effacé', d.getElementById('dInt').value === '', d.getElementById('dInt').value);
