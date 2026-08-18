@@ -312,6 +312,89 @@ async function page(transport) {
       w.document.getElementById('wizardClotureOverlay').classList.contains('open') === true, dit.slice(0,80));
   }
 
+  console.log('\n═══ 64. La garde des 90 s ne ferme QUE l\'année écrite ═══');
+  {
+    /* (18/08/2026) Mesure en production : publication a T+49 s, bascule sur 2027
+       a T+118 s. 69 s d'ecart, donc sous les 90 s — mais l'ecriture portait sur
+       2026. La copie rapide de 2027, intacte, a ete refusee : repli Apps Script
+       froid, DEUX delais de 20 s depasses, puis 12 a 17 s pour afficher une
+       annee que le miroir rendait en 164 ms. */
+    const { w } = await page(async () => ({ ok:true, json: async () => ({ success:true }) }));
+    w.eval('_tsEcriturePlanning = Date.now(); _tsEcritureAnnee = 2026;');
+    V('l\'année qu\'on vient d\'écrire reste fermée', w.eval('_ecritureRecentePour_(2026)') === true);
+    V('une AUTRE année reste ouverte à la copie rapide', w.eval('_ecritureRecentePour_(2027)') === false);
+    /* Le doute reste protecteur : c'est la moitie qui empeche ce correctif de
+       devenir une regression. Trois inconnues, trois fermetures. */
+    w.eval('_tsEcritureAnnee = null;');
+    V('année écrite inconnue → tout reste fermé, comme avant', w.eval('_ecritureRecentePour_(2027)') === true);
+    w.eval('_tsEcritureAnnee = 2026;');
+    V('année demandée inconnue → fermé aussi', w.eval('_ecritureRecentePour_(null)') === true);
+    w.eval('_tsEcriturePlanning = Date.now() - 91000;');
+    V('passé 90 s, tout se rouvre', w.eval('_ecritureRecentePour_(2026)') === false);
+
+    /* L'annee est LUE sur le geste, pas devinee. Les quatre intentions du
+       journal et les actions d'ecriture directes la portent toutes. */
+    V('elle se lit sur une intention du journal', w.eval('_anneeEcriture_({type:"publier", year:2027})') === 2027);
+    V('elle se lit sur une action directe', w.eval('_anneeEcriture_({action:"publishPlanning", year:2026})') === 2026);
+    V('elle se lit dans une modification imbriquée',
+      w.eval('_anneeEcriture_({action:"applyModification", modification:{year:2027}})') === 2027);
+    V('un geste sans année ne ment pas : il rend null',
+      w.eval('_anneeEcriture_({action:"publishPlanning"})') === null);
+  }
+
+  console.log('\n═══ 65. Retomber sur Apps Script n\'y enferme plus ═══');
+  {
+    /* (18/08/2026) loadPlanningData etait le SEUL chemin sans tentative miroir.
+       Une fois tombe sur Apps Script, le bouton « Reessayer » et tout
+       rechargement de l'annee y restaient — meme une demi-heure plus tard,
+       garde retombee. Seul un aller-retour dans le selecteur d'annees
+       rebranchait la copie rapide : geste indevinable. */
+    let miroir = 0, gas = 0;
+    const { w } = await page(async (url) => {
+      if (String(url).includes('workers.dev')) {
+        miroir++;
+        return { ok:true, json: async () => ({ success:true, identite:{role:'admin'}, data: {
+          planning_2027: { months:[], _source:'miroir' },
+          affectations_2027: { affectations: { ALPHA: { 3:'REA' } } } } }) };
+      }
+      gas++;
+      return { ok:true, json: async () => ({ success:true, planning:{ months:[], _source:'gas' } }) };
+    });
+    w.eval('ADMIN_CODE="CODE99"; ADMIN_YEAR=2027; DATA=null; _tsEcriturePlanning=0; _tsEcritureAnnee=null;');
+    await w.loadPlanningData();
+    V('le rechargement passe par la copie rapide', miroir >= 1, { miroir, gas });
+    V('Apps Script n\'est pas sollicité', gas === 0, { miroir, gas });
+    V('c\'est bien le planning du miroir qui est posé', w.eval('DATA && DATA._source') === 'miroir');
+    V('les affectations du miroir suivent', w.eval('window.AFFM && window.AFFM.ALPHA && window.AFFM.ALPHA[3]') === 'REA');
+
+    /* Apres une ecriture SUR CETTE ANNEE, la regle ne bouge pas d'un pouce :
+       un editeur ne lit jamais une copie qui peut avoir 60 s de retard. */
+    miroir = 0; gas = 0;
+    w.eval('DATA=null; _tsEcriturePlanning=Date.now(); _tsEcritureAnnee=2027;');
+    await w.loadPlanningData();
+    V('écriture récente sur l\'année : on repasse par Apps Script', gas >= 1 && miroir === 0, { miroir, gas });
+    V('et c\'est le planning du serveur qui est posé', w.eval('DATA && DATA._source') === 'gas');
+
+    /* Miroir muet (cle absente, Worker en panne) : le circuit d'origine prend
+       la main, exactement comme avant le correctif. */
+    miroir = 0; gas = 0;
+    w.eval('DATA=null; _tsEcriturePlanning=0; _tsEcritureAnnee=null;');
+    w.fetch = async (url) => {
+      if (String(url).includes('workers.dev')) { miroir++; return { ok:true, json: async () => ({ success:true, data:{} }) }; }
+      gas++;
+      return { ok:true, json: async () => ({ success:true, planning:{ months:[], _source:'gas' } }) };
+    };
+    await w.loadPlanningData();
+    V('copie rapide sans la clé : repli Apps Script', miroir >= 1 && gas >= 1, { miroir, gas });
+    V('le planning s\'affiche quand même', w.eval('DATA && DATA._source') === 'gas');
+
+    /* Et les donnees deja livrees par le bootstrap ne declenchent toujours
+       AUCUN appel : c'est l'ouverture de page, le chemin le plus sensible. */
+    miroir = 0; gas = 0;
+    await w.loadPlanningData({ planning: { months:[], _source:'boot' }, affectations:null });
+    V('un planning déjà fourni ne déclenche aucun appel', miroir === 0 && gas === 0, { miroir, gas });
+  }
+
   console.log(`\n${ok} OK · ${ko} en échec`);
   process.exit(ko ? 1 : 0);
 })();

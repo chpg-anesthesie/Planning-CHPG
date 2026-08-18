@@ -1961,6 +1961,7 @@ async function _journalDeposer(intention) {
     } catch (e) {}
     if (!(r && r.success)) return null;
     _tsEcriturePlanning = Date.now();   // meme garde de fraicheur que les ecritures directes
+    _tsEcritureAnnee = _anneeEcriture_(intention);   // (18/08/2026) les 4 intentions portent toutes `year`
     _journalSuivre();
     return r;
   } catch (e) { return null; }
@@ -2488,8 +2489,37 @@ const _ACTIONS_ECRITURE_PLANNING = new Set(['publishPlanning','setDailyStatus','
   'deleteOverride','savePlanningOverridesBatch','generateGardes','archiveYear','initYear',
   'saveAffectations','saveAffectationsMar']);
 
+/* (18/08/2026) LA GARDE CONNAIT DESORMAIS L'ANNEE ECRITE. Elle ne portait
+   qu'un horodatage : publier 2026 fermait aussi la copie rapide de 2027, ou
+   rien n'avait ete ecrit. Mesure du 18/08 au matin : publication a T+49 s,
+   bascule sur 2027 a T+118 s — 69 s, donc sous les 90 s — repli Apps Script
+   froid, DEUX delais de 20 s depasses puis 12 a 17 s pour afficher une annee
+   que la copie rapide rendait en 164 ms.
+   LE DOUTE RESTE PROTECTEUR : annee d'ecriture inconnue, ou annee demandee
+   inconnue → toutes les annees sont fermees, exactement comme avant. On ne
+   gagne de la vitesse que la ou on peut PROUVER que l'annee lue n'est pas
+   celle qu'on vient d'ecrire. */
+let _tsEcritureAnnee = null;
+function _anneeEcriture_(payload) {
+  try {
+    if (!payload) return null;
+    if (payload.year != null && isFinite(Number(payload.year))) return Number(payload.year);
+    const m = payload.modification;
+    if (m && m.year != null && isFinite(Number(m.year))) return Number(m.year);
+  } catch (e) {}
+  return null;
+}
+function _ecritureRecentePour_(annee) {
+  if (Date.now() - _tsEcriturePlanning >= 90000) return false;
+  if (annee == null || _tsEcritureAnnee == null) return true;
+  return Number(annee) === Number(_tsEcritureAnnee);
+}
+
 async function api(payload) {
-  if (payload && _ACTIONS_ECRITURE_PLANNING.has(payload.action)) _tsEcriturePlanning = Date.now();
+  if (payload && _ACTIONS_ECRITURE_PLANNING.has(payload.action)) {
+    _tsEcriturePlanning = Date.now();
+    _tsEcritureAnnee = _anneeEcriture_(payload);
+  }
   const _suivant = _fileAPI.then(() => _apiAvecFilet(payload), () => _apiAvecFilet(payload));
   _fileAPI = _suivant.catch(() => {});
   return _suivant;
@@ -3399,7 +3429,7 @@ async function reloadForYear(year) {
     /* (v1.22.1) Meme garde que Statuts/Equite : moins de 90 s apres une
        ecriture planning (l'accroche miroir est DIFFEREE depuis miroir.gs .6),
        la bascule repasse par le circuit direct — jamais d'annee perimee. */
-    if (Date.now() - _tsEcriturePlanning < 90000) throw new Error('ecriture recente');
+    if (_ecritureRecentePour_(year)) throw new Error('ecriture recente sur cette annee');
     const m = await miroirRead(['planning_' + year, 'affectations_' + year], ADMIN_CODE);
     const p = m && m.success && m.data && m.data['planning_' + year];
     const af = m && m.success && m.data && m.data['affectations_' + year];
@@ -3628,6 +3658,33 @@ async function loadPlanningData(pre) {
       DATA = pre.planning;
       window.AFFM = (pre.affectations && pre.affectations.affectations) || {};
     } else {
+    /* (18/08/2026) LA COPIE RAPIDE D'ABORD, ICI AUSSI. Ce chemin etait le SEUL
+       a n'avoir aucune tentative miroir : une fois tombe sur Apps Script, on y
+       restait. Le bouton « Reessayer », un retour sur l'onglet Planning, tout
+       rechargement de l'annee repartaient sur le circuit lent, meme une demi-
+       heure plus tard, quand la garde des 90 s etait retombee depuis longtemps.
+       Constate le 18/08 : trois tentatives a 12, 17 et 20 s (delai depasse)
+       pour une annee que la copie rapide rendait en 164 ms. Seul un aller-
+       retour dans le selecteur d'annees rebranchait le miroir — geste que
+       personne ne peut deviner.
+       La regle de fraicheur est la MEME que partout ailleurs : moins de 90 s
+       apres une ecriture SUR CETTE ANNEE, on ne lit pas la copie. Et tout
+       ecart — pas de code, miroir muet, cle absente — retombe sur le circuit
+       Apps Script ci-dessous, inchange. */
+    let _plM = null, _affM = null;
+    if (ADMIN_CODE && !_ecritureRecentePour_(ADMIN_YEAR)) {
+      try {
+        const _m = await miroirRead(['planning_' + ADMIN_YEAR, 'affectations_' + ADMIN_YEAR], ADMIN_CODE);
+        if (_m && _m.success && _m.data && _m.data['planning_' + ADMIN_YEAR]) {
+          _plM  = _m.data['planning_' + ADMIN_YEAR];
+          _affM = _m.data['affectations_' + ADMIN_YEAR] || null;
+        }
+      } catch (e) { /* miroir muet : circuit Apps Script */ }
+    }
+    if (_plM) {
+      DATA = _plM;
+      window.AFFM = (_affM && _affM.affectations) || {};
+    } else {
     // (perf) Planning ET affectations lancés EN PARALLÈLE (avant : en série → ~4 s perdues).
     // Le planning garde son retry x3 ; les affectations sont accessoires (échec toléré).
     const _affP = api({action:'getAffectationsJson', year: ADMIN_YEAR}).catch(()=>null);
@@ -3645,6 +3702,7 @@ async function loadPlanningData(pre) {
       const ra = await _affP;
       window.AFFM = (ra && ra.success && ra.affectations && ra.affectations.affectations) || {};
     } catch(e) { window.AFFM = {}; }
+    }
     }
     if (!DATA || !DATA.months) throw new Error('Structure JSON invalide');
     const today = todayStr();
