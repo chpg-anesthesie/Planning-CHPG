@@ -198,16 +198,6 @@
   <h2>1 · Le 4 septembre</h2>
 
   <h3>Avant</h3>
-  <div class="card ok">
-    <h4>Répétition à blanc chronométrée <span class="tag t-green">faite le 10 août 2026</span></h4>
-    <p><b>Le deck se trompait d'un facteur trois.</b> Mesuré sur une génération réelle : 28 s pour placer les gardes, 10 s pour publier le planning, 6 s pour envoyer le récapitulatif — <b>environ 45 secondes</b> du clic à la fin. Les cinq mentions « 15 secondes » sont devenues « moins d'une minute ».</p>
-    <p><b>Et la génération elle-même est sans défaut :</b> 364 jours tous pourvus, part respectée pour les 24 médecins, autant de récupérations que de samedis. Rien à corriger avant le 4 septembre.</p>
-    <p>À savoir le jour J : au bout de 45 secondes, un message « toujours en cours » peut s'afficher. C'est prévu — <b>ne pas recliquer</b>.</p>
-  </div>
-  <div class="card ok">
-    <h4>Relecture du deck <span class="tag t-green">faite le 9 août 2026</span></h4>
-    <p>Visuel jugé correct. Ne reste, non vérifié, que le rendu <b>au vidéoprojecteur</b> de la diapo 16 : le rosé du repos du lendemain peut y passer pour du blanc. À regarder le jour même, sur le matériel de la salle.</p>
-  </div>
   <div class="card attente">
     <h4>Dérouler le cahier de tests, parcours P1 à P6 <span class="tag t-amber">commencé le 18 août</span></h4>
     <p>Les scénarios d'usage de <code>docs/cahier-de-tests.html</code>, faits à la main : se connecter, lire le planning, poser une indisponibilité, gérer une absence longue. On vérifie que <b>ça marche</b>.</p>
@@ -215,24 +205,21 @@
     <p><b>Première passe, le 18 août :</b> P1 à P6 déroulés. Un défaut réel trouvé, corrigé le jour même (ci-dessous). Restent en suspens : le parcours P16, qui exige <b>deux téléphones</b> ; l'écran des conflits de vacances (T041) ; l'assistant de départ (T065-T066), à faire avant le 1<sup>er</sup> septembre puisqu'un départ réel tombe ce jour-là.</p>
   </div>
   <div class="card ok">
-    <h4>Mesurer la vitesse d'ouverture <span class="tag t-green">fait le 9 août 2026</span></h4>
-    <p><b>PC, 9 août 2026, navigation privée, 31 ouvertures :</b> portail 0,30 s en médiane (pire 0,51), planning 0,41 s (pire 0,77), indisponibilités 0,22 s. <b>Aucune ouverture au-dessus de 2 s</b>, aucun échec, aucun recours au serveur lent. Sensation obtenue : ouverture quasi instantanée.</p>
-    <p>Une moyenne ne vaut rien : neuf ouvertures à 0,3 s et une à 12 s donnent une bonne moyenne — et c'est celle à 12 s qui tombera devant la salle. <b>Téléphone</b>, en données mobiles et wifi coupé : vérifié le même jour, aucune ouverture ressentie comme une attente — contrôle à l'œil, non chronométré.</p>
-    <p><b>Piège :</b> la toute première ouverture d'une fenêtre privée contient le temps qu'on met à <b>taper son code</b> — 5,8 s affichées pour une page arrivée en 0,05 s. Décomposer avant de conclure.</p>
+    <h4>Déjà fait — les cinq contrôles d'avant-séance <span class="tag t-green">9 au 16 août 2026</span></h4>
+    <ul>
+      <li><b>Répétition chronométrée</b> (10/08) : <b>~45 s</b> du clic à la fin, pas 15 s comme l'annonçait le deck — corrigé en « moins d'une minute ». Génération sans défaut : 364 jours pourvus, part respectée pour les 24, autant de récupérations que de samedis. <i>Le jour J : au bout de 45 s un message « toujours en cours » peut s'afficher — ne pas recliquer.</i></li>
+      <li><b>Relecture du deck</b> (09/08) : correct. Reste à voir sur le matériel de la salle : diapo 16, le rosé du repos peut passer pour du blanc au vidéoprojecteur.</li>
+      <li><b>Vitesse d'ouverture</b> (09/08, 31 ouvertures) : portail <b>0,30 s</b> médian, planning 0,41 s, indisponibilités 0,22 s. Aucune au-dessus de 2 s. Téléphone en données mobiles vérifié à l'œil.</li>
+      <li><b>Ouvrir un document en séance</b> : contrainte levée depuis le 10/08 — de 6-11 s à quasi immédiat. Ce qui sera projeté gagne quand même à être ouvert avant.</li>
+      <li><b>Notifications ouvertes à tous</b> (16/08) : à la fin de la génération, tous les téléphones ayant accepté à la diapo 7 reçoivent « Les gardes 2027 sont générées ». Ce n'est plus un téléphone posé face visible, c'est la salle qui sonne. La démonstration n'en dépend jamais : si rien n'arrive, personne ne le sait.</li>
+    </ul>
   </div>
-  <div class="card">
-    <h4>Ouvrir un document en séance <span class="tag t-green">contrainte levée</span></h4>
-    <p>La consigne « ne jamais faire ouvrir un document à la salle ensemble » <b>n'a plus lieu d'être</b> depuis le 10 août : l'ouverture est passée de 6-11 secondes à quasi immédiate. Reste la prudence d'usage — ce qui sera projeté gagne toujours à être ouvert avant la séance.</p>
-  </div>
+
   <div class="card">
     <h4>Profils d'indispos 2027 remplis</h4>
-    <p>Annoncé à la salle : vérifier que les profils fictifs des autres MARs sont bien en place. <code>PERIODES_VAC</code> est déjà réglé sur 2027.</p>
+    <p>Annoncé à la salle : vérifier que les profils fictifs des autres MARs sont en place. <code>PERIODES_VAC</code> est déjà réglé sur 2027.</p>
   </div>
-  <div class="card ok">
-    <h4>La notification de génération, sur TOUS les téléphones <span class="tag t-green">canal ouvert à tous le 16 août</span></h4>
-    <p>À la fin de la génération devant la salle, tous les téléphones qui ont activé les notifications à la diapo 7 reçoivent « Les gardes 2027 sont générées ». Un toucher : le planning s'ouvre. C'était réservé au comité jusqu'au 16 août — l'ouverture du canal à tout le service change la démonstration : ce n'est plus un téléphone posé face visible, c'est la salle entière qui sonne.</p>
-    <p><b>Filets :</b> le message part automatiquement à la fin du calcul, sans aucun geste · si rien n'arrive, personne ne le sait — la démonstration n'en dépend jamais. À la diapo 7, vérifier à la voix qui a bien eu la fenêtre d'autorisation.</p>
-  </div>
+  
 
   <h3>La veille et le jour même</h3>
   <p style="color:var(--ink-2);font-size:14px">Deux gestes, dans cet ordre — et un piège vérifié dans le programme. Le staff débute à <b>14h</b> : le nettoyage se fait le matin, les codes partent à <b>12h30</b>.</p>
@@ -242,11 +229,12 @@
     <p><b>Pourquoi c'est indispensable :</b> une sécurité empêche de recalculer une année déjà calculée — elle protège un vrai planning contre une régénération accidentelle. Si les tableaux sont encore là le 4 septembre, l'assistant <b>ne calcule pas</b> : il réaffiche le résultat de la répétition. La salle verrait « 730 gardes » apparaître instantanément, sans qu'aucun calcul n'ait eu lieu, <b>et aucun message ne le signalerait</b>.</p>
   </div>
   <div class="card">
-    <h4>Saisir les 24 adresses mail, puis envoyer les codes <span class="tag t-blue">le jour même, 12h30</span></h4>
-    <p>Le staff débute à 14h : les codes partent une heure et demie avant. Personne ne peut donc se connecter avant la séance — c'est ce qui supprime tout risque qu'un curieux tombe sur le planning fictif de la répétition. En contrepartie, <b>il n'y a plus de nuit pour rattraper une adresse fausse</b> : si un code ne marche pas à 14h05, c'est devant la salle. D'où le contrôle du matin et la marge d'une heure vingt.</p>
-    <p>Les codes existent déjà : l'envoi transmet le code en place, il n'en change aucun. La liste des médecins est relue au moment de l'envoi — une adresse saisie une minute avant est prise en compte. Le quota (100 messages par jour) laisse largement la place à 25 destinataires, et de quoi recommencer.</p>
-    <p><b>Le déroulé :</b> le matin, nettoyage puis saisie des adresses puis <b>Diagnostic</b> — la ligne « MARs actifs sans code d'accès » doit dire <b>aucun</b>, c'est le seul contrôle qui garantit que les envois auront un code à transmettre. À <b>12h30</b>, envoi d'essai à <b>un seul</b> destinataire : vérifier la réception <b>et le dossier</b>. À <b>12h40</b>, envoi aux autres. À <b>12h45</b>, lire le compte rendu — il nomme ceux qui n'ont rien reçu.</p>
-    <p><b>Deux précautions :</b> 25 messages identiques partant en quelques secondes, c'est le profil type de ce que les filtres écartent — d'où l'envoi d'essai, qui permet d'annoncer avec certitude où chercher. Et désactiver le médecin dont le départ est au 1<sup>er</sup> septembre avant l'envoi.</p>
+    <h4>Les adresses mail : saisir le 3 au soir, envoyer le 4 à 12h30 <span class="tag t-blue">décidé le 18 août</span></h4>
+    <p><b>24 des 25 médecins actifs n'ont aucune adresse enregistrée.</b> Ça ne gêne pas la démonstration — ça bloque la campagne d'octobre, et c'est de la saisie pure.</p>
+    <p><b>Pourquoi pas le matin du 4 :</b> vingt-quatre adresses tapées sous pression, avec l'envoi une heure vingt plus tard et plus aucune nuit pour rattraper une faute de frappe. Une adresse fausse à 12h30, c'est un collègue sans code devant la salle à 14h05. <b>Pourquoi pas des semaines à l'avance non plus :</b> voir l'avertissement ci-dessous. D'où le compromis : <b>le 3 septembre au soir</b>.</p>
+    <p><b>⚠️ Vérifié dans le code le 18 août : la redirection d'essai ne protège PAS les envois de codes.</b> Elle ne couvre que la notification de changement de planning et l'alerte des échanges. Cinq actions lisent l'adresse directement dans l'onglet des médecins et partent pour de vrai — envoi groupé des codes, envoi à un MAR, régénération d'un code, récapitulatif, et l'envoi combiné de l'assistant de démarrage d'année. Aucune ne se déclenche seule : ce sont des boutons, avec confirmation. <b>Le seul vrai piège est l'assistant « recrue »</b> : une adresse renseignée à la création fait partir le code aussitôt. Pour tout test d'assistant, mettre sa propre adresse.</p>
+    <p><b>Le déroulé du 4 :</b> le matin, nettoyage puis <b>Diagnostic</b> — la ligne « MARs actifs sans code d'accès » doit dire <b>aucun</b>. À <b>12h30</b>, envoi d'essai à <b>un seul</b> destinataire : vérifier la réception <b>et le dossier indésirables</b>. À <b>12h40</b>, envoi aux autres. À <b>12h45</b>, lire le compte rendu, il nomme ceux qui n'ont rien reçu.</p>
+    <p><b>À savoir :</b> l'envoi transmet le code en place, il n'en change aucun. La liste est relue au moment de l'envoi. Quota de 100 messages par jour, donc de quoi recommencer. Et désactiver le médecin dont le départ est au 1<sup>er</sup> septembre avant d'envoyer.</p>
   </div>
 
   <h3>Le soir même — ménage</h3>
@@ -282,21 +270,16 @@
   </div>
 
   <div class="card ok">
-    <h4>Optimisation de la page libérale <span class="tag t-green">livré le 17 août 2026</span></h4>
-    <p><b>Le but tient en une phrase :</b> déclarer une intervention sans faire attendre le patient assis en face. La page servait à explorer ; elle sert maintenant à travailler, un patient à la fois — coter, imprimer le devis, déclarer, patient suivant.</p>
-    <p><b>Un chiffre faux, supprimé.</b> La page affichait à chacun « 25 % de libéral » et une marge en euros, calculés sur un exemple écrit dans le code — 50 000 € pour tout le monde. Ces deux cadrans ont disparu : la position réelle se lit sur la page <i>Suivi des 30 %</i>, alimentée par le relevé de l'administration.</p>
-    <p><b>Une panne intermittente, éliminée.</b> La page demandait quatre choses à la fois au serveur à son ouverture ; les dernières tombaient sans prévenir — le menu des secteurs affichait « portail injoignable », la barre des cotations d'endoscopie disparaissait <i>en silence</i>. Tout arrive désormais en une seule fois, par la copie de lecture.</p>
-    <p><b>Ce qui a été gagné en gestes :</b> les dates et les montants ne se saisissent plus deux fois — la déclaration les lit dans la cotation. Le secteur revient à votre dernier choix : dix endoscopies d'affilée, c'est zéro geste. Les deux boutons qui comptent, <i>Devis</i> et <i>Déclarer</i>, restent en bas de l'écran, sous le pouce. Une douzaine d'interactions ramenées à quatre ou cinq.</p>
-    <p><b>Ce qui a été gagné en secondes :</b> le référentiel des actes était retéléchargé <i>à chaque patient</i> ; il est désormais gardé par le téléphone. Il ne contient plus que les 4 726 actes réellement tarifés en anesthésie, au lieu de 8 558.</p>
-    <p><b>Deux corrections qui engagent la suite.</b> La <b>spécialité devient obligatoire</b> : c'est elle, et non le secteur, qui portera la mesure du rendement — les secteurs changent au déménagement, les spécialités non. Et le secteur <i>ORL / Ophtalmologie</i> en mélangeant deux, la page <b>refuse désormais de deviner</b> : elle étiquetait jusqu'ici toute cataracte en ORL, ce que la séparation des deux devait précisément empêcher.</p>
-    <p><b>Un défaut de fond, corrigé partout :</b> un échec s'affichait comme un vide. « Aucun relevé saisi » quand le serveur n'avait pas répondu, une liste de déclarations qui se masque, une barre de cotations qui s'évanouit. La page dit maintenant ce qui a échoué et propose de réessayer.</p>
-    <p><b>Le suivi des 30 % passe dans la copie de lecture</b> — c'était la dernière page à ne parler qu'au serveur Google. Elle s'ouvre désormais sans écran de code intermédiaire. <b>Décision associée, prise à froid :</b> le relevé financier était jusqu'ici exclu de cette copie ; il y est admis, <b>réservé aux seuls membres du groupement</b>, exactement la règle qui s'appliquait déjà côté serveur. Ni le comité, ni le secrétariat n'y accèdent.</p>
-    <p><b>Éprouvé :</b> le banc d'essai est passé de 13 à 95 vérifications sur ce module — l'écran de cotation, jusque-là le seul du site sans aucun contrôle, est désormais <b>piloté au clic</b> du choix du contexte jusqu'à la déclaration, et l'on vérifie qu'aucun code d'acte ni nom de patient ne l'accompagne.</p>
-    <p><b>Et dans la foulée, le même soir :</b> le <b>devis d'un patient déjà déclaré se rouvre d'un clic</b> pendant la consultation — cas réel : trois patients passés, le premier n'a pas signé. Rien n'est conservé pour autant : recharger la page efface ces devis, c'est la contrepartie de ne jamais garder d'acte ni de carte.</p>
-    <p><b>Une page pour fabriquer les cotations types</b>, au lieu de huit colonnes à remplir à la main dans le classeur. Le montant se calcule pendant qu'on construit, pour se comparer à un vrai relevé ; un acte sans tarif d'anesthésie est refusé à la source. Créer et modifier sont ouverts à tous les membres, <b>supprimer est réservé</b> — la bibliothèque est commune, personne ne doit pouvoir effacer le travail d'un autre sans trace.</p>
-    <p><b>Une règle métier qui manquait complètement :</b> quand le chirurgien cote lui aussi en libéral, le dépassement de l'anesthésiste est calé par usage à <b>50 % du sien</b>. Il n'est libre — et « reste à charge nul » n'a de sens — que si l'anesthésiste cote seul. L'outil proposait jusqu'ici le montant optimal dans tous les cas, donc un montant qu'on n'a pas le droit d'appliquer dans le cas le plus fréquent.</p>
-    <p><b>Enfin, les erreurs réseau aléatoires.</b> Plus aucune lecture ne passe par Google : tout ce qui s'affiche vient de la copie de lecture. Il ne reste que trois écritures, protégées par un <b>jeton unique</b> qui rend un réessai sûr et un doublon impossible — y compris en appuyant deux fois. Et « réseau » a laissé place à trois messages distincts, parce qu'on cherchait à l'aveugle.</p>
-    <p><b>Reste à faire :</b> mettre à jour les guides du libéral — <i>après</i> stabilisation, pour ne pas les réécrire dix fois · le taux de couverture, qui dira si les rendements mesurés valent quelque chose.</p>
+    <h4>Livré ces dernières semaines <span class="tag t-green">10 au 18 août 2026</span></h4>
+    <p>Le détail de chacun, avec les mesures et les défauts corrigés en chemin, est dans <code>docs/ROADMAP-Planning-CHPG.md</code>. Ici, l'essentiel :</p>
+    <ul>
+      <li><b>Échanges et dons de gardes</b> (13/08) — un MAR propose depuis son téléphone, l'autre accepte, <b>le planning s'écrit tout seul</b>, sans le comité. Sans réponse : expiration à 48 h, rappel à 24 h, rien de modifié. Un samedi donné emmène sa récupération, par transfert d'un repos existant. Éprouvé à deux en conditions réelles ; cinq défauts trouvés en production, tous corrigés et verrouillés au banc. Le comité n'est prévenu, par mail, que dans un seul cas : une récupération qui ne peut pas suivre son samedi.</li>
+      <li><b>Échange de deux gardes qui se suivent</b> (12/08) — lundi contre mardi était refusé à tort : le programme jugeait la situation de départ, pas celle d'arrivée. Passe désormais dans les deux sens, avec neuf scénarios au banc.</li>
+      <li><b>Ouverture des documents</b> (10/08) — un protocole s'ouvrait en 6 s, un topo en 11. Une copie est déposée à côté des autres données : ouverture quasi immédiate. Rien ne change pour vous, sauf une règle en déposant : <b>8 Mo maximum par document</b>, 2 à 3 Mo si possible. Au-delà, le document reste lent et le Diagnostic le signale.</li>
+      <li><b>Module libéral optimisé</b> (17-18/08) — déclarer une intervention sans faire attendre le patient assis en face : un patient à la fois, une douzaine de gestes ramenés à quatre ou cinq. Un chiffre faux supprimé (la « part de libéral » calculée sur un exemple écrit dans le code), une panne intermittente éliminée, une page pour fabriquer les cotations types, et une règle métier qui manquait : quand le chirurgien cote aussi en libéral, le dépassement de l'anesthésiste est calé à <b>50 % du sien</b>. <i>Reste à faire : mettre à jour les guides du libéral, après stabilisation.</i></li>
+      <li><b>Le planning d'une autre année s'affiche de nouveau tout de suite</b> (18/08) — trouvé pendant la recette, pas par le banc : après une publication, basculer d'année prenait <b>75 secondes</b> pour une année que la copie de lecture rend en <b>164 ms</b>. Deux causes : une sécurité qui fermait toutes les années au lieu de celle qu'on venait d'écrire, et un chemin de repli qui, une fois pris, ne revenait jamais à la copie rapide. Les deux corrigés, deux scénarios au banc. <i>Reste à faire : le reconfirmer une fois en production.</i></li>
+    </ul>
+    <p><b>La leçon, à ne pas perdre :</b> le banc était vert à 1 386 vérifications pendant que la page mettait 75 secondes. Il prouve la logique, jamais l'infrastructure.</p>
   </div>
 
   <div class="card">
@@ -306,20 +289,6 @@
     <p><b>2. Modificateur A</b> (patient de moins de 4 ans ou de plus de 80) : le code applique +23 €, l'aide de la page annonce +44,85 € pour un Monégasque.</p>
     <p><b>3. La C2S</b> est-elle bien distincte de l'AME, et applicable en libéral ? Le statut a été laissé intact faute de réponse.</p>
     <p><b>4. Le paiement de la consultation.</b> La consultation n'apparaît aujourd'hui ni sur le devis, ni dans le reste à charge — alors qu'elle porte souvent un dépassement. Modèle arrêté : deux documents distincts, une <b>note d'honoraires acquittée</b> pour la consultation (numéro sur date et heure, champ mode de paiement, pas de note s'il n'y a pas de dépassement) et le devis pour le bloc. Mis de côté : le circuit de paiement n'est pas connu.</p>
-  </div>
-  <div class="card ok">
-    <h4>Échanges et dons de gardes <span class="tag t-green">livré et ouvert le 13 août 2026</span></h4>
-    <p>Un MAR propose un don ou un échange depuis son téléphone ; l'autre reçoit une notification, accepte ou refuse. S'il accepte, <b>le planning s'écrit tout seul</b> — le comité n'intervient pas. Une demande sans réponse expire en 48 h (rappel unique à 24 h) sans rien modifier. Un samedi donné <b>emmène sa récupération</b>, par transfert d'un repos existant, jamais par création d'un neuf.</p>
-    <p><b>Éprouvé en conditions réelles, à deux, les 13 et 14 août :</b> don accepté, refus, échange de deux gardes, refus immédiat sur indisponibilité, transfert de récupération réussi — et son chemin d'échec, déclenché par hasard, qui s'est comporté exactement comme prévu.</p>
-    <p><b>Cinq défauts trouvés en production, tous corrigés et verrouillés au banc :</b> des dates converties en objets par le tableur · trois icônes absentes du jeu local · l'écran figé sur une lecture faite trop tôt · une poussée partie avec l'état d'avant l'écriture · les notifications adressées à la mauvaise identité. Chacun a d'abord été rejoué au banc, puis corrigé.</p>
-    <p><b>Le comité n'intervient que dans un cas</b> : une récupération qui ne peut pas suivre son samedi. Il en est alors prévenu <b>par mail</b>, avec le samedi, les deux médecins et la date à replacer.</p>
-    <p><b>Reste à faire :</b> ouvrir le canal de notifications aux 23 (le 5 septembre) · remettre le bac à sable à zéro avant la répétition du 28 août · plus tard, faire passer par ce même canal ce qui part aujourd'hui par mail.</p>
-  </div>
-  <div class="card ok">
-    <h4>Ouverture des documents <span class="tag t-green">livré le 10 août 2026</span></h4>
-    <p>Ouvrir un protocole prenait <b>6 secondes</b>, un topo <b>11</b>. C'était de loin le geste le plus lent du portail. Une copie de chaque document est désormais déposée à côté des autres données : l'ouverture est <b>quasi immédiate</b>.</p>
-    <p><b>Rien ne change pour vous.</b> Vous déposez vos PDF dans les mêmes dossiers Drive ; la copie se fait toute seule, dans l'heure. Si elle n'est pas encore faite, le document s'ouvre par l'ancien chemin — plus lentement, mais il s'ouvre.</p>
-    <p><b>Une seule règle en déposant : 8 Mo maximum par document</b>, et si possible 2 à 3 Mo. Au-delà, le document reste lent et le diagnostic le signale. Un support exporté depuis PowerPoint se comprime souvent de moitié ou plus ; un document déjà optimisé, non — inutile d'insister.</p>
   </div>
   <div class="card">
     <h4>Faire connaître le travail <span class="tag t-blue">congrès 2027</span></h4>
@@ -335,21 +304,6 @@
     <p>Inventaire refait le 10 août, <b>corrigé le 18</b> après relecture du code réel : une action serveur qu'aucun bouton n'appelle, l'ancien mécanisme <code>OVERRIDES</code> (six endroits, c'est lui qui fait mentir le panneau), et une fonction inutilisée qui existe <b>dans cinq pages</b>, pas une seule. L'écran « Paramètres » qu'on croyait à retirer, lui, <b>a déjà disparu</b>.</p>
     <p><b>⚠️ Correction d'une confusion de noms, à ne pas refaire :</b> les « dix-huit endroits » notés le 10 août désignaient <code>PLANNING_OVERRIDES</code>, qui est <b>bien vivant</b> — c'est lui qui porte les placements du comité. Rien à y toucher. Seul l'ancien <code>OVERRIDES</code>, dont l'onglet n'existe plus, est du code mort.</p>
     <p><b>Pourquoi attendre :</b> l'essentiel touche l'écriture du planning. Retirer du code qui ne dérange personne, à trois semaines d'une démonstration, c'est prendre un risque sans rien gagner.</p>
-  </div>
-  <div class="card ok">
-    <h4>Le planning d'une autre année s'affiche de nouveau tout de suite <span class="tag t-green">livré le 18 août 2026</span></h4>
-    <p><b>Trouvé pendant la recette, pas par le banc d'essai.</b> Après avoir publié, basculer sur l'année suivante prenait <b>75 secondes</b> — deux délais dépassés à 20 s, puis 12 à 17 s — pour une année que la copie de lecture rendait en <b>164 millisecondes</b>. Mesuré à l'écran, chronomètre à l'appui.</p>
-    <p><b>Deux causes, deux correctifs.</b> Une sécurité empêche de lire la copie rapide pendant 90 secondes après une écriture, pour ne jamais montrer du périmé à celui qui vient d'écrire. Elle ne regardait pas <b>quelle</b> année avait été écrite : publier 2026 fermait aussi 2027, où rien n'avait bougé. Elle le regarde désormais — et en cas de doute, elle ferme tout, comme avant.</p>
-    <p>Surtout : une fois retombé sur le serveur lent, <b>on y restait</b>. Le bouton « Réessayer » et tout rechargement de l'année repartaient sur le circuit lent, même une demi-heure plus tard. Seul un aller-retour dans le sélecteur d'années rebranchait la copie rapide — un geste que personne ne peut deviner. Ce chemin tente désormais la copie rapide comme tous les autres.</p>
-    <p><b>Ce que ça change le 4 septembre :</b> juste après la génération, la sécurité jouera toujours — c'est bien 2027 qu'on vient d'écrire — mais une lenteur passagère ne condamnera plus la séance au circuit lent.</p>
-    <p><b>Éprouvé :</b> deux scénarios au banc (64 et 65), rouges sans le correctif, dont la contre-preuve mesurée : sans lui, zéro lecture de la copie rapide et deux appels au serveur ; avec lui, l'inverse. Le banc passe de 1 386 à <b>1 404 vérifications</b>.</p>
-    <p><b>Leçon consignée :</b> le banc était vert à 1 386 vérifications pendant que la page mettait 75 secondes. Il prouve la logique, jamais l'infrastructure — c'est la recette à la main qui a trouvé le défaut.</p>
-  </div>
-  <div class="card ok">
-    <h4>Échange de deux gardes qui se suivent <span class="tag t-green">livré le 12 août 2026</span></h4>
-    <p>Échanger la garde du lundi contre celle du mardi était refusé — « dates trop proches ». Ce n'était pas une règle médicale mais une limite du programme : il jugeait la situation <b>de départ</b>, où le repos de l'un tombe sur la garde de l'autre, alors que la situation <b>d'arrivée</b> est parfaitement saine. <b>Ce cas passe désormais</b>, quel que soit l'ordre dans lequel on cite les deux dates.</p>
-    <p><b>Ce qui est vérifié avant d'écrire :</b> que chacun a bien son repos là où il devrait l'avoir, que les deux jours reçus sont libres, qu'aucun des deux ne se retrouve avec deux gardes qui se suivent <i>après</i> l'échange, et que personne n'est absent le jour qu'il reçoit ni le jour de son nouveau repos. Le rôle reste attaché à sa date : une garde de maternité le lundi reste une garde de maternité le lundi. Au moindre doute, l'échange est refusé et <b>la feuille reste intacte</b>.</p>
-    <p><b>Éprouvé :</b> neuf scénarios au banc d'essai — les deux sens, le rôle conservé, cinq façons de mal tourner, et la vérification que l'échange à dates éloignées se comporte exactement comme avant.</p>
   </div>
   <div class="card ok">
     <h4>Sauvegardes et diagnostic <span class="tag t-green">vérifié le 9 août 2026</span></h4>
