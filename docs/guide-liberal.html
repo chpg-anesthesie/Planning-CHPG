@@ -170,6 +170,7 @@
     <li><strong>Chercher l'acte.</strong> Dans le bloc CCAM, tape un <strong>code</strong> (<code>NEKA014</code>), un <strong>mot</strong> (<code>hernie</code>, <code>échoguidage</code>) ou une <strong>abréviation</strong> (<code>PTH</code>, <code>TAP</code>, <code>cœlio</code>). La liste sort dans les deux sens ; un clic remplit la ligne.</li>
     <li><strong>Le tarif se pré-remplit.</strong> Le tarif d'anesthésie (activité 4) est repris automatiquement du référentiel officiel. Tu n'as qu'à cocher les modificateurs (7, A) et choisir le rôle (principal / associé / complément).</li>
     <li><strong>La BR se calcule.</strong> ×1,95 monégasque, modificateurs, décote d'association — tout est appliqué derrière. La <strong>consultation</strong> du patient se choisit juste à côté, dans «&nbsp;Consultation associée&nbsp;» : elle compte sur l'autre plafond (voir §07).</li>
+    <li><strong>Dire si le chirurgien cote aussi en libéral.</strong> C'est la question qui décide de tout le reste. <strong>S'il cote</strong>, votre dépassement suit le sien à <strong>50 %</strong> (usage du groupement) : renseignez le sien, le vôtre se remplit — modifiable, et le reste à charge s'affiche tel qu'il est. <strong>Si vous cotez seul</strong>, votre dépassement est libre, et c'est là que le calibrage sur la mutuelle prend tout son sens.</li>
     <li><strong>Renseigner la mutuelle.</strong> On sélectionne la formule du patient (sa ligne « honoraires » en % BR). L'outil affiche le dépassement optimal et le reste à charge.</li>
     <li><strong>Générer les documents.</strong> Bouton <span class="tag">📄 Devis</span>, dans la barre noire en bas de l'écran : l'estimation de frais est entièrement pré-remplie, et un second bouton imprime <strong>devis + déclaration de choix</strong> (modèle CHPG soins externes, nom du MAR pré-rempli). <strong>Aucun nom de patient à taper</strong> : le patient l'écrit à la main sur les documents imprimés.</li>
     <li><strong>Déclarer l'intervention.</strong> Encadré <span class="tag">Déclarer au comité</span> : deux choses seulement à y renseigner, le <strong>secteur</strong> et la <strong>spécialité</strong>. Les dates, la chirurgie et les montants viennent de la cotation ci-dessus. Puis <span class="tag">📅 Déclarer</span>, dans la barre du bas. C'est ce qui alimente le volet ◆ Libéral du comité dans la vue admin — <strong>rien d'autre ne part</strong> : ni patient, ni code CCAM.</li>
@@ -286,7 +287,11 @@
     12 – 24 août&nbsp;»), ses propres congés y faisant des trous. Un confrère dont la consultation tombe
     <strong>pendant</strong> votre absence compte aussi&nbsp;: il voit le patient ce jour-là et l'opère
     plus tard. Comparez la plage avec la date d'intervention envisagée.</p>
-    <p>C'est l'axe <strong>CCAM</strong> qui sert de critère, et non les consultations&nbsp;: une consultation
+    <div class="callout tip">
+    <div class="ct">Pourquoi « reste à charge nul » ne s'applique pas toujours</div>
+    <p>Quand le chirurgien cote lui aussi en libéral, votre dépassement n'est pas un choix : il est calé par usage à <strong>50 % du sien</strong>. Il peut alors rester un reste à charge, et <strong>le patient doit le savoir avant de signer</strong> — le montant figure sur le devis. Le calibrage à reste à charge nul ne vaut que <strong>lorsque vous cotez seul</strong>.</p>
+  </div>
+  <p>C'est l'axe <strong>CCAM</strong> qui sert de critère, et non les consultations&nbsp;: une consultation
     libérale <strong>déclenche un bloc</strong>, et c'est le bloc qui pèse le plus lourd dans la règle des 30&nbsp;%.</p>
     <p>⚠️ Le montant provient du <strong>dernier relevé mensuel</strong>&nbsp;: ce qui a été facturé depuis
     n'y figure pas. <strong>L'ordre est fiable, le montant est un ordre de grandeur.</strong></p>

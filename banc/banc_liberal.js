@@ -484,6 +484,53 @@ console.log('\n═══ 6. La page de cotation ne dit rien qu\'elle ne sache �
   V('un secteur non ambigu déduit la spécialité', d.getElementById('dclSpec').value === 'END');
   V('le bouton Déclarer devient actif', d.getElementById('dclBtn').disabled === false);
 
+  /* ══ L'USAGE DES 50 % (17/08/2026) ══════════════════════════════
+     Quand le chirurgien cote aussi en liberal, le depassement de
+     l'anesthesiste est cale par usage a 50 % du sien : il n'est PAS libre. La
+     page proposait jusqu'ici « le DH optimal » — un montant qu'on n'a pas le
+     droit d'appliquer dans ce cas, le plus frequent. */
+  V('la question sur le chirurgien ne se pose pas en carte verte',
+    d.getElementById('chirRow').style.display === 'none', d.getElementById('chirRow').style.display);
+
+  d.getElementById('statut').value = 'fr';        // assuré français : dépassement libre
+  w.onStatut(); w.applyDH();
+  await dodo(40);
+  V('elle apparaît dès qu\'un dépassement est possible',
+    d.getElementById('chirRow').style.display === 'block', d.getElementById('chirRow').style.display);
+  V('par défaut, je cote seul — le calibrage garde tout son sens',
+    ev('CHIR_LIB') === false && d.getElementById('chirDhWrap').style.display === 'none');
+
+  w.setChir(true);
+  await dodo(30);
+  V('dire « oui » demande le dépassement du chirurgien',
+    d.getElementById('chirDhWrap').style.display === 'block');
+  /* Montant inconnu au moment de la consultation : la page ne doit pas bloquer. */
+  V('tant qu\'il est inconnu, rien n\'est imposé et la page le dit',
+    ev('chirDhPropose()') === null && /libre/i.test(d.getElementById('chirHint').textContent),
+    d.getElementById('chirHint').textContent);
+
+  d.getElementById('chirDh').value = '800';
+  w.chirChange();
+  await dodo(40);
+  V('mon dépassement se cale à 50 % du sien', parseFloat(d.getElementById('dh').value) === 400,
+    d.getElementById('dh').value);
+  V('c\'est 50 % du DÉPASSEMENT, pas des honoraires',
+    Math.abs(ev('chirDhPropose()') - 400) < 0.005, ev('chirDhPropose()'));
+  V('le bouton « caler sur l\'optimal » s\'efface : il n\'y a plus rien à optimiser',
+    d.getElementById('calerBtn').disabled === true);
+  V('et l\'encadré ne parle plus de calibrage', /calé sur celui du chirurgien/.test(d.getElementById('racTitre').textContent),
+    d.getElementById('racTitre').textContent);
+  /* Usage et non regle : la valeur reste modifiable. */
+  V('le champ reste modifiable — c\'est un usage, pas une règle',
+    d.getElementById('dh').disabled === false);
+
+  w.setChir(false);
+  await dodo(30);
+  V('revenir à « je cote seul » rend le calibrage',
+    d.getElementById('chirDhWrap').style.display === 'none' && /Calibrage/.test(d.getElementById('racTitre').textContent));
+  d.getElementById('statut').value = 'verte'; w.onStatut(); w.applyDH();
+  await dodo(30);
+
   /* Le devis part de la cotation AFFICHEE : il n'y a plus de liste ou aller le
      chercher. Le generateur de devis lui-meme n'a pas ete touche. */
   w.ouvrirDevisCourant();

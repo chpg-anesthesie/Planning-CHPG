@@ -385,9 +385,31 @@ window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionS
         <div class="field" id="cibleWrap" style="display:none"><label>ou total cible (€)</label><input id="cible" class="mono" type="number" step="0.01" placeholder="ex. 1500" onchange="fromCible()"></div>
       </div>
     </div>
+    <!-- (17/08/2026) LE CHIRURGIEN COTE-T-IL AUSSI EN LIBERAL ?
+         Regle metier apportee par Arthur : quand le chirurgien cote en liberal,
+         le depassement de l'anesthesiste est cale par USAGE a 50 % du sien — il
+         n'est donc pas libre, et le « DH optimal » proposait jusqu'ici un montant
+         qu'on n'a pas le droit d'appliquer. Le depassement n'est LIBRE, et le
+         calibrage sur la mutuelle n'a de sens, que si l'anesthesiste cote seul.
+         Usage et non regle : la valeur est PROPOSEE, jamais imposee. -->
+    <div id="chirRow" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px 13px;margin:8px 0">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px">Le chirurgien cote-t-il aussi en libéral&nbsp;?</div>
+      <div class="seg" style="display:inline-flex">
+        <button id="chirNon" class="on" onclick="setChir(false)">Non — je cote seul</button>
+        <button id="chirOui" onclick="setChir(true)">Oui</button>
+      </div>
+      <div id="chirDhWrap" style="display:none;margin-top:10px">
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="width:190px"><label>Dépassement du chirurgien (€)</label>
+            <input id="chirDh" class="mono" type="number" step="0.01" min="0" placeholder="ex. 800" oninput="chirChange()"></div>
+          <div class="datehint" id="chirHint" style="flex:1;min-width:200px"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- CALIBRAGE MUTUELLE → RAC -->
     <div class="racbox" id="racBox" style="display:none">
-      <div class="hd">Calibrage sur la mutuelle — objectif : reste à charge patient minimal</div>
+      <div class="hd" id="racTitre">Calibrage sur la mutuelle — objectif : reste à charge patient minimal</div>
       <div class="racgrid">
         <div class="racfig"><div class="l">Plafond carte</div><div class="v" id="rCap">—</div></div>
         <div class="racfig"><div class="l">Absorbé mutuelle</div><div class="v" id="rAbs">—</div></div>
@@ -396,6 +418,7 @@ window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionS
       </div>
       <div class="rachint" id="rCapNote" style="display:none;color:#8A6516;background:#FDF3E3;border:1px solid #EAD9B4;border-radius:8px;padding:7px 10px;margin-top:8px"><b>Plafond non-OPTAM.</b> Assuré français, contrat responsable, praticien secteur 2 non-OPTAM : la mutuelle ne peut absorber que <b>100 % BR de dépassement</b> (200 % BR total, part Sécu incluse), même si la ligne affiche davantage. Le % au-delà de 200 correspond en principe à la colonne <b>OPTAM</b> — vérifie que tu lis bien la colonne <b>non-OPTAM</b>.</div>
       <button class="calerbtn" id="calerBtn" onclick="caler()" disabled>Caler le DH sur l'optimal</button>
+      <div class="rachint" id="racAvert" style="display:none;color:#8A6516;background:#FDF3E3;border:1px solid #EAD9B4;border-radius:8px;padding:7px 10px;margin-top:8px"></div>
       <div class="rachint">DH optimal = min( plafond réglementaire de la carte/secteur , dépassement absorbé par la mutuelle ). Absorbé = (%&nbsp;BR&nbsp;−&nbsp;100)&nbsp;× BR, plafonné à 100&nbsp;% BR côté français non-OPTAM. Mal couvert ⇒ optimal bas, voire nul : l'outil recommande alors de <b>facturer moins</b>.</div>
     </div>
 
@@ -597,6 +620,9 @@ function onMut(){
 function updateRac(){
   const st=document.getElementById('statut').value, S=STATUTS[st], br=parcoursBR();
   const box=document.getElementById('racBox');
+  const chirRow=document.getElementById('chirRow');
+  // Carte sans depassement possible : ni calibrage, ni question sur le chirurgien.
+  if(chirRow) chirRow.style.display = (S.dh==='0') ? 'none' : 'block';
   if(S.dh==='0'){box.style.display='none';lastRac=0;lastMut=null;return;}   // verte/SPME : pas de calibrage
   box.style.display='block';
   const cap = S.dh==='0.20' ? 0.20*br : Infinity;                            // plafond réglementaire €
@@ -620,8 +646,26 @@ function updateRac(){
   if(capNonOptam(st,pct)){ note.style.display='block'; }
   else { note.style.display='none'; }
   const btn=document.getElementById('calerBtn');
-  btn.disabled=!(pct>0 && dhEditable(st));
+  /* Le chirurgien cote aussi : le montant m'est donne par l'usage, il n'y a
+     rien a caler. Proposer « l'optimal » serait proposer un montant qu'on n'a
+     pas le droit d'appliquer. */
+  const impose = CHIR_LIB && chirDhPropose()!=null;
+  btn.disabled=!(pct>0 && dhEditable(st) && !impose);
   btn.dataset.opt = dhOpt==null?'':dhOpt;
+  const titre=document.getElementById('racTitre');
+  if(titre) titre.textContent = impose
+    ? 'Reste à charge du patient — dépassement calé sur celui du chirurgien'
+    : 'Calibrage sur la mutuelle — objectif : reste à charge patient minimal';
+  /* Un reste a charge non nul doit SE VOIR, ici comme sur le devis : le patient
+     le decouvrirait sinon en payant. */
+  const av=document.getElementById('racAvert');
+  if(av){
+    if(impose && racVal>0.005){
+      av.innerHTML='<b>Reste à charge de '+eur2(racVal)+'.</b> La mutuelle n\'absorbe pas tout le dépassement. '
+        +'Le patient doit le savoir <b>avant</b> de signer — le montant figure sur le devis.';
+      av.style.display='block';
+    } else av.style.display='none';
+  }
   lastRac = racVal||0; lastMut = pct>0?mut.n:null;
   majBarre();               // la barre fixe du bas suit le calibrage en direct
 }
@@ -639,6 +683,49 @@ function majBarre(){
   const bd=document.getElementById('bDevis'); if(bd) bd.disabled = !(br>0);
   dclPreview();
 }
+/* ══ LE CHIRURGIEN COTE-T-IL EN LIBERAL ? (17/08/2026) ══════════════
+   Deux mondes que la page confondait :
+   - il cote AUSSI : mon depassement suit le sien a 50 % (usage). Le calibrage
+     n'a plus d'objet — le montant m'est donne. S'il reste du reste a charge,
+     il faut le VOIR : c'est ce que le patient signe.
+   - je cote SEUL : depassement libre, et c'est la que « reste a charge nul »
+     prend tout son sens.
+   Le montant du chirurgien n'est pas toujours connu en consultation : dans ce
+   cas la page ne bloque pas, elle laisse le depassement libre et le dit. */
+let CHIR_LIB = false;
+
+function setChir(oui){
+  CHIR_LIB = !!oui;
+  document.getElementById('chirOui').classList.toggle('on', CHIR_LIB);
+  document.getElementById('chirNon').classList.toggle('on', !CHIR_LIB);
+  document.getElementById('chirDhWrap').style.display = CHIR_LIB ? 'block' : 'none';
+  chirChange();
+}
+
+/* 50 % du DEPASSEMENT du chirurgien, pas de ses honoraires (precision d'Arthur). */
+function chirDhPropose(){
+  if(!CHIR_LIB) return null;
+  const v = parseFloat(document.getElementById('chirDh').value);
+  if(!(v > 0)) return null;                       // montant inconnu : on ne propose rien
+  return Math.round(v * 50) / 100;                // = v * 0.5, arrondi au centime
+}
+
+function chirChange(){
+  const prop = chirDhPropose();
+  const h = document.getElementById('chirHint');
+  if(h){
+    h.innerHTML = !CHIR_LIB ? ''
+      : (prop == null
+          ? 'Montant du chirurgien inconnu&nbsp;: votre dépassement reste libre. Renseignez-le pour que l\'usage des 50&nbsp;% s\'applique.'
+          : 'Usage&nbsp;: <b>' + eur2(prop) + '</b> pour vous, soit 50&nbsp;% du sien. Proposé, modifiable.');
+  }
+  if(prop != null){
+    const dhIn = document.getElementById('dh');
+    if(dhIn && !dhIn.disabled) dhIn.value = prop.toFixed(2);
+  }
+  updateRac(); renderSummary();
+}
+
 function caler(){
   const opt=parseFloat(document.getElementById('calerBtn').dataset.opt);
   if(isNaN(opt))return;
@@ -697,7 +784,12 @@ function applyDH(){
     const opt = pct>0 ? Math.min(cap, Math.max(0,(pct-100)/100*br)) : cap;
     dhIn.value=(Math.round(opt*100)/100).toFixed(2);dhIn.disabled=true;
   }
-  else{dhIn.disabled=false;}                                 // libre : ajustable (bouton « caler » propose l'optimal)
+  else{
+    dhIn.disabled=false;                                     // libre : ajustable
+    // Chirurgien liberal : l'usage des 50 % reprend la main sur la valeur en place.
+    const prop=chirDhPropose();
+    if(prop!=null) dhIn.value=prop.toFixed(2);
+  }
   updateRac();
   renderSummary();
 }
@@ -1095,7 +1187,7 @@ async function declarer(){
    (secteur, contexte de cotation, statut de carte le plus frequent du creneau). */
 function patientSuivant(){
   builder=[]; parcours=[];
-  ['dInt','dclChir','cible'].forEach(function(id){ const el=document.getElementById(id); if(el) el.value=''; });
+  ['dInt','dclChir','cible','chirDh'].forEach(function(id){ const el=document.getElementById(id); if(el) el.value=''; });
   const dh=document.getElementById('dh'); if(dh) dh.value='0';
   const q=document.getElementById('ccamq'); if(q) q.value='';
   const res=document.getElementById('ccamResults'); if(res) res.innerHTML='';
