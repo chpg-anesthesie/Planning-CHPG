@@ -129,23 +129,23 @@
     <h2>État vérifié</h2>
     <div class="etat-grid">
       <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1255 <small>vérifs · 29 scripts</small></div></div>
+      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1341 <small>vérifs · 29 scripts</small></div></div>
       <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
       <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
     </div>
     <div class="etat-grid" style="margin-top:16px">
       <div><div class="etat-k">code.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
       <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.1</div></div>
-      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.2</div></div>
+      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.4</div></div>
       <div><div class="etat-k">veille.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.5</div></div>
-      <div><div class="etat-k">portail.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.1</div></div>
+      <div><div class="etat-k">portail.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.3</div></div>
       <div><div class="etat-k">journal.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
       <div><div class="etat-k">generateur.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.1</div></div>
       <div><div class="etat-k">echanges.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.3</div></div>
-      <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-17.1</div></div>
+      <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-17.2</div></div>
     </div>
   </div>
-  <p class="verif">Relevé dans le dépôt et le banc exécuté — 17 août 2026 au soir · <b>tout est déployé et confirmé en production</b> : le Worker, les dix fichiers du serveur et la synchronisation complète, déployés le 17 au soir, diagnostic sans avertissement.</p>
+  <p class="verif">Relevé dans le dépôt et le banc exécuté — 17 août 2026, fin de soirée · <b>tout est déployé et confirmé en production</b>, y compris la double déclaration au même jour, vérifiée à l'écran par Arthur.</p>
 
   <h2>Échéancier</h2>
   <div class="ech" id="ech">
@@ -290,7 +290,20 @@
     <p><b>Un défaut de fond, corrigé partout :</b> un échec s'affichait comme un vide. « Aucun relevé saisi » quand le serveur n'avait pas répondu, une liste de déclarations qui se masque, une barre de cotations qui s'évanouit. La page dit maintenant ce qui a échoué et propose de réessayer.</p>
     <p><b>Le suivi des 30 % passe dans la copie de lecture</b> — c'était la dernière page à ne parler qu'au serveur Google. Elle s'ouvre désormais sans écran de code intermédiaire. <b>Décision associée, prise à froid :</b> le relevé financier était jusqu'ici exclu de cette copie ; il y est admis, <b>réservé aux seuls membres du groupement</b>, exactement la règle qui s'appliquait déjà côté serveur. Ni le comité, ni le secrétariat n'y accèdent.</p>
     <p><b>Éprouvé :</b> le banc d'essai est passé de 13 à 95 vérifications sur ce module — l'écran de cotation, jusque-là le seul du site sans aucun contrôle, est désormais <b>piloté au clic</b> du choix du contexte jusqu'à la déclaration, et l'on vérifie qu'aucun code d'acte ni nom de patient ne l'accompagne.</p>
-    <p><b>Reste à faire :</b> pouvoir rouvrir le devis d'un patient déjà déclaré dans la même consultation (oubli de signature) · mettre à jour les guides du libéral · le taux de couverture, qui dira si les rendements mesurés valent quelque chose.</p>
+    <p><b>Et dans la foulée, le même soir :</b> le <b>devis d'un patient déjà déclaré se rouvre d'un clic</b> pendant la consultation — cas réel : trois patients passés, le premier n'a pas signé. Rien n'est conservé pour autant : recharger la page efface ces devis, c'est la contrepartie de ne jamais garder d'acte ni de carte.</p>
+    <p><b>Une page pour fabriquer les cotations types</b>, au lieu de huit colonnes à remplir à la main dans le classeur. Le montant se calcule pendant qu'on construit, pour se comparer à un vrai relevé ; un acte sans tarif d'anesthésie est refusé à la source. Créer et modifier sont ouverts à tous les membres, <b>supprimer est réservé</b> — la bibliothèque est commune, personne ne doit pouvoir effacer le travail d'un autre sans trace.</p>
+    <p><b>Une règle métier qui manquait complètement :</b> quand le chirurgien cote lui aussi en libéral, le dépassement de l'anesthésiste est calé par usage à <b>50 % du sien</b>. Il n'est libre — et « reste à charge nul » n'a de sens — que si l'anesthésiste cote seul. L'outil proposait jusqu'ici le montant optimal dans tous les cas, donc un montant qu'on n'a pas le droit d'appliquer dans le cas le plus fréquent.</p>
+    <p><b>Enfin, les erreurs réseau aléatoires.</b> Plus aucune lecture ne passe par Google : tout ce qui s'affiche vient de la copie de lecture. Il ne reste que trois écritures, protégées par un <b>jeton unique</b> qui rend un réessai sûr et un doublon impossible — y compris en appuyant deux fois. Et « réseau » a laissé place à trois messages distincts, parce qu'on cherchait à l'aveugle.</p>
+    <p><b>Reste à faire :</b> mettre à jour les guides du libéral — <i>après</i> stabilisation, pour ne pas les réécrire dix fois · le taux de couverture, qui dira si les rendements mesurés valent quelque chose.</p>
+  </div>
+
+  <div class="card">
+    <h4>Quatre questions de facturation <span class="tag t-orange">à trancher au retour d'Arthur, le 31 août</span></h4>
+    <p>Ce sont les seules du module qui engagent vis-à-vis d'un <b>patient</b> : chacune change un montant écrit sur un document remis en main propre. Aucune ne sera codée sur une supposition.</p>
+    <p><b>1. Carte rose au bloc : 241 % ou 234 % ?</b> La page officielle des Caisses Sociales publie, pour la catégorie rose, deux règles distinctes : les actes NGAP majorés de 20 % au maximum, les actes CCAM avec un coefficient maximal de <b>241 %</b>. L'outil applique 195 % puis plafonne le dépassement à +20 %, soit <b>234 %</b> — il sous-facture donc d'environ 4 € par patient. Un indice : chez les sages-femmes, la rose vaut exactement la verte majorée de 20 % (154 → 185 %), alors que chez les médecins 195 × 1,20 donnerait 234 et non 241. Le chiffre semble voulu. <b>Rien n'a été modifié</b> : l'outil sous-facture, ce qui se rattrape ; l'inverse serait une somme réclamée à tort sur un devis signé.</p>
+    <p><b>2. Modificateur A</b> (patient de moins de 4 ans ou de plus de 80) : le code applique +23 €, l'aide de la page annonce +44,85 € pour un Monégasque.</p>
+    <p><b>3. La C2S</b> est-elle bien distincte de l'AME, et applicable en libéral ? Le statut a été laissé intact faute de réponse.</p>
+    <p><b>4. Le paiement de la consultation.</b> La consultation n'apparaît aujourd'hui ni sur le devis, ni dans le reste à charge — alors qu'elle porte souvent un dépassement. Modèle arrêté : deux documents distincts, une <b>note d'honoraires acquittée</b> pour la consultation (numéro sur date et heure, champ mode de paiement, pas de note s'il n'y a pas de dépassement) et le devis pour le bloc. Mis de côté : le circuit de paiement n'est pas connu.</p>
   </div>
   <div class="card ok">
     <h4>Échanges et dons de gardes <span class="tag t-green">livré et ouvert le 13 août 2026</span></h4>

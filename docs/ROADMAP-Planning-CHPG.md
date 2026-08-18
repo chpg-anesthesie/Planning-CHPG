@@ -4,21 +4,24 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.51** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.57** ·
 **GAS** (relevé fichier par fichier dans le dépôt le 17/08/2026) `code.gs` 2026-08-05.3 ·
-`Indispos.gs` 2026-08-17.1 · `miroir.gs` 2026-08-17.2 · `journal.gs` 2026-08-05.3 ·
-`portail.gs` 2026-08-17.1 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
+`Indispos.gs` 2026-08-17.1 · `miroir.gs` 2026-08-17.4 · `journal.gs` 2026-08-05.3 ·
+`portail.gs` 2026-08-17.3 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
 `echanges.gs` 2026-08-14.3 · `generateur_gardes.gs` 2026-08-14.1 · `setup_annee.gs` 2026-08-08.1 ·
-**Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-17.1'` — **seule** version
+**Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-17.2'` — **seule** version
 écrite dans le fichier depuis le 16/08 (le commentaire d'en-tête qui la doublait a été supprimé,
 le banc refuse qu'un second numéro réapparaisse).
 
-✅ **RIEN EN ATTENTE au soir du 17/08.** Le **Worker** (2026-08-17.1), **`miroir.gs`** (2026-08-17.2)
-et **`portail.gs`** (2026-08-17.1) sont déployés, et `miroirSyncComplet` a été exécutée — dans cet
-ordre, qui n'est pas négociable : Worker → `.gs` → synchro. Dans l'autre sens, les pages demandent
-des clés qui n'existent pas encore et retombent en silence sur l'ancien circuit.
-**Confirmé par Arthur** : diagnostic sans avertissement, et la page du suivi affiche « juillet 2026 »
-au lieu de « undefined ».
+✅ **RIEN EN ATTENTE en fin de soirée du 17/08.** Le **Worker** (2026-08-17.2), **`miroir.gs`**
+(2026-08-17.4) et **`portail.gs`** (2026-08-17.3) sont déployés, `miroirSyncComplet` exécutée, et la
+clé `LIBERAL_ADMIN` posée dans CONFIG — dans cet ordre, qui n'est pas négociable : Worker → `.gs` →
+synchro. Dans l'autre sens, les pages demandent des clés qui n'existent pas encore et retombent en
+silence sur l'ancien circuit.
+**Vérifié à l'écran par Arthur** : diagnostic sans avertissement, la page du suivi affiche
+« juillet 2026 » au lieu de « undefined », et surtout **la double déclaration au même jour, même
+secteur, produit bien deux lignes** — le seul scénario où une erreur du jeton aurait écrit une
+bêtise durable dans le classeur.
 
 **Pour le reste, rien en attente.** Le Worker le 16/08 au soir ;
 `Indispos.gs` deux fois, en 2026-08-16.1 puis en **2026-08-17.1** (verrou de clôture), recopié et
@@ -51,6 +54,144 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 17 août 2026 (fin de soirée) — v1.52 à v1.57 : la fabrique, les 50 %, et plus rien à lire chez Google
+
+Suite du fil libéral. Six push de plus, banc de **1 260 → 1 341** vérifications, dont **181 sur ce
+seul module** (13 le matin même).
+
+### Un seul écran de cotation (v1.52)
+
+Décision d'Arthur : **tout patient vu en consultation libérale passe ensuite au bloc.** Le sélecteur
+d'axe « Bloc CCAM / Consult NGAP » n'avait donc jamais lieu d'être choisi — et deux endroits
+parlaient de consultation sans que rien ne dise en quoi ils différaient.
+
+⚠️ **La comptabilité, elle, ne bouge pas** : les actes comptent en CCAM au mois du bloc, la
+consultation associée en NGAP au mois où le patient a été vu. Quatre vérifications le protègent.
+
+### Une page pour fabriquer les cotations types (v1.53)
+
+L'onglet se remplissait à la main : huit colonnes, le bon code CCAM de mémoire, `associe` sans
+accent. Une erreur ne se voyait qu'au moment où quelqu'un cliquait sur le bouton, en consultation.
+Les cotations types sont **le principal levier de rapidité du module** (Arthur : « il faudra en
+faire à gogo, c'est ça qui va faciliter les choses »).
+
+- le montant se calcule **pendant** la construction, séparé en actes/bloc et consultation, pour se
+  comparer à un vrai relevé
+- un acte **sans tarif d'anesthésie est refusé à la source** — piège de l'activité 1, qui gonflerait
+  la BR d'environ 300 € sur un relevé de gastro-colo. ⚠️ Le serveur ne peut pas le voir : le
+  référentiel vit dans le dépôt, pas dans le classeur. Il ne contrôle que la forme du code.
+- créer et modifier : **ouverts à tous les membres**. Supprimer : **réservé**, via la clé CONFIG
+  `LIBERAL_ADMIN` — jamais un identifiant en dur, le dépôt est public. Clé absente ⇒ personne ne
+  supprime : un droit qui s'ouvrirait par oubli de configuration serait le mauvais défaut.
+- écriture = retrait puis réécriture **sous verrou** : sans lui, deux enregistrements simultanés
+  fabriqueraient une cotation composite inattribuable.
+
+### La règle des 50 % (v1.54)
+
+Apportée par Arthur, **absente de l'outil** : quand le chirurgien cote lui aussi en libéral, le
+dépassement de l'anesthésiste est calé par **usage** à 50 % du sien. Il n'est libre — et « reste à
+charge nul » n'a de sens — que si l'anesthésiste cote seul.
+
+L'outil proposait *toujours* le montant optimal : dans le cas le plus fréquent, un montant qu'on n'a
+pas le droit d'appliquer. Précisions appliquées telles quelles : 50 % du **dépassement seul**, usage
+et non règle (valeur proposée, champ modifiable), et **montant du chirurgien inconnu ⇒ la page ne
+bloque pas**. S'il reste du reste à charge, il s'affiche en euros : le patient le découvrirait sinon
+en payant.
+
+### Le devis rouvrable, et l'échec qui cesse de ressembler à un vide (v1.55)
+
+Cas réel : trois patients passés, le premier n'a pas signé. La cotation d'un patient **déclaré** est
+gardée en mémoire vive ; sa ligne porte une icône qui rouvre son devis. **Rien n'est écrit nulle
+part** — recharger efface. Aller au-delà imposerait de stocker actes et carte : la ligne qu'on ne
+franchit pas.
+
+Et le défaut de fond, présent sur deux écrans : « pas de réponse = rien à montrer ». La liste des
+déclarations se masquait entièrement, la barre des cotations types disparaissait sans un mot —
+Arthur a cru des déclarations perdues alors qu'elles étaient dans le classeur ET chez le comité.
+
+### Plus aucune lecture chez Google (v1.56)
+
+Erreurs « réseau » aléatoires en production. Intuition d'Arthur : *« ce n'est pas mirrorable ? »* —
+juste pour tout ce qui se **lit**, impossible pour ce qui s'**écrit**.
+
+- clé `liberal_mar_{Y}` : « Mes interventions déclarées », **filtrée côté relais**. Séparée de
+  `liberal_{Y}`, qui reste celle du comité (allégée : ni montant ni spécialité).
+  Arthur : *« pas grave de voir ceux des autres, on est un groupe »* — le filtre reste, mais pour que
+  la liste soit **utilisable** (la corbeille désignerait sinon la ligne d'un autre), pas pour fermer
+  une porte. La suppression est de toute façon protégée serveur : recherche sur ID **et**
+  propriétaire.
+- le droit de gérer les cotations types voyage avec l'**identité**
+- **jeton unique** sur la déclaration : le réseau peut perdre la *réponse* d'une écriture réussie ;
+  on croit l'échec, on recommence, la déclaration part deux fois — indétectable. Le jeton rend le
+  réessai sûr. Les écritures ne se réessaient **que** si elles en portent un : l'ancienne page, en
+  fenêtre de déploiement, ne fabriquera pas de doublon.
+- « réseau » → **délai dépassé / connexion perdue / réponse illisible**
+- **AME retirée** (Arthur : « on ne fait pas de libéral pour l'AME »). Deux entrées coexistaient, à
+  1,95 (monégasque) et 1,00 (français) : deux calculs opposés, rien à l'écran ne disait lequel
+  choisir. La C2S est laissée **intacte**, libellé compris.
+
+⚠️ **Le banc a rattrapé un vrai piège** : `liberal_mar_` n'était pas déclarée dans
+`MIROIR_CLES_PAR_ANNEE`. La clé aurait **survécu au ménage du 4 septembre** — exactement ce qui
+était arrivé à `equite_live_`.
+
+### Une régression du même jour, corrigée le même jour (v1.57)
+
+La ligne déclarée n'apparaissait pas ; recharger pour la voir faisait **perdre le devis du patient**.
+
+**Cause, et c'est ma régression** : la copie de lecture n'est pas rafraîchie au moment de
+l'écriture — un déclencheur s'en charge 1 à 2 minutes plus tard. `miroir.gs` le disait déjà noir sur
+blanc : *« l'écran qui vient d'écrire relit de toute façon le circuit DIRECT »*. En faisant lire la
+copie **en premier**, j'ai cassé cette hypothèse sans la voir — et le banc ne pouvait pas
+l'attraper, sa doublure Apps Script ne retenait pas ce qu'on lui déclarait.
+
+Correctif : la ligne **s'affiche immédiatement** (le serveur vient de confirmer et rend
+l'identifiant, la page a déjà tout), et après une écriture la relecture passe par le **classeur**.
+Copie rapide à l'ouverture, où elle évite les pannes ; classeur après écriture, où la fraîcheur est
+le seul critère.
+
+Décision d'Arthur : les **autres** membres gardent le décalage de 1–2 min sur les cotations types,
+*« c'est pas grave »*.
+
+### Questions de facturation — les seules qui engagent vis-à-vis d'un patient
+
+**Tranchées le 17/08 :**
+- **Coefficient de l'APC** : aucun. C'est une cotation réservée aux assurés sociaux français. L'outil
+  appliquait déjà 60 € sans coefficient.
+- **AME en libéral** : on n'en fait pas. Statut retiré.
+
+**Ouvertes, à trancher au retour du 31/08 :**
+1. **Carte rose au bloc : 241 % ou 234 % ?** La page officielle des Caisses Sociales publie deux
+   règles distinctes pour la rose — NGAP majorée de 20 % au maximum, **CCAM à 241 %**. L'outil
+   applique 1,95 puis plafonne le DH à +20 %, soit 234 % : il **sous-facture** d'environ 4 € par
+   patient (l'écart vaut 7 points du **tarif français**, pas de la BR — le chiffre de « 13 € » qui
+   figurait dans la conception était calculé sur la mauvaise base). Indice : chez les sages-femmes
+   la rose vaut exactement la verte +20 % (154 → 185), alors que 195 × 1,20 = 234 ≠ 241. Le chiffre
+   semble voulu. **Rien n'a été modifié** : sous-facturer se rattrape, surfacturer sur un devis signé
+   non. Arthur doute (« j'avais l'impression que c'était 20 % point barre ») — à confirmer auprès de
+   la facturation.
+2. **Modificateur A** : +23 € dans le code, +44,85 € pour un Monégasque selon l'aide de la page.
+3. **C2S** : distincte de l'AME ? applicable en libéral ?
+4. **Paiement de la consultation** : elle n'apparaît ni sur le devis ni dans le reste à charge, alors
+   qu'elle porte souvent un dépassement. Modèle arrêté avec Arthur — **note d'honoraires acquittée**
+   pour la consultation (numéro sur date+heure, champ mode de paiement, pas de note sans
+   dépassement) et devis pour le bloc. En attente du circuit de paiement réel.
+
+### Reste à faire sur le module
+
+1. **Les guides** — décision d'Arthur : *après* stabilisation, « pour ne pas les modifier 10 fois ».
+2. **Le taux de couverture** (BR déclarées ÷ euros du relevé). N'a de sens qu'avec des déclarations
+   réelles à comparer.
+3. **Remplir la bibliothèque de cotations types** — Arthur, à son retour, relevés réels sous les yeux.
+4. **RPPS et prénoms** des 18 autres dans MEDECINS.
+
+### ⚠️ Constaté et non traité : des noms dans un dépôt public
+
+Le nom d'Arthur apparaît en clair dans **dix fichiers** (commentaires, exemples, données du
+simulateur). Le dépôt est public et son historique définitif ; la règle du projet est explicite.
+Chantier à part, non ouvert ici.
 
 ---
 
