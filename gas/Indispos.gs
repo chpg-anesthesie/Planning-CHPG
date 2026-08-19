@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-18.1';
+const GAS_VERSION_INDISPOS = '2026-08-19.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -2169,6 +2169,31 @@ const SECRETARIAT_ACTIONS = new Set([
   'getConsultAbsences',
 ]);
 
+/* (19/08/2026) Écrit la grille complète des affectations dans l'onglet.
+   Extrait du routeur pour être éprouvable au banc. Défaut corrigé : un MAR
+   sans ligne existante (fiche créée après l'onglet — PRUNET 2026, ARMAND)
+   était ignoré EN SILENCE, et le journal comptait les données reçues, pas
+   les lignes écrites (« 25 mis à jour » pour 24 écrites, constaté le 19/08
+   au matin). La ligne manquante est désormais créée en bas de l'onglet,
+   exactement comme le fait saveAffectationsMar trois écrans plus bas. */
+function ecrireAffectations(sheet, aff) {
+  const data = sheet.getDataRange().getValues();
+  const idToRow = {};
+  for (let r = 1; r < data.length; r++) {
+    const id = String(data[r][0]).trim();
+    if (id) idToRow[id] = r + 1;
+  }
+  let maj = 0, crees = 0;
+  Object.keys(aff).forEach(doctorId => {
+    const vals = [];
+    for (let m = 1; m <= 12; m++) vals.push(aff[doctorId][m] || 'VOLANT');
+    const rowNum = idToRow[doctorId];
+    if (rowNum) { sheet.getRange(rowNum, 2, 1, 12).setValues([vals]); maj++; }
+    else { sheet.appendRow([doctorId].concat(vals)); crees++; }
+  });
+  return { maj: maj, crees: crees };
+}
+
 function _routeRequete_(e) {
   try {
     const payload = JSON.parse(e.parameter.payload || '{}');
@@ -2987,20 +3012,9 @@ if (!affSheet) {
   const sheetName = `AFFECTATIONS_${affYear}`;
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) return _error(`Onglet ${sheetName} introuvable`);
-  const data = sheet.getDataRange().getValues();
-  const idToRow = {};
-  for (let r = 1; r < data.length; r++) {
-    const id = String(data[r][0]).trim();
-    if (id) idToRow[id] = r + 1;
-  }
-  Object.keys(aff).forEach(doctorId => {
-    const rowNum = idToRow[doctorId];
-    if (!rowNum) return;
-    const vals = [];
-    for (let m = 1; m <= 12; m++) vals.push(aff[doctorId][m] || 'VOLANT');
-    sheet.getRange(rowNum, 2, 1, 12).setValues([vals]);
-  });
-  logAction(`saveAffectations — ${Object.keys(aff).length} MAR(s) mis à jour`);
+  const res = ecrireAffectations(sheet, aff);
+  logAction(`saveAffectations — ${res.maj} MAR(s) mis à jour` +
+            (res.crees ? `, ${res.crees} ligne(s) créée(s)` : ''));
   
   // ← AJOUT : republier le planning après chaque modification d'affectation
   try { generatePlanning(affYear); } catch(e) { Logger.log('generatePlanning error: ' + e.message); }

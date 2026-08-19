@@ -109,5 +109,43 @@ console.log('\n═══ T067 · absence longue de trois semaines ═══');
   V('il reste exactement 14 jours d\'absence', restants.length === 14, restants.length);
 }
 
+console.log('\n═══ T-AFF · Enregistrer la grille des affectations crée les lignes manquantes ═══');
+{
+  /* (19/08/2026) Vécu le matin même : PRUNET, fiche créée après l'onglet
+     AFFECTATIONS_2026, s'affichait « VOL » à l'écran (convention d'affichage)
+     mais l'Enregistrer du comité le sautait EN SILENCE — le journal annonçait
+     « 25 mis à jour » pour 24 lignes écrites. Le geste du comité doit rendre
+     durable CE QUE L'ÉCRAN AFFICHE, y compris pour un MAR encore sans ligne. */
+  VERROUS.script = false; VERROUS.document = false;
+  const cl = new Classeur();
+  cl.ajouter('AFFECTATIONS_2026', [
+    ['MÉDECIN','JAN','FEV','MAR','AVR','MAI','JUN','JUL','AOU','SEP','OCT','NOV','DEC'],
+    ['ALPHA','REA','REA','REA','REA','REA','REA','REA','REA','REA','REA','REA','REA'],
+    ['BRAVO','VOLANT','VOLANT','VOLANT','VOLANT','VOLANT','VOLANT','VOLANT','VOLANT','VOLANT','VOLANT','VOLANT','VOLANT']]);
+  const ctx = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Math, parseInt,
+    SpreadsheetApp: { getActiveSpreadsheet: () => cl }, Logger: { log(){} } });
+  vm.runInContext(extraireFonction('../gas/Indispos.gs', 'ecrireAffectations'), ctx);
+  const feuille = cl.getSheetByName('AFFECTATIONS_2026');
+  ctx.feuille = feuille;
+  /* La grille envoie TOUT son tableau : ALPHA modifié, BRAVO inchangé,
+     CHARLIE (fiche récente, aucune ligne) en volant implicite. */
+  ctx.aff = { ALPHA: {1:'VIS',2:'VIS',3:'REA',4:'REA',5:'REA',6:'REA',7:'REA',8:'REA',9:'REA',10:'REA',11:'REA',12:'REA'},
+              BRAVO: {}, CHARLIE: {} };
+  const res = vm.runInContext('ecrireAffectations(feuille, aff)', ctx);
+  const lignes = feuille.getDataRange().getValues();
+  V('les deux lignes existantes sont mises à jour (pas créées)', res.maj === 2 && lignes.length === 4, res);
+  V('la ligne manquante est créée', res.crees === 1 && String(lignes[3][0]) === 'CHARLIE', lignes[3] && lignes[3][0]);
+  V('la ligne créée porte VOLANT sur les 12 mois', !!lignes[3] && lignes[3].slice(1,13).every(v => v === 'VOLANT'), lignes[3]);
+  V('la modification d\'ALPHA est bien écrite (VIS en janvier)', lignes[1][1] === 'VIS', lignes[1][1]);
+  V('BRAVO, envoyé vide, retombe sur VOLANT sans dégât', lignes[2].slice(1,13).every(v => v === 'VOLANT'), lignes[2]);
+  /* Le compte rendu au journal doit refléter les ÉCRITURES, pas les données
+     reçues — c'est lui qui a menti le 19/08 (« 25 » pour 24). */
+  V('le compte rendu dit la vérité : 2 mis à jour, 1 créé', res.maj === 2 && res.crees === 1, res);
+  /* Recliquer Enregistrer (geste réel du comité) : idempotent, aucun doublon. */
+  const res2 = vm.runInContext('ecrireAffectations(feuille, aff)', ctx);
+  const lignes2 = feuille.getDataRange().getValues();
+  V('un second Enregistrer ne crée aucun doublon', res2.crees === 0 && res2.maj === 3 && lignes2.length === 4, res2);
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);
