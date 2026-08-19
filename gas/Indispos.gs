@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-17.1';
+const GAS_VERSION_INDISPOS = '2026-08-18.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -2140,11 +2140,8 @@ function _buildOverrides_() {
 //  - sendCodes* / envoyerRecapIndispos : emails (lents, pas d'écriture à risque).
 // NB : pas de releaseLock explicite — Google libère le verrou automatiquement
 // à la fin de chaque exécution.
-// Rang de tri d'un role parmi les MAR disponibles. Role inconnu -> 3 (milieu de liste).
-// DEFINITION UNIQUE : les deux tris (getMARsDispoJour et getPanneauSemaine) l'appellent.
-function _rangRole_(role, ordre) {
-  return (role in ordre) ? ordre[role] : 3;
-}
+// (18/08/2026) _rangRole_ supprimé : le rang de tri vit dans le module partagé
+// dispo_jour (partage/dispo_jour.js) — la copie locale n'avait plus d'appelant.
 
 const WRITE_ACTIONS_LOCK = new Set([
   'addMedecinToGroupe', 'annulerAbsenceLongue', 'applyModification',
@@ -2837,8 +2834,10 @@ if (!affSheet) {
       const _m = _buildMedecins_();
       out.medecins = _m.error ? [] : _m.medecins;
       _jalon('medecins (onglet)');
-      out.overrides = _buildOverrides_();
-      _jalon('overrides (onglet)');
+      /* (18/08/2026) overrides retirés du bootstrap : le widget « modifications
+         en attente » a quitté admin.html — lire l'onglet PLANNING_OVERRIDES à
+         chaque ouverture ne servait plus personne. _buildOverrides_ reste servi
+         par l'action getOverrides. */
       // (28/07/2026 perf) Secteurs et consultations rejoignent le bootstrap.
       // Motif : chaque aller-retour coute ~1 s de DEMARRAGE (compilation des 5
       // fichiers + liaison au classeur) avant meme la moindre lecture. Deux appels
@@ -4929,15 +4928,6 @@ function testNotifierConflits() {
     const passe = debut >= debutAnnee && debut < finAnnee;
     Logger.log('Periode ' + nom + ' debut=' + debut + ' → ' + (passe ? '✅ incluse' : '❌ EXCLUE'));
   }
-}
-function testSetDailyStatusWrite() {
-  const ADMIN = 'METS_TON_CODE_ICI';   // ← code admin (CONFIG ▸ ADMIN_CODE) — JAMAIS de vrai code committé
-  const payload = {
-    action: 'setDailyStatus', code: ADMIN,
-    year: 2027, marId: 'FROHLICH', statut: 'CL',
-    dates: ['2027-03-10', '2027-03-11'],
-  };
-  Logger.log(doGet({ parameter: { payload: JSON.stringify(payload) } }).getContent());
 }
 // ── Rendu HTML d'un récap d'indispos pour mail : synthèse + blocs par période ──
 // synth  = [{n, label, bg, fg}]   (cartes du haut, n=0 → masquée)
