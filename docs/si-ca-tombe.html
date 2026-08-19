@@ -105,7 +105,14 @@
     <tr><td>« Erreur » ou « Action inconnue »</td><td>Le site parle au serveur, mais le serveur ne comprend pas</td><td>Rien à réparer sur le moment. Passer en mode dégradé (section 3) et signaler.</td></tr>
     <tr><td>Tout est très lent</td><td>Plusieurs demandes s'exécutent à la file</td><td>Attendre. Ne pas cliquer plusieurs fois : chaque clic allonge la file.</td></tr>
     <tr><td>Bandeau orange en haut de la grille</td><td>Un onglet du classeur n'a pas pu être lu</td><td>Vérifier que les onglets <code>SECTEURS</code> et <code>CS_TEMPLATE</code> existent et ne sont pas vides. L'export Excel est volontairement bloqué tant que le bandeau est là.</td></tr>
+    <tr><td>« J'ai validé, rien ne bouge »</td><td>Le plus souvent : rien du tout</td><td>Une modification validée est prise en compte tout de suite, mais peut mettre <strong>jusqu'à une minute</strong> à s'afficher. Attendre, puis recharger. Surtout ne pas revalider : deux validations, c'est deux fois le même changement dans la file.</td></tr>
   </table>
+  <div class="callout stop">
+    <p class="ct">Ne jamais revalider</p>
+    <p>C'est le réflexe naturel et c'est le mauvais. Chaque validation part dans une file
+       d'attente traitée dans l'ordre : recliquer n'accélère rien, allonge la file, et peut
+       faire appliquer deux fois la même chose. Attendre une minute, recharger, regarder.</p>
+  </div>
   <div class="callout tip">
     <div class="ct">Si c'est plus grave que ça</div>
     <p>Données disparues du classeur, année archivée par erreur, serveur qui répond « Action inconnue », compte Google inaccessible : ces quatre avaries ont chacune leur procédure, au chapitre 8 de <a href="reprise.html">reprise.html</a>. Aucune n'est irréversible.</p>
@@ -140,18 +147,39 @@
   </div>
 
   <h3>Ce qui continue de tourner tout seul</h3>
-  <ul>
-    <li>Les <strong>sauvegardes automatiques</strong> du classeur (chaque lundi vers 4 h, et une seconde le dimanche).</li>
-    <li>Le <strong>scan de la veille bibliographique</strong> (chaque lundi vers 6 h).</li>
-  </ul>
-  <p>Ces deux mécanismes vivent côté Google et ne dépendent pas du site. Une panne de l'interface ne met pas les sauvegardes en danger.</p>
+  <p>Neuf tâches se déclenchent seules, sans que personne les lance. Trois comptent
+     vraiment un jour de panne :</p>
+  <table>
+    <tr><th>Quand</th><th>Quoi</th><th>Pourquoi ça compte</th></tr>
+    <tr><td>Lundi 4 h</td><td>Copie du classeur</td><td>Huit copies conservées, la plus ancienne s'efface. C'est le filet contre une fausse manœuvre.</td></tr>
+    <tr><td>Dimanche 5 h</td><td>Copie du classeur <strong>sur un second compte</strong></td><td>La seule copie qui survivrait à la perte du compte du planning. Elle ne vit pas au même endroit que l'original — c'est tout son intérêt.</td></tr>
+    <tr><td>Dimanche 3 h</td><td>Copie du <strong>programme</strong></td><td>Ce n'est pas le classeur : c'est le site lui-même, conservé six semaines. Permet de tout reconstruire si le programme est perdu.</td></tr>
+  </table>
+  <p>Les six autres sont des tâches d'entretien : veille bibliographique du lundi 6 h,
+     diagnostic hebdomadaire du lundi 2 h, expiration des propositions d'échange
+     chaque heure, et trois rafraîchissements de l'affichage. Aucune n'exige de geste.</p>
+  <div class="callout tip">
+    <p class="ct">À retenir</p>
+    <p>Ces mécanismes vivent chez Google, <strong>pas dans le site</strong>. Une panne de
+       l'interface ne met aucune sauvegarde en danger. Rien ne se perd pendant qu'on répare.</p>
+  </div>
 
   <h3>Ce qui s'arrête</h3>
   <ul>
     <li>La <strong>publication</strong> du planning et les mails de changement qui l'accompagnent.</li>
     <li>La <strong>saisie des indisponibilités</strong> par les MARs, et le staff vacances.</li>
     <li>La consultation du planning <strong>par les MARs</strong> : il faudra le leur envoyer.</li>
+    <li>Les <strong>échanges de gardes</strong> entre collègues : plus de proposition ni d'acceptation.
+        Les échanges déjà acceptés, eux, sont inscrits au planning et ne bougent pas.</li>
+    <li>La <strong>déclaration des interventions libérales</strong> et le suivi qui l'accompagne.
+        Rien n'est perdu : les interventions se notent à part et se ressaisissent après.</li>
   </ul>
+  <div class="callout warn">
+    <p class="ct">Le cas des échanges en cours</p>
+    <p>Une proposition d'échange envoyée mais pas encore acceptée expire d'elle-même. Si la
+       panne dure, prévenir les deux collègues concernés qu'ils devront recommencer une fois
+       le site rétabli — plutôt que de les laisser attendre une réponse qui n'arrivera pas.</p>
+  </div>
 </section>
 
 <section>
