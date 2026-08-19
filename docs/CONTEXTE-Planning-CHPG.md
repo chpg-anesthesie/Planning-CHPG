@@ -38,6 +38,11 @@ de 11:12) · banc **1449 vérifications / 30 scripts** · quatre commits (`c630c
 - **Pastille « À publier » élucidée** : zéro échec au journal sur 3 semaines de traces ; les
   oranges historiques de plusieurs heures collent à la course corrigée le 16/08. « Publier » =
   garanti, pas fait (2-3 min) ; registre `jfait_` 90 j pour tracer tout nouveau cas.
+- **Séquence d'avant-démo, tranchée par Arthur le 19/08** : répétition générale le **1ᵉʳ septembre**
+  (seul, 4G, pendant sa garde), **effacement du bac à sable le soir même dans la foulée** — plus
+  rien le 3 ; le **matin du 4** : coller les 24 adresses (préparées dans une colonne de garage à
+  droite de MEDECINS, invisible du code qui lit par positions fixes), Diagnostic en filet, codes à
+  12 h 30. L'ancien découpage 28/08 / 03/09 est caduc partout.
 - **Notés au 🔜 (rien avant le 04/09)** : pastille explicable au clic · battement de cœur du
   journal au Diagnostic · opérations longues via copie rapide · nettoyage opportuniste des `.gs`
   restants · éclaircir `pushFileToGitHub`.

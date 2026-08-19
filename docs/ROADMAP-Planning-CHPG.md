@@ -2730,12 +2730,17 @@ Trois moments, trois listes. Celle du soir (le ménage) existait déjà ; celles
 manquaient, et **deux points vérifiés dans le code feraient rater la démonstration** s'ils restaient
 implicites.
 
-#### AVANT — J-7, puis J-1, puis H-1
+#### AVANT — le 1ᵉʳ au soir (tout dans la foulée), puis le matin du 4
 
-**J-7 (28/08) — répétition complète.** Elle génère 2027 pour de bon. **Donc elle doit être suivie
-d'une remise à zéro**, sinon la démo du 4 ne générera rien (voir ci-dessous).
+*(Réaligné le 19/08 sur la décision d'Arthur : « je fais tout dans la foulée de la démo —
+démo puis effacement pendant ma garde du 01/09 ». L'ancien découpage J-7 (28/08) / J-1 (03/09)
+est caduc.)*
 
-**J-1 (03/09) — remise à zéro du bac à sable. ⚠️ POINT CRITIQUE, vérifié dans le code.**
+**LE 1ᵉʳ SEPTEMBRE — répétition générale, seul, en 4G, pendant la garde** (détail en tête de
+document). Elle génère 2027 pour de bon. **Donc remise à zéro LE SOIR MÊME, dans la foulée** —
+les deux gestes sont indissociables : interrompu entre les deux, le bac à sable resterait généré.
+
+**LE SOIR MÊME DU 1ᵉʳ — remise à zéro du bac à sable. ⚠️ POINT CRITIQUE, vérifié dans le code.**
 Supprimer `GARDES_2027`, `STATS_GARDES_2027` et `LIENS_R_2027` — **garder `INDISPOS_2027`**, c'est la
 matière première de la génération.
 Pourquoi c'est critique : le wizard 2 contient une **garde d'idempotence** (`Indispos.gs`, action
@@ -2743,12 +2748,18 @@ Pourquoi c'est critique : le wizard 2 contient une **garde d'idempotence** (`Ind
 régénère pas** : il renvoie les statistiques existantes et enchaîne sur publication et récapitulatifs.
 Ce garde-fou est excellent en production (il empêche de détruire un planning valide après une réponse
 perdue) mais **en démonstration il est fatal** : la salle verrait « 730 gardes » s'afficher
-instantanément sans qu'aucun calcul n'ait eu lieu, et la répétition du 28/08 aurait justement laissé
+instantanément sans qu'aucun calcul n'ait eu lieu, et la répétition du 1ᵉʳ aurait justement laissé
 les onglets en place. *Aucun message d'erreur n'apparaît : c'est un succès silencieux.*
 
 **LE MATIN DU 04/09 — les 24 adresses mail, puis l'envoi des codes à 12 h 30.**
 *(décidé par Arthur le 17/08 : le staff débute à 14 h, les codes partent en début d'après-midi.)*
-Les 24 MAR actifs sans adresse sont saisis dans `MEDECINS`, colonne EMAIL, puis
+*(Décidé le 19/08 : les adresses sont préparées À L'AVANCE dans une **colonne de garage** tout à
+droite de `MEDECINS`, après PRENOM, en-tête « EMAILS_EN_ATTENTE » — vérifié : le code lit l'onglet
+par positions fixes, une colonne au-delà de la 20ᵉ est invisible pour lui. Ne jamais INSÉRER de
+colonne au milieu de l'onglet. Le matin du 4 : copier cette colonne dans EMAIL — en **valeurs** —
+puis lancer le 🔍 Diagnostic : son contrôle « Emails au format douteux » sert de filet avant
+l'envoi.)*
+Les 24 MAR actifs sans adresse sont collés dans `MEDECINS`, colonne EMAIL, puis
 Maintenance → **Envoyer aux MARs sélectionnés**. Les codes existent déjà (un seul MAR n'en a pas :
 TRAN) — l'envoi **ne régénère rien**, il transmet le code en place.
 
