@@ -4,16 +4,18 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.58** ·
-**GAS** (relevé fichier par fichier dans le dépôt le 17/08/2026) `code.gs` 2026-08-05.3 ·
-`Indispos.gs` 2026-08-17.1 · `miroir.gs` 2026-08-17.4 · `journal.gs` 2026-08-05.3 ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.61** ·
+**GAS** (relevé fichier par fichier dans le dépôt le 19/08/2026) `code.gs` 2026-08-05.3 ·
+`Indispos.gs` 2026-08-19.1 · `miroir.gs` 2026-08-17.4 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-17.3 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
 `echanges.gs` 2026-08-14.3 · `generateur_gardes.gs` 2026-08-14.1 · `setup_annee.gs` 2026-08-08.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-17.2'` — **seule** version
 écrite dans le fichier depuis le 16/08 (le commentaire d'en-tête qui la doublait a été supprimé,
 le banc refuse qu'un second numéro réapparaisse).
 
-✅ **RIEN EN ATTENTE en fin de soirée du 17/08.** Le **Worker** (2026-08-17.2), **`miroir.gs`**
+✅ **RIEN EN ATTENTE au 19/08 (midi).** `Indispos.gs` **2026-08-19.1** recopié et déployé le
+19/08 au matin, **confirmé par le 🔍 Diagnostic de 11:12** ; site **v1.61** ; quatre commits dans
+la journée (`c630ce2c85`, `ba8448b0e6`, `b2bebfaf4e`, `4e0a211fa4`). Historique du 17/08 : le **Worker** (2026-08-17.2), **`miroir.gs`**
 (2026-08-17.4) et **`portail.gs`** (2026-08-17.3) sont déployés, `miroirSyncComplet` exécutée, et la
 clé `LIBERAL_ADMIN` posée dans CONFIG — dans cet ordre, qui n'est pas négociable : Worker → `.gs` →
 synchro. Dans l'autre sens, les pages demandent des clés qui n'existent pas encore et retombent en
@@ -37,14 +39,14 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **1185 vérifications** sur 29 scripts (relevé le 17/08/2026 à 20 h),
+**Banc d'essai** `banc/` — **1449 vérifications** sur 30 scripts (relevé le 19/08/2026, midi),
 `cd banc && ./lancer.sh`. *(Comptage : somme des récapitulatifs de fin de chaque script, MOINS le
 sous-total de 9 que `banc.js` imprime au milieu et réintègre ensuite dans son propre total de 19,
 PLUS `banc_notif.mjs` qui compte au format `35 ✓ / 0 ✗`. Recompter, ne pas recopier.)*
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 17 août 2026 (20 h).*
+*Mise à jour : 19 août 2026 (midi).*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -81,6 +83,82 @@ entre les deux (garde), le bac à sable reste généré et le 4 l'assistant réa
 calculer, en silence. Le matin du 4 ne garde plus qu'un contrôle, les adresses et le Diagnostic.
 
 ---
+
+## 19 août 2026 — v1.59 → v1.61 : le grand diagnostic du dépôt, et l'affaire PRUNET à deux étages
+
+**Le matin a commencé par un diagnostic complet du dépôt** (code mort, optimisation) et s'est
+terminé en incident de production instructif. Quatre commits : `c630ce2c85` (nettoyage, v1.59),
+`ba8448b0e6` (`Indispos.gs` 2026-08-18.1), `b2bebfaf4e` (2026-08-19.1), `4e0a211fa4` (v1.60).
+
+### Le nettoyage (v1.59 + `Indispos.gs` 2026-08-18.1)
+
+~500 lignes sans appelant retirées de 5 pages : l'ancien onglet « calendrier des gardes », le
+widget overrides, les reliquats de l'écran Paramètres, `_reveilAPI` ×5, le panneau « Ma priorité »
+fantôme d'indispos, `updateFlashBadge`, le CSS orphelin. **Trois retraits avaient un effet réel** :
+un appel `getOverrides` gaspillé après **chaque** geste planning ; le bootstrap d'admin qui lisait
+PLANNING_OVERRIDES à chaque ouverture pour un widget disparu (retiré côté GAS) ; une écriture
+orange parasite sur la pastille « Système » (couleur seule, texte « OK » à côté — un voyant qui
+aurait menti). **Conservés après lecture du contexte** : `pushFileToGitHub` (son commentaire
+affirme qu'il sert encore — zéro appelant trouvé, à éclaircir), `veilleVerifierNoms`,
+`diagDriveJson`, `testNotifierConflits`, et tous les outils manuels d'éditeur.
+
+**`banc_ptr.js` ressuscité** : écrit le 05/08, il lisait `../live_index.html` et
+`../live_dashboard.html` — des instantanés de mise au point jamais entrés au dépôt. Il ne pouvait
+donc PAS tourner et n'avait jamais rejoint `lancer.sh` : 28 vérifications qui rassuraient sans
+exister. Rebranché sur les vraies pages, ajouté au lanceur, et **banc_docs §13** rend l'oubli
+impossible (tout `banc*/e2e/interface .js|.mjs` doit figurer dans `lancer.sh`, contre-preuve incluse).
+
+**Piège d'outillage consigné** : l'extracteur de fonctions par comptage d'accolades s'est fait
+avoir par un paramètre par défaut `options={}` (`fetchTimeout`) — coupe au milieu de la signature.
+Chercher la fin de la liste de paramètres avant la première accolade du corps.
+
+### L'enquête « pastille À publier orange à l'arrivée »
+
+Arthur voyait régulièrement « À publier » orange en rouvrant admin, en étant certain d'avoir
+publié. Traces relevées (LOGS, 500 lignes, 28/07→18/08) : **zéro fiche en échec au journal sur
+trois semaines** ; les « trous » entre passages ne prouvent rien (le journal ne trace pas les
+passages à vide). Conclusion la plus probable pour les cas historiques de plusieurs heures : **la
+course corrigée le 16/08** (copies publiées construites sur un état non rafraîchi du classeur).
+À retenir : **« Publier » = publication GARANTIE, pas FAITE** (2-3 min de chaîne) ; le brouillon
+local n'est purgé que sur preuve ; le registre `jfait_` garde 90 jours fiche par fiche. Si un
+orange de plusieurs heures réapparaît après le 16/08 : noter jour + case, tracer au registre.
+
+### L'affaire PRUNET — un défaut à deux étages, masqué par un journal qui comptait mal
+
+PRUNET (volant, chef de service) s'affichait « VOL » dans la grille Affectations mais n'avait
+**aucune ligne** dans `AFFECTATIONS_2026` (onglet antérieur à sa fiche ; 2027, créé par le wizard,
+l'a bien). Le ⚠️ du Diagnostic disait vrai, l'écran comblait par défaut (`|| 'VOLANT'`, admin
+l.5919). En voulant réparer par l'écran, Arthur a mis au jour :
+
+1. **Étage serveur** : `saveAffectations` **sautait en silence** tout MAR sans ligne
+   (`if (!rowNum) return;`) et le journal comptait les données *reçues*, pas les lignes *écrites*
+   (« 25 MAR(s) mis à jour » à 09:30 pour 24 écrites — un compte qui ment dans les traces fait
+   chercher au mauvais endroit). Corrigé (`2026-08-19.1`) : logique extraite en
+   **`ecrireAffectations()`** (éprouvable), ligne manquante **créée** comme le fait déjà
+   `saveAffectationsMar`, log honnête « N mis à jour, M ligne(s) créée(s) ». Banc **T-AFF**
+   (7 vérifs, contre-preuve rouge/vert).
+2. **Étage page** (découvert une heure après, en production : « 24 mis à jour » pour 26 affichés) :
+   la grille AFFICHE tous les actifs mais **n'envoyait que les lignes lues** dans l'onglet.
+   Corrigé (v1.60) : **`completerAffectationsActifs()`** complète l'envoi avec chaque actif affiché
+   (vide = VOLANT×12 côté serveur) — **garde-fou : une grille vide (chargement raté) ne complète
+   RIEN**, sinon Enregistrer aurait écrasé tous les secteurs réels par VOLANT. Banc **T-AFF-2** :
+   chaîne complète page→serveur + **vérification de câblage** avec contre-preuve — la leçon
+   maîtresse du jour : *un code juste mais jamais appelé doit rendre le banc rouge.*
+
+**Résultat vérifié** : 10:59:42 « saveAffectations — 24 MAR(s) mis à jour, 2 ligne(s) créée(s) » ;
+`AFFECTATIONS_2026` à 26 lignes, PRUNET et ARMAND en VOLANT×12 ; Diagnostic de 11:12 :
+« MARs actifs sans affectation : **aucun** » (8 points de vigilance). ARMAND (arrivée 01/11)
+recevra ses vrais secteurs par un clic ordinaire.
+
+### Le brouillard réseau — à connaître pour ne plus perdre une heure
+
+Toute la matinée, le téléphone d'Arthur affichait « Délai dépassé (90 s) » pendant que **chaque
+requête arrivait, s'exécutait et se terminait OK côté serveur** (trois `diagComplet — OK` à
+10:01/10:02/10:03 pour trois « échecs » à l'écran). Les réponses se perdaient au retour
+(`script.googleusercontent.com` ↔ Safari : réseau du moment, Relais privé, filtrage).
+**Doctrine : devant un « Délai dépassé », LOGS fait foi, pas l'écran.** L'onglet Affectations est
+la seule surface branchée sur Google en direct (éditeur de brouillon : lire la source avant
+d'écrire) — c'est lui qui sonne quand ce chemin casse, pendant que tout le reste vit du miroir.
 
 ## 18 août 2026 — v1.58 : la recette à la main trouve ce que le banc ne pouvait pas voir
 
@@ -3235,6 +3313,24 @@ transposable.
 **Cosignature du comité recommandée** — non pour la méthode, mais pour le projet : un travail signé
 du service ancre l'outil dans l'institution ; signé d'une seule personne, il reste l'affaire de
 cette personne. C'est aussi la meilleure réponse au risque de dépendance à une personne.
+
+### Notés le 19/08 — rien avant le 04/09
+
+1. **La pastille « À publier » qui s'explique au clic** : liste des écarts (date, MAR, valeur
+   locale / valeur publiée) + mention « publiés il y a X min, propagation en cours » quand c'est
+   le cas. Supprime le « orange sans savoir pourquoi ».
+2. **Battement de cœur du journal dans le Diagnostic** : horodatage du dernier passage de
+   `journalAppliquer` (propriété de script), pour rendre visible un déclencheur arrêté — LOGS ne
+   trace pas les passages à vide, il ne peut pas le faire.
+3. **Opérations longues via la copie rapide** (diagnostic, `saveAffectations`) : le serveur dépose
+   son résultat, la page va le chercher — neutralise la classe entière des « Délai dépassé » sur
+   réponses perdues, vécue le 19/08. La republication dans la même requête garantit le dépassement
+   des 90 s du client.
+4. **Nettoyage opportuniste des `.gs` restants** (~35 lignes de tests jetables dans `code.gs`,
+   `portail.gs`, `veille.gs`, `generateur_gardes.gs`) : à la prochaine recopie de chacun, jamais
+   pour eux-mêmes.
+5. **Éclaircir `pushFileToGitHub`** (`code.gs` l.1244) : le commentaire dit « sert encore à pousser
+   les pages HTML », aucun appelant trouvé — trancher, puis supprimer ou documenter.
 
 #### À ne pas perdre
 

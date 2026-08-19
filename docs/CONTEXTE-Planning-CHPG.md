@@ -11,6 +11,37 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 19 août 2026 (midi) — v1.61 : dépôt nettoyé, l'affaire PRUNET close, banc à 1449
+
+**Versions** : site **v1.61** · `Indispos.gs` **2026-08-19.1** (déployé, confirmé au Diagnostic
+de 11:12) · banc **1449 vérifications / 30 scripts** · quatre commits (`c630ce2c85`,
+`ba8448b0e6`, `b2bebfaf4e`, `4e0a211fa4`). **Rien en attente de recopie.**
+
+- **Nettoyage issu d'un diagnostic complet du dépôt** : ~500 lignes sans appelant retirées
+  (calendrier des gardes, widget overrides, écran Paramètres, `_reveilAPI` ×5, panneau prio
+  d'indispos…). Effets réels : plus d'appel `getOverrides` après chaque geste, bootstrap admin
+  sans lecture de PLANNING_OVERRIDES, pastille « Système » débarrassée d'une écriture orange
+  parasite. `banc_ptr.js` ressuscité (il lisait des fichiers inexistants, jamais lancé) ;
+  **banc_docs §13** impose désormais que tout scénario figure dans `lancer.sh`.
+- **L'affaire PRUNET (défaut à deux étages)** : la grille Affectations affichait tous les actifs
+  (volant implicite) mais (1) le serveur **sautait en silence** les MARs sans ligne, avec un
+  journal qui comptait les reçus et non les écrits, et (2) la page **n'envoyait jamais** les
+  volants implicites. Corrigés : `ecrireAffectations()` crée la ligne (T-AFF, contre-preuve) ;
+  `completerAffectationsActifs()` complète l'envoi, **garde-fou grille vide** (T-AFF-2 +
+  **vérification de câblage** — *un code juste jamais appelé doit rendre le banc rouge*).
+  Résultat : `AFFECTATIONS_2026` à 26 lignes, PRUNET/ARMAND en VOLANT×12, Diagnostic sans ⚠️
+  d'affectation.
+- **Doctrine réseau, payée une matinée** : « Délai dépassé (90 s) » à l'écran avec exécutions
+  serveur **OK** = réponses perdues au retour (googleusercontent ↔ Safari). **LOGS fait foi, pas
+  l'écran.** L'onglet Affectations est la seule surface branchée Google en direct (éditeur de
+  brouillon) : c'est lui qui sonne quand ce chemin casse.
+- **Pastille « À publier » élucidée** : zéro échec au journal sur 3 semaines de traces ; les
+  oranges historiques de plusieurs heures collent à la course corrigée le 16/08. « Publier » =
+  garanti, pas fait (2-3 min) ; registre `jfait_` 90 j pour tracer tout nouveau cas.
+- **Notés au 🔜 (rien avant le 04/09)** : pastille explicable au clic · battement de cœur du
+  journal au Diagnostic · opérations longues via copie rapide · nettoyage opportuniste des `.gs`
+  restants · éclaircir `pushFileToGitHub`.
+
 ## État au 17 août 2026 (matin) — v1.41 : le code d'accès retenu 30 jours, et la séquence du 4 septembre écrite
 
 **Le code d'accès ne se retape plus.** Il vivait en `sessionStorage` — iOS ferme volontiers les apps
