@@ -147,51 +147,62 @@ console.log('\n═══ T-AFF · Enregistrer la grille des affectations crée l
   V('un second Enregistrer ne crée aucun doublon', res2.crees === 0 && res2.maj === 3 && lignes2.length === 4, res2);
 }
 
-console.log('\n═══ T-AFF-2 · L\'envoi de la grille dit ce que l\'écran montre (chaîne complète) ═══');
+console.log('\n═══ T-AFF-2 · Enregistrer n\'écrit QUE les MARs touchés (envoi différentiel) ═══');
 {
-  /* (19/08/2026, suite) Deuxième étage du même défaut, découvert en production
-     une heure après le premier : le serveur savait désormais créer les lignes,
-     mais la page n\'envoyait que ce qu\'elle avait lu dans l\'onglet — jamais
-     les MARs affichés en volant implicite. On éprouve la chaîne entière :
-     complétion côté page PUIS écriture côté serveur. */
+  /* (19/08/2026, après-midi) Le matin, Enregistrer envoyait TOUTE la grille —
+     nécessaire pour créer la ligne de PRUNET, mais dangereux : depuis une base
+     restée ouverte, on réécrivait aussi le travail des autres. Décision
+     d'Arthur : n'envoyer que les MARs touchés en session. La protection
+     capitale s'éprouve ici À L'OCTET : la ligne d'un MAR jamais touché doit
+     ressortir du classeur STRICTEMENT identique. */
   VERROUS.script = false; VERROUS.document = false;
   const cl = new Classeur();
   cl.ajouter('AFFECTATIONS_2026', [
     ['MÉDECIN','JAN','FEV','MAR','AVR','MAI','JUN','JUL','AOU','SEP','OCT','NOV','DEC'],
-    ['ALPHA','REA','REA','REA','REA','REA','REA','REA','REA','REA','REA','REA','REA']]);
-  const ctx = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Math, parseInt,
+    ['ALPHA','REA','REA','REA','REA','REA','REA','REA','REA','REA','REA','REA','REA'],
+    ['BRAVO','VIS','ORL','END','VIS','ORL','END','VIS','ORL','END','VIS','ORL','END']]);
+  const ctx = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Set, Math, parseInt,
     SpreadsheetApp: { getActiveSpreadsheet: () => cl }, Logger: { log(){} } });
-  vm.runInContext(extraireFonction('../admin.html', 'completerAffectationsActifs'), ctx);
+  vm.runInContext(extraireFonction('../admin.html', 'construireEnvoiAffectations'), ctx);
   vm.runInContext(extraireFonction('../gas/Indispos.gs', 'ecrireAffectations'), ctx);
-  ctx.feuille = cl.getSheetByName('AFFECTATIONS_2026');
-  /* La page n\'a lu qu\'ALPHA ; l\'écran affiche aussi BRAVO (actif, volant
-     implicite) et un MAR inactif qui ne doit PAS partir. */
-  ctx.affData = { ALPHA: {1:'REA'} };
-  ctx.marsData = [ {id:'ALPHA',actif:true}, {id:'BRAVO',actif:true}, {id:'ZOMBIE',actif:false} ];
-  vm.runInContext('completerAffectationsActifs(affData, marsData)', ctx);
-  V('le MAR affiché sans ligne entre dans l\'envoi', vm.runInContext('!!affData.BRAVO', ctx));
-  V('un MAR inactif n\'y entre pas', vm.runInContext('!affData.ZOMBIE', ctx));
-  V('les données déjà saisies ne sont pas écrasées', vm.runInContext("affData.ALPHA[1]==='REA'", ctx));
-  /* Garde-fou : une grille VIDE (chargement raté) ne doit rien compléter —
-     sans lui, Enregistrer dans cet état écraserait tous les secteurs réels
-     par VOLANT×12. */
-  ctx.affVide = {};
-  vm.runInContext('completerAffectationsActifs(affVide, marsData)', ctx);
-  V('une grille vide reste vide (aucune invention après un chargement raté)',
-    vm.runInContext('Object.keys(affVide).length === 0', ctx));
-  const res = vm.runInContext('ecrireAffectations(feuille, affData)', ctx);
-  const lignes = ctx.feuille.getDataRange().getValues();
-  V('bout en bout : la ligne du volant implicite est créée en VOLANT×12',
-    res.crees === 1 && !!lignes[2] && String(lignes[2][0]) === 'BRAVO' && lignes[2].slice(1,13).every(v => v === 'VOLANT'), lignes[2]);
-  V('bout en bout : l\'existant est mis à jour, pas dupliqué', res.maj === 1 && lignes.length === 3, res);
-  /* Le défaut vécu était précisément un code juste JAMAIS APPELÉ : on vérifie
-     donc aussi le câblage — l'envoi (saveAllAffectations) passe par la
-     complétion avant d'appeler le serveur. */
+  const feuille = cl.getSheetByName('AFFECTATIONS_2026');
+  ctx.feuille = feuille;
+  const bravoAvant = JSON.stringify(feuille.getDataRange().getValues()[2]);
+  /* La page a chargé ALPHA et BRAVO ; en session, le comité a touché ALPHA
+     (janvier → VIS) et CHARLIE (fiche sans ligne, février → REA). BRAVO est
+     affiché mais JAMAIS touché. */
+  ctx.affData = { ALPHA: {1:'VIS',2:'REA',3:'REA',4:'REA',5:'REA',6:'REA',7:'REA',8:'REA',9:'REA',10:'REA',11:'REA',12:'REA'},
+                  BRAVO: {1:'VIS',2:'ORL',3:'END',4:'VIS',5:'ORL',6:'END',7:'VIS',8:'ORL',9:'END',10:'VIS',11:'ORL',12:'END'},
+                  CHARLIE: {2:'REA'} };
+  ctx.touches = new (vm.runInContext('Set', ctx))(['ALPHA','CHARLIE','INCONNU']);
+  const envoi = vm.runInContext('construireEnvoiAffectations(affData, touches)', ctx);
+  V('l\'envoi ne contient QUE les MARs touchés', Object.keys(envoi).sort().join(',') === 'ALPHA,CHARLIE', Object.keys(envoi));
+  V('un MAR affiché mais non touché ne part pas', !envoi.BRAVO);
+  V('un identifiant touché mais inconnu de la grille est ignoré', !envoi.INCONNU);
+  V('zéro touche = envoi vide (le refus poli protège la grille vide)',
+    Object.keys(vm.runInContext('construireEnvoiAffectations(affData, new Set())', ctx)).length === 0);
+  ctx.envoi = envoi;
+  const res = vm.runInContext('ecrireAffectations(feuille, envoi)', ctx);
+  const lignes = feuille.getDataRange().getValues();
+  V('bout en bout : le MAR touché est écrit (VIS en janvier)', lignes[1][1] === 'VIS', lignes[1][1]);
+  V('bout en bout : le MAR sans ligne touché est créé (REA en février, VOLANT ailleurs)',
+    res.crees === 1 && !!lignes[3] && String(lignes[3][0]) === 'CHARLIE' && lignes[3][2] === 'REA' && lignes[3][1] === 'VOLANT', lignes[3]);
+  V('LA PROTECTION : la ligne du MAR jamais touché est intacte À L\'OCTET',
+    JSON.stringify(lignes[2]) === bravoAvant, lignes[2]);
+  /* Le défaut du matin était un code juste JAMAIS APPELÉ : le câblage reste
+     sous surveillance — l'envoi passe par le différentiel, et la complétion
+     du matin a bien disparu du circuit. */
   const _admSrc = fs.readFileSync('../admin.html', 'utf8');
   const _saveBloc = _admSrc.slice(_admSrc.indexOf('async function saveAllAffectations'));
-  V('saveAllAffectations appelle la complétion AVANT l\'envoi',
-    _saveBloc.indexOf('completerAffectationsActifs(affData') > -1 &&
-    _saveBloc.indexOf('completerAffectationsActifs(affData') < _saveBloc.indexOf("action:'saveAffectations'"));
+  V('saveAllAffectations construit le différentiel AVANT l\'envoi',
+    _saveBloc.indexOf('construireEnvoiAffectations(affData') > -1 &&
+    _saveBloc.indexOf('construireEnvoiAffectations(affData') < _saveBloc.indexOf("action:'saveAffectations'"));
+  V('et c\'est bien le différentiel qui PART — pas la grille complète',
+    _saveBloc.indexOf('affectations: envoi') > -1 && _saveBloc.indexOf('affectations: affData') === -1);
+  V('chaque modification de case marque son MAR comme touché',
+    /_affTouches\.add\(marId\)/.test(_admSrc));
+  V('la complétion du matin a quitté le circuit d\'envoi',
+    _saveBloc.indexOf('completerAffectationsActifs') === -1);
 }
 
 console.log(`\n${ok} OK · ${ko} en échec`);

@@ -30,7 +30,11 @@ de 11:12) · banc **1449 vérifications / 30 scripts** · quatre commits (`c630c
   `completerAffectationsActifs()` complète l'envoi, **garde-fou grille vide** (T-AFF-2 +
   **vérification de câblage** — *un code juste jamais appelé doit rendre le banc rouge*).
   Résultat : `AFFECTATIONS_2026` à 26 lignes, PRUNET/ARMAND en VOLANT×12, Diagnostic sans ⚠️
-  d'affectation.
+  d'affectation. **L'après-midi (v1.63), l'envoi est devenu DIFFÉRENTIEL** (décision d'Arthur) :
+  Enregistrer n'écrit que les MARs touchés en session — un MAR non touché n'est JAMAIS réécrit
+  (éprouvé à l'octet, T-AFF-2), la complétion du matin est retirée, zéro touche = refus poli.
+  Volet B (lecture miroir + journal + diagnostic déposé) : conçu au 🔜 n°3, septembre, jamais
+  avant le 4.
 - **Doctrine réseau, payée une matinée** : « Délai dépassé (90 s) » à l'écran avec exécutions
   serveur **OK** = réponses perdues au retour (googleusercontent ↔ Safari). **LOGS fait foi, pas
   l'écran.** L'onglet Affectations est la seule surface branchée Google en direct (éditeur de

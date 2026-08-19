@@ -5863,6 +5863,12 @@ async function loadVacances(force) {
 // ── AFFECTATIONS ──────────────────────────────────────────────────────
 let affData = {};
 let affPending = false;
+/* (19/08/2026, après-midi) MARs modifiés depuis le dernier enregistrement
+   réussi. C'est la clé de l'ENVOI DIFFÉRENTIEL : Enregistrer n'écrit plus que
+   ces MARs-là — un MAR non touché n'est JAMAIS réécrit, donc une base restée
+   ouverte (cache de session, onglet d'hier) ne peut plus écraser le travail
+   d'un autre membre du comité que sur les MARs qu'on a soi-même modifiés. */
+let _affTouches = new Set();
 let currentAffCell = null;
 
 const MOIS_COURTS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
@@ -5886,6 +5892,7 @@ async function loadAffectations(year, force) {
   }
   if (!force && _affSession[year]) {
     affData = JSON.parse(JSON.stringify(_affSession[year]));
+    _affTouches.clear();   // brouillon accepté restauré : rien de modifié depuis
     renderAffectations();
     document.getElementById('affLoading').style.display = 'none';
     document.getElementById('affContent').style.display = 'block';
@@ -5897,6 +5904,7 @@ async function loadAffectations(year, force) {
     const data = await api({action: 'getAffectations', year});
     if (!data.success) throw new Error(data.error);
     affData = data.affectations;
+    _affTouches.clear();   // lecture fraîche du serveur : rien de modifié
     _affSession[year] = JSON.parse(JSON.stringify(affData));
     renderAffectations();
   } catch(e) {
@@ -5973,7 +5981,8 @@ function applySecteurAff() {
   const {marId, month, cell} = currentAffCell;
   const newSecteur = document.getElementById('secteurAffSelect').value;
   if (!affData[marId]) affData[marId] = {};
-    affData[marId][month] = newSecteur;
+  affData[marId][month] = newSecteur;
+  _affTouches.add(marId);
   const _sc = SECTOR_COLORS_AFF[newSecteur] || SECTOR_COLORS_AFF.VOLANT;
   cell.style.background = _sc.bg; cell.style.color = _sc.fg;
   cell.textContent = newSecteur === 'VOLANT' ? 'VOL' : newSecteur;
@@ -5983,32 +5992,38 @@ function applySecteurAff() {
   document.getElementById('modalSecteurAff').classList.remove('open');
 }
 
-/* (19/08/2026) Deuxième étage du défaut PRUNET : la grille AFFICHE tous les
-   actifs (volant implicite pour ceux sans ligne dans l'onglet) mais affData ne
-   contenait que les lignes lues — Enregistrer n'envoyait donc JAMAIS les MARs
-   à créer, même corrigé côté serveur (« 24 MAR(s) mis à jour » à 10:17 pour
-   26 affichés). Avant chaque envoi, on complète avec chaque actif affiché :
-   entrée vide = VOLANT sur 12 mois côté serveur (ecrireAffectations,
-   Indispos.gs 2026-08-19.1), qui crée la ligne. Éprouvée au banc (T-AFF-2).
-   L'envoi doit dire ce que l'écran montre. */
-function completerAffectationsActifs(aff, mars) {
-  /* Garde-fou : sur une grille VIDE (chargement raté), on ne complète RIEN —
-     sinon un Enregistrer dans cet état écrirait VOLANT×12 sur tous les
-     actifs, écrasant leurs vrais secteurs. On complète un état chargé, on
-     n'invente jamais une grille entière. */
-  if (!aff || !Object.keys(aff).length) return aff;
-  (mars || []).filter(m => m && m.actif).forEach(m => { if (!aff[m.id]) aff[m.id] = {}; });
-  return aff;
+/* (19/08/2026, après-midi) L'ENVOI DIFFÉRENTIEL remplace la complétion du
+   matin (completerAffectationsActifs, vie brève : ~5 h). Le matin, Enregistrer
+   envoyait TOUTE la grille pour créer les lignes manquantes (PRUNET) ; mais
+   toute-la-grille, c'est aussi le vrai danger — depuis une base restée
+   ouverte, on réécrivait tout, y compris le travail des autres. Décision
+   d'Arthur (19/08 après-midi) : n'envoyer QUE les MARs touchés en session.
+   - un MAR jamais touché n'est JAMAIS réécrit (sa ligne du classeur reste
+     intacte à l'octet — éprouvé au banc T-AFF-2) ;
+   - un MAR sans ligne touché est créé par le serveur (mois absents = VOLANT,
+     ecrireAffectations, Indispos.gs 2026-08-19.1) ;
+   - zéro touche = rien à envoyer, refus poli — la grille vide d'un chargement
+     raté est inoffensive par construction.
+   Volet B (septembre, conçu au ROADMAP) : lecture depuis la copie rapide et
+   dépôt au journal — le différentiel est le préalable qui rend la fraîcheur
+   de la base sans importance. */
+function construireEnvoiAffectations(aff, touches) {
+  const envoi = {};
+  if (!aff || !touches) return envoi;
+  touches.forEach(id => { if (aff[id]) envoi[id] = aff[id]; });
+  return envoi;
 }
 
 async function saveAllAffectations() {
+  const envoi = construireEnvoiAffectations(affData, _affTouches);
+  if (!Object.keys(envoi).length) { toast('Aucune modification à enregistrer', 'info'); return; }
   const btn = document.getElementById('btnSaveAff');
   btn.disabled = true; btn.textContent = '⏳ Enregistrement...';
   try {
-    completerAffectationsActifs(affData, marsData);
-    const data = await api({action:'saveAffectations', affectations: affData, year: ADMIN_YEAR});
+    const data = await api({action:'saveAffectations', affectations: envoi, year: ADMIN_YEAR});
     if (!data.success) throw new Error(data.error);
     _affSession[ADMIN_YEAR] = JSON.parse(JSON.stringify(affData));   // (v1.20.1) le brouillon accepte devient la memoire de session
+    _affTouches.clear();   // écrit et prouvé : plus rien de « modifié »
     affPending = false;
     document.getElementById('affPendingMsg').style.display = 'none';
     toast('✅ Affectations enregistrées — planning republié dans ~30s', 'success');

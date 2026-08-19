@@ -150,6 +150,27 @@ l.5919). En voulant réparer par l'écran, Arthur a mis au jour :
 « MARs actifs sans affectation : **aucun** » (8 points de vigilance). ARMAND (arrivée 01/11)
 recevra ses vrais secteurs par un clic ordinaire.
 
+### L'après-midi — l'envoi différentiel (v1.62 → v1.63)
+
+En réalignant la séquence d'avant-démo, Arthur a rouvert le fond : « c'est quand même peu probable
+qu'un autre membre saisisse EN MÊME TEMPS — ils n'ont qu'à se parler ». Exact, et c'est ce qui a
+révélé que le vrai danger n'a jamais été la simultanéité : **c'est que l'Enregistrer envoyait TOUTE
+la grille** — depuis une base restée ouverte (le cache de session fait ça très bien), on réécrivait
+aussi le travail des autres. La complétion du matin (vie brève : ~5 h) aggravait ce trait pour
+soigner PRUNET.
+
+**Décision d'Arthur : n'envoyer que les MARs touchés en session.** `_affTouches` (Set) marqué à
+chaque `applySecteurAff`, purgé aux lectures fraîches et après un enregistrement réussi ;
+`construireEnvoiAffectations()` remplace la complétion ; zéro touche = refus poli « Aucune
+modification à enregistrer » (la grille vide d'un chargement raté devient inoffensive par
+construction). Un MAR sans ligne touché est créé par le serveur (mois absents = VOLANT). Banc
+**T-AFF-2 réécrit** : la protection s'éprouve **à l'octet** (la ligne d'un MAR jamais touché
+ressort du classeur strictement identique). Contre-preuve instructive : ma première vérification
+de câblage contrôlait que le différentiel était *calculé*, pas qu'il était *celui qui part* —
+resserrée (« affectations: envoi » exigé, « affectations: affData » interdit). **Le volet lourd
+(lecture miroir + journal + diagnostic déposé) est REFUSÉ avant le 4** : ordre Worker→GAS→synchro
+et zéro usage réel avant la répétition — conçu ci-dessous (🔜 n°3), exécuté en septembre.
+
 ### Le brouillard réseau — à connaître pour ne plus perdre une heure
 
 Toute la matinée, le téléphone d'Arthur affichait « Délai dépassé (90 s) » pendant que **chaque
@@ -3333,10 +3354,13 @@ cette personne. C'est aussi la meilleure réponse au risque de dépendance à un
 2. **Battement de cœur du journal dans le Diagnostic** : horodatage du dernier passage de
    `journalAppliquer` (propriété de script), pour rendre visible un déclencheur arrêté — LOGS ne
    trace pas les passages à vide, il ne peut pas le faire.
-3. **Opérations longues via la copie rapide** (diagnostic, `saveAffectations`) : le serveur dépose
-   son résultat, la page va le chercher — neutralise la classe entière des « Délai dépassé » sur
-   réponses perdues, vécue le 19/08. La republication dans la même requête garantit le dépassement
-   des 90 s du client.
+3. **« Affectations sans fil fragile », volet B** *(le volet A — l'envoi différentiel — est LIVRÉ
+   le 19/08 après-midi, v1.63)*. Reste pour septembre : **lecture depuis la copie rapide**
+   (affichage instantané — le différentiel a rendu la fraîcheur de la base sans importance),
+   **dépôt de l'Enregistrer au journal** (fiche « affectations », la republication quitte la
+   requête du client), et **diagnostic déposé dans une clé miroir** relue par la page. Neutralise
+   la classe entière des « Délai dépassé » sur réponses perdues, vécue le 19/08. Ordre de
+   déploiement non négociable : Worker → `.gs` → synchro. Un fil de conversation dédié.
 4. **Nettoyage opportuniste des `.gs` restants** (~35 lignes de tests jetables dans `code.gs`,
    `portail.gs`, `veille.gs`, `generateur_gardes.gs`) : à la prochaine recopie de chacun, jamais
    pour eux-mêmes.
@@ -5245,7 +5269,7 @@ livré — d'où la règle : vérifier le code, pas le ROADMAP.)*
     correspondante (sans Drive : plus de publication ; sans déclencheurs : plus de sauvegarde
     hebdomadaire ni de veille).
 
-- [ ] **Étape 3 (non urgente)** : retirer les tables en dur (`SECTEURS`, `CS_TYPES`, `CS_REQUIRED`,
+- [x] **Étape 3 — FAITE le 29/07** (case cochée le 19/08, elle contredisait le ✅ trois écrans plus haut) : retirer les tables en dur (`SECTEURS`, `CS_TYPES`, `CS_REQUIRED`,
   `CS_OPENABLE`) et rendre le **repli visible**. Aujourd'hui il est silencieux : une panne de lecture
   ferait tourner les pages sur le code en dur sans le dire. Inoffensif tant qu'on ne compte pas dessus.
 
