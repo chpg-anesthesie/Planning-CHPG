@@ -405,5 +405,27 @@ console.log('\n═══ 12. Le Diagnostic dit la vérité sur la version du sit
     anomalies('', pages).version === null && anomalies('', pages).anomalies.length === 1);
 }
 
+console.log('\n═══ 13. Chaque scénario du banc est lancé par lancer.sh ═══');
+{
+  /* (18/08/2026) Défaut trouvé lors d'un diagnostic du dépôt : banc_ptr.js
+     (tirer-pour-rafraîchir, 14 vérifications, 05/08) existait mais n'avait
+     jamais rejoint lancer.sh — ses vérifications ne tournaient donc JAMAIS,
+     alors que la règle du projet dit « tout scénario s'ajoute explicitement
+     au lanceur ». Un test écrit puis jamais lancé est pire qu'un test
+     absent : il rassure. Cette section rend l'oubli impossible. */
+  const scenariosManquants = (fichiers, lanceur) =>
+    fichiers.filter(f => lanceur.indexOf(f) === -1);
+  const lanceur  = fs.readFileSync('lancer.sh', 'utf8');
+  const fichiers = fs.readdirSync('.')
+    .filter(f => /^(banc\S*|e2e|interface)\.(js|mjs)$/.test(f));
+  V('au moins 25 scénarios trouvés dans banc/ (le listage fonctionne)',
+    fichiers.length >= 25, fichiers.length);
+  V('chaque scénario présent dans banc/ figure dans lancer.sh',
+    scenariosManquants(fichiers, lanceur).length === 0,
+    scenariosManquants(fichiers, lanceur));
+  V('un scénario oublié serait signalé',
+    scenariosManquants(fichiers.concat(['banc_fictif.js']), lanceur).length === 1);
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);

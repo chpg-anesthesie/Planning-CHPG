@@ -1,4 +1,8 @@
 /* ═══ BANC — RAFRAÎCHIR EN TIRANT LA PAGE (05/08/2026) ═══
+   (18/08/2026) Le scénario lisait ../live_index.html et ../live_dashboard.html,
+   instantanés locaux d'une session de mise au point, absents du dépôt : il ne
+   pouvait donc PAS tourner, et n'avait jamais rejoint lancer.sh. Rebranché sur
+   les pages réelles et ajouté au lanceur (banc_docs §13 garde désormais la porte).
    Constat du terrain : en mode application (écran d'accueil), iOS ne fournit
    AUCUN rafraîchissement par glissement — le geste bougeait l'écran sans rien
    recharger, et le guide MAR l'annonçait pourtant. On éprouve ici le geste
@@ -36,7 +40,7 @@ function toucher(w, type, y) {
 }
 
 (async () => {
-  for (const [nom, fichier] of [['index.html', '../live_index.html'], ['dashboard.html', '../live_dashboard.html']]) {
+  for (const [nom, fichier] of [['index.html', '../index.html'], ['dashboard.html', '../dashboard.html']]) {
     console.log(`\n═══ ${nom} ═══`);
     const { w, erreurs } = await page(fichier);
     V('la page se charge sans erreur', erreurs.length === 0, erreurs.slice(0,2));
@@ -101,7 +105,7 @@ function toucher(w, type, y) {
 
   console.log('\n═══ Le témoin ne s\'allume plus pour le journal de connexion ═══');
   {
-    for (const [nom, fichier] of [['index.html', '../live_index.html'], ['dashboard.html', '../live_dashboard.html']]) {
+    for (const [nom, fichier] of [['index.html', '../index.html'], ['dashboard.html', '../dashboard.html']]) {
       const src = fs.readFileSync(fichier, 'utf8');
       V(nom + ' : le journal part à fond perdu (sendBeacon)', /sendBeacon\(API_URL/.test(src));
       V(nom + ' : plus d\'appel bloquant pour le journal',

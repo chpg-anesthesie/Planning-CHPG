@@ -1099,21 +1099,7 @@ async function apiPost(payload) {
   return _suivant;
 }
 
-/* ── (01/08/2026) APPEL DE REVEIL ────────────────────────────────────────
-   Mesure du 01/08 a 14:07 : le TOUT PREMIER appel d'un chargement de page
-   revient « Code absent de la requête » — 18 ms de travail serveur, donc la
-   requete EST arrivee, mais SANS SON CORPS. Le meme code passe a l'appel
-   suivant. Cout constate sur admin : 38,8 s jetes, puis un login de repli et
-   un second bootstrap — 3 appels et 50 s pour une ouverture qui en vaut 1.
-   Ce petit appel, sans code et sans effet, encaisse ce premier echange
-   PENDANT que l'utilisateur tape son code : son cout devient invisible.
-   getActiveYear est traite AVANT toute verification d'identite (Indispos.gs,
-   _routeRequete_) : il ne peut ni echouer sur un code absent, ni rien modifier.
-   ⚠️ Si la mesure montre que le corps se perd a CHAQUE requete et non a la
-   premiere, ce reveil ne servira a rien : c'est le filet ci-dessus qui protege. */
-function _reveilAPI() {
-  try { apiPost({action: 'getActiveYear'}).catch(function () {}); } catch (e) {}
-}
+/* _reveilAPI supprimé le 18/08/2026 : l'appel avait été retiré dès le 01/08 (le filet de rejeu suffit) ; la fonction restait sans appelant sur les 5 pages. Historique : ROADMAP. */
 
 /* ── (03/08/2026) REJEU SUR ECHEC DE TRANSPORT ──────────────────────
    Mesure du 03/08 a 18:44 (cas « premiere visite ») : getAffectationsJson est
