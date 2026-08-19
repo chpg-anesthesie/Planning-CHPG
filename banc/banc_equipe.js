@@ -147,5 +147,52 @@ console.log('\n═══ T-AFF · Enregistrer la grille des affectations crée l
   V('un second Enregistrer ne crée aucun doublon', res2.crees === 0 && res2.maj === 3 && lignes2.length === 4, res2);
 }
 
+console.log('\n═══ T-AFF-2 · L\'envoi de la grille dit ce que l\'écran montre (chaîne complète) ═══');
+{
+  /* (19/08/2026, suite) Deuxième étage du même défaut, découvert en production
+     une heure après le premier : le serveur savait désormais créer les lignes,
+     mais la page n\'envoyait que ce qu\'elle avait lu dans l\'onglet — jamais
+     les MARs affichés en volant implicite. On éprouve la chaîne entière :
+     complétion côté page PUIS écriture côté serveur. */
+  VERROUS.script = false; VERROUS.document = false;
+  const cl = new Classeur();
+  cl.ajouter('AFFECTATIONS_2026', [
+    ['MÉDECIN','JAN','FEV','MAR','AVR','MAI','JUN','JUL','AOU','SEP','OCT','NOV','DEC'],
+    ['ALPHA','REA','REA','REA','REA','REA','REA','REA','REA','REA','REA','REA','REA']]);
+  const ctx = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Math, parseInt,
+    SpreadsheetApp: { getActiveSpreadsheet: () => cl }, Logger: { log(){} } });
+  vm.runInContext(extraireFonction('../admin.html', 'completerAffectationsActifs'), ctx);
+  vm.runInContext(extraireFonction('../gas/Indispos.gs', 'ecrireAffectations'), ctx);
+  ctx.feuille = cl.getSheetByName('AFFECTATIONS_2026');
+  /* La page n\'a lu qu\'ALPHA ; l\'écran affiche aussi BRAVO (actif, volant
+     implicite) et un MAR inactif qui ne doit PAS partir. */
+  ctx.affData = { ALPHA: {1:'REA'} };
+  ctx.marsData = [ {id:'ALPHA',actif:true}, {id:'BRAVO',actif:true}, {id:'ZOMBIE',actif:false} ];
+  vm.runInContext('completerAffectationsActifs(affData, marsData)', ctx);
+  V('le MAR affiché sans ligne entre dans l\'envoi', vm.runInContext('!!affData.BRAVO', ctx));
+  V('un MAR inactif n\'y entre pas', vm.runInContext('!affData.ZOMBIE', ctx));
+  V('les données déjà saisies ne sont pas écrasées', vm.runInContext("affData.ALPHA[1]==='REA'", ctx));
+  /* Garde-fou : une grille VIDE (chargement raté) ne doit rien compléter —
+     sans lui, Enregistrer dans cet état écraserait tous les secteurs réels
+     par VOLANT×12. */
+  ctx.affVide = {};
+  vm.runInContext('completerAffectationsActifs(affVide, marsData)', ctx);
+  V('une grille vide reste vide (aucune invention après un chargement raté)',
+    vm.runInContext('Object.keys(affVide).length === 0', ctx));
+  const res = vm.runInContext('ecrireAffectations(feuille, affData)', ctx);
+  const lignes = ctx.feuille.getDataRange().getValues();
+  V('bout en bout : la ligne du volant implicite est créée en VOLANT×12',
+    res.crees === 1 && !!lignes[2] && String(lignes[2][0]) === 'BRAVO' && lignes[2].slice(1,13).every(v => v === 'VOLANT'), lignes[2]);
+  V('bout en bout : l\'existant est mis à jour, pas dupliqué', res.maj === 1 && lignes.length === 3, res);
+  /* Le défaut vécu était précisément un code juste JAMAIS APPELÉ : on vérifie
+     donc aussi le câblage — l'envoi (saveAllAffectations) passe par la
+     complétion avant d'appeler le serveur. */
+  const _admSrc = fs.readFileSync('../admin.html', 'utf8');
+  const _saveBloc = _admSrc.slice(_admSrc.indexOf('async function saveAllAffectations'));
+  V('saveAllAffectations appelle la complétion AVANT l\'envoi',
+    _saveBloc.indexOf('completerAffectationsActifs(affData') > -1 &&
+    _saveBloc.indexOf('completerAffectationsActifs(affData') < _saveBloc.indexOf("action:'saveAffectations'"));
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);

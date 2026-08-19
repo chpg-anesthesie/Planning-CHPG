@@ -5983,10 +5983,29 @@ function applySecteurAff() {
   document.getElementById('modalSecteurAff').classList.remove('open');
 }
 
+/* (19/08/2026) Deuxième étage du défaut PRUNET : la grille AFFICHE tous les
+   actifs (volant implicite pour ceux sans ligne dans l'onglet) mais affData ne
+   contenait que les lignes lues — Enregistrer n'envoyait donc JAMAIS les MARs
+   à créer, même corrigé côté serveur (« 24 MAR(s) mis à jour » à 10:17 pour
+   26 affichés). Avant chaque envoi, on complète avec chaque actif affiché :
+   entrée vide = VOLANT sur 12 mois côté serveur (ecrireAffectations,
+   Indispos.gs 2026-08-19.1), qui crée la ligne. Éprouvée au banc (T-AFF-2).
+   L'envoi doit dire ce que l'écran montre. */
+function completerAffectationsActifs(aff, mars) {
+  /* Garde-fou : sur une grille VIDE (chargement raté), on ne complète RIEN —
+     sinon un Enregistrer dans cet état écrirait VOLANT×12 sur tous les
+     actifs, écrasant leurs vrais secteurs. On complète un état chargé, on
+     n'invente jamais une grille entière. */
+  if (!aff || !Object.keys(aff).length) return aff;
+  (mars || []).filter(m => m && m.actif).forEach(m => { if (!aff[m.id]) aff[m.id] = {}; });
+  return aff;
+}
+
 async function saveAllAffectations() {
   const btn = document.getElementById('btnSaveAff');
   btn.disabled = true; btn.textContent = '⏳ Enregistrement...';
   try {
+    completerAffectationsActifs(affData, marsData);
     const data = await api({action:'saveAffectations', affectations: affData, year: ADMIN_YEAR});
     if (!data.success) throw new Error(data.error);
     _affSession[ADMIN_YEAR] = JSON.parse(JSON.stringify(affData));   // (v1.20.1) le brouillon accepte devient la memoire de session
