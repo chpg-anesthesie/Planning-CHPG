@@ -11,6 +11,65 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 19 août 2026 (fin de journée) — v1.64 : tuile CR hors mobile, doc de panne rattrapé, banc à 1464
+
+**Versions** : site **v1.64** · commit unique `433974c7f9` (5 fichiers) · banc **1464 vérifications /
+30 scripts**. **Aucune modification GAS : rien à recopier dans Apps Script.**
+
+- **Tuile « CR d'anesthésie » masquée sous 768 px** (marqueur `pc:true` + une condition de plus dans
+  le filtre existant de `renderTiles`). Seuil aligné sur `isMobile` d'`index.html` — deux seuils
+  différents feraient dire deux choses à « petit écran » selon la page. **Limite acceptée par
+  Arthur** : mesure au chargement, une tablette pivotée ne fait pas réapparaître la tuile avant
+  rechargement ; sans effet sur téléphone (toujours sous le seuil) ni sur PC.
+  **Scénario 29** (`banc_pages_mar.js`) : extrait du **fichier livré** le tableau des tuiles et la
+  ligne de filtrage, les exécute à 390/768/769/1440 px, et vérifie qu'**aucune autre tuile** ne
+  disparaît. Contre-épreuves : filtre retiré → 3 échecs · seuil 1024 → 2 · `pc` posé par erreur sur
+  « Mes congés » → 2.
+- **`robots.txt` corrigé : il affirmait le contraire de la vérité.** Le générateur de CR est
+  **100 % statique, sans code d'accès** (vérifié : zéro session/auth/appel serveur dans ses 7
+  fichiers) et `cr-anesthesie/data.js` porte **les 23 noms du service**. **Décision d'Arthur :
+  laisser les noms, corriger le fichier.** Le chantier « sortir les noms du dépôt » est **fermé par
+  décision**, plus « en attente ».
+- **`docs/si-ca-tombe.html` — 4 mises à jour, dont un chiffre faux.** Il annonçait 2 sauvegardes du
+  classeur : il y en a **3** (lundi 4 h classeur · **dimanche 5 h second compte**, la seule qui
+  survit à la perte du compte · dimanche 3 h **le programme**). 2 tâches automatiques annoncées pour
+  **9** programmées. « Ce qui s'arrête » ignorait **échanges de gardes et module libéral**. Ajout du
+  symptôme « j'ai validé, rien ne bouge » (≤ 1 min) avec encadré **ne jamais revalider**.
+- **Recette de comptage du banc corrigée.** L'ancienne (somme des récapitulatifs de fin de script)
+  donnait 1444 et **ne reproduisait plus son propre chiffre** : `banc.js` n'imprime plus de
+  récapitulatif, ses 19 vérifications échappaient à la somme. **Nouvelle règle : compter les coches
+  `✓` de la sortie complète, rien d'autre.**
+
+### Constatés, NON traités (gel du code avant le 4)
+
+- **Le numéro de version affiché peut mentir d'une version.** `version.js` est chargé sans
+  anti-cache et `sw.js` met en cache tout ce qui finit par `.js` ; le HTML, lui, n'est jamais mis en
+  cache. Après une publication : page neuve, badge ancien, pendant un chargement. **Conséquence
+  pratique : ne jamais diagnostiquer à partir du badge** — dire à un MAR « recharge et lis le
+  numéro » produit un faux négatif. Correctif d'une ligne, à faire après le 4.
+- **Le repli n'a aucun garde-fou de charge.** Aucune temporisation aléatoire dans `index.html` ni
+  `dashboard.html` : si la copie rapide tombe, les 23 téléphones basculent sur Apps Script **dans la
+  même minute**, sur un seul compte Google — et une notification push synchronise tout le monde par
+  construction. La copie rapide, elle, traite les clés en parallèle, sans file. **Décision d'Arthur :
+  ne rien faire, on fait confiance à Cloudflare.** Signe distinctif le jour d'une panne : plusieurs
+  personnes bloquées **simultanément** — attendre, ne pas chercher un défaut de code.
+- **Aucune capture d'erreur navigateur dans le dépôt** (pas un `window.onerror`, pas un
+  `unhandledrejection`) : un plantage sur le téléphone d'un MAR ne laisse **aucune trace**. Aucun
+  bouton de signalement. Propositions faites (capteur, bandeau n'apparaissant que pendant une panne,
+  entrée sur la page d'accueil pour les erreurs *silencieuses* — celles où la page a parfaitement
+  fonctionné en affichant une donnée fausse, que rien ne peut détecter automatiquement) :
+  **toutes écartées.** Arthur commence par **message + capture d'écran**, et décidera sur deux ou
+  trois semaines de remontées réelles.
+
+### Erreur de méthode du jour, à ne pas répéter
+
+J'ai présenté à Arthur les noms dans le dépôt public comme une découverte. **C'était déjà écrit dans
+la ROADMAP le 17/08** (« Constaté et non traité »). Je ne l'avais pas lue. *Lire avant d'affirmer*
+vaut aussi pour les documents du projet, pas seulement pour le code — et l'inventaire des documents
+se fait **avant** d'annoncer un constat, pas après.
+
+---
+
 ## État au 19 août 2026 (midi) — v1.61 : dépôt nettoyé, l'affaire PRUNET close, banc à 1449
 
 **Versions** : site **v1.61** · `Indispos.gs` **2026-08-19.1** (déployé, confirmé au Diagnostic

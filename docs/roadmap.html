@@ -147,7 +147,7 @@
     <h2>État vérifié</h2>
     <div class="etat-grid">
       <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1404 <small>vérifs · 29 scripts</small></div></div>
+      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1464 <small>vérifs · 30 scripts</small></div></div>
       <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
       <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
     </div>
@@ -163,7 +163,7 @@
       <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-17.2</div></div>
     </div>
   </div>
-  <p class="verif">Relevé dans le dépôt et le banc exécuté — 19 août 2026, midi · <b>tout est déployé et confirmé en production</b>, y compris la création des lignes d'affectations manquantes, vérifiée dans le classeur (26 lignes, journal « 2 ligne(s) créée(s) »).</p>
+  <p class="verif">Relevé dans le dépôt et le banc exécuté — 19 août 2026, fin de journée · <b>tout est déployé et confirmé en production</b>, y compris la création des lignes d'affectations manquantes, vérifiée dans le classeur (26 lignes, journal « 2 ligne(s) créée(s) »).</p>
 
   <div class="avance">
     <p class="titre">Le développement est fini.</p>
@@ -171,7 +171,7 @@
 
     <div class="avance-chiffres">
       <div><b>12</b><span>modules en service</span></div>
-      <div><b>1 449</b><span>vérifications auto.</span></div>
+      <div><b>1 464</b><span>vérifications auto.</span></div>
       <div><b>0</b><span>à développer</span></div>
       <div><b id="jmoins">—</b><span>avant le staff</span></div>
     </div>
@@ -335,6 +335,8 @@
     <h4>Livré ces dernières semaines <span class="tag t-green">10 au 19 août 2026</span></h4>
     <p>Le détail de chacun, avec les mesures et les défauts corrigés en chemin, est dans <code>docs/ROADMAP-Planning-CHPG.md</code>. Ici, l'essentiel :</p>
     <ul>
+      <li><b>Le CR d'anesthésie ne s'affiche plus sur téléphone</b> (19/08) — le générateur se remplit par dizaines de pastilles et finit par un copier-coller vers le DPI : aucun usage sur un mobile, où la tuile ne faisait qu'allonger la liste du portail. Elle reste sur ordinateur. Sur tablette, si l'écran est pivoté après l'ouverture de la page, recharger pour la voir réapparaître (v1.64).</li>
+      <li><b>Le document « Si l'interface tombe » remis à jour</b> (19/08) — il annonçait deux sauvegardes du classeur ; il y en a trois, dont une sur un second compte qui est la seule à survivre à la perte du compte du planning. Il ignorait aussi les échanges de gardes et le module libéral dans « ce qui s'arrête », et le délai d'une minute entre une validation et son affichage — le motif le plus fréquent de double validation inutile.</li>
       <li><b>Enregistrer les affectations crée les lignes manquantes</b> (19/08) — un MAR affiché « volant » sans ligne dans l'onglet (PRUNET) était ignoré en silence à l'enregistrement, avec un journal qui comptait les données reçues et non les lignes écrites. Corrigé aux deux étages (serveur et page, garde-fou contre la grille vide), prouvé au banc chaîne complète — et le dépôt a été nettoyé de ~500 lignes de code mort au passage (v1.59→v1.61).</li>
       <li><b>Échanges et dons de gardes</b> (13/08) — un MAR propose depuis son téléphone, l'autre accepte, <b>le planning s'écrit tout seul</b>, sans le comité. Sans réponse : expiration à 48 h, rappel à 24 h, rien de modifié. Un samedi donné emmène sa récupération, par transfert d'un repos existant. Éprouvé à deux en conditions réelles ; cinq défauts trouvés en production, tous corrigés et verrouillés au banc. Le comité n'est prévenu, par mail, que dans un seul cas : une récupération qui ne peut pas suivre son samedi.</li>
       <li><b>Échange de deux gardes qui se suivent</b> (12/08) — lundi contre mardi était refusé à tort : le programme jugeait la situation de départ, pas celle d'arrivée. Passe désormais dans les deux sens, avec neuf scénarios au banc.</li>

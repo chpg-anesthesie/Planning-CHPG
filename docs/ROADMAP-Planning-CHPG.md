@@ -4,7 +4,7 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.61** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.64** ·
 **GAS** (relevé fichier par fichier dans le dépôt le 19/08/2026) `code.gs` 2026-08-05.3 ·
 `Indispos.gs` 2026-08-19.1 · `miroir.gs` 2026-08-17.4 · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-17.3 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
@@ -39,14 +39,17 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **1449 vérifications** sur 30 scripts (relevé le 19/08/2026, midi),
-`cd banc && ./lancer.sh`. *(Comptage : somme des récapitulatifs de fin de chaque script, MOINS le
-sous-total de 9 que `banc.js` imprime au milieu et réintègre ensuite dans son propre total de 19,
-PLUS `banc_notif.mjs` qui compte au format `35 ✓ / 0 ✗`. Recompter, ne pas recopier.)*
+**Banc d'essai** `banc/` — **1464 vérifications** sur 30 scripts (relevé le 19/08/2026, fin de
+journée), `cd banc && ./lancer.sh`. *(Comptage — **recette corrigée le 19/08 au soir** : compter les
+coches `✓` de la sortie complète, et rien d'autre. L'ancienne recette — somme des récapitulatifs de
+fin de script — donnait 1444 et **ne reproduisait plus son propre chiffre** : `banc.js` n'imprime
+plus de récapitulatif du tout, ses 19 vérifications échappaient donc à la somme, et `banc_notif.mjs`
+en annonce 36 pour 37 coches. Une recette de comptage qu'il faut corriger avant de s'en servir est
+une recette morte. Recompter, ne pas recopier.)*
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 19 août 2026 (midi).*
+*Mise à jour : 19 août 2026 (fin de journée).*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -81,6 +84,102 @@ autant de lignes dans `LIENS_R_2027` que de samedis tenus, Diagnostic à zéro r
 génération**, le soir même, et non plus le matin du 4. Les deux gestes sont indissociables — interrompu
 entre les deux (garde), le bac à sable reste généré et le 4 l'assistant réafficherait ce résultat sans
 calculer, en silence. Le matin du 4 ne garde plus qu'un contrôle, les adresses et le Diagnostic.
+
+---
+
+## 19 août 2026 (soir) — v1.64 : la tuile CR quitte le mobile, et le document de panne rattrape neuf mois
+
+Commit unique `433974c7f9`, cinq fichiers. Séance de lecture plus que d'écriture : l'essentiel du
+temps est parti à vérifier des affirmations, dont plusieurs se sont révélées fausses — y compris
+les miennes.
+
+### La tuile « CR d'anesthésie » ne s'affiche plus sous 768 px
+
+Constat d'Arthur : le générateur de comptes-rendus se remplit par dizaines de pastilles à cliquer et
+se termine par un copier-coller vers le DPI. Personne ne rédige un CR depuis un téléphone ; la tuile
+n'y faisait qu'allonger la liste du portail.
+
+Mise en œuvre : un marqueur `pc:true` sur la tuile, et **une condition de plus dans le filtre qui
+existait déjà** (`renderTiles`, qui gère `only`, `campagne` et `liberal`). Aucune mécanique nouvelle.
+Seuil **768 px**, celui de `isMobile` dans `index.html` — deux seuils différents feraient dire deux
+choses à « petit écran » selon la page.
+
+**Limite connue et acceptée (Arthur, 19/08) :** le filtre mesure la largeur **au chargement**. Une
+tablette pivotée du portrait au paysage ne fait pas réapparaître la tuile avant rechargement. Ne
+concerne ni les téléphones (toujours sous le seuil, dans les deux sens) ni les PC. Recharger suffit.
+
+**Scénario 29 du banc** (`banc_pages_mar.js`) : il **extrait du fichier livré** le tableau des tuiles
+et la ligne de filtrage, puis les exécute à deux largeurs. Recopier le filtre dans le test aurait
+prouvé le test, pas la page. Vérifie aussi qu'**aucune autre tuile** ne disparaît — une condition mal
+placée masquerait le planning sur mobile, panne invisible à qui développe sur grand écran.
+Contre-épreuves : filtre retiré → 3 échecs · seuil porté à 1024 → 2 · `pc` posé par erreur sur
+« Mes congés » → 2.
+
+### `robots.txt` affirmait le contraire de la vérité
+
+Le fichier annonçait depuis sa création que « les données nominatives sont hors du dépôt public ».
+**C'est faux :** `cr-anesthesie/data.js` porte les 23 noms du service, et le générateur de CR est une
+page **100 % statique, sans code d'accès** — vérifié : zéro occurrence de session, d'authentification
+ou d'appel serveur dans ses sept fichiers. Qui connaît l'adresse entre.
+
+Décision d'Arthur : **laisser les noms, corriger le fichier qui ment.** Ce sont des praticiens
+hospitaliers, publics par ailleurs ; il n'y a ni donnée patient, ni montant, ni code. Le `robots.txt`
+dit désormais ce qui est.
+
+> **Erreur de méthode, à consigner.** J'ai présenté ce constat à Arthur comme une découverte. Il
+> était **déjà écrit dans cette ROADMAP le 17/08**, section « Constaté et non traité : des noms dans
+> un dépôt public ». Je ne l'avais pas lue. La règle du projet dit de lire avant d'affirmer ; elle
+> vaut aussi pour les documents du projet, et pas seulement pour le code.
+
+### `docs/si-ca-tombe.html` — quatre mises à jour, dont un chiffre faux
+
+Le document de continuité était juste sur l'ossature (les quatre gestes, l'onglet renommé, le mode
+dégradé, les cinq gestes interdits, le calendrier des périodes sensibles) et en retard sur le reste :
+
+1. **Symptôme absent : « j'ai validé, rien ne bouge ».** Depuis le journal d'intentions (05/08), une
+   validation peut mettre jusqu'à une minute à s'afficher. Ajouté au tableau, avec un encadré rouge
+   **ne jamais revalider** — deux validations, c'est deux fois le même changement dans la file.
+2. **Un chiffre faux.** Le document annonçait « deux sauvegardes du classeur, lundi 4 h et une le
+   dimanche ». Relevé dans le code : lundi 4 h = copie du classeur ; **dimanche 5 h = copie sur un
+   second compte**, la seule qui survivrait à la perte du compte du planning ; **dimanche 3 h = copie
+   du programme**, que le document ignorait entièrement. Trois lignes de tableau, avec ce que chacune
+   protège.
+3. **Deux tâches automatiques annoncées, neuf réellement programmées** (relevé par `newTrigger` dans
+   les `.gs`).
+4. **« Ce qui s'arrête » ignorait les échanges de gardes et le module libéral**, tous deux entrés en
+   service depuis l'écriture du document. Ajoutés, avec le cas des propositions d'échange en attente
+   qui expirent d'elles-mêmes pendant une panne.
+
+### Deux constats de lecture, non traités
+
+- **Le numéro de version affiché peut mentir d'une version.** Les pages chargent `version.js` sans
+  anti-cache, et `sw.js` met en cache tout ce qui finit par `.js` : le fichier est servi depuis le
+  téléphone puis rafraîchi en arrière-plan. Le HTML, lui, n'est jamais mis en cache. Conséquence :
+  après une publication, la page est neuve et le badge affiche encore l'ancien numéro, pendant un
+  chargement. C'est précisément au moment où l'on s'appuie dessus pour diagnostiquer qu'il trompe.
+  Correctif tenant en une ligne (paramètre changeant, ou exclusion de ce seul fichier du cache) —
+  **non fait, gel du code avant le 4.**
+- **Le repli n'a aucun garde-fou de charge.** Vérifié : pas une temporisation aléatoire dans
+  `index.html` ni `dashboard.html`. Si la copie rapide tombe, les 23 téléphones basculent sur Apps
+  Script **en même temps**, sur un seul compte Google — et une notification push, par construction,
+  synchronise tout le monde dans la même minute. La copie rapide, elle, traite les clés en parallèle
+  et ne connaît pas de file. **Décision d'Arthur : ne rien faire, on fait confiance à Cloudflare.**
+  Le risque n'existe que le jour d'une panne du relais. Signe distinctif ce jour-là : plusieurs
+  personnes bloquées **dans la même minute** — attendre, ne pas chercher un défaut de code.
+
+### Remontée des bugs après l'ouverture : capture d'écran, et rien de plus pour l'instant
+
+Discussion sur l'après-4-septembre. Constat de lecture : **aucune capture d'erreur navigateur** dans
+le dépôt (pas un `window.onerror`, pas un `unhandledrejection`) — un plantage sur le téléphone d'un
+MAR ne laisse aucune trace. Aucun bouton de signalement non plus. Ce qui existe déjà : le journal
+consigne chaque écriture du comité avec son résultat, échecs compris, dans un registre de 90 jours
+que le Diagnostic signale.
+
+Propositions faites (capteur d'erreurs, bandeau de signalement n'existant que pendant une panne,
+entrée sur la page d'accueil pour les erreurs silencieuses) — **toutes écartées pour l'instant.**
+Arthur commence par demander aux MARs un message avec capture d'écran. Choix délibérément empirique :
+deux ou trois semaines de remontées réelles diront quels défauts arrivent vraiment et sous quelle
+forme, là où toute conception a priori resterait une supposition. À reprendre ensuite, sur du réel.
 
 ---
 
@@ -398,6 +497,12 @@ Décision d'Arthur : les **autres** membres gardent le décalage de 1–2 min su
 Le nom d'Arthur apparaît en clair dans **dix fichiers** (commentaires, exemples, données du
 simulateur). Le dépôt est public et son historique définitif ; la règle du projet est explicite.
 Chantier à part, non ouvert ici.
+
+> **Suite le 19/08/2026 (soir).** Le constat était plus large que « dix fichiers » :
+> `cr-anesthesie/data.js` porte **la liste nominative des 23 praticiens**. Arthur a tranché : on
+> **laisse** les noms — praticiens hospitaliers, publics par ailleurs, et il n'y a ni donnée patient,
+> ni montant, ni code — et on corrige le `robots.txt`, qui affirmait l'inverse. Le chantier « sortir
+> les noms du dépôt » est donc **fermé, par décision**, et non plus en attente.
 
 ---
 
