@@ -147,31 +147,31 @@
     <h2>État vérifié</h2>
     <div class="etat-grid">
       <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1464 <small>vérifs · 30 scripts</small></div></div>
+      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1537 <small>vérifs · 32 scripts</small></div></div>
       <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
       <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
     </div>
     <div class="etat-grid" style="margin-top:16px">
       <div><div class="etat-k">code.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
       <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-19.1</div></div>
-      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.4</div></div>
+      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-20.1</div></div>
       <div><div class="etat-k">veille.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.5</div></div>
       <div><div class="etat-k">portail.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.3</div></div>
       <div><div class="etat-k">journal.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
       <div><div class="etat-k">generateur.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.1</div></div>
       <div><div class="etat-k">echanges.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.3</div></div>
-      <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-17.2</div></div>
+      <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-20.1</div></div>
     </div>
   </div>
-  <p class="verif">Relevé dans le dépôt et le banc exécuté — 19 août 2026, fin de journée · <b>tout est déployé et confirmé en production</b>, y compris la création des lignes d'affectations manquantes, vérifiée dans le classeur (26 lignes, journal « 2 ligne(s) créée(s) »).</p>
+  <p class="verif">Relevé dans le dépôt et le banc exécuté — 20 août 2026 · <b>⚠️ deux recopies en attente</b> : <code>miroir.gs</code> dans l'éditeur Apps Script (puis déployer une nouvelle version) et <code>worker.js</code> dans le tableau de bord Cloudflare. Tant qu'elles ne sont pas faites, <b>l'ancien code tourne</b> et les deux corrections du 20/08 sont sans effet. Le reste est déployé et confirmé en production.</p>
 
   <div class="avance">
     <p class="titre">Le développement est fini.</p>
-    <p class="sous">Il ne reste <b>aucune ligne de code à écrire</b> avant le 4 septembre. Ce qui suit, ce sont des gestes.</p>
+    <p class="sous">Il ne reste <b>aucune ligne de code à écrire</b> avant le 4 septembre — hors incident. Le 20 août en a été un : les plafonds gratuits de la copie rapide étaient atteints chaque jour vers 17 h, et les publications du comité restaient en rade jusqu'à 2 h du matin. Corrigé, à recopier. Ce qui suit, ce sont des gestes.</p>
 
     <div class="avance-chiffres">
       <div><b>12</b><span>modules en service</span></div>
-      <div><b>1 464</b><span>vérifications auto.</span></div>
+      <div><b>1 537</b><span>vérifications auto.</span></div>
       <div><b>0</b><span>à développer</span></div>
       <div><b id="jmoins">—</b><span>avant le staff</span></div>
     </div>
@@ -182,6 +182,7 @@
     <div class="jauge-lg"><span>8 jalons franchis</span><span>5 gestes restants</span></div>
 
     <ul class="reste">
+      <li><span class="q">tout de suite</span><span>Recopier <code>miroir.gs</code> (Apps Script) et <code>worker.js</code> (Cloudflare), puis relever les compteurs le lendemain matin.</span></li>
       <li><span class="q">cette semaine</span><span>Finir la recette : le parcours des échanges (deux téléphones), les conflits de vacances, l'assistant de départ.</span></li>
       <li><span class="q">1<sup>er</sup> sept.</span><span>Répétition générale, seul, pendant la garde — génération puis effacement dans la foulée.</span></li>
       <li><span class="q">4 sept. matin</span><span>Coller les 24 adresses mail (préparées d'avance dans une colonne de garage de MEDECINS), lancer le Diagnostic, puis envoyer les codes à 12h30.</span></li>

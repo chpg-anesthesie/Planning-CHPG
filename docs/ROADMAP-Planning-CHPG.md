@@ -6,12 +6,19 @@ portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'ane
 
 **Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.64** ·
 **GAS** (relevé fichier par fichier dans le dépôt le 19/08/2026) `code.gs` 2026-08-05.3 ·
-`Indispos.gs` 2026-08-19.1 · `miroir.gs` 2026-08-17.4 · `journal.gs` 2026-08-05.3 ·
+`Indispos.gs` 2026-08-19.1 · `miroir.gs` **2026-08-20.1** · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-17.3 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
 `echanges.gs` 2026-08-14.3 · `generateur_gardes.gs` 2026-08-14.1 · `setup_annee.gs` 2026-08-08.1 ·
-**Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-17.2'` — **seule** version
+**Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-20.1'` — **seule** version
 écrite dans le fichier depuis le 16/08 (le commentaire d'en-tête qui la doublait a été supprimé,
 le banc refuse qu'un second numéro réapparaisse).
+
+⚠️ **DEUX RECOPIES EN ATTENTE au 20/08.** `miroir.gs` **2026-08-20.1** → éditeur Apps Script, puis
+**déployer une nouvelle version**. `cloudflare/worker.js` **miroir 2026-08-20.1** → tableau de bord
+Cloudflare (Workers → `chpg-miroir` → Edit code → Deploy). Les deux sont **indépendants** : aucun
+ordre imposé, l'un sans l'autre ne casse rien. Tant qu'ils ne sont pas faits, l'ancien code tourne
+et les corrections sont sans effet. Contrôle du Worker : son adresse racine doit répondre
+`miroir 2026-08-20.1`.
 
 ✅ **RIEN EN ATTENTE au 19/08 (midi).** `Indispos.gs` **2026-08-19.1** recopié et déployé le
 19/08 au matin, **confirmé par le 🔍 Diagnostic de 11:12** ; site **v1.61** ; quatre commits dans
@@ -39,8 +46,12 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **1464 vérifications** sur 30 scripts (relevé le 19/08/2026, fin de
-journée), `cd banc && ./lancer.sh`. *(Comptage — **recette corrigée le 19/08 au soir** : compter les
+**Banc d'essai** `banc/` — **1537 vérifications** sur 32 scripts (relevé le 20/08/2026),
+`cd banc && ./lancer.sh`. *(⚠️ La recette du 19/08 disait « compter les coches `✓` de la sortie
+complète ». Appliquée telle quelle — `grep -c "✓"` — elle donne **1538** : elle compte aussi la
+ligne récapitulative de `banc_notif.mjs`, qui contient « 36 ✓ / 0 ✗ ». La recette exacte est de
+compter les **lignes de coche**, `grep -cE "^\s+✓ "`. Même écart sur les échecs : `grep -c "✗"`
+rend 1 alors qu'il n'y en a aucun. Deuxième correction de cette recette en deux jours.)* *(Comptage — **recette corrigée le 19/08 au soir** : compter les
 coches `✓` de la sortie complète, et rien d'autre. L'ancienne recette — somme des récapitulatifs de
 fin de script — donnait 1444 et **ne reproduisait plus son propre chiffre** : `banc.js` n'imprime
 plus de récapitulatif du tout, ses 19 vérifications échappaient donc à la somme, et `banc_notif.mjs`
@@ -49,7 +60,7 @@ une recette morte. Recompter, ne pas recopier.)*
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 19 août 2026 (fin de journée).*
+*Mise à jour : 20 août 2026.*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -84,6 +95,149 @@ autant de lignes dans `LIENS_R_2027` que de samedis tenus, Diagnostic à zéro r
 génération**, le soir même, et non plus le matin du 4. Les deux gestes sont indissociables — interrompu
 entre les deux (garde), le bac à sable reste généré et le 4 l'assistant réafficherait ce résultat sans
 calculer, en silence. Le matin du 4 ne garde plus qu'un contrôle, les adresses et le Diagnostic.
+
+---
+
+## 20 août 2026 — les plafonds gratuits de Cloudflare étaient atteints tous les jours, et personne ne le voyait
+
+Deux commits : `0537b89a86` (5 fichiers, l'envoi différentiel du miroir) et `60e7b99ce2`
+(4 fichiers, le drapeau de la file). **Aucune page visible touchée : le site reste en v1.64.**
+Séance déclenchée par un mail Cloudflare, pas par une demande de fonctionnalité.
+
+### Le point de départ : un mail d'alerte à 50 %
+
+Alerte reçue par Arthur à 10h54 : « 50 % du plafond quotidien Workers KV ». Relevé du tableau de
+bord à 11h38 (soit **09h38 UTC**, 578 minutes de journée écoulées) :
+
+| Compteur | Consommé | Plafond gratuit | Projection à minuit |
+|---|---|---|---|
+| Ouvertures de file (*list*) | 640 | 1 000 | ~1 590 — **dépassé vers 17 h** |
+| Écritures (*write*) | 380 | 1 000 | ~950 — frôlé |
+| Suppressions | 70 | 1 000 | ~175 |
+| Lectures | 0 *(voir plus bas)* | 100 000 | — |
+
+Les plafonds sont **durs** : au-delà, l'opération échoue en 429, jusqu'à minuit UTC — **2 h du
+matin heure de Monaco**.
+
+### Ce que ça provoquait réellement, et qui n'était visible nulle part
+
+Le chemin coupé n'était pas la consultation (les lectures sont à 0,1 % du plafond) mais **le
+relevé de la file d'attente du comité**. `journal.gs` installe un déclencheur `everyMinutes(1)` qui
+appelle `/tirer` ; `/tirer` faisait un `KV.list` **à chaque passage, file vide ou non** : 1 440 par
+jour pour un plafond de 1 000. Passé ~17 h, plus rien n'était relevé.
+
+Scène type : le comité publie à 17h15. La page dépose la fiche (le dépôt, lui, fonctionne),
+affiche *« Publication en route… vous pouvez fermer cette page »*, et la pastille passe au vert.
+**La fiche dort alors jusqu'à 2 h du matin.** Les MARs qui consultent dans la soirée lisent
+l'ancien planning — pas une erreur, pas un vide : une version périmée, indiscernable de la bonne.
+
+**Aucune trace nulle part** : `journal.gs` ligne 105 fait `if (rep.getResponseCode() !== 200)
+return;` — abandon silencieux, pas même une ligne de LOGS. C'est exactement la famille de défauts
+que la doctrine du projet interdit, et elle était au cœur du circuit le plus critique.
+
+**Lien avec la pastille orange signalée le 19/08.** Une pastille « À publier » qui revient à
+l'orange après une publication est le symptôme littéral de ce blocage : `reconcileOverrides()`
+compare les modifications locales au planning publié ; si la publication n'a jamais été appliquée,
+l'écart persiste et la pastille se rallume. **Compatible, non prouvé** — les traces Cloudflare ne
+sont pas accessibles par le connecteur.
+
+### Correction 1 — l'envoi différentiel du miroir (`miroir.gs` 2026-08-20.1)
+
+`miroirSyncComplet` renvoyait ses ~29 clés **chaque heure, identiques ou non** : un dimanche sans
+une seule modification coûtait autant qu'un mardi de réunion. Le compteur de courrier, réécrit
+toutes les 5 minutes, en dépensait ~288 à lui seul pour une pastille qui ne bouge pas.
+
+`_miroirEnvoyer_` retient désormais l'empreinte de ce qui a été **réellement écrit** et ne renvoie
+que ce qui a bougé. Le correctif est posé dans la fonction d'envoi, donc il couvre **tous** les
+appelants d'un coup — les deux correctifs envisagés séparément (badge courrier, synchro horaire)
+n'en faisaient qu'un.
+
+**Le défaut qui a failli passer : six clés portent un horodatage régénéré à chaque construction**
+(`acces`, `config_admin`, `mail_nonlus`, `ordre_vac`, `veille_marques`, `indispos_{Y}`). Leur
+empreinte aurait changé à chaque fois : le filtre n'aurait rien fait **précisément sur les six
+clés les plus fréquentes**. L'empreinte est donc calculée sans ces champs ; la valeur envoyée
+n'est pas touchée. Vérifié par lecture de `admin.html`, `index.html`, `dashboard.html` : aucune
+page ne lit `t` ni `maj` — seul `mail_nonlus.nonLus` est consommé.
+
+Trois garde-fous, chacun contre une façon de figer une donnée :
+1. **L'empreinte n'est retenue que pour les clés que le Worker déclare avoir traitées** (`ecrits`,
+   `supprimes`). Une clé refusée — ou un Worker ancien qui ne détaille pas sa réponse — ne laisse
+   aucune empreinte et repart au passage suivant. *La dégradation va vers le renvoi, jamais vers
+   le silence.*
+2. **Une suppression n'est jamais filtrée.** Effacer une clé déjà absente est sans effet ; ne pas
+   l'effacer laisserait une donnée périmée servie à 23 MARs.
+3. **Oubli complet des empreintes à la synchro de 4 h** : tout repart sans condition, ~29
+   écritures une fois par nuit. Filet contre une dérive invisible d'ici (miroir vidé à la main,
+   écriture perdue). Fonction manuelle : `miroirOublierEmpreintes`.
+
+Mesure au banc : **24 synchros sans modification = 18 écritures au lieu de 432.**
+
+### Correction 2 — le drapeau de la file (`worker.js` miroir 2026-08-20.1)
+
+`/ecrire` pose la clé `jsignal` **en même temps** que la fiche (`Promise.all` : aucune milliseconde
+ajoutée au geste du comité). `/tirer` la lit — plafond des lectures 100 000/jour, cent fois plus
+large — et n'ouvre la file que si elle existe, **ou une minute sur trois**.
+
+**Le filet n'est pas une précaution de confort.** Une lecture KV peut servir une valeur vieille de
+60 secondes, y compris « absent » alors que le drapeau vient d'être levé ailleurs. Comme le
+drapeau est interrogé chaque minute depuis le même endroit, un cache négatif est probable : il se
+peut que le filet devienne le chemin dominant et qu'une publication mette **1 à 3 minutes** au
+lieu d'une. Ce serait conforme à ce que l'écran promet déjà (« sous 2 à 3 minutes ») et sans
+commune mesure avec le blocage jusqu'à 2 h du matin — **mais ce n'est mesurable qu'en
+production**. Si c'est trop lent : passer `J_FILET_MINUTES` à 2 (720 ouvertures/jour, toujours
+sous le plafond).
+
+**Ordre des gestes, non négociable : le drapeau est baissé AVANT l'ouverture, jamais après.** Une
+fiche arrivée pendant l'ouverture relève donc le drapeau et sera vue au passage suivant. L'inverse
+perdrait exactement cette fiche-là. Une fiche vue deux fois est sans conséquence (idempotence, cf.
+`journal.gs`) ; une fiche jamais vue serait une publication perdue.
+
+**Aucun changement Apps Script** : la réponse de `/tirer` garde la même forme, un applicateur
+ancien fonctionne à l'identique. Les fiches déposées avant le déploiement (qui n'ont jamais eu de
+drapeau) sont relevées par le filet.
+
+Mesure au banc, journée complète simulée (1 440 passages, 40 gestes du comité) :
+
+| | Avant | Après | Plafond |
+|---|---|---|---|
+| Ouvertures de file | 1 440 | **480** | 1 000 |
+| Écritures ajoutées | — | 80 | 1 000 |
+| Suppressions | — | 40 | 1 000 |
+| Lectures | — | 1 520 | 100 000 |
+
+### Le banc : deux scripts, 74 vérifications, six contre-épreuves
+
+`banc/banc_miroir_diff.js` (30) et `banc/banc_journal_signal.mjs` (44), tous deux ajoutés à
+`lancer.sh`. Le second exécute le **vrai `worker.js`** face à un KV simulé qui **compte chaque
+opération** — c'est ce comptage qui prouve le gain, pas une estimation.
+
+Contre-épreuves systématiques : neutralisation des horodatages retirée → 4 échecs · empreintes
+posées sur les clés refusées → 1 · suppressions filtrées → 1 · drapeau baissé après l'ouverture →
+3, dont « aucune fiche perdue » · filet supprimé → 4 · drapeau non posé au dépôt → 5.
+
+Effet de bord attrapé par le banc : `banc_synchro.js` cassait sur le nouveau mécanisme — adapté.
+
+### Pourquoi pas le plan payant à 5 $/mois
+
+Écarté par Arthur : « j'aimerais bien quelque chose de full gratuit quand même ». Le plan Workers
+Paid ferait sauter les trois plafonds sans une ligne de code. **À garder en tête si les compteurs
+remontent** — notamment après le déménagement NCHPG ou l'ouverture du module libéral aux 19
+membres.
+
+### Ce qui reste ouvert
+
+- **⚠️ Une publication coincée ne le dit toujours pas.** Les deux correctifs suppriment la cause la
+  plus fréquente ; une coupure réseau ou une panne Google produiraient le même silence. Le message
+  dit « vous pouvez fermer cette page », la pastille passe au vert, et rien ne contredit.
+  Correctif de fond : que la page vérifie que sa fiche a quitté la file et le signale sinon.
+  **Après le 4 septembre.**
+- **Le compteur « Read » du tableau de bord affichait 0** alors que les pages sont consultées. Ne
+  s'explique pas par le code. Soit la vue ne compte pas les lectures faites depuis un Worker, soit
+  la métrique est en retard. **Non vérifié** — le connecteur Cloudflare ne donne pas les métriques.
+  Sans effet sur le diagnostic, mais à ne pas prendre pour un constat.
+- **À relever le lendemain matin**, même heure : les ouvertures de file doivent être nettement sous
+  640, et les écritures sous 380. Si elles ne bougent pas, c'est que les recopies n'ont pas été
+  faites.
 
 ---
 

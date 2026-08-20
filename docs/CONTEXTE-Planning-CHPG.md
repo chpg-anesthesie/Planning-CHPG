@@ -11,6 +11,73 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 20 août 2026 — les plafonds gratuits de Cloudflare, et une panne quotidienne que rien ne signalait
+
+**Versions** : site **v1.64 inchangé** (aucune page visible touchée) · deux commits `0537b89a86` et
+`60e7b99ce2` · banc **1537 vérifications / 32 scripts**.
+**⚠️ DEUX RECOPIES EN ATTENTE** — `miroir.gs` **2026-08-20.1** dans l'éditeur Apps Script (puis
+déployer une nouvelle version) et `cloudflare/worker.js` **miroir 2026-08-20.1** dans le tableau de
+bord Cloudflare. Indépendants, aucun ordre imposé. Tant qu'ils ne sont pas faits, l'ancien code
+tourne.
+
+**Le fait central** : les plafonds gratuits Workers KV sont de **1 000 par jour** pour les
+écritures, les suppressions et les ouvertures de file — et de 100 000 pour les lectures. Le
+déclencheur `everyMinutes(1)` de `journal.gs` faisait **1 440 ouvertures par jour**. Le plafond
+tombait vers 17 h, **tous les jours**, et plus rien n'était relevé jusqu'à 2 h du matin : le comité
+publiait, l'écran disait « publication en route », la fiche dormait. Sans **aucune trace** —
+`journal.gs` abandonne en silence sur une réponse ≠ 200.
+
+- **Envoi différentiel du miroir** (`_miroirEnvoyer_`) : empreinte de ce qui a été **réellement
+  écrit**, on ne renvoie que ce qui a bougé. Posé dans la fonction d'envoi, donc **tous** les
+  appelants d'un coup. Mesure : 24 synchros sans modification = **18 écritures au lieu de 432**.
+- **Drapeau de la file** (`worker.js`) : `/ecrire` pose `jsignal` avec la fiche, `/tirer` ne
+  fouille que si le drapeau est levé — **ou une minute sur trois**. **480 ouvertures/jour au lieu
+  de 1 440.** Aucun changement Apps Script.
+- **Plan payant à 5 $/mois écarté par Arthur** (« full gratuit »). À reproposer seulement si les
+  compteurs remontent — déménagement NCHPG, ouverture du libéral aux 19 membres.
+
+### Règles gravées ce jour
+
+- **Une empreinte ne se pose que sur ce que le serveur déclare avoir traité.** Un Worker muet, une
+  clé refusée, un envoi en échec : aucune empreinte, la donnée repart. *La dégradation va toujours
+  vers le renvoi, jamais vers le silence.*
+- **Une suppression ne se filtre jamais.** Effacer deux fois est sans effet ; ne pas effacer laisse
+  une donnée périmée servie à 23 MARs.
+- **Tout mécanisme différentiel s'accompagne d'une remise à zéro périodique.** Ici l'oubli des
+  empreintes à 4 h (~29 écritures/nuit) : aucun écart ne peut durer plus de 24 h.
+- **Un drapeau se baisse AVANT d'ouvrir la file, jamais après.** Une fiche arrivée pendant
+  l'ouverture relève le drapeau et sera vue au passage suivant ; l'inverse la perdrait. Une fiche
+  vue deux fois est sans conséquence, une fiche jamais vue est une publication perdue.
+- **Une lecture chez Cloudflare peut être vieille de 60 secondes, y compris « absent ».** Tout
+  mécanisme qui dépend d'une valeur fraîchement écrite exige un filet temporel.
+- **Chercher où poser le correctif avant de le poser.** Deux correctifs distincts (badge courrier,
+  synchro horaire) n'en faisaient qu'un, une fois posé dans la fonction d'envoi commune.
+- **Compter les opérations, pas les estimer.** Le banc du Worker exécute le vrai code face à un KV
+  qui compte chaque `get`/`put`/`delete`/`list`. C'est le comptage qui prouve le gain.
+
+### Recette de comptage du banc — corrigée une deuxième fois
+
+La règle du 19/08 (« compter les coches `✓` de la sortie complète ») appliquée littéralement par
+`grep -c "✓"` donne **1538** : elle compte aussi la ligne récapitulative de `banc_notif.mjs`, qui
+contient « 36 ✓ / 0 ✗ ». Même écart sur les échecs (`grep -c "✗"` rend 1 alors qu'il n'y en a
+aucun). **Recette exacte : compter les lignes de coche**, `grep -cE "^\s+✓ "` → **1537**.
+
+### Constatés, NON traités
+
+- **⚠️ Une publication coincée ne le dit toujours pas.** Les deux correctifs suppriment la cause la
+  plus fréquente, pas le défaut : une coupure réseau ou une panne Google produiraient le même
+  silence. L'écran dit « vous pouvez fermer cette page », la pastille passe au vert. La pastille
+  « À publier » qui revient à l'orange en est le seul indice, et il faut la remarquer. Correctif de
+  fond à faire **après le 4 septembre**.
+- **Le compteur « Read » affichait 0** au tableau de bord alors que les pages sont consultées. Ne
+  s'explique pas par le code lu. **Non vérifié** (le connecteur Cloudflare ne donne pas les
+  métriques) — à ne pas prendre pour un constat.
+- **Latence réelle du drapeau inconnue.** Si le cache négatif de 60 s le mange systématiquement, le
+  filet devient le chemin dominant et une publication prend 1 à 3 min au lieu d'une. Mesurable
+  uniquement en production : publier et chronométrer. Réglage : `J_FILET_MINUTES` à 2 si besoin.
+
+---
+
 ## État au 19 août 2026 (fin de journée) — v1.64 : tuile CR hors mobile, doc de panne rattrapé, banc à 1464
 
 **Versions** : site **v1.64** · commit unique `433974c7f9` (5 fichiers) · banc **1464 vérifications /
