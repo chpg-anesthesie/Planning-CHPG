@@ -618,7 +618,12 @@ deux côtés (<code>CLE_VALIDE</code>) — garde-fou contre les fautes de frappe
 « quelle écriture rafraîchit quelles copies » s'appelle <code>MIROIR_APRES_ECRITURE</code>
 (miroir.gs) ; principe : recopier un peu trop large plutôt que trop étroit. Le grand rangement :
 <code>miroirSyncComplet</code> (déclencheur horaire, installé par
-<code>miroirInstallerDeclencheur</code>). La garde anti-périmé des écrans d'édition : 90 secondes
+<code>miroirInstallerDeclencheur</code>). <b>Envoi différentiel (20/08/2026)</b> : le serveur
+retient l'empreinte de chaque copie déposée et ne redépose que ce qui a réellement changé — les
+plafonds gratuits de Cloudflare sont de 1 000 écritures par jour, et le grand rangement les
+consommait à lui seul en renvoyant ses ~29 copies vingt-quatre fois. Les empreintes sont oubliées
+au passage de 4 h : une fois par nuit, tout repart sans condition. Si une copie semble figée sur
+une vieille valeur, lancer <code>miroirOublierEmpreintes</code> puis <code>miroirSyncComplet</code>. La garde anti-périmé des écrans d'édition : 90 secondes
 (<code>_tsEcriturePlanning</code>). Le module partagé : <code>partage/dispo_jour.js</code>,
 répliqué dans le fichier serveur <code>dispo_jour</code> ; le témoin de comparaison s'affiche en
 console sous <code>[DISPO-TEMOIN]</code>. Diagnostic rapide : ouvrir l'adresse racine du Worker

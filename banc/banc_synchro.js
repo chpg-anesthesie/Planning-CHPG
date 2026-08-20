@@ -10,9 +10,24 @@ const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++
 
 function banc(options) {
   const envois = [];
+  const PROPS = {};
   const ctx = vm.createContext({
-    console, JSON, Object, Array, String, Number, Math, Error,
-    PropertiesService: { getScriptProperties: () => ({ getProperty: () => (options && options.sansJeton ? null : 'JETON') }) },
+    console, JSON, Object, Array, String, Number, Math, Error, RegExp,
+    Logger: { log: () => {} },
+    /* (20/08/2026) Le filtre différentiel range ses empreintes ici. Contexte
+       neuf à chaque banc() : table vide, donc rien n'est filtré et les
+       vérifications de découpage ci-dessous portent bien sur TOUTES les clés. */
+    PropertiesService: { getScriptProperties: () => ({
+      getProperty: k => (k === 'MIROIR_PUSH_TOKEN'
+        ? (options && options.sansJeton ? null : 'JETON')
+        : (k in PROPS ? PROPS[k] : null)),
+      setProperty: (k, v) => { PROPS[k] = String(v); },
+      deleteProperty: k => { delete PROPS[k]; } }) },
+    Utilities: {
+      DigestAlgorithm: { SHA_256: 'SHA_256' }, Charset: { UTF_8: 'UTF_8' },
+      computeDigest: (a, t) => Array.from(require('crypto').createHash('sha256').update(String(t), 'utf8').digest())
+                                   .map(x => (x > 127 ? x - 256 : x)),
+    },
     MIROIR_URL: 'https://worker',
     UrlFetchApp: { fetch: (url, opt) => {
       const corps = JSON.parse(opt.payload);
@@ -26,9 +41,14 @@ function banc(options) {
     }},
   });
   ctx.globalThis = ctx;
-  ['_miroirEnvoyer_', '_miroirEnvoyerLot_'].forEach(n => vm.runInContext(extraireFonction('../gas/miroir.gs', n), ctx));
+  ['_miroirEnvoyer_', '_miroirEnvoyerLot_', '_miroirSha256_', '_miroirValeurStable_',
+   '_miroirEmpreinte_', '_miroirEmpreintesLues_', '_miroirEmpreintesEcrites_']
+    .forEach(n => vm.runInContext(extraireFonction('../gas/miroir.gs', n), ctx));
+  const src = fs.readFileSync('../gas/miroir.gs', 'utf8');
   vm.runInContext('const MIROIR_MAX_CLES = 20;', ctx);
-  return { ctx, envois };
+  vm.runInContext(src.match(/const MIROIR_CLE_EMPREINTES = '[^']*';/)[0], ctx);
+  vm.runInContext(src.match(/const MIROIR_CLES_HORODATEES = \{[\s\S]*?\};/)[0], ctx);
+  return { ctx, envois, PROPS };
 }
 
 /* Clés réelles construites par la synchro complète, pour N années. */

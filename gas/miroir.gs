@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-17.4';
+const GAS_VERSION_MIROIR = '2026-08-20.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -229,6 +229,13 @@ function miroirSyncComplet() {
                     'specialites', 'cotations_type', 'releve_liberal',
                     'veille_marques', 'ordre_vac', 'echanges'];
   try { PropertiesService.getScriptProperties().deleteProperty(MIROIR_CLE_ATTENTE); } catch (e) {}   // la synchro pousse un sur-ensemble : la note devient caduque
+  /* (2026-08-20.1) UNE FOIS PAR JOUR, tout repart sans condition. Le filtre
+     différentiel se fie à une mémoire locale ; si elle ment (miroir vidé à la
+     main, écriture perdue chez Cloudflare), une donnée resterait figée sans
+     que rien ne le signale. Le passage de 4 h efface cette mémoire : ~29
+     écritures, une fois par nuit, contre l'assurance qu'aucun écart ne dure
+     plus de 24 h. */
+  try { if (new Date().getHours() === 4) miroirOublierEmpreintes(); } catch (e) {}
   const res = miroirPousserFamilles_(familles, getActiveYear(), true);   // synchro : toutes les annees consultables
   Logger.log('miroirSyncComplet : ' + JSON.stringify(res));
   return res;
@@ -858,31 +865,150 @@ function _miroirAjouteFichierDrive_(items, cle, nomFichier) {
    et le rapport dit lequel a échoué. */
 const MIROIR_MAX_CLES = 20;
 
+/* ═══ ENVOI DIFFÉRENTIEL (2026-08-20.1) ═══════════════════════════════
+   POURQUOI. Relevé Cloudflare du 20/08 à 09h38 : 380 écritures et 640
+   fouilles consommées sur des plafonds gratuits de 1 000/jour. La synchro
+   HORAIRE renvoyait ses ~29 clés à chaque passage, identiques ou non — un
+   dimanche sans une seule modification coûtait exactement autant qu'un
+   mardi de réunion. Le compteur de courrier, réécrit toutes les 5 minutes,
+   dépensait à lui seul ~288 écritures pour une pastille qui ne bouge pas.
+
+   PRINCIPE. On garde l'empreinte de ce qui a été RÉELLEMENT écrit au
+   miroir. Une clé dont l'empreinte n'a pas bougé n'est pas renvoyée.
+
+   TROIS GARDE-FOUS, chacun contre une façon de figer une donnée :
+   1. L'empreinte n'est enregistrée que pour les clés que le Worker déclare
+      avoir écrites (`ecrits`) ou supprimées (`supprimes`). Une clé refusée
+      — ou un Worker ancien qui ne dit rien — ne laisse aucune empreinte :
+      elle repart au passage suivant. La dégradation va vers le renvoi,
+      jamais vers le silence.
+   2. Une SUPPRESSION (valeur null) n'est jamais filtrée : effacer une clé
+      déjà absente est sans effet, tandis que ne PAS effacer laisserait une
+      donnée périmée servie à 23 MARs.
+   3. Les empreintes sont oubliées une fois par jour (synchro de 4 h) : tout
+      repart sans condition. C'est le filet contre une dérive qu'on ne peut
+      pas voir d'ici — miroir vidé à la main, écriture perdue côté
+      Cloudflare. Au pire, 24 h de décalage sur une clé qui ne bouge jamais.
+
+   ⚠️ HORODATAGES. Six clés portent un `t` ou un `maj` régénéré à chaque
+   construction (acces, config_admin, mail_nonlus, ordre_vac,
+   veille_marques, indispos_{Y}). Sans précaution leur empreinte changerait
+   toujours et le filtre ne servirait à rien sur les six clés les plus
+   fréquentes. L'empreinte est donc calculée SANS ces champs. Vérifié le
+   20/08 par lecture de admin.html, index.html et dashboard.html : aucune
+   page ne lit `t` ni `maj` — seul `mail_nonlus.nonLus` est consommé. La
+   VALEUR ENVOYÉE, elle, n'est pas touchée : on ne change que ce qui sert
+   à comparer. */
+const MIROIR_CLE_EMPREINTES = 'MIROIR_EMPREINTES';
+const MIROIR_CLES_HORODATEES = {
+  acces: 1, config_admin: 1, mail_nonlus: 1, ordre_vac: 1, veille_marques: 1,
+};
+
+/* Valeur privée de son horodatage, pour comparaison SEULEMENT. */
+function _miroirValeurStable_(cle, texte) {
+  const horodatee = MIROIR_CLES_HORODATEES[cle] === 1 || /^indispos_\d{4}$/.test(cle);
+  if (!horodatee) return texte;
+  try {
+    const o = JSON.parse(texte);
+    if (o && typeof o === 'object') { delete o.t; delete o.maj; return JSON.stringify(o); }
+  } catch (e) { /* illisible : on compare le brut, au pire on renvoie */ }
+  return texte;
+}
+
+/* 16 caractères de SHA-256 : assez pour que deux valeurs différentes ne se
+   confondent pas, assez court pour que ~40 clés tiennent dans UNE propriété
+   de script (limite : 9 Ko par valeur). */
+function _miroirEmpreinte_(cle, texte) {
+  try { return _miroirSha256_(_miroirValeurStable_(cle, texte)).slice(0, 16); }
+  catch (e) { return null; }   // pas d'empreinte = clé renvoyée au prochain passage
+}
+
+function _miroirEmpreintesLues_() {
+  try {
+    const brut = PropertiesService.getScriptProperties().getProperty(MIROIR_CLE_EMPREINTES);
+    const o = brut ? JSON.parse(brut) : null;
+    return (o && typeof o === 'object') ? o : {};
+  } catch (e) { return {}; }
+}
+
+function _miroirEmpreintesEcrites_(emp) {
+  try { PropertiesService.getScriptProperties().setProperty(MIROIR_CLE_EMPREINTES, JSON.stringify(emp)); }
+  catch (e) { /* jamais bloquant : sans empreintes, tout repart — comportement d'avant */ }
+}
+
+/* À lancer à la main si le miroir semble figé sur une vieille valeur :
+   la poussée suivante renvoie TOUT sans condition. */
+function miroirOublierEmpreintes() {
+  try { PropertiesService.getScriptProperties().deleteProperty(MIROIR_CLE_EMPREINTES); } catch (e) {}
+  Logger.log('Empreintes du miroir oubliées : la prochaine poussée renverra tout.');
+  return { success: true };
+}
+
 function _miroirEnvoyer_(items) {
   const jeton = PropertiesService.getScriptProperties().getProperty('MIROIR_PUSH_TOKEN');
   if (!jeton) return { success: false, error: 'MIROIR_PUSH_TOKEN absent des propriétés du script' };
   const cles = Object.keys(items || {});
   if (!cles.length) return { success: false, error: 'aucune clé à envoyer' };
 
+  /* Tri du lot : ce qui a bougé part, le reste attend d'avoir bougé.
+     Les copies de documents (doc_*) sont déjà différentielles par leur date
+     de modification Drive — les filtrer une seconde fois n'apporterait rien
+     et gonflerait la table d'empreintes. */
+  const empreintes = _miroirEmpreintesLues_();
+  const aEnvoyer = {};
+  const inchangees = [];
+  cles.forEach(function (c) {
+    const v = items[c];
+    if (v === null) { aEnvoyer[c] = null; return; }              // garde-fou 2
+    if (String(c).indexOf('doc_') === 0) { aEnvoyer[c] = v; return; }
+    const e = _miroirEmpreinte_(c, v);
+    if (e && empreintes[c] === e) { inchangees.push(c); return; }
+    aEnvoyer[c] = v;
+  });
+
+  const aEnvoyerCles = Object.keys(aEnvoyer);
+  if (!aEnvoyerCles.length) {
+    return { success: true, ecrites: 0, cles: cles.length, lots: 0, inchangees: inchangees.length };
+  }
+
   const lots = [];
-  for (let i = 0; i < cles.length; i += MIROIR_MAX_CLES) {
+  for (let i = 0; i < aEnvoyerCles.length; i += MIROIR_MAX_CLES) {
     const lot = {};
-    cles.slice(i, i + MIROIR_MAX_CLES).forEach(function (c) { lot[c] = items[c]; });
+    aEnvoyerCles.slice(i, i + MIROIR_MAX_CLES).forEach(function (c) { lot[c] = aEnvoyer[c]; });
     lots.push(lot);
   }
 
   const echecs = [];
   let ecrites = 0;
+  let empreintesChangees = false;
   lots.forEach(function (lot, n) {
     const r = _miroirEnvoyerLot_(lot, jeton);
-    if (r && r.success) ecrites += (typeof r.ecrites === 'number' ? r.ecrites : Object.keys(lot).length);
-    else echecs.push('lot ' + (n + 1) + '/' + lots.length + ' : ' + ((r && r.error) || 'erreur inconnue'));
+    if (r && r.success) {
+      ecrites += (typeof r.ecrites === 'number' ? r.ecrites : Object.keys(lot).length);
+      /* Garde-fou 1 : on ne retient que ce que le Worker DIT avoir traité.
+         Une clé refusée n'a pas d'empreinte et repart au passage suivant. */
+      (Array.isArray(r.supprimes) ? r.supprimes : []).forEach(function (c) {
+        if (c in empreintes) { delete empreintes[c]; empreintesChangees = true; }
+      });
+      (Array.isArray(r.ecrits) ? r.ecrits : []).forEach(function (c) {
+        if (String(c).indexOf('doc_') === 0) return;
+        if (!(c in lot) || lot[c] === null) return;
+        const e = _miroirEmpreinte_(c, lot[c]);
+        if (e) { empreintes[c] = e; empreintesChangees = true; }
+      });
+    } else {
+      echecs.push('lot ' + (n + 1) + '/' + lots.length + ' : ' + ((r && r.error) || 'erreur inconnue'));
+    }
   });
 
+  if (empreintesChangees) _miroirEmpreintesEcrites_(empreintes);
+
   if (echecs.length) {
-    return { success: false, error: echecs.join(' · '), lots: lots.length, ecrites: ecrites };
+    return { success: false, error: echecs.join(' · '), lots: lots.length, ecrites: ecrites,
+             inchangees: inchangees.length };
   }
-  return { success: true, ecrites: ecrites, cles: cles.length, lots: lots.length };
+  return { success: true, ecrites: ecrites, cles: cles.length, lots: lots.length,
+           inchangees: inchangees.length };
 }
 
 function _miroirEnvoyerLot_(items, jeton) {
