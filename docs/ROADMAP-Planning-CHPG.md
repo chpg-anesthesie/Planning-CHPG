@@ -224,6 +224,54 @@ Paid ferait sauter les trois plafonds sans une ligne de code. **À garder en tê
 remontent** — notamment après le déménagement NCHPG ou l'ouverture du module libéral aux 19
 membres.
 
+### Le soir — deux vérifications dans le classeur, et une décision
+
+**Les deux recopies sont faites.** Diagnostic de 21:06 : `miroir.gs : à jour (v2026-08-20.1)`,
+`Worker joignable — miroir 2026-08-20.1`. Code du Worker relu directement chez Cloudflare (drapeau
+et filet présents), déploiement horodaté 15h02.
+
+**Le carnet des placements caducs garde des notes périmées.** Le Diagnostic annonçait « 18
+placements ignorés » dont cinq datés **janvier 2027**, alors que la même page affirmait
+« Placements hors année active 2026 : aucun ». Lecture du classeur : `PLANNING_OVERRIDES` porte
+**315 lignes, toutes 2026** — la purge manuelle d'Arthur a bien tout emporté. Recalcul ligne à
+ligne avec la règle du code (`CADUC_ABSENT_CODES` + fenêtres d'activité de MEDECINS) : **13 caducs
+réels**. 13 + 5 fantômes = 18. Le compte tombe juste.
+
+**Cause, proposée par Arthur et conforme au constat du 10/08 déjà consigné ici** : les
+régénérations successives de 2027 recollaient les overrides de test, devenus incompatibles avec la
+nouvelle grille ; chaque publication en laissait la trace. La purge a nettoyé le classeur, **pas le
+carnet** — qui vit dans une propriété du script et ne se vide qu'à la republication du mois
+concerné. *(Réserve : le carnet n'a pas été lu directement, il est hors de portée du connecteur
+Drive. Conclusion déduite de la concordance 13 + 5 = 18, non constatée.)*
+
+Sur les 13 réels, **un seul portait sur une date à venir** (le lendemain) ; les douze autres
+étaient déjà passés. Le détail nominatif a été donné à Arthur en conversation et **n'est pas
+recopié ici** : c'est une donnée du classeur, le dépôt est public et son historique définitif.
+
+### ⛔ Le placement défait par un statut — DÉCIDÉ : on ne fait rien
+
+**Problématique soulevée par Arthur, et c'est la bonne question.** Le comité place un MAR ; le MAR
+annonce ensuite une absence ; le comité pose le statut. Le placement est alors ignoré et **la case
+redevient vide**, sans que personne ne soit prévenu.
+
+**Vérifié** : `planningCaducs` est construit, écrit dans les LOGS, rangé dans `PLANNING_CADUCS` —
+puis `return months` **sans lui**. La liste ne sort jamais du serveur. Zéro occurrence de « caduc »
+dans `admin.html`, `index.html`, `dashboard.html`. Le Diagnostic Maintenance est le seul endroit où
+le comité peut l'apprendre.
+
+**Décision d'Arthur, 20/08 au soir : non bloquant, on ne fait rien.** Le motif est juste — la case
+vide reste visible si on rouvre le mois, et personne n'est jamais affecté à un poste qu'il ne peut
+pas tenir. Le système protège le bon côté. Risque résiduel assumé : un trou rouvert dans un mois
+considéré comme fini, que personne ne rouvrira.
+
+**Effet miroir à connaître** : la ligne restant dans `PLANNING_OVERRIDES`, **le placement
+ressuscite seul** si le statut est retiré plus tard. Souvent souhaitable, parfois surprenant.
+
+*Si on y revient un jour*, la piste retenue était de prévenir **au moment où le comité pose le
+statut** (« X est placé en VOLANT le JJ/MM — ce placement sera ignoré ») : seul instant où
+l'information tombe devant quelqu'un qui peut décider. Les deux autres pistes — marque dans la
+grille, statu quo avec purge périodique du carnet — avaient été écartées. Touche `admin.html`.
+
 ### Ce qui reste ouvert
 
 - **⚠️ Une publication coincée ne le dit toujours pas.** Les deux correctifs suppriment la cause la

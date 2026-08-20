@@ -35,6 +35,18 @@ publiait, l'écran disait « publication en route », la fiche dormait. Sans **a
   de 1 440.** Aucun changement Apps Script.
 - **Plan payant à 5 $/mois écarté par Arthur** (« full gratuit »). À reproposer seulement si les
   compteurs remontent — déménagement NCHPG, ouverture du libéral aux 19 membres.
+- **Les deux recopies ont été faites le 20/08 au soir.** Diagnostic de 21:06 : `miroir.gs : à jour
+  (v2026-08-20.1)` et `Worker joignable — miroir 2026-08-20.1`. Code du Worker relu directement chez
+  Cloudflare (drapeau + filet présents), déploiement horodaté 15h02.
+- **`PLANNING_CADUCS` : le carnet garde des notes périmées.** Le Diagnostic du 20/08 annonçait
+  « 18 placements ignorés » dont cinq datés **janvier 2027**. Or `PLANNING_OVERRIDES` **ne contient
+  plus aucune ligne 2027** — lu dans le classeur le 20/08 : 315 lignes, toutes 2026. Recalcul ligne
+  à ligne avec la règle du code : **13 caducs réels**. 13 + 5 fantômes = 18, le compte tombe juste.
+  Cause (hypothèse d'Arthur, confirmée par le constat du 10/08 déjà en ROADMAP) : les régénérations
+  successives de 2027 recollaient les overrides de test, qui devenaient incompatibles ; la purge
+  manuelle a nettoyé le classeur, **pas le carnet**. Celui-ci ne se vide qu'à la republication du
+  mois concerné. *(Réserve : le carnet lui-même n'a pas été lu — il vit dans une propriété du
+  script, hors de portée du connecteur Drive. Conclusion déduite, non constatée.)*
 
 ### Règles gravées ce jour
 
@@ -63,6 +75,23 @@ contient « 36 ✓ / 0 ✗ ». Même écart sur les échecs (`grep -c "✗"` ren
 aucun). **Recette exacte : compter les lignes de coche**, `grep -cE "^\s+✓ "` → **1537**.
 
 ### Constatés, NON traités
+
+- **⛔ Un placement défait par un statut ne prévient personne — DÉCIDÉ : on ne fait rien (Arthur,
+  20/08 au soir).** Le comité place un MAR dans une case ; le MAR annonce ensuite une absence ; le
+  comité pose le statut. À la publication suivante le placement est **ignoré** (le statut prime,
+  `CADUC_ABSENT_CODES` dans `code.gs` l.288) et **la case redevient vide**. Vérifié le 20/08 :
+  `planningCaducs` est construit, écrit dans les LOGS et rangé dans la propriété `PLANNING_CADUCS`,
+  puis `return months` **sans lui** — la liste ne sort jamais du serveur. Zéro occurrence de
+  « caduc » dans `admin.html`, `index.html`, `dashboard.html`. Le seul endroit où le comité peut
+  l'apprendre est le Diagnostic Maintenance. **Motif de la décision : non bloquant.** La case vide
+  reste visible si on rouvre le mois, et personne n'est jamais affecté à un poste qu'il ne peut pas
+  tenir — le système protège le bon côté. Le risque résiduel est un trou rouvert dans un mois
+  considéré comme fini, que personne ne rouvrira. Effet miroir à connaître : la ligne restant dans
+  `PLANNING_OVERRIDES`, **le placement ressuscite seul** si le statut est retiré plus tard.
+  *Si on y revient un jour*, la piste retenue était de prévenir **au moment où le comité pose le
+  statut** (« X est placé en VOLANT le JJ/MM — ce placement sera ignoré »), seul instant où
+  l'information tombe devant quelqu'un qui peut décider ; les deux autres pistes (marque dans la
+  grille, statu quo + purge du carnet) avaient été écartées. Touche `admin.html`.
 
 - **⚠️ Une publication coincée ne le dit toujours pas.** Les deux correctifs suppriment la cause la
   plus fréquente, pas le défaut : une coupure réseau ou une panne Google produiraient le même
