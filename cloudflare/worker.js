@@ -62,11 +62,15 @@
      planning_{Y}        (contenu de planning_{Y}.json du Drive)
      affectations_{Y}    (contenu de affectations_{Y}.json du Drive)
      indispos_{Y}        {"parMar":{"ID":[...] }}        — filtré par rôle
+   Clés internes au Worker, jamais déposées par le GAS :
+     j_{ts}_{aléa}       une fiche en attente (journal d'intentions)
+     jfait_{…}           registre d'audit, 90 jours
+     jsignal             drapeau « la file n'est pas vide » (2026-08-20.1)
    Chaque valeur est une chaîne JSON. Clé absente = donnée pas encore
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-17.2';
+const VERSION = 'miroir 2026-08-20.1';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
@@ -291,21 +295,70 @@ async function jEcrire(corps, env) {
   const cle = 'j_' + String(ts).padStart(14, '0') + '_' + Math.random().toString(36).slice(2, 6);
   it.par = user.id || 'admin';
   it.depose = new Date(ts).toISOString();
-  await env.KV.put(cle, JSON.stringify(it));
+  /* (2026-08-20.1) Le DRAPEAU part avec la fiche, dans le même aller-retour :
+     Promise.all, donc aucune milliseconde ajoutée au geste du comité. C'est
+     lui qui dira à /tirer qu'il y a quelque chose à venir chercher. */
+  await Promise.all([
+    env.KV.put(cle, JSON.stringify(it)),
+    env.KV.put(J_CLE_SIGNAL, String(ts)),
+  ]);
   return reponse({ success: true, cle: cle, depose: it.depose });
 }
+
+/* ═══ LE DRAPEAU DE LA FILE (2026-08-20.1) ═══════════════════════════════
+   POURQUOI. L'applicateur passe CHAQUE MINUTE ouvrir la file. Ouvrir une
+   file, chez Cloudflare, est une opération comptée même quand elle est
+   vide : 1 440 par jour, pour un plafond gratuit de 1 000. Relevé du 20/08
+   à 09h38 : 640 déjà consommées. Le plafond tombait donc vers 17 h, tous
+   les jours — et une fois tombé, plus rien n'était relevé jusqu'à minuit
+   UTC. Le comité publiait, l'écran disait « publication en route », et la
+   fiche dormait dans la file jusqu'à 2 h du matin.
+
+   PRINCIPE. Déposer une fiche lève un drapeau. L'applicateur regarde
+   d'abord le drapeau — une LECTURE, dont le plafond est cent fois plus
+   large — et n'ouvre la file que s'il est levé.
+
+   ⚠️ LE DRAPEAU N'EST PAS FIABLE À LUI SEUL, ET C'EST VOULU. Cloudflare
+   recopie ses données de proche en proche : une lecture peut servir une
+   valeur vieille d'une minute, y compris « absent » alors que le drapeau
+   vient d'être levé ailleurs. Un drapeau raté signifierait une fiche qui
+   dort. D'où le FILET : une minute sur trois, la file est ouverte sans
+   condition. Le cas normal reste à 1 minute ; le pire cas devient
+   3 minutes. Coût : ~480 ouvertures par jour au lieu de 1 440.
+
+   ORDRE DES GESTES. Le drapeau est baissé AVANT d'ouvrir la file, jamais
+   après. Une fiche déposée pendant l'ouverture relève donc le drapeau et
+   sera vue au passage suivant. L'inverse — baisser après — perdrait
+   exactement cette fiche-là. Une fiche vue deux fois est sans conséquence
+   (les fiches sont idempotentes par construction, cf. journal.gs) ; une
+   fiche jamais vue serait une publication perdue.
+
+   CE QUI NE CHANGE PAS. Aucune modification côté Apps Script : la réponse
+   de /tirer garde exactement la même forme. Un applicateur ancien face à
+   ce Worker fonctionne à l'identique. */
+const J_CLE_SIGNAL = 'jsignal';     // hors préfixe 'j_' : jamais listée avec les fiches
+const J_FILET_MINUTES = 3;          // ouverture inconditionnelle 1 minute sur 3
 
 async function jTirer(corps, env) {
   if (!env.PUSH_TOKEN || corps.token !== env.PUSH_TOKEN) {
     return reponse({ success: false, error: 'Jeton invalide' }, 403);
   }
+  const signal = await env.KV.get(J_CLE_SIGNAL);
+  /* `forcer` permet aussi de déclencher une ouverture à la main depuis le
+     diagnostic, sans attendre le filet. */
+  const filet = (new Date().getUTCMinutes() % J_FILET_MINUTES) === 0;
+  if (!signal && !filet && corps.forcer !== true) {
+    return reponse({ success: true, fiches: [], survole: true, version: VERSION });
+  }
+  if (signal) await env.KV.delete(J_CLE_SIGNAL);   // baissé AVANT l'ouverture
   const liste = await env.KV.list({ prefix: 'j_', limit: 200 });
   const fiches = await Promise.all(liste.keys.map(async (k) => {
     const v = await env.KV.get(k.name);
     if (!v) return null;
     try { return { cle: k.name, valeur: JSON.parse(v) }; } catch (e) { return null; }
   }));
-  return reponse({ success: true, fiches: fiches.filter(Boolean) });
+  return reponse({ success: true, fiches: fiches.filter(Boolean),
+                   ouverte: signal ? 'drapeau' : 'filet', version: VERSION });
 }
 
 async function jPurger(corps, env) {

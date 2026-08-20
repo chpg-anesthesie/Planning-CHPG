@@ -628,7 +628,14 @@ une vieille valeur, lancer <code>miroirOublierEmpreintes</code> puis <code>miroi
 répliqué dans le fichier serveur <code>dispo_jour</code> ; le témoin de comparaison s'affiche en
 console sous <code>[DISPO-TEMOIN]</code>. Diagnostic rapide : ouvrir l'adresse racine du Worker
 (elle répond <code>{"ok":true, "service":"miroir …"}</code> avec sa version), et la commande
-<code>chrono()</code> (§C11) détaille chaque lecture.</p>
+<code>chrono()</code> (§C11) détaille chaque lecture. <b>Drapeau de la file (20/08/2026)</b> :
+<code>/ecrire</code> pose la clé <code>jsignal</code> en même temps que la fiche ;
+<code>/tirer</code> la lit et n'ouvre la file (<code>KV.list</code>, plafond gratuit 1 000/jour
+contre 1 440 passages) que si elle existe — ou une minute sur trois, filet contre une lecture
+périmée. Le drapeau est baissé AVANT l'ouverture, jamais après : une fiche arrivée pendant
+l'ouverture relève le drapeau et sera vue au passage suivant. <code>{forcer:true}</code> ouvre la
+file sans attendre. Aucun changement côté Apps Script : la réponse de <code>/tirer</code> garde la
+même forme.</p>
 </div></details>
 
 <p class="haut"><a href="#top">↑ Sommaire</a></p>
@@ -639,7 +646,10 @@ console sous <code>[DISPO-TEMOIN]</code>. Diagnostic rapide : ouvrir l'adresse r
 <p>Avant : chaque geste du comité attendait la réponse du serveur Google — plusieurs secondes au
 mieux, parfois trente les mauvais matins, avec des échecs aléatoires. Depuis le 05/08/2026, le geste
 est <b>déposé</b> en une fraction de seconde dans une boîte aux lettres chez Cloudflare, avec accusé
-de réception ; le serveur relève la boîte chaque minute et exécute les fiches dans l'ordre. Trois
+de réception ; le serveur relève la boîte chaque minute et exécute les fiches dans l'ordre. Depuis
+le 20/08/2026, déposer une fiche lève un <b>drapeau</b> : le serveur regarde le drapeau — un geste
+cent fois moins coûteux — et n'ouvre la boîte que s'il est levé, plus une fois toutes les trois
+minutes par sécurité. Rien ne change à l'usage : le geste passe toujours dans la minute. Trois
 types de fiches existent : les placements, les statuts du jour, la publication. L'écriture dans le
 classeur reste la seule vérité — la boîte n'est qu'une file d'attente fiable devant elle.</p></div>
 
