@@ -455,6 +455,117 @@ placements alors qu'`admin.html` l.1685 les traite comme des **retraits** (`VOLA
 `SECTEURS` — vérifié dans le classeur : neuf secteurs, VIS à MAT). Deux fois la même faute : lire le
 producteur d'une donnée sans lire son consommateur.
 
+### 🔎 PASSE EXHAUSTIVE DU 21/08 — ce que la recherche systématique a trouvé
+
+**Demandée par Arthur** après l'incident Cloudflare : chercher d'autres conflits du même type — une
+action qui invalide silencieusement une donnée — **avant** qu'ils surviennent.
+
+**Méthode, quatre axes** : (1) les écrivains de la grille croisés avec ce qu'ils consultent avant
+d'écrire · (2) les gestions d'erreur muettes · (3) les règles écrites en double · (4) la cohérence
+du classeur par croisements. Tout chiffre vient d'un comptage, jamais d'une estimation.
+
+**Résultat général : le système est plus solide que la matinée ne le laissait croire.** Les données
+du classeur sont propres — **315 placements lus un par un**, tous vers un secteur valide, aucun hors
+fenêtre d'activité, aucun sur un MAR inactif ; tous les MARs actifs ont leur ligne dans
+`AFFECTATIONS_2026/2027` et `GARDES_2026`.
+
+#### 🔴 Trouvaille 1 — les placements vers un secteur supprimé (échéance : NCHPG, janvier 2027)
+
+`normalizeAffectation` (`code.gs` l.566) rattrape un code de secteur inconnu dans une **affectation
+mensuelle** : retour à VOLANT + trace au journal. **Les placements du comité ne passent PAS par
+cette fonction** — `code.gs` l.964 écrit `ov.morning` / `ov.afternoon` tels quels dans le planning.
+
+Sans effet aujourd'hui (vérifié : les 315 placements pointent tous vers l'un des 9 secteurs actifs).
+Mais **le déménagement change les codes**, et la règle du projet est que les anciens passent
+`ACTIF=N` **sans jamais être renommés**. Ce jour-là, tout placement visant un ancien code devient un
+placement vers un secteur inexistant — **ni la génération ni le diagnostic ne le contrôlent**.
+
+→ **À traiter avec le chantier `COVERAGE`/`targets` en dur, avant janvier 2027.** Deux gestes : un
+contrôle au diagnostic, et décider du comportement à la génération (rattrapage type
+`normalizeAffectation`, ou refus explicite).
+
+#### 🔴 Trouvaille 2 — le module libéral n'est pas prêt à ouvrir, et ce n'est pas du code
+
+Compté dans le classeur le 21/08 : le groupe libéral compte **19 membres actifs**. Sur ces 19,
+**18 n'ont ni RPPS ni prénom** renseignés dans `MEDECINS` — sans eux le devis s'imprime sans numéro
+et la page réclame de compléter à chaque ouverture. `COTATIONS_TYPE` contient **5 lignes couvrant
+4 gestes**, tous d'endoscopie ou de paroi, alors que **12 spécialités** sont déclarées dans
+`SPECIALITES`.
+
+Déjà noté dans `roadmap.html` comme préalable ; **le chiffrer change la nature de l'information** :
+ce n'est pas « quelques fiches à compléter », c'est 18 fiches sur 19 et 8 spécialités sans cotation.
+C'est du remplissage, pas du développement — mais c'est **le** préalable, et il ne se délègue pas à
+une session de travail.
+
+#### 🟠 Trouvaille 3 — huit listes de codes dupliquées entre fichiers
+
+`CADUC_ABSENT_CODES` est écrite deux fois (`code.gs` l.288 et `partage/dispo_jour.js`), avec un
+commentaire qui l'assume : *« Toute modification ici doit être répercutée dans dispo_jour.js, et
+inversement. »* **Une consigne dans un commentaire n'est pas une protection** — elle tient tant que
+quelqu'un la lit.
+
+Sept autres listes sont dupliquées : les codes d'absence apparaissent sous **quatre noms différents
+dans le seul `admin.html`** (`ABSENT_FLASH`, `EXCL`, `TENSION_ABSENTS`, `ABSENT_S`), plus
+`ABSENT_CODES` côté serveur. Elles sont **aujourd'hui identiques** — comparées le 21/08. Aucune n'a
+de mécanisme empêchant la divergence.
+
+→ **Ce n'est pas un chantier** : c'est à savoir quand on touche à l'une d'elles. À rappeler
+explicitement au moment du chantier C (le R de récupération), qui touche précisément à cette
+famille.
+
+#### 🟠 Trouvaille 4 — une date de départ avancée efface des placements sans le dire
+
+Les placements postérieurs à `date_fin` cessent d'être appliqués (comptés « hors activité »,
+`code.gs` l.960), **silencieusement**. Vérifié : **0 cas aujourd'hui**, y compris pour le départ du
+1er septembre. Le risque n'existe que si le comité place quelqu'un **puis** avance sa date de départ.
+
+→ **Un contrôle de plus au diagnostic**, quasi gratuit : la lecture de `PLANNING_OVERRIDES` est déjà
+faite. À ajouter en séance A, avec le contrôle « secteur inexistant » de la trouvaille 1. Le
+diagnostic contrôle aujourd'hui les doublons, les MARs inconnus, les dates illisibles et les
+placements hors année — **ni la fenêtre d'activité, ni la validité du secteur**.
+
+#### ✅ Les échecs avalés en silence — 231 passés en revue, 10 réellement muets
+
+Chaque bloc `catch` du serveur et du Worker a été examiné. **81 sont muets**, mais après tri
+(libération de verrou, format de cellule, boîte de dialogue — sans coût), **10 enveloppent une
+action réelle**. Sur ces 10, **8 portent un commentaire assumant le choix** (le badge de courrier
+est un confort ; la trace des placements caducs est du « meilleur effort »).
+
+Deux méritent un regard, sans urgence : `Indispos.gs` l.2703 (report des congés longs dans les
+indisponibilités) et `code.gs` l.1253 (lecture réseau dont l'échec laisse la variable vide au lieu
+de faire échouer l'opération).
+
+**Dix silences dont huit délibérés : bon score. Ce n'est pas un chantier.**
+
+#### ✅ Ce qui est DÉJÀ protégé — vérifié, à ne plus reproposer
+
+L'erreur a été commise trois fois ce mois-ci. Table de référence :
+
+| Situation | Protégée | Par quoi |
+|---|---|---|
+| Le comité pose une absence sur un MAR déjà placé | **oui** | `retirerPlacementsPourDates` — « le dernier geste gagne », 05/08. Statuts concernés : V, F, TP, CL, A |
+| Placer un MAR déjà en repos de garde | **oui** | `admin.html` l.4645 ne le propose pas |
+| Un échange dont le repos tombe sur une absence | **oui** | `refuseSiIndisponible`, les deux MARs prévenus |
+| Un MAR casse l'année en cours via ses indisponibilités | **oui** | La campagne ne porte que sur l'année N+1 (`INDISPOS_ACTIVE`) |
+| Une case de secteur sans personne | **oui** | Flash « + », avec plancher anti-blocage |
+| Un envoi groupé dépassant le quota d'emails | **oui** | Refus **avant** envoi, à trois endroits |
+| Les journaux qui gonflent le classeur | **oui** | Élagage automatique : LOGS 500, CONNEXIONS 2 000 |
+| Un placement défait par un repos de garde | non | **Chantier D** |
+| Un placement un jour de récupération | non | **Chantier C** — le placement *tient* |
+
+#### ⚠️ Ce que la passe n'a PAS couvert — à ne pas prendre pour un blanc-seing
+
+- **Le comportement réel des pages.** Code lu, pas cliqué. Défauts d'affichage, boutons inertes,
+  lenteurs : hors périmètre.
+- **Les traces d'exécution.** Pas d'accès à l'historique du serveur ni aux traces Cloudflare. Le
+  temps réellement consommé par les tâches de fond reste l'inconnue du 10/08.
+- **Les propriétés du script** (`PLANNING_CADUCS`, `MIROIR_EMPREINTES`, jetons) : hors de portée du
+  connecteur Drive. Tout ce qui en est dit est **déduit du code et recoupé avec le classeur**,
+  jamais lu directement.
+- **Le générateur de gardes : survolé seulement.** Pièce la plus complexe du système. Un examen
+  sérieux demande une session entière — **à faire avant la génération de novembre 2027**, pas
+  maintenant.
+
 ### Ce qui reste ouvert
 
 - **⚠️ Une publication coincée ne le dit toujours pas.** Les deux correctifs suppriment la cause la
