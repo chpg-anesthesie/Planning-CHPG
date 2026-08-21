@@ -296,10 +296,91 @@ où un second espace de stockage apparaissait dans la liste du compte. Le miroir
 vérifié par le seul test qui compte : `dashboard.html` s'affiche **instantanément**, donc il lit
 bien le miroir et non le repli Google. Artefact de la métrique, pas un incident.
 
-### 📌 À FAIRE APRÈS LE 4 SEPTEMBRE — le conflit échange ↔ placement
+### 📌 PLAN D'ATTAQUE APRÈS LE 4 SEPTEMBRE — arrêté avec Arthur le 21/08
 
-**Décidé le 21/08 par Arthur, conception arrêtée. Pas avant le 4 septembre** : touche
-`dashboard.html`, servi aux 23 MARs.
+**Pas de dates : des séances.** Ce qui cadence n'est pas la durée du travail — quelques heures par
+chantier — mais **le nombre de recopies** à faire dans l'éditeur Apps Script, et la règle « une
+chose à la fois, confirmée en production avant la suivante ». *Remarque d'Arthur, justifiée : les
+délais initialement proposés (« semaine du 15 », « semaine du 22 ») étaient des marges de réflexe
+sans contrepartie réelle. **L'ensemble tient en deux journées de travail.*** Total : **quatre
+recopies**.
+
+⚠️ **Le 5 septembre, les échanges s'ouvrent aux 23 MARs.** Le risque de conflit placement ↔ garde
+monte ce jour-là : les séances C et D ne sont pas des chantiers de confort.
+
+| Séance | Ce qu'on fait | Touche | Recopie |
+|---|---|---|---|
+| **4–5 sept.** | Ménage du bac à sable, notifications réelles, envoi des codes, passage en v2.0 | aucun code | non |
+| **A** | Le diagnostic **garde son résultat** et tourne **chaque nuit sans rien envoyer**, **et** distingue ce qui appelle un geste | serveur | oui |
+| **B** | Pastille + bloc actionnable en tête de l'onglet Maintenance | `admin.html` | non, publication seule |
+| **C** | **Le R de récupération** + nettoyage de `PLANNING_CADUCS` (même fichier, même passage) | serveur | oui |
+| **D** | **Le repos de garde** — message aux deux MARs sur la carte d'échange | serveur + `dashboard.html` | oui |
+| **E** | **Renouveler le token GitHub** — seule échéance dure, **mi-octobre**, ne dépend de rien | — | non |
+| **F** | La publication coincée qui ne se signale pas | `admin.html` | oui |
+| — | Ouvrir le libéral aux 19 (rythme propre : RPPS, cotations types, présentation au groupement) | accès | non |
+| plus tard | Retirer `tp_jours_fixes` (avant génération nov. 2027) · sortir `COVERAGE`/`targets` en dur (avant NCHPG janv. 2027) | serveur + admin | oui |
+
+**Pourquoi A et B en premier.** Sans eux, chaque anomalie qu'on apprend à détecter retombe dans un
+mail du lundi que personne ne lit. C'est le socle, pas un confort.
+
+**Pourquoi C avant D.** Voir ci-dessous : le RG **vide** la case (visible, le flash « + »
+clignote) ; le R **laisse le placement tenir** (invisible). Le pire des deux passe en premier.
+
+**Pourquoi A et le tag « actionnable » sont indissociables.** Conserver un rapport où les sept
+points se valent ne sert à rien. Le diagnostic du 20/08 affichait 7 avertissements dont **un seul**
+appelait un geste : c'est ce qui use l'attention et fait qu'on cesse d'ouvrir le rapport.
+
+#### Séance A/B — le diagnostic comme élément d'interface
+
+**Constat vérifié le 21/08** : `diagHebdo` (`Indispos.gs` l.~770) appelle `diagnosticComplet()`, met
+le texte dans un mail, et **ne range rien**. Aucune trace, aucune poussée au miroir. Trois
+conséquences :
+- `admin.html` **ne peut pas** afficher d'indicateur — elle n'a rien à lire. Il faut d'abord
+  **conserver**, pas seulement « rendre visible ».
+- Le bouton Maintenance relance tout : **19,9 s mesurées le 20/08**. Interdit au chargement d'une page.
+- `diagnosticComplet()` rend `{ok, results, nbErr, nbWarn}` où `results` est une liste de chaînes
+  préfixées ✅⚠️❌. **Aucune notion d'actionnabilité.**
+
+**Le chiffre qui débloque** : 20 s par passage. Un diagnostic **quotidien** coûte 20 s/jour sur les
+5 400 s de tâches de fond disponibles = **0,4 %**. Gratuit. Le mail hebdomadaire ne change pas ;
+c'est le passage nocturne qui devient silencieux et alimente l'indicateur.
+
+**Piste d'implémentation** : `check()` gagne un 4e argument optionnel `actionnable`, porté par
+quelques contrôles seulement (placements caducs **à venir**, conflits R/RG, trous de couverture).
+Le résumé part au miroir sous une clé dédiée ; `miroirBootAdmin` (l.2021) l'ajoute à sa liste de
+lecture — aucun appel Google supplémentaire au chargement.
+
+**Détail visuel** (maquette validée le 21/08) : pastille ambre sur l'onglet Maintenance **seulement
+si** au moins un point est actionnable ; bloc ambre en tête de l'onglet avec une ligne par point et
+un lien « Voir la semaine → » ; le reste replié derrière « 5 autres points de vigilance —
+historique, rien à faire ». Les jours calmes : pas de pastille, un bandeau vert « Rien à faire —
+dernier contrôle cette nuit ».
+
+⚠️ **À vérifier avant de coder B** : `admin.html` sait-elle ouvrir l'onglet Planning sur une semaine
+donnée ? Si non, « Voir la semaine → » devient un chantier en soi — se contenter d'afficher la date.
+
+#### Séance C — le R de récupération (⚠️ le plus dangereux des deux)
+
+**Soulevé par Arthur le 21/08, vérifié dans la foulée.** `transfertR` (`Indispos.gs` l.1865) vérifie
+que le receveur est libre dans `GARDES` et qu'il n'est pas indisponible (`refuseSiIndisponible`) —
+**il ne lit pas `PLANNING_OVERRIDES`**. Même angle mort que le RG.
+
+**Mais la conséquence est inverse, et pire.** `R` n'est **pas** dans `CADUC_ABSENT_CODES`
+(`code.gs` l.288) — c'est **délibéré**, le commentaire du 05/08 l'explique : le panneau propose les
+TP et les récups en dernier recours, donc un placement qui les vise doit tenir. Résultat :
+
+| | Le placement | Signalement |
+|---|---|---|
+| **RG** (repos de garde) | est ignoré, la case se vide | le flash « + » clignote — moche mais **visible** |
+| **R** (récup de samedi) | **tient** | **rien.** Aucun flash, aucune case vide, aucune note au carnet |
+
+Le MAR apparaît en secteur un jour où il récupère son samedi. Il le découvre, ou il ne vient pas.
+
+⚠️ **Ne PAS corriger en ajoutant `R` à `CADUC_ABSENT_CODES`** : c'est une règle métier voulue, et
+elle est **dupliquée dans `partage/dispo_jour.js`** (le commentaire l'impose explicitement : toute
+modification ici doit être répercutée là-bas). La collision doit être détectée **à part**.
+
+#### Séance D — le repos de garde (conception arrêtée le 21/08)
 
 **Le problème.** Le comité place un MAR dans un secteur pour combler un trou. Plus tard, ce MAR
 récupère une garde — par échange, par don, ou parce que le comité a modifié la grille. Le système
@@ -323,6 +404,8 @@ la liste des placements proposés : le comité ne *peut pas* placer quelqu'un d�
 - `refuseSiIndisponible` (`Indispos.gs` l.1977) vérifie **déjà** que le nouveau repos ne tombe pas
   sur une absence, et refuse l'échange le cas échéant. Il lit `INDISPOS_{Y}` — il ne lit pas
   `PLANNING_OVERRIDES`. **La logique de protection est écrite ; il lui manque une source.**
+- La colonne `INFO` d'`ECHANGES` est **déjà affichée** sur la carte côté MAR (`dashboard.html`
+  l.1660 : `if (e.etat==='acceptee' && e.info)`). **La persistance du message est acquise.**
 - `notifierPush_` sait cibler `{role:'admin'}` depuis le 13/08. **Écarté** — voir ci-dessous.
 
 **⛔ Écarté : la notification automatique au comité.** Motif d'Arthur, 21/08 : *« le membre du
@@ -334,22 +417,18 @@ mauvais. **Ne pas reproposer.**
 comité. Deux MARs verraient « échange impossible » pour une raison qui ne les concerne pas et sur
 laquelle ils n'ont aucune prise.
 
-#### La solution retenue
+**La solution retenue.** L'échange se fait quoi qu'il arrive. Après application, lecture de
+`PLANNING_OVERRIDES` sur les dates de repos nouvellement créées. **Pas de conflit → personne n'est
+dérangé.** Conflit → message aux **deux** MARs, qui prennent la responsabilité de prévenir le comité.
 
-**L'échange se fait quoi qu'il arrive.** Après application, le système lit `PLANNING_OVERRIDES` sur
-les dates de repos nouvellement créées. **Pas de conflit → personne n'est dérangé.** Conflit → un
-message clair aux **deux** MARs de l'échange, qui prennent la responsabilité de prévenir le comité.
+Maquette validée le 21/08 — **deux lignes, pas quinze** ; la première dit *quoi*, la seconde dit
+*quoi faire* :
 
-Message (maquette validée le 21/08) :
+> ⚠️ **{Dr X} · {secteur} · {jour} ({matin / après-midi})**
+> *Place à libérer — prévenez le comité*
 
-> ⚠️ **Une place se libère — prévenez le comité**
-> L'échange est enregistré.
-> Vous serez **en repos de garde le jeudi 16 juillet**. Or le comité vous avait placé au **bloc
-> viscéral ce jour-là, matin et après-midi**.
-> Cette place n'est plus pourvue. **Merci de prévenir le comité** pour qu'il puisse la repourvoir.
-
-Précis sur les trois choses qui comptent — **quel jour, quel secteur, quelle demi-journée** — et une
-seule action demandée.
+Sur fond ambre, bordure gauche, sous le détail de l'échange. Un échange sans conflit garde
+**exactement** l'aspect actuel : on ne dérange personne pour rien.
 
 **Décisions d'Arthur (21/08), point par point :**
 1. **Le don est couvert** comme l'échange (il crée aussi un repos le lendemain).
@@ -360,21 +439,19 @@ seule action demandée.
 4. **Si le MAR oublie de prévenir, tant pis** — le filet est le contrôle du comité à la publication,
    et le flash « + » dans la grille. Pas de mécanisme de rattrapage supplémentaire.
 
-**Persistance — à trancher à l'implémentation.** Un message affiché au clic disparaît quand
-l'application se ferme, ce qui reproduit le défaut reproché à la notification. Piste : la colonne
-`INFO` de l'onglet `ECHANGES`, **déjà** utilisée pour tracer le transfert de récupération et déjà
-poussée vers les MARs — le message y resterait visible sur la carte de l'échange. **À vérifier
-avant de coder : cette colonne est-elle affichée sur la carte côté `dashboard.html` ?**
+**Stockage — décidé** : une **13e colonne `CONFLIT`** dans `ECHANGES_ENTETE` (`echanges.gs` l.44),
+plutôt que d'empiler un troisième usage sur `INFO` (qui sert déjà au transfert de R **et** au motif
+d'échec). La page peut alors styler le conflit à part sans deviner. Les lignes existantes restent
+vides, la colonne se crée à la prochaine écriture.
 
-**Portée** : `echanges.gs`, `Indispos.gs`, `dashboard.html`. Page visible → **montée de version du
-site dans le même push**, 2e chiffre (v1.65) puisque c'est une fonctionnalité — à confirmer par
-Arthur. Mockup avant implémentation, scénario au banc obligatoire (un défaut trouvé en production
-devient un scénario du banc).
+**Portée D** : `echanges.gs`, `Indispos.gs`, `dashboard.html`. Page visible → **montée de version du
+site dans le même push** — 2e chiffre, ou 3e si le passage en v2.0 a déjà eu lieu le 5. Mockup avant
+implémentation, scénario au banc obligatoire.
 
-**Rappel de méthode, coûteux ce jour-là.** J'ai proposé successivement un bandeau d'alerte dans
+**Rappel de méthode, coûteux le 21/08.** J'ai proposé successivement un bandeau d'alerte dans
 `admin.html` puis une notification au comité, **sans avoir lu le flash « + » qui existait déjà**, et
 j'ai construit un scénario entier sur onze lignes `VOLANT` de `PLANNING_OVERRIDES` prises pour des
-placements alors que `admin.html` l.1685 les traite comme des **retraits** (`VOLANT` n'est pas dans
+placements alors qu'`admin.html` l.1685 les traite comme des **retraits** (`VOLANT` n'est pas dans
 `SECTEURS` — vérifié dans le classeur : neuf secteurs, VIS à MAT). Deux fois la même faute : lire le
 producteur d'une donnée sans lire son consommateur.
 
