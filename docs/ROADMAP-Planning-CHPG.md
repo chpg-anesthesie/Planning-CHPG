@@ -566,6 +566,148 @@ L'erreur a été commise trois fois ce mois-ci. Table de référence :
   sérieux demande une session entière — **à faire avant la génération de novembre 2027**, pas
   maintenant.
 
+### 🔬 EXAMEN APPROFONDI DU GÉNÉRATEUR DE GARDES — 21/08/2026
+
+Demandé par Arthur. **1 528 lignes lues section par section**, puis confrontées à **2027, seule
+année réellement produite par l'algorithme** : 23 lignes de `STATS_GARDES_2027`, 364 colonnes de
+`GARDES_2027`, 104 lignes de `LIENS_R_2027`.
+
+#### ✅ VERDICT — l'algorithme est OPTIMAL, et je l'avais d'abord accusé à tort
+
+**Constat initial (faux) :** Σ cibles 2027 = **736,60** pour **728 créneaux** → excédent **+8,60**,
+et 17 MARs sur 22 affichant exactement **−0,60**. J'en ai conclu à un défaut de répartition.
+
+**Correction apportée par Arthur** : *« l'écart à la cible de mon générateur est obligatoire avec
+quelqu'un qui en prend plus et qui modifie sa cible »*. **Il a raison.** Recalcul fait le 21/08 en
+réservant d'abord les 43 gardes du régime particulier, puis en répartissant les **685 restantes** :
+
+| | Cible théorique | Cible recalculée | Reçu | Écart th. | **Écart réel** |
+|---|---|---|---|---|---|
+| 17 MARs temps plein | 34,60 | 34,17 | 34 | −0,60 | **−0,17** |
+| 2 MARs | 34,60 | 34,17 | 35 | +0,40 | **+0,83** |
+| Quotités réduites | 27,70 → 31,10 | 27,36 → 30,71 | 28 / 31 | +0,30 / −0,10 | **+0,64 / +0,29** |
+| Régime particulier | 43,00 | 43,00 | 43 | 0,00 | **0,00** |
+
+**Σ des écarts = 0,00 exactement** (contre −8,60 avec la cible théorique) · **amplitude 1,00 garde**,
+identique dans les deux cas.
+
+**Ce qui tranche : les gardes sont des entiers.** Une part de 34,17 ne peut donner que 34 ou 35. Le
+générateur donne 34 à dix-sept MARs et 35 à trois — et il en faut **exactement trois** pour que la
+somme tombe à 685. **C'est la répartition entière optimale : on ne peut pas faire mieux.**
+
+**Et j'ai affirmé à tort que la dette 2028 serait faussée.** Vérifié le 21/08 : la part juste est une
+redistribution du réel au prorata des cibles N-1, donc **Σ dette = 0,0000 exactement**. Le mécanisme
+est correct. L'affirmation n'était pas vérifiée avant d'être écrite.
+
+**⛔ DÉCISION D'ARTHUR (21/08) : on laisse les cibles telles quelles.** Pas de colonne
+supplémentaire, pas de changement d'affichage. La cible théorique répond à une vraie question — *que
+ferais-je si tout le monde était traité pareil ?* — et l'écart mesure ce que le régime particulier
+épargne aux autres. **Ne pas reproposer de la modifier.**
+
+⚠️ **Une seule conséquence à retenir, pour le poster SFAR** (échéance ~avril 2027) : présenter
+« écart max −0,60 » sans expliquer d'où vient le −0,60 prêterait le flanc. **La formulation juste
+est : écart borné à moins d'une garde, somme nulle, répartition entière optimale.** Le chiffre à
+citer est la cible recalculée, ou bien la cible théorique avec sa justification.
+
+#### 🔴 LE DÉFAUT RÉEL — 73 % des récupérations sont posées AVANT leur samedi
+
+Mesuré sur `LIENS_R_2027`, délai calculé ligne à ligne :
+
+| Récupérations | Nombre | Délai |
+|---|---|---|
+| Posées **après** leur samedi (normal) | 28 | médiane **73 jours** |
+| Posées **avant** leur samedi | **76** | de −3 à **−354 jours** |
+
+Cas extrême : un samedi du 01/01/2028 dont le R est posé le 12/01/2027 — **onze mois et demi avant**.
+
+**Cause, lue dans `generateur_gardes.gs` section 9.** Deux boucles :
+1. **Nominale** : semaines +2 à +16 après le samedi, hors week-end, férié, vacances scolaires, et sur
+   une date ne portant **aucune autre récupération de l'équipe** (`rAssigned` est **global**, une
+   seule récup par jour tous MARs confondus). Avec 104 R à caser, la fenêtre sature.
+2. **Repli** : `for(const d of allDays)` — balaie l'année **depuis le 1er janvier**, **sans jamais
+   vérifier que la date est postérieure au samedi**. Il prend la première place libre, presque
+   toujours en début d'année.
+
+**Conséquence fonctionnelle démontrée.** `_transfererR_` (`echanges.gs`) refuse le transfert si
+`dateR <= aujourd'hui` — message existant : *« R non transféré (déjà pris le JJ/MM) »*. Pour
+**trois samedis sur quatre**, le R a été posé des mois plus tôt : **le transfert échouera presque
+toujours**. La conception du chantier D suppose l'inverse.
+
+**Et le déséquilibre n'est pas qu'informatif** : le cédant a pris sa journée de récupération, puis
+donne le samedi — **il garde le bénéfice d'une garde qu'il ne fera pas**, pendant que le preneur
+tient le samedi **sans compensation**.
+
+**Faisabilité de la compensation double, mesurée le 21/08** sur les 76 cas :
+
+| | Cas | Part |
+|---|---|---|
+| Retirer un R au cédant **et** en donner un au preneur | 21 | **28 %** |
+| Seul le don au preneur est possible (aucun R postérieur chez le cédant) | **55** | **72 %** |
+
+Les 55 cas se concentrent sur juillet-décembre : plus le samedi est tardif, moins le cédant a de R
+restants derrière lui.
+
+**⛔ DÉCISION D'ARTHUR (21/08) : le R du preneur d'abord, le reste en arbitrage.** *« Le plus
+important est que celui qui prend le samedi ait un nouveau jour de R. Parfois le cédant aura gratté
+un R gratuit mais tant pis, le comité arbitrera. »*
+
+**Message à afficher aux deux MARs** (à joindre au chantier D) :
+
+> ⚠️ **La récupération de ce samedi a déjà été prise le {date}**
+> **{Preneur} tiendra ce samedi sans récupération.** Prévenez le comité : il posera un jour de
+> récupération, et retirera si possible celui du cédant.
+
+**Piste évoquée par Arthur — reporter le R gratté en dette sur l'année suivante.** La mesure existe
+déjà : chaque MAR a un nombre de samedis tenus et un nombre de R, **aujourd'hui rigoureusement égaux
+pour tout le monde** (vérifié : 104 = 104, 0 MAR en écart). Un R gratté se voit donc immédiatement.
+L'écart pourrait se reporter comme la dette de gardes — même principe, même amortissement. **Mais
+c'est un mécanisme NOUVEAU** : la dette actuelle porte sur les gardes, pas sur les repos. À examiner
+sérieusement, après le 4 septembre.
+
+**Correctif du générateur** : une condition de postériorité dans la boucle de repli, et
+vraisemblablement l'élargissement de la fenêtre nominale au-delà de 16 semaines (elle sature à cause
+du verrou d'unicité global). ⚠️ **À mesurer avant/après sur une année complète** — cela déplace des
+journées de récupération réelles. **Ne protège que 2028 et après : 2027 est généré et ne sera pas
+régénéré**, ses 76 samedis mal datés vivront toute l'année. Le message d'échange est donc nécessaire
+**indépendamment** du correctif.
+
+#### ✅ Ce que l'examen confirme, mesuré sur 2027
+
+| Contrôle | Résultat | Mesure |
+|---|---|---|
+| Couverture | parfait | 364 jours, chacun exactement 1 G + 1 G2 |
+| Équité totale | **optimal** | écarts recalculés −0,17 à +0,83, somme nulle |
+| Équité par axe | bon | sam ±0,8 · jeu +1,0/−0,5 · VD +0,8/−1,4 · VJF ±0,5 |
+| Fériés | correct | +1,9/−1,2 — axe le plus dispersé, sur 24 jours seulement |
+| Récupérations dues | exact | 104 samedis → 104 R, **0 MAR en écart** |
+| Unicité des R | exact | aucune date ne porte deux R |
+| Garde-fou anti-régénération | solide | refus net si la grille existe, suppression manuelle exigée |
+| Impasses de couverture | tracées | chaque repli produit un avertissement nommé et daté |
+
+#### 🟠 Trois points de vigilance, sans urgence
+
+1. **2028 sera la PREMIÈRE année où la dette inter-annuelle jouera.**
+   `PREMIERE_ANNEE_STATS_FIABLES = 2027` → pour générer 2027, `year-1 = 2026 < 2027`, donc **départ
+   neutre : le mécanisme n'a jamais tourné en conditions réelles**. Amorti à 60 %, plafonné à ±2 par
+   axe. Noté aussi : `STATS_GARDES_2026` n'a **pas** de colonne `CIBLE JF` — le repli sur `CIBLE SAM`
+   prévu dans le code jouera. **À surveiller de près en novembre 2027.**
+2. **`tp_jours_fixes` est la même erreur de raisonnement que la cible relevée** : une cible
+   individuelle modifiée sans répercussion sur l'équipe. Différence : ici la contrepartie est
+   **absente**, alors que pour la cible relevée elle est **assumée**. Les deux se regardent ensemble.
+3. **Les avertissements de génération ne survivent pas.** « choix contraint, équité dégradée »,
+   « pourvu en tolérant le combo jeudi-samedi » : renvoyés à l'écran, conservés nulle part. Même
+   problème que le diagnostic hebdomadaire — **à faire bénéficier du mécanisme de la séance A**.
+
+#### ⚠️ Limites de l'examen
+
+- **Le générateur n'a PAS été exécuté.** Tout vient de 2027 tel que produit, croisé avec la lecture
+  du code. Un défaut propre à une autre configuration (beaucoup de TP, équipe plus petite, année à
+  53 semaines) n'apparaîtrait pas.
+- **Le banc de charge existe mais n'est pas branché** (documenté au 11/08 : vrai générateur, année
+  complète, 260 jours de TP, ~15 s de plus au lancement, décision en attente). C'est l'outil adapté
+  pour éprouver le correctif des récupérations.
+- **Aucun des points ne justifie de régénérer 2027**, ce qui reste interdit.
+
 ### Ce qui reste ouvert
 
 - **⚠️ Une publication coincée ne le dit toujours pas.** Les deux correctifs suppriment la cause la
