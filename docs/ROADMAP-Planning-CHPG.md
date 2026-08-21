@@ -316,12 +316,18 @@ monte ce jour-là : les séances C et D ne sont pas des chantiers de confort.
 | **C** | **Le R de récupération** + nettoyage de `PLANNING_CADUCS` (même fichier, même passage) | serveur | oui |
 | **D** | **Le repos de garde** — message aux deux MARs sur la carte d'échange | serveur + `dashboard.html` | oui |
 | **E** | **Renouveler le token GitHub** — seule échéance dure, **mi-octobre**, ne dépend de rien | — | non |
+| **🔴 R** | **Placement des récupérations** — plancher 15, max 2/jour, vacances incluses. **AVANT la génération de la vraie 2027** (après la campagne d'octobre). Exige le banc de charge. | `generateur_gardes.gs` | oui |
 | **F** | La publication coincée qui ne se signale pas | `admin.html` | oui |
 | — | Ouvrir le libéral aux 19 (rythme propre : RPPS, cotations types, présentation au groupement) | accès | non |
 | plus tard | Retirer `tp_jours_fixes` (avant génération nov. 2027) · sortir `COVERAGE`/`targets` en dur (avant NCHPG janv. 2027) | serveur + admin | oui |
 
 **Pourquoi A et B en premier.** Sans eux, chaque anomalie qu'on apprend à détecter retombe dans un
 mail du lundi que personne ne lit. C'est le socle, pas un confort.
+
+⚠️ **Le chantier R a la seule échéance qui ne se négocie pas avec le calendrier du service** : passé
+la génération de la vraie 2027, il faudrait attendre 2028 — et 23 MARs vivraient une année entière
+avec des récupérations posées avant leurs samedis. **Il peut passer avant A et B si le calendrier se
+resserre.**
 
 **Pourquoi C avant D.** Voir ci-dessous : le RG **vide** la case (visible, le flash « + »
 clignote) ; le R **laisse le placement tenir** (invisible). Le pire des deux passe en premier.
@@ -664,12 +670,119 @@ L'écart pourrait se reporter comme la dette de gardes — même principe, même
 c'est un mécanisme NOUVEAU** : la dette actuelle porte sur les gardes, pas sur les repos. À examiner
 sérieusement, après le 4 septembre.
 
-**Correctif du générateur** : une condition de postériorité dans la boucle de repli, et
-vraisemblablement l'élargissement de la fenêtre nominale au-delà de 16 semaines (elle sature à cause
-du verrou d'unicité global). ⚠️ **À mesurer avant/après sur une année complète** — cela déplace des
-journées de récupération réelles. **Ne protège que 2028 et après : 2027 est généré et ne sera pas
-régénéré**, ses 76 samedis mal datés vivront toute l'année. Le message d'échange est donc nécessaire
-**indépendamment** du correctif.
+**Correctif du générateur → voir le chantier dédié ci-dessous (🔴 PLACEMENT DES RÉCUPÉRATIONS).**
+
+⚠️ **ERREUR CORRIGÉE LE 21/08.** J'ai écrit trois fois que « 2027 est généré et ne sera pas
+régénéré ». **C'est faux, et Arthur l'a corrigé.** La grille `GARDES_2027` du classeur est celle du
+**bac à sable de démo** ; la **vraie** 2027 sera générée après la campagne d'indisponibilités
+d'octobre. La ROADMAP le disait déjà noir sur blanc au 10/08 : *« Le risque n'est pas la démo, c'est
+NOVEMBRE : ces lignes se colleraient sur la vraie génération 2027. »* J'avais lu ce passage le matin
+même. **Conséquence : le correctif ne sert pas seulement 2028 — il sert la vraie 2027, à condition
+d'être en place avant la génération.**
+
+#### 🔴 CHANTIER PRIORITAIRE — LE PLACEMENT DES RÉCUPÉRATIONS (échéance : AVANT la génération)
+
+**Arrêté avec Arthur le 21/08, simulations à l'appui.** ⚠️ **Échéance dure : la vraie 2027 est
+générée après la campagne d'octobre.** Le correctif doit être écrit, testé au banc et déployé avant.
+Ce n'est pas un chantier de 2028.
+
+##### Le défaut, et sa cause exacte
+
+Deux règles internes, prises ensemble, rendent le placement impossible :
+1. **`rAssigned` est GLOBAL** — une seule récupération par jour pour **toute l'équipe**.
+2. **Les vacances scolaires sont totalement exclues** — près de **4 mois** dans l'année (hiver,
+   printemps, été, Toussaint, Noël), dont deux mois d'été en bloc.
+
+Arithmétique du blocage : les **30 samedis du 2e semestre** demandent **60 récupérations**, et il ne
+reste que **65 jours** ouvrables hors vacances entre septembre et décembre — en exigeant en plus que
+le MAR soit libre et l'effectif suffisant. **La place n'existe pas.** Le repli qui balaie depuis le
+1er janvier n'est donc pas une négligence : c'est la seule issue.
+
+Résultat mesuré sur la grille de démo : **90 % des récupérations tombent au 1er semestre**, juillet
+et août n'en portent **aucune**, octobre une seule.
+
+##### La règle retenue (décision d'Arthur, 21/08)
+
+> **Une récupération peut être posée n'importe quel jour ouvrable, vacances scolaires comprises,
+> tant que l'effectif reste à 15 présents ou plus après l'avoir posée. Deux au maximum le même
+> jour.**
+
+Alignée sur le code couleur du planning réel du service (vert = 15 présents ou plus), donc
+vérifiable d'un coup d'œil.
+
+##### Ce que disent les données RÉELLES (fichier `planing.ods` fourni par Arthur le 21/08)
+
+Effectif présent sur **193 jours ouvrables** (janv. 2026 → janv. 2027) : médiane **17**, mode 17.
+**80 % des jours sont à 15 ou plus.**
+
+| Effectif | Jours |
+|---|---|
+| ≥ 17 | **105** → peuvent porter 2 récups |
+| = 16 | **30** → peuvent en porter 1 |
+| ≤ 15 | 58 |
+
+**Capacité théorique : 105×2 + 30×1 = 240 récupérations possibles pour un besoin de 104.**
+**Plus du double de la place nécessaire.** ⇒ *le verrou n'a JAMAIS été l'effectif* : c'était
+l'unicité globale et l'exclusion des vacances.
+
+⚠️ **Juillet et août resteront hors-jeu, et c'est un fait, pas une règle** : août n'a aucun jour à
+16 ou plus, 11 jours sur 16 sont déjà sous 15. Le gain vient de février, avril, octobre et Noël.
+
+##### Résultat simulé (plancher 15 · max 2/jour · vacances incluses)
+
+| | Aujourd'hui | Après |
+|---|---|---|
+| Récupérations **après** leur samedi | 28/104 — **27 %** | **94/104 — 90 %** |
+| Délai médian samedi → récup | **−75 j** (avant !) | **+23 j** |
+| Jours utilisés | — | 60 (dont 34 à 2 récups) |
+| Effectif après pose | — | médiane 16, **jamais sous 15** |
+
+**Sensibilité — le levier décisif est le passage de 1 à 2 par jour, pas le plancher :**
+
+| Plancher | Max/jour | Placés après | Délai médian |
+|---|---|---|---|
+| 15 | 1 | 78 % | 32 j |
+| **15** | **2** | **90 %** | **23 j** |
+| 15 | 3 | 90 % | 18 j |
+| 16 | 2 | 90 % | 31 j |
+
+⇒ **le plancher 15 ne coûte rien** ; 16 donnerait le même taux pour 8 jours de délai en plus.
+Passer à 3/jour n'apporte que 5 jours — ne le vaut pas.
+
+**Les 10 échecs restants sont tous en décembre et le 01/01** : des samedis sans lendemain dans
+l'année. Ils devront rester avant, ou déborder sur l'année suivante.
+
+##### 🔑 L'effet en cascade sur les échanges de samedi — mesuré
+
+Un échange se conclut **avant** le samedi ; le transfert de récupération réussit si elle est encore
+à venir.
+
+| | Transfert possible | Marge minimale |
+|---|---|---|
+| Aujourd'hui | **28/104 — 27 %** | — |
+| Après correction | **94/104 — 90 %** | **16 jours** après le samedi |
+
+**Même un échange conclu la veille laisse 16 jours pour transférer.** Le message « récupération déjà
+prise » passerait de **trois cas sur quatre** à **10 sur 104**, tous en décembre-janvier : il
+redevient l'exception.
+
+**Un seul correctif règle QUATRE choses** : la datation absurde, l'entassement en début d'année,
+l'échec des transferts lors des échanges, et le déséquilibre du « R gratté » (le cédant qui garde le
+bénéfice d'une garde qu'il ne fera pas).
+
+##### Réserves et méthode
+
+- **Les simulations tournent sur la grille de DÉMO**, pas sur les vraies indisponibilités
+  (collectées en octobre). L'ordre de grandeur est solide — le verrou est structurel — mais le
+  chiffre de 94 ne se reproduira pas à l'identique. Le planning réel étant **plus généreux**
+  (médiane 17 contre un effectif plus serré en démo), le taux réel devrait être **au moins aussi
+  bon**.
+- **17 jours resteraient pile à 15.** Admissible puisque c'est le seuil retenu, mais un arrêt
+  maladie ce jour-là fait passer dessous. La variante 16 est gratuite en couverture si Arthur change
+  d'avis.
+- ⚠️ **Le banc de charge est indispensable ici** (documenté au 11/08, jamais branché) : on change une
+  règle de fond du générateur, il faut faire tourner le vrai code sur une année complète et comparer
+  avant/après. **C'est le moment de trancher cette décision en attente.**
 
 #### ✅ Ce que l'examen confirme, mesuré sur 2027
 
