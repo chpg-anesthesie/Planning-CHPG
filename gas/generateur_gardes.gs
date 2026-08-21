@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-08-14.1';
+const GAS_VERSION_GENERATEUR = '2026-08-21.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -70,6 +70,19 @@ const RATIO_18      = 1.3;
 const DETTE_AMORTI  = 0.6;  // amortissement de la dette : evite la sur-correction/oscillation annuelle (10 ans : 0 annee non-conforme)
 const FREEBUDGET_MARGE = 1;  // marge : reserve ~1 jour pour absorber les pertes de placement VD (multi-mardis robuste)
 const MIN_PRESENT   = {1:16, 2:15, 3:16, 4:15, 5:15};
+/* (2027-XX) PLACEMENT DES RÉCUPÉRATIONS — plancher unique et pluralité par jour.
+   Constaté le 21/08/2026 sur la grille générée : 76 R sur 104 étaient posés AVANT
+   le samedi qu'ils compensent (jusqu'à 354 jours avant), et 90 % tombaient au 1er
+   semestre. Cause : `rAssigned` n'autorisait QU'UN R par jour pour toute l'équipe,
+   et les vacances scolaires — près de 4 mois — étaient exclues. Les 30 samedis du
+   2e semestre réclament 60 R pour 65 jours ouvrables hors vacances : la place
+   n'existait pas, le repli remontait donc chercher en janvier.
+   Relevé du planning réel (193 jours ouvrables) : effectif médian 17, 105 jours à
+   17+ et 30 jours à 16 → 240 poses possibles pour 104 besoins. Le verrou n'a jamais
+   été l'effectif. Règle retenue avec Arthur : n'importe quel jour ouvrable, vacances
+   comprises, tant qu'il reste R_PLANCHER_PRESENTS après la pose ; deux au maximum. */
+const R_MAX_PAR_JOUR      = 2;
+const R_PLANCHER_PRESENTS = 15;   // aligné sur le code couleur du planning du service
 // (C2-D3) Rythme 2/2 lu depuis MEDECINS (colonne rythme_2sur2, via getMedecinFlags).
 // Ancre semaine 23/2026 conservée en dur (la dérive année-53-sem. = Fix A, séparé).
 function estSemaineOff(id, dateStr){
@@ -96,6 +109,12 @@ function isReducedPeriod(m){return m===7||m===8||m===12;}
 // OPTIM : PERIODES_VAC lu UNE SEULE FOIS par exécution (cache module).
 // Avant, getDataRange().getValues() était rappelé à CHAQUE appel
 // d'isVacancesScolaires — soit des milliers de fois dans la boucle des R.
+// ⚠️ (21/08/2026) isVacancesScolaires N'EST PLUS APPELÉE par le placement des
+// récupérations : l'exclusion des vacances scolaires y a été remplacée par le
+// plancher d'effectif (cf. R_PLANCHER_PRESENTS). Elle est conservée — le cache
+// et la fonction restent corrects et peuvent resservir — mais elle n'a plus
+// aucun appelant à ce jour. Ne pas croire, en la lisant, qu'elle contraint
+// encore quoi que ce soit.
 let _vacCache=null;
 function _loadVacances(){
   if(_vacCache!==null) return _vacCache;
@@ -1278,44 +1297,163 @@ function generateGardes(year){
      On le collecte au moment exact de la pose, puis LIENS_R_{year} est écrit
      avec GARDES et STATS. Un samedi a DEUX tenants (G et G2) : deux lignes. */
   const liensR=[]; // [samedi, id, dateR]
-  const rAssigned={};
-  allDoctors.forEach(id=>{
-    if(!recupDue[id]) return;
-    recupDue[id].forEach(samDate=>{
-      const samDt=new Date(samDate+'T12:00:00');let placed=false;
-      for(let w=2;w<=16&&!placed;w++){
-        for(let off=0;off<5&&!placed;off++){
-          const cDt=new Date(samDt);cDt.setDate(samDt.getDate()+w*7+off);
-          const cDate=toDateStr(cDt);const cDow=cDt.getDay();
-          if(cDow===0||cDow===6||dayByDate[cDate]?.isFerie||!cDate.startsWith(String(year))) continue;
-          if(rAssigned[cDate]||blocked(id,cDate)||gSet[id]?.has(cDate)||g2Set[id]?.has(cDate)||rSet[id].has(cDate)) continue;
-          if(isVacancesScolaires(cDate,year)) continue;
-          if([-3,-2,-1,1,2,3].some(k=>{const x=new Date(cDt);x.setDate(cDt.getDate()+k);return rSet[id].has(toDateStr(x));})) continue;
-          // Règle 2 : lisser les R — pas un autre R du même MAR à moins de 3 jours
-          { let _tooClose=false; for(let _k=-2;_k<=2;_k++){ if(_k===0)continue;
-              const _x=new Date(cDt);_x.setDate(cDt.getDate()+_k);
-              if(rSet[id].has(toDateStr(_x))){_tooClose=true;break;} }
-            if(_tooClose) continue; }
-          const di=dayByDate[cDate];
-          if(di&&!di.isReduced){
-            const present=allDoctors.filter(m=>!blocked(m,cDate)&&!gSet[m]?.has(cDate)&&!g2Set[m]?.has(cDate)).length;
-            if(present-1<(MIN_PRESENT[cDow]||15)) continue;
+  const rParJour={};                       // date → nombre de R déjà posés ce jour
+  /* Une date est éligible si : jour ouvrable de l'année, pas férié, moins de
+     R_MAX_PAR_JOUR récupérations déjà posées, le MAR est libre, aucun autre R du
+     même MAR à moins de 3 jours, et l'effectif reste >= R_PLANCHER_PRESENTS APRÈS
+     la pose. Les R déjà posés ce jour-là sont déduits du compte : sans cela, deux
+     poses le même jour feraient passer sous le plancher sans que rien ne l'indique.
+     Les vacances scolaires ne sont plus exclues d'office — le plancher d'effectif
+     s'en charge, et il s'en charge mieux : en août il n'y a de toute façon personne. */
+  /* `ultime` : la passe de dernier recours abandonne le plancher d'effectif, le
+     plafond par jour et l'espacement de 3 jours. C'est délibéré et vérifié au banc :
+     avec une équipe réduite ou très absente, appliquer le plancher partout fait
+     PERDRE des récupérations (895 sur 10 ans au banc de charge, scénario tendu).
+     Une récupération mal placée reste due au MAR ; une récupération jamais posée est
+     un jour de repos volé. Ne jamais échanger la seconde contre la première. */
+  /* ⚠️ DISPONIBILITÉ POUR UNE RÉCUPÉRATION — différente de celle d'une garde.
+     On n'utilise PAS blocked() ni indispoIndividuelle() : elles répondent à « ce MAR
+     peut-il prendre une GARDE ce jour-là ? » et excluent deux familles de cas qui
+     n'ont rien à voir avec un jour de repos.
+       • La veille d'une garde et le combo jeudi-samedi protègent contre
+         l'enchaînement de deux gardes. Un MAR de garde est présent au bloc dans la
+         journée : se reposer la veille est légitime, voire souhaitable.
+       • INDISPO et SOUHAIT signifient « je suis PRÉSENT mais je ne veux pas être de
+         garde ce jour-là ». Ce sont des jours travaillés : une récupération peut
+         parfaitement s'y poser. Le code le sait déjà ailleurs — ABSENT_18 (l.≈1441)
+         ne contient ni INDISPO ni SOUHAIT.
+     Sont réellement absents : vacances, formation, congé long, temps partiel,
+     semaine « off » du rythme 2/2, jours fixes non travaillés, hors fenêtre
+     d'arrivée/départ — plus, évidemment, garde, repos de garde et autre récup.
+     Mesuré le 21/08 sur les indisponibilités réelles 2027 : sans cette distinction,
+     4 MARs restaient privés de tout week-end de récupération sur des lundis pourtant
+     libres avec 20 présents. */
+  const R_ABSENT=new Set(['VAC','FORM','CL','TP','CTP','CP','A','RG_TRANSITION']);
+  function _rDispo(id,date){
+    const dd=FLAGS.dateDebut[id], df=FLAGS.dateFin[id];
+    if((dd&&date<dd)||(df&&date>=df)) return false;
+    if(R_ABSENT.has(indispos[id]?.[date])) return false;
+    if(estSemaineOff(id,date)) return false;
+    const tpF=FLAGS.tpJoursFixes[id];
+    if(tpF&&tpF.has(new Date(date+'T12:00:00').getDay())) return false;
+    if(gSet[id]?.has(date)||g2Set[id]?.has(date)||rgSet[id]?.has(date)||rSet[id]?.has(date)) return false;
+    return true;
+  }
+  /* Effectif présent au sens du service : les MARs de garde travaillent au bloc dans
+     la journée, ils COMPTENT. Vérifié sur le planning réel — le 08/09/2026,
+     « TOTAL PRESENTS » vaut 15, soit les MARs actifs moins les absents, gardes
+     incluses. Ne sont pas présents : absences réelles, repos de garde, récupération. */
+  function _rPresents(date){
+    return allDoctors.filter(m=>{
+      const dd=FLAGS.dateDebut[m], df=FLAGS.dateFin[m];
+      if((dd&&date<dd)||(df&&date>=df)) return false;
+      if(R_ABSENT.has(indispos[m]?.[date])) return false;
+      if(estSemaineOff(m,date)) return false;
+      const tpF=FLAGS.tpJoursFixes[m];
+      if(tpF&&tpF.has(new Date(date+'T12:00:00').getDay())) return false;
+      if(rgSet[m]?.has(date)||rSet[m]?.has(date)) return false;
+      return true;
+    }).length;
+  }
+  /* Le jour borde-t-il une absence déjà posée pour ce MAR ? Une récupération
+     accolée à des vacances ou une formation les rallonge d'une journée. */
+  function _rAccole(id,date){
+    const d=new Date(date+'T12:00:00');
+    for(const k of [-1,1]){
+      const x=new Date(d); x.setDate(d.getDate()+k);
+      if(R_ABSENT.has(indispos[id]?.[toDateStr(x)])) return true;
+    }
+    return false;
+  }
+  function _rEligible(id,cDate,cDow,ultime){
+    if(cDow===0||cDow===6||dayByDate[cDate]?.isFerie||!cDate.startsWith(String(year))) return false;
+    if(!_rDispo(id,cDate)) return false;
+    /* Le plancher d'effectif est ABSOLU : il s'applique même en dernier recours.
+       Décision d'Arthur le 21/08 — « on ne passe pas sous 15 ». Le mode `ultime`
+       relâche le plafond par jour et l'espacement, jamais le plancher. */
+    if(_rPresents(cDate)-(rParJour[cDate]||0)-1 < R_PLANCHER_PRESENTS) return false;
+    if(ultime) return true;
+    if((rParJour[cDate]||0)>=R_MAX_PAR_JOUR) return false;
+    const cDt=new Date(cDate+'T12:00:00');
+    for(let k=-3;k<=3;k++){ if(k===0) continue;
+      const x=new Date(cDt);x.setDate(cDt.getDate()+k);
+      if(rSet[id].has(toDateStr(x))) return false; }
+    return true;
+  }
+  function _rPoser(id,samDate,cDate){
+    rSet[id].add(cDate); rParJour[cDate]=(rParJour[cDate]||0)+1;
+    liensR.push([samDate,id,cDate]); return true;
+  }
+  /* ORDRE DE TRAITEMENT. On parcourait les MARs dans l'ordre de la liste MEDECINS,
+     chacun plaçant TOUTES ses récupérations avant le suivant. Avec l'ancien repli
+     (balayage depuis le 1er janvier) cela produisait un vrai biais : inverser la
+     liste déplaçait certains délais de 180 jours. On trie désormais les samedis par
+     DATE, tous MARs confondus.
+     ⚠️ Mesuré honnêtement le 21/08 : une fois la postériorité corrigée, ce tri
+     n'apporte plus rien de chiffrable — inverser la liste bouge les délais de 10
+     jours au maximum, avec ou sans lui. C'est la postériorité qui a supprimé le
+     biais, pas le tri. On le garde parce que « les samedis sont servis dans l'ordre
+     du calendrier » s'explique à un MAR, alors que « dans l'ordre de la liste
+     MEDECINS » ne s'explique pas — et parce qu'il ne coûte rien. Ne pas lui
+     attribuer un mérite qu'il n'a pas. */
+  const _aPlacer=[];
+  allDoctors.forEach(id=>{ (recupDue[id]||[]).forEach(sd=>_aPlacer.push([sd,id])); });
+  _aPlacer.sort((a,b)=> a[0]<b[0] ? -1 : a[0]>b[0] ? 1 : 0);
+
+  _aPlacer.forEach(([samDate,id])=>{
+      /* 1) Le premier jour ouvrable APRÈS le samedi qui convient.
+         Deux tours : d'abord en gardant le confort (15 présents, 2 R/jour max,
+         3 jours entre deux R d'un même MAR), puis sans, si rien n'a été trouvé.
+         Le second tour est indispensable : en équipe réduite le confort est
+         introuvable, et sans lui seules 20 récupérations sur 104 suivaient leur
+         samedi au lieu de 96 (banc du 21/08). Mieux vaut une date un peu serrée
+         APRÈS la garde qu'une date confortable des mois AVANT. */
+      /* Quitte à poser un jour de repos, autant qu'il serve à quelque chose : on
+         cherche d'abord un jour ACCOLÉ à du repos existant. Un vendredi ou un lundi
+         allonge le week-end ; un jour bordant une absence déjà posée rallonge des
+         vacances ou une formation. À défaut, n'importe quel jour convient — mieux
+         vaut une récupération banale qu'une récupération des mois avant la garde.
+         Trois tours : jour accolé et confortable · n'importe quel jour confortable ·
+         puis sans le confort (le plancher d'effectif, lui, tient toujours). */
+      let placed=false;
+      for(const tour of [0,1,2]){
+        if(placed) break;
+        for(const d of allDays){
+          if(!d.isWeekday||d.date<=samDate) continue;
+          const dow=new Date(d.date+'T12:00:00').getDay();
+          if(tour===0&&!(dow===1||dow===5||_rAccole(id,d.date))) continue;
+          if(_rEligible(id,d.date,dow,tour===2)){
+            placed=_rPoser(id,samDate,d.date);
+            if(tour===2) warnings.push(`R de ${id} (samedi ${samDate}) posé le ${d.date} sur une journée déjà chargée : aucune date confortable après la garde.`);
+            break;
           }
-          rSet[id].add(cDate);rAssigned[cDate]=true;placed=true;liensR.push([samDate,id,cDate]);
         }
       }
+      /* 2) Sinon, n'importe quel jour ouvrable libre, même AVANT le samedi.
+         Une récupération mal datée reste due au MAR ; une récupération jamais
+         posée est un jour de repos volé. Les jours les moins chargés d'abord,
+         sinon la passe empile jusqu'à 5 R sur une même date (constaté au banc). */
       if(!placed){
-        for(const _gap of [3,0]){            // 1re passe espacée (>=3j), 2e passe libre (garantit la pose)
-          if(placed)break;
-          for(const d of allDays){
-            if(!d.isWeekday||d.isFerie||rAssigned[d.date]||isVacancesScolaires(d.date,year)) continue;
-            if(blocked(id,d.date)||gSet[id]?.has(d.date)||g2Set[id]?.has(d.date)||rSet[id].has(d.date)) continue;
-            if(_gap&&[-3,-2,-1,1,2,3].some(k=>{const x=new Date(d.date+'T12:00:00');x.setDate(x.getDate()+k);return rSet[id].has(toDateStr(x));})) continue;
-            rSet[id].add(d.date);rAssigned[d.date]=true;placed=true;liensR.push([samDate,id,d.date]);break;
+        /* Aucune date après la garde : il faut se rabattre sur une date antérieure.
+           On prend alors la PLUS PROCHE du samedi, jamais la plus ancienne.
+           Pourquoi : si ce samedi change de mains, le R ne peut être transféré que
+           s'il est encore à venir. Une récupération posée en janvier pour un samedi
+           du 1er janvier suivant est certaine d'avoir déjà été prise ; posée fin
+           décembre, elle reste transférable jusqu'au bout. */
+        const avant=allDays.filter(d=>d.isWeekday&&d.date<samDate)
+          .slice().sort((a,b)=> a.date<b.date ? 1 : -1);      // du plus récent au plus ancien
+        for(const large of [false,true]){
+          if(placed) break;
+          for(const d of avant){
+            if(_rEligible(id,d.date,new Date(d.date+'T12:00:00').getDay(),large)){
+              placed=_rPoser(id,samDate,d.date);
+              warnings.push(`R de ${id} pour le samedi ${samDate} posé le ${d.date}, AVANT la garde : aucune date libre après. Transfert impossible si ce samedi change de mains après cette date.`);
+              break;
+            }
           }
         }
       }
-    });
+      if(!placed) warnings.push(`R de ${id} pour le samedi ${samDate} NON POSÉ : aucune date éligible dans l'année.`);
   });
 
   // ── 10. 18h ───────────────────────────────────────────────────────────

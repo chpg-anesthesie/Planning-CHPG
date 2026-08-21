@@ -147,7 +147,7 @@
     <h2>État vérifié</h2>
     <div class="etat-grid">
       <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1537 <small>vérifs · 32 scripts</small></div></div>
+      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1589 <small>vérifs · 33 scripts</small></div></div>
       <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
       <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
     </div>
@@ -163,7 +163,7 @@
       <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-20.1</div></div>
     </div>
   </div>
-  <p class="verif">Relevé dans le dépôt et le banc exécuté — 20 août 2026 · <b>⚠️ deux recopies en attente</b> : <code>miroir.gs</code> dans l'éditeur Apps Script (puis déployer une nouvelle version) et <code>worker.js</code> dans le tableau de bord Cloudflare. Tant qu'elles ne sont pas faites, <b>l'ancien code tourne</b> et les deux corrections du 20/08 sont sans effet. Le reste est déployé et confirmé en production.</p>
+  <p class="verif">Relevé dans le dépôt et le banc exécuté — 21 août 2026 · <b>⚠️ une recopie en attente</b> : <code>generateur_gardes.gs</code> dans l'éditeur Apps Script, puis déployer une nouvelle version. Ce code ne s'exécute qu'au moment de générer une année : rien ne changera d'ici là. Les corrections du 20 août sont déployées et confirmées.</p>
 
   <div class="avance">
     <p class="titre">Le développement est fini.</p>
@@ -171,7 +171,7 @@
 
     <div class="avance-chiffres">
       <div><b>12</b><span>modules en service</span></div>
-      <div><b>1 537</b><span>vérifications auto.</span></div>
+      <div><b>1 589</b><span>vérifications auto.</span></div>
       <div><b>0</b><span>à développer</span></div>
       <div><b id="jmoins">—</b><span>avant le staff</span></div>
     </div>
@@ -332,6 +332,16 @@
     <p><b>Et une chose qui ne se rattrape pas :</b> quelques déclarations réelles, faites par Arthur, avant d'ouvrir. Le relevé de l'administration se recopie rétroactivement ; une intervention non déclarée est perdue définitivement. Le geste doit être rodé avant d'être montré.</p>
   </div>
 
+  <div class="card ok">
+    <h4>Les récupérations de samedi tombent enfin après la garde <span class="tag t-green">livré le 21 août</span></h4>
+    <p><b>Ce qui n'allait pas.</b> Après une garde de samedi, une journée de récupération est due. Jusqu'ici, trois sur quatre étaient posées <b>avant</b> le samedi qu'elles compensent — parfois onze mois avant. On récupérait en janvier pour une garde de décembre.</p>
+    <p><b>Pourquoi.</b> Deux règles internes se contredisaient : une seule récupération par jour pour toute l'équipe, et aucune pendant les vacances scolaires, soit quatre mois de l'année. Il ne restait pas assez de place, et le programme finissait par remonter chercher en début d'année.</p>
+    <p><b>Ce qui change.</b> La récupération est désormais cherchée <b>après</b> la garde, et de préférence sur un jour qui prolonge un repos : un vendredi, un lundi, ou un jour accolé à des vacances. Plusieurs personnes peuvent récupérer le même jour, tant qu'il reste <b>au moins 15 présents</b> — le seuil vert de votre planning.</p>
+    <p><b>Le résultat, mesuré sur une année complète :</b> 95 % des récupérations suivent maintenant leur samedi, contre un tiers avant. Le délai passe de près d'un mois à moins d'une semaine. Et 98 % d'entre elles allongent un week-end ou des congés — 57 lundis, 25 vendredis.</p>
+    <p><b>Un effet inattendu, et heureux :</b> quand un samedi change de mains entre deux collègues, la récupération le suit — mais seulement si elle n'a pas déjà été prise. Elle passe de transférable une fois sur quatre à neuf fois sur dix.</p>
+    <p><b>Rien d'autre ne bouge.</b> Qui est de garde, quel jour, avec quelle équité : le planning des gardes est rigoureusement identique. Vérifié case par case sur quatre années. Les astreintes du soir aussi : une par jour ouvré, jamais le week-end, même répartition.</p>
+  </div>
+
   <div class="card">
     <h4>Le plan d'après <span class="tag t-viol">à partir du 5 septembre</span></h4>
     <p><b>Une fois le staff passé, six chantiers, dans cet ordre.</b> Ce ne sont pas des semaines de travail : chacun tient en quelques heures. Ce qui prend du temps, c'est de recopier le nouveau code et de vérifier qu'il tourne avant de passer au suivant. <b>L'ensemble tient en deux journées.</b></p>
@@ -340,6 +350,7 @@
       <li><b>Il distingue ce qui demande un geste du reste.</b> Le 20 août, il affichait sept avertissements : un seul appelait une action, les six autres étaient de l'histoire ancienne. Sept lignes de même couleur, c'est six lignes qui apprennent à ne plus lire la septième.</li>
       <li><b>Ça devient visible dans la page.</b> Une pastille sur l'onglet Maintenance, et en tête de cet onglet ce qui appelle un geste — le reste replié. <b>Les jours où tout va bien, il n'y a rien</b> : pas de pastille, pas de couleur. Un signal qui n'apparaît que quand il compte reste un signal qu'on regarde.</li>
       <li><b>Le cas le plus discret : un MAR placé un jour de récupération.</b> Quand un samedi change de mains, la journée de récupération suit. Si le comité avait déjà placé quelqu'un ce jour-là, <b>le placement reste</b> — le MAR apparaît en secteur alors qu'il récupère. Rien ne clignote, rien ne se vide, personne ne le voit. C'est le seul cas totalement invisible, il passe donc en premier.</li>
+      <li style="opacity:.55"><s><b>Les récupérations posées avant leur samedi.</b></s> <b>Fait le 21 août</b> — voir la première carte.</li>
       <li><b>Le cas du repos de garde</b> — celui décrit juste en dessous.</li>
       <li><b>Renouveler la clé de publication</b>, avant la mi-octobre. Seule vraie échéance, et la seule qui casse quelque chose si on l'oublie.</li>
     </ol>

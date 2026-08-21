@@ -11,6 +11,58 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 21 août 2026 (soir) — le placement des récupérations de samedi
+
+**Versions** : `generateur_gardes.gs` **2026-08-21.1** · banc **1 589 vérifications / 33 scripts** ·
+site v1.64 inchangé (aucune page visible touchée).
+**⚠️ À RECOPIER** dans l'éditeur Apps Script, puis déployer une nouvelle version. **Rien ne se
+passera avant une génération** : ce code ne tourne qu'à ce moment-là.
+
+**Le défaut** : 76 récupérations sur 104 étaient posées **AVANT** le samedi qu'elles compensent,
+jusqu'à 354 jours avant, et 90 % tombaient au 1er semestre. Deux règles internes prises ensemble
+rendaient le placement impossible — une seule récupération par jour pour toute l'équipe, et
+l'exclusion complète des vacances scolaires (~4 mois). Le repli balayait alors l'année depuis le
+1er janvier, sans vérifier la postériorité.
+
+**Sur la charge réelle du service** : 34 % → **95 %** de récupérations après leur samedi, délai
+médian 27 j → **6 j**, **0 jour sous 15 présents** (contre 15), **98 %** prolongent un week-end ou
+une absence. Effet en cascade : le transfert de récupération lors d'un échange de samedi passe de
+27 % à 90 %.
+
+### Règles gravées ce jour
+
+- **INDISPO et SOUHAIT ne sont PAS des absences.** Ce sont des préférences exprimées **avant** la
+  génération, à l'usage de l'algorithme des gardes ; une fois les gardes posées elles n'ont plus de
+  sens et le jour est un jour de travail ordinaire. `ABSENT_18` le savait déjà. Ne jamais les traiter
+  comme des absences ailleurs que dans le placement des gardes.
+- **Un MAR de garde est PRÉSENT au bloc.** Il y travaille dans la journée et prend la garde ensuite.
+  Tout décompte d'effectif qui l'exclut est faux. Référence : « TOTAL PRESENTS » du planning du
+  service, gardes incluses.
+- **`blocked()` répond à « peut-il prendre une GARDE ? », pas à « est-il libre ? »** Elle exclut la
+  veille d'une garde et le combo jeudi-samedi — sans objet pour un jour de repos. Ne pas la réutiliser
+  hors du placement des gardes.
+- **Une récupération jamais posée est un jour de repos volé** ; une récupération mal datée reste due.
+  Ne jamais échanger la seconde contre la première — c'est l'erreur qui a coûté 895 récupérations
+  perdues sur 10 ans au premier essai.
+- **Un test qui lit sa valeur attendue depuis le code ne teste rien.** Mettre le délai minimum à 0
+  faisait passer « aucune récupération à moins de 0 jour ». Les valeurs de réglage se verrouillent
+  dans le banc.
+- **Un banc qui ne voit pas la charge réelle ne voit rien.** Le jeu par défaut laisse l'effectif à
+  20-21 : le plancher n'est jamais atteint et tous les défauts passent. C'est sur la charge réelle
+  qu'on a découvert que **personne** n'avait jamais de récupération un lundi.
+- **Le samedi de garde est TRAVAILLÉ.** Le lundi qui suit donne deux jours de repos consécutifs
+  (dimanche + lundi), pas trois. Ne pas parler de « week-end de 3 jours ».
+
+### 🔒 L'algorithme des gardes est intact — prouvé, pas affirmé
+
+4 configurations, 24 contrôles, 0 échec : grille **identique cellule par cellule**, statistiques
+identiques au caractère près, **équité par axe inchangée au centième**, astreintes 18 h à total et
+répartition identiques (une par jour ouvré, jamais deux, jamais le week-end).
+Structurellement : l'ordre est gardes (§8) → récupérations (§9) → astreintes (§10) → stats (§13).
+Quand le placement des R s'exécute, tout est décidé ; il lit et n'écrit que `rSet`.
+
+---
+
 ## État au 20 août 2026 — les plafonds gratuits de Cloudflare, et une panne quotidienne que rien ne signalait
 
 **Versions** : site **v1.64 inchangé** (aucune page visible touchée) · deux commits `0537b89a86` et

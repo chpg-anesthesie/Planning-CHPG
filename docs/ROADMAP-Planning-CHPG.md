@@ -316,7 +316,7 @@ monte ce jour-là : les séances C et D ne sont pas des chantiers de confort.
 | **C** | **Le R de récupération** + nettoyage de `PLANNING_CADUCS` (même fichier, même passage) | serveur | oui |
 | **D** | **Le repos de garde** — message aux deux MARs sur la carte d'échange | serveur + `dashboard.html` | oui |
 | **E** | **Renouveler le token GitHub** — seule échéance dure, **mi-octobre**, ne dépend de rien | — | non |
-| **🔴 R** | **Placement des récupérations** — plancher 15, max 2/jour, vacances incluses. **AVANT la génération de la vraie 2027** (après la campagne d'octobre). Exige le banc de charge. | `generateur_gardes.gs` | oui |
+| **✅ R** | ~~Placement des récupérations~~ — **LIVRÉ le 21/08**, `generateur_gardes.gs` 2026-08-21.1. Reste à recopier dans l'éditeur Apps Script. | fait | à recopier |
 | **F** | La publication coincée qui ne se signale pas | `admin.html` | oui |
 | — | Ouvrir le libéral aux 19 (rythme propre : RPPS, cotations types, présentation au groupement) | accès | non |
 | plus tard | Retirer `tp_jours_fixes` (avant génération nov. 2027) · sortir `COVERAGE`/`targets` en dur (avant NCHPG janv. 2027) | serveur + admin | oui |
@@ -324,10 +324,14 @@ monte ce jour-là : les séances C et D ne sont pas des chantiers de confort.
 **Pourquoi A et B en premier.** Sans eux, chaque anomalie qu'on apprend à détecter retombe dans un
 mail du lundi que personne ne lit. C'est le socle, pas un confort.
 
-⚠️ **Le chantier R a la seule échéance qui ne se négocie pas avec le calendrier du service** : passé
-la génération de la vraie 2027, il faudrait attendre 2028 — et 23 MARs vivraient une année entière
-avec des récupérations posées avant leurs samedis. **Il peut passer avant A et B si le calendrier se
-resserre.**
+✅ **Le chantier R est livré le 21/08**, avant l'échéance. Il reste à recopier `generateur_gardes.gs`
+dans l'éditeur Apps Script et à déployer une nouvelle version. Le code ne tourne qu'au moment d'une
+génération : rien ne changera d'ici là.
+⚠️ **Génération de test avant le 4/09** : supprimer d'abord manuellement `GARDES_2027` (verrou
+anti-régénération), puis générer, puis ouvrir `LIENS_R_2027`. **La grille de démo sera entièrement
+redistribuée** — si des exemples précis ont été préparés pour le staff, ils ne seront plus valables.
+Vérifier aussi que `PLANNING_OVERRIDES` ne contient aucune ligne 2027 : les placements se recollent
+sur toute grille régénérée (constat du 10/08).
 
 **Pourquoi C avant D.** Voir ci-dessous : le RG **vide** la case (visible, le flash « + »
 clignote) ; le R **laisse le placement tenir** (invisible). Le pire des deux passe en premier.
@@ -680,7 +684,135 @@ NOVEMBRE : ces lignes se colleraient sur la vraie génération 2027. »* J'avais
 même. **Conséquence : le correctif ne sert pas seulement 2028 — il sert la vraie 2027, à condition
 d'être en place avant la génération.**
 
-#### 🔴 CHANTIER PRIORITAIRE — LE PLACEMENT DES RÉCUPÉRATIONS (échéance : AVANT la génération)
+#### ✅ LIVRÉ LE 21/08/2026 — LE PLACEMENT DES RÉCUPÉRATIONS
+
+`generateur_gardes.gs` **2026-08-21.1** · `banc/banc_recups.js` (34 vérifications) ·
+`banc/jeu_service.json` · banc complet **1 589 vérifications, 0 échec**.
+⚠️ **À recopier dans l'éditeur Apps Script**, puis déployer une nouvelle version.
+**Rien ne se passera avant une génération** : le code ne tourne qu'à ce moment-là.
+
+##### Ce que fait le nouveau placement
+
+Pour chaque samedi, **dans l'ordre du calendrier** (et non plus dans l'ordre de la
+liste MEDECINS), on cherche une date **APRÈS la garde** :
+1. **Un vendredi, un lundi, ou un jour bordant une absence déjà posée** — quelque
+   chose qui prolonge un repos existant. *Règle demandée par Arthur : « quitte à
+   placer un R autant le faire sur des jours sympas, style vendredi ou lundi pour
+   prolonger le WE, ou augmenter les vacances ».*
+2. Sinon n'importe quel jour ouvrable.
+3. Sinon en acceptant une journée déjà chargée — **le plancher d'effectif tenant
+   toujours**.
+4. En tout dernier recours, une date **avant** la garde, la **plus proche possible** —
+   jamais la plus ancienne : si le samedi change de mains, le R n'est transférable que
+   s'il est encore à venir. Chaque relâchement écrit un avertissement nommé.
+
+**Réglages** : `R_MAX_PAR_JOUR = 2` · `R_PLANCHER_PRESENTS = 15` (aligné sur le code
+couleur du planning du service : vert = 15 présents ou plus).
+
+##### Quatre corrections de fond, chacune issue d'une précision d'Arthur
+
+1. **Le plancher de 15 est ABSOLU** — il s'applique même en dernier recours (« on ne
+   passe pas sous 15 »). L'ancien code sautait ce contrôle en juillet, août et
+   décembre.
+2. **Les MARs de garde sont COMPTÉS PRÉSENTS.** Ils travaillent au bloc dans la
+   journée. Vérifié sur le planning réel : le 08/09/2026, « TOTAL PRESENTS » vaut 15,
+   soit les MARs actifs moins les absents, **gardes incluses**. L'ancien calcul les
+   excluait et sous-estimait l'effectif de 2.
+3. **INDISPO et SOUHAIT ne sont PAS des absences.** Ce sont des préférences exprimées
+   **avant** la génération, à l'usage de l'algorithme des gardes ; une fois les gardes
+   posées elles n'ont plus de sens, et le jour est un jour de travail ordinaire. Le
+   code le savait déjà ailleurs (`ABSENT_18` ne les contient pas). **905 jours sur
+   2 451 redeviennent disponibles.**
+4. **`blocked()` n'est plus utilisée pour les récupérations.** Elle répond à « ce MAR
+   peut-il prendre une GARDE ? » et exclut la veille d'une garde et le combo
+   jeudi-samedi — deux règles contre l'enchaînement de deux gardes, sans objet pour un
+   jour de repos. Un MAR de garde étant présent au bloc, se reposer la veille est
+   légitime. Une fonction dédiée `_rDispo()` la remplace.
+
+##### Résultats — mesurés sur la CHARGE RÉELLE du service
+
+Jeu `INDISPOS_2027` du classeur : **2 451 jours d'absence, 25 MARs**, régimes
+particuliers compris.
+
+| | Avant | Après |
+|---|---|---|
+| Récupérations **après** leur samedi | **34 %** | **95 %** |
+| Délai médian | 27 jours | **6 jours** |
+| Pire cas | **354 jours AVANT** | 18 jours avant |
+| Prolongent un week-end ou une absence | — | **98 %** (57 lundis · 25 vendredis · 24 accolées) |
+| Jours descendant sous 15 présents | **15** | **0** |
+| Récupérations perdues | 0 | **0** |
+
+⚠️ **Le jeu par défaut du banc ne voyait RIEN.** Trop peu d'absences : l'effectif y
+reste à 20-21, le plancher n'est jamais atteint. C'est en passant sur la charge réelle
+qu'on a découvert que l'algorithme d'avant ne posait **aucune** récupération un lundi
+pour **personne** — 0 MAR sur 21 — sa fenêtre démarrant à 2 semaines.
+
+##### 🔒 PREUVE DE NON-RÉGRESSION — l'algorithme des gardes est INTACT
+
+Question d'Arthur : *« l'algo de garde est la pierre angulaire du système, je ne veux
+rien casser »*. Vérifié sur **4 configurations** (charge réelle + 3 années du jeu par
+défaut), **24 contrôles, 0 échec** :
+
+- **Grille identique CELLULE PAR CELLULE** (G, G2, RG, absences) — zéro différence.
+- **Statistiques identiques au caractère près** : cibles, totaux, SAM, JEU, VD, JF,
+  VJF, Noël.
+- **Équité par axe inchangée au centième** : TOTAL 0,50→0,50 · SAM 0,80→0,80 ·
+  JEU 1,00→1,00 · VD 1,20→1,20 · VJF 0,60→0,60.
+- **Astreintes 18 h** : total conservé (251), **une par jour ouvré, jamais deux,
+  jamais le week-end**, répartition par MAR rigoureusement identique sur la charge
+  réelle (min 6 · médiane 11 · max 14).
+
+**Pourquoi c'est structurel** : l'ordre du générateur est gardes (§8) → récupérations
+(§9) → astreintes (§10) → stats (§13). Quand le placement des R s'exécute, tout est
+déjà décidé ; il LIT et n'écrit que `rSet`. Seul effet en aval possible : les
+astreintes étant placées après, un R déplacé change *qui* est disponible — jamais
+*combien* chacun en tient, le tri par charge relative rattrapant l'écart.
+
+##### Sept contre-épreuves, chacune faisant tomber un test précis
+
+Postériorité supprimée (11 % au lieu de 96 %) · plancher jusqu'au dernier recours
+(**895 récupérations perdues sur 10 ans**) · délai minimum à 0 · tri par charge
+supprimé (5 R empilées sur une date) · plafond porté à 99 · plancher abaissé à 8 ·
+réservation du lundi désactivée.
+
+##### Erreurs de méthode commises ce jour-là — à ne pas refaire
+
+- **Mon premier patch perdait 895 récupérations sur 10 ans** : j'appliquais le plancher
+  d'effectif jusque dans la passe de dernier recours. *Une récupération mal datée reste
+  due au MAR ; une récupération jamais posée est un jour de repos volé.*
+- **Trois de mes tests ne mordaient pas** : ils lisaient la constante depuis le code
+  (mettre le délai minimum à 0 faisait passer « aucune récup à moins de 0 jour ») ou ne
+  testaient jamais les passes de repli. **Les valeurs de réglage sont désormais
+  verrouillées dans le banc.**
+- **J'ai parlé de « week-end de 3 jours »** : faux, le samedi est travaillé. Le lundi
+  qui suit la garde donne DEUX jours de repos consécutifs (dimanche + lundi).
+- **J'ai construit un scénario de banc irréaliste** (16 MARs, 6 semaines d'absence) où
+  l'effectif tombe structurellement sous 15 et où plus rien n'est posable.
+- **J'ai affirmé trois fois que « 2027 ne sera pas régénérée »** alors que la ROADMAP
+  disait le contraire au 10/08, et que je l'avais lue le matin même.
+
+##### ⚠️ Note sur `banc/jeu_service.json`
+
+Contient `INDISPOS_2027` du classeur — **scénario de démonstration construit par
+Arthur**, calqué sur le volume et la saisonnalité réels de l'équipe. **Identités
+remplacées par MAR01..MAR25** : le dépôt est public, un nom réel n'a rien à faire à
+côté de données d'absence, même fictives. Entorse assumée à la règle « ne recopie
+jamais de données du classeur dans le dépôt », validée par Arthur le 21/08 : sans cette
+charge, le banc ne détecte aucun des défauts corrigés ici.
+
+##### Ce qu'il reste
+
+- **5 récupérations sur 104 restent posées avant leur samedi** (au pire 18 jours
+  avant) : samedis de fin d'année sans lendemain disponible. Le générateur les signale.
+- **`isVacancesScolaires` n'a plus aucun appelant** — l'exclusion des vacances est
+  remplacée par le plancher d'effectif. La fonction est conservée avec un avertissement
+  en tête : ne pas croire, en la lisant, qu'elle contraint encore quelque chose.
+- **À vérifier lors de la génération de test** : ouvrir `LIENS_R_{année}` et comparer
+  `DATE R − SAMEDI`. Avant : une majorité de négatifs. Après : une majorité de petits
+  positifs.
+
+#### 🔴 LE CHANTIER TEL QU'IL ÉTAIT POSÉ (conservé pour la trace)
 
 **Arrêté avec Arthur le 21/08, simulations à l'appui.** ⚠️ **Échéance dure : la vraie 2027 est
 générée après la campagne d'octobre.** Le correctif doit être écrit, testé au banc et déployé avant.
