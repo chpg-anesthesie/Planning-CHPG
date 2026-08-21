@@ -296,6 +296,88 @@ où un second espace de stockage apparaissait dans la liste du compte. Le miroir
 vérifié par le seul test qui compte : `dashboard.html` s'affiche **instantanément**, donc il lit
 bien le miroir et non le repli Google. Artefact de la métrique, pas un incident.
 
+### 📌 À FAIRE APRÈS LE 4 SEPTEMBRE — le conflit échange ↔ placement
+
+**Décidé le 21/08 par Arthur, conception arrêtée. Pas avant le 4 septembre** : touche
+`dashboard.html`, servi aux 23 MARs.
+
+**Le problème.** Le comité place un MAR dans un secteur pour combler un trou. Plus tard, ce MAR
+récupère une garde — par échange, par don, ou parce que le comité a modifié la grille. Le système
+lui pose alors automatiquement un **repos le lendemain**, ce qui est juste. Mais son placement
+devient caduc : à la publication suivante, **la case se vide et le trou se rouvre**, dans un mois
+que tout le monde considérait comme bouclé.
+
+**Deux cas vérifiés dans le classeur le 20/08**, tous deux avec le même mécanisme — G2 la veille,
+RG le jour du placement, dans un vrai secteur (bloc viscéral et maternité). Deux cas en deux mois :
+rare, mais réel.
+
+**Pourquoi ce n'est pas une erreur de saisie.** `admin.html` l.4645 exclut déjà les MARs en repos de
+la liste des placements proposés : le comité ne *peut pas* placer quelqu'un déjà en RG. C'est un
+événement **postérieur** qui défait le placement. Angle mort réel, pas maladresse.
+
+**Ce qui existe déjà et qu'il ne faut PAS refaire :**
+- Le **flash « + »** d'`admin.html` l.3877 signale toute case d'un secteur de couverture dont le
+  titulaire est absent (RG compris) sans remplaçant, avec un plancher anti-blocage sur une case
+  vide. **Le trou EST signalé dans la grille.** Le manque n'est pas l'affichage, c'est qu'il faut
+  ouvrir la semaine concernée pour le voir.
+- `refuseSiIndisponible` (`Indispos.gs` l.1977) vérifie **déjà** que le nouveau repos ne tombe pas
+  sur une absence, et refuse l'échange le cas échéant. Il lit `INDISPOS_{Y}` — il ne lit pas
+  `PLANNING_OVERRIDES`. **La logique de protection est écrite ; il lui manque une source.**
+- `notifierPush_` sait cibler `{role:'admin'}` depuis le 13/08. **Écarté** — voir ci-dessous.
+
+**⛔ Écarté : la notification automatique au comité.** Motif d'Arthur, 21/08 : *« le membre du
+comité qui reçoit une notif à 22h ne va pas ouvrir la page admin. Il va oublier et puis plus
+rien. »* Le canal technique existe et fonctionne ; c'est le moment et le destinataire qui sont
+mauvais. **Ne pas reproposer.**
+
+**⛔ Écarté : refuser l'échange.** Bloquer un droit des médecins pour un problème d'organisation du
+comité. Deux MARs verraient « échange impossible » pour une raison qui ne les concerne pas et sur
+laquelle ils n'ont aucune prise.
+
+#### La solution retenue
+
+**L'échange se fait quoi qu'il arrive.** Après application, le système lit `PLANNING_OVERRIDES` sur
+les dates de repos nouvellement créées. **Pas de conflit → personne n'est dérangé.** Conflit → un
+message clair aux **deux** MARs de l'échange, qui prennent la responsabilité de prévenir le comité.
+
+Message (maquette validée le 21/08) :
+
+> ⚠️ **Une place se libère — prévenez le comité**
+> L'échange est enregistré.
+> Vous serez **en repos de garde le jeudi 16 juillet**. Or le comité vous avait placé au **bloc
+> viscéral ce jour-là, matin et après-midi**.
+> Cette place n'est plus pourvue. **Merci de prévenir le comité** pour qu'il puisse la repourvoir.
+
+Précis sur les trois choses qui comptent — **quel jour, quel secteur, quelle demi-journée** — et une
+seule action demandée.
+
+**Décisions d'Arthur (21/08), point par point :**
+1. **Le don est couvert** comme l'échange (il crée aussi un repos le lendemain).
+2. **Les modifications de gardes par le comité sont couvertes** aussi, pas seulement les échanges
+   entre MARs.
+3. **Les deux MARs voient le conflit**, y compris celui qui n'est pas concerné : *« ça fait
+   2 personnes informées et moins de risque de perte d'info »*.
+4. **Si le MAR oublie de prévenir, tant pis** — le filet est le contrôle du comité à la publication,
+   et le flash « + » dans la grille. Pas de mécanisme de rattrapage supplémentaire.
+
+**Persistance — à trancher à l'implémentation.** Un message affiché au clic disparaît quand
+l'application se ferme, ce qui reproduit le défaut reproché à la notification. Piste : la colonne
+`INFO` de l'onglet `ECHANGES`, **déjà** utilisée pour tracer le transfert de récupération et déjà
+poussée vers les MARs — le message y resterait visible sur la carte de l'échange. **À vérifier
+avant de coder : cette colonne est-elle affichée sur la carte côté `dashboard.html` ?**
+
+**Portée** : `echanges.gs`, `Indispos.gs`, `dashboard.html`. Page visible → **montée de version du
+site dans le même push**, 2e chiffre (v1.65) puisque c'est une fonctionnalité — à confirmer par
+Arthur. Mockup avant implémentation, scénario au banc obligatoire (un défaut trouvé en production
+devient un scénario du banc).
+
+**Rappel de méthode, coûteux ce jour-là.** J'ai proposé successivement un bandeau d'alerte dans
+`admin.html` puis une notification au comité, **sans avoir lu le flash « + » qui existait déjà**, et
+j'ai construit un scénario entier sur onze lignes `VOLANT` de `PLANNING_OVERRIDES` prises pour des
+placements alors que `admin.html` l.1685 les traite comme des **retraits** (`VOLANT` n'est pas dans
+`SECTEURS` — vérifié dans le classeur : neuf secteurs, VIS à MAT). Deux fois la même faute : lire le
+producteur d'une donnée sans lire son consommateur.
+
 ### Ce qui reste ouvert
 
 - **⚠️ Une publication coincée ne le dit toujours pas.** Les deux correctifs suppriment la cause la
