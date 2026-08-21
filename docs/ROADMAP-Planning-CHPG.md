@@ -272,6 +272,30 @@ statut** (« X est placé en VOLANT le JJ/MM — ce placement sera ignoré ») :
 l'information tombe devant quelqu'un qui peut décider. Les deux autres pistes — marque dans la
 grille, statu quo avec purge périodique du carnet — avaient été écartées. Touche `admin.html`.
 
+### ✅ CONFIRMÉ EN PRODUCTION — relevé du 21/08 à 07h01 UTC
+
+Première journée complète avec les deux corrections. **421 minutes** de journée écoulées :
+
+| | 20/08 au même point | 21/08 | Projection | Plafond |
+|---|---|---|---|---|
+| Ouvertures de file | ~466 | **141** | ~480 | 1 000 |
+| Écritures | ~277 | **26** | ~89 | 1 000 |
+| Suppressions | ~51 | 63 | ~215 | 1 000 |
+| Lectures | — | 447 | ~1 530 | 100 000 |
+
+**Ouvertures ÷ 3,3 · écritures ÷ 10,6.** Le chiffre qui ferme le dossier : 421 ÷ 3 = 140
+ouvertures attendues avec le filet, **141 observées**. Le banc prédisait 480/jour, la production
+en donne 480. Plus d'alerte à 50 % ni à 90 %, plus de plafond à 17 h.
+
+**Non encore prouvé : le drapeau lui-même.** À 07h01 le filet avait fait la totalité du travail —
+personne ne publie entre 2 h et 9 h, donc aucun drapeau à lever. La vérification est de publier en
+journée et de chronométrer : < 1 min = drapeau, 2-3 min = filet. Les deux sont acceptables.
+
+**Fausse alerte écartée** : la vue Workers KV affichait `Storage 0 B` (43 Mo la veille), au moment
+où un second espace de stockage apparaissait dans la liste du compte. Le miroir n'était pas vide —
+vérifié par le seul test qui compte : `dashboard.html` s'affiche **instantanément**, donc il lit
+bien le miroir et non le repli Google. Artefact de la métrique, pas un incident.
+
 ### Ce qui reste ouvert
 
 - **⚠️ Une publication coincée ne le dit toujours pas.** Les deux correctifs suppriment la cause la
