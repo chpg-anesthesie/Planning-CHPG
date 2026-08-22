@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Maquette — Validation des temps partiels (comité)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap"/>
+<style>
+/* Jetons repris tels quels d'admin.html. */
+:root{
+  --red:#CE1126; --ink:#0F172A; --ink-2:#334155; --ink-3:#64748B; --ink-4:#94A3B8;
+  --line:#E2E8F0; --line-light:#F1F5F9; --bg:#F8FAFC; --white:#fff;
+  --green:#166534; --green-soft:#F0FDF4; --orange:#C2410C; --orange-soft:#FFF7ED;
+  --blue:#1D4ED8; --blue-soft:#EFF6FF; --purple:#7E22CE; --purple-soft:#FDF4FF;
+  --radius:12px; --mono:'DM Mono',monospace; --shadow:0 1px 3px rgba(0,0,0,.04);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);
+  -webkit-font-smoothing:antialiased;padding-bottom:50px}
+.header{background:var(--red);padding:0 20px;min-height:56px;display:flex;align-items:center;
+  justify-content:space-between}
+.header-title{color:#fff;font-size:15px;font-weight:700}
+.header-user{color:rgba(255,255,255,.8);font-size:13px;font-weight:600}
+.maquette-tag{background:#0F172A;color:#fff;font-size:11px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;padding:6px 16px;text-align:center}
+.nav{background:#fff;border-bottom:1px solid var(--line);padding:0 16px;display:flex;gap:4px;overflow-x:auto}
+.nav-tab{padding:12px 14px;font-size:13px;font-weight:600;color:var(--ink-4);white-space:nowrap;
+  border-bottom:2px solid transparent;background:none;border-top:0;border-left:0;border-right:0;
+  font-family:inherit;cursor:pointer}
+.nav-tab.on{color:var(--red);border-bottom-color:var(--red)}
+.wrap{max-width:720px;margin:0 auto;padding:16px}
+
+/* L'ALERTE — repliée par défaut, exactement comme les autres alertes du comité. */
+.alerte{background:var(--orange-soft);border:1px solid #FED7AA;border-radius:10px;
+  padding:13px 15px;cursor:pointer;display:flex;align-items:center;gap:11px;transition:border-color .12s}
+.alerte:hover{border-color:var(--orange)}
+.alerte-txt{flex:1;font-size:13px;color:#92400E;line-height:1.45}
+.alerte-txt b{font-size:13.5px}
+.alerte-chev{color:var(--orange);font-size:13px;font-weight:700;flex-shrink:0}
+.alerte.vide{background:var(--green-soft);border-color:#BBF7D0;cursor:default}
+.alerte.vide .alerte-txt{color:var(--green)}
+
+.liste{margin-top:10px;display:none}
+.liste.on{display:block}
+.ligne{display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid var(--line);
+  border-radius:9px;background:#fff;margin-bottom:7px;box-shadow:var(--shadow)}
+.init{width:36px;height:36px;border-radius:8px;background:var(--line-light);display:flex;
+  align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--ink-2);
+  font-family:var(--mono);flex-shrink:0}
+.corps{flex:1;min-width:0}
+.jour{font-size:13.5px;font-weight:600;color:var(--ink)}
+/* Le chiffre est RECALCULÉ à chaque clic : c'est le point de l'écran. */
+.eff{font-size:11.5px;color:var(--ink-4);font-family:var(--mono);margin-top:2px}
+.eff.ko{color:var(--orange);font-weight:700}
+.eff.ok{color:var(--green);font-weight:700}
+.actions{display:flex;gap:6px;flex-shrink:0}
+.b{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:8px 12px;
+  font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--ink-3)}
+.b-ok{border-color:#BBF7D0;background:var(--green-soft);color:var(--green)}
+.b-ok:hover{border-color:var(--green)}
+.b-ko:hover{border-color:var(--orange);color:var(--orange)}
+.ligne.traitee{opacity:.55}
+.ligne.traitee .actions{display:none}
+.verdict{font-size:12px;font-weight:700;font-family:var(--mono);flex-shrink:0}
+.v-ok{color:var(--green)}
+.v-ko{color:var(--orange)}
+.annuler{background:none;border:0;font-family:inherit;font-size:11.5px;font-weight:600;
+  color:var(--ink-4);cursor:pointer;text-decoration:underline;padding:0 0 0 9px}
+
+.note{background:#fff;border:1px solid var(--line);border-left:3px solid var(--red);
+  border-radius:var(--radius);padding:14px 16px;margin-top:18px;font-size:12.5px;
+  line-height:1.55;color:var(--ink-2)}
+.note b{color:var(--ink)}
+.note ul{margin:8px 0 0 18px}
+.note li{margin-bottom:6px}
+.rappel{margin-top:14px;background:var(--blue-soft);border:1px solid #BFDBFE;border-radius:10px;
+  padding:11px 14px;font-size:12.5px;color:var(--blue);line-height:1.5}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);
+  color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:99;
+  opacity:0;pointer-events:none;transition:opacity .2s;max-width:88%;text-align:center}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-title">Administration — CHPG</span>
+  <span class="header-user">Comité</span>
+</div>
+<div class="maquette-tag">Maquette — aucune donnée réelle, rien n'est enregistré</div>
+
+<div class="nav">
+  <button class="nav-tab">📅 Planning</button>
+  <button class="nav-tab on">👥 Équipe</button>
+  <button class="nav-tab">🏖️ Congés</button>
+  <button class="nav-tab">🔧 Maintenance</button>
+</div>
+
+<div class="wrap">
+
+  <div class="alerte" id="alerte" onclick="basculer()">
+    <span style="font-size:17px">🟠</span>
+    <span class="alerte-txt" id="alerteTxt"><b>3 jours de temps partiel à valider</b><br>
+      Il resterait 13 ou 14 présents ces jours-là.</span>
+    <span class="alerte-chev" id="chev">Voir →</span>
+  </div>
+
+  <div class="liste" id="liste"></div>
+
+  <div class="rappel">
+    Un refus se dit de vive voix au MAR concerné. Aucun message n'est envoyé d'ici.
+  </div>
+
+  <div class="note">
+    <b>Ce que la maquette montre volontairement</b>
+    <ul>
+      <li><b>Validez le 23 mars pour SEVERAC.</b> La ligne de CATINEAU, le même jour, se recalcule
+        aussitôt : elle passe de 14 à 13 présents. C'est le point de cet écran — le chiffre n'est
+        jamais celui du jour de la demande, toujours celui de l'instant.</li>
+      <li>Chaque décision est <b>annulable</b> tant que vous êtes sur l'écran.</li>
+      <li>Quand tout est traité, l'alerte devient verte et la liste se vide.</li>
+      <li>Un jour où il resterait <b>12 ou moins</b> n'arrive jamais ici : il est noir chez le MAR,
+        donc il ne peut pas être demandé. Le comité ne traite que des cas défendables.</li>
+      <li><b>Aucun temps de chargement</b> : les gardes et les demandes sont déjà en mémoire,
+        le nombre de présents se recalcule dans la page.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* Effectif de base par jour, AVANT toute validation. Chiffres inventés.
+   Le recalcul se fait ici, dans la page : aucune donnée à aller chercher. */
+/* Effectif AVANT toute validation. Un jour n'arrive ici que s'il est JAUNE :
+   il resterait 13 ou 14. En dessous, il est noir chez le MAR — pas proposable,
+   donc aucune demande à traiter. Le comité ne voit jamais un cas désespéré. */
+const EFFECTIF = { '2027-03-23':15, '2027-03-26':14, '2027-04-02':15 };
+const SEUIL = 15;      // au-dessus : plus besoin de valider
+const PLANCHER = 13;   // en dessous : le jour n'aurait pas été proposable
+const NOMS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+const MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+let DEMANDES = [
+  {id:1, init:'SEV', jour:'2027-03-23', etat:null},
+  {id:2, init:'CAT', jour:'2027-03-23', etat:null},
+  {id:3, init:'ZAM', jour:'2027-04-02', etat:null},
+];
+let ouvert = false;
+
+function joli(ds){ const d=new Date(ds+'T12:00:00');
+  return NOMS[d.getDay()]+' '+d.getDate()+' '+MOIS[d.getMonth()]+' '+d.getFullYear(); }
+/* Présents si CETTE demande était validée, en tenant compte de celles
+   qu'on vient d'accepter à l'instant. */
+function presentsSi(dem){
+  const dejaValides = DEMANDES.filter(d=>d.etat==='ok' && d.jour===dem.jour && d.id!==dem.id).length;
+  return EFFECTIF[dem.jour] - dejaValides - 1;
+}
+function basculer(){
+  if (DEMANDES.every(d=>d.etat)) return;
+  ouvert = !ouvert;
+  document.getElementById('liste').classList.toggle('on', ouvert);
+  document.getElementById('chev').textContent = ouvert ? 'Masquer' : 'Voir →';
+}
+function rendre(){
+  const box = document.getElementById('liste');
+  box.innerHTML = DEMANDES.map(d=>{
+    const p = presentsSi(d);
+    const cls = d.etat ? '' : (p >= PLANCHER ? 'ko' : 'ko');
+    const eff = d.etat === 'ok' ? 'Validé — '+p+' présents'
+              : d.etat === 'ko' ? 'Refusé — à dire au MAR'
+              : p+' présents si vous validez'+(p<PLANCHER?' · sous le plancher de '+PLANCHER:'');
+    const act = d.etat
+      ? '<span class="verdict '+(d.etat==='ok'?'v-ok">✓ validé':'v-ko">✕ refusé')+'</span>'
+        + '<button class="annuler" onclick="annuler('+d.id+')">annuler</button>'
+      : '<div class="actions"><button class="b b-ok" onclick="decider('+d.id+',\'ok\')">✓ Valider</button>'
+        + '<button class="b b-ko" onclick="decider('+d.id+',\'ko\')">✕ Refuser</button></div>';
+    return '<div class="ligne'+(d.etat?' traitee':'')+'">'
+         + '<div class="init">'+d.init+'</div>'
+         + '<div class="corps"><div class="jour">'+joli(d.jour)+'</div>'
+         + '<div class="eff '+cls+'">'+eff+'</div></div>'+act+'</div>';
+  }).join('');
+  const reste = DEMANDES.filter(d=>!d.etat).length;
+  const a = document.getElementById('alerte'), t = document.getElementById('alerteTxt');
+  if (reste === 0){
+    a.classList.add('vide');
+    t.innerHTML = '<b>Tout est traité</b><br>Plus aucun jour de temps partiel en attente.';
+    document.getElementById('chev').textContent = '';
+    document.getElementById('liste').classList.remove('on'); ouvert = false;
+  } else {
+    a.classList.remove('vide');
+    t.innerHTML = '<b>'+reste+' jour'+(reste>1?'s':'')+' de temps partiel à valider</b><br>'
+      + 'Il resterait 13 ou 14 présents ces jours-là.';
+    document.getElementById('chev').textContent = ouvert ? 'Masquer' : 'Voir →';
+  }
+}
+function decider(id, etat){
+  const d = DEMANDES.find(x=>x.id===id); d.etat = etat; rendre();
+  toast(etat==='ok' ? 'Jour validé — le MAR le verra sur son écran'
+                    : 'Jour refusé — dites-le-lui de vive voix');
+}
+function annuler(id){ DEMANDES.find(x=>x.id===id).etat = null; ouvert = true;
+  document.getElementById('liste').classList.add('on'); rendre(); }
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m;
+  t.classList.add('show'); clearTimeout(t._x); t._x=setTimeout(()=>t.classList.remove('show'),2600); }
+rendre();
+</script>
+</body>
+</html>

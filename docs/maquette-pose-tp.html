@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Maquette — Pose des temps partiels</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap"/>
+<style>
+/* Jetons repris tels quels de indispos.html — la maquette doit être
+   indiscernable de la page réelle, sinon elle ne se juge pas. */
+:root{
+  --red:#CE1126; --ink:#0F172A; --ink-2:#334155; --ink-3:#64748B; --ink-4:#94A3B8;
+  --line:#E2E8F0; --bg:#F8FAFC; --white:#fff; --radius:12px;
+  --vac:#EFF6FF;   --vac-fg:#1D4ED8;   --vac-border:#BFDBFE;
+  --form:#F5F3FF;  --form-fg:#6D28D9;  --form-border:#DDD6FE;
+  --garde:#FEF2F2; --garde-fg:#B91C1C; --garde-border:#FECACA;
+  --tp:#F3E8FF;    --tp-fg:#6D28D9;    --tp-border:#D8B4FE;
+  --libre:#F0FDF4; --libre-fg:#166534; --libre-border:#BBF7D0;
+  --plein:#FEF9C3; --plein-fg:#92400E; --plein-border:#CA8A04;
+  --reserve:#FFF7ED; --reserve-fg:#C2410C; --reserve-border:#FB923C;
+  --ferme:#334155;   --ferme-fg:#CBD5E1;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);
+  -webkit-font-smoothing:antialiased;padding-bottom:40px}
+
+.header{background:var(--red);padding:0 20px;min-height:56px;display:flex;align-items:center;
+  justify-content:space-between;position:sticky;top:0;z-index:100}
+.header-title{color:#fff;font-size:15px;font-weight:700}
+.header-user{color:rgba(255,255,255,.8);font-size:13px;font-weight:600}
+
+.maquette-tag{background:#0F172A;color:#fff;font-size:11px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;padding:6px 16px;text-align:center}
+
+/* Bandeau de phase : c'est LUI qui dit au MAR où il en est. */
+.phase{background:#fff;border-bottom:1px solid var(--line);padding:14px 16px}
+.phase-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:7px}
+.phase-sub{font-size:12.5px;color:var(--ink-3);margin-top:3px;line-height:1.45}
+
+.stats-bar{background:var(--bg);border-bottom:1px solid var(--line);padding:9px 16px;
+  display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.stat-item{font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px}
+.jauge{flex:1;min-width:120px;height:6px;background:#E2E8F0;border-radius:3px;overflow:hidden}
+.jauge-fill{height:100%;background:var(--tp-fg);border-radius:3px;transition:width .25s}
+
+.legend{display:flex;gap:6px;padding:10px 16px;flex-wrap:wrap;background:#fff;
+  border-bottom:1px solid var(--line)}
+.legend-item{font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;
+  border:1.5px solid transparent;transition:all .12s;user-select:none}
+.legend-item.active-tool{border-color:var(--ink);box-shadow:0 0 0 2px rgba(15,23,42,.08)}
+.li-tp{background:var(--tp);color:var(--tp-fg)}
+.li-erase{background:#fff;color:var(--ink-3);border:1.5px solid var(--line)}
+.tool-hint{font-size:12px;color:var(--ink-3);padding:8px 16px 0}
+
+.month-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 6px}
+.month-title{font-size:16px;font-weight:700}
+.month-nav-btn{background:#fff;border:1.5px solid var(--line);color:var(--ink-3);
+  font-family:inherit;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer}
+.month-nav-btn:hover{border-color:var(--red);color:var(--red)}
+
+.calendar-container{padding:8px 16px 16px}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-header{text-align:center;font-size:11px;font-weight:700;color:var(--ink-4);
+  padding:6px 0;text-transform:uppercase;letter-spacing:.04em}
+.cal-day{border-radius:8px;padding:6px 4px 4px;min-height:62px;cursor:pointer;transition:all .12s;
+  border:1.5px solid var(--line);position:relative;display:flex;flex-direction:column;
+  align-items:center;gap:3px;background:#fff;-webkit-tap-highlight-color:transparent}
+.cal-day:active{transform:scale(.95)}
+.cal-day.empty{background:transparent;border-color:transparent;cursor:default}
+.cal-day.weekend{background:var(--bg);cursor:default}
+.cal-day-num{font-size:13px;font-weight:700;color:var(--ink-2);line-height:1}
+.cal-day.weekend .cal-day-num{color:var(--ink-4)}
+.cal-day-badge{font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;letter-spacing:.03em}
+/* Le nombre de présents : la seule information NOUVELLE de cet écran.
+   Discret par défaut, il ne crie que là où il bloque. */
+.cal-day-eff{font-size:9.5px;font-weight:700;color:var(--ink-4);font-family:'DM Mono',monospace;
+  margin-top:auto;line-height:1}
+
+.cal-day.libre{background:var(--libre);border-color:var(--libre-border)}
+.cal-day.libre .cal-day-num{color:var(--libre-fg)}
+.cal-day.libre .cal-day-eff{color:#15803D}
+.cal-day.pose{background:var(--tp);border-color:var(--tp-fg);border-width:2px}
+.cal-day.pose .cal-day-num{color:var(--tp-fg)}
+.cal-day.plein{background:var(--plein);border:1.5px dashed var(--plein-border)}
+.cal-day.plein .cal-day-num{color:var(--plein-fg)}
+.cal-day.plein .cal-day-eff{color:var(--plein-fg)}
+.cal-day.reserve{background:var(--reserve);border:2px dashed var(--reserve-border)}
+.cal-day.reserve .cal-day-num{color:var(--reserve-fg)}
+.b-reserve{background:#fff;color:var(--reserve-fg)}
+.cal-day.ferme{background:var(--ferme);border-color:#1E293B;cursor:default}
+.cal-day.ferme .cal-day-num{color:var(--ferme-fg)}
+.cal-day.ferme .cal-day-eff{color:#94A3B8}
+.cal-day.bloque{background:#F1F5F9;border-color:#E2E8F0;cursor:default;opacity:.85}
+.cal-day.bloque .cal-day-num{color:var(--ink-4)}
+.b-garde{background:var(--garde);color:var(--garde-fg)}
+.b-vac{background:var(--vac);color:var(--vac-fg)}
+.b-tp{background:#fff;color:var(--tp-fg)}
+.b-recup{background:var(--libre);color:var(--libre-fg)}
+
+.aide{margin:0 16px 16px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.aide h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--ink-4);margin-bottom:10px}
+.aide-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12.5px;color:var(--ink-2)}
+.pastille{width:26px;height:22px;border-radius:6px;flex-shrink:0;border:1.5px solid}
+.p-libre{background:var(--libre);border-color:var(--libre-border)}
+.p-pose{background:var(--tp);border-color:var(--tp-fg);border-width:2px}
+.p-plein{background:var(--plein);border:1.5px dashed var(--plein-border)}
+.p-bloque{background:#F1F5F9;border-color:#E2E8F0}
+.p-reserve{background:var(--reserve);border:2px dashed var(--reserve-border)}
+.p-ferme{background:var(--ferme);border-color:#1E293B}
+/* Barre d'enregistrement : collée en bas, elle porte la seule action de la page. */
+.savebar{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);
+  padding:11px 16px;display:flex;align-items:center;gap:12px;z-index:90}
+.savebar-txt{font-size:12.5px;color:var(--ink-3);font-weight:600;flex:1;line-height:1.35}
+.btn-save{background:var(--tp-fg);color:#fff;border:none;border-radius:10px;padding:11px 20px;
+  font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer;flex-shrink:0}
+/* Récapitulatif : deux blocs, ce qui est acquis et ce qui ne l'est pas. */
+.recap-bloc{border-radius:10px;padding:13px 15px;margin-bottom:11px}
+.recap-ok{background:var(--libre);border:1px solid var(--libre-border)}
+.recap-res{background:var(--reserve);border:1px dashed var(--reserve-border)}
+.recap-titre{font-size:13.5px;font-weight:700;margin-bottom:5px}
+.recap-ok .recap-titre{color:var(--libre-fg)}
+.recap-res .recap-titre{color:var(--reserve-fg)}
+.recap-txt{font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+.recap-jours{font-family:'DM Mono',monospace;font-size:12.5px;font-weight:500;
+  color:var(--reserve-fg);margin-top:7px;line-height:1.6}
+
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:999;opacity:0;
+  pointer-events:none;transition:opacity .2s;max-width:88%;text-align:center}
+.toast.show{opacity:1}
+
+.sheet-bg{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:200;display:none}
+.sheet-bg.show{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:#fff;border-radius:16px 16px 0 0;
+  padding:20px 20px 26px;z-index:201;transform:translateY(100%);transition:transform .22s;
+  max-width:520px;margin:0 auto}
+.sheet.show{transform:translateY(0)}
+.sheet h2{font-size:16px;font-weight:700;margin-bottom:6px}
+.sheet p{font-size:13px;color:var(--ink-3);line-height:1.5;margin-bottom:14px}
+.sheet-chiffre{background:var(--plein);border:1px dashed var(--plein-border);border-radius:10px;
+  padding:11px 13px;font-size:12.5px;color:var(--plein-fg);font-weight:600;margin-bottom:14px}
+.sheet textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;
+  font-family:inherit;font-size:13px;resize:vertical;min-height:64px;color:var(--ink)}
+.sheet textarea:focus{outline:none;border-color:var(--tp-fg)}
+.sheet-actions{display:flex;gap:8px;margin-top:14px}
+.btn{flex:1;padding:12px;border-radius:10px;font-family:inherit;font-size:13.5px;font-weight:700;
+  cursor:pointer;border:1.5px solid var(--line);background:#fff;color:var(--ink-2)}
+.btn-primary{background:var(--tp-fg);border-color:var(--tp-fg);color:#fff}
+
+.notes{margin:0 16px;background:#fff;border:1px solid var(--line);border-left:3px solid var(--red);
+  border-radius:var(--radius);padding:14px 16px;font-size:12.5px;line-height:1.55;color:var(--ink-2)}
+.notes b{color:var(--ink)}
+.notes ul{margin:8px 0 0 18px}
+.notes li{margin-bottom:5px}
+@media(max-width:420px){ .cal-day{min-height:56px} }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-title">Temps partiel — CHPG</span>
+  <span class="header-user">Vous</span>
+</div>
+<div class="maquette-tag">Maquette — aucune donnée réelle, rien n'est enregistré</div>
+
+<div class="phase">
+  <div class="phase-title">🕐 Posez vos jours de temps partiel</div>
+  <div class="phase-sub">Le planning des gardes 2027 est publié. Choisissez vos jours dans ce qui reste
+    — vous pouvez les poser au fil de l'année, il n'y a pas de date limite.</div>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-item" style="color:var(--tp-fg)">🕐 <span id="cptPose">3</span> posés</div>
+  <div class="stat-item" style="color:var(--ink-3)"><span id="cptReste">22</span> restants sur 25</div>
+  <div class="stat-item" style="color:var(--reserve-fg)" id="cptRes"></div>
+  <div class="jauge"><div class="jauge-fill" id="jauge" style="width:12%"></div></div>
+</div>
+
+<div class="legend">
+  <div class="legend-item li-tp active-tool" id="btnTP" onclick="setTool('TP')">🕐 Poser un jour</div>
+  <div class="legend-item li-erase" id="btnErase" onclick="setTool('ERASE')">✕ Retirer</div>
+</div>
+<div class="tool-hint" id="hint">Outil actif : <strong>Poser un jour</strong> — touchez un jour vert.</div>
+
+<div class="month-nav">
+  <button class="month-nav-btn">← Février</button>
+  <span class="month-title">Mars 2027</span>
+  <button class="month-nav-btn">Avril →</button>
+</div>
+
+<div class="calendar-container">
+  <div class="calendar-grid" id="grid"></div>
+</div>
+
+<div class="aide">
+  <h3>Comment lire le calendrier</h3>
+  <div class="aide-row"><span class="pastille p-libre"></span>
+    <span><b>Vert</b> — libre, l'équipe est assez nombreuse. Un appui suffit.</span></div>
+  <div class="aide-row"><span class="pastille p-pose"></span>
+    <span><b>Violet</b> — vous avez posé un jour ici.</span></div>
+  <div class="aide-row"><span class="pastille p-plein"></span>
+    <span><b>Jaune</b> — il resterait 13 ou 14 présents. Vous pouvez le poser, le comité tranche.</span></div>
+  <div class="aide-row"><span class="pastille p-ferme"></span>
+    <span><b>Noir</b> — il resterait 12 ou moins. Le jour n'est pas ouvert, même sur demande.</span></div>
+  <div class="aide-row"><span class="pastille p-reserve"></span>
+    <span><b>Orange hachuré</b> — posé sous réserve. Il ne compte pas tant que le comité ne l'a pas validé.</span></div>
+  <div class="aide-row" style="margin-bottom:0"><span class="pastille p-bloque"></span>
+    <span><b>Gris</b> — impossible : garde, repos de garde, récupération, congés, week-end ou férié.</span></div>
+  <div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--line);
+    font-size:11.5px;color:var(--ink-4);font-family:'DM Mono',monospace">
+    Le petit chiffre en bas de chaque case = nombre de personnes présentes ce jour-là.</div>
+</div>
+
+<div class="notes">
+  <b>Ce que la maquette montre volontairement</b>
+  <ul>
+    <li>Le <b>16</b> est en garde, le <b>17</b> est son repos : impossible d'y poser un TP.
+      C'est tout le principe — le repos de garde ne peut plus manger un jour de temps partiel.</li>
+    <li>Le <b>23</b>, le <b>26</b> et le <b>30</b> sont jaunes : il resterait 14 ou 13.
+      Posez-en un — il devient orange hachuré, « sous réserve ». Puis appuyez sur <b>Enregistrer</b>.</li>
+    <li>Le <b>31</b> est noir : il ne resterait que 11. Ce jour n'est proposé à personne,
+      et il ne génère aucune demande au comité.</li>
+    <li><b>Aucun mail n'est envoyé.</b> Le récapitulatif vous donne la liste des jours à voir avec le comité.
+      C'est vous qui allez le voir.</li>
+    <li>Le compteur en haut est ce qui a manqué en 2026 — quatre personnes n'avaient pas posé tout leur dû.
+      Les jours sous réserve n'y sont pas comptés : ils ne sont pas acquis.</li>
+  </ul>
+</div>
+
+<div class="savebar">
+  <span class="savebar-txt" id="saveTxt">Rien en attente</span>
+  <button class="btn-save" onclick="enregistrer()">Enregistrer</button>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="sheet-bg" id="sheetBg" onclick="fermer()"></div>
+<div class="sheet" id="sheet">
+  <h2 id="recapTitre">C'est enregistré</h2>
+  <div id="recapCorps"></div>
+  <div class="sheet-actions">
+    <button class="btn btn-primary" onclick="fermer()">Fermer</button>
+  </div>
+</div>
+
+<script>
+/* Mars 2027 : le 1er est un lundi, la grille tombe juste.
+   Données inventées, cohérentes avec un vrai mois : deux gardes, une récup de
+   samedi, une semaine de congés, trois jours déjà posés, trois jours saturés. */
+/* `e` = nombre de PRÉSENTS ce jour-là. La bande s'en déduit — exactement comme
+   le fera le vrai écran, qui recalcule depuis les gardes déjà publiées.
+   vert : il resterait 15 ou plus · jaune : 13 ou 14 · noir : 12 ou moins. */
+const SEUIL_VERT = 15, SEUIL_NOIR = 13;   // « il resterait au moins … »
+const JOURS = {
+  1:{e:19}, 2:{s:'pose'}, 3:{e:18}, 4:{s:'bloque',b:'GARDE',c:'b-garde'}, 5:{s:'bloque',b:'REPOS',c:'b-garde'},
+  8:{s:'bloque',b:'CONGÉS',c:'b-vac'}, 9:{s:'bloque',b:'CONGÉS',c:'b-vac'}, 10:{s:'bloque',b:'CONGÉS',c:'b-vac'},
+  11:{s:'bloque',b:'CONGÉS',c:'b-vac'}, 12:{s:'bloque',b:'CONGÉS',c:'b-vac'},
+  15:{e:20}, 16:{s:'bloque',b:'GARDE',c:'b-garde'}, 17:{s:'bloque',b:'REPOS',c:'b-garde'},
+  18:{e:16}, 19:{s:'pose'},
+  22:{s:'bloque',b:'RÉCUP',c:'b-recup'}, 23:{e:15}, 24:{e:18}, 25:{s:'pose'}, 26:{e:14},
+  29:{e:19}, 30:{e:15}, 31:{e:12},
+};
+const WE = new Set([6,7,13,14,20,21,27,28]);
+const NOMS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+const DUE = 25;
+let outil='TP', jourDemande=null;
+
+function setTool(t){
+  outil=t;
+  btnTP.classList.toggle('active-tool', t==='TP');
+  btnErase.classList.toggle('active-tool', t==='ERASE');
+  hint.innerHTML = t==='TP'
+    ? 'Outil actif : <strong>Poser un jour</strong> — touchez un jour vert.'
+    : 'Outil actif : <strong>Retirer</strong> — touchez un jour que vous avez posé.';
+}
+function toast(m){ const t=document.getElementById('toast');
+  t.textContent=m; t.classList.add('show'); clearTimeout(t._x);
+  t._x=setTimeout(()=>t.classList.remove('show'),2600); }
+
+function etat(n){
+  if(WE.has(n)) return 'weekend';
+  const j=JOURS[n]||{};
+  if(j.s) return j.s;                          // posé, sous réserve, ou bloqué
+  const reste=(j.e||0)-1;                      // ce qu'il resterait si je posais
+  if(reste< SEUIL_NOIR) return 'ferme';
+  if(reste< SEUIL_VERT) return 'plein';        // 13 ou 14 → sous réserve
+  return 'libre';
+}
+function rendre(){
+  const g=document.getElementById('grid');
+  g.innerHTML='';
+  ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].forEach(d=>{
+    const h=document.createElement('div'); h.className='cal-header'; h.textContent=d; g.appendChild(h);
+  });
+  for(let n=1;n<=31;n++){
+    const j=JOURS[n]||{}, st=etat(n);
+    const el=document.createElement('div');
+    el.className='cal-day '+(st==='weekend'?'weekend':st);
+    el.innerHTML='<span class="cal-day-num">'+n+'</span>';
+    if(st==='bloque') el.innerHTML+='<span class="cal-day-badge '+j.c+'">'+j.b+'</span>';
+    if(st==='pose')   el.innerHTML+='<span class="cal-day-badge b-tp">TP</span>';
+    if(st==='reserve')el.innerHTML+='<span class="cal-day-badge b-reserve">RÉSERVE</span>';
+    if(st==='ferme')  el.innerHTML+='<span class="cal-day-badge" style="background:#1E293B;color:#CBD5E1">FERMÉ</span>';
+    if(st!=='weekend'&&st!=='bloque'&&st!=='reserve'&&j.e) el.innerHTML+='<span class="cal-day-eff">'+j.e+'</span>';
+    if(st==='pose')   el.innerHTML+='<span class="cal-day-eff">&nbsp;</span>';
+    el.onclick=()=>clic(n);
+    g.appendChild(el);
+  }
+  const pose=[...Array(32).keys()].filter(n=>etat(n)==='pose').length;
+  const res =[...Array(32).keys()].filter(n=>etat(n)==='reserve').length;
+  cptPose.textContent=pose; cptReste.textContent=DUE-pose;
+  jauge.style.width=Math.round(100*pose/DUE)+'%';
+  document.getElementById('cptRes').textContent = res
+    ? res+' sous réserve' : '';
+  document.getElementById('saveTxt').innerHTML = res
+    ? '<b>'+res+' jour'+(res>1?'s':'')+' sous réserve</b> — à voir avec le comité'
+    : 'Rien en attente';
+}
+function clic(n){
+  const st=etat(n), j=JOURS[n]||{};
+  if(st==='weekend'){ toast('Un jour de temps partiel se pose sur un jour travaillé'); return; }
+  if(st==='ferme'){ toast('Équipe trop réduite ce jour-là — ce jour n\'est pas ouvert'); return; }
+  if(st==='bloque'){ toast(j.b==='CONGÉS' ? 'Vous êtes en congés ce jour-là'
+      : j.b==='RÉCUP' ? 'C\'est votre récupération de samedi'
+      : 'Garde ou repos de garde — ce jour n\'est pas disponible'); return; }
+  if(st==='plein'){
+    if(outil==='ERASE'){ toast('Rien à retirer ici'); return; }
+    /* On pose quand même, mais SOUS RÉSERVE : le jour ne compte pas tant que le
+       comité n'a pas dit oui. Aucune notification n'est envoyée — c'est le MAR
+       qui va le voir. Le récapitulatif final lui rappelle lesquels. */
+    JOURS[n]={s:'reserve',e:j.e}; rendre();
+    toast('Posé sous réserve — à valider avec le comité');
+    return;
+  }
+  if(st==='reserve'){
+    if(outil==='ERASE'){ JOURS[n]={s:'plein',e:j.e}; rendre(); toast('Jour retiré'); }
+    else toast('Déjà posé sous réserve — le comité doit le valider');
+    return;
+  }
+  if(st==='pose'){
+    if(outil==='ERASE'){ JOURS[n]={e:17}; rendre(); toast('Jour retiré'); }
+    else toast('Ce jour est déjà posé — passez sur « Retirer » pour l\'enlever');
+    return;
+  }
+  if(outil==='ERASE'){ toast('Rien à retirer ici'); return; }
+  JOURS[n]={s:'pose'}; rendre(); toast('Jour de temps partiel posé');
+}
+function fermer(){ sheetBg.classList.remove('show'); sheet.classList.remove('show'); }
+/* Le récapitulatif est le SEUL moment où l'écran parle des jours sous réserve.
+   Aucun mail, aucune notification : c'est le MAR qui va voir le comité. Le texte
+   dit donc ce qu'il doit faire, et rien d'autre. */
+function enregistrer(){
+  const pose=[...Array(32).keys()].filter(n=>etat(n)==='pose');
+  const res =[...Array(32).keys()].filter(n=>etat(n)==='reserve');
+  const nom=n=>NOMS[new Date(2027,2,n).getDay()]+' '+n+' mars';
+  let h='<div class="recap-bloc recap-ok"><div class="recap-titre">'
+      + pose.length+' jour'+(pose.length>1?'s':'')+' enregistré'+(pose.length>1?'s':'')+'</div>'
+      + '<div class="recap-txt">C\'est bon, rien à faire.</div></div>';
+  if(res.length){
+    h+='<div class="recap-bloc recap-res"><div class="recap-titre">'
+      + res.length+' jour'+(res.length>1?'s':'')+' sous réserve</div>'
+      + '<div class="recap-txt">L\'équipe serait en dessous de 15 ces jours-là. '
+      + 'Ils ne comptent pas tant que le comité ne les a pas validés — parlez-lui-en.</div>'
+      + '<div class="recap-jours">'+res.map(nom).join('<br>')+'</div></div>';
+  }
+  document.getElementById('recapTitre').textContent = res.length ? 'Enregistré — 2 choses à savoir' : "C'est enregistré";
+  if(res.length===1) document.getElementById('recapTitre').textContent='Enregistré — 1 jour à valider';
+  document.getElementById('recapCorps').innerHTML=h;
+  sheetBg.classList.add('show'); sheet.classList.add('show');
+}
+rendre();
+</script>
+</body>
+</html>
