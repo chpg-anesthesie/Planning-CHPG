@@ -1579,6 +1579,7 @@ function tpxInit(cle, identite) {
     annee: Number(cle.year),
     presents: Object.assign({}, cle.presents || {}),
     feries: new Set(cle.joursFeries || []),
+    fermes: new Set(cle.fermes || []),      // (LOT 4) jours fermés par le comité : noirs pour tous
     jours: Object.assign({}, mien.jours || {}),   // MES codes serveur : blocages + TP/TPA
     quota: Number(mien.quota) || 0,
     pend: {},                                     // date -> 'TP' | 'TPA' (posés localement)
@@ -1615,6 +1616,7 @@ function tpxEtat(ds) {
   if (base === 'TP' && !TPX.retire.has(ds)) return { s: 'pose' };
   if (base === 'TPA' && !TPX.retire.has(ds)) return { s: 'reserve' };
   if (base && base !== 'TP' && base !== 'TPA') return { s: 'bloque', badge: tpxBadge(base) };
+  if (TPX.fermes.has(ds)) return { s: 'ferme', p: TPX.presents[ds] };   // (LOT 4) refus comité : même noir que l'effectif
   if (TPX.pend[ds] === 'TP') return { s: 'pose', pend: true };
   if (TPX.pend[ds] === 'TPA') return { s: 'reserve', pend: true };
   const p = TPX.presents[ds];

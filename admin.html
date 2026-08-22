@@ -83,6 +83,39 @@ body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); col
 .status-sep { width:1px; height:16px; background:var(--line); flex-shrink:0; }
 
 /* ── NAV TABS ── */
+/* ══ (LOT 4 · 22/08/2026) VALIDATION DES TEMPS PARTIELS — onglet Équipe ══════
+   Bloc de la maquette validée docs/maquette-comite-tp.html, préfixé tpc-. */
+.tpc-alerte{display:flex;align-items:center;gap:11px;background:#FFF7ED;border:1px solid #FB923C;
+  border-radius:12px;padding:13px 16px;cursor:pointer;margin-bottom:14px;user-select:none}
+.tpc-alerte.vide{background:#F0FDF4;border-color:#BBF7D0;cursor:default}
+.tpc-alerte-txt{font-size:13px;line-height:1.45;color:#0F172A;flex:1}
+.tpc-alerte-chev{font-size:12.5px;font-weight:700;color:#C2410C;flex-shrink:0}
+.tpc-alerte.vide .tpc-alerte-chev{display:none}
+.tpc-liste{display:none;margin-bottom:14px}
+.tpc-liste.on{display:block}
+.tpc-ligne{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);
+  border-radius:10px;padding:11px 14px;margin-bottom:8px}
+.tpc-ligne.traitee{opacity:.55}
+.tpc-init{font-family:'DM Mono',monospace;font-size:12px;font-weight:700;background:#F1F5F9;
+  border-radius:7px;padding:6px 9px;flex-shrink:0}
+.tpc-corps{flex:1;min-width:0}
+.tpc-jour{font-size:13px;font-weight:700}
+.tpc-eff{font-size:12px;color:#64748B;margin-top:2px}
+.tpc-eff.ko{color:#C2410C;font-weight:600}
+.tpc-actions{display:flex;gap:7px;flex-shrink:0}
+.tpc-b{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:8px 13px;
+  font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;color:#64748B}
+.tpc-b-ok{border-color:#BBF7D0;background:#F0FDF4;color:#166534}
+.tpc-b-ok:hover{border-color:#166534}
+.tpc-b-ko:hover{border-color:#C2410C;color:#C2410C}
+.tpc-verdict{font-size:12px;font-weight:700;font-family:'DM Mono',monospace;flex-shrink:0}
+.tpc-v-ok{color:#166534}
+.tpc-v-ko{color:#C2410C}
+.tpc-annuler{background:none;border:0;font-family:inherit;font-size:11.5px;font-weight:600;
+  color:#94A3B8;cursor:pointer;text-decoration:underline;padding:0 0 0 9px}
+.tpc-rappel{margin:0 0 16px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;
+  padding:11px 14px;font-size:12.5px;color:#1D4ED8;line-height:1.5}
+
 .nav-tabs { background:var(--white); border-bottom:1px solid var(--line); padding:0 32px; display:flex; gap:0; position:sticky; top:60px; z-index:100; }
 .nav-tab { padding:13px 18px; font-size:13px; font-weight:600; color:var(--ink-3); cursor:pointer; border-bottom:2px solid transparent; transition:all .15s; background:none; border-top:none; border-left:none; border-right:none; font-family:'DM Sans',sans-serif; display:flex; align-items:center; gap:6px; white-space:nowrap; }
 .nav-tab:hover { color:var(--ink); }
@@ -1290,6 +1323,22 @@ if (sessionStorage.getItem('adminCode')) {
         <button class="btn-secondary" onclick="loadEquipe(true)">↻ Actualiser</button>
         <button class="btn-secondary" onclick="openCL()">🏖️ Absence longue</button>
         <button class="btn-primary" onclick="openAddMAR()">+ Ajouter un MAR</button>
+      </div>
+    </div>
+
+    <!-- (LOT 4 · 22/08/2026) Jours de temps partiel sous réserve : le comité
+         tranche ICI. L'effectif affiché est recalculé À L'INSTANT, validations
+         de la séance comprises — jamais le chiffre du jour de la demande. -->
+    <div id="tpcBloc" style="display:none">
+      <div class="tpc-alerte" id="tpcAlerte" onclick="tpcBasculer()">
+        <span style="font-size:17px" id="tpcIco">🟠</span>
+        <span class="tpc-alerte-txt" id="tpcAlerteTxt"></span>
+        <span class="tpc-alerte-chev" id="tpcChev">Voir →</span>
+      </div>
+      <div class="tpc-liste" id="tpcListe"></div>
+      <div class="tpc-rappel" id="tpcRappel" style="display:none">
+        Un refus ferme le jour pour toute l'équipe et se dit de vive voix au MAR concerné.
+        Aucun message n'est envoyé d'ici.
       </div>
     </div>
 
@@ -2872,7 +2921,7 @@ function showTab(name) {
   if (tabEl)   tabEl.classList.add('active');
   if (name==='planning' && !DATA) loadPlanningData();
   if (name==='affectations') loadAffectations(ADMIN_YEAR);
-  if (name==='equipe') { loadEquipe(); loadVacances(); }
+  if (name==='equipe') { loadEquipe(); loadVacances(); tpcCharger(); }
   /* (13/08/2026) loadVacancesValidation() retire d'ici. Elle appelait Google a
      CHAQUE ouverture de l'onglet Equite pour ecrire son tableau dans #vacContent
      — le conteneur de la section « Gestion des vacances » de l'onglet EQUIPE, le
@@ -9393,6 +9442,159 @@ async function resetCodeMAR(marId, marNom) {
     toast('Erreur : ' + e.message, 'error');
   } finally { window._sendCodeBusy = false; }
 }
+
+/* ══ (LOT 4 · 22/08/2026) VALIDATION DES TEMPS PARTIELS — le bloc du comité ══
+   Données : la clé pose_tp_{Y} (servie COMPLÈTE à un admin), repli getPoseTp.
+   L'effectif affiché est celui de L'INSTANT : chaque validation de la séance
+   retire son MAR du compte des jours concernés — jamais le chiffre du jour de
+   la demande (c'est le point de la maquette). Chaque décision part au serveur
+   immédiatement (deciderJourTp) et reste annulable depuis l'écran :
+   valider ⇄ annuler_validation, refuser ⇄ annuler_refus (le refus ferme le
+   jour pour TOUTE l'équipe et rend les autres demandes du même jour). */
+let TPC = null;
+
+async function tpcCharger() {
+  const bloc = document.getElementById('tpcBloc');
+  try {
+    const Y = new Date().getFullYear();
+    let cle = null;
+    const m = await miroirRead(['pose_tp_' + Y, 'pose_tp_' + (Y + 1)], ADMIN_CODE);
+    if (m && m.success && m.data) {
+      const a = m.data['pose_tp_' + (Y + 1)], b = m.data['pose_tp_' + Y];
+      cle = (a && a.success && !a.ferme) ? a : (b && b.success && !b.ferme) ? b : null;
+    }
+    if (!cle) {
+      const r = await apiCall('getPoseTp');
+      if (r && r.success && !r.ferme) cle = r;
+    }
+    if (!cle) { bloc.style.display = 'none'; TPC = null; return; }
+    TPC = {
+      annee: Number(cle.year),
+      presents: Object.assign({}, cle.presents || {}),
+      fermes: new Set(cle.fermes || []),
+      demandes: [],
+      rendusParRefus: {},                      // date → {ID:'TPA'} : de quoi annuler un refus
+    };
+    Object.keys(cle.parMar || {}).sort().forEach(function (id) {
+      const jours = (cle.parMar[id] || {}).jours || {};
+      Object.keys(jours).forEach(function (ds) {
+        if (String(jours[ds]).toUpperCase() === 'TPA') {
+          TPC.demandes.push({ id: id, jour: ds, etat: null });
+        }
+      });
+    });
+    TPC.demandes.sort(function (x, y) { return x.jour < y.jour ? -1 : x.jour > y.jour ? 1 : (x.id < y.id ? -1 : 1); });
+    bloc.style.display = TPC.demandes.length ? 'block' : 'none';
+    tpcRendre();
+  } catch (e) {
+    console.warn('[tpc] chargement impossible :', e && e.message);
+    bloc.style.display = 'none';
+  }
+}
+
+function tpcJoli(ds) {
+  const d = new Date(ds + 'T12:00:00');
+  const NOMS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  return NOMS[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+/* Présents si CETTE demande était validée — les validations déjà faites dans
+   la séance sur le MÊME jour comptent déjà absentes. */
+function tpcPresentsSi(dem) {
+  const dejaValides = TPC.demandes.filter(function (d) {
+    return d.etat === 'ok' && d.jour === dem.jour && d !== dem;
+  }).length;
+  return (TPC.presents[dem.jour] || 0) - dejaValides - 1;
+}
+
+function tpcBasculer() {
+  if (!TPC || TPC.demandes.every(function (d) { return d.etat; })) return;
+  const l = document.getElementById('tpcListe');
+  const ouvre = !l.classList.contains('on');
+  l.classList.toggle('on', ouvre);
+  document.getElementById('tpcRappel').style.display = ouvre ? 'block' : 'none';
+  document.getElementById('tpcChev').textContent = ouvre ? 'Masquer' : 'Voir →';
+}
+
+function tpcRendre() {
+  if (!TPC) return;
+  const box = document.getElementById('tpcListe');
+  box.innerHTML = TPC.demandes.map(function (d, i) {
+    const p = tpcPresentsSi(d);
+    const eff = d.etat === 'ok' ? 'Validé — ' + p + ' présents'
+      : d.etat === 'ko' ? 'Refusé — jour fermé pour l\'équipe, à dire au MAR'
+      : p + ' présents si vous validez';
+    const act = d.etat
+      ? '<span class="tpc-verdict ' + (d.etat === 'ok' ? 'tpc-v-ok">✓ validé' : 'tpc-v-ko">✕ refusé') + '</span>'
+        + '<button class="tpc-annuler" onclick="tpcAnnuler(' + i + ')">annuler</button>'
+      : '<div class="tpc-actions">'
+        + '<button class="tpc-b tpc-b-ok" onclick="tpcDecider(' + i + ', \'ok\')">✓ Valider</button>'
+        + '<button class="tpc-b tpc-b-ko" onclick="tpcDecider(' + i + ', \'ko\')">✕ Refuser</button></div>';
+    return '<div class="tpc-ligne' + (d.etat ? ' traitee' : '') + '">'
+      + '<div class="tpc-init">' + d.id + '</div>'
+      + '<div class="tpc-corps"><div class="tpc-jour">' + tpcJoli(d.jour) + '</div>'
+      + '<div class="tpc-eff' + (d.etat === 'ko' ? ' ko' : '') + '">' + eff + '</div></div>' + act + '</div>';
+  }).join('');
+  const reste = TPC.demandes.filter(function (d) { return !d.etat; }).length;
+  const a = document.getElementById('tpcAlerte'), t = document.getElementById('tpcAlerteTxt');
+  if (reste === 0) {
+    a.classList.add('vide');
+    document.getElementById('tpcIco').textContent = '✅';
+    t.innerHTML = '<b>Tout est traité</b> — plus aucun jour de temps partiel en attente.';
+    document.getElementById('tpcChev').textContent = '';
+  } else {
+    a.classList.remove('vide');
+    document.getElementById('tpcIco').textContent = '🟠';
+    t.innerHTML = '<b>' + reste + ' jour' + (reste > 1 ? 's' : '') + ' de temps partiel à valider</b><br>'
+      + 'Il resterait 13 ou 14 présents ces jours-là.';
+    document.getElementById('tpcChev').textContent =
+      document.getElementById('tpcListe').classList.contains('on') ? 'Masquer' : 'Voir →';
+  }
+}
+
+async function tpcDecider(i, etat) {
+  const d = TPC.demandes[i];
+  if (!d || d.etat) return;
+  if (etat === 'ok') {
+    const res = await apiCall('deciderJourTp', { decision: 'valider', doctorId: d.id, date: d.jour });
+    if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Échec de la validation')); return; }
+    d.etat = 'ok';
+    if (TPC.presents[d.jour] !== undefined) TPC.presents[d.jour]--;   // il est absent, désormais
+    showToast('✓ Jour validé — le MAR le verra sur son écran');
+  } else {
+    const res = await apiCall('deciderJourTp', { decision: 'refuser', date: d.jour });
+    if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Échec du refus')); return; }
+    TPC.rendusParRefus[d.jour] = res.rendues || {};
+    TPC.fermes.add(d.jour);
+    TPC.demandes.forEach(function (x) { if (x.jour === d.jour && !x.etat) x.etat = 'ko'; });
+    const n = Object.keys(res.rendues || {}).length;
+    showToast('✕ Jour fermé pour l\'équipe' + (n > 1 ? ' — ' + n + ' demandes rendues' : '') + ' — dites-le de vive voix');
+  }
+  tpcRendre();
+}
+
+async function tpcAnnuler(i) {
+  const d = TPC.demandes[i];
+  if (!d || !d.etat) return;
+  if (d.etat === 'ok') {
+    const res = await apiCall('deciderJourTp', { decision: 'annuler_validation', doctorId: d.id, date: d.jour });
+    if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Annulation impossible')); return; }
+    d.etat = null;
+    if (TPC.presents[d.jour] !== undefined) TPC.presents[d.jour]++;
+    showToast('Validation annulée — le jour repasse en attente');
+  } else {
+    const res = await apiCall('deciderJourTp',
+      { decision: 'annuler_refus', date: d.jour, retablir: TPC.rendusParRefus[d.jour] || {} });
+    if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Annulation impossible')); return; }
+    TPC.fermes.delete(d.jour);
+    delete TPC.rendusParRefus[d.jour];
+    TPC.demandes.forEach(function (x) { if (x.jour === d.jour && x.etat === 'ko') x.etat = null; });
+    showToast('Refus annulé — le jour rouvre, les demandes sont rétablies');
+  }
+  tpcRendre();
+}
+
 </script>
 
 <!-- WIZARD DÉPART D'UN MAR -->

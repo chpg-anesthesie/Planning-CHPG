@@ -102,7 +102,9 @@ function monde(opts) {
   if (opts.gardes2026) cl.ajouter('GARDES_2026', [['A']]);
 
   const ctx = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Math, Set, RegExp, parseInt, isNaN,
-    SpreadsheetApp: { getActiveSpreadsheet: () => cl }, Logger: { log() {} } });
+    SpreadsheetApp: { getActiveSpreadsheet: () => cl }, Logger: { log() {} },
+    Utilities: { formatDate: (d, tz, fmt) => d.toISOString().slice(0, 10) },
+    Session: { getScriptTimeZone: () => 'Europe/Paris' } });
   ctx.globalThis = ctx;
   /* Doublures d'infrastructure (jamais de logique métier) : journal, memo
      CONFIG (lecture directe, pas de cache à invalider), réponse HTTP. */
@@ -119,6 +121,7 @@ function monde(opts) {
   vm.runInContext(extraireConst('CODES_COMITE'), ctx);
   ['_indisposOuverte_', 'getIndisposYear', '_phaseTp_', 'getIndisposForDoctor', 'saveIndisposForDoctor',
    '_fusionIndispos_', '_loadQuotasConges', 'getQuotasConges', '_tpFixeDe_', '_quotiteDe_',
+   '_tpFermesSheet_', '_tpFermes_', '_tpFermerJour_', '_tpRouvrirJour_',
    '_tpMondePresence_', '_poserTp_', '_error'].forEach(n =>
     vm.runInContext(extraireFonction('../gas/Indispos.gs', n), ctx));
   vm.runInContext(extraireBlocHandler(), ctx);
@@ -362,6 +365,7 @@ console.log('\n═══ PT16 · la clé pose_tp : effectifs anonymes, blocages 
 {
   const b = monde({ gardes: [['POSEUR', '2027-03-04', 'G'], ['POSEUR', '2027-03-05', 'RG'], ['ZORRO', '2027-03-05', 'R'], ['POSEUR', '2027-03-18', '18']],
                     indispos: [['POSEUR', '2027-03-09', 'TP'], ['POSEUR', '2027-03-15', 'VAC'], ['PLEIN01', '2027-03-02', 'VAC'], ['POSEUR', '2027-03-22', 'INDISPO']] });
+  ['_tpFermesSheet_', '_tpFermes_'].forEach(n => vm.runInContext(extraireFonction('../gas/Indispos.gs', n), b.ctx));
   vm.runInContext(extraireFonction('../gas/Indispos.gs', '_construirePoseTp_'), b.ctx);
   const cle = vm.runInContext('_construirePoseTp_(2027)', b.ctx);
   V('la clé se construit, année 2027', cle.success === true && !cle.ferme && cle.year === 2027, cle.year);
@@ -380,6 +384,7 @@ console.log('\n═══ PT16 · la clé pose_tp : effectifs anonymes, blocages 
   V('mon quota vient de CONFIG_CONGES (80 % → 3)', moi.quota === 3, moi.quota);
   V('le plein temps est marqué : quota 0', cle.parMar['PLEIN01'].quota === 0, cle.parMar['PLEIN01'].quota);
   const b2 = monde({ gardes2027: false });
+  ['_tpFermesSheet_', '_tpFermes_'].forEach(n => vm.runInContext(extraireFonction('../gas/Indispos.gs', n), b2.ctx));
   vm.runInContext(extraireFonction('../gas/Indispos.gs', '_construirePoseTp_'), b2.ctx);
   const cle2 = vm.runInContext('_construirePoseTp_(2027)', b2.ctx);
   V('GARDES_2027 supprimé → la clé dit { ferme } : elle s\'auto-nettoie', cle2.ferme === true, cle2);
@@ -393,6 +398,7 @@ console.log('\n═══ PT17 · l\'action getPoseTp : le MAR ne voit que lui, l
   V('le bloc getPoseTp existe dans le routeur', i > 0);
   let prof = 0, j = SRC_IND.indexOf('{', i);
   for (; j < SRC_IND.length; j++) { if (SRC_IND[j] === '{') prof++; else if (SRC_IND[j] === '}') { prof--; if (prof === 0) break; } }
+  ['_tpFermesSheet_', '_tpFermes_'].forEach(n => vm.runInContext(extraireFonction('../gas/Indispos.gs', n), b.ctx));
   vm.runInContext(extraireFonction('../gas/Indispos.gs', '_construirePoseTp_'), b.ctx);
   vm.runInContext('function handlerGetPoseTp(action, payload, user) {\n' + SRC_IND.slice(i, j + 1) + '\n return null; }', b.ctx);
   const mar = vm.runInContext("handlerGetPoseTp('getPoseTp', {}, {role:'mar', id:'POSEUR'})", b.ctx);
@@ -403,6 +409,7 @@ console.log('\n═══ PT17 · l\'action getPoseTp : le MAR ne voit que lui, l
   V('rôle admin : parMar COMPLET (l\'écran comité du lot 4 lira la même chose)',
     Object.keys(adm.parMar).length >= 16 && adm.parMar['ZORRO'].jours['2027-03-09'] === 'TP', Object.keys(adm.parMar).length);
   const b2 = monde({ gardes2027: false });
+  ['_tpFermesSheet_', '_tpFermes_'].forEach(n => vm.runInContext(extraireFonction('../gas/Indispos.gs', n), b2.ctx));
   vm.runInContext(extraireFonction('../gas/Indispos.gs', '_construirePoseTp_'), b2.ctx);
   vm.runInContext('function handlerGetPoseTp(action, payload, user) {\n' + SRC_IND.slice(i, j + 1) + '\n return null; }', b2.ctx);
   const ferme = vm.runInContext("handlerGetPoseTp('getPoseTp', {}, {role:'mar', id:'POSEUR'})", b2.ctx);
@@ -446,8 +453,9 @@ console.log('\n═══ PT20 · l\'écran : mêmes seuils que le serveur, extra
   const bacE = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Math, Set });
   ['tpxBadge', 'tpxEtat', 'tpxCompte'].forEach(n => vm.runInContext(extraireFonction('../indispos.html', n), bacE));
   const regle = (TPX) => { bacE.TPX = TPX; return bacE; };
-  const T = { annee: 2027, presents: { '2027-03-01': 16, '2027-03-02': 15, '2027-03-03': 13 },
-    feries: new Set(['2027-03-24']), jours: { '2027-03-09': 'TP', '2027-03-10': 'TPA', '2027-03-04': 'G', '2027-03-15': 'VAC' },
+  const T = { annee: 2027, presents: { '2027-03-01': 16, '2027-03-02': 15, '2027-03-03': 13, '2027-03-17': 18 },
+    feries: new Set(['2027-03-24']), fermes: new Set(['2027-03-17']),
+    jours: { '2027-03-09': 'TP', '2027-03-10': 'TPA', '2027-03-04': 'G', '2027-03-15': 'VAC' },
     quota: 3, pend: {}, retire: new Set() };
   regle(T);
   const et = (d) => vm.runInContext(`tpxEtat('${d}')`, bacE);
@@ -461,6 +469,7 @@ console.log('\n═══ PT20 · l\'écran : mêmes seuils que le serveur, extra
     et('2027-03-04').badge.b === 'GARDE' && et('2027-03-15').badge.b === 'CONGÉS');
   T.jours['2027-03-16'] = '18'; regle(T);
   V('ma garde de 18h → gris, badge 18H (on est au travail)', et('2027-03-16').s === 'bloque' && et('2027-03-16').badge.b === '18H', et('2027-03-16'));
+  V('un jour fermé par le comité → NOIR pour moi, même à 18 présents (lot 4)', et('2027-03-17').s === 'ferme', et('2027-03-17'));
   T.retire.add('2027-03-09'); T.presents['2027-03-09'] = 16; regle(T);
   V('un TP retiré localement redevient un jour jugé par sa bande', et('2027-03-09').s === 'libre');
   T.pend['2027-03-02'] = 'TPA'; regle(T);
@@ -471,6 +480,77 @@ console.log('\n═══ PT20 · l\'écran : mêmes seuils que le serveur, extra
   V('l\'enregistrement envoie bien le drapeau du circuit TP ({ tp: true })',
     /saveIndispos', \{ tp: true, indispos: map \}/.test(page));
   V('le bouton « Temps partiel » a quitté l\'écran campagne', !/btnCTP/.test(page.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '')));
+}
+
+
+console.log('\n═══ PT21 · TP_FERMES : fermer, refuser pour tous, rouvrir ═══');
+{
+  const b = monde({});
+  vm.runInContext("_tpFermerJour_(2027, '2027-03-02', 'PRUNET')", b.ctx);
+  vm.runInContext("_tpFermerJour_(2027, '2027-03-02', 'PRUNET')", b.ctx);   // idempotent
+  V('l\'onglet TP_FERMES est créé au premier refus, une seule ligne',
+    b.cl.getSheetByName('TP_FERMES').getDataRange().getValues().length === 2);
+  V('la liste des fermés porte le jour', vm.runInContext("_tpFermes_(2027).has('2027-03-02')", b.ctx));
+  const rep = b.appel({ tp: true, indispos: { '2027-03-02': 'TP' } }, MAR);
+  V('poser sur un jour fermé → refus « jour fermé par le comité »',
+    /fermé par le comité/.test(rep.resultat['2027-03-02'] || ''), rep.resultat['2027-03-02']);
+  ['_tpFermesSheet_', '_tpFermes_'].forEach(n => vm.runInContext(extraireFonction('../gas/Indispos.gs', n), b.ctx));
+  vm.runInContext(extraireFonction('../gas/Indispos.gs', '_construirePoseTp_'), b.ctx);
+  V('la clé pose_tp expose les jours fermés',
+    vm.runInContext("_construirePoseTp_(2027).fermes.indexOf('2027-03-02') >= 0", b.ctx));
+  vm.runInContext("_tpRouvrirJour_(2027, '2027-03-02')", b.ctx);
+  V('rouvrir retire le jour de la liste', vm.runInContext("!_tpFermes_(2027).has('2027-03-02')", b.ctx));
+}
+
+console.log('\n═══ PT22 · deciderJourTp : les quatre gestes du comité, annulables ═══');
+{
+  const b = monde({ indispos: [['POSEUR', '2027-03-02', 'TPA'], ['ZORRO', '2027-03-02', 'TPA'], ['POSEUR', '2027-03-05', 'TPA']] });
+  const marque = "if (action === 'deciderJourTp') {";
+  const i = SRC_IND.indexOf(marque);
+  V('le bloc deciderJourTp existe dans le routeur', i > 0);
+  let prof = 0, j = SRC_IND.indexOf('{', i);
+  for (; j < SRC_IND.length; j++) { if (SRC_IND[j] === '{') prof++; else if (SRC_IND[j] === '}') { prof--; if (prof === 0) break; } }
+  vm.runInContext('function handlerDecider(action, payload, user) {\n' + SRC_IND.slice(i, j + 1) + '\n return null; }', b.ctx);
+  const dec = (p, u) => vm.runInContext(`handlerDecider('deciderJourTp', ${JSON.stringify(p)}, ${JSON.stringify(u)})`, b.ctx);
+  V('un rôle mar est refusé', dec({ decision: 'valider', doctorId: 'POSEUR', date: '2027-03-02' }, MAR).success === false);
+  const v = dec({ decision: 'valider', doctorId: 'POSEUR', date: '2027-03-02' }, ADMIN);
+  V('valider : la TPA devient TP, quota compté', v.success === true && b.lireInd('POSEUR', 2027)['2027-03-02'] === 'TP', v);
+  const av = dec({ decision: 'annuler_validation', doctorId: 'POSEUR', date: '2027-03-02' }, ADMIN);
+  V('annuler la validation : le TP redevient TPA', av.success === true && b.lireInd('POSEUR', 2027)['2027-03-02'] === 'TPA');
+  const r = dec({ decision: 'refuser', date: '2027-03-02' }, ADMIN);
+  V('refuser : le jour est fermé et LES DEUX demandes du jour sont rendues',
+    r.success === true && r.fermes.indexOf('2027-03-02') >= 0
+    && r.rendues['POSEUR'] === 'TPA' && r.rendues['ZORRO'] === 'TPA'
+    && !b.lireInd('POSEUR', 2027)['2027-03-02'] && !b.lireInd('ZORRO', 2027)['2027-03-02'], r);
+  V('…la demande d\'un AUTRE jour n\'est pas touchée', b.lireInd('POSEUR', 2027)['2027-03-05'] === 'TPA');
+  const ar = dec({ decision: 'annuler_refus', date: '2027-03-02', retablir: r.rendues }, ADMIN);
+  V('annuler le refus : le jour rouvre, les TPA sont rétablies',
+    ar.success === true && ar.fermes.indexOf('2027-03-02') < 0
+    && b.lireInd('POSEUR', 2027)['2027-03-02'] === 'TPA' && b.lireInd('ZORRO', 2027)['2027-03-02'] === 'TPA', ar);
+  const M2 = fs.readFileSync('../gas/miroir.gs', 'utf8');
+  V('deciderJourTp déclenche la famille indispos (l\'écran des 8 suit dans la minute)',
+    /deciderJourTp:\s*\['indispos', 'acces'\]/.test(M2));
+}
+
+console.log('\n═══ PT23 · le bloc comité d\'admin : effectif de l\'INSTANT ═══');
+{
+  const bacA = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Math, Set });
+  vm.runInContext(extraireFonction('../admin.html', 'tpcPresentsSi'), bacA);
+  bacA.TPC = { presents: { '2027-03-23': 15, '2027-04-02': 15 },
+    demandes: [
+      { id: 'SEVERAC', jour: '2027-03-23', etat: null },
+      { id: 'CATINEAU', jour: '2027-03-23', etat: null },
+      { id: 'ZAMARON', jour: '2027-04-02', etat: null }] };
+  const psi = (i) => vm.runInContext(`tpcPresentsSi(TPC.demandes[${i}])`, bacA);
+  V('avant toute décision : 14 présents si on valide (15 − le demandeur)', psi(0) === 14 && psi(1) === 14, [psi(0), psi(1)]);
+  bacA.TPC.demandes[0].etat = 'ok';
+  V('SEVERAC validé → la ligne de CATINEAU se recalcule : 13 (le point de la maquette)', psi(1) === 13, psi(1));
+  V('…et le jour d\'un AUTRE jour ne bouge pas', psi(2) === 14, psi(2));
+  const adm = fs.readFileSync('../admin.html', 'utf8');
+  V('le bloc est accroché à l\'onglet Équipe', /name==='equipe'[^\n]*tpcCharger\(\)/.test(adm));
+  V('valider/refuser/annuler parlent tous au serveur (deciderJourTp ×4)',
+    (adm.match(/deciderJourTp/g) || []).length >= 5);
+  V('le refus est annulable avec la liste des demandes rendues', /annuler_refus[\s\S]{0,80}retablir/.test(adm));
 }
 
 console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp : ${ok} vérifications, ${ko} échec(s)`);

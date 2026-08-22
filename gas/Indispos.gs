@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-22.2';
+const GAS_VERSION_INDISPOS = '2026-08-22.3';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1088,6 +1088,7 @@ function _poserTp_(user, targetId, envoye, annee) {
     if (v !== 'TP' && v !== 'TPA') horsFamille[ds] = existant[ds];
   });
   const jf = new Set(getJoursFeries(annee));
+  const FERMES = _tpFermes_(annee);   // (LOT 4) jours fermés par le comité : refusés pour TOUS
   const demandes = Object.keys(envoye || {}).filter(ds => {
     const v = String(envoye[ds] || '').trim().toUpperCase();
     return v === 'TP' || v === 'TPA';
@@ -1123,6 +1124,8 @@ function _poserTp_(user, targetId, envoye, annee) {
       return;
     }
     if (!M.datesValides.has(ds)) { resultat[ds] = 'hors année'; return; }
+    
+    if (FERMES.has(ds)) { resultat[ds] = 'jour fermé par le comité'; return; }
     const codeLa = horsFamille[ds] ? String(horsFamille[ds]).trim().toUpperCase() : '';
     if (codeLa && !VESTIGES[codeLa]) { resultat[ds] = 'jour déjà ' + horsFamille[ds]; return; }
     const dow = new Date(ds + 'T12:00:00').getDay();
@@ -1146,6 +1149,52 @@ function _poserTp_(user, targetId, envoye, annee) {
             ' en attente, quota ' + nbTP + '/' + quota + (estAdmin ? ' [comité]' : ''));
   return { success: ecrit === true, resultat: resultat, annee: annee,
            quota: { valides: nbTP, total: quota } };
+}
+
+/* ── (LOT 4 · 22/08/2026) LES JOURS FERMÉS PAR LE COMITÉ — onglet TP_FERMES ──
+   Un refus du comité ne vise pas UNE demande : il dit « ce jour-là, l'équipe
+   est trop juste ». Le jour se ferme donc POUR TOUS : noir sur l'écran de
+   pose, refusé par le serveur, et les demandes en attente ce jour-là sont
+   rendues. Stockage : onglet TP_FERMES (ANNEE | DATE | PAR | QUAND), créé au
+   premier refus — la liste voyage dans la clé pose_tp_{Y}. */
+function _tpFermesSheet_(creer) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName('TP_FERMES');
+  if (!sh && creer) {
+    sh = ss.insertSheet('TP_FERMES');
+    sh.getRange(1, 1, 1, 4).setValues([['ANNEE', 'DATE', 'PAR', 'QUAND']]);
+  }
+  return sh;
+}
+function _tpFermes_(annee) {
+  const sh = _tpFermesSheet_(false);
+  const out = new Set();
+  if (!sh) return out;
+  const d = sh.getDataRange().getValues();
+  for (var r = 1; r < d.length; r++) {
+    if (Number(d[r][0]) !== Number(annee)) continue;
+    const ds = d[r][1] instanceof Date
+      ? Utilities.formatDate(d[r][1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : String(d[r][1]).trim();
+    if (ds) out.add(ds);
+  }
+  return out;
+}
+function _tpFermerJour_(annee, ds, par) {
+  const sh = _tpFermesSheet_(true);
+  if (_tpFermes_(annee).has(ds)) return;   // déjà fermé : idempotent
+  sh.appendRow([Number(annee), ds, String(par || ''), new Date().toISOString()]);
+}
+function _tpRouvrirJour_(annee, ds) {
+  const sh = _tpFermesSheet_(false);
+  if (!sh) return;
+  const d = sh.getDataRange().getValues();
+  for (var r = d.length - 1; r >= 1; r--) {
+    const dr = d[r][1] instanceof Date
+      ? Utilities.formatDate(d[r][1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : String(d[r][1]).trim();
+    if (Number(d[r][0]) === Number(annee) && dr === ds) sh.deleteRow(r + 1);
+  }
 }
 
 /* ── (LOT 3 · 22/08/2026) LA CLÉ DE L'ÉCRAN DE POSE — pose_tp_{Y} ─────────────
@@ -1193,7 +1242,8 @@ function _construirePoseTp_(annee) {
       tpFixe: _tpFixeDe_(id),
     };
   });
-  return { success: true, year: annee, presents: presents, joursFeries: jf, parMar: parMar };
+  return { success: true, year: annee, presents: presents, joursFeries: jf,
+           fermes: Array.from(_tpFermes_(annee)).sort(), parMar: parMar };
 }
 
 // ── (RH-1) GARANTIR LES LIGNES D'UN MAR DANS LES ONGLETS ANNUELS ──────
@@ -2612,6 +2662,80 @@ function _routeRequete_(e) {
       return ContentService.createTextOutput(JSON.stringify({
         success: true, indispos: getIndisposForDoctor(targetId, getIndisposYear())
       })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    /* (LOT 4 · 22/08/2026) LES DÉCISIONS DU COMITÉ sur les jours sous réserve.
+       Quatre gestes, tous annulables depuis l'écran, tous journalisés :
+       · valider            : la TPA du MAR devient TP (souveraineté comité,
+                              passe par _poserTp_ — quota et journal compris)
+       · annuler_validation : le TP redevient TPA (même chemin)
+       · refuser            : le JOUR se ferme pour TOUTE l'équipe (TP_FERMES),
+                              et chaque TPA posée ce jour-là est rendue — elles
+                              ne pourraient jamais être validées. La réponse
+                              liste qui a été rendu, pour l'annulation.
+       · annuler_refus      : le jour rouvre, les TPA rendues sont rétablies.
+       AUCUNE notification : le comité le dit de vive voix (maquette). */
+    if (action === 'deciderJourTp') {
+      if (user.role !== 'admin') {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Réservé au comité' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      const phD = _phaseTp_();
+      if (!phD.actif) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Aucune phase de pose active' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      const anneeD = phD.annee;
+      const ds = String(payload.date || '').trim();
+      const decision = String(payload.decision || '').trim();
+      let out = { success: false, error: 'décision inconnue : ' + decision };
+      if (decision === 'valider' || decision === 'annuler_validation') {
+        const cibleId = String(payload.doctorId || '').trim();
+        const carte = getIndisposForDoctor(cibleId, anneeD);
+        const attendu = decision === 'valider' ? 'TPA' : 'TP';
+        const vise = String(carte[ds] || '').trim().toUpperCase();
+        if (vise !== attendu) {
+          out = { success: false, error: 'Ce jour n\'est plus ' + (attendu === 'TPA' ? 'en attente' : 'validé') + ' (' + (vise || 'vide') + ')' };
+        } else {
+          carte[ds] = decision === 'valider' ? 'TP' : 'TPA';
+          out = _poserTp_(user, cibleId, carte, anneeD);
+          out.date = ds; out.doctorId = cibleId;
+        }
+      }
+      if (decision === 'refuser') {
+        _tpFermerJour_(anneeD, ds, user.id);
+        const M = _tpMondePresence_(anneeD);
+        const rendues = {};
+        M.ids.forEach(function (idR) {
+          const carte = getIndisposForDoctor(idR, anneeD);
+          if (String(carte[ds] || '').trim().toUpperCase() === 'TPA') {
+            delete carte[ds];
+            saveIndisposForDoctor(idR, carte, anneeD);
+            rendues[idR] = 'TPA';
+          }
+        });
+        logAction('deciderJourTp REFUS ' + ds + ' (' + anneeD + ') par ' + user.id +
+                  ' — ' + Object.keys(rendues).length + ' demande(s) rendue(s) : ' + Object.keys(rendues).join(', '));
+        out = { success: true, date: ds, fermes: Array.from(_tpFermes_(anneeD)).sort(), rendues: rendues };
+      }
+      if (decision === 'annuler_refus') {
+        _tpRouvrirJour_(anneeD, ds);
+        const retablir = payload.retablir || {};
+        const retablies = [];
+        Object.keys(retablir).forEach(function (idR) {
+          const carte = getIndisposForDoctor(idR, anneeD);
+          if (!carte[ds]) {   // ne jamais écraser un code apparu entre-temps
+            carte[ds] = 'TPA';
+            saveIndisposForDoctor(idR, carte, anneeD);
+            retablies.push(idR);
+          }
+        });
+        logAction('deciderJourTp ANNULE-REFUS ' + ds + ' (' + anneeD + ') par ' + user.id +
+                  ' — rétabli : ' + (retablies.join(', ') || 'personne'));
+        out = { success: true, date: ds, fermes: Array.from(_tpFermes_(anneeD)).sort(), retablies: retablies };
+      }
+      return ContentService.createTextOutput(JSON.stringify(out))
+        .setMimeType(ContentService.MimeType.JSON);
     }
 
     /* (LOT 3 · 22/08/2026) Repli GAS de la clé pose_tp_{Y} : même contenu,

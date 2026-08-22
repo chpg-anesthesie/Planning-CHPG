@@ -206,8 +206,10 @@ async function page(transport) {
       (c.match(/getElementById\('vacContent'\)/g) || []).length);
     V('plus de reference a #vacEmpty, qui n\'existe pas dans la page',
       !/getElementById\('vacEmpty'\)/.test(c) && !/id="vacEmpty"/.test(c));
+    /* (LOT 4 · 22/08/2026) L'accroche s'est enrichie du bloc comité TP : le
+       test suit — il vérifie toujours que periodes et groupes se chargent. */
     V('l\'onglet Equipe charge toujours les periodes et les groupes',
-      /if \(name==='equipe'\) \{ loadEquipe\(\); loadVacances\(\); \}/.test(c));
+      /if \(name==='equipe'\) \{ loadEquipe\(\); loadVacances\(\); tpcCharger\(\); \}/.test(c));
   }
 
   console.log('\n═══ 58. Avancement de la campagne d\'indisponibilités ═══');
