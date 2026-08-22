@@ -625,5 +625,51 @@ console.log('\n═══ PT26 · lot 5 comité : fusion des années ouvertes, de
   V('le repli serveur va chercher les autres années ouvertes', /r\.annees[\s\S]{0,200}getPoseTp', \{ year: yA \}/.test(adm));
 }
 
+
+console.log('\n═══ PT27 · CORRECTIF : le portail s\'ouvre par le relais — la tuile doit y trouver ses critères ═══');
+{
+  /* Défaut du 22/08 au soir, trouvé en production : dashboard.html appelle
+     miroirBootDash() puis applyUserBadge(m.identite). L\'identité venait de la
+     clé `acces` et du Worker, qui ne portaient NI phase NI quotité NI tpFixe :
+     la tuile restait invisible pour les 8 éligibles. Les trois étages sont
+     testés ici, plus le consommateur (le filtre de tuiles). */
+  const b = monde({});
+  ['_tpFixeDe_', '_quotiteDe_', '_phaseTp_'].forEach(n => {
+    try { vm.runInContext(extraireFonction('../gas/Indispos.gs', n), b.ctx); } catch (e) {}
+  });
+  vm.runInContext('function _indisposOuverte_() { return false; }', b.ctx);
+  vm.runInContext('function getIndisposYear() { return 2026; }', b.ctx);
+  vm.runInContext('function _configRows_() { return SpreadsheetApp.getActiveSpreadsheet().getSheetByName("CONFIG").getDataRange().getValues(); }', b.ctx);
+  vm.runInContext('var Utilities = { computeDigest: function () { return [1, 2, 3]; }, DigestAlgorithm: { SHA_256: 1 }, Charset: { UTF_8: 1 } };', b.ctx);
+  vm.runInContext(extraireFonction('../gas/miroir.gs', '_miroirSha256_'), b.ctx);
+  vm.runInContext(extraireFonction('../gas/miroir.gs', '_miroirConstruireAcces_'), b.ctx);
+  const acces = vm.runInContext('_miroirConstruireAcces_()', b.ctx);
+  V('la clé `acces` porte la phase TP', acces.phaseTp && acces.phaseTp.actif === true && acces.phaseTp.annee === 2027, acces.phaseTp);
+  const moi = acces.users.filter(function (u) { return u.id === 'POSEUR'; })[0];
+  const plein = acces.users.filter(function (u) { return u.id === 'PLEIN01'; })[0];
+  V('chaque MAR porte SA quotité', moi && moi.quotite === 80 && plein && plein.quotite === 100, [moi && moi.quotite, plein && plein.quotite]);
+  V('…et son drapeau « jours fixes / rythme 2 sur 2 »', moi && moi.tpFixe === false, moi && moi.tpFixe);
+
+  // Étage Worker : la liste blanche doit laisser passer les trois champs
+  const W = fs.readFileSync('../cloudflare/worker.js', 'utf8');
+  V('le Worker recopie phaseTp dans l\'identité', /identite = \{[\s\S]{0,900}phaseTp: acces\.phaseTp/.test(W));
+  V('…ainsi que quotite et tpFixe', /quotite: Number\(user\.quotite\)[\s\S]{0,120}tpFixe: !!user\.tpFixe/.test(W));
+  V('vieille clé `acces` → valeurs sûres, tuile cachée (aucune erreur)',
+    /phaseTp: acces\.phaseTp \|\| \{ actif: false/.test(W) && /Number\(user\.quotite\) \|\| 100/.test(W));
+
+  // Le consommateur : le portail ouvre par le relais, PAS par la connexion GAS
+  const dash = fs.readFileSync('../dashboard.html', 'utf8');
+  V('témoin du défaut : le portail s\'ouvre par le relais, qui pose l\'identité',
+    /applyUserBadge\(m\.identite/.test(dash) && /await miroirBootDash\(\) === true/.test(dash));
+  V('applyUserBadge lit les trois champs de l\'identité reçue',
+    /PHASE_TP = \(r\.phaseTp && r\.phaseTp\.actif\)/.test(dash) && /MY_QUOTITE = Number\(r\.quotite\)/.test(dash) && /MY_TPFIXE = !!r\.tpFixe/.test(dash));
+
+  // La phase vit dans `acces` : générer une année doit reconstruire cette clé
+  const M = fs.readFileSync('../gas/miroir.gs', 'utf8');
+  V('generateGardes reconstruit `acces` (sinon la tuile attendrait la synchro horaire)',
+    /generateGardes:\s*\['annees', 'acces'/.test(M));
+  V('archiveYear aussi (la phase se referme avec l\'archivage)', /archiveYear:\s*\['planning', 'affectations', 'annees', 'acces'/.test(M));
+}
+
 console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp : ${ok} vérifications, ${ko} échec(s)`);
 if (ko > 0) process.exit(1);

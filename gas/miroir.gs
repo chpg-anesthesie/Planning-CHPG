@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-22.3';
+const GAS_VERSION_MIROIR = '2026-08-22.4';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -81,14 +81,14 @@ const MIROIR_APRES_ECRITURE = {
   repondreEchange:            ['planning', 'config_admin', 'gardes', 'stats', 'echanges'],   // acceptation = écriture planning
   deleteOverride:             ['config_admin'],
   savePlanningOverridesBatch: ['config_admin'],
-  generateGardes:             ['annees', 'config_admin', 'gardes', 'stats'],
+  generateGardes:             ['annees', 'acces', 'config_admin', 'gardes', 'stats'],   // (22/08) `acces` porte la phase TP : la tuile doit suivre la génération
   declareLiberal:             ['liberal'],   // (2026-08-05.9) un MAR déclare → le volet du comité suit
   deleteLiberal:              ['liberal'],
   // (17/08/2026) La bibliotheque de cotations types s'edite depuis une page :
   // ce qui est enregistre doit parvenir aux 19 sans attendre la synchro horaire.
   saveCotationType:           ['cotations_type'],
   deleteCotationType:         ['cotations_type'],
-  archiveYear:                ['planning', 'affectations', 'annees', 'config_admin', 'gardes', 'stats'],
+  archiveYear:                ['planning', 'affectations', 'annees', 'acces', 'config_admin', 'gardes', 'stats'],
   setActiveYear:              ['annees', 'acces', 'config_admin'],
   initYear:                   ['annees', 'config_admin'],
   // Affectations sectorielles
@@ -1115,6 +1115,11 @@ function _miroirConstruireAcces_() {
         liberal: colLib >= 0 && String(data[i][colLib]).trim().toUpperCase() === 'O',
         libAdmin: !!libAdmin && norm(data[i][0]) === libAdmin,
         rpps: colRpps >= 0 ? String(data[i][colRpps] == null ? '' : data[i][colRpps]).trim() : '',
+        /* (CORRECTIF 22/08/2026) Éligibilité à la pose des TP. Le portail
+           s'ouvre par la COPIE RAPIDE, pas par la connexion au serveur :
+           sans ces deux champs ici, la tuile ne peut pas s'afficher. */
+        quotite: (function () { try { return _quotiteDe_(String(data[i][0]).trim()); } catch (eQ) { return 100; } })(),
+        tpFixe: (function () { try { return _tpFixeDe_(String(data[i][0]).trim()); } catch (eF) { return false; } })(),
       });
     }
   }
@@ -1122,6 +1127,7 @@ function _miroirConstruireAcces_() {
   const acces = { users: users, t: Date.now() };
   try { acces.indisposYear = getIndisposYear(); } catch (e) { acces.indisposYear = null; }
   try { acces.indisposOuverte = _indisposOuverte_(); } catch (e) { acces.indisposOuverte = false; }
+  try { acces.phaseTp = _phaseTp_(); } catch (e) { acces.phaseTp = { actif: false, annee: null, annees: [] }; }
   return acces;
 }
 

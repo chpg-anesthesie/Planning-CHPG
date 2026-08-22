@@ -70,7 +70,7 @@
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-22.1';
+const VERSION = 'miroir 2026-08-22.2';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
@@ -259,6 +259,13 @@ async function lire(corps, env) {
     liberal: !!user.liberal, rpps: user.rpps || '',
     libAdmin: !!user.libAdmin,          // (17/08) gere la bibliotheque de cotations types
     indisposYear: acces.indisposYear, indisposOuverte: !!acces.indisposOuverte,
+    /* (CORRECTIF 22/08/2026) Le portail s'ouvre par le relais, pas par la
+       connexion au serveur : sans ces trois champs, la tuile des temps
+       partiels ne peut jamais s'afficher. Valeurs sures si la cle `acces`
+       est encore l'ancienne : plein temps, phase fermee -> tuile cachee. */
+    phaseTp: acces.phaseTp || { actif: false, annee: null, annees: [] },
+    quotite: Number(user.quotite) || 100,
+    tpFixe: !!user.tpFixe,
   };
   return reponse({ success: true, identite, data, manquants, refuses, version: VERSION });
 }
