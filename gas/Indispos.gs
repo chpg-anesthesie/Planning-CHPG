@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-19.1';
+const GAS_VERSION_INDISPOS = '2026-08-22.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -48,6 +48,30 @@ function _indisposOuverte_() {
     }
   } catch (e) {}
   return false;
+}
+
+/* ── (POSE TP · 22/08/2026) PHASE DE POSE DES TEMPS PARTIELS — DÉDUITE, JAMAIS ÉCRITE ──
+   Les jours de temps partiel se posent APRÈS la génération des gardes (décision
+   d'Arthur, 22/08/2026). La phase n'est stockée nulle part : elle se DÉDUIT de
+   l'état du classeur, donc supprimer GARDES_{Y} pour régénérer la referme seule.
+   Une année ne compte « générée » que si GARDES_{Y} ET LIENS_R_{Y} existent :
+   le générateur crée toujours les deux, alors que 2026 (tenue à la main) a un
+   GARDES_2026 mais pas de LIENS_R_2026 — vérifié dans le classeur le 22/08.
+   ⚠️ Sans ce double test, supprimer GARDES_2027 en octobre ferait retomber la
+   phase sur 2026 et des TP fuiraient dans INDISPOS_2026.
+   On regarde active+1 PUIS active : en régime de croisière (année en cours
+   générée, suivante pas encore), la pose continue sur l'année en cours. */
+function _phaseTp_() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const a = getActiveYear();
+    for (let y = a + 1; y >= a; y--) {
+      if (ss.getSheetByName(`GARDES_${y}`) && ss.getSheetByName(`LIENS_R_${y}`)) {
+        return { actif: true, annee: y };
+      }
+    }
+  } catch (e) {}
+  return { actif: false, annee: null };
 }
 
 // (C3) MEDECINS_LIST supprimé — l'effectif vient de l'onglet MEDECINS.
@@ -929,6 +953,187 @@ function saveIndisposForDoctor(doctorId, indisposMap, year) {
   return false;
 }
 
+/* ═══ (POSE TP · 22/08/2026) LE CIRCUIT DE POSE DES TEMPS PARTIELS ═══════════
+   Les TP se posent APRÈS la génération, dans ce qui reste. Trois familles de
+   codes cohabitent désormais dans INDISPOS_{Y}, chacune avec son propriétaire :
+     VAC / FORM        -> le comité   (staff vacances)
+     INDISPO / SOUHAIT -> le MAR, pendant la campagne (indispos.html)
+     TP / TPA          -> le MAR, via CE circuit, toute l'année
+   TPA = « TP en attente » (jour jaune, sous réserve du comité). Il ne compte
+   NI comme absence NI dans le quota : sinon la demande ferait elle-même
+   baisser l'effectif, et deux demandes le même jour se bloqueraient. */
+
+// Le MAR est-il hors du dispositif TP ? (règle SANS nom en dur : jours fixes
+// déclarés — BONNET — ou rythme 2 semaines sur 2 — même règle que getVacConfig.)
+function _tpFixeDe_(marId) {
+  try {
+    const f = getMedecinFlags();
+    return f.rythme2sur2.has(marId) || !!f.tpJoursFixes[marId];
+  } catch (e) { return false; }
+}
+
+function _quotiteDe_(marId) {
+  const data = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('MEDECINS').getDataRange().getValues();
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][0]).trim() === String(marId).trim()) return Number(data[r][4]) || 100;
+  }
+  return 100;
+}
+
+/* ── L'EFFECTIF PRÉSENT, CÔTÉ SERVEUR — réplique de _rPresents du générateur ──
+   Même définition que generateur_gardes.gs (validée contre la ligne
+   « TOTAL PRESENTS » du planning du service) : tous les MAR actifs sauf DRUGE,
+   bornés par date_debut/date_fin ; absent = VAC/FORM/CL/TP/CTP/CP/A lu dans
+   INDISPOS_{Y} (JAMAIS dans GARDES, qui écrit RG par-dessus TP — l.≈1535),
+   semaine off du rythme 2/2, jour fixe tp_jours_fixes, et RG/R lus dans
+   GARDES_{Y}. Les gardes G/G2 comptent PRÉSENTES (le MAR travaille au bloc).
+   TPA ne compte pas absent — voir l'en-tête du circuit.
+   Tout est lu UNE fois par appel, puis compté en mémoire. */
+function _tpMondePresence_(annee) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ABS = new Set(['VAC', 'FORM', 'CL', 'TP', 'CTP', 'CP', 'A', 'RG_TRANSITION']);
+  const FLAGS = getMedecinFlags();
+  const medData = ss.getSheetByName('MEDECINS').getDataRange().getValues();
+  const ids = [];
+  for (let r = 1; r < medData.length; r++) {
+    const id = String(medData[r][0]).trim();
+    if (!id || id === 'DRUGE') continue;                     // même exclusion que le générateur
+    if (String(medData[r][3]).trim().toUpperCase() !== 'O') continue;
+    ids.push(id);
+  }
+  const indispos = {};
+  const shI = ss.getSheetByName(`INDISPOS_${annee}`);
+  const dI = shI ? shI.getDataRange().getValues() : [];
+  const datesI = dI.length ? reconstruireDatesHeaders(dI, annee) : [];
+  for (let r = 3; r < dI.length; r++) {
+    const id = String(dI[r][0]).trim(); if (!id) continue;
+    indispos[id] = {};
+    datesI.forEach((ds, i) => {
+      if (!ds) return;
+      const v = String(dI[r][i + 1] || '').trim().toUpperCase();
+      if (v) indispos[id][ds] = v;
+    });
+  }
+  const enGarde = {}, enRepos = {};
+  const shG = ss.getSheetByName(`GARDES_${annee}`);
+  if (shG) {
+    const dG = shG.getDataRange().getValues();
+    const d2c = buildDateToCol(dG, annee);
+    const c2d = {}; Object.keys(d2c).forEach(ds => { c2d[d2c[ds]] = ds; });
+    for (let r = 3; r < dG.length; r++) {
+      const id = String(dG[r][0]).trim(); if (!id) continue;
+      for (let c = 1; c < dG[0].length; c++) {
+        const ds = c2d[c]; if (!ds) continue;
+        const v = String(dG[r][c] || '').trim().toUpperCase();
+        if (v === 'G' || v === 'G2') { (enGarde[id] = enGarde[id] || {})[ds] = true; }
+        else if (v === 'RG' || v === 'R') { (enRepos[id] = enRepos[id] || {})[ds] = true; }
+      }
+    }
+  }
+  function presents(ds) {
+    let n = 0;
+    ids.forEach(id => {
+      const dd = FLAGS.dateDebut[id], df = FLAGS.dateFin[id];
+      if ((dd && ds < dd) || (df && ds >= df)) return;
+      if (ABS.has((indispos[id] || {})[ds])) return;
+      if (estSemaineOff(id, ds)) return;
+      const tpF = FLAGS.tpJoursFixes[id];
+      if (tpF && tpF.has(new Date(ds + 'T12:00:00').getDay())) return;
+      if (enRepos[id] && enRepos[id][ds]) return;
+      n++;
+    });
+    return n;
+  }
+  return { presents: presents, enGarde: enGarde, enRepos: enRepos,
+           datesValides: new Set(datesI.filter(Boolean)) };
+}
+
+/* ── POSER LES TP D'UN MAR — le serveur juge, il ne croit pas l'écran ─────────
+   L'écran calcule ses bandes depuis la copie rapide, qui peut retarder de
+   quelques minutes : deux MAR peuvent voir le même jour vert. C'est donc ICI,
+   au moment d'écrire, que chaque jour NOUVEAU est tranché, sur l'état réel du
+   classeur :  il resterait ≥ 15 → TP validé · 13-14 → TPA (sous réserve) ·
+   ≤ 12 → refusé. Un jour DÉJÀ posé est acquis, jamais re-jugé (« revenir sur
+   un jour accordé serait pire que le problème »).
+   Le rôle mar ne peut PAS transformer son TPA en TP (seul le comité valide) ;
+   le rôle admin écrit ce qu'il envoie dans la famille TP/TPA, sans re-jugement :
+   la décision du comité est souveraine et annulable.
+   Une date absente de l'envoi = retrait (même sémantique que la campagne).
+   Renvoie { success, resultat: {date: 'TP'|'TPA'|motif}, quota:{valides,total} } :
+   c'est le récapitulatif que l'écran affiche à l'enregistrement. */
+function _poserTp_(user, targetId, envoye, annee) {
+  const estAdmin = user.role === 'admin';
+  const quotite = _quotiteDe_(targetId);
+  if (!estAdmin && (quotite >= 100 || _tpFixeDe_(targetId))) {
+    return { success: false, error: 'La pose de jours de temps partiel ne concerne pas votre profil.' };
+  }
+  const quota = getQuotasConges(quotite).ctp || 0;
+  const M = _tpMondePresence_(annee);
+  const existant = getIndisposForDoctor(targetId, annee);
+  const horsFamille = {};   // VAC/FORM/INDISPO/SOUHAIT/CL… : intouchables ici
+  Object.keys(existant).forEach(ds => {
+    const v = String(existant[ds]).trim().toUpperCase();
+    if (v !== 'TP' && v !== 'TPA') horsFamille[ds] = existant[ds];
+  });
+  const jf = new Set(getJoursFeries(annee));
+  const demandes = Object.keys(envoye || {}).filter(ds => {
+    const v = String(envoye[ds] || '').trim().toUpperCase();
+    return v === 'TP' || v === 'TPA';
+  }).sort();
+  const resultat = {}, final = {};
+  let nbTP = 0;
+  // Passe 1 — l'ACQUIS d'abord : les jours déjà posés et conservés par l'envoi
+  // consomment le quota avant toute nouveauté (sinon un jour neuf de janvier
+  // pourrait faire déborder un TP validé de mars).
+  demandes.forEach(ds => {
+    const avant = String(existant[ds] || '').trim().toUpperCase();
+    if (avant === 'TP') {
+      const veut = String(envoye[ds]).trim().toUpperCase();
+      // « Acquis » protège le MAR d'un re-jugement — pas le comité de lui-même :
+      // sa décision est annulable (TP → TPA), attrapé par le banc PT10.
+      if (estAdmin && veut === 'TPA') { final[ds] = 'TPA'; resultat[ds] = 'TPA'; }
+      else { final[ds] = 'TP'; resultat[ds] = 'TP'; nbTP++; }
+    }
+    else if (avant === 'TPA') {
+      const veut = String(envoye[ds]).trim().toUpperCase();
+      if (estAdmin && veut === 'TP') { final[ds] = 'TP'; resultat[ds] = 'TP'; nbTP++; }  // validation comité
+      else { final[ds] = 'TPA'; resultat[ds] = 'TPA'; }   // un MAR ne s'auto-valide pas
+    }
+  });
+  // Passe 2 — les jours NOUVEAUX, en ordre chronologique, jugés un par un.
+  demandes.forEach(ds => {
+    const avant = String(existant[ds] || '').trim().toUpperCase();
+    if (avant === 'TP' || avant === 'TPA') return;          // traité en passe 1
+    if (estAdmin) {                                          // décision comité : souveraine
+      const veut = String(envoye[ds]).trim().toUpperCase();
+      final[ds] = veut; resultat[ds] = veut;
+      if (veut === 'TP') nbTP++;
+      return;
+    }
+    if (!M.datesValides.has(ds)) { resultat[ds] = 'hors année'; return; }
+    if (horsFamille[ds]) { resultat[ds] = 'jour déjà ' + horsFamille[ds]; return; }
+    const dow = new Date(ds + 'T12:00:00').getDay();
+    if (dow === 0 || dow === 6) { resultat[ds] = 'week-end'; return; }
+    if (jf.has(ds)) { resultat[ds] = 'jour férié'; return; }
+    if (M.enGarde[targetId] && M.enGarde[targetId][ds]) { resultat[ds] = 'vous êtes de garde'; return; }
+    if (M.enRepos[targetId] && M.enRepos[targetId][ds]) { resultat[ds] = 'repos de garde'; return; }
+    const resterait = M.presents(ds) - 1;                    // le poseur, présent, se retire
+    if (resterait <= 12) { resultat[ds] = 'effectif insuffisant (il resterait ' + resterait + ')'; return; }
+    if (resterait < 15) { final[ds] = 'TPA'; resultat[ds] = 'TPA'; return; }   // 13-14 : sous réserve
+    if (nbTP >= quota) { resultat[ds] = 'quota atteint (' + quota + ' j)'; return; }
+    final[ds] = 'TP'; resultat[ds] = 'TP'; nbTP++;
+  });
+  const fusion = {};
+  Object.keys(horsFamille).forEach(ds => { fusion[ds] = horsFamille[ds]; });
+  Object.keys(final).forEach(ds => { fusion[ds] = final[ds]; });
+  const ecrit = saveIndisposForDoctor(targetId, fusion, annee);
+  const nbTPA = Object.keys(final).filter(ds => final[ds] === 'TPA').length;
+  logAction('poserTp ' + targetId + ' (' + annee + ') : ' + nbTP + ' TP, ' + nbTPA +
+            ' en attente, quota ' + nbTP + '/' + quota + (estAdmin ? ' [comité]' : ''));
+  return { success: ecrit === true, resultat: resultat, annee: annee,
+           quota: { valides: nbTP, total: quota } };
+}
+
 // ── (RH-1) GARANTIR LES LIGNES D'UN MAR DANS LES ONGLETS ANNUELS ──────
 // Un MAR créé/réactivé APRÈS l'init d'une année n'a de ligne ni dans
 // INDISPOS_{Y}, ni dans GARDES_{Y}, ni dans AFFECTATIONS_{Y} → indispos
@@ -1245,6 +1450,9 @@ function checkCode(code) {
   for (let r = 1; r < data.length; r++) {
     if (_normCode(data[r][6]) === codeN) {
       return {role:'mar', id:data[r][0], name:data[r][1], initials:data[r][2],
+              // (POSE TP · 22/08/2026) Quotité (col. E) : pilote l'éligibilité à la
+              // tuile « Mes jours de temps partiel » et le quota annuel (CONFIG_CONGES).
+              quotite: Number(data[r][4]) || 100,
               liberal: colLib >= 0 && String(data[r][colLib]).trim().toUpperCase() === 'O',
               // DONNEE NOMINATIVE. Le RPPS vit UNIQUEMENT dans le classeur prive, jamais
               // dans le depot (public). Il n'est renvoye qu'au MAR identifie par SON code
@@ -2320,6 +2528,13 @@ function _routeRequete_(e) {
         // Campagne de saisie en cours ? Pilote l'affichage de la tuile
         // « Mes indisponibilités » du dashboard (masquée hors campagne).
         indisposOuverte: _indisposOuverte_(),
+        // (POSE TP · 22/08/2026) Phase de pose des temps partiels (déduite) +
+        // profil du MAR : la tuile « Mes jours de temps partiel » ne s'affiche
+        // que si phaseTp.actif ET quotite < 100 ET !tpFixe. Aucun nom en dur :
+        // jours fixes (BONNET) et rythme 2/2 s'excluent par leurs colonnes MEDECINS.
+        phaseTp: _phaseTp_(),
+        quotite: user.quotite || 100,
+        tpFixe: _tpFixeDe_(user.id),
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -2339,17 +2554,51 @@ function _routeRequete_(e) {
 
     if (action === 'saveIndispos') {
       const targetId = user.role === 'admin' ? payload.doctorId : user.id;
+      /* (POSE TP · 22/08/2026) DEUX CIRCUITS, DEUX ANNÉES — jamais l'un vers l'autre.
+         · mode TP (payload.tp === true) : vise l'année de la PHASE (_phaseTp_),
+           JAMAIS getIndisposYear() — qui se replie en silence sur l'année active
+           hors campagne, et enverrait les TP dans la mauvaise année.
+         · mode campagne (défaut) : comportement historique, PLUS le verrou qui
+           manquait — saveIndispos n'interrogeait jamais _indisposOuverte_ : rien
+           n'empêchait un rôle mar d'écrire hors campagne. Le rôle admin n'est pas
+           verrouillé : le comité reste maître des corrections VAC/FORM. */
+      if (payload.tp === true) {
+        const ph = _phaseTp_();
+        if (!ph.actif) return _error('La pose des jours de temps partiel n\'est pas ouverte : aucune année générée.');
+        return ContentService.createTextOutput(JSON.stringify(
+          _poserTp_(user, targetId, payload.indispos, ph.annee)
+        )).setMimeType(ContentService.MimeType.JSON);
+      }
+      if (user.role !== 'admin' && !_indisposOuverte_()) {
+        return _error('La campagne de saisie est fermée : indisponibilités et souhaits ne peuvent plus être enregistrés.');
+      }
       const anneeInd = getIndisposYear();
+      /* Les TP ne se posent plus AVANT la génération : le circuit campagne
+         IGNORE les codes TP/TPA envoyés, et PRÉSERVE ceux déjà en base — sans
+         quoi la fusion (remplacement intégral de la famille du MAR) effacerait
+         en silence des TP posés par l'autre circuit dans la même année. */
+      const existantC = getIndisposForDoctor(targetId, anneeInd);
+      const envoyeSansTp = {}, tpNeufs = [];
+      Object.keys(payload.indispos || {}).forEach(function (ds) {
+        const v = String(payload.indispos[ds] || '').trim().toUpperCase();
+        if (v !== 'TP' && v !== 'TPA') { envoyeSansTp[ds] = payload.indispos[ds]; return; }
+        if (String(existantC[ds] || '').trim().toUpperCase() !== v) tpNeufs.push(ds);
+      });
+      // Transition lot 1 → lot 3 : l'ancien écran campagne peut encore envoyer
+      // des TP NEUFS. Ils ne sont pas écrits — mais jamais en silence : trace
+      // LOGS, la seule surface qui dit la vérité quand l'écran ne suit pas.
+      if (tpNeufs.length) logAction('saveIndispos ' + targetId + ' (' + anneeInd + ') : ' +
+        tpNeufs.length + ' TP non écrits — la pose se fait après génération (' + tpNeufs.join(', ') + ')');
       // Fusion par proprietaire de code — voir _fusionIndispos_.
       // NE PAS remonter cette logique dans saveIndisposForDoctor : ce helper
       // sert aussi a l'absence longue, qui doit continuer a poser une ligne
       // complete. La regle de propriete n'a de sens qu'ici, ou l'on connait
       // le role de l'appelant.
-      const fusion = _fusionIndispos_(
-        getIndisposForDoctor(targetId, anneeInd),
-        payload.indispos,
-        user.role === 'admin'
-      );
+      const fusion = _fusionIndispos_(existantC, envoyeSansTp, user.role === 'admin');
+      Object.keys(existantC).forEach(function (ds) {
+        const v = String(existantC[ds] || '').trim().toUpperCase();
+        if ((v === 'TP' || v === 'TPA') && !fusion[ds]) fusion[ds] = existantC[ds];
+      });
       return ContentService.createTextOutput(JSON.stringify({
         success: saveIndisposForDoctor(targetId, fusion, anneeInd)
       })).setMimeType(ContentService.MimeType.JSON);
@@ -2841,6 +3090,12 @@ if (!affSheet) {
 
       out.indisposYear = getIndisposYear();
       out.indisposOuverte = _indisposOuverte_();
+      // (POSE TP · 22/08/2026) Mêmes trois champs que `login` : phase déduite,
+      // quotité, exclusion jours fixes / rythme 2/2. Zéro lecture nouvelle
+      // (CONFIG et MEDECINS sont déjà lus par ce bootstrap).
+      out.phaseTp = _phaseTp_();
+      out.quotite = user.quotite || 100;
+      out.tpFixe = _tpFixeDe_(user.id);
       _jalon('annee + campagne (CONFIG)');
       logConnexion(user);
       _jalon('journal de connexion (ecriture)');
