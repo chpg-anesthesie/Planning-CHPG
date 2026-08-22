@@ -354,6 +354,9 @@ a.tile:hover, .tile.clickable:hover {
 
 /* ── Teinte violette (tuile Protocoles) ── */
 .tile-ico.viol { background:var(--viol-soft); color:var(--viol); }
+/* (POSE TP · 22/08/2026) Teinte de la tuile « Mes jours de temps partiel » :
+   le vert des jours ouverts à la pose. */
+.tile-ico.vert { background:var(--ok-soft); color:var(--ok); }
 
 /* ── VUE PROTOCOLES ── */
 .protos-search { margin-bottom:14px; }
@@ -623,6 +626,12 @@ let MY_ROLE = null;
 let MY_LIBERAL = false;      // membre du groupement liberal (colonne LIBERAL de MEDECINS)
 let INDISPOS_OUVERTE = false;   // campagne de saisie en cours (renvoyé par login)
 let INDISPOS_YEAR = null;       // année concernée par la saisie
+// (POSE TP · 22/08/2026) Phase de pose des temps partiels + profil du MAR.
+// Renvoyés par login depuis le serveur du 22/08 ; avec un serveur plus ancien
+// les champs sont absents → la tuile TP reste invisible, sans erreur.
+let PHASE_TP = null;            // { actif, annee } si une année générée existe
+let MY_QUOTITE = 100;           // quotité (col. E de MEDECINS)
+let MY_TPFIXE = false;          // jours fixes ou rythme 2/2 : hors dispositif TP
 
 function esc(s){ return String(s||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function _meName(id){ return (id==='PRUNET'?'Pr ':'Dr ')+id.charAt(0)+id.slice(1).toLowerCase(); }
@@ -830,6 +839,11 @@ function applyUserBadge(r){
   // Membre du groupement liberal : pilote la tuile Module liberal.
   MY_LIBERAL = !!r.liberal;
   INDISPOS_YEAR = r.indisposYear || null;
+  // (POSE TP · 22/08/2026) Tuile « Mes jours de temps partiel » : phase déduite
+  // côté serveur + éligibilité par les colonnes MEDECINS, aucun nom en dur.
+  PHASE_TP = (r.phaseTp && r.phaseTp.actif) ? r.phaseTp : null;
+  MY_QUOTITE = Number(r.quotite) || 100;
+  MY_TPFIXE = !!r.tpFixe;
   prechargerOrdreVac();   // en tache de fond : le bandeau de Mes conges sera deja pret
 
   const pill = document.getElementById('mePill');
@@ -863,6 +877,13 @@ const TILES = [
   // disparaît plutôt que d'encombrer le portail 10 mois par an.
   // Le drapeau vient du serveur (présence de INDISPOS_ACTIVE dans CONFIG).
   { key:'indispos', title:'Mes indisponibilités', sub:'Déclarez vos souhaits et vos congés {AN}.', icon:'clock', href:'indispos.html', ready:true, campagne:true, tint:'viol' },
+  // (POSE TP · 22/08/2026) Tuile de POSE DES TEMPS PARTIELS : visible quand une
+  // année générée existe (phase déduite, serveur) ET que le MAR est éligible
+  // (quotité < 100, ni jours fixes ni rythme 2/2 — colonnes MEDECINS, aucun nom
+  // en dur). Deux tuiles séparées plutôt qu'une à deux visages : en octobre la
+  // campagne (année N+1) et la pose TP (année N) COHABITENT — maquette validée
+  // le 22/08. Teinte verte : les jours verts de l'écran de pose.
+  { key:'tp', title:'Mes jours de temps partiel', sub:'Posez vos jours de TP {ANTP}, dans le planning déjà généré.', icon:'calendar-clock', href:'indispos.html?tp=1', ready:true, tp:true, tint:'vert' },
   // (Lot 5-bis) Consultations a venir + absences du MAR sur les 4 semaines qui
   // suivent chaque consultation. ACCES RESTREINT a FROHLICH tant que le comite ne
   // pose pas les consultations a 4 semaines : ouvert a tous, l'ecran serait presque
@@ -904,7 +925,7 @@ const TILES = [
 ];
 function renderTiles(){
   const box = document.getElementById('tiles');
-  box.innerHTML = TILES.filter(t => (!t.only || t.only === MY_ID) && (!t.campagne || INDISPOS_OUVERTE) && (!t.liberal || MY_LIBERAL) && (!t.pc || window.innerWidth > 768)).map(t => {
+  box.innerHTML = TILES.filter(t => (!t.only || t.only === MY_ID) && (!t.campagne || INDISPOS_OUVERTE) && (!t.tp || (PHASE_TP && MY_QUOTITE < 100 && !MY_TPFIXE)) && (!t.liberal || MY_LIBERAL) && (!t.pc || window.innerWidth > 768)).map(t => {
     const soon = t.ready ? '' : ' soon';
     const tag  = t.ready ? '' : '<span class="badge-soon">Bientôt</span>';
     const arrow = t.ready ? '<div class="tile-arrow">Ouvrir <i data-lucide="arrow-right" style="width:15px;height:15px"></i></div>' : '';
@@ -912,7 +933,7 @@ function renderTiles(){
       tag +
       '<div class="tile-ico'+(t.tint?' '+t.tint:'')+'"><i data-lucide="'+t.icon+'"></i></div>' +
       '<div class="tile-title">'+esc(t.title)+'</div>' +
-      '<div class="tile-sub">'+esc(String(t.sub).replace(' {AN}', INDISPOS_YEAR ? (' pour ' + INDISPOS_YEAR) : ''))+'</div>' +
+      '<div class="tile-sub">'+esc(String(t.sub).replace(' {AN}', INDISPOS_YEAR ? (' pour ' + INDISPOS_YEAR) : '').replace(' {ANTP}', PHASE_TP ? (' pour ' + PHASE_TP.annee) : ''))+'</div>' +
       arrow;
     // Tuile a deux destinations : la face reste identique aux autres, les deux
     // moitiés vivent dessous et n'apparaissent qu'au clic.

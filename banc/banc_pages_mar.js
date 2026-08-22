@@ -802,7 +802,11 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('la ligne de filtrage est lisible dans la page', !!mFiltre);
 
     const passe = (largeur, id, liberal) => {
-      const bac = { window: { innerWidth: largeur }, MY_ID: id, INDISPOS_OUVERTE: true, MY_LIBERAL: !!liberal };
+      /* (22/08/2026) La page porte trois états de plus depuis la tuile TP :
+         réglés ici à « MAR plein temps, phase fermée » — l'état le plus
+         courant. La tuile TP a son propre banc (banc_pose_tp §PT14). */
+      const bac = { window: { innerWidth: largeur }, MY_ID: id, INDISPOS_OUVERTE: true, MY_LIBERAL: !!liberal,
+                    PHASE_TP: null, MY_QUOTITE: 100, MY_TPFIXE: false };
       bac.globalThis = bac;
       vm.createContext(bac);
       vm.runInContext(mTiles[0], bac);

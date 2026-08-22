@@ -303,5 +303,51 @@ console.log('\n═══ PT13 · une date hors année ou la phase fermée n\'éc
   V('phase fermée → refus global, message clair', rep2 && rep2.success === false && /générée/.test(rep2.error || ''), rep2);
 }
 
+console.log('\n═══ PT14 · la tuile du portail : visible pour les bons MAR, aux bons moments ═══');
+{
+  /* On extrait le VRAI tableau TILES et LA ligne de filtrage de dashboard.html
+     (même méthode que banc_pages_mar §29) et on les fait tourner dans un bac
+     à sable où l'on règle l'état du monde. */
+  const src = fs.readFileSync('../dashboard.html', 'utf8');
+  const mTiles = src.match(/const TILES = \[[\s\S]*?\n\];/);
+  const mFiltre = src.match(/TILES\.filter\((t => [\s\S]*?)\)\.map\(t =>/);
+  V('le tableau des tuiles et le filtre sont lisibles dans la page', !!mTiles && !!mFiltre);
+  const etat = (monde) => {
+    const bac = vm.createContext(Object.assign({ window: { innerWidth: 1440 },
+      MY_ID: 'POSEUR', MY_LIBERAL: false, INDISPOS_OUVERTE: false,
+      PHASE_TP: null, MY_QUOTITE: 100, MY_TPFIXE: false }, monde));
+    vm.runInContext(mTiles[0], bac);
+    return vm.runInContext(`TILES.filter(${mFiltre[1]}).map(t => t.key)`, bac);
+  };
+  const vieux = etat({});   // vieux serveur : phaseTp jamais renvoyé
+  V('vieux serveur (pas de phaseTp) → la tuile TP n\'existe pour personne', !vieux.includes('tp'), vieux);
+  const normal = etat({ PHASE_TP: { actif: true, annee: 2027 }, MY_QUOTITE: 80 });
+  V('phase active + quotité 80 → la tuile TP apparaît', normal.includes('tp'), normal);
+  V('…et hors campagne, la tuile campagne reste absente', !normal.includes('indispos'), normal);
+  const octobre = etat({ PHASE_TP: { actif: true, annee: 2027 }, MY_QUOTITE: 80, INDISPOS_OUVERTE: true });
+  V('octobre : campagne ET pose TP cohabitent — les deux tuiles', octobre.includes('tp') && octobre.includes('indispos'), octobre);
+  const plein = etat({ PHASE_TP: { actif: true, annee: 2027 }, MY_QUOTITE: 100 });
+  V('quotité 100 → jamais de tuile TP', !plein.includes('tp'), plein);
+  const fixe = etat({ PHASE_TP: { actif: true, annee: 2027 }, MY_QUOTITE: 60, MY_TPFIXE: true });
+  V('jours fixes ou rythme 2/2 → jamais de tuile TP', !fixe.includes('tp'), fixe);
+  const perdues = vieux.filter(k => !normal.includes(k) && k !== 'indispos');
+  V('le nouveau filtre ne fait disparaître aucune AUTRE tuile', perdues.length === 0, perdues);
+}
+
+console.log('\n═══ PT15 · toute icône demandée par une tuile existe dans le bundle local ═══');
+{
+  /* Le bundle lucide n'embarque QUE les icônes listées : un nom absent donne
+     un carré vide, sans erreur. On vérifie CHAQUE icône du tableau TILES —
+     la tuile TP d'aujourd'hui, et toutes celles de demain. */
+  const src = fs.readFileSync('../dashboard.html', 'utf8');
+  const bundle = fs.readFileSync('../assets/vendor/lucide-icons.js', 'utf8');
+  const mIcons = bundle.match(/var ICONS = (\{[\s\S]*?\});/);
+  const dispo = new Set(Object.keys(JSON.parse(mIcons[1])));
+  const demandees = [...src.match(/const TILES = \[[\s\S]*?\n\];/)[0].matchAll(/icon:'([a-z-]+)'/g)].map(m => m[1]);
+  V('au moins 10 icônes de tuiles trouvées (le listage fonctionne)', demandees.length >= 10, demandees.length);
+  const absentes = demandees.filter(n => !dispo.has(n));
+  V('chaque icône de tuile est dans le bundle — dont calendar-clock', absentes.length === 0 && demandees.includes('calendar-clock'), absentes);
+}
+
 console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp : ${ok} vérifications, ${ko} échec(s)`);
 if (ko > 0) process.exit(1);
