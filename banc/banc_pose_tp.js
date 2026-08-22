@@ -209,12 +209,13 @@ console.log('\n═══ PT06 · G compte PRÉSENT, RG compte ABSENT — la déf
 console.log('\n═══ PT07 · refus individuels : garde, repos, week-end, férié, jour déjà pris ═══');
 {
   const b = monde({
-    gardes: [['POSEUR', '2027-03-04', 'G'], ['POSEUR', '2027-03-05', 'RG']],
-    indispos: [['POSEUR', '2027-03-08', 'VAC']],
+    gardes: [['POSEUR', '2027-03-04', 'G'], ['POSEUR', '2027-03-05', 'RG'], ['POSEUR', '2027-03-11', '18']],
+    indispos: [['POSEUR', '2027-03-08', 'VAC'], ['POSEUR', '2027-03-09', 'INDISPO'], ['POSEUR', '2027-03-10', 'SOUHAIT']],
   });
   const jf = [...vm.runInContext('getJoursFeries(2027)', b.ctx)]
     .filter(d => { const w = new Date(d + 'T12:00:00').getDay(); return w >= 1 && w <= 5 && d > '2027-01-04' && d < '2027-12-31'; })[0];
-  const envoi = { '2027-03-04': 'TP', '2027-03-05': 'TP', '2027-03-06': 'TP', '2027-03-08': 'TP' };
+  const envoi = { '2027-03-04': 'TP', '2027-03-05': 'TP', '2027-03-06': 'TP', '2027-03-08': 'TP',
+                  '2027-03-09': 'TP', '2027-03-10': 'TP', '2027-03-11': 'TP' };
   envoi[jf] = 'TP';
   const rep = b.appel({ tp: true, indispos: envoi }, MAR);
   V('jour de garde → refusé', /garde/.test(rep.resultat['2027-03-04'] || ''), rep.resultat['2027-03-04']);
@@ -222,7 +223,15 @@ console.log('\n═══ PT07 · refus individuels : garde, repos, week-end, fé
   V('samedi → refusé', /week-end/.test(rep.resultat['2027-03-06'] || ''), rep.resultat['2027-03-06']);
   V('jour férié (' + jf + ') → refusé', /férié/.test(rep.resultat[jf] || ''), rep.resultat[jf]);
   V('jour déjà VAC → refusé avec le code en clair', /VAC/.test(rep.resultat['2027-03-08'] || ''), rep.resultat['2027-03-08']);
-  V('aucun de ces jours n\'a été écrit', Object.keys(b.lireInd('POSEUR', 2027)).filter(d => b.lireInd('POSEUR', 2027)[d] === 'TP').length === 0);
+  V('garde de 18h → refusé : on est AU TRAVAIL ce jour-là (arbitrage 22/08)',
+    /18h/.test(rep.resultat['2027-03-11'] || ''), rep.resultat['2027-03-11']);
+  V('jour INDISPO de campagne → le TP PASSE : vestige sans objet après génération',
+    rep.resultat['2027-03-09'] === 'TP', rep.resultat['2027-03-09']);
+  V('…et la case porte désormais TP (le vestige est écrasé)',
+    b.lireInd('POSEUR', 2027)['2027-03-09'] === 'TP', b.lireInd('POSEUR', 2027)['2027-03-09']);
+  V('jour SOUHAIT de campagne → le TP passe aussi', rep.resultat['2027-03-10'] === 'TP', rep.resultat['2027-03-10']);
+  V('les jours REFUSÉS n\'ont rien écrit — la VAC et la garde restent intactes',
+    b.lireInd('POSEUR', 2027)['2027-03-08'] === 'VAC' && !b.lireInd('POSEUR', 2027)['2027-03-04']);
 }
 
 console.log('\n═══ PT08 · quota : les TP validés le consomment, les TPA jamais ═══');
@@ -347,6 +356,121 @@ console.log('\n═══ PT15 · toute icône demandée par une tuile existe dan
   V('au moins 10 icônes de tuiles trouvées (le listage fonctionne)', demandees.length >= 10, demandees.length);
   const absentes = demandees.filter(n => !dispo.has(n));
   V('chaque icône de tuile est dans le bundle — dont calendar-clock', absentes.length === 0 && demandees.includes('calendar-clock'), absentes);
+}
+
+console.log('\n═══ PT16 · la clé pose_tp : effectifs anonymes, blocages par MAR, auto-fermeture ═══');
+{
+  const b = monde({ gardes: [['POSEUR', '2027-03-04', 'G'], ['POSEUR', '2027-03-05', 'RG'], ['ZORRO', '2027-03-05', 'R'], ['POSEUR', '2027-03-18', '18']],
+                    indispos: [['POSEUR', '2027-03-09', 'TP'], ['POSEUR', '2027-03-15', 'VAC'], ['PLEIN01', '2027-03-02', 'VAC'], ['POSEUR', '2027-03-22', 'INDISPO']] });
+  vm.runInContext(extraireFonction('../gas/Indispos.gs', '_construirePoseTp_'), b.ctx);
+  const cle = vm.runInContext('_construirePoseTp_(2027)', b.ctx);
+  V('la clé se construit, année 2027', cle.success === true && !cle.ferme && cle.year === 2027, cle.year);
+  V('les effectifs sont des NOMBRES par jour ouvré — aucun week-end dedans',
+    cle.presents['2027-03-01'] === 16 && cle.presents['2027-03-06'] === undefined, cle.presents['2027-03-01']);
+  V('un TP posé et une VAC comptent absents : 15 présents ces jours-là',
+    cle.presents['2027-03-09'] === 15 && cle.presents['2027-03-02'] === 15, [cle.presents['2027-03-09'], cle.presents['2027-03-02']]);
+  V('un férié n\'apparaît pas dans les effectifs (jamais posable)', cle.presents['2027-01-01'] === undefined);
+  const moi = cle.parMar['POSEUR'];
+  V('mes blocages portent le CODE exact : G, RG, VAC, TP', moi.jours['2027-03-04'] === 'G' && moi.jours['2027-03-05'] === 'RG'
+    && moi.jours['2027-03-15'] === 'VAC' && moi.jours['2027-03-09'] === 'TP', moi.jours);
+  V('la récup R du collègue est distinguée de RG', cle.parMar['ZORRO'].jours['2027-03-05'] === 'R', cle.parMar['ZORRO'].jours['2027-03-05']);
+  V('ma garde de 18h apparaît en blocage (code 18)', moi.jours['2027-03-18'] === '18', moi.jours['2027-03-18']);
+  V('mon INDISPO de campagne N\'apparaît PAS : le jour est jugé par sa bande', moi.jours['2027-03-22'] === undefined, moi.jours['2027-03-22']);
+  V('…mais il compte toujours PRÉSENT dans l\'effectif (INDISPO ≠ absent)', cle.presents['2027-03-22'] === 16, cle.presents['2027-03-22']);
+  V('mon quota vient de CONFIG_CONGES (80 % → 3)', moi.quota === 3, moi.quota);
+  V('le plein temps est marqué : quota 0', cle.parMar['PLEIN01'].quota === 0, cle.parMar['PLEIN01'].quota);
+  const b2 = monde({ gardes2027: false });
+  vm.runInContext(extraireFonction('../gas/Indispos.gs', '_construirePoseTp_'), b2.ctx);
+  const cle2 = vm.runInContext('_construirePoseTp_(2027)', b2.ctx);
+  V('GARDES_2027 supprimé → la clé dit { ferme } : elle s\'auto-nettoie', cle2.ferme === true, cle2);
+}
+
+console.log('\n═══ PT17 · l\'action getPoseTp : le MAR ne voit que lui, le comité voit tout ═══');
+{
+  const b = monde({ indispos: [['ZORRO', '2027-03-09', 'TP']] });
+  const marque = "if (action === 'getPoseTp') {";
+  const i = SRC_IND.indexOf(marque);
+  V('le bloc getPoseTp existe dans le routeur', i > 0);
+  let prof = 0, j = SRC_IND.indexOf('{', i);
+  for (; j < SRC_IND.length; j++) { if (SRC_IND[j] === '{') prof++; else if (SRC_IND[j] === '}') { prof--; if (prof === 0) break; } }
+  vm.runInContext(extraireFonction('../gas/Indispos.gs', '_construirePoseTp_'), b.ctx);
+  vm.runInContext('function handlerGetPoseTp(action, payload, user) {\n' + SRC_IND.slice(i, j + 1) + '\n return null; }', b.ctx);
+  const mar = vm.runInContext("handlerGetPoseTp('getPoseTp', {}, {role:'mar', id:'POSEUR'})", b.ctx);
+  V('rôle mar : effectifs présents, parMar réduit à LUI SEUL',
+    mar.presents && Object.keys(mar.parMar).length === 1 && !!mar.parMar['POSEUR'], Object.keys(mar.parMar || {}));
+  V('…le TP du collègue est invisible', !mar.parMar['ZORRO']);
+  const adm = vm.runInContext("handlerGetPoseTp('getPoseTp', {}, {role:'admin', id:'ADMIN'})", b.ctx);
+  V('rôle admin : parMar COMPLET (l\'écran comité du lot 4 lira la même chose)',
+    Object.keys(adm.parMar).length >= 16 && adm.parMar['ZORRO'].jours['2027-03-09'] === 'TP', Object.keys(adm.parMar).length);
+  const b2 = monde({ gardes2027: false });
+  vm.runInContext(extraireFonction('../gas/Indispos.gs', '_construirePoseTp_'), b2.ctx);
+  vm.runInContext('function handlerGetPoseTp(action, payload, user) {\n' + SRC_IND.slice(i, j + 1) + '\n return null; }', b2.ctx);
+  const ferme = vm.runInContext("handlerGetPoseTp('getPoseTp', {}, {role:'mar', id:'POSEUR'})", b2.ctx);
+  V('phase fermée → { ferme:true }, jamais d\'erreur', ferme.success === true && ferme.ferme === true, ferme);
+}
+
+console.log('\n═══ PT18 · le relais : la clé est autorisée, validée, filtrée à l\'identité ═══');
+{
+  const W = fs.readFileSync('../cloudflare/worker.js', 'utf8');
+  const wctx = vm.createContext({ console, JSON, Object, String, RegExp });
+  const mCle = W.match(/const CLE_VALIDE = [^;]+;/);
+  vm.runInContext(mCle[0], wctx);
+  ['autorise', 'filtreIndispos', 'filtrePoseTp'].forEach(n => vm.runInContext(extraireFonction('../cloudflare/worker.js', n), wctx));
+  V('CLE_VALIDE accepte pose_tp_2027', vm.runInContext("CLE_VALIDE.test('pose_tp_2027')", wctx));
+  V('un MAR est autorisé à lire pose_tp_2027', vm.runInContext("autorise({role:'mar'}, 'pose_tp_2027')", wctx));
+  V('gardes_2027 reste réservée au comité (rien n\'a bougé)', !vm.runInContext("autorise({role:'mar'}, 'gardes_2027')", wctx));
+  const filtre = vm.runInContext(
+    "filtrePoseTp({year:2027, presents:{'2027-03-01':16}, joursFeries:['2027-01-01'], parMar:{POSEUR:{jours:{},quota:3}, ZORRO:{jours:{'2027-03-09':'TP'},quota:2}}}, 'POSEUR')", wctx);
+  V('le filtre garde effectifs et fériés, réduit parMar à moi',
+    filtre.presents['2027-03-01'] === 16 && filtre.joursFeries.length === 1
+    && Object.keys(filtre.parMar).length === 1 && !!filtre.parMar['POSEUR'], filtre);
+  V('le Worker filtre pose_tp pour un non-admin (câblage /read présent)',
+    /pose_tp_\\d\{4\}[\s\S]{0,80}filtrePoseTp/.test(W), 'motif absent');
+}
+
+console.log('\n═══ PT19 · le miroir pousse la clé, et indispos suit l\'année de PHASE ═══');
+{
+  const M = fs.readFileSync('../gas/miroir.gs', 'utf8');
+  V('pose_tp_{Y} est enregistrée quand gardes OU indispos bougent',
+    /uniq\['gardes'\] \|\| uniq\['indispos'\][\s\S]{0,900}pose_tp_/.test(M));
+  V('…pour l\'année active ET la suivante (auto-nettoyage compris)',
+    /\[annee, annee \+ 1\]\.forEach[\s\S]{0,200}pose_tp_/.test(M));
+  V('la famille indispos pousse AUSSI l\'année de la phase TP',
+    /uniq\['indispos'\][\s\S]{0,1200}_phaseTp_\(\)[\s\S]{0,400}indispos_' \+ phI\.annee/.test(M));
+  V('saveIndispos déclenche bien la famille indispos (mappage existant intact)',
+    /saveIndispos:\s*\['indispos', 'acces'\]/.test(M));
+}
+
+console.log('\n═══ PT20 · l\'écran : mêmes seuils que le serveur, extraits de la vraie page ═══');
+{
+  const bacE = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Math, Set });
+  ['tpxBadge', 'tpxEtat', 'tpxCompte'].forEach(n => vm.runInContext(extraireFonction('../indispos.html', n), bacE));
+  const regle = (TPX) => { bacE.TPX = TPX; return bacE; };
+  const T = { annee: 2027, presents: { '2027-03-01': 16, '2027-03-02': 15, '2027-03-03': 13 },
+    feries: new Set(['2027-03-24']), jours: { '2027-03-09': 'TP', '2027-03-10': 'TPA', '2027-03-04': 'G', '2027-03-15': 'VAC' },
+    quota: 3, pend: {}, retire: new Set() };
+  regle(T);
+  const et = (d) => vm.runInContext(`tpxEtat('${d}')`, bacE);
+  V('16 présents → vert (il resterait 15)', et('2027-03-01').s === 'libre');
+  V('15 présents → jaune', et('2027-03-02').s === 'plein');
+  V('13 présents → noir, fermé', et('2027-03-03').s === 'ferme');
+  V('samedi → week-end', et('2027-03-06').s === 'weekend');
+  V('férié → gris avec badge FÉRIÉ', et('2027-03-24').s === 'bloque' && et('2027-03-24').badge.b === 'FÉRIÉ');
+  V('mon TP → violet, mon TPA → orange', et('2027-03-09').s === 'pose' && et('2027-03-10').s === 'reserve');
+  V('ma garde et mes congés → gris avec le bon badge',
+    et('2027-03-04').badge.b === 'GARDE' && et('2027-03-15').badge.b === 'CONGÉS');
+  T.jours['2027-03-16'] = '18'; regle(T);
+  V('ma garde de 18h → gris, badge 18H (on est au travail)', et('2027-03-16').s === 'bloque' && et('2027-03-16').badge.b === '18H', et('2027-03-16'));
+  T.retire.add('2027-03-09'); T.presents['2027-03-09'] = 16; regle(T);
+  V('un TP retiré localement redevient un jour jugé par sa bande', et('2027-03-09').s === 'libre');
+  T.pend['2027-03-02'] = 'TPA'; regle(T);
+  const c = vm.runInContext('tpxCompte()', bacE);
+  V('le compteur : 0 posé (TP retiré), 2 sous réserve (TPA + pose locale jaune), 2 en attente',
+    c.poses === 0 && c.reserves === 2 && c.attente === 2, c);
+  const page = fs.readFileSync('../indispos.html', 'utf8');
+  V('l\'enregistrement envoie bien le drapeau du circuit TP ({ tp: true })',
+    /saveIndispos', \{ tp: true, indispos: map \}/.test(page));
+  V('le bouton « Temps partiel » a quitté l\'écran campagne', !/btnCTP/.test(page.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '')));
 }
 
 console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp : ${ok} vérifications, ${ko} échec(s)`);

@@ -70,12 +70,12 @@
    poussée : le client se replie sur le circuit GAS.
    ═══════════════════════════════════════════════════════════════════ */
 
-const VERSION = 'miroir 2026-08-20.1';
+const VERSION = 'miroir 2026-08-22.1';
 
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
 // une clé orpheline invisible.
-const CLE_VALIDE = /^(acces|annees|secteurs|specialites|cotations_type|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|liberal_mar_\d{4}|releve_liberal_\d{4}|veille_marques|ordre_vac|echanges|notif_config|equite_live_\d{4}|doc_[A-Za-z0-9_-]{10,80})$/;
+const CLE_VALIDE = /^(acces|annees|secteurs|specialites|cotations_type|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|pose_tp_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|liberal_mar_\d{4}|releve_liberal_\d{4}|veille_marques|ordre_vac|echanges|notif_config|equite_live_\d{4}|doc_[A-Za-z0-9_-]{10,80})$/;
 /* (2026-08-10.1) `doc_<idDrive>` : un topo ou un protocole PDF, pousse par la
    tache dediee de miroir.gs. La valeur a la MEME forme que la reponse de
    `getTopo`/`getProtocole` cote Apps Script — {success,name,mimeType,dataB64} —
@@ -229,6 +229,11 @@ async function lire(corps, env) {
     try { valeur = JSON.parse(brut); } catch (e) { manquants.push(cle); return; }
     if (/^indispos_\d{4}$/.test(cle) && user.role !== 'admin') {
       valeur = filtreIndispos(valeur, user.id);
+    }
+    /* (LOT 3) pose_tp : parMar filtre a l'identite, effectifs et feries
+       conserves — filtreIndispos ne garde que parMar, d'ou le filtre dedie. */
+    if (/^pose_tp_\d{4}$/.test(cle) && user.role !== 'admin') {
+      valeur = filtrePoseTp(valeur, user.id);
     }
     /* Filtre pour TOUS : personne n'a l'usage des lignes d'un autre ici, et une
        liste « Mes interventions » qui en contiendrait serait inutilisable — la
@@ -428,6 +433,11 @@ function autorise(user, cle) {
   if (/^equite_live_\d{4}$/.test(cle)) return true;                    // MAR + admin
   if (/^(planning|affectations)_\d{4}$/.test(cle)) return true;        // MAR + admin
   if (/^indispos_\d{4}$/.test(cle)) return true;                       // filtré plus loin
+  /* (LOT 3 · 22/08/2026) Ecran de pose des temps partiels. `presents` = des
+     NOMBRES par jour, aucun nom ; `parMar` = les blocages et le quota de
+     CHAQUE MAR, donc filtre a l'identite plus loin (admin : non filtre,
+     l'ecran comite du lot 4 lira la meme cle). */
+  if (/^pose_tp_\d{4}$/.test(cle)) return true;                        // filtré plus loin
   if (cle === 'veille_marques') return true;                           // (08/08) MAR + admin — filtré plus loin, POUR TOUS
   /* (13/08) Ordre de passage des vacances : composition ORDONNEE des trois
      groupes et ordre des groupes par periode, pour deux annees. Meme niveau que
@@ -456,6 +466,12 @@ function autorise(user, cle) {
 
 /* Un MAR ne reçoit que SES indispos. Structure poussée par le GAS :
    {"parMar":{"ID":[...]}} — le GAS est seul écrivain, ce format fait foi. */
+function filtrePoseTp(valeur, id) {
+  const out = Object.assign({}, valeur || {});
+  out.parMar = filtreIndispos(valeur, id).parMar;
+  return out;
+}
+
 function filtreIndispos(valeur, id) {
   const parMar = (valeur && valeur.parMar) || {};
   const mien = {};

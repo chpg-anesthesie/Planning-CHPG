@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-22.1';
+const GAS_VERSION_INDISPOS = '2026-08-22.2';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1014,7 +1014,7 @@ function _tpMondePresence_(annee) {
       if (v) indispos[id][ds] = v;
     });
   }
-  const enGarde = {}, enRepos = {};
+  const enGarde = {}, enRepos = {}, en18 = {};
   const shG = ss.getSheetByName(`GARDES_${annee}`);
   if (shG) {
     const dG = shG.getDataRange().getValues();
@@ -1025,8 +1025,13 @@ function _tpMondePresence_(annee) {
       for (let c = 1; c < dG[0].length; c++) {
         const ds = c2d[c]; if (!ds) continue;
         const v = String(dG[r][c] || '').trim().toUpperCase();
-        if (v === 'G' || v === 'G2') { (enGarde[id] = enGarde[id] || {})[ds] = true; }
-        else if (v === 'RG' || v === 'R') { (enRepos[id] = enRepos[id] || {})[ds] = true; }
+        // Le CODE est conservé (pas un simple booléen) : l'écran de pose
+        // distingue GARDE / REPOS / RÉCUP dans ses pastilles.
+        if (v === 'G' || v === 'G2') { (enGarde[id] = enGarde[id] || {})[ds] = v; }
+        else if (v === 'RG' || v === 'R') { (enRepos[id] = enRepos[id] || {})[ds] = v; }
+        // La garde de 18h : PRÉSENT dans l'effectif, mais AU TRAVAIL — un TP
+        // (congé) ne peut pas s'y poser. Arbitrage Arthur du 22/08/2026.
+        else if (v === '18') { (en18[id] = en18[id] || {})[ds] = v; }
       }
     }
   }
@@ -1044,7 +1049,8 @@ function _tpMondePresence_(annee) {
     });
     return n;
   }
-  return { presents: presents, enGarde: enGarde, enRepos: enRepos,
+  return { presents: presents, enGarde: enGarde, enRepos: enRepos, en18: en18,
+           ids: ids, indispos: indispos,
            datesValides: new Set(datesI.filter(Boolean)) };
 }
 
@@ -1070,7 +1076,13 @@ function _poserTp_(user, targetId, envoye, annee) {
   const quota = getQuotasConges(quotite).ctp || 0;
   const M = _tpMondePresence_(annee);
   const existant = getIndisposForDoctor(targetId, annee);
-  const horsFamille = {};   // VAC/FORM/INDISPO/SOUHAIT/CL… : intouchables ici
+  /* horsFamille : les codes que ce circuit PRÉSERVE (VAC/FORM/CL…).
+     INDISPO et SOUHAIT en font partie TANT QU'ON N'ÉCRIT PAS DESSUS — mais ils
+     ne BLOQUENT plus la pose : ce sont des vestiges de campagne, sans objet
+     une fois les gardes générées (arbitrage Arthur, 22/08/2026). Un TP/TPA
+     accepté écrit par-dessus ; un refus les laisse intacts. */
+  const horsFamille = {};
+  const VESTIGES = { INDISPO: true, SOUHAIT: true };
   Object.keys(existant).forEach(ds => {
     const v = String(existant[ds]).trim().toUpperCase();
     if (v !== 'TP' && v !== 'TPA') horsFamille[ds] = existant[ds];
@@ -1111,12 +1123,14 @@ function _poserTp_(user, targetId, envoye, annee) {
       return;
     }
     if (!M.datesValides.has(ds)) { resultat[ds] = 'hors année'; return; }
-    if (horsFamille[ds]) { resultat[ds] = 'jour déjà ' + horsFamille[ds]; return; }
+    const codeLa = horsFamille[ds] ? String(horsFamille[ds]).trim().toUpperCase() : '';
+    if (codeLa && !VESTIGES[codeLa]) { resultat[ds] = 'jour déjà ' + horsFamille[ds]; return; }
     const dow = new Date(ds + 'T12:00:00').getDay();
     if (dow === 0 || dow === 6) { resultat[ds] = 'week-end'; return; }
     if (jf.has(ds)) { resultat[ds] = 'jour férié'; return; }
     if (M.enGarde[targetId] && M.enGarde[targetId][ds]) { resultat[ds] = 'vous êtes de garde'; return; }
     if (M.enRepos[targetId] && M.enRepos[targetId][ds]) { resultat[ds] = 'repos de garde'; return; }
+    if (M.en18[targetId] && M.en18[targetId][ds]) { resultat[ds] = 'garde de 18h ce jour-là'; return; }
     const resterait = M.presents(ds) - 1;                    // le poseur, présent, se retire
     if (resterait <= 12) { resultat[ds] = 'effectif insuffisant (il resterait ' + resterait + ')'; return; }
     if (resterait < 15) { final[ds] = 'TPA'; resultat[ds] = 'TPA'; return; }   // 13-14 : sous réserve
@@ -1125,13 +1139,61 @@ function _poserTp_(user, targetId, envoye, annee) {
   });
   const fusion = {};
   Object.keys(horsFamille).forEach(ds => { fusion[ds] = horsFamille[ds]; });
-  Object.keys(final).forEach(ds => { fusion[ds] = final[ds]; });
+  Object.keys(final).forEach(ds => { fusion[ds] = final[ds]; });   // TP/TPA accepté > vestige INDISPO/SOUHAIT
   const ecrit = saveIndisposForDoctor(targetId, fusion, annee);
   const nbTPA = Object.keys(final).filter(ds => final[ds] === 'TPA').length;
   logAction('poserTp ' + targetId + ' (' + annee + ') : ' + nbTP + ' TP, ' + nbTPA +
             ' en attente, quota ' + nbTP + '/' + quota + (estAdmin ? ' [comité]' : ''));
   return { success: ecrit === true, resultat: resultat, annee: annee,
            quota: { valides: nbTP, total: quota } };
+}
+
+/* ── (LOT 3 · 22/08/2026) LA CLÉ DE L'ÉCRAN DE POSE — pose_tp_{Y} ─────────────
+   Tout ce que l'écran affiche, en UNE lecture de la copie rapide :
+     presents    : effectif présent par jour ouvré (anonyme — des NOMBRES,
+                   jamais de noms : servi à tout MAR)
+     joursFeries : les fériés de l'année (la clé joursferies_{Y} est réservée
+                   au comité — l'écran MAR les reçoit donc ICI)
+     parMar      : pour chaque MAR, SES blocages (codes INDISPOS + G/G2/RG/R
+                   des gardes) et SON quota — le relais filtre à l'identité,
+                   comme indispos_{Y}
+   Année sans phase active → { ferme: true }, poussé tel quel : la clé
+   s'auto-nettoie quand GARDES_{Y} est supprimé pour régénérer (l'écran voit
+   « fermé », et le serveur refuse de toute façon).
+   Servie par le relais (miroir.gs) ET par l'action getPoseTp (repli GAS). */
+function _construirePoseTp_(annee) {
+  const ph = _phaseTp_();
+  if (!ph.actif || ph.annee !== annee) return { success: true, ferme: true, year: annee };
+  const M = _tpMondePresence_(annee);
+  const jf = getJoursFeries(annee);
+  const jfSet = new Set(jf);
+  const presents = {};
+  M.datesValides.forEach(function (ds) {
+    const dow = new Date(ds + 'T12:00:00').getDay();
+    if (dow === 0 || dow === 6 || jfSet.has(ds)) return;   // jamais posables : pas comptés
+    presents[ds] = M.presents(ds);
+  });
+  const parMar = {};
+  M.ids.forEach(function (id) {
+    const jours = {};
+    const mesInd = M.indispos[id] || {};
+    Object.keys(mesInd).forEach(function (ds) {
+      const v = String(mesInd[ds]).trim().toUpperCase();
+      if (v === 'INDISPO' || v === 'SOUHAIT') return;   // vestiges de campagne : ne bloquent plus
+      jours[ds] = mesInd[ds];
+    });
+    Object.keys(M.en18[id] || {}).forEach(function (ds) { jours[ds] = '18'; });
+    // Les gardes par-dessus : dans GARDES, RG écrase TP — même priorité ici,
+    // le MAR voit la vérité du planning publié.
+    Object.keys(M.enGarde[id] || {}).forEach(function (ds) { jours[ds] = M.enGarde[id][ds]; });
+    Object.keys(M.enRepos[id] || {}).forEach(function (ds) { jours[ds] = M.enRepos[id][ds]; });
+    parMar[id] = {
+      jours: jours,
+      quota: getQuotasConges(_quotiteDe_(id)).ctp || 0,
+      tpFixe: _tpFixeDe_(id),
+    };
+  });
+  return { success: true, year: annee, presents: presents, joursFeries: jf, parMar: parMar };
 }
 
 // ── (RH-1) GARANTIR LES LIGNES D'UN MAR DANS LES ONGLETS ANNUELS ──────
@@ -2550,6 +2612,26 @@ function _routeRequete_(e) {
       return ContentService.createTextOutput(JSON.stringify({
         success: true, indispos: getIndisposForDoctor(targetId, getIndisposYear())
       })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    /* (LOT 3 · 22/08/2026) Repli GAS de la clé pose_tp_{Y} : même contenu,
+       filtré à l'identité pour un rôle mar (le comité voit tout — écran du
+       lot 4). Sert quand le relais est injoignable ou la clé pas encore
+       poussée. Lecture seule, aucun verrou. */
+    if (action === 'getPoseTp') {
+      const ph = _phaseTp_();
+      if (!ph.actif) {
+        return ContentService.createTextOutput(JSON.stringify({ success: true, ferme: true }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      const t = _construirePoseTp_(ph.annee);
+      if (user.role !== 'admin') {
+        const mien = {};
+        if (t.parMar && t.parMar[user.id]) mien[user.id] = t.parMar[user.id];
+        t.parMar = mien;
+      }
+      return ContentService.createTextOutput(JSON.stringify(t))
+        .setMimeType(ContentService.MimeType.JSON);
     }
 
     if (action === 'saveIndispos') {

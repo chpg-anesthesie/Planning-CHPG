@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-20.1';
+const GAS_VERSION_MIROIR = '2026-08-22.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -468,6 +468,30 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
   if (uniq['indispos']) {
     const iy = (function () { try { return getIndisposYear(); } catch (e) { return annee; } })();
     _miroirAjoute_(items, 'indispos_' + iy, function () { return _miroirConstruireIndispos_(iy); });
+    /* (LOT 3 · 22/08/2026) L'annee de la PHASE TP aussi : une pose de TP ecrit
+       dans INDISPOS_{phase} qui peut differer de l'annee de campagne (hors
+       campagne, getIndisposYear se replie sur l'annee active). Sans cette
+       ligne, la copie rapide de l'ecran de pose resterait figee apres chaque
+       enregistrement — le cousin miroir du piege d'annee du 22/08. */
+    try {
+      const phI = _phaseTp_();
+      if (phI.actif && phI.annee !== iy) {
+        _miroirAjoute_(items, 'indispos_' + phI.annee, function () { return _miroirConstruireIndispos_(phI.annee); });
+      }
+    } catch (ePh) { /* phase indisponible : la cle de campagne suffit */ }
+  }
+
+  if (uniq['gardes'] || uniq['indispos']) {
+    /* (LOT 3 · 22/08/2026) La cle de l'ecran de pose des TP : effectifs par
+       jour + blocages par MAR + quotas (contenu : _construirePoseTp_,
+       Indispos.gs). Rebatie des que gardes OU indispos bougent — les deux
+       nourrissent l'effectif. Poussee pour l'annee active ET la suivante :
+       hors phase, le constructeur renvoie { ferme: true }, empreinte stable
+       (une ecriture KV une seule fois), et la cle s'auto-nettoie quand
+       GARDES_{Y} est supprime pour regenerer. */
+    [annee, annee + 1].forEach(function (yP) {
+      _miroirAjouteEnveloppe_(items, 'pose_tp_' + yP, function () { return _construirePoseTp_(yP); });
+    });
   }
 
   if (uniq['ordre_vac']) {

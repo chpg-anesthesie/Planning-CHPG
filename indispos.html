@@ -379,6 +379,101 @@ body {
 }
 .year-btn:hover { border-color:var(--red); color:var(--red); }
 .year-btn.active { background:var(--red); border-color:var(--red); color:white; }
+
+/* ══ (LOT 3 · 22/08/2026) MODE POSE DES TEMPS PARTIELS — ?tp=1 ═══════════════
+   Styles de la maquette validée docs/maquette-pose-tp.html, préfixés tpx-
+   pour ne JAMAIS entrer en collision avec l'écran campagne ci-dessus. */
+:root{
+  --tpx:#F3E8FF; --tpx-fg:#6D28D9; --tpx-libre:#F0FDF4; --tpx-libre-fg:#166534;
+  --tpx-libre-border:#BBF7D0; --tpx-plein:#FEF9C3; --tpx-plein-fg:#92400E;
+  --tpx-plein-border:#CA8A04; --tpx-reserve:#FFF7ED; --tpx-reserve-fg:#C2410C;
+  --tpx-reserve-border:#FB923C; --tpx-ferme:#334155; --tpx-ferme-fg:#CBD5E1;
+  --tpx-garde:#FEF2F2; --tpx-garde-fg:#B91C1C; --tpx-vac:#EFF6FF; --tpx-vac-fg:#1D4ED8;
+}
+.tpx-phase{background:#fff;border-bottom:1px solid var(--line);padding:14px 16px}
+.tpx-phase-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:7px}
+.tpx-phase-sub{font-size:12.5px;color:var(--ink-3);margin-top:3px;line-height:1.45}
+.tpx-stats{background:var(--bg);border-bottom:1px solid var(--line);padding:9px 16px;
+  display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.tpx-stat{font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px}
+.tpx-jauge{flex:1;min-width:120px;height:6px;background:#E2E8F0;border-radius:3px;overflow:hidden}
+.tpx-jauge-fill{height:100%;background:var(--tpx-fg);border-radius:3px;transition:width .25s}
+.tpx-legend{display:flex;gap:6px;padding:10px 16px;flex-wrap:wrap;background:#fff;border-bottom:1px solid var(--line)}
+.tpx-tool{font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;
+  border:1.5px solid transparent;transition:all .12s;user-select:none}
+.tpx-tool.on{border-color:var(--ink);box-shadow:0 0 0 2px rgba(15,23,42,.08)}
+.tpx-tool.t-tp{background:var(--tpx);color:var(--tpx-fg)}
+.tpx-tool.t-erase{background:#fff;color:var(--ink-3);border:1.5px solid var(--line)}
+.tpx-hint{font-size:12px;color:var(--ink-3);padding:8px 16px 0}
+.tpx-day{border-radius:8px;padding:6px 4px 4px;min-height:62px;cursor:pointer;transition:all .12s;
+  border:1.5px solid var(--line);position:relative;display:flex;flex-direction:column;
+  align-items:center;gap:3px;background:#fff;-webkit-tap-highlight-color:transparent}
+.tpx-day:active{transform:scale(.95)}
+.tpx-day.empty{background:transparent;border-color:transparent;cursor:default}
+.tpx-day.weekend{background:var(--bg);cursor:default}
+.tpx-num{font-size:13px;font-weight:700;color:var(--ink-2);line-height:1}
+.tpx-day.weekend .tpx-num{color:var(--ink-4)}
+.tpx-badge{font-size:9px;font-weight:700;padding:2px 5px;border-radius:4px;letter-spacing:.03em}
+.tpx-eff{font-size:9.5px;font-weight:700;color:var(--ink-4);font-family:'DM Mono',monospace;margin-top:auto;line-height:1}
+.tpx-day.libre{background:var(--tpx-libre);border-color:var(--tpx-libre-border)}
+.tpx-day.libre .tpx-num{color:var(--tpx-libre-fg)}
+.tpx-day.libre .tpx-eff{color:#15803D}
+.tpx-day.pose{background:var(--tpx);border-color:var(--tpx-fg);border-width:2px}
+.tpx-day.pose .tpx-num{color:var(--tpx-fg)}
+.tpx-day.plein{background:var(--tpx-plein);border:1.5px dashed var(--tpx-plein-border)}
+.tpx-day.plein .tpx-num,.tpx-day.plein .tpx-eff{color:var(--tpx-plein-fg)}
+.tpx-day.reserve{background:var(--tpx-reserve);border:2px dashed var(--tpx-reserve-border)}
+.tpx-day.reserve .tpx-num{color:var(--tpx-reserve-fg)}
+.tpx-day.ferme{background:var(--tpx-ferme);border-color:#1E293B;cursor:default}
+.tpx-day.ferme .tpx-num{color:var(--tpx-ferme-fg)}
+.tpx-day.ferme .tpx-eff{color:#94A3B8}
+.tpx-day.bloque{background:#F1F5F9;border-color:#E2E8F0;cursor:default;opacity:.85}
+.tpx-day.bloque .tpx-num{color:var(--ink-4)}
+.b-tpx-garde{background:var(--tpx-garde);color:var(--tpx-garde-fg)}
+.b-tpx-vac{background:var(--tpx-vac);color:var(--tpx-vac-fg)}
+.b-tpx-tp{background:#fff;color:var(--tpx-fg)}
+.b-tpx-recup{background:var(--tpx-libre);color:var(--tpx-libre-fg)}
+.b-tpx-reserve{background:#fff;color:var(--tpx-reserve-fg)}
+.tpx-aide{margin:0 16px 16px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.tpx-aide h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-4);margin-bottom:10px}
+.tpx-aide-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12.5px;color:var(--ink-2)}
+.tpx-pastille{width:26px;height:22px;border-radius:6px;flex-shrink:0;border:1.5px solid}
+.tpx-p-libre{background:var(--tpx-libre);border-color:var(--tpx-libre-border)}
+.tpx-p-pose{background:var(--tpx);border-color:var(--tpx-fg);border-width:2px}
+.tpx-p-plein{background:var(--tpx-plein);border:1.5px dashed var(--tpx-plein-border)}
+.tpx-p-bloque{background:#F1F5F9;border-color:#E2E8F0}
+.tpx-p-reserve{background:var(--tpx-reserve);border:2px dashed var(--tpx-reserve-border)}
+.tpx-p-ferme{background:var(--tpx-ferme);border-color:#1E293B}
+.tpx-savebar{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);
+  padding:11px 16px;display:flex;align-items:center;gap:12px;z-index:90}
+.tpx-savetxt{font-size:12.5px;color:var(--ink-3);font-weight:600;flex:1;line-height:1.35}
+.tpx-btn-save{background:var(--tpx-fg);color:#fff;border:none;border-radius:10px;padding:11px 20px;
+  font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer;flex-shrink:0}
+.tpx-btn-save:disabled{opacity:.6;cursor:default}
+.tpx-recap-bloc{border-radius:10px;padding:13px 15px;margin-bottom:11px}
+.tpx-recap-ok{background:var(--tpx-libre);border:1px solid var(--tpx-libre-border)}
+.tpx-recap-res{background:var(--tpx-reserve);border:1px dashed var(--tpx-reserve-border)}
+.tpx-recap-ko{background:#FEF2F2;border:1px solid #FECACA}
+.tpx-recap-titre{font-size:13.5px;font-weight:700;margin-bottom:5px}
+.tpx-recap-ok .tpx-recap-titre{color:var(--tpx-libre-fg)}
+.tpx-recap-res .tpx-recap-titre{color:var(--tpx-reserve-fg)}
+.tpx-recap-ko .tpx-recap-titre{color:#B91C1C}
+.tpx-recap-txt{font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+.tpx-recap-jours{font-family:'DM Mono',monospace;font-size:12.5px;font-weight:500;margin-top:7px;line-height:1.6}
+.tpx-recap-res .tpx-recap-jours{color:var(--tpx-reserve-fg)}
+.tpx-recap-ko .tpx-recap-jours{color:#B91C1C}
+.tpx-sheet-bg{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:200;display:none}
+.tpx-sheet-bg.show{display:block}
+.tpx-sheet{position:fixed;left:0;right:0;bottom:0;background:#fff;border-radius:16px 16px 0 0;
+  padding:20px 20px 26px;z-index:201;transform:translateY(100%);transition:transform .22s;
+  max-width:520px;margin:0 auto}
+.tpx-sheet.show{transform:translateY(0)}
+.tpx-sheet h2{font-size:16px;font-weight:700;margin-bottom:12px}
+.tpx-sheet-btn{width:100%;padding:12px;border-radius:10px;font-family:inherit;font-size:13.5px;
+  font-weight:700;cursor:pointer;border:1.5px solid var(--tpx-fg);background:var(--tpx-fg);color:#fff;margin-top:4px}
+.tpx-ferme-msg{margin:24px 16px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+  padding:22px 20px;font-size:13.5px;line-height:1.6;color:var(--ink-2);text-align:center}
+@media(max-width:420px){ .tpx-day{min-height:56px} }
 </style>
 </head>
 <body>
@@ -420,12 +515,15 @@ body {
 <!-- APP -->
 <div class="app" id="app">
 
-  <!-- Légende / outils -->
+  <!-- Légende / outils.
+       (LOT 3 · 22/08/2026) L'outil « Temps partiel » a QUITTÉ l'écran campagne :
+       les TP se posent après la génération, sur l'écran dédié (?tp=1). Le
+       serveur ignore de toute façon les TP envoyés par ce circuit (Indispos.gs,
+       22/08) — les cases TP existantes restent VISIBLES ici, en lecture. -->
   <div class="legend" id="legend">
     <div class="legend-item indispo" data-tool="INDISPO" onclick="selectTool('INDISPO')">🚫 Indisponible</div>
     <div class="legend-item souhait" data-tool="SOUHAIT" onclick="selectTool('SOUHAIT')">⭐ Garde souhaitée</div>
     <div class="legend-item erase" data-tool="ERASE" onclick="selectTool('ERASE')">✕ Effacer</div>
-    <div class="legend-item ctp" id="btnCTP" data-tool="TP" onclick="selectTool('TP')" style="display:none;background:#F3E8FF;color:#6D28D9">🕐 Temps partiel</div>
   </div>
   <div class="tool-hint" id="toolHint">Outil actif : <strong>Indisponible</strong> — Touchez un jour pour l'appliquer</div>
 
@@ -454,6 +552,67 @@ body {
 
 <!-- Panneau « Ma priorité » retiré (réservé à staff.html) -->
 
+</div>
+
+<!-- ══ (LOT 3 · 22/08/2026) MODE POSE DES TEMPS PARTIELS — ?tp=1 ═══════════
+     Écran de la maquette validée docs/maquette-pose-tp.html, branché sur la
+     clé pose_tp_{Y} de la copie rapide (repli GAS : getPoseTp). Entièrement
+     séparé de l'écran campagne : mêmes login et session, rien d'autre. -->
+<div class="app" id="tpApp" style="display:none">
+  <div class="tpx-phase">
+    <div class="tpx-phase-title">🕐 Posez vos jours de temps partiel</div>
+    <div class="tpx-phase-sub" id="tpxPhaseSub"></div>
+  </div>
+  <div class="tpx-stats">
+    <div class="tpx-stat" style="color:var(--tpx-fg)">🕐 <span id="tpxPose">0</span> posés</div>
+    <div class="tpx-stat" style="color:var(--ink-3)"><span id="tpxReste"></span></div>
+    <div class="tpx-stat" style="color:var(--tpx-reserve-fg)" id="tpxRes"></div>
+    <div class="tpx-jauge"><div class="tpx-jauge-fill" id="tpxJauge" style="width:0%"></div></div>
+  </div>
+  <div class="tpx-legend">
+    <div class="tpx-tool t-tp on" id="tpxBtnTP" onclick="tpxOutil('TP')">🕐 Poser un jour</div>
+    <div class="tpx-tool t-erase" id="tpxBtnErase" onclick="tpxOutil('ERASE')">✕ Retirer</div>
+  </div>
+  <div class="tpx-hint" id="tpxHint">Outil actif : <strong>Poser un jour</strong> — touchez un jour vert.</div>
+  <div class="month-nav">
+    <button class="month-nav-btn" onclick="tpxMois(-1)">← Préc.</button>
+    <span class="month-title" id="tpxMoisTitre"></span>
+    <button class="month-nav-btn" onclick="tpxMois(1)">Suiv. →</button>
+  </div>
+  <div class="calendar-container"><div class="calendar-grid" id="tpxGrid"></div></div>
+  <div class="tpx-aide">
+    <h3>Comment lire le calendrier</h3>
+    <div class="tpx-aide-row"><span class="tpx-pastille tpx-p-libre"></span>
+      <span><b>Vert</b> — libre, l'équipe est assez nombreuse. Un appui suffit.</span></div>
+    <div class="tpx-aide-row"><span class="tpx-pastille tpx-p-pose"></span>
+      <span><b>Violet</b> — vous avez posé un jour ici.</span></div>
+    <div class="tpx-aide-row"><span class="tpx-pastille tpx-p-plein"></span>
+      <span><b>Jaune</b> — il resterait 13 ou 14 présents. Vous pouvez le poser, le comité tranche.</span></div>
+    <div class="tpx-aide-row"><span class="tpx-pastille tpx-p-ferme"></span>
+      <span><b>Noir</b> — il resterait 12 ou moins. Le jour n'est pas ouvert, même sur demande.</span></div>
+    <div class="tpx-aide-row"><span class="tpx-pastille tpx-p-reserve"></span>
+      <span><b>Orange hachuré</b> — posé sous réserve. Il ne compte pas tant que le comité ne l'a pas validé.</span></div>
+    <div class="tpx-aide-row" style="margin-bottom:0"><span class="tpx-pastille tpx-p-bloque"></span>
+      <span><b>Gris</b> — impossible : garde, repos de garde, récupération, congés, week-end ou férié.</span></div>
+    <div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--line);
+      font-size:11.5px;color:var(--ink-4);font-family:'DM Mono',monospace">
+      Le petit chiffre en bas de chaque case = nombre de personnes présentes ce jour-là.</div>
+  </div>
+  <div class="tpx-savebar">
+    <span class="tpx-savetxt" id="tpxSaveTxt">Rien en attente</span>
+    <button class="tpx-btn-save" id="tpxBtnSave" onclick="tpxEnregistrer()">Enregistrer</button>
+  </div>
+</div>
+<div class="tpx-ferme-msg" id="tpxFerme" style="display:none">
+  La pose des jours de temps partiel n'est pas ouverte pour le moment :
+  le planning de l'année à venir n'est pas encore généré.<br><br>
+  <a href="dashboard.html" style="color:#1D4ED8;font-weight:600;text-decoration:none">← Retour au portail</a>
+</div>
+<div class="tpx-sheet-bg" id="tpxSheetBg" onclick="tpxFermerRecap()"></div>
+<div class="tpx-sheet" id="tpxSheet">
+  <h2 id="tpxRecapTitre"></h2>
+  <div id="tpxRecapCorps"></div>
+  <button class="tpx-sheet-btn" onclick="tpxFermerRecap()">Fermer</button>
 </div>
 
 <!-- Toast -->
@@ -504,6 +663,11 @@ let hasChanges = false;
 let vacConfig = null;
 let joursFeries = new Set();
 let displayYear = YEAR;
+
+/* (LOT 3 · 22/08/2026) La page a DEUX visages : l'écran campagne historique,
+   et l'écran de pose des temps partiels ouvert par la tuile du portail avec
+   ?tp=1. Un seul est monté par session — le mode se lit une fois, ici. */
+const MODE_TP = new URLSearchParams(location.search).get('tp') === '1';
   
 // ── LOGIN ─────────────────────────────────────────────────────────────
 document.getElementById('codeInput').addEventListener('keydown', e => {
@@ -518,6 +682,21 @@ async function doLogin(codeAuto, silencieux) {
      reveil d'Apps Script), rendant l'ecran inutilisable. */
   const code = (codeAuto || document.getElementById('codeInput').value).trim().toUpperCase();
   if (code.length < 4) return false;
+
+  /* (LOT 3 · 22/08/2026) Mode POSE DES TP (?tp=1) : même code, même session,
+     mais un circuit de démarrage dédié — la clé pose_tp_{Y} de la copie
+     rapide, repli GAS getPoseTp. L'écran campagne n'est jamais monté. */
+  if (MODE_TP) {
+    const btnTp = document.getElementById('loginBtn');
+    if (!silencieux) { btnTp.textContent = 'Connexion...'; btnTp.disabled = true; }
+    let okTp = false;
+    try { okTp = await tpxBoot(code); } catch (eTp) { okTp = false; }
+    if (!silencieux) {
+      btnTp.textContent = 'Accéder →'; btnTp.disabled = false;
+      if (!okTp) document.getElementById('loginError').style.display = 'block';
+    }
+    return okTp;
+  }
 
   const btn = document.getElementById('loginBtn');
   if (!silencieux) { btn.textContent = 'Connexion...'; btn.disabled = true; }
@@ -751,11 +930,10 @@ async function loadVacConfig() {
     if (res.success) {
       vacConfig = res;
       joursFeries = new Set(res.joursFeries || []);
-      // Afficher CTP si MAR à temps partiel (quota < 33j) ET TP pas déjà dans son rythme
-      if (res.quotaVac < 33 && !res.tpFixe) {
-        const btnCTP = document.getElementById('btnCTP');
-        if (btnCTP) btnCTP.style.display = 'inline-flex';
-      }
+      /* (LOT 3 · 22/08/2026) L'activation du bouton « Temps partiel » a été
+         retirée avec le bouton : les TP se posent sur l'écran dédié (?tp=1),
+         après la génération. Le serveur ignore de toute façon les TP envoyés
+         par le circuit campagne. */
       updateVacBanner();
       updateStats(); // Mettre à jour le quota affiché
     }
@@ -775,7 +953,9 @@ async function saveIndispos() {
       hasChanges = false;
       showToast('✅ Indisponibilités sauvegardées');
     } else {
-      showToast('❌ Erreur lors de la sauvegarde');
+      /* (LOT 3 · 22/08/2026) Le serveur porte désormais un verrou de campagne
+         (Indispos.gs) : son message dit POURQUOI — il doit être visible. */
+      showToast('❌ ' + (res.error || 'Erreur lors de la sauvegarde'));
     }
   } catch(e) {
     // (F9) Erreur réseau : le bouton ne reste plus bloqué sur ⏳
@@ -1334,7 +1514,311 @@ try {
 // Warn before leaving with unsaved changes
 window.addEventListener('beforeunload', e => {
   if (hasChanges) e.preventDefault();
+  if (MODE_TP && TPX && (Object.keys(TPX.pend).length || TPX.retire.size)) e.preventDefault();
 });
+
+/* ══ (LOT 3 · 22/08/2026) MODULE DE POSE DES TEMPS PARTIELS ══════════════════
+   Écran de la maquette validée. Trois règles gravées :
+   · L'ÉCRAN PROPOSE, LE SERVEUR TRANCHE : les bandes affichées viennent de la
+     copie rapide, qui peut retarder de quelques minutes. Chaque jour nouveau
+     est re-jugé à l'enregistrement (Indispos.gs _poserTp_) — le récapitulatif
+     rapporte le verdict, y compris un refus sur un jour qui semblait vert.
+   · Seuils identiques au serveur : il resterait ≥ 15 → vert · 13-14 → jaune
+     (sous réserve du comité) · ≤ 12 → noir, fermé.
+   · Aucune notification : les jours sous réserve se voient AVEC le comité —
+     le récapitulatif en donne la liste, rien d'autre ne part. */
+let TPX = null;
+
+async function tpxBoot(code) {
+  /* La clé pose_tp existe pour l'année active ET la suivante ; hors phase elle
+     dit { ferme:true }. On demande les deux et on garde la plus récente
+     ouverte — même logique qu'à la connexion campagne. */
+  const Y = new Date().getFullYear();
+  let identite = null, cle = null;
+  const m = await miroirRead(['pose_tp_' + Y, 'pose_tp_' + (Y + 1)], code);
+  if (m && m.success && m.identite) {
+    identite = m.identite;
+    const a = m.data && m.data['pose_tp_' + (Y + 1)];
+    const b = m.data && m.data['pose_tp_' + Y];
+    cle = (a && a.success && !a.ferme) ? a : (b && b.success && !b.ferme) ? b : null;
+  }
+  if (!identite) {
+    // Miroir muet : le GAS reste seul juge d'un code.
+    const res = await apiCall('login', { code });
+    if (!res || !res.success) return false;
+    identite = res;
+  }
+  currentUser = identite; currentCode = code; CHPGSession.memoriser(code);
+  document.getElementById('loginScreen').style.display = 'none';
+  const ht = document.querySelector('.header-title');
+  if (ht) ht.textContent = 'Mes jours de temps partiel';
+  _poserPastilleUser(identite.name || identite.id);
+  try { apiCall('login', { code }).catch(function () {}); } catch (e) {}   // journal de connexion
+  if (!cle) {
+    const r = await apiCall('getPoseTp');
+    if (r && r.success && !r.ferme) cle = r;
+  }
+  if (!cle) { document.getElementById('tpxFerme').style.display = 'block'; return true; }
+  tpxInit(cle, identite);
+  return true;
+}
+
+function tpxInit(cle, identite) {
+  const mien = (cle.parMar && cle.parMar[identite.id]) || { jours: {}, quota: 0, tpFixe: false };
+  /* Hors dispositif (plein temps, jours fixes, rythme 2/2) : la tuile du
+     portail ne s'affiche pas, mais l'adresse reste tapable — même message
+     que le refus serveur, aucune grille. */
+  if (mien.tpFixe || !(mien.quota > 0)) {
+    const f = document.getElementById('tpxFerme');
+    f.innerHTML = 'La pose de jours de temps partiel ne concerne pas votre profil.<br><br>'
+      + '<a href="dashboard.html" style="color:#1D4ED8;font-weight:600;text-decoration:none">← Retour au portail</a>';
+    f.style.display = 'block';
+    return;
+  }
+  TPX = {
+    annee: Number(cle.year),
+    presents: Object.assign({}, cle.presents || {}),
+    feries: new Set(cle.joursFeries || []),
+    jours: Object.assign({}, mien.jours || {}),   // MES codes serveur : blocages + TP/TPA
+    quota: Number(mien.quota) || 0,
+    pend: {},                                     // date -> 'TP' | 'TPA' (posés localement)
+    retire: new Set(),                            // TP/TPA serveur retirés localement
+    outil: 'TP',
+    mois: 0,                                      // janvier de l'année de pose
+  };
+  document.getElementById('tpxPhaseSub').textContent =
+    'Le planning des gardes ' + TPX.annee + ' est publié. Choisissez vos jours dans ce qui reste — '
+    + 'vous pouvez les poser au fil de l\'année, il n\'y a pas de date limite.';
+  document.getElementById('tpApp').style.display = 'block';
+  tpxRendre();
+}
+
+/* Badge d'un code bloquant : le MAR voit POURQUOI le jour est gris. */
+function tpxBadge(code) {
+  const c = String(code || '').toUpperCase();
+  if (c === 'G' || c === 'G2') return { b: 'GARDE', k: 'b-tpx-garde' };
+  if (c === 'RG') return { b: 'REPOS', k: 'b-tpx-garde' };
+  if (c === 'R') return { b: 'RÉCUP', k: 'b-tpx-recup' };
+  if (c === '18') return { b: '18H', k: 'b-tpx-garde' };
+  if (c === 'VAC' || c === 'CP') return { b: 'CONGÉS', k: 'b-tpx-vac' };
+  if (c === 'FORM') return { b: 'FORMATION', k: 'b-tpx-vac' };
+  return { b: c, k: 'b-tpx-vac' };
+}
+
+/* L'état d'un jour — MÊMES seuils que le serveur (_poserTp_) : il resterait
+   ≥ 15 → libre · 13-14 → plein (sous réserve) · ≤ 12 → fermé. */
+function tpxEtat(ds) {
+  const dow = new Date(ds + 'T12:00:00').getDay();
+  if (dow === 0 || dow === 6) return { s: 'weekend' };
+  if (TPX.feries.has(ds)) return { s: 'bloque', badge: { b: 'FÉRIÉ', k: 'b-tpx-vac' } };
+  const base = String(TPX.jours[ds] || '').toUpperCase();
+  if (base === 'TP' && !TPX.retire.has(ds)) return { s: 'pose' };
+  if (base === 'TPA' && !TPX.retire.has(ds)) return { s: 'reserve' };
+  if (base && base !== 'TP' && base !== 'TPA') return { s: 'bloque', badge: tpxBadge(base) };
+  if (TPX.pend[ds] === 'TP') return { s: 'pose', pend: true };
+  if (TPX.pend[ds] === 'TPA') return { s: 'reserve', pend: true };
+  const p = TPX.presents[ds];
+  if (p === undefined) return { s: 'bloque', badge: { b: '—', k: 'b-tpx-vac' } };
+  const reste = p - 1;                            // ce qu'il resterait si je posais
+  if (reste <= 12) return { s: 'ferme', p: p };
+  if (reste < 15) return { s: 'plein', p: p };
+  return { s: 'libre', p: p };
+}
+
+function tpxCompte() {
+  let poses = 0, reserves = 0;
+  Object.keys(TPX.jours).forEach(function (ds) {
+    if (TPX.retire.has(ds)) return;
+    const v = String(TPX.jours[ds]).toUpperCase();
+    if (v === 'TP') poses++; else if (v === 'TPA') reserves++;
+  });
+  Object.keys(TPX.pend).forEach(function (ds) {
+    if (TPX.pend[ds] === 'TP') poses++; else reserves++;
+  });
+  return { poses: poses, reserves: reserves,
+           attente: Object.keys(TPX.pend).length + TPX.retire.size };
+}
+
+function tpxRendre() {
+  const an = TPX.annee, mo = TPX.mois;
+  document.getElementById('tpxMoisTitre').textContent = MONTHS_FR[mo] + ' ' + an;
+  const g = document.getElementById('tpxGrid');
+  g.innerHTML = '';
+  ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].forEach(function (d) {
+    const h = document.createElement('div'); h.className = 'cal-header'; h.textContent = d; g.appendChild(h);
+  });
+  const premier = new Date(an, mo, 1);
+  const vides = (premier.getDay() + 6) % 7;       // grille qui démarre au lundi
+  for (let i = 0; i < vides; i++) { const v = document.createElement('div'); v.className = 'tpx-day empty'; g.appendChild(v); }
+  const nb = new Date(an, mo + 1, 0).getDate();
+  for (let d = 1; d <= nb; d++) {
+    const ds = an + '-' + String(mo + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    const e = tpxEtat(ds);
+    const el = document.createElement('div');
+    el.className = 'tpx-day ' + (e.s === 'weekend' ? 'weekend' : e.s);
+    let h = '<span class="tpx-num">' + d + '</span>';
+    if (e.s === 'bloque') h += '<span class="tpx-badge ' + e.badge.k + '">' + e.badge.b + '</span>';
+    if (e.s === 'pose') h += '<span class="tpx-badge b-tpx-tp">TP</span>';
+    if (e.s === 'reserve') h += '<span class="tpx-badge b-tpx-reserve">RÉSERVE</span>';
+    if (e.s === 'ferme') h += '<span class="tpx-badge" style="background:#1E293B;color:#CBD5E1">FERMÉ</span>';
+    if (e.p !== undefined) h += '<span class="tpx-eff">' + e.p + '</span>';
+    el.innerHTML = h;
+    el.onclick = (function (dsx) { return function () { tpxClic(dsx); }; })(ds);
+    g.appendChild(el);
+  }
+  const c = tpxCompte();
+  document.getElementById('tpxPose').textContent = c.poses;
+  document.getElementById('tpxReste').textContent = Math.max(0, TPX.quota - c.poses) + ' restants sur ' + TPX.quota;
+  document.getElementById('tpxRes').textContent = c.reserves ? (c.reserves + ' sous réserve') : '';
+  document.getElementById('tpxJauge').style.width = (TPX.quota ? Math.min(100, Math.round(100 * c.poses / TPX.quota)) : 0) + '%';
+  document.getElementById('tpxSaveTxt').innerHTML = c.attente
+    ? '<b>' + c.attente + ' changement' + (c.attente > 1 ? 's' : '') + '</b> à enregistrer'
+      + (c.reserves ? ' — dont sous réserve, à voir avec le comité' : '')
+    : 'Rien en attente';
+}
+
+function tpxOutil(t) {
+  TPX.outil = t;
+  document.getElementById('tpxBtnTP').classList.toggle('on', t === 'TP');
+  document.getElementById('tpxBtnErase').classList.toggle('on', t === 'ERASE');
+  document.getElementById('tpxHint').innerHTML = t === 'TP'
+    ? 'Outil actif : <strong>Poser un jour</strong> — touchez un jour vert.'
+    : 'Outil actif : <strong>Retirer</strong> — touchez un jour que vous avez posé.';
+}
+
+function tpxMois(sens) {
+  const m = TPX.mois + sens;
+  if (m < 0 || m > 11) return;                    // la pose vit dans SON année
+  TPX.mois = m; tpxRendre();
+}
+
+function tpxClic(ds) {
+  const e = tpxEtat(ds);
+  if (e.s === 'weekend') { showToast('Un jour de temps partiel se pose sur un jour travaillé'); return; }
+  if (e.s === 'ferme') { showToast('Équipe trop réduite ce jour-là — ce jour n\'est pas ouvert'); return; }
+  if (e.s === 'bloque') {
+    const b = e.badge.b;
+    showToast(b === 'CONGÉS' || b === 'FORMATION' ? 'Vous êtes absent ce jour-là'
+      : b === 'RÉCUP' ? 'C\'est votre récupération de samedi'
+      : b === '18H' ? 'Vous assurez la garde de 18h ce jour-là — un temps partiel est un congé'
+      : b === 'GARDE' || b === 'REPOS' ? 'Garde ou repos de garde — ce jour n\'est pas disponible'
+      : 'Ce jour est déjà pris (' + b + ')');
+    return;
+  }
+  if (e.s === 'pose') {
+    if (TPX.outil !== 'ERASE') { showToast('Ce jour est déjà posé — passez sur « Retirer » pour l\'enlever'); return; }
+    if (TPX.pend[ds]) delete TPX.pend[ds]; else TPX.retire.add(ds);
+    tpxRendre(); showToast('Jour retiré'); return;
+  }
+  if (e.s === 'reserve') {
+    if (TPX.outil !== 'ERASE') { showToast('Déjà posé sous réserve — le comité doit le valider'); return; }
+    if (TPX.pend[ds]) delete TPX.pend[ds]; else TPX.retire.add(ds);
+    tpxRendre(); showToast('Jour retiré'); return;
+  }
+  if (TPX.outil === 'ERASE') { showToast('Rien à retirer ici'); return; }
+  const c = tpxCompte();
+  if (e.s === 'libre' && c.poses >= TPX.quota) { showToast('Quota atteint : ' + TPX.quota + ' jours'); return; }
+  if (e.s === 'plein') {
+    TPX.pend[ds] = 'TPA'; tpxRendre();
+    showToast('Posé sous réserve — à valider avec le comité');
+    return;
+  }
+  TPX.pend[ds] = 'TP'; tpxRendre(); showToast('Jour de temps partiel posé');
+}
+
+async function tpxEnregistrer() {
+  const c = tpxCompte();
+  if (!c.attente) { showToast('Rien à enregistrer'); return; }
+  const btn = document.getElementById('tpxBtnSave');
+  btn.textContent = '⏳ Enregistrement...'; btn.disabled = true;
+  try {
+    /* La photo COMPLÈTE de ma famille TP/TPA : les jours gardés tels quels,
+       les nouveaux en TP (le serveur seul décide TP ou TPA), les retirés
+       absents — même sémantique de retrait que la campagne. */
+    const map = {};
+    Object.keys(TPX.jours).forEach(function (ds) {
+      const v = String(TPX.jours[ds]).toUpperCase();
+      if ((v === 'TP' || v === 'TPA') && !TPX.retire.has(ds)) map[ds] = v;
+    });
+    Object.keys(TPX.pend).forEach(function (ds) { map[ds] = 'TP'; });
+    const res = await apiCall('saveIndispos', { tp: true, indispos: map });
+    if (!res || res.success === false) {
+      showToast('❌ ' + ((res && res.error) || 'Erreur lors de l\'enregistrement'));
+      return;
+    }
+    /* Appliquer les VERDICTS du serveur — jamais l'optimisme de l'écran. */
+    const r = res.resultat || {};
+    const avant = {};                              // mes TP/TPA d'avant, pour l'effectif
+    Object.keys(TPX.jours).forEach(function (ds) {
+      const v = String(TPX.jours[ds]).toUpperCase();
+      if (v === 'TP' || v === 'TPA') { avant[ds] = v; delete TPX.jours[ds]; }
+    });
+    const nvValides = [], nvReserves = [], refus = [];
+    Object.keys(r).forEach(function (ds) {
+      if (r[ds] === 'TP' || r[ds] === 'TPA') {
+        TPX.jours[ds] = r[ds];
+        if (!avant[ds] && r[ds] === 'TP') nvValides.push(ds);
+        if (avant[ds] !== 'TPA' && r[ds] === 'TPA') nvReserves.push(ds);
+      } else {
+        refus.push({ ds: ds, motif: r[ds] });
+      }
+    });
+    /* L'effectif local suit : un TP VALIDÉ me retire du compte de ce jour,
+       un TP rendu m'y remet. Les TPA ne bougent rien — comme au serveur. */
+    nvValides.forEach(function (ds) { if (TPX.presents[ds] !== undefined) TPX.presents[ds]--; });
+    TPX.retire.forEach(function (ds) {
+      if (avant[ds] === 'TP' && TPX.presents[ds] !== undefined) TPX.presents[ds]++;
+    });
+    if (res.quota && res.quota.total) TPX.quota = res.quota.total;
+    TPX.pend = {}; TPX.retire = new Set();
+    tpxRendre();
+    tpxRecap(res, nvReserves, refus);
+  } catch (eSave) {
+    showToast('❌ Erreur réseau — vérifiez la connexion et réessayez');
+  } finally {
+    btn.textContent = 'Enregistrer'; btn.disabled = false;
+  }
+}
+
+function tpxRecap(res, nvReserves, refus) {
+  const c = tpxCompte();
+  const nomJour = function (ds) {
+    const dt = new Date(ds + 'T12:00:00');
+    return ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'][dt.getDay()]
+      + ' ' + dt.getDate() + ' ' + MONTHS_FR[dt.getMonth()].toLowerCase();
+  };
+  let h = '<div class="tpx-recap-bloc tpx-recap-ok"><div class="tpx-recap-titre">'
+    + c.poses + ' jour' + (c.poses > 1 ? 's' : '') + ' enregistré' + (c.poses > 1 ? 's' : '')
+    + ' sur ' + TPX.quota + '</div>'
+    + '<div class="tpx-recap-txt">C\'est bon, rien à faire.</div></div>';
+  const tousReserves = Object.keys(TPX.jours).filter(function (ds) { return TPX.jours[ds] === 'TPA'; }).sort();
+  if (tousReserves.length) {
+    h += '<div class="tpx-recap-bloc tpx-recap-res"><div class="tpx-recap-titre">'
+      + tousReserves.length + ' jour' + (tousReserves.length > 1 ? 's' : '') + ' sous réserve</div>'
+      + '<div class="tpx-recap-txt">L\'équipe serait en dessous de 15 ces jours-là. '
+      + 'Ils ne comptent pas tant que le comité ne les a pas validés — parlez-lui-en.</div>'
+      + '<div class="tpx-recap-jours">' + tousReserves.map(nomJour).join('<br>') + '</div></div>';
+  }
+  if (refus.length) {
+    h += '<div class="tpx-recap-bloc tpx-recap-ko"><div class="tpx-recap-titre">'
+      + refus.length + ' jour' + (refus.length > 1 ? 's' : '') + ' refusé' + (refus.length > 1 ? 's' : '') + '</div>'
+      + '<div class="tpx-recap-txt">L\'état réel du planning a été revérifié au moment d\'enregistrer.</div>'
+      + '<div class="tpx-recap-jours">'
+      + refus.map(function (x) { return nomJour(x.ds) + ' — ' + x.motif; }).join('<br>') + '</div></div>';
+  }
+  document.getElementById('tpxRecapTitre').textContent =
+    refus.length ? 'Enregistré — des jours ont été refusés'
+    : tousReserves.length ? 'Enregistré — des jours à valider'
+    : 'C\'est enregistré';
+  document.getElementById('tpxRecapCorps').innerHTML = h;
+  document.getElementById('tpxSheetBg').classList.add('show');
+  document.getElementById('tpxSheet').classList.add('show');
+}
+
+function tpxFermerRecap() {
+  document.getElementById('tpxSheetBg').classList.remove('show');
+  document.getElementById('tpxSheet').classList.remove('show');
+}
 </script>
 </body>
 </html>
