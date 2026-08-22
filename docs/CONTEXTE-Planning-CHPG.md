@@ -11,6 +11,53 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 22 août 2026 — récupérations déployées, vérifiées en production
+
+**Versions** : `generateur_gardes.gs` **2026-08-21.1** (déployé) · `miroir.gs` 2026-08-20.1 ·
+Worker `miroir 2026-08-20.1` · banc **1 589 vérifications / 33 scripts** · site **v1.64**.
+**Plus aucune recopie en attente.**
+
+**Génération de test 2027 faite le 22/08 à 08h30, résultats lus dans le classeur** (pas seulement au
+banc) : **100 récupérations sur 104 tombent après leur samedi** (contre 28), délai médian **+6 j**
+(contre −75), **0 jour sous 15 présents** (contre 15), 54 lundis et 22 vendredis.
+
+**La mesure qui compte** : longueur de la plage de repos continue autour du jour rendu —
+**33 récupérations isolées → 2**, moyenne **3,03 j → 5,98 j**. La durée du repos a doublé pour le
+même nombre de jours dus.
+
+**Rien n'est cassé, vérifié sur la grille produite** : 0 jour sans binôme sur 364, 0 repos orphelin,
+0 garde consécutive, 0 garde sans repos, 104 samedis = 104 récupérations, astreintes 18 h à une par
+jour ouvré. Équité **meilleure** sur trois axes (jeudi 1,00→0,50 · VD 1,40→1,20 · fériés 1,90→1,80).
+
+### Règles gravées ce jour — la mécanique de régénération
+
+- **`generateGardes` recrée lui-même** `GARDES_{Y}`, `STATS_GARDES_{Y}` et `LIENS_R_{Y}`. Seul
+  `GARDES_{Y}` se supprime à la main, et uniquement pour lever le verrou.
+- **`INDISPOS_{Y}` et `AFFECTATIONS_{Y}` sont des ENTRÉES.** Ne jamais les supprimer.
+- **L'assistant publie tout seul** : `generatePlanning(year)` suit `generateGardes` dans
+  `Indispos.gs` l.2528. Rien à republier. Un appel direct depuis l'éditeur, lui, ne publie pas.
+- **Le miroir ne lit pas le classeur** mais `planning_{Y}.json` du Drive. Sans publication, il
+  recopie fidèlement l'ancienne grille — la synchro horaire n'y changerait rien.
+- ⚠️ **`planning_{Y}_notifie.json` décide de qui reçoit un mail.** Republier après régénération fait
+  voir au système toute l'année changée. Protégé le 22/08 par l'absence d'adresses (« 1 email, 24
+  sans email »). **Ce filet disparaît le 4 septembre.** Réflexe : supprimer ce fichier avant de
+  republier, ou vérifier `NOTIF_EMAIL_TEST`.
+- **Le circuit de notification de changement est email uniquement** — aucun push.
+- **Les avertissements de génération ne sont pas conservés** : seul leur nombre part dans les LOGS.
+  Impossible de savoir ce que disait celui du 1er août. À traiter avec la séance A.
+- **Vérifier dans le classeur, pas seulement au banc.** Le banc prouve la logique ; c'est la lecture
+  de la grille produite qui prouve le résultat. Les deux mesures ont concordé — mais elles auraient
+  pu ne pas concorder.
+
+### Cloudflare — stabilisé
+
+Relevé du 22/08 à 06h15 UTC : **124 fouilles** pour 125 attendues (filet de 3 minutes × 375 minutes
+écoulées), 28 écritures. Projection : ~476 et ~108 par jour, sur des plafonds de 1 000. ⚠️ **Les
+compteurs se remettent à zéro à minuit UTC, soit 2 h du matin à Monaco** — toujours convertir avant
+de lire un compteur.
+
+---
+
 ## État au 21 août 2026 (soir) — le placement des récupérations de samedi
 
 **Versions** : `generateur_gardes.gs` **2026-08-21.1** · banc **1 589 vérifications / 33 scripts** ·

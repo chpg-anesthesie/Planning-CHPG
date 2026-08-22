@@ -684,6 +684,109 @@ NOVEMBRE : ces lignes se colleraient sur la vraie génération 2027. »* J'avais
 même. **Conséquence : le correctif ne sert pas seulement 2028 — il sert la vraie 2027, à condition
 d'être en place avant la génération.**
 
+## 22 août 2026 — le placement des récupérations, déployé et confirmé en production
+
+`generateur_gardes.gs` **2026-08-21.1** recopié et déployé par Arthur · **génération de test 2027
+lancée à 08h30** · résultats **vérifiés dans le classeur**, pas seulement au banc.
+
+### ✅ Ce que la génération réelle a donné
+
+`LIENS_R_2027`, 104 récupérations, mesurées ligne à ligne :
+
+| | Avant (grille du 14/08) | **Après (22/08)** |
+|---|---|---|
+| Posées **après** leur samedi | 28/104 — **27 %** | **100/104 — 96 %** |
+| Délai médian | **−75 j** (avant la garde) | **+6 j** |
+| Pire cas | 354 j avant | 16 j avant |
+| Jours descendant sous 15 présents | 15 | **0** |
+| Jour de la semaine | — | **54 lundis · 22 vendredis** |
+| Deux récupérations le même jour | jamais | 35 jours (jamais trois) |
+
+**Les 4 récupérations restées antérieures** sont exactement les cas prévus : samedis du 25/12 et du
+01/01, sans lendemain dans l'année. Posées 8 à 16 jours avant — donc **encore transférables** en cas
+d'échange.
+
+### 🔑 LA MESURE QUI COMPTE — le gain réel pour l'équipe
+
+Longueur de la **plage de repos continue** autour de chaque récupération (week-end, férié, congé,
+repos de garde compris) :
+
+| | Avant | **Après** |
+|---|---|---|
+| Récupérations **isolées** (1 seul jour de repos) | **33 — 32 %** | **2 — 2 %** |
+| Dans une plage de 3 jours ou plus | 58 — 56 % | **93 — 89 %** |
+| Dans une plage de 10 jours ou plus | 3 | **19** |
+| **Longueur moyenne** | **3,03 j** | **5,98 j** |
+
+**La durée moyenne du repos autour d'une récupération a doublé.** Avant, un tiers des jours rendus
+étaient un mercredi off perdu au milieu d'une semaine de travail. Même nombre de jours dus — 104 —
+mais ils servent à quelque chose.
+
+### 🔒 Rien n'est cassé — contrôlé sur la grille produite
+
+| Contrôle | Résultat |
+|---|---|
+| Jours sans exactement 1 G + 1 G2 | **0** sur 364 |
+| Repos orphelins (RG sans garde la veille) | **0** |
+| Gardes sans repos le lendemain | **0** |
+| Gardes consécutives | **0** |
+| Récupérations un week-end ou un férié | **0** |
+| Astreintes 18 h | 251, **une par jour ouvré**, jamais le week-end, écart 6–14 |
+| Samedis tenus = récupérations dues | **104 = 104**, aucun MAR en écart |
+
+**Équité meilleure sur trois axes** : jeudi 1,00 → 0,50 · vendredi-dimanche 1,40 → 1,20 · fériés
+1,90 → 1,80. Total 0,60 → 0,70 (bruit de régénération, pas un effet du patch).
+
+### Les 5 avertissements de la génération — identifiés
+
+Les LOGS ne conservent que le **compte**, pas le texte. Mais l'historique tranche : les générations
+des 1er, 10, 11 et 14 août en produisaient **1**, toujours le même. Celle du 22 en produit **5**.
+Les 4 nouveaux correspondent exactement aux 4 récupérations posées avant leur samedi (Noël et Jour
+de l'an) — message prévu, qui prévient qu'un échange de ces samedis ne pourra pas transférer la
+récupération. **Le 5e est l'avertissement historique**, sans rapport avec le patch.
+
+⚠️ **Défaut à traiter avec la séance A** : le générateur produit des avertissements nommés et datés,
+puis **les perd**. Impossible de savoir aujourd'hui ce que disait celui du 1er août. Deux lignes
+pour que `logAction` écrive le détail, pas seulement le nombre.
+
+### Ce que la régénération a appris sur la marche à suivre
+
+- **`generateGardes` supprime et recrée lui-même** `GARDES_{Y}`, `STATS_GARDES_{Y}` et
+  `LIENS_R_{Y}`. Seul `GARDES_{Y}` est à supprimer à la main, et uniquement pour lever le verrou.
+- **`INDISPOS_{Y}` et `AFFECTATIONS_{Y}` sont des ENTRÉES** — ne jamais les supprimer.
+- **L'assistant publie tout seul** : `generatePlanning(year)` est appelé juste après
+  `generateGardes` (`Indispos.gs` l.2528). Rien à republier. *(Erreur corrigée par Arthur : j'avais
+  annoncé une republication manuelle obligatoire.)* En revanche, appeler `generateGardes()`
+  directement depuis l'éditeur ne publie pas.
+- **Le miroir ne lit pas le classeur** mais le fichier `planning_{Y}.json` du Drive (`miroir.gs`
+  l.378 → 852). Sans publication, il recopierait fidèlement l'ancienne grille. La synchro horaire
+  suffit ensuite.
+- ⚠️ **`planning_{Y}_notifie.json`** garde la photo au dernier envoi de notifications. Republier
+  après une régénération déclenche la comparaison : le système voit toute l'année changée. Protégé
+  ce jour par l'absence d'adresses (« 1 email, 24 sans email » dans les LOGS). **Ce filet disparaît
+  le 4 septembre** quand les 24 adresses seront saisies. Réflexe à prendre : supprimer ce fichier
+  avant de republier, ou vérifier `NOTIF_EMAIL_TEST`.
+- Le circuit de notification de changement est **email uniquement** (`_notifExpedier`, `code.gs`) —
+  aucun envoi push.
+
+### 📊 Diapo du staff — commit `6e55eb21`
+
+Nouvelle diapo **« Vos récupérations de samedi »**, après « Un jour de congé gagné avant les
+vacances ». **Ne parle QUE de l'état actuel** — consigne d'Arthur : évoquer l'ancien placement est
+inutile et affaiblit le propos. Trois chiffres : 76/104 un lundi ou un vendredi · 6 j de repos
+d'affilée en moyenne · 15 présents au minimum. Chute : *un jour par samedi de garde comme avant,
+aucune garde ne change de main, aucun compteur d'équité ne bouge*.
+
+**Calendrier de l'année type régénéré** depuis la nouvelle grille. Le Dr Armando reste l'exemple et
+il est meilleur qu'avant : 34 gardes pour 34,6, **5 récupérations toutes un vendredi ou un lundi,
+aucune isolée**. Celle du 5 avril suit une formation et un week-end.
+
+**Doublons retirés** : carte « 5 récupérations placées automatiquement » de l'année type (g4 → g3),
+mention dans l'escalier des axes. **Conservés** : la carte « 1 = 1 » des garanties (c'est le NOMBRE,
+une garantie d'équité, pas le placement) et la légende verte du calendrier.
+
+---
+
 #### ✅ LIVRÉ LE 21/08/2026 — LE PLACEMENT DES RÉCUPÉRATIONS
 
 `generateur_gardes.gs` **2026-08-21.1** · `banc/banc_recups.js` (34 vérifications) ·
