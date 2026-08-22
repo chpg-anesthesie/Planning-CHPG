@@ -1073,6 +1073,167 @@ bénéfice d'une garde qu'il ne fera pas).
 
 ---
 
+## 22 août 2026 (après-midi) — les jours de temps partiel changeront de moment
+
+**Session d'analyse et de conception. Aucun code poussé, aucun fichier du dépôt modifié.**
+Deux maquettes produites et validées par Arthur.
+
+### Le défaut : 29 repos de garde mangés par un TP chaque année
+
+Un MAR de garde le mercredi a son repos le jeudi. Si le jeudi était son jour de temps partiel, le
+repos tombe sur un jour de toute façon non travaillé : il est perdu, et le TP avec.
+
+Mesuré sur la génération réelle 2027 (celle du 22/08 à 08h30), en lisant `INDISPOS_2027` — **jamais
+la grille `GARDES`, qui écrit `RG` par-dessus le `TP` et le `V` d'un congé** (l.1535) et répond donc
+faux exactement dans le cas cherché :
+
+| cause du repos perdu | nombre |
+|---|---|
+| **jour de TP** | **29** |
+| congés | 7 |
+| formation | 1 |
+| week-end (structurel, réparti par les axes) | 208 |
+| férié (structurel) | 18 |
+
+10 MAR touchés, **le plus atteint en perd 8 dans l'année**. Ce sont les 80 % et les 90 %.
+
+### Le fait qui a tranché : le comité ne commet jamais cette erreur
+
+Arthur a fourni le planning 2026 tenu à la main (`.ods`). Les jours de TP y sont des croix — non pas
+du texte, mais des **bordures diagonales** du format, lues via 14 styles de cellule.
+
+**Sur 725 gardes en 2026 : zéro repos tombé sur une croix. Zéro garde posée un jour de croix.**
+
+Le générateur est donc en défaut, pas la demande. Et les croix sont réparties sur tous les jours de
+la semaine (CATINEAU 13 lundis, 13 mardis, 14 mercredis, 12 vendredis, 0 jeudi) : **les jours de TP
+sont choisis, pas imposés** — sauf LB, seul à avoir un jour fixe (jeu/ven, colonne
+`tp_jours_fixes`), et qui ne prend pas de gardes.
+
+### La solution d'Arthur : poser les TP APRÈS la génération
+
+Indisponibilités et congés → génération des gardes et des repos → **puis** pose des TP dans ce qui
+reste. Le repos ne peut plus manger un TP **par construction**.
+
+Mesuré en retirant les TP de `INDISPOS_2027` et en régénérant :
+
+| | aujourd'hui | TP posés après |
+|---|---|---|
+| repos tombés sur un TP | 29 | **0** |
+| écart samedis | 0,80 | 0,80 |
+| écart jeudis | 0,50 | 0,50 |
+| écart vendredi/dimanche | 1,80 | **1,20** |
+| écart total | 1,10 | **0,60** |
+| jours sans binôme | 0 | 0 |
+
+Sur 20 années simulées (2027-2046, creux d'effectif compris) : samedis 0,84 → 0,82, jeudis
+0,80 → 0,74, VD 1,47 → 1,34, **somme des écarts identique (6,9/an)**, défauts de couplage 9 → 7,
+replis 12 → 10.
+
+**Trois années sur vingt voient l'écart TOTAL se creuser** (2033, 2039, 2046). Ce n'est pas une
+dégradation mais un déplacement, et l'explication est double :
+
+1. **L'optimiseur ne minimise pas l'écart total.** Ses poids sont en dur : VD 7, samedi 6, jeudi 5,
+   VJF 5, **total 2**. Le total est ce qu'il accepte de sacrifier. En 2039, sa note passe de 155 à
+   132 — **il a acheté du week-end avec du total**, c'est-à-dire qu'il a fait son travail.
+2. **C'est une recherche locale** (best-improvement, arrêt quand plus aucun échange isolé
+   n'améliore). Agrandir le terrain ne garantit pas de mieux jouer : en 2046 sa propre note se
+   dégrade (114 → 121). Limite connue, bilan largement positif. **Piste si un jour ça gêne** :
+   relancer l'optimiseur depuis plusieurs points de départ et garder le meilleur.
+
+### La faisabilité : est-ce que les TP tiennent dans ce qui reste ?
+
+**379 jours à poser** avec les quotités actuelles — LB retiré (102 j constitutifs), TRAN retiré
+(date de fin 09/2026) : COPELOVICI 127, CATINEAU et SEVERAC 51, six autres 25 chacun.
+
+**Places disponibles**, calculées sur le planning 2026 réel, jeudis et vendredis de LB déjà
+consommés : **589 au minimum 16**, **410 à l'objectif 17**. Les deux passent.
+
+**Effectif** : ta feuille compte de deux façons (ligne 1 « TOTAL PRESENTS », objectif 17 mini 16, les
+2 RG comptés présents ; ligne 2 « −2 RG », objectif 15 mini 14). **82 jours sur 249 sont déjà sous
+le minimum en 2026**, dont 31 en juillet-août. Le plancher n'est pas un acquis qu'on risquerait de
+perdre : il est déjà enfoncé, et surtout l'été.
+
+**Les besoins réels de l'été sont faibles** : 9 jours de TP posés en juillet-août 2026 par les 8
+temps partiels, parce qu'ils sont eux-mêmes en congés (112 jours d'absence sur ces deux mois, contre
+23 les autres mois). **Il n'y a donc pas de règle de priorité à écrire.**
+
+**Constat annexe** : 224 jours posés en 2026 pour 252 dus. **Quatre personnes n'ont pas pris tout
+leur temps partiel** — jusqu'à 9 jours. Ce n'est pas la place qui a manqué (les mois où elles ont
+posé le moins sont les plus fournis), c'est le suivi. D'où le compteur dans la maquette.
+
+### Ce qui a été construit puis ABANDONNÉ
+
+Une règle du générateur interdisant la garde la veille d'un jour non travaillé, avec trois soupapes
+(couverture, unité VD, couplage férié) et un scénario de banc à contre-épreuve. **Elle marchait** :
+39 repos perdus → 2, banc à 1 626 vérifications, 0 échec, aucune dégradation sur `avant_apres.js`.
+
+**Elle a été abandonnée pour une raison mesurée** : un temps partiel avec un TP hebdomadaire se voit
+interdire un quart des dimanches en plus des vendredis où il est déjà en TP. Un dimanche étant soudé
+à son vendredi (unité VD), CATINEAU tombait à **3 unités VD pour une cible de 5,2** — deux week-ends
+reportés sur les collègues. **Protéger son repos lui coûtait ses week-ends.** La solution d'Arthur
+n'a pas ce coût. **Ne pas re-proposer cette règle.**
+
+### Ce qui a été décidé pour l'écran — maquettes validées
+
+**Une tuile, deux visages.** Pendant la campagne : « Mes indisponibilités », ouverte à tous. Une
+fois `GARDES_{N+1}` généré : **« Mes jours de temps partiel »**, visible uniquement pour
+*quotité < 100 % et pas de jours fixes déclarés*. Le mécanisme existe déjà (`campagne:true` et
+`only` dans `TILES`, `dashboard.html`).
+
+**Trois bandes**, selon ce qu'il RESTERAIT après la pose — chiffres 2026 :
+
+| | il resterait | jours | part |
+|---|---|---|---|
+| 🟢 libre | 15 et plus | 196 | 75 % |
+| 🟡 sous réserve | 13 ou 14 | 48 | 18 % |
+| ⬛ fermé, non proposable | 12 ou moins | 17 | 6,5 % |
+
+**Côté MAR** : calendrier coloré, le nombre de présents en petit dans chaque case, un compteur
+« X posés · Y restants sur N », et un **récapitulatif à l'enregistrement** listant les jours sous
+réserve. **Aucun mail, aucune notification** : le MAR va voir le comité lui-même.
+
+**Côté comité** : une alerte pliée, une ligne par demande, Valider / Refuser, décision annulable.
+**Le nombre de présents est recalculé à chaque clic** — si deux MAR demandent le même jour, valider
+le premier fait aussitôt tomber l'affichage du second. Sans ça, on validerait deux jours en croyant
+n'en valider qu'un. Un jour noir n'arrive jamais dans cette liste.
+
+**Temps de chargement : rien de neuf à transporter.** La clé `gardes_{année}` de la copie rapide
+contient déjà, pour chaque date, qui est G, G2, RG, R, TP. Le nombre de présents s'en déduit dans le
+navigateur. La page demandera `indispos_{année}` **et** `gardes_{année}` dans le même appel — le
+mécanisme accepte déjà plusieurs clés. *(Lecture du code ; poids non mesuré.)*
+
+### Ce qui reste à faire — dans cet ordre
+
+1. **Verrou serveur par type d'écriture.** Aujourd'hui `saveIndispos` n'interroge jamais
+   `_indisposOuverte_` : rien n'empêche d'écrire hors campagne. Sans effet tant que la page est
+   fermée 10 mois par an ; **bloquant dès qu'on l'ouvre toute l'année**. TP autorisé en permanence,
+   indispo et souhait **refusés côté serveur** hors campagne.
+2. **Renvoyer la quotité à la connexion.** `checkCode` lit déjà MEDECINS mais ne renvoie que
+   l'identité, le rôle et l'appartenance au groupement libéral.
+3. **Statut « TP en attente »** dans `INDISPOS_{Y}`, distinct du TP validé, et qui **ne compte pas
+   comme une absence** — sinon la demande ferait elle-même baisser l'effectif et deux demandes le
+   même jour se bloqueraient mutuellement.
+4. **L'écran MAR**, puis **l'écran comité**, conformes aux maquettes.
+5. **L'avertissement sur les échanges de gardes à distance** (non bloquant).
+
+### Points ouverts
+
+- **Un jour validé peut se périmer** (échange de garde ultérieur). Position retenue : **c'est
+  acquis, on ne revient pas dessus** — revenir sur un jour accordé serait pire que le problème.
+  Non tranché formellement.
+- **Une demande refusée disparaît** et ce MAR-là ne peut pas redemander ce jour ; il reste jaune
+  pour les autres. *(Arthur penchait pour fermer le jour à tout le monde — à confirmer.)*
+- **Les 82 jours sous le minimum en 2026** méritent un examen à part, indépendamment de ce chantier.
+
+### Trouvaille annexe, sans rapport avec le TP
+
+Le simulateur produit, sur 20 années réalistes, **9 défauts préexistants** : couplages férié/samedi
+rompus (2028-04-15, 2031-12-25, 2027-10-30…) et unités VD brisées **dans la dernière semaine de
+décembre** (2029, 2037, 2038, 2046). Ils existent avec ou sans toute modification testée ce jour.
+Non traités, à instruire séparément.
+
+---
+
 ## 19 août 2026 (soir) — v1.64 : la tuile CR quitte le mobile, et le document de panne rattrape neuf mois
 
 Commit unique `433974c7f9`, cinq fichiers. Séance de lecture plus que d'écriture : l'essentiel du

@@ -11,6 +11,89 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 22 août 2026 (après-midi) — les jours de temps partiel changent de moment
+
+**Aucun code produit, aucun push.** Session d'analyse et de conception. Deux maquettes validées.
+
+**Le défaut trouvé.** Un MAR de garde le mercredi a son repos le jeudi. Si le jeudi était son jour
+de TP, le repos tombe sur un jour déjà non travaillé : **il est perdu, et le TP est mangé**. Relevé
+sur la génération réelle 2027 du 22/08 : **39 repos évaporés dans l'année — 29 sur un TP, 7 sur des
+congés, 1 sur une formation** — concentrés sur les temps partiels, jusqu'à 8 pour une seule
+personne. Ce n'est pas une malchance de calendrier : c'est une pénalité qui ne frappe qu'eux.
+
+**Le fait qui a tout décidé.** Le planning 2026 tenu à la main par le comité (fichier `.ods` fourni
+par Arthur, croix = jours de TP, lues via les bordures diagonales du format) : **725 gardes, ZÉRO
+repos tombé sur un TP.** Le comité n'a jamais commis l'erreur. Le générateur, si. C'est donc le
+générateur qui est en défaut, pas la demande qui est excessive.
+
+**La solution retenue — et c'est celle d'Arthur, pas la mienne.** Ne plus poser les TP AVANT la
+génération, mais **APRÈS**. Le temps partiel choisit ses jours une fois les gardes et les repos
+publiés. Le problème disparaît **par construction** : il n'y a plus rien à interdire.
+
+**Mesuré sur les vraies données 2027, TP retirés puis regénération :**
+
+| | aujourd'hui | TP posés après |
+|---|---|---|
+| repos tombés sur un TP | 29 | **0** |
+| écart vendredi/dimanche | 1,80 | **1,20** |
+| écart total | 1,10 | **0,60** |
+| jours sans binôme | 0 | **0** |
+
+Sur 20 années simulées : samedis, jeudis et VD **meilleurs**, somme des écarts **identique** (6,9/an),
+**9 défauts de couplage → 7**, **12 replis → 10**. Le générateur récupère ~380 jours de
+disponibilité qu'on lui retirait.
+
+### Règles gravées ce jour
+
+- **Un RG ne doit JAMAIS tomber sur un TP.** Décision d'Arthur, sans exception. « Sinon il n'y a
+  aucun bénéfice à être en temps partiel. »
+- **Les TP se posent après la génération du planning N+1**, au fil de l'année, quota annuel.
+- **Seuil unique : 15 présents, définition du générateur** (`_rPresents`, l.≈1345) — tous les MAR
+  sauf DRUGE, absents = congés/formation/TP/récup **et repos de garde**, les gardes comptées
+  présentes. Vérifié contre le planning 2026 : cette définition suit la ligne « TOTAL PRESENTS » de
+  la feuille du service à **+0,8 en moyenne** (elle compte 3 personnes de plus — PRUNET, FERRIERO,
+  ARMAND — et retire les 2 RG, les deux effets se compensent). **Le plancher de 15 est conservé** :
+  le monter à 16 ou 17 ne sauve aucune récupération et en dégrade la qualité (75 % → 63 % de
+  récups un lundi ou un vendredi).
+- **Trois bandes pour la pose d'un TP**, selon ce qu'il RESTERAIT après :
+  **vert ≥ 15** (196 j en 2026) · **jaune 13-14**, sous réserve (48 j) · **noir ≤ 12**, non
+  proposable (17 j, soit 6,5 % de l'année).
+- **Un jour « sous réserve » ne compte pas** tant que le comité ne l'a pas validé.
+- **Aucune notification, aucun mail.** Le MAR voit la liste dans un récapitulatif et va voir le
+  comité lui-même. Un refus se dit de vive voix.
+- **LB est hors du dispositif** : ses jours sont constitutifs, posés d'office les jeudis et
+  vendredis, et il ne prend pas de gardes. Il s'exclut **sans être nommé** : la règle est
+  *quotité < 100 % ET pas de jours fixes déclarés* (colonne `tp_jours_fixes` de MEDECINS — il est
+  le seul à l'avoir remplie).
+
+### Ce qui a été abandonné, et pourquoi le noter
+
+Un correctif du générateur avait été construit, mesuré et testé au banc : une règle interdisant la
+garde la veille d'un jour non travaillé. **Il fonctionnait** (39 repos perdus → 2) mais coûtait
+l'équité des week-ends : un temps partiel avec un TP hebdomadaire perdait un quart des dimanches en
+plus des vendredis, soit **3 unités VD au lieu de 5,2 — reportées sur les collègues**. La solution
+d'Arthur supprime le problème sans ce coût. **Ne pas re-proposer cette règle.**
+
+### Deux constats de lecture, NON traités
+
+- **L'échange de gardes à distance n'a aucun contrôle sur le repos.** `Indispos.gs`,
+  `echangeGardeJours` : la branche « gardes adjacentes » vérifie explicitement que le repos ne tombe
+  pas sur une absence (« son repos de garde tomberait sur cette absence — echange impossible ») ;
+  **la branche courante, à distance, ne le fait pas** et écrase la case. Arthur : **avertir, ne pas
+  bloquer**. C'est une LECTURE du code, pas une reproduction au banc.
+- **Aucun verrou serveur sur l'écriture des indisponibilités.** `_indisposOuverte_` n'est consulté
+  que pour l'affichage. Sans conséquence aujourd'hui ; **bloquant dès que la page sera ouverte
+  toute l'année** : il faudra un verrou PAR TYPE (TP toute l'année, indispo et souhait seulement
+  pendant la campagne). Lecture, non prouvée par un essai.
+
+### Une erreur de méthode du jour, à ne pas répéter
+
+J'ai annoncé « 7 repos restants » en lisant la ligne 2027 d'une **simulation**, en la présentant
+comme le résultat sur les **vraies données**. Le vrai chiffre était 13. Arthur l'a relevé.
+**Une année simulée ne se cite jamais comme une mesure réelle.**
+
+---
+
 ## État au 22 août 2026 — récupérations déployées, vérifiées en production
 
 **Versions** : `generateur_gardes.gs` **2026-08-21.1** (déployé) · `miroir.gs` 2026-08-20.1 ·
