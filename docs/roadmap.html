@@ -147,27 +147,27 @@
     <h2>État vérifié</h2>
     <div class="etat-grid">
       <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1589 <small>vérifs · 33 scripts</small></div></div>
+      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1705 <small>vérifs · 34 scripts</small></div></div>
       <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
       <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
     </div>
     <div class="etat-grid" style="margin-top:16px">
       <div><div class="etat-k">code.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
-      <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-19.1</div></div>
-      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-20.1</div></div>
+      <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-22.3</div></div>
+      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-22.2</div></div>
       <div><div class="etat-k">veille.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.5</div></div>
       <div><div class="etat-k">portail.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.3</div></div>
       <div><div class="etat-k">journal.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
       <div><div class="etat-k">generateur.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.1</div></div>
       <div><div class="etat-k">echanges.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.3</div></div>
-      <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-20.1</div></div>
+      <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-22.1</div></div>
     </div>
   </div>
-  <p class="verif">Relevé dans le dépôt et le banc exécuté — 22 août 2026 · <b>rien en attente</b>. Les trois corrections des 20 et 21 août sont déployées et confirmées en production, la dernière par une génération d'essai du planning 2027 dont les résultats ont été vérifiés ligne à ligne.</p>
+  <p class="verif">Relevé dans le dépôt et le banc exécuté — 22 août 2026 au soir · <b>un déploiement en attente</b> : le chantier de la pose des temps partiels (quatre commits du jour, v1.65 → v1.67) est intégralement au dépôt et au banc, mais rien n'est recopié — Worker, puis les deux fichiers serveur, puis la synchronisation, dans cet ordre. D'ici là, rien ne change pour personne.</p>
 
   <div class="avance">
-    <p class="titre">Le développement est fini.</p>
-    <p class="sous">Il ne reste <b>aucune ligne de code à écrire</b> avant le 4 septembre — hors incident. Le 20 août en a été un : les plafonds gratuits de la copie rapide étaient atteints chaque jour vers 17 h, et les publications du comité restaient en rade jusqu'à 2 h du matin. Corrigé, à recopier. Ce qui suit, ce sont des gestes.</p>
+    <p class="titre">Le développement est fini — un chantier de plus dans la besace.</p>
+    <p class="sous">Rien n'est requis pour le 4 septembre au-delà des gestes ci-dessous. Le 22 août a livré en plus, en un jour, <b>la pose des temps partiels après génération</b> (écrans MAR et comité, v1.65 → v1.67) : elle attend un seul déploiement, qui embarque aussi le correctif des plafonds du 20 août.</p>
 
     <div class="avance-chiffres">
       <div><b>12</b><span>modules en service</span></div>
@@ -182,7 +182,7 @@
     <div class="jauge-lg"><span>8 jalons franchis</span><span>5 gestes restants</span></div>
 
     <ul class="reste">
-      <li><span class="q">tout de suite</span><span>Recopier <code>miroir.gs</code> (Apps Script) et <code>worker.js</code> (Cloudflare), puis relever les compteurs le lendemain matin.</span></li>
+      <li><span class="q">tout de suite</span><span>Déployer le chantier du 22 août : <b>le Worker d'abord</b>, puis <code>Indispos.gs</code> et <code>miroir.gs</code> avec une nouvelle version, puis la synchronisation complète — cet ordre embarque aussi le correctif des plafonds du 20 août. Essai avec le code de WIDEHEM (RW), puis relever les compteurs le lendemain matin.</span></li>
       <li><span class="q">cette semaine</span><span>Finir la recette : le parcours des échanges (deux téléphones), les conflits de vacances, l'assistant de départ.</span></li>
       <li><span class="q">1<sup>er</sup> sept.</span><span>Répétition générale, seul, pendant la garde — génération puis effacement dans la foulée.</span></li>
       <li><span class="q">4 sept. matin</span><span>Coller les 24 adresses mail (préparées d'avance dans une colonne de garage de MEDECINS), lancer le Diagnostic, puis envoyer les codes à 12h30.</span></li>
@@ -301,10 +301,11 @@
   </div>
 
   <h3>Le soir même — ménage</h3>
-  <p style="color:var(--ink-2);font-size:14px"><b>Neuf gestes, dans cet ordre — l'ordre compte.</b> Le premier n'est pas cosmétique : sans lui, la campagne d'octobre est bloquée. Le deuxième est celui qu'on oublie, et c'est le plus durable. Et l'avant-dernier, la synchronisation, n'efface la mémoire de l'année que si les huit autres sont faits avant. <span style="color:var(--ink-3)">(Liste révisée le 16 août : elle était complète le 10, trois éléments sont entrés dans le système depuis.)</span></p>
+  <p style="color:var(--ink-2);font-size:14px"><b>Dix gestes, dans cet ordre — l'ordre compte.</b> Le premier n'est pas cosmétique : sans lui, la campagne d'octobre est bloquée. Le deuxième est celui qu'on oublie, et c'est le plus durable. Et l'avant-dernier, la synchronisation, n'efface la mémoire de l'année que si les huit autres sont faits avant. <span style="color:var(--ink-3)">(Liste révisée le 16 août : elle était complète le 10, trois éléments sont entrés dans le système depuis.)</span></p>
   <div class="check"><ul>
     <li><b>Supprimer les cinq onglets de l'année 2027</b> : <code>INDISPOS_2027</code>, <code>AFFECTATIONS_2027</code>, <code>GARDES_2027</code>, <code>STATS_GARDES_2027</code> et <code>LIENS_R_2027</code>. Le premier bloque le lancement de la campagne d'octobre — c'est sa <b>seule</b> condition de départ ; le deuxième laisserait les affectations fictives en place, car il n'est recréé que s'il est absent. <code>LIENS_R</code> (quel repos appartient à quel samedi) n'existait pas quand cette liste a été écrite. <b>Ne jamais toucher à <code>STATS_GARDES_2026</code></b> — il porte les cibles d'équité de la vraie génération de novembre.</li>
     <li><b>Nettoyer les placements de test de l'onglet <code>PLANNING_OVERRIDES</code>.</b> Cet onglet garde la trace de chaque affectation posée à la main par le comité, et il n'est <b>lié à aucune année</b> : supprimer les onglets 2027 ne l'efface pas, et régénérer le planning les remet en place par-dessus. Constaté le 10 août : <b>38 lignes de test datées 2027</b> avaient survécu à tout. Si on les laisse, elles se colleront sur le <b>vrai</b> planning de novembre, sans que rien ne les distingue de vraies affectations. Trier par date, supprimer les lignes 2027.</li>
+    <li><b>Purger les lignes 2027 de l'onglet <code>TP_FERMES</code></b>, s'il existe — il naît au premier refus d'un jour de temps partiel, et comme les placements et les échanges, il n'est <b>rattaché à aucune année</b> : un refus essayé pendant la démo survivrait à la suppression des onglets 2027 et fermerait un jour du <b>vrai</b> planning de novembre.</li>
     <li><b>Supprimer les lignes 2027 de l'onglet <code>ECHANGES</code></b> — même piège, sur une donnée plus récente. Trois dons acceptés y ont été enregistrés pendant l'essai à deux du 14 août. Cet onglet n'est rattaché à aucune année et tout son contenu est publié aux MARs : sans ce geste, chacun verrait dans son écran d'échanges des dons portant sur une année qui n'existe plus. Retirer aussi l'indisponibilité de test posée pour le pilote.</li>
     <li><b>Refermer la campagne</b> si <code>INDISPOS_ACTIVE = 2027</code> a été posé pour la démo. Deux raisons : tant qu'elle est ouverte, les 23 MARs peuvent saisir sur une année fictive ; et surtout, <b>elle empêche l'oubli de l'année</b> — l'année de campagne est délibérément protégée de tout effacement. Ce geste doit donc précéder la synchronisation, sinon celle-ci ne retire rien, sans le dire.</li>
     <li><b>Supprimer les fichiers de démo du Drive</b> (dossier Planning-CHPG-JSON) : <code>planning_2027.json</code>, <code>affectations_2027.json</code> et <code>planning_2027_notifie.json</code>. Butoir dur : avant le 1<sup>er</sup> octobre.</li>
@@ -414,6 +415,11 @@
     </div>
 
   <h2>3 · Avant la génération de novembre</h2>
+  <div class="card ok">
+    <h4>La pose des temps partiels après génération — construite, à déployer <span class="tag t-green">22 août 2026</span></h4>
+    <p>Le chantier décidé le 22 au matin a été livré le soir même, écrans compris. Le circuit de novembre devient : campagne d'indisponibilités → génération et publication → <b>les huit MARs à temps partiel choisissent leurs jours dans ce qui reste</b>, sur un calendrier en trois couleurs (libre / sous réserve du comité / fermé), quota décompté, récapitulatif à l'enregistrement. Le comité valide ou refuse depuis l'onglet Équipe, avec le nombre de présents recalculé à chaque décision ; un refus ferme le jour pour toute l'équipe. Aucun message automatique dans tout le circuit. <b>Un repos de garde ne peut plus tomber sur un jour de temps partiel, par construction.</b></p>
+    <p>Chargement instantané mesuré sur les données réelles (6,8 Ko par MAR). Deux règles tranchées en séance : une garde de 18h bloque la pose (on est au travail) ; les marques « indisponible » et « garde souhaitée » de la campagne ne bloquent plus (sans objet une fois les gardes générées). Reste un geste : le déploiement, listé plus haut.</p>
+  </div>
   <div class="card risque">
     <h4>Deux données à trancher <span class="tag t-red">fausse tout si non réglé</span></h4>
     <p><b>Le départ de FERRIERO.</b> Si le départ est réel et la colonne de fin vide, l'algorithme lui donne une cible pleine de 34,6 gardes au lieu d'environ 5,4 — et les cibles des 21 autres sont fausses d'environ 1,5 garde chacune.</p>

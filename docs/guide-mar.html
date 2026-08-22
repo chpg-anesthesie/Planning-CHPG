@@ -231,7 +231,7 @@
   <div class="eyebrow">Planning-CHPG</div>
   <h1><span class="flag"><i class="r"></i><i class="w"></i></span>Guide du MAR</h1>
   <p class="subtitle">Votre planning, vos congés, vos indisponibilités — tout ce qu'il faut savoir, et rien d'autre.</p>
-  <p class="maj">Mis à jour le 17 août 2026 · <span id="verBadge" data-version>—</span></p>
+  <p class="maj">Mis à jour le 22 août 2026 · <span id="verBadge" data-version>—</span></p>
 
   <div class="hero">
     <h2>En 2 minutes</h2>
@@ -241,6 +241,7 @@
       <li><span class="cle">Le planning change quand le comité publie.</span> Vous recevez alors un mail. <b>Ce n'est pas du direct</b> : pour un changement urgent, on vous appellera.</li>
       <li><span class="cle">Sur téléphone, un doute ?</span> Tirez la page vers le bas, comme pour rafraîchir un fil d'actualité.</li>
       <li><span class="cle">Une garde qui tombe mal ?</span> Donnez-la ou échangez-la avec un collègue depuis « Mes échanges » — s'il accepte, le planning se met à jour tout seul (section 10).</li>
+      <li><span class="cle">À temps partiel ?</span> Vos jours se choisissent une fois les gardes publiées, sur un calendrier en couleurs (section 11).</li>
     </ol>
     <p style="margin-top:14px">Le reste de ce guide répond à des questions précises. <b>Vous n'avez pas besoin de le lire en entier</b> (même si c'est conseillé).</p>
   </div>
@@ -258,6 +259,7 @@
       <li><a href="#s8"><span class="n">08</span>Vos données et leur confidentialité</a></li>
       <li><a href="#s9"><span class="n">09</span>Un problème ?</a></li>
       <li><a href="#s10"><span class="n">10</span>Donner ou échanger une garde</a></li>
+      <li id="tocTp"><a href="#s11"><span class="n">11</span>Vos jours de temps partiel</a></li>
     </ol>
   </div>
 
@@ -557,8 +559,97 @@
 
   <div class="foot">Planning-CHPG · Guide du MAR · version <span data-version>—</span></div>
 
+  <section id="s11">
+    <h2><span class="n">11</span>Vos jours de temps partiel</h2>
+    <p id="tpIntro">Cette partie concerne les MARs à temps partiel (quotité en dessous de 100 %),
+      hors jours fixes convenus. Si c'est votre cas, la carte violette
+      <b>« Mes jours de temps partiel »</b> apparaît sur votre portail une fois le planning de
+      l'année suivante publié.</p>
+
+    <h3>Le principe</h3>
+    <p>Vos jours de temps partiel se choisissent <b>après</b> la publication des gardes, dans ce qui
+      reste. C'est ce qui garantit qu'un repos de garde ne tombera plus jamais sur un jour où vous ne
+      travaillez pas — le jour est déjà pris quand vous choisissez. Vous les posez au fil de l'année,
+      il n'y a pas de date limite, et vous pouvez retirer un jour posé tant qu'il n'est pas passé.</p>
+
+    <h3>Lire le calendrier</h3>
+    <table>
+      <tr><th>Couleur</th><th>Ce que ça veut dire</th></tr>
+      <tr><td><b style="color:#166534">Vert</b></td><td>Jour libre, l'équipe est assez nombreuse. Un appui suffit.</td></tr>
+      <tr><td><b style="color:#6D28D9">Violet</b></td><td>Vous avez posé un jour ici.</td></tr>
+      <tr><td><b style="color:#92400E">Jaune</b></td><td>L'équipe serait un peu juste. Vous pouvez le poser quand même : il passe <b>« sous réserve »</b> et le comité tranche.</td></tr>
+      <tr><td><b>Noir</b></td><td>L'équipe serait trop réduite, ou le comité a fermé ce jour. Il n'est ouvert à personne.</td></tr>
+      <tr><td><b style="color:#7A8699">Gris</b></td><td>Impossible pour vous : garde, garde de 18h, repos de garde, récupération, congés, week-end ou férié — la petite étiquette dit pourquoi.</td></tr>
+    </table>
+    <p>Le petit chiffre en bas de chaque case est le nombre de personnes présentes ce jour-là.
+      Le compteur en haut suit vos jours posés et ce qu'il vous reste.</p>
+
+    <h3>Les jours « sous réserve »</h3>
+    <p>Un jour jaune posé devient orange : il est enregistré mais <b>ne compte pas</b> tant que le
+      comité ne l'a pas validé. <b>Aucun message ne part automatiquement</b> : le récapitulatif qui
+      s'affiche à l'enregistrement vous donne la liste — c'est à vous d'aller en parler au comité.
+      Sa réponse apparaîtra sur votre calendrier : le jour devient violet s'il est validé, noir s'il
+      est fermé.</p>
+
+    <details class="pourquoi">
+      <summary>Pourquoi certains jours sont jaunes ou noirs</summary>
+      <p>Chaque jour, il faut assez de MARs présents pour tenir les blocs, les salles et la garde.
+        L'écran calcule ce qu'il resterait de présents <b>si vous posiez votre jour</b> : au-dessus
+        du seuil, le jour est vert ; un peu juste, il est jaune et le comité décide ; trop juste, il
+        est noir et personne ne peut le demander. Si deux collègues visent le même jour, le premier
+        validé peut faire passer le jour de l'autre en dessous — c'est pour ça que la réponse
+        appartient au comité, qui voit les chiffres du moment.</p>
+    </details>
+  </section>
+
 </div>
 
+<script src="../partage/session.js"></script>
+<script>
+/* (22/08/2026) La section 11 s'adapte au lecteur : si un code d'accès est en
+   mémoire sur cet appareil, on demande à la copie rapide du portail le profil
+   de temps partiel. À temps plein → la section se replie sur une ligne. À
+   temps partiel → l'introduction se personnalise (quota annuel). Sans code ou
+   sans réponse, la section reste telle qu'écrite : elle ne dépend de rien. */
+(function () {
+  var code = '';
+  try { code = (window.CHPGSession && CHPGSession.lire()) || sessionStorage.getItem('chpgViewCode') || ''; } catch (e) {}
+  if (!code) return;
+  var Y = new Date().getFullYear();
+  var ctrl = new AbortController();
+  setTimeout(function () { ctrl.abort(); }, 6000);
+  fetch('https://chpg-miroir.arthurfrohlich.workers.dev/read', {
+    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ code: code, keys: ['pose_tp_' + Y, 'pose_tp_' + (Y + 1)] }),
+    signal: ctrl.signal,
+  }).then(function (r) { return r.json(); }).then(function (m) {
+    if (!m || !m.success || !m.identite) return;
+    var a = m.data && m.data['pose_tp_' + (Y + 1)], b = m.data && m.data['pose_tp_' + Y];
+    var cle = (a && a.success && !a.ferme) ? a : (b && b.success && !b.ferme) ? b : null;
+    var moi = cle && cle.parMar && cle.parMar[m.identite.id];
+    var sec = document.getElementById('s11'), toc = document.getElementById('tocTp'),
+        intro = document.getElementById('tpIntro');
+    if (!sec || !intro) return;
+    if (cle && !moi) return;                       // clé filtrée sans ma ligne : ne rien conclure
+    if (moi && !moi.tpFixe && Number(moi.quota) > 0) {
+      intro.innerHTML = 'Vous êtes à temps partiel : vous disposez de <b>' + moi.quota
+        + ' jours par an</b>. La carte violette <b>« Mes jours de temps partiel »</b> est sur votre'
+        + ' portail — voici comment elle marche.';
+    } else if (moi) {
+      // Temps plein, ou jours fixes convenus : la section ne concerne pas ce lecteur.
+      var titre = sec.querySelector('h2');
+      sec.innerHTML = '';
+      if (titre) sec.appendChild(titre);
+      var p = document.createElement('p');
+      p.innerHTML = 'Cette partie ne vous concerne pas : votre temps de travail ne comporte pas de'
+        + ' jours de temps partiel à poser. <span style="color:#7A8699">(Elle reste lisible par les'
+        + ' collègues concernés.)</span>';
+      sec.appendChild(p);
+      if (toc) toc.style.opacity = '.45';
+    }
+  }).catch(function () {});
+})();
+</script>
 <script>
 /* Ordre des groupes — même règle que l'écran d'arbitrage du staff : un ordre de
    référence par période, qui recule d'un cran chaque année (le dernier repasse

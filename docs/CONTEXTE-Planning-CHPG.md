@@ -11,6 +11,50 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 22 août 2026 (soir) — la pose des temps partiels est construite (v1.65 → v1.67), déploiement en attente
+
+**Quatre commits dans la journée** (`510cf80`, `b02c649`, `8388d72`, `c8cbe2d`) : la totalité du
+chantier décidé l'après-midi (voir l'entrée précédente) est au dépôt, écran comité compris. Banc :
+**1 705 vérifications, 0 échec**. **RIEN N'EST DÉPLOYÉ** — ordre non négociable au retour PC :
+**Worker Cloudflare d'abord, puis `Indispos.gs` (2026-08-22.3) et `miroir.gs` (2026-08-22.2) avec
+une NOUVELLE version de déploiement, puis `miroirSyncComplet`**. D'ici là : tuile invisible, écran
+« fermé », rien ne casse. Essai prévu avec le code de WIDEHEM (RW, 90 %, quota 26) ; WS (SULTAN)
+est à temps plein — bon témoin du cas « pas de tuile, `?tp=1` répond "ne concerne pas votre
+profil" ».
+
+**Ce qui tourne une fois déployé** : phase déduite (`GARDES_{Y}` ET `LIENS_R_{Y}`) ; tuile violette
+pour les 8 éligibles ; écran de pose aux trois bandes (seuils : resterait ≥ 15 vert · 13-14 jaune
+« sous réserve », ne consomme pas le quota · ≤ 12 noir), nourri par la clé **`pose_tp_{Y}`** de la
+copie rapide (effectifs anonymes pour tous + `parMar` filtré à l'identité par le relais — **6,8 Ko
+par MAR, 31 ms de construction**, mesuré sur les données réelles) ; repli GAS `getPoseTp` ; bloc
+comité dans l'onglet Équipe d'admin (effectif recalculé À L'INSTANT), action `deciderJourTp` à
+quatre gestes annulables et journalisés.
+
+**Décisions de la séance (Arthur)** :
+- **La garde de 18h bloque la pose** — « 18h implique d'être au travail, TP est un congé. »
+- **INDISPO et SOUHAIT ne bloquent plus** — vestiges sans objet après génération ; un TP/TPA
+  accepté écrit par-dessus, un refus les laisse intacts.
+- **Le refus du comité ferme le jour pour TOUTE l'équipe** — onglet **`TP_FERMES`**
+  (ANNEE | DATE | PAR | QUAND), créé au premier refus ; les demandes en attente ce jour-là sont
+  rendues, le tout annulable (rouvre + rétablit).
+- Un TP validé est **acquis** : jamais re-jugé, même périmé par un échange de garde ultérieur
+  (l'avertissement à l'échange reste à faire — seul point restant du chantier).
+- L'outil « Temps partiel » a **quitté l'écran campagne** ; le verrou de campagne du serveur rend
+  son message visible dans la page.
+
+**Pièges à retenir** :
+- **Le cousin miroir du piège d'année** : la famille `indispos` ne poussait que l'année de
+  campagne ; elle pousse désormais AUSSI l'année de phase, sinon l'écran de pose restait figé
+  après chaque enregistrement.
+- **`TP_FERMES` n'est rattaché à aucune année** (colonne ANNEE) : la purge du bac à sable du
+  4 septembre au soir doit AUSSI supprimer ses lignes 2027 — **ajouté au ménage (dix gestes
+  désormais), `roadmap.html` à jour**.
+- La clé `pose_tp_{Y}` hors phase vaut `{ferme:true}` à empreinte stable : auto-nettoyage à la
+  régénération, une seule écriture KV.
+- `guide-mar.html` section 11 **s'adapte au lecteur** (code en mémoire → copie rapide → replié à
+  temps plein, quota personnalisé à temps partiel, générique sans code) ; `guide-comite.html`
+  documente la validation dans l'onglet Équipe.
+
 ## État au 22 août 2026 (après-midi) — les jours de temps partiel changent de moment
 
 **Aucun code produit, aucun push.** Session d'analyse et de conception. Deux maquettes validées.

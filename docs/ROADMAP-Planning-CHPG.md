@@ -1073,6 +1073,75 @@ bénéfice d'une garde qu'il ne fera pas).
 
 ---
 
+## 22 août 2026 (soir) — v1.65 → v1.67 : la pose des temps partiels est CONSTRUITE (lots 1 à 4)
+
+**Quatre commits dans la journée** (`510cf80`, `b02c649`, `8388d72`, `c8cbe2d`) — la totalité du
+chantier décidé l'après-midi même (entrée ci-dessous), écrans comité compris. **Banc : 1 705
+vérifications, 0 échec** (dont 62 neuves, scénario `banc_pose_tp.js`, contre-épreuves faites).
+**RIEN N'EST DÉPLOYÉ** : le dépôt porte tout, Arthur recopie à son retour PC, dans l'ordre
+non négociable **Worker d'abord, puis `Indispos.gs` (2026-08-22.3) + `miroir.gs` (2026-08-22.2)
++ nouvelle version de déploiement, puis `miroirSyncComplet`**. D'ici là : tuile invisible,
+écran `?tp=1` « fermé », rien ne casse.
+
+### Ce qui existe désormais
+
+- **Lot 1 — le socle serveur.** La phase de pose se DÉDUIT (`GARDES_{Y}` **et** `LIENS_R_{Y}`
+  présents), jamais d'un drapeau à poser. Deux circuits d'écriture étanches dans `saveIndispos` :
+  campagne (verrou serveur : hors campagne, un MAR est refusé avec un message clair) et TP
+  (`{tp:true}`, routé vers l'année de PHASE — le repli `getIndisposYear() → année active` aurait
+  envoyé les TP dans la mauvaise année, attrapé par le banc avant tout push). `_poserTp_` : passe 1
+  l'acquis (un TP validé n'est JAMAIS re-jugé ; le comité peut annuler sa propre validation, un MAR
+  ne peut pas s'auto-valider), passe 2 les nouveautés en ordre chronologique, aux seuils
+  15 (validé) / 13-14 (TPA « sous réserve », ne consomme pas le quota) / ≤ 12 (refus chiffré).
+- **Lot 2 — la tuile** (`v1.65`). « Mes jours de temps partiel », violette, visible si
+  phase active ET quotité < 100 ET pas de jours fixes — critères SERVEUR renvoyés à la connexion,
+  repli vieux-serveur → invisible. Icône `calendar-clock` ajoutée au paquet local (une icône
+  absente du paquet fait un carré vide, sans erreur).
+- **Lot 3 — l'écran de pose** (`?tp=1` sur `indispos.html`, `v1.66`), conforme à la maquette.
+  Nourri par la clé **`pose_tp_{Y}`** de la copie rapide : effectifs par jour ouvré (des NOMBRES,
+  anonymes, servis à tous), fériés, et `parMar` filtré à l'identité par le relais (blocages
+  personnels avec le code exact — G/G2/RG/R/18/VAC… — plus le quota). **Mesuré sur les données
+  réelles 2027 : 6,8 Ko servis à un MAR, construction 31 ms.** Repli GAS : action `getPoseTp`.
+  L'écran PROPOSE, le serveur TRANCHE : chaque jour nouveau est re-jugé à l'enregistrement, le
+  récapitulatif rapporte aussi les refus motivés (copie rapide en retard → « l'état réel a été
+  revérifié »). Le bouton « Temps partiel » a QUITTÉ l'écran campagne.
+- **Lot 4 — l'écran comité** (`admin.html`, onglet Équipe, `v1.67`). Alerte dépliable, effectif
+  **recalculé à l'instant** (valider une demande fait baisser sous vos yeux le chiffre de la
+  suivante sur le même jour). Action `deciderJourTp`, réservée au comité, quatre gestes journalisés
+  et annulables : valider (TPA→TP), annuler la validation, **refuser — le jour se FERME pour toute
+  l'équipe** (nouvel onglet `TP_FERMES` : ANNEE | DATE | PAR | QUAND, créé au premier refus) **et
+  les demandes en attente ce jour-là sont rendues**, annuler le refus (rouvre + rétablit).
+
+### Les arbitrages d'Arthur, dans la séance
+
+1. **La garde de 18h BLOQUE la pose** : « 18h implique d'être au travail, TP est un congé. »
+2. **INDISPO et SOUHAIT ne bloquent PLUS** : « plus de sens une fois les gardes générées. » Un
+   TP/TPA accepté écrit par-dessus le vestige ; un refus le laisse intact. (La clé s'est allégée
+   au passage : 905 vestiges de campagne ne voyagent plus.)
+3. **Le refus ferme le jour pour tous** (pressenti l'après-midi, confirmé) — stockage `TP_FERMES`.
+4. Un jour validé puis périmé par un échange de garde : **acquis, on ne revient pas dessus**.
+
+### Pièges rencontrés (et testés)
+
+- **Le cousin miroir du piège d'année** : la famille `indispos` du miroir poussait
+  `indispos_{année de campagne}` — après une pose de TP hors campagne, l'écran serait resté figé.
+  Elle pousse désormais AUSSI l'année de phase.
+- **`TP_FERMES` n'est PAS suffixé par année** (colonne ANNEE) : la purge du bac à sable du
+  4 septembre au soir doit AUSSI supprimer ses lignes 2027 si des refus ont été essayés —
+  ajouté à la liste de ménage.
+- La clé `pose_tp_{Y}` hors phase vaut `{ferme:true}` à empreinte stable : elle s'auto-nettoie à
+  la régénération, une écriture KV une seule fois.
+
+### Guides et documents
+
+`guide-mar.html` : section 11 « Vos jours de temps partiel », **qui s'adapte au lecteur** — un code
+en mémoire sur l'appareil interroge la copie rapide : temps plein → la section se replie sur une
+ligne ; temps partiel → l'introduction se personnalise avec le quota annuel ; sans code, la section
+générique reste telle quelle. `guide-comite.html` : le bloc de validation dans l'onglet Équipe.
+`roadmap.html` synchronisé (état vérifié, ménage à dix gestes, carte « avant novembre »).
+
+---
+
 ## 22 août 2026 (après-midi) — les jours de temps partiel changeront de moment
 
 **Session d'analyse et de conception. Aucun code poussé, aucun fichier du dépôt modifié.**
@@ -1216,6 +1285,9 @@ mécanisme accepte déjà plusieurs clés. *(Lecture du code ; poids non mesuré
 4. **L'écran MAR**, puis **l'écran comité**, conformes aux maquettes.
 5. **L'avertissement sur les échanges de gardes à distance** (non bloquant).
 
+→ **Les points 1 à 4 sont RÉALISÉS le soir même** (lots 1 à 4, v1.65 → v1.67 — entrée du
+22 août au soir, ci-dessus). Seul le point 5 reste ouvert.
+
 ### Points ouverts
 
 - **Un jour validé peut se périmer** (échange de garde ultérieur). Position retenue : **c'est
@@ -1223,6 +1295,7 @@ mécanisme accepte déjà plusieurs clés. *(Lecture du code ; poids non mesuré
   Non tranché formellement.
 - **Une demande refusée disparaît** et ce MAR-là ne peut pas redemander ce jour ; il reste jaune
   pour les autres. *(Arthur penchait pour fermer le jour à tout le monde — à confirmer.)*
+  → **Tranché le soir même : le refus ferme le jour pour toute l'équipe** (onglet `TP_FERMES`).
 - **Les 82 jours sous le minimum en 2026** méritent un examen à part, indépendamment de ce chantier.
 
 ### Trouvaille annexe, sans rapport avec le TP
