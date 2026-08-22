@@ -442,8 +442,8 @@ console.log('\n═══ PT19 · le miroir pousse la clé, et indispos suit l\'a
     /uniq\['gardes'\] \|\| uniq\['indispos'\][\s\S]{0,900}pose_tp_/.test(M));
   V('…pour l\'année active ET la suivante (auto-nettoyage compris)',
     /\[annee, annee \+ 1\]\.forEach[\s\S]{0,200}pose_tp_/.test(M));
-  V('la famille indispos pousse AUSSI l\'année de la phase TP',
-    /uniq\['indispos'\][\s\S]{0,1200}_phaseTp_\(\)[\s\S]{0,400}indispos_' \+ phI\.annee/.test(M));
+  V('la famille indispos pousse AUSSI toutes les années de la phase TP',
+    /uniq\['indispos'\][\s\S]{0,1200}_phaseTp_\(\)[\s\S]{0,500}indispos_' \+ yPh/.test(M));
   V('saveIndispos déclenche bien la famille indispos (mappage existant intact)',
     /saveIndispos:\s*\['indispos', 'acces'\]/.test(M));
 }
@@ -451,7 +451,7 @@ console.log('\n═══ PT19 · le miroir pousse la clé, et indispos suit l\'a
 console.log('\n═══ PT20 · l\'écran : mêmes seuils que le serveur, extraits de la vraie page ═══');
 {
   const bacE = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Math, Set });
-  ['tpxBadge', 'tpxEtat', 'tpxCompte'].forEach(n => vm.runInContext(extraireFonction('../indispos.html', n), bacE));
+  ['tpxBadge', 'tpxAujourdhui', 'tpxEtat', 'tpxCompte'].forEach(n => vm.runInContext(extraireFonction('../indispos.html', n), bacE));
   const regle = (TPX) => { bacE.TPX = TPX; return bacE; };
   const T = { annee: 2027, presents: { '2027-03-01': 16, '2027-03-02': 15, '2027-03-03': 13, '2027-03-17': 18 },
     feries: new Set(['2027-03-24']), fermes: new Set(['2027-03-17']),
@@ -477,8 +477,8 @@ console.log('\n═══ PT20 · l\'écran : mêmes seuils que le serveur, extra
   V('le compteur : 0 posé (TP retiré), 2 sous réserve (TPA + pose locale jaune), 2 en attente',
     c.poses === 0 && c.reserves === 2 && c.attente === 2, c);
   const page = fs.readFileSync('../indispos.html', 'utf8');
-  V('l\'enregistrement envoie bien le drapeau du circuit TP ({ tp: true })',
-    /saveIndispos', \{ tp: true, indispos: map \}/.test(page));
+  V('l\'enregistrement envoie bien le drapeau du circuit TP ({ tp: true, year })',
+    /saveIndispos', \{ tp: true, year: TPX\.annee, indispos: map \}/.test(page));
   V('le bouton « Temps partiel » a quitté l\'écran campagne', !/btnCTP/.test(page.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '')));
 }
 
@@ -551,6 +551,78 @@ console.log('\n═══ PT23 · le bloc comité d\'admin : effectif de l\'INSTA
   V('valider/refuser/annuler parlent tous au serveur (deciderJourTp ×4)',
     (adm.match(/deciderJourTp/g) || []).length >= 5);
   V('le refus est annulable avec la liste des demandes rendues', /annuler_refus[\s\S]{0,80}retablir/.test(adm));
+}
+
+
+console.log('\n═══ PT24 · lot 5 serveur : phase à DEUX années, jours passés figés ═══');
+{
+  // Phase multi-années : GARDES_2027+LIENS_R_2027 ET GARDES_2028+LIENS_R_2028, active 2027
+  const b2a = monde({});
+  b2a.cl.ajouter('GARDES_2028', b2a.cl.getSheetByName('GARDES_2027').getDataRange().getValues().map(r => r.slice()));
+  b2a.cl.ajouter('LIENS_R_2028', [['A']]);
+  b2a.cl.getSheetByName('CONFIG').getDataRange().getValues();   // témoin : lecture ok
+  const cfg = b2a.cl.getSheetByName('CONFIG');
+  const d = cfg.getDataRange().getValues();
+  for (let r = 0; r < d.length; r++) if (String(d[r][0]) === 'ANNEE_ACTIVE') cfg.lignes[r][1] = 2027;
+  const ph2 = vm.runInContext('_phaseTp_()', b2a.ctx);
+  V('deux années générées → phase ouverte sur LES DEUX, la plus récente en tête',
+    ph2.actif === true && JSON.stringify(ph2.annees) === '[2027,2028]' && ph2.annee === 2028, ph2);
+  const repMauvaise = b2a.appel({ tp: true, year: 2026, indispos: { '2026-03-01': 'TP' } }, MAR);
+  V('demander une année NON ouverte → refus chiffré, jamais de repli',
+    repMauvaise.success === false && /2026/.test(repMauvaise.error || ''), repMauvaise.error);
+  const rep27 = b2a.appel({ tp: true, year: 2027, indispos: { '2027-03-01': 'TP' } }, MAR);
+  V('demander explicitement 2027 alors que 2028 existe → la pose va dans 2027',
+    rep27.success === true && rep27.annee === 2027 && b2a.lireInd('POSEUR', 2027)['2027-03-01'] === 'TP', rep27);
+
+  // Jours passés figés : « aujourd'hui » forcé au 15/06/2027 dans ce monde
+  const b = monde({ indispos: [['POSEUR', '2027-03-09', 'TP'], ['POSEUR', '2027-03-10', 'TPA'], ['POSEUR', '2027-09-06', 'TP']] });
+  b.ctx.Utilities = { formatDate: () => '2027-06-15' };
+  const repVide = b.appel({ tp: true, indispos: {} }, MAR);
+  V('envoi SANS les jours passés → le TP et la TPA révolus sont CONSERVÉS (figés)',
+    b.lireInd('POSEUR', 2027)['2027-03-09'] === 'TP' && b.lireInd('POSEUR', 2027)['2027-03-10'] === 'TPA',
+    [b.lireInd('POSEUR', 2027)['2027-03-09'], b.lireInd('POSEUR', 2027)['2027-03-10']]);
+  V('…et le TP passé reste COMPTÉ dans le quota', repVide.quota.valides >= 1, repVide.quota);
+  V('…le TP futur absent de l\'envoi, lui, est bien retiré (règle inchangée)',
+    !b.lireInd('POSEUR', 2027)['2027-09-06'], b.lireInd('POSEUR', 2027)['2027-09-06']);
+  const repRetro = b.appel({ tp: true, indispos: { '2027-03-09': 'TP', '2027-03-10': 'TPA', '2027-02-01': 'TP' } }, MAR);
+  V('poser rétroactivement sur un jour révolu → « jour passé »',
+    repRetro.resultat['2027-02-01'] === 'jour passé', repRetro.resultat['2027-02-01']);
+  V('les jours passés renvoyés tels quels sont figés, pas re-jugés',
+    repRetro.resultat['2027-03-09'] === 'TP' && repRetro.resultat['2027-03-10'] === 'TPA', repRetro.resultat);
+  const bAdm = monde({ indispos: [['ZORRO', '2027-03-09', 'TP']] });
+  bAdm.ctx.Utilities = { formatDate: () => '2027-06-15' };
+  bAdm.appel({ tp: true, doctorId: 'ZORRO', indispos: {} }, ADMIN);
+  V('le comité, lui, PEUT corriger l\'historique (TP passé retiré)',
+    !bAdm.lireInd('ZORRO', 2027)['2027-03-09'], bAdm.lireInd('ZORRO', 2027)['2027-03-09']);
+}
+
+console.log('\n═══ PT25 · lot 5 écran : le passé figé, le compteur, l\'année au départ ═══');
+{
+  const bacE = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Math, Set });
+  ['tpxBadge', 'tpxAujourdhui', 'tpxEtat', 'tpxCompte'].forEach(n => vm.runInContext(extraireFonction('../indispos.html', n), bacE));
+  bacE.TPX = { annee: 2025, presents: { '2025-03-03': 16 }, feries: new Set(), fermes: new Set(),
+    jours: { '2025-03-04': 'TP', '2025-03-05': 'TPA', '2025-03-06': 'G' }, quota: 26, pend: {}, retire: new Set() };
+  const et = (d) => vm.runInContext(`tpxEtat('${d}')`, bacE);
+  V('un TP révolu s\'affiche violet mais FIGÉ', et('2025-03-04').s === 'pose' && et('2025-03-04').passe === true, et('2025-03-04'));
+  V('une garde révolue garde son badge, figée', et('2025-03-06').s === 'bloque' && et('2025-03-06').passe === true);
+  V('un jour révolu resté vide est gris « PASSÉ »', et('2025-03-03').badge && et('2025-03-03').badge.b === 'PASSÉ', et('2025-03-03'));
+  const c = vm.runInContext('tpxCompte()', bacE);
+  V('le compteur : le TP passé compte POSÉ, la TPA expirée ne compte plus « sous réserve »',
+    c.poses === 1 && c.reserves === 0, c);
+  const page = fs.readFileSync('../indispos.html', 'utf8');
+  V('l\'enregistrement porte l\'année affichée ({ tp, year })',
+    /saveIndispos', \{ tp: true, year: TPX\.annee, indispos: map \}/.test(page));
+  V('un jour passé ne réagit plus au toucher', /e\.passe[\s\S]{0,80}Ce jour est passé/.test(page));
+  V('le sélecteur d\'années existe et reste caché à une seule année ouverte',
+    /tpxAnnees/.test(page) && /tpxChangerAnnee/.test(page) && /ans\.length < 2/.test(page));
+}
+
+console.log('\n═══ PT26 · lot 5 comité : fusion des années ouvertes, demandes expirées écartées ═══');
+{
+  const adm = fs.readFileSync('../admin.html', 'utf8');
+  V('le bloc comité fusionne TOUTES les clés ouvertes', /cles\.forEach[\s\S]{0,300}Object\.assign\(TPC\.presents/.test(adm));
+  V('une TPA expirée n\'est pas listée (jour ≥ aujourd\'hui)', /'TPA' && ds >= auj/.test(adm));
+  V('le repli serveur va chercher les autres années ouvertes', /r\.annees[\s\S]{0,200}getPoseTp', \{ year: yA \}/.test(adm));
 }
 
 console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp : ${ok} vérifications, ${ko} échec(s)`);

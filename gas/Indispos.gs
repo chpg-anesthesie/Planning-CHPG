@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-22.3';
+const GAS_VERSION_INDISPOS = '2026-08-22.4';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -62,16 +62,21 @@ function _indisposOuverte_() {
    On regarde active+1 PUIS active : en régime de croisière (année en cours
    générée, suivante pas encore), la pose continue sur l'année en cours. */
 function _phaseTp_() {
+  /* (LOT 5 · 22/08/2026) La phase est MULTI-ANNÉES — arbitrage Arthur : « il
+     faut pouvoir poser encore dans l'année en cours même si N+1 est ouvert ».
+     Fin 2027, GARDES_2027 et GARDES_2028 coexistent : les DEUX années sont
+     ouvertes à la pose. `annees` les porte toutes (croissant) ; `annee` reste
+     la plus récente, pour les appelants qui n'en veulent qu'une. */
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const a = getActiveYear();
-    for (let y = a + 1; y >= a; y--) {
-      if (ss.getSheetByName(`GARDES_${y}`) && ss.getSheetByName(`LIENS_R_${y}`)) {
-        return { actif: true, annee: y };
-      }
+    const annees = [];
+    for (let y = a; y <= a + 1; y++) {
+      if (ss.getSheetByName(`GARDES_${y}`) && ss.getSheetByName(`LIENS_R_${y}`)) annees.push(y);
     }
+    if (annees.length) return { actif: true, annee: annees[annees.length - 1], annees: annees };
   } catch (e) {}
-  return { actif: false, annee: null };
+  return { actif: false, annee: null, annees: [] };
 }
 
 // (C3) MEDECINS_LIST supprimé — l'effectif vient de l'onglet MEDECINS.
@@ -1089,17 +1094,37 @@ function _poserTp_(user, targetId, envoye, annee) {
   });
   const jf = new Set(getJoursFeries(annee));
   const FERMES = _tpFermes_(annee);   // (LOT 4) jours fermés par le comité : refusés pour TOUS
+  /* (LOT 5) LES JOURS PASSÉS SONT FIGÉS — arbitrage Arthur : « les jours
+     antérieurs doivent être considérés comme posés ». La feuille des
+     indisponibilités est aussi l'HISTORIQUE des absences : un TP révolu se
+     conserve même absent de l'envoi (impossible à retirer), une demande
+     rétroactive est refusée. Le comité, lui, garde la main sur tout. */
+  const aujourdHui = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   const demandes = Object.keys(envoye || {}).filter(ds => {
     const v = String(envoye[ds] || '').trim().toUpperCase();
     return v === 'TP' || v === 'TPA';
   }).sort();
   const resultat = {}, final = {};
   let nbTP = 0;
+  if (!estAdmin) {
+    Object.keys(existant).forEach(ds => {
+      const v = String(existant[ds]).trim().toUpperCase();
+      if ((v === 'TP' || v === 'TPA') && ds < aujourdHui && !(ds in (envoye || {}))) {
+        final[ds] = v;                     // figé : l'envoi ne peut pas le retirer
+        if (v === 'TP') nbTP++;
+      }
+    });
+  }
   // Passe 1 — l'ACQUIS d'abord : les jours déjà posés et conservés par l'envoi
   // consomment le quota avant toute nouveauté (sinon un jour neuf de janvier
   // pourrait faire déborder un TP validé de mars).
   demandes.forEach(ds => {
     const avant = String(existant[ds] || '').trim().toUpperCase();
+    if (!estAdmin && (avant === 'TP' || avant === 'TPA') && ds < aujourdHui) {
+      final[ds] = avant; resultat[ds] = avant;   // (LOT 5) passé = figé, même l'annulation d'une TPA attend le comité
+      if (avant === 'TP') nbTP++;
+      return;
+    }
     if (avant === 'TP') {
       const veut = String(envoye[ds]).trim().toUpperCase();
       // « Acquis » protège le MAR d'un re-jugement — pas le comité de lui-même :
@@ -1124,7 +1149,7 @@ function _poserTp_(user, targetId, envoye, annee) {
       return;
     }
     if (!M.datesValides.has(ds)) { resultat[ds] = 'hors année'; return; }
-    
+    if (ds < aujourdHui) { resultat[ds] = 'jour passé'; return; }
     if (FERMES.has(ds)) { resultat[ds] = 'jour fermé par le comité'; return; }
     const codeLa = horsFamille[ds] ? String(horsFamille[ds]).trim().toUpperCase() : '';
     if (codeLa && !VESTIGES[codeLa]) { resultat[ds] = 'jour déjà ' + horsFamille[ds]; return; }
@@ -1212,7 +1237,7 @@ function _tpRouvrirJour_(annee, ds) {
    Servie par le relais (miroir.gs) ET par l'action getPoseTp (repli GAS). */
 function _construirePoseTp_(annee) {
   const ph = _phaseTp_();
-  if (!ph.actif || ph.annee !== annee) return { success: true, ferme: true, year: annee };
+  if (!ph.actif || ph.annees.indexOf(Number(annee)) === -1) return { success: true, ferme: true, year: annee };
   const M = _tpMondePresence_(annee);
   const jf = getJoursFeries(annee);
   const jfSet = new Set(jf);
@@ -2685,8 +2710,14 @@ function _routeRequete_(e) {
         return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Aucune phase de pose active' }))
           .setMimeType(ContentService.MimeType.JSON);
       }
-      const anneeD = phD.annee;
       const ds = String(payload.date || '').trim();
+      /* (LOT 5) Deux années ouvertes possibles : l'année est CELLE DE LA DATE,
+         validée contre la phase — jamais un repli sur « la plus récente ». */
+      const anneeD = Number(ds.slice(0, 4));
+      if (phD.annees.indexOf(anneeD) === -1) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'L\'année ' + anneeD + ' n\'est pas ouverte à la pose' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
       const decision = String(payload.decision || '').trim();
       let out = { success: false, error: 'décision inconnue : ' + decision };
       if (decision === 'valider' || decision === 'annuler_validation') {
@@ -2748,7 +2779,9 @@ function _routeRequete_(e) {
         return ContentService.createTextOutput(JSON.stringify({ success: true, ferme: true }))
           .setMimeType(ContentService.MimeType.JSON);
       }
-      const t = _construirePoseTp_(ph.annee);
+      const anneeG = (ph.annees.indexOf(Number(payload.year)) !== -1) ? Number(payload.year) : ph.annee;
+      const t = _construirePoseTp_(anneeG);
+      t.annees = ph.annees;                      // (LOT 5) l'écran apprend ici quelles années sont ouvertes
       if (user.role !== 'admin') {
         const mien = {};
         if (t.parMar && t.parMar[user.id]) mien[user.id] = t.parMar[user.id];
@@ -2771,8 +2804,15 @@ function _routeRequete_(e) {
       if (payload.tp === true) {
         const ph = _phaseTp_();
         if (!ph.actif) return _error('La pose des jours de temps partiel n\'est pas ouverte : aucune année générée.');
+        /* (LOT 5) Deux années peuvent être ouvertes à la fois (fin 2027 :
+           le reliquat 2027 ET 2028). L'écran dit laquelle il montre ; toute
+           autre valeur est refusée — jamais de repli silencieux d'année. */
+        const anneeTp = Number(payload.year) || ph.annee;
+        if (ph.annees.indexOf(anneeTp) === -1) {
+          return _error('L\'année ' + anneeTp + ' n\'est pas ouverte à la pose (ouvertes : ' + ph.annees.join(', ') + ').');
+        }
         return ContentService.createTextOutput(JSON.stringify(
-          _poserTp_(user, targetId, payload.indispos, ph.annee)
+          _poserTp_(user, targetId, payload.indispos, anneeTp)
         )).setMimeType(ContentService.MimeType.JSON);
       }
       if (user.role !== 'admin' && !_indisposOuverte_()) {

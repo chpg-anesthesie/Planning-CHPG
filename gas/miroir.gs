@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-22.2';
+const GAS_VERSION_MIROIR = '2026-08-22.3';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -476,9 +476,11 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
        enregistrement — le cousin miroir du piege d'annee du 22/08. */
     try {
       const phI = _phaseTp_();
-      if (phI.actif && phI.annee !== iy) {
-        _miroirAjoute_(items, 'indispos_' + phI.annee, function () { return _miroirConstruireIndispos_(phI.annee); });
-      }
+      (phI.annees || []).forEach(function (yPh) {
+        if (phI.actif && yPh !== iy) {
+          _miroirAjoute_(items, 'indispos_' + yPh, function () { return _miroirConstruireIndispos_(yPh); });
+        }
+      });
     } catch (ePh) { /* phase indisponible : la cle de campagne suffit */ }
   }
 

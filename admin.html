@@ -9458,29 +9458,49 @@ async function tpcCharger() {
   try {
     const Y = new Date().getFullYear();
     let cle = null;
+    /* (LOT 5) Deux années peuvent être ouvertes (fin d'année : reliquat + N+1) :
+       le comité voit TOUTES les demandes, fusionnées, l'année lisible dans la
+       date. Une TPA expirée (jour révolu sans décision) n'attend plus rien :
+       elle n'est pas listée. */
     const m = await miroirRead(['pose_tp_' + Y, 'pose_tp_' + (Y + 1)], ADMIN_CODE);
+    const cles = [];
     if (m && m.success && m.data) {
-      const a = m.data['pose_tp_' + (Y + 1)], b = m.data['pose_tp_' + Y];
-      cle = (a && a.success && !a.ferme) ? a : (b && b.success && !b.ferme) ? b : null;
+      [Y, Y + 1].forEach(function (yK) {
+        const k = m.data['pose_tp_' + yK];
+        if (k && k.success && !k.ferme) cles.push(k);
+      });
     }
-    if (!cle) {
+    if (!cles.length) {
       const r = await apiCall('getPoseTp');
-      if (r && r.success && !r.ferme) cle = r;
+      if (r && r.success && !r.ferme) {
+        cles.push(r);
+        for (const yA of (r.annees || [])) {
+          if (yA !== Number(r.year)) {
+            const r2 = await apiCall('getPoseTp', { year: yA });
+            if (r2 && r2.success && !r2.ferme) cles.push(r2);
+          }
+        }
+      }
     }
-    if (!cle) { bloc.style.display = 'none'; TPC = null; return; }
+    if (!cles.length) { bloc.style.display = 'none'; TPC = null; return; }
+    const dAuj = new Date();
+    const auj = dAuj.getFullYear() + '-' + String(dAuj.getMonth() + 1).padStart(2, '0') + '-' + String(dAuj.getDate()).padStart(2, '0');
     TPC = {
-      annee: Number(cle.year),
-      presents: Object.assign({}, cle.presents || {}),
-      fermes: new Set(cle.fermes || []),
+      presents: {},                            // par date — les dates portent leur année
+      fermes: new Set(),
       demandes: [],
       rendusParRefus: {},                      // date → {ID:'TPA'} : de quoi annuler un refus
     };
-    Object.keys(cle.parMar || {}).sort().forEach(function (id) {
-      const jours = (cle.parMar[id] || {}).jours || {};
-      Object.keys(jours).forEach(function (ds) {
-        if (String(jours[ds]).toUpperCase() === 'TPA') {
-          TPC.demandes.push({ id: id, jour: ds, etat: null });
-        }
+    cles.forEach(function (cle) {
+      Object.assign(TPC.presents, cle.presents || {});
+      (cle.fermes || []).forEach(function (f) { TPC.fermes.add(f); });
+      Object.keys(cle.parMar || {}).sort().forEach(function (id) {
+        const jours = (cle.parMar[id] || {}).jours || {};
+        Object.keys(jours).forEach(function (ds) {
+          if (String(jours[ds]).toUpperCase() === 'TPA' && ds >= auj) {
+            TPC.demandes.push({ id: id, jour: ds, etat: null });
+          }
+        });
       });
     });
     TPC.demandes.sort(function (x, y) { return x.jour < y.jour ? -1 : x.jour > y.jour ? 1 : (x.id < y.id ? -1 : 1); });

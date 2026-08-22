@@ -562,6 +562,12 @@ body {
   <div class="tpx-phase">
     <div class="tpx-phase-title">🕐 Posez vos jours de temps partiel</div>
     <div class="tpx-phase-sub" id="tpxPhaseSub"></div>
+    <!-- (LOT 5) Deux années peuvent être ouvertes en fin d'année : le reliquat
+         de l'année en cours ET la suivante. Caché tant qu'il n'y en a qu'une. -->
+    <div id="tpxAnnees" style="display:none;gap:6px;margin-top:9px">
+      <button class="year-btn" id="tpxAn0" onclick="tpxChangerAnnee(0)"></button>
+      <button class="year-btn" id="tpxAn1" onclick="tpxChangerAnnee(1)"></button>
+    </div>
   </div>
   <div class="tpx-stats">
     <div class="tpx-stat" style="color:var(--tpx-fg)">🕐 <span id="tpxPose">0</span> posés</div>
@@ -1536,11 +1542,14 @@ async function tpxBoot(code) {
   const Y = new Date().getFullYear();
   let identite = null, cle = null;
   const m = await miroirRead(['pose_tp_' + Y, 'pose_tp_' + (Y + 1)], code);
+  let cles = [];                                 // (LOT 5) toutes les années ouvertes, croissant
   if (m && m.success && m.identite) {
     identite = m.identite;
-    const a = m.data && m.data['pose_tp_' + (Y + 1)];
-    const b = m.data && m.data['pose_tp_' + Y];
-    cle = (a && a.success && !a.ferme) ? a : (b && b.success && !b.ferme) ? b : null;
+    [Y, Y + 1].forEach(function (yK) {
+      const k = m.data && m.data['pose_tp_' + yK];
+      if (k && k.success && !k.ferme) cles.push(k);
+    });
+    cle = cles.length ? cles[cles.length - 1] : null;
   }
   if (!identite) {
     // Miroir muet : le GAS reste seul juge d'un code.
@@ -1556,11 +1565,49 @@ async function tpxBoot(code) {
   try { apiCall('login', { code }).catch(function () {}); } catch (e) {}   // journal de connexion
   if (!cle) {
     const r = await apiCall('getPoseTp');
-    if (r && r.success && !r.ferme) cle = r;
+    if (r && r.success && !r.ferme) {
+      cle = r; cles = [r];
+      /* Le repli connaît les autres années ouvertes : on va chercher l'autre. */
+      (r.annees || []).forEach(async function (yA) {
+        if (yA !== Number(r.year)) {
+          const r2 = await apiCall('getPoseTp', { year: yA });
+          if (r2 && r2.success && !r2.ferme) { TPX_CLES[yA] = r2; tpxMajAnnees(identite); }
+        }
+      });
+    }
   }
   if (!cle) { document.getElementById('tpxFerme').style.display = 'block'; return true; }
+  cles.forEach(function (k) { TPX_CLES[Number(k.year)] = k; });
+  TPX_ID = identite;
   tpxInit(cle, identite);
+  tpxMajAnnees(identite);
   return true;
+}
+
+/* (LOT 5) Les clés de chaque année ouverte, et le sélecteur qui va avec. */
+let TPX_CLES = {}, TPX_ID = null;
+function tpxMajAnnees(identite) {
+  const ans = Object.keys(TPX_CLES).map(Number).sort();
+  const barre = document.getElementById('tpxAnnees');
+  if (ans.length < 2) { barre.style.display = 'none'; return; }
+  barre.style.display = 'flex';
+  ans.forEach(function (y, i) {
+    const b = document.getElementById('tpxAn' + i);
+    if (!b) return;
+    b.textContent = y;
+    b.classList.toggle('active', TPX && TPX.annee === y);
+  });
+}
+function tpxChangerAnnee(i) {
+  const ans = Object.keys(TPX_CLES).map(Number).sort();
+  const y = ans[i];
+  if (!y || (TPX && TPX.annee === y)) return;
+  if (TPX && (Object.keys(TPX.pend).length || TPX.retire.size)) {
+    showToast('Enregistrez ou retirez vos changements avant de changer d\'année');
+    return;
+  }
+  tpxInit(TPX_CLES[y], TPX_ID);
+  tpxMajAnnees(TPX_ID);
 }
 
 function tpxInit(cle, identite) {
@@ -1585,7 +1632,9 @@ function tpxInit(cle, identite) {
     pend: {},                                     // date -> 'TP' | 'TPA' (posés localement)
     retire: new Set(),                            // TP/TPA serveur retirés localement
     outil: 'TP',
-    mois: 0,                                      // janvier de l'année de pose
+    /* (LOT 5) L'année EN COURS s'ouvre sur le mois d'aujourd'hui — les mois
+       passés restent consultables (jours figés), mais on n'y atterrit pas. */
+    mois: (Number(cle.year) === new Date().getFullYear()) ? new Date().getMonth() : 0,
   };
   document.getElementById('tpxPhaseSub').textContent =
     'Le planning des gardes ' + TPX.annee + ' est publié. Choisissez vos jours dans ce qui reste — '
@@ -1608,9 +1657,22 @@ function tpxBadge(code) {
 
 /* L'état d'un jour — MÊMES seuils que le serveur (_poserTp_) : il resterait
    ≥ 15 → libre · 13-14 → plein (sous réserve) · ≤ 12 → fermé. */
+function tpxAujourdhui() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 function tpxEtat(ds) {
   const dow = new Date(ds + 'T12:00:00').getDay();
   if (dow === 0 || dow === 6) return { s: 'weekend' };
+  /* (LOT 5) Un jour révolu est FIGÉ : ses codes s'affichent (c'est l'histoire
+     de l'année), mais plus rien ne s'y pose ni ne s'en retire. */
+  if (ds < tpxAujourdhui()) {
+    const bp = String(TPX.jours[ds] || '').toUpperCase();
+    if (bp === 'TP') return { s: 'pose', passe: true };
+    if (bp === 'TPA') return { s: 'reserve', passe: true };
+    if (bp) return { s: 'bloque', badge: tpxBadge(bp), passe: true };
+    return { s: 'bloque', badge: { b: 'PASSÉ', k: 'b-tpx-vac' }, passe: true };
+  }
   if (TPX.feries.has(ds)) return { s: 'bloque', badge: { b: 'FÉRIÉ', k: 'b-tpx-vac' } };
   const base = String(TPX.jours[ds] || '').toUpperCase();
   if (base === 'TP' && !TPX.retire.has(ds)) return { s: 'pose' };
@@ -1629,10 +1691,12 @@ function tpxEtat(ds) {
 
 function tpxCompte() {
   let poses = 0, reserves = 0;
+  const auj = tpxAujourdhui();
   Object.keys(TPX.jours).forEach(function (ds) {
     if (TPX.retire.has(ds)) return;
     const v = String(TPX.jours[ds]).toUpperCase();
-    if (v === 'TP') poses++; else if (v === 'TPA') reserves++;
+    if (v === 'TP') poses++;
+    else if (v === 'TPA' && ds >= auj) reserves++;   // (LOT 5) une réserve expirée n'attend plus rien
   });
   Object.keys(TPX.pend).forEach(function (ds) {
     if (TPX.pend[ds] === 'TP') poses++; else reserves++;
@@ -1696,6 +1760,7 @@ function tpxMois(sens) {
 
 function tpxClic(ds) {
   const e = tpxEtat(ds);
+  if (e.passe) { showToast('Ce jour est passé — il est figé' + (e.s === 'pose' ? ' et compté' : '')); return; }
   if (e.s === 'weekend') { showToast('Un jour de temps partiel se pose sur un jour travaillé'); return; }
   if (e.s === 'ferme') { showToast('Équipe trop réduite ce jour-là — ce jour n\'est pas ouvert'); return; }
   if (e.s === 'bloque') {
@@ -1743,7 +1808,7 @@ async function tpxEnregistrer() {
       if ((v === 'TP' || v === 'TPA') && !TPX.retire.has(ds)) map[ds] = v;
     });
     Object.keys(TPX.pend).forEach(function (ds) { map[ds] = 'TP'; });
-    const res = await apiCall('saveIndispos', { tp: true, indispos: map });
+    const res = await apiCall('saveIndispos', { tp: true, year: TPX.annee, indispos: map });
     if (!res || res.success === false) {
       showToast('❌ ' + ((res && res.error) || 'Erreur lors de l\'enregistrement'));
       return;
