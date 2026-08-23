@@ -127,6 +127,28 @@ function monde(opts) {
   const republications = [];
   ctx.__republications = republications;
   vm.runInContext('function generatePlanning(a){ __republications.push(a); }', ctx);
+  /* (23/08/2026) La republication est DIFFÉRÉE : la requête note l'année et
+     arme un déclencheur. On simule les deux surfaces d'infrastructure —
+     propriétés du script et déclencheurs — pour observer la file et vérifier
+     qu'un seul déclencheur est armé, quel que soit le nombre de décisions. */
+  const propsSim = {};
+  const declencheurs = [];
+  ctx.__props = propsSim;
+  ctx.__declencheurs = declencheurs;
+  vm.runInContext(`
+    var PropertiesService = { getScriptProperties: function () { return {
+      getProperty: function (k) { return __props[k] === undefined ? null : __props[k]; },
+      setProperty: function (k, v) { __props[k] = v; },
+      deleteProperty: function (k) { delete __props[k]; } }; } };
+    var LockService = { getScriptLock: function () { return { waitLock: function () {}, releaseLock: function () {} }; } };
+    var ScriptApp = {
+      getProjectTriggers: function () { return __declencheurs.map(function (n) {
+        return { getHandlerFunction: function () { return n; } }; }); },
+      newTrigger: function (n) { return { timeBased: function () { return {
+        after: function () { return { create: function () { __declencheurs.push(n); } }; } }; } }; },
+      deleteTrigger: function (t) { const i = __declencheurs.indexOf(t.getHandlerFunction());
+        if (i >= 0) __declencheurs.splice(i, 1); } };
+  `, ctx);
   /* (23/08/2026) Doublure du canal de notification : le comité notifie
      désormais le MAR à chaque réponse. Elle COLLECTE au lieu d'envoyer —
      `monde().envois` porte tout ce qui serait parti. */
@@ -143,10 +165,11 @@ function monde(opts) {
   vm.runInContext(extraireFonction('../gas/generateur_gardes.gs', 'estSemaineOff'), ctx);
   vm.runInContext('let _quotasCache = null;', ctx);
   vm.runInContext(extraireConst('CODES_COMITE'), ctx);
+  vm.runInContext("const TP_CLE_REPUBLIER = 'TP_ANNEES_A_REPUBLIER';", ctx);
   ['_indisposOuverte_', 'getIndisposYear', '_phaseTp_', 'getIndisposForDoctor', 'saveIndisposForDoctor',
    '_fusionIndispos_', '_loadQuotasConges', 'getQuotasConges', '_tpFixeDe_', '_quotiteDe_',
    '_tpFermesSheet_', '_tpFermes_', '_tpFermerJour_', '_tpRouvrirJour_', '_tpJourLisible_', '_tpNotifier_',
-   '_tpGrilleEcrire_', '_tpGrilleLire_', '_tpRepublier_',
+  '_tpGrilleEcrire_', '_tpGrilleLire_', '_tpRepublier_', 'tpRepublicationDifferee',
    '_tpDemandesSheet_', '_tpDemandes_', '_tpDemandeAjouter_', '_tpDemandeRetirer_',
    '_tpMondePresence_', '_poserTp_', '_error'].forEach(n =>
     vm.runInContext(extraireFonction('../gas/Indispos.gs', n), ctx));
@@ -154,7 +177,9 @@ function monde(opts) {
   const appel = (payload, user) => vm.runInContext(
     `handlerSaveIndispos('saveIndispos', ${JSON.stringify(payload)}, ${JSON.stringify(user)})`, ctx);
   const lireInd = (id, annee) => vm.runInContext(`getIndisposForDoctor('${id}', ${annee})`, ctx);
-  return { cl, ctx, appel, lireInd, envois, republications,
+  return { cl, ctx, appel, lireInd, envois, republications, declencheurs,
+           file: () => JSON.parse(propsSim['TP_ANNEES_A_REPUBLIER'] || '[]'),
+           jouerDifferee: () => vm.runInContext('tpRepublicationDifferee()', ctx),
            lireGarde: (id, ds) => vm.runInContext(`_tpGrilleLire_(2027, ${JSON.stringify(id)})[${JSON.stringify(ds)}] || ''`, ctx),
            demandes: () => vm.runInContext('JSON.parse(JSON.stringify(_tpDemandes_(2027)))', ctx) };
 }
@@ -800,6 +825,53 @@ console.log('\n═══ PT29 · la réponse du comité se NOTIFIE, à la bonne 
   try { ok2 = dec({ decision: 'valider', doctorId: 'POSEUR', date: '2027-03-05' }); } catch (e) { jete = e; }
   V('une notification en échec ne fait pas échouer la décision',
     !jete && ok2 && ok2.success === true && b.lireGarde('POSEUR', '2027-03-05') === 'TP', jete && jete.message);
+}
+
+
+console.log('\n═══ PT30 · la republication est DIFFÉRÉE : personne n\'attend dix secondes ═══');
+{
+  /* (23/08/2026) Republier coûte ~10 s (mesure du 09/08). Dans la requête,
+     chaque validation ferait attendre le comité — cinquante secondes sur une
+     série de cinq. La requête NOTE l'année et arme UN déclencheur unique ;
+     la republication tombe dans la minute. Au pire, le planning publié a une
+     minute de retard : le classeur, lui, est déjà juste. */
+  const b = monde({ indispos: [['POSEUR', '2027-03-02', 'TPA'], ['ZORRO', '2027-03-02', 'TPA'],
+                               ['POSEUR', '2027-03-05', 'TPA']] });
+  const marque = "if (action === 'deciderJourTp') {";
+  const i = SRC_IND.indexOf(marque);
+  let prof = 0, j = SRC_IND.indexOf('{', i);
+  for (; j < SRC_IND.length; j++) { if (SRC_IND[j] === '{') prof++; else if (SRC_IND[j] === '}') { prof--; if (prof === 0) break; } }
+  vm.runInContext('function handlerDecider(action, payload, user) {\n' + SRC_IND.slice(i, j + 1) + '\n return null; }', b.ctx);
+  const dec = (p) => vm.runInContext(`handlerDecider('deciderJourTp', ${JSON.stringify(p)}, ${JSON.stringify(ADMIN)})`, b.ctx);
+
+  b.republications.length = 0;
+  const v1 = dec({ decision: 'valider', doctorId: 'POSEUR', date: '2027-03-02' });
+  V('la décision aboutit sans republier dans la requête',
+    v1.success === true && b.republications.length === 0, b.republications);
+  V('…l\'année est notée pour plus tard', JSON.stringify(b.file()) === '[2027]', b.file());
+  V('…et UN déclencheur est armé', b.declencheurs.filter(x => x === 'tpRepublicationDifferee').length === 1, b.declencheurs);
+
+  const v2 = dec({ decision: 'valider', doctorId: 'ZORRO', date: '2027-03-02' });
+  V('une deuxième décision n\'arme PAS un deuxième déclencheur',
+    v2.success === true && b.declencheurs.filter(x => x === 'tpRepublicationDifferee').length === 1, b.declencheurs);
+  V('…et la file ne double pas l\'année', JSON.stringify(b.file()) === '[2027]', b.file());
+  V('le planning est déjà juste dans le classeur, avant même de republier',
+    b.lireGarde('POSEUR', '2027-03-02') === 'TP' && b.lireGarde('ZORRO', '2027-03-02') === 'TP');
+
+  b.jouerDifferee();
+  V('le déclencheur republie UNE fois pour les deux décisions',
+    b.republications.length === 1 && b.republications[0] === 2027, b.republications);
+  V('…il se nettoie derrière lui', b.declencheurs.indexOf('tpRepublicationDifferee') === -1, b.declencheurs);
+  V('…et vide la file', JSON.stringify(b.file()) === '[]', b.file());
+
+  // Une pose de MAR suit le même chemin
+  const b2 = monde({});
+  b2.republications.length = 0;
+  const rep = b2.appel({ tp: true, indispos: { '2027-03-01': 'TP', '2027-03-03': 'TP' } }, MAR);
+  V('une pose de plusieurs jours ne republie pas non plus dans la requête',
+    rep.success === true && b2.republications.length === 0 && JSON.stringify(b2.file()) === '[2027]', b2.file());
+  b2.jouerDifferee();
+  V('…une seule republication pour tout l\'envoi', b2.republications.length === 1, b2.republications);
 }
 
 console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp : ${ok} vérifications, ${ko} échec(s)`);

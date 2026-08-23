@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-23.3';
+const GAS_VERSION_INDISPOS = '2026-08-23.4';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1231,9 +1231,60 @@ function _tpGrilleLire_(annee, marId) {
    publication, écrire dans GARDES ne suffit pas. On ne réveille PAS le
    notifieur de changement de planning — la notification dédiée du circuit TP
    est plus précise, et deux messages pour un même événement se contredisent. */
+/* (23/08/2026) REPUBLICATION DIFFÉRÉE — mesure du 09/08 : republier coûte
+   ~10 s. Dans la requête, chaque validation du comité ferait attendre dix
+   secondes, cinquante sur une série de cinq. On NOTE donc l'année à republier
+   et on garantit UN déclencheur unique : la réponse part tout de suite, la
+   republication tombe dans la minute. Même mécanisme que l'accroche différée
+   de la copie rapide (miroir.gs, 05/08), et mêmes garanties : au pire, le
+   planning publié a une minute de retard — le classeur, lui, est déjà juste.
+   Le déclencheur porte un nom distinct de celui du miroir : les deux files
+   doivent pouvoir vivre en parallèle. */
+const TP_CLE_REPUBLIER = 'TP_ANNEES_A_REPUBLIER';
+
 function _tpRepublier_(annee) {
-  try { generatePlanning(annee); }
-  catch (e) { try { Logger.log('_tpRepublier_ : ' + e.message); } catch (e2) {} }
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const verrou = LockService.getScriptLock();
+    try { verrou.waitLock(5000); } catch (eL) { /* on note quand même */ }
+    let file = [];
+    try { file = JSON.parse(props.getProperty(TP_CLE_REPUBLIER) || '[]'); } catch (eP) { file = []; }
+    const etaitVide = file.length === 0;
+    if (file.indexOf(Number(annee)) === -1) file.push(Number(annee));
+    props.setProperty(TP_CLE_REPUBLIER, JSON.stringify(file));
+    try { verrou.releaseLock(); } catch (eR) {}
+    if (etaitVide) {
+      const deja = ScriptApp.getProjectTriggers().some(function (t) {
+        return t.getHandlerFunction() === 'tpRepublicationDifferee';
+      });
+      if (!deja) {
+        try { ScriptApp.newTrigger('tpRepublicationDifferee').timeBased().after(1000).create(); } catch (eT) {}
+      }
+    }
+  } catch (e) {
+    /* Dernier recours : republier tout de suite plutôt que pas du tout. */
+    try { generatePlanning(annee); } catch (e2) {
+      try { Logger.log('_tpRepublier_ : ' + e2.message); } catch (e3) {}
+    }
+  }
+}
+
+/* Exécuté par le déclencheur (~30-60 s après la note) : republie, se nettoie.
+   Un échec n'est pas grave — la note reste, la prochaine décision réarmera. */
+function tpRepublicationDifferee() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'tpRepublicationDifferee') {
+      try { ScriptApp.deleteTrigger(t); } catch (e) {}
+    }
+  });
+  const props = PropertiesService.getScriptProperties();
+  let file = [];
+  try { file = JSON.parse(props.getProperty(TP_CLE_REPUBLIER) || '[]'); } catch (e) { file = []; }
+  props.deleteProperty(TP_CLE_REPUBLIER);
+  file.forEach(function (y) {
+    try { generatePlanning(y); logAction('Planning ' + y + ' republié (temps partiels)'); }
+    catch (e) { try { Logger.log('tpRepublicationDifferee ' + y + ' : ' + e.message); } catch (e2) {} }
+  });
 }
 
 /* ── LE REGISTRE DES DEMANDES EN ATTENTE — onglet TP_DEMANDES ─────────────
