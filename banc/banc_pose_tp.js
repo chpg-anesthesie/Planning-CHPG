@@ -906,5 +906,32 @@ console.log('\n═══ PT31 · deux défauts trouvés en production le 23/08 �
   V('…et la case du planning est bien libérée', !b.lireGarde('POSEUR', '2027-03-09'));
 }
 
+
+console.log('\n═══ PT32 · trois nombres, trois mots — accordé, en attente, restant ═══');
+{
+  /* (23/08/2026, production) « 19 posés » à côté de « 7 sous réserve » et
+     « 7 restants sur 26 » se lisait comme si les 19 contenaient les jaunes.
+     Vérifié dans le classeur : 19 TP dans GARDES + 7 lignes en attente = 26
+     jours posés. Les chiffres étaient justes, le vocabulaire non. */
+  const page = fs.readFileSync('../indispos.html', 'utf8');
+  V('le compteur dit « accordés », plus « posés »', /<span id="tpxPose">0<\/span> accordés/.test(page));
+  V('…et « en attente du comité », plus « sous réserve »', /' en attente du comité'/.test(page));
+  V('le quota annonce ce qu\'il resterait si les demandes passaient', /si vos demandes passent/.test(page));
+  V('le récapitulatif ne dit plus « rien à faire » sans nuance',
+    /inscrits au planning, rien à faire/.test(page) && !/C\\'est bon, rien à faire/.test(page));
+  V('les jours en attente sont annoncés comme un SUPPLÉMENT', /EN PLUS, en attente du comité/.test(page));
+  V('…et comme absents du planning', /ne sont <b>pas<\/b> '\s*\+\s*'inscrits au planning/.test(page));
+  V('le titre annonce combien de jours attendent', /'s attendent' : ' attend'/.test(page));
+
+  /* Le compteur lui-même : les deux familles ne se mélangent jamais. */
+  const bacE = vm.createContext({ console, JSON, Date, Number, String, Object, Array, Math, Set });
+  ['tpxBadge', 'tpxAujourdhui', 'tpxEtat', 'tpxCompte'].forEach(n => vm.runInContext(extraireFonction('../indispos.html', n), bacE));
+  bacE.TPX = { annee: 2027, presents: {}, feries: new Set(), fermes: new Set(), quota: 26,
+    jours: { '2027-11-02': 'TP', '2027-11-03': 'TP', '2027-12-15': 'TPA' }, pend: {}, retire: new Set() };
+  const c = vm.runInContext('tpxCompte()', bacE);
+  V('deux accordés et une demande ne font pas trois accordés',
+    c.poses === 2 && c.reserves === 1, c);
+}
+
 console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp : ${ok} vérifications, ${ko} échec(s)`);
 if (ko > 0) process.exit(1);

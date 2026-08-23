@@ -578,7 +578,7 @@ body {
     </div>
   </div>
   <div class="tpx-stats">
-    <div class="tpx-stat" style="color:var(--tpx-fg)">🕐 <span id="tpxPose">0</span> posés</div>
+    <div class="tpx-stat" style="color:var(--tpx-fg)">🕐 <span id="tpxPose">0</span> accordés</div>
     <div class="tpx-stat" style="color:var(--ink-3)"><span id="tpxReste"></span></div>
     <div class="tpx-stat" style="color:var(--tpx-reserve-fg)" id="tpxRes"></div>
     <div class="tpx-jauge"><div class="tpx-jauge-fill" id="tpxJauge" style="width:0%"></div></div>
@@ -605,7 +605,7 @@ body {
     <div class="tpx-aide-row"><span class="tpx-pastille tpx-p-ferme"></span>
       <span><b>Noir</b> — il resterait 12 ou moins. Le jour n'est pas ouvert, même sur demande.</span></div>
     <div class="tpx-aide-row"><span class="tpx-pastille tpx-p-reserve"></span>
-      <span><b>Orange hachuré</b> — posé sous réserve. Il ne compte pas tant que le comité ne l'a pas validé.</span></div>
+      <span><b>Orange hachuré</b> — demandé, en attente du comité. Il n'est pas inscrit au planning et ne compte pas encore dans votre quota.</span></div>
     <div class="tpx-aide-row" style="margin-bottom:0"><span class="tpx-pastille tpx-p-bloque"></span>
       <span><b>Gris</b> — impossible : garde, repos de garde, récupération, congés, week-end ou férié.</span></div>
     <div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--line);
@@ -1795,8 +1795,16 @@ function tpxRendre() {
   }
   const c = tpxCompte();
   document.getElementById('tpxPose').textContent = c.poses;
-  document.getElementById('tpxReste').textContent = Math.max(0, TPX.quota - c.poses) + ' restants sur ' + TPX.quota;
-  document.getElementById('tpxRes').textContent = c.reserves ? (c.reserves + ' sous réserve') : '';
+  /* (23/08/2026) « posés » laissait croire que les jours en attente étaient
+     acquis. Trois nombres, trois mots : ACCORDÉS (inscrits au planning),
+     EN ATTENTE (le comité n'a pas tranché), RESTANTS (sur le quota). */
+  const restants = Math.max(0, TPX.quota - c.poses);
+  const siTout = Math.max(0, TPX.quota - c.poses - c.reserves);
+  document.getElementById('tpxReste').textContent =
+    restants + ' restants sur ' + TPX.quota
+    + (c.reserves ? ' (' + siTout + ' si vos demandes passent)' : '');
+  document.getElementById('tpxRes').textContent =
+    c.reserves ? (c.reserves + ' en attente du comité') : '';
   document.getElementById('tpxJauge').style.width = (TPX.quota ? Math.min(100, Math.round(100 * c.poses / TPX.quota)) : 0) + '%';
   document.getElementById('tpxSaveTxt').innerHTML = c.attente
     ? '<b>' + c.attente + ' changement' + (c.attente > 1 ? 's' : '') + '</b> à enregistrer'
@@ -1920,15 +1928,15 @@ function tpxRecap(res, nvReserves, refus) {
       + ' ' + dt.getDate() + ' ' + MONTHS_FR[dt.getMonth()].toLowerCase();
   };
   let h = '<div class="tpx-recap-bloc tpx-recap-ok"><div class="tpx-recap-titre">'
-    + c.poses + ' jour' + (c.poses > 1 ? 's' : '') + ' enregistré' + (c.poses > 1 ? 's' : '')
+    + c.poses + ' jour' + (c.poses > 1 ? 's' : '') + ' accordé' + (c.poses > 1 ? 's' : '')
     + ' sur ' + TPX.quota + '</div>'
-    + '<div class="tpx-recap-txt">C\'est bon, rien à faire.</div></div>';
+    + '<div class="tpx-recap-txt">Ils sont inscrits au planning, rien à faire.</div></div>';
   const tousReserves = Object.keys(TPX.jours).filter(function (ds) { return TPX.jours[ds] === 'TPA'; }).sort();
   if (tousReserves.length) {
     h += '<div class="tpx-recap-bloc tpx-recap-res"><div class="tpx-recap-titre">'
-      + tousReserves.length + ' jour' + (tousReserves.length > 1 ? 's' : '') + ' sous réserve</div>'
-      + '<div class="tpx-recap-txt">L\'équipe serait en dessous de 15 ces jours-là. '
-      + 'Ils ne comptent pas tant que le comité ne les a pas validés — parlez-lui-en.</div>'
+      + tousReserves.length + ' jour' + (tousReserves.length > 1 ? 's' : '') + ' EN PLUS, en attente du comité</div>'
+      + '<div class="tpx-recap-txt">L\'équipe serait en dessous de 15 ces jours-là. Ils ne sont <b>pas</b> '
+      + 'inscrits au planning et ne comptent pas encore dans vos ' + TPX.quota + ' jours — parlez-en au comité.</div>'
       + '<div class="tpx-recap-jours">' + tousReserves.map(nomJour).join('<br>') + '</div></div>';
   }
   const retires = Object.keys(res.resultat || {}).filter(function (ds) { return (res.resultat || {})[ds] === 'retiré'; }).sort();
@@ -1948,7 +1956,8 @@ function tpxRecap(res, nvReserves, refus) {
   }
   document.getElementById('tpxRecapTitre').textContent =
     refus.length ? 'Enregistré — des jours ont été refusés'
-    : tousReserves.length ? 'Enregistré — des jours à valider'
+    : tousReserves.length ? 'Enregistré — ' + tousReserves.length + ' jour'
+        + (tousReserves.length > 1 ? 's attendent' : ' attend') + ' le comité'
     : 'C\'est enregistré';
   document.getElementById('tpxRecapCorps').innerHTML = h;
   document.getElementById('tpxSheetBg').classList.add('show');
