@@ -1073,6 +1073,75 @@ bénéfice d'une garde qu'il ne fera pas).
 
 ---
 
+## 23 août 2026 (soir) — le circuit TP écrit dans le PLANNING, et un blocage de huit jours mis au jour
+
+**Douze commits** — v1.71 → **v1.76**, `Indispos.gs` **2026-08-23.6**, `miroir.gs` **2026-08-23.6**,
+`echanges.gs` **2026-08-23.1**. Banc : **1 839 vérifications, 0 échec**. Tout déployé et éprouvé.
+
+### La refonte demandée par Arthur
+
+> « INDISPOS est un onglet qui sert AVANT la génération des gardes. Après, c'est inutile.
+> Il faut écrire dans GARDES, l'onglet maître du planning. »
+
+Un jour de temps partiel **accordé s'écrit dans `GARDES_{Y}`** — jamais ailleurs — et le planning est
+republié. Écriture uniquement dans une case **vide**, effacement uniquement d'un `TP`, lecture juste
+avant écriture. `TP` figurant dans `ABSENT_CODES`, le MAR sort automatiquement de son secteur.
+**Une demande non tranchée n'écrit rien dans le planning** : elle attend dans le nouvel onglet
+**`TP_DEMANDES`** (ANNEE | DATE | MAR | QUAND). Le comité valide → `TP` dans la grille, la ligne
+disparaît. Il refuse → la ligne disparaît, le jour se ferme dans `TP_FERMES`.
+
+### Les décisions d'Arthur dans la séance
+
+- **Plafond commun** : accordés + en attente ne dépassent jamais le quota. On pouvait poser 26 verts
+  puis demander 10 jaunes et finir à 36.
+- **Décisions en lot** : le comité marque toute sa liste — rien ne part — puis envoie d'un coup.
+  **Contrepartie assumée : l'annulation après envoi disparaît**, un jour fermé par erreur se rouvre
+  en supprimant sa ligne dans `TP_FERMES`.
+- **Republication différée** : republier coûte ~10 s (mesure du 09/08) ; cinq validations d'affilée
+  auraient fait attendre 50 s. La requête note l'année, un déclencheur unique republie dans la minute.
+- **Vocabulaire** : ACCORDÉ (inscrit au planning) · EN ATTENTE (le comité n'a pas tranché) · RESTANT.
+  « 19 posés » à côté de « 7 sous réserve » se lisait comme si les 19 contenaient les jaunes.
+- **Traçabilité des connexions réduite à deux endroits** : portail et comité. Cinq journaux retirés.
+- **Récupération de samedi : un seul canal.** Le mail au comité est retiré ; l'alerte vit dans
+  l'onglet **Statuts**, avec une **pastille sur l'onglet**. Elle se calcule (écart samedis tenus /
+  récups posées) donc elle s'éteint seule quand le `R` est posé.
+
+### Le défaut le plus important de la journée
+
+**La copie rapide était bloquée depuis le 5 août.** Le déclencheur de poussée n'était armé **que si la
+file d'attente était vide** — l'idée étant qu'une file pleine signifiait qu'un déclencheur existait.
+Faux dès qu'une exécution meurt avant la purge : la file restait pleine **pour toujours**, plus aucune
+écriture n'armait de déclencheur, et **plus rien ne se rafraîchissait automatiquement, sur tous les
+écrans**. Invisible faute de trace. La condition juste est « aucun déclencheur n'existe ».
+
+**Ce n'est pas la lecture du code qui l'a trouvé, c'est la trace.** Après trois correctifs posés sur
+des hypothèses, l'accroche a été rendue observable : LOGS dit désormais quelle action a été notée,
+avec quelle année, ce que la poussée a écrit, ce qu'elle a jugé inchangé, et **ce que le relais a
+refusé**. Le diagnostic a suivi en une lecture du classeur.
+
+### Trois autres défauts trouvés en production
+
+1. **La tuile n'apparaissait pas** — les critères d'éligibilité étaient câblés sur la connexion GAS,
+   or le portail s'ouvre par la copie rapide, dont l'identité est une liste blanche de champs.
+2. **L'écran s'ouvrait blanc** — `getJoursFeries()` renvoie un ENSEMBLE, qui devient `{}` en voyageant.
+   Le banc ne l'avait pas vu **parce qu'il passait la clé en mémoire, jamais par le texte**. Défaut
+   jumeau : la clé `joursferies_` du comité n'avait **jamais** été poussée depuis sa création.
+3. **Les boutons du comité ne partaient nulle part** — `apiCall` n'existe pas dans `admin.html`.
+
+### Ce que le banc a gagné
+
+`banc_pose_tp_page.js` : la **vraie page** pilotée avec la clé qui fait le **voyage complet en texte**
+à travers le vrai relais, latence comprise ; le **vrai bouton** du comité réellement cliqué. Plus un
+balayage qui refuse tout ensemble laissé dans une clé.
+
+### Conséquences sur les documents
+
+Le ménage du 4 au soir passe à **onze gestes** : `TP_DEMANDES` rejoint `TP_FERMES` — ni l'un ni
+l'autre n'est rattaché à une année, une demande oubliée réapparaîtrait dans le vrai planning de
+novembre.
+
+---
+
 ## 23 août 2026 — la pose des TP en production, trois défauts trouvés en vrai, et la démo change de forme
 
 **Six commits** (`51eb3fe`, `7c45ce7`, `f67b61e`, `cff7a22`, `3d8903f`, + docs) — v1.68 → **v1.71**,

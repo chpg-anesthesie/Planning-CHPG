@@ -11,6 +11,54 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 23 août 2026 (soir) — le TP vit dans GARDES, et la copie rapide était bloquée depuis le 5 août
+
+**v1.76** · `Indispos.gs` **2026-08-23.6** · `miroir.gs` **2026-08-23.6** · `echanges.gs`
+**2026-08-23.1** · Worker **2026-08-22.2** · banc **1 839 vérifications, 0 échec**. Tout déployé.
+
+**Où vit un temps partiel, désormais** — décision d'Arthur : `INDISPOS` sert AVANT la génération,
+`GARDES` est l'onglet maître du planning.
+- **Accordé** → `TP` dans `GARDES_{Y}`, planning republié. Écriture en case **vide** seulement,
+  effacement d'un `TP` seulement, lecture juste avant écriture. `TP` est dans `ABSENT_CODES` : le MAR
+  sort de son secteur automatiquement.
+- **En attente** → rien dans le planning, une ligne dans **`TP_DEMANDES`** (ANNEE|DATE|MAR|QUAND).
+- **Refusé** → rien à défaire, et le jour se ferme dans `TP_FERMES`.
+- **Deux onglets sans année** : `TP_FERMES` et `TP_DEMANDES` → **ménage à onze gestes**.
+
+**Règles tranchées le 23/08** : plafond commun accordés + en attente ≤ quota · décisions du comité
+**en lot** (marquer puis enregistrer ; **plus d'annulation après envoi**) · republication **différée**
+(~10 s par republication, mutualisée) · vocabulaire ACCORDÉ / EN ATTENTE / RESTANT · traçabilité des
+connexions limitée au portail et au comité · **récupération de samedi : alerte dans l'onglet Statuts
+avec pastille, le mail au comité est retiré**.
+
+**LE DÉFAUT À RETENIR — la copie rapide était bloquée depuis le 5 août.** Le déclencheur de poussée
+n'était armé **que si la file d'attente était vide**. Une exécution morte avant la purge la laissait
+pleine **définitivement** : plus aucune écriture n'armait de déclencheur, **plus rien ne se
+rafraîchissait automatiquement, sur tous les écrans**. La condition juste est « aucun déclencheur
+n'existe », pas « la file était vide ». Même piège corrigé sur la republication.
+
+**La leçon de méthode** : trois correctifs ont été posés sur des hypothèses avant que la trace ne soit
+ajoutée. Depuis, l'accroche dit dans LOGS quelle action a été notée, avec quelle année, ce qui a été
+écrit, ce qui a été jugé inchangé, et **ce que le relais a refusé**. Le diagnostic a suivi en une
+lecture du classeur. *Un mécanisme différé sans trace est un mécanisme dont on ne peut rien affirmer.*
+
+**Famille de défauts « ne survit pas au voyage »** : `getJoursFeries()` renvoie un ENSEMBLE, qui
+devient `{}` une fois mis en texte. Écran blanc chez le MAR, et la clé `joursferies_` du comité
+**jamais poussée depuis sa création**. Le banc ne le voyait pas **parce qu'il passait les clés en
+mémoire** — `banc_pose_tp_page.js` fait désormais le voyage complet, et un balayage refuse tout
+ensemble laissé dans une clé.
+
+**Autres pièges du jour** : les critères d'éligibilité étaient câblés sur la connexion GAS alors que
+le portail s'ouvre par la copie rapide (liste blanche de champs dans l'identité) · `apiCall` n'existe
+pas dans `admin.html`, qui parle par `api({action})` · **l'année doit voyager dans chaque requête**,
+sinon le serveur rafraîchit les clés de l'année active.
+
+**Bac à sable** : `INDISPOS_2027` a été rechargé depuis un fichier de profils fictifs calé sur le réel
+2026 (43 jours bloqués par personne contre 45, creux en juillet-août, mars et juin presque vides).
+24 lignes — TRAN désactivé — et **SULTAN vide**, sa ligne vide faisant refuser la génération devant la
+salle (acte 0 de la démonstration). **Le collage doit couvrir les 363 colonnes** : un premier essai
+s'était arrêté au 5 mars, et la génération avait tourné sur une année presque sans absences.
+
 ## État au 22 août 2026 (soir) — la pose des temps partiels est construite (v1.65 → v1.67), déploiement en attente
 
 **Quatre commits dans la journée** (`510cf80`, `b02c649`, `8388d72`, `c8cbe2d`) : la totalité du

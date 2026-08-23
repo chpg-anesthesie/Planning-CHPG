@@ -224,7 +224,7 @@
   <div class="eyebrow">Planning-CHPG · document interne au comité</div>
   <h1><span class="flag"><i class="r"></i><i class="w"></i></span>Guide du comité</h1>
   <p class="subtitle">Prise en main de l'interface d'administration, puis la référence écran par écran.</p>
-  <p class="maj">Mis à jour le 22 août 2026 · <span id="verBadge" data-version>—</span></p>
+  <p class="maj">Mis à jour le 23 août 2026 · <span id="verBadge" data-version>—</span></p>
 
   <div class="hero">
     <h2>En 2 minutes</h2>
@@ -496,12 +496,27 @@
       <b>en haut de cet onglet</b> : une alerte orange « N jours de temps partiel à valider »,
       qui se déplie en une liste — un MAR, un jour, et le nombre de présents
       <b>s'il ne restait que cette demande à valider</b>.</p>
+    <p><b>On marque d'abord, on enregistre ensuite.</b> Cliquer ✓ ou ✕ ne fait rien partir : la décision
+      reste sur votre écran, entièrement réversible. Quand toute la liste est marquée, un seul bouton en
+      bas — <span class="btn-ex">Enregistrer les décisions</span> — envoie l'ensemble d'un coup.</p>
     <table>
       <tr><th>Bouton</th><th>Effet</th></tr>
-      <tr><td><span class="btn-ex">✓ Valider</span></td><td>Le jour est accordé. Le MAR le voit passer en violet sur son écran, sans autre message.</td></tr>
-      <tr><td><span class="btn-ex">✕ Refuser</span></td><td>Le jour est <b>fermé pour toute l'équipe</b> : il devient noir chez tous, et les autres demandes en attente ce même jour sont rendues à leurs auteurs.</td></tr>
-      <tr><td><span class="btn-ex">annuler</span></td><td>Revient sur la décision tant que vous êtes sur l'écran — un refus annulé rouvre le jour et rétablit les demandes rendues.</td></tr>
+      <tr><td><span class="btn-ex">✓ Valider</span></td><td>Marque le jour comme accordé. À l'enregistrement, il s'inscrit dans le planning et le MAR reçoit une notification.</td></tr>
+      <tr><td><span class="btn-ex">✕ Refuser</span></td><td>Marque le jour comme <b>fermé pour toute l'équipe</b> : il deviendra noir chez tous, et les autres demandes de ce même jour tomberont avec. Leurs auteurs sont prévenus.</td></tr>
+      <tr><td><span class="btn-ex">annuler</span></td><td>Défait une décision marquée. <span class="btn-ex">Tout défaire</span> remet la liste à zéro.</td></tr>
     </table>
+    <div class="callout rule">
+      <div class="ct">Après l'enregistrement, on ne revient plus en arrière</div>
+      <p>Tant que vous n'avez pas cliqué, tout est réversible. Une fois parti, non : un jour refusé par
+        erreur se rouvre en supprimant sa ligne dans l'onglet des jours fermés du classeur. Prenez donc
+        le temps de relire la liste avant d'enregistrer — c'est justement pour ça qu'elle attend.</p>
+    </div>
+    <div class="callout tip">
+      <div class="ct">Le planning met une minute à suivre</div>
+      <p>Le jour s'inscrit tout de suite dans la grille, et le MAR le voit aussitôt. Le <b>planning
+        publié</b>, celui que consultent les 23, se met à jour dans la minute qui suit. C'est voulu :
+        republier prend une dizaine de secondes, et personne ne doit attendre après un clic.</p>
+    </div>
     <div class="callout rule">
       <div class="ct">Le chiffre est celui de l'instant, pas celui de la demande</div>
       <p>Si deux MARs demandent le même jour, valider le premier fait aussitôt baisser le chiffre du
@@ -509,11 +524,12 @@
         qu'un.</p>
     </div>
     <div class="callout tip">
-      <div class="ct">Rien ne part d'ici</div>
-      <p>Aucun message n'est envoyé, ni à la validation ni au refus. Le MAR découvre la réponse sur
-        son calendrier — <b>un refus se dit de vive voix</b>. Les jours où l'équipe serait vraiment
-        trop réduite n'arrivent jamais dans cette liste : ils sont fermés d'office, personne ne peut
-        les demander.</p>
+      <div class="ct">Le MAR est prévenu, mais l'explication reste la vôtre</div>
+      <p>À l'enregistrement, chaque MAR concerné reçoit une notification sur son téléphone — « Temps
+        partiel validé » ou « Temps partiel refusé », avec la date. Elle dit le verdict, pas le
+        pourquoi : <b>un refus s'explique de vive voix</b> si nécessaire. Les jours où l'équipe serait
+        vraiment trop réduite n'arrivent jamais dans cette liste : ils sont fermés d'office, personne
+        ne peut les demander.</p>
     </div>
 
     <h3>Une arrivée</h3>
@@ -581,6 +597,30 @@
   <section id="b5">
     <h2><span class="n">09</span>Onglet Statuts</h2>
     <p>Deux vues, à basculer en haut : <b>Vue MAR</b> (un médecin, un mois) pour poser, <b>Vue Année</b> (toute l'équipe, toute l'année) pour vérifier.</p>
+
+    <h3>Les récupérations de samedi à replacer</h3>
+    <p>Un don ou un échange déplace la garde du samedi et son repos, <b>mais pas la récupération</b>.
+      L'outil essaie de la transférer tout seul ; quand il n'y arrive pas — le jour est déjà pris chez
+      celui qui reprend la garde, par exemple — <b>c'est à vous de la replacer</b>.</p>
+    <p>Vous le voyez sans avoir à y penser : une <b>pastille ambre apparaît sur l'onglet Statuts</b>,
+      visible depuis n'importe quelle page, et une alerte s'affiche en haut de cet onglet. Elle nomme le
+      médecin et ce qui lui est dû.</p>
+    <ol class="steps">
+      <li>Dépliez l'alerte avec <span class="btn-ex">Voir →</span>.</li>
+      <li><span class="btn-ex">Placer la récup</span> sélectionne le médecin et ouvre son calendrier.</li>
+      <li>Touchez le ou les jours de votre choix, puis <span class="btn-ex">Récup</span>.</li>
+    </ol>
+    <div class="callout tip">
+      <div class="ct">L'alerte s'éteint toute seule</div>
+      <p>Elle n'est pas une liste de tâches qu'on coche : elle compare simplement les samedis tenus et
+        les récupérations posées. Dès que le jour est placé, elle disparaît — et elle reviendrait si on
+        l'effaçait. Rien à archiver, rien à oublier.</p>
+    </div>
+    <div class="callout rule">
+      <div class="ct">Le choix du jour vous appartient</div>
+      <p>L'outil ne propose pas de date : il ne rejoue pas ici les règles de placement de l'algorithme.
+        Choisissez un jour qui tient — un jour de garde sera de toute façon refusé.</p>
+    </div>
 
     <h3>Poser un statut — vue MAR</h3>
     <ol class="steps">
