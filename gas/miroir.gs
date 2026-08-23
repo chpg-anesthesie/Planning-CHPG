@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-23.4';
+const GAS_VERSION_MIROIR = '2026-08-23.5';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -224,6 +224,8 @@ function miroirRattrapage() {
       bilan.push(y + (r && r.success === false ? ' ÉCHEC : ' + (r.error || '?') : ' ok')
                  + (r && r.ecrites !== undefined ? ' — ' + r.ecrites + ' écrite(s)' : '')
                  + (r && r.listeEcrites ? ' [' + r.listeEcrites.join(' ') + ']' : '')
+                 + (r && r.refusesWorker && r.refusesWorker.length
+                    ? ' — ⚠ REFUSÉES PAR LE RELAIS : [' + r.refusesWorker.join(' ') + ']' : '')
                  + (r && r.inchangees ? ', ' + r.inchangees + ' inchangée(s)'
                     + (r.listeInchangees ? ' [' + r.listeInchangees.join(' ') + ']' : '') : ''));
     } catch (e) { bilan.push(y + ' ÉCHEC : ' + e.message); }
@@ -1036,11 +1038,18 @@ function _miroirEnvoyer_(items) {
   }
 
   const echecs = [];
+  const refusesWorker = [];       // (23/08/2026) clés que le Worker a REJETÉES
   let ecrites = 0;
   let empreintesChangees = false;
   lots.forEach(function (lot, n) {
     const r = _miroirEnvoyerLot_(lot, jeton);
     if (r && r.success) {
+      /* Le Worker peut refuser une clé (nom inconnu de sa liste, valeur non
+         analysable) tout en répondant success:true pour le lot. C'était le
+         dernier angle mort : Apps Script comptait l'envoi comme réussi, la
+         page ne trouvait rien, et se repliait sur le serveur — dix secondes
+         d'attente sans la moindre trace. */
+      (Array.isArray(r.refuses) ? r.refuses : []).forEach(function (c) { refusesWorker.push(c); });
       ecrites += (typeof r.ecrites === 'number' ? r.ecrites : Object.keys(lot).length);
       /* Garde-fou 1 : on ne retient que ce que le Worker DIT avoir traité.
          Une clé refusée n'a pas d'empreinte et repart au passage suivant. */
@@ -1065,6 +1074,7 @@ function _miroirEnvoyer_(items) {
              inchangees: inchangees.length };
   }
   return { success: true, ecrites: ecrites, cles: cles.length, lots: lots.length,
+           refusesWorker: refusesWorker,
            listeEcrites: aEnvoyerCles.slice(0, 12), listeInchangees: inchangees.slice(0, 12),
            inchangees: inchangees.length };
 }
