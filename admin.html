@@ -9471,12 +9471,12 @@ async function tpcCharger() {
       });
     }
     if (!cles.length) {
-      const r = await apiCall('getPoseTp');
+      const r = await api({ action: 'getPoseTp' });
       if (r && r.success && !r.ferme) {
         cles.push(r);
         for (const yA of (r.annees || [])) {
           if (yA !== Number(r.year)) {
-            const r2 = await apiCall('getPoseTp', { year: yA });
+            const r2 = await api({ action: 'getPoseTp', year: yA });
             if (r2 && r2.success && !r2.ferme) cles.push(r2);
           }
         }
@@ -9577,13 +9577,13 @@ async function tpcDecider(i, etat) {
   const d = TPC.demandes[i];
   if (!d || d.etat) return;
   if (etat === 'ok') {
-    const res = await apiCall('deciderJourTp', { decision: 'valider', doctorId: d.id, date: d.jour });
+    const res = await api({ action: 'deciderJourTp', decision: 'valider', doctorId: d.id, date: d.jour });
     if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Échec de la validation')); return; }
     d.etat = 'ok';
     if (TPC.presents[d.jour] !== undefined) TPC.presents[d.jour]--;   // il est absent, désormais
     showToast('✓ Jour validé — le MAR le verra sur son écran');
   } else {
-    const res = await apiCall('deciderJourTp', { decision: 'refuser', date: d.jour });
+    const res = await api({ action: 'deciderJourTp', decision: 'refuser', date: d.jour });
     if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Échec du refus')); return; }
     TPC.rendusParRefus[d.jour] = res.rendues || {};
     TPC.fermes.add(d.jour);
@@ -9598,14 +9598,14 @@ async function tpcAnnuler(i) {
   const d = TPC.demandes[i];
   if (!d || !d.etat) return;
   if (d.etat === 'ok') {
-    const res = await apiCall('deciderJourTp', { decision: 'annuler_validation', doctorId: d.id, date: d.jour });
+    const res = await api({ action: 'deciderJourTp', decision: 'annuler_validation', doctorId: d.id, date: d.jour });
     if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Annulation impossible')); return; }
     d.etat = null;
     if (TPC.presents[d.jour] !== undefined) TPC.presents[d.jour]++;
     showToast('Validation annulée — le jour repasse en attente');
   } else {
-    const res = await apiCall('deciderJourTp',
-      { decision: 'annuler_refus', date: d.jour, retablir: TPC.rendusParRefus[d.jour] || {} });
+    const res = await api({ action: 'deciderJourTp',
+      decision: 'annuler_refus', date: d.jour, retablir: TPC.rendusParRefus[d.jour] || {} });
     if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Annulation impossible')); return; }
     TPC.fermes.delete(d.jour);
     delete TPC.rendusParRefus[d.jour];

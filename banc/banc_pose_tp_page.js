@@ -142,6 +142,52 @@ async function ouvrirLaPage(M, code) {
            quota: (w.document.getElementById('tpxReste') || {}).textContent || '' };
 }
 
+
+/* Monte admin.html et rend de quoi piloter le bloc comité. */
+async function ouvrirAdmin(M, codeAdmin) {
+  const srcW = fs.readFileSync('../cloudflare/worker.js', 'utf8').replace('export default', 'globalThis.__W =');
+  const wctx = vm.createContext({ console, JSON, Object, String, Number, Array, Math, Set, RegExp, Date, Promise,
+    crypto: require('crypto').webcrypto, TextEncoder, Response, Request, Headers, URL });
+  wctx.globalThis = wctx; vm.runInContext(srcW, wctx);
+  const WK = wctx.__W;
+  const KV = { get: async function (k) { return M.has(k) ? M.get(k) : null; },
+               put: async function (k, v) { M.set(k, v); }, delete: async function (k) { M.delete(k); },
+               list: async function (o) { return { keys: [] }; } };
+  const env = { KV, PUSH_TOKEN: 'JETON' };
+  const contenu = fs.readFileSync('../admin.html', 'utf8');
+  const vc = new VirtualConsole(); const erreurs = [];
+  vc.on('jsdomError', function (e) { erreurs.push(e.message); });
+  const dom = new JSDOM(contenu, { runScripts: 'dangerously', virtualConsole: vc,
+    url: 'https://chpg-anesthesie.github.io/Planning-CHPG/admin.html', pretendToBeVisual: true,
+    beforeParse: function (win) {
+      win.matchMedia = function () { return { matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} }; };
+      win.Element.prototype.scrollIntoView = function () {};
+      win.HTMLElement.prototype.scrollIntoView = function () {};
+      win.scrollTo = function () {}; win.alert = function () {}; win.confirm = function () { return true; };
+      win.eval(fs.readFileSync('../partage/session.js', 'utf8'));
+    } });
+  const w = dom.window;
+  if (!w.navigator.sendBeacon) w.navigator.sendBeacon = function () { return true; };
+  const envoyes = [];
+  w.fetch = async function (url, opt) {
+    const u = String(url);
+    if (u.includes('workers.dev')) {
+      return WK.fetch(new Request('https://worker' + u.replace(/^https:\/\/[^/]+/, ''), { method: 'POST', body: opt.body }), env);
+    }
+    const p = JSON.parse(opt.body || '{}');
+    envoyes.push(p);
+    if (p.action === 'deciderJourTp') {
+      return { ok: true, json: async function () { return { success: true, date: p.date, doctorId: p.doctorId,
+        fermes: [], rendues: {}, quota: { valides: 1, total: 26 } }; } };
+    }
+    return { ok: true, json: async function () { return { success: false, error: 'action non simulée' }; } };
+  };
+  await new Promise(function (r) { setTimeout(r, 400); });
+  /* ADMIN_CODE est un `let` de la page : on l'affecte dans son propre contexte. */
+  w.eval('ADMIN_CODE = ' + JSON.stringify(codeAdmin));
+  return { w, envoyes, erreurs };
+}
+
 (async function () {
   console.log('\n═══ 1. La clé fait le voyage, la page monte le calendrier ═══');
   const cl = classeurDeTest();
@@ -191,6 +237,50 @@ async function ouvrirLaPage(M, code) {
   const r3 = await ouvrirLaPage(M3, CODE);
   V('l\'écran « pose fermée » s\'affiche', r3.tpxFerme === 'block', { tpApp: r3.tpApp, ferme: r3.tpxFerme });
   V('et il porte un texte lisible', r3.texteFerme.length > 30, r3.texteFerme.slice(0, 60));
+
+
+  console.log('\n═══ 4. Le comité clique « Valider » — et ça part vraiment ═══');
+  {
+    /* Défaut du 23/08 : le bloc comité appelait `apiCall`, qui n'existe pas
+       dans admin.html (cette page parle au serveur par `api({action})`).
+       Chaque clic levait une erreur silencieuse : l'alerte s'affichait, les
+       boutons ne faisaient RIEN. Ici, le bouton est réellement cliqué. */
+    const cleTPA = JSON.parse(JSON.stringify(cle));
+    cleTPA.parMar['POSEUR'].jours['2027-02-18'] = 'TPA';
+    cleTPA.presents['2027-02-18'] = 14;
+    const M4 = new Map();
+    M4.set('acces', JSON.stringify({ users: [{ h: require('crypto').createHash('sha256').update('ADMINTEST').digest('hex'),
+      id: 'ADMIN', role: 'admin', name: 'Comité', initials: 'ADM' }],
+      phaseTp: { actif: true, annee: 2027, annees: [2027] }, indisposYear: 2027, indisposOuverte: true }));
+    M4.set('pose_tp_2027', JSON.stringify(cleTPA));
+    const A = await ouvrirAdmin(M4, 'ADMINTEST');
+    V('admin.html se charge sans erreur', A.erreurs.length === 0, A.erreurs.slice(0, 2));
+    V('le bloc comité expose bien ses fonctions', typeof A.w.tpcCharger === 'function' && typeof A.w.tpcDecider === 'function');
+    await A.w.tpcCharger();
+    await new Promise(function (r) { setTimeout(r, 200); });
+    const alerte = A.w.document.getElementById('tpcBloc');
+    /* TPC est un `let` de la page : il ne vit pas sur window — on le lit
+       dans son propre contexte, comme ADMIN_CODE. */
+    const demandes = function () { return A.w.eval('JSON.parse(JSON.stringify(TPC ? TPC.demandes : []))'); };
+    V('l\'alerte s\'affiche avec la demande en attente',
+      alerte && alerte.style.display === 'block' && demandes().length === 1, demandes());
+    A.envoyes.length = 0;
+    let jete = null;
+    try { await A.w.tpcDecider(0, 'ok'); } catch (e) { jete = e; }
+    V('le clic « Valider » n\'a levé AUCUNE erreur', !jete, jete && jete.message);
+    const envoi = A.envoyes.filter(function (p) { return p.action === 'deciderJourTp'; })[0];
+    V('…et une décision est réellement partie au serveur', !!envoi, A.envoyes.map(function (p) { return p.action; }));
+    V('elle porte la bonne décision, le bon MAR et le bon jour',
+      envoi && envoi.decision === 'valider' && envoi.doctorId === 'POSEUR' && envoi.date === '2027-02-18', envoi);
+    V('le code du comité voyage avec (api() l\'ajoute)', envoi && !!envoi.code, envoi && Object.keys(envoi || {}));
+    V('la ligne passe à « validé » dans l\'écran', demandes()[0].etat === 'ok', demandes()[0]);
+    A.envoyes.length = 0;
+    try { await A.w.tpcAnnuler(0); } catch (e) { jete = e; }
+    const envoi2 = A.envoyes.filter(function (p) { return p.action === 'deciderJourTp'; })[0];
+    V('« annuler » repart aussi au serveur', envoi2 && envoi2.decision === 'annuler_validation', envoi2);
+    const adm = fs.readFileSync('../admin.html', 'utf8');
+    V('témoin : plus aucun appel à un `apiCall` inexistant dans admin.html', !/apiCall\(/.test(adm));
+  }
 
   console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp_page : ${ok} vérifications, ${ko} échec(s)`);
   process.exit(ko === 0 ? 0 : 1);

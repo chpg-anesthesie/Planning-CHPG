@@ -622,7 +622,10 @@ console.log('\n═══ PT26 · lot 5 comité : fusion des années ouvertes, de
   const adm = fs.readFileSync('../admin.html', 'utf8');
   V('le bloc comité fusionne TOUTES les clés ouvertes', /cles\.forEach[\s\S]{0,300}Object\.assign\(TPC\.presents/.test(adm));
   V('une TPA expirée n\'est pas listée (jour ≥ aujourd\'hui)', /'TPA' && ds >= auj/.test(adm));
-  V('le repli serveur va chercher les autres années ouvertes', /r\.annees[\s\S]{0,200}getPoseTp', \{ year: yA \}/.test(adm));
+  /* (23/08/2026) admin.html parle au serveur par api({action}), jamais par
+     apiCall — le motif suit la vraie forme d'appel de la page. */
+  V('le repli serveur va chercher les autres années ouvertes',
+    /r\.annees[\s\S]{0,240}action: 'getPoseTp', year: yA/.test(adm));
 }
 
 
