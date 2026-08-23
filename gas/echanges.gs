@@ -38,7 +38,7 @@
    depuis l'éditeur : installerDeclencheurEchanges().
    ═══════════════════════════════════════════════════════════════════════ */
 
-const GAS_VERSION_ECHANGES = '2026-08-14.3';
+const GAS_VERSION_ECHANGES = '2026-08-23.1';
 
 const ECHANGES_ONGLET = 'ECHANGES';
 const ECHANGES_ENTETE = ['ID', 'CREE_LE', 'TYPE', 'ANNEE', 'DATE', 'DATE2',
@@ -335,32 +335,18 @@ function repondreEchange(user, p) {
    Échec d'envoi = échange VALIDE quand même : la mention « R non transféré »
    reste écrite dans la demande, l'onglet fait foi. */
 function _echangesAlerterComite_(r) {
+  /* (23/08/2026) LE MAIL EST RETIRÉ — un seul canal, décision d'Arthur.
+     Il partait vers DIAG_EMAIL : muet si l'adresse manquait dans CONFIG, et
+     incapable de dire s'il avait été traité. L'alerte vit désormais dans
+     l'onglet Statuts, là où le geste se fait, avec une pastille sur l'onglet.
+     Elle se CALCULE (écart entre samedis tenus et récups posées) : elle
+     disparaît d'elle-même quand le R est posé, et revient si on l'efface.
+     La trace, elle, reste — LOGS dit la vérité même quand l'écran est fermé. */
   try {
-    const props = PropertiesService.getScriptProperties();
-    let dest = props.getProperty('NOTIF_EMAIL_TEST');   // essais : tout arrive là
-    if (!dest) {
-      const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG');
-      const data = sh ? sh.getDataRange().getValues() : [];
-      for (let i = 1; i < data.length; i++) {
-        if (String(data[i][0]).trim() === 'DIAG_EMAIL') { dest = String(data[i][1]).trim(); break; }
-      }
-    }
-    if (!dest) { logAction('alerte comité — annulée : DIAG_EMAIL absent de CONFIG'); return; }
-    const corps =
-      'Le samedi ' + _echangesJoli_(r.samedi) + ' a été transféré du ' + _echangesDr_(r.donneur)
-        + ' au ' + _echangesDr_(r.receveur) + '.\n\n'
-      + (r.dateR
-          ? 'Sa récupération du ' + _echangesJoli_(r.dateR) + ' n\'a PAS pu suivre :\n'
-          : 'Sa récupération n\'a PAS pu suivre :\n')   // deux cas d'échec n'ont pas de date (lien absent ou introuvable)
-      + r.motif + '\n\n'
-      + 'À replacer à la main dans le planning.\n\n'
-      + '— Message automatique du portail. Répondre à ce mail ne sert à rien.';
-    MailApp.sendEmail(dest,
-      '⚠️ Récupération à replacer — samedi ' + _echangesJoli_(r.samedi), corps);
-    logAction('alerte comité envoyée (R non transféré, samedi ' + r.samedi + ')');
-  } catch (e) {
-    try { logAction('alerte comité — envoi impossible : ' + e.message); } catch (_) {}
-  }
+    logAction('récup à replacer — samedi ' + r.samedi + ' transféré de ' + r.donneur
+              + ' à ' + r.receveur + (r.dateR ? ', R du ' + r.dateR : '')
+              + ' — ' + r.motif + ' (alerte visible dans l\'onglet Statuts)');
+  } catch (e) {}
 }
 
 /* ── Transfert du R d'un samedi ─────────────────────────────────────────

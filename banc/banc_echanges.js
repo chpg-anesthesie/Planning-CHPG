@@ -241,18 +241,18 @@ console.log('\n═══ 10. Don d\'un samedi SANS lien (2026) : l\'échange abo
   b.notifs.length = 0;
   const rep = vm.runInContext(`repondreEchange(${JSON.stringify(user('BRAVO'))}, { id:${JSON.stringify(r.id)}, reponse:'accepter' })`, b.ctx);
   V('l\'échange aboutit QUAND MÊME', rep.etat === 'acceptee' && b.lire('BRAVO', samedi) === 'G');
-  /* (14/08/2026) L'alerte comité part par MAIL, jamais en push : le portail
-     personnel n'est pas le poste de travail du comité. */
-  const alerte = b.mails[0];
-  V('le comité reçoit un MAIL pour replacer le R', !!alerte, b.mails);
-  V('aucune notification ne cible plus le rôle admin', !b.notifs.some(n => n.cible && n.cible.role === 'admin'), b.notifs);
-  V('le mail part à l\'adresse DIAG_EMAIL de CONFIG', alerte && alerte.to === 'comite@example.test', alerte);
-  V('l\'objet nomme le samedi en date lisible', (() => {
-    const joli = samedi.slice(8,10)+'/'+samedi.slice(5,7)+'/'+samedi.slice(0,4);
-    return alerte && alerte.sujet.indexOf(joli) > -1;
-  })(), alerte);
-  V('le corps nomme les deux MAR avec civilité et dit le geste', alerte
-    && /Dr Alpha/.test(alerte.corps) && /Dr Bravo/.test(alerte.corps) && /replacer à la main/i.test(alerte.corps), alerte);
+  /* (23/08/2026) LE MAIL EST RETIRÉ — un seul canal, décision d'Arthur.
+     Il partait vers DIAG_EMAIL : muet si l'adresse manquait, et incapable de
+     dire s'il avait été traité. L'alerte vit désormais dans l'onglet Statuts,
+     là où le geste se fait, et se CALCULE : elle disparaît quand le R est posé.
+     Ne reste ici que la TRACE, qui parle même écran fermé. */
+  V('plus aucun mail n\'est envoyé au comité', b.mails.length === 0, b.mails);
+  V('aucune notification ne cible le rôle admin', !b.notifs.some(n => n.cible && n.cible.role === 'admin'), b.notifs);
+  V('la trace nomme le samedi, les deux MAR et le motif',
+    b.journal.some(m => /récup à replacer/i.test(m) && m.indexOf(samedi) > -1
+                        && /ALPHA/.test(m) && /BRAVO/.test(m)), b.journal.slice(-3));
+  V('…et renvoie vers l\'écran où le geste se fait',
+    b.journal.some(m => /onglet Statuts/.test(m)), b.journal.slice(-3));
 }
 
 console.log('\n═══ 11. Samedi dont le receveur est occupé le jour du R : échange fait, comité prévenu ═══');
@@ -270,11 +270,9 @@ console.log('\n═══ 11. Samedi dont le receveur est occupé le jour du R : 
   V('l\'échange aboutit', rep.etat === 'acceptee');
   V('le R n\'a PAS bougé (rien d\'écrasé)', b.lire('ALPHA', dateR) === 'R' && b.lire('BRAVO', dateR) === '18');
   V('la ligne LIENS_R garde son tenant d\'origine', b.cl.getSheetByName('LIENS_R_2027').lignes[1][1] === 'ALPHA');
-  V('le comité est prévenu par mail, avec le motif ET la date du R', (() => {
-    const a = b.mails[0];
-    const joliR = dateR.slice(8,10)+'/'+dateR.slice(5,7)+'/'+dateR.slice(0,4);
-    return !!a && /replacer/i.test(a.corps) && a.corps.indexOf(joliR) > -1;
-  })(), b.mails);
+  V('la trace porte le motif ET la date du R — sans aucun mail',
+    b.mails.length === 0
+    && b.journal.some(m => /récup à replacer/i.test(m) && m.indexOf(dateR) > -1), b.journal.slice(-3));
 }
 
 console.log('\n═══ 12. Échange samedi ↔ samedi : AUCUN R ne bouge (décision du 12/08) ═══');

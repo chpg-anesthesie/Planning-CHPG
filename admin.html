@@ -1170,7 +1170,7 @@ if (sessionStorage.getItem('adminCode')) {
   <button class="nav-tab" onclick="showTab('equipe')" id="tab-equipe">👥 Équipe</button>
   <button class="nav-tab" onclick="showTab('affectations')" id="tab-affectations">📋 Affectations <span id="affPendingDot" style="display:none;width:6px;height:6px;background:#F59E0B;border-radius:50%;margin-left:4px;vertical-align:middle"></span></button>
   <button class="nav-tab" onclick="showTab('equite')" id="tab-equite">📊 Équité</button>
-  <button class="nav-tab" onclick="showTab('statuts')" id="tab-statuts">✏️ Statuts</button>
+  <button class="nav-tab" onclick="showTab('statuts')" id="tab-statuts">✏️ Statuts<span id="pastilleRecup" style="display:none;margin-left:7px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#CA8A04;color:#fff;font-size:11px;font-weight:800;display:none;align-items:center;justify-content:center;vertical-align:1px"></span></button>
   <button class="nav-tab" onclick="showTab('maintenance')" id="tab-maintenance">🔧 Maintenance</button>
   <!-- (13/08/2026) Avancement de la campagne d'indisponibilites. N'apparait QUE
        pendant la campagne (INDISPOS_YEAR non nul) et disparait des sa cloture. -->
@@ -1564,6 +1564,13 @@ if (sessionStorage.getItem('adminCode')) {
   .sa-cell:active{outline:2px solid var(--blue,#2563EB)}
   </style>
   <div class="tab-panel" id="panel-statuts">
+    <!-- (23/08/2026) L'alerte des récupérations à replacer vit ICI, dans
+         l'onglet où le geste se fait. Elle existait en bas de l'onglet Équité
+         et en mail au comité : le mail ne dit pas s'il a été traité et se tait
+         si l'adresse de diagnostic est vide. Celle-ci se CALCULE (écart entre
+         samedis tenus et récups posées) : elle disparaît d'elle-même dès que
+         le R est posé, et revient si on l'efface. -->
+    <div id="recupStatuts" style="display:none"></div>
     <div id="statutsLoading" class="loading" style="display:none"><div class="spinner"></div> Chargement…</div>
     <div id="statutsContent" style="display:none"></div>
   </div>
@@ -3042,6 +3049,7 @@ async function loadStatuts(){
     renderStatuts();
   }catch(e){ toast('Erreur statuts : '+e.message, 'error'); }
   finally{ load.style.display='none'; wrap.style.display='block'; }
+  try { renderRecupsStatuts(); } catch (e) { console.warn('alerte récups :', e && e.message); }
 }
 
 function renderStatuts(){
@@ -5577,6 +5585,72 @@ function renderRecups(){
   el.style.display = 'block';
 }
 
+/* (23/08/2026) L'ALERTE DES RÉCUPS, DANS L'ONGLET STATUTS.
+   Même source que la ligne de l'onglet Équité — recupsEcarts() — donc rien de
+   nouveau à calculer et aucune donnée à stocker : l'alerte EST l'écart. Elle
+   nomme le MAR et le manque, et le bouton présélectionne médecin et statut ;
+   le choix de la DATE reste au comité, les sept contraintes de placement
+   vivent dans le générateur et ne sont pas rejouées ici. */
+function renderRecupsStatuts() {
+  const el = document.getElementById('recupStatuts');
+  const past = document.getElementById('pastilleRecup');
+  if (!el) return;
+  const utilisable = ANNEE_STATS_FIABLES && Number(ADMIN_YEAR) >= Number(ANNEE_STATS_FIABLES) && DATA;
+  const ec = utilisable ? recupsEcarts().filter(function (x) { return x.d > 0; }) : [];
+  if (past) {
+    past.textContent = ec.length;
+    past.style.display = ec.length ? 'inline-flex' : 'none';
+  }
+  if (!ec.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const ouverte = el.getAttribute('data-ouverte') === '1';
+  const total = ec.reduce(function (n, x) { return n + x.d; }, 0);
+  el.innerHTML =
+    '<div style="display:flex;align-items:flex-start;gap:12px;background:#FEF9C3;border:1px solid #CA8A04;'
+    + 'border-radius:12px;padding:14px 16px;margin-bottom:14px">'
+    + '<span style="font-size:18px;line-height:1.2">🟡</span>'
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="font-size:13.5px;font-weight:700">' + total + ' récupération' + (total > 1 ? 's' : '')
+    + ' de samedi à replacer</div>'
+    + '<div style="font-size:12.5px;color:#334155;line-height:1.5;margin-top:3px">'
+    + 'Un échange a déplacé la garde, mais pas la récupération : elle ne pouvait pas suivre.</div>'
+    + '</div>'
+    + '<span onclick="recupsBasculer()" style="font-size:12.5px;font-weight:700;color:#92400E;'
+    + 'cursor:pointer;white-space:nowrap;user-select:none;padding-top:2px">'
+    + (ouverte ? 'Masquer' : 'Voir →') + '</span></div>'
+    + (ouverte ? ec.map(function (x) {
+        return '<div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);'
+          + 'border-radius:10px;padding:12px 14px;margin-bottom:8px">'
+          + '<div style="font-family:\'DM Mono\',monospace;font-size:12px;font-weight:700;background:#F1F5F9;'
+          + 'border-radius:7px;padding:7px 10px">' + x.id + '</div>'
+          + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'
+          + x.d + ' récupération' + (x.d > 1 ? 's' : '') + ' due' + (x.d > 1 ? 's' : '') + '</div>'
+          + '<div style="font-size:12px;color:var(--ink-3);margin-top:2px">'
+          + x.sam + ' samedi' + (x.sam > 1 ? 's' : '') + ' tenu' + (x.sam > 1 ? 's' : '')
+          + ' · ' + x.r + ' récup' + (x.r > 1 ? 's' : '') + ' posée' + (x.r > 1 ? 's' : '') + '</div></div>'
+          + '<button class="btn-sm" onclick="recupsPreparer(&quot;' + x.id + '&quot;)">Placer la récup</button>'
+          + '</div>';
+      }).join('') : '');
+  el.style.display = 'block';
+}
+
+function recupsBasculer() {
+  const el = document.getElementById('recupStatuts');
+  el.setAttribute('data-ouverte', el.getAttribute('data-ouverte') === '1' ? '0' : '1');
+  renderRecupsStatuts();
+}
+
+/* Présélectionne le MÉDECIN et ouvre son calendrier. Le statut se choisit au
+   moment d'appliquer (bouton « Récup »), et la DATE reste au comité : les sept
+   contraintes de placement vivent dans le générateur, elles ne sont pas
+   rejouées ici. */
+function recupsPreparer(id) {
+  try {
+    STAT.view = 'mar'; STAT.marId = id; STAT.selected.clear();
+    loadStatuts();
+    toast('Dr ' + id + ' sélectionné — choisissez le ou les jours, puis « Récup »');
+  } catch (e) { toast('Sélection impossible : ' + e.message, 'error'); }
+}
+
 // Ouvre l'onglet Statuts DEJA positionne sur le MAR concerne. L'ordre compte :
 // loadStatuts() conserve STAT.marId s'il est valide, donc on le pose AVANT showTab
 // (l'inverse le ferait ecraser par le premier MAR actif de la liste).
@@ -5596,6 +5670,10 @@ function renderStats(stats){
   // Certificat : uniquement sur la répartition initiale. En « Instantané » (échanges/dons
   // inclus), l'équité peut être volontairement rompue — pas de verdict qui prêterait à confusion.
   try { renderRecups(); } catch(e) { console.error('Ligne récups ignorée :', e); }
+  /* (23/08/2026) La pastille de l'onglet Statuts se met à jour ici aussi :
+     elle doit être visible depuis n'importe quelle page, pas seulement une
+     fois l'onglet ouvert. */
+  try { renderRecupsStatuts(); } catch(e) {}
   const _certEl=document.getElementById('equiteCertificat');
   if(EQ_SRC==='live'){ if(_certEl) _certEl.innerHTML=''; } else { renderCertificat(list); }
   document.getElementById('statsCard').style.display='block';

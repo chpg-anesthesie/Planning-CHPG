@@ -212,7 +212,29 @@ async function page(transport) {
       /if \(name==='equipe'\) \{ loadEquipe\(\); loadVacances\(\); tpcCharger\(\); \}/.test(c));
   }
 
-  console.log('\n═══ 58. Avancement de la campagne d\'indisponibilités ═══');
+  console.log('\n═══ 57 bis. L\'alerte des récupérations vit dans l\'onglet Statuts ═══');
+{
+  const c = fs.readFileSync('../admin.html', 'utf8');
+  /* (23/08/2026) Décision d'Arthur : un seul canal. Le mail au comité est
+     retiré, l'alerte vit dans l'onglet où le geste se fait, avec une pastille
+     sur l'onglet pour la voir depuis n'importe quelle page. */
+  V('l\'alerte est dans le panneau Statuts', /id="panel-statuts"[\s\S]{0,900}id="recupStatuts"/.test(c));
+  V('une pastille est posée sur l\'onglet Statuts', /id="tab-statuts"[\s\S]{0,200}id="pastilleRecup"/.test(c));
+  V('elle se calcule depuis l\'écart existant, sans rien stocker',
+    /function renderRecupsStatuts[\s\S]{0,700}recupsEcarts\(\)/.test(c));
+  V('…et ne retient que les récups MANQUANTES', /recupsEcarts\(\)\.filter\(function \(x\) \{ return x\.d > 0; \}\)/.test(c));
+  V('elle se rafraîchit à l\'ouverture de l\'onglet', /loadStatuts[\s\S]{0,4000}renderRecupsStatuts\(\)/.test(c));
+  V('…et au chargement du planning, pour la pastille',
+    /renderRecups\(\)[\s\S]{0,300}renderRecupsStatuts\(\)/.test(c));
+  V('le bouton présélectionne le MAR sans choisir la date',
+    /function recupsPreparer[\s\S]{0,300}STAT\.marId = id/.test(c)
+    && !/function recupsPreparer[\s\S]{0,300}STAT\.statut/.test(c));
+  const e = fs.readFileSync('../gas/echanges.gs', 'utf8');
+  V('le mail au comité a bien disparu du circuit d\'échange', !/MailApp\.sendEmail/.test(e));
+  V('…mais la trace reste, elle parle écran fermé', /récup à replacer/.test(e));
+}
+
+console.log('\n═══ 58. Avancement de la campagne d\'indisponibilités ═══');
   {
     /* (13/08/2026) Le comite ne savait qui avait saisi qu'a l'etape 1 de
        l'assistant de generation — en novembre, trop tard pour relancer.
