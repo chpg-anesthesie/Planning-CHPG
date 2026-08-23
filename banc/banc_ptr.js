@@ -103,14 +103,26 @@ function toucher(w, type, y) {
     V('après un échec, le geste fonctionne encore', repris === 1, repris);
   }
 
-  console.log('\n═══ Le témoin ne s\'allume plus pour le journal de connexion ═══');
+  console.log('\n═══ Le journal de connexion : DEUX endroits, pas un de plus ═══');
   {
-    for (const [nom, fichier] of [['index.html', '../index.html'], ['dashboard.html', '../dashboard.html']]) {
+    /* (23/08/2026) Décision d'Arthur : la traçabilité ne se fait qu'à
+       l'ouverture du portail et à la connexion du comité. Ailleurs, c'est la
+       même session — l'envoi ne faisait que réveiller Apps Script pour rien. */
+    for (const [nom, fichier] of [['dashboard.html', '../dashboard.html'], ['admin.html', '../admin.html']]) {
       const src = fs.readFileSync(fichier, 'utf8');
       V(nom + ' : le journal part à fond perdu (sendBeacon)', /sendBeacon\(API_URL/.test(src));
-      V(nom + ' : plus d\'appel bloquant pour le journal',
-        !/try \{ apiPost\(\{ action: 'login' \}\)\.catch\(function \(\) \{\}\); \} catch \(e\) \{\}\n/.test(src));
-      V(nom + ' : un repli existe si l\'envoi direct échoue', /if \(!_envoye\)/.test(src));
+      V(nom + ' : un repli existe si l\'envoi direct échoue', /if \(!_envoye\)|catch/.test(src));
+    }
+    for (const [nom, fichier] of [['index.html', '../index.html'], ['indispos.html', '../indispos.html'],
+                                  ['staff.html', '../staff.html'], ['absences.html', '../absences.html']]) {
+      const src = fs.readFileSync(fichier, 'utf8');
+      const journaux = (src.match(/apiCall\('login'[^\n]*catch|apiPost\(\{ ?action ?: ?'login' ?\}\)\.catch|apiCall\(\{action:'login'[^\n]*\)\.catch|sendBeacon\(API_URL/g) || []);
+      V(nom + ' : plus aucun journal de connexion en tâche de fond', journaux.length === 0, journaux);
+      /* absences.html ne se connecte PAS par 'login' : depuis la fusion du
+         04/08, getConsultAbsences authentifie ET livre les données en un seul
+         aller-retour. L'authentification doit rester — pas sa forme. */
+      V(nom + ' : l\'authentification réelle, elle, subsiste',
+        /'login'/.test(src) || /getConsultAbsences/.test(src));
     }
   }
 

@@ -1075,18 +1075,11 @@ async function miroirBoot() {
   /* Journal de connexion : l'action login du GAS part en arriere-plan et son
      resultat est IGNORE — l'authentification a deja eu lieu au miroir, cet
      appel ne sert que la ligne du journal CONNEXIONS. */
-  /* (06/08/2026) Journal de connexion en envoi A FOND PERDU.
-     Il n'apporte rien a l'ecran : il alimente l'onglet CONNEXIONS. En passant
-     par le circuit normal, il allumait pourtant le temoin d'activite pendant
-     2 a 3 secondes a CHAQUE ouverture de page — un clignotement sans cause
-     visible pour l'utilisateur. sendBeacon l'envoie hors de la file, sans
-     attendre de reponse, et survit meme a la fermeture de l'onglet. */
-  try {
-    const _p = JSON.stringify({ action: 'login', code: VIEW_CODE });
-    let _envoye = false;
-    try { _envoye = navigator.sendBeacon(API_URL, new Blob([_p], { type: 'text/plain;charset=utf-8' })); } catch (e) {}
-    if (!_envoye) { try { apiPost({ action: 'login' }).catch(function () {}); } catch (e) {} }
-  } catch (e) {}
+  /* (23/08/2026) JOURNAL DE CONNEXION RETIRE. Decision d'Arthur : la
+     tracabilite ne se fait qu'a DEUX endroits — l'ouverture du portail
+     (dashboard.html) et la connexion du comite (admin.html). Partout ailleurs
+     c'est la meme session, deja journalisee : l'envoi ne faisait que reveiller
+     Apps Script sans rien apprendre a l'onglet CONNEXIONS. */
   document.getElementById('viewAuthOverlay').style.display = 'none';
   init(active);
   return true;

@@ -250,8 +250,8 @@ async function doLogin(code){
   VIEW_CODE = code;
   /* (04/08/2026, fusion) UN aller-retour au lieu de deux : getConsultAbsences
      authentifie (checkCode en routage, secretariat autorise) ET livre les
-     donnees + role + nom (Indispos.gs 2026-08-04.5). Le login GAS part en
-     arriere-plan pour le seul journal de connexion. Tant que le GAS .5 n'est
+     donnees + role + nom (Indispos.gs 2026-08-04.5). (23/08/2026 : le login
+     d'arriere-plan a ete retire, voir plus bas.) Tant que le GAS .5 n'est
      pas deploye, r.role est absent → deduction par la regle SERVEUR :
      motifs === false ⇔ secretariat (avecMotifs = role !== 'secretariat'). */
   const r = await apiPost({action:'getConsultAbsences'});
@@ -271,7 +271,11 @@ async function doLogin(code){
   document.getElementById('hdr').style.display='flex';
   document.getElementById('main').style.display='';
   chargerDepuis(r);   // la reponse deja recue EST le chargement — zero appel de plus
-  try { apiPost({action:'login'}).catch(function(){}); } catch(e) {}   // journal de connexion
+  /* (23/08/2026) JOURNAL DE CONNEXION RETIRE. Decision d'Arthur : la
+     tracabilite ne se fait qu'a DEUX endroits — l'ouverture du portail
+     (dashboard.html) et la connexion du comite (admin.html). Partout ailleurs
+     c'est la meme session, deja journalisee : l'envoi ne faisait que reveiller
+     Apps Script sans rien apprendre a l'onglet CONNEXIONS. */
   return r;
 }
 document.getElementById('authBtn').addEventListener('click', async function(){
