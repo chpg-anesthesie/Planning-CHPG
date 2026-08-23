@@ -874,5 +874,37 @@ console.log('\n═══ PT30 · la republication est DIFFÉRÉE : personne n\'a
   V('…une seule republication pour tout l\'envoi', b2.republications.length === 1, b2.republications);
 }
 
+
+console.log('\n═══ PT31 · deux défauts trouvés en production le 23/08 ═══');
+{
+  /* (a) L'ANNÉE DOIT VOYAGER. Le serveur choisit les clés à rafraîchir avec
+     `payload.year`, sinon il retombe sur l'année ACTIVE. L'écran comité
+     n'envoyait rien : après une validation sur 2027, il rafraîchissait 2026 —
+     l'alerte restait affichée, et il fallait relancer la synchro à la main. */
+  const adm = fs.readFileSync('../admin.html', 'utf8');
+  const decisions = (adm.match(/action: 'deciderJourTp'/g) || []).length;
+  const avecAnnee = (adm.match(/action: 'deciderJourTp', year: TPC\.annee/g) || []).length;
+  V('les QUATRE décisions du comité portent l\'année', decisions === 4 && avecAnnee === 4, { decisions, avecAnnee });
+  V('…et TPC porte bien une année, prise sur la clé la plus récente', /annee: Number\(\(cles\[cles\.length - 1\]/.test(adm));
+  const M = fs.readFileSync('../gas/miroir.gs', 'utf8');
+  V('témoin : le serveur lit l\'année dans le payload, sinon l\'année active',
+    /Number\(payload\.year\) \|\| getActiveYear\(\)/.test(M));
+
+  /* (b) RETIRER N'EST PAS REFUSER. Le récapitulatif rangeait tout verdict
+     autre que TP/TPA dans les refusés : un MAR qui corrigeait sa propre
+     erreur lisait « refusé ». */
+  const page = fs.readFileSync('../indispos.html', 'utf8');
+  V('le récapitulatif écarte « retiré » des refus', /r\[ds\] !== 'retiré'[\s\S]{0,320}refus\.push/.test(page));
+  V('…et l\'annonce pour ce qu\'elle est : un retrait, à la demande du MAR',
+    /jour' \+ \(retires\.length > 1 \? 's' : ''\) \+ ' retiré/.test(page) && /reviennent dans votre quota/.test(page));
+
+  /* Le serveur, lui, dit bien « retiré » — c'est ce mot que l'écran lit. */
+  const b = monde({ indispos: [['POSEUR', '2027-03-09', 'TP']] });
+  const rep = b.appel({ tp: true, indispos: {} }, MAR);
+  V('le serveur qualifie un jour rendu de « retiré », jamais de refus',
+    rep.resultat['2027-03-09'] === 'retiré', rep.resultat);
+  V('…et la case du planning est bien libérée', !b.lireGarde('POSEUR', '2027-03-09'));
+}
+
 console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp : ${ok} vérifications, ${ko} échec(s)`);
 if (ko > 0) process.exit(1);

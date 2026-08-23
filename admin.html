@@ -9486,6 +9486,11 @@ async function tpcCharger() {
     const dAuj = new Date();
     const auj = dAuj.getFullYear() + '-' + String(dAuj.getMonth() + 1).padStart(2, '0') + '-' + String(dAuj.getDate()).padStart(2, '0');
     TPC = {
+      /* (23/08/2026) L'ANNÉE DOIT VOYAGER avec chaque décision. Sans elle, le
+         serveur retombe sur l'année ACTIVE (2026) pour choisir les clés à
+         rafraîchir : l'alerte restait affichée après une validation, et il
+         fallait relancer la synchro à la main. Constaté en production le 23/08. */
+      annee: Number((cles[cles.length - 1] || {}).year) || (new Date().getFullYear() + 1),
       presents: {},                            // par date — les dates portent leur année
       fermes: new Set(),
       demandes: [],
@@ -9577,13 +9582,13 @@ async function tpcDecider(i, etat) {
   const d = TPC.demandes[i];
   if (!d || d.etat) return;
   if (etat === 'ok') {
-    const res = await api({ action: 'deciderJourTp', decision: 'valider', doctorId: d.id, date: d.jour });
+    const res = await api({ action: 'deciderJourTp', year: TPC.annee, decision: 'valider', doctorId: d.id, date: d.jour });
     if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Échec de la validation')); return; }
     d.etat = 'ok';
     if (TPC.presents[d.jour] !== undefined) TPC.presents[d.jour]--;   // il est absent, désormais
     showToast('✓ Jour validé — le MAR le verra sur son écran');
   } else {
-    const res = await api({ action: 'deciderJourTp', decision: 'refuser', date: d.jour });
+    const res = await api({ action: 'deciderJourTp', year: TPC.annee, decision: 'refuser', date: d.jour });
     if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Échec du refus')); return; }
     TPC.rendusParRefus[d.jour] = res.rendues || {};
     TPC.fermes.add(d.jour);
@@ -9598,13 +9603,13 @@ async function tpcAnnuler(i) {
   const d = TPC.demandes[i];
   if (!d || !d.etat) return;
   if (d.etat === 'ok') {
-    const res = await api({ action: 'deciderJourTp', decision: 'annuler_validation', doctorId: d.id, date: d.jour });
+    const res = await api({ action: 'deciderJourTp', year: TPC.annee, decision: 'annuler_validation', doctorId: d.id, date: d.jour });
     if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Annulation impossible')); return; }
     d.etat = null;
     if (TPC.presents[d.jour] !== undefined) TPC.presents[d.jour]++;
     showToast('Validation annulée — le jour repasse en attente');
   } else {
-    const res = await api({ action: 'deciderJourTp',
+    const res = await api({ action: 'deciderJourTp', year: TPC.annee,
       decision: 'annuler_refus', date: d.jour, retablir: TPC.rendusParRefus[d.jour] || {} });
     if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Annulation impossible')); return; }
     TPC.fermes.delete(d.jour);

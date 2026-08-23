@@ -1887,7 +1887,11 @@ async function tpxEnregistrer() {
         TPX.jours[ds] = r[ds];
         if (!avant[ds] && r[ds] === 'TP') nvValides.push(ds);
         if (avant[ds] !== 'TPA' && r[ds] === 'TPA') nvReserves.push(ds);
-      } else {
+      } else if (r[ds] !== 'retiré') {
+        /* (23/08/2026) Retirer soi-même un jour n'est PAS un refus. Le
+           récapitulatif rangeait tout verdict autre que TP/TPA dans les
+           refusés — un MAR qui corrigeait sa propre erreur lisait « refusé ».
+           Constaté en production le 23/08. */
         refus.push({ ds: ds, motif: r[ds] });
       }
     });
@@ -1926,6 +1930,14 @@ function tpxRecap(res, nvReserves, refus) {
       + '<div class="tpx-recap-txt">L\'équipe serait en dessous de 15 ces jours-là. '
       + 'Ils ne comptent pas tant que le comité ne les a pas validés — parlez-lui-en.</div>'
       + '<div class="tpx-recap-jours">' + tousReserves.map(nomJour).join('<br>') + '</div></div>';
+  }
+  const retires = Object.keys(res.resultat || {}).filter(function (ds) { return (res.resultat || {})[ds] === 'retiré'; }).sort();
+  if (retires.length) {
+    h += '<div class="tpx-recap-bloc" style="background:#F8FAFC;border:1px solid var(--line)">'
+      + '<div class="tpx-recap-titre" style="color:var(--ink-2)">'
+      + retires.length + ' jour' + (retires.length > 1 ? 's' : '') + ' retiré' + (retires.length > 1 ? 's' : '') + '</div>'
+      + '<div class="tpx-recap-txt">À votre demande. Ils reviennent dans votre quota.</div>'
+      + '<div class="tpx-recap-jours" style="color:var(--ink-3)">' + retires.map(nomJour).join('<br>') + '</div></div>';
   }
   if (refus.length) {
     h += '<div class="tpx-recap-bloc tpx-recap-ko"><div class="tpx-recap-titre">'
