@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-23.1';
+const GAS_VERSION_INDISPOS = '2026-08-23.2';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1174,6 +1174,26 @@ function _poserTp_(user, targetId, envoye, annee) {
             ' en attente, quota ' + nbTP + '/' + quota + (estAdmin ? ' [comité]' : ''));
   return { success: ecrit === true, resultat: resultat, annee: annee,
            quota: { valides: nbTP, total: quota } };
+}
+
+/* Une notification ne fait JAMAIS échouer la décision qui la déclenche —
+   règle du canal depuis le 12/08. `notifierPush_` avale déjà ses propres
+   erreurs ; cette enveloppe protège aussi le cas où elle serait absente
+   (miroir.gs non déployé) ou lèverait malgré tout. */
+function _tpNotifier_(titre, corps, id) {
+  try { notifierPush_(titre, corps, './indispos.html?tp=1', { id: String(id) }); }
+  catch (e) { try { Logger.log('_tpNotifier_ : ' + e.message); } catch (e2) {} }
+}
+
+/* La date telle qu'on la dit : « jeudi 18 février ». Les notifications sont
+   lues sur un écran verrouillé — « 2027-02-18 » n'y a pas sa place. */
+function _tpJourLisible_(ds) {
+  const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+                'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const d = new Date(ds + 'T12:00:00');
+  if (isNaN(d.getTime())) return String(ds);
+  return JOURS[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS[d.getMonth()];
 }
 
 /* ── (LOT 4 · 22/08/2026) LES JOURS FERMÉS PAR LE COMITÉ — onglet TP_FERMES ──
@@ -2736,6 +2756,22 @@ function _routeRequete_(e) {
           carte[ds] = decision === 'valider' ? 'TP' : 'TPA';
           out = _poserTp_(user, cibleId, carte, anneeD);
           out.date = ds; out.doctorId = cibleId;
+          /* (23/08/2026) LA RÉPONSE DU COMITÉ SE NOTIFIE — décision d'Arthur :
+             une validation ou un refus est une réponse ATTENDUE, pas du bruit.
+             Le canal push est celui des MARs (le comité, lui, a l'e-mail).
+             Jamais bloquant : une notification qui rate ne fait pas échouer la
+             décision (notifierPush_ avale tout). L'annulation d'une validation
+             se notifie aussi : le MAR doit savoir que son jour redevient
+             incertain, sinon il compterait dessus. */
+          if (out && out.success) {
+            if (decision === 'valider') {
+              _tpNotifier_('Temps partiel validé',
+                'Votre jour du ' + _tpJourLisible_(ds) + ' est validé par le comité.', cibleId);
+            } else {
+              _tpNotifier_('Temps partiel remis en attente',
+                'Votre jour du ' + _tpJourLisible_(ds) + ' repasse en attente de validation.', cibleId);
+            }
+          }
         }
       }
       if (decision === 'refuser') {
@@ -2752,6 +2788,13 @@ function _routeRequete_(e) {
         });
         logAction('deciderJourTp REFUS ' + ds + ' (' + anneeD + ') par ' + user.id +
                   ' — ' + Object.keys(rendues).length + ' demande(s) rendue(s) : ' + Object.keys(rendues).join(', '));
+        /* Le jour se ferme pour toute l'équipe, mais SEULS CEUX QUI L'AVAIENT
+           DEMANDÉ sont prévenus — les autres le verront simplement noir, sans
+           notification. Décision d'Arthur : « le jour passe noir et basta ». */
+        Object.keys(rendues).forEach(function (idR) {
+          _tpNotifier_('Temps partiel refusé',
+            'Votre jour du ' + _tpJourLisible_(ds) + ' n\'a pas pu être accordé : l\'équipe serait trop réduite.', idR);
+        });
         out = { success: true, date: ds, fermes: Array.from(_tpFermes_(anneeD)).sort(), rendues: rendues };
       }
       if (decision === 'annuler_refus') {
@@ -2768,6 +2811,10 @@ function _routeRequete_(e) {
         });
         logAction('deciderJourTp ANNULE-REFUS ' + ds + ' (' + anneeD + ') par ' + user.id +
                   ' — rétabli : ' + (retablies.join(', ') || 'personne'));
+        retablies.forEach(function (idR) {
+          _tpNotifier_('Temps partiel de nouveau en attente',
+            'Le ' + _tpJourLisible_(ds) + ' rouvre : votre demande est rétablie, en attente du comité.', idR);
+        });
         out = { success: true, date: ds, fermes: Array.from(_tpFermes_(anneeD)).sort(), retablies: retablies };
       }
       return ContentService.createTextOutput(JSON.stringify(out))

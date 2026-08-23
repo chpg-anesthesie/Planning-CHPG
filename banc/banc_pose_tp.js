@@ -109,6 +109,12 @@ function monde(opts) {
   /* Doublures d'infrastructure (jamais de logique métier) : journal, memo
      CONFIG (lecture directe, pas de cache à invalider), réponse HTTP. */
   vm.runInContext('function logAction(){}', ctx);
+  /* (23/08/2026) Doublure du canal de notification : le comité notifie
+     désormais le MAR à chaque réponse. Elle COLLECTE au lieu d'envoyer —
+     `monde().envois` porte tout ce qui serait parti. */
+  const envois = [];
+  ctx.__envois = envois;
+  vm.runInContext('function notifierPush_(titre, corps, url, cible) { __envois.push({ titre: titre, corps: corps, url: url, cible: cible }); return { success: true }; }', ctx);
   vm.runInContext('function _configRows_(){ return SpreadsheetApp.getActiveSpreadsheet().getSheetByName("CONFIG").getDataRange().getValues(); }', ctx);
   vm.runInContext('const ContentService = { MimeType:{JSON:1}, createTextOutput: s => ({ setMimeType: () => JSON.parse(s) }) };', ctx);
   // Fonctions RÉELLES des fichiers livrés
@@ -121,14 +127,14 @@ function monde(opts) {
   vm.runInContext(extraireConst('CODES_COMITE'), ctx);
   ['_indisposOuverte_', 'getIndisposYear', '_phaseTp_', 'getIndisposForDoctor', 'saveIndisposForDoctor',
    '_fusionIndispos_', '_loadQuotasConges', 'getQuotasConges', '_tpFixeDe_', '_quotiteDe_',
-   '_tpFermesSheet_', '_tpFermes_', '_tpFermerJour_', '_tpRouvrirJour_',
+   '_tpFermesSheet_', '_tpFermes_', '_tpFermerJour_', '_tpRouvrirJour_', '_tpJourLisible_', '_tpNotifier_',
    '_tpMondePresence_', '_poserTp_', '_error'].forEach(n =>
     vm.runInContext(extraireFonction('../gas/Indispos.gs', n), ctx));
   vm.runInContext(extraireBlocHandler(), ctx);
   const appel = (payload, user) => vm.runInContext(
     `handlerSaveIndispos('saveIndispos', ${JSON.stringify(payload)}, ${JSON.stringify(user)})`, ctx);
   const lireInd = (id, annee) => vm.runInContext(`getIndisposForDoctor('${id}', ${annee})`, ctx);
-  return { cl, ctx, appel, lireInd };
+  return { cl, ctx, appel, lireInd, envois };
 }
 const MAR = { role: 'mar', id: 'POSEUR' };
 const ADMIN = { role: 'admin', id: 'ADMIN' };
@@ -707,6 +713,62 @@ console.log('\n═══ PT28 · LE VOYAGE : la clé mise en texte, servie par l
     suspects.length === 0, suspects);
 
   // Le pilotage de la VRAIE page avec cette clé : scénario banc_pose_tp_page.js
+}
+
+
+console.log('\n═══ PT29 · la réponse du comité se NOTIFIE, à la bonne personne ═══');
+{
+  /* (23/08/2026) Décision d'Arthur : validation ET refus se notifient au MAR
+     concerné. Un refus ferme le jour pour toute l'équipe, mais SEULS les
+     demandeurs sont prévenus — les autres le verront noir, sans message. */
+  const b = monde({ indispos: [['POSEUR', '2027-03-02', 'TPA'], ['ZORRO', '2027-03-02', 'TPA'],
+                               ['POSEUR', '2027-03-05', 'TPA']] });
+  const envois = b.envois;
+  const marque = "if (action === 'deciderJourTp') {";
+  const i = SRC_IND.indexOf(marque);
+  let prof = 0, j = SRC_IND.indexOf('{', i);
+  for (; j < SRC_IND.length; j++) { if (SRC_IND[j] === '{') prof++; else if (SRC_IND[j] === '}') { prof--; if (prof === 0) break; } }
+  vm.runInContext('function handlerDecider(action, payload, user) {\n' + SRC_IND.slice(i, j + 1) + '\n return null; }', b.ctx);
+  const dec = (p) => vm.runInContext(`handlerDecider('deciderJourTp', ${JSON.stringify(p)}, ${JSON.stringify(ADMIN)})`, b.ctx);
+
+  V('la date se dit en toutes lettres, pas en chiffres',
+    vm.runInContext("_tpJourLisible_('2027-02-18')", b.ctx) === 'jeudi 18 février',
+    vm.runInContext("_tpJourLisible_('2027-02-18')", b.ctx));
+
+  envois.length = 0;
+  dec({ decision: 'valider', doctorId: 'POSEUR', date: '2027-03-02' });
+  V('valider → UNE notification, au seul MAR concerné',
+    envois.length === 1 && envois[0].cible.id === 'POSEUR', envois);
+  V('…elle dit que le jour est validé, avec la date lisible',
+    /validé/i.test(envois[0].titre) && /mardi 2 mars/.test(envois[0].corps), envois[0]);
+  V('…et elle ramène sur l\'écran de pose', /indispos\.html\?tp=1/.test(envois[0].url), envois[0].url);
+
+  envois.length = 0;
+  dec({ decision: 'annuler_validation', doctorId: 'POSEUR', date: '2027-03-02' });
+  V('annuler une validation prévient aussi (le jour redevient incertain)',
+    envois.length === 1 && /attente/i.test(envois[0].titre), envois);
+
+  envois.length = 0;
+  const r = dec({ decision: 'refuser', date: '2027-03-02' });
+  const vises = envois.map(function (e) { return e.cible.id; }).sort();
+  V('refuser → les DEUX demandeurs de ce jour sont prévenus',
+    envois.length === 2 && vises[0] === 'POSEUR' && vises[1] === 'ZORRO', vises);
+  V('…et personne d\'autre : les 14 autres MARs verront le jour noir, sans message',
+    envois.every(function (e) { return e.cible && e.cible.id; }) && envois.length === 2, envois.length);
+  V('le message dit pourquoi, sans jargon',
+    /refusé/i.test(envois[0].titre) && /trop réduite/.test(envois[0].corps), envois[0]);
+
+  envois.length = 0;
+  dec({ decision: 'annuler_refus', date: '2027-03-02', retablir: r.rendues });
+  V('annuler un refus prévient ceux qu\'on rétablit', envois.length === 2, envois.map(function (e) { return e.cible.id; }));
+
+  /* Garde-fou : une notification qui échoue ne doit JAMAIS faire rater la
+     décision — c'est la règle du canal depuis le 12/08. */
+  vm.runInContext('function notifierPush_() { throw new Error("relais injoignable"); }', b.ctx);
+  let jete = null, ok2 = null;
+  try { ok2 = dec({ decision: 'valider', doctorId: 'POSEUR', date: '2027-03-05' }); } catch (e) { jete = e; }
+  V('une notification en échec ne fait pas échouer la décision',
+    !jete && ok2 && ok2.success === true && b.lireInd('POSEUR', 2027)['2027-03-05'] === 'TP', jete && jete.message);
 }
 
 console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp : ${ok} vérifications, ${ko} échec(s)`);
