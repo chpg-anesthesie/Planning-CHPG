@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-23.3';
+const GAS_VERSION_MIROIR = '2026-08-23.4';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -143,6 +143,14 @@ function miroirApresRequete_(e, outTexte) {
     if (String(outTexte || '').indexOf('"success":true') === -1) return;
     const annee = Number(payload.year) || getActiveYear();
     _miroirNoterPoussee_(familles, annee);
+    /* (23/08/2026) TRACE. Cette accroche était entièrement muette : quand une
+       écriture ne rafraîchissait pas la copie rapide, rien ne permettait de
+       savoir si elle avait été notée, avec quelle année, ni si la poussée
+       avait eu lieu. Deux symptômes en production le 23/08 (alertes du comité
+       qui reviennent au rechargement, tuile lente) sans aucune trace pour
+       trancher. LOGS dit désormais la vérité. */
+    logAction('miroir : ' + payload.action + ' → familles [' + familles.join(',') + '] année ' + annee
+              + (Number(payload.year) ? '' : ' (ANNÉE ABSENTE du payload — repli sur l\'année active)'));
   } catch (err) { /* jamais bloquant */ }
 }
 
@@ -209,10 +217,19 @@ function miroirRattrapage() {
   const familles = Object.keys(attente.familles);
   const annees = Object.keys(attente.annees || {}).map(Number);
   if (!annees.length) annees.push(getActiveYear());
+  const bilan = [];
   annees.forEach(function (y) {
-    try { miroirPousserFamilles_(familles, y, false); } catch (e) { /* filet horaire */ }
+    try {
+      const r = miroirPousserFamilles_(familles, y, false);
+      bilan.push(y + (r && r.success === false ? ' ÉCHEC : ' + (r.error || '?') : ' ok')
+                 + (r && r.ecrites !== undefined ? ' — ' + r.ecrites + ' écrite(s)' : '')
+                 + (r && r.listeEcrites ? ' [' + r.listeEcrites.join(' ') + ']' : '')
+                 + (r && r.inchangees ? ', ' + r.inchangees + ' inchangée(s)'
+                    + (r.listeInchangees ? ' [' + r.listeInchangees.join(' ') + ']' : '') : ''));
+    } catch (e) { bilan.push(y + ' ÉCHEC : ' + e.message); }
   });
   Logger.log('miroirRattrapage : ' + familles.join(',') + ' / annees ' + annees.join(','));
+  logAction('miroir : poussée différée [' + familles.join(',') + '] → ' + bilan.join(' · '));
   /* Course rare : une ecriture a note PENDANT cette pousse (sa file n'etait
      pas vide → elle n'a pas cree de declencheur, et le notre est deja
      supprime). On re-arme pour elle. */
@@ -1007,7 +1024,8 @@ function _miroirEnvoyer_(items) {
 
   const aEnvoyerCles = Object.keys(aEnvoyer);
   if (!aEnvoyerCles.length) {
-    return { success: true, ecrites: 0, cles: cles.length, lots: 0, inchangees: inchangees.length };
+    return { success: true, ecrites: 0, cles: cles.length, lots: 0,
+             inchangees: inchangees.length, listeInchangees: inchangees.slice(0, 12) };
   }
 
   const lots = [];
@@ -1047,6 +1065,7 @@ function _miroirEnvoyer_(items) {
              inchangees: inchangees.length };
   }
   return { success: true, ecrites: ecrites, cles: cles.length, lots: lots.length,
+           listeEcrites: aEnvoyerCles.slice(0, 12), listeInchangees: inchangees.slice(0, 12),
            inchangees: inchangees.length };
 }
 

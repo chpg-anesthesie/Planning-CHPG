@@ -32,6 +32,11 @@ vm.runInContext(extraireFonction('../gas/miroir.gs', 'miroirSurEdition').include
   ? require('fs').readFileSync('../gas/miroir.gs','utf8').match(/const MIROIR_ONGLETS_SUIVIS = \{[\s\S]*?\};/)[0] : '', ctx);
 
 // rafale de 5 écritures → UNE note, UN déclencheur
+/* (23/08/2026) La poussée différée écrit désormais dans LOGS — une trace, pas
+   une logique : on la collecte au lieu de l'écrire. */
+const journal = [];
+ctx.__journal = journal;
+vm.runInContext('function logAction(m){ __journal.push(m); }', ctx);
 vm.runInContext(`_miroirNoterPoussee_(['config_admin'], 2027)`, ctx);
 vm.runInContext(`_miroirNoterPoussee_(['config_admin'], 2027)`, ctx);
 vm.runInContext(`_miroirNoterPoussee_(['gardes','indispos'], 2027)`, ctx);
@@ -43,6 +48,14 @@ V('une seule poussée par année (2 années touchées)', pousses.length === 2, p
 V('les familles sont fusionnées', pousses[0].familles.join(',') === 'config_admin,gardes,indispos', pousses[0]);
 V('la note est purgée', !PROPS.MIROIR_POUSSEES_EN_ATTENTE);
 V('aucun déclencheur orphelin', triggers.length === 0, triggers);
+/* (23/08/2026) La poussée était MUETTE : quand la copie rapide ne se
+   rafraîchissait pas, rien ne disait si l'écriture avait été notée, avec
+   quelle année, ni si la poussée avait eu lieu. Deux symptômes en production
+   sans aucune trace pour trancher. */
+V('la poussée différée laisse une trace dans le journal',
+  journal.some(function (m) { return /poussée différée/.test(m); }), journal);
+V('…qui nomme les familles et les années',
+  journal.some(function (m) { return /config_admin/.test(m) && /2027/.test(m); }), journal);
 
 // édition manuelle du classeur
 const edition = nom => vm.runInContext(`miroirSurEdition({ range: { getSheet: () => ({ getName: () => ${JSON.stringify(nom)} }) } })`, ctx);
