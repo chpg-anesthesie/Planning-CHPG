@@ -1073,6 +1073,74 @@ bénéfice d'une garde qu'il ne fera pas).
 
 ---
 
+## 23 août 2026 — la pose des TP en production, trois défauts trouvés en vrai, et la démo change de forme
+
+**Six commits** (`51eb3fe`, `7c45ce7`, `f67b61e`, `cff7a22`, `3d8903f`, + docs) — v1.68 → **v1.71**,
+`Indispos.gs` **2026-08-23.2**, `miroir.gs` **2026-08-23.1**, Worker **2026-08-22.2**.
+Banc : **1 778 vérifications, 0 échec** (35 scripts). **Tout est déployé et éprouvé en production.**
+
+### Trois défauts, tous de la même famille : « je n'ai pas lu le consommateur »
+
+1. **La tuile n'apparaissait pas.** Les critères d'éligibilité étaient câblés sur la connexion GAS —
+   or `dashboard.html` ouvre le portail par la **copie rapide**, dont l'identité est une liste blanche
+   de champs. Correctif : `phaseTp`, `quotite` et `tpFixe` voyagent dans la clé d'accès et le relais ;
+   `acces` se reconstruit à `generateGardes` et `archiveYear`.
+2. **L'écran s'ouvrait blanc.** `getJoursFeries()` renvoie un **ENSEMBLE** ; mis en texte pour voyager,
+   il devient `{}`. La page plantait sur `new Set({})`, et le filet de la connexion **avalait l'erreur**.
+   Le banc ne l'avait pas vu **parce qu'il passait la clé en mémoire, jamais par le texte**. Correctif :
+   les fériés partent en liste, la page n'accepte qu'une liste, et **plus jamais d'écran blanc** —
+   toute erreur de montage s'affiche avec sa raison. Défaut jumeau corrigé au passage : la clé
+   `joursferies_` du comité faisait `.concat()` sur ce même ensemble et **n'avait jamais été poussée
+   depuis sa création**.
+3. **Les boutons du comité ne partaient nulle part.** Le bloc appelait `apiCall`, **qui n'existe pas
+   dans `admin.html`** (cette page parle au serveur par `api({action})`). Six appels corrigés.
+
+**Ce que le banc a gagné** : `banc_pose_tp_page.js`, nouveau scénario où la **vraie page** est pilotée
+avec la clé qui fait le **voyage complet en texte** à travers le vrai relais, latence comprise ; un
+balayage refuse tout ensemble laissé dans une clé ; et le **vrai bouton « Valider »** d'`admin.html`
+est réellement cliqué, avec exigence qu'une décision parte au serveur.
+
+### Décisions d'Arthur dans la journée
+
+- **Traçabilité des connexions : deux endroits, pas un de plus** — portail (`dashboard.html`) et comité
+  (`admin.html`). Les cinq journaux de `index.html`, `indispos.html` (×2), `staff.html` et
+  `absences.html` sont retirés : ils réveillaient Apps Script à chaque ouverture sans rien apprendre.
+  `banc_ptr.js` vérifie désormais **où le journal a le droit d'exister**.
+- **Instantané = servi par la copie rapide.** Mesuré : **un seul aller-retour** avant l'affichage de
+  l'écran de pose. Ce qui restait, c'était un écran de connexion inutile pendant ~150 ms — remplacé
+  par un squelette dès que le code est en mémoire.
+- **La réponse du comité se notifie.** Validation ET refus préviennent le MAR (date en toutes lettres,
+  ouvre l'écran de pose). Un refus ne notifie **que les demandeurs du jour** — « le jour passe noir et
+  basta, les autres le verront noir ». Une notification qui rate ne fait jamais échouer la décision.
+- **Jours passés figés, phase à deux années** (v1.68) : un TP révolu est posé, compté, intouchable par
+  le MAR — le comité garde la main. Et fin 2027, le reliquat 2027 restera posable pendant que 2028
+  s'ouvrira.
+
+### La démonstration du 4 septembre change de forme
+
+**Le bac à sable est périmé** : `INDISPOS_2027` contient **256 cellules TP** chez huit médecins, posées
+par l'ancien circuit. Le générateur les lit comme des absences — les laisser fausserait le calcul et
+contredirait ce qu'on montre. **Elles doivent être vidées avant toute génération** (`Ctrl+H`, contenu
+entier de la cellule, `TP` puis `TPA`, cette feuille seulement), et de nouveau après la répétition du
+1<sup>er</sup>, qui en posera de test. Vérifié : **`LIENS_R_2027` n'est PAS à supprimer** — le
+générateur le détruit et le recrée lui-même.
+
+**Nouveau déroulé, quatre actes** : (1) le volontaire saisit **deux ou trois** indisponibilités —
+court, c'est voulu ; (2) génération ; (3) résultat, certificat, notifications, mail ; (4) **la pose des
+temps partiels**, carte violette apparue avec la publication, calendrier en trois couleurs, validation
+par le comité et notification sur le téléphone.
+
+**Point pratique à régler avant le 4** : Arthur est à 100 % et le collègue qui génère aussi — **la carte
+violette n'apparaîtra avec aucun de leurs deux codes**. Il faut un des huit temps partiels dans la
+salle (WIDEHEM, testeur du circuit), sinon se connecter à sa place sans jamais projeter le code, code à
+régénérer le soir.
+
+**Livrables** : `docs/roadmap.html` (phase 0 et C du 1<sup>er</sup>, contrôle du matin du 4, déroulé à
+quatre actes, ménage), `docs/presentation-staff.html` (diapo « Choisir ses jours, une fois les gardes
+connues » + notes d'orateur), et un PDF de marche à suivre détaillée pour le 1<sup>er</sup> et le 4.
+
+---
+
 ## 22 août 2026 (soir) — v1.65 → v1.67 : la pose des temps partiels est CONSTRUITE (lots 1 à 4)
 
 **Quatre commits dans la journée** (`510cf80`, `b02c649`, `8388d72`, `c8cbe2d`) — la totalité du
