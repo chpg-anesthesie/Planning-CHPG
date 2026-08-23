@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-22.4';
+const GAS_VERSION_MIROIR = '2026-08-23.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -406,7 +406,15 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
     if (anneesOutils.indexOf(annee) === -1) anneesOutils.push(annee);
     anneesOutils.forEach(function (y) {
       if (uniq['gardes'])      _miroirAjouteEnveloppe_(items, 'gardes_' + y,      function () { return _miroirConstruireGardes_(y); });
-      if (uniq['joursferies']) _miroirAjouteEnveloppe_(items, 'joursferies_' + y, function () { return { success: true, joursFeries: getJoursFeries(y).concat(getJoursFeries(y + 1)), year: y }; });
+      /* (CORRECTIF 23/08/2026) `getJoursFeries` renvoie un ENSEMBLE, qui n'a pas
+         de `.concat` : cette cle levait une exception depuis sa creation et
+         n'a donc JAMAIS ete poussee — les ecrans du comite retombaient en
+         silence sur Apps Script pour connaitre les feries. Meme famille de
+         defaut que l'ecran de pose du 23/08 : une LISTE, toujours. */
+      if (uniq['joursferies']) _miroirAjouteEnveloppe_(items, 'joursferies_' + y, function () {
+        const l = Array.from(getJoursFeries(y)).concat(Array.from(getJoursFeries(y + 1)));
+        return { success: true, joursFeries: l.sort(), year: y };
+      });
       if (uniq['stats'])       _miroirAjouteEnveloppe_(items, 'stats_' + y,       function () { return _miroirConstruireStats_(y); });
       /* (2026-08-13.2) INSTANTANE D'EQUITE. computeStatsLive recompte les gardes
          REELLEMENT faites sur toute l'annee, echanges et dons compris. C'est le

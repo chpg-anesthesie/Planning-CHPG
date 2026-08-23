@@ -471,6 +471,14 @@ body {
 .tpx-sheet h2{font-size:16px;font-weight:700;margin-bottom:12px}
 .tpx-sheet-btn{width:100%;padding:12px;border-radius:10px;font-family:inherit;font-size:13.5px;
   font-weight:700;cursor:pointer;border:1.5px solid var(--tpx-fg);background:var(--tpx-fg);color:#fff;margin-top:4px}
+#tpxSquelette{padding:14px 16px}
+.tpx-sq-bloc{background:linear-gradient(90deg,#EDF1F6 25%,#F6F8FB 37%,#EDF1F6 63%);
+  background-size:400% 100%;border-radius:10px;animation:tpxSq 1.3s ease-in-out infinite}
+.tpx-sq-grille{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:12px}
+.tpx-sq-jour{height:60px;border-radius:8px;background:linear-gradient(90deg,#EDF1F6 25%,#F6F8FB 37%,#EDF1F6 63%);
+  background-size:400% 100%;animation:tpxSq 1.3s ease-in-out infinite}
+@keyframes tpxSq{0%{background-position:100% 50%}100%{background-position:0 50%}}
+@media(prefers-reduced-motion:reduce){.tpx-sq-bloc,.tpx-sq-jour{animation:none}}
 .tpx-ferme-msg{margin:24px 16px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);
   padding:22px 20px;font-size:13.5px;line-height:1.6;color:var(--ink-2);text-align:center}
 @media(max-width:420px){ .tpx-day{min-height:56px} }
@@ -696,7 +704,7 @@ async function doLogin(codeAuto, silencieux) {
     const btnTp = document.getElementById('loginBtn');
     if (!silencieux) { btnTp.textContent = 'Connexion...'; btnTp.disabled = true; }
     let okTp = false;
-    try { okTp = await tpxBoot(code); } catch (eTp) { okTp = false; }
+    try { okTp = await tpxBoot(code, silencieux); } catch (eTp) { okTp = false; }
     if (!silencieux) {
       btnTp.textContent = 'Accéder →'; btnTp.disabled = false;
       if (!okTp) document.getElementById('loginError').style.display = 'block';
@@ -1535,11 +1543,20 @@ window.addEventListener('beforeunload', e => {
      le récapitulatif en donne la liste, rien d'autre ne part. */
 let TPX = null;
 
-async function tpxBoot(code) {
+async function tpxBoot(code, silencieux) {
   /* La clé pose_tp existe pour l'année active ET la suivante ; hors phase elle
      dit { ferme:true }. On demande les deux et on garde la plus récente
      ouverte — même logique qu'à la connexion campagne. */
   const Y = new Date().getFullYear();
+  /* (23/08/2026) L'attente réelle est ICI : la seule lecture réseau qui sépare
+     l'ouverture de l'affichage (~150 ms mesurés). Quand le code est déjà en
+     mémoire sur l'appareil — le cas de tous les jours — l'écran de connexion
+     n'a rien à faire là : on met à sa place la forme de l'écran à venir. Si
+     l'identification échoue, il revient. */
+  if (silencieux) {
+    document.getElementById('loginScreen').style.display = 'none';
+    tpxSquelette(true);
+  }
   let identite = null, cle = null;
   const m = await miroirRead(['pose_tp_' + Y, 'pose_tp_' + (Y + 1)], code);
   let cles = [];                                 // (LOT 5) toutes les années ouvertes, croissant
@@ -1554,7 +1571,11 @@ async function tpxBoot(code) {
   if (!identite) {
     // Miroir muet : le GAS reste seul juge d'un code.
     const res = await apiCall('login', { code });
-    if (!res || !res.success) return false;
+    if (!res || !res.success) {
+      tpxSquelette(false);
+      document.getElementById('loginScreen').style.display = '';   // le code n'est pas bon : on rend la main
+      return false;
+    }
     identite = res;
   }
   currentUser = identite; currentCode = code; CHPGSession.memoriser(code);
@@ -1576,12 +1597,47 @@ async function tpxBoot(code) {
       });
     }
   }
-  if (!cle) { document.getElementById('tpxFerme').style.display = 'block'; return true; }
-  cles.forEach(function (k) { TPX_CLES[Number(k.year)] = k; });
-  TPX_ID = identite;
-  tpxInit(cle, identite);
-  tpxMajAnnees(identite);
+  if (!cle) { tpxSquelette(false); document.getElementById('tpxFerme').style.display = 'block'; return true; }
+  /* (CORRECTIF 23/08/2026) Un écran blanc est inacceptable : si le montage
+     échoue, la raison s'affiche. Le 23/08 au matin, une erreur silencieuse a
+     laissé la page vide sans que rien ne l'indique. */
+  try {
+    tpxSquelette(false);
+    cles.forEach(function (k) { TPX_CLES[Number(k.year)] = k; });
+    TPX_ID = identite;
+    tpxInit(cle, identite);
+    tpxMajAnnees(identite);
+  } catch (eMontage) {
+    const f = document.getElementById('tpxFerme');
+    f.innerHTML = 'L\'écran n\'a pas pu s\'afficher.<br><br>'
+      + '<span style="font-family:monospace;font-size:12px;color:#B91C1C">'
+      + String((eMontage && eMontage.message) || eMontage) + '</span><br><br>'
+      + 'Signalez ce message ; vos jours déjà posés ne sont pas perdus.<br><br>'
+      + '<a href="dashboard.html" style="color:#1D4ED8;font-weight:600;text-decoration:none">← Retour au portail</a>';
+    f.style.display = 'block';
+    document.getElementById('tpApp').style.display = 'none';
+  }
   return true;
+}
+
+/* (23/08/2026) Le squelette d'attente : la forme de l'écran, en gris, pendant
+   la seule lecture réseau. Rien de faux n'y est écrit — aucun chiffre, aucune
+   date : uniquement des blocs, pour que l'oeil sache que ça arrive. */
+function tpxSquelette(afficher) {
+  let s = document.getElementById('tpxSquelette');
+  if (!afficher) { if (s) s.remove(); return; }
+  if (s) return;
+  s = document.createElement('div');
+  s.id = 'tpxSquelette';
+  s.setAttribute('aria-hidden', 'true');
+  let cases = '';
+  for (let i = 0; i < 35; i++) cases += '<div class="tpx-sq-jour"></div>';
+  s.innerHTML =
+    '<div class="tpx-sq-bloc" style="height:58px"></div>'
+    + '<div class="tpx-sq-bloc" style="height:30px;margin-top:8px"></div>'
+    + '<div class="tpx-sq-grille">' + cases + '</div>';
+  const cible = document.getElementById('tpApp');
+  cible.parentNode.insertBefore(s, cible);
 }
 
 /* (LOT 5) Les clés de chaque année ouverte, et le sélecteur qui va avec. */
@@ -1625,8 +1681,10 @@ function tpxInit(cle, identite) {
   TPX = {
     annee: Number(cle.year),
     presents: Object.assign({}, cle.presents || {}),
-    feries: new Set(cle.joursFeries || []),
-    fermes: new Set(cle.fermes || []),      // (LOT 4) jours fermés par le comité : noirs pour tous
+    /* (CORRECTIF 23/08/2026) Une liste, et rien d'autre : un vieux serveur
+       peut encore envoyer un ensemble, qui arrive ici en objet vide. */
+    feries: new Set(Array.isArray(cle.joursFeries) ? cle.joursFeries : []),
+    fermes: new Set(Array.isArray(cle.fermes) ? cle.fermes : []),
     jours: Object.assign({}, mien.jours || {}),   // MES codes serveur : blocages + TP/TPA
     quota: Number(mien.quota) || 0,
     pend: {},                                     // date -> 'TP' | 'TPA' (posés localement)

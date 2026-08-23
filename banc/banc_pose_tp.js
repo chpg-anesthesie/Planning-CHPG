@@ -671,5 +671,40 @@ console.log('\n═══ PT27 · CORRECTIF : le portail s\'ouvre par le relais �
   V('archiveYear aussi (la phase se referme avec l\'archivage)', /archiveYear:\s*\['planning', 'affectations', 'annees', 'acces'/.test(M));
 }
 
+
+console.log('\n═══ PT28 · LE VOYAGE : la clé mise en texte, servie par le relais, montée dans la VRAIE page ═══');
+{
+  /* Défaut du 23/08 au matin, trouvé en production : `getJoursFeries` renvoie
+     un ENSEMBLE. Le banc passait l'objet directement — intact. La copie rapide,
+     elle, met tout en TEXTE : un ensemble y devient {}, et l'écran plantait sur
+     `new Set({})`. Écran blanc, erreur avalée par le filet de connexion.
+     Ce scénario refait le trajet complet : construction → texte → relais →
+     page réelle pilotée, et exige un calendrier affiché. */
+  const b = monde({});
+  ['_tpFermesSheet_', '_tpFermes_'].forEach(n => vm.runInContext(extraireFonction('../gas/Indispos.gs', n), b.ctx));
+  vm.runInContext(extraireFonction('../gas/Indispos.gs', '_construirePoseTp_'), b.ctx);
+  const cle = vm.runInContext('_construirePoseTp_(2027)', b.ctx);
+
+  // 1. Le voyage en texte, celui de la copie rapide
+  const apres = JSON.parse(JSON.stringify(cle));
+  V('les fériés voyagent en LISTE (un ensemble deviendrait {} — la cause du 23/08)',
+    Array.isArray(apres.joursFeries) && apres.joursFeries.length > 0, apres.joursFeries);
+  V('les jours fermés aussi', Array.isArray(apres.fermes));
+  V('rien ne se perd en route : effectifs et blocages intacts',
+    Object.keys(apres.presents).length === Object.keys(cle.presents).length
+    && Object.keys(apres.parMar).length === Object.keys(cle.parMar).length);
+  const suspects = [];
+  (function scanne(o, chemin) {
+    if (o instanceof Set || o instanceof Map) { suspects.push(chemin); return; }
+    if (o && typeof o === 'object' && !Array.isArray(o)) {
+      Object.keys(o).forEach(function (k) { scanne(o[k], chemin + '.' + k); });
+    }
+  })(cle, 'pose_tp');
+  V('aucun ensemble ni table n\'est laissé dans la clé (ils ne survivent pas au voyage)',
+    suspects.length === 0, suspects);
+
+  // Le pilotage de la VRAIE page avec cette clé : scénario banc_pose_tp_page.js
+}
+
 console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp : ${ok} vérifications, ${ko} échec(s)`);
 if (ko > 0) process.exit(1);

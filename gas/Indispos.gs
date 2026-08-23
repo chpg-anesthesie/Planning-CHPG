@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-22.4';
+const GAS_VERSION_INDISPOS = '2026-08-23.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1267,7 +1267,12 @@ function _construirePoseTp_(annee) {
       tpFixe: _tpFixeDe_(id),
     };
   });
-  return { success: true, year: annee, presents: presents, joursFeries: jf,
+  /* (CORRECTIF 23/08/2026) `getJoursFeries` renvoie un ENSEMBLE. Un ensemble
+     mis en texte pour voyager jusqu'à la page devient {} — vide et non
+     parcourable : l'écran plantait à l'ouverture. Tout ce qui part dans une
+     clé doit être une LISTE ou un objet simple. */
+  return { success: true, year: annee, presents: presents,
+           joursFeries: Array.from(jf).sort(),
            fermes: Array.from(_tpFermes_(annee)).sort(), parMar: parMar };
 }
 
