@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-23.4';
+const GAS_VERSION_INDISPOS = '2026-08-23.5';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1110,7 +1110,7 @@ function _poserTp_(user, targetId, envoye, annee) {
   _tpDemandes_(annee, targetId).forEach(function (x) { enAttente[x.date] = true; });
 
   const resultat = {};
-  let nbTP = 0, grilleTouchee = false;
+  let nbTP = 0, nbAttente = 0, grilleTouchee = false;
 
   // ── Passe 1 : l'ACQUIS et l'ATTENTE ──────────────────────────────────
   Object.keys(grille).forEach(function (ds) {
@@ -1124,7 +1124,7 @@ function _poserTp_(user, targetId, envoye, annee) {
     resultat[ds] = 'retiré';
   });
   Object.keys(enAttente).forEach(function (ds) {
-    if (ds in (envoye || {})) { resultat[ds] = 'TPA'; return; }
+    if (ds in (envoye || {})) { resultat[ds] = 'TPA'; nbAttente++; return; }
     _tpDemandeRetirer_(annee, ds, targetId);
     resultat[ds] = 'retiré';
   });
@@ -1149,12 +1149,24 @@ function _poserTp_(user, targetId, envoye, annee) {
     if (reste <= 12) { resultat[ds] = 'équipe trop réduite (' + presents + ' présents)'; return; }
     if (reste < 15) {
       /* Bande jaune : le comité tranchera. Rien n'entre dans le planning,
-         le MAR travaille tant qu'il n'a pas de réponse. */
+         le MAR travaille tant qu'il n'a pas de réponse.
+         (23/08/2026) PLAFOND : accordés + en attente ne dépassent jamais le
+         quota. Sans ça, on pouvait poser 26 jours verts ET 10 demandes, et se
+         retrouver à 36 si tout passait. */
+      if (nbTP + nbAttente >= quotaTotal) {
+        resultat[ds] = 'quota atteint (' + quotaTotal + ', demandes en attente comprises)';
+        return;
+      }
       _tpDemandeAjouter_(annee, ds, targetId);
       resultat[ds] = 'TPA';
+      nbAttente++;
       return;
     }
-    if (nbTP >= quotaTotal) { resultat[ds] = 'quota atteint (' + quotaTotal + ')'; return; }
+    if (nbTP + nbAttente >= quotaTotal) {
+      resultat[ds] = 'quota atteint (' + quotaTotal
+                   + (nbAttente ? ', demandes en attente comprises' : '') + ')';
+      return;
+    }
     if (!_tpGrilleEcrire_(annee, targetId, ds, 'TP')) {
       resultat[ds] = 'la case vient d\'être occupée'; return;
     }
@@ -1170,7 +1182,7 @@ function _poserTp_(user, targetId, envoye, annee) {
             + (grilleTouchee ? ', planning republié' : ''));
 
   return { success: true, resultat: resultat, annee: annee,
-           quota: { valides: nbTP, total: quotaTotal } };
+           quota: { valides: nbTP, attente: nbAttente, total: quotaTotal } };
 }
 
 /* ── (23/08/2026) ÉCRIRE LE TEMPS PARTIEL DANS LA GRILLE DU PLANNING ──────
@@ -2899,6 +2911,42 @@ function _routeRequete_(e) {
                               liste qui a été rendu, pour l'annulation.
        · annuler_refus      : le jour rouvre, les TPA rendues sont rétablies.
        AUCUNE notification : le comité le dit de vive voix (maquette). */
+    /* (23/08/2026) DÉCISIONS EN LOT — le comité peut marquer toute sa liste
+       puis enregistrer d'un coup. Chaque décision est traitée exactement comme
+       une décision isolée (mêmes contrôles, mêmes notifications) ; seule la
+       republication est mutualisée, puisqu'elle est de toute façon différée et
+       dédoublonnée. Un échec sur une ligne n'arrête pas les autres : la réponse
+       dit ce qui est passé et ce qui ne l'est pas. */
+    if (action === 'deciderJourTpLot') {
+      if (user.role !== 'admin') {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Réservé au comité' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      const liste = payload.decisions || [];
+      const detail = [];
+      let faits = 0, rates = 0;
+      liste.forEach(function (d) {
+        try {
+          const r = _routeRequete_({ parameter: { payload: JSON.stringify({
+            action: 'deciderJourTp', code: payload.code, year: payload.year,
+            decision: d.decision, doctorId: d.doctorId, date: d.date, retablir: d.retablir || {},
+          }) } });
+          const rep = JSON.parse(r.getContent());
+          if (rep && rep.success) faits++; else rates++;
+          detail.push({ date: d.date, doctorId: d.doctorId, decision: d.decision,
+                        success: !!(rep && rep.success), error: rep && rep.error,
+                        rendues: rep && rep.rendues });
+        } catch (eL) {
+          rates++;
+          detail.push({ date: d.date, doctorId: d.doctorId, decision: d.decision,
+                        success: false, error: eL.message });
+        }
+      });
+      logAction('deciderJourTpLot par ' + user.id + ' — ' + faits + ' décision(s) appliquée(s), ' + rates + ' échec(s)');
+      return ContentService.createTextOutput(JSON.stringify({ success: true, faits: faits, rates: rates, detail: detail }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (action === 'deciderJourTp') {
       /* (23/08/2026 — refonte) LE COMITÉ ÉCRIT DANS LE PLANNING.
          Valider, c'est écrire TP dans GARDES_{Y} et republier : sans ça, le

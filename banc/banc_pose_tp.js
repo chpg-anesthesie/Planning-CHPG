@@ -303,7 +303,8 @@ console.log('\n═══ PT08 · quota : les TP validés le consomment, les TPA 
   } }, MAR);
   V('les 3 premiers jours verts passent', ['2027-03-01', '2027-03-02', '2027-03-03'].every(d => rep.resultat[d] === 'TP'), rep.resultat);
   V('le 4e est refusé « quota atteint »', /quota/.test(rep.resultat['2027-03-04'] || ''), rep.resultat['2027-03-04']);
-  V('le jour jaune devient TPA même quota plein — il ne compte pas', rep.resultat['2027-03-05'] === 'TPA', rep.resultat['2027-03-05']);
+  V('quota plein : un jour jaune est REFUSÉ, il ne peut plus devenir une demande',
+    /quota atteint/.test(rep.resultat['2027-03-05'] || ''), rep.resultat['2027-03-05']);
   V('quota annoncé : 3/3', rep.quota.valides === 3 && rep.quota.total === 3, rep.quota);
 }
 
@@ -609,9 +610,9 @@ console.log('\n═══ PT23 · le bloc comité d\'admin : effectif de l\'INSTA
   V('…et le jour d\'un AUTRE jour ne bouge pas', psi(2) === 14, psi(2));
   const adm = fs.readFileSync('../admin.html', 'utf8');
   V('le bloc est accroché à l\'onglet Équipe', /name==='equipe'[^\n]*tpcCharger\(\)/.test(adm));
-  V('valider/refuser/annuler parlent tous au serveur (deciderJourTp ×4)',
-    (adm.match(/deciderJourTp/g) || []).length >= 5);
-  V('le refus est annulable avec la liste des demandes rendues', /annuler_refus[\s\S]{0,80}retablir/.test(adm));
+  V('les décisions partent en LOT, plus une par une',
+    /action: 'deciderJourTpLot'/.test(adm) && !/action: 'deciderJourTp',/.test(adm));
+  V('on peut tout défaire AVANT d\'enregistrer', /function tpcToutAnnuler/.test(adm));
 }
 
 
@@ -884,7 +885,8 @@ console.log('\n═══ PT31 · deux défauts trouvés en production le 23/08 �
   const adm = fs.readFileSync('../admin.html', 'utf8');
   const decisions = (adm.match(/action: 'deciderJourTp'/g) || []).length;
   const avecAnnee = (adm.match(/action: 'deciderJourTp', year: TPC\.annee/g) || []).length;
-  V('les QUATRE décisions du comité portent l\'année', decisions === 4 && avecAnnee === 4, { decisions, avecAnnee });
+  V('l\'envoi groupé porte l\'année — sans elle le serveur rafraîchirait 2026',
+    /action: 'deciderJourTpLot', year: TPC\.annee/.test(adm), 'année absente');
   V('…et TPC porte bien une année, prise sur la clé la plus récente', /annee: Number\(\(cles\[cles\.length - 1\]/.test(adm));
   const M = fs.readFileSync('../gas/miroir.gs', 'utf8');
   V('témoin : le serveur lit l\'année dans le payload, sinon l\'année active',
@@ -931,6 +933,66 @@ console.log('\n═══ PT32 · trois nombres, trois mots — accordé, en atte
   const c = vm.runInContext('tpxCompte()', bacE);
   V('deux accordés et une demande ne font pas trois accordés',
     c.poses === 2 && c.reserves === 1, c);
+}
+
+
+console.log('\n═══ PT33 · le plafond couvre AUSSI les demandes en attente ═══');
+{
+  /* (23/08/2026) Sans plafond commun, on pouvait poser tout son quota en vert
+     PUIS demander dix jours jaunes de plus — et finir au-dessus du quota si le
+     comité disait oui. Accordés + en attente ne dépassent jamais le total. */
+  const b = monde({});                       // POSEUR : 80 %, quota 3
+  const envoi = {};
+  ['2027-03-01', '2027-03-03', '2027-03-08'].forEach(d => { envoi[d] = 'TP'; });
+  const r1 = b.appel({ tp: true, indispos: envoi }, MAR);
+  const verts = Object.keys(r1.resultat).filter(d => r1.resultat[d] === 'TP').length;
+  V('les trois jours du quota sont accordés', verts === 3, r1.resultat);
+  envoi['2027-03-02'] = 'TP';                // un jour JAUNE en plus
+  const r2 = b.appel({ tp: true, indispos: envoi }, MAR);
+  V('une demande de plus est REFUSÉE : le quota est déjà pris',
+    /quota atteint/.test(r2.resultat['2027-03-02'] || ''), r2.resultat['2027-03-02']);
+  V('…et rien n\'est entré dans le registre', !b.demandes().some(x => x.date === '2027-03-02'), b.demandes());
+
+  // L'inverse : une demande d'abord, puis des verts qui déborderaient.
+  // Un absent de plus le 02/03 suffit à rendre ce jour JAUNE (sondé : 15 présents).
+  const b2 = monde({ indispos: [['PLEIN01', '2027-03-02', 'VAC']] });
+  const e2 = { '2027-03-02': 'TP' };         // jaune → demande
+  const r3 = b2.appel({ tp: true, indispos: e2 }, MAR);
+  V('un jour jaune part en demande', r3.resultat['2027-03-02'] === 'TPA', r3.resultat);
+  V('le compte renvoyé distingue accordés et en attente',
+    r3.quota.valides === 0 && r3.quota.attente === 1 && r3.quota.total === 3, r3.quota);
+  ['2027-03-01', '2027-03-03', '2027-03-08'].forEach(d => { e2[d] = 'TP'; });
+  const r4 = b2.appel({ tp: true, indispos: e2 }, MAR);
+  const acc = Object.keys(r4.resultat).filter(d => r4.resultat[d] === 'TP').length;
+  V('deux verts passent, le troisième est refusé — la demande occupe une place',
+    acc === 2 && Object.keys(r4.resultat).some(d => /quota atteint/.test(r4.resultat[d] || '')), r4.resultat);
+
+  const page = fs.readFileSync('../indispos.html', 'utf8');
+  V('l\'écran refuse aussi de dépasser, sans attendre le serveur',
+    /c\.poses \+ c\.reserves >= TPX\.quota/.test(page));
+}
+
+console.log('\n═══ PT34 · les décisions du comité partent EN LOT ═══');
+{
+  /* (23/08/2026) Chaque clic partait au serveur : quinze jours à trancher,
+     quinze allers-retours. Le comité marque, puis envoie tout d'un coup. */
+  const adm = fs.readFileSync('../admin.html', 'utf8');
+  V('marquer une décision n\'appelle plus le serveur',
+    /function tpcDecider\(i, etat\) \{[\s\S]{0,700}\}/.test(adm)
+    && !/function tpcDecider[\s\S]{0,700}await api\(/.test(adm));
+  V('un bouton d\'envoi groupé existe', /tpcEnvoyer/.test(adm) && /Enregistrer les décisions/.test(adm));
+  V('…et il envoie UNE requête pour toute la série', /action: 'deciderJourTpLot', year: TPC\.annee, decisions/.test(adm));
+  V('un refus n\'est envoyé qu\'une fois par jour (le serveur ferme le jour)', /if \(vus\[d\.jour\]\) return;/.test(adm));
+  V('« Tout défaire » permet de revenir avant d\'enregistrer', /tpcToutAnnuler/.test(adm));
+  V('la barre dit que rien n\'est enregistré avant le clic', /est enregistré tant que/.test(adm));
+
+  const M = fs.readFileSync('../gas/miroir.gs', 'utf8');
+  V('l\'action de lot rafraîchit les mêmes familles',
+    /deciderJourTpLot:\s*\['indispos', 'acces', 'gardes', 'planning'\]/.test(M));
+  V('le serveur expose bien l\'action de lot', /if \(action === 'deciderJourTpLot'\)/.test(SRC_IND));
+  V('…et chaque ligne passe par le MÊME chemin qu\'une décision isolée',
+    /_routeRequete_\(\{ parameter: \{ payload: JSON\.stringify\(\{[\s\S]{0,120}action: 'deciderJourTp'/.test(SRC_IND));
+  V('…un échec de ligne n\'arrête pas les autres', /catch \(eL\) \{[\s\S]{0,160}rates\+\+/.test(SRC_IND));
 }
 
 console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp : ${ok} vérifications, ${ko} échec(s)`);

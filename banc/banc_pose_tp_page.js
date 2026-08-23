@@ -177,6 +177,9 @@ async function ouvrirAdmin(M, codeAdmin) {
     }
     const p = JSON.parse(opt.body || '{}');
     envoyes.push(p);
+    if (p.action === 'deciderJourTpLot') {
+      return { ok: true, json: async function () { return { success: true, faits: (p.decisions || []).length, rates: 0, detail: [] }; } };
+    }
     if (p.action === 'deciderJourTp') {
       return { ok: true, json: async function () { return { success: true, date: p.date, doctorId: p.doctorId,
         fermes: [], rendues: {}, quota: { valides: 1, total: 26 } }; } };
@@ -267,18 +270,22 @@ async function ouvrirAdmin(M, codeAdmin) {
       alerte && alerte.style.display === 'block' && demandes().length === 1, demandes());
     A.envoyes.length = 0;
     let jete = null;
-    try { await A.w.tpcDecider(0, 'ok'); } catch (e) { jete = e; }
+    /* (23/08/2026) Marquer ne parle plus au serveur : le comité marque sa
+       liste, puis l'envoie d'un coup. On vérifie les deux temps. */
+    try { A.w.tpcDecider(0, 'ok'); } catch (e) { jete = e; }
     V('le clic « Valider » n\'a levé AUCUNE erreur', !jete, jete && jete.message);
-    const envoi = A.envoyes.filter(function (p) { return p.action === 'deciderJourTp'; })[0];
-    V('…et une décision est réellement partie au serveur', !!envoi, A.envoyes.map(function (p) { return p.action; }));
-    V('elle porte la bonne décision, le bon MAR et le bon jour',
-      envoi && envoi.decision === 'valider' && envoi.doctorId === 'POSEUR' && envoi.date === '2027-02-18', envoi);
-    V('le code du comité voyage avec (api() l\'ajoute)', envoi && !!envoi.code, envoi && Object.keys(envoi || {}));
+    V('…et n\'a RIEN envoyé au serveur : rien n\'est écrit avant le bouton',
+      A.envoyes.filter(p => /deciderJourTp/.test(p.action || '')).length === 0, A.envoyes.map(p => p.action));
     V('la ligne passe à « validé » dans l\'écran', demandes()[0].etat === 'ok', demandes()[0]);
-    A.envoyes.length = 0;
-    try { await A.w.tpcAnnuler(0); } catch (e) { jete = e; }
-    const envoi2 = A.envoyes.filter(function (p) { return p.action === 'deciderJourTp'; })[0];
-    V('« annuler » repart aussi au serveur', envoi2 && envoi2.decision === 'annuler_validation', envoi2);
+    const barre = A.w.document.getElementById('tpcBarre');
+    V('la barre d\'envoi apparaît', barre && barre.style.display === 'flex', barre && barre.style.display);
+    try { await A.w.tpcEnvoyer(); } catch (e) { jete = e; }
+    const envoi = A.envoyes.filter(p => p.action === 'deciderJourTpLot')[0];
+    V('l\'envoi groupé part, en UNE requête', !!envoi && !jete, A.envoyes.map(p => p.action));
+    V('…il porte l\'année, le code du comité et la décision',
+      envoi && envoi.year === 2027 && !!envoi.code
+      && envoi.decisions[0].decision === 'valider' && envoi.decisions[0].doctorId === 'POSEUR'
+      && envoi.decisions[0].date === '2027-02-18', envoi && envoi.decisions);
     const adm = fs.readFileSync('../admin.html', 'utf8');
     V('témoin : plus aucun appel à un `apiCall` inexistant dans admin.html', !/apiCall\(/.test(adm));
   }

@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-23.2';
+const GAS_VERSION_MIROIR = '2026-08-23.3';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -107,6 +107,7 @@ const MIROIR_APRES_ECRITURE = {
      des 23 restent périmés jusqu'à la synchro horaire. */
   saveIndispos:               ['indispos', 'acces', 'gardes', 'planning'],
   deciderJourTp:              ['indispos', 'acces', 'gardes', 'planning'],
+  deciderJourTpLot:           ['indispos', 'acces', 'gardes', 'planning'],
   saveIndisposBatch:          ['indispos', 'acces'],
   poserAbsenceLongue:         ['indispos', 'acces'],
   annulerAbsenceLongue:       ['indispos', 'acces'],

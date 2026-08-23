@@ -1855,8 +1855,15 @@ function tpxClic(ds) {
   const c = tpxCompte();
   if (e.s === 'libre' && c.poses >= TPX.quota) { showToast('Quota atteint : ' + TPX.quota + ' jours'); return; }
   if (e.s === 'plein') {
+    /* (23/08/2026) Le plafond vaut aussi pour les demandes : accordés +
+       en attente ne dépassent jamais le quota. Le serveur le refuserait de
+       toute façon — autant le dire tout de suite. */
+    if (c.poses + c.reserves >= TPX.quota) {
+      showToast('Quota atteint : ' + TPX.quota + ' jours, demandes en attente comprises');
+      return;
+    }
     TPX.pend[ds] = 'TPA'; tpxRendre();
-    showToast('Posé sous réserve — à valider avec le comité');
+    showToast('Demandé — le comité tranchera');
     return;
   }
   TPX.pend[ds] = 'TP'; tpxRendre(); showToast('Jour de temps partiel posé');

@@ -1336,6 +1336,14 @@ if (sessionStorage.getItem('adminCode')) {
         <span class="tpc-alerte-chev" id="tpcChev">Voir →</span>
       </div>
       <div class="tpc-liste" id="tpcListe"></div>
+      <div id="tpcBarre" style="display:none;position:sticky;bottom:0;background:#fff;
+        border-top:1px solid var(--line);padding:11px 0;margin-top:6px;display:flex;
+        align-items:center;gap:12px;z-index:20">
+        <span id="tpcBarreTxt" style="font-size:12.5px;color:#64748B;font-weight:600;flex:1"></span>
+        <button class="tpc-b" onclick="tpcToutAnnuler()">Tout défaire</button>
+        <button class="tpc-b tpc-b-ok" id="tpcBtnEnvoyer" onclick="tpcEnvoyer()"
+          style="padding:10px 18px;font-size:13.5px">Enregistrer les décisions</button>
+      </div>
       <div class="tpc-rappel" id="tpcRappel" style="display:none">
         Un refus ferme le jour pour toute l'équipe et se dit de vive voix au MAR concerné.
         Aucun message n'est envoyé d'ici.
@@ -9562,6 +9570,14 @@ function tpcRendre() {
       + '<div class="tpc-eff' + (d.etat === 'ko' ? ' ko' : '') + '">' + eff + '</div></div>' + act + '</div>';
   }).join('');
   const reste = TPC.demandes.filter(function (d) { return !d.etat; }).length;
+  const marquees = TPC.demandes.filter(function (d) { return d.etat; }).length;
+  const barre = document.getElementById('tpcBarre');
+  if (barre) {
+    barre.style.display = marquees ? 'flex' : 'none';
+    document.getElementById('tpcBarreTxt').innerHTML =
+      '<b>' + marquees + ' décision' + (marquees > 1 ? 's' : '') + '</b> marquée'
+      + (marquees > 1 ? 's' : '') + ' — rien n\'est enregistré tant que vous n\'avez pas cliqué';
+  }
   const a = document.getElementById('tpcAlerte'), t = document.getElementById('tpcAlerteTxt');
   if (reste === 0) {
     a.classList.add('vide');
@@ -9578,46 +9594,74 @@ function tpcRendre() {
   }
 }
 
-async function tpcDecider(i, etat) {
+/* (23/08/2026) MARQUER, PUIS ENREGISTRER. Chaque clic partait au serveur :
+   sur une liste de quinze jours, quinze allers-retours. Désormais le comité
+   marque toute sa liste — les décisions restent locales, entièrement
+   réversibles — puis les envoie d'un seul coup. Rien n'est écrit dans le
+   classeur avant ce bouton. */
+function tpcDecider(i, etat) {
   const d = TPC.demandes[i];
   if (!d || d.etat) return;
   if (etat === 'ok') {
-    const res = await api({ action: 'deciderJourTp', year: TPC.annee, decision: 'valider', doctorId: d.id, date: d.jour });
-    if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Échec de la validation')); return; }
     d.etat = 'ok';
-    if (TPC.presents[d.jour] !== undefined) TPC.presents[d.jour]--;   // il est absent, désormais
-    showToast('✓ Jour validé — le MAR le verra sur son écran');
+    if (TPC.presents[d.jour] !== undefined) TPC.presents[d.jour]--;   // il sera absent
   } else {
-    const res = await api({ action: 'deciderJourTp', year: TPC.annee, decision: 'refuser', date: d.jour });
-    if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Échec du refus')); return; }
-    TPC.rendusParRefus[d.jour] = res.rendues || {};
+    d.etat = 'ko';
     TPC.fermes.add(d.jour);
+    /* Refuser ferme le jour pour toute l'équipe : les autres demandes du même
+       jour tombent avec, ici comme au serveur. */
     TPC.demandes.forEach(function (x) { if (x.jour === d.jour && !x.etat) x.etat = 'ko'; });
-    const n = Object.keys(res.rendues || {}).length;
-    showToast('✕ Jour fermé pour l\'équipe' + (n > 1 ? ' — ' + n + ' demandes rendues' : '') + ' — dites-le de vive voix');
   }
   tpcRendre();
 }
 
-async function tpcAnnuler(i) {
+function tpcAnnuler(i) {
   const d = TPC.demandes[i];
   if (!d || !d.etat) return;
   if (d.etat === 'ok') {
-    const res = await api({ action: 'deciderJourTp', year: TPC.annee, decision: 'annuler_validation', doctorId: d.id, date: d.jour });
-    if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Annulation impossible')); return; }
     d.etat = null;
     if (TPC.presents[d.jour] !== undefined) TPC.presents[d.jour]++;
-    showToast('Validation annulée — le jour repasse en attente');
   } else {
-    const res = await api({ action: 'deciderJourTp', year: TPC.annee,
-      decision: 'annuler_refus', date: d.jour, retablir: TPC.rendusParRefus[d.jour] || {} });
-    if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Annulation impossible')); return; }
     TPC.fermes.delete(d.jour);
-    delete TPC.rendusParRefus[d.jour];
     TPC.demandes.forEach(function (x) { if (x.jour === d.jour && x.etat === 'ko') x.etat = null; });
-    showToast('Refus annulé — le jour rouvre, les demandes sont rétablies');
   }
   tpcRendre();
+}
+
+function tpcToutAnnuler() {
+  TPC.demandes.forEach(function (d, i) { if (d.etat) tpcAnnuler(i); });
+}
+
+/* L'envoi : une seule requête pour toute la série. */
+async function tpcEnvoyer() {
+  const marquees = TPC.demandes.filter(function (d) { return d.etat; });
+  if (!marquees.length) { showToast('Aucune décision à enregistrer'); return; }
+  const btn = document.getElementById('tpcBtnEnvoyer');
+  btn.textContent = '⏳ Enregistrement...'; btn.disabled = true;
+  try {
+    /* Un refus ferme le jour : une seule décision par JOUR suffit, le serveur
+       s'occupe des autres demandes de ce jour-là. */
+    const vus = {};
+    const decisions = [];
+    marquees.forEach(function (d) {
+      if (d.etat === 'ko') {
+        if (vus[d.jour]) return;
+        vus[d.jour] = true;
+        decisions.push({ decision: 'refuser', date: d.jour });
+      } else {
+        decisions.push({ decision: 'valider', doctorId: d.id, date: d.jour });
+      }
+    });
+    const res = await api({ action: 'deciderJourTpLot', year: TPC.annee, decisions: decisions });
+    if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Échec de l\'enregistrement')); return; }
+    showToast('✓ ' + res.faits + ' décision' + (res.faits > 1 ? 's' : '') + ' enregistrée'
+      + (res.faits > 1 ? 's' : '') + (res.rates ? ' — ' + res.rates + ' en échec' : ''));
+    await tpcCharger();                    // relire la vérité du serveur
+  } catch (e) {
+    showToast('❌ Erreur réseau — rien n\'a été enregistré, vous pouvez réessayer');
+  } finally {
+    btn.textContent = 'Enregistrer les décisions'; btn.disabled = false;
+  }
 }
 
 </script>
