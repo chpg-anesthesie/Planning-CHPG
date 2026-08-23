@@ -995,5 +995,23 @@ console.log('\n═══ PT34 · les décisions du comité partent EN LOT ══
   V('…un échec de ligne n\'arrête pas les autres', /catch \(eL\) \{[\s\S]{0,160}rates\+\+/.test(SRC_IND));
 }
 
+
+console.log('\n═══ PT35 · après un envoi, l\'écran se corrige SANS un appel de plus ═══');
+{
+  /* (23/08/2026) La copie rapide se rafraîchit ~1 min 45 après une écriture
+     (trace LOGS). Deux mauvaises réponses : la relire tout de suite ferait
+     revenir les demandes déjà tranchées ; relire le serveur coûterait 10 à
+     20 s d'attente. La bonne : la réponse dit ligne par ligne ce qui est
+     passé — on retire ces lignes, l'écran est juste instantanément. */
+  const adm = fs.readFileSync('../admin.html', 'utf8');
+  V('aucune relecture après l\'envoi', !/await tpcCharger\(/.test(adm.slice(adm.indexOf('async function tpcEnvoyer'))));
+  V('les lignes traitées sont retirées d\'après le détail du serveur',
+    /res\.detail \|\| \[\]/.test(adm) && /TPC\.demandes = TPC\.demandes\.filter/.test(adm));
+  V('un refus retire toutes les demandes du jour', /passees\['refuser\|' \+ d\.jour/.test(adm));
+  V('la copie rapide reste la source à l\'ouverture — c\'est elle qui est instantanée',
+    /const m = await miroirRead\(\['pose_tp_'/.test(adm));
+  V('le repli serveur ne sert que si la clé manque', /if \(!cles\.length\) \{\s*\n\s*const r = await api\(\{ action: 'getPoseTp' \}\)/.test(adm));
+}
+
 console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp : ${ok} vérifications, ${ko} échec(s)`);
 if (ko > 0) process.exit(1);

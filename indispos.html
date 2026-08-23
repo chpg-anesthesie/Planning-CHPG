@@ -10,6 +10,12 @@
 <title>Indisponibilités — CHPG Monaco</title>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
+<!-- (23/08/2026) Préconnexion au relais de lecture : en 4G, la poignée de main
+     TLS coûte 200 à 400 ms, payés au premier appel — c'est-à-dire pile au
+     moment où l'écran attend ses données. On la fait pendant le chargement de
+     la page, en parallèle du reste. -->
+<link rel="preconnect" href="https://chpg-miroir.arthurfrohlich.workers.dev" crossorigin/>
+<link rel="dns-prefetch" href="https://chpg-miroir.arthurfrohlich.workers.dev"/>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap"/>
 <style>
 :root {
@@ -1885,6 +1891,10 @@ async function tpxEnregistrer() {
     });
     Object.keys(TPX.pend).forEach(function (ds) { map[ds] = 'TP'; });
     const res = await apiCall('saveIndispos', { tp: true, year: TPX.annee, indispos: map });
+    /* Les verdicts sont appliqués localement plus bas : l'écran reste juste
+       sans relire quoi que ce soit. C'est voulu — la copie rapide met ~1 min 45
+       à se rafraîchir (trace du 23/08), la relire ici afficherait l'état
+       d'avant. */
     if (!res || res.success === false) {
       showToast('❌ ' + ((res && res.error) || 'Erreur lors de l\'enregistrement'));
       return;

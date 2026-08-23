@@ -9656,7 +9656,23 @@ async function tpcEnvoyer() {
     if (!res || !res.success) { showToast('❌ ' + ((res && res.error) || 'Échec de l\'enregistrement')); return; }
     showToast('✓ ' + res.faits + ' décision' + (res.faits > 1 ? 's' : '') + ' enregistrée'
       + (res.faits > 1 ? 's' : '') + (res.rates ? ' — ' + res.rates + ' en échec' : ''));
-    await tpcCharger();                    // relire la vérité du serveur
+    /* (23/08/2026) AUCUNE RELECTURE ICI. La copie rapide met ~1 min 45 à se
+       rafraîchir (trace LOGS du 23/08) : la relire maintenant ferait revenir
+       les demandes qu'on vient de trancher. Et relire le serveur coûterait
+       10 à 20 secondes d'attente au comité. On sait ce qui est passé — la
+       réponse le dit ligne par ligne : on retire ces lignes, c'est tout.
+       L'écran est juste, instantanément, sans un appel de plus. */
+    const passees = {};
+    (res.detail || []).forEach(function (x) {
+      if (x && x.success) passees[x.decision + '|' + x.date + '|' + (x.doctorId || '')] = true;
+    });
+    TPC.demandes = TPC.demandes.filter(function (d) {
+      if (!d.etat) return true;                       // pas encore tranchée
+      if (d.etat === 'ok') return !passees['valider|' + d.jour + '|' + d.id];
+      return !passees['refuser|' + d.jour + '|'];     // le refus ferme le jour entier
+    });
+    TPC.demandes.forEach(function (d) { d.etat = null; });   // ce qui reste est à retrancher
+    tpcRendre();
   } catch (e) {
     showToast('❌ Erreur réseau — rien n\'a été enregistré, vous pouvez réessayer');
   } finally {
