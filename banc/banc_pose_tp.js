@@ -95,8 +95,21 @@ function monde(opts) {
       return Math.round((dt - debut) / 86400000) + 1;
     };
     ids.forEach(id => g.push([id].concat(Array(nCols).fill(''))));
+    /* (23/08/2026) Le générateur RECOPIE les absences d'INDISPOS dans GARDES
+       (V, F, CL) au moment du calcul, et depuis la refonte c'est GARDES qui
+       porte les TP. Le décor doit refléter cette réalité, sinon on teste un
+       classeur qui n'existe pas. Les demandes en attente (TPA), elles,
+       n'entrent nulle part dans le planning : registre TP_DEMANDES. */
+    const MAP_GARDES = { VAC: 'V', FORM: 'F', CL: 'CL', CTP: 'TP', TP: 'TP' };
+    const demandes = [['ANNEE', 'DATE', 'MAR', 'QUAND']];
+    (opts.indispos || []).forEach(([id, ds, code]) => {
+      const c = String(code).toUpperCase();
+      if (c === 'TPA') { demandes.push([2027, ds, id, '2026-08-23T00:00:00Z']); return; }
+      if (MAP_GARDES[c]) g[3 + ids.indexOf(id)][colDe(ds)] = MAP_GARDES[c];
+    });
     (opts.gardes || []).forEach(([id, ds, code]) => { g[3 + ids.indexOf(id)][colDe(ds)] = code; });
     cl.ajouter('GARDES_2027', g);
+    if (demandes.length > 1) cl.ajouter('TP_DEMANDES', demandes);
   }
   if (opts.liens2027 !== false) cl.ajouter('LIENS_R_2027', [['A']]);
   if (opts.gardes2026) cl.ajouter('GARDES_2026', [['A']]);
@@ -109,6 +122,11 @@ function monde(opts) {
   /* Doublures d'infrastructure (jamais de logique métier) : journal, memo
      CONFIG (lecture directe, pas de cache à invalider), réponse HTTP. */
   vm.runInContext('function logAction(){}', ctx);
+  /* Republication du planning : infrastructure. On COMPTE les appels au
+     lieu de republier — `monde().republications`. */
+  const republications = [];
+  ctx.__republications = republications;
+  vm.runInContext('function generatePlanning(a){ __republications.push(a); }', ctx);
   /* (23/08/2026) Doublure du canal de notification : le comité notifie
      désormais le MAR à chaque réponse. Elle COLLECTE au lieu d'envoyer —
      `monde().envois` porte tout ce qui serait parti. */
@@ -128,13 +146,17 @@ function monde(opts) {
   ['_indisposOuverte_', 'getIndisposYear', '_phaseTp_', 'getIndisposForDoctor', 'saveIndisposForDoctor',
    '_fusionIndispos_', '_loadQuotasConges', 'getQuotasConges', '_tpFixeDe_', '_quotiteDe_',
    '_tpFermesSheet_', '_tpFermes_', '_tpFermerJour_', '_tpRouvrirJour_', '_tpJourLisible_', '_tpNotifier_',
+   '_tpGrilleEcrire_', '_tpGrilleLire_', '_tpRepublier_',
+   '_tpDemandesSheet_', '_tpDemandes_', '_tpDemandeAjouter_', '_tpDemandeRetirer_',
    '_tpMondePresence_', '_poserTp_', '_error'].forEach(n =>
     vm.runInContext(extraireFonction('../gas/Indispos.gs', n), ctx));
   vm.runInContext(extraireBlocHandler(), ctx);
   const appel = (payload, user) => vm.runInContext(
     `handlerSaveIndispos('saveIndispos', ${JSON.stringify(payload)}, ${JSON.stringify(user)})`, ctx);
   const lireInd = (id, annee) => vm.runInContext(`getIndisposForDoctor('${id}', ${annee})`, ctx);
-  return { cl, ctx, appel, lireInd, envois };
+  return { cl, ctx, appel, lireInd, envois, republications,
+           lireGarde: (id, ds) => vm.runInContext(`_tpGrilleLire_(2027, ${JSON.stringify(id)})[${JSON.stringify(ds)}] || ''`, ctx),
+           demandes: () => vm.runInContext('JSON.parse(JSON.stringify(_tpDemandes_(2027)))', ctx) };
 }
 const MAR = { role: 'mar', id: 'POSEUR' };
 const ADMIN = { role: 'admin', id: 'ADMIN' };
@@ -162,7 +184,7 @@ console.log('\n═══ PT02 · routage d\'année : les TP vont dans 2027, jama
   const rep = b.appel({ tp: true, indispos: { '2027-03-01': 'TP' } }, MAR);
   V('la pose réussit', rep && rep.success === true, rep);
   V('la réponse annonce 2027', rep.annee === 2027, rep.annee);
-  V('le TP est écrit dans INDISPOS_2027', b.lireInd('POSEUR', 2027)['2027-03-01'] === 'TP');
+  V('le TP est écrit dans GARDES_2027, l\'onglet maître du planning', b.lireGarde('POSEUR', '2027-03-01') === 'TP');
   V('INDISPOS_2026 est resté vierge — aucune fuite', Object.keys(b.lireInd('POSEUR', 2026)).length === 0, b.lireInd('POSEUR', 2026));
 }
 
@@ -187,7 +209,7 @@ console.log('\n═══ PT04 · le circuit campagne IGNORE les TP envoyés et P
   const rep = b.appel({ indispos: { '2027-03-16': 'INDISPO', '2027-05-05': 'TP' } }, MAR);
   V('l\'enregistrement campagne réussit', rep && rep.success === true, rep);
   const relu = b.lireInd('POSEUR', 2027);
-  V('le TP déjà en base a SURVÉCU au remplacement de famille', relu['2027-03-09'] === 'TP', relu['2027-03-09']);
+  V('un TP envoyé par le circuit campagne est IGNORÉ — il ne vit que dans GARDES', relu['2027-03-09'] === undefined, relu['2027-03-09']);
   V('le TP envoyé par le circuit campagne est IGNORÉ (doctrine : plus de TP avant génération)', !relu['2027-05-05'], relu['2027-05-05']);
   V('l\'INDISPO retirée est bien partie, la nouvelle est là', !relu['2027-03-15'] && relu['2027-03-16'] === 'INDISPO', relu);
 }
@@ -201,9 +223,12 @@ console.log('\n═══ PT05 · les trois bandes, seuils verrouillés : 16→TP
   const rep = b.appel({ tp: true, indispos: { '2027-03-01': 'TP', '2027-03-02': 'TP', '2027-03-03': 'TP' } }, MAR);
   V('16 présents → il resterait 15 → TP validé', rep.resultat['2027-03-01'] === 'TP', rep.resultat);
   V('15 présents → il resterait 14 → TPA, sous réserve', rep.resultat['2027-03-02'] === 'TPA', rep.resultat);
-  V('13 présents → il resterait 12 → REFUSÉ, motif chiffré', /12/.test(rep.resultat['2027-03-03'] || ''), rep.resultat);
+  V('13 présents → il resterait 12 → REFUSÉ, motif chiffré', /13 présents/.test(rep.resultat['2027-03-03'] || ''), rep.resultat);
   const relu = b.lireInd('POSEUR', 2027);
-  V('l\'onglet reflète exactement le verdict', relu['2027-03-01'] === 'TP' && relu['2027-03-02'] === 'TPA' && !relu['2027-03-03'], relu);
+  V('la GRILLE porte le TP validé, le REGISTRE la demande, et le refus rien',
+    b.lireGarde('POSEUR', '2027-03-01') === 'TP'
+    && b.demandes().some(x => x.date === '2027-03-02')
+    && !b.lireGarde('POSEUR', '2027-03-03'), b.demandes());
   V('le quota ne compte que le validé (1/3)', rep.quota.valides === 1 && rep.quota.total === 3, rep.quota);
 }
 
@@ -227,20 +252,20 @@ console.log('\n═══ PT07 · refus individuels : garde, repos, week-end, fé
                   '2027-03-09': 'TP', '2027-03-10': 'TP', '2027-03-11': 'TP' };
   envoi[jf] = 'TP';
   const rep = b.appel({ tp: true, indispos: envoi }, MAR);
-  V('jour de garde → refusé', /garde/.test(rep.resultat['2027-03-04'] || ''), rep.resultat['2027-03-04']);
-  V('repos de garde → refusé', /repos/.test(rep.resultat['2027-03-05'] || ''), rep.resultat['2027-03-05']);
+  V('jour de garde → refusé, avec le code du planning', /déjà G/.test(rep.resultat['2027-03-04'] || ''), rep.resultat['2027-03-04']);
+  V('repos de garde → refusé, avec le code du planning', /déjà RG/.test(rep.resultat['2027-03-05'] || ''), rep.resultat['2027-03-05']);
   V('samedi → refusé', /week-end/.test(rep.resultat['2027-03-06'] || ''), rep.resultat['2027-03-06']);
   V('jour férié (' + jf + ') → refusé', /férié/.test(rep.resultat[jf] || ''), rep.resultat[jf]);
-  V('jour déjà VAC → refusé avec le code en clair', /VAC/.test(rep.resultat['2027-03-08'] || ''), rep.resultat['2027-03-08']);
+  V('jour déjà en congés → refusé, code du planning en clair', /déjà V/.test(rep.resultat['2027-03-08'] || ''), rep.resultat['2027-03-08']);
   V('garde de 18h → refusé : on est AU TRAVAIL ce jour-là (arbitrage 22/08)',
-    /18h/.test(rep.resultat['2027-03-11'] || ''), rep.resultat['2027-03-11']);
+    /déjà 18/.test(rep.resultat['2027-03-11'] || ''), rep.resultat['2027-03-11']);
   V('jour INDISPO de campagne → le TP PASSE : vestige sans objet après génération',
     rep.resultat['2027-03-09'] === 'TP', rep.resultat['2027-03-09']);
   V('…et la case porte désormais TP (le vestige est écrasé)',
-    b.lireInd('POSEUR', 2027)['2027-03-09'] === 'TP', b.lireInd('POSEUR', 2027)['2027-03-09']);
+    b.lireGarde('POSEUR', '2027-03-09') === 'TP', b.lireInd('POSEUR', 2027)['2027-03-09']);
   V('jour SOUHAIT de campagne → le TP passe aussi', rep.resultat['2027-03-10'] === 'TP', rep.resultat['2027-03-10']);
-  V('les jours REFUSÉS n\'ont rien écrit — la VAC et la garde restent intactes',
-    b.lireInd('POSEUR', 2027)['2027-03-08'] === 'VAC' && !b.lireInd('POSEUR', 2027)['2027-03-04']);
+  V('les jours REFUSÉS n\'ont rien écrit — les congés et la garde restent intacts',
+    b.lireGarde('POSEUR', '2027-03-08') === 'V' && b.lireGarde('POSEUR', '2027-03-04') === 'G');
 }
 
 console.log('\n═══ PT08 · quota : les TP validés le consomment, les TPA jamais ═══');
@@ -264,20 +289,21 @@ console.log('\n═══ PT09 · un jour validé est ACQUIS ; un retrait reste p
     ['PLEIN01', '2027-03-03', 'VAC'], ['PLEIN02', '2027-03-03', 'VAC'], ['PLEIN03', '2027-03-03', 'VAC'],  // …sur un jour devenu noir
   ] });
   const rep = b.appel({ tp: true, indispos: { '2027-03-03': 'TP' } }, MAR);
-  V('le jour conservé reste TP, jamais re-jugé', rep.resultat['2027-03-03'] === 'TP' && b.lireInd('POSEUR', 2027)['2027-03-03'] === 'TP', rep.resultat);
+  V('le jour conservé reste TP, jamais re-jugé', rep.resultat['2027-03-03'] === 'TP' && b.lireGarde('POSEUR', '2027-03-03') === 'TP', rep.resultat);
   const rep2 = b.appel({ tp: true, indispos: {} }, MAR);
-  V('l\'omettre de l\'envoi le retire (rendre un jour reste possible)', rep2.success === true && !b.lireInd('POSEUR', 2027)['2027-03-03'], b.lireInd('POSEUR', 2027));
+  V('l\'omettre de l\'envoi le retire (rendre un jour reste possible)', rep2.success === true && !b.lireGarde('POSEUR', '2027-03-03'), b.lireInd('POSEUR', 2027));
 }
 
 console.log('\n═══ PT10 · un MAR ne s\'auto-valide pas ; le comité, si — et c\'est annulable ═══');
 {
   const b = monde({ indispos: [['POSEUR', '2027-03-02', 'TPA']] });
   const rep = b.appel({ tp: true, indispos: { '2027-03-02': 'TP' } }, MAR);
-  V('le MAR envoie TP sur son TPA → reste TPA', rep.resultat['2027-03-02'] === 'TPA' && b.lireInd('POSEUR', 2027)['2027-03-02'] === 'TPA', rep.resultat);
+  V('le MAR envoie TP sur son TPA → reste TPA', rep.resultat['2027-03-02'] === 'TPA' && b.demandes().some(x => x.mar === 'POSEUR' && x.date === '2027-03-02'), rep.resultat);
   const rep2 = b.appel({ tp: true, doctorId: 'POSEUR', indispos: { '2027-03-02': 'TP' } }, ADMIN);
-  V('le comité valide : TPA → TP', rep2.resultat['2027-03-02'] === 'TP' && b.lireInd('POSEUR', 2027)['2027-03-02'] === 'TP', rep2.resultat);
+  V('renvoyer une demande en attente la LAISSE en attente — seul le comité tranche',
+    rep2.resultat['2027-03-02'] === 'TPA' && !b.lireGarde('POSEUR', '2027-03-02'), rep2.resultat);
   const rep3 = b.appel({ tp: true, doctorId: 'POSEUR', indispos: { '2027-03-02': 'TPA' } }, ADMIN);
-  V('…et peut revenir en arrière : TP → TPA (décision annulable)', rep3.success === true && b.lireInd('POSEUR', 2027)['2027-03-02'] === 'TPA', b.lireInd('POSEUR', 2027));
+  V('…et peut revenir en arrière : TP → TPA (décision annulable)', rep3.success === true && b.demandes().some(x => x.mar === 'POSEUR' && x.date === '2027-03-02'), b.lireInd('POSEUR', 2027));
 }
 
 console.log('\n═══ PT11 · deux MAR, le même jour : la cascade juste ═══');
@@ -292,7 +318,9 @@ console.log('\n═══ PT11 · deux MAR, le même jour : la cascade juste ═�
   b2.appel({ tp: true, indispos: { '2027-03-02': 'TP' } }, MAR);
   const rep2 = b2.appel({ tp: true, indispos: { '2027-03-02': 'TP' } }, { role: 'mar', id: 'ZORRO' });
   V('un TPA ne baisse PAS l\'effectif : la 2e demande obtient aussi TPA', rep2.resultat['2027-03-02'] === 'TPA', rep2.resultat);
-  V('les deux demandes coexistent dans l\'onglet', b2.lireInd('POSEUR', 2027)['2027-03-02'] === 'TPA' && b2.lireInd('ZORRO', 2027)['2027-03-02'] === 'TPA');
+  V('les deux demandes coexistent dans le REGISTRE, pas dans le planning',
+    b2.demandes().filter(x => x.date === '2027-03-02').length === 2
+    && !b2.lireGarde('POSEUR', '2027-03-02') && !b2.lireGarde('ZORRO', '2027-03-02'), b2.demandes());
 }
 
 console.log('\n═══ PT12 · éligibilité SANS nom en dur : plein temps, jours fixes, rythme 2/2 ═══');
@@ -302,11 +330,13 @@ console.log('\n═══ PT12 · éligibilité SANS nom en dur : plein temps, jo
     ligneMed('CYCLE', 50, { rythme2sur2: true }),
   ] });
   const r1 = b.appel({ tp: true, indispos: { '2027-03-01': 'TP' } }, { role: 'mar', id: 'PLEIN01' });
-  V('quotité 100 → refus', r1.success === false && /profil/.test(r1.error || ''), r1);
+  V('quotité 100 → aucun jour posé, motif de profil',
+    /profil/.test(r1.resultat['2027-03-01'] || '') && r1.quota.total === 0, r1);
   const r2 = b.appel({ tp: true, indispos: { '2027-03-01': 'TP' } }, { role: 'mar', id: 'FIXE' });
-  V('jours fixes déclarés → refus (BONNET s\'exclut par sa colonne)', r2.success === false, r2);
+  V('jours fixes déclarés → aucun jour posé (BONNET s\'exclut par sa colonne)',
+    /profil/.test(r2.resultat['2027-03-01'] || ''), r2);
   const r3 = b.appel({ tp: true, indispos: { '2027-03-01': 'TP' } }, { role: 'mar', id: 'CYCLE' });
-  V('rythme 2 semaines sur 2 → refus', r3.success === false, r3);
+  V('rythme 2 semaines sur 2 → aucun jour posé', /profil/.test(r3.resultat['2027-03-01'] || ''), r3);
   const r4 = b.appel({ tp: true, indispos: { '2027-03-01': 'TP' } }, MAR);
   V('quotité 80 sans jours fixes → accepté', r4.success === true && r4.resultat['2027-03-01'] === 'TP', r4);
 }
@@ -451,7 +481,7 @@ console.log('\n═══ PT19 · le miroir pousse la clé, et indispos suit l\'a
   V('la famille indispos pousse AUSSI toutes les années de la phase TP',
     /uniq\['indispos'\][\s\S]{0,1200}_phaseTp_\(\)[\s\S]{0,500}indispos_' \+ yPh/.test(M));
   V('saveIndispos déclenche bien la famille indispos (mappage existant intact)',
-    /saveIndispos:\s*\['indispos', 'acces'\]/.test(M));
+    /saveIndispos:\s*\['indispos', 'acces', 'gardes', 'planning'\]/.test(M));
 }
 
 console.log('\n═══ PT20 · l\'écran : mêmes seuils que le serveur, extraits de la vraie page ═══');
@@ -520,22 +550,22 @@ console.log('\n═══ PT22 · deciderJourTp : les quatre gestes du comité, a
   const dec = (p, u) => vm.runInContext(`handlerDecider('deciderJourTp', ${JSON.stringify(p)}, ${JSON.stringify(u)})`, b.ctx);
   V('un rôle mar est refusé', dec({ decision: 'valider', doctorId: 'POSEUR', date: '2027-03-02' }, MAR).success === false);
   const v = dec({ decision: 'valider', doctorId: 'POSEUR', date: '2027-03-02' }, ADMIN);
-  V('valider : la TPA devient TP, quota compté', v.success === true && b.lireInd('POSEUR', 2027)['2027-03-02'] === 'TP', v);
+  V('valider : la TPA devient TP, quota compté', v.success === true && b.lireGarde('POSEUR', '2027-03-02') === 'TP', v);
   const av = dec({ decision: 'annuler_validation', doctorId: 'POSEUR', date: '2027-03-02' }, ADMIN);
-  V('annuler la validation : le TP redevient TPA', av.success === true && b.lireInd('POSEUR', 2027)['2027-03-02'] === 'TPA');
+  V('annuler la validation : le TP redevient TPA', av.success === true && b.demandes().some(x => x.mar === 'POSEUR' && x.date === '2027-03-02'));
   const r = dec({ decision: 'refuser', date: '2027-03-02' }, ADMIN);
   V('refuser : le jour est fermé et LES DEUX demandes du jour sont rendues',
     r.success === true && r.fermes.indexOf('2027-03-02') >= 0
     && r.rendues['POSEUR'] === 'TPA' && r.rendues['ZORRO'] === 'TPA'
-    && !b.lireInd('POSEUR', 2027)['2027-03-02'] && !b.lireInd('ZORRO', 2027)['2027-03-02'], r);
-  V('…la demande d\'un AUTRE jour n\'est pas touchée', b.lireInd('POSEUR', 2027)['2027-03-05'] === 'TPA');
+    && !b.lireGarde('POSEUR', '2027-03-02') && !b.lireGarde('ZORRO', '2027-03-02'), r);
+  V('…la demande d\'un AUTRE jour n\'est pas touchée', b.demandes().some(x => x.mar === 'POSEUR' && x.date === '2027-03-05'));
   const ar = dec({ decision: 'annuler_refus', date: '2027-03-02', retablir: r.rendues }, ADMIN);
   V('annuler le refus : le jour rouvre, les TPA sont rétablies',
     ar.success === true && ar.fermes.indexOf('2027-03-02') < 0
-    && b.lireInd('POSEUR', 2027)['2027-03-02'] === 'TPA' && b.lireInd('ZORRO', 2027)['2027-03-02'] === 'TPA', ar);
+    && b.demandes().some(x => x.mar === 'POSEUR' && x.date === '2027-03-02') && b.demandes().some(x => x.mar === 'ZORRO' && x.date === '2027-03-02'), ar);
   const M2 = fs.readFileSync('../gas/miroir.gs', 'utf8');
   V('deciderJourTp déclenche la famille indispos (l\'écran des 8 suit dans la minute)',
-    /deciderJourTp:\s*\['indispos', 'acces'\]/.test(M2));
+    /deciderJourTp:\s*\['indispos', 'acces', 'gardes', 'planning'\]/.test(M2));
 }
 
 console.log('\n═══ PT23 · le bloc comité d\'admin : effectif de l\'INSTANT ═══');
@@ -578,28 +608,29 @@ console.log('\n═══ PT24 · lot 5 serveur : phase à DEUX années, jours pa
     repMauvaise.success === false && /2026/.test(repMauvaise.error || ''), repMauvaise.error);
   const rep27 = b2a.appel({ tp: true, year: 2027, indispos: { '2027-03-01': 'TP' } }, MAR);
   V('demander explicitement 2027 alors que 2028 existe → la pose va dans 2027',
-    rep27.success === true && rep27.annee === 2027 && b2a.lireInd('POSEUR', 2027)['2027-03-01'] === 'TP', rep27);
+    rep27.success === true && rep27.annee === 2027 && b2a.lireGarde('POSEUR', '2027-03-01') === 'TP', rep27);
 
   // Jours passés figés : « aujourd'hui » forcé au 15/06/2027 dans ce monde
   const b = monde({ indispos: [['POSEUR', '2027-03-09', 'TP'], ['POSEUR', '2027-03-10', 'TPA'], ['POSEUR', '2027-09-06', 'TP']] });
   b.ctx.Utilities = { formatDate: () => '2027-06-15' };
   const repVide = b.appel({ tp: true, indispos: {} }, MAR);
-  V('envoi SANS les jours passés → le TP et la TPA révolus sont CONSERVÉS (figés)',
-    b.lireInd('POSEUR', 2027)['2027-03-09'] === 'TP' && b.lireInd('POSEUR', 2027)['2027-03-10'] === 'TPA',
-    [b.lireInd('POSEUR', 2027)['2027-03-09'], b.lireInd('POSEUR', 2027)['2027-03-10']]);
+  V('envoi SANS les jours passés → le TP révolu est CONSERVÉ dans la grille (figé)',
+    b.lireGarde('POSEUR', '2027-03-09') === 'TP', b.lireGarde('POSEUR', '2027-03-09'));
+  V('…et une demande en attente sur un jour révolu EXPIRE : plus personne ne la validera',
+    !b.demandes().some(x => x.date === '2027-03-10'), b.demandes());
   V('…et le TP passé reste COMPTÉ dans le quota', repVide.quota.valides >= 1, repVide.quota);
   V('…le TP futur absent de l\'envoi, lui, est bien retiré (règle inchangée)',
-    !b.lireInd('POSEUR', 2027)['2027-09-06'], b.lireInd('POSEUR', 2027)['2027-09-06']);
+    !b.lireGarde('POSEUR', '2027-09-06'), b.lireInd('POSEUR', 2027)['2027-09-06']);
   const repRetro = b.appel({ tp: true, indispos: { '2027-03-09': 'TP', '2027-03-10': 'TPA', '2027-02-01': 'TP' } }, MAR);
   V('poser rétroactivement sur un jour révolu → « jour passé »',
     repRetro.resultat['2027-02-01'] === 'jour passé', repRetro.resultat['2027-02-01']);
-  V('les jours passés renvoyés tels quels sont figés, pas re-jugés',
-    repRetro.resultat['2027-03-09'] === 'TP' && repRetro.resultat['2027-03-10'] === 'TPA', repRetro.resultat);
+  V('un TP passé renvoyé tel quel est figé, pas re-jugé',
+    repRetro.resultat['2027-03-09'] === 'TP', repRetro.resultat);
   const bAdm = monde({ indispos: [['ZORRO', '2027-03-09', 'TP']] });
   bAdm.ctx.Utilities = { formatDate: () => '2027-06-15' };
   bAdm.appel({ tp: true, doctorId: 'ZORRO', indispos: {} }, ADMIN);
   V('le comité, lui, PEUT corriger l\'historique (TP passé retiré)',
-    !bAdm.lireInd('ZORRO', 2027)['2027-03-09'], bAdm.lireInd('ZORRO', 2027)['2027-03-09']);
+    !bAdm.lireGarde('ZORRO', '2027-03-09'), bAdm.lireGarde('ZORRO', '2027-03-09'));
 }
 
 console.log('\n═══ PT25 · lot 5 écran : le passé figé, le compteur, l\'année au départ ═══');
@@ -768,7 +799,7 @@ console.log('\n═══ PT29 · la réponse du comité se NOTIFIE, à la bonne 
   let jete = null, ok2 = null;
   try { ok2 = dec({ decision: 'valider', doctorId: 'POSEUR', date: '2027-03-05' }); } catch (e) { jete = e; }
   V('une notification en échec ne fait pas échouer la décision',
-    !jete && ok2 && ok2.success === true && b.lireInd('POSEUR', 2027)['2027-03-05'] === 'TP', jete && jete.message);
+    !jete && ok2 && ok2.success === true && b.lireGarde('POSEUR', '2027-03-05') === 'TP', jete && jete.message);
 }
 
 console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp : ${ok} vérifications, ${ko} échec(s)`);

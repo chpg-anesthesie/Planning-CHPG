@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-23.1';
+const GAS_VERSION_MIROIR = '2026-08-23.2';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -102,8 +102,11 @@ const MIROIR_APRES_ECRITURE = {
   savePeriodes:               ['config_admin', 'vacances_admin'],
   saveGroupes:                ['config_admin', 'vacances_admin', 'ordre_vac'],
   // Indisponibilités (l'année de campagne et son état vivent dans `acces`)
-  saveIndispos:               ['indispos', 'acces'],
-  deciderJourTp:              ['indispos', 'acces'],   // (LOT 4) décision comité → écran de pose des 8 dans la minute
+  /* (23/08/2026) Un temps partiel s'écrit dans GARDES et republie le planning :
+     les deux familles doivent suivre, sinon la grille du comité et le planning
+     des 23 restent périmés jusqu'à la synchro horaire. */
+  saveIndispos:               ['indispos', 'acces', 'gardes', 'planning'],
+  deciderJourTp:              ['indispos', 'acces', 'gardes', 'planning'],
   saveIndisposBatch:          ['indispos', 'acces'],
   poserAbsenceLongue:         ['indispos', 'acces'],
   annulerAbsenceLongue:       ['indispos', 'acces'],

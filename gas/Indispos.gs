@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-23.2';
+const GAS_VERSION_INDISPOS = '2026-08-23.3';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1019,7 +1019,7 @@ function _tpMondePresence_(annee) {
       if (v) indispos[id][ds] = v;
     });
   }
-  const enGarde = {}, enRepos = {}, en18 = {};
+  const enGarde = {}, enRepos = {}, en18 = {}, enTp = {};
   const shG = ss.getSheetByName(`GARDES_${annee}`);
   if (shG) {
     const dG = shG.getDataRange().getValues();
@@ -1037,6 +1037,11 @@ function _tpMondePresence_(annee) {
         // La garde de 18h : PRÉSENT dans l'effectif, mais AU TRAVAIL — un TP
         // (congé) ne peut pas s'y poser. Arbitrage Arthur du 22/08/2026.
         else if (v === '18') { (en18[id] = en18[id] || {})[ds] = v; }
+        /* (23/08/2026) LE TP VIT DANS GARDES, plus dans INDISPOS. C'est
+           l'onglet maître du planning : un TP écrit là retire le MAR de son
+           secteur (il figure dans ABSENT_CODES, code.gs). INDISPOS redevient
+           ce qu'il est : la matière première d'AVANT la génération. */
+        else if (v === 'TP') { (enTp[id] = enTp[id] || {})[ds] = v; }
       }
     }
   }
@@ -1050,11 +1055,12 @@ function _tpMondePresence_(annee) {
       const tpF = FLAGS.tpJoursFixes[id];
       if (tpF && tpF.has(new Date(ds + 'T12:00:00').getDay())) return;
       if (enRepos[id] && enRepos[id][ds]) return;
+      if (enTp[id] && enTp[id][ds]) return;          // jour de temps partiel accordé
       n++;
     });
     return n;
   }
-  return { presents: presents, enGarde: enGarde, enRepos: enRepos, en18: en18,
+  return { presents: presents, enGarde: enGarde, enRepos: enRepos, en18: en18, enTp: enTp,
            ids: ids, indispos: indispos,
            datesValides: new Set(datesI.filter(Boolean)) };
 }
@@ -1073,107 +1079,212 @@ function _tpMondePresence_(annee) {
    Renvoie { success, resultat: {date: 'TP'|'TPA'|motif}, quota:{valides,total} } :
    c'est le récapitulatif que l'écran affiche à l'enregistrement. */
 function _poserTp_(user, targetId, envoye, annee) {
-  const estAdmin = user.role === 'admin';
-  const quotite = _quotiteDe_(targetId);
-  if (!estAdmin && (quotite >= 100 || _tpFixeDe_(targetId))) {
-    return { success: false, error: 'La pose de jours de temps partiel ne concerne pas votre profil.' };
-  }
-  const quota = getQuotasConges(quotite).ctp || 0;
+  /* (23/08/2026 — refonte) LE TP S'ÉCRIT DANS GARDES, L'ONGLET MAÎTRE.
+     INDISPOS n'est plus touché : il sert AVANT la génération, pas après.
+     Une demande non tranchée n'écrit rien dans le planning — elle attend
+     dans TP_DEMANDES. Le comité seul la transforme en TP.
+
+     `envoye` est la photo complète de ce que l'écran croit : { date: 'TP' }.
+     Ce qui n'y figure plus est retiré. */
+  const estAdmin = user && user.role === 'admin';
   const M = _tpMondePresence_(annee);
-  const existant = getIndisposForDoctor(targetId, annee);
-  /* horsFamille : les codes que ce circuit PRÉSERVE (VAC/FORM/CL…).
-     INDISPO et SOUHAIT en font partie TANT QU'ON N'ÉCRIT PAS DESSUS — mais ils
-     ne BLOQUENT plus la pose : ce sont des vestiges de campagne, sans objet
-     une fois les gardes générées (arbitrage Arthur, 22/08/2026). Un TP/TPA
-     accepté écrit par-dessus ; un refus les laisse intacts. */
-  const horsFamille = {};
-  const VESTIGES = { INDISPO: true, SOUHAIT: true };
-  Object.keys(existant).forEach(ds => {
-    const v = String(existant[ds]).trim().toUpperCase();
-    if (v !== 'TP' && v !== 'TPA') horsFamille[ds] = existant[ds];
-  });
   const jf = new Set(getJoursFeries(annee));
-  const FERMES = _tpFermes_(annee);   // (LOT 4) jours fermés par le comité : refusés pour TOUS
-  /* (LOT 5) LES JOURS PASSÉS SONT FIGÉS — arbitrage Arthur : « les jours
-     antérieurs doivent être considérés comme posés ». La feuille des
-     indisponibilités est aussi l'HISTORIQUE des absences : un TP révolu se
-     conserve même absent de l'envoi (impossible à retirer), une demande
-     rétroactive est refusée. Le comité, lui, garde la main sur tout. */
+  const FERMES = _tpFermes_(annee);
   const aujourdHui = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  const demandes = Object.keys(envoye || {}).filter(ds => {
-    const v = String(envoye[ds] || '').trim().toUpperCase();
-    return v === 'TP' || v === 'TPA';
-  }).sort();
-  const resultat = {}, final = {};
-  let nbTP = 0;
-  if (!estAdmin) {
-    Object.keys(existant).forEach(ds => {
-      const v = String(existant[ds]).trim().toUpperCase();
-      if ((v === 'TP' || v === 'TPA') && ds < aujourdHui && !(ds in (envoye || {}))) {
-        final[ds] = v;                     // figé : l'envoi ne peut pas le retirer
-        if (v === 'TP') nbTP++;
-      }
+  const quotaTotal = getQuotasConges(_quotiteDe_(targetId)).ctp || 0;
+
+  /* Le profil d'abord : jours fixes convenus, rythme deux semaines sur deux,
+     ou temps plein — ces trois-là n'ont rien à poser. L'écran ne leur montre
+     pas la carte, mais l'adresse reste tapable : le serveur tranche. */
+  if (_tpFixeDe_(targetId) || quotaTotal <= 0) {
+    const refus = {};
+    Object.keys(envoye || {}).forEach(function (ds) {
+      refus[ds] = 'profil sans jours de temps partiel';
     });
+    return { success: true, resultat: refus, annee: annee,
+             quota: { valides: 0, total: quotaTotal } };
   }
-  // Passe 1 — l'ACQUIS d'abord : les jours déjà posés et conservés par l'envoi
-  // consomment le quota avant toute nouveauté (sinon un jour neuf de janvier
-  // pourrait faire déborder un TP validé de mars).
-  demandes.forEach(ds => {
-    const avant = String(existant[ds] || '').trim().toUpperCase();
-    if (!estAdmin && (avant === 'TP' || avant === 'TPA') && ds < aujourdHui) {
-      final[ds] = avant; resultat[ds] = avant;   // (LOT 5) passé = figé, même l'annulation d'une TPA attend le comité
-      if (avant === 'TP') nbTP++;
+
+  const grille = _tpGrilleLire_(annee, targetId);            // ce que dit le planning
+  const enAttente = {};                                       // demandes non tranchées
+  _tpDemandes_(annee, targetId).forEach(function (x) { enAttente[x.date] = true; });
+
+  const resultat = {};
+  let nbTP = 0, grilleTouchee = false;
+
+  // ── Passe 1 : l'ACQUIS et l'ATTENTE ──────────────────────────────────
+  Object.keys(grille).forEach(function (ds) {
+    if (grille[ds] !== 'TP') return;
+    const passe = ds < aujourdHui;
+    if (ds in (envoye || {}) || (passe && !estAdmin)) {
+      resultat[ds] = 'TP'; nbTP++;                            // conservé (figé si passé)
       return;
     }
-    if (avant === 'TP') {
-      const veut = String(envoye[ds]).trim().toUpperCase();
-      // « Acquis » protège le MAR d'un re-jugement — pas le comité de lui-même :
-      // sa décision est annulable (TP → TPA), attrapé par le banc PT10.
-      if (estAdmin && veut === 'TPA') { final[ds] = 'TPA'; resultat[ds] = 'TPA'; }
-      else { final[ds] = 'TP'; resultat[ds] = 'TP'; nbTP++; }
-    }
-    else if (avant === 'TPA') {
-      const veut = String(envoye[ds]).trim().toUpperCase();
-      if (estAdmin && veut === 'TP') { final[ds] = 'TP'; resultat[ds] = 'TP'; nbTP++; }  // validation comité
-      else { final[ds] = 'TPA'; resultat[ds] = 'TPA'; }   // un MAR ne s'auto-valide pas
-    }
+    if (_tpGrilleEcrire_(annee, targetId, ds, '')) grilleTouchee = true;
+    resultat[ds] = 'retiré';
   });
-  // Passe 2 — les jours NOUVEAUX, en ordre chronologique, jugés un par un.
-  demandes.forEach(ds => {
-    const avant = String(existant[ds] || '').trim().toUpperCase();
-    if (avant === 'TP' || avant === 'TPA') return;          // traité en passe 1
-    if (estAdmin) {                                          // décision comité : souveraine
-      const veut = String(envoye[ds]).trim().toUpperCase();
-      final[ds] = veut; resultat[ds] = veut;
-      if (veut === 'TP') nbTP++;
-      return;
-    }
+  Object.keys(enAttente).forEach(function (ds) {
+    if (ds in (envoye || {})) { resultat[ds] = 'TPA'; return; }
+    _tpDemandeRetirer_(annee, ds, targetId);
+    resultat[ds] = 'retiré';
+  });
+
+  // ── Passe 2 : les NOUVEAUTÉS, dans l'ordre du calendrier ─────────────
+  const nouveaux = Object.keys(envoye || {})
+    .filter(function (ds) { return grille[ds] !== 'TP' && !enAttente[ds]; })
+    .sort();
+
+  nouveaux.forEach(function (ds) {
     if (!M.datesValides.has(ds)) { resultat[ds] = 'hors année'; return; }
     if (ds < aujourdHui) { resultat[ds] = 'jour passé'; return; }
     if (FERMES.has(ds)) { resultat[ds] = 'jour fermé par le comité'; return; }
-    const codeLa = horsFamille[ds] ? String(horsFamille[ds]).trim().toUpperCase() : '';
-    if (codeLa && !VESTIGES[codeLa]) { resultat[ds] = 'jour déjà ' + horsFamille[ds]; return; }
     const dow = new Date(ds + 'T12:00:00').getDay();
     if (dow === 0 || dow === 6) { resultat[ds] = 'week-end'; return; }
     if (jf.has(ds)) { resultat[ds] = 'jour férié'; return; }
-    if (M.enGarde[targetId] && M.enGarde[targetId][ds]) { resultat[ds] = 'vous êtes de garde'; return; }
-    if (M.enRepos[targetId] && M.enRepos[targetId][ds]) { resultat[ds] = 'repos de garde'; return; }
-    if (M.en18[targetId] && M.en18[targetId][ds]) { resultat[ds] = 'garde de 18h ce jour-là'; return; }
-    const resterait = M.presents(ds) - 1;                    // le poseur, présent, se retire
-    if (resterait <= 12) { resultat[ds] = 'effectif insuffisant (il resterait ' + resterait + ')'; return; }
-    if (resterait < 15) { final[ds] = 'TPA'; resultat[ds] = 'TPA'; return; }   // 13-14 : sous réserve
-    if (nbTP >= quota) { resultat[ds] = 'quota atteint (' + quota + ' j)'; return; }
-    final[ds] = 'TP'; resultat[ds] = 'TP'; nbTP++;
+    const occupe = grille[ds];
+    if (occupe) { resultat[ds] = 'jour déjà ' + occupe; return; }
+
+    const presents = M.presents(ds);
+    const reste = presents - 1;
+    if (reste <= 12) { resultat[ds] = 'équipe trop réduite (' + presents + ' présents)'; return; }
+    if (reste < 15) {
+      /* Bande jaune : le comité tranchera. Rien n'entre dans le planning,
+         le MAR travaille tant qu'il n'a pas de réponse. */
+      _tpDemandeAjouter_(annee, ds, targetId);
+      resultat[ds] = 'TPA';
+      return;
+    }
+    if (nbTP >= quotaTotal) { resultat[ds] = 'quota atteint (' + quotaTotal + ')'; return; }
+    if (!_tpGrilleEcrire_(annee, targetId, ds, 'TP')) {
+      resultat[ds] = 'la case vient d\'être occupée'; return;
+    }
+    grilleTouchee = true;
+    nbTP++;
+    resultat[ds] = 'TP';
   });
-  const fusion = {};
-  Object.keys(horsFamille).forEach(ds => { fusion[ds] = horsFamille[ds]; });
-  Object.keys(final).forEach(ds => { fusion[ds] = final[ds]; });   // TP/TPA accepté > vestige INDISPO/SOUHAIT
-  const ecrit = saveIndisposForDoctor(targetId, fusion, annee);
-  const nbTPA = Object.keys(final).filter(ds => final[ds] === 'TPA').length;
-  logAction('poserTp ' + targetId + ' (' + annee + ') : ' + nbTP + ' TP, ' + nbTPA +
-            ' en attente, quota ' + nbTP + '/' + quota + (estAdmin ? ' [comité]' : ''));
-  return { success: ecrit === true, resultat: resultat, annee: annee,
-           quota: { valides: nbTP, total: quota } };
+
+  if (grilleTouchee) _tpRepublier_(annee);
+
+  logAction('poserTp ' + targetId + ' (' + annee + ') — ' + nbTP + '/' + quotaTotal
+            + ' posés, ' + Object.keys(resultat).length + ' jours traités'
+            + (grilleTouchee ? ', planning republié' : ''));
+
+  return { success: true, resultat: resultat, annee: annee,
+           quota: { valides: nbTP, total: quotaTotal } };
+}
+
+/* ── (23/08/2026) ÉCRIRE LE TEMPS PARTIEL DANS LA GRILLE DU PLANNING ──────
+   GARDES_{Y} est l'onglet MAÎTRE. Un TP accordé s'y écrit, et nulle part
+   ailleurs. Règles gravées :
+     · on n'écrit QUE dans une case VIDE — jamais par-dessus une garde, un
+       repos, une récupération, un 18h, un congé ou une formation ;
+     · on n'efface QUE si la case porte exactement TP ;
+     · lecture immédiatement avant écriture : entre l'affichage et le clic, un
+       échange de gardes a pu remplir la case.
+   Renvoie true si la grille a changé — l'appelant republie alors le planning. */
+function _tpGrilleEcrire_(annee, marId, ds, valeur) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName('GARDES_' + annee);
+  if (!sh) return false;
+  const d = sh.getDataRange().getValues();
+  const col = buildDateToCol(d, annee)[ds];
+  if (col === undefined) return false;
+  let ligne = -1;
+  for (var r = 3; r < d.length; r++) {
+    if (String(d[r][0]).trim() === String(marId).trim()) { ligne = r; break; }
+  }
+  if (ligne < 0) return false;
+  const actuel = String(d[ligne][col] || '').trim().toUpperCase();
+  if (valeur === 'TP') {
+    if (actuel !== '') return false;                 // occupé : on ne touche à rien
+    sh.getRange(ligne + 1, col + 1).setValue('TP');
+    return true;
+  }
+  if (actuel !== 'TP') return false;                 // rien à effacer
+  sh.getRange(ligne + 1, col + 1).setValue('');
+  return true;
+}
+
+/* Ce que la grille dit d'un MAR : { date: code } pour toute la ligne. */
+function _tpGrilleLire_(annee, marId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName('GARDES_' + annee);
+  const out = {};
+  if (!sh) return out;
+  const d = sh.getDataRange().getValues();
+  const c2d = {};
+  const dateToCol = buildDateToCol(d, annee);
+  Object.keys(dateToCol).forEach(function (ds) { c2d[dateToCol[ds]] = ds; });
+  for (var r = 3; r < d.length; r++) {
+    if (String(d[r][0]).trim() !== String(marId).trim()) continue;
+    for (var c = 1; c < d[r].length; c++) {
+      const ds = c2d[c];
+      const v = String(d[r][c] || '').trim().toUpperCase();
+      if (ds && v) out[ds] = v;
+    }
+    break;
+  }
+  return out;
+}
+
+/* Republier le planning : le fichier que lisent les 23 est figé à la
+   publication, écrire dans GARDES ne suffit pas. On ne réveille PAS le
+   notifieur de changement de planning — la notification dédiée du circuit TP
+   est plus précise, et deux messages pour un même événement se contredisent. */
+function _tpRepublier_(annee) {
+  try { generatePlanning(annee); }
+  catch (e) { try { Logger.log('_tpRepublier_ : ' + e.message); } catch (e2) {} }
+}
+
+/* ── LE REGISTRE DES DEMANDES EN ATTENTE — onglet TP_DEMANDES ─────────────
+   Une demande non tranchée n'écrit RIEN dans les onglets de planning : tant
+   que le comité n'a pas dit oui, le MAR travaille. Elle vit donc ici, et
+   seulement ici. Colonnes : ANNEE | DATE | MAR | QUAND. */
+function _tpDemandesSheet_(creer) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName('TP_DEMANDES');
+  if (!sh && creer) {
+    sh = ss.insertSheet('TP_DEMANDES');
+    sh.getRange(1, 1, 1, 4).setValues([['ANNEE', 'DATE', 'MAR', 'QUAND']]);
+  }
+  return sh;
+}
+function _tpDemandes_(annee, marId) {
+  const sh = _tpDemandesSheet_(false);
+  const out = [];
+  if (!sh) return out;
+  const d = sh.getDataRange().getValues();
+  for (var r = 1; r < d.length; r++) {
+    if (Number(d[r][0]) !== Number(annee)) continue;
+    const ds = d[r][1] instanceof Date
+      ? Utilities.formatDate(d[r][1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : String(d[r][1]).trim();
+    const id = String(d[r][2]).trim();
+    if (!ds || !id) continue;
+    if (marId && id !== String(marId).trim()) continue;
+    out.push({ date: ds, mar: id });
+  }
+  return out;
+}
+function _tpDemandeAjouter_(annee, ds, marId) {
+  const sh = _tpDemandesSheet_(true);
+  const deja = _tpDemandes_(annee, marId).some(function (x) { return x.date === ds; });
+  if (deja) return;
+  sh.appendRow([Number(annee), ds, String(marId), new Date().toISOString()]);
+}
+function _tpDemandeRetirer_(annee, ds, marId) {
+  const sh = _tpDemandesSheet_(false);
+  if (!sh) return;
+  const d = sh.getDataRange().getValues();
+  for (var r = d.length - 1; r >= 1; r--) {
+    const dr = d[r][1] instanceof Date
+      ? Utilities.formatDate(d[r][1], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+      : String(d[r][1]).trim();
+    if (Number(d[r][0]) === Number(annee) && dr === ds
+        && (!marId || String(d[r][2]).trim() === String(marId).trim())) {
+      sh.deleteRow(r + 1);
+    }
+  }
 }
 
 /* Une notification ne fait JAMAIS échouer la décision qui la déclenche —
@@ -1267,6 +1378,10 @@ function _construirePoseTp_(annee) {
     if (dow === 0 || dow === 6 || jfSet.has(ds)) return;   // jamais posables : pas comptés
     presents[ds] = M.presents(ds);
   });
+  const attentes = {};
+  _tpDemandes_(annee).forEach(function (x) {
+    (attentes[x.mar] = attentes[x.mar] || {})[x.date] = true;
+  });
   const parMar = {};
   M.ids.forEach(function (id) {
     const jours = {};
@@ -1274,13 +1389,21 @@ function _construirePoseTp_(annee) {
     Object.keys(mesInd).forEach(function (ds) {
       const v = String(mesInd[ds]).trim().toUpperCase();
       if (v === 'INDISPO' || v === 'SOUHAIT') return;   // vestiges de campagne : ne bloquent plus
+      if (v === 'TP' || v === 'TPA') return;            // (23/08) vestiges de l'ancien circuit
       jours[ds] = mesInd[ds];
     });
     Object.keys(M.en18[id] || {}).forEach(function (ds) { jours[ds] = '18'; });
+    /* (23/08/2026) Le TP accordé vient de GARDES, l'onglet maître. Les demandes
+       en attente ne sont écrites nulle part dans le planning : elles vivent
+       dans TP_DEMANDES et n'apparaissent ici que pour l'affichage. */
+    Object.keys(M.enTp[id] || {}).forEach(function (ds) { jours[ds] = 'TP'; });
     // Les gardes par-dessus : dans GARDES, RG écrase TP — même priorité ici,
     // le MAR voit la vérité du planning publié.
     Object.keys(M.enGarde[id] || {}).forEach(function (ds) { jours[ds] = M.enGarde[id][ds]; });
     Object.keys(M.enRepos[id] || {}).forEach(function (ds) { jours[ds] = M.enRepos[id][ds]; });
+    Object.keys(attentes[id] || {}).forEach(function (ds) {
+      if (!jours[ds]) jours[ds] = 'TPA';               // en attente : rien dans le planning
+    });
     parMar[id] = {
       jours: jours,
       quota: getQuotasConges(_quotiteDe_(id)).ctp || 0,
@@ -2726,6 +2849,11 @@ function _routeRequete_(e) {
        · annuler_refus      : le jour rouvre, les TPA rendues sont rétablies.
        AUCUNE notification : le comité le dit de vive voix (maquette). */
     if (action === 'deciderJourTp') {
+      /* (23/08/2026 — refonte) LE COMITÉ ÉCRIT DANS LE PLANNING.
+         Valider, c'est écrire TP dans GARDES_{Y} et republier : sans ça, le
+         jour resterait un enregistrement sans effet. Refuser, c'est fermer le
+         jour pour toute l'équipe — rien n'ayant jamais touché le planning,
+         il n'y a rien à défaire. Tout est annulable, tout est journalisé. */
       if (user.role !== 'admin') {
         return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Réservé au comité' }))
           .setMimeType(ContentService.MimeType.JSON);
@@ -2736,8 +2864,6 @@ function _routeRequete_(e) {
           .setMimeType(ContentService.MimeType.JSON);
       }
       const ds = String(payload.date || '').trim();
-      /* (LOT 5) Deux années ouvertes possibles : l'année est CELLE DE LA DATE,
-         validée contre la phase — jamais un repli sur « la plus récente ». */
       const anneeD = Number(ds.slice(0, 4));
       if (phD.annees.indexOf(anneeD) === -1) {
         return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'L\'année ' + anneeD + ' n\'est pas ouverte à la pose' }))
@@ -2745,69 +2871,63 @@ function _routeRequete_(e) {
       }
       const decision = String(payload.decision || '').trim();
       let out = { success: false, error: 'décision inconnue : ' + decision };
-      if (decision === 'valider' || decision === 'annuler_validation') {
+
+      if (decision === 'valider') {
         const cibleId = String(payload.doctorId || '').trim();
-        const carte = getIndisposForDoctor(cibleId, anneeD);
-        const attendu = decision === 'valider' ? 'TPA' : 'TP';
-        const vise = String(carte[ds] || '').trim().toUpperCase();
-        if (vise !== attendu) {
-          out = { success: false, error: 'Ce jour n\'est plus ' + (attendu === 'TPA' ? 'en attente' : 'validé') + ' (' + (vise || 'vide') + ')' };
+        const attend = _tpDemandes_(anneeD, cibleId).some(function (x) { return x.date === ds; });
+        if (!attend) {
+          out = { success: false, error: 'Cette demande n\'est plus en attente' };
+        } else if (!_tpGrilleEcrire_(anneeD, cibleId, ds, 'TP')) {
+          out = { success: false, error: 'La case du planning n\'est plus libre ce jour-là' };
         } else {
-          carte[ds] = decision === 'valider' ? 'TP' : 'TPA';
-          out = _poserTp_(user, cibleId, carte, anneeD);
-          out.date = ds; out.doctorId = cibleId;
-          /* (23/08/2026) LA RÉPONSE DU COMITÉ SE NOTIFIE — décision d'Arthur :
-             une validation ou un refus est une réponse ATTENDUE, pas du bruit.
-             Le canal push est celui des MARs (le comité, lui, a l'e-mail).
-             Jamais bloquant : une notification qui rate ne fait pas échouer la
-             décision (notifierPush_ avale tout). L'annulation d'une validation
-             se notifie aussi : le MAR doit savoir que son jour redevient
-             incertain, sinon il compterait dessus. */
-          if (out && out.success) {
-            if (decision === 'valider') {
-              _tpNotifier_('Temps partiel validé',
-                'Votre jour du ' + _tpJourLisible_(ds) + ' est validé par le comité.', cibleId);
-            } else {
-              _tpNotifier_('Temps partiel remis en attente',
-                'Votre jour du ' + _tpJourLisible_(ds) + ' repasse en attente de validation.', cibleId);
-            }
-          }
+          _tpDemandeRetirer_(anneeD, ds, cibleId);
+          _tpRepublier_(anneeD);
+          logAction('deciderJourTp VALIDE ' + ds + ' (' + anneeD + ') ' + cibleId + ' par ' + user.id + ' — planning republié');
+          _tpNotifier_('Temps partiel validé',
+            'Votre jour du ' + _tpJourLisible_(ds) + ' est validé par le comité.', cibleId);
+          out = { success: true, date: ds, doctorId: cibleId };
         }
       }
+
+      if (decision === 'annuler_validation') {
+        const cibleId = String(payload.doctorId || '').trim();
+        if (!_tpGrilleEcrire_(anneeD, cibleId, ds, '')) {
+          out = { success: false, error: 'Ce jour n\'est plus un temps partiel accordé' };
+        } else {
+          _tpDemandeAjouter_(anneeD, ds, cibleId);      // il repasse en attente
+          _tpRepublier_(anneeD);
+          logAction('deciderJourTp ANNULE-VALIDATION ' + ds + ' (' + anneeD + ') ' + cibleId + ' par ' + user.id);
+          _tpNotifier_('Temps partiel remis en attente',
+            'Votre jour du ' + _tpJourLisible_(ds) + ' repasse en attente de validation.', cibleId);
+          out = { success: true, date: ds, doctorId: cibleId };
+        }
+      }
+
       if (decision === 'refuser') {
         _tpFermerJour_(anneeD, ds, user.id);
-        const M = _tpMondePresence_(anneeD);
         const rendues = {};
-        M.ids.forEach(function (idR) {
-          const carte = getIndisposForDoctor(idR, anneeD);
-          if (String(carte[ds] || '').trim().toUpperCase() === 'TPA') {
-            delete carte[ds];
-            saveIndisposForDoctor(idR, carte, anneeD);
-            rendues[idR] = 'TPA';
-          }
+        _tpDemandes_(anneeD).forEach(function (x) {
+          if (x.date !== ds) return;
+          rendues[x.mar] = 'TPA';
+          _tpDemandeRetirer_(anneeD, ds, x.mar);
         });
         logAction('deciderJourTp REFUS ' + ds + ' (' + anneeD + ') par ' + user.id +
                   ' — ' + Object.keys(rendues).length + ' demande(s) rendue(s) : ' + Object.keys(rendues).join(', '));
-        /* Le jour se ferme pour toute l'équipe, mais SEULS CEUX QUI L'AVAIENT
-           DEMANDÉ sont prévenus — les autres le verront simplement noir, sans
-           notification. Décision d'Arthur : « le jour passe noir et basta ». */
+        /* Le jour se ferme pour toute l'équipe, mais SEULS ceux qui l'avaient
+           demandé sont prévenus — les autres le verront simplement noir. */
         Object.keys(rendues).forEach(function (idR) {
           _tpNotifier_('Temps partiel refusé',
             'Votre jour du ' + _tpJourLisible_(ds) + ' n\'a pas pu être accordé : l\'équipe serait trop réduite.', idR);
         });
         out = { success: true, date: ds, fermes: Array.from(_tpFermes_(anneeD)).sort(), rendues: rendues };
       }
+
       if (decision === 'annuler_refus') {
         _tpRouvrirJour_(anneeD, ds);
-        const retablir = payload.retablir || {};
         const retablies = [];
-        Object.keys(retablir).forEach(function (idR) {
-          const carte = getIndisposForDoctor(idR, anneeD);
-          if (!carte[ds]) {   // ne jamais écraser un code apparu entre-temps
-            carte[ds] = 'TPA';
-            saveIndisposForDoctor(idR, carte, anneeD);
-            retablies.push(idR);
-          }
+        Object.keys(payload.retablir || {}).forEach(function (idR) {
+          _tpDemandeAjouter_(anneeD, ds, idR);
+          retablies.push(idR);
         });
         logAction('deciderJourTp ANNULE-REFUS ' + ds + ' (' + anneeD + ') par ' + user.id +
                   ' — rétabli : ' + (retablies.join(', ') || 'personne'));
@@ -2817,6 +2937,7 @@ function _routeRequete_(e) {
         });
         out = { success: true, date: ds, fermes: Array.from(_tpFermes_(anneeD)).sort(), retablies: retablies };
       }
+
       return ContentService.createTextOutput(JSON.stringify(out))
         .setMimeType(ContentService.MimeType.JSON);
     }
@@ -2871,32 +2992,26 @@ function _routeRequete_(e) {
         return _error('La campagne de saisie est fermée : indisponibilités et souhaits ne peuvent plus être enregistrés.');
       }
       const anneeInd = getIndisposYear();
-      /* Les TP ne se posent plus AVANT la génération : le circuit campagne
-         IGNORE les codes TP/TPA envoyés, et PRÉSERVE ceux déjà en base — sans
-         quoi la fusion (remplacement intégral de la famille du MAR) effacerait
-         en silence des TP posés par l'autre circuit dans la même année. */
+      /* (23/08/2026) Un temps partiel ne s'écrit JAMAIS dans INDISPOS : il vit
+         dans GARDES, l'onglet maître du planning. Cet onglet-ci sert AVANT la
+         génération — congés, formations, indisponibilités, souhaits — et rien
+         d'autre. Un TP envoyé par ce circuit est ignoré, jamais en silence :
+         trace LOGS, la seule surface qui dit la vérité quand l'écran dévie. */
       const existantC = getIndisposForDoctor(targetId, anneeInd);
       const envoyeSansTp = {}, tpNeufs = [];
       Object.keys(payload.indispos || {}).forEach(function (ds) {
         const v = String(payload.indispos[ds] || '').trim().toUpperCase();
         if (v !== 'TP' && v !== 'TPA') { envoyeSansTp[ds] = payload.indispos[ds]; return; }
-        if (String(existantC[ds] || '').trim().toUpperCase() !== v) tpNeufs.push(ds);
+        tpNeufs.push(ds);
       });
-      // Transition lot 1 → lot 3 : l'ancien écran campagne peut encore envoyer
-      // des TP NEUFS. Ils ne sont pas écrits — mais jamais en silence : trace
-      // LOGS, la seule surface qui dit la vérité quand l'écran ne suit pas.
       if (tpNeufs.length) logAction('saveIndispos ' + targetId + ' (' + anneeInd + ') : ' +
-        tpNeufs.length + ' TP non écrits — la pose se fait après génération (' + tpNeufs.join(', ') + ')');
+        tpNeufs.length + ' TP ignorés — un temps partiel s\'écrit dans GARDES (' + tpNeufs.join(', ') + ')');
       // Fusion par proprietaire de code — voir _fusionIndispos_.
       // NE PAS remonter cette logique dans saveIndisposForDoctor : ce helper
       // sert aussi a l'absence longue, qui doit continuer a poser une ligne
       // complete. La regle de propriete n'a de sens qu'ici, ou l'on connait
       // le role de l'appelant.
       const fusion = _fusionIndispos_(existantC, envoyeSansTp, user.role === 'admin');
-      Object.keys(existantC).forEach(function (ds) {
-        const v = String(existantC[ds] || '').trim().toUpperCase();
-        if ((v === 'TP' || v === 'TPA') && !fusion[ds]) fusion[ds] = existantC[ds];
-      });
       return ContentService.createTextOutput(JSON.stringify({
         success: saveIndisposForDoctor(targetId, fusion, anneeInd)
       })).setMimeType(ContentService.MimeType.JSON);
