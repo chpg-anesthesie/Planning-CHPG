@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-23.5';
+const GAS_VERSION_MIROIR = '2026-08-23.6';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -184,13 +184,22 @@ function _miroirNoterPoussee_(familles, annee) {
          simultanees → la derniere gagne, l'autre rattrapee par la synchro ;
      (c) echec de creation du declencheur → idem. Pire cas absolu : copie de
      lecture en retard d'UNE heure, donnees du classeur intactes. */
-  if (etaitVide) {
-    const deja = ScriptApp.getProjectTriggers().some(function (t) {
-      return t.getHandlerFunction() === 'miroirRattrapage';
-    });
-    if (!deja) {
-      try { ScriptApp.newTrigger('miroirRattrapage').timeBased().after(1000).create(); } catch (e) {}
-    }
+  /* (23/08/2026) BLOCAGE DÉFINITIF CORRIGÉ. Le déclencheur n'était armé que si
+     la file était VIDE : l'idée était qu'une file non vide signifiait qu'un
+     déclencheur existait déjà. Faux dès qu'une exécution meurt avant d'avoir
+     purgé la file — dépassement de quota, temps limite, erreur non prévue.
+     La file restait alors pleine POUR TOUJOURS, plus aucune note n'armait de
+     déclencheur, et la copie rapide ne se rafraîchissait plus jamais seule.
+     Constaté en production le 23/08 : notes prises à 16h15 et 16h16, aucune
+     poussée derrière, alors que celle de 15h56 était passée.
+     La condition juste n'est pas « la file était vide » mais « aucun
+     déclencheur n'existe » — c'est le seul fait qui compte. */
+  const deja = ScriptApp.getProjectTriggers().some(function (t) {
+    return t.getHandlerFunction() === 'miroirRattrapage';
+  });
+  if (!deja) {
+    try { ScriptApp.newTrigger('miroirRattrapage').timeBased().after(1000).create(); }
+    catch (e) { try { logAction('miroir : déclencheur impossible — ' + e.message); } catch (e2) {} }
   }
 }
 

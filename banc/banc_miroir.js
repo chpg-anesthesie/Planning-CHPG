@@ -48,6 +48,17 @@ V('une seule poussée par année (2 années touchées)', pousses.length === 2, p
 V('les familles sont fusionnées', pousses[0].familles.join(',') === 'config_admin,gardes,indispos', pousses[0]);
 V('la note est purgée', !PROPS.MIROIR_POUSSEES_EN_ATTENTE);
 V('aucun déclencheur orphelin', triggers.length === 0, triggers);
+/* (23/08/2026) BLOCAGE DÉFINITIF. Le déclencheur n'était armé que si la file
+   était VIDE. Une exécution morte avant la purge laissait la file pleine :
+   plus aucune note n'armait de déclencheur, la copie rapide ne se
+   rafraîchissait PLUS JAMAIS seule. Constaté en production. */
+PROPS.MIROIR_POUSSEES_EN_ATTENTE = JSON.stringify({ familles: { gardes: true }, annees: { 2027: true } });
+triggers.length = 0;                       // la file est pleine, aucun déclencheur
+vm.runInContext(`_miroirNoterPoussee_(['indispos'], 2027)`, ctx);
+V('file pleine SANS déclencheur → un déclencheur est quand même armé',
+  triggers.length === 1, triggers);
+vm.runInContext(`_miroirNoterPoussee_(['acces'], 2027)`, ctx);
+V('…et il n\'en crée pas un deuxième', triggers.length === 1, triggers);
 /* (23/08/2026) La poussée était MUETTE : quand la copie rapide ne se
    rafraîchissait pas, rien ne disait si l'écriture avait été notée, avec
    quelle année, ni si la poussée avait eu lieu. Deux symptômes en production

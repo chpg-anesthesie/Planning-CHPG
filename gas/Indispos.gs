@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-23.5';
+const GAS_VERSION_INDISPOS = '2026-08-23.6';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1265,13 +1265,15 @@ function _tpRepublier_(annee) {
     if (file.indexOf(Number(annee)) === -1) file.push(Number(annee));
     props.setProperty(TP_CLE_REPUBLIER, JSON.stringify(file));
     try { verrou.releaseLock(); } catch (eR) {}
-    if (etaitVide) {
-      const deja = ScriptApp.getProjectTriggers().some(function (t) {
-        return t.getHandlerFunction() === 'tpRepublicationDifferee';
-      });
-      if (!deja) {
-        try { ScriptApp.newTrigger('tpRepublicationDifferee').timeBased().after(1000).create(); } catch (eT) {}
-      }
+    /* (23/08/2026) Même piège que la copie rapide, corrigé de la même façon :
+       la condition n'est pas « la file était vide » — une exécution morte
+       avant purge la laisserait pleine à jamais — mais « aucun déclencheur
+       n'existe ». C'est le seul fait qui compte. */
+    const deja = ScriptApp.getProjectTriggers().some(function (t) {
+      return t.getHandlerFunction() === 'tpRepublicationDifferee';
+    });
+    if (!deja) {
+      try { ScriptApp.newTrigger('tpRepublicationDifferee').timeBased().after(1000).create(); } catch (eT) {}
     }
   } catch (e) {
     /* Dernier recours : republier tout de suite plutôt que pas du tout. */
