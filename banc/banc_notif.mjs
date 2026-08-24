@@ -148,5 +148,86 @@ V("v4 : la pastille est posée à l'arrivée d'une notification", /setAppBadge\(
   V("l'API GAS reste non interceptée", sw.includes("indexOf('script.google') > -1"));
 }
 
+console.log('\n═══ N6. La cloche : compteur de pastille, /notif-vu, clés protégées ═══');
+{
+  /* Le déchiffreur du banc (le même que N3), factorisé pour relire la
+     pastille dans une charge réelle. */
+  const dechiffrer = async (e2) => {
+    const corps = new Uint8Array(e2.opts.body);
+    const sel = corps.slice(0, 16);
+    const idlen = corps[20];
+    const asPub = corps.slice(21, 21 + idlen);
+    const chiffre = corps.slice(21 + idlen);
+    const asKey = await crypto.subtle.importKey('raw', asPub, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+    const ecdh = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: asKey }, nav.privateKey, 256));
+    const hk = async (s2, ikm, info, L) => {
+      const k = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
+      return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: s2, info }, k, L * 8));
+    };
+    const te = s2 => new TextEncoder().encode(s2);
+    const cat = (...a) => { const n = a.reduce((x, y) => x + y.length, 0), r = new Uint8Array(n); let o = 0; for (const x of a) { r.set(x, o); o += x.length; } return r; };
+    const ikm = await hk(authSecret, ecdh, cat(te('WebPush: info\0'), navPub, asPub), 32);
+    const cek = await hk(sel, ikm, te('Content-Encoding: aes128gcm\0'), 16);
+    const nonce = await hk(sel, ikm, te('Content-Encoding: nonce\0'), 12);
+    const k = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['decrypt']);
+    const clair = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, k, chiffre));
+    return JSON.parse(new TextDecoder().decode(clair.slice(0, -1)));
+  };
+
+  statutPushService = 201; envoisHTTP.length = 0;
+  M.delete('notif_cpt_FROHLICH');
+  await appel('/notif-abonner', { code: ADMIN, subscription: {
+    endpoint: 'https://web.push.apple.com/QP-test', keys: { p256dh: b64u(navPub), auth: b64u(authSecret) } } });
+
+  const e1 = await appel('/notif-envoyer', { token: 'JETON-BANC', titre: 'Un', corps: 'x' });
+  V('premier envoi : le compteur du destinataire passe à 1', e1.success && M.get('notif_cpt_FROHLICH') === '1', M.get('notif_cpt_FROHLICH'));
+  await appel('/notif-envoyer', { token: 'JETON-BANC', titre: 'Deux', corps: 'x' });
+  V('deuxième envoi : compteur à 2', M.get('notif_cpt_FROHLICH') === '2');
+  const m2 = await dechiffrer(envoisHTTP[envoisHTTP.length - 1]);
+  V('la pastille voyage dans la charge chiffrée (= le compteur)', m2.pastille === 2, m2);
+
+  V('/notif-vu sans code → refus', !(await appel('/notif-vu', {})).success);
+  V('/notif-vu mauvais code → refus', !(await appel('/notif-vu', { code: 'FAUX' })).success);
+  const rv = await appel('/notif-vu', { code: ADMIN });
+  V('/notif-vu remet le compteur à zéro', rv.success && rv.id === 'FROHLICH' && M.get('notif_cpt_FROHLICH') === '0', rv);
+
+  /* Économie du quota : déjà à zéro → AUCUNE écriture KV. */
+  const putOrig = KV.put; let nbPuts = 0;
+  KV.put = async (k, v) => { nbPuts++; return putOrig(k, v); };
+  await appel('/notif-vu', { code: ADMIN });
+  V('déjà à zéro → aucune écriture KV (le quota est compté)', nbPuts === 0, nbPuts);
+  KV.put = putOrig;
+
+  await appel('/notif-envoyer', { token: 'JETON-BANC', titre: 'Trois', corps: 'x' });
+  V('après la remise à zéro, la pastille repart à 1',
+    M.get('notif_cpt_FROHLICH') === '1' && (await dechiffrer(envoisHTTP[envoisHTTP.length - 1])).pastille === 1);
+
+  /* (unifiée, 23/08) Les échanges envoyaient leur propre chiffre (demandes
+     en attente) : il est désormais IGNORÉ — un seul chiffre sur l'icône,
+     le compteur de non-vus. */
+  const e4 = await appel('/notif-envoyer', { token: 'JETON-BANC', titre: 'Quatre', corps: 'x', pastille: 7 });
+  V('une pastille imposée par l\'appelant est IGNORÉE : le compteur gagne (2)',
+    e4.success && (await dechiffrer(envoisHTTP[envoisHTTP.length - 1])).pastille === 2);
+
+  /* Les clés : `notifs` circule FILTRÉE À L'IDENTITÉ, compteurs et
+     abonnements restent scellés. */
+  M.set('notifs', JSON.stringify({ success: true, notifs: {
+    FROHLICH: [{ q: '2026-08-23T10:00:00.000Z', t: 'Pour moi', c: '', u: './dashboard.html' }],
+    ALPHA:    [{ q: '2026-08-23T09:00:00.000Z', t: 'Pour un autre', c: '', u: './dashboard.html' }],
+    '*':      [{ q: '2026-08-23T08:00:00.000Z', t: 'Pour tous', c: '', u: './dashboard.html' }] } }));
+  const rl = await appel('/read', { code: ADMIN, keys: ['notifs', 'notif_cpt_FROHLICH'] });
+  V('/read livre la clé `notifs`', !!(rl.data && rl.data.notifs && rl.data.notifs.success), rl.refuses);
+  V('… filtrée : mes entrées et celles pour tous, RIEN d\'autrui',
+    !!rl.data.notifs.notifs.FROHLICH && !!rl.data.notifs.notifs['*'] && !rl.data.notifs.notifs.ALPHA,
+    rl.data.notifs && Object.keys(rl.data.notifs.notifs || {}));
+  V('/read ne livre JAMAIS un compteur de pastille', !rl.data.notif_cpt_FROHLICH && (rl.refuses || []).includes('notif_cpt_FROHLICH'), rl.refuses);
+  const rp = await appel('/push', { token: 'JETON-BANC', items: { notifs: '{"success":true,"notifs":{}}', notif_cpt_FROHLICH: '"99"' } });
+  V('/push accepte `notifs` (la copie rapide) et refuse les compteurs',
+    !(rp.refuses || []).includes('notifs') && (rp.refuses || []).includes('notif_cpt_FROHLICH'), rp);
+  /* Le compteur monte à CHAQUE envoi, pastille imposée comprise : 'Trois'
+     puis 'Quatre' → 2. Un /push pirate n'y a pas touché. */
+  V('le compteur en KV est exactement celui des envois (2), intouché par /push', M.get('notif_cpt_FROHLICH') === '2');
+}
+
 console.log(`\nbanc_notif : ${ok} ✓ / ${ko} ✗`);
 if (ko) process.exit(1);

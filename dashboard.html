@@ -451,6 +451,23 @@ a.tile:hover, .tile.clickable:hover {
 @media(max-width:359px){
   .header-sub { display: none; }
 }
+
+/* ── LA CLOCHE (v1.77) — journal des notifications ── */
+.bell-btn{position:relative;display:inline-flex;align-items:center;justify-content:center}
+.bell-btn svg{width:17px;height:17px}
+.notif-panel{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:220;display:flex;align-items:flex-start;justify-content:center;padding:56px 12px 12px}
+.notif-card{background:var(--white);border:1px solid var(--line);border-radius:16px;width:100%;max-width:430px;max-height:78vh;display:flex;flex-direction:column;box-shadow:0 18px 50px rgba(15,23,42,.25)}
+.notif-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+.notif-title{font-size:15px;font-weight:800;color:var(--ink)}
+.notif-close{border:none;background:none;font-size:16px;color:var(--ink-4);cursor:pointer;padding:4px 8px}
+.notif-liste{overflow-y:auto;padding:8px 12px 14px}
+.notif-jour{font-size:11px;font-weight:800;color:var(--ink-4);text-transform:uppercase;letter-spacing:.04em;margin:12px 4px 6px}
+.notif-item{display:block;padding:10px 12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;text-decoration:none;transition:background .15s}
+.notif-item:hover{background:var(--line-light)}
+.notif-item-t{font-size:13.5px;font-weight:700;color:var(--ink)}
+.notif-item-c{font-size:12.5px;color:var(--ink-4);margin-top:2px}
+.notif-item-h{font-size:11px;color:var(--ink-4);margin-top:4px}
+.notif-vide{padding:26px 10px;text-align:center;font-size:13px;color:var(--ink-4)}
 </style>
 </head>
 <body>
@@ -480,8 +497,20 @@ a.tile:hover, .tile.clickable:hover {
   </div>
   <div class="header-right">
     <a href="./docs/guide-mar.html" target="_blank" rel="noopener" class="header-btn" title="Guide du MAR — mode d'emploi du portail et du planning"><span class="hb-ico">?</span> Aide</a>
+    <button id="notifBell" class="theme-btn bell-btn" onclick="notifsOuvrir()" title="Notifications" aria-label="Notifications" style="display:none"><i data-lucide="bell"></i></button>
     <button id="themeBtn" class="theme-btn" onclick="cycleTheme()" title="Thème">🌗</button>
     <span id="mePill" class="me-pill" style="display:none"></span>
+  </div>
+</div>
+
+<!-- LA CLOCHE (v1.77) : journal des notifications des 30 derniers jours -->
+<div id="notifPanel" class="notif-panel" style="display:none" onclick="if(event.target===this)notifsFermer()">
+  <div class="notif-card">
+    <div class="notif-head">
+      <div class="notif-title">Notifications</div>
+      <button class="notif-close" onclick="notifsFermer()" aria-label="Fermer">✕</button>
+    </div>
+    <div id="notifListe" class="notif-liste"></div>
   </div>
 </div>
 
@@ -746,7 +775,9 @@ async function miroirBootDash() {
      une clé de plus dans une requête existante coûte des octets, une requête
      de plus coûte un aller-retour. Refusée par le serveur (échanges pas
      ouverts pour ce code) : elle revient dans `refuses`, coût nul. */
-  const m = await miroirRead(['annees', 'planning_' + devine, 'planning_' + (devine + 1), 'ordre_vac', 'echanges']);
+  /* (23/08/2026 — cloche) `notifs` voyage dans CE même appel : une clé de
+     plus coûte des octets, une requête de plus coûterait un aller-retour. */
+  const m = await miroirRead(['annees', 'planning_' + devine, 'planning_' + (devine + 1), 'ordre_vac', 'echanges', 'notifs']);
   if (!m || !m.success) return m;
   const active = (m.data && m.data.annees && Number(m.data.annees.active)) || devine;
   let plan = m.data['planning_' + active];
@@ -771,6 +802,7 @@ async function miroirBootDash() {
   _ovDepuisMiroir(m.data && m.data.ordre_vac);
   applyUserBadge(m.identite || {});
   _echDepuisMiroir(m.data && m.data.echanges);   // (13/08) après applyUserBadge : le compteur a besoin de MY_ID
+  _notifsDepuisMiroir(m.data && m.data.notifs); // (23/08) après applyUserBadge : la cloche filtre sur MY_ID
   /* Journal de connexion : login GAS en arriere-plan, resultat ignore. */
   /* (06/08/2026) Journal de connexion en envoi A FOND PERDU.
      Il n'apporte rien a l'ecran : il alimente l'onglet CONNEXIONS. En passant
@@ -1590,6 +1622,69 @@ document.addEventListener('visibilitychange', function(){
     chargerEchanges(true).then(function(){ try { renderEchanges(); } catch(e){} }).catch(function(){});
   }
 });
+
+/* ══ LA CLOCHE (v1.77) — journal des notifications ══════════════════════
+   Servi par la copie rapide DANS l'appel d'ouverture : zéro requête
+   ajoutée, zéro milliseconde. Le registre est tenu côté serveur au moment
+   de chaque envoi — même liste sur tous les appareils, complète même si la
+   notification n'est pas arrivée. Simple liste, 30 jours, sans lu/non-lu. */
+let NOTIFS_REGISTRE = null;
+function _notifsDepuisMiroir(env){
+  if (!env || !env.success || !env.notifs) return;
+  NOTIFS_REGISTRE = env.notifs;
+  const b = document.getElementById('notifBell');
+  if (b) b.style.display = '';
+  /* L'ouverture du dashboard remet la pastille d'icône à zéro : localement
+     tout de suite, côté serveur à fond perdu — aucune attente, aucun impact
+     sur le chargement. */
+  try { if (navigator.clearAppBadge) navigator.clearAppBadge(); } catch(e){}
+  try {
+    fetch(MIROIR_URL + '/notif-vu', { method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ code: VIEW_CODE }), keepalive:true }).catch(function(){});
+  } catch(e){}
+}
+function _notifsMiennes(){
+  if (!NOTIFS_REGISTRE) return [];
+  let l = [];
+  if (MY_ID && NOTIFS_REGISTRE[MY_ID]) l = l.concat(NOTIFS_REGISTRE[MY_ID]);
+  if (NOTIFS_REGISTRE['*']) l = l.concat(NOTIFS_REGISTRE['*']);
+  l.sort(function(a,b){ return a.q < b.q ? 1 : -1; });
+  return l;
+}
+const NOTIF_JOURS_FR = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+const NOTIF_MOIS_FR  = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+function _notifJourTitre(d){
+  const auj = new Date(); const hier = new Date(Date.now() - 86400000);
+  const meme = function(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); };
+  if (meme(d, auj)) return "Aujourd'hui";
+  if (meme(d, hier)) return 'Hier';
+  return NOTIF_JOURS_FR[d.getDay()] + ' ' + d.getDate() + ' ' + NOTIF_MOIS_FR[d.getMonth()];
+}
+function _notifEchap(t){ const e=document.createElement('div'); e.textContent=String(t||''); return e.innerHTML; }
+function notifsOuvrir(){
+  const liste = document.getElementById('notifListe');
+  const l = _notifsMiennes();
+  if (!l.length) {
+    liste.innerHTML = '<div class="notif-vide">Rien pour le moment.<br>Les notifications des 30 derniers jours s\'afficheront ici.</div>';
+  } else {
+    let html = '', jour = '';
+    l.forEach(function(n){
+      const d = new Date(n.q);
+      const j = isNaN(d.getTime()) ? '' : _notifJourTitre(d);
+      if (j && j !== jour) { jour = j; html += '<div class="notif-jour">' + j + '</div>'; }
+      const h = isNaN(d.getTime()) ? '' : String(d.getHours()).padStart(2,'0') + 'h' + String(d.getMinutes()).padStart(2,'0');
+      html += '<a class="notif-item" href="' + _notifEchap(n.u || './dashboard.html') + '">'
+            + '<div class="notif-item-t">' + _notifEchap(n.t) + '</div>'
+            + (n.c ? '<div class="notif-item-c">' + _notifEchap(n.c) + '</div>' : '')
+            + (h ? '<div class="notif-item-h">' + h + '</div>' : '')
+            + '</a>';
+    });
+    liste.innerHTML = html;
+  }
+  document.getElementById('notifPanel').style.display = 'flex';
+}
+function notifsFermer(){ document.getElementById('notifPanel').style.display = 'none'; }
 
 function _echDepuisMiroir(env){
   /* Enveloppe {success:true, echanges:[…]} reçue dans l'appel d'ouverture.

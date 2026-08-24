@@ -3,7 +3,7 @@
 set -e
 cd "$(dirname "$0")"
 [ -d node_modules ] || npm install jsdom --silent
-for f in banc.js banc_worker.mjs banc_journal_signal.mjs banc_notif.mjs banc_miroir.js banc_miroir_diff.js banc_docs.js banc_resilience.js banc_page.js banc_chaos.js banc_veille.js banc_pages_mar.js banc_annee_suivante.js banc_ios.js banc_ptr.js banc_google.js banc_gestes.js banc_synchro.js banc_acces.mjs banc_catastrophe.js banc_equipe.js banc_annuel.js banc_indispos.js banc_ordre_vac.js banc_tp.js banc_pose_tp.js banc_pose_tp_page.js banc_calendrier.js banc_liens_r.js banc_recups.js banc_echanges.js banc_ecran_echanges.js banc_liberal.js e2e.js interface.js; do
+for f in banc.js banc_worker.mjs banc_journal_signal.mjs banc_notif.mjs banc_cloche.js banc_miroir.js banc_miroir_diff.js banc_docs.js banc_resilience.js banc_page.js banc_chaos.js banc_veille.js banc_pages_mar.js banc_annee_suivante.js banc_ios.js banc_ptr.js banc_google.js banc_gestes.js banc_synchro.js banc_acces.mjs banc_catastrophe.js banc_equipe.js banc_annuel.js banc_indispos.js banc_ordre_vac.js banc_tp.js banc_pose_tp.js banc_pose_tp_page.js banc_calendrier.js banc_liens_r.js banc_recups.js banc_echanges.js banc_ecran_echanges.js banc_liberal.js e2e.js interface.js; do
   echo "──────── $f ────────"
   node "$f"
 done

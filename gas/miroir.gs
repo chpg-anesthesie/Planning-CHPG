@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-23.6';
+const GAS_VERSION_MIROIR = '2026-08-23.7';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -260,7 +260,7 @@ function miroirSyncComplet() {
                     'planning', 'affectations', 'indispos', 'tuiles',
                     'gardes', 'joursferies', 'stats', 'vacances_admin', 'mail', 'liberal',
                     'specialites', 'cotations_type', 'releve_liberal',
-                    'veille_marques', 'ordre_vac', 'echanges'];
+                    'veille_marques', 'ordre_vac', 'echanges', 'notifs'];
   try { PropertiesService.getScriptProperties().deleteProperty(MIROIR_CLE_ATTENTE); } catch (e) {}   // la synchro pousse un sur-ensemble : la note devient caduque
   /* (2026-08-20.1) UNE FOIS PAR JOUR, tout repart sans condition. Le filtre
      différentiel se fie à une mémoire locale ; si elle ment (miroir vidé à la
@@ -295,6 +295,7 @@ const MIROIR_ONGLETS_SUIVIS = {
   GARDES:       ['gardes', 'indispos', 'stats'],   // statuts et gardes
   STATS_GARDES: ['gardes', 'stats'],               // équité de référence et dette
   INDISPOS:     ['indispos'],
+  NOTIFS_JOURNAL: ['notifs'],                      // (23/08 — cloche) une ligne retirée à la main : la copie suit
   MEDECINS:     ['config_admin', 'annees', 'acces'],
   SECTEURS:     ['secteurs'],
   SPECIALITES:  ['specialites'],                   // (17/08/2026) page de cotation
@@ -417,6 +418,13 @@ function miroirPousserFamilles_(familles, annee, toutesAnnees) {
     // (13/08/2026 — phase 3) Même contrat que les tuiles : enveloppe stockée
     // telle quelle, jamais poussée en échec.
     _miroirAjouteEnveloppe_(items, 'echanges', function () { return getEchangesEnveloppe(); });
+  }
+
+  if (uniq['notifs']) {
+    /* (23/08/2026 — cloche) Le journal des notifications, 30 jours, groupé
+       par destinataire. UNE clé pour tous : une écriture KV par événement,
+       pas 23 — le dashboard n'affiche que les entrées de son MAR (et '*'). */
+    _miroirAjouteEnveloppe_(items, 'notifs', function () { return _miroirConstruireNotifs_(); });
   }
 
   if (uniq['tuiles']) {
@@ -1374,7 +1382,11 @@ function _miroirConstruireVacancesAdmin_() {
    MIROIR_PUSH_TOKEN, le même que le miroir). JAMAIS bloquant : une
    notification qui rate ne doit jamais faire échouer le geste qui la
    déclenche — tout est avalé, le résultat est journalisé via Logger. */
-function notifierPush_(titre, corps, url, cible) {
+function notifierPush_(titre, corps, url, cible, sansJournal) {
+  /* (23/08/2026 — cloche) Le serveur note ce qu'il ENVOIE, avant même de
+     tenter l'envoi : la ligne du journal existe même si le push rate.
+     `sansJournal` : réservé au test du canal. Jamais bloquant. */
+  if (!sansJournal) _notifJournalNoter_(cible, titre, corps, url);
   try {
     const jeton = PropertiesService.getScriptProperties().getProperty('MIROIR_PUSH_TOKEN');
     if (!jeton) { Logger.log('notifierPush_ : MIROIR_PUSH_TOKEN absent'); return { success: false }; }
@@ -1401,8 +1413,72 @@ function notifierPush_(titre, corps, url, cible) {
   }
 }
 
+/* ═══ LE JOURNAL DES NOTIFICATIONS — la cloche du dashboard (23/08/2026) ═══
+   Principe des applis grand public : le serveur tient le registre de ce
+   qu'il envoie, la notification push n'est qu'une sonnette. Onglet
+   NOTIFS_JOURNAL (QUAND | MAR | TITRE | CORPS | URL) — le classeur reste la
+   seule vérité. MAR : un id, ou '*' (adressé à tous, ex. génération). Une
+   cible par rôle (comité) n'y entre pas : la cloche est l'écran du MAR.
+   Rétention 30 jours, purgée au fil de l'eau — aucun déclencheur dédié.
+   Les futurs changements de planning (aujourd'hui par mail) s'y ajouteront
+   par UN appel de plus à _notifJournalNoter_ : accueillis par construction. */
+const NOTIF_JOURNAL_ONGLET = 'NOTIFS_JOURNAL';
+const NOTIF_JOURNAL_JOURS  = 30;
+
+function _notifJournalNoter_(cible, titre, corps, url) {
+  try {
+    if (cible && cible.role) return;               // canal du comité : pas la cloche
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sh = ss.getSheetByName(NOTIF_JOURNAL_ONGLET);
+    if (!sh) {
+      sh = ss.insertSheet(NOTIF_JOURNAL_ONGLET);
+      sh.appendRow(['QUAND', 'MAR', 'TITRE', 'CORPS', 'URL']);
+    }
+    const mar = (cible && cible.id) ? String(cible.id).trim() : '*';
+    sh.appendRow([new Date().toISOString(), mar,
+                  String(titre || ''), String(corps || ''), String(url || '')]);
+    /* Purge au fil de l'eau : les lignes s'ajoutent en bas, les plus
+       anciennes sont donc en tête — on retire tant que la première ligne de
+       données a plus de 30 jours. Une ligne illisible arrête la purge sans
+       jamais boucler. */
+    const limite = Date.now() - NOTIF_JOURNAL_JOURS * 86400 * 1000;
+    while (sh.getLastRow() > 1) {
+      const v = sh.getRange(2, 1).getValue();
+      const t = v instanceof Date ? v.getTime() : new Date(String(v)).getTime();
+      if (isNaN(t) || t >= limite) break;
+      sh.deleteRow(2);
+    }
+    _miroirNoterPoussee_(['notifs'], getActiveYear());   // la copie rapide suit dans la minute
+  } catch (e) { try { Logger.log('_notifJournalNoter_ : ' + e.message); } catch (e2) {} }
+}
+
+/* La clé `notifs` de la copie rapide : { '<ID>': [{q,t,c,u}…], '*': […] },
+   30 jours, du plus récent au plus ancien. */
+function _miroirConstruireNotifs_() {
+  const out = {};
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(NOTIF_JOURNAL_ONGLET);
+  if (sh) {
+    const d = sh.getDataRange().getValues();
+    const limite = Date.now() - NOTIF_JOURNAL_JOURS * 86400 * 1000;
+    for (var r = 1; r < d.length; r++) {
+      const v = d[r][0];
+      const t = v instanceof Date ? v.getTime() : new Date(String(v)).getTime();
+      if (isNaN(t) || t < limite) continue;
+      const mar = String(d[r][1] || '*').trim() || '*';
+      (out[mar] = out[mar] || []).push({
+        q: new Date(t).toISOString(),
+        t: String(d[r][2] || ''), c: String(d[r][3] || ''), u: String(d[r][4] || ''),
+      });
+    }
+    Object.keys(out).forEach(function (k) {
+      out[k].sort(function (a, b) { return a.q < b.q ? 1 : -1; });
+    });
+  }
+  return { success: true, notifs: out };
+}
+
 /* À lancer depuis l'éditeur Apps Script pour le test réel du canal. */
 function testNotificationPush() {
-  const r = notifierPush_('Test du canal', 'Si vous lisez ceci sur votre téléphone, le canal fonctionne.', './dashboard.html');
+  const r = notifierPush_('Test du canal', 'Si vous lisez ceci sur votre téléphone, le canal fonctionne.', './dashboard.html', null, true);
   Logger.log(JSON.stringify(r));
 }

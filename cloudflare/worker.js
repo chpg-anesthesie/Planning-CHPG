@@ -75,7 +75,7 @@ const VERSION = 'miroir 2026-08-22.2';
 // Clés admissibles — tout le reste est refusé à l'écriture comme à la
 // lecture. Garde-fou contre une faute de frappe côté GAS qui créerait
 // une clé orpheline invisible.
-const CLE_VALIDE = /^(acces|annees|secteurs|specialites|cotations_type|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|pose_tp_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|liberal_mar_\d{4}|releve_liberal_\d{4}|veille_marques|ordre_vac|echanges|notif_config|equite_live_\d{4}|doc_[A-Za-z0-9_-]{10,80})$/;
+const CLE_VALIDE = /^(acces|annees|secteurs|specialites|cotations_type|config_admin|topos|staffs|veille|protocoles|annuaire|vacances_admin|planning_\d{4}|affectations_\d{4}|indispos_\d{4}|pose_tp_\d{4}|gardes_\d{4}|joursferies_\d{4}|stats_\d{4}|mail_nonlus|liberal_\d{4}|liberal_mar_\d{4}|releve_liberal_\d{4}|veille_marques|ordre_vac|echanges|notifs|notif_config|equite_live_\d{4}|doc_[A-Za-z0-9_-]{10,80})$/;
 /* (2026-08-10.1) `doc_<idDrive>` : un topo ou un protocole PDF, pousse par la
    tache dediee de miroir.gs. La valeur a la MEME forme que la reponse de
    `getTopo`/`getProtocole` cote Apps Script — {success,name,mimeType,dataB64} —
@@ -135,6 +135,7 @@ export default {
     // ── Notifications push (12/08/2026, phase 1) ──
     if (url.pathname === '/notif-cle') return notifCle(env);
     if (url.pathname === '/notif-abonner') return notifAbonner(corps, env);
+    if (url.pathname === '/notif-vu') return notifVu(corps, env);
     if (url.pathname === '/notif-envoyer') return notifEnvoyer(corps, env);
     return reponse({ success: false, error: 'Chemin inconnu' }, 404);
   }
@@ -246,6 +247,12 @@ async function lire(corps, env) {
       // (08/08) Ce qu'un collègue lit est PERSONNEL : filtré pour TOUS les
       // rôles, admin compris — contrairement aux indispos.
       valeur = filtreIndispos(valeur, user.id);
+    }
+    if (cle === 'notifs') {
+      /* (23/08 — cloche) Une notification est personnelle : chacun ne reçoit
+         que les SIENNES et celles adressées à tous ('*'). Pour TOUS les
+         rôles, comité compris. */
+      valeur = filtreNotifs(valeur, user.id);
     }
     data[cle] = valeur;
   });
@@ -456,6 +463,7 @@ function autorise(user, cle) {
      « mes demandes seulement » est un confort d'ECRAN, pas une regle
      d'acces. Le secretariat, lui, n'atteint jamais /read. */
   if (cle === 'echanges') return true;                                 // MAR + admin
+  if (cle === 'notifs') return true;                                   // (23/08 — cloche) filtré plus loin, POUR TOUS
   if (cle === 'config_admin') return user.role === 'admin';            // admin seul
   if (cle === 'mail_nonlus') return user.role === 'admin';             // (05/08) compteur de non-lus : un NOMBRE, jamais de contenu
   if (/^liberal_\d{4}$/.test(cle)) return user.role === 'admin';       // (05/08) volet du panneau : qui opere, ou — jamais de montant
@@ -484,6 +492,17 @@ function filtreIndispos(valeur, id) {
   const mien = {};
   if (id && parMar[id] !== undefined) mien[id] = parMar[id];
   return { parMar: mien };
+}
+
+/* (23/08/2026 — cloche) Chacun ne reçoit que ses notifications, plus celles
+   adressées à tous ('*'). Structure poussée par le GAS :
+   {"success":true,"notifs":{"ID":[…],"*":[…]}} — ce format fait foi. */
+function filtreNotifs(valeur, id) {
+  const tous = (valeur && valeur.notifs) || {};
+  const mien = {};
+  if (id && tous[id] !== undefined) mien[id] = tous[id];
+  if (tous['*'] !== undefined) mien['*'] = tous['*'];
+  return { success: true, notifs: mien };
 }
 
 async function sha256hex(texte) {
@@ -578,6 +597,26 @@ async function notifAbonner(corps, env) {
   return reponse({ success: true, id: user.id, version: VERSION });
 }
 
+/* corps : { code } — le MAR vient d'ouvrir son dashboard : le compteur de
+   la pastille repart de zéro. Lecture d'abord, écriture SEULEMENT si le
+   compteur n'était pas déjà à zéro (le quota d'écritures KV est compté).
+   Même authentification que /read : l'empreinte du code. */
+async function notifVu(corps, env) {
+  const code = String(corps && corps.code == null ? '' : corps.code).trim().toUpperCase();
+  if (!code) return reponse({ success: false, error: 'Code requis' }, 403);
+  const accesBrut = await env.KV.get('acces');
+  if (!accesBrut) return reponse({ success: false, error: 'Miroir vide — rien à remettre à zéro' });
+  let acces;
+  try { acces = JSON.parse(accesBrut); } catch (e) { return reponse({ success: false, error: 'acces illisible' }); }
+  const empreinte = await sha256hex(code);
+  const user = (acces.users || []).find(u => u && u.h === empreinte);
+  if (!user) return reponse({ success: false, error: 'Code invalide' }, 403);
+  const cle = 'notif_cpt_' + user.id;
+  const actuel = Number((await env.KV.get(cle)) || 0);
+  if (actuel > 0) await env.KV.put(cle, '0');
+  return reponse({ success: true, id: user.id, version: VERSION });
+}
+
 /* corps : { token, titre, corps, url, cible? } — GAS uniquement.
    (13/08 — phase 3) `cible` optionnelle : { id } notifie UNE personne,
    { role } notifie tous les abonnés de ce rôle (le comité, en pratique).
@@ -589,14 +628,18 @@ async function notifEnvoyer(corps, env) {
   if (!env.VAPID_PUBLIC || !env.VAPID_PRIVATE) {
     return reponse({ success: false, error: 'Clés VAPID absentes des secrets du Worker' }, 500);
   }
-  const message = JSON.stringify({
+  const base = {
     titre: String(corps.titre || 'Portail CHPG').slice(0, 120),
     corps: String(corps.corps || '').slice(0, 300),
     url: String(corps.url || './dashboard.html').slice(0, 300),
-    /* (pastille) Transporté tel quel jusqu'au service worker du téléphone,
-       qui le pose sur l'icône. Absent = pas de pastille. */
-    pastille: (typeof corps.pastille === 'number' && corps.pastille >= 0) ? Math.min(corps.pastille, 99) : undefined,
-  });
+  };
+  /* (pastille, 23/08/2026 — UNIFIÉE) Une seule logique : le compteur de
+     non-vus PAR destinataire (notif_cpt_<id>), +1 à chaque envoi, remis à
+     zéro quand le MAR ouvre son dashboard (/notif-vu). Un `pastille` imposé
+     par l'appelant (les échanges en envoyaient un : les demandes en attente)
+     est IGNORÉ — décision du 23/08 : deux chiffres qui se disputent l'icône,
+     c'est un chiffre faux. La charge devient nominative : chiffrée par
+     destinataire de toute façon, elle l'était déjà. */
 
   /* Quelles clés d'abonnement viser ? Les clés étant nominatives
      (notif_sub_<id>), une cible par id est un accès direct ; une cible par
@@ -620,6 +663,14 @@ async function notifEnvoyer(corps, env) {
     if (!brut) return; // pas abonné : rien à envoyer, rien à signaler
     nbVises++;
     let sub; try { sub = JSON.parse(brut); } catch (e) { return; }
+    let pastille = null;
+    try {
+      const cleCpt = 'notif_cpt_' + nom.slice(10);
+      pastille = Math.min(Number((await env.KV.get(cleCpt)) || 0) + 1, 99);
+      await env.KV.put(cleCpt, String(pastille));
+    } catch (e) { pastille = null; /* la pastille est un confort, jamais bloquante */ }
+    const message = JSON.stringify(pastille === null ? base
+      : { titre: base.titre, corps: base.corps, url: base.url, pastille: pastille });
     try {
       const statut = await notifExpedier(sub, message, env);
       if (statut === 404 || statut === 410) {

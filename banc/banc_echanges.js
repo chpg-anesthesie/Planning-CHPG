@@ -442,7 +442,13 @@ console.log('\n═══ 18. La pastille d\'icône : la chaîne complète, du co
   const worker = fs.readFileSync(path.join(__dirname, '..', 'cloudflare', 'worker.js'), 'utf8');
   const dash   = fs.readFileSync(path.join(__dirname, '..', 'dashboard.html'), 'utf8');
   V('le miroir transporte le nombre', /charge\.pastille = cible\.pastille/.test(miroir));
-  V('le Worker le met dans la charge chiffrée (plafonné à 99)', /pastille:.*Math\.min\(corps\.pastille, 99\)/.test(worker));
+  /* (23/08 — pastille UNIFIÉE) Le chiffre des échanges voyage toujours
+     jusqu'au Worker (les deux vérifications ci-dessus) mais celui-ci
+     l'IGNORE : la charge porte le compteur de non-vus, plafonné à 99 —
+     prouvé dynamiquement par banc_notif N6, charge déchiffrée à l'appui.
+     Le calcul côté échanges est inerte, à retirer au prochain lot echanges. */
+  V('le Worker met le COMPTEUR de non-vus dans la charge (plafonné à 99), pas le chiffre imposé',
+    /notif_cpt_/.test(worker) && /pastille: pastille/.test(worker) && !/pastilleImposee/.test(worker));
   /* La pose par sw.js (v4) est vérifiée dans banc_notif.mjs : elle part avec
      lui dans le SECOND push (le gel du canal tient jusqu'au 4/09). */
   V('le portail l\'efface à l\'ouverture', /clearAppBadge/.test(dash));
