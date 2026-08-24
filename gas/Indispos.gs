@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-23.6';
+const GAS_VERSION_INDISPOS = '2026-08-24.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -274,16 +274,21 @@ function diagnosticComplet() {
       });
     } catch (e) { check('Contrôle de synchronisation impossible : ' + e.message, R.WARN); }
 
-    // ── 3bis-c. Placements caducs (05/08/2026) ──
+    // ── 3bis-c. Placements caducs (05/08/2026, trié passé/futur le 24/08) ──
     try {
       const _cad = JSON.parse(PropertiesService.getScriptProperties().getProperty('PLANNING_CADUCS') || '[]');
-      if (_cad.length) {
-        check(`${_cad.length} placement(s) ignoré(s) à la publication — MAR absent ce jour-là : ` +
-              _cad.slice(0, 6).map(x => `${x.marId} ${x.date} (${x.statut})`).join(', ') +
-              (_cad.length > 6 ? ` … et ${_cad.length - 6} autre(s)` : '') +
+      const _auj = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+      const _tri = _caducsTrier_(_cad, _auj);
+      if (_tri.futurs.length) {
+        check(`${_tri.futurs.length} placement(s) À VENIR ignoré(s) à la publication — MAR absent ce jour-là : ` +
+              _tri.futurs.slice(0, 6).map(x => `${x.marId} ${x.date} (${x.statut})`).join(', ') +
+              (_tri.futurs.length > 6 ? ` … et ${_tri.futurs.length - 6} autre(s)` : '') +
               ' — la ligne reste dans PLANNING_OVERRIDES et redeviendra active si le statut est retiré', R.WARN);
       } else {
-        check('Aucun placement caduc à la dernière publication', R.OK);
+        check('Aucun placement à venir ignoré à la publication', R.OK);
+      }
+      if (_tri.passes.length) {
+        info(`${_tri.passes.length} placement(s) passé(s) ignoré(s) — historique, aucun geste attendu`);
       }
     } catch (e) { /* trace absente : sans objet */ }
 
@@ -5801,4 +5806,16 @@ function computeNoelAnEligibles(year, tous) {
   if (!tous) finalIds = finalIds.slice(0, PLAFOND);
 
   return finalIds.map(id => ({ id, init: initMap[id]||id, last: (noelHistory[id]!=null ? noelHistory[id] : null) }));
+}
+
+/* (24/08/2026) Tri des placements caducs pour le Diagnostic : seul l'avenir
+   mérite un avertissement — un conflit passé est de l'histoire, la
+   publication a déjà affiché l'absence. Comparaison sur l'ISO 'yyyy-MM-dd' :
+   aujourd'hui compte comme à venir. Pure, testée au banc. */
+function _caducsTrier_(liste, aujourdhuiIso) {
+  const futurs = [], passes = [];
+  (liste || []).forEach(function (x) {
+    (String(x && x.date) >= aujourdhuiIso ? futurs : passes).push(x);
+  });
+  return { futurs: futurs, passes: passes };
 }

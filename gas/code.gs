@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-08-05.3';
+const GAS_VERSION_CODE = '2026-08-24.1';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 // Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
@@ -1141,19 +1141,21 @@ function generatePlanningFromGardes(year) {
     Logger.log(`✅ ${label} généré (${weeksInMonth.length} semaines)`);
     /* (05/08/2026) Trace des placements caducs : le comité doit pouvoir
        comprendre pourquoi un MAR placé n'apparaît pas en secteur. Repris
-       aussi par le diagnostic Maintenance. */
+       aussi par le diagnostic Maintenance.
+       (24/08/2026) La mémoire du mois est réécrite À CHAQUE publication,
+       même quand il n'y a plus aucun conflit : avant, un mois redevenu
+       propre gardait ses vieilles entrées pour toujours et le Diagnostic
+       ressortait des fantômes. */
     if (planningCaducs.length) {
       Logger.log(`⚠️ ${label} : ${planningCaducs.length} placement(s) ignoré(s) — MAR absent ce jour-là : ` +
         planningCaducs.slice(0, 8).map(x => `${x.marId} ${x.date} (${x.statut})`).join(', ') +
         (planningCaducs.length > 8 ? ` … et ${planningCaducs.length - 8} autre(s)` : ''));
-      try {
-        const _p = PropertiesService.getScriptProperties();
-        const _prec = JSON.parse(_p.getProperty('PLANNING_CADUCS') || '[]');
-        const _tous = _prec.filter(x => x.mois !== label)
-          .concat(planningCaducs.map(x => ({ mois: label, marId: x.marId, date: x.date, statut: x.statut })));
-        _p.setProperty('PLANNING_CADUCS', JSON.stringify(_tous.slice(-200)));
-      } catch (e) { /* trace best-effort */ }
     }
+    try {
+      const _p = PropertiesService.getScriptProperties();
+      const _prec = JSON.parse(_p.getProperty('PLANNING_CADUCS') || '[]');
+      _p.setProperty('PLANNING_CADUCS', JSON.stringify(_caducsFusionner_(_prec, label, planningCaducs)));
+    } catch (e) { /* trace best-effort */ }
   });
 
   return months;
@@ -1841,4 +1843,15 @@ function _notifHtml(nom, chgs, year) {
       'Le Comité Planning — CHPG Monaco<br>Message automatique.' +
     '</div>' +
   '</div>';
+}
+
+/* (24/08/2026) Fusion de la mémoire des placements caducs : les entrées du
+   mois publié sont TOUTES remplacées par l'état du jour — y compris par
+   rien. Pure, testée au banc. Plafond 200, les plus récentes gagnent. */
+function _caducsFusionner_(precedents, label, caducsMois) {
+  return (precedents || []).filter(function (x) { return x.mois !== label; })
+    .concat((caducsMois || []).map(function (x) {
+      return { mois: label, marId: x.marId, date: x.date, statut: x.statut };
+    }))
+    .slice(-200);
 }
