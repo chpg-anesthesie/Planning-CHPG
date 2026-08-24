@@ -4,21 +4,20 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.64** ·
-**GAS** (relevé fichier par fichier dans le dépôt le 19/08/2026) `code.gs` 2026-08-05.3 ·
-`Indispos.gs` 2026-08-19.1 · `miroir.gs` **2026-08-20.1** · `journal.gs` 2026-08-05.3 ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.77** ·
+**GAS** (relevé le 23/08/2026 au soir) `code.gs` 2026-08-05.3 ·
+`Indispos.gs` 2026-08-23.6 · `miroir.gs` **2026-08-23.7** · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-17.3 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
-`echanges.gs` 2026-08-14.3 · `generateur_gardes.gs` 2026-08-14.1 · `setup_annee.gs` 2026-08-08.1 ·
-**Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-20.1'` — **seule** version
-écrite dans le fichier depuis le 16/08 (le commentaire d'en-tête qui la doublait a été supprimé,
-le banc refuse qu'un second numéro réapparaisse).
+`echanges.gs` **2026-08-23.1** · `generateur_gardes.gs` 2026-08-14.1 · `setup_annee.gs` 2026-08-08.1 ·
+**Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
+pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
+à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
 
-⚠️ **DEUX RECOPIES EN ATTENTE au 20/08.** `miroir.gs` **2026-08-20.1** → éditeur Apps Script, puis
-**déployer une nouvelle version**. `cloudflare/worker.js` **miroir 2026-08-20.1** → tableau de bord
-Cloudflare (Workers → `chpg-miroir` → Edit code → Deploy). Les deux sont **indépendants** : aucun
-ordre imposé, l'un sans l'autre ne casse rien. Tant qu'ils ne sont pas faits, l'ancien code tourne
-et les corrections sont sans effet. Contrôle du Worker : son adresse racine doit répondre
-`miroir 2026-08-20.1`.
+✅ **RIEN EN ATTENTE au 23/08 (soir).** Le lot cloche (commit `c7dd7b68d3`) est déployé et testé
+par Arthur dans la foulée : Worker recopié, puis `miroir.gs` 2026-08-23.7 **et** `echanges.gs`
+2026-08-23.1 (qui attendait depuis le 14) en nouvelle version, puis `miroirSyncComplet`. Test du
+canal vérifié sur téléphone : notification reçue, pastille « 1 » sur l'icône, effacée à l'ouverture
+du dashboard, cloche vide (le test est exclu du journal, c'est voulu).
 
 ✅ **RIEN EN ATTENTE au 19/08 (midi).** `Indispos.gs` **2026-08-19.1** recopié et déployé le
 19/08 au matin, **confirmé par le 🔍 Diagnostic de 11:12** ; site **v1.61** ; quatre commits dans
@@ -46,7 +45,7 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **1537 vérifications** sur 32 scripts (relevé le 20/08/2026),
+**Banc d'essai** `banc/` — **1887 vérifications** sur 37 scripts (relevé le 23/08/2026 au soir),
 `cd banc && ./lancer.sh`. *(⚠️ La recette du 19/08 disait « compter les coches `✓` de la sortie
 complète ». Appliquée telle quelle — `grep -c "✓"` — elle donne **1538** : elle compte aussi la
 ligne récapitulative de `banc_notif.mjs`, qui contient « 36 ✓ / 0 ✗ ». La recette exacte est de
@@ -95,6 +94,45 @@ autant de lignes dans `LIENS_R_2027` que de samedis tenus, Diagnostic à zéro r
 génération**, le soir même, et non plus le matin du 4. Les deux gestes sont indissociables — interrompu
 entre les deux (garde), le bac à sable reste généré et le 4 l'assistant réafficherait ce résultat sans
 calculer, en silence. Le matin du 4 ne garde plus qu'un contrôle, les adresses et le Diagnostic.
+
+---
+
+## 23 août 2026 (nuit) — la cloche : le serveur note ce qu'il envoie, et une seule pastille
+
+**Le besoin** : une notification push est périssable — téléphone éteint, refusée, ou lue et
+oubliée. Rien ne permettait de retrouver ce qui avait été annoncé. **Le principe retenu (choix
+d'Arthur entre deux architectures)** : le SERVEUR tient le registre de ce qu'il ENVOIE, le push
+n'est qu'une sonnette. Pas de lu/non-lu ligne à ligne, une simple liste de 30 jours.
+
+**Ce qui est en production depuis le soir même (v1.77, un commit `c7dd7b68d3`, 9 fichiers)** :
+- **`notifierPush_` (miroir.gs 2026-08-23.7) inscrit AVANT d'envoyer** dans un nouvel onglet
+  `NOTIFS_JOURNAL` (QUAND|MAR|TITRE|CORPS|URL) : la ligne existe même si le push rate. Cible par
+  `id`, `'*'` pour tous (génération) ; une cible par rôle (comité) n'y entre pas ; le test du
+  canal non plus (`sansJournal`). Purge > 30 j au fil de l'eau, aucun déclencheur. Les 12 motifs
+  passent par cette unique fonction ; les futurs changements de planning s'y branchent par un
+  appel de plus.
+- **Clé `notifs` de la copie rapide**, servie par le Worker **filtrée à l'identité** : chacun ne
+  reçoit que ses entrées + `'*'`, pour tous les rôles (comme les marques de veille). L'onglet est
+  aussi dans `MIROIR_ONGLETS_SUIVIS` — exigé par le banc : une ligne retirée à la main, la copie
+  suit.
+- **Pastille d'icône UNIFIÉE** (décision d'Arthur en séance) : compteur `notif_cpt_<id>` en KV,
+  +1 par envoi, remis à zéro par la route `/notif-vu` quand le MAR ouvre son dashboard (écriture
+  KV seulement si ≠ 0 : le quota est compté). Le chiffre que les échanges imposaient (demandes en
+  attente) est désormais **ignoré** — deux chiffres qui se disputent l'icône, c'est un chiffre
+  faux. **Le calcul côté `echanges.gs` est inerte : à retirer au prochain lot echanges.**
+- **Dashboard** : cloche + panneau groupé par jour, la clé voyage dans l'appel d'ouverture
+  existant — **zéro requête ajoutée**, contrainte posée par Arthur. Remise à zéro à fond perdu
+  (`keepalive`, échec avalé). Si la copie rapide n'a pas la clé (avant la première synchro), la
+  cloche reste simplement cachée — pas de repli GAS, assumé.
+- **Guide MAR section 12** (vocabulaire contrôlé), **banc +43** : `banc_cloche.js` (28, GAS +
+  statique dashboard, contre-preuve : rouge sans le patch), `banc_notif.mjs` N6 (compteur,
+  `/notif-vu`, charge déchiffrée RFC 8291 portant la pastille, clés `notif_cpt_*` scellées),
+  scénario 18 de `banc_echanges.js` mis au niveau. **1887 vérifications, 0 échec.**
+
+**Deux leçons.** Le banc a **refusé** la famille `notifs` tant que son onglet source n'était pas
+écouté — l'invariant « aucune famille sans onglet suivi » a transformé un oubli en fonctionnalité.
+Et le marqueur `VERSION` du Worker n'a pas été monté avec le lot : l'oubli est noté en tête, le
+prochain lot Worker le montera.
 
 ---
 

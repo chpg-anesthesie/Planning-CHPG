@@ -147,42 +147,41 @@
     <h2>État vérifié</h2>
     <div class="etat-grid">
       <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1839 <small>vérifs · 36 scripts</small></div></div>
+      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1887 <small>vérifs · 37 scripts</small></div></div>
       <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
       <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
     </div>
     <div class="etat-grid" style="margin-top:16px">
       <div><div class="etat-k">code.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
       <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-23.6</div></div>
-      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-23.6</div></div>
+      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-23.7</div></div>
       <div><div class="etat-k">veille.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.5</div></div>
       <div><div class="etat-k">portail.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.3</div></div>
       <div><div class="etat-k">journal.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
       <div><div class="etat-k">generateur.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.1</div></div>
-      <div><div class="etat-k">echanges.gs</div><div class="etat-v" style="font-size:13px">2026-08-14.3</div></div>
+      <div><div class="etat-k">echanges.gs</div><div class="etat-v" style="font-size:13px">2026-08-23.1</div></div>
       <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-22.2</div></div>
     </div>
   </div>
-  <p class="verif">Relevé dans le dépôt et le banc exécuté — 23 août 2026 · <b>rien en attente</b>. Le chantier de la pose des temps partiels (dix commits sur deux jours, v1.65 → v1.71) est déployé et éprouvé en production : la carte apparaît, le calendrier s'ouvre, le comité valide, la notification arrive. Banc à <b>1 778 vérifications, 0 échec</b>. Reste à remettre le bac à sable en état avant la répétition — c'est le premier geste ci-dessous.</p>
+  <p class="verif">Relevé dans le dépôt et le banc exécuté — 23 août 2026 au soir · <b>rien en attente</b>. La pose des temps partiels ET <b>la cloche du dashboard</b> sont déployées et éprouvées en production : Worker, <code>miroir.gs</code> 2026-08-23.7 et <code>echanges.gs</code> 2026-08-23.1 recopiés le soir même, synchronisation faite, test du canal vérifié — pastille sur l'icône, effacée à l'ouverture. Banc à <b>1 887 vérifications, 0 échec</b>. Le bac à sable reste à remettre en état avant la répétition. <i>(Note : le marqueur interne du Worker affiche encore « 2026-08-22.2 » — l'oubli est connu, le code déployé est bien le nouveau ; il montera au prochain lot Worker.)</i></p>
 
   <div class="avance">
     <p class="titre">Le développement est fini — et la démonstration gagne un acte.</p>
     <p class="sous">Rien n'est requis pour le 4 septembre au-delà des gestes ci-dessous. Les 22 et 23 août ont livré en deux jours <b>la pose des temps partiels après génération</b>, écrans MAR et comité compris, déployée et éprouvée en production le 23. Elle change deux choses au programme : <b>le bac à sable doit être purgé de ses anciens jours de temps partiel</b> avant toute génération, et <b>la démonstration du 4 compte désormais quatre actes</b> au lieu de trois.</p>
 
     <div class="avance-chiffres">
-      <div><b>12</b><span>modules en service</span></div>
-      <div><b>1 589</b><span>vérifications auto.</span></div>
+      <div><b>13</b><span>modules en service</span></div>
+      <div><b>1 887</b><span>vérifications auto.</span></div>
       <div><b>0</b><span>à développer</span></div>
       <div><b id="jmoins">—</b><span>avant le staff</span></div>
     </div>
 
     <div class="jauge">
-      <i class="f" style="width:62%"></i><i class="r" style="width:38%"></i>
+      <i class="f" style="width:69%"></i><i class="r" style="width:31%"></i>
     </div>
-    <div class="jauge-lg"><span>8 jalons franchis</span><span>5 gestes restants</span></div>
+    <div class="jauge-lg"><span>9 jalons franchis</span><span>4 gestes restants</span></div>
 
     <ul class="reste">
-      <li><span class="q">tout de suite</span><span>Déployer le chantier du 22 août : <b>le Worker d'abord</b>, puis <code>Indispos.gs</code> et <code>miroir.gs</code> avec une nouvelle version, puis la synchronisation complète — cet ordre embarque aussi le correctif des plafonds du 20 août. Essai avec le code de WIDEHEM (RW), puis relever les compteurs le lendemain matin.</span></li>
       <li><span class="q">cette semaine</span><span>Finir la recette : le parcours des échanges (deux téléphones), les conflits de vacances, l'assistant de départ.</span></li>
       <li><span class="q">1<sup>er</sup> sept.</span><span>Répétition générale, seul, pendant la garde — génération puis effacement dans la foulée.</span></li>
       <li><span class="q">4 sept. matin</span><span>Coller les 24 adresses mail (préparées d'avance dans une colonne de garage de MEDECINS), lancer le Diagnostic, puis envoyer les codes à 12h30.</span></li>
@@ -233,6 +232,7 @@
     <div class="mod"><b>Veille bibliographique</b><span>41 revues, 21 thèmes, lu/★ par MAR depuis le 8 août.</span></div>
     <div class="mod"><b>Échanges de gardes</b><span>Don et échange entre MAR, sans le comité. Notification, réponse, écriture du planning. Le samedi emmène sa récupération.</span></div>
     <div class="mod"><b>CR d'anesthésie</b><span>Générateur autonome.</span></div>
+    <div class="mod"><b>Cloche des notifications</b><span>Journal des 30 derniers jours sur le dashboard, pastille d'icône remise à zéro à l'ouverture. En service depuis le 23 août.</span></div>
     <div class="mod"><b>Copie de lecture</b><span>Ouverture des pages en 100–270 ms sans appel Google.</span></div>
     <div class="mod"><b>Sauvegardes</b><span>Trois filets vérifiés : le classeur le lundi 4 h et le dimanche 5 h, le code le dimanche 3 h. La copie de 5 h vit dans un compte personnel distinct.</span></div>
     <div class="mod"><b>Diagnostic du lundi</b><span>Contrôle complet chaque lundi vers 2 h, résultat envoyé par mail. L'adresse est lue dans l'onglet CONFIG, jamais écrite dans le code.</span></div>
@@ -338,6 +338,11 @@
   </div>
 
   <h2>2 · Juste après le staff</h2>
+  <div class="card ok">
+    <h4>La cloche du dashboard — en production <span class="tag t-green">23 août 2026, déployée et testée le soir même</span></h4>
+    <p>En haut du portail, une cloche rassemble <b>tout ce qui a été notifié à chacun sur 30 jours</b> — échanges, temps partiels, génération — classé par jour, chaque ligne menant à la bonne page. Le registre est tenu côté serveur <b>au moment de l\'envoi</b> : la liste est complète même si la notification n\'est pas arrivée, et identique sur tous les appareils. Chacun ne voit que les siennes, filtrage côté serveur.</p>
+    <p>La <b>pastille de l\'icône</b> devient un vrai compteur : le nombre de nouveautés depuis la dernière ouverture du dashboard, effacé à l\'ouverture. Une seule logique partout — le chiffre que les échanges calculaient de leur côté est désormais ignoré, son retrait est noté pour le prochain lot <code>echanges.gs</code>. <b>Aucun temps de chargement ajouté</b> : la liste voyage dans l\'appel d\'ouverture existant. Les futurs changements de planning s\'y brancheront par un appel de plus, sans refonte. Guide MAR : section 12.</p>
+  </div>
   <div class="card">
     <h4>Passage en version 2.0 <span class="tag t-viol">5 septembre</span></h4>
     <p><b>Purement symbolique, et annoncé le lendemain du staff</b> — jamais avant, pour ne pas éventer l'effet. Aucun code ne change ce jour-là : le numéro de version ne vit plus qu'à un seul endroit depuis le 14 août, c'est une ligne à reprendre. Ce qui justifie le premier chiffre, ce n'est pas une refonte technique, c'est l'ouverture des échanges de gardes aux 23 : le portail cesse d'être une consultation pour devenir un endroit où l'on agit.</p>

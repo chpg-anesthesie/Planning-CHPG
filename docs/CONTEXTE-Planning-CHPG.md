@@ -11,6 +11,27 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 23 août 2026 (nuit) — la cloche en production, une seule pastille
+
+**v1.77** · `miroir.gs` **2026-08-23.7** · `echanges.gs` **2026-08-23.1** (le retard du 14 est
+résorbé) · Worker déployé le 23 au soir (⚠️ son marqueur interne dit encore « 2026-08-22.2 »,
+oubli connu, à monter au prochain lot Worker) · banc **1 887 vérifications, 0 échec**. Tout
+déployé, test du canal vérifié sur téléphone.
+
+**La cloche** : journal des notifications des 30 derniers jours sur le dashboard. Le serveur
+inscrit chaque envoi dans l'onglet **`NOTIFS_JOURNAL`** AVANT de pousser (la ligne existe même si
+le push rate), purge > 30 j au fil de l'eau. Clé `notifs` de la copie rapide, **filtrée à
+l'identité par le Worker** (ses entrées + `'*'`), transportée dans l'appel d'ouverture existant —
+**zéro requête ajoutée**. Cible par rôle (comité) et test du canal exclus du journal.
+
+**La pastille d'icône est UNIFIÉE** : compteur `notif_cpt_<id>` en KV (+1 par envoi), remis à
+zéro par `/notif-vu` à l'ouverture du dashboard (écriture KV seulement si ≠ 0). Le chiffre imposé
+par les échanges est ignoré ; **son calcul, désormais inerte dans `echanges.gs`, est à retirer au
+prochain lot echanges**. Les futurs changements de planning (mail) se brancheront par un appel de
+plus à `_notifJournalNoter_`.
+
+---
+
 ## État au 23 août 2026 (soir) — le TP vit dans GARDES, et la copie rapide était bloquée depuis le 5 août
 
 **v1.76** · `Indispos.gs` **2026-08-23.6** · `miroir.gs` **2026-08-23.6** · `echanges.gs`
