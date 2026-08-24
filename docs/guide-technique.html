@@ -196,7 +196,8 @@
   informatique — pour le responsable du projet, et pour quiconque devrait un jour en reprendre les
   commandes.</p>
   <p class="maj">Refondu le 9 août 2026, chaque affirmation vérifiée dans le code réellement en
-  service (site v1.30.2). Quatre parcours de lecture : chaque section commence par un résumé
+  service (site v1.30.2) · complété le 24 août 2026 : pose des temps partiels après génération
+  (C13) et cloche des notifications (C12), vérifiés dans le code en service (v1.77). Quatre parcours de lecture : chaque section commence par un résumé
   « En 2 minutes » en langage courant ; les détails sont rangés dans des blocs dépliables, et les
   noms techniques exacts dans les blocs gris « Repères techniques » — on peut les ignorer sans rien
   perdre du raisonnement.</p>
@@ -279,6 +280,7 @@
     <li><span class="n">C10</span> <a href="#c10">Les sauvegardes : trois filets, et la marche à suivre pour restaurer</a></li>
     <li><span class="n">C11</span> <a href="#c11">Mesurer la vitesse des pages</a></li>
     <li><span class="n">C12</span> <a href="#c12">Les échanges de gardes &amp; les notifications</a></li>
+    <li><span class="n">C13</span> <a href="#c13">La pose des temps partiels après génération</a></li>
   </ul>
 
   <div class="parcours-titre pd">Parcours D — Mettre en ligne &amp; dépanner</div>
@@ -1556,8 +1558,7 @@ donne, par clic : attente, traitement, dessin (repères : au-delà de 0,2 s un c
 </div></details>
 
 <p class="haut"><a href="#top">↑ Sommaire</a></p>
-<div class="p-bande pd">Parcours D — Mettre en ligne &amp; dépanner
-<small>Comment le code arrive en service, comment on prouve qu'il marche, comment on répare.</small></div>
+
 
 <h2 id="c12"><span class="num">C12</span>Les échanges de gardes &amp; les notifications</h2>
 
@@ -1603,21 +1604,102 @@ jour-là — laissent l'échange valide et déclenchent une notification au comi
 replacer ». Un échange samedi contre samedi ne déplace aucune récupération (le compte de chacun ne
 change pas). L'onglet suit le même cycle annuel que GARDES et STATS (archivé avec eux).</p>
 
-<h3>Les notifications : ciblées, avec pastille</h3>
+<h3>Les notifications : ciblées, avec une pastille unifiée</h3>
 <p>Les notifications d'échange ne partent qu'à la personne concernée — jamais de bruit pour les
-autres. Celles qui annoncent une demande portent aussi le nombre de demandes en attente du
-destinataire : c'est la <b>pastille rouge</b> posée sur l'icône de l'app (téléphone à jour et app
-installée sur l'écran d'accueil), effacée dès que le portail s'ouvre. Deux garanties de
-conception : une pastille qui échoue n'empêche jamais la bannière de s'afficher, et une
+autres. Depuis le 23 août 2026, la <b>pastille rouge</b> de l'icône de l'app obéit à une seule
+logique, tous motifs confondus : c'est un <b>compteur de non-vus</b>, tenu par le relais (une clé
+<code>notif_cpt_&lt;id&gt;</code> par MAR, +1 à chaque envoi), remis à zéro quand le MAR ouvre son
+dashboard (route <code>/notif-vu</code>, et le chiffre local s'efface aussitôt). Le nombre de
+demandes en attente que les échanges calculaient de leur côté est désormais <b>ignoré</b> par le
+relais — deux chiffres qui se disputent l'icône, c'est un chiffre faux ; son calcul, devenu
+inerte, sera retiré au prochain lot <code>echanges.gs</code>. Deux garanties de conception
+inchangées : une pastille qui échoue n'empêche jamais la bannière de s'afficher, et une
 notification qui échoue n'empêche jamais le geste d'aboutir. Les abonnements de téléphones
 disparus se purgent tout seuls au premier envoi qui les trouve morts.</p>
 
-<div class="attention"><div class="titre">Trois pièges connus</div>
+<h3>La cloche : le serveur note ce qu'il envoie</h3>
+<p>Une notification est périssable — téléphone éteint, refusée, lue et oubliée. Depuis le 23 août
+2026, le serveur tient donc un <b>registre de ce qu'il envoie</b> : au moment de chaque envoi, et
+<b>avant</b> même de le tenter, <code>notifierPush_</code> (miroir.gs) inscrit une ligne dans
+l'onglet <code>NOTIFS_JOURNAL</code> (QUAND&nbsp;|&nbsp;MAR&nbsp;|&nbsp;TITRE&nbsp;|&nbsp;CORPS&nbsp;|&nbsp;URL)
+— la ligne existe même si le push rate. Le dashboard l'affiche sous une <b>cloche</b> : les 30
+derniers jours, groupés par date, chaque ligne menant à sa page. Le destinataire est un
+identifiant, ou <code>*</code> pour « tout le monde » (la génération) ; une cible par rôle (le
+comité) n'y entre pas, le test du canal non plus. La rétention se purge <b>au fil de l'eau</b>, à
+chaque écriture — aucun déclencheur dédié.</p>
+<p>Le transport suit le chemin le plus court : une clé <code>notifs</code> de la copie rapide,
+que le relais sert <b>filtrée à l'identité</b> — chacun ne reçoit que ses entrées et celles
+adressées à tous, quel que soit son rôle, comme les marques de veille. Elle voyage dans
+<b>l'appel d'ouverture existant</b> du dashboard : zéro requête ajoutée, zéro milliseconde. Les
+compteurs <code>notif_cpt_*</code>, eux, sont scellés : ni lisibles par <code>/read</code>, ni
+poussables par <code>/push</code>. Un futur motif de notification — les changements de planning,
+aujourd'hui par mail — rejoindra la cloche par un appel de plus à
+<code>_notifJournalNoter_</code>, sans refonte.</p>
+
+<div class="attention"><div class="titre">Quatre pièges connus</div>
 <p>1) Une icône demandée par une page mais absente du petit fichier d'icônes local s'affiche en
 carré vide, sans erreur — le banc le vérifie désormais pour toutes les pages. 2) La liste des
 échanges voyage dans l'appel d'ouverture du portail, avec le planning : ne jamais lui créer un
-appel séparé. 3) La lecture de l'onglet <code>ECHANGES</code> ne le crée jamais (la
-synchronisation horaire passe par là) — seule la création d'une demande le fait.</p></div>
+appel séparé — et la règle vaut pour la clé <code>notifs</code> de la cloche, transportée par le
+même appel. 3) La lecture de l'onglet <code>ECHANGES</code> ne le crée jamais (la
+synchronisation horaire passe par là) — seule la création d'une demande le fait. 4) Avant la
+première synchronisation complète qui suit un déploiement, la clé <code>notifs</code> n'existe
+pas : la cloche reste simplement cachée, sans erreur ni repli — c'est voulu.</p></div>
+
+<h2 id="c13"><span class="num">C13</span>La pose des temps partiels après génération</h2>
+
+<div class="r2"><div class="titre">En 2 minutes</div>
+<p>Depuis le 23 août 2026, le circuit est <b>inversé</b> : les gardes se génèrent d'abord, les
+jours de temps partiel se posent ensuite, dans ce qui reste. C'est ce qui garantit, par
+construction, qu'un repos de garde ne tombe plus jamais sur un jour non travaillé — sans une
+ligne de contrainte supplémentaire dans le générateur. Le MAR concerné voit une carte dédiée sur
+son portail, choisit ses jours sur un calendrier en trois couleurs, et le comité tranche depuis
+l'onglet Équipe. Un jour accordé s'écrit en <code>TP</code> dans <code>GARDES_{année}</code> —
+l'onglet maître du planning — et nulle part ailleurs.</p></div>
+
+<h3>Côté MAR : trois couleurs, un plafond</h3>
+<p>Le calendrier (page des indisponibilités, en mode temps partiel) montre chaque jour ouvré en
+<b>vert</b> (libre : la pose est directe), <b>jaune</b> (sous réserve : le comité tranchera) ou
+<b>noir</b> (fermé — jour de garde, jour déjà pris, ou jour fermé par un refus du comité). Une
+garde de 18&nbsp;h ferme le jour : on est au travail. Les marques « indisponible » ou « garde
+souhaitée » de la campagne, elles, ne ferment rien — elles n'avaient de sens qu'avant la
+génération. Le quota de jours découle de la quotité du MAR, et le plafond est <b>commun</b> :
+accordés + en attente ≤ quota. À l'enregistrement, un récapitulatif, puis une notification à
+chaque décision du comité (validé, refusé, remis en attente).</p>
+
+<h3>Côté comité : des décisions en lot</h3>
+<p>Les demandes en attente s'affichent dans l'onglet Équipe de la page d'administration, avec le
+<b>nombre de présents recalculé à chaque décision</b>. Le comité marque valider ou refuser,
+librement et réversiblement — puis clique « Enregistrer les décisions », et là <b>plus rien ne
+s'annule</b> : un refus fermé par erreur se rouvre en supprimant sa ligne dans
+<code>TP_FERMES</code>. Un refus ferme le jour <b>pour toute l'équipe</b>, pas seulement pour le
+demandeur.</p>
+
+<h3>Où vit chaque chose</h3>
+<p><b>Accordé</b> → <code>TP</code> dans <code>GARDES_{année}</code>, écrit en case <b>vide</b>
+seulement, effacé seulement s'il s'agit bien d'un <code>TP</code>, relu juste avant chaque
+écriture. <code>TP</code> fait partie des codes d'absence : le MAR sort automatiquement de son
+secteur. <b>En attente</b> → rien dans le planning, une ligne dans <code>TP_DEMANDES</code>
+(ANNEE&nbsp;|&nbsp;DATE&nbsp;|&nbsp;MAR&nbsp;|&nbsp;QUAND). <b>Refusé</b> → rien à défaire, et le
+jour se ferme dans <code>TP_FERMES</code> (ANNEE&nbsp;|&nbsp;DATE&nbsp;|&nbsp;PAR&nbsp;|&nbsp;QUAND).
+Ces deux onglets ne sont <b>rattachés à aucune année</b> : leur purge fait partie du ménage
+d'après-démo, ligne à ligne sur la colonne ANNEE.</p>
+
+<h3>La republication différée</h3>
+<p>Chaque validation devrait republier le planning (~10&nbsp;s) ; personne ne doit attendre ça
+après un clic. La republication est donc <b>différée et mutualisée</b> par un déclencheur : le
+classeur est juste <b>immédiatement</b>, le planning publié rattrape dans la minute. Le seul
+symptôme visible : une décision qui « ne s'affiche pas encore » — elle est déjà dans le classeur,
+qui fait foi.</p>
+
+<div class="attention"><div class="titre">Un piège connu</div>
+<p>La part de garde est due <b>inconditionnellement</b> : aucune pose de temps partiel, par aucun
+chemin, ne réduit la cible de gardes d'un MAR. Le vieux mécanisme des jours fixes
+(<code>TP_JOURS_FIXES</code> de MEDECINS) neutralisait à tort une cible d'axe — il est neutralisé
+et sa suppression est planifiée après septembre 2026.</p></div>
+
+<div class="p-bande pd">Parcours D — Mettre en ligne &amp; dépanner
+<small>Comment le code arrive en service, comment on prouve qu'il marche, comment on répare.</small></div>
 
 <h2 id="d1"><span class="num">D1</span>Les trois chemins de mise en ligne &amp; le numéro de version</h2>
 

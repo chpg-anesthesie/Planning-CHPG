@@ -105,7 +105,7 @@
 <div class="eyebrow">Planning-CHPG</div>
 <h1>Guide du fichier maître</h1>
 <p class="subtitle">Le classeur Google Sheets, onglet par onglet : à quoi il sert, qui l'écrit, ce qu'on peut y toucher, et ce qui casse si on se trompe.</p>
-<p class="maj">Mis à jour : 11 août 2026 — inventaire complet : <strong>31 onglets présents</strong>, soit 27 noms distincts (les onglets annuels existent en double : année en cours et année suivante). S'y ajoutent 3 onglets décrits pour mémoire mais absents du classeur : <span class="tag">NOEL_AN_HISTORIQUE</span>, <span class="tag">OVERRIDES</span> et <span class="tag">SEMAINES_VALIDEES</span>, ce dernier supprimé le 3 août 2026 après vérification qu'aucune ligne de code ne le lisait. <strong>Ajouté depuis :</strong> <span class="tag">VEILLE_MARQUES</span> (§24 bis), créé le 8 août 2026 avec les marques personnelles de la veille. <em>Inventaire relu directement dans le classeur le 11 août 2026.</em></p>
+<p class="maj">Mis à jour : 11 août 2026 — inventaire complet : <strong>31 onglets présents</strong>, soit 27 noms distincts (les onglets annuels existent en double : année en cours et année suivante). S'y ajoutent 3 onglets décrits pour mémoire mais absents du classeur : <span class="tag">NOEL_AN_HISTORIQUE</span>, <span class="tag">OVERRIDES</span> et <span class="tag">SEMAINES_VALIDEES</span>, ce dernier supprimé le 3 août 2026 après vérification qu'aucune ligne de code ne le lisait. <strong>Ajouté depuis :</strong> <span class="tag">VEILLE_MARQUES</span> (§24 bis, 8 août), <span class="tag">LIENS_R_{année}</span> (§15 bis, 21 août), <span class="tag">TP_DEMANDES</span> et <span class="tag">TP_FERMES</span> (§18 bis, 22-23 août — créés au premier usage, ils peuvent être absents), et <span class="tag">NOTIFS_JOURNAL</span> (§25 bis, 23 août). <em>Inventaire relu dans le classeur le 11 août 2026, complété depuis le code en service le 24 août.</em></p>
 
 <div class="callout rule">
   <div class="ct">Ce que ce guide est, et ce qu'il n'est pas</div>
@@ -137,10 +137,12 @@
     <li><span class="n">13</span><a href="#indispos">INDISPOS_{année}</a></li>
     <li><span class="n">14</span><a href="#gardes">GARDES_{année}</a></li>
     <li><span class="n">15</span><a href="#stats">STATS_GARDES_{année}</a></li>
+    <li><span class="n">15 bis</span><a href="#liensr">LIENS_R_{année}</a></li>
     <li><span class="n">16</span><a href="#affectations">AFFECTATIONS_{année}</a></li>
     <li><span class="n">17</span><a href="#liberal">LIBERAL_{année}</a></li>
     <li><span class="n">III</span><a href="#p3"><strong>Écrits en continu par l'interface</strong></a></li>
     <li><span class="n">18</span><a href="#overrides">PLANNING_OVERRIDES</a></li>
+    <li><span class="n">18 bis</span><a href="#tp-onglets">TP_DEMANDES et TP_FERMES</a></li>
     <li><span class="n">19</span><a href="#transition">CONFIG_TRANSITION</a></li>
     <li><span class="n">IV</span><a href="#p4"><strong>Les mémoires longues</strong></a></li>
     <li><span class="n">20</span><a href="#historique">HISTORIQUE</a></li>
@@ -152,6 +154,7 @@
     <li><span class="n">24 bis</span><a href="#veille-marques">VEILLE_MARQUES</a></li>
     <li><span class="n">VI</span><a href="#p6"><strong>Journaux, vestiges, et ce qui n'est pas dans le classeur</strong></a></li>
     <li><span class="n">25</span><a href="#journaux">CONNEXIONS et LOGS</a></li>
+    <li><span class="n">25 bis</span><a href="#notifsjournal">NOTIFS_JOURNAL</a></li>
     <li><span class="n">26</span><a href="#vestiges">OVERRIDES <em>(absent)</em></a></li>
     <li><span class="n">27</span><a href="#dehors">Ce qui vit ailleurs (Drive, archives)</a></li>
   </ol>
@@ -601,6 +604,21 @@ tout le reste.</p>
 </div>
 </section>
 
+<section id="liensr">
+<h2><span class="n">15 bis</span>LIENS_R_{année}</h2>
+<p>Écrit par le générateur depuis le 21 août 2026 : quel jour de récupération correspond à quel
+samedi. Trois colonnes — <span class="tag">SAMEDI</span>, <span class="tag">MEDECIN</span>,
+<span class="tag">DATE R</span> — une ligne par samedi <em>et par tenant</em> (un samedi porte deux
+gardes, donc deux lignes). C'est lui qui permet à un échange de samedi d'emmener <strong>sa</strong>
+récupération, à sa date.</p>
+<div class="callout rule">
+  <div class="ct">Ne jamais le nettoyer à la main avant une régénération</div>
+  <p>Le générateur le <strong>détruit et le recrée lui-même</strong> à chaque calcul — vérifié dans le
+  code le 23 août 2026 : le geste serait inutile. Il suit le cycle annuel de
+  <span class="tag">GARDES</span> et <span class="tag">STATS</span>, et s'archive avec eux.</p>
+</div>
+</section>
+
 <section id="affectations">
 <h2><span class="n">16</span>AFFECTATIONS_{année}</h2>
 <p>L'affectation mensuelle de chaque MAR à un secteur. <strong>Une ligne d'en-tête</strong> puis les MARs
@@ -665,6 +683,30 @@ secteur) et <span class="tag">VIDE</span> (case laissée volontairement vide).</
 <p>C'est aussi la <strong>seule</strong> source des consultations à venir : les consultations ne sont pas
 générées automatiquement, le comité place chaque MAR à la main. <span class="tag">CS_TEMPLATE</span> ne
 dit que <em>combien</em> de créneaux sont requis, jamais <em>qui</em> les tient.</p>
+</section>
+
+<section id="tp-onglets">
+<h2><span class="n">18 bis</span>TP_DEMANDES et TP_FERMES</h2>
+<p>Les deux registres du circuit des temps partiels posés <strong>après</strong> génération (22-23 août
+2026). Ni l'un ni l'autre n'existe tant qu'il n'a pas servi : <span class="tag">TP_DEMANDES</span>
+naît à la première demande « sous réserve », <span class="tag">TP_FERMES</span> au premier refus du
+comité.</p>
+<table class="sig">
+<tr><th>Onglet</th><th>Colonnes</th><th>Contenu</th></tr>
+<tr><td>TP_DEMANDES</td><td>ANNEE · DATE · MAR · QUAND</td><td>Les jours demandés que le comité n'a pas
+encore tranchés. <strong>Rien n'est écrit dans le planning</strong> tant qu'une ligne vit ici : le MAR
+travaille.</td></tr>
+<tr><td>TP_FERMES</td><td>ANNEE · DATE · PAR · QUAND</td><td>Les jours fermés par un refus — pour
+<strong>toute l'équipe</strong>, pas seulement le demandeur. Rouvrir un jour refusé par erreur =
+supprimer sa ligne.</td></tr>
+</table>
+<div class="callout warn">
+  <div class="ct">Aucun des deux n'est rattaché à une année</div>
+  <p>Comme <span class="tag">PLANNING_OVERRIDES</span> et <span class="tag">ECHANGES</span> : supprimer
+  les onglets annuels ne les purge pas. Le ménage se fait <strong>ligne à ligne, sur la colonne
+  ANNEE</strong> — il fait partie des gestes d'après-démo. Le jour accordé, lui, ne vit dans aucun des
+  deux : il s'écrit en <span class="tag">TP</span> directement dans <span class="tag">GARDES_{année}</span> (§14).</p>
+</div>
 </section>
 
 <section id="transition">
@@ -817,6 +859,23 @@ réinitialisations de code). <strong>Purge automatique au-delà de 500 lignes.</
   journalise « CRH généré par X — anonymisation confirmée », <strong>jamais le texte</strong>.</p>
   <p>Une limite à connaître : le code du secrétariat étant <strong>partagé</strong>, la ligne de connexion
   indique « Secrétariat » — on ne peut pas savoir qui s'est connecté.</p>
+</div>
+</section>
+
+<section id="notifsjournal">
+<h2><span class="n">25 bis</span>NOTIFS_JOURNAL</h2>
+<p>Le registre de la <strong>cloche</strong> du dashboard (23 août 2026) : une ligne par notification
+envoyée, inscrite par le serveur <strong>avant</strong> même de tenter l'envoi. Cinq colonnes —
+<span class="tag">QUAND</span>, <span class="tag">MAR</span> (un identifiant, ou <span class="tag">*</span>
+pour « tout le monde »), <span class="tag">TITRE</span>, <span class="tag">CORPS</span>,
+<span class="tag">URL</span>. Créé au premier envoi s'il est absent.</p>
+<div class="callout rule">
+  <div class="ct">Il s'entretient tout seul — et une retouche manuelle est suivie</div>
+  <p>Les lignes de plus de <strong>30 jours</strong> se purgent au fil de l'eau, à chaque écriture :
+  aucun déclencheur, rien à nettoyer. Supprimer une ligne à la main est permis (elle disparaît de la
+  cloche de l'intéressé) : l'onglet est écouté, la copie de lecture suit. Les notifications du comité
+  et le test du canal n'y sont <strong>jamais</strong> inscrits — c'est voulu, la cloche est l'écran du
+  MAR.</p>
 </div>
 </section>
 
