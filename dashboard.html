@@ -657,20 +657,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-2
 
 let VIEW_CODE = '';
 let MY_ID = null;
-let MY_SOUHAITS = null;   // {poses, honores, annee} — récapitulatif de l'année générée
-/* Accusé de lecture du récapitulatif, par année (clé chpgSouhaitsLus, comme chpgVeilleSeen). */
-function _souhaitsLu(an){
-  try{ return (JSON.parse(localStorage.getItem('chpgSouhaitsLus')||'[]')||[]).indexOf(Number(an))>=0; }
-  catch(e){ return false; }
-}
-function fermerRecapSouhaits(an){
-  try{
-    const v=JSON.parse(localStorage.getItem('chpgSouhaitsLus')||'[]')||[];
-    if(v.indexOf(Number(an))<0) v.push(Number(an));
-    localStorage.setItem('chpgSouhaitsLus', JSON.stringify(v));
-  }catch(e){}
-  const el=document.getElementById('souhaitsRecap'); if(el) el.remove();
-}
+
 let MY_ROLE = null;
 let MY_LIBERAL = false;      // membre du groupement liberal (colonne LIBERAL de MEDECINS)
 let INDISPOS_OUVERTE = false;   // campagne de saisie en cours (renvoyé par login)
@@ -1185,16 +1172,7 @@ async function loadMyGardes(){
     const today=_todayStr();
     let year=new Date().getFullYear();
     try{ year = await getActiveYearOnce(); }catch(e){}
-    const _plan = await _fetchPlanning(year);
-    /* (25/08/2026) Récapitulatif des souhaits : les deux nombres voyagent dans le
-       même colis que le planning (equiteInitiale), donc sans appel supplémentaire.
-       Absents des plannings générés avant cette date : on n'affiche rien. */
-    try{
-      const _eq = _plan && _plan.equiteInitiale;
-      const _me = _eq && _eq.length ? _eq.filter(function(e){ return e.id===MY_ID; })[0] : null;
-      MY_SOUHAITS = (_me && _me.sp) ? { poses:_me.sp, honores:_me.sh||0, annee:year } : null;
-    }catch(e){ MY_SOUHAITS=null; }
-    let list=_extractMyGardes(_plan, today);
+    let list=_extractMyGardes(await _fetchPlanning(year), today);
     /* (08/08/2026) Transition decembre -> janvier : l'annee suivante est lue
        SANS aucun appel. Avant, un seuil « des octobre » declenchait un appel
        Apps Script a chaque ouverture tant que le planning N+1 n'etait pas
@@ -1257,22 +1235,6 @@ function renderMesGardes(){
   }
   cnt.textContent = MY_GARDES.length + (MY_GARDES.length>1?' gardes à venir':' garde à venir');
   let html='', curMonth='';
-  /* (25/08/2026) Le récapitulatif se dit UNE FOIS, pas toute l'année : le MAR le
-     ferme d'un geste et il ne revient plus pour cette année-là. La mémoire est
-     locale à l'appareil (même principe que la veille bibliographique) : rien à
-     stocker côté serveur pour un simple accusé de lecture. */
-  if(MY_SOUHAITS && MY_SOUHAITS.poses>0 && !_souhaitsLu(MY_SOUHAITS.annee)){
-    const _s=MY_SOUHAITS, _pl=_s.poses>1?'s':'';
-    html += '<div id="souhaitsRecap" style="position:relative;background:#F1F5F9;border-left:3px solid #64748B;'
-         +  'border-radius:6px;padding:10px 34px 10px 12px;margin:0 0 14px;font-size:13px;color:#334155;line-height:1.5">'
-         +  '<button onclick="fermerRecapSouhaits('+_s.annee+')" aria-label="J\'ai lu" '
-         +  'style="position:absolute;top:6px;right:6px;border:0;background:transparent;cursor:pointer;'
-         +  'color:#94A3B8;font-size:18px;line-height:1;padding:2px 6px">&times;</button>'
-         +  '<b>Vos souhaits '+_s.annee+' : '+_s.honores+' retenu'+(_s.honores>1?'s':'')+' sur '+_s.poses+' demande'+_pl+'.</b>'
-         +  '<div style="font-size:12px;color:#64748B;margin-top:3px">Un souhait non retenu ne vous fait rien perdre : '
-         +  'la garde vous revient à une autre date. Sur les samedis, week-ends et jours fériés, une seule demande '
-         +  'par an peut être retenue.</div></div>';
-  }
   MY_GARDES.forEach(function(g){
     const dp=staffDateParts(g.date), p=g.date.split('-'), mKey=p[0]+'-'+p[1];
     if(mKey!==curMonth){ curMonth=mKey; html+='<div class="mg-month">'+_mgCap(_MOIS[(+p[1])-1])+' '+p[0]+'</div>'; }

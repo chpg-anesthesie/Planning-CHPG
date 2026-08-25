@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-25.1';
+const GAS_VERSION_INDISPOS = '2026-08-25.2';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -4436,6 +4436,37 @@ if (action === 'getConflitsAll') {
           (byMonth[mo] = byMonth[mo] || []).push(gg);
         });
 
+        /* (25/08/2026) Récapitulatif des souhaits, demandé par Arthur : c'est ici
+           qu'il a sa place, dans le mail que chacun reçoit et garde — plutôt que
+           dans un bandeau du portail qu'on ferme et qu'on oublie. Colonnes lues
+           PAR NOM : absentes des plannings générés avant cette date, d'où le repli
+           silencieux (aucun encadré affiché). */
+        let souhaitsHtml = '', souhaitsTexte = '';
+        try {
+          const _stS = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('STATS_GARDES_' + year);
+          if (_stS && _stS.getLastRow() > 1) {
+            const _sd = _stS.getDataRange().getValues();
+            const _sh = _sd[0].map(function (x) { return String(x).trim(); });
+            const _iP = _sh.indexOf('SOUHAITS POSES'), _iH = _sh.indexOf('SOUHAITS HONORES');
+            if (_iP >= 0 && _iH >= 0) {
+              for (let _r = 1; _r < _sd.length; _r++) {
+                if (String(_sd[_r][0]).trim() !== String(id).trim()) continue;
+                const _p = Number(_sd[_r][_iP]) || 0, _h = Number(_sd[_r][_iH]) || 0;
+                if (!_p) break;                       // aucun souhait posé : on ne dit rien
+                const _tous = (_h === _p);
+                souhaitsHtml =
+                  '<div style="background:' + (_tous ? '#ecfdf5' : '#f8fafc') + ';border:1px solid '
+                  + (_tous ? '#cdeee6' : '#eef1f5') + ';border-radius:12px;padding:13px 16px;margin-bottom:22px">'
+                  + '<div style="font-size:13px;color:' + (_tous ? '#0d9488' : '#334155')
+                  + ';font-weight:700">' + (_tous ? '✓ ' : '') + 'Souhaits : ' + _h + ' retenu'
+                  + (_h > 1 ? 's' : '') + ' sur ' + _p + '</div></div>';
+                souhaitsTexte = 'Souhaits : ' + _h + ' retenu' + (_h > 1 ? 's' : '') + ' sur ' + _p + '.\n';
+                break;
+              }
+            }
+          }
+        } catch (eS) { /* le récapitulatif des souhaits est un confort, jamais bloquant */ }
+
         // ---------- HTML ----------
         const chips =
           `<span style="display:inline-block;background:#eef4ff;color:#1d4ed8;border:1px solid #dbe6ff;border-radius:999px;font-size:12px;font-weight:700;padding:4px 11px;margin:0 6px 6px 0">${nRea} réanimation</span>` +
@@ -4470,7 +4501,7 @@ if (action === 'getConflitsAll') {
           ? `<div style="background:#f8fafc;border:1px solid #eef1f5;border-radius:12px;padding:14px 16px;margin-bottom:22px"><div style="font-size:13px;color:#64748b;font-weight:600;margin-bottom:10px">${gardes.length} garde${gardes.length>1?'s':''} sur l'année</div><div>${chips}</div></div>`
           : '';
         const emptyHtml = '<div style="background:#f8fafc;border:1px solid #eef1f5;border-radius:12px;padding:18px;text-align:center;color:#64748b;font-size:14px">Aucune garde programmée pour vous en ' + year + '.</div>';
-        const coreHtml = gardes.length ? (summaryHtml + rowsHtml) : emptyHtml;
+        const coreHtml = gardes.length ? (summaryHtml + souhaitsHtml + rowsHtml) : (emptyHtml + souhaitsHtml);
 
         const html =
           '<div style="background:#e9edf1;padding:0;margin:0">' +
@@ -4495,6 +4526,7 @@ if (action === 'getConflitsAll') {
 
         // ---------- Texte brut (repli) ----------
         let bodyText = 'Bonjour ' + nom + ',\n\nLe planning ' + year + ' vient d\'être généré. Voici vos gardes :\n\n';
+        if (souhaitsTexte) bodyText += souhaitsTexte + '\n';
         if (!gardes.length) {
           bodyText += 'Aucune garde programmée pour vous en ' + year + '.\n';
         } else {

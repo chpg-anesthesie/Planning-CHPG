@@ -7021,7 +7021,45 @@ function renderWizGLocked(year, reason) {
     ? (year + " n'a pas été produit par l'algorithme : ses gardes et sa preuve d'équité sont saisies manuellement (sanctuarisées). La génération est désactivée pour cette année.")
     : ('Les gardes ' + year + ' ont été générées et la preuve d\'équité (STATS_GARDES_' + year + ') est figée. La régénération est verrouillée pour protéger l\'équité de l\'algorithme et le planning publié.');
   const hint = reason === 'sanctuary' ? '' : ("Pour régénérer (rare) : supprimez manuellement l'onglet GARDES_" + year + ' dans le Google Sheet, puis rouvrez cet assistant.');
-  document.getElementById('wizGBody').innerHTML = wizardLockedHTML(title, msg, hint);
+  /* (25/08/2026) Le verrou fermait TOUT l'assistant, y compris les étapes 2 et 3 —
+     publication et envoi des récapitulatifs — qui ne régénèrent rien. Si la
+     génération s'arrêtait après l'étape 1 (fenêtre fermée, réseau coupé), les MARs
+     ne recevaient jamais leur mail « Vos gardes » et il n'existait AUCUN moyen de le
+     renvoyer, sinon supprimer l'onglet et tout régénérer — un interdit du projet.
+     Le renvoi est ici, séparé du verrou, et ne touche pas au planning. */
+  let extra = '';
+  if (reason !== 'sanctuary' && reason !== 'nocampaign') {
+    extra = '<div style="text-align:center;margin-top:18px">'
+      + '<button id="wizGRecapBtn" class="btn-primary" onclick="wizGRenvoyerRecaps(' + year + ')">'
+      + '✉️ Renvoyer les récapitulatifs aux MARs</button>'
+      + '<div style="font-size:12px;color:var(--ink-3);margin-top:8px;line-height:1.6">'
+      + 'Renvoie à chacun le mail « Vos gardes ' + year + ' ».<br>'
+      + 'Ne modifie ni le planning ni la preuve d\'équité.</div>'
+      + '<div id="wizGRecapRes" style="margin-top:10px;font-size:13px"></div></div>';
+  }
+  document.getElementById('wizGBody').innerHTML = wizardLockedHTML(title, msg, hint) + extra;
+}
+
+async function wizGRenvoyerRecaps(year) {
+  const btn = document.getElementById('wizGRecapBtn');
+  const res = document.getElementById('wizGRecapRes');
+  if (!btn) return;
+  btn.disabled = true; btn.textContent = '⏳ Envoi en cours…';
+  res.innerHTML = '';
+  try {
+    const r = await api({ action: 'envoyerRecapIndispos', year: year });
+    if (!r || !r.success) throw new Error(r && r.error ? r.error : 'Erreur');
+    const det = [];
+    if (r.sent !== undefined)    det.push(r.sent + ' envoyé' + (r.sent > 1 ? 's' : ''));
+    if (r.skipped)               det.push(r.skipped + ' sans adresse');
+    if (r.errors && r.errors.length) det.push(r.errors.length + ' échec(s)');
+    res.innerHTML = '<span style="color:#166534;font-weight:700">✓ ' + (det.join(' · ') || 'Envoyé') + '</span>';
+    btn.textContent = '✉️ Renvoyer les récapitulatifs aux MARs';
+    btn.disabled = false;
+  } catch (e) {
+    res.innerHTML = '<span style="color:#991B1B;font-weight:700">✕ ' + String(e.message || e).replace(/[<>]/g,'') + '</span>';
+    btn.textContent = '✉️ Réessayer'; btn.disabled = false;
+  }
 }
 
 function closeWizard() { document.getElementById('wizardOverlay').classList.remove('open'); }
