@@ -159,7 +159,12 @@ function planifierEte(year,roster){
   return plan;
 }
 
-function buildAbsences(year,roster,scen){
+function buildAbsences(year,roster,scen,opts){
+  // souhaitsEtendus : souhaits hors lundi/mardi/mercredi (voir bloc plus bas).
+  const SOUH_ETENDUS = (opts&&opts.souhaitsEtendus!=null)
+    ? !!opts.souhaitsEtendus : (process.env.SOUHAITS==='etendus');
+  const SOUH_REALISTE = (opts&&opts.souhaitsRealistes!=null)
+    ? !!opts.souhaitsRealistes : (process.env.SOUHAITS==='realiste');
   const im={}; const FER=feriesDe(year); const planningEte=planifierEte(year,roster);
   roster.forEach(([id,pct,q,f],idx)=>{
     // Graine décorrélée : year*1000+idx*7 produisait des tirages groupés (tous les
@@ -342,6 +347,66 @@ function buildAbsences(year,roster,scen){
     // toute l'année et la personne obtenait 0 garde pour une cible de 19,9.
     // Diagnostic du 22/07/2026 : en 2044 elle était disponible 0 jour sur 254 côté
     // algorithme alors que le modèle lui laissait 159 jours libres.
+    // ── SOUHAITS ÉTENDUS (hors lundi/mardi/mercredi) — banc de robustesse ────
+    // Activés par SOUHAITS=etendus (ou opts.souhaitsEtendus). DÉSACTIVÉS par défaut :
+    // POSÉS EN DERNIER, uniquement sur les jours restés libres : un souhait ne doit
+    // jamais prendre la place d'une absence (constaté le 25/08/2026 — posés avant les
+    // temps partiels, ils occupaient la case et modifiaient les absences, rendant les
+    // deux séries incomparables). On ne souhaite pas une garde un jour où l'on est absent.
+    // le tirage nominal reste identique au bit près, donc les chiffres publiés dans
+    // docs/presentation-staff.html restent reproductibles.
+    // ⚠️ Tirage SÉPARÉ (RS) : consommer R() ici décalerait toute la suite (temps
+    // partiels, étés) et les deux séries ne seraient plus comparables. Avec RS, les
+    // absences sont IDENTIQUES avec et sans l'option — seuls les souhaits changent,
+    // ce qui isole leur effet sur l'équité.
+    // Le générateur autorise depuis 2026-08-25.1 un souhait sur N'IMPORTE QUEL jour
+    // (unités couplées, fériés, Noël inclus) : ce bloc existe pour l'éprouver.
+    // ── USAGE RÉALISTE (SOUHAITS=realiste) ──────────────────────────────────
+    // Décrit par le service (25/08/2026) : les gens posent surtout des INDISPOS
+    // (« pas de garde ce week-end ») ; DEMANDER un week-end précis est rare. On
+    // modélise donc quelques demandes ponctuelles dans TOUT le service, pas par
+    // personne : ~1 MAR sur 6 pose une demande de jour rare dans l'année, et
+    // quelques jeudis choisis. À comparer au mode « etendus », volontairement
+    // saturé, qui sert de test de robustesse et non de prévision.
+    if(SOUH_REALISTE && !f.noGarde && !f.souhaitPlafond){
+      const RR=rnd(Math.imul(year,0x45D9F3B)^Math.imul(idx+1,0x119DE1F3)^(scen?Math.imul(scen,0x7FEB352D):0));
+      const poseR=(ds)=>{ if(!m[ds]) m[ds]='SOUHAIT'; };
+      const parcours=(cb)=>{ const d=new Date(Date.UTC(year,0,1));
+        while(d.getUTCFullYear()===year){ cb(d.getUTCDay(),iso(year,d.getUTCMonth()+1,d.getUTCDate())); d.setUTCDate(d.getUTCDate()+1); } };
+      // un jour rare demandé par an, pour environ un MAR sur six
+      if(RR()<1/6){
+        const cands=[];
+        parcours((dow,ds)=>{ if(dow===5||dow===6||FER.has(ds.slice(5))) cands.push(ds); });
+        if(cands.length) poseR(cands[Math.floor(RR()*cands.length)]);
+      }
+      // quelques jeudis choisis, pour environ un MAR sur quatre
+      if(RR()<1/4) parcours((dow,ds)=>{ if(dow===4 && RR()<0.08) poseR(ds); });
+    }
+    if(SOUH_ETENDUS && !f.noGarde && !f.souhaitPlafond){
+      const RS=rnd(Math.imul(year,0x27D4EB2F)^Math.imul(idx+1,0x165667B1)^(scen?Math.imul(scen,0x9E3779B1):0));
+      const poseE=(ds)=>{ if(!m[ds]) m[ds]='SOUHAIT'; };   // fériés AUTORISÉS ici
+      const parcours=(cb)=>{ const d=new Date(Date.UTC(year,0,1));
+        while(d.getUTCFullYear()===year){ cb(d.getUTCDay(),iso(year,d.getUTCMonth()+1,d.getUTCDate())); d.setUTCDate(d.getUTCDate()+1); } };
+      const g=idx%7;
+      // Répartis sur l'année (pas entassés) : un MAR qui concentre ses souhaits est
+      // volontairement freiné par le garde-fou de rythme du générateur.
+      if(g===0)      parcours((dow,ds)=>{ if(dow===4 && RS()<0.30) poseE(ds); });   // jeudis
+      else if(g===1) parcours((dow,ds)=>{ if(dow===6 && RS()<0.25) poseE(ds); });   // samedis
+      else if(g===2) parcours((dow,ds)=>{ if(dow===5 && RS()<0.22) poseE(ds); });   // week-ends (par le vendredi)
+      else if(g===3) parcours((dow,ds)=>{ if(dow===0 && RS()<0.22) poseE(ds); });   // week-ends (par le dimanche)
+      else if(g===4) parcours((dow,ds)=>{ if((dow===4||dow===6) && RS()<0.15) poseE(ds); }); // mixte jeu+sam
+      // Fériés et veilles de férié : rares mais réels (grouper avec un pont).
+      if(g<=4 && RS()<0.5) parcours((dow,ds)=>{ if(FER.has(ds.slice(5)) && RS()<0.30) poseE(ds); });
+      if(g<=4 && RS()<0.5) parcours((dow,ds)=>{
+        const x=new Date(ds+'T12:00:00'); x.setUTCDate(x.getUTCDate()+1);
+        const lend=iso(year,x.getUTCMonth()+1,x.getUTCDate());
+        if(FER.has(lend.slice(5)) && !FER.has(ds.slice(5)) && RS()<0.25) poseE(ds); });
+      // Noël / Jour de l'An : un MAR sur sept en demande une date (la rotation
+      // pluriannuelle doit rester maîtresse — le souhait n'y départage qu'à
+      // priorité strictement égale).
+      if(g===5){ const noel=[`${year}-12-24`,`${year}-12-25`,`${year}-12-31`];
+        poseE(noel[Math.floor(RS()*noel.length)]); }
+    }
     im[id]=m;    im[id]=m;
   });
   return im;
