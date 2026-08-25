@@ -4,11 +4,11 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.79** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.80** ·
 **GAS** (relevé le 25/08/2026) `code.gs` **2026-08-25.1** ·
 `Indispos.gs` 2026-08-23.6 · `miroir.gs` **2026-08-23.7** · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-17.3 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
-`echanges.gs` **2026-08-23.1** · `generateur_gardes.gs` **2026-08-25.3** · `setup_annee.gs` 2026-08-08.1 ·
+`echanges.gs` **2026-08-23.1** · `generateur_gardes.gs` **2026-08-25.4** · `setup_annee.gs` 2026-08-08.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
 pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
 à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
@@ -99,9 +99,9 @@ calculer, en silence. Le matin du 4 ne garde plus qu'un contrôle, les adresses 
 
 ## 25 août 2026 — les souhaits de garde ouverts à tous les jours de l'année
 
-**⚠️ EN ATTENTE DE RECOPIE : `generateur_gardes.gs` (2026-08-25.3) ET `code.gs` (2026-08-25.1).**
+**⚠️ EN ATTENTE DE RECOPIE : `generateur_gardes.gs` (2026-08-25.4) ET `code.gs` (2026-08-25.1).**
 Tant que les deux ne sont pas recopiés dans l'éditeur Apps Script et déployés en nouvelle
-version, l'ancien générateur tourne et rien de ce qui suit n'est actif. Le frontend (v1.79)
+version, l'ancien générateur tourne et rien de ce qui suit n'est actif. Le frontend (v1.80)
 est en ligne.
 
 Trois commits : `84c5c47` (générateur), `ad467ca` (audit du comité), `baf4381` (récapitulatif
@@ -252,6 +252,45 @@ les indispos font le gros du travail, demander un week-end précis est rare) et 
 **en dernier** : les absences sont identiques avec et sans souhaits, ce qui isole leur effet.
 Le tirage nominal reste identique au bit près — les chiffres de `presentation-staff.html`
 demeurent reproductibles.
+
+### Fin de session — les jours couplés se posent et se comptent ensemble (v1.80, `cb0f560`)
+
+Défaut trouvé par Arthur en relisant la démonstration : sur l'écran de saisie **on clique un
+JOUR**, pas « le week-end du 15 octobre ». Celui qui veut un week-end clique donc naturellement
+le vendredi **et** le dimanche. Il obtenait bien son week-end, mais lisait « **1 retenu sur 2** »
+— comme si une demande avait été refusée. Mesuré, puis corrigé sur deux plans :
+
+- `indispos.html` : toucher un vendredi **allume aussi le dimanche** (même binôme, même week-end ;
+  le samedi revient à d'autres), avec un message au clic. Idem lundi férié + samedi précédent,
+  jeudi férié + samedi suivant. L'effacement retire l'unité entière. La sélection en glissant tait
+  le message (sinon un par jour survolé) mais applique le couplage.
+- `generateur_gardes.gs` 2026-08-25.4 : la colonne affichée compte les **DATES** honorées, plus
+  les unités. Compteur **séparé** de `souhaitHonored`, qui pilote le départage interne et reste
+  inchangé — corriger un texte ne doit pas déplacer une garde. Vérifié : vendredi seul → « 1 sur 1 »,
+  vendredi + dimanche → « 2 sur 2 ».
+- `guide-mar.html` : les jours vont par paire, l'écran s'en charge, un week-end compte pour **une**
+  demande même si deux jours s'allument.
+
+**Leçon** : le compteur avait été conçu sur « une demande = une date », sans vérifier ce que cela
+donnait sur les jours couplés — alors que le couplage était le cœur du lot. Toujours dérouler le
+geste réel de l'utilisateur, pas seulement la logique serveur.
+
+### Démonstration de fin de session — 2027, quatre scénarios de saisie
+
+Avec les absences réalistes du modèle (congés, formations, indispos) :
+
+| scénario | certificat | pire écart |
+|---|---|---|
+| PRUNET tous ses mardis, LEY et ALBOUY quelques mardis (le réaliste) | 🟢 vert | 1,1 |
+| + 2 week-ends demandés | 🟢 vert | 1,1 |
+| + 3 jeudis + 2 samedis | 🟢 vert | 1,1 |
+| **les 23 MAR demandent chacun un jour rare** | 🟢 vert | 1,1 |
+
+Zéro erreur d'invariant, zéro jour sans binôme, écart maximal **identique (1,1)** dans les quatre
+cas — la preuve que le joker absorbe même un afflux général de demandes. Affichages : PRUNET
+36/38, LEY 9/11, ALBOUY 5/5, SUPLY et ZAMARON 2/2 sur leur week-end.
+⚠️ Un seul tirage d'absences sur 2027, année à effectif confortable : à ne pas généraliser aux
+400 années (74 % de vert, cf. plus haut).
 
 ### 📌 Reste à faire sur ce dossier
 

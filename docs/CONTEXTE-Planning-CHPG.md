@@ -13,7 +13,7 @@ chiffres concrets plutôt que des généralités.
 
 ## État au 25 août 2026 — les souhaits de garde ouverts à tous les jours
 
-**v1.79** · `generateur_gardes.gs` **2026-08-25.3** · `code.gs` **2026-08-25.1**
+**v1.80** · `generateur_gardes.gs` **2026-08-25.4** · `code.gs` **2026-08-25.1**
 **⚠️ LES DEUX `.gs` ATTENDENT D'ÊTRE RECOPIÉS** dans l'éditeur Apps Script puis déployés en
 nouvelle version. Tant que ce n'est pas fait, l'ancien générateur tourne. Le frontend est en ligne.
 
@@ -35,6 +35,16 @@ n'en honore que 5.
 
 **Ce qui s'affiche.** « Vos souhaits 2027 : 4 retenus sur 6 demandes », en tête de « Mes gardes »,
 **une seule fois** : une croix le ferme définitivement pour l'année.
+
+**Les jours couplés se posent ET se comptent ensemble** (v1.80). Sur l'écran, toucher un vendredi
+allume aussi le dimanche (message au clic) ; un lundi férié emporte le samedi d'avant, un jeudi
+férié celui d'après. Le compteur affiché compte les **dates** honorées, pas les unités — sinon
+cliquer les deux jours d'un week-end affichait « 1 retenu sur 2 » alors que la demande était
+satisfaite. Ce compteur d'affichage est **séparé** de `souhaitHonored`, qui pilote le départage.
+
+**Démonstration 2027 (un tirage d'absences)** : PRUNET tous ses mardis + LEY/ALBOUY quelques
+mardis → 🟢 vert, écart 1,1. Avec en plus 2 week-ends, 3 jeudis, 2 samedis → 🟢 vert, 1,1.
+Les 23 MAR demandant chacun un jour rare → 🟢 vert, 1,1. Zéro jour sans binôme partout.
 
 ### Règles gravées ce jour
 
