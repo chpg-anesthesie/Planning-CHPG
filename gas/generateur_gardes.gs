@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-08-25.2';
+const GAS_VERSION_GENERATEUR = '2026-08-25.3';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -834,6 +834,13 @@ function generateGardes(year){
     souhParJour[date]=ids.filter(m=>gardeDoctors.indexOf(m)>=0);
   });
   const souhaitHonored={}; allDoctors.forEach(id=>{souhaitHonored[id]=0;});
+  // (25/08/2026) Récapitulatif rendu au MAR : « X souhaits sur Y honorés ». On compte
+  // TOUT ce qui est saisi, sans filtrer les demandes irréalistes — poser 43 samedis
+  // affichera 5/43, ce qui est l'information juste.
+  const souhaitPose={}; allDoctors.forEach(id=>{souhaitPose[id]=0;});
+  Object.keys(souhaits).forEach(ds=>{(souhaits[ds]||[]).forEach(id=>{
+    if(souhaitPose[id]!==undefined) souhaitPose[id]++;
+  });});
 
   // ── Souhaits hors lundi/mardi/mercredi (ajout du 25/08/2026) ─────────────
   // AUCUNE modification du chemin historique ci-dessous : les jours libres gardent
@@ -1693,7 +1700,10 @@ function generateGardes(year){
   // ── 13. STATS ─────────────────────────────────────────────────────────
   let st=ss.getSheetByName(`STATS_GARDES_${year}`);if(st)ss.deleteSheet(st);
   st=ss.insertSheet(`STATS_GARDES_${year}`);
-  st.getRange(1,1,1,23).setValues([['MEDECIN','CIBLE','TOTAL G','G (REA)','G2 (MAT)','LUN','MAR','MER','JEU','VEN','SAM','DIM','RECUP R','18H','JF','VEILLE JF','NOEL/AN','CIBLE SAM','CIBLE JEU','CIBLE VD','VD','CIBLE VJF','CIBLE JF']]).setFontWeight('bold');
+  // Les deux dernières colonnes (souhaits) sont AJOUTÉES EN FIN et jamais intercalées :
+  // code.gs lit encore des colonnes par position (sd[r][17], [19], [21]) et un décalage
+  // fausserait silencieusement les cibles du tableau de bord.
+  st.getRange(1,1,1,25).setValues([['MEDECIN','CIBLE','TOTAL G','G (REA)','G2 (MAT)','LUN','MAR','MER','JEU','VEN','SAM','DIM','RECUP R','18H','JF','VEILLE JF','NOEL/AN','CIBLE SAM','CIBLE JEU','CIBLE VD','VD','CIBLE VJF','CIBLE JF','SOUHAITS POSES','SOUHAITS HONORES']]).setFontWeight('bold');
   const sRows=allDoctors.map(id=>{
     const cbT=cible[id]?cible[id].total:0;
     const cbS=cible[id]?cible[id].sam:0, cbJ=cible[id]?cible[id].jeu:0, cbV=cible[id]?cible[id].vd:0, cbVjf=cible[id]?cible[id].vjf:0;
@@ -1701,9 +1711,10 @@ function generateGardes(year){
     const c=cnt[id]||{total:0,g:0,g2:0,lun:0,mar:0,mer:0,jeu:0,ven:0,sam:0,dim:0,recupR:0,vd:0,vjf:0};
     return[id,"'"+cbT.toFixed(1),c.total,c.g,c.g2,c.lun,c.mar,c.mer,c.jeu,c.ven,c.sam,c.dim,c.recupR,
       h18cnt[id]||0,jfCnt[id]||0,c.vjf||0,noelAnCnt[id]||0,
-      +cbS.toFixed(1),+cbJ.toFixed(1),+cbV.toFixed(1),c.vd||0,+cbVjf.toFixed(1),+cbJf.toFixed(1)];
+      +cbS.toFixed(1),+cbJ.toFixed(1),+cbV.toFixed(1),c.vd||0,+cbVjf.toFixed(1),+cbJf.toFixed(1),
+      souhaitPose[id]||0,souhaitHonored[id]||0];
   });
-  st.getRange(2,1,sRows.length,23).setValues(sRows);
+  st.getRange(2,1,sRows.length,25).setValues(sRows);
   st.getRange(2,2,sRows.length,1).setNumberFormat('@STRING@');
   st.setColumnWidth(1,140);
 

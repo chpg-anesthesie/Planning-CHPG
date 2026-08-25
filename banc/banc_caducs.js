@@ -70,8 +70,17 @@ console.log('\n═══ F3. Les blocs appelants, dans les vrais fichiers ══
     ind.includes('_caducsTrier_(_cad, _auj)') && ind.includes('À VENIR ignoré(s)'));
   V('le passé descend en ℹ️, jamais en ⚠️',
     /info\(`\$\{_tri\.passes\.length\} placement\(s\) passé\(s\)/.test(ind));
-  V('versions montées : code.gs 2026-08-24.1, Indispos.gs 2026-08-24.1',
-    code.includes("GAS_VERSION_CODE = '2026-08-24.1'") && ind.includes("GAS_VERSION_INDISPOS = '2026-08-24.1'"));
+  // (25/08/2026) Le test figeait les deux versions en dur : toute évolution
+  // ultérieure de ces fichiers cassait le banc pour une raison sans rapport.
+  // Il vérifie désormais que chacune est AU MOINS celle du lot « caducs ».
+  {
+    const _v = (t, cle) => (t.match(new RegExp(cle + " = '(\\d{4}-\\d{2}-\\d{2})\\.(\\d+)'")) || []).slice(1);
+    const _auMoins = (v, ref) => v.length === 2 && (v[0] > ref[0] || (v[0] === ref[0] && Number(v[1]) >= Number(ref[1])));
+    const vC = _v(code, 'GAS_VERSION_CODE'), vI = _v(ind, 'GAS_VERSION_INDISPOS');
+    V('versions au moins égales à celles du lot caducs (2026-08-24.1)',
+      _auMoins(vC, ['2026-08-24', '1']) && _auMoins(vI, ['2026-08-24', '1']),
+      { code: vC.join('.'), indispos: vI.join('.') });
+  }
 }
 
 console.log(`\nbanc_caducs : ${ok} ✓ / ${ko} ✗`);

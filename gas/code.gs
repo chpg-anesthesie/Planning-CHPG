@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-08-24.1';
+const GAS_VERSION_CODE = '2026-08-25.1';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 // Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
@@ -790,6 +790,11 @@ function generatePlanning(yearOverride) {
     if (stSheet && stSheet.getLastRow() > 1) {
       const sd = stSheet.getDataRange().getValues();
       // colonnes : 0 MEDECIN · 2 TOTAL G · 5 LUN · 6 MAR · 7 MER · 8 JEU · 9 VEN · 10 SAM · 11 DIM · 14 JF · 15 VEILLE JF · 20 VD
+      // (25/08/2026) 23/24 = souhaits posés / honorés, AJOUTÉS EN FIN par le générateur.
+      // Lus par nom pour ne pas dépendre de leur position ; absents des plannings
+      // générés avant cette date, d'où le repli à 0.
+      const _hdr = sd[0].map(x => String(x).trim());
+      const _iSP = _hdr.indexOf('SOUHAITS POSES'), _iSH = _hdr.indexOf('SOUHAITS HONORES');
       equiteInitiale = sd.slice(1).filter(r => r[0]).map(r => ({
         id: String(r[0]).trim(),
         total: Number(r[2]) || 0,
@@ -797,6 +802,7 @@ function generatePlanning(yearOverride) {
         je: Number(r[8]) || 0, ve: Number(r[9]) || 0, sa: Number(r[10]) || 0, di: Number(r[11]) || 0,
         vd: Number(r[20]) || 0, jf: Number(r[14]) || 0, vjf: Number(r[15]) || 0,
         cible: Number(r[1]) || 0, cSa: Number(r[17]) || 0, cJe: Number(r[18]) || 0, cVd: Number(r[19]) || 0, cVjf: Number(r[21]) || 0,
+        sp: _iSP >= 0 ? (Number(r[_iSP]) || 0) : 0, sh: _iSH >= 0 ? (Number(r[_iSH]) || 0) : 0,
       }));
     }
   } catch(e) { Logger.log('equiteInitiale: ' + e.message); }
