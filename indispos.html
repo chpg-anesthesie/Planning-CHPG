@@ -954,6 +954,11 @@ async function loadVacConfig() {
     if (res.success) {
       vacConfig = res;
       joursFeries = new Set(res.joursFeries || []);
+      /* (25/08/2026) Le planning de l'année est généré : l'écran passe en LECTURE
+         SEULE. Les indispos ne changent plus rien une fois les gardes tirées ;
+         sans ce verrou, on pouvait saisir des semaines durant en croyant que ça
+         comptait. Pour modifier après coup, c'est le circuit des échanges. */
+      if (res.genere) verrouillerEcran(res.anneeCampagne);
       /* (LOT 3 · 22/08/2026) L'activation du bouton « Temps partiel » a été
          retirée avec le bouton : les TP se posent sur l'écran dédié (?tp=1),
          après la génération. Le serveur ignore de toute façon les TP envoyés
@@ -966,7 +971,27 @@ async function loadVacConfig() {
   }
 }
 function updateVacBanner() { /* supprimé — le comité gère les conflits */ }
+
+let ECRAN_FIGE = false;
+function verrouillerEcran(annee) {
+  if (ECRAN_FIGE) return;
+  ECRAN_FIGE = true;
+  const btn = document.getElementById('saveBtn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '.45'; btn.style.cursor = 'not-allowed';
+             btn.textContent = '🔒 Planning ' + annee + ' publié'; }
+  const bandeau = document.createElement('div');
+  bandeau.id = 'figeBanner';
+  bandeau.style.cssText = 'background:#FEF3C7;border-left:4px solid #D97706;color:#92400E;'
+    + 'padding:12px 14px;margin:0 0 14px;border-radius:8px;font-size:14px;line-height:1.55';
+  bandeau.innerHTML = '<b>Le planning ' + annee + ' est établi.</b><br>'
+    + 'Vos indisponibilités restent visibles, mais elles ne peuvent plus être modifiées : '
+    + 'les gardes sont déjà réparties. Pour changer une garde, passez par <b>Mes échanges</b> '
+    + 'depuis le portail.';
+  const hote = document.querySelector('.legend') || document.querySelector('.container') || document.body;
+  hote.parentNode ? hote.parentNode.insertBefore(bandeau, hote) : hote.appendChild(bandeau);
+}
 async function saveIndispos() {
+  if (typeof ECRAN_FIGE !== 'undefined' && ECRAN_FIGE) { showToast('🔒 Planning déjà établi — aucune modification possible'); return; }
   const btn = document.getElementById('saveBtn');
   btn.textContent = '⏳ Sauvegarde...';
   btn.disabled = true;
@@ -1093,6 +1118,15 @@ function endDrag() {
 document.addEventListener('mouseup', () => { isDragging = false; });
 
 function applyTool(date) {
+  // (typeof) le banc évalue cette fonction isolément, hors contexte de page.
+  if (typeof ECRAN_FIGE !== 'undefined' && ECRAN_FIGE) {
+    if (!isDragging || !window._figeMsg) {
+      window._figeMsg = true;
+      setTimeout(() => { window._figeMsg = false; }, 2500);
+      showToast('🔒 Planning déjà établi — vos indisponibilités sont figées');
+    }
+    return;
+  }
   /* (12/08/2026) Hors de l'annee de planning, le SERVEUR ignore la date en silence
      (banc T072) : le MAR croyait avoir declare, rien n'etait enregistre. Les cases
      etaient deja grisees mais restaient cliquables. Refus explicite ici. */

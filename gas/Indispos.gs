@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-24.1';
+const GAS_VERSION_INDISPOS = '2026-08-25.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -3371,10 +3371,19 @@ try {
       const jfNext = getJoursFeries(indYear + 1);
       const _f = getMedecinFlags();
       const tpFixe = _f.rythme2sur2.has(user.id) || !!_f.tpJoursFixes[user.id];
+      /* (25/08/2026) `genere` : le planning de l'année de campagne existe déjà.
+         L'écran passe alors en LECTURE SEULE — les indispos ne servent plus à
+         rien une fois les gardes tirées, et sans ce signal le MAR pouvait
+         continuer à saisir pendant des semaines en croyant que ça comptait.
+         La campagne n'est PAS fermée pour autant : la clôture (qui archive
+         l'année et bascule sur la suivante) reste un geste du comité, sinon
+         une simple génération d'essai basculerait tout. */
+      const _dejaGenere = !!SpreadsheetApp.getActiveSpreadsheet().getSheetByName('GARDES_' + indYear);
       return ContentService.createTextOutput(JSON.stringify({
         success: true, periodes: cfg.periodes, quotaVac: cfg.quotaVac,
         quotaForm: cfg.quotaForm, quotaCtp: cfg.quotaCtp, tpFixe: tpFixe,
         totalVacDoc: cfg.totalVacDoc, joursFeries: [...jf, ...jfNext],
+        genere: _dejaGenere, anneeCampagne: indYear,
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
