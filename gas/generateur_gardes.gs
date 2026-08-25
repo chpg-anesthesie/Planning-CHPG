@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-08-25.3';
+const GAS_VERSION_GENERATEUR = '2026-08-25.4';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -838,6 +838,13 @@ function generateGardes(year){
   // TOUT ce qui est saisi, sans filtrer les demandes irréalistes — poser 43 samedis
   // affichera 5/43, ce qui est l'information juste.
   const souhaitPose={}; allDoctors.forEach(id=>{souhaitPose[id]=0;});
+  // (25/08/2026) Compteur d'AFFICHAGE, distinct de souhaitHonored qui sert au départage
+  // interne : il compte les DATES honorées, pas les unités. Sans lui, un MAR qui clique
+  // le vendredi ET le dimanche d'un même week-end lisait « 1 retenu sur 2 » alors qu'il
+  // avait obtenu exactement ce qu'il demandait.
+  const souhaitJoursOK={}; allDoctors.forEach(id=>{souhaitJoursOK[id]=0;});
+  const _compterJours=(membres,jours)=>{ membres.forEach(m=>{ jours.forEach(d=>{
+    if(isSouhaitDe(m,d) && souhaitJoursOK[m]!==undefined) souhaitJoursOK[m]++; }); }); };
   Object.keys(souhaits).forEach(ds=>{(souhaits[ds]||[]).forEach(id=>{
     if(souhaitPose[id]!==undefined) souhaitPose[id]++;
   });});
@@ -934,6 +941,7 @@ function generateGardes(year){
     }
     if(viaCo) souhaitHonored[partner]++;
     if(uniteRare(un)){ souhaitRare[id]++; if(viaCo) souhaitRare[partner]++; }
+    _compterJours([id,partner],jours);
     if(un.vd){cnt[id].vd++;cnt[partner].vd++;}
     const [g,g2]=assignRoles(id,partner);
     jours.forEach(d=>assign(d,g,g2,dayByDate[d].dow));
@@ -957,6 +965,7 @@ function generateGardes(year){
       partner=others[0];
     }
     const [g,g2]=assignRoles(id,partner);
+    _compterJours([id,partner],[date]);
     assign(date,g,g2,dow);
     return true;
   }
@@ -1712,7 +1721,7 @@ function generateGardes(year){
     return[id,"'"+cbT.toFixed(1),c.total,c.g,c.g2,c.lun,c.mar,c.mer,c.jeu,c.ven,c.sam,c.dim,c.recupR,
       h18cnt[id]||0,jfCnt[id]||0,c.vjf||0,noelAnCnt[id]||0,
       +cbS.toFixed(1),+cbJ.toFixed(1),+cbV.toFixed(1),c.vd||0,+cbVjf.toFixed(1),+cbJf.toFixed(1),
-      souhaitPose[id]||0,souhaitHonored[id]||0];
+      souhaitPose[id]||0,souhaitJoursOK[id]||0];
   });
   st.getRange(2,1,sRows.length,25).setValues(sRows);
   st.getRange(2,2,sRows.length,1).setNumberFormat('@STRING@');

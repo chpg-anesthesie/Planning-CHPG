@@ -1138,6 +1138,42 @@ function applyTool(date) {
       return;
     }
   }
+  /* (25/08/2026) JOURS COUPLÉS — un souhait ne se pose jamais sur un demi-week-end.
+     Le vendredi et le dimanche sont assurés par le MÊME binôme (le samedi revient à
+     d'autres) ; un lundi férié va avec le samedi qui le précède, un jeudi férié avec
+     celui qui le suit. En cliquant un seul de ces jours, on demandait sans le savoir
+     les deux — et en cliquant les deux, on croyait faire deux demandes alors qu'il
+     n'y en a qu'une. Le clic pose donc l'unité complète, et le dit. */
+  const _uniteSouhait = (d) => {
+    const dt = new Date(d + 'T12:00:00'), dow = dt.getDay();
+    const dec = (n) => { const x = new Date(dt.getTime() + n * 86400000);
+      return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+    if (dow === 5) return { jours: [d, dec(2)], quoi: 'le week-end entier (vendredi + dimanche)' };
+    if (dow === 0) return { jours: [dec(-2), d], quoi: 'le week-end entier (vendredi + dimanche)' };
+    if (dow === 4 && joursFeries.has(d)) return { jours: [d, dec(2)], quoi: 'le jeudi férié et le samedi qui suit' };
+    if (dow === 1 && joursFeries.has(d)) return { jours: [dec(-2), d], quoi: 'le samedi et le lundi férié qui suit' };
+    if (dow === 6) {
+      if (joursFeries.has(dec(-2)) && new Date(dec(-2) + 'T12:00:00').getDay() === 4) return { jours: [dec(-2), d], quoi: 'le jeudi férié et le samedi qui suit' };
+      if (joursFeries.has(dec(2)) && new Date(dec(2) + 'T12:00:00').getDay() === 1) return { jours: [d, dec(2)], quoi: 'le samedi et le lundi férié qui suit' };
+    }
+    return null;
+  };
+  if (currentTool === 'SOUHAIT' || (currentTool === 'ERASE' && indispos[date] === 'SOUHAIT')) {
+    const u = _uniteSouhait(date);
+    if (u) {
+      const b = bornesAnneePlanning(YEAR);
+      const posables = u.jours.filter(j => j >= b.debut && j <= b.fin
+        && indispos[j] !== 'VAC' && indispos[j] !== 'FORM');
+      if (posables.length) {
+        posables.forEach(j => { if (currentTool === 'ERASE') delete indispos[j]; else indispos[j] = 'SOUHAIT'; });
+        if (!isDragging) showToast(currentTool === 'ERASE'
+          ? '↩️ Demande retirée — ' + u.quoi
+          : '⭐ Ces jours vont ensemble : vous demandez ' + u.quoi);
+        hasChanges = true; renderMonth(); updateStats();
+        return;
+      }
+    }
+  }
   if (currentTool === 'ERASE') {
     delete indispos[date];
   } else {
