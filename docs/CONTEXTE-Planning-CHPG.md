@@ -11,6 +11,91 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## État au 25 août 2026 — les souhaits de garde ouverts à tous les jours
+
+**v1.79** · `generateur_gardes.gs` **2026-08-25.3** · `code.gs` **2026-08-25.1**
+**⚠️ LES DEUX `.gs` ATTENDENT D'ÊTRE RECOPIÉS** dans l'éditeur Apps Script puis déployés en
+nouvelle version. Tant que ce n'est pas fait, l'ancien générateur tourne. Le frontend est en ligne.
+
+Commits : `84c5c47` (générateur), `ad467ca` (audit comité), `baf4381` (récapitulatif MAR).
+`d656c40` a été **annulé** par `193add9` le même jour — une première version qui dégradait
+l'équité (74 % contre 78 % de certificats verts).
+
+**Ce qui change pour le MAR.** Il peut poser un souhait sur **n'importe quel jour de l'année**.
+Lundi/mardi/mercredi : accordé presque toujours, comme avant. Jeudi : dans la limite de sa part.
+Samedi, week-end, férié, veille de férié : **une demande par an** (`SOUHAIT_QUOTA_RARE = 1`),
+honorée seulement si elle tient dans sa part. Un souhait non retenu ne fait **rien perdre** :
+la garde revient à une autre date. Demander un vendredi ou un dimanche = **le week-end entier**
+(le samedi revient à d'autres) ; demander un lundi férié = **le samedi qui précède** aussi.
+
+**Ce qui change pour le comité.** L'audit de l'étape 2 ne bloque **plus** sur les souhaits : ils
+sont informatifs (tableau conservé, ambre au-delà de la part). Seuls les **refus** bloquent.
+Sans ce changement, la nouveauté était inutilisable — poser 43 samedis est légitime, l'algorithme
+n'en honore que 5.
+
+**Ce qui s'affiche.** « Vos souhaits 2027 : 4 retenus sur 6 demandes », en tête de « Mes gardes »,
+**une seule fois** : une croix le ferme définitivement pour l'année.
+
+### Règles gravées ce jour
+
+- **Le coût d'un souhait dépend de la rareté du jour.** Semaine (~250 jours) : gratuit, et même
+  bénéfique — les souhaits du mardi font passer le vert de 61 % à 74 %. Samedi/week-end (~50) :
+  cher. Veille de férié (~12, part ≈ 0,5) : le plus cher, un seul suffit à sortir du vert.
+- **Ne rien changer à ce qui marche : on n'AJOUTE.** Le chemin lun/mar/mer est repris à
+  l'identique. Preuve exigée avant tout push : **identité stricte sur 160 années simulées**.
+  Cette preuve a été refaite après chaque modification suivante.
+- **Ne jamais valider des briques isolément puis supposer qu'elles s'additionnent.** Le
+  rattrapage d'équité gagnait 10 points sans souhaits ; assemblé aux souhaits du mardi, qui
+  corrigent le même déséquilibre, le total *baissait*. Mesurer l'ensemble, toujours.
+- **Un échantillon de 4 scénarios ne prouve rien.** Un réglage déclaré bon sur 80 années
+  (max 3,00, zéro dépassement) s'est révélé mauvais sur 400 (max 3,60, 55 franchissements).
+- **Un résultat trop beau est un signal de vérification**, pas un succès : une mesure « identique
+  au bit près » venait d'un modèle non installé dans le dossier de test.
+- **Diagnostiquer sur un cas concret avant de corriger.** Deux hypothèses fausses coup sur coup
+  ont été réfutées par l'expérience ; la cause n'a été trouvée qu'en rejouant une année et en
+  listant les dates d'un MAR.
+- **Un test ne fige jamais un numéro de version en dur** : il vérifie « au moins égal à ».
+  Deux tests le faisaient (`banc_cloche.js`, `banc_caducs.js`), tous deux corrigés.
+- **Les colonnes de `STATS_GARDES` s'ajoutent EN FIN, jamais au milieu** : `code.gs` en lit
+  encore par position (`sd[r][17]`, `[19]`, `[21]`).
+
+### Chantier ouvert — l'équité des week-ends
+
+**Le déséquilibre des week-ends existe sans les souhaits.** Sur 400 années sans aucun souhait :
+VD médian 1,80, max 3,8, **102 années sur 400 au-dessus de 2** — soit 155 des 157 années rouges.
+Samedis et jeudis ne dépassent jamais 2. Cas concret : 2039, LEVASSEUR 9 week-ends contre
+FERRIERO 3 (part due 6,8), FERRIERO étant **disponible 31 week-ends sur 52** — écarté, pas absent.
+
+Cause : dans `scoreVD`, la pénalité de charge hebdomadaire passe **avant** l'équité. Un MAR chargé
+en semaine est écarté des week-ends, donc reste libre en semaine, donc y reprend des gardes.
+
+Un correctif est écrit et mesuré (`RATTRAP_MARGE`, priorité à celui qui ne peut plus rattraper
+sa part ; 60 % → 70 % isolément, gardes rapprochées inchangées) **mais NON livré** : double emploi
+avec les souhaits du mardi. À reprendre **séparément**, recalibré en présence des souhaits.
+Le rouge se concentre dans le creux démographique : 52 % d'années > 2 à ≤16 gardeurs, 8 % à ≥21.
+
+### ⚠️ Trou connu, décision de ne PAS le boucher
+
+Un lun/mar/mer qui est aussi **veille de férié** suit le chemin historique, sans plafond d'axe :
+on peut en cumuler (mesuré : 6 pour une part de 0,9). **Ce trou préexiste à ce lot.** Le boucher
+coûte 2 points de certificat (78 % → 76 %). Décision d'Arthur : on ne le bouche pas, personne
+n'a intérêt à demander une veille de férié. **Ne pas reproposer** sans élément nouveau.
+
+### Outils
+
+`simulateur/test_souhaits_joker.js` (21 vérifications) · `banc/banc_audit_souhaits.js`
+(21 vérifications) · `demographie.js` avec deux modes `SOUHAITS=realiste|etendus` (tirage séparé,
+posé en dernier : les absences sont identiques avec et sans souhaits ; le tirage nominal reste
+identique au bit près, donc `presentation-staff.html` reste reproductible).
+Banc complet : **1 925 vérifications, 0 échec**.
+
+### 📌 À faire
+
+- **`presentation-staff.html`** — décrit probablement encore l'ancienne règle. Échéance 4 septembre.
+- Recopier les deux `.gs` et déployer.
+
+---
+
 ## État au 23 août 2026 (nuit) — la cloche en production, une seule pastille
 
 **v1.77** · `miroir.gs` **2026-08-23.7** · `echanges.gs` **2026-08-23.1** (le retard du 14 est

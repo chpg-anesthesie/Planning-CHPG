@@ -4,11 +4,11 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.77** ·
-**GAS** (relevé le 23/08/2026 au soir) `code.gs` 2026-08-05.3 ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.79** ·
+**GAS** (relevé le 25/08/2026) `code.gs` **2026-08-25.1** ·
 `Indispos.gs` 2026-08-23.6 · `miroir.gs` **2026-08-23.7** · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-17.3 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
-`echanges.gs` **2026-08-23.1** · `generateur_gardes.gs` 2026-08-14.1 · `setup_annee.gs` 2026-08-08.1 ·
+`echanges.gs` **2026-08-23.1** · `generateur_gardes.gs` **2026-08-25.3** · `setup_annee.gs` 2026-08-08.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
 pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
 à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
@@ -94,6 +94,170 @@ autant de lignes dans `LIENS_R_2027` que de samedis tenus, Diagnostic à zéro r
 génération**, le soir même, et non plus le matin du 4. Les deux gestes sont indissociables — interrompu
 entre les deux (garde), le bac à sable reste généré et le 4 l'assistant réafficherait ce résultat sans
 calculer, en silence. Le matin du 4 ne garde plus qu'un contrôle, les adresses et le Diagnostic.
+
+---
+
+## 25 août 2026 — les souhaits de garde ouverts à tous les jours de l'année
+
+**⚠️ EN ATTENTE DE RECOPIE : `generateur_gardes.gs` (2026-08-25.3) ET `code.gs` (2026-08-25.1).**
+Tant que les deux ne sont pas recopiés dans l'éditeur Apps Script et déployés en nouvelle
+version, l'ancien générateur tourne et rien de ce qui suit n'est actif. Le frontend (v1.79)
+est en ligne.
+
+Trois commits : `84c5c47` (générateur), `ad467ca` (audit du comité), `baf4381` (récapitulatif
+au MAR). Un quatrième, `d656c40`, a été **annulé** en cours de journée par `193add9` — voir
+plus bas, c'est la partie la plus instructive.
+
+### Le besoin
+
+Les souhaits n'étaient honorés que sur lundi, mardi et mercredi. Arthur : *« dans l'ancienne
+génération manuelle on pouvait choisir nos gardes sur n'importe quel jour, donc ne pas pouvoir
+le faire avec l'algo aurait été une régression »*. Exigence fixée : ouvrir tous les jours **sans
+dégrader l'équité**, c'est-à-dire sans faire baisser le taux de certificats verts, et sans
+rapprocher les gardes.
+
+### Ce que la mesure a établi — le coût d'un souhait dépend de la rareté du jour
+
+Banc `staff140.js`, 20 tirages × 20 ans = 400 années, critère = le **certificat d'équité**
+d'`admin.html` (vert si aucun MAR n'atteint 2 d'écart sur aucun axe).
+
+| régime | certificat vert |
+|---|---|
+| aucun souhait (moteur seul) | 243/400 — 61 % |
+| souhaits du mardi (production) | 296/400 — **74 %** |
+| souhaits partout, sans limite | 200/400 — 50 % |
+| **solution retenue, usage réaliste** | 298/400 — **74,5 %** |
+| solution retenue, usage saturé | 225/400 — 56 % |
+
+Deux enseignements durables :
+
+1. **Un souhait de semaine est gratuit, voire bénéfique.** 250 jours disponibles : l'équité se
+   rattrape ailleurs. Les souhaits du mardi *améliorent* le vert de 13 points — ils occupent
+   les gens en semaine et libèrent les week-ends.
+2. **Un souhait de jour rare coûte cher.** ~50 samedis et ~50 week-ends par an, part d'environ 5
+   par personne, aucune marge d'arrondi. Les veilles de férié sont pires : une douzaine de dates,
+   part ≈ 0,5 — un seul souhait honoré suffit à sortir du vert.
+
+D'où la règle retenue : **tout jour est posable ; les jours rares passent par un joker d'une
+demande par an** (`SOUHAIT_QUOTA_RARE = 1`), honorée seulement si elle tient dans la part.
+
+### Un défaut de production corrigé au passage
+
+Sur la version déployée, un souhait posé sur un **lundi férié** était honoré comme un jour de
+semaine ordinaire et **brisait le couplage samedi↔lundi férié** — 4 cas mesurés sur 2027
+(Pâques, Pentecôte, 15 août, Toussaint). La v2 pose l'unité complète. Scénario T4 du banc dédié.
+
+### La démarche qui a fini par marcher : ne rien changer à ce qui marche
+
+Après deux échecs (voir plus bas), la version livrée est construite ainsi : le chemin
+lundi/mardi/mercredi est **repris à l'identique**, on n'AJOUTE qu'un aiguillage pour les jours
+jusque-là ignorés. Preuve exigée avant tout : **160 années simulées, 0 différence** avec la
+version d'hier en usage nominal. Cette identité stricte a été revérifiée après chaque
+modification suivante.
+
+### 🔴 Trois erreurs de méthode du jour — les plus importantes à retenir
+
+**1. Valider des briques isolément puis supposer qu'elles s'additionnent.** Le « rattrapage
+d'équité VD » (priorité à celui qui ne peut plus rattraper sa part) gagnait 10 points mesurés
+sur un moteur **sans souhaits** (60 % → 70 %). Assemblé avec les souhaits du mardi, qui
+corrigent *le même déséquilibre*, le total est **tombé** à 74 % (contre 78 % sur l'échantillon).
+Les deux mécanismes ne s'additionnent pas : ils se gênent. **Toujours mesurer l'ensemble, jamais
+extrapoler depuis les briques.**
+
+**2. Conclure sur un échantillon.** Le réglage « marge 2 » du garde-fou de rythme a été déclaré
+bon sur **4 scénarios** (80 années) : max 3,00, zéro dépassement. Sur les **400 années**, son max
+montait à 3,60 avec 55 franchissements. Un échantillon de 4 tirages ne représente rien.
+
+**3. Prendre un résultat trop beau pour un succès.** Une mesure « identique au bit près » en
+usage saturé venait en réalité d'un modèle de souhaits **non installé** dans le dossier de test.
+C'est l'invraisemblance du résultat qui a conduit à la vérification, pas une procédure.
+
+### Diagnostiquer avant de corriger — deux hypothèses fausses coup sur coup
+
+Sur la dégradation de l'axe VD, l'hypothèse « c'est l'indulgence d'espacement VDM » a été
+**réfutée par l'expérience** (elle ne corrigeait qu'une année sur cinq) ; la vraie cause était le
+garde-fou de rythme appliqué aux mardis. Sur la fuite des veilles de férié, deux correctifs
+successifs (joker élargi, puis contrôle du binôme) n'ont rien changé : la cause n'a été trouvée
+qu'en **rejouant une année précise et en listant les dates** — FERRIERO, 6 veilles de férié pour
+une part de 0,9, toutes venues de souhaits sur des mardis/mercredis veille de férié.
+**La simulation ciblée sur un cas concret trouve ce que l'empilement de correctifs manque.**
+
+### Le déséquilibre des week-ends existe SANS les souhaits — chantier ouvert
+
+Mesure marquante : sans aucun souhait, 2039 (scénario 5) donne **LEVASSEUR 9 week-ends contre
+FERRIERO 3**, part due 6,8 pour les deux — et FERRIERO était **disponible 31 week-ends sur 52**,
+donc écarté, pas absent. Cause : dans `scoreVD`, la pénalité de charge hebdomadaire (`wpen`)
+passe **avant** l'équité ; un MAR chargé en semaine est écarté des week-ends, donc reste libre
+en semaine, donc y reprend des gardes — cercle vicieux.
+
+Sur 400 années **sans aucun souhait** : VD médian 1,80, max 3,8, **102 années sur 400 au-dessus
+de 2** — soit 155 des 157 années rouges. Les samedis et jeudis, eux, ne dépassent jamais 2.
+
+Le correctif « rattrapage » a été écrit et mesuré (60 % → 70 % isolément, gardes rapprochées
+inchangées : médiane 17, max 25 avec `RATTRAP_MARGE = 2`) **mais n'est PAS livré** : il fait
+double emploi avec les souhaits du mardi (voir erreur 1). À reprendre comme sujet séparé, sur
+une base stable, en le recalibrant **en présence des souhaits**.
+
+Corrélation établie : le rouge se concentre dans le creux démographique — **52 %** d'années
+au-dessus de 2 à ≤16 gardeurs, **8 %** à ≥21 gardeurs.
+
+### ⚠️ Trou connu, assumé — les veilles de férié en semaine
+
+Un lundi/mardi/mercredi qui est aussi veille de férié suit le chemin historique : **aucun plafond
+d'axe**. Quelqu'un qui souhaiterait plusieurs veilles de férié en semaine les cumulerait
+(mesuré : 6 pour une part de 0,9). **Ce trou existe déjà dans la version d'avant** — il n'est pas
+introduit par ce lot. Le boucher a été essayé : cela coûte **2 points de certificat** (78 % → 76 %)
+en dégradant les week-ends. Décision d'Arthur : on ne le bouche pas, *« personne ne va demander
+des veilles de férié, ça n'a aucun intérêt »*. À ne pas reproposer sans élément nouveau.
+
+### L'audit du comité (étape 2) rendu compatible — sinon la nouveauté était inutilisable
+
+L'audit **bloquait la génération** dès qu'un MAR posait plus de souhaits que sa part sur un axe
+(« reporter le surplus sur des jours libres »). Avec le nouveau système, poser 43 samedis est
+légitime : l'algorithme n'en honore que 5. Laissé tel quel, **le comité n'aurait jamais pu
+générer**. Désormais : les **refus** bloquent (trop d'indispos = part impossible à placer), les
+**souhaits** informent (tableau conservé, ambre au-delà de la part, jamais rouge).
+`banc/banc_audit_souhaits.js` (21 vérifications) verrouille la règle et sa cohérence avec les guides.
+
+### Le récapitulatif rendu au MAR
+
+« Vos souhaits 2027 : 4 retenus sur 6 demandes », en tête de « Mes gardes ». Décisions d'Arthur :
+on compte **tout ce qui est posé** (poser 43 samedis affiche 5/43, *« tant pis pour lui »*), et le
+message **se dit une fois** — une croix le ferme définitivement pour l'année (mémoire locale
+`chpgSouhaitsLus`, même principe que la veille).
+
+Deux colonnes ajoutées **EN FIN** de `STATS_GARDES_{Y}` (`SOUHAITS POSES`, `SOUHAITS HONORES`) :
+`code.gs` lit encore des colonnes **par position** (`sd[r][17]`, `[19]`, `[21]`), les intercaler
+aurait faussé silencieusement les cibles du tableau de bord. Position des colonnes historiques
+revérifiée après coup. Les deux nombres voyagent dans le colis déjà chargé (`equiteInitiale`) :
+**aucun appel supplémentaire**.
+
+### Deux tests figeaient une version en dur — corrigés
+
+`banc_cloche.js` exigeait `'v1.77'` et `banc_caducs.js` exigeait `code.gs 2026-08-24.1` : toute
+évolution ultérieure cassait le banc pour une raison sans rapport. Les deux vérifient désormais
+un numéro **au moins égal**. À imiter pour tout futur test de version.
+
+### Chiffres de la journée
+
+Banc complet **1 925 vérifications, 0 échec** (1 903 + le nouveau banc d'audit) ·
+`simulateur/test_souhaits_joker.js` **21 vérifications, 0 échec** · 400 années simulées dans
+chacun des trois régimes (nominal, réaliste, saturé) · identité nominale **160 années, 0 écart**.
+
+### Outils ajoutés au simulateur
+
+`demographie.js` accepte deux modes de test — `SOUHAITS=realiste` (usage décrit par le service :
+les indispos font le gros du travail, demander un week-end précis est rare) et `SOUHAITS=etendus`
+(saturation volontaire, test de robustesse, **pas une prévision**). Tirage **séparé** et posé
+**en dernier** : les absences sont identiques avec et sans souhaits, ce qui isole leur effet.
+Le tirage nominal reste identique au bit près — les chiffres de `presentation-staff.html`
+demeurent reproductibles.
+
+### 📌 Reste à faire sur ce dossier
+
+- **`presentation-staff.html`** : à vérifier et refondre — elle décrit probablement encore la
+  règle « souhaits limités à lundi/mardi/mercredi ». **Échéance : 4 septembre.**
+- **Équité des week-ends** : chantier ouvert (voir plus haut), à recalibrer en présence des souhaits.
 
 ---
 
