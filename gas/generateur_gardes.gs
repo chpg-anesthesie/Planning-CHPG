@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-08-25.1';
+const GAS_VERSION_GENERATEUR = '2026-08-25.2';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -902,8 +902,17 @@ function generateGardes(year){
       co.sort((a,b)=>(souhaitHonored[a]-souhaitHonored[b])||cmp(scoreU(a),scoreU(b)));
       partner=co[0];viaCo=true;
     } else {
-      const others=gardeDoctors.filter(m=>m!==id&&free(m));
-      if(!others.length){warnings.push(`SOUHAIT ${id} ${jours[0]} sans binôme`);return false;}
+      // (25/08/2026) Le binôme ENTRAÎNÉ par le souhait consomme lui aussi un jour rare,
+      // alors qu'il n'a rien demandé : sans contrôle de SES plafonds, il encaissait des
+      // veilles de férié au-delà de sa part (mesuré en usage saturé : 32 années sur 200
+      // au-dessus de 2 sur cet axe, pic à 5,1). On préfère donc un binôme qui a encore
+      // de la place sur chaque axe touché ; à défaut seulement, le meilleur score.
+      const tous=gardeDoctors.filter(m=>m!==id&&free(m));
+      if(!tous.length){warnings.push(`SOUHAIT ${id} ${jours[0]} sans binôme`);return false;}
+      const c0=coutAxesUnite(un);
+      const place=m=>Object.keys(c0).every(a=>!c0[a]
+        || ((a==='jeu'||a==='sam'||a==='vd') ? cnt[m][a]<Math.floor(cible[m][a]) : cnt[m][a]<cible[m][a]));
+      const others=tous.filter(place).length?tous.filter(place):tous;
       others.sort((a,b)=>cmp(scoreU(a),scoreU(b)));
       partner=others[0];
     }

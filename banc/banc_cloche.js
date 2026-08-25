@@ -137,7 +137,15 @@ console.log('\n═══ C5. Le dashboard : zéro requête ajoutée, cloche pré
     /notif-vu[\s\S]{0,200}keepalive:true/.test(html));
   V('la cloche filtre sur MY_ID + les entrées pour tous',
     /NOTIFS_REGISTRE\[MY_ID\]/.test(html) && /NOTIFS_REGISTRE\['\*'\]/.test(html));
-  V('la version du site a monté (v1.77)', fs.readFileSync('../version.js', 'utf8').includes("'v1.77'"));
+  // (25/08/2026) Le test figeait « v1.77 » et cassait à la nouveauté suivante. Il
+  // vérifie désormais que le numéro est AU MOINS celui du lot cloche.
+  {
+    const _v = (fs.readFileSync('../version.js', 'utf8').match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1] || '0';
+    const _n = a => a.split('.').map(Number);
+    const [_a, _b] = _n(_v), [_ra, _rb] = _n('1.77');
+    V('la version du site est au moins celle du lot cloche (v1.77)',
+      _a > _ra || (_a === _ra && _b >= _rb), 'v' + _v);
+  }
 }
 
 console.log(`\nbanc_cloche : ${ok} ✓ / ${ko} ✗`);
