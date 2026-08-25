@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-08-25.5';
+const GAS_VERSION_GENERATEUR = '2026-08-25.6';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -1777,9 +1777,15 @@ function generateGardes(year){
   /* (12/08/2026) Notification de fin de génération — phase 1 du canal push.
      Dans un try à part : ne doit JAMAIS faire échouer une génération réussie. */
   try {
-    notifierPush_('Les gardes ' + year + ' sont générées',
-      'Planning annuel complet' + (warnings.length ? ' — ' + warnings.length + ' avertissement(s)' : ', sans avertissement') + '.',
-      './admin.html');
+    /* (25/08/2026) Le message partait à TOUS les abonnés, vers './admin.html' :
+       le MAR recevait une notification qui ne le concernait pas (« N avertissements »)
+       et atterrissait sur la page du comité — qui n'a pas de portail. Le canal push
+       est celui du MAR (doctrine notifications) : un seul message, ciblé sur eux,
+       vers la page qui les intéresse. Le comité, lui, voit le résultat à l'écran
+       au moment où il génère. */
+    notifierPush_('Votre planning ' + year + ' est disponible',
+      'Vos gardes de l\'année sont réparties. Retrouvez-les dans « Mes gardes ».',
+      './dashboard.html#mes-gardes', { role: 'mar' });
   } catch (e) { /* silencieux : la génération, elle, a réussi */ }
   return { warnings: warnings.slice(0, 60), nbWarnings: warnings.length };
 }
