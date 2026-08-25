@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-08-25.4';
+const GAS_VERSION_GENERATEUR = '2026-08-25.5';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -838,13 +838,11 @@ function generateGardes(year){
   // TOUT ce qui est saisi, sans filtrer les demandes irréalistes — poser 43 samedis
   // affichera 5/43, ce qui est l'information juste.
   const souhaitPose={}; allDoctors.forEach(id=>{souhaitPose[id]=0;});
-  // (25/08/2026) Compteur d'AFFICHAGE, distinct de souhaitHonored qui sert au départage
-  // interne : il compte les DATES honorées, pas les unités. Sans lui, un MAR qui clique
-  // le vendredi ET le dimanche d'un même week-end lisait « 1 retenu sur 2 » alors qu'il
-  // avait obtenu exactement ce qu'il demandait.
-  const souhaitJoursOK={}; allDoctors.forEach(id=>{souhaitJoursOK[id]=0;});
-  const _compterJours=(membres,jours)=>{ membres.forEach(m=>{ jours.forEach(d=>{
-    if(isSouhaitDe(m,d) && souhaitJoursOK[m]!==undefined) souhaitJoursOK[m]++; }); }); };
+  // (25/08/2026) Le compte des souhaits honorés est fait EN FIN de génération, sur le
+  // planning final (voir souhaitJoursOK plus bas) : compter à la pose ne voyait que la
+  // passe des souhaits et ratait les gardes obtenues autrement — mesuré en production
+  // sur PRUNET, 43 comptés pour 45 réellement obtenus, ses mardis des 21 et 28 décembre
+  // ayant été posés par la passe des jours critiques de la semaine de Noël.
   Object.keys(souhaits).forEach(ds=>{(souhaits[ds]||[]).forEach(id=>{
     if(souhaitPose[id]!==undefined) souhaitPose[id]++;
   });});
@@ -941,7 +939,6 @@ function generateGardes(year){
     }
     if(viaCo) souhaitHonored[partner]++;
     if(uniteRare(un)){ souhaitRare[id]++; if(viaCo) souhaitRare[partner]++; }
-    _compterJours([id,partner],jours);
     if(un.vd){cnt[id].vd++;cnt[partner].vd++;}
     const [g,g2]=assignRoles(id,partner);
     jours.forEach(d=>assign(d,g,g2,dayByDate[d].dow));
@@ -965,7 +962,6 @@ function generateGardes(year){
       partner=others[0];
     }
     const [g,g2]=assignRoles(id,partner);
-    _compterJours([id,partner],[date]);
     assign(date,g,g2,dow);
     return true;
   }
@@ -1713,6 +1709,17 @@ function generateGardes(year){
   // code.gs lit encore des colonnes par position (sd[r][17], [19], [21]) et un décalage
   // fausserait silencieusement les cibles du tableau de bord.
   st.getRange(1,1,1,25).setValues([['MEDECIN','CIBLE','TOTAL G','G (REA)','G2 (MAT)','LUN','MAR','MER','JEU','VEN','SAM','DIM','RECUP R','18H','JF','VEILLE JF','NOEL/AN','CIBLE SAM','CIBLE JEU','CIBLE VD','VD','CIBLE VJF','CIBLE JF','SOUHAITS POSES','SOUHAITS HONORES']]).setFontWeight('bold');
+  // Souhaits honorés = dates souhaitées où le MAR est effectivement de garde dans le
+  // planning FINAL, quelle que soit la passe qui l'y a placé.
+  const souhaitJoursOK={};
+  allDoctors.forEach(id=>{
+    let k=0;
+    Object.keys(souhaits).forEach(d=>{
+      if(souhaits[d].indexOf(id)<0) return;
+      if((gSet[id]&&gSet[id].has(d))||(g2Set[id]&&g2Set[id].has(d))) k++;
+    });
+    souhaitJoursOK[id]=k;
+  });
   const sRows=allDoctors.map(id=>{
     const cbT=cible[id]?cible[id].total:0;
     const cbS=cible[id]?cible[id].sam:0, cbJ=cible[id]?cible[id].jeu:0, cbV=cible[id]?cible[id].vd:0, cbVjf=cible[id]?cible[id].vjf:0;
