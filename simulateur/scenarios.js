@@ -60,7 +60,7 @@ function fullCheck(name, year, opts={}) {
 // ── S6 : souhaits adversariaux ─────────────────────────────────────────
 {
   const im = { SULTAN: {} };
-  // 40 souhaits de mardis + 8 souhaits de samedis (plafonnés à la cible samedi depuis Souhaits tous jours v1)
+  // 40 souhaits de mardis + 8 souhaits de samedis (censés être ignorés)
   let n=0;
   for(let m=1;m<=12&&n<40;m++) for(let d=1;d<=28&&n<40;d++){
     const ds=`2027-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;

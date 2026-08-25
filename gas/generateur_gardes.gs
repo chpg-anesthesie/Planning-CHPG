@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-08-25.1';
+const GAS_VERSION_GENERATEUR = '2026-08-21.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -182,15 +182,6 @@ function generateGardes(year){
   // (Fix A3) une garde posée sur un jour que le MAR a lui-même souhaité est
   // « assumée » : elle ne compte pas dans SES pénalités d'espacement.
   const isSouhaitDe=(id,date)=>!!(souhaits[date]&&souhaits[date].indexOf(id)>=0);
-  // (Souhaits tous jours v2) Deux notions distinctes :
-  //   • isSouhaitDe : le MAR a SAISI un souhait sur cette date (donnée brute) —
-  //     sert au départage de la rotation Noël (7bis) ;
-  //   • estSouhaitPose : le souhait a été HONORÉ en 8a — SEULE cette notion donne
-  //     droit aux indulgences d'espacement (A3, VDM). Sinon, saisir des souhaits
-  //     en masse désarmerait les pénalités chronologiques et aspirerait des
-  //     gardes au-delà de la part (mesuré : +2 sur l'adversarial 365 jours).
-  const souhaitsPoses={};
-  const estSouhaitPose=(id,date)=>!!(souhaitsPoses[id]&&souhaitsPoses[id].has(date));
 
   // ── 2. Médecins ──────────────────────────────────────────────────────
   const medData=ss.getSheetByName('MEDECINS').getDataRange().getValues();
@@ -507,7 +498,7 @@ function generateGardes(year){
   const weekKey = ds => dayByDate[ds]?.wk;
   const weekLoad = (id,date) => {                       // O(1) via compteur incrémental
     let n=(weekCnt[id][dayByDate[date].wk]||0)-(weekCntS[id][dayByDate[date].wk]||0); // (Fix A3) hors souhaits
-    if((gSet[id]?.has(date)||g2Set[id]?.has(date))&&!estSouhaitPose(id,date)) n--;  // exclure la date elle-même si déjà posée
+    if((gSet[id]?.has(date)||g2Set[id]?.has(date))&&!isSouhaitDe(id,date)) n--;  // exclure la date elle-même si déjà posée
     return n;
   };
   function spacingPenalty(id, date){
@@ -515,18 +506,18 @@ function generateGardes(year){
     // le candidat ne passe que si la couverture du jour l'exige (la couverture prime tout).
     let vdm=0;
     { const _dw=new Date(date+'T12:00:00').getDay();
-      if(_dw===2&&!estSouhaitPose(id,date)){
+      if(_dw===2&&!isSouhaitDe(id,date)){
         const dim=toDateStr(new Date(new Date(date+'T12:00:00').getTime()-2*86400000));
         if(gSet[id]?.has(dim)||g2Set[id]?.has(dim)) vdm=5000;
       } else if(_dw===0){
         const mar=toDateStr(new Date(new Date(date+'T12:00:00').getTime()+2*86400000));
-        if((gSet[id]?.has(mar)||g2Set[id]?.has(mar))&&!estSouhaitPose(id,mar)) vdm=5000;
+        if((gSet[id]?.has(mar)||g2Set[id]?.has(mar))&&!isSouhaitDe(id,mar)) vdm=5000;
       } }
     const has = n => {
       const x = new Date(date + 'T12:00:00'); x.setDate(x.getDate() + n);
       const ds = toDateStr(x);
       if(!((gSet[id] && gSet[id].has(ds)) || (g2Set[id] && g2Set[id].has(ds)))) return 0;
-      return estSouhaitPose(id,ds) ? 2 : 1; // (Fix A3) voisin souhaité = pénalité réduite, pas nulle
+      return isSouhaitDe(id,ds) ? 2 : 1; // (Fix A3) voisin souhaité = pénalité réduite, pas nulle
     };
     let p=0;
     const lv=(a,b)=>Math.max(has(a),has(b)); // 1=garde normale, 2=garde-souhait
@@ -553,7 +544,7 @@ function generateGardes(year){
     let wpen=(weekLoad(id,fri)>=1||weekLoad(id,sun)>=1)?80:0; // VD = ven+dim : éviter une 3e garde la même semaine
     // (VDM) mardi non souhaité déjà en garde à J+2 du dimanche → dernier recours
     { const mar=toDateStr(new Date(new Date(sun+'T12:00:00').getTime()+2*86400000));
-      if((gSet[id]?.has(mar)||g2Set[id]?.has(mar))&&!estSouhaitPose(id,mar)) wpen+=5000; }
+      if((gSet[id]?.has(mar)||g2Set[id]?.has(mar))&&!isSouhaitDe(id,mar)) wpen+=5000; }
     return [wpen,ratio(id,'vd'),ratioTotal(id),cnt[id].g+cnt[id].g2];
   }
   function cmp(a,b){for(let i=0;i<a.length;i++){if(a[i]!==b[i])return a[i]-b[i];}return 0;}
@@ -585,7 +576,7 @@ function generateGardes(year){
       if(dayByDate[date]?.isFerie)cnt[id].jf++; // total fériés (couplages inclus)
       const _wk=dayByDate[date]?.wk;
       if(_wk!==undefined){weekCnt[id][_wk]=(weekCnt[id][_wk]||0)+1;
-        if(estSouhaitPose(id,date)) weekCntS[id][_wk]=(weekCntS[id][_wk]||0)+1;} // (Fix A3)
+        if(isSouhaitDe(id,date)) weekCntS[id][_wk]=(weekCntS[id][_wk]||0)+1;} // (Fix A3)
       const _m=Number(date.slice(5,7)); monthCnt[id][_m]=(monthCnt[id][_m]||0)+1;
     });
   }
@@ -676,16 +667,7 @@ function generateGardes(year){
       return [liste[0],liste[1]];   // aucune paire ne préserve tout : choix antérieur
     };
     const overdueKey=(m)=>{const ly=noelHistory[m]; return ly==null?[0,0,m]:[1,ly,m];};
-    // (Souhaits tous jours v2) Un souhait sur une date de Noël/An DÉPARTAGE la
-    // rotation à priorité strictement égale (même classe « jamais fait » ou même
-    // dernière année) — il ne double JAMAIS quelqu'un de plus prioritaire.
-    const souhaiteUnit=(m,unit)=>unit.some(d=>isSouhaitDe(m,d))?0:1;
-    const triRotation=(liste,unit)=>liste.sort((a,b)=>{
-      const ka=overdueKey(a),kb=overdueKey(b);
-      return (ka[0]-kb[0])||(ka[1]-kb[1])
-           ||(souhaiteUnit(a,unit)-souhaiteUnit(b,unit))
-           ||(a<b?-1:a>b?1:0);
-    });
+    const cmpKey=(a,b)=>a[0]-b[0]||a[1]-b[1]||(a[2]<b[2]?-1:a[2]>b[2]?1:0);
 
     const noelDone=new Set();
     noelDates.forEach(date=>{
@@ -693,7 +675,7 @@ function generateGardes(year){
       const unit=noelUnit(date);
       let cands=gardeDoctors.filter(m=>!SOUHAIT_PLAFOND.has(m)&&!noelDone.has(m)&&canHoldUnit(m,unit));
       if(cands.length<2) cands=gardeDoctors.filter(m=>!SOUHAIT_PLAFOND.has(m)&&canHoldUnit(m,unit));
-      triRotation(cands,unit);
+      cands.sort((a,b)=>cmpKey(overdueKey(a),overdueKey(b)));
       if(cands.length<2){
         // Repli : aucun binôme ne peut tenir l'UNITÉ complète (VD vendredi↔dimanche ou
         // couplage férié). Plutôt que de laisser la date de Noël NON POURVUE — et de
@@ -702,7 +684,7 @@ function generateGardes(year){
         // « VD exception » du placement chronologique. Le jour couplé sera pourvu
         // normalement par la suite.
         const seule=gardeDoctors.filter(m=>!SOUHAIT_PLAFOND.has(m)&&!blocked(m,date));
-        triRotation(seule,[date]);
+        seule.sort((a,b)=>cmpKey(overdueKey(a),overdueKey(b)));
         if(seule.length>=2){
           const [sA,sB]=choisirPaire(seule,[date]);
           const [gA,gB]=assignRoles(sA,sB);
@@ -841,156 +823,48 @@ function generateGardes(year){
   });
   const souhaitHonored={}; allDoctors.forEach(id=>{souhaitHonored[id]=0;});
 
-  // (Souhaits tous jours v2) Un souhait choisit la DATE, jamais le NOMBRE.
-  // Tout jour de l'année est posable en souhait ; chaque famille a son plafond :
-  //  • lun/mar/mer ordinaire : plafond historique = budget de jours libres ;
-  //  • jeudi / samedi / week-end VD : partie entière de la cible de l'axe
-  //    (choix conservateur, validé par la batterie) ;
-  //  • fériés, veilles de férié (axes rares, cible < 2 par tête) : rester SOUS
-  //    sa cible fractionnaire — on ne peut jamais finir à plus d'une garde de
-  //    sa part, exactement l'enveloppe d'arrondi du moteur d'équité ;
-  //  • un jour COUPLÉ emporte son unité complète, même binôme, mêmes rôles :
-  //    vendredi ou dimanche → week-end VD ; jeudi férié → jeudi+samedi ;
-  //    lundi férié → samedi+lundi. L'unité doit passer le plafond de CHAQUE
-  //    axe qu'elle touche ;
-  //  • Noël / Jour de l'An : rotation pluriannuelle intouchée — le souhait n'y
-  //    est qu'un DÉPARTAGE à priorité strictement égale (voir 7bis), jamais un
-  //    passe-droit. Les dates sont posées avant 8a : aucun souhait ne s'y place.
-  // Dans tous les cas, le souhaiteur reçoit des gardes qu'il aurait faites de
-  // toute façon, aux dates choisies — le reste de chaque axe est servi par
-  // l'équité, aucun axe ne peut être monopolisé ni esquivé.
-  const shiftDays=(ds,n)=>toDateStr(new Date(new Date(ds+'T12:00:00').getTime()+n*86400000));
-  const estJourLibre=date=>{
-    const _di=dayByDate[date];
-    return !!_di&&_di.dow>=1&&_di.dow<=3&&!_di.isFerie&&!_di.isVjf;
-  };
-  // Unité emportée par un souhait sur `date` (null si un jour manque ou est pris).
-  const uniteDeSouhait=date=>{
-    const di=dayByDate[date]; if(!di) return null;
-    const u=jours=>jours.every(d=>dayByDate[d]&&!gardes[d])?{jours,vd:false}:null;
-    if(di.dow===5||di.dow===0){
-      const ven=di.dow===5?date:shiftDays(date,-2), dim=di.dow===5?shiftDays(date,2):date;
-      const r=u([ven,dim]); if(r)r.vd=true; return r;      // week-end VD entier
-    }
-    if(di.isFerie&&di.dow===4) return u([date,shiftDays(date,2)]);   // jeudi férié + samedi
-    if(di.isFerie&&di.dow===1) return u([shiftDays(date,-2),date]);  // samedi + lundi férié
-    if(di.dow===6){
-      const thu=shiftDays(date,-2),mon=shiftDays(date,2);
-      if(dayByDate[thu]?.isFerie&&dayByDate[thu].dow===4) return u([thu,date]);
-      if(dayByDate[mon]?.isFerie&&dayByDate[mon].dow===1) return u([date,mon]);
-    }
-    return u([date]);
-  };
-  // Coût d'une unité sur chaque axe surveillé — miroir exact du comptage d'assign().
-  const coutAxesUnite=un=>{
-    const c={sam:0,jeu:0,vd:un.vd?1:0,vjf:0,ferie:0,jf:0};
-    un.jours.forEach(d=>{
-      const di=dayByDate[d]; if(!di) return;
-      const coupledF=di.isFerie&&di.dow===4;      // jeudi férié couplé = JF seul
-      if(!coupledF){
-        if(di.dow===6)c.sam++;
-        if(di.dow===4)c.jeu++;
-      }
-      if(di.isVjf)c.vjf++;
-      if(di.isFerie&&(di.dow===2||di.dow===3))c.ferie++;
-      if(di.isFerie)c.jf++;
-    });
-    return c;
-  };
-  const plafondAxe=(m,a)=>(a==='jeu'||a==='sam'||a==='vd')
-    ? cnt[m][a]<Math.floor(cible[m][a])   // axes denses : partie entière (conservateur)
-    : cnt[m][a]<cible[m][a];              // axes rares : sous la cible fractionnaire
-  const okSouhaitUnite=(m,un)=>{
-    // Garde-fou GLOBAL : les plafonds par famille s'arrondissent chacun de leur
-    // côté ; cumulés sur toutes les familles ils laisseraient dériver le total
-    // (mesuré : +3 pour un MAR souhaitant les 365 jours). Aucun souhait n'est
-    // honoré au-delà de la part totale — elle est due, jamais dépassée.
-    if(cnt[m].total+un.jours.length>cible[m].total) return false;
-    // Garde-fou de RYTHME : les souhaits sont posés en ordre de dates, sans le
-    // lissage de la passe chronologique. Sans borne, un souhaiteur massif prend
-    // de l'avance (mesuré : +7 gardes d'avance fin juillet sur l'adversarial
-    // 365 jours), puis — « frais » le reste de l'année pendant que les autres
-    // portent leurs pénalités d'espacement — aspire des gardes en plus (+2).
-    // Règle : un souhait ne met JAMAIS plus d'une garde d'avance sur le rythme
-    // annuel du MAR (espérance cumulée monthExp, celle-là même qui pilote le
-    // lissage mensuel). Pour un usage normal (quelques souhaits répartis), la
-    // borne est invisible.
-    {
-      const _mFin=Number(un.jours[un.jours.length-1].slice(5,7));
-      let _cum=0; for(let _k=1;_k<=_mFin;_k++)_cum+=monthExp[m][_k]||0;
-      if(cnt[m].total+un.jours.length>_cum+1) return false;
-    }
-    if(un.jours.length===1&&estJourLibre(un.jours[0])) return cnt[m].total<freeBudget[m];
-    const c=coutAxesUnite(un);
-    return Object.keys(c).every(a=>!c[a]||plafondAxe(m,a));
-  };
-
-  function placeSouhaitUnite(id,un){
-    const jours=un.jours;
-    const free=m=>jours.every(d=>!blocked(m,d));
-    const wish=new Set(); jours.forEach(d=>(souhParJour[d]||[]).forEach(m=>wish.add(m)));
-    // Classement du binôme : scoreVD pour un week-end, sinon score du jour dominant
-    // (le samedi pour une unité couplée à un férié, le jour lui-même sinon).
-    const dRef=jours.length>1&&!un.vd ? jours.find(d=>dayByDate[d].dow===6) : jours[0];
-    const scoreU=un.vd ? (m=>scoreVD(m,jours[0],jours[1]))
-                       : (m=>scoreSelect(m,dayByDate[dRef].dow,dayByDate[dRef].isVjf,dRef));
-    let co=[...wish].filter(m=>m!==id&&!blocked(m,jours[0])&&free(m)
-              &&(SOUHAIT_PLAFOND.has(m)||okSouhaitUnite(m,un)));
-    let partner,viaCo=false;
+  function placeSouhait(id,date){
+    const dow=new Date(date+'T12:00:00').getDay();
+    const vjf=dayByDate[date]?.isVjf;
+    let co=(souhParJour[date]||[]).filter(m=>m!==id&&!blocked(m,date)
+              &&(SOUHAIT_PLAFOND.has(m)||cnt[m].total<freeBudget[m]));
+    let partner;
     if(co.length){
-      co.sort((a,b)=>(souhaitHonored[a]-souhaitHonored[b])||cmp(scoreU(a),scoreU(b)));
-      partner=co[0];viaCo=true;
+      co.sort((a,b)=>(souhaitHonored[a]-souhaitHonored[b])
+                     ||cmp(scoreSelect(a,dow,vjf,date),scoreSelect(b,dow,vjf,date)));
+      partner=co[0]; souhaitHonored[partner]++;
     } else {
-      const others=gardeDoctors.filter(m=>m!==id&&free(m));
-      if(!others.length){warnings.push(`SOUHAIT ${id} ${jours[0]} sans binôme`);return false;}
-      others.sort((a,b)=>cmp(scoreU(a),scoreU(b)));
+      const others=gardeDoctors.filter(m=>m!==id&&!blocked(m,date));
+      if(!others.length){warnings.push(`SOUHAIT ${id} ${date} sans binôme`);return false;}
+      others.sort((a,b)=>cmp(scoreSelect(a,dow,vjf,date),scoreSelect(b,dow,vjf,date)));
       partner=others[0];
     }
-    // (COUVERTURE) Une unité de plus d'un jour bloque son binôme sur les jours
-    // encadrants (veille, lendemain, jour intercalé) : si l'un d'eux n'a plus
-    // 2 personnes, le souhait est refusé — l'équité chronologique, qui sait
-    // ajuster la paire, servira ces jours.
-    if(jours.length>1){
-      for(let dd=shiftDays(jours[0],-1);dd<=shiftDays(jours[jours.length-1],1);dd=shiftDays(dd,1)){
-        if(!dayByDate[dd]||gardes[dd]||jours.indexOf(dd)>=0) continue;
-        const pool=gardeDoctors.filter(m=>m!==id&&m!==partner&&!blocked(m,dd));
-        if(pool.length<2){warnings.push(`SOUHAIT ${id} ${jours[0]} refusé : couverture du ${dd}`);return false;}
-      }
-    }
-    if(viaCo) souhaitHonored[partner]++;
-    // Marquage AVANT assign : les indulgences (weekCntS) se décident à la pose.
-    [id,partner].forEach(p=>{jours.forEach(d=>{
-      if(isSouhaitDe(p,d)){if(!souhaitsPoses[p])souhaitsPoses[p]=new Set();souhaitsPoses[p].add(d);}
-    });});
-    if(un.vd){cnt[id].vd++;cnt[partner].vd++;}
     const [g,g2]=assignRoles(id,partner);
-    jours.forEach(d=>assign(d,g,g2,dayByDate[d].dow)); // vrai jour ; couplages comptés comme en 8b
+    assign(date,g,g2,dow);
     return true;
   }
 
-  // Régime 1 — PRUNET (souhait_plafond) : priorité absolue (ses jours autorisés
-  // sont des jours simples : week-ends, fériés et veilles lui sont interdits).
+  // Régime 1 — PRUNET (souhait_plafond) : priorité absolue
   gardeDoctors.filter(id=>SOUHAIT_PLAFOND.has(id)).forEach(id=>{
     Object.keys(souhParJour).filter(date=>souhParJour[date].indexOf(id)>=0).sort().forEach(date=>{
       if(gardes[date]||blocked(id,date)) return;
-      const un=uniteDeSouhait(date); if(!un) return;
-      if(placeSouhaitUnite(id,un)) souhaitHonored[id]++;
+      if(placeSouhait(id,date)) souhaitHonored[id]++;
     });
   });
 
-  // Régime 2 — autres MAR : équitable, DANS la cible et DANS chaque axe touché.
-  // Défense en profondeur : le plafond par axe est vérifié ici ET dans le choix du
-  // binôme — un souhait hors plafond est simplement ignoré, le MAR reçoit sa part
-  // normale par l'équité, aucun axe ne peut être monopolisé même si le garde-fou
-  // amont est contourné.
+  // Régime 2 — autres MAR : équitable, DANS la cible
   Object.keys(souhParJour).sort().forEach(date=>{
     if(gardes[date]) return;
-    const un=uniteDeSouhait(date); if(!un) return;
-    const cands=souhParJour[date].filter(m=>!SOUHAIT_PLAFOND.has(m)
-                  &&un.jours.every(d=>!blocked(m,d))&&okSouhaitUnite(m,un));
+    // Défense en profondeur : un souhait n'est honoré que sur jour LIBRE (lun/mar/mer).
+    // Un souhait sur jeudi/samedi/VD (axe d'équité) est ignoré → le MAR reçoit sa part
+    // normale par l'équité, l'axe ne peut pas être monopolisé même si le garde-fou est contourné.
+    const _dw=new Date(date+'T12:00:00').getDay(); if(_dw<1||_dw>3) return;
+    const cands=souhParJour[date].filter(m=>!SOUHAIT_PLAFOND.has(m)&&!blocked(m,date)
+                  &&cnt[m].total<freeBudget[m]);
     if(!cands.length) return; // sera rempli par la passe chronologique
     cands.sort((a,b)=>souhaitHonored[a]-souhaitHonored[b]); // le moins servi mène
-    if(placeSouhaitUnite(cands[0],un)) souhaitHonored[cands[0]]++;
+    const lead=cands[0];
+    if(placeSouhait(lead,date)) souhaitHonored[lead]++;
   });
 
   // 8b. Placement chronologique
