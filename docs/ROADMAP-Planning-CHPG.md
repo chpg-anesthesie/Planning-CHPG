@@ -8,19 +8,17 @@ portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'ane
 **GAS** (relevé le 25/08/2026) `code.gs` **2026-08-25.3** ·
 `Indispos.gs` **2026-08-25.3** · `miroir.gs` **2026-08-23.7** · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-17.3 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
-`echanges.gs` **2026-08-23.1** · `generateur_gardes.gs` **2026-08-26.1 — ⚠️ recopie en attente** · `setup_annee.gs` 2026-08-08.1 ·
+`echanges.gs` **2026-08-23.1** · `generateur_gardes.gs` **2026-08-26.1** · `setup_annee.gs` 2026-08-08.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
 pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
 à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
 
-⚠️ **EN ATTENTE au 26/08 (midi) : une recopie GAS.** `generateur_gardes.gs` **2026-08-26.1**
-poussé (commit `aff5ffad3c`) — déduplication d'une pénalité interne (plannings prouvés identiques
-au caractère près) + avertissement si le plafond de 20 s coupe l'optimiseur. À recopier dans
-l'éditeur Apps Script puis **nouvelle version de déploiement** ; le Diagnostic signalera la dérive
-tant que ce n'est pas fait. Rien d'autre en attente.
+✅ **RIEN EN ATTENTE au 26/08 (soir).** Worker Cloudflare déployé, `generateur_gardes.gs`
+2026-08-26.1 + `miroir.gs` 2026-08-26.1 + `Indispos.gs` 2026-08-26.2 recopiés et redéployés,
+`miroirSyncComplet` passé — confirmé par Arthur.
 
 ✅ **RIEN EN ATTENTE au 23/08 (soir).** Le lot cloche (commit `c7dd7b68d3`) est déployé et testé
-par Arthur dans la foulée : Worker recopié, puis `miroir.gs` 2026-08-23.7 **et** `echanges.gs`
+par Arthur dans la foulée : Worker recopié, puis `miroir.gs` **2026-08-26.1** **et** `echanges.gs`
 2026-08-23.1 (qui attendait depuis le 14) en nouvelle version, puis `miroirSyncComplet`. Test du
 canal vérifié sur téléphone : notification reçue, pastille « 1 » sur l'icône, effacée à l'ouverture
 du dashboard, cloche vide (le test est exclu du journal, c'est voulu).
@@ -51,7 +49,7 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **1921 vérifications** sur 38 scripts (relevé le 26/08/2026,
+**Banc d'essai** `banc/` — **1944 vérifications** sur 39 scripts (relevé le 26/08/2026,
 recette exacte `grep -cE "^\s+✓ "` — le `grep -c "✓"` naïf rend 1925 en comptant les lignes
 récapitulatives),
 `cd banc && ./lancer.sh`. *(⚠️ La recette du 19/08 disait « compter les coches `✓` de la sortie
@@ -213,6 +211,37 @@ du tracé ECG), icône en tuile blanche + filigrane, œil-de-perdrix mono commun
 monégasque nulle part. Déployé sur MAR, comité, algorithme, technique, fichier maître, libéral et
 déménagement NCHPG en un seul commit ; CSS du drapeau retiré ; pastille de version conservée
 (MAR, comité) ; `version.js` → **v1.82.1**.
+
+**Le soir — l'attente à l'ouverture des tuiles : le banc trouve la vraie cause.** Arthur voulait ne
+plus voir d'écran de code en arrivant du portail. En pilotant la vraie page au banc, découverte d'un
+défaut réel : la reprise de session d'`indispos.html` s'exécutait pendant le chargement du script,
+AVANT la ligne `const MIROIR_URL = ...` — référence morte (TDZ), erreur avalée par le filet. Depuis
+le 04/08, **chaque arrivée depuis le portail sautait la copie rapide et réveillait Apps Script**
+(les secondes d'attente) ; la connexion manuelle, tapée après le chargement, passait par le miroir —
+ce qui masquait le défaut. Correctif : un tour de boucle avant la reprise (circuit rapide ~150 ms) +
+plus d'écran de code (attente neutre avec l'icône, échappatoire « Saisir mon code » — leçon du
+12/08 respectée) ; l'écran ne revient que si le code est révoqué. `banc_reprise_indispos.js`
+(14 vérifications, contre-épreuve : page d'avant → 7 échecs dont la preuve `["GAS"]`). Audit dans la
+foulée : indispos était LA seule page en retard — les autres avaient l'affichage optimiste depuis
+les 03/08 et 17/08. `version.js` → **v1.83** (et correction au passage : v1.82.1 violait la règle
+« deux chiffres » codifiée au banc — le banc n'avait pas tourné, version.js n'étant pas dans les
+déclencheurs).
+
+**Incident GitHub dans la foulée** : l'événement de push du commit indispos s'est perdu (aucun
+déploiement Pages déclenché — du jamais-vu sur les 8 commits précédents du jour), puis les runners
+Actions sont restés muets ~1 h 30 (déploiements en file sans démarrer). Ré-émission par commit vide,
+publication à la reprise du service. Leçon : « poussé et vérifié par SHA » prouve le DÉPÔT, pas la
+MISE EN LIGNE — le contrôle de publication passe par le run Actions (`completed success`), le bac à
+sable n'ayant de toute façon pas accès à `github.io`.
+
+**Et la tuile indispos annonce la consultation seule — v1.84.** Le planning de campagne généré,
+l'écran indispos est verrouillé mais la tuile invitait encore à « déclarer ». Nouveau drapeau
+`indisposFigees` de bout en bout : source unique `_indisposFigees_()` dans `Indispos.gs` (partagée
+entre l'écran et la clé `acces`), clé `acces` (`miroir.gs`), identité du Worker (champ ajouté EN FIN
+d'objet — le test PT27 lit `phaseTp` dans une fenêtre de 900 caractères, un commentaire au milieu
+l'avait fait échouer), tuile du portail (cadenas, teinte ambre, « Consultation seule — le planning
+2027 est établi »). Banc +9 (T012 worker, 28 bis tuile) avec contre-épreuves ; **1944 vérifications,
+0 échec**. Livraison dans l'ordre canonique Worker → GAS → `miroirSyncComplet`, faite le soir même.
 
 ---
 

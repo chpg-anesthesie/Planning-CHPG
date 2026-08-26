@@ -74,6 +74,25 @@ monégasque, site **v1.82.1** (commits `75103b28`, `210a604d`, `c33d7cc0`, `a80d
 un guide daté « à jour » peut décrire un système remplacé depuis — la relecture contre le code est
 le seul contrôle qui vaille, et elle a pris une heure pour sept sections vérifiées.
 
+**Soir du 26/08 :** deux livraisons de plus, tout déployé (Worker + 3 GAS recopiés + sync, confirmé
+par Arthur). (1) **Reprise de session indispos** : défaut TDZ trouvé au banc — la reprise s'exécutait
+avant `const MIROIR_URL`, sautait la copie rapide et réveillait Apps Script depuis le 04/08 ; corrigé
+(tour de boucle) + plus d'écran de code à l'arrivée du portail (attente neutre, échappatoire), v1.83.
+(2) **Tuile indispos en consultation seule** quand le planning de campagne est généré : drapeau
+`indisposFigees` de bout en bout, source unique `_indisposFigees_()`, v1.84.
+
+**Appris ce soir :**
+- Le SHA-256 post-push prouve le DÉPÔT, pas la MISE EN LIGNE : un événement de push peut se perdre
+  (vu ce soir, commit sans déploiement, ré-émis par commit vide) et les runners Actions tomber en
+  panne. Contrôle de publication = run Actions `completed success`. Le bac à sable n'atteint pas
+  `github.io` : ne jamais conclure de ses réponses.
+- Les tests à fenêtre regex (PT27 : `phaseTp` à moins de 900 caractères de `identite = {`) cassent
+  sur une insertion au milieu — les champs nouveaux se posent EN FIN d'objet.
+- v1.82.1 a violé la règle « deux chiffres » codifiée au banc : version.js n'est pas dans les
+  déclencheurs du banc obligatoire — l'y considérer désormais.
+- Piloter la vraie page au banc trouve des défauts que la lecture ne voit pas : le TDZ de la reprise
+  dormait depuis trois semaines dans un code relu plusieurs fois.
+
 ## État au 25 août 2026 — les souhaits de garde ouverts à tous les jours
 
 **v1.82** · `generateur_gardes.gs` **2026-08-25.6** · `code.gs` **2026-08-25.3** · `Indispos.gs` **2026-08-25.3**
