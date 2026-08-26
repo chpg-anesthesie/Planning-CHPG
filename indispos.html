@@ -158,6 +158,19 @@ body {
   display:none;
 }
 
+/* (26/08/2026) Écran de reprise : arrivée depuis le portail, session déjà
+   présente — une attente neutre remplace l'écran de code pendant la
+   revalidation silencieuse. */
+.reprise-screen{position:fixed;inset:0;background:#F6F8FB;display:none;
+  align-items:center;justify-content:center;z-index:60;flex-direction:column;gap:14px}
+.reprise-screen img{width:56px;height:56px;border-radius:14px;box-shadow:0 3px 12px rgba(158,12,29,.25)}
+.reprise-txt{font-size:14.5px;color:#475569}
+.reprise-spin{width:22px;height:22px;border:3px solid #E2E8F0;border-top-color:#CE1126;
+  border-radius:50%;animation:reprspin .8s linear infinite}
+@keyframes reprspin{to{transform:rotate(360deg)}}
+.reprise-lien{font-size:12.5px;color:#94A3B8;background:none;border:none;cursor:pointer;
+  text-decoration:underline;padding:6px}
+
 /* ── MAIN APP ── */
 .app { display:none; }
 
@@ -526,6 +539,14 @@ body {
   </div>
 </div>
 
+<!-- REPRISE (26/08/2026) : session du portail présente, revalidation en cours -->
+<div class="reprise-screen" id="repriseScreen">
+  <img src="assets/icon-192.png" alt="">
+  <div class="reprise-spin" aria-hidden="true"></div>
+  <div class="reprise-txt">Ouverture de votre calendrier…</div>
+  <button class="reprise-lien" type="button" onclick="reprisVersCode()">Saisir mon code</button>
+</div>
+
 <!-- APP -->
 <div class="app" id="app">
 
@@ -645,6 +666,26 @@ pourrait même plus taper son code. On retombe alors sur le comportement d'avant
 le temps de l'onglet — au lieu de planter. Jamais de mémoire longue ici : mieux vaut retaper
 son code que le voir retenu par un filet dont personne ne vérifie l'échéance. */
 window.CHPGSession = window.CHPGSession || { lire:function(){try{return sessionStorage.getItem('chpgViewCode')||'';}catch(e){return '';}}, memoriser:function(c){try{sessionStorage.setItem('chpgViewCode',c);}catch(e){}}, oublier:function(){try{sessionStorage.removeItem('chpgViewCode');}catch(e){}}, estInstallee:function(){return false;}, joursRestants:function(){return null;}, DUREE_JOURS:0 };</script>
+<script>
+/* (26/08/2026) Arrivée depuis le portail : le code de session existe déjà — on ne
+   montre PAS l'écran de code pendant la revalidation silencieuse, mais une attente
+   neutre. L'écran de code ne revient que si la reprise échoue (code révoqué,
+   session périmée) — ou d'un clic sur « Saisir mon code » : l'échappatoire reste
+   toujours à portée (leçon du 12/08 : ne jamais rendre l'écran inutilisable). */
+(function () {
+  try {
+    if (window.CHPGSession && CHPGSession.lire()) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('repriseScreen').style.display = 'flex';
+    }
+  } catch (e) {}
+})();
+function reprisVersCode() {
+  document.getElementById('repriseScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = '';
+  var i = document.getElementById('codeInput'); if (i) i.focus();
+}
+</script>
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
@@ -812,17 +853,30 @@ function _poserPastilleUser(nom) {
    pendant tout ce temps — bouton actif, champ libre. Si le MAR tape son code
    avant que la tentative aboutisse, c'est sa saisie qui gagne. */
 (async function repriseSession() {
+  /* (26/08/2026) DÉFAUT TROUVÉ AU BANC : cette fonction s'exécutait PENDANT le
+     chargement du script, avant la ligne `const MIROIR_URL = ...` plus bas —
+     référence morte (TDZ), erreur avalée par le filet de miroirRead. Depuis le
+     04/08, chaque reprise de session sautait donc la copie rapide et réveillait
+     Apps Script (plusieurs secondes) ; la connexion manuelle, tapée après le
+     chargement, passait bien par le miroir — ce qui masquait le défaut.
+     Le tour de boucle ci-dessous laisse le script finir de se charger : la
+     reprise emprunte enfin le circuit rapide (~150 ms). */
+  await new Promise(function (r) { setTimeout(r, 0); });
   let saved = '';
   saved = CHPGSession.lire();
   if (!saved) return;
+  const reprise = document.getElementById('repriseScreen');
   try {
     const ecran = document.getElementById('loginScreen');
     const ok = await doLogin(saved, true);
-    if (!ok) { CHPGSession.oublier(); }
+    if (reprise) reprise.style.display = 'none';                 // (26/08) l'attente s'efface, succès ou non
+    if (!ok) { CHPGSession.oublier(); reprisVersCode(); return; }// échec : l'écran de code revient
     /* Le MAR s'est connecte a la main pendant la tentative : on ne touche a rien. */
     if (ecran && ecran.style.display === 'none') return;
   } catch (e) {
     CHPGSession.oublier();
+    if (reprise) reprise.style.display = 'none';
+    reprisVersCode();
   }
 })();
 
