@@ -72,13 +72,41 @@
   a{color:var(--blue)}
   @media print{ body{padding:0} section{break-inside:avoid} }
 </style>
+<style id="appbar-css">
+/* ── Bandeau commun des guides (26/08/2026) — icône de l'appli, plus de drapeau ── */
+.appbar{background:linear-gradient(135deg,#9E0C1D 0%,#CE1126 78%);color:#fff;border-radius:16px;
+  padding:18px;position:relative;overflow:hidden;margin:0 0 16px}
+.appbar-wm{position:absolute;right:-30px;top:-30px;width:190px;opacity:.10;filter:brightness(4);pointer-events:none}
+.appbar-row{display:flex;align-items:center;gap:14px;position:relative}
+.appbar-ic{width:48px;height:48px;border-radius:12px;background:#fff;padding:3px;
+  box-shadow:0 3px 10px rgba(0,0,0,.25);flex:none}
+.appbar-tx{min-width:0}
+.appbar-eyebrow{font-family:'DM Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;opacity:.85}
+.appbar h1{margin:2px 0 0;font-size:clamp(20px,5.5vw,25px);font-weight:800;letter-spacing:-.01em;
+  color:#fff;line-height:1.15}
+.appbar-chip{margin-left:auto;font-family:'DM Mono',ui-monospace,monospace;font-size:11px;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:99px;
+  padding:4px 10px;white-space:nowrap;color:#fff;flex:none}
+.appbar-sub{margin:10px 0 0;font-size:14px;opacity:.92;position:relative;color:#fff;line-height:1.45}
+@media print{.appbar{background:#9E0C1D !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
 </head>
 <body>
 <div class="wrap">
 
-  <div class="eyebrow">Planning-CHPG · janvier 2027</div>
-  <h1>Déménagement NCHPG — la bascule des secteurs</h1>
-  <p class="sub">Document de travail pour l'administrateur. Il complète le
+  <div class="appbar">
+  <img class="appbar-wm" src="../assets/icon-192.png" alt="" aria-hidden="true">
+  <div class="appbar-row">
+    <img class="appbar-ic" src="../assets/icon-192.png" alt="">
+    <div class="appbar-tx">
+      <div class="appbar-eyebrow">Planning-CHPG · Anesthésie-Réanimation</div>
+      <h1>Déménagement NCHPG</h1>
+    </div>
+  </div>
+  <p class="appbar-sub">La bascule des secteurs — document de travail pour l'administrateur · janvier 2027.</p>
+</div>
+  <p class="sub">Il complète le
   <a href="guide-technique.html#c18">§18 du guide technique</a> (marche à suivre détaillée pour
   créer un secteur ou une consultation) : ici, on décrit <b>le chantier du déménagement</b> —
   quoi décider, quoi faire modifier dans le code, quoi faire soi-même dans le classeur, et

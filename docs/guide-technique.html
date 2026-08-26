@@ -186,15 +186,42 @@
     .flux-h .fleche-h { transform: rotate(90deg); padding: 0; }
   }
 </style>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style id="appbar-css">
+/* ── Bandeau commun des guides (26/08/2026) — icône de l'appli, plus de drapeau ── */
+.appbar{background:linear-gradient(135deg,#9E0C1D 0%,#CE1126 78%);color:#fff;border-radius:16px;
+  padding:18px;position:relative;overflow:hidden;margin:0 0 16px}
+.appbar-wm{position:absolute;right:-30px;top:-30px;width:190px;opacity:.10;filter:brightness(4);pointer-events:none}
+.appbar-row{display:flex;align-items:center;gap:14px;position:relative}
+.appbar-ic{width:48px;height:48px;border-radius:12px;background:#fff;padding:3px;
+  box-shadow:0 3px 10px rgba(0,0,0,.25);flex:none}
+.appbar-tx{min-width:0}
+.appbar-eyebrow{font-family:'DM Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;opacity:.85}
+.appbar h1{margin:2px 0 0;font-size:clamp(20px,5.5vw,25px);font-weight:800;letter-spacing:-.01em;
+  color:#fff;line-height:1.15}
+.appbar-chip{margin-left:auto;font-family:'DM Mono',ui-monospace,monospace;font-size:11px;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:99px;
+  padding:4px 10px;white-space:nowrap;color:#fff;flex:none}
+.appbar-sub{margin:10px 0 0;font-size:14px;opacity:.92;position:relative;color:#fff;line-height:1.45}
+@media print{.appbar{background:#9E0C1D !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
 </head>
 <body id="top">
 <div class="page">
 
 <header class="tete">
-  <h1>Guide technique — Planning-CHPG</h1>
-  <p class="sous">Comment le portail fonctionne en profondeur, expliqué sans supposer de bagage
-  informatique — pour le responsable du projet, et pour quiconque devrait un jour en reprendre les
-  commandes.</p>
+  <div class="appbar">
+  <img class="appbar-wm" src="../assets/icon-192.png" alt="" aria-hidden="true">
+  <div class="appbar-row">
+    <img class="appbar-ic" src="../assets/icon-192.png" alt="">
+    <div class="appbar-tx">
+      <div class="appbar-eyebrow">Planning-CHPG · Anesthésie-Réanimation</div>
+      <h1>Guide technique</h1>
+    </div>
+  </div>
+  <p class="appbar-sub">Comment le portail fonctionne en profondeur, expliqué sans supposer de bagage informatique — pour le responsable du projet, et pour quiconque devrait un jour en reprendre les commandes.</p>
+</div>
   <p class="maj">Refondu le 9 août 2026, chaque affirmation vérifiée dans le code réellement en
   service (site v1.30.2) · complété le 24 août 2026 : pose des temps partiels après génération
   (C13) et cloche des notifications (C12), vérifiés dans le code en service (v1.77). Quatre parcours de lecture : chaque section commence par un résumé

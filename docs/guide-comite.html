@@ -26,9 +26,6 @@
     line-height:1.6; font-size:15px; padding:36px 20px 80px}
   .wrap{max-width:860px; margin:0 auto}
 
-  .flag{display:inline-flex; border-radius:4px; overflow:hidden; vertical-align:middle; margin-right:10px; box-shadow:0 1px 3px rgba(0,0,0,.15)}
-  .flag i{display:block; width:15px; height:21px}
-  .flag .r{background:var(--red)} .flag .w{background:#fff}
   .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--red); font-weight:500}
   h1{font-size:30px; font-weight:800; letter-spacing:-.02em; margin:8px 0 4px; line-height:1.2}
   .subtitle{color:var(--ink-2); font-size:15px; margin:0 0 4px}
@@ -218,13 +215,41 @@
   }
   
   </style>
+<style id="appbar-css">
+/* ── Bandeau commun des guides (26/08/2026) — icône de l'appli, plus de drapeau ── */
+.appbar{background:linear-gradient(135deg,#9E0C1D 0%,#CE1126 78%);color:#fff;border-radius:16px;
+  padding:18px;position:relative;overflow:hidden;margin:0 0 16px}
+.appbar-wm{position:absolute;right:-30px;top:-30px;width:190px;opacity:.10;filter:brightness(4);pointer-events:none}
+.appbar-row{display:flex;align-items:center;gap:14px;position:relative}
+.appbar-ic{width:48px;height:48px;border-radius:12px;background:#fff;padding:3px;
+  box-shadow:0 3px 10px rgba(0,0,0,.25);flex:none}
+.appbar-tx{min-width:0}
+.appbar-eyebrow{font-family:'DM Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;opacity:.85}
+.appbar h1{margin:2px 0 0;font-size:clamp(20px,5.5vw,25px);font-weight:800;letter-spacing:-.01em;
+  color:#fff;line-height:1.15}
+.appbar-chip{margin-left:auto;font-family:'DM Mono',ui-monospace,monospace;font-size:11px;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:99px;
+  padding:4px 10px;white-space:nowrap;color:#fff;flex:none}
+.appbar-sub{margin:10px 0 0;font-size:14px;opacity:.92;position:relative;color:#fff;line-height:1.45}
+@media print{.appbar{background:#9E0C1D !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
 </head><body>
 <div class="wrap">
 
-  <div class="eyebrow">Planning-CHPG · document interne au comité</div>
-  <h1><span class="flag"><i class="r"></i><i class="w"></i></span>Guide du comité</h1>
-  <p class="subtitle">Prise en main de l'interface d'administration, puis la référence écran par écran.</p>
-  <p class="maj">Mis à jour le 23 août 2026 · <span id="verBadge" data-version>—</span></p>
+  <div class="appbar">
+  <img class="appbar-wm" src="../assets/icon-192.png" alt="" aria-hidden="true">
+  <div class="appbar-row">
+    <img class="appbar-ic" src="../assets/icon-192.png" alt="">
+    <div class="appbar-tx">
+      <div class="appbar-eyebrow">Planning-CHPG · Anesthésie-Réanimation</div>
+      <h1>Guide du comité</h1>
+    </div>
+    <span class="appbar-chip" data-version>—</span>
+  </div>
+  <p class="appbar-sub">Prise en main de l'interface d'administration, puis la référence écran par écran — document interne au comité.</p>
+</div>
+  <p class="maj">Mis à jour le 26 août 2026</p>
 
   <div class="hero">
     <h2>En 2 minutes</h2>
