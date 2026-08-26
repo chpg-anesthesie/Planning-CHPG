@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-08-25.6';
+const GAS_VERSION_GENERATEUR = '2026-08-26.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -1265,20 +1265,6 @@ function generateGardes(year){
       }
       return p;
     };
-    // Anti 2 week-ends de garde consécutifs : garde ven/sam/dim sur le week-end adjacent.
-    const _hasAdjWE=(id,days_)=>{
-      for(let gi=0;gi<days_.length;gi++){
-        const b=new Date(days_[gi]+'T12:00:00');
-        for(let n=-9;n<=9;n++){ if(n>=-4&&n<=4)continue;
-          const x=new Date(b);x.setDate(b.getDate()+n);const xs=toDateStr(x);
-          const dx=dayByDate[xs]; if(!dx)continue;
-          if(dx.dow!==5&&dx.dow!==6&&dx.dow!==0)continue;
-          if(days_.indexOf(xs)>=0)continue;
-          if((gSet[id]&&gSet[id].has(xs))||(g2Set[id]&&g2Set[id].has(xs)))return true;
-        }
-      }
-      return false;
-    };
     // 7) Recherche locale (best-improvement par slot, passes successives).
     const t0=Date.now();let moves=0;
     for(let pass=0;pass<60;pass++){
@@ -1299,17 +1285,27 @@ function generateGardes(year){
           const WM=2; days_.forEach(dd=>{ const m=dayByDate[dd].month;
             const cb=monthCnt[B][m]||0, ca=monthCnt[A][m]||0, eb=monthExp[B][m]||0, ea=monthExp[A][m]||0;
             dd_+=WM*((Math.pow(cb+1-eb,2)-Math.pow(cb-eb,2))+(Math.pow(ca-1-ea,2)-Math.pow(ca-ea,2))); });
-          // Règle 1 : éviter 2 week-ends de garde consécutifs (forte pénalité, souple)
-          if(days_.some(dd=>{const w=dayByDate[dd].dow;return w===5||w===6||w===0;})){
-            if(hasAdjWeekend(B,days_))dd_+=500;   // B enchaînerait 2 week-ends
-            if(hasAdjWeekend(A,days_))dd_-=500;   // ce transfert soulage A d'un enchaînement
+          // Règle 1 : éviter 2 week-ends de garde consécutifs (forte pénalité, souple).
+          // (2026-08-26) Poids ±1000 : le code portait DEUX copies identiques de ce
+          // test (hasAdjWeekend et _hasAdjWE), toutes deux appliquées — soit ±1000
+          // effectif alors que chaque copie annonçait ±500. La déduplication CONSERVE
+          // le poids réellement en production ; toucher au poids = décision séparée.
+          if(_isWE){
+            if(hasAdjWeekend(B,days_))dd_+=1000;   // B enchaînerait 2 week-ends
+            if(hasAdjWeekend(A,days_))dd_-=1000;   // ce transfert soulage A d'un enchaînement
           }
-          if(_isWE){ if(_hasAdjWE(B,days_))dd_+=500; if(_hasAdjWE(A,days_))dd_-=500; }
           dd_+=_spacingPen(B,days_)-_spacingPen(A,days_);
           if(dd_<bestD){bestD=dd_;bestB=B;}}
         if(bestB){applyTr(slot,bestB);moves++;changed=true;}
       }
-      if(!changed||Date.now()-t0>20000)break;
+      if(!changed)break;
+      // (2026-08-26) Plafond de temps : s'il coupe, le résultat dépend de la vitesse
+      // d'exécution — le déterminisme production↔simulateur n'est alors plus garanti.
+      // Jusqu'ici c'était SILENCIEUX ; le comité doit le savoir.
+      if(Date.now()-t0>20000){
+        warnings.push('Optimiseur interrompu par le plafond de 20 s (passe '+(pass+1)+'/60, '+moves+' transferts) : résultat possiblement non déterministe, relancer hors heures de charge si besoin.');
+        break;
+      }
     }
     Logger.log('Optimiseur: '+moves+' transferts');
 
