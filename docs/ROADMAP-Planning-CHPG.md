@@ -197,6 +197,23 @@ en vrai.** La passe d'échanges neutres reste au tiroir (chantier documenté, co
 simulateur, non poussé) ; le levier réaliste est en amont, sur la pose des congés des périodes
 saturées — conforme à la doctrine couverture.
 
+**L'après-midi : le guide de l'algorithme relu ligne à ligne contre le code, puis l'identité
+visuelle des guides.** La relecture a trouvé une promesse fausse (« jamais deux week-ends
+consécutifs » listé dans les interdits de la §04 — corrigé en évitement fort, commit `75103b28`)
+puis six écarts, dont la §09 des récupérations qui décrivait l'ancien système d'avant la refonte
+d'août : « deux semaines après » (faux : premier jour qui convient après la garde), « hors vacances
+scolaires » (remplacé par le plancher absolu de 15 présents), « jamais sur une indisponibilité »
+(un jour INDISPO est travaillé, une récupération peut s'y poser). §09 réécrite, §11 alignée sur les
+années tendues + garde-fou, §03 jeudis/veilles à égalité (commit `c33d7cc0`). Un lien vers ce guide
+depuis la section Équité du guide MAR — il n'était accessible que par URL directe (`210a604d`).
+
+**Bandeau commun des 7 guides — v1.82.1 (commit `a80d8203`).** Trois directions proposées sur
+maquette, Arthur choisit le bandeau rouge : dégradé du rouge de l'icône de l'appli (l'équipe au-dessus
+du tracé ECG), icône en tuile blanche + filigrane, œil-de-perdrix mono commun, plus de drapeau
+monégasque nulle part. Déployé sur MAR, comité, algorithme, technique, fichier maître, libéral et
+déménagement NCHPG en un seul commit ; CSS du drapeau retiré ; pastille de version conservée
+(MAR, comité) ; `version.js` → **v1.82.1**.
+
 ---
 
 ## 25 août 2026 — les souhaits de garde ouverts à tous les jours de l'année

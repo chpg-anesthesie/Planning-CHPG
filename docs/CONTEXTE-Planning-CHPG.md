@@ -66,6 +66,14 @@ au tiroir, validée au simulateur, non poussée.
 - Un enchaînement résiduel n'est pas un défaut de score : au moment où il se pose, personne d'autre
   ne PEUT prendre. Le levier est en amont (pose des congés), pas dans l'algorithme.
 
+**Après-midi du 26/08 :** guide-algo relu ligne à ligne contre le code (promesse fausse §04
+corrigée, §09 récupérations réécrite — elle décrivait l'ancien système —, §11 alignée, §03
+jeudis/veilles à égalité) ; lien vers ce guide depuis le guide MAR (il n'était accessible que par
+URL directe) ; **bandeau commun rouge avec l'icône de l'appli sur les 7 guides**, fin du drapeau
+monégasque, site **v1.82.1** (commits `75103b28`, `210a604d`, `c33d7cc0`, `a80d8203`). Appris :
+un guide daté « à jour » peut décrire un système remplacé depuis — la relecture contre le code est
+le seul contrôle qui vaille, et elle a pris une heure pour sept sections vérifiées.
+
 ## État au 25 août 2026 — les souhaits de garde ouverts à tous les jours
 
 **v1.82** · `generateur_gardes.gs` **2026-08-25.6** · `code.gs` **2026-08-25.3** · `Indispos.gs` **2026-08-25.3**
