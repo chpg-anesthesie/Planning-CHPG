@@ -72,6 +72,45 @@ le Worker ou `partage/dispo_jour.js`.
 
 ---
 
+### ⚠️ LE 4 SEPTEMBRE : LA GÉNÉRATION 2027 EST JOUÉE EN DIRECT DEVANT LE STAFF
+
+**À lire avant toute intervention touchant aux notifications, aux mails ou aux onglets 2027.**
+Arthur ne montre pas un planning déjà fait : il **lance la génération en séance**. Le planning 2027
+généré le 25/08 au soir n'est donc **pas** celui qui restera — il sera **régénéré** le jour J.
+
+**Marche à suivre — établie le 26/08 après lecture complète du code.**
+
+Deux mécanismes de mail **indépendants**, qui ne lisent pas la même adresse :
+
+| | destinataire | commandé par |
+|---|---|---|
+| récapitulatif « Vos gardes » | colonne **EMAIL** du classeur (col. H) | rien — aucun détournement possible |
+| notifications de changement | `NOTIF_EMAIL_TEST` si renseignée, sinon col. EMAIL | `NOTIF_ACTIVE` |
+
+**Le vrai interrupteur de sécurité est `NOTIF_ACTIVE`.** Quand il ne vaut pas `O`,
+`_notifEnvoyerAnnee_` **prend quand même la photo** et se tait (journal : « système éteint, photo
+prise, aucun envoi »). Donc **aucun arriéré ne peut s'accumuler tant qu'il est éteint** — inutile
+de manipuler les fichiers `_notifie.json`, ce qui était la piste explorée d'abord et abandonnée.
+
+1. **Avant le 4** — mettre `NOTIF_ACTIVE` à **`N`** (Apps Script → Paramètres du projet →
+   Propriétés du script). Remettre les **21 adresses dans la colonne EMAIL** de MEDECINS (elles
+   sont décalées d'une colonne vers la droite, au-delà de la dernière en-tête). Laisser
+   `NOTIF_EMAIL_TEST` en place : second filet, sans effet sur le récapitulatif.
+2. **Le 4** — ménage des tests, puis génération en direct, les trois étapes. Le récapitulatif part
+   **à tous les MAR** ; aucune notification de changement ne peut partir. **Rien à supprimer.**
+3. **Après le staff, planning stable** — publier une fois, attendre 15 min, vérifier au journal
+   « système éteint, photo prise, aucun envoi » : la photo est à jour, rien en attente.
+4. **Rallumer** — `NOTIF_ACTIVE` à `O`, supprimer `NOTIF_EMAIL_TEST`. Seuls les changements
+   **postérieurs** partent, aux vrais MAR.
+
+**Ce que reçoivent les MAR une fois rallumé** : un mail par personne, avec ses seules dates. Un
+changement de **statut** (garde, astreinte, absence) est toujours signalé, même à six mois ; un
+changement de **secteur** ne l'est que s'il tombe dans la fenêtre du dernier Excel diffusé (du
+vendredi 16 h au dimanche +9), au-delà l'Excel suivant fera foi. Documenté depuis le 26/08 dans
+`guide-mar.html` (langage simple) et `guide-technique.html` (règle exacte).
+
+---
+
 ### Répétition générale : le 1er septembre, seul, en 4G
 
 Déplacée du 28 août au **1er septembre** (Arthur ne revient à l'hôpital que le 31, et il est de garde

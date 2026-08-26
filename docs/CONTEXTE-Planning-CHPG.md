@@ -11,6 +11,30 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
+## ⚠️ LE 4 SEPTEMBRE 2026 : GÉNÉRATION 2027 JOUÉE EN DIRECT DEVANT LE STAFF
+
+Arthur ne montre pas un planning déjà fait : il **lance la génération en séance**. Celui du 25/08
+sera **régénéré** ce jour-là.
+
+**`NOTIF_ACTIVE` est le vrai interrupteur** : quand il ne vaut pas `O`, le système prend quand même
+la photo et se tait — **aucun arriéré ne peut s'accumuler**. Inutile de toucher aux fichiers
+`_notifie.json`. Et le récapitulatif « Vos gardes » ne dépend PAS de `NOTIF_EMAIL_TEST` : il lit la
+colonne EMAIL du classeur, directement.
+
+1. **avant le 4** : `NOTIF_ACTIVE` = `N` · remettre les 21 adresses dans la colonne EMAIL (elles
+   sont décalées d'une colonne à droite) · laisser `NOTIF_EMAIL_TEST` ;
+2. **le 4** : ménage, génération en direct → le récap part à tous, aucune notif de changement
+   possible, **rien à supprimer** ;
+3. **après, planning stable** : publier, attendre 15 min, vérifier au journal « système éteint,
+   photo prise, aucun envoi » ;
+4. **rallumer** : `NOTIF_ACTIVE` = `O`, supprimer `NOTIF_EMAIL_TEST`.
+
+**Filtre des mails de changement** : un par MAR, ses seules dates. Statut (garde, astreinte,
+absence) → toujours signalé, même à six mois. Secteur (affectation en journée) → seulement dans la
+fenêtre du dernier Excel (vendredi 16 h → dimanche +9).
+
+---
+
 ## État au 25 août 2026 — les souhaits de garde ouverts à tous les jours
 
 **v1.82** · `generateur_gardes.gs` **2026-08-25.6** · `code.gs` **2026-08-25.3** · `Indispos.gs` **2026-08-25.3**

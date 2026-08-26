@@ -1599,6 +1599,25 @@ servir les demandes d'échange et refuse les abonnements aux notifications — l
 rien à cacher, elles ne reçoivent simplement rien. Personne ne peut « deviner l'adresse ».</p>
 
 <details class="tech"><summary>Notifications de changement : une file d'années, un abonnement par personne</summary><div class="corps">
+<p><b>Qui reçoit quoi.</b> Les écarts sont regroupés <b>par MAR</b> (<code>_notifDiff</code>) :
+chacun reçoit un seul mail, avec ses propres changements et rien d'autre.</p>
+<p><b>Le filtre statut / secteur.</b> Un changement de <b>statut</b> (garde, astreinte, absence)
+est <b>toujours</b> signalé, quelle que soit la date — un déplacement de garde en mars part
+immédiatement. Un changement de <b>secteur</b> (l'affectation en journée) n'est signalé que s'il
+tombe dans la <b>fenêtre du dernier Excel diffusé</b> : au-delà, l'Excel du vendredi suivant fera
+foi de toute façon, un mail n'apporterait rien.</p>
+<p><b>La fenêtre</b> (<code>_notifSemaineExcel</code>) court du dernier <b>vendredi 16 h</b> déjà
+passé jusqu'au <b>dimanche neuf jours plus tard</b>. Elle englobe volontairement le samedi et le
+dimanche qui appartiennent encore à l'Excel <i>précédent</i> : élargissement pur, aucune date
+n'est retirée entre deux diffusions.</p>
+<p><b>L'interrupteur de sécurité.</b> Quand <code>NOTIF_ACTIVE</code> ne vaut pas <code>O</code>,
+<code>_notifEnvoyerAnnee_</code> <b>prend quand même la photo</b> et se tait (journal : « système
+éteint, photo prise, aucun envoi »). Conséquence pratique : <b>aucun arriéré ne peut s'accumuler
+tant que le système est éteint</b> — c'est le moyen sûr de traverser une période de tests ou une
+démonstration, bien plus que de manipuler les fichiers <code>_notifie.json</code>.
+<code>NOTIF_EMAIL_TEST</code> est un second filet, indépendant : il détourne les mails de
+changement vers une seule adresse, <b>sans effet</b> sur le récapitulatif annuel « Vos gardes »,
+qui lit toujours la colonne <code>EMAIL</code> du classeur.</p>
 <p><b>(25/08/2026) File d'années.</b> <code>notifPlanifier</code> écrasait la propriété
 <code>NOTIF_YEAR</code> à chaque appel : publier 2027 faisait oublier les changements de 2026
 encore en attente. La photo de référence (<code>planning_{Y}_notifie.json</code>) n'étant recalée
