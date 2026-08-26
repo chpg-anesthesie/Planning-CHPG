@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-26.1';
+const GAS_VERSION_INDISPOS = '2026-08-26.2';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -38,6 +38,14 @@ function getIndisposYear() {
 // Sa seule présence est donc l'indicateur — aucun réglage supplémentaire à tenir
 // à jour. Attention : getIndisposYear() ne permet PAS de le savoir, car il se
 // replie silencieusement sur getActiveYear() quand la ligne est absente.
+/* (26/08/2026) Campagne FIGÉE : le planning de l'année de campagne existe déjà
+   (généré), les indispos ne changent plus rien — l'écran indispos passe en
+   lecture seule et la tuile du portail l'annonce. SOURCE UNIQUE : l'écran
+   (getVacConfig) et la clé `acces` du miroir lisent tous deux ici. */
+function _indisposFigees_() {
+  return !!SpreadsheetApp.getActiveSpreadsheet().getSheetByName('GARDES_' + getIndisposYear());
+}
+
 function _indisposOuverte_() {
   try {
     const data = _configRows_();   // memo de CONFIG (code.gs)
@@ -2883,6 +2891,9 @@ function _routeRequete_(e) {
         // Campagne de saisie en cours ? Pilote l'affichage de la tuile
         // « Mes indisponibilités » du dashboard (masquée hors campagne).
         indisposOuverte: _indisposOuverte_(),
+        // (26/08/2026) Campagne figée : la tuile passe en « consultation seule »
+        // dès le portail — même information que le verrou de l'écran indispos.
+        indisposFigees: _indisposFigees_(),
         // (POSE TP · 22/08/2026) Phase de pose des temps partiels (déduite) +
         // profil du MAR : la tuile « Mes jours de temps partiel » ne s'affiche
         // que si phaseTp.actif ET quotite < 100 ET !tpFixe. Aucun nom en dur :
@@ -3378,7 +3389,7 @@ try {
          La campagne n'est PAS fermée pour autant : la clôture (qui archive
          l'année et bascule sur la suivante) reste un geste du comité, sinon
          une simple génération d'essai basculerait tout. */
-      const _dejaGenere = !!SpreadsheetApp.getActiveSpreadsheet().getSheetByName('GARDES_' + indYear);
+      const _dejaGenere = _indisposFigees_();   // (26/08) source unique — partagée avec la clé acces
       return ContentService.createTextOutput(JSON.stringify({
         success: true, periodes: cfg.periodes, quotaVac: cfg.quotaVac,
         quotaForm: cfg.quotaForm, quotaCtp: cfg.quotaCtp, tpFixe: tpFixe,

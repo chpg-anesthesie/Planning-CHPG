@@ -273,6 +273,9 @@ async function lire(corps, env) {
     phaseTp: acces.phaseTp || { actif: false, annee: null, annees: [] },
     quotite: Number(user.quotite) || 100,
     tpFixe: !!user.tpFixe,
+    /* (26/08/2026) Campagne figée : planning de l'année de campagne déjà généré →
+       tuile indispos en consultation seule. Vieille clé `acces` : false, tuile normale. */
+    indisposFigees: !!acces.indisposFigees,
   };
   return reponse({ success: true, identite, data, manquants, refuses, version: VERSION });
 }

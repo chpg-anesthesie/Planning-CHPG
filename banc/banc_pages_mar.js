@@ -786,6 +786,32 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     }
   }
 
+  /* ═══ 28 bis. Campagne figée : la tuile indispos le dit dès le portail ═══
+     (26/08/2026) Le planning généré, l'écran indispos passe en lecture seule —
+     la tuile doit l'annoncer (cadenas, teinte ambre, « Consultation seule »)
+     au lieu d'inviter à « déclarer ». On extrait de la page LES lignes de
+     dérivation réellement livrées, comme le test 29 pour le filtre. */
+  {
+    console.log('\n═══ 28 bis. La tuile indispos annonce la consultation seule ═══');
+    const src = fs.readFileSync('../dashboard.html', 'utf8');
+    const mDeriv = src.match(/const fige = [\s\S]*?const sousTitre = [\s\S]*?;\n/);
+    V('les lignes de dérivation de la tuile sont lisibles dans la page', !!mDeriv);
+    V('la teinte ambre existe dans la feuille de style', src.indexOf('.tile-ico.ambre') > -1);
+    const derive = (figees) => {
+      const bac = { t: { key: 'indispos', icon: 'clock', tint: 'viol', sub: 'Déclarez vos souhaits et vos congés {AN}.' },
+                    INDISPOS_FIGEES: figees, INDISPOS_YEAR: 2027, PHASE_TP: null };
+      bac.globalThis = bac; vm.createContext(bac);
+      vm.runInContext(mDeriv[0] + '\n({fige, icone, teinte, sousTitre})', bac);
+      return vm.runInContext('({fige, icone, teinte, sousTitre})', bac);
+    };
+    const f = derive(true), n = derive(false);
+    V('figée : cadenas', f.icone === 'lock', f.icone);
+    V('figée : teinte ambre', f.teinte === 'ambre', f.teinte);
+    V('figée : « Consultation seule », année comprise', /Consultation seule/.test(f.sousTitre) && /2027/.test(f.sousTitre) && /établi/.test(f.sousTitre), f.sousTitre);
+    V('campagne vivante : la tuile ne change pas (horloge, violet)', n.icone === 'clock' && n.teinte === 'viol', n);
+    V('campagne vivante : l\'invitation à déclarer, avec l\'année', /Déclarez/.test(n.sousTitre) && /2027/.test(n.sousTitre), n.sousTitre);
+  }
+
   /* ═══ La tuile « CR d'anesthésie » ne s'affiche que sur grand écran ═══
      (19/08/2026) Le générateur de CR se remplit par dizaines de pastilles et se
      termine par un copier-coller vers le DPI : sur un téléphone il n'a aucun

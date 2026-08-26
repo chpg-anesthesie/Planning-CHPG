@@ -363,6 +363,7 @@ a.tile:hover, .tile.clickable:hover {
 /* (POSE TP · 22/08/2026) Teinte de la tuile « Mes jours de temps partiel » :
    le vert des jours ouverts à la pose. */
 .tile-ico.vert { background:var(--ok-soft); color:var(--ok); }
+.tile-ico.ambre { background:var(--amber-soft); color:var(--amber); }   /* (26/08) tuile indispos en consultation seule */
 
 /* ── VUE PROTOCOLES ── */
 .protos-search { margin-bottom:14px; }
@@ -661,6 +662,7 @@ let MY_ID = null;
 let MY_ROLE = null;
 let MY_LIBERAL = false;      // membre du groupement liberal (colonne LIBERAL de MEDECINS)
 let INDISPOS_OUVERTE = false;   // campagne de saisie en cours (renvoyé par login)
+let INDISPOS_FIGEES  = false;   // (26/08) planning de l'année de campagne déjà généré → tuile en consultation seule
 let INDISPOS_YEAR = null;       // année concernée par la saisie
 // (POSE TP · 22/08/2026) Phase de pose des temps partiels + profil du MAR.
 // Renvoyés par login depuis le serveur du 22/08 ; avec un serveur plus ancien
@@ -875,6 +877,7 @@ function applyUserBadge(r){
   MY_ID = (r.role==='mar') ? r.id : null;
   // État de la campagne de saisie (pilote la tuile « Mes indisponibilités »).
   INDISPOS_OUVERTE = !!r.indisposOuverte;
+  INDISPOS_FIGEES  = !!r.indisposFigees;   // (26/08) consultation seule dès le portail
   // Membre du groupement liberal : pilote la tuile Module liberal.
   MY_LIBERAL = !!r.liberal;
   INDISPOS_YEAR = r.indisposYear || null;
@@ -968,11 +971,20 @@ function renderTiles(){
     const soon = t.ready ? '' : ' soon';
     const tag  = t.ready ? '' : '<span class="badge-soon">Bientôt</span>';
     const arrow = t.ready ? '<div class="tile-arrow">Ouvrir <i data-lucide="arrow-right" style="width:15px;height:15px"></i></div>' : '';
+    /* (26/08/2026) Campagne FIGÉE : le planning est généré, l'écran indispos est
+       en lecture seule — la tuile le dit dès le portail (icône cadenas, teinte
+       ambre, sous-titre explicite) plutôt que de laisser croire à une saisie. */
+    const fige = (t.key === 'indispos' && INDISPOS_FIGEES);
+    const icone = fige ? 'lock' : t.icon;
+    const teinte = fige ? 'ambre' : t.tint;
+    const sousTitre = fige
+      ? ('Consultation seule — le planning' + (INDISPOS_YEAR ? ' ' + INDISPOS_YEAR : '') + ' est établi.')
+      : String(t.sub).replace(' {AN}', INDISPOS_YEAR ? (' pour ' + INDISPOS_YEAR) : '').replace(' {ANTP}', PHASE_TP ? (' pour ' + PHASE_TP.annee) : '');
     const inner =
       tag +
-      '<div class="tile-ico'+(t.tint?' '+t.tint:'')+'"><i data-lucide="'+t.icon+'"></i></div>' +
+      '<div class="tile-ico'+(teinte?' '+teinte:'')+'"><i data-lucide="'+icone+'"></i></div>' +
       '<div class="tile-title">'+esc(t.title)+'</div>' +
-      '<div class="tile-sub">'+esc(String(t.sub).replace(' {AN}', INDISPOS_YEAR ? (' pour ' + INDISPOS_YEAR) : '').replace(' {ANTP}', PHASE_TP ? (' pour ' + PHASE_TP.annee) : ''))+'</div>' +
+      '<div class="tile-sub">'+esc(sousTitre)+'</div>' +
       arrow;
     // Tuile a deux destinations : la face reste identique aux autres, les deux
     // moitiés vivent dessous et n'apparaissent qu'au clic.

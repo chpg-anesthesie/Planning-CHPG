@@ -104,6 +104,20 @@ console.log('\n═══ T011 · deux sessions simultanées n\'interfèrent pas 
   V('chacun reçoit ce qui lui revient', !!a.j.data.config_admin && !b.j.data.config_admin, { admin: Object.keys(a.j.data), mar: Object.keys(b.j.data) });
 }
 
+console.log('\n═══ T012 · campagne figée : le drapeau traverse le Worker ═══');
+{
+  /* (26/08/2026) `indisposFigees` : le planning de l'année de campagne est déjà
+     généré — la tuile indispos du portail passe en consultation seule. Le drapeau
+     vit dans la clé `acces` (miroir.gs) et doit ressortir dans l'identité. */
+  const avant = M.get('acces');
+  const r0 = await lire(MAR_A, ['annees']);
+  V('clé « acces » d\'avant le drapeau : valeur sûre false', r0.j.identite.indisposFigees === false, r0.j.identite.indisposFigees);
+  const j = JSON.parse(avant); j.indisposFigees = true; M.set('acces', JSON.stringify(j));
+  const r1 = await lire(MAR_A, ['annees']);
+  V('drapeau posé dans « acces » : l\'identité le porte', r1.j.identite.indisposFigees === true, r1.j.identite.indisposFigees);
+  M.set('acces', avant);
+}
+
 console.log('\n═══ La clé « acces » elle-même n\'est jamais lisible ═══');
 {
   for (const [nom, code] of [['comité', ADMIN], ['MAR', MAR_A], ['secrétariat', SECRET]]) {
