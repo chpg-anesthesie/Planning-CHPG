@@ -102,7 +102,7 @@
   <div class="eyebrow"><span class="flag"><i class="r"></i><i class="w"></i></span> Planning-CHPG · Monaco — document équipe</div>
   <h1>L'algorithme des gardes,<br>expliqué de A à Z</h1>
   <p class="subtitle">Comment votre planning annuel de gardes est calculé : la juste part de chacun, les règles de protection, la rotation de Noël, et ce qui se passe quand l'année ne tombe pas juste.</p>
-  <div class="maj">Dernière mise à jour : 30 juillet 2026 — aligné sur l'algorithme en service.</div>
+  <div class="maj">Dernière mise à jour : 26 août 2026 — relu ligne à ligne contre l'algorithme en service.</div>
 </header>
 
 <nav class="toc">
@@ -167,7 +167,7 @@
   <ol class="steps">
     <li><strong>VD — le week-end vendredi + dimanche</strong> : la charge la plus lourde. Le même binôme assure le vendredi <em>et</em> le dimanche, avec les mêmes rôles : un week-end compte pour une unité indivisible.</li>
     <li><strong>Samedi</strong> : équilibré ensuite (et chaque samedi de garde ouvre droit à une récupération, voir section 09).</li>
-    <li><strong>Jeudi</strong>, puis les <strong>veilles de férié</strong> et les <strong>fériés</strong>.</li>
+    <li><strong>Jeudis</strong> et <strong>veilles de férié</strong>, à égalité, puis les <strong>fériés</strong>.</li>
     <li><strong>Total de gardes</strong> : équilibré en dernier — les lundis, mardis et mercredis servent de variable d'ajustement.</li>
   </ol>
   <p>Concrètement, à chaque jour à pourvoir, l'algorithme classe les MARs disponibles selon leur « retard » sur l'axe du jour (par exemple : qui est le plus loin de sa cible de samedis, pour un samedi), puis départage par le retard sur le total. Les deux premiers du classement prennent la garde.</p>
@@ -241,14 +241,13 @@
 <!-- ============ 09 ============ -->
 <section id="a9">
   <h2><span class="n">09</span>Les récupérations de samedi</h2>
-  <p>Chaque samedi de garde (y compris les samedis pris dans un pont) ouvre droit à une <strong>récupération (R)</strong>, placée automatiquement par l'algorithme selon des règles simples :</p>
+  <p>Chaque samedi de garde (y compris les samedis pris dans un pont) ouvre droit à une <strong>récupération (R)</strong>, posée automatiquement. Les samedis sont servis dans l'ordre du calendrier, et pour chacun l'algorithme cherche <strong>le premier jour qui convient après la garde</strong> :</p>
   <ul>
-    <li>Un jour de <strong>semaine</strong>, jamais un férié, au plus tôt <strong>deux semaines après</strong> le samedi travaillé.</li>
-    <li><strong>Hors vacances scolaires</strong> : la récupération ne tombe pas sur les périodes où l'effectif est déjà réduit.</li>
-    <li><strong>Espacée de vos autres récupérations</strong> (au moins trois jours d'écart) et jamais sur une de vos gardes ou indisponibilités.</li>
-    <li><strong>Sans dégarnir le service</strong> : la récupération n'est posée que si l'effectif présent ce jour-là reste au-dessus du seuil minimal.</li>
+    <li><strong>Un jour utile d'abord</strong> : de préférence un vendredi ou un lundi — le week-end s'allonge — ou un jour qui borde une absence déjà posée — les vacances s'allongent. À défaut, n'importe quel jour de semaine non férié.</li>
+    <li><strong>Sans dégarnir le service</strong> : la récupération n'est posée que si au moins <strong>quinze MARs</strong> restent présents ce jour-là — cette règle-là ne cède jamais. Au plus deux récupérations le même jour, et au moins trois jours entre deux de vos récupérations.</li>
+    <li><strong>Un jour où vous êtes présent</strong> : jamais sur une garde, un repos de garde ou une absence (vacances, formation, congé, jour de temps partiel). Un jour où vous avez seulement demandé à ne pas être de garde reste un jour travaillé : une récupération peut s'y poser.</li>
   </ul>
-  <p>Si aucune date ne satisfait toutes les règles, l'algorithme relâche progressivement l'espacement pour garantir que chaque récupération due soit bien posée.</p>
+  <p>Si aucune date confortable n'existe après la garde, l'algorithme relâche le confort — jamais le plancher de quinze. Et si vraiment rien n'est possible après, il pose la récupération <strong>avant</strong> le samedi, au plus près de la date, en le signalant au comité. Une récupération n'est jamais abandonnée en silence.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
@@ -269,7 +268,7 @@
 <section id="a11">
   <h2><span class="n">11</span>La touche finale : l'optimiseur</h2>
   <p>Une fois les 365 jours remplis, un dernier passage <strong>peaufine</strong> le résultat : l'algorithme cherche des transferts de gardes d'un MAR légèrement au-dessus de sa cible vers un MAR légèrement en dessous, et ne les applique que s'ils améliorent l'équité globale — sans jamais casser une règle de protection, un souhait honoré, un week-end VD ou une attribution de Noël.</p>
-  <p>Ce polissage prend une fraction de seconde et donne le résultat final : <strong>chacun termine à moins d'une garde et demie de sa cible</strong>, sur chaque axe. Personne ne tombe jamais exactement pile — un planning est fait de jours entiers — mais l'écart résiduel est minime, et il est traité (section 12).</p>
+  <p>Ce polissage prend une fraction de seconde et donne le résultat final : en année normale, chacun termine à moins d'une garde et demie de sa cible, sur chaque axe ; dans les années les plus tendues, l'écart peut monter davantage (voir section&nbsp;14). Personne ne tombe jamais exactement pile — un planning est fait de jours entiers — et l'écart résiduel est traité (section&nbsp;12). Dans le cas très rare où ce polissage serait interrompu avant la fin, le comité en est averti et peut relancer la génération.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
