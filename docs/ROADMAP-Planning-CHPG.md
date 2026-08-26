@@ -8,10 +8,16 @@ portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'ane
 **GAS** (relevé le 25/08/2026) `code.gs` **2026-08-25.3** ·
 `Indispos.gs` **2026-08-25.3** · `miroir.gs` **2026-08-23.7** · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-17.3 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
-`echanges.gs` **2026-08-23.1** · `generateur_gardes.gs` **2026-08-25.6** · `setup_annee.gs` 2026-08-08.1 ·
+`echanges.gs` **2026-08-23.1** · `generateur_gardes.gs` **2026-08-26.1 — ⚠️ recopie en attente** · `setup_annee.gs` 2026-08-08.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
 pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
 à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
+
+⚠️ **EN ATTENTE au 26/08 (midi) : une recopie GAS.** `generateur_gardes.gs` **2026-08-26.1**
+poussé (commit `aff5ffad3c`) — déduplication d'une pénalité interne (plannings prouvés identiques
+au caractère près) + avertissement si le plafond de 20 s coupe l'optimiseur. À recopier dans
+l'éditeur Apps Script puis **nouvelle version de déploiement** ; le Diagnostic signalera la dérive
+tant que ce n'est pas fait. Rien d'autre en attente.
 
 ✅ **RIEN EN ATTENTE au 23/08 (soir).** Le lot cloche (commit `c7dd7b68d3`) est déployé et testé
 par Arthur dans la foulée : Worker recopié, puis `miroir.gs` 2026-08-23.7 **et** `echanges.gs`
@@ -45,7 +51,9 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **1887 vérifications** sur 37 scripts (relevé le 23/08/2026 au soir),
+**Banc d'essai** `banc/` — **1921 vérifications** sur 38 scripts (relevé le 26/08/2026,
+recette exacte `grep -cE "^\s+✓ "` — le `grep -c "✓"` naïf rend 1925 en comptant les lignes
+récapitulatives),
 `cd banc && ./lancer.sh`. *(⚠️ La recette du 19/08 disait « compter les coches `✓` de la sortie
 complète ». Appliquée telle quelle — `grep -c "✓"` — elle donne **1538** : elle compte aussi la
 ligne récapitulative de `banc_notif.mjs`, qui contient « 36 ✓ / 0 ✗ ». La recette exacte est de
@@ -59,7 +67,7 @@ une recette morte. Recompter, ne pas recopier.)*
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 20 août 2026.*
+*Mise à jour : 26 août 2026.*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -133,6 +141,61 @@ autant de lignes dans `LIENS_R_2027` que de samedis tenus, Diagnostic à zéro r
 génération**, le soir même, et non plus le matin du 4. Les deux gestes sont indissociables — interrompu
 entre les deux (garde), le bac à sable reste généré et le 4 l'assistant réafficherait ce résultat sans
 calculer, en silence. Le matin du 4 ne garde plus qu'un contrôle, les adresses et le Diagnostic.
+
+---
+
+## 26 août 2026 — l'audit critique du générateur : un doublon de pénalité, le plafond 20 s rendu visible, et les week-ends d'affilée mesurés puis assumés
+
+**Le point de départ : Arthur demande un CR critique de l'algorithme de garde.** Lecture intégrale
+des 1 820 lignes, forces et faiblesses. Les forces confirmées : règles dures réellement inviolables
+(source unique `indispoIndividuelle`), couverture avant tout en couches, équité par axe, dette
+amortie, passes neutres par construction. Les faiblesses relevées : optimum local, ~30 constantes
+magiques calibrées sur la démographie actuelle, égalités tranchées par l'ordre de l'onglet MEDECINS,
+comptage des fériés couplés écrit trois fois, couplage positionnel STATS↔code.gs — et **deux vrais
+défauts corrigeables**, corrigés le jour même.
+
+**Défaut 1 — une pénalité écrite deux fois, appliquée deux fois.** L'optimiseur portait DEUX copies
+strictement identiques du test « 2 week-ends de garde d'affilée » (`hasAdjWeekend` et `_hasAdjWE`),
+toutes deux appliquées sous la même condition : pénalité réelle **±1000** alors que chaque copie
+annonçait ±500. Le jour où quelqu'un aurait réglé « le » 500, il n'en aurait réglé qu'un — poids
+divisé par deux en silence. Correction : déduplication en **conservant le ±1000 de production**,
+prouvée par comparaison **cellule par cellule** des onglets générés (GARDES + STATS + LIENS_R,
+2026/2027/2028 : identiques au caractère près) puis 40 années simulées. Contre-épreuve utile :
+le poids ±500 testé aussi — résultats **strictement identiques** sur 40 ans. Ni 500 ni 1000 ne
+change rien : le gain d'équité maximal d'un transfert VD (~42 points quadratiques) est écrasé dans
+les deux cas. **Ce n'est donc pas ce poids qui bride l'axe VD** — information acquise pour le
+chantier VD.
+
+**Défaut 2 — le plafond de 20 s coupait l'optimiseur en silence.** S'il mord un jour (Google lent),
+le peaufinage d'équité s'arrête à mi-course et personne ne le sait — le déterminisme
+production↔simulateur n'est plus garanti. Désormais : un avertissement dans la liste du comité
+(passe atteinte, transferts faits, conseil de régénérer hors charge). Jamais déclenché en test ;
+visible seulement si ça arrive.
+
+**Push `aff5ffad3c`** : `generateur_gardes.gs` **2026-08-26.1**, banc complet au vert avant
+(1921 vérifications, 0 échec). GAS pur, pas de montée de version site. **Recopie Apps Script +
+nouvelle version en attente.**
+
+**Les week-ends d'affilée, mesurés puis assumés.** Arthur découvre à l'occasion de l'audit que rien
+n'interdit deux week-ends de garde consécutifs. Mesure (scénario 0, 20 ans simulés) : **8
+enchaînements en 20 ans (~0,4/an), toujours longueur 2, jamais 3** — première occurrence simulée
+2028, concentrés sur le creux démographique 2037-2042. Trois corrections tentées au simulateur :
+
+- **pénalité au placement** : enchaînements 8→2 mais pire écart TOTAL 1,6→**3,1** — rejetée
+  (« ne jamais dégrader l'équité ») ;
+- **pénalité conditionnée au retard d'équité** : inefficace (8→8) — celui qui enchaîne est
+  précisément celui en retard, donc exempté ;
+- **passe d'échanges neutres après l'optimiseur** (même contribution, même rôle — le principe de la
+  passe confort) : 8→6 et 5→4, écarts par axe **strictement identiques** sur 40 ans, prouvé.
+
+Les survivants sont **verrouillés par les disponibilités** — tracé nommément sur 2028 : sur 17
+candidats au week-end concerné, 11 en vacances (Pâques), 6 pris sur les jours adjacents. Aucun score
+ne crée un disponible qui n'existe pas ; les éviter exigerait une anticipation sur séries de
+week-ends, précisément ce qui avait coûté −5,3 sur l'axe VD en 2041 quand la passe des jours
+critiques touchait aux samedis. **Décision d'Arthur : on laisse tel quel, on avisera si ça arrive
+en vrai.** La passe d'échanges neutres reste au tiroir (chantier documenté, code validé au
+simulateur, non poussé) ; le levier réaliste est en amont, sur la pose des congés des périodes
+saturées — conforme à la doctrine couverture.
 
 ---
 

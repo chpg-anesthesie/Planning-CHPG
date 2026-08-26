@@ -35,6 +35,37 @@ fenêtre du dernier Excel (vendredi 16 h → dimanche +9).
 
 ---
 
+## État au 26 août 2026 — audit critique du générateur, un doublon corrigé, les week-ends d'affilée assumés
+
+**Poussé et vérifié (commit `aff5ffad3c`)** : `generateur_gardes.gs` **2026-08-26.1** — ⚠️ recopie
+Apps Script + nouvelle version **en attente**. Deux corrections, plannings prouvés **identiques au
+caractère près** (GARDES + STATS + LIENS_R comparés cellule par cellule sur 2026/2027/2028, puis 40
+années simulées) : la pénalité « 2 week-ends d'affilée » de l'optimiseur existait en DEUX copies
+identiques toutes deux appliquées (±1000 réel pour ±500 annoncé — dédupliquée en conservant le poids
+réel) ; et le plafond de 20 s qui coupait l'optimiseur en silence produit désormais un avertissement
+comité. Banc **1921 vérifications, 0 échec** (recette exacte : `grep -cE "^\s+✓ "` — le grep naïf
+sur ✓ rend 1925 en comptant les récapitulatifs).
+
+**Les week-ends de garde consécutifs : mesurés, trois corrections testées, décision de ne pas
+traiter.** ~0,4/an en simulation, toujours 2 jamais 3, première occurrence 2028, concentrés sur le
+creux 2037-2042. Pénalité au placement : rejetée (pire total 1,6→3,1). Pénalité conditionnée au
+retard : inefficace (celui qui enchaîne EST celui en retard). Échanges neutres post-optimiseur
+(principe passe confort) : 8→6, équité strictement inchangée — mais les survivants sont verrouillés
+par les disponibilités (tracé sur 2028 : 11 candidats sur 17 en vacances de Pâques, 6 pris sur les
+jours adjacents). **Décision d'Arthur : on laisse, on avisera en vrai.** La passe d'échanges reste
+au tiroir, validée au simulateur, non poussée.
+
+**Appris ce jour :**
+- Une pénalité dupliquée **double silencieusement son poids** : le réglage documenté (±500) n'était
+  pas le réglage réel (±1000). Variante de « une règle écrite deux fois finit par diverger » — ici
+  elle avait déjà divergé de sa propre documentation.
+- **La preuve d'identité au caractère près** (comparer cellule par cellule les onglets générés
+  avant/après) est LA validation d'un refactor pur — plus forte que « les métriques ne bougent pas ».
+- Contre-épreuve de poids : ±500 et ±1000 donnent des plannings identiques sur 40 ans → **ce n'est
+  pas cette pénalité qui bride l'axe VD** (information pour le chantier VD).
+- Un enchaînement résiduel n'est pas un défaut de score : au moment où il se pose, personne d'autre
+  ne PEUT prendre. Le levier est en amont (pose des congés), pas dans l'algorithme.
+
 ## État au 25 août 2026 — les souhaits de garde ouverts à tous les jours
 
 **v1.82** · `generateur_gardes.gs` **2026-08-25.6** · `code.gs` **2026-08-25.3** · `Indispos.gs` **2026-08-25.3**
