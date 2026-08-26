@@ -13,8 +13,8 @@ chiffres concrets plutôt que des généralités.
 
 ## État au 25 août 2026 — les souhaits de garde ouverts à tous les jours
 
-**v1.80** · `generateur_gardes.gs` **2026-08-25.4** · `code.gs` **2026-08-25.1**
-**⚠️ LES DEUX `.gs` ATTENDENT D'ÊTRE RECOPIÉS** dans l'éditeur Apps Script puis déployés en
+**v1.82** · `generateur_gardes.gs` **2026-08-25.6** · `code.gs` **2026-08-25.3** · `Indispos.gs` **2026-08-25.3**
+**⚠️ LES TROIS `.gs` ATTENDENT D'ÊTRE RECOPIÉS** dans l'éditeur Apps Script puis déployés en
 nouvelle version. Tant que ce n'est pas fait, l'ancien générateur tourne. Le frontend est en ligne.
 
 Commits : `84c5c47` (générateur), `ad467ca` (audit comité), `baf4381` (récapitulatif MAR).
@@ -45,6 +45,43 @@ satisfaite. Ce compteur d'affichage est **séparé** de `souhaitHonored`, qui pi
 **Démonstration 2027 (un tirage d'absences)** : PRUNET tous ses mardis + LEY/ALBOUY quelques
 mardis → 🟢 vert, écart 1,1. Avec en plus 2 week-ends, 3 jeudis, 2 samedis → 🟢 vert, 1,1.
 Les 23 MAR demandant chacun un jour rare → 🟢 vert, 1,1. Zéro jour sans binôme partout.
+
+### La génération 2027 jouée en production le 25/08 au soir — 5 défauts trouvés
+
+Certificat **vert**, écart 1,2, zéro trou, 130 souhaits retenus sur 141. Cinq défauts corrigés
+dans la foulée, dont aucun n'aurait été vu sans cet essai réel :
+
+1. **Compteur de souhaits sous-évalué** — comptait à la pose, ratait les gardes placées par la
+   passe de Noël (PRUNET 43 affiché pour 45 obtenus). Compte désormais **en fin de génération**,
+   sur le planning final. Vérifié : 24/24 MAR, compteur = planning.
+2. **Notification de génération** envoyée à tous vers `admin.html` → un seul message ciblé
+   `{ role: 'mar' }` vers `dashboard.html#mes-gardes`. Rien pour le comité (pas de portail).
+3. **Le verrou fermait tout l'assistant**, y compris publication et envoi des mails : plus aucun
+   moyen de renvoyer les récapitulatifs. Bouton ajouté dans l'écran verrouillé.
+4. **Indispos modifiables après génération** → lecture seule (la campagne, elle, n'est pas fermée :
+   la clôture reste le geste du comité, sinon un essai basculerait tout).
+5. **Vendredi non marqué « week-end »** dans le mail alors qu'il fait unité avec le dimanche.
+
+### Le compte des souhaits vit UNIQUEMENT dans le mail
+
+Bandeau du tableau de bord **retiré** sur arbitrage d'Arthur (« pas envie de le voir affiché
+pendant un an »), et son transport dans `code.gs` avec lui. Libellé réduit au chiffre :
+« Souhaits : 3 retenus sur 5 ». **Aucune phrase d'explication** — deux tentatives ont été jugées
+confuses : qui voulait une date et ne l'a pas eue se moque d'apprendre qu'il a une garde ailleurs.
+
+### Notifications : file d'années, un abonnement par personne
+
+`notifPlanifier` écrasait l'année → publier 2027 faisait oublier 2026, dont les changements
+s'accumulaient (25 d'un coup le 25/08, en attente depuis le 23). Corrigé par une **file**.
+Les « première exécution » répétées sur 2027 n'étaient pas un défaut : Arthur supprimait
+lui-même la photo avant chaque test.
+
+**Un abonnement push par PERSONNE, pas par appareil** (`notif_sub_<id>`) : se connecter avec le
+compte d'un collègue lui coupe ses notifications, sans bouton évident pour les rétablir. Décision :
+on laisse, on verra à l'usage. **Ne pas faire de démo avec le compte d'un autre.**
+
+**Quota mail** : contrôlé avant envoi, rien ne part si insuffisant, aucune reprise automatique.
+**« N envoyés » ≠ « N reçus »** : un mail du 25/08 est arrivé avec plus d'une heure de retard.
 
 ### Règles gravées ce jour
 

@@ -4,11 +4,11 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.80** ·
-**GAS** (relevé le 25/08/2026) `code.gs` **2026-08-25.1** ·
-`Indispos.gs` 2026-08-23.6 · `miroir.gs` **2026-08-23.7** · `journal.gs` 2026-08-05.3 ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.82** ·
+**GAS** (relevé le 25/08/2026) `code.gs` **2026-08-25.3** ·
+`Indispos.gs` **2026-08-25.3** · `miroir.gs` **2026-08-23.7** · `journal.gs` 2026-08-05.3 ·
 `portail.gs` 2026-08-17.3 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
-`echanges.gs` **2026-08-23.1** · `generateur_gardes.gs` **2026-08-25.4** · `setup_annee.gs` 2026-08-08.1 ·
+`echanges.gs` **2026-08-23.1** · `generateur_gardes.gs` **2026-08-25.6** · `setup_annee.gs` 2026-08-08.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
 pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
 à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
@@ -99,9 +99,9 @@ calculer, en silence. Le matin du 4 ne garde plus qu'un contrôle, les adresses 
 
 ## 25 août 2026 — les souhaits de garde ouverts à tous les jours de l'année
 
-**⚠️ EN ATTENTE DE RECOPIE : `generateur_gardes.gs` (2026-08-25.4) ET `code.gs` (2026-08-25.1).**
+**⚠️ EN ATTENTE DE RECOPIE : `generateur_gardes.gs` (2026-08-25.6), `code.gs` (2026-08-25.3) ET `Indispos.gs` (2026-08-25.3).**
 Tant que les deux ne sont pas recopiés dans l'éditeur Apps Script et déployés en nouvelle
-version, l'ancien générateur tourne et rien de ce qui suit n'est actif. Le frontend (v1.80)
+version, l'ancien générateur tourne et rien de ce qui suit n'est actif. Le frontend (v1.82)
 est en ligne.
 
 Trois commits : `84c5c47` (générateur), `ad467ca` (audit du comité), `baf4381` (récapitulatif
@@ -291,6 +291,81 @@ cas — la preuve que le joker absorbe même un afflux général de demandes. Af
 36/38, LEY 9/11, ALBOUY 5/5, SUPLY et ZAMARON 2/2 sur leur week-end.
 ⚠️ Un seul tirage d'absences sur 2027, année à effectif confortable : à ne pas généraliser aux
 400 années (74 % de vert, cf. plus haut).
+
+### Soirée du 25 : la génération 2027 jouée en production, et ce qu'elle a révélé
+
+Arthur a généré 2027 pour de vrai. **Certificat vert**, pire écart 1,2 (ALBOUY, week-ends),
+zéro jour sans binôme, 130 souhaits retenus sur 141. Cinq défauts trouvés dans la foulée, tous
+corrigés — aucun n'aurait été vu sans cet essai grandeur nature.
+
+**1. Le compteur de souhaits sous-évaluait** (`90d5ab0`, générateur 2026-08-25.5).
+PRUNET affichait 43/45 alors qu'il avait bien ses 45 mardis. Le compte était fait *au moment de
+la pose*, dans la passe des souhaits ; or les mardis 21 et 28 décembre tombent dans la semaine de
+Noël, posée **avant** cette passe. Corrigé : le compte se fait **en fin de génération**, sur le
+planning final, quelle que soit la passe qui a placé la garde. Vérifié sur les données réelles :
+24 MAR sur 24, compteur = planning.
+
+**2. La notification de génération partait à tout le monde vers `admin.html`** (`668b8d8`,
+2026-08-25.6). Le MAR recevait « N avertissements » et atterrissait sur la page du comité, qui
+n'a même pas de portail. Un seul message désormais, ciblé `{ role: 'mar' }`, vers
+`dashboard.html#mes-gardes`. Rien pour le comité : le push est le canal du MAR, et le comité voit
+le résultat à l'écran au moment où il génère.
+
+**3. Le verrou fermait l'assistant en entier** (`ad51244`, v1.82). Les étapes 2 et 3 —
+publication et envoi des mails — ne régénèrent rien, mais étaient inaccessibles dès que
+`GARDES_{Y}` existait. La génération s'étant arrêtée à l'étape 1, **aucun récapitulatif n'est
+parti et il n'existait aucun moyen de le renvoyer** sinon supprimer l'onglet et tout régénérer.
+Bouton « Renvoyer les récapitulatifs aux MARs » ajouté dans l'écran verrouillé.
+
+**4. Les indispos restaient modifiables après génération** (`6d96788`, v1.81, Indispos 2026-08-25.1).
+Arthur : *« ça laisse 2-3 mois où le MAR peut aller dessus et changer ses indispos »*. Aucun
+mécanisme nouveau : `_phaseTp_()` détectait déjà « `GARDES_{Y}` existe ». `getVacConfig` renvoie
+`genere` + `anneeCampagne`, l'écran passe en **lecture seule** (bandeau, bouton « Planning publié »,
+clics refusés, sauvegarde bloquée). **La campagne n'est PAS fermée** : la clôture reste le geste du
+comité à l'étape 3 — sinon une génération d'essai basculerait toute la campagne, cas rencontré le
+jour même.
+
+**5. Le vendredi n'était pas marqué « week-end » dans le mail** (`0140568`, Indispos 2026-08-25.3).
+On lisait un vendredi « ordinaire » suivi d'un dimanche « week-end », alors que les deux forment
+une unité. Vendredi, samedi et dimanche portent désormais la mention ; le compteur suit la même
+définition et le libellé devient « N jours de week-end ».
+
+### Le récapitulatif des souhaits : dans le mail, et nulle part ailleurs
+
+D'abord posé en bandeau du tableau de bord, **retiré** sur arbitrage d'Arthur : *« pas envie de
+voir affichés pendant un an mes souhaits en cliquant sur les gardes »*. Le mail se garde, un
+bandeau se ferme et s'oublie. Le transport dans `code.gs` a été retiré avec lui (plus aucun
+consommateur : le mail lit `STATS_GARDES` directement).
+
+Libellé réduit au strict chiffre — « Souhaits : 3 retenus sur 5 ». Les phrases d'explication ont
+été supprimées après deux tentatives jugées confuses : *« la personne voulait une date, elle ne
+l'a pas, on se fout d'avoir une autre garde ailleurs »*. Encadré vert si tout est retenu, rien du
+tout sans souhait posé.
+
+### Les notifications de changement : une file d'années (`0140568`, code.gs 2026-08-25.3)
+
+`notifPlanifier` **écrasait** l'année à chaque appel. Publier 2027 faisait oublier les changements
+de 2026 en attente ; leur photo n'étant recalée qu'après un envoi réussi, ils s'accumulaient.
+
+Chronologie tracée dans le journal : le 23/08, 27 fiches appliquées sur 2026 entre 14h31 et 14h38 ;
+génération 2027 à 14h48 → l'année est écrasée ; minuteur à 14h59 → ne regarde que 2027, dont la
+photo venait d'être supprimée → « première exécution, aucun envoi ». **2026 n'est jamais vérifié.**
+Les 27 modifications attendent jusqu'au 25/08 23h29 : **25 changements, 13 mails d'un coup**.
+
+Corrigé par une **file** d'années, toutes traitées. Ancien format lu, année en échec remise dans
+la file. Les « première exécution » à répétition sur 2027 n'étaient **pas** un défaut : Arthur
+supprimait lui-même `planning_2027_notifie.json` avant chaque génération de test.
+
+### Points de fonctionnement à connaître (aucun code à écrire)
+
+- **Un abonnement push par PERSONNE, pas par appareil** (`notif_sub_<id>`). S'abonner depuis un
+  second téléphone écrase le premier. Se connecter avec le compte d'un collègue pour une
+  démonstration **lui coupe ses notifications**, et la carte d'activation étant masquée une fois
+  abonné, il n'a pas de bouton évident pour les rétablir. Décision : on laisse, on verra à l'usage.
+- **Quota mail** : contrôlé avant tout envoi, rien ne part si insuffisant, journal explicite,
+  **aucune reprise automatique** — il faut relancer à la main. Compte gratuit = 100 destinataires/jour.
+- **« N envoyés » ≠ « N reçus »** : le système ne sait que ce qu'il a remis à Google. Un mail du
+  25/08 est arrivé avec plus d'une heure de retard, en même temps qu'une autre vague.
 
 ### 📌 Reste à faire sur ce dossier
 

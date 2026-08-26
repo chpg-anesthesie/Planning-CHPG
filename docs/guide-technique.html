@@ -906,6 +906,18 @@ l'onglet à la main dans le classeur — geste volontairement inconfortable.</p>
 <code>generateGardes</code> → <code>publishPlanning</code> → <code>envoyerRecapIndispos</code>
 (c'est bien ce nom-là ; « envoyerRecapGardes » n'existe que comme libellé de journal). L'assistant
 affiche le compte des envois, des MARs sans email et des échecs.</p>
+<p><b>(25/08/2026) Renvoi hors assistant.</b> Le verrou « gardes déjà générées » fermait tout
+l'assistant, étapes 2 et 3 comprises, alors qu'elles ne régénèrent rien : quand la génération
+s'arrêtait après l'étape 1, aucun récapitulatif ne partait et il n'existait pas d'autre issue que
+de supprimer <code>GARDES_{Y}</code> et tout régénérer. L'écran verrouillé porte désormais un
+bouton <code>wizGRenvoyerRecaps</code> qui rappelle <code>envoyerRecapIndispos</code> seul.</p>
+<p><b>Contenu du mail.</b> Le compte des souhaits est lu dans <code>STATS_GARDES_{Y}</code>,
+colonnes <code>SOUHAITS POSES</code> / <code>SOUHAITS HONORES</code> cherchées <b>par nom</b> —
+absentes des plannings antérieurs, d'où un repli silencieux. Ces colonnes sont écrites
+<b>en fin</b> de feuille : <code>code.gs</code> lit encore certaines colonnes par position
+(<code>sd[r][17]</code>, <code>[19]</code>, <code>[21]</code>), les intercaler fausserait les
+cibles du tableau de bord. Le marquage « week-end » couvre vendredi, samedi et dimanche depuis
+le 25/08 : le vendredi forme une unité avec le dimanche et était omis.</p>
 </div></details>
 
 <p class="haut"><a href="#top">↑ Sommaire</a></p>
@@ -1585,6 +1597,28 @@ Après toute retouche de cette propriété : exécuter <code>synchroniserEtatEch
 <p>Le verrou est tenu <b>côté serveur</b> : tant que l'interrupteur est fermé, le relais refuse de
 servir les demandes d'échange et refuse les abonnements aux notifications — les pages n'ont donc
 rien à cacher, elles ne reçoivent simplement rien. Personne ne peut « deviner l'adresse ».</p>
+
+<details class="tech"><summary>Notifications de changement : une file d'années, un abonnement par personne</summary><div class="corps">
+<p><b>(25/08/2026) File d'années.</b> <code>notifPlanifier</code> écrasait la propriété
+<code>NOTIF_YEAR</code> à chaque appel : publier 2027 faisait oublier les changements de 2026
+encore en attente. La photo de référence (<code>planning_{Y}_notifie.json</code>) n'étant recalée
+qu'après un envoi réussi, ils s'accumulaient et repartaient tous d'un coup à la publication
+suivante de cette année-là. Trace du 23/08 : 27 fiches appliquées sur 2026 entre 14h31 et 14h38,
+génération 2027 à 14h48 (l'année est écrasée), minuteur à 14h59 qui ne regarde que 2027 — les
+27 modifications ont attendu jusqu'au 25/08 23h29, où elles sont parties en une rafale de
+25 changements et 13 mails. La propriété porte désormais une <b>file</b> d'années, toutes
+traitées ; l'ancien format (année seule) reste lu ; une année dont l'envoi échoue y retourne.</p>
+<p><b>Un abonnement par personne, pas par appareil.</b> Le relais range l'abonnement push sous
+<code>notif_sub_&lt;id&gt;</code> : s'abonner depuis un second appareil <b>écrase</b> le premier.
+Se connecter avec le compte d'un collègue pour une démonstration lui coupe donc ses
+notifications, et la carte d'activation étant masquée une fois abonné, il n'a pas de bouton
+évident pour les rétablir — il lui faut réinitialiser la permission dans les réglages du
+téléphone, ou réinstaller le raccourci.</p>
+<p><b>Quota.</b> Le contrôle est fait <b>avant</b> tout envoi (<code>_quotaEmailInsuffisant_</code>) :
+en cas d'insuffisance rien ne part, le journal porte « Envoi REFUSÉ », et la photo n'est pas
+recalée — les changements ne sont pas perdus mais ne repartiront qu'à la publication suivante.
+Aucune reprise automatique le lendemain à ce jour.</p>
+</div></details>
 
 <h3>Les contrôles : joués deux fois, écrits une</h3>
 <p>À la <b>création</b> d'une demande, toutes les règles du service sont vérifiées immédiatement —
