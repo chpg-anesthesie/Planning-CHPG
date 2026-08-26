@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-25.2';
+const GAS_VERSION_INDISPOS = '2026-08-25.3';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -4430,7 +4430,7 @@ if (action === 'getConflitsAll') {
         gardes.forEach(gg => {
           const dt = new Date(gg.date + 'T12:00:00'), dw = dt.getDay();
           if (gg.type === 'G') nRea++; else nMat++;
-          if (dw === 0 || dw === 6) nWe++;
+          if (dw === 0 || dw === 5 || dw === 6) nWe++;   // même définition que le marquage
           if (isF(gg.date)) nFer++;
           const mo = Number(gg.date.slice(5,7)) - 1;
           (byMonth[mo] = byMonth[mo] || []).push(gg);
@@ -4471,7 +4471,7 @@ if (action === 'getConflitsAll') {
         const chips =
           `<span style="display:inline-block;background:#eef4ff;color:#1d4ed8;border:1px solid #dbe6ff;border-radius:999px;font-size:12px;font-weight:700;padding:4px 11px;margin:0 6px 6px 0">${nRea} réanimation</span>` +
           `<span style="display:inline-block;background:#ecfdf5;color:#0d9488;border:1px solid #cdeee6;border-radius:999px;font-size:12px;font-weight:700;padding:4px 11px;margin:0 6px 6px 0">${nMat} maternité</span>` +
-          (nWe ? `<span style="display:inline-block;background:#fff7ed;color:#c2410c;border:1px solid #fde3cf;border-radius:999px;font-size:12px;font-weight:700;padding:4px 11px;margin:0 6px 6px 0">${nWe} week-end${nWe>1?'s':''}</span>` : '') +
+          (nWe ? `<span style="display:inline-block;background:#fff7ed;color:#c2410c;border:1px solid #fde3cf;border-radius:999px;font-size:12px;font-weight:700;padding:4px 11px;margin:0 6px 6px 0">${nWe} jour${nWe>1?'s':''} de week-end</span>` : '') +
           (nFer ? `<span style="display:inline-block;background:#fef2f2;color:#b91c1c;border:1px solid #fbd5d5;border-radius:999px;font-size:12px;font-weight:700;padding:4px 11px;margin:0 6px 6px 0">${nFer} férié${nFer>1?'s':''}</span>` : '');
 
         let rowsHtml = '';
@@ -4480,7 +4480,12 @@ if (action === 'getConflitsAll') {
           byMonth[mo].forEach(gg => {
             const dt = new Date(gg.date + 'T12:00:00'), dw = dt.getDay();
             const dlabel = `${JOURS[dw]} ${dd(dt.getDate())}/${dd(mo+1)}`;
-            const ferie = isF(gg.date), we = (dw === 0 || dw === 6);
+            /* (25/08/2026) Le vendredi était oublié du marquage alors qu'il forme une
+               unité avec le dimanche (même binôme, même week-end de garde). Seul le
+               dimanche portait la mention, ce qui rendait la liste illisible : on
+               voyait un vendredi « ordinaire » suivi d'un dimanche « week-end ».
+               Vendredi, samedi et dimanche sont désormais marqués. */
+            const ferie = isF(gg.date), we = (dw === 0 || dw === 5 || dw === 6);
             const badge = gg.type === 'G'
               ? '<span style="display:inline-block;background:#eef4ff;color:#1d4ed8;border-radius:7px;font-size:12px;font-weight:700;padding:4px 10px">G &middot; Réa</span>'
               : '<span style="display:inline-block;background:#ecfdf5;color:#0d9488;border-radius:7px;font-size:12px;font-weight:700;padding:4px 10px">G2 &middot; Mat</span>';
@@ -4531,14 +4536,14 @@ if (action === 'getConflitsAll') {
           bodyText += 'Aucune garde programmée pour vous en ' + year + '.\n';
         } else {
           bodyText += gardes.length + ' garde' + (gardes.length>1?'s':'') + ' — ' + nRea + ' réa / ' + nMat + ' mat'
-            + (nWe ? ' \u00b7 ' + nWe + ' week-end' + (nWe>1?'s':'') : '')
+            + (nWe ? ' \u00b7 ' + nWe + ' jour' + (nWe>1?'s':'') + ' de week-end' : '')
             + (nFer ? ' \u00b7 ' + nFer + ' férié' + (nFer>1?'s':'') : '') + '\n\n';
           Object.keys(byMonth).map(Number).sort((p,q)=>p-q).forEach(mo => {
             bodyText += MOIS[mo] + ' :\n';
             byMonth[mo].forEach(gg => {
               const dt = new Date(gg.date + 'T12:00:00'), dw = dt.getDay();
               const nm = fnames[gg.date];
-              const tag = isF(gg.date) ? ' [Férié' + (nm?' '+nm:'') + ']' : ((dw===0||dw===6) ? ' [week-end]' : '');
+              const tag = isF(gg.date) ? ' [Férié' + (nm?' '+nm:'') + ']' : ((dw===0||dw===5||dw===6) ? ' [week-end]' : '');
               bodyText += '  ' + JOURS[dw] + ' ' + dd(dt.getDate()) + '/' + dd(mo+1) + ' \u2014 ' + (gg.type==='G'?'G (réa)':'G2 (mat)') + tag + '\n';
             });
           });

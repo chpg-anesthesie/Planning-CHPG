@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-08-25.2';
+const GAS_VERSION_CODE = '2026-08-25.3';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 // Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
@@ -1534,14 +1534,38 @@ const NOTIF_MOIS  = ['janvier','février','mars','avril','mai','juin',
 // ── Armer / réarmer le minuteur ───────────────────────────────────────
 // Appelée après chaque publication. Supprime le minuteur en attente et en
 // repose un neuf : tant que le comité publie, rien ne part.
+/* (25/08/2026) La propriété ne portait qu'UNE année et l'écrasait à chaque appel :
+   publier 2027 faisait oublier les changements de 2026 encore en attente. Leur photo
+   n'étant recalée qu'après un envoi réussi, ils s'accumulaient et repartaient tous
+   d'un coup à la publication suivante de CETTE année-là — 25 changements et 13 mails
+   d'un seul coup le 25/08, pour des modifications remontant au 21.
+   La propriété porte désormais une FILE d'années ; notifEnvoyer les traite toutes. */
 function notifPlanifier(year) {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'notifEnvoyer') ScriptApp.deleteTrigger(t);
   });
-  PropertiesService.getScriptProperties()
-    .setProperty(NOTIF_PROP_YEAR, String(year || getActiveYear()));
+  const props = PropertiesService.getScriptProperties();
+  const y = Number(year || getActiveYear());
+  const file = _notifFileAnnees_(props);
+  if (file.indexOf(y) < 0) file.push(y);
+  props.setProperty(NOTIF_PROP_YEAR, JSON.stringify(file));
   ScriptApp.newTrigger('notifEnvoyer')
     .timeBased().after(NOTIF_DELAI_MIN * 60 * 1000).create();
+}
+
+/* Lit la file d'années en attente. Accepte l'ancien format (une année seule, ex.
+   « 2027 ») pour ne rien perdre au moment de la bascule. */
+function _notifFileAnnees_(props) {
+  const brut = String(props.getProperty(NOTIF_PROP_YEAR) || '').trim();
+  if (!brut) return [];
+  try {
+    const v = JSON.parse(brut);
+    if (Array.isArray(v)) return v.map(Number).filter(function (x) { return x > 0; });
+    if (Number(v) > 0) return [Number(v)];
+  } catch (e) {
+    if (Number(brut) > 0) return [Number(brut)];   // ancien format
+  }
+  return [];
 }
 
 // ── Recaler la photo de référence sans rien envoyer ───────────────────
@@ -1563,8 +1587,18 @@ function notifEnvoyer() {
   });
 
   const props = PropertiesService.getScriptProperties();
-  const year  = Number(props.getProperty(NOTIF_PROP_YEAR)) || getActiveYear();
   const actif = String(props.getProperty(NOTIF_PROP_ACTIVE) || '').trim().toUpperCase() === 'O';
+
+  /* Toutes les années en attente sont traitées, pas seulement la dernière publiée.
+     La file est vidée d'entrée : si une année échoue, sa photo n'est pas recalée et
+     ses changements repartiront à la prochaine publication — jamais perdus. */
+  const file = _notifFileAnnees_(props);
+  props.deleteProperty(NOTIF_PROP_YEAR);
+  const annees = file.length ? file : [getActiveYear()];
+  annees.forEach(function (an) { _notifEnvoyerAnnee_(an, actif); });
+}
+
+function _notifEnvoyerAnnee_(year, actif) {
 
   const refName = 'planning_' + year + '_notifie.json';
   const courantRaw = readPlanningFromDrive('planning_' + year + '.json');
@@ -1614,6 +1648,17 @@ function notifEnvoyer() {
   // La photo n'est mise à jour QUE si l'envoi s'est déroulé sans erreur : sinon
   // les changements non annoncés seront repris à la publication suivante.
   if (!envoi.errors.length) savePlanningToDrive(refName, courantRaw);
+  else {
+    // (25/08/2026) L'année revient dans la file : sans cela, un échec d'envoi la
+    // faisait sortir de la file (vidée en début de passe) et ses changements
+    // n'auraient été repris qu'à la prochaine publication de cette année précise.
+    try {
+      const _p = PropertiesService.getScriptProperties();
+      const _f = _notifFileAnnees_(_p);
+      if (_f.indexOf(year) < 0) _f.push(year);
+      _p.setProperty(NOTIF_PROP_YEAR, JSON.stringify(_f));
+    } catch (e) { /* la photo non recalée suffit à ne rien perdre */ }
+  }
 
   logAction('notifEnvoyer ' + year + ' — ' + nbChang + ' changement(s), ' +
     envoi.sent + ' mail(s), ' + envoi.skipped + ' sans email, ' +
