@@ -786,6 +786,30 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     }
   }
 
+  /* ═══ 28 ter. Toute icône demandée existe dans le mini-bundle local ═══
+     (26/08/2026) DÉFAUT VU EN PRODUCTION LE SOIR MÊME : la tuile figée demandait
+     `lock`, absent du mini-bundle — carré ambre VIDE, sans erreur, exactement le
+     piège que l'en-tête du bundle décrit. On collecte ici TOUTES les icônes que
+     dashboard.html peut demander (statiques `data-lucide`, tableau TILES, et les
+     icônes dérivées comme celle de la tuile figée) et on exige leur présence. */
+  {
+    console.log('\n═══ 28 ter. Toute icône du dashboard existe dans le mini-bundle ═══');
+    const page = fs.readFileSync('../dashboard.html', 'utf8');
+    const bundle = fs.readFileSync('../assets/vendor/lucide-icons.js', 'utf8');
+    const mIcons = bundle.match(/var ICONS = \{[\s\S]*?\n/);
+    V('le catalogue du bundle est lisible', !!mIcons);
+    const dispo = new Set([...mIcons[0].matchAll(/"([a-z][a-z-]*)":\[/g)].map(m => m[1]));
+    V('le catalogue n\'est pas vide', dispo.size > 10, dispo.size);
+    const demandees = new Set();
+    [...page.matchAll(/data-lucide="([a-z-]+)"/g)].forEach(m => demandees.add(m[1]));
+    [...page.matchAll(/icon:\s*'([a-z-]+)'/g)].forEach(m => demandees.add(m[1]));
+    const mFige = page.match(/icone = fige \? '([a-z-]+)'/);
+    V('l\'icône de la tuile figée est lisible dans la page', !!mFige);
+    if (mFige) demandees.add(mFige[1]);
+    const absentes = [...demandees].filter(n => !dispo.has(n));
+    V('aucune icône demandée n\'est absente du bundle (carré vide sinon)', absentes.length === 0, absentes);
+  }
+
   /* ═══ 28 bis. Campagne figée : la tuile indispos le dit dès le portail ═══
      (26/08/2026) Le planning généré, l'écran indispos passe en lecture seule —
      la tuile doit l'annoncer (cadenas, teinte ambre, « Consultation seule »)
