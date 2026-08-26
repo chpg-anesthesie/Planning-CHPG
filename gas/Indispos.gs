@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-25.3';
+const GAS_VERSION_INDISPOS = '2026-08-26.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -4475,37 +4475,83 @@ if (action === 'getConflitsAll') {
           (nFer ? `<span style="display:inline-block;background:#fef2f2;color:#b91c1c;border:1px solid #fbd5d5;border-radius:999px;font-size:12px;font-weight:700;padding:4px 11px;margin:0 6px 6px 0">${nFer} férié${nFer>1?'s':''}</span>` : '');
 
         let rowsHtml = '';
-        Object.keys(byMonth).map(Number).sort((p,q)=>p-q).forEach(mo => {
+        /* (26/08/2026) Un week-end de garde (vendredi + dimanche, même binôme) est
+           présenté dans UN SEUL encadré : deux lignes séparées donnaient une liste
+           hachée où rien ne disait que les deux dates allaient ensemble. Les jours
+           sont d'abord regroupés en UNITÉS, puis rangés au mois du vendredi — un
+           week-end à cheval sur deux mois reste donc d'un seul tenant. */
+        const parDate = {};
+        gardes.forEach(gg => { parDate[gg.date] = gg; });
+        const dPlus = (ds, n) => {
+          const x = new Date(ds + 'T12:00:00'); x.setDate(x.getDate() + n);
+          return `${x.getFullYear()}-${dd(x.getMonth()+1)}-${dd(x.getDate())}`;
+        };
+        const pris = {};
+        const unites = [];
+        gardes.slice().sort((a,b) => a.date < b.date ? -1 : 1).forEach(gg => {
+          if (pris[gg.date]) return;
+          const dw = new Date(gg.date + 'T12:00:00').getDay();
+          if (dw === 5) {
+            const dim = dPlus(gg.date, 2), gd = parDate[dim];
+            /* (26/08/2026) On lie dès qu'il y a garde le vendredi ET le dimanche : c'est
+               le WEEK-END qui compte. Le rôle peut différer entre les deux jours (après
+               un échange, par exemple) — chaque ligne porte le sien, le cadre les réunit
+               quand même. Exiger le même rôle aurait dissocié ces week-ends à l'affichage. */
+            if (gd && !pris[dim]) {
+              pris[gg.date] = pris[dim] = 1;
+              unites.push({ we: true, jours: [gg, gd] });
+              return;
+            }
+          }
+          pris[gg.date] = 1;
+          unites.push({ we: false, jours: [gg] });
+        });
+
+        const parMois = {};
+        unites.forEach(u => {
+          const mo = Number(u.jours[0].date.slice(5,7)) - 1;
+          (parMois[mo] = parMois[mo] || []).push(u);
+        });
+
+        const badgeDe = t => t === 'G'
+          ? '<span style="display:inline-block;background:#eef4ff;color:#1d4ed8;border-radius:7px;font-size:12px;font-weight:700;padding:4px 10px">G &middot; Réa</span>'
+          : '<span style="display:inline-block;background:#ecfdf5;color:#0d9488;border-radius:7px;font-size:12px;font-weight:700;padding:4px 10px">G2 &middot; Mat</span>';
+        const libelle = ds => {
+          const dt = new Date(ds + 'T12:00:00');
+          return `${JOURS[dt.getDay()]} ${dd(dt.getDate())}/${dd(dt.getMonth()+1)}`;
+        };
+
+        Object.keys(parMois).map(Number).sort((p,q)=>p-q).forEach(mo => {
           rowsHtml += `<div style="font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#94a3b8;margin:18px 0 8px 2px">${MOIS[mo]}</div>`;
-          byMonth[mo].forEach(gg => {
-            const dt = new Date(gg.date + 'T12:00:00'), dw = dt.getDay();
-            const dlabel = `${JOURS[dw]} ${dd(dt.getDate())}/${dd(mo+1)}`;
-            /* (25/08/2026) Le vendredi était oublié du marquage alors qu'il forme une
-               unité avec le dimanche (même binôme, même week-end de garde). Seul le
-               dimanche portait la mention, ce qui rendait la liste illisible : on
-               voyait un vendredi « ordinaire » suivi d'un dimanche « week-end ».
-               Vendredi, samedi et dimanche sont désormais marqués. */
-            const ferie = isF(gg.date), we = (dw === 0 || dw === 5 || dw === 6);
-            const badge = gg.type === 'G'
-              ? '<span style="display:inline-block;background:#eef4ff;color:#1d4ed8;border-radius:7px;font-size:12px;font-weight:700;padding:4px 10px">G &middot; Réa</span>'
-              : '<span style="display:inline-block;background:#ecfdf5;color:#0d9488;border-radius:7px;font-size:12px;font-weight:700;padding:4px 10px">G2 &middot; Mat</span>';
+          parMois[mo].forEach(u => {
+            if (u.we) {
+              /* Chaque jour garde SA ligne (sa date, son rôle) ; c'est le cadre qui les
+                 réunit — le vendredi et le dimanche sont un seul week-end de garde. */
+              rowsHtml += `<div style="border:1px solid #fde3cf;background:#fffaf5;border-radius:10px;padding:8px 12px 4px;margin-bottom:7px">`
+                + `<div style="font-size:10.5px;font-weight:800;color:#c2410c;letter-spacing:.3px;margin-bottom:2px">WEEK-END</div>`
+                + u.jours.map((g, i) => `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;`
+                    + `${i ? 'border-top:1px solid #fde3cf;' : ''}">`
+                    + `<span style="font-size:14px;font-weight:700;color:#0f172a">${libelle(g.date)}</span>`
+                    + `${badgeDe(g.type)}</div>`).join('')
+                + `</div>`;
+              return;
+            }
+            const gg = u.jours[0];
+            const dw = new Date(gg.date + 'T12:00:00').getDay();
+            const ferie = isF(gg.date), sam = (dw === 6);
             let rowStyle = 'border:1px solid #eef1f5;', tag = '';
             if (ferie) {
               const nm = fnames[gg.date];
               rowStyle = 'border:1px solid #fbd5d5;background:#fef6f6;';
               tag = `<span style="font-size:10.5px;font-weight:700;color:#b91c1c;background:#fdeaea;border-radius:5px;padding:2px 7px">Férié${nm?' &middot; '+nm:''}</span>`;
-            } else if (we) {
+            } else if (sam) {
               rowStyle = 'border:1px solid #fde3cf;background:#fffaf5;';
-              tag = '<span style="font-size:10.5px;font-weight:700;color:#c2410c;background:#fff1e6;border-radius:5px;padding:2px 7px">Week-end</span>';
+              tag = '<span style="font-size:10.5px;font-weight:700;color:#c2410c;background:#fff1e6;border-radius:5px;padding:2px 7px">Samedi</span>';
             }
-            rowsHtml += `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;${rowStyle}border-radius:10px;margin-bottom:7px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:700;color:#0f172a">${dlabel}</span>${tag}</div>${badge}</div>`;
+            rowsHtml += `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;${rowStyle}border-radius:10px;margin-bottom:7px"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px;font-weight:700;color:#0f172a">${libelle(gg.date)}</span>${tag}</div>${badgeDe(gg.type)}</div>`;
           });
         });
 
-        const summaryHtml = gardes.length
-          ? `<div style="background:#f8fafc;border:1px solid #eef1f5;border-radius:12px;padding:14px 16px;margin-bottom:22px"><div style="font-size:13px;color:#64748b;font-weight:600;margin-bottom:10px">${gardes.length} garde${gardes.length>1?'s':''} sur l'année</div><div>${chips}</div></div>`
-          : '';
-        const emptyHtml = '<div style="background:#f8fafc;border:1px solid #eef1f5;border-radius:12px;padding:18px;text-align:center;color:#64748b;font-size:14px">Aucune garde programmée pour vous en ' + year + '.</div>';
         const coreHtml = gardes.length ? (summaryHtml + souhaitsHtml + rowsHtml) : (emptyHtml + souhaitsHtml);
 
         const html =
