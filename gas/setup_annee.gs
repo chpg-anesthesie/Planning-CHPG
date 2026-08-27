@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_SETUP = '2026-08-08.1';
+const GAS_VERSION_SETUP = '2026-08-27.1';
 
 
 // ══════════════════════════════════════════════════════════════════════
@@ -170,9 +170,35 @@ function proposerVacances(year, zone) {
     { concept:'printemps', nom:'Printemps', debut:year+'-04-05', fin:year+'-04-20',     seuil:8  },
     { concept:'ete',       nom:'Été',       debut:year+'-07-05', fin:year+'-08-31',     seuil:12 },
     { concept:'toussaint', nom:'Toussaint', debut:year+'-10-18', fin:year+'-11-02',     seuil:8  },
-    { concept:'noel',      nom:'Noël',      debut:year+'-12-19', fin:(year+1)+'-01-04', seuil:8  }
+    { concept:'noel',      nom:'Noël',      debut:year+'-12-18', fin:(year+1)+'-01-04', seuil:8  }
   ];
-  REPERES.forEach(function(p){ if (!present(p.concept, year)) out.push({ nom:p.nom, debut:p.debut, fin:p.fin, seuil:p.seuil, estime:true }); });
+  // (27/08/2026) Les repères ESTIMÉS épousent la forme des vraies vacances :
+  // début un SAMEDI (le plus proche du repère), fin le DIMANCHE quinze jours
+  // plus tard — sauf l'été, dont la fin reste forcée au 31/08. Sans cela, un
+  // repère à date fixe tombait un jour différent chaque année (mardi en 2028)
+  // et cassait la convention samedi→dimanche que suivent les périodes de l'API.
+  function _samediProche_(ds){
+    const d = new Date(ds + 'T12:00:00');
+    const av = (d.getDay() + 1) % 7;          // jours en arrière jusqu'au samedi
+    const ap = (6 - d.getDay() + 7) % 7;      // jours en avant jusqu'au samedi
+    d.setDate(d.getDate() + (ap < av ? ap : -av));
+    return toDateStr(d);
+  }
+  // Noël : samedi SUIVANT ou égal — jamais en arrière, pour que la quinzaine
+  // morde toujours sur début janvier, comme les vraies (18/12 en 2027, 23/12 en 2028).
+  function _samediApres_(ds){
+    const d = new Date(ds + 'T12:00:00');
+    d.setDate(d.getDate() + (6 - d.getDay() + 7) % 7);
+    return toDateStr(d);
+  }
+  REPERES.forEach(function(p){
+    if (present(p.concept, year)) return;
+    const debut = p.concept === 'noel' ? _samediApres_(p.debut) : _samediProche_(p.debut);
+    let fin;
+    if (p.concept === 'ete') { fin = p.fin; }
+    else { const f = new Date(debut + 'T12:00:00'); f.setDate(f.getDate() + 15); fin = toDateStr(f); }
+    out.push({ nom:p.nom, debut:debut, fin:fin, seuil:p.seuil, estime:true });
+  });
   out.sort(function(a,b){ return a.debut < b.debut ? -1 : 1; });
   return out;
 }
