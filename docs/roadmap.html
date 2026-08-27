@@ -1,553 +1,209 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Roadmap — Planning-CHPG</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Planning-CHPG — Roadmap</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --red:#CE1126; --red-soft:#FDECEF; --red-deep:#9E0C1D;
-    --blue:#1D6FB8; --blue-soft:#EAF3FB;
-    --amber:#B45309; --amber-soft:#FDF3E3;
-    --green:#166534; --green-soft:#DCFCE7;
-    --viol:#6D28D9; --viol-soft:#F5F3FF;
-    --ink:#0F172A; --ink-2:#475569; --ink-3:#7A8699;
-    --line:#E2E8F0; --bg:#F6F8FB; --white:#fff;
-    --mono:'DM Mono',ui-monospace,monospace;
-  }
-  *{box-sizing:border-box}
-  body{margin:0; background:var(--bg); color:var(--ink);
-    font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
-    line-height:1.6; font-size:15px; padding:32px 18px 80px}
-  .wrap{max-width:860px; margin:0 auto}
+:root{--red:#CE1126;--deep:#9E0C1D;--ink:#0F172A;--ink2:#475569;--line:#E2E8F0;--bg:#F6F8FB;
+--ok:#1E7A46;--ok-soft:#EAF6EF;--amber:#92600A;--amber-soft:#FDF6E3}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:"DM Sans",sans-serif;color:var(--ink);font-size:15px;line-height:1.5}
+.wrap{max-width:860px;margin:0 auto;padding:22px 16px 70px}
 
-  /* ---- en-tête ---- */
-  .flag{display:inline-flex; height:14px; width:22px; border-radius:3px; overflow:hidden; border:1px solid var(--line); vertical-align:-2px; margin-right:8px}
-  .flag span{flex:1} .flag .r{background:var(--red)} .flag .w{background:#fff}
-  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--red); font-weight:500}
-  h1{font-size:31px; font-weight:800; letter-spacing:-.025em; margin:6px 0 6px; line-height:1.15}
-  .lede{color:var(--ink-2); margin:0 0 18px; max-width:60ch}
+/* bandeau commun (26/08) */
+.appbar{background:linear-gradient(135deg,#9E0C1D 0%,#CE1126 78%);color:#fff;border-radius:16px;
+  padding:18px;position:relative;overflow:hidden;margin:0 0 18px}
+.appbar-wm{position:absolute;right:-30px;top:-30px;width:190px;opacity:.10;filter:brightness(4);pointer-events:none}
+.appbar-row{display:flex;align-items:center;gap:14px;position:relative}
+.appbar-ic{width:48px;height:48px;border-radius:12px;background:#fff;padding:3px;box-shadow:0 3px 10px rgba(0,0,0,.25);flex:none}
+.appbar-eyebrow{font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.85}
+.appbar h1{margin:2px 0 0;font-size:clamp(20px,5.5vw,25px);font-weight:800;letter-spacing:-.01em;color:#fff;line-height:1.15}
+.appbar-chip{margin-left:auto;font-family:"DM Mono",monospace;font-size:11px;background:rgba(255,255,255,.16);
+  border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:4px 10px;white-space:nowrap;color:#fff;flex:none}
+.appbar-sub{margin:10px 0 0;font-size:14px;opacity:.92;position:relative;color:#fff}
 
-  /* ---- bandeau d'état ---- */
-  .etat{background:var(--ink); color:#fff; border-radius:14px; padding:16px 20px; margin:0 0 8px}
-  .etat h2{margin:0 0 12px; font-family:var(--mono); font-size:11px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:#94A3B8; border:none; padding:0}
-  .etat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:14px 18px}
-  .etat-k{font-family:var(--mono); font-size:11px; color:#94A3B8; letter-spacing:.04em}
-  .etat-v{font-size:17px; font-weight:700; letter-spacing:-.01em}
-  .etat-v small{font-weight:500; font-size:12px; color:#94A3B8; font-family:var(--mono)}
-  .verif{font-family:var(--mono); font-size:11px; color:var(--ink-3); margin:0 0 30px; text-align:right}
+h2{font-size:17px;font-weight:800;margin:30px 0 10px;letter-spacing:-.01em}
+h2 small{font-weight:500;color:var(--ink2);font-size:12.5px;margin-left:8px}
 
-  /* ---- échéancier (signature) ---- */
-  .ech{position:relative; margin:0 0 38px; padding-left:26px}
-  .ech::before{content:''; position:absolute; left:6px; top:10px; bottom:10px; width:2px; background:linear-gradient(var(--red),var(--line))}
-  .jalon{position:relative; padding:0 0 20px 0}
-  .jalon::before{content:''; position:absolute; left:-25px; top:6px; width:12px; height:12px; border-radius:50%; background:var(--white); border:2px solid var(--line)}
-  .jalon.chaud::before{background:var(--red); border-color:var(--red); box-shadow:0 0 0 4px var(--red-soft)}
-  .jalon-t{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
-  .jalon-d{font-family:var(--mono); font-size:12px; color:var(--ink-3); letter-spacing:.03em}
-  .jalon-n{font-weight:700; font-size:16px; letter-spacing:-.01em}
-  .jalon-p{margin:2px 0 0; color:var(--ink-2); font-size:14px}
-  .cd{font-family:var(--mono); font-size:11px; font-weight:500; padding:2px 8px; border-radius:20px; background:var(--line); color:var(--ink-2); white-space:nowrap}
-  .cd.urgent{background:var(--red); color:#fff}
-  .cd.proche{background:var(--amber-soft); color:var(--amber)}
+/* tuiles d'état */
+.etat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.etat-grid>div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.etat-k{font-family:"DM Mono",monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.etat-v{font-size:21px;font-weight:800;margin-top:2px}
+.etat-v small{font-size:11.5px;font-weight:500;color:var(--ink2)}
+.note{font-size:12.5px;color:var(--ink2);margin:8px 2px 0}
 
-  /* ---- sections ---- */
-  h2{font-size:13px; font-family:var(--mono); font-weight:500; text-transform:uppercase; letter-spacing:.09em; color:var(--ink-3);
-     border-top:1px solid var(--line); padding-top:16px; margin:40px 0 16px}
-  h3{font-size:16px; font-weight:700; margin:24px 0 8px; letter-spacing:-.01em}
-  p{margin:0 0 12px}
+/* échéancier */
+.jalon{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-bottom:8px}
+.jalon.chaud{border-color:#F6C9D2;background:#FFF8F9}
+.jalon-t{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.jalon-d{font-family:"DM Mono",monospace;font-size:12px;color:var(--deep);font-weight:500;white-space:nowrap}
+.jalon-n{font-weight:700}
+.cd{margin-left:auto;font-family:"DM Mono",monospace;font-size:11.5px;color:var(--ink2)}
+.cd.proche{color:var(--amber);font-weight:700}
+.cd.urgent{color:var(--deep);font-weight:700}
+.jalon-p{margin:4px 0 0;font-size:13px;color:var(--ink2)}
 
-  .card{background:var(--white); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:0 0 12px}
-  .card h4{margin:0 0 6px; font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
-  .card p{margin:0; color:var(--ink-2); font-size:14px}
-  .card p + p{margin-top:8px}
-  .card.risque{border-left:3px solid var(--red)}
-  .card.ok{border-left:3px solid var(--green)}
-  .card.attente{border-left:3px solid var(--amber)}
+/* à faire */
+.todo{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 16px;margin-bottom:10px}
+.todo b.t{display:block;font-size:14.5px;margin-bottom:5px}
+.todo ul{margin:0;padding-left:19px}
+.todo li{margin:3px 0;font-size:13.5px}
+.todo li small{color:var(--ink2)}
+.pin{background:var(--amber-soft);border:1px solid #F0DCAE;border-radius:8px;padding:2px 7px;font-size:12px;color:var(--amber);font-weight:700}
 
-  .tag{font-family:var(--mono); font-size:10px; letter-spacing:.05em; text-transform:uppercase; padding:2px 7px; border-radius:5px; font-weight:500}
-  .t-red{background:var(--red-soft); color:var(--red-deep)}
-  .t-amber{background:var(--amber-soft); color:var(--amber)}
-  .t-green{background:var(--green-soft); color:var(--green)}
-  .t-blue{background:var(--blue-soft); color:var(--blue)}
-  .t-viol{background:var(--viol-soft); color:var(--viol)}
+/* modules */
+.mods{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px}
+.mod{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px}
+.mod b{display:block;margin-bottom:2px}
+.mod span{color:var(--ink2);font-size:12.5px}
 
-  ul{margin:8px 0 12px; padding-left:20px} li{margin:5px 0}
-  code{font-family:var(--mono); font-size:.88em; background:#EEF2F7; padding:1px 5px; border-radius:4px; color:var(--ink)}
-  b{font-weight:700}
-
-  /* ---- check-list ---- */
-  .check{background:var(--white); border:1px solid var(--line); border-radius:12px; padding:6px 18px; margin:0 0 12px}
-  .check li{list-style:none; padding:11px 0 11px 30px; border-bottom:1px solid var(--line); position:relative; margin:0; font-size:14px}
-  .check li:last-child{border-bottom:none}
-  .check li::before{content:''; position:absolute; left:0; top:15px; width:15px; height:15px; border:2px solid var(--line); border-radius:4px}
-  .check ul{padding:0; margin:0}
-
-  /* ---- modules en production ---- */
-  .mods{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; margin:0 0 12px}
-  .mod{background:var(--white); border:1px solid var(--line); border-radius:10px; padding:12px 14px}
-  .mod b{display:block; font-size:14px; margin-bottom:2px}
-  .mod span{font-size:13px; color:var(--ink-2); line-height:1.45}
-
-  /* ---- règles ---- */
-  .regle{border-left:3px solid var(--ink); background:var(--white); border-radius:0 10px 10px 0; padding:12px 16px; margin:0 0 10px}
-  .regle b{display:block; margin-bottom:3px; font-size:14px}
-  .regle span{font-size:13.5px; color:var(--ink-2)}
-
-  details{background:var(--white); border:1px solid var(--line); border-radius:10px; padding:0 16px; margin:0 0 10px}
-  summary{cursor:pointer; padding:12px 0; font-weight:600; font-size:14px; list-style:none}
-  summary::-webkit-details-marker{display:none}
-  summary::before{content:'+ '; font-family:var(--mono); color:var(--red); font-weight:700}
-  details[open] summary::before{content:'– '}
-  details > *:not(summary){font-size:13.5px; color:var(--ink-2)}
-  details > *:last-child{padding-bottom:14px}
-
-  .foot{margin-top:52px; padding-top:18px; border-top:1px solid var(--line); font-family:var(--mono); font-size:12px; color:var(--ink-3); text-align:center; line-height:1.8}
-
-  @media (max-width:600px){
-    body{padding:24px 14px 60px} h1{font-size:25px}
-    .etat-v{font-size:15px}
-  }
-  @media (prefers-reduced-motion:no-preference){
-    .jalon.chaud::before{animation:pulse 2.6s ease-in-out infinite}
-    @keyframes pulse{0%,100%{box-shadow:0 0 0 4px var(--red-soft)}50%{box-shadow:0 0 0 8px rgba(206,17,38,.10)}}
-  }
-
-  /* (18/08/2026) Bandeau d'avancement : voir d'un coup d'oeil ce qui reste. */
-  .avance{background:linear-gradient(180deg,#F6FBF7,#fff); border:1px solid var(--green-soft);
-          border-left:3px solid var(--green); border-radius:14px; padding:18px 20px; margin:0 0 18px}
-  .avance .titre{font-size:19px; font-weight:800; letter-spacing:-.02em; color:var(--green); margin:0 0 4px}
-  .avance .sous{font-size:14px; color:var(--ink-2); margin:0 0 14px}
-  .avance-chiffres{display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:12px 16px; margin-bottom:16px}
-  .avance-chiffres div b{display:block; font-size:22px; font-weight:800; letter-spacing:-.02em; color:var(--ink)}
-  .avance-chiffres div span{font-family:var(--mono); font-size:11px; color:var(--ink-3); letter-spacing:.03em}
-  .jauge{height:10px; border-radius:99px; background:var(--line); overflow:hidden; display:flex; margin-bottom:6px}
-  .jauge i{display:block; height:100%}
-  .jauge .f{background:var(--green)}
-  .jauge .r{background:var(--amber-soft)}
-  .jauge-lg{display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; color:var(--ink-3); margin-bottom:14px}
-  .reste{margin:0; padding:0; list-style:none}
-  .reste li{display:flex; gap:10px; align-items:baseline; padding:7px 0; border-top:1px dashed var(--line); font-size:14px; color:var(--ink-2)}
-  .reste li:first-child{border-top:none}
-  .reste .q{font-family:var(--mono); font-size:11px; color:var(--ink-3); white-space:nowrap; min-width:74px}
+/* replis */
+details{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:10px}
+summary{font-weight:700;cursor:pointer;font-size:14.5px}
+.regle{margin:10px 0 0;font-size:13.5px}
+.regle b{display:block}
+.regle span{color:var(--ink2);font-size:12.5px}
+.pied{margin-top:34px;font-size:12.5px;color:var(--ink2)}
+.pied a{color:var(--deep)}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <p class="eyebrow"><span class="flag"><span class="r"></span><span class="w"></span></span>Roadmap</p>
-  <h1>Planning-CHPG</h1>
-  <p class="lede">Document de pilotage : ce qui tourne, ce qui vient, ce qu'on ne refait pas.
-  Le dépôt en ligne fait foi pour le code ; le classeur maître pour les données.</p>
-
-  <div class="etat">
-    <h2>État vérifié</h2>
-    <div class="etat-grid">
-      <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-      <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1944 <small>vérifs · 39 scripts</small></div></div>
-      <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
-      <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
+<div class="appbar">
+  <img class="appbar-wm" src="../assets/icon-192.png" alt="" aria-hidden="true">
+  <div class="appbar-row">
+    <img class="appbar-ic" src="../assets/icon-192.png" alt="">
+    <div>
+      <div class="appbar-eyebrow">Planning-CHPG · Anesthésie-Réanimation</div>
+      <h1>Roadmap</h1>
     </div>
-    <div class="etat-grid" style="margin-top:16px">
-      <div><div class="etat-k">code.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
-      <div><div class="etat-k">Indispos.gs</div><div class="etat-v" style="font-size:13px">2026-08-23.6</div></div>
-      <div><div class="etat-k">miroir.gs</div><div class="etat-v" style="font-size:13px">2026-08-23.7</div></div>
-      <div><div class="etat-k">veille.gs</div><div class="etat-v" style="font-size:13px">2026-08-08.5</div></div>
-      <div><div class="etat-k">portail.gs</div><div class="etat-v" style="font-size:13px">2026-08-17.3</div></div>
-      <div><div class="etat-k">journal.gs</div><div class="etat-v" style="font-size:13px">2026-08-05.3</div></div>
-      <div><div class="etat-k">generateur.gs</div><div class="etat-v" style="font-size:13px">2026-08-26.1</div></div>
-      <div><div class="etat-k">echanges.gs</div><div class="etat-v" style="font-size:13px">2026-08-23.1</div></div>
-      <div><div class="etat-k">Worker</div><div class="etat-v" style="font-size:13px">2026-08-22.2</div></div>
-    </div>
+    <span class="appbar-chip" data-version>—</span>
   </div>
-  <p class="verif"><b>⚠️ 26 août :</b> <code>generateur_gardes.gs</code> <b>2026-08-26.1</b> poussé — une pénalité interne existait en deux copies appliquées toutes les deux (poids réel conservé, plannings prouvés identiques au caractère près) et l'interruption silencieuse de l'optimiseur après 20 s devient un avertissement à l'écran. <b>À recopier dans Apps Script + nouvelle version.</b> Banc à <b>1 921 vérifications, 0 échec</b>. Mesuré aussi : deux week-ends de garde d'affilée restent possibles (~0,4/an simulé, jamais trois) ; trois corrections testées, décision de ne pas traiter — les cas résiduels sont verrouillés par les vacances, le levier est la pose des congés. L'après-midi : guide de l'algorithme relu ligne à ligne contre le code (§09 récupérations réécrite, promesse fausse corrigée), lien depuis le guide MAR, et <b>bandeau commun rouge avec l'icône de l'appli sur les 7 guides</b> — fin du drapeau, et montée de version du site. Le soir : la reprise de session d'indispos passait à côté de la copie rapide depuis le 04/08 (défaut trouvé au banc, corrigé — plus d'écran de code en arrivant du portail), et la tuile indispos annonce désormais <b>« Consultation seule »</b> quand le planning de campagne est généré ; deux montées de version, tout déployé le soir même. Le 27 : les vacances estimées prennent la forme des vraies (samedi→dimanche), et le rétro-test sur six années réelles trouve une <b>erreur dans le classeur — Toussaint 2027 fausse d'une semaine, à corriger à la main après le staff</b> (23/10→07/11).</p>
-  <p class="verif">Relevé dans le dépôt et le banc exécuté — 23 août 2026 au soir · <b>rien en attente</b>. La pose des temps partiels ET <b>la cloche du dashboard</b> sont déployées et éprouvées en production : Worker, <code>miroir.gs</code> 2026-08-23.7 et <code>echanges.gs</code> 2026-08-23.1 recopiés le soir même, synchronisation faite, test du canal vérifié — pastille sur l'icône, effacée à l'ouverture. Banc à <b>1 887 vérifications, 0 échec</b>. Le bac à sable reste à remettre en état avant la répétition. <i>(Note : le marqueur interne du Worker affiche encore « 2026-08-22.2 » — l'oubli est connu, le code déployé est bien le nouveau ; il montera au prochain lot Worker.)</i></p>
-
-  <div class="avance">
-    <p class="titre">Le développement est fini — et la démonstration gagne un acte.</p>
-    <p class="sous">Rien n'est requis pour le 4 septembre au-delà des gestes ci-dessous. Les 22 et 23 août ont livré en deux jours <b>la pose des temps partiels après génération</b>, écrans MAR et comité compris, déployée et éprouvée en production le 23. Elle change deux choses au programme : <b>le bac à sable doit être purgé de ses anciens jours de temps partiel</b> avant toute génération, et <b>la démonstration du 4 compte désormais quatre actes</b> au lieu de trois.</p>
-
-    <div class="avance-chiffres">
-      <div><b>13</b><span>modules en service</span></div>
-      <div><b>1 944</b><span>vérifications auto.</span></div>
-      <div><b>0</b><span>à développer</span></div>
-      <div><b id="jmoins">—</b><span>avant le staff</span></div>
-    </div>
-
-    <div class="jauge">
-      <i class="f" style="width:69%"></i><i class="r" style="width:31%"></i>
-    </div>
-    <div class="jauge-lg"><span>9 jalons franchis</span><span>4 gestes restants</span></div>
-
-    <ul class="reste">
-      <li><span class="q">cette semaine</span><span>Finir la recette : le parcours des échanges (deux téléphones), les conflits de vacances, l'assistant de départ.</span></li>
-      <li><span class="q">1<sup>er</sup> sept.</span><span>Répétition générale, seul, pendant la garde — génération puis effacement dans la foulée.</span></li>
-      <li><span class="q">4 sept. matin</span><span>Coller les 24 adresses mail (préparées d'avance dans une colonne de garage de MEDECINS), lancer le Diagnostic, puis envoyer les codes à 12h30. L'installation de l'app et l'activation des notifications ne se font PAS ici : c'est un moment du staff lui-même, prévu aux <b>diapos 5-6</b> (« Sortez vos téléphones » puis « Installez-le en appli »). Saisir aussi le <b>code de Wajdi sur la diapo 26</b> — un clic sur le bloc code, le jour J, jamais dans le dépôt.</span></li>
-      <li><span class="q">4 sept. soir</span><span>Les dix gestes de ménage, dans l'ordre. Le neuvième allume les vrais mails en supprimant la redirection d'essai (<code>NOTIF_EMAIL_TEST</code>) — <b>jamais avant ce point</b> : la démo publie un planning 2027 fictif et le notifieur s'arme dessus.</span></li>
-    </ul>
-  </div>
-
-  <h2>Échéancier</h2>
-  <div class="ech" id="ech">
-    <div class="jalon chaud" data-d="2026-09-04">
-      <div class="jalon-t"><span class="jalon-d">4 sept. 2026</span><span class="jalon-n">Staff — démonstration</span><span class="cd"></span></div>
-      <p class="jalon-p">Le seul jalon avec un public. Tout le reste attend derrière.</p>
-    </div>
-    <div class="jalon" data-d="2026-10-15">
-      <div class="jalon-t"><span class="jalon-d">mi-oct. 2026</span><span class="jalon-n">Renouvellement du jeton GitHub</span><span class="cd"></span></div>
-      <p class="jalon-p">Passé cette date, plus aucune publication ne part. Alerte automatique à 30 puis 10 jours.</p>
-    </div>
-    <div class="jalon" data-d="2026-10-01">
-      <div class="jalon-t"><span class="jalon-d">1<sup>er</sup> oct. 2026</span><span class="jalon-n">Butoir dur du ménage post-démo</span><span class="cd"></span></div>
-      <p class="jalon-p">Le portail charge <b>aussi</b> le planning de l'année suivante, sans que personne ne clique — c'est voulu, pour que les gardes et congés de janvier s'affichent. Si les fichiers de démo 2027 sont encore sur le Drive, les 23 MARs verront des gardes fictives présentées comme vraies.</p>
-    </div>
-    <div class="jalon" data-d="2026-10-05">
-      <div class="jalon-t"><span class="jalon-d">octobre 2026</span><span class="jalon-n">Campagne d'indisponibilités 2027</span><span class="cd"></span></div>
-      <p class="jalon-p">Bloquée par deux choses aujourd'hui : les onglets <code>_2027</code> de la démo, s'ils n'ont pas été supprimés, et surtout <b>les adresses mail manquantes</b> — les codes d'accès partent par mail.</p>
-    </div>
-    <div class="jalon" data-d="2026-11-01">
-      <div class="jalon-t"><span class="jalon-d">nov. 2026</span><span class="jalon-n">Génération des gardes 2027</span><span class="cd"></span></div>
-      <p class="jalon-p">Deux données à trancher avant : le départ de FERRIERO et l'exemption des 60 ans.</p>
-    </div>
-    <div class="jalon" data-d="2027-01-01">
-      <div class="jalon-t"><span class="jalon-d">janv. 2027</span><span class="jalon-n">Déménagement NCHPG</span><span class="cd"></span></div>
-      <p class="jalon-p">Les codes de secteurs changent. Rien à coder tant que l'organisation cible n'est pas connue.</p>
-    </div>
-    <div class="jalon" data-d="2027-03-01">
-      <div class="jalon-t"><span class="jalon-d">mars 2027</span><span class="jalon-n">Régénération de l'index CCAM</span><span class="cd"></span></div>
-      <p class="jalon-p">Version actuelle v84, en vigueur depuis le 3 juillet 2026 — la date que reprend le diagnostic. Alerte d'obsolescence à 8 puis 14 mois.</p>
-    </div>
-  </div>
-
-  <h2>Ce qui tourne aujourd'hui</h2>
-  <div class="mods">
-    <div class="mod"><b>Planning quotidien</b><span>Grille du comité, placement, publication, export Excel du vendredi.</span></div>
-    <div class="mod"><b>Gardes</b><span>Équité annuelle sur ~730 gardes. 0 journée sans binôme sur 140 années simulées.</span></div>
-    <div class="mod"><b>Portail MAR</b><span>Planning, gardes, congés, messagerie, rafraîchissement en tirant la page.</span></div>
-    <div class="mod"><b>Indisponibilités</b><span>Campagne annuelle, souhaits, staff vacances.</span></div>
-    <div class="mod"><b>Module libéral</b><span>Cotation, devis, déclaration, suivi des 30 %. Un patient à la fois. Lots 0, 1, 2A, 2B et 3 en production.</span></div>
-    <div class="mod"><b>Contrôle d'absence</b><span>Porte MAR et porte secrétariat. Motifs jamais transmis au secrétariat.</span></div>
-    <div class="mod"><b>Veille bibliographique</b><span>41 revues, 21 thèmes, lu/★ par MAR depuis le 8 août.</span></div>
-    <div class="mod"><b>Échanges de gardes</b><span>Don et échange entre MAR, sans le comité. Notification, réponse, écriture du planning. Le samedi emmène sa récupération.</span></div>
-    <div class="mod"><b>CR d'anesthésie</b><span>Générateur autonome.</span></div>
-    <div class="mod"><b>Cloche des notifications</b><span>Journal des 30 derniers jours sur le dashboard, pastille d'icône remise à zéro à l'ouverture. En service depuis le 23 août.</span></div>
-    <div class="mod"><b>Copie de lecture</b><span>Ouverture des pages en 100–270 ms sans appel Google.</span></div>
-    <div class="mod"><b>Sauvegardes</b><span>Trois filets vérifiés : le classeur le lundi 4 h et le dimanche 5 h, le code le dimanche 3 h. La copie de 5 h vit dans un compte personnel distinct.</span></div>
-    <div class="mod"><b>Diagnostic du lundi</b><span>Contrôle complet chaque lundi vers 2 h, résultat envoyé par mail. L'adresse est lue dans l'onglet CONFIG, jamais écrite dans le code.</span></div>
-  </div>
-
-  <h2>1 · Le 4 septembre</h2>
-
-  <h3>Avant</h3>
-  <div class="card attente">
-    <h4>Dérouler le cahier de tests, parcours P1 à P6 <span class="tag t-amber">commencé le 18 août</span></h4>
-    <p>Les scénarios d'usage de <code>docs/cahier-de-tests.html</code>, faits à la main : se connecter, lire le planning, poser une indisponibilité, gérer une absence longue. On vérifie que <b>ça marche</b>.</p>
-    <p><b>Le cahier a été remis au réel le 18 août</b> — il datait du 5 et ignorait six semaines de travail. Il compte désormais <b>193 points</b> : un parcours P16 pour les échanges de gardes, les notifications et la mémoire de session, jusque-là sans aucun contrôle ; les points de clôture d'année marqués injouables (le verrou de date les refuse jusqu'en janvier) ; la partie libérale signalée comme décrivant un écran qui n'existe plus.</p>
-    <p><b>Première passe, le 18 août :</b> P1 à P6 déroulés. Un défaut réel trouvé, corrigé le jour même (ci-dessous). Restent en suspens : le parcours P16, qui exige <b>deux téléphones</b> ; les conflits de vacances (T041) — le cahier parle d'un « écran » qui n'existe pas : ils apparaissent à <b>l'étape 1 de l'assistant de génération</b>, où ils bloquent la génération tant qu'ils ne sont pas arbitrés ; l'assistant de départ (T065-T066), à faire avant le 1<sup>er</sup> septembre puisqu'un départ réel tombe ce jour-là.</p>
-  </div>
-  <div class="card ok">
-    <h4>Déjà fait — les cinq contrôles d'avant-séance <span class="tag t-green">9 au 16 août 2026</span></h4>
-    <ul>
-      <li><b>Répétition chronométrée</b> (10/08) : <b>~45 s</b> du clic à la fin, pas 15 s comme l'annonçait le deck — corrigé en « moins d'une minute ». Génération sans défaut : 364 jours pourvus, part respectée pour les 24, autant de récupérations que de samedis. <i>Le jour J : au bout de 45 s un message « toujours en cours » peut s'afficher — ne pas recliquer.</i></li>
-      <li><b>Relecture du deck</b> (09/08) : correct. Reste à voir sur le matériel de la salle : diapo 16, le rosé du repos peut passer pour du blanc au vidéoprojecteur.</li>
-      <li><b>Vitesse d'ouverture</b> (09/08, 31 ouvertures) : portail <b>0,30 s</b> médian, planning 0,41 s, indisponibilités 0,22 s. Aucune au-dessus de 2 s. Téléphone en données mobiles vérifié à l'œil.</li>
-      <li><b>Ouvrir un document en séance</b> : contrainte levée depuis le 10/08 — de 6-11 s à quasi immédiat. Ce qui sera projeté gagne quand même à être ouvert avant.</li>
-      <li><b>Notifications ouvertes à tous</b> (16/08) : à la fin de la génération, tous les téléphones ayant accepté à la diapo 7 reçoivent « Les gardes 2027 sont générées ». Ce n'est plus un téléphone posé face visible, c'est la salle qui sonne. La démonstration n'en dépend jamais : si rien n'arrive, personne ne le sait.</li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h4>Profils d'indispos 2027 remplis</h4>
-    <p>Annoncé à la salle : vérifier que les profils fictifs des autres MARs sont en place. <code>PERIODES_VAC</code> est déjà réglé sur 2027.</p>
-  </div>
-  
-
-  <div class="card attente">
-    <h4>Répétition générale — marche à suivre <span class="tag t-amber">1<sup>er</sup> septembre, pendant la garde</span></h4>
-    <p><b>Seul, pas avec le collègue qui générera.</b> Choix assumé : il découvre l'outil en direct devant la salle — quelqu'un qui n'a jamais cliqué et qui s'en sort convainc plus qu'une démonstration rodée. Il reçoit une seule consigne le jour J : <b>au bout de 45 secondes un message « toujours en cours » peut s'afficher, ne pas recliquer.</b></p>
-    <p><b>Pourquoi la refaire alors que le 10 août a déjà mesuré :</b> le générateur a changé depuis. Il écrit désormais quel repos appartient à quel samedi, dans un tableau supplémentaire. <b>Cette version n'a jamais tourné en production.</b> C'est ça qu'on vérifie, pas le chronomètre.</p>
-    <p><b>Conditions réelles :</b> ordinateur personnel en partage de connexion 4G — <b>il n'y a pas de poste dans la salle de staff</b>. Donc penser au câble ou à l'adaptateur, et éprouver ce qui n'a jamais été éprouvé : la mise à l'échelle des diapos larges, et la tenue de la 4G pendant un appel serveur de trente secondes.</p>
-
-    <p><b>Phase 0 — nettoyage préalable</b> <i>(10 min, interruptible)</i>. 2027 est générée aujourd'hui ; sans ces gestes l'assistant ne calcule rien. <b>Le geste 1 est neuf et c'est le plus important.</b><br>
-    1. <b>Vider les temps partiels de <code>INDISPOS_2027</code></b> — voir l'encadré ci-dessous. 2. Supprimer <code>GARDES_2027</code>. 3. Supprimer <code>STATS_GARDES_2027</code>. 4. <code>PLANNING_OVERRIDES</code> : trier par date, supprimer les lignes 2027. 5. <code>ECHANGES</code> : supprimer les lignes 2027. 6. <code>TP_FERMES</code> et <code>TP_DEMANDES</code>, s'ils existent : supprimer les lignes d'année 2027. 7. Sur le Drive, supprimer <code>planning_2027.json</code>, <code>affectations_2027.json</code>, <code>planning_2027_notifie.json</code>. 8. Lancer <code>miroirSyncComplet</code>.</p>
-    <p><b>⚠️ Le bac à sable est périmé depuis le 22 août.</b> <code>INDISPOS_2027</code> contient encore <b>256 cellules « TP »</b> chez huit médecins, posées par l'ancien circuit — relevé dans le classeur le 23 août. Le générateur les lit comme des absences : les laisser fausserait le calcul <b>et contredirait ce qu'on montre à la salle</b>, puisque les temps partiels ne se saisissent plus avant la génération. <b>Méthode :</b> ouvrir l'onglet, <code>Ctrl+H</code>, chercher <code>TP</code>, remplacer par rien, cocher <b>« Faire correspondre le contenu entier de la cellule »</b> et limiter à <b>cette feuille</b>, Tout remplacer ; recommencer avec <code>TPA</code>. La case « contenu entier » est indispensable, sinon le TP de « TPA » serait touché aussi.</p>
-    <p><b>Ne pas supprimer <code>LIENS_R_2027</code></b> — vérifié dans le code le 23 août : le générateur le détruit et le recrée lui-même à chaque calcul. Le geste serait inutile.</p>
-    <p><b>⚠️ Cette synchronisation n'effacera pas 2027 de la copie de lecture</b> — vérifié dans le code le 18 août : l'année de campagne est protégée de tout effacement, et un fichier Drive disparu fait <b>omettre</b> la clé, pas l'effacer. Le planning fictif restera donc visible pour qui possède un code — soit le comité et les pilotes, pas les 23. Seul le ménage du 4 au soir le règle, en refermant la campagne <b>avant</b> de synchroniser. Le nettoyage du 1<sup>er</sup> vide le classeur, pas la copie.</p>
-
-    <p><b>Phase A — la salle et le deck</b> <i>(15 min, interruptible)</i>. Brancher au vidéoprojecteur · ouvrir le deck, regarder la <b>diapo 16</b> (le rosé du repos peut passer pour du blanc) et les diapos larges <b>10 et 19</b> · ouvrir un protocole depuis le portail en 4G.</p>
-
-    <p><b>Phase B — la génération</b> <i>(30 min, à ne pas commencer si tu peux être appelé)</i>. Passer en inactif le collègue dont le départ est ce jour-là · <b>lire l'étape 1 de l'assistant en entier</b> (MARs sans indisponibilité, conflits de vacances) · aller jusqu'au bout, chronomètre en main · publier · vérifier la notification sur le téléphone · <b>vérifier que le tableau des liens samedi-récupération existe</b>, avec autant de lignes que de samedis tenus · Diagnostic : zéro récupération manquante.</p>
-    <p><b>Phase B bis — le circuit des temps partiels</b> <i>(10 min, dans la foulée)</i>. Le planning publié, la carte violette doit apparaître chez les huit concernés : se connecter avec le code de <b>WIDEHEM</b> · poser un jour <b>vert</b> et un jour <b>jaune</b> · enregistrer, lire le récapitulatif · <b>vérifier dans <code>GARDES_2027</code></b> que le jour vert porte bien <code>TP</code>, et que le jaune n'a rien écrit — il attend dans <code>TP_DEMANDES</code> · côté comité, onglet Équipe : marquer <b>valider</b>, puis cliquer <b>Enregistrer les décisions</b> · le téléphone doit recevoir « Temps partiel validé », et le <code>TP</code> s'écrire dans la grille · <b>refuser</b> un autre jour : il devient noir chez le MAR, qui reçoit « Temps partiel refusé ».</p>
-    <p><b>Deux choses à savoir avant de s'inquiéter.</b> Le planning publié met <b>jusqu'à une minute</b> à refléter une validation : la republication est différée pour que personne n'attende dix secondes après un clic — le classeur, lui, est juste immédiatement. Et <b>l'annulation n'existe plus après l'envoi</b> : on peut tout défaire tant qu'on n'a pas cliqué « Enregistrer les décisions », mais une fois parti, un jour refusé par erreur se rouvre en supprimant sa ligne dans <code>TP_FERMES</code>.</p>
-
-    <p><b>Phase C — effacer</b> <i>(10 min, indissociable de B)</i>. Refaire les gestes 1 à 8 de la phase 0, à l'identique — <b>geste 1 compris</b>, puisque la phase B bis aura posé des temps partiels de test, et <b>geste 6</b>, puisque <code>TP_FERMES</code> existera si un refus a été essayé, et <code>TP_DEMANDES</code> si un jour jaune a été posé.</p>
-
-    <p><b>Ce qu'il ne faut PAS faire.</b> Supprimer <code>INDISPOS_2027</code> (matière première des deux générations) · supprimer <code>AFFECTATIONS_2027</code> — <b>vérifié : seul l'assistant de démarrage d'année le crée, la génération n'y touche jamais</b>, supprimé rien ne le recrée et le planning s'afficherait sans secteurs ; il se supprime une seule fois, le 4 au soir · toucher à <code>STATS_GARDES_2026</code> (cibles d'équité de novembre) · refermer la campagne, régénérer des codes, ou supprimer la redirection d'essai des mails — ces trois-là appartiennent au 4 au soir, le dernier ferait partir de vrais messages aux 23 · lancer la synchronisation en premier · recliquer à 45 s · <b>relancer la génération sur une erreur réseau sans avoir regardé le classeur</b> : en 4G la réponse peut se perdre alors que le calcul a abouti, le classeur fait foi, pas le message · commencer la phase B sans vingt minutes devant soi · faire répéter le collègue qui générera.</p>
-    <p><b>Prévenir le collègue pilote avant la phase B</b> : sa notification lui annoncera des gardes 2027 générées.</p>
-  </div>
-
-  <h3>La veille et le jour même</h3>
-  <p style="color:var(--ink-2);font-size:14px">Deux gestes, dans cet ordre — et un piège vérifié dans le programme. Le staff débute à <b>14h</b> : le nettoyage se fait le matin, les codes partent à <b>12h30</b>.</p>
-  <div class="card risque">
-    <h4>Remettre le bac à sable à zéro <span class="tag t-red">sinon la démonstration ne génère rien</span></h4>
-    <p>La répétition du 1<sup>er</sup> septembre aura généré l'année 2027 pour de bon. <b>L'effacement se fait dans la foulée, le soir même</b> — pas le matin du 4 : le geste et sa raison sont frais, et le matin du 4 il ne reste alors que les adresses et le Diagnostic. Ce point n'est donc plus qu'un <b>contrôle</b> : vérifier que les tableaux 2027 ont bien disparu, sauf les indisponibilités et les affectations — <b>et qu'il ne reste aucun <code>TP</code> ni <code>TPA</code> dans <code>INDISPOS_2027</code></b>, sans quoi l'acte 4 de la démonstration se jouerait sur un calendrier déjà rempli.</p>
-    <p><b>Pourquoi c'est indispensable :</b> une sécurité empêche de recalculer une année déjà calculée — elle protège un vrai planning contre une régénération accidentelle. Si les tableaux sont encore là le 4 septembre, l'assistant <b>ne calcule pas</b> : il réaffiche le résultat de la répétition. La salle verrait « 730 gardes » apparaître instantanément, sans qu'aucun calcul n'ait eu lieu, <b>et aucun message ne le signalerait</b>.</p>
-  </div>
-  <div class="card">
-    <h4>Les adresses mail : saisir le 3 au soir, envoyer le 4 à 12h30 <span class="tag t-blue">décidé le 18 août</span></h4>
-    <p><b>24 des 25 médecins actifs n'ont aucune adresse enregistrée.</b> Ça ne gêne pas la démonstration — ça bloque la campagne d'octobre, et c'est de la saisie pure.</p>
-    <p><b>Pourquoi pas le matin du 4 :</b> vingt-quatre adresses tapées sous pression, avec l'envoi une heure vingt plus tard et plus aucune nuit pour rattraper une faute de frappe. Une adresse fausse à 12h30, c'est un collègue sans code devant la salle à 14h05. <b>Pourquoi pas des semaines à l'avance non plus :</b> voir l'avertissement ci-dessous. D'où le compromis : <b>le 3 septembre au soir</b>.</p>
-    <p><b>⚠️ Vérifié dans le code le 18 août : la redirection d'essai ne protège PAS les envois de codes.</b> Elle ne couvre que la notification de changement de planning et l'alerte des échanges. Cinq actions lisent l'adresse directement dans l'onglet des médecins et partent pour de vrai — envoi groupé des codes, envoi à un MAR, régénération d'un code, récapitulatif, et l'envoi combiné de l'assistant de démarrage d'année. Aucune ne se déclenche seule : ce sont des boutons, avec confirmation. <b>Le seul vrai piège est l'assistant « recrue »</b> : une adresse renseignée à la création fait partir le code aussitôt. Pour tout test d'assistant, mettre sa propre adresse.</p>
-    <p><b>Le déroulé du 4 :</b> le matin, nettoyage puis <b>Diagnostic</b> — la ligne « MARs actifs sans code d'accès » doit dire <b>aucun</b>. Ouvrir la présentation et <b>saisir le code de Wajdi</b> d'un clic sur le bloc code de sa diapo — il reste en mémoire de session, jamais dans le dépôt. À <b>12h30</b>, envoi d'essai à <b>un seul</b> destinataire : vérifier la réception <b>et le dossier indésirables</b>. À <b>12h40</b>, envoi aux autres. À <b>12h45</b>, lire le compte rendu, il nomme ceux qui n'ont rien reçu.</p>
-    <p><b>À savoir :</b> l'envoi transmet le code en place, il n'en change aucun. La liste est relue au moment de l'envoi. Quota de 100 messages par jour, donc de quoi recommencer. Et désactiver le médecin dont le départ est au 1<sup>er</sup> septembre avant d'envoyer.</p>
-  </div>
-
-  <div class="card">
-    <h4>Le déroulé de la démonstration — quatre actes <span class="tag t-viol">révisé le 23 août</span></h4>
-    <p><b>Acte 1 — la saisie.</b> Le collègue volontaire se connecte et déclare <b>deux ou trois indisponibilités 2027</b> en direct, depuis son téléphone. Court, c'est voulu : ce n'est pas la saisie qui impressionne. Rappeler que les profils des autres ont été remplis pour l'exercice.</p>
-    <p><b>Acte 2 — la génération.</b> Écran d'administration, assistant de génération, lancer. Rester dessus pendant les ~45 secondes et raconter ce qui se passe. Si « toujours en cours » s'affiche, c'est prévu.</p>
-    <p><b>Acte 3 — le résultat.</b> Zéro garde sur les jours bloqués, compteurs à la cible, certificat d'équité. Les téléphones sonnent — c'est le clou. Puis le mail de récapitulatif, annoncé comme fictif.</p>
-    <p><b>Acte 4 — la pose des temps partiels <span class="tag t-viol">nouveau</span>.</b> Enchaîner : « et pour huit d'entre vous, il se passe une chose de plus, maintenant que les gardes sont publiées ». La carte violette est apparue sur le portail. Montrer le calendrier en trois couleurs, poser un jour vert et un jour jaune, enregistrer ; puis basculer sur l'écran du comité et valider — la notification arrive sur le téléphone. <b>Trois phrases à dire, pas une de plus :</b> les jours de temps partiel se choisissent après la publication des gardes, dans ce qui reste — c'est ce qui garantit qu'un repos de garde ne tombera plus jamais sur un jour non travaillé ; vert veut dire libre, jaune veut dire que le comité tranchera, noir veut dire fermé ; il n'y a pas de date limite.</p>
-  </div>
-  <div class="card risque">
-    <h4>L'acte 4 exige un temps partiel dans la salle <span class="tag t-red">à régler avant le 4</span></h4>
-    <p><b>Arthur est à 100 % : la carte violette n'apparaîtra jamais avec son code</b> — vérifié dans le classeur le 23 août — et le collègue qui génère est à temps plein lui aussi. Trois façons de faire, par ordre de préférence :</p>
-    <p><b>1.</b> Demander à l'un des huit de le faire depuis son téléphone. <b>WIDEHEM</b> est le testeur du circuit, il connaît déjà l'écran, et c'est cohérent avec une séance où ce sont les collègues qui cliquent. <b>2.</b> Se connecter à sa place sur l'ordinateur — possible, mais <b>ne jamais projeter le code</b> : le saisir sans l'afficher, et le régénérer le soir même. <b>3.</b> Ne montrer que l'écran du comité — plus pauvre : c'est le calendrier en couleurs qui se comprend d'un coup d'œil.</p>
-  </div>
-
-  <h3>Le soir même — ménage</h3>
-  <p style="color:var(--ink-2);font-size:14px"><b>Dix gestes, dans cet ordre — l'ordre compte.</b> Le premier n'est pas cosmétique : sans lui, la campagne d'octobre est bloquée. Le deuxième est celui qu'on oublie, et c'est le plus durable. Et le septième, la synchronisation, n'efface la mémoire de l'année que si les six qui la précèdent sont faits avant. <span style="color:var(--ink-3)">(Liste révisée le 23 août : deux onglets sont nés du circuit des temps partiels, aucun n'est rattaché à une année.)</span></p>
-  <div class="check"><ul>
-    <li><b>Supprimer les cinq onglets de l'année 2027</b> : <code>INDISPOS_2027</code>, <code>AFFECTATIONS_2027</code>, <code>GARDES_2027</code>, <code>STATS_GARDES_2027</code> et <code>LIENS_R_2027</code>. <b>Les temps partiels posés pendant la démonstration partent avec le premier</b> — rien à vider ce soir-là, contrairement au 1<sup>er</sup> septembre où l'onglet survit. Le premier bloque le lancement de la campagne d'octobre — c'est sa <b>seule</b> condition de départ ; le deuxième laisserait les affectations fictives en place, car il n'est recréé que s'il est absent. <code>LIENS_R</code> (quel repos appartient à quel samedi) n'existait pas quand cette liste a été écrite. <b>Ne jamais toucher à <code>STATS_GARDES_2026</code></b> — il porte les cibles d'équité de la vraie génération de novembre.</li>
-    <li><b>Nettoyer les placements de test de l'onglet <code>PLANNING_OVERRIDES</code>.</b> Cet onglet garde la trace de chaque affectation posée à la main par le comité, et il n'est <b>lié à aucune année</b> : supprimer les onglets 2027 ne l'efface pas, et régénérer le planning les remet en place par-dessus. Constaté le 10 août : <b>38 lignes de test datées 2027</b> avaient survécu à tout. Si on les laisse, elles se colleront sur le <b>vrai</b> planning de novembre, sans que rien ne les distingue de vraies affectations. Trier par date, supprimer les lignes 2027.</li>
-    <li><b>Purger les lignes 2027 des onglets <code>TP_FERMES</code> et <code>TP_DEMANDES</code></b>, s'ils existent. Le premier naît au premier <b>refus</b> d'un jour de temps partiel, le second à la première <b>demande</b> — et comme les placements et les échanges, aucun des deux n'est <b>rattaché à une année</b>. Un refus essayé pendant la démo fermerait un jour du <b>vrai</b> planning de novembre ; une demande oubliée réapparaîtrait dans l'alerte du comité.</li>
-    <li><b>Supprimer les lignes 2027 de l'onglet <code>ECHANGES</code></b> — même piège, sur une donnée plus récente. Trois dons acceptés y ont été enregistrés pendant l'essai à deux du 14 août. Cet onglet n'est rattaché à aucune année et tout son contenu est publié aux MARs : sans ce geste, chacun verrait dans son écran d'échanges des dons portant sur une année qui n'existe plus. Retirer aussi l'indisponibilité de test posée pour le pilote.</li>
-    <li><b>Refermer la campagne</b> si <code>INDISPOS_ACTIVE = 2027</code> a été posé pour la démo. Deux raisons : tant qu'elle est ouverte, les 23 MARs peuvent saisir sur une année fictive ; et surtout, <b>elle empêche l'oubli de l'année</b> — l'année de campagne est délibérément protégée de tout effacement. Ce geste doit donc précéder la synchronisation, sinon celle-ci ne retire rien, sans le dire.</li>
-    <li><b>Supprimer les fichiers de démo du Drive</b> (dossier Planning-CHPG-JSON) : <code>planning_2027.json</code>, <code>affectations_2027.json</code> et <code>planning_2027_notifie.json</code>. Butoir dur : avant le 1<sup>er</sup> octobre.</li>
-    <li><b>Lancer la synchronisation complète</b> (<code>miroirSyncComplet</code>) — <b>après les cinq gestes ci-dessus, jamais avant</b>. C'est elle, et elle seule, qui retire de la copie de lecture tout ce que 2027 y avait laissé. Sans elle, supprimer les onglets et les fichiers ne change rien à ce que voient les MARs : défaut constaté en production le 9 août.</li>
-    <li><b>Régénérer le code d'accès</b> de tout MAR dont le code a été saisi devant la salle — <b>y compris celui du temps partiel de l'acte 4</b> si tu t'es connecté à sa place — et le code administrateur s'il a été projeté.</li>
-    <li><b>Allumer les notifications</b> : supprimer la propriété de redirection de test. Jamais avant ce point — la démo publie un planning 2027 fictif et le notifieur s'arme dessus.</li>
-    <li><b>Terminer par le Diagnostic système</b> (onglet Maintenance) : onglets, fichiers du Drive, placements hors année en cours — ce compteur doit retomber à zéro —, version du site.</li>
-  </ul></div>
-
-  <div class="card">
-    <h4>Avant d'ouvrir la campagne : les adresses mail <span class="tag t-red">bloquant</span></h4>
-    <p><b>24 des 25 médecins actifs n'ont aucune adresse mail enregistrée</b> — relevé dans le classeur le 16 août. L'assistant d'octobre envoie les codes d'accès par mail ; le renvoi groupé et la régénération d'un code aussi. <b>En l'état, la campagne d'indisponibilités 2027 ne peut pas partir.</b> Aucun réglage ne contourne une case vide : les adresses se saisissent dans l'onglet des médecins.</p>
-  </div>
-
-  <h2>2 · Juste après le staff</h2>
-  <div class="card ok">
-    <h4>La cloche du dashboard — en production <span class="tag t-green">23 août 2026, déployée et testée le soir même</span></h4>
-    <p>En haut du portail, une cloche rassemble <b>tout ce qui a été notifié à chacun sur 30 jours</b> — échanges, temps partiels, génération — classé par jour, chaque ligne menant à la bonne page. Le registre est tenu côté serveur <b>au moment de l\'envoi</b> : la liste est complète même si la notification n\'est pas arrivée, et identique sur tous les appareils. Chacun ne voit que les siennes, filtrage côté serveur.</p>
-    <p>La <b>pastille de l\'icône</b> devient un vrai compteur : le nombre de nouveautés depuis la dernière ouverture du dashboard, effacé à l\'ouverture. Une seule logique partout — le chiffre que les échanges calculaient de leur côté est désormais ignoré, son retrait est noté pour le prochain lot <code>echanges.gs</code>. <b>Aucun temps de chargement ajouté</b> : la liste voyage dans l\'appel d\'ouverture existant. Les futurs changements de planning s\'y brancheront par un appel de plus, sans refonte. Guide MAR : section 10.</p>
-  </div>
-  <div class="card">
-    <h4>Passage en version 2.0 <span class="tag t-viol">5 septembre</span></h4>
-    <p><b>Purement symbolique, et annoncé le lendemain du staff</b> — jamais avant, pour ne pas éventer l'effet. Aucun code ne change ce jour-là : le numéro de version ne vit plus qu'à un seul endroit depuis le 14 août, c'est une ligne à reprendre. Ce qui justifie le premier chiffre, ce n'est pas une refonte technique, c'est l'ouverture des échanges de gardes aux 23 : le portail cesse d'être une consultation pour devenir un endroit où l'on agit.</p>
-    <p><b>Ce jour-là :</b> annonce aux 23 MARs, envoi des codes d'accès individuels, et ouverture du canal de notifications à tout le service.</p>
-  </div>
-  <div class="card">
-    <h4>Ouvrir le module libéral au groupement <span class="tag t-blue">septembre / octobre</span></h4>
-    <p>Les 19 membres éligibles y accèdent alors que seul Arthur l'utilise aujourd'hui. Sans lien avec le passage en 2.0 : c'est une ouverture d'accès, à son propre rythme, et elle sera <b>précédée d'une présentation au groupement</b>.</p>
-    <p><b>Ce qui reste à faire avant, et qui ne dépend pas du code :</b> renseigner les <b>RPPS et prénoms</b> des 18 autres dans l'onglet MEDECINS — sans eux, leur devis s'imprime sans numéro et la page annonce « à compléter » à chaque ouverture — et créer des <b>cotations types</b> pour l'orthopédie, le viscéral et l'ophtalmologie, seule l'endoscopie en ayant aujourd'hui.</p>
-    <p><b>Et une chose qui ne se rattrape pas :</b> quelques déclarations réelles, faites par Arthur, avant d'ouvrir. Le relevé de l'administration se recopie rétroactivement ; une intervention non déclarée est perdue définitivement. Le geste doit être rodé avant d'être montré.</p>
-  </div>
-
-  <div class="card ok">
-    <h4>Les récupérations de samedi tombent enfin après la garde <span class="tag t-green">livré le 21 août</span></h4>
-    <p><b>Ce qui n'allait pas.</b> Après une garde de samedi, une journée de récupération est due. Jusqu'ici, trois sur quatre étaient posées <b>avant</b> le samedi qu'elles compensent — parfois onze mois avant. On récupérait en janvier pour une garde de décembre.</p>
-    <p><b>Pourquoi.</b> Deux règles internes se contredisaient : une seule récupération par jour pour toute l'équipe, et aucune pendant les vacances scolaires, soit quatre mois de l'année. Il ne restait pas assez de place, et le programme finissait par remonter chercher en début d'année.</p>
-    <p><b>Ce qui change.</b> La récupération est désormais cherchée <b>après</b> la garde, et de préférence sur un jour qui prolonge un repos : un vendredi, un lundi, ou un jour accolé à des vacances. Plusieurs personnes peuvent récupérer le même jour, tant qu'il reste <b>au moins 15 présents</b> — le seuil vert de votre planning.</p>
-    <p><b>Le résultat, sur le planning 2027 réellement généré le 22 août :</b> 100 récupérations sur 104 suivent maintenant leur samedi, contre 28 avant. Le délai passe de près d'un mois à six jours. Et 54 tombent un lundi, 22 un vendredi.</p>
-    <p><b>Le vrai gain se mesure autrement :</b> un tiers des jours rendus étaient jusqu'ici <b>isolés</b> — un jour de repos seul au milieu d'une semaine de travail. Il n'en reste que <b>deux sur 104</b>. La durée moyenne du repos autour de ce jour <b>a doublé</b>, de trois à six jours. Même nombre de jours dus, mais ils servent à quelque chose.</p>
-    <p><b>Un effet inattendu, et heureux :</b> quand un samedi change de mains entre deux collègues, la récupération le suit — mais seulement si elle n'a pas déjà été prise. Elle passe de transférable une fois sur quatre à neuf fois sur dix.</p>
-    <p><b>Rien d'autre ne bouge.</b> Qui est de garde, quel jour, avec quelle équité : le planning des gardes est rigoureusement identique. Vérifié case par case sur quatre années. Les astreintes du soir aussi : une par jour ouvré, jamais le week-end, même répartition.</p>
-  </div>
-
-  <div class="card">
-    <h4>Le plan d'après <span class="tag t-viol">à partir du 5 septembre</span></h4>
-    <p><b>Une fois le staff passé, six chantiers, dans cet ordre.</b> Ce ne sont pas des semaines de travail : chacun tient en quelques heures. Ce qui prend du temps, c'est de recopier le nouveau code et de vérifier qu'il tourne avant de passer au suivant. <b>L'ensemble tient en deux journées.</b></p>
-    <ol>
-      <li><b>Le contrôle automatique garde ce qu'il trouve.</b> Aujourd'hui il passe le lundi à 4 h, envoie un mail à Arthur, et son résultat disparaît. Désormais il passera <b>chaque nuit, sans rien envoyer</b>, et retiendra ce qu'il a vu. Le mail du lundi ne change pas.</li>
-      <li><b>Il distingue ce qui demande un geste du reste.</b> Le 20 août, il affichait sept avertissements : un seul appelait une action, les six autres étaient de l'histoire ancienne. Sept lignes de même couleur, c'est six lignes qui apprennent à ne plus lire la septième.</li>
-      <li><b>Ça devient visible dans la page.</b> Une pastille sur l'onglet Maintenance, et en tête de cet onglet ce qui appelle un geste — le reste replié. <b>Les jours où tout va bien, il n'y a rien</b> : pas de pastille, pas de couleur. Un signal qui n'apparaît que quand il compte reste un signal qu'on regarde.</li>
-      <li><b>Le cas le plus discret : un MAR placé un jour de récupération.</b> Quand un samedi change de mains, la journée de récupération suit. Si le comité avait déjà placé quelqu'un ce jour-là, <b>le placement reste</b> — le MAR apparaît en secteur alors qu'il récupère. Rien ne clignote, rien ne se vide, personne ne le voit. C'est le seul cas totalement invisible, il passe donc en premier.</li>
-      <li style="opacity:.55"><s><b>Les récupérations posées avant leur samedi.</b></s> <b>Fait le 21 août</b> — voir la première carte.</li>
-      <li><b>Le cas du repos de garde</b> — celui décrit juste en dessous.</li>
-      <li><b>Renouveler la clé de publication</b>, avant la mi-octobre. Seule vraie échéance, et la seule qui casse quelque chose si on l'oublie.</li>
-    </ol>
-    <p>Viennent ensuite, à leur rythme : l'ouverture du module libéral au groupement, la publication qui ne dit pas toujours qu'elle est passée, et deux préparatifs du déménagement.</p>
-  </div>
-
-  <div class="card">
-    <h4>Prévenir quand un échange de garde vide une case <span class="tag t-blue">après le 4 septembre</span></h4>
-    <p><b>La situation.</b> Le comité comble un trou : il place un MAR au bloc viscéral un jeudi de juillet. Le mois est bouclé. Quelques jours plus tard, ce MAR récupère la garde du mercredi — un échange conclu entre collègues, sans que le comité soit consulté. Le système lui pose alors un repos le jeudi, ce qui est la règle et qui le protège. Mais sa place au bloc n'est plus tenue : à la publication suivante, <b>la case redevient vide et le trou se rouvre</b>.</p>
-    <p><b>Personne n'a rien fait de travers.</b> Le comité a placé quelqu'un qui était libre — l'écran ne lui propose que des gens disponibles. Les deux collègues ont utilisé la fonction prévue. C'est l'enchaînement qui casse, et rien ne le dit à personne.</p>
-    <p><b>Ce qui est décidé.</b> L'échange se fait, toujours : il n'est pas question de bloquer un arrangement entre médecins pour une question d'organisation. Mais si l'un des deux était placé quelque part le jour de son nouveau repos, <b>les deux reçoivent un message clair au moment où ils valident</b> : quel jour, quel secteur, quelle demi-journée, et une seule chose à faire — prévenir le comité.</p>
-    <p>Les deux sont prévenus, et pas seulement celui qui est concerné : deux personnes informées, moins de risque que l'information se perde. <b>Si personne ne prévient, ce n'est pas grave</b> : la case porte déjà un « + » clignotant dans la grille, et le comité la voit en relisant le mois avant de publier.</p>
-    <p><b>Deux cas en deux mois</b>, retrouvés dans le classeur. C'est rare — mais un bloc sans anesthésiste un jeudi matin ne se rattrape pas la veille au soir.</p>
-  </div>
-
-  <div class="card ok">
-    <h4>Livré ces dernières semaines <span class="tag t-green">10 au 19 août 2026</span></h4>
-    <p>Le détail de chacun, avec les mesures et les défauts corrigés en chemin, est dans <code>docs/ROADMAP-Planning-CHPG.md</code>. Ici, l'essentiel :</p>
-    <ul>
-      <li><b>Le CR d'anesthésie ne s'affiche plus sur téléphone</b> (19/08) — le générateur se remplit par dizaines de pastilles et finit par un copier-coller vers le DPI : aucun usage sur un mobile, où la tuile ne faisait qu'allonger la liste du portail. Elle reste sur ordinateur. Sur tablette, si l'écran est pivoté après l'ouverture de la page, recharger pour la voir réapparaître (v1.64).</li>
-      <li><b>Le document « Si l'interface tombe » remis à jour</b> (19/08) — il annonçait deux sauvegardes du classeur ; il y en a trois, dont une sur un second compte qui est la seule à survivre à la perte du compte du planning. Il ignorait aussi les échanges de gardes et le module libéral dans « ce qui s'arrête », et le délai d'une minute entre une validation et son affichage — le motif le plus fréquent de double validation inutile.</li>
-      <li><b>Enregistrer les affectations crée les lignes manquantes</b> (19/08) — un MAR affiché « volant » sans ligne dans l'onglet (PRUNET) était ignoré en silence à l'enregistrement, avec un journal qui comptait les données reçues et non les lignes écrites. Corrigé aux deux étages (serveur et page, garde-fou contre la grille vide), prouvé au banc chaîne complète — et le dépôt a été nettoyé de ~500 lignes de code mort au passage (v1.59→v1.61).</li>
-      <li><b>Échanges et dons de gardes</b> (13/08) — un MAR propose depuis son téléphone, l'autre accepte, <b>le planning s'écrit tout seul</b>, sans le comité. Sans réponse : expiration à 48 h, rappel à 24 h, rien de modifié. Un samedi donné emmène sa récupération, par transfert d'un repos existant. Éprouvé à deux en conditions réelles ; cinq défauts trouvés en production, tous corrigés et verrouillés au banc. Le comité n'est prévenu, par mail, que dans un seul cas : une récupération qui ne peut pas suivre son samedi.</li>
-      <li><b>Échange de deux gardes qui se suivent</b> (12/08) — lundi contre mardi était refusé à tort : le programme jugeait la situation de départ, pas celle d'arrivée. Passe désormais dans les deux sens, avec neuf scénarios au banc.</li>
-      <li><b>Ouverture des documents</b> (10/08) — un protocole s'ouvrait en 6 s, un topo en 11. Une copie est déposée à côté des autres données : ouverture quasi immédiate. Rien ne change pour vous, sauf une règle en déposant : <b>8 Mo maximum par document</b>, 2 à 3 Mo si possible. Au-delà, le document reste lent et le Diagnostic le signale.</li>
-      <li><b>Module libéral optimisé</b> (17-18/08) — déclarer une intervention sans faire attendre le patient assis en face : un patient à la fois, une douzaine de gestes ramenés à quatre ou cinq. Un chiffre faux supprimé (la « part de libéral » calculée sur un exemple écrit dans le code), une panne intermittente éliminée, une page pour fabriquer les cotations types, et une règle métier qui manquait : quand le chirurgien cote aussi en libéral, le dépassement de l'anesthésiste est calé à <b>50 % du sien</b>. <i>Reste à faire : mettre à jour les guides du libéral, après stabilisation.</i></li>
-      <li><b>Le planning d'une autre année s'affiche de nouveau tout de suite</b> (18/08) — trouvé pendant la recette, pas par le banc : après une publication, basculer d'année prenait <b>75 secondes</b> pour une année que la copie de lecture rend en <b>164 ms</b>. Deux causes : une sécurité qui fermait toutes les années au lieu de celle qu'on venait d'écrire, et un chemin de repli qui, une fois pris, ne revenait jamais à la copie rapide. Les deux corrigés, deux scénarios au banc. <i>Reste à faire : le reconfirmer une fois en production.</i></li>
-    </ul>
-    <p><b>La leçon, à ne pas perdre :</b> le banc était vert à 1 386 vérifications pendant que la page mettait 75 secondes. Il prouve la logique, jamais l'infrastructure.</p>
-  </div>
-
-  <div class="card">
-    <h4>Quatre questions de facturation <span class="tag t-orange">à trancher au retour d'Arthur, le 31 août</span></h4>
-    <p>Ce sont les seules du module qui engagent vis-à-vis d'un <b>patient</b> : chacune change un montant écrit sur un document remis en main propre. Aucune ne sera codée sur une supposition.</p>
-    <p><b>1. Carte rose au bloc : 241 % ou 234 % ?</b> La page officielle des Caisses Sociales publie, pour la catégorie rose, deux règles distinctes : les actes NGAP majorés de 20 % au maximum, les actes CCAM avec un coefficient maximal de <b>241 %</b>. L'outil applique 195 % puis plafonne le dépassement à +20 %, soit <b>234 %</b> — il sous-facture donc d'environ 4 € par patient. Un indice : chez les sages-femmes, la rose vaut exactement la verte majorée de 20 % (154 → 185 %), alors que chez les médecins 195 × 1,20 donnerait 234 et non 241. Le chiffre semble voulu. <b>Rien n'a été modifié</b> : l'outil sous-facture, ce qui se rattrape ; l'inverse serait une somme réclamée à tort sur un devis signé.</p>
-    <p><b>2. Modificateur A</b> (patient de moins de 4 ans ou de plus de 80) : le code applique +23 €, l'aide de la page annonce +44,85 € pour un Monégasque.</p>
-    <p><b>3. La C2S</b> est-elle bien distincte de l'AME, et applicable en libéral ? Le statut a été laissé intact faute de réponse.</p>
-    <p><b>4. Le paiement de la consultation.</b> La consultation n'apparaît aujourd'hui ni sur le devis, ni dans le reste à charge — alors qu'elle porte souvent un dépassement. Modèle arrêté : deux documents distincts, une <b>note d'honoraires acquittée</b> pour la consultation (numéro sur date et heure, champ mode de paiement, pas de note s'il n'y a pas de dépassement) et le devis pour le bloc. Mis de côté : le circuit de paiement n'est pas connu.</p>
-  </div>
-  <div class="card">
-    <h4>Faire connaître le travail <span class="tag t-blue">congrès 2027</span></h4>
-    <p>L'objectif n'est pas la reconnaissance, c'est la <b>survie du projet</b> : un outil tenu par une seule personne s'arrête avec elle, un travail publié reste consultable et reproductible par d'autres services.</p>
-    <p><b>Ce qui est prévu :</b> un poster au congrès de la SFAR en 2027, après une année complète d'utilisation. On y raconte comment le système a été construit — dans le service, sans budget — et ce que ça a changé, chiffres à l'appui. La répartition des gardes s'écartait au plus de <b>8,4 gardes</b> de la part théorique en 2026 ; elle s'en écarte de <b>1,3</b> en 2027.</p>
-    <p><b>Ce qu'on ne fera pas :</b> aucun questionnaire de satisfaction. Comparer avant et après reviendrait à faire noter le travail de ceux qui faisaient les plannings à la main pendant des années. Tout ce qui sera publié vient des données du système, pas d'un avis demandé à quelqu'un.</p>
-    <p><b>Une seule chose à ne pas oublier d'ici l'automne :</b> demander aux membres du comité combien de temps leur prenait la fabrication d'un planning. Après la bascule, plus personne ne s'en souviendra précisément.</p>
-  </div>
-
-  <div class="card">
-    <h4>Nettoyage de code mort <span class="tag t-blue">après le 4 septembre</span></h4>
-    <p>Du code qui ne sert plus à rien mais qui traîne. <b>Rien n'est cassé, rien n'est ralenti</b> — le seul effet visible est un panneau de l'écran du comité qui annonce toujours « aucune modification en attente », quoi qu'il arrive.</p>
-    <p>Inventaire refait le 10 août, <b>corrigé le 18</b> après relecture du code réel : une action serveur qu'aucun bouton n'appelle, l'ancien mécanisme <code>OVERRIDES</code> (six endroits, c'est lui qui fait mentir le panneau), et une fonction inutilisée qui existe <b>dans cinq pages</b>, pas une seule. L'écran « Paramètres » qu'on croyait à retirer, lui, <b>a déjà disparu</b>.</p>
-    <p><b>⚠️ Correction d'une confusion de noms, à ne pas refaire :</b> les « dix-huit endroits » notés le 10 août désignaient <code>PLANNING_OVERRIDES</code>, qui est <b>bien vivant</b> — c'est lui qui porte les placements du comité. Rien à y toucher. Seul l'ancien <code>OVERRIDES</code>, dont l'onglet n'existe plus, est du code mort.</p>
-    <p><b>Pourquoi attendre :</b> l'essentiel touche l'écriture du planning. Retirer du code qui ne dérange personne, à trois semaines d'une démonstration, c'est prendre un risque sans rien gagner.</p>
-  </div>
-  <div class="card ok">
-    <h4>Sauvegardes et diagnostic <span class="tag t-green">vérifié le 9 août 2026</span></h4>
-    <p><b>Le classeur</b> : lundi ~4 h (<code>backupHebdo</code>, 8 copies) et dimanche ~5 h dans un compte personnel distinct — seule celle-ci survivrait à la perte du compte du planning (<code>docs/sauvegarde-compte-perso.md</code>). <b>Le code</b> : dimanche ~3 h, archive du dépôt en zip (<code>sauvegarde.gs</code>, 42 jours). Les trois constatées actives.</p>
-    <p><b>Le gardien</b> : <code>diagHebdo</code> (<code>Indispos.gs</code>), lundi 2 h, envoie le diagnostic par mail à l'adresse lue dans CONFIG / <code>DIAG_EMAIL</code>. <b>Angle mort</b> : il ne surveille que la copie du lundi. L'archive du code n'est pas contrôlée ; la copie hors-compte ne peut pas l'être. Le classeur est couvert deux fois, la surveillance une seule.</p>
-    <p><b>À savoir</b> : le projet Apps Script étant rattaché au classeur, chaque copie du lundi emporte le code — les projets « Planning-CHPG » multiples de l'éditeur sont ces instantanés, pas des doublons. Les deux dossiers « Sauvegardes Planning-CHPG » sont dans des comptes différents et ne se purgent pas l'un l'autre.</p>
-    </div>
-
-  <h2>3 · Avant la génération de novembre</h2>
-  <div class="card ok">
-    <h4>La récupération de samedi à replacer se voit dans l'écran <span class="tag t-green">23 août 2026</span></h4>
-    <p>Un don ou un échange déplace la garde et son repos, <b>jamais la récupération</b> : celui qui reprend le samedi en gagne une à placer. Quand elle ne peut pas suivre automatiquement, c'est le comité qui tranche — il était prévenu par <b>mail</b>. Ce mail est retiré : il partait vers l'adresse de diagnostic, restait muet si elle était absente, et ne disait jamais s'il avait été traité.</p>
-    <p>L'alerte vit désormais <b>en tête de l'onglet Statuts</b>, là où le geste se fait, avec une <b>pastille sur l'onglet</b> visible depuis n'importe quelle page. Elle <b>se calcule</b> — écart entre samedis tenus et récupérations posées — donc elle disparaît d'elle-même dès que le <code>R</code> est posé, et revient si on l'efface. Rien à cocher, rien à archiver. Le bouton « Placer la récup » présélectionne le médecin ; <b>la date reste au comité</b>, les sept contraintes de placement vivant dans le générateur.</p>
-    <p><span style="color:var(--ink-3)">Sans effet avant le 5 septembre : les échanges n'ouvrent qu'à cette date.</span></p>
-  </div>
-  <div class="card ok">
-    <h4>La pose des temps partiels après génération — construite, à déployer <span class="tag t-green">22 août 2026</span></h4>
-    <p>Le chantier décidé le 22 au matin a été livré le soir même, écrans compris. Le circuit de novembre devient : campagne d'indisponibilités → génération et publication → <b>les huit MARs à temps partiel choisissent leurs jours dans ce qui reste</b>, sur un calendrier en trois couleurs (libre / sous réserve du comité / fermé), quota décompté, récapitulatif à l'enregistrement. Le comité valide ou refuse depuis l'onglet Équipe, avec le nombre de présents recalculé à chaque décision ; un refus ferme le jour pour toute l'équipe. Aucun message automatique dans tout le circuit. <b>Un repos de garde ne peut plus tomber sur un jour de temps partiel, par construction.</b></p>
-    <p>Chargement instantané mesuré sur les données réelles (6,8 Ko par MAR). Deux règles tranchées en séance : une garde de 18h bloque la pose (on est au travail) ; les marques « indisponible » et « garde souhaitée » de la campagne ne bloquent plus (sans objet une fois les gardes générées). Reste un geste : le déploiement, listé plus haut.</p>
-  </div>
-  <div class="card risque">
-    <h4>Deux données à trancher <span class="tag t-red">fausse tout si non réglé</span></h4>
-    <p><b>Le départ de FERRIERO.</b> Si le départ est réel et la colonne de fin vide, l'algorithme lui donne une cible pleine de 34,6 gardes au lieu d'environ 5,4 — et les cibles des 21 autres sont fausses d'environ 1,5 garde chacune.</p>
-    <p><b>L'exemption de garde à 60 ans.</b> Si elle est invoquée en 2027, la cible de chacun passe de 34,6 à 36,3, soit +1,7 garde pour tous les autres.</p>
-  </div>
-  <div class="card">
-    <h4>Sur quoi se calcule la dette <span class="tag t-blue">décision actée le 9 août 2026</span></h4>
-    <p>La dette d'une année lit une photo figée au moment de la génération. Un don ou un échange survenu ensuite change les gardes réelles, pas la photo. Longtemps noté comme un défaut à corriger, <b>c'est désormais un choix assumé : la dette reste calculée sur le planning généré, pas sur les gardes finalement tenues.</b></p>
-    <p><b>Pourquoi.</b> Un don comme un échange est voulu par les deux personnes. La dette sert à rattraper ce que l'algorithme n'a pas pu donner, pas à défaire un arrangement entre collègues : qui prend des gardes en plus par choix ne doit pas en avoir moins l'année suivante, et qui donne a été soulagé plutôt que lésé.</p>
-    <p><b>Ce que ça pèse.</b> La dette est bornée puis atténuée : elle ne peut déplacer une part que de <b>1,2 garde au maximum</b>, quel que soit l'écart. Le choix ne portait pas sur 25 gardes, il portait sur 1,2.</p>
-  </div>
-  <div class="card ok">
-    <h4>Solde des récupérations de samedi <span class="tag t-green">déjà en service</span></h4>
-    <p>Qui donne son samedi garde sa récupération : l'échange déplace la garde et le repos du lendemain, jamais la récup. <b>Le Diagnostic système le signale déjà</b>, nom par nom (« 2 récups manquantes — à corriger dans l'onglet Statuts »). Il reste muet sur 2026 et s'allumera sur 2027.</p>
-    <p><b>Le seuil est zéro.</b> Toutes les récups sont posées à la génération, y compris celles des samedis de fin d'année — vérifié le 9 août 2026. Tout écart est donc un geste resté à faire, jamais un effet de calendrier. Le replacement reste manuel : l'outil signale, il ne corrige pas.</p>
-  </div>
-
-  <h2>4 · Déménagement NCHPG</h2>
-  <p style="color:var(--ink-2);font-size:14px">Les codes de secteurs changent, c'est certain. L'organisation cible n'est pas connue — <b>ne rien coder avant</b>. Ce qui suit est l'inventaire de ce que le changement casse. Détail dans <code>docs/guide-demenagement-nchpg.html</code>.</p>
-  <div class="card risque">
-    <h4>Le « + » des cases à pourvoir s'éteindra partout, en silence <span class="tag t-red">le point le plus dangereux</span></h4>
-    <p>La liste des secteurs à couvrir est figée dans le code : avec de nouveaux codes, elle devient une liste de codes morts. Ni erreur, ni message — juste un signal de sécurité qui disparaît.</p>
-    <p>Correctif décidé : une colonne <b>COUVERTURE (O/N)</b> dans l'onglet des secteurs. Conserver l'exception de la réanimation, volontairement hors couverture.</p>
-  </div>
-  <div class="card attente">
-    <h4>Un secteur désactivé efface l'historique de l'écran <span class="tag t-amber">vérifié au banc</span></h4>
-    <p>Un secteur mis à l'arrêt mais présent dans un planning déjà publié perd sa ligne dans la grille, semaines passées comprises, et le MAR placé dedans est ignoré sans message. Les données restent intactes. Deux issues : garder les anciens secteurs actifs, ou afficher les secteurs inactifs encore présents dans un planning publié.</p>
-  </div>
-  <div class="card">
-    <h4>Question de fond, à trancher avant tout code</h4>
-    <p>Un MAR est aujourd'hui affecté à <b>un</b> code de secteur. Avec des grands secteurs contenant des sous-secteurs : est-on affecté au grand secteur ou au sous-secteur ? Cette réponse fixe la maille de tout le reste — couverture, volet de placement, export Excel.</p>
-  </div>
-  <details>
-    <summary>Export Excel : la forme retenue le 30 juillet</summary>
-    <p>Option A, un bandeau par grand secteur — le mécanisme déjà utilisé par la ligne « anesthésistes aux blocs ». Une colonne <code>PARENT</code> dans l'onglet des secteurs et une boucle imbriquée suffisent : pas de réécriture de l'export. Maquette dans <code>docs/maquette-export-excel-secteurs.xlsx</code>, tenue sur une page A4 paysage vérifiée au rendu PDF, pas dans le vrai Excel.</p>
-    <p>Écartée : la colonne mère à gauche. La contrainte d'impression est la largeur — déjà ~30 cm pour 28,7 cm utiles. Une ligne de plus est gratuite, une colonne de plus se paie en réduction de police sur tout le document.</p>
-  </details>
-
-  <h2>5 · Plus loin</h2>
-  <div class="card">
-    <h4>Entretien de la veille <span class="tag t-blue">~novembre 2026</span></h4>
-    <p>Aucun nettoyage automatique aujourd'hui : environ 2 000 articles par semestre s'accumulent sans fin. Prévoir une purge <b>manuelle</b> — jamais un déclencheur — qui ne touche jamais un article encore marqué par quelqu'un.</p>
-  </div>
-  <div class="card">
-    <h4>Module libéral, lots 2C puis 4 <span class="tag t-blue">mi-2027</span></h4>
-    <p>Le lot 4 demande des rendements mesurés, donc plusieurs mois de déclarations. Chantier de conception, pas de code. Le lot 5 (orientation financière par la secrétaire) reste gelé.</p>
-  </div>
-
-  <h2>6 · Règles à ne jamais casser</h2>
-  <div class="regle"><b>Ne jamais régénérer une année de gardes déjà générée.</b><span>Un verrou l'empêche. Il ne s'arme que sur l'onglet des gardes de l'année.</span></div>
-  <div class="regle"><b>Jamais d'archivage automatique.</b><span>Un déclencheur annuel est du code jamais testé qui s'exécute sans surveillance : il transformerait un oubli en erreur grave. Archivage au premier lundi de la nouvelle année de planning, à la main.</span></div>
-  <div class="regle"><b>Une consigne n'est pas un verrou.</b><span>Le 17 août, à l'heure de remettre le code d'administration au comité : la carte « Clôturer l'année » n'avait aucun contrôle de date. Ses conditions portaient sur l'existence des tableaux de l'année suivante — présents depuis août, créés par la répétition. Clôturer 2026 était à deux clics, ce qui aurait déplacé le planning en cours d'usage et basculé le service sur une année fictive. Le diagnostic l'annonçait, le guide l'écrivait. Désormais refusé à deux endroits — l'écran et le serveur — avant le premier lundi de l'année suivante, et la carte affiche d'elle-même la date à partir de laquelle ce sera possible. <b>Tout geste destructeur accessible à plus d'une personne doit être empêché, pas déconseillé.</b></span></div>
-  <div class="regle"><b>Dès qu'une ressource a deux propriétaires, on fusionne — on ne remplace pas.</b><span>L'onglet des indisponibilités appartient au comité et aux MARs. Écrire une ligne entière efface ce qu'on n'a pas chargé, sans le moindre message.</span></div>
-  <div class="regle"><b>Toute écriture dérivée refuse d'écraser une case occupée.</b><span>Un don de garde a effacé deux jours de garde de réanimation sans aucun signal.</span></div>
-  <div class="regle"><b>Jamais d'appel supplémentaire pour accélérer.</b><span>Apps Script sérialise les exécutions d'un même utilisateur. Un « appel de réveil » et un délai d'abandon court ont chacun cassé l'ouverture de l'interface le jour de leur livraison.</span></div>
-  <div class="regle"><b>Une règle métier écrite à plusieurs endroits finit par diverger.</b><span>La rotation A/B/C tournait à l'envers côté serveur : les deux ordres coïncident une année sur trois. Chercher toutes les copies dans tout le dépôt, pas seulement celle qu'on a sous les yeux.</span></div>
-  <div class="regle"><b>Un contrôle sans destinataire ne sert à rien.</b><span>Un trou de garde était détecté depuis trois jours avec la mention « à traiter immédiatement ». Personne ne lançait le diagnostic.</span></div>
-  <div class="regle"><b>Un indicateur qui ne détecte jamais rien doit prouver qu'il sait détecter.</b><span>Fabriquer le défaut, vérifier qu'il est vu. Le compteur « 0 journée sans binôme » répondait 0 quoi qu'il arrive.</span></div>
-  <div class="regle"><b>Le banc prouve la logique, jamais l'infrastructure.</b><span>Vert ne veut pas dire « ça marche ». Et une validation ne vaut que pour le chemin qu'elle emprunte.</span></div>
-  <div class="regle"><b>Un chiffre dont on n'a pas lu le calcul est une rumeur.</b><span>Marquer la provenance : lu dans le code · mesuré, et par quoi · supposé. Sans provenance, c'est supposé.</span></div>
-
-  <h2>7 · Écarté — ne pas reproposer</h2>
-  <details>
-    <summary>Protection anti-force-brute sur les codes d'accès</summary>
-    <p>Chiffré le 20 juillet : environ 1 100 milliards de combinaisons, ~50 essais par seconde au mieux, soit ~350 ans. Surtout, la vérification du code tourne à chaque requête et non au seul login : un disjoncteur global aurait coupé le service pour les 23 MARs après 30 essais ratés. Et la temporisation épuise le quota au lieu de le protéger.</p>
-  </details>
-  <details>
-    <summary>Généraliser l'installation sur écran d'accueil aux autres pages</summary>
-    <p>Tout le monde passe par le portail, qui la porte déjà.</p>
-  </details>
-  <details>
-    <summary>Embarquer les icônes des secteurs dans le site</summary>
-    <p>Les icônes se choisissent depuis l'onglet des secteurs — 1 728 possibles. Une liste figée ferait disparaître un pictogramme en silence. À ne reproposer qu'avec un repli visible.</p>
-  </details>
-  <details>
-    <summary>Réduction automatique du devis à l'impression</summary>
-    <p>95 % des dossiers font 2 actes, 3 au maximum. Réglé par la mise en page seule.</p>
-  </details>
-  <details>
-    <summary>Rebrancher l'écran « Paramètres » sur la configuration</summary>
-    <p>Écarté le 7 août pour raison de sécurité : les secrets restent dans le classeur, ils ne transitent pas par une page web.</p>
-  </details>
-  <details>
-    <summary>Indisponibilité saisie avant le staff, écrasée par une vacance</summary>
-    <p>Examiné le 30 juillet, décision : on laisse comme ça. Aucun impact sur les gardes, les deux statuts bloquant identiquement. Les deux correctifs étudiés — verrou sur la page d'indispos, marqueur de conflit dans l'écran d'équipe — ont été refusés.</p>
-  </details>
-  <details>
-    <summary>Migration hors Apps Script · page de configuration dédiée · optimisation du format publié</summary>
-    <p>Étudiés et chiffrés. Voir la partie historique de <code>ROADMAP-Planning-CHPG.md</code> pour le détail.</p>
-  </details>
-
-  <div class="foot">
-    Planning-CHPG · roadmap de pilotage · 18 août 2026<br>
-    Détail et historique : <code>docs/ROADMAP-Planning-CHPG.md</code> · méthode : <code>docs/CONTEXTE-Planning-CHPG.md</code><br>
-    architecture et dépannage : <code>docs/guide-technique.html</code>
-  </div>
-
+  <p class="appbar-sub">Où on en est, et ce qu'il reste à faire — en une page. L'histoire complète, jour par jour, vit dans la roadmap du dépôt. Staff&nbsp;: <b id="jmoins">—</b>.</p>
 </div>
 
+<h2>Où on en est</h2>
+<div class="etat-grid">
+  <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
+  <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1996 <small>vérifs · 38 scripts</small></div></div>
+  <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
+  <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
+</div>
+<p class="note">Versions du code déployé, battements des tâches automatiques, cohérence des données : c'est le <b>Diagnostic</b> (écran d'administration → Maintenance) qui fait foi — rapport complet chaque lundi, sentinelle chaque matin qui n'écrit que si un problème apparaît.</p>
+
+<h2>Échéancier</h2>
+<div class="ech" id="ech">
+  <div class="jalon chaud" data-d="2026-09-01">
+    <div class="jalon-t"><span class="jalon-d">1<sup>er</sup> sept.</span><span class="jalon-n">Répétition générale</span><span class="cd"></span></div>
+    <p class="jalon-p">Seul, pendant la garde, en 4G — la marche à suivre imprimée fait foi. Nettoyer · générer · temps partiels · tout effacer le soir même.</p>
+  </div>
+  <div class="jalon" data-d="2026-09-03">
+    <div class="jalon-t"><span class="jalon-d">3 sept. au soir</span><span class="jalon-n">Les mails, à tête reposée</span><span class="cd"></span></div>
+    <p class="jalon-p">Adresses recopiées dans la colonne EMAIL, interrupteur d'envoi vérifié à N, redirection d'essai laissée en second filet.</p>
+  </div>
+  <div class="jalon chaud" data-d="2026-09-04">
+    <div class="jalon-t"><span class="jalon-d">4 sept. · 14 h</span><span class="jalon-n">Staff — démonstration</span><span class="cd"></span></div>
+    <p class="jalon-p">Le seul jalon avec un public. Contrôles le matin, codes à 12 h 30, quatre actes, ménage du soir en dix gestes.</p>
+  </div>
+  <div class="jalon" data-d="2026-10-01">
+    <div class="jalon-t"><span class="jalon-d">1<sup>er</sup> oct.</span><span class="jalon-n">Butoir dur du ménage post-démo</span><span class="cd"></span></div>
+    <p class="jalon-p">Le portail charge aussi l'année suivante sans que personne ne clique : des fichiers de démo 2027 encore sur le Drive, et les 23 verraient des gardes fictives présentées comme vraies.</p>
+  </div>
+  <div class="jalon" data-d="2026-10-05">
+    <div class="jalon-t"><span class="jalon-d">octobre</span><span class="jalon-n">Saisie réelle des indisponibilités 2027</span><span class="cd"></span></div>
+    <p class="jalon-p">Les 23 déclarent depuis leur téléphone — codes reçus le 4, campagne déjà ouverte.</p>
+  </div>
+  <div class="jalon" data-d="2026-10-15">
+    <div class="jalon-t"><span class="jalon-d">mi-oct.</span><span class="jalon-n">Renouvellement du jeton GitHub</span><span class="cd"></span></div>
+    <p class="jalon-p">Passé cette date, plus aucune publication ne part. Alerte automatique à 30 puis 10 jours.</p>
+  </div>
+  <div class="jalon" data-d="2026-11-01">
+    <div class="jalon-t"><span class="jalon-d">novembre</span><span class="jalon-n">Génération des gardes 2027</span><span class="cd"></span></div>
+    <p class="jalon-p">La vraie. Deux données à trancher avant : le départ de FERRIERO et l'exemption des 60 ans.</p>
+  </div>
+  <div class="jalon" data-d="2027-01-01">
+    <div class="jalon-t"><span class="jalon-d">janv. 2027</span><span class="jalon-n">Déménagement NCHPG</span><span class="cd"></span></div>
+    <p class="jalon-p">Les codes de secteurs changent. Rien à coder tant que l'organisation cible n'est pas connue.</p>
+  </div>
+  <div class="jalon" data-d="2027-03-01">
+    <div class="jalon-t"><span class="jalon-d">mars 2027</span><span class="jalon-n">Régénération de l'index CCAM</span><span class="cd"></span></div>
+    <p class="jalon-p">Version en vigueur depuis le 3 juillet 2026. Alerte d'obsolescence automatique.</p>
+  </div>
+</div>
+
+<h2>À faire, dans l'ordre</h2>
+<div class="todo">
+  <b class="t">Juste après le staff</b>
+  <ul>
+    <li>Le ménage du soir, dix gestes dans l'ordre — la marche à suivre fait foi.</li>
+    <li>Rallumer les vrais mails : planning stable → publier → 15 min → journal → interrupteur à O → retirer la redirection. <small>Le Diagnostic surveille désormais cette cohérence.</small></li>
+    <li><span class="pin">📌</span> <b>Corriger la Toussaint 2027</b> dans PERIODES_VAC : <b>23/10 → 07/11</b> (arrêté du 21/07/2026) — à la main, l'import n'écrase pas une ligne existante. <small>Le Diagnostic l'affichera en ❌ tant que ce n'est pas fait.</small></li>
+  </ul>
+</div>
+<div class="todo">
+  <b class="t">Avant la génération de novembre</b>
+  <ul>
+    <li>Trancher le départ de FERRIERO et l'exemption des 60 ans.</li>
+    <li>Retirer du générateur le mécanisme des « jours fixes » de temps partiel <small>— remplacé par la pose après génération, il ne sert plus qu'un cas illégitime.</small></li>
+    <li>Corriger l'échange de gardes adjacentes <small>(lire-avant-écrire + récupération du samedi).</small></li>
+  </ul>
+</div>
+<div class="todo">
+  <b class="t">Chantiers de fond</b>
+  <ul>
+    <li>Équité des week-ends : un déséquilibre structurel existe même sans aucun souhait <small>(102 années simulées sur 400 au-dessus de 2 gardes d'écart)</small> — chantier ouvert, corrélé au creux démographique.</li>
+    <li>Sortir les listes de secteurs écrites en dur dans l'écran d'administration <small>— indispensable avant le déménagement NCHPG.</small></li>
+    <li>Poster SFAR 2027 <small>— les données d'équité avant/après sont déjà capturées.</small></li>
+  </ul>
+</div>
+
+<h2>Ce qui tourne aujourd'hui</h2>
+<div class="mods">
+  <div class="mod"><b>Planning quotidien</b><span>Grille du comité, placement, publication, export Excel du vendredi.</span></div>
+  <div class="mod"><b>Gardes</b><span>Équité annuelle sur ~730 gardes, liens samedi→récupération.</span></div>
+  <div class="mod"><b>Portail MAR</b><span>Planning, gardes, congés, messagerie, cloche des notifications.</span></div>
+  <div class="mod"><b>Indisponibilités</b><span>Campagne annuelle, souhaits, staff vacances, temps partiels posés après génération.</span></div>
+  <div class="mod"><b>Module libéral</b><span>Cotation, devis, déclaration, suivi des 30 %.</span></div>
+  <div class="mod"><b>Contrôle d'absence</b><span>Porte MAR et porte secrétariat, motifs jamais transmis.</span></div>
+  <div class="mod"><b>Veille bibliographique</b><span>41 revues, 21 thèmes, lu/★ par MAR.</span></div>
+  <div class="mod"><b>Échanges de gardes</b><span>Don et échange entre MARs, sans le comité. Le samedi emmène sa récupération.</span></div>
+  <div class="mod"><b>Copie de lecture</b><span>Ouverture des pages en 100–270 ms sans appel Google ; écritures visibles partout en 1-2 min.</span></div>
+  <div class="mod"><b>Sauvegardes</b><span>Trois filets : classeur lundi et dimanche, code le dimanche, une copie dans un compte distinct.</span></div>
+  <div class="mod"><b>Diagnostic</b><span>Trois questions, gestes sur chaque erreur, rapport du lundi par mail, sentinelle quotidienne muette au vert.</span></div>
+  <div class="mod"><b>CR d'anesthésie</b><span>Générateur autonome.</span></div>
+</div>
+
+<details>
+  <summary>Règles à ne jamais casser</summary>
+  <div class="regle"><b>Ne jamais régénérer une année de gardes déjà générée.</b><span>Un verrou l'empêche. Il ne s'arme que sur l'onglet des gardes de l'année.</span></div>
+  <div class="regle"><b>Jamais d'archivage automatique.</b><span>Un déclencheur annuel est du code jamais testé qui s'exécute sans surveillance. Archivage au premier lundi de la nouvelle année, à la main.</span></div>
+  <div class="regle"><b>Une consigne n'est pas un verrou.</b><span>Tout geste destructeur accessible à plus d'une personne doit être empêché, pas déconseillé — la clôture d'année est refusée à l'écran ET au serveur avant sa date.</span></div>
+  <div class="regle"><b>Dès qu'une ressource a deux propriétaires, on fusionne — on ne remplace pas.</b><span>Écrire une ligne entière efface ce qu'on n'a pas chargé, sans message.</span></div>
+  <div class="regle"><b>Toute écriture dérivée refuse d'écraser une case occupée.</b><span>Un don de garde a effacé deux jours de réanimation sans aucun signal.</span></div>
+  <div class="regle"><b>Jamais d'appel supplémentaire pour accélérer.</b><span>Apps Script sérialise : un « réveil » et un délai court ont chacun cassé l'ouverture le jour de leur livraison.</span></div>
+  <div class="regle"><b>Une règle métier écrite à deux endroits finit par diverger.</b><span>Chercher toutes les copies dans tout le dépôt.</span></div>
+  <div class="regle"><b>Un contrôle sans destinataire ne sert à rien.</b><span>D'où le rapport du lundi et la sentinelle.</span></div>
+  <div class="regle"><b>Un indicateur qui ne détecte jamais rien doit prouver qu'il sait détecter.</b><span>Fabriquer le défaut, vérifier qu'il est vu.</span></div>
+  <div class="regle"><b>Le banc prouve la logique, jamais l'infrastructure.</b><span>Vert ne veut pas dire « ça marche ».</span></div>
+  <div class="regle"><b>Un chiffre dont on n'a pas lu le calcul est une rumeur.</b><span>Marquer la provenance : lu · mesuré · supposé.</span></div>
+</details>
+
+<details>
+  <summary>Écarté — ne pas reproposer</summary>
+  <div class="regle"><b>Protection anti-force-brute sur les codes.</b><span>~350 ans pour épuiser les combinaisons ; un disjoncteur global couperait le service des 23 après 30 essais ratés.</span></div>
+  <div class="regle"><b>Installation sur écran d'accueil des autres pages.</b><span>Tout le monde passe par le portail, qui la porte déjà.</span></div>
+  <div class="regle"><b>Icônes des secteurs embarquées dans le site.</b><span>1 728 possibles côté onglet ; une liste figée en ferait disparaître en silence.</span></div>
+  <div class="regle"><b>Réduction automatique du devis à l'impression.</b><span>Réglé par la mise en page seule.</span></div>
+  <div class="regle"><b>Fenêtre couvrante pour les vacances estimées.</b><span>Choix du 27/08 : estimations serrées, le seuil vivant en continu limite l'exposition à une relecture.</span></div>
+</details>
+
+<p class="pied">L'histoire complète, jour par jour : <a href="ROADMAP-Planning-CHPG.md">ROADMAP-Planning-CHPG.md</a> · le contexte de travail : <a href="CONTEXTE-Planning-CHPG.md">CONTEXTE-Planning-CHPG.md</a> · les guides : <a href="guide-comite.html">comité</a>, <a href="guide-technique.html">technique</a>.</p>
+
+</div>
 <script>
 (function(){
   var today = new Date(); today.setHours(0,0,0,0);
@@ -566,13 +222,12 @@
 </script>
 <script src="../version.js"></script>
 <script>
-/* (18/08/2026) Compte a rebours du staff. Aucune donnee en dur : si la page est
-   rouverte apres le 4, elle le dit au lieu d'afficher un nombre faux. */
+/* Compte à rebours du staff — aucune donnée en dur : rouvert après le 4, il le dit. */
 (function(){
   try {
     var el = document.getElementById('jmoins');
     if (!el) return;
-    var staff = new Date(2026, 8, 4, 14, 0, 0);          // 4 septembre 2026, 14h
+    var staff = new Date(2026, 8, 4, 14, 0, 0);
     var j = Math.ceil((staff - new Date()) / 86400000);
     el.textContent = j > 1 ? 'J-' + j : (j === 1 ? 'demain' : (j === 0 ? "aujourd'hui" : 'passé'));
   } catch (e) {}
