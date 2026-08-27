@@ -1,5 +1,5 @@
 // ⚠️ RÈGLE : incrémenter à CHAQUE push. Fichier Apps Script : `journal`.
-const GAS_VERSION_JOURNAL = '2026-08-05.3';
+const GAS_VERSION_JOURNAL = '2026-08-27.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    JOURNAL D'INTENTIONS — L'APPLICATEUR (05/08/2026)
@@ -82,6 +82,7 @@ function _journalRafraichirMail_() {
 }
 
 function journalAppliquer() {
+  try { if (typeof _bat_ === 'function') _bat_('journalAppliquer'); } catch (e) {}   // (27/08) battement de cœur — lu par le diagnostic
   _journalRafraichirMail_();
   // Un seul applicateur à la fois : deux passages qui se chevauchent
   // appliqueraient les mêmes fiches (sans dégât — idempotence — mais en

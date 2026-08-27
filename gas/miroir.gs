@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-26.1';
+const GAS_VERSION_MIROIR = '2026-08-27.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -256,6 +256,7 @@ function miroirRattrapage() {
    miroirSyncComplet) pour remplir le miroir, puis automatiquement chaque
    heure via miroirInstallerDeclencheur(). */
 function miroirSyncComplet() {
+  try { if (typeof _bat_ === 'function') _bat_('miroirSyncComplet'); } catch (e) {}   // (27/08) battement de cœur — lu par le diagnostic
   const familles = ['acces', 'annees', 'secteurs', 'config_admin',
                     'planning', 'affectations', 'indispos', 'tuiles',
                     'gardes', 'joursferies', 'stats', 'vacances_admin', 'mail', 'liberal',
@@ -684,6 +685,7 @@ function _docsDatesEcrites_(obj) {
 /* Tache horaire. Renvoie un compte rendu, ne leve jamais : un echec de copie
    ne doit pas empecher le passage suivant. */
 function miroirDocuments() {
+  try { if (typeof _bat_ === 'function') _bat_('miroirDocuments'); } catch (e) {}   // (27/08) battement de cœur — lu par le diagnostic
   const rec = _docsRecenser_();
   if (!rec.ok) {
     const m = { refus: 'un dossier de documents est injoignable — aucune copie, aucun effacement' };

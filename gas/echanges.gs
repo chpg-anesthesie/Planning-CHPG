@@ -38,7 +38,7 @@
    depuis l'éditeur : installerDeclencheurEchanges().
    ═══════════════════════════════════════════════════════════════════════ */
 
-const GAS_VERSION_ECHANGES = '2026-08-23.1';
+const GAS_VERSION_ECHANGES = '2026-08-27.1';
 
 const ECHANGES_ONGLET = 'ECHANGES';
 const ECHANGES_ENTETE = ['ID', 'CREE_LE', 'TYPE', 'ANNEE', 'DATE', 'DATE2',
@@ -390,6 +390,7 @@ function _transfererR_(year, samedi, donneur, receveur) {
    attente > 48 h → expirée, demandeur notifié.
    attente > 24 h sans rappel → rappel UNIQUE au receveur. */
 function expirerEchanges() {
+  try { if (typeof _bat_ === 'function') _bat_('expirerEchanges'); } catch (e) {}   // (27/08) battement de cœur — lu par le diagnostic
   const { sh, lignes } = _echangesLignes_();
   const maintenant = Date.now();
   const colEtat = ECHANGES_ENTETE.indexOf('ETAT') + 1;

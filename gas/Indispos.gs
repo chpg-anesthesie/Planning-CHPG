@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-26.2';
+const GAS_VERSION_INDISPOS = '2026-08-27.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -122,6 +122,170 @@ function _versionSiteAnomalies_(sourceJs, pages) {
     if (enDur.length) anomalies.push({ fichier: fn, motif: `numéro écrit en dur (${String(enDur[0]).trim().slice(0, 24)}) → réaligner` });
   });
   return { version: m[1], anomalies: anomalies };
+}
+
+/* ═════════ DIAGNOSTIC EN TROIS QUESTIONS + SENTINELLE (27/08/2026) ═════════
+   Recul pris après trois incidents silencieux la même semaine : le dépôt juste
+   mais le site servant l'ancien (événement Pages perdu), une donnée fausse dans
+   PERIODES_VAC (Toussaint 2027), et le constat que les déclencheurs peuvent
+   mourir sans laisser de trace. Le diagnostic devient : trois QUESTIONS
+   (chapitres) au lieu de sections d'inventaire, des sondes de bout en bout,
+   des battements de cœur, et une sentinelle quotidienne qui n'écrit QUE si ❌.
+   Contrainte d'Arthur : rester loin sous la minute — chaque sonde réseau
+   attrape ses erreurs et rend ⚠️ « injoignable » plutôt que de bloquer. */
+
+// ── Battements de cœur : chaque tâche périodique horodate son passage. ──
+function _bat_(nom) {
+  try { PropertiesService.getScriptProperties().setProperty('BAT_' + nom, String(Date.now())); } catch (e) {}
+}
+function _batAge_(nom) {           // minutes depuis le dernier battement, ou null
+  try {
+    const v = PropertiesService.getScriptProperties().getProperty('BAT_' + nom);
+    return v ? Math.round((Date.now() - Number(v)) / 60000) : null;
+  } catch (e) { return null; }
+}
+// Cadences attendues (minutes) et seuil d'alerte — large pour éviter les faux ❌.
+function _batAttendus_() {
+  return [
+    { nom:'journalAppliquer', label:'Journal d\'intentions (les enregistrements des MARs)', alerte:15 },
+    { nom:'miroirSyncComplet', label:'Synchronisation horaire de la copie rapide', alerte:180 },
+    { nom:'miroirDocuments',  label:'Miroir des documents', alerte:26*60 },
+    { nom:'expirerEchanges',  label:'Expiration des échanges', alerte:180 },
+    { nom:'runVeille',        label:'Veille bibliographique', alerte:8*24*60 },
+    { nom:'diagSentinelle',   label:'La sentinelle quotidienne elle-même', alerte:26*60 }
+  ];
+}
+function _batVerifs_(check, R) {
+  let jamais = 0;
+  _batAttendus_().forEach(b => {
+    const age = _batAge_(b.nom);
+    if (age === null) { jamais++; return; }        // pas encore instrumenté / premier tour
+    if (age <= b.alerte) check(`${b.label} — dernier battement il y a ${age < 60 ? age + ' min' : Math.round(age/60) + ' h'}`, R.OK);
+    else {
+      check(`${b.label} NE BAT PLUS — dernier passage il y a ${Math.round(age/60)} h (attendu : < ${b.alerte < 60 ? b.alerte + ' min' : Math.round(b.alerte/60) + ' h'})`, R.ERR);
+      check(`   → LE GESTE : Apps Script → Déclencheurs → vérifier « ${b.nom} », le recréer s'il a disparu, puis l'exécuter une fois à la main.`, R.OK);
+    }
+  });
+  if (jamais) check(`${jamais} battement(s) pas encore enregistré(s) — normal juste après le déploiement, chaque tâche s'horodate à son prochain passage`, R.WARN);
+}
+
+// ── Sonde : le site sert-il le dernier dépôt ? (l'événement perdu du 26/08) ──
+function _sondePagesDeployee_(check, R, info) {
+  try {
+    const token = _githubToken_();
+    if (!token) { info('Site déployé : jeton GitHub absent, sonde sautée'); return; }
+    const H = { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' };
+    const refR = UrlFetchApp.fetch('https://api.github.com/repos/chpg-anesthesie/Planning-CHPG/git/ref/heads/main', { headers: H, muteHttpExceptions: true });
+    const runR = UrlFetchApp.fetch('https://api.github.com/repos/chpg-anesthesie/Planning-CHPG/actions/runs?per_page=1&status=success', { headers: H, muteHttpExceptions: true });
+    if (refR.getResponseCode() !== 200 || runR.getResponseCode() !== 200) { check('Site déployé : GitHub injoignable pour la sonde (réessayer plus tard)', R.WARN); return; }
+    const head = JSON.parse(refR.getContentText()).object.sha;
+    const runs = JSON.parse(runR.getContentText()).workflow_runs || [];
+    if (!runs.length) { check('Site déployé : aucun déploiement trouvé', R.WARN); return; }
+    if (runs[0].head_sha === head) { check('Le site sert le dernier dépôt (déploiement ' + head.slice(0, 7) + ' réussi)', R.OK); return; }
+    // HEAD ≠ dernier déploiement : tolérer un déploiement EN COURS (< 15 min)
+    const cR = UrlFetchApp.fetch('https://api.github.com/repos/chpg-anesthesie/Planning-CHPG/commits/' + head, { headers: H, muteHttpExceptions: true });
+    const age = cR.getResponseCode() === 200 ? (Date.now() - new Date(JSON.parse(cR.getContentText()).commit.committer.date).getTime()) / 60000 : 999;
+    if (age < 15) check('Dernier commit poussé il y a ' + Math.round(age) + ' min — déploiement probablement en cours', R.WARN);
+    else {
+      check('Le site NE SERT PAS le dernier dépôt : commit ' + head.slice(0, 7) + ' (il y a ' + Math.round(age / 60) + ' h) jamais déployé — événement de publication perdu chez GitHub', R.ERR);
+      check('   → LE GESTE : pousser un commit vide (« redéclencher la publication ») ou attendre la reprise du service GitHub — le dépôt, lui, est juste.', R.OK);
+    }
+  } catch (e) { check('Site déployé : sonde en échec (' + e.message + ')', R.WARN); }
+}
+
+// ── Sonde : les interrupteurs des mails sont-ils cohérents ? ──
+function _sondeInterrupteursMails_(check, R, info) {
+  try {
+    const P = PropertiesService.getScriptProperties();
+    const actif = String(P.getProperty('NOTIF_ACTIVE') || '').trim().toUpperCase() === 'O';
+    const test  = !!(P.getProperty('NOTIF_EMAIL_TEST') || '').trim();
+    if (actif && test) {
+      check('Mails ALLUMÉS avec la redirection d\'essai encore posée : tous les messages de changements partent vers l\'adresse de test, les MARs ne reçoivent RIEN — en silence', R.ERR);
+      check('   → LE GESTE : Apps Script → Paramètres du projet → Propriétés → supprimer NOTIF_EMAIL_TEST (ou repasser NOTIF_ACTIVE à N si c\'était voulu).', R.OK);
+    } else if (actif) check('Mails de changements allumés, redirection absente — les MARs reçoivent leurs messages', R.OK);
+    else info('Mails de changements éteints (NOTIF_ACTIVE ≠ O)' + (test ? ' · redirection d\'essai posée' : '') + ' — le notifieur photographie et se tait');
+  } catch (e) { check('Interrupteurs des mails illisibles : ' + e.message, R.WARN); }
+}
+
+// ── Sonde : PERIODES_VAC vs calendrier officiel (aurait attrapé Toussaint 2027) ──
+function _sondePeriodesOfficiel_(check, R, info, annee) {
+  try {
+    // Cache 24 h : l'API du ministère n'est interrogée qu'une fois par jour.
+    const P = PropertiesService.getScriptProperties();
+    const cleCache = 'DIAG_VACAPI_' + annee;
+    let officiel = null;
+    try {
+      const c = JSON.parse(P.getProperty(cleCache) || 'null');
+      if (c && Date.now() - c.t < 24 * 3600 * 1000) officiel = c.p;
+    } catch (e) {}
+    if (!officiel) {
+      officiel = proposerVacances(annee).filter(p => !p.estime);
+      P.setProperty(cleCache, JSON.stringify({ t: Date.now(), p: officiel }));
+    }
+    if (!officiel.length) { info('Périodes ' + annee + ' : arrêté pas encore publié (ou API muette) — rien à comparer'); return; }
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('PERIODES_VAC');
+    if (!sh) return;
+    const data = sh.getDataRange().getValues();
+    const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+    const dstr = v => (v instanceof Date) ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : String(v).trim().slice(0, 10);
+    let compares = 0, ecarts = [];
+    officiel.forEach(o => {
+      for (let r = 1; r < data.length; r++) {
+        if (conceptDe(String(data[r][0])) === o.concept && dstr(data[r][1]).startsWith(String(annee))) {
+          compares++;
+          if (dstr(data[r][1]) !== o.debut || (o.concept !== 'ete' && dstr(data[r][2]) !== o.fin))
+            ecarts.push(`${data[r][0]} : classeur ${dstr(data[r][1])}→${dstr(data[r][2])} · officiel ${o.debut}→${o.fin}`);
+          break;
+        }
+      }
+    });
+    if (ecarts.length) {
+      check(`Périodes ${annee} : ${ecarts.length} écart(s) avec le calendrier officiel — ${ecarts.join(' · ')}`, R.ERR);
+      check('   → LE GESTE : corriger la ou les lignes À LA MAIN dans PERIODES_VAC (l\'import n\'écrase pas une ligne existante).', R.OK);
+    } else if (compares) check(`Périodes ${annee} : ${compares} période(s) comparée(s) au calendrier officiel — dates exactes`, R.OK);
+  } catch (e) { check('Périodes vs officiel : sonde en échec (' + e.message + ')', R.WARN); }
+}
+
+// ── Sonde : les positions de STATS que code.gs lit à l'aveugle ──
+function _sondeStatsEntetes_(check, R, annee) {
+  try {
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('STATS_GARDES_' + annee);
+    if (!sh) return;
+    const h = sh.getRange(1, 1, 1, 22).getValues()[0].map(v => String(v).trim());
+    const attendu = { 0:'MEDECIN', 1:'CIBLE', 17:'CIBLE SAM', 18:'CIBLE JEU', 19:'CIBLE VD', 21:'CIBLE VJF' };
+    const faux = Object.keys(attendu).filter(i => h[i] !== attendu[i]).map(i => `col ${Number(i)+1} : « ${h[i]} » au lieu de « ${attendu[i]} »`);
+    if (faux.length) {
+      check(`STATS_GARDES_${annee} : en-tête déplacé — ${faux.join(' · ')} — code.gs lit ces colonnes PAR POSITION, l'équité se casserait en silence`, R.ERR);
+      check('   → LE GESTE : remettre les colonnes à leur place (ne jamais insérer/supprimer de colonne dans STATS), ou régénérer les cibles.', R.OK);
+    } else check(`STATS_GARDES_${annee} : les 6 colonnes lues par position sont où le code les attend`, R.OK);
+  } catch (e) { check('STATS en-têtes : sonde en échec (' + e.message + ')', R.WARN); }
+}
+
+// ── Regroupement en trois questions — PUR AFFICHAGE, aucun contrôle déplacé. ──
+function _regrouperEnChapitres_(lignes) {
+  const CHAP = {
+    'Publication (test réel)':1, 'Site déployé':1, 'Miroir Cloudflare':1,
+    'Publication JSON (Drive)':1, 'Version du site':1,
+    'Environnement':2, 'Battements de cœur':2, 'Journal d\'intentions':2,
+    'Sauvegarde automatique':2, 'Code déployé vs dépôt':2
+  };
+  const TITRES = { 1:'══ 1 · Ce que les MARs voient est-il juste et à jour ? ══',
+                   2:'══ 2 · Les automatismes tournent-ils ? ══',
+                   3:'══ 3 · Les données sont-elles saines ? ══' };
+  const blocs = { 1:[], 2:[], 3:[] }; let courant = null; const queue = [];
+  lignes.forEach(l => {
+    if (l.startsWith('── ')) {
+      const nom = l.slice(3).replace(/─+\s*$/, '').trim();
+      let ch = 3;
+      Object.keys(CHAP).forEach(k => { if (nom.indexOf(k) === 0) ch = CHAP[k]; });
+      courant = blocs[ch]; courant.push(l);
+    } else if (l.startsWith('────')) { courant = null; queue.push(l); }
+    else if (courant) courant.push(l);
+    else queue.push(l);                       // résumé final + chrono, après les chapitres
+  });
+  const out = [];
+  [1, 2, 3].forEach(c => { if (blocs[c].length) { out.push(TITRES[c]); out.push.apply(out, blocs[c]); } });
+  return out.concat(queue);
 }
 
 function diagnosticComplet() {
@@ -250,6 +414,15 @@ function diagnosticComplet() {
     // ── 3bis. Synchronisation dépôt ↔ Apps Script (détecteur de dérive) ──
     // Compare la version des constantes GAS_VERSION_* déployées ici avec
     // celles du dépôt GitHub : toute recopie oubliée est signalée.
+    hdr('Site déployé (le dépôt est-il en ligne ?)');
+    _sondePagesDeployee_(check, R, info);
+
+    hdr('Battements de cœur');
+    _batVerifs_(check, R);
+
+    hdr('Interrupteurs des mails');
+    _sondeInterrupteursMails_(check, R, info);
+
     hdr('Code déployé vs dépôt');
     try {
       const deployed = {};
@@ -769,6 +942,12 @@ function diagnosticComplet() {
     }
 
     // ── 10. Santé du classeur ──
+    hdr('Périodes vs calendrier officiel');
+    try { _sondePeriodesOfficiel_(check, R, info, getIndisposYear() || N1); } catch (e) { info('Périodes vs officiel : ' + e.message); }
+
+    hdr('STATS — positions lues par le code');
+    _sondeStatsEntetes_(check, R, Y);
+
     hdr('Santé du classeur');
     try {
       const shts = ss.getSheets();
@@ -781,6 +960,9 @@ function diagnosticComplet() {
       });
     } catch (e) { check('Contrôle du classeur impossible : ' + e.message, R.WARN); }
 
+    // (27/08/2026) Trois questions au lieu de dix-huit sections — pur réagencement.
+    const regroupes = _regrouperEnChapitres_(results.splice(0));
+    regroupes.forEach(l => results.push(l));
     results.push('────────────────────────────────────');
     const nbErr = results.filter(l => l.startsWith('❌')).length;
     const nbWarn = results.filter(l => l.startsWith('⚠️')).length;
@@ -800,6 +982,7 @@ function diagnosticComplet() {
    depot etant public. Absente : on ne fait rien plutot que d'echouer.
    ───────────────────────────────────────────────────────────────────────────── */
 function diagHebdo() {
+  try { _bat_('diagHebdo'); } catch (e) {}
   let dest = '';
   try {
     /* Lecture DIRECTE de l'onglet. _configRows_() sert un cache de 10 minutes, et une
@@ -846,6 +1029,55 @@ function installDiagTrigger() {
     .onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(2).nearMinute(0).create();
   return 'Declencheur diagHebdo installe : tous les lundis vers 2 h.';
 }
+
+/* ── SENTINELLE QUOTIDIENNE (27/08/2026) — le mail qui n'arrive que quand ça compte.
+   Sous-ensemble rapide (< 10 s) des sondes de bout en bout, chaque matin :
+   site = dépôt, interrupteurs des mails, battements de cœur, relais joignable,
+   quota email. AUCUN mail si tout est vert — l'absence de bruit est le contrat.
+   Elle pose son propre battement : le rapport hebdo vérifie le surveillant. */
+function diagSentinelle() {
+  _bat_('diagSentinelle');
+  const R = { OK:1, WARN:2, ERR:3 };
+  const lignes = []; let nbErr = 0;
+  function check(label, level) {
+    if (level === true || level === R.OK) lignes.push('✅ ' + label);
+    else if (level === R.WARN) lignes.push('⚠️ ' + label);
+    else { lignes.push('❌ ' + label); nbErr++; }
+  }
+  const info = t => lignes.push('ℹ️ ' + t);
+  const t0 = Date.now();
+  _sondePagesDeployee_(check, R, info);
+  _sondeInterrupteursMails_(check, R, info);
+  _batVerifs_(check, R);
+  try {
+    const r = UrlFetchApp.fetch('https://chpg-miroir.arthurfrohlich.workers.dev/health', { muteHttpExceptions: true });
+    check('Relais de lecture joignable', r.getResponseCode() === 200 ? R.OK : R.ERR);
+  } catch (e) { check('Relais de lecture injoignable : ' + e.message, R.WARN); }
+  try {
+    const q = MailApp.getRemainingDailyQuota();
+    check('Quota email : ' + q + ' restants', q > 10 ? R.OK : R.WARN);
+  } catch (e) {}
+  logAction('diagSentinelle — ' + (nbErr ? nbErr + ' ERREUR(S)' : 'RAS') + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s)');
+  if (!nbErr) return;                                  // silence : le contrat
+  let dest = '';
+  try {
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG');
+    const data = sh ? sh.getDataRange().getValues() : [];
+    for (let r = 1; r < data.length; r++)
+      if (String(data[r][0]).trim() === 'DIAG_EMAIL') { dest = String(data[r][1]).trim(); break; }
+  } catch (e) {}
+  if (!dest) return;
+  try {
+    MailApp.sendEmail(dest, '❌ SENTINELLE — ' + nbErr + ' problème(s) — Planning-CHPG',
+      lignes.map(function (l) { return l.replace(/^✅ +(?=→ LE GESTE)/, ''); }).join('\n') + '\n\nLes jours où tout va bien, ce mail n\'existe pas.');
+  } catch (e) { logAction('diagSentinelle — envoi impossible : ' + e.message); }
+}
+function installerSentinelle() {
+  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'diagSentinelle') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('diagSentinelle').timeBased().everyDays(1).atHour(6).create();
+  logAction('Sentinelle quotidienne installée (6 h)');
+}
+
 
 function logAction(message) {
   try {

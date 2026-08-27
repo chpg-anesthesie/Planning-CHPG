@@ -57,7 +57,7 @@
 //  instantané unique et partagé : chantier séparé.
 // ══════════════════════════════════════════════════════════════════════
 
-const GAS_VERSION_VEILLE = '2026-08-08.5';
+const GAS_VERSION_VEILLE = '2026-08-27.1';
 
 const VEILLE_CFG_TAB = 'VEILLE_CFG';
 const VEILLE_TAB     = 'VEILLE';
@@ -390,6 +390,7 @@ function _veilleListeBlanche(cfg) {
 // ══════════════════════════════════════════════════════════════════════
 
 function runVeille() {
+  try { if (typeof _bat_ === 'function') _bat_('runVeille'); } catch (e) {}   // (27/08) battement de cœur — lu par le diagnostic
   const t0   = Date.now();
   const tabs = getOrCreateVeilleTabs();
   const cfg  = _readVeilleCfg();
