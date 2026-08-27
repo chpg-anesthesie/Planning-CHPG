@@ -4,14 +4,19 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.82** ·
-**GAS** (relevé le 25/08/2026) `code.gs` **2026-08-25.3** ·
-`Indispos.gs` **2026-08-25.3** · `miroir.gs` **2026-08-23.7** · `journal.gs` 2026-08-05.3 ·
-`portail.gs` 2026-08-17.3 · `veille.gs` 2026-08-08.5 · `sauvegarde.gs` 2026-08-06.1 ·
-`echanges.gs` **2026-08-23.1** · `generateur_gardes.gs` **2026-08-26.1** · `setup_annee.gs` 2026-08-08.1 ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.88** ·
+**GAS** (relevé le 27/08/2026) `code.gs` 2026-08-25.3 ·
+`Indispos.gs` **2026-08-27.2** · `miroir.gs` **2026-08-27.1** · `journal.gs` **2026-08-27.1** ·
+`echanges.gs` **2026-08-27.1** · `veille.gs` **2026-08-27.1** · `setup_annee.gs` **2026-08-27.1** ·
+`portail.gs` 2026-08-17.3 · `sauvegarde.gs` 2026-08-06.1 · `generateur_gardes.gs` 2026-08-26.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
 pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
 à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
+
+⚠️ **EN ATTENTE au 27/08 (soir)** : recopie d'`Indispos.gs` **2026-08-27.2** (correctif des deux
+sondes + compteur) — les cinq autres .gs du 27/08 sont recopiés et confirmés par le premier rapport
+réel ; exécuter **`installerSentinelle()`** une fois si ce n'est pas fait (premier passage : 28/08
+à 6 h, son battement fera foi).
 
 ✅ **RIEN EN ATTENTE au 26/08 (soir).** Worker Cloudflare déployé, `generateur_gardes.gs`
 2026-08-26.1 + `miroir.gs` 2026-08-26.1 + `Indispos.gs` 2026-08-26.2 recopiés et redéployés,
@@ -49,7 +54,7 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **1944 vérifications** sur 39 scripts (relevé le 26/08/2026,
+**Banc d'essai** `banc/` — **1996 vérifications** sur 38 scripts (relevé le 27/08/2026,
 recette exacte `grep -cE "^\s+✓ "` — le `grep -c "✓"` naïf rend 1925 en comptant les lignes
 récapitulatives),
 `cd banc && ./lancer.sh`. *(⚠️ La recette du 19/08 disait « compter les coches `✓` de la sortie
@@ -172,6 +177,44 @@ PERIODES_VAC est **fausse d'une semaine** : elle porte 16/10→31/10, or l'arrê
 décor de la démo ne bouge pas d'ici là) et avant que les MARs posent leurs congés d'automne 2027.
 Noël/Hiver/Printemps/Été 2027 vérifiés justes. Rappel du piège : relancer l'import ne corrige PAS
 une ligne existante — c'est un geste manuel.
+
+**Le soir — le diagnostic optimum, en une passe (commits `27ccbe67`, `4d457b52`).** Recul pris après
+trois incidents silencieux la même semaine : le rapport passe de 18 sections d'inventaire à **trois
+questions** (ce que les MARs voient · les automatismes · les données), regroupement en pur
+affichage — aucun contrôle déplacé, le banc prouve que rien ne se perd. Cinq sondes de bout en bout :
+**site = dernier dépôt** (l'événement Pages perdu du 26), **périodes vs calendrier officiel** avec
+cache 24 h (la Toussaint fausse), **interrupteurs des mails** (le piège du rallumage post-staff),
+**en-têtes STATS par position**, et les **battements de cœur** — chaque tâche périodique horodate
+son passage (`_bat_`, une ligne en tête de `journalAppliquer`, `miroirSyncComplet`,
+`miroirDocuments`, `expirerEchanges`, `runVeille`), le diagnostic compare aux cadences attendues.
+Chaque ❌ est suivi d'un encadré **→ LE GESTE**. Et la **sentinelle quotidienne** (6 h, < 10 s) :
+un mail SEULEMENT si ❌ — l'absence de bruit est le contrat ; son propre battement est vérifié par
+l'hebdo. Rendu admin : chapitres en bandeaux, gestes en rouge. `banc_diag_sentinelle.js` (+43 au
+final) — qui a attrapé en route un vrai défaut : la sentinelle insérée DANS une autre fonction,
+Google n'aurait jamais pu la déclencher.
+
+**Le premier rapport réel (21 h 37) a rendu son verdict : deux fautes à moi, un vrai constat.**
+`_githubToken_` n'existait pas (le vrai accesseur est `getGithubToken`) et la sonde périodes était
+MUETTE — elle comparait sur un champ `concept` que les périodes de l'API ne portent pas ; mes stubs
+de banc fournissaient exactement ce que je croyais vrai, donc le banc validait ma croyance. Corrigé
+(`Indispos.gs` 2026-08-27.2), banc réaligné sur les formes réelles + 4 contrôles d'intégration. Le
+❌ interrupteurs du rapport, lui, est un vrai constat du régime de test actuel (NOTIF_ACTIVE=O +
+redirection) — le passage à N avant le 4 l'éteindra. Et le compteur d'admin comptait la ligne de
+récap comme une erreur (« 2 » pour une seule) : admin prend désormais les compteurs du serveur.
+Site **v1.87**.
+
+**La doc des flux, enfin juste (commit `aa9c7a6c`, v1.88).** Après plusieurs explications ratées,
+lecture ligne à ligne : la boîte aux lettres (journal) sert les gestes du COMITÉ
+(`placements/statut/publier`) — pas les MARs, qui écrivent en DIRECT au serveur (leurs secondes
+d'attente), l'accroche `miroirApresRequete_` notant ensuite la réimpression (± 1 min). La synchro
+horaire n'est que le filet des ratés ; documents quotidiens à part. Guide technique : nouvelle
+section **A6 bis « Les quatre chemins d'écriture, et les délais réels »** (tableau, renvois A4/A6,
+zéro redite) ; guide comité : « Les délais normaux, pour ne pas s'inquiéter à tort ».
+
+**Et roadmap.html refaite épurée (commit `91e3d9a4`)** à la demande d'Arthur : 237 lignes au lieu
+de 582 — bandeau commun, J-x du staff, échéancier à compte à rebours, trois cartes « à faire »,
+la grille des versions GAS recopiées à la main SUPPRIMÉE (le Diagnostic fait foi), règles et
+écartés conservés mais repliés, l'histoire renvoyée à ce fichier-ci.
 
 ---
 

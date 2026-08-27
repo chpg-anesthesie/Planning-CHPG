@@ -35,6 +35,26 @@ fenêtre du dernier Excel (vendredi 16 h → dimanche +9).
 
 ---
 
+## État au 27 août 2026 (soir) — le diagnostic optimum
+
+Diagnostic refondu en une passe (trois questions, cinq sondes, battements de cœur, sentinelle
+quotidienne muette au vert, → LE GESTE sur chaque ❌) : commits `27ccbe67` + `4d457b52`, cinq .gs
+en 2026-08-27.x, site v1.87 puis v1.88 (doc des flux : A6 bis au guide technique, délais normaux au
+guide comité), roadmap.html épurée (`91e3d9a4`, 237 lignes). Banc 1996. EN ATTENTE : recopie
+`Indispos.gs` 2026-08-27.2 + `installerSentinelle()` une fois.
+
+**Appris ce soir :**
+- **Un stub qui fournit ce que je crois vrai teste ma croyance, pas le système.** Les deux fautes du
+  premier rapport réel (`_githubToken_` inexistant, champ `concept` absent des périodes API) étaient
+  invisibles au banc parce que mes fixtures les fournissaient. Corrigé : fixtures = formes réelles
+  du code, + contrôles d'intégration au niveau source.
+- Une insertion ancrée « avant telle ligne » peut atterrir DANS une fonction : la sentinelle était
+  imbriquée, indéclenchable — c'est le banc (appel réel de la fonction) qui l'a vu, pas la syntaxe.
+- Le premier rapport de production est le meilleur test : trois findings en un lancement.
+- Expliquer un mécanisme de mémoire mène à des erreurs répétées (la boîte servait le comité, pas
+  les MARs) — pour un flux, relire les cartes (`JOURNAL_TYPES_CONNUS`, `MIROIR_APRES_ECRITURE`)
+  avant d'expliquer.
+
 ## État au 27 août 2026 — vacances estimées au format samedi→dimanche, et une erreur trouvée dans le classeur
 
 `setup_annee.gs` 2026-08-27.1 poussé (`8f746c15`) : estimées samedi→dimanche (Noël : samedi ≥ 18/12),
