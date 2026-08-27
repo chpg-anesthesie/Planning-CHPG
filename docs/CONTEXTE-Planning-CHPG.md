@@ -35,6 +35,19 @@ fenêtre du dernier Excel (vendredi 16 h → dimanche +9).
 
 ---
 
+## État au 27 août 2026 — vacances estimées au format samedi→dimanche, et une erreur trouvée dans le classeur
+
+`setup_annee.gs` 2026-08-27.1 poussé (`8f746c15`) : estimées samedi→dimanche (Noël : samedi ≥ 18/12),
+banc 1953. Marche à suivre 1er/4 septembre refaite (pas de W1 le 1er, décision Arthur). Rétro-test
+zone B 2022→2028 : Toussaint 4/6, Noël 5/6, ratés = ±1 semaine ; Hiver/Printemps 3/6 (rotation des
+zones, servies par l'API de toute façon). **📌 À corriger après le staff : Toussaint 2027 dans
+PERIODES_VAC = 16/10→31/10, le vrai (arrêté du 21/07/2026) = 23/10→07/11.** Geste manuel, l'import
+n'écrase pas l'existant.
+
+**Appris :** un rétro-test sur données réelles vaut mieux qu'un raisonnement sur la règle — il a
+trouvé à la fois les limites de l'estimation (l'été 2028 part un mardi) et une erreur déjà présente
+dans les données de production.
+
 ## État au 26 août 2026 — audit critique du générateur, un doublon corrigé, les week-ends d'affilée assumés
 
 **Poussé et vérifié (commit `aff5ffad3c`)** : `generateur_gardes.gs` **2026-08-26.1** — ⚠️ recopie

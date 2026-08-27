@@ -142,6 +142,39 @@ calculer, en silence. Le matin du 4 ne garde plus qu'un contrôle, les adresses 
 
 ---
 
+## 27 août 2026 — les vacances estimées prennent la forme des vraies, et le rétro-test attrape une erreur dans le classeur
+
+**Marche à suivre des 1er/4 septembre refaite** (v5, vérifiée contre le code, le classeur ET le deck —
+38 diapos, l'ancien repère « diapos larges 10 et 19 » datait d'avant l'insertion de la diapo 17).
+Décision d'Arthur : **pas de répétition du W1 le 1er** — il a déjà tourné pour 2027, ne se jouera pas
+le 4, et le décor aux profils remplis rend la répétition représentative. Relevé du classeur au
+passage : INDISPOS_2027 est propre (zéro TP/TPA — l'ancien geste Ctrl+H est fait), VAC 1234 ·
+INDISPO 256 · FORM 211 · SOUHAIT 140 · CL 56.
+
+**Push `8f746c15` — `setup_annee.gs` 2026-08-27.1** : les périodes de vacances ESTIMÉES (quand
+l'arrêté n'est pas publié) épousent désormais la forme des vraies — début au samedi le plus proche
+du repère, fin le dimanche quinze jours plus tard, été fin 31/08 conservée, et Noël au samedi
+suivant-ou-égal au 18/12 pour toujours mordre sur janvier. `banc_vacances_estimees.js` (+5, dont la
+contre-épreuve : 4 échecs sur l'ancien code — et le banc a attrapé le premier jet, dont le Noël 2028
+finissait le 31/12 sans toucher janvier). Décision d'Arthur : PAS de fenêtre couvrante élargie — on
+garde les estimations serrées, le seuil vivant en continu (refus au rang > seuil à chaque pose)
+limite l'exposition à une relecture comité des congés déjà accordés dans la semaine révélée.
+
+**Rétro-test sur six années réelles de zone B (2022→2028)** : Toussaint 4/6 exacts, Noël 5/6, Été
+5/6 — les ratés font exactement ±1 semaine (sauf l'été 2028, +4 j : départ un MARDI 04/07, le schéma
+« toujours samedi » n'est pas absolu côté été). Hiver/Printemps : 3/6 seulement (rotation des zones,
+jusqu'à ±2 semaines) — mais ce sont celles que l'API sert toujours à temps.
+
+**📌 RAPPEL POST-STAFF — erreur réelle trouvée dans le classeur.** La Toussaint 2027 de
+PERIODES_VAC est **fausse d'une semaine** : elle porte 16/10→31/10, or l'arrêté du 21/07/2026
+(JO du 23/07/2026, trois sources concordantes) fixe **sam 23/10 → dim 07/11/2027**, toutes zones.
+À corriger À LA MAIN dans la ligne (`2027-10-23` / `2027-11-07`) — **après le 4 septembre** (le
+décor de la démo ne bouge pas d'ici là) et avant que les MARs posent leurs congés d'automne 2027.
+Noël/Hiver/Printemps/Été 2027 vérifiés justes. Rappel du piège : relancer l'import ne corrige PAS
+une ligne existante — c'est un geste manuel.
+
+---
+
 ## 26 août 2026 — l'audit critique du générateur : un doublon de pénalité, le plafond 20 s rendu visible, et les week-ends d'affilée mesurés puis assumés
 
 **Le point de départ : Arthur demande un CR critique de l'algorithme de garde.** Lecture intégrale
