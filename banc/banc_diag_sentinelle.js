@@ -121,16 +121,16 @@ function bac() {
       return { getResponseCode: () => 200, getContentText: () => JSON.stringify(rep) };
     };
     const ctxOK = monter({ fetch: gh('abc123abc123', 'abc123abc123', 5), props: {},
-      apres: c => { c._githubToken_ = () => 'jeton'; } });
+      apres: c => { c.getGithubToken = () => 'jeton'; } });
     let b = bac(); ctxOK._sondePagesDeployee_(b.check, b.R, b.info);
     V('dépôt = déploiement → ✅', b.lignes.length === 1 && b.lignes[0].startsWith('✅'), b.lignes);
     const ctxKO = monter({ fetch: gh('abc123abc123', 'vieux999', 60 * 20),
-      apres: c => { c._githubToken_ = () => 'jeton'; } });
+      apres: c => { c.getGithubToken = () => 'jeton'; } });
     b = bac(); ctxKO._sondePagesDeployee_(b.check, b.R, b.info);
     V('commit de 20 h jamais déployé → ❌ « événement perdu »', b.lignes.some(l => l.startsWith('❌') && l.includes('perdu')));
     V('…avec le geste du commit vide', b.lignes.some(l => l.includes('commit vide')));
     const ctxEnCours = monter({ fetch: gh('abc123abc123', 'vieux999', 4),
-      apres: c => { c._githubToken_ = () => 'jeton'; } });
+      apres: c => { c.getGithubToken = () => 'jeton'; } });
     b = bac(); ctxEnCours._sondePagesDeployee_(b.check, b.R, b.info);
     V('commit de 4 min → ⚠️ « en cours », pas de fausse alerte', b.lignes.length === 1 && b.lignes[0].startsWith('⚠️'), b.lignes);
   }
@@ -139,8 +139,10 @@ function bac() {
   {
     const feuilles = { 'PERIODES_VAC': [ ['NOM','DATE_DEBUT','DATE_FIN','SEUIL'],
       ['Toussaint', '2027-10-16', '2027-10-31', 8], ['Noël', '2027-12-18', '2028-01-02', 8] ] };
-    const officiel = [ { concept:'toussaint', nom:'Toussaint', debut:'2027-10-23', fin:'2027-11-07', seuil:8, estime:false },
-                       { concept:'noel', nom:'Noël', debut:'2027-12-18', fin:'2028-01-02', seuil:8, estime:false } ];
+    /* Forme RÉELLE de setup_annee.gs l.165 : PAS de champ concept — c'est
+       précisément ce qui a rendu la sonde muette en production le 27/08 au soir. */
+    const officiel = [ { nom:'Toussaint', debut:'2027-10-23', fin:'2027-11-07', seuil:8, estime:false },
+                       { nom:'Noël', debut:'2027-12-18', fin:'2028-01-02', seuil:8, estime:false } ];
     const ctx = monter({ feuilles, apres: c => { c.proposerVacances = () => officiel; } });
     let b = bac(); ctx._sondePeriodesOfficiel_(b.check, b.R, b.info, 2027);
     const err = b.lignes.find(l => l.startsWith('❌'));
@@ -176,16 +178,25 @@ function bac() {
     ['journalAppliquer','miroirSyncComplet','miroirDocuments','expirerEchanges','runVeille','diagSentinelle'].forEach(n => propsVerts['BAT_' + n] = String(t - 60000));
     propsVerts['NOTIF_ACTIVE'] = 'N';
     const feuilles = { 'CONFIG': [ ['CLE','VALEUR'], ['DIAG_EMAIL', 'chef@chpg.mc'] ] };
-    const ctxVert = monter({ props: propsVerts, fetch: ghOK, feuilles, apres: c => { c._githubToken_ = () => 'jeton'; c.logAction = () => {}; } });
+    const ctxVert = monter({ props: propsVerts, fetch: ghOK, feuilles, apres: c => { c.getGithubToken = () => 'jeton'; c.logAction = () => {}; } });
     ctxVert.diagSentinelle();
     V('tout vert → AUCUN mail (le contrat)', ctxVert._mails.length === 0, ctxVert._mails);
     V('la sentinelle a posé son propre battement', Number(ctxVert._props.get('BAT_diagSentinelle')) >= t);
     const propsKO = Object.assign({}, propsVerts, { 'BAT_journalAppliquer': String(t - 7 * 3600000) });
-    const ctxKO = monter({ props: propsKO, fetch: ghOK, feuilles, apres: c => { c._githubToken_ = () => 'jeton'; c.logAction = () => {}; } });
+    const ctxKO = monter({ props: propsKO, fetch: ghOK, feuilles, apres: c => { c.getGithubToken = () => 'jeton'; c.logAction = () => {}; } });
     ctxKO.diagSentinelle();
     V('un battement mort → UN mail, objet ❌ SENTINELLE', ctxKO._mails.length === 1 && ctxKO._mails[0].b.includes('❌ SENTINELLE'), ctxKO._mails.map(m => m.b));
     V('le corps porte le geste, sans préfixe ✅ parasite', /\n→ LE GESTE/.test(ctxKO._mails[0].c), ctxKO._mails[0].c.slice(0, 300));
     V('…et la dernière ligne du contrat', ctxKO._mails[0].c.includes('ce mail n\'existe pas'));
+  }
+
+  console.log('— Les intégrations réelles (les stubs avaient masqué deux absences) —');
+  {
+    const src = fs.readFileSync('../gas/Indispos.gs', 'utf8');
+    V('la sonde Pages utilise getGithubToken (l\'accesseur qui EXISTE)', src.includes('const token = getGithubToken()'));
+    V('…et plus jamais _githubToken_', !/_githubToken_\(\)/.test(src));
+    V('la sonde périodes dérive le concept du NOM (l\'API n\'a pas de champ concept)', src.includes('conceptDe(String(o.nom))'));
+    V('le cas « rien de comparable » parle au lieu de se taire', src.includes('aucune ligne du classeur ne correspond'));
   }
 
   console.log('— L\'installateur et le rendu admin —');
@@ -195,6 +206,7 @@ function bac() {
     const adm = fs.readFileSync('../admin.html', 'utf8');
     V('admin rend les chapitres ══ en bandeaux', adm.includes('diag-chap') && adm.includes("startsWith('══')"));
     V('admin rend « → LE GESTE » en encadré rouge', adm.includes('diag-geste') && adm.includes('→ LE GESTE'));
+    V('admin prend les compteurs du serveur (le récap n\'est plus compté comme une erreur)', adm.includes('data.nbErr') && adm.includes('problème/'));
     const dh = fs.readFileSync('../gas/Indispos.gs', 'utf8');
     V('le regroupement est branché dans le diagnostic', dh.includes('_regrouperEnChapitres_(results.splice(0))'));
     ['journal.gs','miroir.gs','echanges.gs','veille.gs'].forEach(f => {

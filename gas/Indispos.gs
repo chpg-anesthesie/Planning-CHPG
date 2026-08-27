@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-27.1';
+const GAS_VERSION_INDISPOS = '2026-08-27.2';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -172,7 +172,7 @@ function _batVerifs_(check, R) {
 // ── Sonde : le site sert-il le dernier dépôt ? (l'événement perdu du 26/08) ──
 function _sondePagesDeployee_(check, R, info) {
   try {
-    const token = _githubToken_();
+    const token = getGithubToken();   // (27/08 soir) même accesseur que le test Publication — _githubToken_ n'existait pas
     if (!token) { info('Site déployé : jeton GitHub absent, sonde sautée'); return; }
     const H = { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' };
     const refR = UrlFetchApp.fetch('https://api.github.com/repos/chpg-anesthesie/Planning-CHPG/git/ref/heads/main', { headers: H, muteHttpExceptions: true });
@@ -230,10 +230,14 @@ function _sondePeriodesOfficiel_(check, R, info, annee) {
     const dstr = v => (v instanceof Date) ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : String(v).trim().slice(0, 10);
     let compares = 0, ecarts = [];
     officiel.forEach(o => {
+      // (27/08 soir) le concept se DÉRIVE du nom : les périodes issues de l'API
+      // n'ont pas de champ concept — comparer dessus rendait la sonde muette.
+      const oc = conceptDe(String(o.nom));
+      if (!oc) return;
       for (let r = 1; r < data.length; r++) {
-        if (conceptDe(String(data[r][0])) === o.concept && dstr(data[r][1]).startsWith(String(annee))) {
+        if (conceptDe(String(data[r][0])) === oc && dstr(data[r][1]).startsWith(String(annee))) {
           compares++;
-          if (dstr(data[r][1]) !== o.debut || (o.concept !== 'ete' && dstr(data[r][2]) !== o.fin))
+          if (dstr(data[r][1]) !== o.debut || (oc !== 'ete' && dstr(data[r][2]) !== o.fin))
             ecarts.push(`${data[r][0]} : classeur ${dstr(data[r][1])}→${dstr(data[r][2])} · officiel ${o.debut}→${o.fin}`);
           break;
         }
@@ -243,6 +247,7 @@ function _sondePeriodesOfficiel_(check, R, info, annee) {
       check(`Périodes ${annee} : ${ecarts.length} écart(s) avec le calendrier officiel — ${ecarts.join(' · ')}`, R.ERR);
       check('   → LE GESTE : corriger la ou les lignes À LA MAIN dans PERIODES_VAC (l\'import n\'écrase pas une ligne existante).', R.OK);
     } else if (compares) check(`Périodes ${annee} : ${compares} période(s) comparée(s) au calendrier officiel — dates exactes`, R.OK);
+    else info(`Périodes ${annee} : le calendrier officiel est publié mais aucune ligne du classeur ne correspond — vérifier PERIODES_VAC`);
   } catch (e) { check('Périodes vs officiel : sonde en échec (' + e.message + ')', R.WARN); }
 }
 

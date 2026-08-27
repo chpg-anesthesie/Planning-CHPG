@@ -9025,10 +9025,16 @@ async function runDiag() {
     // Contrôle CÔTÉ PAGE, ajouté après la réponse serveur : le fichier de tarifs est
     // servi par GitHub Pages, le serveur GAS ne le voit pas. Ne doit jamais faire
     // échouer le diagnostic — _diagCcamFraicheur() attrape ses propres erreurs.
-    lignes.push(await _diagCcamFraicheur());
+    const ccam = await _diagCcamFraicheur();
+    lignes.push(ccam);
     _diagRapport = lignes.join('\n');
-    const nbE = lignes.filter(l => l.startsWith('❌')).length;
-    const nbW = lignes.filter(l => l.startsWith('⚠️')).length;
+    // (27/08/2026 soir) Le serveur compte AVANT d'ajouter sa ligne de récap ; la
+    // recompter ici la faisait entrer dans le total (« 2 erreurs » pour une seule).
+    // On prend donc ses compteurs, plus la ligne CCAM ajoutée côté page.
+    const nbE = (typeof data.nbErr === 'number' ? data.nbErr : lignes.filter(l => l.startsWith('❌') && !/^❌ \d+ problème/.test(l)).length)
+              + (ccam.startsWith('❌') ? 1 : 0);
+    const nbW = (typeof data.nbWarn === 'number' ? data.nbWarn : lignes.filter(l => l.startsWith('⚠️')).length)
+              + (ccam.startsWith('⚠️') ? 1 : 0);
     if (out) {
       out.style.display = 'block';
       const resume = nbE
