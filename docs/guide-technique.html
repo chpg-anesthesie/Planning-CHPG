@@ -280,7 +280,8 @@
     <li><span class="n">A4</span> <a href="#a4">Les données : le classeur, le Drive, les copies</a></li>
     <li><span class="n">A5</span> <a href="#a5">Le relais Cloudflare : pourquoi les pages s'ouvrent vite</a></li>
     <li><span class="n">A6</span> <a href="#a6">Le journal d'intentions : pourquoi les gestes du comité sont instantanés</a></li>
-    <li><span class="n">A7</span> <a href="#a7">Sécurité &amp; confidentialité : ce qui est protégé, et comment</a></li>
+    <li><span class="n">A6 bis</span> <a href="#a6b">Les quatre chemins d'écriture, et les délais réels</a></li>
+<li><span class="n">A7</span> <a href="#a7">Sécurité &amp; confidentialité : ce qui est protégé, et comment</a></li>
   </ul>
 
   <div class="parcours-titre pb">Parcours B — Le cycle annuel</div>
@@ -728,6 +729,41 @@ minute (<code>journalInstallerDeclencheur</code>). Les fonctions de production a
 </div></details>
 
 <p class="haut"><a href="#top">↑ Sommaire</a></p>
+
+<h2 id="a6b"><span class="num">A6 bis</span>Les quatre chemins d'écriture, et les délais réels</h2>
+
+<div class="r2"><div class="titre">En 2 minutes</div>
+<p>Deux flux de sens opposés. <b>Montant</b> (écrire au classeur) : quatre chemins selon qui écrit.
+<b>Descendant</b> (ce que les téléphones lisent) : les copies chez Cloudflare, réimprimées après
+chaque écriture réussie, avec une ronde horaire en filet. Retenir : en fonctionnement nominal,
+<b>rien n'attend l'heure</b> — l'heure n'est que le rattrapage d'un raté. Cette section ne redit ni
+le fonctionnement de la boîte aux lettres (A6) ni l'inventaire des lieux de stockage (A4) : elle
+donne les trajets et les chiffres.</p></div>
+
+<table>
+<tr><th>Qui écrit</th><th>Trajet</th><th>Ressenti de l'auteur</th><th>Visible des MARs</th></tr>
+<tr><td>Le comité (écran admin)</td><td>fiche déposée dans la boîte aux lettres (A6), relevée
+chaque minute par le serveur, qui écrit au classeur</td><td>instantané (accusé de dépôt)</td>
+<td>~1 à 2 min</td></tr>
+<tr><td>Un MAR (indispos, temps partiel, échanges, libéral)</td><td>appel DIRECT au serveur, qui
+écrit au classeur dans la requête</td><td>quelques secondes (le temps de réveil de Google — c'est
+l'attente de l'écran d'enregistrement)</td><td>~1 min après</td></tr>
+<tr><td>Une main dans le classeur</td><td>édition directe ; un déclencheur d'édition note la
+réimpression</td><td>immédiat</td><td>~1 min</td></tr>
+<tr><td>Les automatismes (génération, archivage…)</td><td>écriture directe + note de réimpression
+explicite</td><td>—</td><td>~1 min</td></tr>
+</table>
+
+<p>Le mécanisme descendant est le même pour les quatre : chaque écriture réussie <b>note</b> les
+familles de clés touchées (carte <code>MIROIR_APRES_ECRITURE</code>, miroir.gs) et un déclencheur
+unique pousse dans la minute — la requête, elle, répond tout de suite (mesure du 05/08 : pousser
+dans la requête coûtait ~5 s à chaque écriture). La <b>synchro horaire</b>
+(<code>miroirSyncComplet</code>) ne porte le délai que dans un cas : une poussée ciblée a échoué
+(réseau, quota) — elle ramasse alors l'écart, silencieusement, en une heure au plus. Deux
+exceptions structurelles : les <b>documents</b> (protocoles…) ont leur miroir quotidien
+(<code>miroirDocuments</code>) — parution le lendemain ; et le <b>planning publié</b> après une
+validation de temps partiel suit une republication différée (~1 min), le classeur étant juste
+immédiatement. Les battements de cœur (D3) surveillent la relève de la boîte et la ronde horaire.</p>
 
 <h2 id="a7"><span class="num">A7</span>Sécurité &amp; confidentialité : ce qui est protégé, et comment</h2>
 
