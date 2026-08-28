@@ -35,6 +35,17 @@ fenêtre du dernier Excel (vendredi 16 h → dimanche +9).
 
 ---
 
+## État au 28 août 2026 (matin)
+
+Export Excel corrigé pour les semaines à cheval sur deux mois (commit `8f73c645`, site v1.89 puis
+v1.90, banc **2013**). Le fichier de la S36 sortait mardi et mercredi quasi vides avec les gardes
+du mois précédent, alors que l'écran était juste. Rien à recopier côté GAS pour ce lot.
+Le reste de l'état du 27/08 est inchangé — la recopie d'`Indispos.gs` et `installerSentinelle()`
+restent à confirmer.
+
+**Écran et fichier ne lisent pas pareil.** Deux lecteurs distincts des mêmes données : une règle
+vérifiée à l'affichage ne l'est pas dans l'export, et réciproquement.
+
 ## État au 27 août 2026 (soir) — le diagnostic optimum
 
 Diagnostic refondu en une passe (trois questions, cinq sondes, battements de cœur, sentinelle

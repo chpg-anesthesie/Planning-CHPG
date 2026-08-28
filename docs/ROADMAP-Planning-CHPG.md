@@ -4,7 +4,7 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.88** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.90** ·
 **GAS** (relevé le 27/08/2026) `code.gs` 2026-08-25.3 ·
 `Indispos.gs` **2026-08-27.2** · `miroir.gs` **2026-08-27.1** · `journal.gs` **2026-08-27.1** ·
 `echanges.gs` **2026-08-27.1** · `veille.gs` **2026-08-27.1** · `setup_annee.gs` **2026-08-27.1** ·
@@ -12,6 +12,23 @@ portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'ane
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
 pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
 à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
+
+✅ **28/08 (matin) — export Excel des semaines à cheval sur deux mois.** Commit `8f73c645`,
+site **v1.89** (puis v1.90 dans la foulée, autre lot), Pages déployé (success). L'export choisissait
+UN bloc « mois » pour les 7 jours puis lisait chaque jour par son rang dans ce bloc : sur une semaine
+à cheval (S36, 31/08 → 06/09), les jours de septembre allaient chercher les jours d'août de même
+rang — **décalage de 31 jours, totalement silencieux**. Mardi et mercredi tombaient sur un week-end
+d'août (colonnes quasi vides, aucune absence) et les gardes affichées étaient celles du mois
+précédent. L'écran, lui, était juste : `renderWeek` lit chaque jour dans SON mois depuis toujours.
+Défaut présent depuis l'origine de l'export, ~11 semaines par an concernées, jamais signalé.
+Corrigé en alignant l'export sur `renderWeek`. Nouveau scénario `banc/banc_export_excel.js`
+(15 vérifications), contre-épreuve faite : 8 échecs sans le correctif. **Rien à recopier côté Apps
+Script.** Vérifié en production par Arthur sur le fichier régénéré de la S36.
+
+⚠️ **Leçon, troisième défaut de la même famille** (après le miroir maternité et les consultations
+fusionnées) : **l'écran et le fichier ne lisent pas pareil**. Ce sont deux lecteurs distincts des
+mêmes données. Une règle vérifiée à l'affichage ne l'est pas dans l'export, et réciproquement :
+toute correction d'affichage doit être cherchée aussi dans `exportWeekExcel`.
 
 ⚠️ **EN ATTENTE au 27/08 (soir)** : recopie d'`Indispos.gs` **2026-08-27.2** (correctif des deux
 sondes + compteur) — les cinq autres .gs du 27/08 sont recopiés et confirmés par le premier rapport
@@ -54,7 +71,7 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **1996 vérifications** sur 38 scripts (relevé le 27/08/2026,
+**Banc d'essai** `banc/` — **2013 vérifications** sur 42 scripts (relevé le 28/08/2026,
 recette exacte `grep -cE "^\s+✓ "` — le `grep -c "✓"` naïf rend 1925 en comptant les lignes
 récapitulatives),
 `cd banc && ./lancer.sh`. *(⚠️ La recette du 19/08 disait « compter les coches `✓` de la sortie
