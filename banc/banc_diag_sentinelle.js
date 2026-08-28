@@ -173,7 +173,7 @@ function bac() {
   {
     const t = Date.now();
     const ghOK = (url) => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify(
-      url.includes('/git/ref/') ? { object: { sha: 'x1' } } : url.includes('/actions/runs') ? { workflow_runs: [{ head_sha: 'x1' }] } : {} ) });
+      url.includes('/git/ref/') ? { object: { sha: 'x1' } } : url.includes('/actions/runs') ? { workflow_runs: [{ head_sha: 'x1' }] } : url.includes('workers.dev') ? { ok: true, service: 'miroir banc' } : {} ) });
     const propsVerts = {};
     ['journalAppliquer','miroirSyncComplet','miroirDocuments','expirerEchanges','runVeille','diagSentinelle'].forEach(n => propsVerts['BAT_' + n] = String(t - 60000));
     propsVerts['NOTIF_ACTIVE'] = 'N';
@@ -188,6 +188,9 @@ function bac() {
     V('un battement mort → UN mail, objet ❌ SENTINELLE', ctxKO._mails.length === 1 && ctxKO._mails[0].b.includes('❌ SENTINELLE'), ctxKO._mails.map(m => m.b));
     V('le corps porte le geste, sans préfixe ✅ parasite', /\n→ LE GESTE/.test(ctxKO._mails[0].c), ctxKO._mails[0].c.slice(0, 300));
     V('…et la dernière ligne du contrat', ctxKO._mails[0].c.includes('ce mail n\'existe pas'));
+    const src2 = fs.readFileSync('../gas/Indispos.gs', 'utf8');
+    V('la sonde relais interroge la RACINE du worker (pas de route /health)', src2.indexOf("workers.dev/health'") === -1 && src2.indexOf('Relais de lecture en service') !== -1);
+    V('…et sa panne a un geste (Cloudflare)', src2.indexOf('worker chpg-miroir') !== -1);
   }
 
   console.log('— Les intégrations réelles (les stubs avaient masqué deux absences) —');

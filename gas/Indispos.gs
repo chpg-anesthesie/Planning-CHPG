@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-27.2';
+const GAS_VERSION_INDISPOS = '2026-08-28.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1055,8 +1055,17 @@ function diagSentinelle() {
   _sondeInterrupteursMails_(check, R, info);
   _batVerifs_(check, R);
   try {
-    const r = UrlFetchApp.fetch('https://chpg-miroir.arthurfrohlich.workers.dev/health', { muteHttpExceptions: true });
-    check('Relais de lecture joignable', r.getResponseCode() === 200 ? R.OK : R.ERR);
+    // (28/08/2026) La santé du Worker se lit sur « / » (il n'a PAS de route /health —
+    // URL écrite de mémoire le 27/08, fausse alerte au premier passage réel).
+    // Même sonde que le rapport complet : code 200 ET { ok:true } dans la réponse.
+    const _base = (typeof MIROIR_URL !== 'undefined') ? MIROIR_URL : 'https://chpg-miroir.arthurfrohlich.workers.dev';
+    const r = UrlFetchApp.fetch(_base + '/', { muteHttpExceptions: true });
+    let o = null; try { o = JSON.parse(r.getContentText()); } catch (e2) {}
+    if (r.getResponseCode() === 200 && o && o.ok) check('Relais de lecture en service (' + (o.service || 'version inconnue') + ')', R.OK);
+    else {
+      check('Relais de lecture EN PANNE (code ' + r.getResponseCode() + ') — les pages se replient sur le serveur lent', R.ERR);
+      check('   → LE GESTE : tableau de bord Cloudflare → worker chpg-miroir → vérifier le déploiement et les journaux.', R.OK);
+    }
   } catch (e) { check('Relais de lecture injoignable : ' + e.message, R.WARN); }
   try {
     const q = MailApp.getRemainingDailyQuota();
