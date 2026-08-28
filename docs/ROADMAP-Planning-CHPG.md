@@ -6,17 +6,27 @@ portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'ane
 
 **Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.91** ·
 **GAS** (relevé le 28/08/2026) `code.gs` **2026-08-28.1** ·
-`Indispos.gs` **2026-08-27.2** · `miroir.gs` **2026-08-27.1** · `journal.gs` **2026-08-27.1** ·
+`Indispos.gs` **2026-08-28.1** · `miroir.gs` **2026-08-27.1** · `journal.gs` **2026-08-27.1** ·
 `echanges.gs` **2026-08-27.1** · `veille.gs` **2026-08-27.1** · `setup_annee.gs` **2026-08-27.1** ·
 `portail.gs` 2026-08-17.3 · `sauvegarde.gs` 2026-08-06.1 · `generateur_gardes.gs` 2026-08-26.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
 pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
 à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
 
-⚠️ **EN ATTENTE au 28/08 (soir) : recopie de `code.gs` 2026-08-28.1** dans l'éditeur Apps
-Script, puis nouvelle version déployée. Tant que ce n'est pas fait, les mails partent à l'ancienne.
+✅ **RIEN EN ATTENTE au 28/08 (soir).** `code.gs` **2026-08-28.1** recopié dans l'éditeur Apps
+Script et déployé en nouvelle version — **confirmé par le Diagnostic**, dont la sonde « Code déployé
+vs dépôt » compare les constantes `GAS_VERSION_*` réellement en mémoire avec celles du dépôt, les
+dix fichiers. Sonde muette = tout est recopié. C'est ce contrôle qui fait foi, pas le fait d'avoir
+poussé.
 
-✅ **28/08 (soir) — le mail « Votre planning a changé ».** Commit à venir, `code.gs`
+ℹ️ **L'alerte « Interrupteurs des mails » est ATTENDUE jusqu'au 4 septembre.** Elle se déclenche
+quand `NOTIF_ACTIVE = O` **et** que `NOTIF_EMAIL_TEST` est encore posée, et annonce que les MARs ne
+reçoivent rien. C'est exactement l'état voulu avant la démonstration : le filet de sécurité. La
+sonde ne peut pas deviner que c'est délibéré, et c'est très bien ainsi — le jour où la redirection
+sera oubliée, elle criera de la même façon. Elle s'éteindra à la dernière étape de la séquence du 4 :
+supprimer `NOTIF_EMAIL_TEST`. **Aucune autre conversation ne doit la traiter comme un défaut.**
+
+✅ **28/08 (soir) — le mail « Votre planning a changé ».** Commit `6401c1a5`, `code.gs`
 **2026-08-28.1**, banc **2063**. Trois choses dans le même lot.
 
 1. **Un mail annonçait « 18h — avant : 18h ».** Le diff compare le triplet statut/matin/après-midi,
@@ -69,10 +79,10 @@ fusionnées) : **l'écran et le fichier ne lisent pas pareil**. Ce sont deux lec
 mêmes données. Une règle vérifiée à l'affichage ne l'est pas dans l'export, et réciproquement :
 toute correction d'affichage doit être cherchée aussi dans `exportWeekExcel`.
 
-⚠️ **EN ATTENTE au 27/08 (soir)** : recopie d'`Indispos.gs` **2026-08-27.2** (correctif des deux
-sondes + compteur) — les cinq autres .gs du 27/08 sont recopiés et confirmés par le premier rapport
-réel ; exécuter **`installerSentinelle()`** une fois si ce n'est pas fait (premier passage : 28/08
-à 6 h, son battement fera foi).
+✅ **RIEN EN ATTENTE au 27/08 (soir), soldé le 28/08.** `installerSentinelle()` a été exécutée
+(confirmé par Arthur). Quant à `Indispos.gs`, il n'est plus en 2026-08-27.2 mais en
+**2026-08-28.1** — l'autre conversation l'a modifié le 28 au matin (commit `be652a8f`, sonde relais
+de la sentinelle). Le Diagnostic ne signale aucune dérive : c'est bien cette version-là qui tourne.
 
 ✅ **RIEN EN ATTENTE au 26/08 (soir).** Worker Cloudflare déployé, `generateur_gardes.gs`
 2026-08-26.1 + `miroir.gs` 2026-08-26.1 + `Indispos.gs` 2026-08-26.2 recopiés et redéployés,

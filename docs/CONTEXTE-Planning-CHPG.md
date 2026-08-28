@@ -46,8 +46,13 @@ Trois correctifs dans la journée. Site **v1.91**, `code.gs` **2026-08-28.1**, b
    (fin des cartes « 18h — avant : 18h »), les cartes qui n'apprennent rien ne sont plus émises,
    et nouveau visuel en carte agenda avec les codes secteur écrits en clair.
 
-⚠️ **EN ATTENTE : recopie de `code.gs` 2026-08-28.1** dans l'éditeur Apps Script + nouvelle
-version déployée. Les points 1 et 2 sont du frontend, déjà en ligne.
+✅ **RIEN EN ATTENTE.** `code.gs` 2026-08-28.1 recopié et déployé, `Indispos.gs` 2026-08-28.1
+également, `installerSentinelle()` exécutée — le Diagnostic ne signale aucune dérive de version.
+
+ℹ️ **Le Diagnostic affiche une alerte « Interrupteurs des mails » : elle est VOULUE.**
+`NOTIF_ACTIVE = O` avec `NOTIF_EMAIL_TEST` encore posée = les MARs ne reçoivent rien, tout part sur
+l'adresse d'essai. C'est le filet de sécurité d'ici au 4 septembre. Elle s'éteindra en supprimant
+`NOTIF_EMAIL_TEST` à la dernière étape de la séquence. Ne pas la traiter comme un défaut.
 
 **Deux leçons du jour, même racine.** *Écran et fichier ne lisent pas pareil* : ce sont deux
 lecteurs distincts des mêmes données. *Une exclusion faite à la maille du mois ne protège pas à la
