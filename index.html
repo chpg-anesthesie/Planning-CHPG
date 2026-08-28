@@ -2448,6 +2448,14 @@ function renderEquiteCards(list){
     return d>=2?over:(d<=-2?under:ok);};
   const maxOf=k=>Math.max(0.1,...list.map(x=>+x[k]||0),...list.map(x=>cibOf(x,k)))*1.15;
   const maxTot=Math.max(0.1,...list.map(x=>+x.total||0))*1.12; // échelle = totaux réels (une cible aberrante ne peut plus vider la barre)
+  /* (28/08/2026) Axes SANS cible : UNE seule échelle pour Lun/Mar/Mer. Chacun
+     avait la sienne, calculée sur son propre maximum d'équipe : 3 mercredis
+     donnaient une barre quatre fois plus longue que 4 mardis. Le MAR à souhaits
+     garantis est exclu du calcul — ses 43 mardis étiraient l'échelle du mardi et
+     écrasaient les barres des 23 autres. Sa propre barre sature à 100 %, ce qui
+     est juste : sa carte n'est comparable à aucune autre, elle porte déjà un
+     total « souhaits » sans cible. */
+  const mxGris=Math.max(0.1,...list.filter(x=>!x.wish).flatMap(x=>[+x.lu||0,+x.ma||0,+x.me||0]))*1.15;
   const _meN = MY_ID ? _meName(MY_ID) : null; // (Perso) MAR connecté en tête
   const sorted=list.slice().sort((a,b)=>{
     if(_meN){ if(String(a.name)===_meN) return -1; if(String(b.name)===_meN) return 1; }
@@ -2462,8 +2470,7 @@ function renderEquiteCards(list){
     const bars=AX.map(([k,lbl])=>{
       const v=+it[k]||0;
       if(NEUTRAL[k]||_wish){
-        const mx=Math.max(0.1,...list.map(x=>+x[k]||0))*1.15;
-        const w=Math.min(100,v/mx*100);
+        const w=Math.min(100,v/mxGris*100);
         return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:#94A3B8;opacity:.5"></div></div><div class="eqv-val">'+v+'</div></div>';
       }
       const c=cibOf(it,k),mx=maxOf(k);

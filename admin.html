@@ -5478,6 +5478,13 @@ async function loadStats(year, force){
 /* (18/08/2026) L'ancien onglet « calendrier des gardes » (generateGardes,
    loadCalendrier, renderCalendrier, buildCalMonthSelect, STATUS_CFG) est parti :
    son HTML avait été retiré, la génération passe par le wizard. */
+/* Profils « souhaits garantis » (souhait_plafond / jours fixes) : leurs jours
+   choisis SONT leur cible. Repérés ici une fois pour toutes — les barres s'en
+   servent pour l'échelle, le certificat pour les exclure du verdict. */
+function estSouhaitsGarantis(name){
+  const x=(typeof marsData!=='undefined'?marsData:[]).find(d=>d.initiales===name||d.nom===name||d.id===name);
+  return !!(x&&(x.souhaitPlafond||x.tpJoursFixes));
+}
 function renderEquiteCards(list){
   const AX=[['lu','Lun'],['ma','Mar'],['me','Mer'],['je','Jeu'],['sa','Sam'],['vd','VD'],['jf','JF'],['vjf','VJF']];
   const CB={je:'cJe',sa:'cSa',vd:'cVd',vjf:'cVjf'};
@@ -5488,6 +5495,14 @@ function renderEquiteCards(list){
   const colOf=(v,c)=>{const d=v-c;return d>=2?'#CE1126':(d<=-2?'#1D4ED8':'#15803D');};
   const maxOf=k=>Math.max(0.1,...list.map(x=>+x[k]||0),...list.map(x=>cibOf(x,k)))*1.15;
   const maxTot=Math.max(0.1,...list.map(x=>+x.total||0))*1.12; // échelle = totaux réels (une cible aberrante ne peut plus vider la barre)
+  /* (28/08/2026) Axes SANS cible : UNE seule échelle pour Lun/Mar/Mer. Chacun
+     avait la sienne, calculée sur son propre maximum d'équipe : 3 mercredis
+     donnaient une barre quatre fois plus longue que 4 mardis. Le MAR à souhaits
+     garantis est exclu du calcul — ses 43 mardis étiraient l'échelle du mardi et
+     écrasaient les barres des 23 autres. Sa propre barre sature à 100 %, ce qui
+     est juste : sa carte n'est comparable à aucune autre, elle porte déjà un
+     total « souhaits » sans cible. */
+  const mxGris=Math.max(0.1,...list.filter(x=>!x.wish).flatMap(x=>[+x.lu||0,+x.ma||0,+x.me||0]))*1.15;
   const sorted=list.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
   return '<div class="eqv-grid">'+sorted.map(it=>{
     const tv=+it.total||0,tc=+it.cTot||0,tw=Math.min(100,tv/maxTot*100),tcx=Math.min(100,tc/maxTot*100);
@@ -5495,8 +5510,7 @@ function renderEquiteCards(list){
     const bars=AX.map(([k,lbl])=>{
       const v=+it[k]||0;
       if(NEUTRAL[k]){
-        const mx=Math.max(0.1,...list.map(x=>+x[k]||0))*1.15;
-        const w=Math.min(100,v/mx*100);
+        const w=Math.min(100,v/mxGris*100);
         return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:#94A3B8;opacity:.5"></div></div><div class="eqv-val">'+v+'</div></div>';
       }
       const c=cibOf(it,k),mx=maxOf(k);
@@ -5681,6 +5695,7 @@ function renderStats(stats){
     name:s.medecin, total:s.total||0, cTot:s.cible||0,
     lu:s.lun||0, ma:s.mar||0, me:s.mer||0, je:s.jeu||0, sa:s.sat||0, vd:s.vd||0, jf:s.jf||0, vjf:s.vjf||0,
     cSa:s.cSat||0, cJe:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0,
+    wish:estSouhaitsGarantis(s.medecin),
   }));
   (function(){ const cont=document.getElementById('statsCards'); const grid=cont.querySelector('.eqv-grid'); const gh=renderEquiteCards(list); if(!(grid && morphGrid(grid, gh))) cont.innerHTML = gh; })();
   // Certificat : uniquement sur la répartition initiale. En « Instantané » (échanges/dons
@@ -5702,7 +5717,7 @@ function renderStats(stats){
 // (résidu = plancher arithmétique : cibles fractionnaires, gardes entières).
 function renderCertificat(list){
   const AXfull=[['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],['vd','cVd','week-ends'],['vjf','cVjf','veilles fériés']];
-  const _spec = name => { const x=(typeof marsData!=='undefined'?marsData:[]).find(d=>d.initiales===name||d.nom===name||d.id===name); return !!(x&&(x.souhaitPlafond||x.tpJoursFixes)); };
+  const _spec = name => estSouhaitsGarantis(name);   // même test que les barres — une seule définition
   const SEUIL=2.0;
   let maxEc=0, maxWho='', maxAx='', maxVal=0;
   const flag=[]; const worstList=[];
