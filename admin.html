@@ -5786,7 +5786,9 @@ function renderCertificat(list){
 // Un present = la definition de presentsPool (code.gs, l.~895) : statut du
 // jour hors ABSENT_CODES, et MAR dans sa periode d'activite. G/G2 comptent
 // presents (ils travaillent en journee, en rea et en maternite), 'I' aussi.
-// PRUNET est exclu, comme dans nonPlacesJour : le comite ne le place pas.
+// (28/08/2026) PRUNET COMPTE ici, decision d'Arthur : la bande mesure la presence
+// PHYSIQUE reelle — le volant est bien la, meme si le comite ne le place pas
+// (nonPlacesJour, lui, continue de l'exclure : deux questions differentes).
 // Aucun appel serveur : tout vient de DATA et de marsData, deja en memoire.
 // (Remplace l'ancienne heatmap des indispos, orpheline depuis la refonte de
 //  l'onglet : ni #heatmap ni #marGrid n'existaient plus, renderIndispos
@@ -5828,7 +5830,6 @@ function tensionJours() {
       if (day.isFerie) { out.push({date: day.date, ferie: true, n: null}); return; }
       let n = 0;
       (month.doctors || []).forEach(doc => {
-        if (doc.id === 'PRUNET') return;
         const m = actifs[doc.id];
         if (!m) return;                                          // inactif
         if (m.dateDebut && day.date <  m.dateDebut) return;      // pas encore arrive
