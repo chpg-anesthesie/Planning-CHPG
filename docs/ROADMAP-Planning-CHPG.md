@@ -4,7 +4,7 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.91** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.92** ·
 **GAS** (relevé le 28/08/2026) `code.gs` **2026-08-28.1** ·
 `Indispos.gs` **2026-08-28.1** · `miroir.gs` **2026-08-27.1** · `journal.gs` **2026-08-27.1** ·
 `echanges.gs` **2026-08-27.1** · `veille.gs` **2026-08-27.1** · `setup_annee.gs` **2026-08-27.1** ·
@@ -12,6 +12,35 @@ portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'ane
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
 pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
 à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
+
+✅ **28/08 (soir) — relecture de l'échéancier dans le code, deux points périmés retirés.**
+Demandé par Arthur après qu'une liste récitée de mémoire s'est révélée fausse.
+
+- **« Corriger l'échange de gardes adjacentes » : déjà fait le 12/08.** `Indispos.gs`, cas
+  `echangeGardeJours`, branche dédiée quand les deux dates se suivent : préconditions strictes sur
+  l'état de départ, contrôle des vraies adjacences **à l'arrivée** (veille du premier jour,
+  surlendemain du second), contrôle de disponibilité, puis écriture des six cellules de l'état
+  final. Couvert par `banc_gestes.js` : trois cas nominaux, cinq refus, une non-régression sur
+  l'échange non adjacent. Le transfert du R est câblé au don et à l'échange (`_transfererR_`,
+  règle « exactement un des deux jours est un samedi » ; samedi↔samedi ne bouge rien).
+- **« Le générateur doit porter la correspondance samedi→R pour 2027 » : déjà fait.**
+  `LIENS_R_{année}` est recréé à chaque génération, en format texte forcé. 2026 n'en a pas —
+  cette année-là a été générée avant la fonctionnalité — et le cas est traité proprement :
+  motif explicite « année d'avant le lien », l'échange reste valide, le comité replace.
+- **Deux alertes déjà automatiques, rien à surveiller à la main** : jeton GitHub (`Indispos.gs`,
+  ⚠ à 30 jours, ❌ à 10) et fraîcheur de l'index CCAM (`admin.html`, seuils 8 et 14 mois, lecture
+  des seules métadonnées par requête HTTP Range ; effet 2026-07-03 → l'alerte tombera seule en
+  mars 2027).
+- **Toujours vrai** : le mécanisme `tp_jours_fixes` est encore là (six occurrences dans le
+  générateur), à retirer après le 4 septembre.
+
+⚠️ **Le chantier des secteurs en dur était mal chiffré** : « cinq blocs dans `admin.html` » était
+faux dans les deux sens. Il y en a **neuf**, répartis sur **quatre fichiers**. Inventaire exact
+ci-dessous, dans l'entrée du chantier.
+
+⚠️ **Leçon de méthode** : une liste de tâches récitée depuis un document n'est pas un constat.
+Trois des points de l'échéancier étaient faux ou périmés, et personne ne s'en serait aperçu avant
+de commencer le travail. Un chantier se revérifie dans le code avant d'être planifié.
 
 ✅ **RIEN EN ATTENTE au 28/08 (soir).** `code.gs` **2026-08-28.1** recopié dans l'éditeur Apps
 Script et déployé en nouvelle version — **confirmé par le Diagnostic**, dont la sonde « Code déployé
@@ -1096,7 +1125,7 @@ Mais **le déménagement change les codes**, et la règle du projet est que les 
 `ACTIF=N` **sans jamais être renommés**. Ce jour-là, tout placement visant un ancien code devient un
 placement vers un secteur inexistant — **ni la génération ni le diagnostic ne le contrôlent**.
 
-→ **À traiter avec le chantier `COVERAGE`/`targets` en dur, avant janvier 2027.** Deux gestes : un
+→ **À traiter avec le chantier des listes de secteurs en dur, avant janvier 2027** (relevé exhaustif du 28/08 : NEUF emplacements — `admin.html` `COVERAGE` et `targets`, `index.html` quatre listes de libellés et d'ordre, `absences.html` `LIB_CS`, `code.gs` `CS_RULES`. Ne PAS toucher : le repli de `code.gs` quand SECTEURS est illisible, la semence de l'onglet SPECIALITES, les tables d'alias.)**.** Deux gestes : un
 contrôle au diagnostic, et décider du comportement à la génération (rattrapage type
 `normalizeAffectation`, ou refus explicite).
 
