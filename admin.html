@@ -6214,7 +6214,6 @@ async function exportWeekExcel(){
       if (_hit.length) _staffFri = _hit;
     }
   } catch(e) {}
-  const month=DATA.months.find(m=>m.id===wk.monthId)||DATA.months[0];
   // ── Skin gabarit historique ──
   const C={hd:'D9D9D9',grey:'DBDBDB',white:'FFFFFF',we:'F2F2F2'};
   // (07/2026) Les lignes de secteur de l'Excel viennent désormais de l'onglet
@@ -6251,9 +6250,17 @@ async function exportWeekExcel(){
   const guards=Array(7).fill(null).map(()=>[]);const gardesRea=Array(7).fill(null).map(()=>[]);const gardesAn=Array(7).fill(null).map(()=>[]);const astr=Array(7).fill(null).map(()=>[]);const h18=Array(7).fill('');const sorties=Array(7).fill(null).map(()=>[]);const absents=Array(7).fill(null).map(()=>[]);
   const ABSENT_S=new Set(['RG','CP','A','F','R','TP','V','CTP','CL']);   // (31/07/2026) « I » et « E » retires : I = present sans garde, E n'existe pas
   function pushCS(code,dow,half,init){const raw=code.includes('-')?code.split('-')[1]:code;let idx=subToRow[raw];if(idx==null)idx=POLYI;if(idx>=0&&!csb[idx][dow][half].includes(init))csb[idx][dow][half].push(init);}
-  month.doctors.forEach(doc=>{
-    daySlots.forEach((slot,dow)=>{
-      if(!slot)return;const entry=doc.days[slot.dayIdx]||{};const st=entry.status||'';const am=entry.morning||'';const pm=entry.afternoon||'';
+  /* (28/08/2026) Chaque jour est lu dans SON mois — exactement comme renderWeek.
+     Avant, l'export choisissait un seul bloc « mois » pour les 7 jours puis lisait
+     chaque jour par son rang dans ce bloc : sur une semaine à cheval (ex. S36,
+     31/08 → 06/09), les jours de septembre allaient chercher les jours d'août de
+     même rang. Décalage de 31 jours, sans le moindre avertissement : mardi et
+     mercredi tombaient sur un week-end d'août (donc vides) et les gardes étaient
+     celles du mois précédent. ⚠️ Ne jamais revenir à un mois unique par semaine. */
+  daySlots.forEach((slot,dow)=>{
+    if(!slot)return;
+    ((slot.sourceMonth||slot.month).doctors||[]).forEach(doc=>{
+      const entry=doc.days[slot.dayIdx]||{};const st=entry.status||'';const am=entry.morning||'';const pm=entry.afternoon||'';
       if(st==='G')  gardesRea[dow].push(doc.initials);      // garde réanimation
       if(st==='G2') gardesAn[dow].push(doc.initials);       // garde anesthésie (mater/bloc)
       if(st==='G'||st==='G2')guards[dow].push(doc.initials);
