@@ -4719,6 +4719,16 @@ function nonPlacesJour(date) {
   // qu'elle est vide on n'exclut personne — jamais de faux retrait.
   const _inactifs = new Set(((typeof marsData !== 'undefined' && marsData) || [])
     .filter(m => m && m.actif === false).map(m => m.id));
+  // (28/08/2026) MEME PIEGE, AUTRE COLONNE : date_debut / date_fin. Cote GAS, un MAR
+  // n'est sorti du bloc « mois » que si sa periode d'activite ne recouvre AUCUN jour
+  // du mois. Une arrivante au 28/09 figure donc dans tout le bloc de septembre, avec
+  // statut ET secteur vides du 1er au 27 — la signature exacte d'un « present non
+  // place ». Elle etait reclamee « a placer » chaque jour avant sa prise de fonctions.
+  // statActive() est la convention de tout le reste de l'appli (bande de presence,
+  // annuaire de l'Excel, comite) : on s'y aligne ici aussi.
+  const _fiches = {};
+  ((typeof marsData !== 'undefined' && marsData) || [])
+    .forEach(m => { if (m && m.id) _fiches[m.id] = m; });
   const ov = _localOverrides[date] || {};
   const AFF = window.AFFM || {};
   const mIdx = parseInt(date.slice(5,7), 10);
@@ -4729,6 +4739,8 @@ function nonPlacesJour(date) {
     for (const doc of (mo.doctors || [])) {
       if (doc.id === 'PRUNET') continue;
       if (_inactifs.has(doc.id)) continue;   // (T44) sorti de l'effectif
+      const _f = _fiches[doc.id];
+      if (_f && !statActive(_f, date)) continue;  // pas encore arrivé / déjà parti
       const e = (doc.days && doc.days[i]) || {};
       if (EXCL.has(e.status || '')) continue;
       [['am','morning'], ['pm','afternoon']].forEach(([half, field]) => {
