@@ -35,6 +35,24 @@ fenêtre du dernier Excel (vendredi 16 h → dimanche +9).
 
 ---
 
+## État au 28 août 2026 (soir)
+
+Trois correctifs dans la journée. Site **v1.91**, `code.gs` **2026-08-28.1**, banc **2063**.
+
+1. **Export Excel** des semaines à cheval sur deux mois (commit `8f73c645`).
+2. **Badge « à placer »** : un MAR pas encore arrivé n'est plus réclamé (commit `99157503`).
+   COPELOVICI, `date_debut` 2026-09-28, était réclamée 19 jours ouvrés d'avance.
+3. **Mail « Votre planning a changé »** : le secteur s'affiche sous les statuts qui le méritent
+   (fin des cartes « 18h — avant : 18h »), les cartes qui n'apprennent rien ne sont plus émises,
+   et nouveau visuel en carte agenda avec les codes secteur écrits en clair.
+
+⚠️ **EN ATTENTE : recopie de `code.gs` 2026-08-28.1** dans l'éditeur Apps Script + nouvelle
+version déployée. Les points 1 et 2 sont du frontend, déjà en ligne.
+
+**Deux leçons du jour, même racine.** *Écran et fichier ne lisent pas pareil* : ce sont deux
+lecteurs distincts des mêmes données. *Une exclusion faite à la maille du mois ne protège pas à la
+maille du jour.*
+
 ## État au 28 août 2026 (matin)
 
 Export Excel corrigé pour les semaines à cheval sur deux mois (commit `8f73c645`, site v1.89 puis

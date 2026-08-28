@@ -4,14 +4,53 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.90** ·
-**GAS** (relevé le 27/08/2026) `code.gs` 2026-08-25.3 ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.91** ·
+**GAS** (relevé le 28/08/2026) `code.gs` **2026-08-28.1** ·
 `Indispos.gs` **2026-08-27.2** · `miroir.gs` **2026-08-27.1** · `journal.gs` **2026-08-27.1** ·
 `echanges.gs` **2026-08-27.1** · `veille.gs` **2026-08-27.1** · `setup_annee.gs` **2026-08-27.1** ·
 `portail.gs` 2026-08-17.3 · `sauvegarde.gs` 2026-08-06.1 · `generateur_gardes.gs` 2026-08-26.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
 pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
 à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
+
+⚠️ **EN ATTENTE au 28/08 (soir) : recopie de `code.gs` 2026-08-28.1** dans l'éditeur Apps
+Script, puis nouvelle version déployée. Tant que ce n'est pas fait, les mails partent à l'ancienne.
+
+✅ **28/08 (soir) — le mail « Votre planning a changé ».** Commit à venir, `code.gs`
+**2026-08-28.1**, banc **2063**. Trois choses dans le même lot.
+
+1. **Un mail annonçait « 18h — avant : 18h ».** Le diff compare le triplet statut/matin/après-midi,
+mais `_notifDecrire` s'arrêtait au statut et n'affichait jamais le secteur. Un MAR resté en astreinte
+18h dont le secteur passait de volant à réanimation recevait donc une carte qui n'apprenait rien.
+Corrigé par une table explicite `NOTIF_STATUT_AVEC_SECTEUR = { '18': true }` — les gardes n'y
+figurent pas, leur secteur est déduit et le répéter donnerait « garde réanimation — Réanimation ».
+2. **Les cartes vides ne sont plus émises.** Même libellé ET même secteur des deux côtés → rien.
+Cela supprime aussi les faux changements V→VAC, F→FORM, TP→CTP, qui partagent un libellé.
+3. **Nouveau visuel** (proposition A, choisie par Arthur sur maquette) : pastille de date façon
+agenda, matin et après-midi sur deux lignes séparées, résumé en tête, codes secteur écrits en clair.
+Les libellés viennent de SECTEURS et CS_TEMPLATE, tous deux servis par le cache de configuration :
+aucune lecture de feuille supplémentaire. Config illisible → codes bruts, jamais d'invention.
+Gabarit 100 % `<table>` + styles en ligne : ni flex, ni grid, ni CSS externe, sinon Outlook casse.
+
+Nouveau scénario `banc/banc_mail_change.js` (39 vérifications, dont la fenêtre d'annonce des
+secteurs). Contre-épreuve sur la version en ligne : `_notifDecrire(['18','REA','REA'])` rendait
+`"18h"`, et le mail ne contenait nulle part le mot du secteur.
+
+✅ **28/08 (après-midi) — le badge « à placer » et les dates d'arrivée.** Commit `99157503`,
+site **v1.91**. Côté GAS, un MAR n'est sorti du bloc « mois » que si sa période d'activité ne
+recouvre AUCUN jour du mois. COPELOVICI (`date_debut` **2026-09-28**, vérifié dans MEDECINS)
+figurait donc dans tout le bloc de septembre, statut et secteur vides du 1er au 27 : la signature
+exacte d'un « présent non placé ». Elle était réclamée « à placer » **19 jours ouvrés** avant sa
+prise de fonctions, matin et après-midi. Symétrique pour un partant en cours de mois.
+`nonPlacesJour` s'aligne désormais sur `statActive()`, convention de tout le reste de l'appli.
+Même famille que le défaut du 01/08 sur la colonne ACTIF : autre colonne, même oubli.
+Seul LC était concernée : ARMAND arrive un 1er du mois, TRAN part un 1er du mois, tous deux sont
+exclus proprement. Nouveau scénario `banc/banc_a_placer.js` (11 vérifications), contre-épreuve à
+4 échecs. Rien à recopier côté Apps Script pour ce lot.
+
+⚠️ **Leçon, quatrième défaut de la même famille** : **une exclusion faite à la maille du mois ne
+protège pas à la maille du jour.** Vrai pour l'export Excel du matin, vrai pour le badge « à
+placer » de l'après-midi.
 
 ✅ **28/08 (matin) — export Excel des semaines à cheval sur deux mois.** Commit `8f73c645`,
 site **v1.89** (puis v1.90 dans la foulée, autre lot), Pages déployé (success). L'export choisissait
@@ -71,7 +110,7 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **2013 vérifications** sur 42 scripts (relevé le 28/08/2026,
+**Banc d'essai** `banc/` — **2063 vérifications** sur 43 scripts (relevé le 28/08/2026,
 recette exacte `grep -cE "^\s+✓ "` — le `grep -c "✓"` naïf rend 1925 en comptant les lignes
 récapitulatives),
 `cd banc && ./lancer.sh`. *(⚠️ La recette du 19/08 disait « compter les coches `✓` de la sortie

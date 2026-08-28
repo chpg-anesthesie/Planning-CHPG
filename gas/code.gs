@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-08-25.3';
+const GAS_VERSION_CODE = '2026-08-28.1';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 // Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
@@ -1527,6 +1527,14 @@ const NOTIF_STATUTS = {
   'A':   'absence',
 };
 
+// (28/08/2026) Statuts sous lesquels le MAR travaille QUAND MEME en secteur.
+// Pour eux, le secteur fait partie de l'information : une astreinte 18h passee
+// de volant a reanimation est un vrai changement. Sans cette table, le mail
+// affichait « 18h » des deux cotes de la carte et n'apprenait rien.
+// Une garde n'y figure pas : son secteur est deduit (REA / MAT), le repeter
+// donnerait « garde reanimation - Reanimation ».
+const NOTIF_STATUT_AVEC_SECTEUR = { '18': true };
+
 const NOTIF_JOURS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 const NOTIF_MOIS  = ['janvier','février','mars','avril','mai','juin',
                      'juillet','août','septembre','octobre','novembre','décembre'];
@@ -1697,12 +1705,19 @@ function _notifDiff(avant, apres) {
       if (va === undefined || va === vb) return;   // inconnu avant, ou identique
       const ca = va.split('|'), cb = vb.split('|');
       const statutChange = ca[0] !== cb[0];
+      // (28/08/2026) Rien de visible a dire : meme libelle de statut ET meme
+      // secteur des deux cotes. Cela arrive quand deux codes partagent un
+      // libelle (V/VAC, F/FORM, TP/CTP). Annoncer « vacances — avant :
+      // vacances » n'apprend rien et fait douter de tout le mail.
+      if (_notifDecrire(ca) === _notifDecrire(cb) && ca[1] === cb[1] && ca[2] === cb[2]) return;
       if (!parMar[id]) parMar[id] = [];
       parMar[id].push({
         date: date,
         statut: statutChange,
         avant: _notifDecrire(ca),
         apres: _notifDecrire(cb),
+        codesAvant: ca,   // conserves pour l'affichage en carte (libelles en clair)
+        codesApres: cb,
       });
     });
     if (parMar[id]) parMar[id].sort(function (x, y) { return x.date < y.date ? -1 : 1; });
@@ -1711,14 +1726,77 @@ function _notifDiff(avant, apres) {
 }
 
 // ── Décrire une journée en français ───────────────────────────────────
-function _notifDecrire(c) {
-  const statut = String(c[0] || '').trim();
-  if (statut && NOTIF_STATUTS[statut]) return NOTIF_STATUTS[statut];
-  if (statut) return statut;                       // code inconnu : brut, pas d'invention
+// LIB traduit un code secteur/consultation en libellé lisible ; absent, on garde
+// le code brut (jamais d'invention). Voir _notifLibelles().
+function _notifSecteurTxt(c, LIB) {
+  LIB = LIB || function (x) { return x; };
   const am = String(c[1] || '').trim(), pm = String(c[2] || '').trim();
-  if (!am && !pm) return 'rien';
-  if (am === pm) return am;
-  return (am || '—') + ' le matin, ' + (pm || '—') + ' l\'après-midi';
+  if (!am && !pm) return '';
+  if (am === pm) return LIB(am);
+  return (am ? LIB(am) : '—') + ' le matin, ' + (pm ? LIB(pm) : '—') + ' l\'après-midi';
+}
+
+function _notifDecrire(c, LIB) {
+  const statut = String(c[0] || '').trim();
+  if (statut) {
+    const base = NOTIF_STATUTS[statut] || statut;  // code inconnu : brut, pas d'invention
+    if (NOTIF_STATUT_AVEC_SECTEUR[statut]) {
+      const sect = _notifSecteurTxt(c, LIB);
+      if (sect) return base + ' — ' + sect;
+    }
+    return base;
+  }
+  const sect = _notifSecteurTxt(c, LIB);
+  return sect || 'rien';
+}
+
+// Découpe pour l'affichage en carte : une ligne par demi-journée quand elles
+// diffèrent, sinon une seule ligne « Journée ».
+function _notifLignes(c, LIB) {
+  LIB = LIB || function (x) { return x; };
+  const statut = String(c[0] || '').trim();
+  if (statut) return [{ label: 'Journée', valeur: _notifDecrire(c, LIB) }];
+  const am = String(c[1] || '').trim(), pm = String(c[2] || '').trim();
+  if (!am && !pm) return [{ label: 'Journée', valeur: 'rien' }];
+  if (am === pm)  return [{ label: 'Journée', valeur: LIB(am) }];
+  return [{ label: 'Matin',       valeur: am ? LIB(am) : '—' },
+          { label: 'Après-midi',  valeur: pm ? LIB(pm) : '—' }];
+}
+
+// Table code → libellé, construite UNE fois par envoi. getSecteurs() et
+// getCsTemplate() passent par le cache de configuration : aucune lecture de
+// feuille supplémentaire dans le cas courant. Config illisible → codes bruts.
+function _notifLibelles() {
+  const map = { 'VOLANT': 'volant' };
+  try {
+    (getSecteurs() || []).forEach(function (x) {
+      if (x && x.code && x.label) map[String(x.code).trim().toUpperCase()] = x.label;
+    });
+    const cs = getCsTemplate();
+    (((cs || {}).types) || []).forEach(function (t) {
+      if (t && t.code && t.label) map[String(t.code).trim().toUpperCase()] = t.label;
+    });
+  } catch (e) { logAction('notif — libellés secteurs illisibles (' + e.message + '), codes bruts'); }
+  return function (code) {
+    const k = String(code || '').trim().toUpperCase();
+    return map[k] || String(code || '').trim();
+  };
+}
+
+// Morceaux de date pour la pastille façon agenda.
+function _notifDatePieces(iso) {
+  const d = new Date(iso + 'T12:00:00'), dow = d.getDay();
+  return {
+    jour: NOTIF_JOURS[dow].slice(0, 3),
+    num:  d.getDate(),
+    mois: NOTIF_MOIS[d.getMonth()].slice(0, 4) + '.',
+    we:   (dow === 0 || dow === 6),
+  };
+}
+
+function _notifJourMois(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  return (d.getDate() === 1 ? '1er' : d.getDate()) + ' ' + NOTIF_MOIS[d.getMonth()];
 }
 
 // ── Semaine couverte par le dernier Excel ─────────────────────────────
@@ -1781,6 +1859,9 @@ function _notifExpedier(retenus, year) {
       errors: ['Quota email insuffisant : ' + quota + ' restants pour ' + besoin + ' destinataires'] };
   }
 
+  // (28/08/2026) Table code → libellé construite une seule fois pour tout l'envoi.
+  const LIB = _notifLibelles();
+
   let sent = 0, skipped = 0;
   const errors = [];
   destinataires.forEach(function (d) {
@@ -1790,8 +1871,8 @@ function _notifExpedier(retenus, year) {
       MailApp.sendEmail({
         to: d.email,
         subject: _notifSujet(chgs),
-        htmlBody: _notifHtml(d.nom, chgs, year),
-        body: _notifTexte(d.nom, chgs),
+        htmlBody: _notifHtml(d.nom, chgs, year, LIB),
+        body: _notifTexte(d.nom, chgs, LIB),
       });
       sent++;
     } catch (err) { errors.push(d.nom + ' : ' + err.message); }
@@ -1811,11 +1892,12 @@ function _notifDateCourte(iso) {
 }
 
 // ── Corps texte (repli des clients sans HTML) ─────────────────────────
-function _notifTexte(nom, chgs) {
+function _notifTexte(nom, chgs, LIB) {
   let t = 'Bonjour ' + nom + ',\n\nVotre planning a changé :\n\n';
   chgs.forEach(function (c) {
-    t += '  ' + _notifDateCourte(c.date) + ' : ' + c.apres +
-         ' (avant : ' + c.avant + ')\n';
+    const ap = c.codesApres ? _notifDecrire(c.codesApres, LIB) : c.apres;
+    const av = c.codesAvant ? _notifDecrire(c.codesAvant, LIB) : c.avant;
+    t += '  ' + _notifDateCourte(c.date) + ' : ' + ap + ' (avant : ' + av + ')\n';
   });
   t += '\nVous n\'aviez rien demandé, ou ce changement vous pose problème ?\n' +
        'Écrivez à planningchpg@gmail.com\n\n' +
@@ -1825,69 +1907,92 @@ function _notifTexte(nom, chgs) {
 }
 
 // ── Corps HTML ────────────────────────────────────────────────────────
-function _notifHtml(nom, chgs, year) {
-  const S = {
-    'garde réanimation': { bg: '#eef4ff', fg: '#1d4ed8', bd: '#dbe6ff' },
-    'garde maternité':   { bg: '#ecfdf5', fg: '#0d9488', bd: '#cdeee6' },
-  };
-  const NEUTRE = { bg: '#f1f5f9', fg: '#334155', bd: '#e2e8f0' };
+function _notifHtml(nom, chgs, year, LIB) {
+  /* (28/08/2026) Carte « agenda » : pastille de date à gauche, matin et
+     après-midi sur deux lignes, libellés en clair. Tout en <table> avec des
+     styles en ligne : c'est la seule mise en page que Gmail, Outlook et Mail
+     iOS rendent pareil. Ni flex, ni grid, ni feuille de style. */
+  const ROUGE = '#CE1126', ENCRE = '#0f172a', GRIS = '#64748b', PALE = '#b0bac6';
+  const POLICE = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
-  let blocs = '';
+  let cartes = '';
   chgs.forEach(function (c) {
-    const d = new Date(c.date + 'T12:00:00'), dow = d.getDay();
-    const we = (dow === 0 || dow === 6);
-    const cadre = we ? 'border:1px solid #fde3cf;background:#fffaf5;'
-                     : 'border:1px solid #eef1f5;';
-    const tag = we
-      ? '<span style="font-size:10.5px;font-weight:700;color:#c2410c;background:#fff1e6;' +
-        'border-radius:5px;padding:2px 7px;margin-left:6px;vertical-align:middle">Week-end</span>'
+    const p = _notifDatePieces(c.date);
+    const acc  = p.we ? '#c2410c' : ROUGE;
+    const past = p.we ? '#fff7ed' : '#fef2f4';
+    const lignes = _notifLignes(c.codesApres || ['', '', ''], LIB);
+    const avant  = c.codesAvant ? _notifDecrire(c.codesAvant, LIB) : c.avant;
+
+    let corps = '';
+    lignes.forEach(function (l) {
+      corps +=
+        '<tr><td style="padding:0 0 3px;font-size:11px;font-weight:700;color:' + PALE +
+        ';text-transform:uppercase;letter-spacing:.4px;width:82px;vertical-align:top">' + l.label + '</td>' +
+        '<td style="padding:0 0 3px;font-size:14px;font-weight:700;color:' + ENCRE + '">' + l.valeur + '</td></tr>';
+    });
+    const tagWe = p.we
+      ? '<div style="font-size:10px;font-weight:800;color:#c2410c;text-transform:uppercase;' +
+        'letter-spacing:.5px;margin-bottom:4px">Week-end</div>'
       : '';
-    const p = S[c.apres] || NEUTRE;
-    blocs +=
-      '<div style="' + cadre + 'border-radius:12px;padding:14px 16px;margin-bottom:9px">' +
-        '<div style="font-size:15px;font-weight:800;color:#0f172a">' +
-          _notifDateCourte(c.date) + tag +
-        '</div>' +
-        '<div style="margin-top:10px">' +
-          '<span style="display:inline-block;background:' + p.bg + ';color:' + p.fg +
-          ';border:1px solid ' + p.bd + ';border-radius:8px;font-size:13px;font-weight:700;' +
-          'padding:5px 11px">' + c.apres + '</span>' +
-        '</div>' +
-        '<div style="margin-top:9px;font-size:13px;color:#94a3b8">avant&nbsp;: ' +
-          '<span style="text-decoration:line-through">' + c.avant + '</span></div>' +
-      '</div>';
+
+    cartes +=
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" ' +
+      'style="border-collapse:separate;border-spacing:0;margin-bottom:10px;background:#fff;' +
+      'border:1px solid #e8edf3;border-radius:14px"><tr>' +
+        '<td width="66" style="padding:14px 0 14px 14px;vertical-align:top">' +
+          '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="52" ' +
+          'style="background:' + past + ';border-radius:10px">' +
+            '<tr><td align="center" style="padding:8px 0 3px;font-size:10px;font-weight:800;color:' + acc +
+            ';text-transform:uppercase;letter-spacing:.5px">' + p.jour + '</td></tr>' +
+            '<tr><td align="center" style="padding:0 0 3px;font-size:22px;font-weight:800;color:' + acc +
+            ';line-height:1">' + p.num + '</td></tr>' +
+            '<tr><td align="center" style="padding:0 0 8px;font-size:10px;color:' + PALE + '">' + p.mois + '</td></tr>' +
+          '</table>' +
+        '</td>' +
+        '<td style="padding:14px 16px 14px 12px;vertical-align:top">' + tagWe +
+          '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">' + corps + '</table>' +
+          '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e8edf3;font-size:12.5px;color:' +
+          PALE + '">anciennement <span style="color:' + GRIS + '">' + avant + '</span></div>' +
+        '</td>' +
+      '</tr></table>';
   });
 
+  const resume = (chgs.length === 1)
+    ? 'une journée a été modifiée : <b style="color:' + ENCRE + '">' + _notifDateCourte(chgs[0].date) + '</b>.'
+    : '<b style="color:' + ENCRE + '">' + chgs.length + ' journées</b> ont été modifiées, du ' +
+      _notifJourMois(chgs[0].date) + ' au ' + _notifJourMois(chgs[chgs.length - 1].date) + '.';
+
   return '' +
-  '<div style="max-width:600px;margin:0 auto;background:#fff;font-family:-apple-system,' +
-  'BlinkMacSystemFont,\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif">' +
-    '<div style="background:#CE1126;height:4px;line-height:4px;font-size:0">&nbsp;</div>' +
-    '<div style="padding:26px 26px 8px">' +
-      '<div style="font-size:12px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;' +
-      'color:#94a3b8">Planning CHPG Monaco</div>' +
-      '<div style="font-size:20px;font-weight:800;color:#0f172a;margin-top:6px">' +
-      'Votre planning a changé</div>' +
-    '</div>' +
-    '<div style="padding:14px 26px 0;font-size:14px;color:#334155;line-height:1.55">Bonjour ' +
-      nom + ',</div>' +
-    '<div style="padding:16px 26px 0">' + blocs + '</div>' +
-    '<div style="padding:22px 26px 0">' +
-      '<a href="' + NOTIF_SITE + '" style="display:inline-block;background:#0f172a;color:#fff;' +
-      'text-decoration:none;border-radius:9px;font-size:14px;font-weight:700;padding:11px 20px">' +
-      'Voir mon planning</a>' +
-    '</div>' +
-    '<div style="padding:20px 26px 0">' +
-      '<div style="background:#f8fafc;border:1px solid #eef1f5;border-radius:11px;padding:13px 15px;' +
-      'font-size:13px;color:#475569;line-height:1.55">' +
-        'Vous n\'aviez rien demandé, ou ce changement vous pose problème&nbsp;?<br>' +
-        'Écrivez à <a href="mailto:planningchpg@gmail.com" style="color:#1d4ed8;font-weight:600;' +
-        'text-decoration:none">planningchpg@gmail.com</a>' +
-      '</div>' +
-    '</div>' +
-    '<div style="padding:20px 26px 26px;font-size:12px;color:#94a3b8;line-height:1.6">' +
-      'Le Comité Planning — CHPG Monaco<br>Message automatique.' +
-    '</div>' +
-  '</div>';
+  '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" ' +
+  'style="background:#f4f6f9;font-family:' + POLICE + '">' +
+  '<tr><td align="center" style="padding:18px 12px">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" ' +
+    'style="max-width:560px;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #e8edf3">' +
+      '<tr><td style="background:' + ROUGE + ';height:5px;line-height:5px;font-size:0">&nbsp;</td></tr>' +
+      '<tr><td style="padding:24px 24px 0">' +
+        '<div style="font-size:11px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:' +
+        PALE + '">Planning CHPG Monaco</div>' +
+        '<div style="font-size:22px;font-weight:800;color:' + ENCRE + ';margin-top:7px;line-height:1.25">' +
+        'Votre planning a changé</div>' +
+        '<div style="margin-top:10px;font-size:13.5px;color:' + GRIS + ';line-height:1.5">Bonjour ' +
+        nom + ', ' + resume + '</div>' +
+      '</td></tr>' +
+      '<tr><td style="padding:18px 18px 0">' + cartes + '</td></tr>' +
+      '<tr><td style="padding:8px 24px 4px">' +
+        '<a href="' + NOTIF_SITE + '" style="display:block;background:' + ENCRE + ';color:#fff;' +
+        'text-decoration:none;border-radius:11px;font-size:15px;font-weight:700;padding:14px 20px;' +
+        'text-align:center">Voir mon planning</a>' +
+      '</td></tr>' +
+      '<tr><td style="padding:16px 24px 0">' +
+        '<div style="background:#f8fafc;border-radius:12px;padding:13px 15px;font-size:12.5px;color:' +
+        GRIS + ';line-height:1.55">Un changement vous pose problème&nbsp;? Écrivez à ' +
+        '<a href="mailto:planningchpg@gmail.com" style="color:' + ROUGE + ';font-weight:700;' +
+        'text-decoration:none">planningchpg@gmail.com</a></div>' +
+      '</td></tr>' +
+      '<tr><td style="padding:16px 24px 24px;font-size:11.5px;color:' + PALE + ';line-height:1.6">' +
+        'Le Comité Planning — CHPG Monaco · message automatique</td></tr>' +
+    '</table>' +
+  '</td></tr></table>';
 }
 
 /* (24/08/2026) Fusion de la mémoire des placements caducs : les entrées du
