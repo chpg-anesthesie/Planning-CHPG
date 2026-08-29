@@ -49,22 +49,44 @@ function bac() {
                 getSheets(){ return cl.getSheets(); }, insertSheet(n){ return cl.insertSheet(n); } };
   const ctx = { SpreadsheetApp: { getActiveSpreadsheet: () => cl2 }, Logger: { log(){} }, console };
   vm.createContext(ctx);
+  /* Constantes LUES dans le code réel, jamais redéclarées à la main : un bac qui
+     invente sa propre liste d'accès testerait la croyance du banc, pas le
+     système. C'est précisément l'erreur qui a laissé passer le défaut du 29/08. */
+  const SRC = fs.readFileSync(GS, 'utf8');
   vm.runInContext("const STATS_ORIGINE='2026-09-04';", ctx);
+  vm.runInContext((SRC.match(/const STATS_ALLOWED = \[[^\]]*\];/) || ['const STATS_ALLOWED=[];'])[0], ctx);
   vm.runInContext(extraireFonction(GS, 'getStatsUsage'), ctx);
   return { ctx, lus, cl };
 }
-const ADMIN = { id:'FROHLICH', role:'admin', name:'FROHLICH' };
+const ADMIN = { id:'FROHLICH', role:'mar', name:'FROHLICH' };   // le cas RÉEL : code personnel
 
-console.log('\n═══ 1. L\'action est fermée à tout rôle sauf admin ═══');
+console.log('\n═══ 1. Qui a le droit d\'ouvrir la page ═══');
+/* DÉFAUT RÉEL DU 29/08, trouvé en production, pas au banc. Le contrôle portait
+   sur user.role === 'admin'. Or checkCode ne rend ce rôle QUE pour le code
+   d'administration (id 'ADMIN') : ouvert avec son code personnel, FROHLICH est
+   un `mar` et se voyait refuser sa propre page. La tuile, elle, filtre sur
+   l'identité. La version précédente de ce scénario vérifiait « refus pour rôle
+   mar » — elle enterinait l'erreur au lieu de la voir. */
 {
   const { ctx } = bac();
-  [null, {role:'mar', id:'DUPONT'}, {role:'secretariat', id:'SECRETARIAT'}, {role:'', id:'X'}]
-    .forEach(function (u, i) {
-      const r = ctx.getStatsUsage(u);
-      V('refus pour ' + (u ? ('rôle « ' + u.role + ' »') : 'utilisateur absent'),
-        r && r.success === false, r);
-    });
-  V('accepté pour l\'admin', ctx.getStatsUsage(ADMIN).success === true);
+  V('refus pour un utilisateur absent', ctx.getStatsUsage(null).success === false);
+  V('refus pour un MAR quelconque',
+    ctx.getStatsUsage({ role:'mar', id:'DUPONT' }).success === false);
+  V('refus pour le secrétariat',
+    ctx.getStatsUsage({ role:'secretariat', id:'SECRETARIAT' }).success === false);
+  V('refus pour un rôle vide', ctx.getStatsUsage({ role:'', id:'X' }).success === false);
+  /* Les deux portes qui doivent s'ouvrir. */
+  V('ACCEPTÉ pour FROHLICH avec son code personnel (rôle mar)',
+    ctx.getStatsUsage({ role:'mar', id:'FROHLICH' }).success === true,
+    ctx.getStatsUsage({ role:'mar', id:'FROHLICH' }));
+  V('ACCEPTÉ pour le code d\'administration (rôle admin, id ADMIN)',
+    ctx.getStatsUsage({ role:'admin', id:'ADMIN' }).success === true);
+  /* Le serveur et la tuile doivent viser la MÊME personne : deux critères
+     différents pour la même porte, c'est le défaut du 29/08 qui revient. */
+  const idsServeur = (fs.readFileSync(GS,'utf8').match(/const STATS_ALLOWED = \[([^\]]*)\]/) || [])[1] || '';
+  const idTuile = (DASH.match(/key:'stats'[^}]*only:'([A-Z]+)'/) || [])[1];
+  V('l\'identité autorisée côté serveur est celle de la tuile',
+    !!idTuile && idsServeur.indexOf("'" + idTuile + "'") >= 0, { serveur: idsServeur, tuile: idTuile });
 }
 
 console.log('\n═══ 2. Aucun total par personne n\'est renvoyé ═══');

@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-08-29.1';
+const GAS_VERSION_PORTAIL = '2026-08-29.2';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1848,9 +1848,19 @@ function getSecteurs() {
    retrecit toute seule.
    Aucun total par personne n'est renvoye : la page montre QUI n'a pas ouvert
    le portail, jamais qui l'ouvre le plus. */
+/* (29/08/2026, corrige le jour meme) Le controle portait sur user.role ===
+   'admin'. Or checkCode ne rend ce role QUE pour le code d'administration, avec
+   id 'ADMIN' : ouvert avec son code personnel, l'administrateur du portail est
+   un `mar` d'id FROHLICH, et se voyait refuser sa propre page — la tuile,
+   elle, filtre sur l'IDENTITE (only:'FROHLICH'). Deux criteres differents pour
+   la meme porte. On aligne sur le motif deja en place pour le CRH : acces
+   NOMINATIF par id. */
+const STATS_ALLOWED = ['FROHLICH'];   // ids MEDECINS, comme CRH_ALLOWED
+
 function getStatsUsage(user) {
-  if (!user || user.role !== 'admin') {
-    return { success: false, error: 'Réservé à l\'administrateur du portail.' };
+  if (!user || (user.role !== 'admin' &&
+                STATS_ALLOWED.indexOf(String(user.id)) === -1)) {
+    return { success: false, error: 'Accès réservé.' };
   }
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const _jour = function (v) {
