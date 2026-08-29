@@ -24,6 +24,7 @@ const PAGE = fs.readFileSync(path.join(__dirname, '..', 'docs', 'stats-usage.htm
 const DASH = fs.readFileSync(path.join(__dirname, '..', 'dashboard.html'), 'utf8');
 const IND  = fs.readFileSync(path.join(__dirname, '..', 'gas', 'Indispos.gs'), 'utf8');
 const VJS  = fs.readFileSync(path.join(__dirname, '..', 'version.js'), 'utf8');
+const BUNDLE = fs.readFileSync(path.join(__dirname, '..', 'assets', 'vendor', 'lucide-icons.js'), 'utf8');
 
 /* ── Le serveur ──────────────────────────────────────────────────────── */
 function bac() {
@@ -118,6 +119,20 @@ console.log('\n═══ 5. La page et la tuile sont cohérentes avec le serveur
     /key:'stats'[^}]*only:'FROHLICH'/.test(DASH),
     (DASH.match(/\{ key:'stats'[^}]*\}/) || [''])[0].slice(0, 160));
   V('elle pointe sur la page réelle', /key:'stats'[^}]*docs\/stats-usage\.html/.test(DASH));
+  /* (29/08) La tuile portait 'radar', déjà pris par Veille biblio : deux tuiles
+     identiques à l'œil, pour deux choses sans rapport. Aucune icône libre du
+     bundle ne disait « statistiques », bar-chart-2 a donc été ajoutée.
+     On ne condamne PAS tout doublon : file-text est porté par CR d'anesthésie
+     et CRH, deux générateurs de comptes rendus — c'est voulu. La règle est que
+     l'icône des statistiques n'appartienne qu'à elle. */
+  const icoStats = (DASH.match(/key:'stats'[^}]*icon:'([a-z0-9-]+)'/) || [])[1];
+  const toutes = (DASH.match(/icon:'[a-z0-9-]+'/g) || []).map(function (x) { return x.slice(6, -1); });
+  V('l\'icône des statistiques est lisible', !!icoStats, icoStats);
+  V('elle n\'est portée par aucune autre tuile',
+    toutes.filter(function (x) { return x === icoStats; }).length === 1, icoStats);
+  V('elle existe dans le mini-bundle',
+    BUNDLE.indexOf('"' + icoStats + '":') >= 0, icoStats);
+  V('la tuile porte bien bar-chart-2', /key:'stats'[^}]*icon:'bar-chart-2'/.test(DASH));
   V('la page ne réclame aucun classement d\'assiduité',
     PAGE.indexOf('classement') < 0 || /aucun classement/.test(PAGE));
   /* Le numéro de version vit dans version.js et NULLE PART ailleurs : une page
@@ -126,8 +141,8 @@ console.log('\n═══ 5. La page et la tuile sont cohérentes avec le serveur
   const v = (VJS.match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1];
   V('version.js porte un numéro, une seule fois',
     !!v && (VJS.match(/window\.SITE_VERSION =/g) || []).length === 1, v);
-  V('la version a dépassé v1.93 (une page visible a changé)',
-    !!v && cmp(v, '1.93') > 0, v);
+  V('la version a dépassé v1.94 (icône de la tuile corrigée)',
+    !!v && cmp(v, '1.94') > 0, v);
 }
 function cmp(a, b) {
   const x = a.split('.').map(Number), y = b.split('.').map(Number);
