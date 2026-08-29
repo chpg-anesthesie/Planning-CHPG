@@ -163,8 +163,8 @@ console.log('\n═══ 5. La page et la tuile sont cohérentes avec le serveur
   const v = (VJS.match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1];
   V('version.js porte un numéro, une seule fois',
     !!v && (VJS.match(/window\.SITE_VERSION =/g) || []).length === 1, v);
-  V('la version a dépassé v1.94 (icône de la tuile corrigée)',
-    !!v && cmp(v, '1.94') > 0, v);
+  V('la version a dépassé v1.95 (tableau complet)',
+    !!v && cmp(v, '1.95') > 0, v);
 }
 function cmp(a, b) {
   const x = a.split('.').map(Number), y = b.split('.').map(Number);
@@ -175,7 +175,41 @@ function cmp(a, b) {
   return 0;
 }
 
-console.log('\n═══ 6. Les compteurs GAS ont bien été poussés avec ═══');
+console.log('\n═══ 6. Le tableau montre TOUT le service ═══');
+/* (29/08) Le tableau ne listait que les « jamais » et les inactifs de plus de
+   30 jours, puis compensait par « Les N autres se sont connectés ». Il masquait
+   donc justement les gens qui vont bien, et la phrase n'apprenait rien. Décision
+   d'Arthur : les 25, tous, triés du plus ancien au plus récent. */
+{
+  /* On prend tableau() ET esc() : extraire la moitié d'une dépendance et
+     recoder l'autre dans le banc reviendrait à tester une fonction qui n'existe
+     pas dans la page. */
+  const src = PAGE.slice(PAGE.indexOf('function tableau(){'), PAGE.indexOf('charger();'));
+  const aux = PAGE.slice(PAGE.indexOf('const MOIS ='), PAGE.indexOf('/* ── Compteurs'));
+  let sortie = '';
+  const document = { getElementById: function(){ return { set innerHTML(v){ sortie = v; } }; } };
+  const D = { medecins: [
+    { i:'AFR', d:'2026-08-29' }, { i:'LL', d:'' }, { i:'NP', d:'' },
+    { i:'RW', d:'2026-07-10' }, { i:'ZZ', d:'2026-08-28' }, { i:'AA', d:'' }
+  ]};
+  eval(aux + src);
+  tableau();
+  const lignes = [...sortie.matchAll(/<td><span class="ini">([A-Z]+)<\/span><\/td><td>(.*?)<\/td>/g)]
+    .map(function(m){ return [m[1], m[2].replace(/<[^>]+>/g, '')]; });
+  V('les 6 médecins fournis sont TOUS affichés', lignes.length === 6, lignes.length);
+  V('aucun n\'est masqué derrière un résumé', !/colspan/.test(sortie));
+  V('la phrase « les N autres » a disparu', sortie.indexOf('autres se sont connect') < 0);
+  V('les jamais connectés viennent en tête',
+    lignes.slice(0,3).every(function(l){ return l[1] === 'jamais'; }), lignes.map(function(l){return l[0];}));
+  V('puis du plus ancien au plus récent',
+    lignes[3][0] === 'RW' && lignes[4][0] === 'ZZ' && lignes[5][0] === 'AFR',
+    lignes.map(function(l){return l[0];}));
+  V('« aujourd\'hui » plutôt que « il y a 0 jours »', lignes[5][1] === "aujourd'hui", lignes[5]);
+  V('« hier » plutôt que « il y a 1 jours »', lignes[4][1] === 'hier', lignes[4]);
+  V('au-delà d\'un mois, la date en clair', /juillet 2026/.test(lignes[3][1]), lignes[3]);
+}
+
+console.log('\n═══ 7. Les compteurs GAS ont bien été poussés avec ═══');
 {
   V('CONNEXIONS_PLAFOND est à 10 000 dans Indispos.gs', /CONNEXIONS_PLAFOND\s*=\s*10000/.test(IND));
   V('statsRecalculer existe', /function statsRecalculer\(/.test(IND));

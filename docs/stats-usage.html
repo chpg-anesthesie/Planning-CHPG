@@ -404,18 +404,35 @@ function chaleur(){
 }
 
 /* ── Qui a ouvert le portail ──────────────────────────────────────────── */
+/* Les 25 médecins, tous, triés du plus ancien au plus récent : ceux qui n'ont
+   jamais ouvert le portail remontent d'eux-mêmes en tête. Pas de seuil, pas de
+   liste tronquée, pas de ligne de résumé — c'est un état, pas un palmarès.
+   (29/08) La version précédente masquait les gens « à jour » et compensait par
+   une phrase (« Les 1 autres se sont connectés ») qui n'apprenait rien. */
 function tableau(){
   const tb=document.getElementById('tb'); if(!tb) return;
-  const jamais = D.medecins.filter(function(m){ return !m.d; });
-  const vieux  = D.medecins.filter(function(m){ const n=joursDepuis(m.d); return m.d && n !== null && n > 30; })
-                           .sort(function(a,b){ return joursDepuis(b.d) - joursDepuis(a.d); });
-  const recents = D.medecins.length - jamais.length - vieux.length;
+  const gens = D.medecins.slice().sort(function(a,b){
+    if(!a.d && !b.d) return String(a.i).localeCompare(String(b.i));
+    if(!a.d) return -1;                       // jamais connecté d'abord
+    if(!b.d) return 1;
+    return a.d < b.d ? -1 : (a.d > b.d ? 1 : 0);
+  });
   let h='<tr><th>Médecin</th><th>Dernière connexion</th></tr>';
-  jamais.forEach(function(m){ h+='<tr><td><span class="ini">'+esc(m.i)+'</span></td><td><span class="tag">jamais</span></td></tr>'; });
-  vieux.forEach(function(m){ h+='<tr><td><span class="ini">'+esc(m.i)+'</span></td><td style="color:var(--ink-3)">il y a '+joursDepuis(m.d)+' jours</td></tr>'; });
-  if(!jamais.length && !vieux.length) h+='<tr><td colspan="2" style="color:var(--ink-3)">Tout le service s\'est connecté dans les 30 derniers jours.</td></tr>';
-  else h+='<tr><td colspan="2" style="color:var(--ink-4);font-size:13px;padding-top:14px">'
-        + (recents>0 ? 'Les '+recents+' autres se sont connectés dans les 30 derniers jours.' : '') + '</td></tr>';
+  gens.forEach(function(m){
+    let cell;
+    if(!m.d){ cell='<span class="tag">jamais</span>'; }
+    else {
+      const n = joursDepuis(m.d);
+      const q = (n === null) ? frDate(m.d)
+              : (n <= 0) ? "aujourd'hui"
+              : (n === 1) ? 'hier'
+              : (n < 30) ? ('il y a ' + n + ' jours')
+              : frDate(m.d);
+      cell='<span style="color:var(--ink-3)">'+q+'</span>';
+    }
+    h+='<tr><td><span class="ini">'+esc(m.i)+'</span></td><td>'+cell+'</td></tr>';
+  });
+  if(!gens.length) h+='<tr><td colspan="2" style="color:var(--ink-3)">Aucun médecin actif.</td></tr>';
   tb.innerHTML=h;
 }
 function esc(v){ return String(v||'?').replace(/[<>&"]/g, function(c){
