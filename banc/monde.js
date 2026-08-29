@@ -37,7 +37,10 @@ function classeurComplet(annee) {
     (i % 4 === 3) ? 'VOLANT' : SECTEURS[((i + m) % 7) + 1][0]))));
   cl.ajouter(`AFFECTATIONS_${annee}`, aff);
   cl.ajouter('LOGS', [['DATE','ACTION']]);
-  cl.ajouter('CONNEXIONS', [['DATE','ID']]);
+  /* (29/08/2026) L'en-tête du banc disait ['DATE','ID'] ; le vrai logConnexion
+     écrit ['HORODATAGE','NOM','INITIALES','ROLE']. Une doublure qui invente sa
+     propre forme teste la croyance du banc, pas le système. */
+  cl.ajouter('CONNEXIONS', [['HORODATAGE','NOM','INITIALES','ROLE']]);
   return cl;
 }
 

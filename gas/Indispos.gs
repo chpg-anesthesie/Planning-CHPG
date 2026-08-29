@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-28.1';
+const GAS_VERSION_INDISPOS = '2026-08-29.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1112,6 +1112,47 @@ function logAction(message) {
 }
 
 // ── JOURNAL DES CONNEXIONS (qui se connecte, quand, avec quel rôle) ────
+/* (29/08/2026) Trois besoins, trois durées de vie — et une règle qui tient
+   l'ensemble : on ne RECONSTRUIT jamais une statistique depuis les lignes
+   brutes après coup, on la FIGE pendant qu'elles existent encore.
+
+   CONNEXIONS    : le détail nominatif récent. Plafonné, donc borné.
+   STATS_SEMAINE : une ligne par semaine (52/an), figée dès la semaine finie.
+   STATS_HEURES  : grille 7 × 24 cumulée, incrémentée à chaque connexion.
+
+   Conséquence : purger CONNEXIONS ne fait perdre aucune courbe. Sans ce
+   dispositif, le plafond détruirait l'historique en continu — à 25 MAR, les
+   10 000 lignes couvrent environ trois mois, donc la première année d'usage
+   aurait disparu avant d'avoir pu être lue. */
+const CONNEXIONS_PLAFOND = 10000;    // ~3 mois de détail nominatif à 25 MAR
+const STATS_ORIGINE      = '2026-09-04';  // présentation au service = jour zéro
+
+/* Date -> 'AAAA-MM-JJ' du LUNDI de sa semaine. Pas de Utilities ici : la
+   fonction doit tourner à l'identique dans le banc, hors environnement Google. */
+function _statsLundi_(d) {
+  const j = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dec = (j.getDay() + 6) % 7;          // lundi = 0
+  j.setDate(j.getDate() - dec);
+  return _statsJour_(j);
+}
+function _statsJour_(d) {
+  return d.getFullYear() + '-' +
+         String(d.getMonth() + 1).padStart(2, '0') + '-' +
+         String(d.getDate()).padStart(2, '0');
+}
+/* Feuille de compteurs : créée à la demande, jamais dans setup_annee (elle ne
+   dépend pas de l'année de planning et ne doit surtout pas être ré-initialisée
+   au changement d'année — elle porte l'historique). */
+function _statsFeuille_(ss, nom, entete) {
+  let f = ss.getSheetByName(nom);
+  if (!f) {
+    f = ss.insertSheet(nom);
+    f.getRange(1, 1, 1, entete.length).setValues([entete]);
+    f.getRange(1, 1, 1, entete.length).setFontWeight('bold');
+  }
+  return f;
+}
+
 function logConnexion(user) {
   try {
     if (!user) return;
@@ -1123,19 +1164,152 @@ function logConnexion(user) {
       sheet.getRange(1, 1, 1, 4).setFontWeight('bold');
       sheet.setColumnWidth(1, 160); sheet.setColumnWidth(2, 200);
     }
-    sheet.appendRow([new Date(), user.name || '', user.initials || '', user.role || '']);
-    if (sheet.getLastRow() > 2001) sheet.deleteRows(2, sheet.getLastRow() - 2001);
+    const maintenant = new Date();
+    sheet.appendRow([maintenant, user.name || '', user.initials || '', user.role || '']);
+
+    /* Compteurs qui NE dépendent pas des lignes brutes : ils sont incrémentés
+       ici, une fois, et ne sont jamais recalculés. */
+    try { _statsHeureIncr_(ss, maintenant); } catch (e) {}
+    try { _statsDerniereConnexion_(ss, user, maintenant); } catch (e) {}
+
+    /* Purge — MAIS jamais avant d'avoir figé les semaines concernées.
+       L'ordre compte : figer PUIS supprimer. L'inverse perd la semaine. */
+    if (sheet.getLastRow() > CONNEXIONS_PLAFOND + 1) {
+      try { statsRecalculer(); } catch (e) { return; }   // rien n'est supprimé si le figeage échoue
+      sheet.deleteRows(2, sheet.getLastRow() - (CONNEXIONS_PLAFOND + 1));
+    }
   } catch(e) {
     Logger.log('logConnexion error: ' + e.message);
   }
 }
 
-// ── GÉNÉRATION CODE ACCÈS ─────────────────────────────────────────────
-function generateCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+/* Grille 7 jours × 24 heures, cumulée depuis l'origine. Une case = un compteur.
+   Incrémentée à la connexion : aucune dépendance aux lignes brutes. */
+function _statsHeureIncr_(ss, d) {
+  if (_statsJour_(d) < STATS_ORIGINE) return;
+  const JOURS = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+  const entete = ['JOUR'];
+  for (let h = 0; h < 24; h++) entete.push('H' + String(h).padStart(2, '0'));
+  const f = _statsFeuille_(ss, 'STATS_HEURES', entete);
+  if (f.getLastRow() < 8) {
+    for (let i = 0; i < 7; i++) {
+      if (f.getLastRow() < i + 2) {
+        const ligne = [JOURS[i]];
+        for (let h = 0; h < 24; h++) ligne.push(0);
+        f.appendRow(ligne);
+      }
+    }
+  }
+  const ligne = ((d.getDay() + 6) % 7) + 2;   // lundi -> ligne 2
+  const col   = d.getHours() + 2;             // H00 -> colonne 2
+  const cell  = f.getRange(ligne, col, 1, 1);
+  cell.setValue(Number(cell.getValue() || 0) + 1);
+}
+
+/* Dernière connexion, par médecin. Colonne ajoutée EN FIN d'onglet MEDECINS et
+   repérée par son EN-TÊTE : toutes les autres lectures de MEDECINS utilisent des
+   index FIGÉS, une insertion au milieu rendrait les codes d'accès inopérants
+   (constaté en réel le 21/07/2026). */
+function _statsDerniereConnexion_(ss, user, d) {
+  if (!user || !user.id || user.id === 'SECRETARIAT') return;
+  const f = ss.getSheetByName('MEDECINS');
+  if (!f) return;
+  const data = f.getDataRange().getValues();
+  if (!data.length) return;
+  let col = -1;
+  for (let c = 0; c < data[0].length; c++) {
+    if (String(data[0][c]).trim().toUpperCase() === 'DERNIERE_CONNEXION') { col = c; break; }
+  }
+  if (col < 0) {
+    col = data[0].length;                       // toujours EN FIN
+    f.getRange(1, col + 1, 1, 1).setValue('DERNIERE_CONNEXION');
+    f.getRange(1, col + 1, 1, 1).setFontWeight('bold');
+  }
+  for (let r = 1; r < data.length; r++) {
+    if (String(data[r][0]).trim() === String(user.id).trim()) {
+      f.getRange(r + 1, col + 1, 1, 1).setValue(_statsJour_(d));
+      return;
+    }
+  }
+}
+
+/* Recalcule les semaines ENCORE OUVERTES depuis les lignes brutes, et les fige
+   dès qu'elles sont terminées. Une semaine figée n'est plus jamais retouchée :
+   c'est ce qui rend la fonction sûre à rejouer, et ce qui protège la courbe
+   quand les lignes brutes commencent à disparaître.
+   Posée sur un déclencheur hebdomadaire ET appelée avant toute purge. */
+function statsRecalculer() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const brut = ss.getSheetByName('CONNEXIONS');
+  if (!brut) return 'Aucune connexion enregistrée.';
+  const f = _statsFeuille_(ss, 'STATS_SEMAINE',
+                           ['SEMAINE','CONNEXIONS','ACTIFS','FIGEE']);
+
+  /* Google Sheets CONVERTIT « 2026-09-07 » en objet Date à l'écriture, et le
+     format texte ne suffit pas toujours à l'en empêcher. Une clé relue serait
+     donc un Date et ne correspondrait plus à la clé calculée : la semaine
+     paraîtrait inconnue, serait recomptée à chaque passage, et RÉTRÉCIRAIT à
+     mesure que ses lignes brutes disparaissent. Défaut trouvé au banc le
+     29/08/2026. On normalise donc TOUTE clé relue. */
+  const _cleSem_ = function (v) {
+    /* Volontairement PAS `instanceof Date` : dès qu'il existe deux contextes
+       d'exécution (le banc en a un), un Date venu de l'autre contexte échoue au
+       test et la normalisation est silencieusement sautée. On reconnaît la date
+       à ce qu'elle sait faire, pas à sa filiation. */
+    if (v && typeof v.getFullYear === 'function') return _statsJour_(v);
+    return String(v).trim();
+  };
+  const dejaFigees = {};
+  const lignesStats = f.getDataRange().getValues();
+  const posLigne = {};
+  for (let r = 1; r < lignesStats.length; r++) {
+    const s = _cleSem_(lignesStats[r][0]);
+    if (!s) continue;
+    posLigne[s] = r + 1;
+    if (String(lignesStats[r][3]).trim().toUpperCase() === 'O') dejaFigees[s] = true;
+  }
+
+  const total = {}, gens = {};
+  const data = brut.getDataRange().getValues();
+  for (let r = 1; r < data.length; r++) {
+    const h = data[r][0];
+    if (!h) continue;
+    const d = (h instanceof Date) ? h : new Date(h);
+    if (isNaN(d.getTime())) continue;
+    if (_statsJour_(d) < STATS_ORIGINE) continue;      // avant l'ouverture au service
+    const sem = _statsLundi_(d);
+    if (dejaFigees[sem]) continue;                     // jamais recompter une semaine close
+    const qui = String(data[r][2] || data[r][1] || '').trim();
+    if (!qui) continue;
+    total[sem] = (total[sem] || 0) + 1;
+    if (!gens[sem]) gens[sem] = {};
+    gens[sem][qui] = true;
+  }
+
+  /* Une semaine est FIGÉE dès que son lundi + 7 jours est passé. */
+  const lundiCourant = _statsLundi_(new Date());
+  let ecrites = 0;
+  Object.keys(total).sort().forEach(function (sem) {
+    const actifs = Object.keys(gens[sem]).length;
+    const close  = (sem < lundiCourant) ? 'O' : 'N';
+    if (posLigne[sem]) {
+      f.getRange(posLigne[sem], 2, 1, 3).setValues([[total[sem], actifs, close]]);
+    } else {
+      f.appendRow([sem, total[sem], actifs, close]);
+    }
+    ecrites++;
+  });
+  return ecrites + ' semaine(s) mise(s) à jour.';
+}
+
+/* À lancer UNE fois depuis l'éditeur Apps Script. Idempotent. */
+function installStatsTrigger() {
+  ScriptApp.getProjectTriggers()
+    .filter(function (t) { return t.getHandlerFunction() === 'statsRecalculer'; })
+    .forEach(function (t) { ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('statsRecalculer').timeBased()
+    .onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(3).nearMinute(0).create();
+  return 'Declencheur statsRecalculer installe : tous les lundis vers 3 h.';
 }
 
 // (C3) setupIndispos supprimé — remplacé par initYear / setupAnnee.

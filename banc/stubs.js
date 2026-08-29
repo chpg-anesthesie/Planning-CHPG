@@ -28,6 +28,11 @@ class Sheet {
     };
   }
   deleteRow(n) { _surEcriture(); this.lignes.splice(n-1, 1); }
+  /* (29/08/2026) deleteRows MANQUAIT à la doublure alors que le vrai code
+     l'appelle en 4 endroits (LOGS, CONNEXIONS, deux remises à zéro). Toute
+     fonction passant par ce chemin échouait donc silencieusement au banc :
+     la purge n'avait jamais été exercée une seule fois. */
+  deleteRows(n, combien) { _surEcriture(); this.lignes.splice(n-1, combien); }
   setFrozenRows() {}
   appendRow(l) { _surEcriture(); this.lignes.push(l.map(_coerceSheets)); }
   setColumnWidth() {}
