@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-08-17.3';
+const GAS_VERSION_PORTAIL = '2026-08-29.1';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -45,6 +45,9 @@ function portailRoute(action, payload, user) {
         return _portailJson({ success: false, error: 'Réservé aux membres du groupement libéral.' });
       }
       return _portailJson(getReleveLiberal(payload));  // lecture : pas de verrou
+    // Statistiques d'usage du portail (29/08/2026). ADMIN uniquement : masquer la
+    // tuile ne ferme rien, seul le serveur decide (meme principe que getReleveLiberal).
+    case 'getStatsUsage': return _portailJson(getStatsUsage(user));
     case 'getCsTemplate':  return _portailJson(getCsTemplate());
     case 'getVeille':  return _portailJson(getVeille(user));   // (2026-08-08.2) repli GAS : marques du MAR fusionnées
     case 'markVeille': return _portailJson(markVeille(payload && payload.pmid, payload && payload.field, payload && payload.value, user));
@@ -1834,4 +1837,74 @@ function getSecteurs() {
   out.sort((a, b) => a.ordre - b.ordre);
   _cacheEcrire_('cfg:SECTEURS', out);
   return out;
+}
+
+
+/* ══ STATISTIQUES D'USAGE (29/08/2026) ══════════════════════════════════
+   Lit UNIQUEMENT les compteurs figes (STATS_SEMAINE, STATS_HEURES) et la
+   colonne DERNIERE_CONNEXION de MEDECINS. Ne touche JAMAIS aux lignes brutes
+   de CONNEXIONS : celles-ci sont plafonnees et disparaissent, les compteurs
+   non. Une page qui recalculerait depuis le brut afficherait une courbe qui
+   retrecit toute seule.
+   Aucun total par personne n'est renvoye : la page montre QUI n'a pas ouvert
+   le portail, jamais qui l'ouvre le plus. */
+function getStatsUsage(user) {
+  if (!user || user.role !== 'admin') {
+    return { success: false, error: 'Réservé à l\'administrateur du portail.' };
+  }
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const _jour = function (v) {
+    if (v && typeof v.getFullYear === 'function') {
+      return v.getFullYear() + '-' + String(v.getMonth() + 1).padStart(2, '0')
+                             + '-' + String(v.getDate()).padStart(2, '0');
+    }
+    return String(v || '').trim();
+  };
+
+  // ── Semaines ──
+  const semaines = [];
+  const fs_ = ss.getSheetByName('STATS_SEMAINE');
+  if (fs_) {
+    const d = fs_.getDataRange().getValues();
+    for (let r = 1; r < d.length; r++) {
+      const cle = _jour(d[r][0]);
+      if (!cle) continue;
+      semaines.push({ s: cle, c: Number(d[r][1] || 0), a: Number(d[r][2] || 0) });
+    }
+    semaines.sort(function (x, y) { return x.s < y.s ? -1 : 1; });
+  }
+
+  // ── Grille 7 x 24 ──
+  const heures = [];
+  const fh = ss.getSheetByName('STATS_HEURES');
+  if (fh) {
+    const d = fh.getDataRange().getValues();
+    for (let r = 1; r < d.length && r <= 7; r++) {
+      const l = [];
+      for (let c = 1; c <= 24; c++) l.push(Number(d[r][c] || 0));
+      heures.push(l);
+    }
+  }
+
+  // ── Dernière connexion, par médecin actif ──
+  const gens = [];
+  const fm = ss.getSheetByName('MEDECINS');
+  if (fm) {
+    const d = fm.getDataRange().getValues();
+    let col = -1;
+    if (d.length) {
+      for (let c = 0; c < d[0].length; c++) {
+        if (String(d[0][c]).trim().toUpperCase() === 'DERNIERE_CONNEXION') { col = c; break; }
+      }
+    }
+    for (let r = 1; r < d.length; r++) {
+      if (!String(d[r][0]).trim()) continue;
+      if (String(d[r][3]).trim().toUpperCase() !== 'O') continue;   // ACTIF=O seulement
+      gens.push({ i: String(d[r][2] || '').trim(),
+                  d: (col >= 0) ? _jour(d[r][col]) : '' });
+    }
+  }
+
+  return { success: true, origine: STATS_ORIGINE, effectif: gens.length,
+           semaines: semaines, heures: heures, medecins: gens };
 }

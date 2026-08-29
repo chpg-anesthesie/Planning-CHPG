@@ -964,6 +964,11 @@ const TILES = [
   // depannage). Sans interet pour l'equipe : tuile reservee a FROHLICH, comme CRH.
   // Seul moyen d'y acceder jusqu'ici : taper l'adresse a la main.
   { key:'technique', title:'Guide technique', sub:'Architecture, déploiement, dépannage du système.', icon:'wrench', href:'docs/guide-technique.html', ready:true, only:'FROHLICH' },
+  // Statistiques d'usage du portail (29/08/2026) : qui s'en sert, a quelle
+  // frequence, a quels moments. Reservee a FROHLICH comme CRH et le guide
+  // technique. Le serveur refuse l'action aux autres roles : masquer la tuile
+  // ne ferme rien.
+  { key:'stats', title:'Statistiques d\'usage', sub:'Qui utilise le portail, à quelle fréquence, à quels moments.', icon:'radar', href:'docs/stats-usage.html', ready:true, only:'FROHLICH' },
 ];
 function renderTiles(){
   const box = document.getElementById('tiles');
