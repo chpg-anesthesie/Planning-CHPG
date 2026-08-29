@@ -89,10 +89,11 @@ summary{font-weight:700;cursor:pointer;font-size:14.5px}
 <h2>Où on en est</h2>
 <div class="etat-grid">
   <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-  <div><div class="etat-k">Banc d'essai</div><div class="etat-v">1996 <small>vérifs · 38 scripts</small></div></div>
+  <div><div class="etat-k">Banc d'essai</div><div class="etat-v">2075 <small>vérifs · 39 scripts</small></div></div>
   <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
   <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
 </div>
+<p class="note"><b>Réglé le 28/08 :</b> dates d'activité renseignées dans MEDECINS (TRAN part le 01/09, COPELOVICI arrive le 28/09, ARMAND le 01/11) — le générateur, le planning publié et la bande de présence les lisent toutes ; Toussaint 2027 corrigée (23/10→07/11) et seuils de congés ressaisis ; PRUNET compté dans la bande de présence.</p>
 <p class="note">Versions du code déployé, battements des tâches automatiques, cohérence des données : c'est le <b>Diagnostic</b> (écran d'administration → Maintenance) qui fait foi — rapport complet chaque lundi, sentinelle chaque matin qui n'écrit que si un problème apparaît.</p>
 
 <h2>Échéancier</h2>
@@ -141,20 +142,20 @@ summary{font-weight:700;cursor:pointer;font-size:14.5px}
   <ul>
     <li>Le ménage du soir, dix gestes dans l'ordre — la marche à suivre fait foi.</li>
     <li>Rallumer les vrais mails : planning stable → publier → 15 min → journal → interrupteur à O → retirer la redirection. <small>Le Diagnostic surveille désormais cette cohérence.</small></li>
-    <li><span class="pin">📌</span> <b>Corriger la Toussaint 2027</b> dans PERIODES_VAC : <b>23/10 → 07/11</b> (arrêté du 21/07/2026) — à la main, l'import n'écrase pas une ligne existante. <small>Le Diagnostic l'affichera en ❌ tant que ce n'est pas fait.</small></li>
+    <li>Vérifier que les seuils de congés n'ont pas bougé <small>— l'écran des périodes les écrase en resauvegardant (défaut connu, à corriger avec son test). Valeurs voulues : 8 hors été, 10 à Noël et l'été.</small></li>
   </ul>
 </div>
 <div class="todo">
   <b class="t">Avant la génération de novembre</b>
   <ul>
-    <li>Trancher le départ de FERRIERO et l'exemption des 60 ans.</li>
+    <li>Trancher le départ de FERRIERO <small>— sa date d'activité reste vide dans MEDECINS, à renseigner une fois décidé (les trois autres le sont)</small> et l'exemption des 60 ans.</li>
     <li>Retirer du générateur le mécanisme des « jours fixes » de temps partiel <small>— remplacé par la pose après génération, il ne sert plus qu'un cas illégitime.</small></li>
   </ul>
 </div>
 <div class="todo">
   <b class="t">Chantiers de fond</b>
   <ul>
-    <li>Équité des week-ends : un déséquilibre structurel existe même sans aucun souhait <small>(102 années simulées sur 400 au-dessus de 2 gardes d'écart)</small> — chantier ouvert, corrélé au creux démographique.</li>
+    <li>Équité des week-ends : déséquilibre structurel même sans aucun souhait <small>(102 années simulées sur 400 au-dessus de 2 d'écart). Cause connue — la pénalité de charge hebdomadaire passe avant l'équité. Un correctif a été écrit et mesuré : +10 points isolément, mais neutralisé une fois assemblé aux souhaits du mardi, qui corrigent le même déséquilibre. À reprendre après novembre, recalibré souhaits activés. Le fond est démographique : 52 % d'années rouges à ≤16 gardeurs contre 8 % à ≥21.</small></li>
     <li>Sortir les <b>neuf</b> listes de secteurs écrites en dur <small>— <code>admin.html</code> (COVERAGE, targets), <code>index.html</code> (4 listes de libellés et d'ordre), <code>absences.html</code> (LIB_CS), <code>code.gs</code> (CS_RULES). Indispensable avant le déménagement NCHPG. À ne PAS toucher : le repli de <code>code.gs</code> si l'onglet SECTEURS est illisible, la liste de départ de l'onglet SPECIALITES, et les tables d'alias qui normalisent les vieilles orthographes.</small></li>
     <li>Poster SFAR 2027 <small>— les données d'équité avant/après sont déjà capturées.</small></li>
   </ul>
@@ -197,6 +198,8 @@ summary{font-weight:700;cursor:pointer;font-size:14.5px}
   <div class="regle"><b>Installation sur écran d'accueil des autres pages.</b><span>Tout le monde passe par le portail, qui la porte déjà.</span></div>
   <div class="regle"><b>Icônes des secteurs embarquées dans le site.</b><span>1 728 possibles côté onglet ; une liste figée en ferait disparaître en silence.</span></div>
   <div class="regle"><b>Réduction automatique du devis à l'impression.</b><span>Réglé par la mise en page seule.</span></div>
+  <div class="regle"><b>Fiche « pourquoi ce MAR a cette garde ».</b><span>30 à 37 % des gardes sont déplacées après coup par l'optimiseur : pour deux gardes sur trois, la réponse « il était premier du classement » serait fausse.</span></div>
+  <div class="regle"><b>Boucher les veilles de férié en semaine.</b><span>Coûte 2 points de certificat en dégradant les week-ends ; personne ne souhaite une veille de férié.</span></div>
   <div class="regle"><b>Fenêtre couvrante pour les vacances estimées.</b><span>Choix du 27/08 : estimations serrées, le seuil vivant en continu limite l'exposition à une relecture.</span></div>
 </details>
 
