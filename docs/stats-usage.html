@@ -100,6 +100,18 @@ tr:last-child td { border-bottom:none; }
   color:var(--ink-2); border-radius:6px; padding:3px 9px; display:inline-block; }
 .tag { font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px;
   background:var(--surface-2); color:var(--ink-3); }
+/* Ancienneté de la dernière connexion. Rampe vert → bleu → gris, sans rouge. */
+.pil { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600;
+  padding:4px 11px; border-radius:999px; background:var(--surface-2); color:var(--ink-3); }
+.pil::before { content:''; width:7px; height:7px; border-radius:50%; background:currentColor; flex:none; }
+.pil.auj    { background:var(--ok-soft);    color:var(--ok); }
+.pil.sem    { background:var(--me-soft);    color:var(--me); }
+.pil.mois   { background:var(--surface-2);  color:var(--ink-3); }
+.pil.vieux  { background:transparent;       color:var(--ink-4); }
+.pil.vieux::before { background:var(--line); }
+.pil.jamais { background:var(--amber-soft); color:var(--amber); }
+tr:hover td { background:var(--line-light); }
+td:first-child { width:1%; white-space:nowrap; }
 
 .hm { display:grid; grid-template-columns:36px repeat(24,1fr); gap:2px; align-items:center; }
 .hm .d { font-size:10px; color:var(--ink-4); font-family:var(--mono); }
@@ -419,8 +431,12 @@ function tableau(){
   });
   let h='<tr><th>Médecin</th><th>Dernière connexion</th></tr>';
   gens.forEach(function(m){
+    /* La couleur code l'ANCIENNETÉ, pas le mérite : une rampe vert → bleu →
+       gris, jamais de rouge. Le rouge dirait « en faute » à propos d'un
+       collègue qui n'a pas ouvert une page web. « jamais » est en ambre :
+       ça se remarque sans accuser. */
     let cell;
-    if(!m.d){ cell='<span class="tag">jamais</span>'; }
+    if(!m.d){ cell='<span class="pil jamais">jamais</span>'; }
     else {
       const n = joursDepuis(m.d);
       const q = (n === null) ? frDate(m.d)
@@ -428,7 +444,12 @@ function tableau(){
               : (n === 1) ? 'hier'
               : (n < 30) ? ('il y a ' + n + ' jours')
               : frDate(m.d);
-      cell='<span style="color:var(--ink-3)">'+q+'</span>';
+      const cl = (n === null) ? 'vieux'
+               : (n <= 1) ? 'auj'
+               : (n <= 7) ? 'sem'
+               : (n < 30) ? 'mois'
+               : 'vieux';
+      cell='<span class="pil '+cl+'">'+q+'</span>';
     }
     h+='<tr><td><span class="ini">'+esc(m.i)+'</span></td><td>'+cell+'</td></tr>';
   });

@@ -207,6 +207,25 @@ console.log('\n═══ 6. Le tableau montre TOUT le service ═══');
   V('« aujourd\'hui » plutôt que « il y a 0 jours »', lignes[5][1] === "aujourd'hui", lignes[5]);
   V('« hier » plutôt que « il y a 1 jours »', lignes[4][1] === 'hier', lignes[4]);
   V('au-delà d\'un mois, la date en clair', /juillet 2026/.test(lignes[3][1]), lignes[3]);
+
+  /* (29/08) Couleurs : la pastille code l'ANCIENNETÉ, pas le mérite. Aucun
+     rouge — il dirait « en faute » à propos d'un collègue qui n'a pas ouvert
+     une page web, exactement le rôle que le service ne veut pas donner à cet
+     écran. Vérifié sur la sortie réelle ET sur la feuille de style. */
+  const pil = [...sortie.matchAll(/<span class="pil ([a-z]+)">([^<]*)<\/span>/g)]
+    .map(function(m){ return [m[1], m[2]]; });
+  V('chaque ligne porte une pastille', pil.length === lignes.length, pil.length);
+  V('les jamais connectés sont en ambre',
+    pil.filter(function(p){ return p[1] === 'jamais'; }).every(function(p){ return p[0] === 'jamais'; }), pil);
+  V('aujourd\'hui est en vert', pil[5][0] === 'auj', pil[5]);
+  V('hier aussi', pil[4][0] === 'auj', pil[4]);
+  V('au-delà d\'un mois, la pastille pâlit', pil[3][0] === 'vieux', pil[3]);
+  const styles = PAGE.slice(PAGE.indexOf('.pil {'), PAGE.indexOf('</style>'));
+  V('aucune pastille n\'utilise la couleur d\'alerte',
+    styles.indexOf('--red') < 0, styles.slice(0, 200));
+  V('les 5 états ont chacun leur style',
+    ['.pil.auj','.pil.sem','.pil.mois','.pil.vieux','.pil.jamais']
+      .every(function(c){ return styles.indexOf(c) >= 0; }));
 }
 
 console.log('\n═══ 7. Les compteurs GAS ont bien été poussés avec ═══');
