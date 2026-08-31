@@ -259,24 +259,23 @@ notifications de changement. Tous les autres envois — codes d'accès, réiniti
 récapitulatifs annuels — lisent `EMAIL` (col. index 7) directement et l'ignorent. Avec une seule
 adresse renseignée, le garde-fou devient la colonne EMAIL, qui gouverne **tous** les canaux.
 
-**Ce que la marche à suivre du 26/08 ne couvre pas.** Elle dit, à juste titre, que système éteint
-la photo est prise quand même et qu'aucun arriéré ne s'accumule. Vrai. Mais chaque modification
-arme le minuteur **pour son année** (`notifPlanifier`) et la file `NOTIF_YEAR` peut porter 2026
-**et** 2027. Le minuteur tire 10 minutes plus tard. **Si le rallumage tombe pendant ce délai, la
-passe s'exécute avec `actif = true` et envoie.** C'est le seul chemin de spam qui reste.
+**Correction du 31/08 au soir — j'avais surestimé ce risque.** Arthur l'a relevé : en régime normal,
+deux années actives ne posent aucun problème, une modification de 2026 fait partir un mail, une
+modification de 2027 aussi, c'est le comportement voulu. Le cas décrit plus haut ne survient **qu'au
+moment où on rallume un système éteint**, et ce qui partirait alors, ce sont les modifications des dix
+dernières minutes — des changements réels, que les MARs auraient reçus de toute façon une fois le
+système rallumé. **Pas une salve d'arriérés**, et rien à voir avec les 13 mails du 25/08, qui venaient de la
+file d'années, défaut corrigé depuis.
 
-**Geste de sécurité, à faire dans cet ordre :**
+**Ce qu'il faut retenir, et rien de plus :** une modification programme son envoi dix minutes plus tard, et
+rallumer ne l'annule pas. Donc **ne rien modifier pendant dix minutes avant de rallumer** — ce que la
+marche à suivre du 26/08 prévoit déjà (quinze minutes d'attente). `notifRecaler` reste disponible comme
+ceinture, mais n'est pas nécessaire.
 
-1. Ne toucher à rien pendant 15 minutes. Vérifier au journal la ligne « système éteint, photo
-   prise, aucun envoi » pour **chaque année vivante**.
-2. Lancer `notifRecaler(2026)` **puis** `notifRecaler(2027)` depuis l'éditeur Apps Script. La
-   fonction prend la photo sans envoyer et **ne dépend d'aucun minuteur** : même si une passe tire
-   après le rallumage, elle ne trouvera aucun écart.
-3. Seulement alors, coller les 21 adresses dans la colonne EMAIL.
-4. Puis `NOTIF_ACTIVE` à `O` et suppression de `NOTIF_EMAIL_TEST`.
-5. Contrôle : publier une fois, attendre, le journal doit dire « aucun changement à signaler ».
-
-**L'ordre compte** : les adresses AVANT le recalage, et un envoi peut partir entre les deux.
+**Leçon de méthode.** Un mécanisme correctement lu peut être présenté avec une gravité fausse. Ici le
+code était juste décrit, mais « le seul chemin de spam qui reste » a transformé un cas mineur, déjà couvert,
+en risque à parer — et a fait écrire un geste supplémentaire dans une marche à suivre qui n'en avait pas
+besoin. **Vérifier le mécanisme ne dispense pas de vérifier l'importance qu'on lui donne.**
 
 ---
 
