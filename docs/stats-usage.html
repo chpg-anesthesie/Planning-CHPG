@@ -113,6 +113,20 @@ tr:last-child td { border-bottom:none; }
 tr:hover td { background:var(--line-light); }
 td:first-child { width:1%; white-space:nowrap; }
 
+/* Barres « qui se connecte » et bloc administration. */
+.bar-l { display:flex; justify-content:space-between; align-items:baseline;
+  font-size:13.5px; margin-bottom:6px; }
+.bar-l b { font-weight:700; }
+.bar-t { height:10px; border-radius:4px; background:var(--surface-2); overflow:hidden; margin-bottom:15px; }
+.bar-t i { display:block; height:100%; border-radius:4px; }
+.note { font-size:12.5px; color:var(--ink-4); margin:6px 0 0; padding-top:12px;
+  border-top:1px solid var(--line-light); line-height:1.5; }
+.duo { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+.duo div { background:var(--bg); border-radius:12px; padding:14px 16px; }
+.duo .lbl { font-size:11px; font-weight:700; color:var(--ink-4); text-transform:uppercase;
+  letter-spacing:.05em; margin-bottom:9px; }
+.duo .val { font-size:26px; font-weight:700; line-height:1; }
+.phrase { font-size:14px; margin:0 0 16px; line-height:1.5; }
 .hm { display:grid; grid-template-columns:36px repeat(24,1fr); gap:2px; align-items:center; }
 .hm .d { font-size:10px; color:var(--ink-4); font-family:var(--mono); }
 .hm .c { aspect-ratio:1; border-radius:3px; }
@@ -187,10 +201,17 @@ td:first-child { width:1%; white-space:nowrap; }
     </div>
 
     <div class="card">
-      <h2>Répartition par rôle</h2>
-      <p class="cap">Part des connexions selon le profil d'accès, sur les 90 derniers jours.</p>
-      <svg id="roles" viewBox="0 0 440 200" style="height:200px"></svg>
+      <h2>Qui se connecte</h2>
+      <p class="cap">Connexions selon le code utilisé, depuis l'ouverture au service.</p>
+      <div id="roles"></div>
+      <p class="note">Seules les connexions des médecins alimentent les courbes ci-dessus.</p>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>L'administration, au-delà de la connexion</h2>
+    <p class="cap">Le code d'administration est partagé : ces chiffres décrivent le rôle, jamais une personne.</p>
+    <div id="adm"></div>
   </div>
 
   <div class="card">
@@ -333,6 +354,8 @@ function dessiner(){
   }
   volume(GRIS, S);
   chaleur();
+  roles();
+  administration();
 }
 
 function courbe(id, d, plafond, couleur, marque, ligne, S, borne){
@@ -384,7 +407,6 @@ function volume(gris, S){
     s+='<text class="ax" x="'+(x+bw/2)+'" y="'+(P.t+ih-h-5)+'" text-anchor="middle" style="font-size:8px">'+n+'</text>';
     s+='<text class="ax" x="'+(x+bw/2)+'" y="'+(H-8)+'" text-anchor="middle">'+MOIS[Number(cles[i].slice(5,7))-1].charAt(0).toUpperCase()+'</text>'; });
   el.innerHTML=s;
-  const r=document.getElementById('roles'); if(r) r.closest('.card').style.display='none';
 }
 
 function chaleur(){
@@ -413,6 +435,83 @@ function chaleur(){
   box.innerHTML=h+'</div>';
   const pic=document.getElementById('pic');
   if(pic) pic.textContent = bv>0 ? ('Pic : ' + j[bj].toLowerCase() + ' ' + bh + ' h') : '';
+}
+
+/* ── Qui se connecte, et ce que fait l'administration ─────────────────── */
+/* (31/08) Les connexions seules ne disent pas si le comité SE SERT de la page
+   d'administration ou se contente de l'ouvrir. Les compteurs par rôle le disent.
+   Trois précautions tenues ici :
+   1. Les trois barres restent SÉPARÉES. Fondues dans « actifs », les ouvertures
+      d'administration feraient dépasser la courbe de son propre plafond — c'est
+      déjà le cas du secrétariat, compté comme un 26e utilisateur.
+   2. Le code d'administration est PARTAGÉ : on écrit « le rôle », jamais « qui ».
+   3. Aucun total par personne n'est demandé ni affiché. */
+const R_LIB = { mar:'Les médecins', admin:"Code d'administration", secretariat:'Secrétariat' };
+const R_COUL = { mar:'--me', admin:'--amber', secretariat:'--ink-4' };
+/* Libellés des gestes. Une action non listée s'affiche telle quelle : mieux vaut
+   un nom technique visible qu'un geste silencieusement absent du tableau. */
+const A_LIB = {
+  publishPlanning:'Planning publié', generateGardes:'Gardes générées',
+  savePlanningOverride:'Placement modifié', savePlanningOverridesBatch:'Placements modifiés',
+  deleteOverride:'Placement retiré', setDailyStatus:'Statut du jour posé',
+  poserAbsenceLongue:'Absence longue posée', annulerAbsenceLongue:'Absence longue annulée',
+  applyModification:'Garde échangée ou déplacée', saveAffectations:'Affectations enregistrées',
+  saveAffectationsMar:'Affectations d\'un médecin', saveIndispos:'Indisponibilités enregistrées',
+  saveIndisposBatch:'Indisponibilités enregistrées (lot)', savePeriodes:'Périodes de vacances',
+  saveGroupes:'Groupes de vacances', saveMedecin:'Fiche médecin modifiée',
+  saveConfig:'Réglage modifié', resetCodeMar:'Code d\'accès réinitialisé',
+  addMedecinToGroupe:'Médecin changé de groupe', setIndisposYear:'Campagne ouverte',
+  clearIndisposYear:'Campagne fermée', setActiveYear:'Année active changée',
+  initYear:'Année initialisée', archiveYear:'Année archivée',
+  creerEchange:'Échange proposé', repondreEchange:'Échange traité',
+  declareLiberal:'Déclaration libérale', deleteLiberal:'Déclaration libérale retirée'
+};
+function libAction(a){ return A_LIB[a] || a; }
+function quand(iso){
+  const n = joursDepuis(iso);
+  if(n === null) return '—';
+  return n <= 0 ? "aujourd'hui" : (n === 1 ? 'hier'
+       : (n < 30 ? 'il y a ' + n + ' jours' : frDate(iso)));
+}
+function roles(){
+  const box = document.getElementById('roles'); if(!box) return;
+  const R = D.roles || {};
+  const cles = ['mar','admin','secretariat'].filter(function(k){ return R[k] && R[k].ouvertures; });
+  if(!cles.length){ box.innerHTML = '<p class="cap" style="margin:0">Rien à afficher pour l\'instant.</p>'; return; }
+  const max = Math.max.apply(null, cles.map(function(k){ return R[k].ouvertures; }));
+  box.innerHTML = cles.map(function(k){
+    const v = R[k].ouvertures;
+    return '<div class="bar-l"><span>' + R_LIB[k] + '</span><b>' + v + '</b></div>'
+         + '<div class="bar-t"><i style="width:' + Math.max(2, Math.round(v / max * 100)) + '%;'
+         + 'background:var(' + R_COUL[k] + ')"></i></div>';
+  }).join('');
+}
+function administration(){
+  const box = document.getElementById('adm'); if(!box) return;
+  const a = (D.roles && D.roles.admin) || { ouvertures:0, actions:0 };
+  const liste = (D.actions && D.actions.admin) || [];
+  let h = '<div class="duo">'
+        + '<div><div class="lbl">Ouvertures</div><div class="val">' + a.ouvertures + '</div></div>'
+        + '<div><div class="lbl">Modifications faites</div><div class="val">' + a.actions + '</div></div>'
+        + '</div>';
+  if(!a.ouvertures){
+    h += '<p class="phrase">Aucune ouverture en administration depuis le comptage.</p>';
+  } else if(!a.actions){
+    h += '<p class="phrase">La page est ouverte, mais rien n\'y a encore été modifié.</p>';
+  } else {
+    /* Une ouverture peut porter plusieurs gestes : le rapport se lit comme une
+       intensité, jamais comme un pourcentage d\'ouvertures « utiles ». */
+    h += '<p class="phrase">' + (a.actions / a.ouvertures).toFixed(1).replace('.', ',')
+       + ' modification' + (a.actions / a.ouvertures >= 2 ? 's' : '') + ' par ouverture, en moyenne.</p>';
+  }
+  if(liste.length){
+    h += '<table>' + liste.map(function(x){
+      return '<tr><td style="width:auto;white-space:normal">' + esc(libAction(x.a)) + '</td>'
+           + '<td style="text-align:right;width:1%">' + x.n + '</td>'
+           + '<td style="text-align:right;width:1%;color:var(--ink-4);font-size:12.5px;white-space:nowrap">'
+           + quand(x.d) + '</td></tr>'; }).join('') + '</table>';
+  }
+  box.innerHTML = h;
 }
 
 /* ── Qui a ouvert le portail ──────────────────────────────────────────── */

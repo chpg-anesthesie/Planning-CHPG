@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_PORTAIL = '2026-08-29.2';
+const GAS_VERSION_PORTAIL = '2026-08-31.1';
 
 /**
  * portail.gs — actions du PORTAIL équipe (dashboard.html).
@@ -1915,6 +1915,38 @@ function getStatsUsage(user) {
     }
   }
 
+  /* ── Ouvertures et modifications, PAR RÔLE (31/08/2026) ──
+     Alimente deux cartes : « qui se connecte » et « l'administration au-delà de
+     la connexion ». Compteurs figés par _statsActionIncr_ (Indispos.gs), jamais
+     reconstruits depuis les lignes brutes.
+     Aucune donnée nominative : ces lignes ne portent que le rôle. Le code
+     d'administration est partagé et ne porte aucun nom — la page doit donc dire
+     « le rôle », jamais « la personne ». */
+  const roles = {}, actions = {};
+  const fa = ss.getSheetByName('STATS_ACTIONS');
+  if (fa) {
+    const d = fa.getDataRange().getValues();
+    for (let r = 1; r < d.length; r++) {
+      const role = String(d[r][0] || '').trim().toLowerCase();
+      const act  = String(d[r][1] || '').trim();
+      const n    = Number(d[r][2] || 0);
+      if (!role || !act) continue;
+      if (act === '(ouverture)') {
+        if (!roles[role]) roles[role] = { ouvertures: 0, actions: 0 };
+        roles[role].ouvertures += n;
+      } else {
+        if (!roles[role]) roles[role] = { ouvertures: 0, actions: 0 };
+        roles[role].actions += n;
+        if (!actions[role]) actions[role] = [];
+        actions[role].push({ a: act, n: n, d: _jour(d[r][3]) });
+      }
+    }
+    Object.keys(actions).forEach(function (k) {
+      actions[k].sort(function (x, y) { return y.n - x.n; });
+    });
+  }
+
   return { success: true, origine: STATS_ORIGINE, effectif: gens.length,
-           semaines: semaines, heures: heures, medecins: gens };
+           semaines: semaines, heures: heures, medecins: gens,
+           roles: roles, actions: actions };
 }

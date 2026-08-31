@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-29.1';
+const GAS_VERSION_INDISPOS = '2026-08-31.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1171,6 +1171,8 @@ function logConnexion(user) {
        ici, une fois, et ne sont jamais recalculés. */
     try { _statsHeureIncr_(ss, maintenant); } catch (e) {}
     try { _statsDerniereConnexion_(ss, user, maintenant); } catch (e) {}
+    /* Ouvertures par rôle : alimente la carte « qui se connecte ». */
+    try { _statsActionIncr_(ss, user.role, '(ouverture)', maintenant); } catch (e) {}
 
     /* Purge — MAIS jamais avant d'avoir figé les semaines concernées.
        L'ordre compte : figer PUIS supprimer. L'inverse perd la semaine. */
@@ -1231,6 +1233,39 @@ function _statsDerniereConnexion_(ss, user, d) {
       return;
     }
   }
+}
+
+/* ═══ COMPTEUR D'USAGE PAR RÔLE (31/08/2026) ═══════════════════════════
+   Répond à une question que les connexions seules ne tranchent pas : le comité
+   OUVRE-t-il la page d'administration, ou s'en SERT-il ?
+
+   Même principe que STATS_HEURES : on incrémente AU MOMENT du geste, on ne
+   reconstruit jamais après coup. LOGS ne pouvait pas servir de source — il ne
+   garde que 500 lignes et son message est du texte libre, pas une donnée
+   rangée.
+
+   Une ligne par couple (rôle, action). '(ouverture)' est l'action des
+   connexions. Aucune donnée nominative : le rôle, jamais la personne — le code
+   d'administration est de toute façon partagé et ne porte aucun nom.
+
+   PROTÉGÉ PAR UN FILET : tout appelant enveloppe l'appel dans un try/catch.
+   Un compteur n'a jamais le droit de faire échouer une publication de planning. */
+function _statsActionIncr_(ss, role, action, d) {
+  d = d || new Date();
+  if (_statsJour_(d) < STATS_ORIGINE) return;
+  const r = String(role || '').trim().toLowerCase();
+  const a = String(action || '').trim();
+  if (!r || !a) return;
+  const f = _statsFeuille_(ss, 'STATS_ACTIONS', ['ROLE','ACTION','NOMBRE','DERNIERE']);
+  const data = f.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim().toLowerCase() === r &&
+        String(data[i][1]).trim() === a) {
+      f.getRange(i + 1, 3, 1, 2).setValues([[Number(data[i][2] || 0) + 1, _statsJour_(d)]]);
+      return;
+    }
+  }
+  f.appendRow([r, a, 1, _statsJour_(d)]);
 }
 
 /* Recalcule les semaines ENCORE OUVERTES depuis les lignes brutes, et les fige
@@ -3261,6 +3296,14 @@ function _routeRequete_(e) {
        ecriture de planning ne touche pas SECTEURS) : cela coute une relecture
        d'onglet, jamais une donnee perimee. Le sens de l'erreur est le bon. */
     if (WRITE_ACTIONS_LOCK.has(action)) {
+      /* (31/08/2026) COMPTEUR D'USAGE. Placé ICI pour la même raison que
+         l'invalidation du cache juste dessous : WRITE_ACTIONS_LOCK est la liste
+         de référence des écritures, s'y accrocher garantit qu'aucune action
+         nouvelle ne sera oubliée. On compte la TENTATIVE, pas la réussite : le
+         point de sortie est unique ici, il ne l'est plus après. Les lectures ne
+         sont JAMAIS comptées — une écriture par ouverture d'écran ralentirait
+         tout le portail. */
+      try { _statsActionIncr_(SpreadsheetApp.getActiveSpreadsheet(), user.role, action); } catch (e) {}
       try { viderCacheConfig(); } catch (e) {}
       const _wl = LockService.getScriptLock();
       if (!_wl.tryLock(20000)) {
