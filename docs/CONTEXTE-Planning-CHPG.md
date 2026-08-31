@@ -35,6 +35,51 @@ fenêtre du dernier Excel (vendredi 16 h → dimanche +9).
 
 ---
 
+## État au 31 août 2026 (soir) — le compteur par rôle : le comité s'en sert-il, ou l'ouvre-t-il ?
+
+Site **v1.98**, `Indispos.gs` **2026-08-31.1**, `portail.gs` **2026-08-31.1**, banc **2200**.
+Commit `4484b92`. ⏳ **EN ATTENTE : les deux `.gs` doivent être recopiés et déployés.**
+
+**La question posée.** Les connexions disent qui ouvre le portail, jamais ce qui y est fait.
+Arthur, qui passera la main au comité, veut savoir si la page d'administration servira ou sera
+seulement ouverte.
+
+**Ce qui bloquait.** `LOGS` journalise déjà ~70 gestes, mais ne peut pas servir de source : il ne
+garde que **500 lignes** et son message est du **texte libre**, pas une donnée rangée. Une carte
+alimentée par lui afficherait une courbe qui rétrécit — le défaut corrigé le matin même.
+
+**Ce qui a été construit.** Onglet `STATS_ACTIONS` (`ROLE`, `ACTION`, `NOMBRE`, `DERNIERE`),
+incrémenté au moment du geste par `_statsActionIncr_`. Deux branchements, pas un de plus :
+`logConnexion` pour les ouvertures, et l'entrée de `WRITE_ACTIONS_LOCK` pour les **26 écritures**.
+Deux cartes dans `stats-usage.html` : « Qui se connecte » (celle qui était écrite depuis mars et
+masquée en dur faute de données) et « L'administration, au-delà de la connexion ».
+
+### Règles gravées ce jour
+
+- **Les lectures ne sont jamais comptées.** Une écriture au classeur par ouverture d'écran
+  ralentirait tout le portail — mesure du 28/07 : quatre exécutions concurrentes coûtent 4 à 7 s
+  chacune contre 1,8 s pour une seule.
+- **Un compteur n'a jamais le droit de faire échouer le geste qu'il compte.** Chaque appel est
+  sous `try/catch` ; le banc rend l'écriture impossible et vérifie que la connexion aboutit.
+- **Le compteur mesure un RÔLE, jamais une personne.** Le code d'administration est unique et
+  partagé, `checkCode` le rend sans nom ni initiales. Impossible de savoir qui a agi — c'est une
+  limite de conception, pas un manque à combler dans ce lot.
+- **Les trois barres restent séparées.** Fondues dans les « actifs », les ouvertures
+  d'administration feraient dépasser la courbe de son plafond de 25.
+
+### Défaut connu, non corrigé par ce lot
+
+Le **secrétariat** (`initials: 'SEC'`) porte un nom, donc `statsRecalculer` le compte comme un
+**26e utilisateur** dans la courbe « actifs / 25 ». Le lot le rend visible sans le corriger.
+Décision reportée après le 4 septembre.
+
+### Ce que le routeur compte exactement
+
+La **tentative**, pas la réussite : le point de passage est unique à l'entrée des écritures, il ne
+l'est plus après. Une publication refusée par le verrou d'écriture est comptée.
+
+---
+
 ## État au 31 août 2026 — statistiques d'usage, et le journal qui s'autodétruisait
 
 Site **v1.97**, `Indispos.gs` **2026-08-29.1**, `portail.gs` **2026-08-29.2**, banc **2163**.

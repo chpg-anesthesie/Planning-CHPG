@@ -4,9 +4,9 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.97** ·
-**GAS** (relevé le 31/08/2026) `code.gs` **2026-08-28.1** ·
-`Indispos.gs` **2026-08-29.1** · `portail.gs` **2026-08-29.2** · `miroir.gs` **2026-08-27.1** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.98** ·
+**GAS** (relevé le 31/08/2026 au soir) `code.gs` **2026-08-28.1** ·
+`Indispos.gs` **2026-08-31.1** · `portail.gs` **2026-08-31.1** · `miroir.gs` **2026-08-27.1** ·
 `journal.gs` **2026-08-27.1** · `echanges.gs` **2026-08-27.1** · `veille.gs` **2026-08-27.1** ·
 `setup_annee.gs` **2026-08-27.1** · `sauvegarde.gs` 2026-08-06.1 · `generateur_gardes.gs` 2026-08-26.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
@@ -175,6 +175,108 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 31 août 2026 (soir) — le comité se sert-il de la page, ou l'ouvre-t-il ?
+
+**Un commit `4484b92`, banc 2 163 → 2 200, site v1.97 → v1.98.**
+⏳ `Indispos.gs` **2026-08-31.1** et `portail.gs` **2026-08-31.1** à recopier et déployer.
+
+### La question, et pourquoi elle n'avait pas de réponse
+
+Les connexions disent QUI ouvre le portail. Elles ne disent rien de ce qui y est fait. Arthur, qui
+ne fera plus de gestes d'administration une fois le portail entre les mains du comité, veut savoir
+si la page d'administration servira ou sera seulement ouverte.
+
+**`LOGS` ne pouvait pas servir de source.** Il journalise déjà ~70 gestes, mais il ne garde que
+**500 lignes** et son message est du **texte libre** — pas de colonne action, pas de colonne
+auteur. Compter proprement supposerait de relire des phrases françaises, ce qui casse à la
+première reformulation. Et une carte alimentée par lui rétrécirait toute seule : exactement le
+défaut corrigé le matin même sur `CONNEXIONS`.
+
+### Ce qui a été construit
+
+Onglet **`STATS_ACTIONS`** — `ROLE`, `ACTION`, `NOMBRE`, `DERNIERE`. Même principe que
+`STATS_HEURES` : on incrémente au moment du geste, on ne reconstruit jamais après coup.
+
+Deux branchements, pas un de plus :
+
+| Où | Ce qui est compté |
+|---|---|
+| `logConnexion` | les ouvertures, sous l'action `(ouverture)` |
+| entrée de `WRITE_ACTIONS_LOCK` (routeur) | les **26 actions** qui modifient des données |
+
+Le second point est choisi pour la même raison que l'invalidation du cache posée juste dessous :
+`WRITE_ACTIONS_LOCK` **est** la liste de référence des écritures. S'y accrocher garantit qu'aucune
+action nouvelle ne sera oubliée.
+
+Côté écran, la carte « Répartition par rôle » — écrite en mars, jamais affichée, masquée en dur par
+`volume()` faute de données — devient **« Qui se connecte »**. Une seconde carte s'ajoute :
+**« L'administration, au-delà de la connexion »**, deux compteurs (ouvertures, modifications), le
+rapport entre les deux, et le détail des gestes avec leur date de dernière fois.
+
+### Décisions
+
+- **Les lectures ne sont JAMAIS comptées.** Compter chaque ouverture d'écran imposerait une
+  écriture au classeur à chaque affichage. Mesure du 28/07 : quatre exécutions concurrentes
+  coûtent 4 à 7 s chacune, contre 1,8 s pour une seule.
+- **Un compteur ne peut pas faire échouer le geste qu'il compte.** Chaque appel est sous
+  `try/catch`. Le banc rend l'écriture impossible et vérifie que la connexion aboutit quand même —
+  c'est la seule propriété non négociable du lot.
+- **Le compteur mesure un RÔLE, jamais une personne.** `checkCode` rend le code d'administration
+  sans nom ni initiales : `{role:'admin', id:'ADMIN'}`. On saura qu'un geste vient de
+  l'administration, jamais de qui. **La carte ne répondra donc pas à « les autres membres du
+  comité s'en servent-ils ».** Y répondre supposerait un accès administration adossé au code
+  personnel de chacun — chantier de droits d'accès, écarté à quatre jours de la démonstration.
+- **Les trois barres restent séparées.** Fondues dans les « actifs », les ouvertures
+  d'administration feraient dépasser la courbe de son propre plafond de 25.
+- **Le routeur compte la tentative, pas la réussite.** Le point de passage est unique à l'entrée
+  des écritures, il ne l'est plus après. Une publication refusée par le verrou est comptée.
+
+### Défaut rendu visible, pas corrigé
+
+Le **secrétariat** porte un nom (`initials: 'SEC'`), donc `statsRecalculer` le compte comme un
+**26e utilisateur** dans la courbe « actifs / 25 », qui peut ainsi dépasser son propre plafond.
+Constat de ce jour, **non corrigé** : après le 4 septembre.
+
+### Ce que le banc a attrapé
+
+Une vérification est tombée au premier essai : le classeur simulé rend la date de dernière fois
+comme **objet `Date`**, pas comme chaîne — ce que fait réellement Sheets. Le code de lecture la
+normalisait déjà ; c'est le test qui croyait lire une chaîne. Une contre-épreuve a été ajoutée :
+la même date écrite comme objet doit ressortir au format jour, sinon « il y a N jours » deviendrait
+illisible. **C'est le même piège que celui qui faisait rétrécir les semaines figées le 29/08.**
+
+Contre-épreuve du lot : sur le dépôt intact, les 5 vérifications de branchement tombent.
+
+### ⚠️ Notifications — l'angle mort de la marche à suivre du 26/08
+
+Question d'Arthur ce soir : que se passe-t-il si `NOTIF_EMAIL_TEST` est supprimée alors que seule
+son adresse figure dans la colonne EMAIL ? **Réponse vérifiée dans le code : c'est plus sûr, pas
+moins.** Un seul endroit lit la redirection (`_notifExpedier`, `code.gs`) : elle ne protège que les
+notifications de changement. Tous les autres envois — codes d'accès, réinitialisation,
+récapitulatifs annuels — lisent `EMAIL` (col. index 7) directement et l'ignorent. Avec une seule
+adresse renseignée, le garde-fou devient la colonne EMAIL, qui gouverne **tous** les canaux.
+
+**Ce que la marche à suivre du 26/08 ne couvre pas.** Elle dit, à juste titre, que système éteint
+la photo est prise quand même et qu'aucun arriéré ne s'accumule. Vrai. Mais chaque modification
+arme le minuteur **pour son année** (`notifPlanifier`) et la file `NOTIF_YEAR` peut porter 2026
+**et** 2027. Le minuteur tire 10 minutes plus tard. **Si le rallumage tombe pendant ce délai, la
+passe s'exécute avec `actif = true` et envoie.** C'est le seul chemin de spam qui reste.
+
+**Geste de sécurité, à faire dans cet ordre :**
+
+1. Ne toucher à rien pendant 15 minutes. Vérifier au journal la ligne « système éteint, photo
+   prise, aucun envoi » pour **chaque année vivante**.
+2. Lancer `notifRecaler(2026)` **puis** `notifRecaler(2027)` depuis l'éditeur Apps Script. La
+   fonction prend la photo sans envoyer et **ne dépend d'aucun minuteur** : même si une passe tire
+   après le rallumage, elle ne trouvera aucun écart.
+3. Seulement alors, coller les 21 adresses dans la colonne EMAIL.
+4. Puis `NOTIF_ACTIVE` à `O` et suppression de `NOTIF_EMAIL_TEST`.
+5. Contrôle : publier une fois, attendre, le journal doit dire « aucun changement à signaler ».
+
+**L'ordre compte** : les adresses AVANT le recalage, et un envoi peut partir entre les deux.
 
 ---
 
