@@ -4,11 +4,11 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.92** ·
-**GAS** (relevé le 28/08/2026) `code.gs` **2026-08-28.1** ·
-`Indispos.gs` **2026-08-28.1** · `miroir.gs` **2026-08-27.1** · `journal.gs` **2026-08-27.1** ·
-`echanges.gs` **2026-08-27.1** · `veille.gs` **2026-08-27.1** · `setup_annee.gs` **2026-08-27.1** ·
-`portail.gs` 2026-08-17.3 · `sauvegarde.gs` 2026-08-06.1 · `generateur_gardes.gs` 2026-08-26.1 ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.97** ·
+**GAS** (relevé le 31/08/2026) `code.gs` **2026-08-28.1** ·
+`Indispos.gs` **2026-08-29.1** · `portail.gs` **2026-08-29.2** · `miroir.gs` **2026-08-27.1** ·
+`journal.gs` **2026-08-27.1** · `echanges.gs` **2026-08-27.1** · `veille.gs` **2026-08-27.1** ·
+`setup_annee.gs` **2026-08-27.1** · `sauvegarde.gs` 2026-08-06.1 · `generateur_gardes.gs` 2026-08-26.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
 pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
 à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
@@ -175,6 +175,119 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 31 août 2026 — les statistiques d'usage, et le journal qui s'autodétruisait
+
+**Six commits, banc de 2 011 → 2 163 vérifications, site v1.93 → v1.97.**
+Point de départ : Arthur voulait « des stats comme sur les réseaux sociaux ».
+Point d'arrivée : un écran qui mesure l'adoption, un journal qui ne se détruit plus,
+et une fiche de traitement prête pour le DPO.
+
+### ⚠️ Le défaut qui pressait — l'historique s'autodétruisait
+
+`CONNEXIONS` était plafonné à 2 000 lignes, les plus anciennes écrasées (`logConnexion`).
+**Mesure du 31/08 : 1 449 lignes en 53 jours à 5 utilisateurs, soit ~27/jour.** À 25 MAR, le
+plafond aurait été atteint **toutes les 2 à 3 semaines** — et il ne l'avait jamais été, donc
+personne ne l'avait vu venir. La courbe d'adoption n'aurait jamais pu exister : les premières
+semaines d'usage réel auraient disparu avant d'être lues.
+
+**Règle retenue, et c'est elle qui tient tout l'édifice : on ne RECONSTRUIT jamais une
+statistique depuis les lignes brutes après coup, on la FIGE pendant qu'elles existent.**
+
+| Où | Contenu | Taille | Durée |
+|---|---|---|---|
+| `CONNEXIONS` | détail nominatif | plafond 10 000 (~3 mois à 25 MAR) | glissant |
+| `STATS_SEMAINE` | une ligne/semaine : connexions, actifs, figée O/N | 52 lignes/an | sans limite |
+| `STATS_HEURES` | grille 7 × 24 cumulée | 7 lignes | sans limite |
+| `MEDECINS.DERNIERE_CONNEXION` | une date par MAR, écrasée | 25 lignes | état courant |
+
+Ordre imposé dans `logConnexion` : **figer PUIS supprimer**. Si le figeage échoue, rien n'est
+supprimé. Déclencheur `statsRecalculer` posé le lundi à 3 h (`installStatsTrigger`, lancé le 31/08).
+
+**Origine du comptage : `STATS_ORIGINE = '2026-09-04'`.** Décision d'Arthur — les 1 449 connexions
+de juillet-août sont presque toutes les siennes, les compter ferait démarrer l'adoption à un
+niveau qui ne veut rien dire. Pas de reprise d'historique. Le filtre ne s'applique qu'aux
+compteurs : `DERNIERE_CONNEXION` se remplit dès maintenant, car **une date de dernière connexion
+est un état, pas un compteur**.
+
+### L'écran — deux questions, pas une
+
+`docs/stats-usage.html`, tuile `only:'FROHLICH'` dans `dashboard.html`.
+
+Le premier jet montrait le **volume de connexions** en grand. Arthur a tiqué, à raison : le volume
+monte aussi quand les mêmes reviennent plus souvent — c'est la métrique qui flatte, pas celle qui
+informe. Inversion : le graphique principal est **le nombre de médecins distincts par semaine**,
+borné à l'effectif, et une seconde courbe donne **les connexions par médecin actif** — ce qui
+sépare *combien de gens s'en servent* de *à quel point*. Le volume brut passe en carte secondaire,
+avec la mise en garde écrite dessus.
+
+**Aucun total par personne**, ni affiché ni renvoyé par le serveur. Décision d'Arthur, qui voulait
+d'abord des statistiques individuelles : la liste nominative dit **qui n'a pas ouvert le portail,
+jamais qui l'ouvre le plus**. Les pastilles codent l'ancienneté sur une rampe vert → bleu → gris,
+**sans aucun rouge** — le rouge dirait « en faute » à propos d'un collègue qui n'a pas ouvert une
+page web. Le banc vérifie cette décision **dans la feuille de style**, pas seulement dans le rendu.
+
+### 🔴 Trois défauts, trois leçons
+
+**1. Le banc entérinait mon erreur au lieu de la voir.** `getStatsUsage` contrôlait
+`user.role !== 'admin'`. Or `checkCode` ne rend ce rôle que pour le **code d'administration**
+(id `ADMIN`) : ouvert avec son code personnel, Arthur est un `mar` d'id `FROHLICH` — il se voyait
+**refuser sa propre page**, alors que la tuile, elle, filtre sur l'**identité**. Deux critères
+différents pour la même porte. Et mon scénario de banc vérifiait « refus pour rôle mar » comme une
+sécurité : **il testait ma croyance, pas le système**. Corrigé en `STATS_ALLOWED = ['FROHLICH']`,
+motif déjà en place pour le CRH. Le banc vérifie désormais que **l'identité autorisée côté serveur
+est celle que porte la tuile** — c'est leur désaccord qui a produit la panne.
+
+**2. Sheets convertit une clé de semaine en objet Date.** Une clé relue ne correspondait plus à la
+clé calculée : la semaine figée était **recomptée sur les lignes restantes** — elle rétrécissait —
+et une ligne en double était créée. Trouvé par le banc, pas par la relecture. Et la première
+correction utilisait `instanceof Date`, qui **échoue silencieusement dès qu'il y a deux contextes
+d'exécution** (le banc en a un) : remplacé par une reconnaissance sur les méthodes.
+
+**3. La doublure du banc était incomplète, et elle inventait sa propre forme.** `deleteRows`
+n'existait pas dans `stubs.js` alors que le vrai code l'appelle **en 4 endroits** : la purge n'avait
+jamais été exercée une seule fois. Et l'en-tête `CONNEXIONS` du monde simulé disait `['DATE','ID']`
+là où le code écrit `['HORODATAGE','NOM','INITIALES','ROLE']`. Les deux corrigés.
+
+### ⚠️ Deux règles écrites périmées, découvertes en chemin
+
+- **La version du site n'a plus « 9 emplacements dans 5 fichiers ».** Depuis le 14/08, `version.js`
+  est la **source unique** — un seul endroit. Toute note affirmant le contraire est fausse.
+- **Plus de 3e chiffre pour un petit correctif.** `version.js` porte la décision du 14/08 : « deux
+  chiffres, pas trois ». Le banc l'applique en deux endroits (`banc_docs.js`) et a refusé un
+  v1.94.1. La règle du 3e chiffre est **caduque**.
+
+### Commits
+
+`2c01cb4` compteurs GAS · `cb64f70` écran + action serveur (v1.94) · `f7915fa` icône (v1.95) ·
+`cfe2b64` accès nominatif · `b54bdc2` tableau des 25 (v1.96) · `ef5a303` pastilles (v1.97).
+
+**Icône** : `bar-chart-2` ajoutée au mini-bundle (extraite de lucide v0.383.0, ISC). Le premier
+choix, `activity`, était **absent du bundle** — carré vide en production, attrapé par le banc. Le
+second, `radar`, était **déjà porté par Veille biblio**. Le banc vérifie maintenant que l'icône des
+statistiques n'appartient qu'à elle *(sans condamner tout doublon : `file-text` est partagé par CR
+d'anesthésie et CRH, c'est voulu)*.
+
+### 📄 Hors dépôt — la fiche de traitement pour le DPO
+
+Rédigée puis corrigée dans la journée, **jamais poussée** (le dépôt est public). PDF, 3 pages,
+10 sections, 6 questions au DPO. Points à retenir :
+
+- **Interlocuteur** : le DPO du CHPG, `dpo@chpg.mc` — pas la DSI. Le nom n'est pas public.
+- **Loi n° 1.565 du 03/12/2024**, ordonnance d'application de juillet 2025. Le régime de
+  déclaration préalable est largement supprimé, **remplacé par la responsabilisation** : on ne
+  dépose plus un dossier, on documente sa conformité et on doit pouvoir la justifier. La fiche
+  n'est donc pas une formalité en plus — **c'est ce qui a remplacé la formalité**.
+- **Ne jamais poser de question nue** (« ai-je le droit ? » appelle un oui/non ; devant un dossier
+  vide, le réflexe d'un DPO est de demander la suspension). On décrit le traitement et on demande
+  la **liste des obligations**.
+- **Calendrier** : saisine **après** le 4, en l'annonçant en séance le 4. Le module libéral est
+  **hors périmètre** (groupement libéral, pas l'établissement) — l'inclure donnerait au DPO du CHPG
+  compétence sur des données qui ne le regardent pas.
+- **Question ouverte, la seule qui compte vraiment** : qui est responsable du traitement,
+  l'établissement ou Arthur à titre personnel ? Aujourd'hui, c'est lui.
 
 ---
 

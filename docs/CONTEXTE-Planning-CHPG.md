@@ -35,6 +35,76 @@ fenêtre du dernier Excel (vendredi 16 h → dimanche +9).
 
 ---
 
+## État au 31 août 2026 — statistiques d'usage, et le journal qui s'autodétruisait
+
+Site **v1.97**, `Indispos.gs` **2026-08-29.1**, `portail.gs` **2026-08-29.2**, banc **2163**.
+Six commits : `2c01cb4` `cb64f70` `f7915fa` `cfe2b64` `b54bdc2` `ef5a303`.
+
+✅ **RIEN EN ATTENTE.** Les deux `.gs` recopiés et déployés, `installStatsTrigger()` exécutée.
+
+**Ce qui a été construit.** Un écran de statistiques d'usage (`docs/stats-usage.html`, tuile
+`only:'FROHLICH'`) et les compteurs qui l'alimentent. Le journal `CONNEXIONS` était plafonné à
+2 000 lignes : mesuré à 27 connexions/jour avec 5 utilisateurs, le plafond aurait été atteint
+toutes les 2 à 3 semaines à 25 MAR, détruisant l'historique en continu. Plafond porté à 10 000
+(~3 mois), et trois compteurs qui **ne dépendent plus des lignes brutes** : `STATS_SEMAINE`
+(52 lignes/an, figée dès la semaine finie), `STATS_HEURES` (grille 7 × 24), et
+`MEDECINS.DERNIERE_CONNEXION`.
+
+### Règles gravées ce jour
+
+- **On ne reconstruit jamais une statistique depuis les lignes brutes après coup ; on la fige
+  pendant qu'elles existent.** Corollaire dans `logConnexion` : **figer PUIS supprimer**. Si le
+  figeage échoue, rien n'est supprimé.
+- **Une date de dernière connexion est un état, pas un compteur.** D'où le filtre d'origine
+  (`STATS_ORIGINE = '2026-09-04'`) sur les courbes et la grille horaire, mais **pas** sur
+  `DERNIERE_CONNEXION`. Conséquence assumée : entre le pré-test et le 4, tableau nominatif et
+  graphiques racontent deux choses différentes.
+- **Le volume d'usage flatte, le nombre de personnes distinctes informe.** Le volume monte aussi
+  quand les mêmes reviennent plus souvent. Graphique principal = médecins distincts par semaine ;
+  seconde courbe = connexions par médecin actif. Le volume brut est relégué, avec la mise en garde
+  écrite dessus.
+- **Cet écran observe, il ne surveille pas.** Aucun total par personne, ni affiché ni renvoyé par
+  le serveur. Aucun rouge dans les pastilles — il dirait « en faute » à propos d'un collègue qui
+  n'a pas ouvert une page web. **Le banc vérifie cette décision dans la feuille de style**, pas
+  seulement dans le rendu : sans ça, un futur ajustement la déferait sans que personne le voie.
+- **`instanceof` ne survit pas à deux contextes d'exécution.** Un `Date` venu d'ailleurs échoue au
+  test et la normalisation est silencieusement sautée. On reconnaît une date à ce qu'elle sait
+  faire, pas à sa filiation.
+
+### 🔴 L'erreur de méthode du jour — un test qui entérine la croyance au lieu de la vérifier
+
+`getStatsUsage` contrôlait `user.role !== 'admin'`. Or `checkCode` ne rend ce rôle que pour le
+**code d'administration** (id `ADMIN`) : avec son code personnel, Arthur est un `mar` d'id
+`FROHLICH` et **se voyait refuser sa propre page** — alors que la tuile filtre sur l'**identité**.
+Deux critères différents pour la même porte, et **mon scénario de banc vérifiait « refus pour rôle
+mar » comme une sécurité**. Il ne pouvait donc pas voir le défaut : il testait ma croyance.
+
+Corrigé en `STATS_ALLOWED = ['FROHLICH']` (motif déjà en place pour le CRH). Le banc vérifie
+maintenant que **l'identité autorisée côté serveur est celle que porte la tuile** — c'est leur
+désaccord qui a produit la panne.
+
+**Même racine, deux autres fois dans la journée** : `deleteRows` manquait à la doublure du banc
+alors que le vrai code l'appelle en 4 endroits *(la purge n'avait jamais été exercée)*, et
+l'en-tête `CONNEXIONS` du monde simulé disait `['DATE','ID']` là où le code écrit
+`['HORODATAGE','NOM','INITIALES','ROLE']`.
+
+### ⚠️ Deux règles écrites périmées, à ne plus réciter
+
+- **La version du site a UNE source, `version.js`.** Plus « 9 emplacements dans 5 fichiers » :
+  c'est vrai depuis le 14/08.
+- **Deux chiffres, jamais trois.** `version.js` porte la décision du 14/08 ; le banc l'applique et
+  a refusé un `v1.94.1`. La règle du 3e chiffre pour un petit correctif est **caduque**.
+
+### 📄 Conformité — fiche de traitement pour le DPO (hors dépôt, le dépôt est public)
+
+PDF de 3 pages, prêt. Interlocuteur : **`dpo@chpg.mc`**, pas la DSI. La **loi n° 1.565 du
+03/12/2024** a largement supprimé la déclaration préalable au profit de la **responsabilisation** :
+la fiche n'est pas une formalité en plus, c'est ce qui a remplacé la formalité. **Ne jamais poser
+de question nue** (« ai-je le droit ? » appelle un non par défaut) : on décrit le traitement et on
+demande la liste des obligations. Saisine **après** le 4, annoncée en séance le 4. Module libéral
+**hors périmètre** (groupement, pas l'établissement). Question ouverte : responsable du traitement,
+l'établissement ou Arthur à titre personnel ?
+
 ## État au 28 août 2026 (soir)
 
 Trois correctifs dans la journée. Site **v1.91**, `code.gs` **2026-08-28.1**, banc **2063**.

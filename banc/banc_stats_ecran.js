@@ -188,9 +188,18 @@ console.log('\n═══ 6. Le tableau montre TOUT le service ═══');
   const aux = PAGE.slice(PAGE.indexOf('const MOIS ='), PAGE.indexOf('/* ── Compteurs'));
   let sortie = '';
   const document = { getElementById: function(){ return { set innerHTML(v){ sortie = v; } }; } };
+  /* Dates RELATIVES à aujourd'hui. Écrites en dur, elles vieillissaient : le
+     scénario passait le 29/08 et tombait le 31, en signalant un défaut de la
+     page alors que seul le test avait tort. Un test qui dépend du calendrier
+     ment tôt ou tard. */
+  const jourISO = function (recul) {
+    const d = new Date(); d.setDate(d.getDate() - recul);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')
+                           + '-' + String(d.getDate()).padStart(2,'0');
+  };
   const D = { medecins: [
-    { i:'AFR', d:'2026-08-29' }, { i:'LL', d:'' }, { i:'NP', d:'' },
-    { i:'RW', d:'2026-07-10' }, { i:'ZZ', d:'2026-08-28' }, { i:'AA', d:'' }
+    { i:'AFR', d:jourISO(0) }, { i:'LL', d:'' }, { i:'NP', d:'' },
+    { i:'RW', d:jourISO(50) }, { i:'ZZ', d:jourISO(1) }, { i:'AA', d:'' }
   ]};
   eval(aux + src);
   tableau();
@@ -206,7 +215,8 @@ console.log('\n═══ 6. Le tableau montre TOUT le service ═══');
     lignes.map(function(l){return l[0];}));
   V('« aujourd\'hui » plutôt que « il y a 0 jours »', lignes[5][1] === "aujourd'hui", lignes[5]);
   V('« hier » plutôt que « il y a 1 jours »', lignes[4][1] === 'hier', lignes[4]);
-  V('au-delà d\'un mois, la date en clair', /juillet 2026/.test(lignes[3][1]), lignes[3]);
+  V('au-delà d\'un mois, la date en clair (jour mois année)',
+    /^\d{1,2} [a-zéû]+ \d{4}$/.test(lignes[3][1]), lignes[3]);
 
   /* (29/08) Couleurs : la pastille code l'ANCIENNETÉ, pas le mérite. Aucun
      rouge — il dirait « en faute » à propos d'un collègue qui n'a pas ouvert
