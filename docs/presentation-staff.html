@@ -46,7 +46,12 @@ body{font-family:var(--sans);color:var(--ink)}
 .slide.dark .kicker{color:#FCA5A5}
 h1{font-size:clamp(44px,7vw,96px);font-weight:900;letter-spacing:-.03em;line-height:1.02}
 h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-height:1.08;max-width:24ch}
-.lead{font-size:clamp(16px,1.7vw,23px);color:var(--ink-3);line-height:1.55;max-width:36em;margin-top:2.4vh}
+/* (02/09/2026) Les paragraphes de bas de slide etaient brides a 36 em : sur un
+   ecran large, le texte revenait a la ligne alors qu il restait un tiers de
+   place a droite, en laissant une deuxieme ligne courte. La zone de contenu va
+   jusqu a 1500 px, on la laisse respirer. text-wrap:balance repartit les
+   lignes a egalite quand il en faut plusieurs : plus de ligne orpheline. */
+.lead{font-size:clamp(16px,1.7vw,23px);color:var(--ink-3);line-height:1.55;max-width:52em;margin-top:2.4vh;text-wrap:balance}
 .lead b,.lead strong{color:var(--ink);font-weight:700}
 .accent{color:var(--red)}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
@@ -212,7 +217,7 @@ h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-
 .eyebrow{font-size:clamp(13px,1.3vw,17px);font-weight:700;text-transform:uppercase;
   letter-spacing:.14em;color:var(--red);margin-bottom:2.2vh}
 .slide.dark .eyebrow{color:#FCA5A5}
-.sub{font-size:clamp(17px,1.9vw,26px);color:var(--ink-3);line-height:1.5;max-width:34em}
+.sub{font-size:clamp(17px,1.9vw,26px);color:var(--ink-3);line-height:1.5;max-width:48em;text-wrap:balance}
 .slide.dark .sub{color:#CBD5E1}
 /* (02/09/2026) Le bloc etait un flex : chaque colonne prenait la largeur de
    SON nombre, pendant que le texte dessous restait bride a 11 em. Avec un
