@@ -169,7 +169,7 @@ function monde(opts) {
   ['_indisposOuverte_', 'getIndisposYear', '_phaseTp_', 'getIndisposForDoctor', 'saveIndisposForDoctor',
    '_fusionIndispos_', '_loadQuotasConges', 'getQuotasConges', '_tpFixeDe_', '_quotiteDe_',
    '_tpFermesSheet_', '_tpFermes_', '_tpFermerJour_', '_tpRouvrirJour_', '_tpJourLisible_', '_tpNotifier_',
-  '_tpGrilleEcrire_', '_tpGrilleLire_', '_tpRepublier_', 'tpRepublicationDifferee',
+  '_tpGrilleEcrire_', '_tpGrilleLire_', '_tpRetirerDIndispos_', '_tpRepublier_', 'tpRepublicationDifferee',
    '_tpDemandesSheet_', '_tpDemandes_', '_tpDemandeAjouter_', '_tpDemandeRetirer_',
    '_tpMondePresence_', '_poserTp_', '_error'].forEach(n =>
     vm.runInContext(extraireFonction('../gas/Indispos.gs', n), ctx));
@@ -228,15 +228,23 @@ console.log('\n═══ PT03 · verrou par type : hors campagne, la saisie clas
   V('le comité, lui, n\'est pas verrouillé — il corrige l\'année active (2026), comportement historique', rep3 && rep3.success === true && b3.lireInd('ZORRO', 2026)['2026-04-02'] === 'VAC', [rep3, b3.lireInd('ZORRO', 2026)]);
 }
 
-console.log('\n═══ PT04 · le circuit campagne IGNORE les TP envoyés et PRÉSERVE ceux en base ═══');
+/* (LOT A · 01/09/2026) PT04 RETOURNÉ. Ce bloc éprouvait la doctrine du 23/08 :
+   « le circuit campagne ignore les TP ». Le comité a tranché l'inverse le
+   01/09 — le temps partiel se pose PENDANT la campagne, avec les
+   indisponibilités et les gardes souhaitées. Le test n'est pas supprimé : il
+   vérifie désormais la règle nouvelle, et sert de trace de ce renversement. */
+console.log('\n═══ PT04 · le circuit campagne ACCEPTE les TP (lot A, 01/09/2026) ═══');
 {
   const b = monde({ campagne: true, indispos: [['POSEUR', '2027-03-09', 'TP'], ['POSEUR', '2027-03-15', 'INDISPO']] });
-  const rep = b.appel({ indispos: { '2027-03-16': 'INDISPO', '2027-05-05': 'TP' } }, MAR);
+  const rep = b.appel({ indispos: { '2027-03-09': 'TP', '2027-03-16': 'INDISPO', '2027-05-05': 'TP' } }, MAR);
   V('l\'enregistrement campagne réussit', rep && rep.success === true, rep);
   const relu = b.lireInd('POSEUR', 2027);
-  V('un TP envoyé par le circuit campagne est IGNORÉ — il ne vit que dans GARDES', relu['2027-03-09'] === undefined, relu['2027-03-09']);
-  V('le TP envoyé par le circuit campagne est IGNORÉ (doctrine : plus de TP avant génération)', !relu['2027-05-05'], relu['2027-05-05']);
+  V('un TP déjà en base et renvoyé est CONSERVÉ', relu['2027-03-09'] === 'TP', relu['2027-03-09']);
+  V('un TP neuf posé pendant la campagne est ENREGISTRÉ dans INDISPOS', relu['2027-05-05'] === 'TP', relu['2027-05-05']);
   V('l\'INDISPO retirée est bien partie, la nouvelle est là', !relu['2027-03-15'] && relu['2027-03-16'] === 'INDISPO', relu);
+  /* Une date absente de l'envoi vaut retrait — pour le TP comme pour le reste. */
+  const rep2 = b.appel({ indispos: { '2027-03-16': 'INDISPO' } }, MAR);
+  V('un TP absent du nouvel envoi est retiré', rep2.success === true && !b.lireInd('POSEUR', 2027)['2027-05-05']);
 }
 
 console.log('\n═══ PT05 · les trois bandes, seuils verrouillés : 16→TP · 15→TPA · 13→refus ═══');

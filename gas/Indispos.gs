@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-08-31.1';
+const GAS_VERSION_INDISPOS = '2026-09-01.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1589,6 +1589,12 @@ function _poserTp_(user, targetId, envoye, annee) {
       return;
     }
     if (_tpGrilleEcrire_(annee, targetId, ds, '')) grilleTouchee = true;
+    /* (LOT A · 01/09/2026) Depuis que les TP se posent AUSSI pendant la
+       campagne, un même jour peut exister à deux endroits : la case TP dans
+       INDISPOS_{Y} (posée avant la génération) et sa recopie dans GARDES_{Y}
+       (faite par le générateur). Retirer l'une sans l'autre les fait diverger —
+       et le jour reviendrait à la moindre régénération. On retire les deux. */
+    _tpRetirerDIndispos_(annee, targetId, ds);
     resultat[ds] = 'retiré';
   });
   Object.keys(enAttente).forEach(function (ds) {
@@ -1662,6 +1668,29 @@ function _poserTp_(user, targetId, envoye, annee) {
      · lecture immédiatement avant écriture : entre l'affichage et le clic, un
        échange de gardes a pu remplir la case.
    Renvoie true si la grille a changé — l'appelant republie alors le planning. */
+/* (LOT A · 01/09/2026) Efface la case TP d'un MAR dans INDISPOS_{Y}, et rien
+   d'autre : si la case porte un autre code (vacances posées depuis par le
+   comité, indisponibilité), on n'y touche pas. Silencieux si l'onglet ou la
+   date n'existent pas — un retrait ne doit jamais faire échouer une pose. */
+function _tpRetirerDIndispos_(annee, marId, ds) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sh = ss.getSheetByName('INDISPOS_' + annee);
+    if (!sh) return false;
+    const d = sh.getDataRange().getValues();
+    const dates = reconstruireDatesHeaders(d, annee);
+    const col = dates.indexOf(ds);
+    if (col < 0) return false;
+    for (let r = 3; r < d.length; r++) {
+      if (String(d[r][0]).trim() !== String(marId).trim()) continue;
+      if (String(d[r][col + 1] || '').trim().toUpperCase() !== 'TP') return false;
+      sh.getRange(r + 1, col + 2).setValue('');
+      return true;
+    }
+  } catch (e) { logAction('_tpRetirerDIndispos_ ' + marId + ' ' + ds + ' : ' + e.message); }
+  return false;
+}
+
 function _tpGrilleEcrire_(annee, marId, ds, valeur) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName('GARDES_' + annee);
@@ -1922,7 +1951,11 @@ function _construirePoseTp_(annee) {
     Object.keys(mesInd).forEach(function (ds) {
       const v = String(mesInd[ds]).trim().toUpperCase();
       if (v === 'INDISPO' || v === 'SOUHAIT') return;   // vestiges de campagne : ne bloquent plus
-      if (v === 'TP' || v === 'TPA') return;            // (23/08) vestiges de l'ancien circuit
+      /* (LOT A · 01/09/2026) Un TP peut venir de la campagne (INDISPOS) : il
+         n'est plus un vestige. On l'ignore ICI quand même, car le générateur
+         l'a recopié dans GARDES — l'onglet maître, lu quelques lignes plus
+         bas. Le prendre aux deux endroits le compterait deux fois. */
+      if (v === 'TP' || v === 'TPA') return;
       jours[ds] = mesInd[ds];
     });
     Object.keys(M.en18[id] || {}).forEach(function (ds) { jours[ds] = '18'; });
@@ -3572,26 +3605,45 @@ function _routeRequete_(e) {
         return _error('La campagne de saisie est fermée : indisponibilités et souhaits ne peuvent plus être enregistrés.');
       }
       const anneeInd = getIndisposYear();
-      /* (23/08/2026) Un temps partiel ne s'écrit JAMAIS dans INDISPOS : il vit
-         dans GARDES, l'onglet maître du planning. Cet onglet-ci sert AVANT la
-         génération — congés, formations, indisponibilités, souhaits — et rien
-         d'autre. Un TP envoyé par ce circuit est ignoré, jamais en silence :
-         trace LOGS, la seule surface qui dit la vérité quand l'écran dévie. */
+      /* (LOT A · 01/09/2026) LE TEMPS PARTIEL REVIENT DANS LA CAMPAGNE.
+         Le 23/08 les TP avaient été sortis d'INDISPOS : ils se posaient APRÈS
+         la génération, pour ne pas contraindre l'algorithme. Le comité a
+         tranché l'inverse le 01/09 — un MAR à temps partiel pose ses jours EN
+         MÊME TEMPS que ses indisponibilités et ses gardes souhaitées, sur le
+         même écran. Le reliquat non posé reste plaçable au fil de l'eau, dans
+         les trous du planning, par le circuit dédié (payload.tp === true).
+         Mesuré avant de rouvrir : 260 jours de TP posables par 8 MAR, ajoutés
+         aux indisponibilités réelles 2027, ne dégradent ni l'équité (écart
+         maximal 1,6 pour un plafond de 2) ni les gardes rapprochées.
+         Le TP est un CONGÉ : il est exclusif d'une indisponibilité ou d'une
+         garde souhaitée le même jour — une case ne porte qu'un code, poser un
+         TP remplace ce qui s'y trouvait. Le quota annuel (CONFIG_CONGES,
+         colonne CTP) est vérifié ICI : l'écran peut retarder, le serveur non. */
       const existantC = getIndisposForDoctor(targetId, anneeInd);
-      const envoyeSansTp = {}, tpNeufs = [];
+      const envoyeC = {}, tpRefuses = [];
+      const quotaTpC = getQuotasConges(_quotiteDe_(targetId)).ctp || 0;
+      const sansTpProfil = _tpFixeDe_(targetId) || quotaTpC <= 0;
+      const jfC = getJoursFeries(anneeInd);
+      let nbTpC = 0;
       Object.keys(payload.indispos || {}).forEach(function (ds) {
         const v = String(payload.indispos[ds] || '').trim().toUpperCase();
-        if (v !== 'TP' && v !== 'TPA') { envoyeSansTp[ds] = payload.indispos[ds]; return; }
-        tpNeufs.push(ds);
+        if (v !== 'TP' && v !== 'TPA') { envoyeC[ds] = payload.indispos[ds]; return; }
+        /* TPA n'a pas de sens dans la campagne : il n'y a pas encore de
+           planning, donc rien à mettre « sous réserve ». Tout devient TP. */
+        if (sansTpProfil) { tpRefuses.push(ds + ' (profil sans jours de temps partiel)'); return; }
+        const dow = new Date(ds + 'T12:00:00').getDay();
+        if (dow === 0 || dow === 6 || jfC.has(ds)) { tpRefuses.push(ds + ' (jour non travaillé)'); return; }
+        if (nbTpC >= quotaTpC) { tpRefuses.push(ds + ' (quota de ' + quotaTpC + ' atteint)'); return; }
+        nbTpC++; envoyeC[ds] = 'TP';
       });
-      if (tpNeufs.length) logAction('saveIndispos ' + targetId + ' (' + anneeInd + ') : ' +
-        tpNeufs.length + ' TP ignorés — un temps partiel s\'écrit dans GARDES (' + tpNeufs.join(', ') + ')');
+      if (tpRefuses.length) logAction('saveIndispos ' + targetId + ' (' + anneeInd + ') : ' +
+        tpRefuses.length + ' TP refusés — ' + tpRefuses.slice(0, 20).join(', '));
       // Fusion par proprietaire de code — voir _fusionIndispos_.
       // NE PAS remonter cette logique dans saveIndisposForDoctor : ce helper
       // sert aussi a l'absence longue, qui doit continuer a poser une ligne
       // complete. La regle de propriete n'a de sens qu'ici, ou l'on connait
       // le role de l'appelant.
-      const fusion = _fusionIndispos_(existantC, envoyeSansTp, user.role === 'admin');
+      const fusion = _fusionIndispos_(existantC, envoyeC, user.role === 'admin');
       return ContentService.createTextOutput(JSON.stringify({
         success: saveIndisposForDoctor(targetId, fusion, anneeInd)
       })).setMimeType(ContentService.MimeType.JSON);

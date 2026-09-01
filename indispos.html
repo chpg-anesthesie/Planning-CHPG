@@ -200,6 +200,7 @@ body {
 .legend-item.form   { background:var(--form);   color:var(--form-fg); }
 .legend-item.indispo{ background:var(--indispo); color:var(--indispo-fg); }
 .legend-item.souhait{ background:var(--souhait); color:var(--souhait-fg); }
+.legend-item.tp     { background:#F3E8FF; color:#6D28D9; }
 .legend-item.erase  { background:#FFF; color:var(--ink-3); border:1.5px solid var(--line); }
 
 .tool-hint {
@@ -551,13 +552,16 @@ body {
 <div class="app" id="app">
 
   <!-- Légende / outils.
-       (LOT 3 · 22/08/2026) L'outil « Temps partiel » a QUITTÉ l'écran campagne :
-       les TP se posent après la génération, sur l'écran dédié (?tp=1). Le
-       serveur ignore de toute façon les TP envoyés par ce circuit (Indispos.gs,
-       22/08) — les cases TP existantes restent VISIBLES ici, en lecture. -->
+       (LOT A · 01/09/2026) L'outil « Temps partiel » REVIENT dans la campagne :
+       un MAR à temps partiel pose ses jours en même temps que ses
+       indisponibilités et ses gardes souhaitées, avant la génération. Le bouton
+       reste caché pour qui n'a pas de quota (temps plein, jours fixes déjà
+       convenus, rythme deux semaines sur deux) — voir loadVacConfig. Le
+       reliquat non posé se place ensuite au fil de l'eau, sur l'écran dédié. -->
   <div class="legend" id="legend">
     <div class="legend-item indispo" data-tool="INDISPO" onclick="selectTool('INDISPO')">🚫 Indisponible</div>
     <div class="legend-item souhait" data-tool="SOUHAIT" onclick="selectTool('SOUHAIT')">⭐ Garde souhaitée</div>
+    <div class="legend-item tp" data-tool="TP" id="btnOutilTp" style="display:none" onclick="selectTool('TP')">🕐 Temps partiel</div>
     <div class="legend-item erase" data-tool="ERASE" onclick="selectTool('ERASE')">✕ Effacer</div>
   </div>
   <div class="tool-hint" id="toolHint">Outil actif : <strong>Indisponible</strong> — Touchez un jour pour l'appliquer</div>
@@ -709,7 +713,8 @@ const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin',
                    'Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const DAYS_FR = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 const STATUS_LABELS = {
-  VAC:'Vacances', FORM:'Formation', INDISPO:'Indisponible', SOUHAIT:'Garde souhaitée'
+  VAC:'Vacances', FORM:'Formation', INDISPO:'Indisponible', SOUHAIT:'Garde souhaitée',
+  TP:'Temps partiel'
 };
 
 // ── STATE ─────────────────────────────────────────────────────────────
@@ -1013,10 +1018,13 @@ async function loadVacConfig() {
          sans ce verrou, on pouvait saisir des semaines durant en croyant que ça
          comptait. Pour modifier après coup, c'est le circuit des échanges. */
       if (res.genere) verrouillerEcran(res.anneeCampagne);
-      /* (LOT 3 · 22/08/2026) L'activation du bouton « Temps partiel » a été
-         retirée avec le bouton : les TP se posent sur l'écran dédié (?tp=1),
-         après la génération. Le serveur ignore de toute façon les TP envoyés
-         par le circuit campagne. */
+      /* (LOT A · 01/09/2026) Le bouton « Temps partiel » n'apparaît que pour
+         ceux qui ont des jours à poser. `quotaCtp` vient de CONFIG_CONGES via
+         la quotité : il vaut 0 à temps plein, et le serveur refuse de toute
+         façon les jours d'un profil sans quota — l'écran ne fait que ne pas
+         proposer un bouton qui ne servirait à rien. */
+      const _btnTp = document.getElementById('btnOutilTp');
+      if (_btnTp) _btnTp.style.display = (res.quotaCtp > 0) ? '' : 'none';
       updateVacBanner();
       updateStats(); // Mettre à jour le quota affiché
     }
@@ -1314,7 +1322,11 @@ function updateStats() {
   const quotaVac = vacConfig ? vacConfig.quotaVac : null;
   const quotaColor = quotaVac && vacOuvres >= quotaVac ? '#B91C1C' : 'var(--vac-fg)';
   const quotaLabel = quotaVac ? `${vacOuvres}/${quotaVac} jours ouvrés` : `${vacOuvres} jours ouvrés`;
-  const showCtp = vacConfig && vacConfig.quotaVac < 33 && vacConfig.quotaCtp != null;
+  /* (LOT A · 01/09/2026) Le compteur suit le BOUTON : il s'affiche dès qu'il y
+     a des jours à poser. L'ancienne condition passait par le quota de vacances
+     (< 33 jours = temps partiel), un détour qui pouvait diverger de la seule
+     donnée qui compte, le quota de temps partiel lui-même. */
+  const showCtp = vacConfig && vacConfig.quotaCtp > 0;
   const ctpCount = Object.values(indispos).filter(s => s === 'TP').length;
   const ctpItem = showCtp
     ? `<div class="stat-item" style="color:${ctpCount >= vacConfig.quotaCtp ? '#B91C1C' : '#6D28D9'}">🕐 ${ctpCount}/${vacConfig.quotaCtp} TP</div>`

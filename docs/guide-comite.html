@@ -577,6 +577,34 @@
       <tr><td>Périodes de vacances</td><td>Nom, début, fin, et le <b>seuil de MAR par jour</b> — le nombre de médecins à préserver sur la période. <span class="btn-ex">+ Ajouter</span> crée une ligne, <span class="btn-ex">🗑</span> la supprime, <span class="btn-ex green">💾 Enregistrer</span> valide.</td></tr>
       <tr><td>Groupes de priorité</td><td>La répartition A / B / C. <span class="btn-ex">↑</span> <span class="btn-ex">↓</span> changent l'ordre à l'intérieur d'un groupe, <span class="btn-ex">→</span> <span class="btn-ex">←</span> font passer un MAR d'un groupe à l'autre. <span class="btn-ex green">💾 Enregistrer groupes</span> valide.</td></tr>
     </table>
+
+    <h3>Le chiffre des week-ends : combien il reste de monde pour la garde</h3>
+    <p>Sur l'écran du staff vacances, les colonnes <b>samedi</b> et <b>dimanche</b> affichent un chiffre en couleur. Ce n'est pas le nombre d'absents — c'est le nombre de <b>médecins encore disponibles pour prendre la garde</b> ce jour-là.</p>
+    <table>
+      <tr><th>Le chiffre</th><th>Ce que ça veut dire</th><th>Quoi faire</th></tr>
+      <tr><td><b style="color:#166534">6 et plus</b></td><td>Confortable.</td><td>Rien.</td></tr>
+      <tr><td><b style="color:#92400E">4 ou 5</b></td><td>Tenable, mais sans aucune marge.</td><td>Surveillez : une indisponibilité posée plus tard fera basculer ce week-end.</td></tr>
+      <tr><td><b style="color:#991B1B">moins de 4</b></td><td>Le week-end ne pourra pas être pourvu.</td><td>Décalez des vacances jusqu'à remonter à 4 au moins.</td></tr>
+    </table>
+    <div class="callout rule">
+      <div class="ct">Pourquoi 4, et pourquoi c'est le week-end qui compte</div>
+      <p>Un week-end demande <b>quatre personnes différentes</b> : deux le samedi, deux le dimanche. Celui qui est de garde le samedi se repose le dimanche, il ne peut pas faire les deux.</p>
+      <p>Et c'est précisément le week-end qui pose problème, parce que ceux qui partent finissent un vendredi et ceux qui reviennent reprennent un lundi : les deux se croisent sur le week-end, qui compte donc bien plus d'absents que la semaine autour. Jusqu'à cette version, ce chiffre n'était affiché nulle part.</p>
+    </div>
+
+    <h3>L'onglet Ponts</h3>
+    <p>Un <b>pont</b>, c'est le jour ouvré coincé entre un férié et le week-end : le vendredi qui suit un jeudi férié, le lundi qui précède un mardi férié. Un seul jour posé en fait gagner quatre — c'est le jour le plus demandé de l'année.</p>
+    <p>Le bouton <span class="btn-ex">🌉 Ponts</span> ouvre un écran dédié : une ligne par médecin, une colonne par pont de l'année. Vous cliquez comme ailleurs, et un pont posé consomme un jour du quota de vacances, comme n'importe quel autre.</p>
+    <ul>
+      <li>La colonne <b>Ponts obtenus</b> montre d'un coup d'œil qui en a, et combien.</li>
+      <li>Sous le tableau, la liste de ceux qui <b>n'en ont aucun</b> cette année. C'est le seul chiffre qui compte pour arbitrer.</li>
+      <li>En haut de chaque colonne, le nombre de médecins encore disponibles pour la <b>garde</b> de ce jour. Un pont reste un jour à pourvoir — et un vendredi, c'est la moitié d'un week-end de garde.</li>
+    </ul>
+    <div class="callout rule">
+      <div class="ct">Pourquoi ça se décide ici, et maintenant</div>
+      <p>Les ponts s'attribuent <b>au staff vacances</b>, avant que les gardes soient réparties. C'était auparavant du premier arrivé, premier servi.</p>
+      <p>Il n'y a pas de dette d'une année sur l'autre : ce qui se règle au staff de cette année vaut pour l'année suivante, et rien n'est reporté. Avec deux ponts par an et vingt-cinq médecins, tout le monde ne peut pas en avoir un chaque année — l'écran ne décide donc rien à votre place, il met l'inégalité sous vos yeux au moment où vous la créez.</p>
+    </div>
     <a class="backtop" href="#">↑ Sommaire</a>
   </section>
 
@@ -747,7 +775,7 @@
     <table>
       <tr><th>Quand</th><th>La carte</th><th>Ce qu'elle fait</th></tr>
       <tr><td>Octobre</td><td>1 · Démarrer l'année suivante</td><td>Crée la grille de l'année suivante, ouvre la saisie des indisponibilités, configure les vacances et envoie les codes.</td></tr>
-      <tr><td>Novembre</td><td>2 · Générer les gardes</td><td>Vérifie les indisponibilités, répartit l'année entière, publie et envoie les récapitulatifs.</td></tr>
+      <tr><td>Novembre</td><td>2 · Générer les gardes</td><td>Vérifie les indisponibilités, répartit l'année entière, publie et envoie les récapitulatifs. <b>S'arrête sans rien écrire</b> si un jour ne trouve pas de binôme — voir plus bas.</td></tr>
       <tr><td>Premier lundi de janvier</td><td>3 · Clôturer l'année</td><td>Vérifie, récapitule l'équité, archive l'année écoulée et bascule sur la nouvelle.</td></tr>
     </table>
     <p>Le moment venu, un bandeau apparaît en haut de l'écran et propose directement <span class="btn-ex">Clôturer →</span>.</p>
@@ -759,12 +787,49 @@
       <p><b>Depuis le 17 août 2026, le portail refuse tout simplement.</b> La carte affiche elle-même la date à laquelle la clôture deviendra possible, et si vous cliquez avant, un message vous l'explique — <b>rien n'est modifié</b>. Vous ne pouvez donc pas provoquer cette erreur par curiosité : la carte est explorable sans risque.</p>
       <p><b>Relancer un assistant est sans danger.</b> S'il a déjà abouti, il le dit et n'y touche pas. Un assistant interrompu se reprend là où il s'était arrêté.</p>
     </div>
+
+    <h3>Si la génération s'arrête : un jour n'a pas de binôme</h3>
+    <p>La répartition des gardes peut refuser d'aboutir. Un message rouge vous dit alors : <b>« Génération impossible »</b>, suivi de la liste des jours concernés.</p>
+    <div class="callout rule">
+      <div class="ct">Ce n'est pas une panne, et rien n'est abîmé</div>
+      <p>Cela veut dire qu'il existe au moins un jour de l'année où <b>deux médecins ne peuvent pas être trouvés</b> pour la garde. Plutôt que de produire un planning avec un trou — qu'il faudrait combler à la main, sans savoir comment — le portail s'arrête net.</p>
+      <p><b>Rien n'a été écrit.</b> Aucun planning n'a été créé, personne n'a reçu de notification, il n'y a rien à supprimer. Vous corrigez et vous relancez, autant de fois qu'il le faut.</p>
+    </div>
+    <p>Pour chaque jour, le message range les médecins en trois familles :</p>
+    <table>
+      <tr><th>Ce que dit le message</th><th>Ce que vous pouvez en faire</th></tr>
+      <tr><td><b>Ce que vous pouvez changer tout de suite</b></td><td>Des congés ou des indisponibilités posés ce jour-là. Ce sont vos leviers : le message vous dit combien de personnes il faut libérer. Seuls apparaissent ici ceux qui seraient <b>réellement disponibles</b> une fois leur absence retirée.</td></tr>
+      <tr><td><b>Bloqués par le planning lui-même</b></td><td>De garde la veille, en repos, en récupération. Vous ne pouvez rien y faire directement — mais libérer quelqu'un d'autre ailleurs peut tout redistribuer.</td></tr>
+      <tr><td><b>Hors dispositif ce jour-là</b></td><td>Ne prend pas de garde, jamais de week-end, semaine non travaillée. Rien à en attendre.</td></tr>
+    </table>
+    <ol class="steps">
+      <li>Lisez le premier bloc et repérez le nombre de personnes à libérer.</li>
+      <li>Retirez le congé ou l'indisponibilité concernés (onglet Statuts, ou l'écran du staff vacances).</li>
+      <li>Relancez la génération.</li>
+      <li>Recommencez tant qu'il reste des jours signalés. En pratique, un ou deux tours suffisent.</li>
+    </ol>
+    <div class="callout tip">
+      <div class="ct">Le message ne promet rien, et c'est volontaire</div>
+      <p>Libérer quelqu'un change la répartition de <b>toute l'année</b> : d'autres jours peuvent apparaître ou disparaître. Seule la relance dit ce qu'il en est réellement.</p>
+      <p>Un jour de <b>temps partiel</b> posé par un MAR n'est jamais un levier : il lui est acquis, le portail ne le reprendra pas. Si un jour de temps partiel apparaît dans la liste, c'est à son auteur de le déplacer, s'il le souhaite.</p>
+    </div>
+    <div class="callout tip">
+      <div class="ct">Le meilleur moyen de ne jamais voir ce message</div>
+      <p>Surveillez le <b>chiffre des week-ends</b> au staff vacances (section 6). Un week-end sous 4 disponibles est précisément ce qui produit un jour sans binôme deux mois plus tard.</p>
+    </div>
     <a class="backtop" href="#">↑ Sommaire</a>
   </section>
 
   <section id="c2">
     <h2><span class="n">13</span>La campagne d'indisponibilités</h2>
     <p>Chaque automne, les MAR déposent leurs souhaits pour l'année suivante. Le comité ouvre la campagne, suit l'avancement, puis la clôture avant la génération.</p>
+    <div class="callout rule">
+      <div class="ct">Nouveau : les temps partiels se posent pendant la campagne</div>
+      <p>Les MAR à temps partiel choisissent désormais leurs <b>jours non travaillés</b> sur le même écran que leurs indisponibilités et leurs gardes souhaitées. Le bouton n'apparaît que chez ceux qui ont des jours à poser.</p>
+      <p>Ces jours sont connus <b>avant</b> la répartition : le planning se construit autour d'eux, et aucune garde n'est placée la veille — un repos de garde ne peut plus venir effacer un jour non travaillé.</p>
+      <p>Personne n'est obligé de tout poser pendant la campagne : le reliquat se place au fil de l'année, dans les jours restés libres, et c'est vous qui arbitrez les demandes limites, comme aujourd'hui.</p>
+      <p><b>Ce que ça change pour vous :</b> ces jours réduisent le vivier disponible, y compris la veille. Le chiffre des week-ends au staff vacances devient donc l'indicateur à surveiller.</p>
+    </div>
     <ol class="steps">
       <li>L'assistant « Démarrer l'année suivante » crée la grille et ouvre la saisie.</li>
       <li>Les codes d'accès partent aux MAR, avec le lien.</li>

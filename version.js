@@ -10,10 +10,17 @@
 
    Deux chiffres, pas trois : le troisième ne disait rien à personne dans le
    service et donnait des « v1.34.10 » qui font perdre confiance plus qu'ils
-   n'informent. On monte le 2e chiffre à chaque nouveauté visible, le 1er à
-   une ouverture majeure.
+   n'informent.
+
+   (01/09/2026) PASSAGE DE v1.99 À v10.0. La série des v1.x arrivait au bout
+   de sa numérotation : la suite aurait été « v1.100 », qui se lit mal. On
+   repart donc à 10, et on avance de dixième en dixième — v10.0, v10.1, v10.2.
+   Le 1er chiffre reste RÉSERVÉ à ce que l'équipe voit changer pour de bon,
+   pas à ce qui change sous le capot : l'ouverture du module libéral en sera
+   une, la refonte du portail aussi. Ce lot-ci change beaucoup de choses, mais
+   chacune à sa place dans un écran existant — il monte donc le 2e chiffre.
    ───────────────────────────────────────────────────────────────────────── */
-window.SITE_VERSION = 'v1.99';
+window.SITE_VERSION = 'v10.0';
 
 (function () {
   function poser() {

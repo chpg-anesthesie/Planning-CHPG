@@ -69,7 +69,13 @@ function makeSpreadsheet(sheets) {
 }
 
 // ── Contexte GAS ───────────────────────────────────────────────────────
-function buildContext(ss, logs) {
+/* (01/09/2026) `genSource` : contenu de remplacement pour generateur_gardes.gs.
+   Sert aux CONTRE-PREUVES du banc — rejouer un scénario sur une copie du
+   générateur privée du correctif, pour vérifier que le test échoue bien sans
+   lui. Sans ce paramètre, la copie devrait être chargée dans un contexte qui
+   contient déjà le générateur du dépôt : les constantes de premier niveau
+   entrent en collision et rien ne tourne. Omis = comportement inchangé. */
+function buildContext(ss, logs, genSource) {
   const ctx = {
     console,
     SpreadsheetApp: {
@@ -90,7 +96,9 @@ function buildContext(ss, logs) {
      fonctionner partout. */
   const path = require('path');
   const code = fs.readFileSync(path.join(__dirname, '..', 'gas', 'code.gs'), 'utf8');
-  const gen  = fs.readFileSync(path.join(__dirname, '..', 'gas', 'generateur_gardes.gs'), 'utf8');
+  const gen  = genSource !== undefined && genSource !== null
+    ? genSource
+    : fs.readFileSync(path.join(__dirname, '..', 'gas', 'generateur_gardes.gs'), 'utf8');
   vm.runInContext(code, ctx, { filename: 'code.gs' });
   vm.runInContext(gen, ctx, { filename: 'generateur_gardes.gs' });
   return ctx;

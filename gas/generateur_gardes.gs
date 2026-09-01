@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-08-26.1';
+const GAS_VERSION_GENERATEUR = '2026-09-01.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -467,6 +467,15 @@ function generateGardes(year){
     if(_tpF&&_tpF.has(new Date(date+'T12:00:00').getDay())) return true;
     const _di=dayByDate[date];
     const _dw=_di?_di.dow:new Date(date+'T12:00:00').getDay();
+    /* (LOT B · 01/09/2026) JAMAIS DE GARDE LA VEILLE D'UN TEMPS PARTIEL.
+       Le lendemain d'une garde est un repos de garde (RG), et le RG s'écrit
+       PAR-DESSUS le TP dans GARDES : le jour de temps partiel disparaissait
+       sans bruit. Mesuré sur les indisponibilités réelles 2027 augmentées des
+       260 jours de TP posables : 16 à 30 jours effacés par an, dans 18 tirages
+       sur 18. Un TP posé est ACQUIS (arbitrage Arthur, 01/09/2026) : cette
+       règle n'est levée par AUCUN dernier recours. Le levier, quand un jour
+       manque, est de libérer des vacances — pas de reprendre un congé accordé. */
+    if(indispos[id]?.[addOneDay(date)]==='TP') return true;
     if(NO_WEEKEND.has(id)&&(_dw===0||_dw===6||_di?.isFerie)) return true;
     if(SOUHAIT_PLAFOND.has(id)&&_di?.isVjf) return true;
     // (Fix A2) souhait_plafond : jamais de week-end ni de férié — le complément des
@@ -475,6 +484,138 @@ function generateGardes(year){
     // Plafond souhaits : un MAR plafonné ne dépasse JAMAIS sa cible totale.
     if(SOUHAIT_PLAFOND.has(id)&&cnt[id]&&cible[id]&&cnt[id].total>=cible[id].total) return true;
     return false;
+  }
+
+  /* (LOT C · 01/09/2026) POURQUOI CE MAR NE PEUT-IL PAS PRENDRE CETTE GARDE ?
+     Rend null s'il le peut, sinon { classe, texte }. Trois classes, qui sont
+     les trois blocs du message d'échec :
+       'immediat' — une case saisie dans INDISPOS : le comité ou le MAR peut la
+                    changer aujourd'hui, sans rien recalculer ;
+       'planning' — une conséquence du placement en cours (garde voisine, repos,
+                    récup, combos) : non modifiable directement, mais libérer
+                    ailleurs peut la faire disparaître ;
+       'profil'   — MEDECINS : pas de garde, jamais de week-end, rythme 2/2,
+                    jours fixes, arrivée/départ. Hors de portée du staff.
+     ⚠️ Cette fonction REJOUE les tests de blocked() dans le MÊME ORDRE. Toute
+     divergence produirait des leviers qui ne débloquent rien — le défaut le
+     plus coûteux possible ici, puisque le comité agirait à l'aveugle. Le banc
+     vérifie l'équivalence exhaustive (blocked ⇔ motif non nul) sur une année
+     entière, MAR par MAR et jour par jour. */
+  const _LIB_ABS={INDISPO:'indisponible ce jour-là',VAC:'en vacances',FORM:'en formation',
+                  TP:'temps partiel posé ce jour-là',CL:'congé long',CTP:'congé temps partiel'};
+  function motifBlocage(id,date,_relaxJS,_sansAbsence){
+    /* ORDRE DÉLIBÉRÉMENT DIFFÉRENT de indispoIndividuelle() : le PROFIL est
+       testé en premier. Un MAR qui ne prend jamais de week-end et qui se trouve
+       aussi en vacances doit apparaître « hors dispositif », jamais « à faire
+       revenir de vacances » — le faire revenir ne débloquerait rien. L'ordre
+       ne change pas le VERDICT (tous ces tests rendent bloqué), seulement la
+       colonne où le MAR est rangé. Le banc vérifie l'équivalence booléenne. */
+    const _dd=FLAGS.dateDebut[id], _df=FLAGS.dateFin[id];
+    if(_dd&&date<_dd) return {classe:'profil',texte:'pas encore arrivé dans le service'};
+    if(_df&&date>=_df) return {classe:'profil',texte:'a quitté le service'};
+    if(estSemaineOff(id,date)) return {classe:'profil',texte:'semaine off (rythme deux semaines sur deux)'};
+    const _tpF=FLAGS.tpJoursFixes[id];
+    if(_tpF&&_tpF.has(new Date(date+'T12:00:00').getDay())) return {classe:'profil',texte:'jour de la semaine jamais travaillé'};
+    const _di=dayByDate[date];
+    const _dw=_di?_di.dow:new Date(date+'T12:00:00').getDay();
+    if(NO_WEEKEND.has(id)&&(_dw===0||_dw===6||_di?.isFerie)) return {classe:'profil',texte:'jamais de week-end ni de férié'};
+    if(SOUHAIT_PLAFOND.has(id)&&_di?.isVjf) return {classe:'profil',texte:'régime à part : pas de veille de férié'};
+    if(SOUHAIT_PLAFOND.has(id)&&(_dw===0||_dw===5||_dw===6||_di?.isFerie)) return {classe:'profil',texte:'régime à part : pas de vendredi, week-end ni férié'};
+    if(SOUHAIT_PLAFOND.has(id)&&cnt[id]&&cible[id]&&cnt[id].total>=cible[id].total) return {classe:'profil',texte:'régime à part : a déjà atteint son nombre de gardes'};
+    const s=indispos[id]?.[date];
+    /* `_sansAbsence` : « et si on retirait cette absence, serait-il libre ? »
+       C'est la question qui décide si un MAR est un LEVIER ou un faux espoir.
+       Proposer de faire revenir quelqu'un qui serait de toute façon en repos de
+       garde enverrait le comité négocier un congé pour rien. */
+    if(s&&_LIB_ABS[s]&&!_sansAbsence) return {classe:'immediat',texte:_LIB_ABS[s],code:s};
+    if(s==='RG_TRANSITION') return {classe:'planning',texte:'repos de sa garde du 31 décembre'};
+    if(indispos[id]?.[addOneDay(date)]==='TP') return {classe:'immediat',texte:'libre, mais a posé un temps partiel LE LENDEMAIN (le repos de garde ne peut pas s\'y écrire)',code:'TP_LENDEMAIN'};
+    if(rgSet[id].has(date)) return {classe:'planning',texte:'repos de sa garde de la veille'};
+    if(rSet[id]?.has(date)) return {classe:'planning',texte:'récupération de samedi posée ce jour'};
+    const _lend=addOneDay(date);
+    if(gSet[id]?.has(_lend)||g2Set[id]?.has(_lend)) return {classe:'planning',texte:'de garde le lendemain'};
+    if(_di&&!_relaxJS){
+      if(_di.dow===6){const thu=toDateStr(new Date(new Date(date+'T12:00:00').getTime()-2*86400000)),tdi=dayByDate[thu];
+        if(tdi&&!tdi.isFerie&&(gSet[id]?.has(thu)||g2Set[id]?.has(thu))) return {classe:'planning',texte:'de garde le jeudi précédent'};}
+      if(_di.dow===4&&!_di.isFerie){const sat=toDateStr(new Date(new Date(date+'T12:00:00').getTime()+2*86400000));
+        if(gSet[id]?.has(sat)||g2Set[id]?.has(sat)) return {classe:'planning',texte:'de garde le samedi suivant'};}
+    }
+    return null;
+  }
+
+  /* (LOT C) LE DIAGNOSTIC D'UN JOUR SANS BINÔME — tout ce que le comité doit
+     savoir pour le régler, et rien d'autre. Rend une structure ; la mise en
+     phrases est faite par _messageJoursVides_ juste après. */
+  const _JN=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+  const _MN=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  function _fmtJour_(ds){const d=new Date(ds+'T12:00:00');return _JN[d.getDay()]+' '+d.getDate()+' '+_MN[d.getMonth()]+' '+d.getFullYear();}
+  function _diagnostiquerJourVide_(date){
+    const g=gardes[date]||{};
+    const dejaPlaces=[g.g,g.g2].filter(Boolean);
+    const immediats=[],planningC=[],profil=[],libres=[];
+    gardeDoctors.forEach(id=>{
+      if(dejaPlaces.indexOf(id)>=0) return;
+      const m=motifBlocage(id,date);
+      if(!m){libres.push(id);return;}
+      const e={mar:id,texte:m.texte,code:m.code||null};
+      /* Une absence dont le retrait ne suffirait pas n'est PAS un levier :
+         elle descend dans le bloc « bloqués par le planning », avec sa vraie
+         raison — celle qui resterait une fois le congé rendu. */
+      if(m.classe==='immediat'&&m.code&&m.code!=='TP_LENDEMAIN'){
+        const reste=motifBlocage(id,date,false,true);
+        if(reste){ planningC.push({mar:id,texte:m.texte+', et de toute façon '+reste.texte,code:null}); return; }
+      }
+      if(m.classe==='immediat')      immediats.push(e);
+      else if(m.classe==='planning') planningC.push(e);
+      else                           profil.push(e);
+    });
+    /* ⚠️ NE JAMAIS écrire ici que le vendredi et le dimanche demandent le même
+       binôme. C'est vrai en régime normal, c'est FAUX au moment où ce message
+       s'écrit : un dimanche ne peut arriver vide que si l'unité VD a DÉJÀ été
+       rompue plus haut (« VD exception » — moins de deux personnes libres les
+       deux jours), et le dimanche est alors placé seul. Réclamer ici quelqu'un
+       de libre les deux jours enverrait le comité chercher une contrainte que
+       le générateur venait d'abandonner. Arbitrage Arthur du 01/09/2026 : en
+       cas de galère franche, le binôme VD se casse. Seule compte la
+       disponibilité de CE jour-là. */
+    const _dw=new Date(date+'T12:00:00').getDay();
+    const vdRompu=(_dw===5||_dw===0);
+    return {date:date, libelle:_fmtJour_(date), manque:2-dejaPlaces.length,
+            aLiberer:Math.max(0,(2-dejaPlaces.length)-libres.length),
+            dejaPlaces:dejaPlaces, libres:libres, vdRompu:vdRompu,
+            immediats:immediats, planning:planningC, profil:profil};
+  }
+  function _messageJoursVides_(detail){
+    const L=[];
+    L.push('❌ GÉNÉRATION IMPOSSIBLE — '+detail.length+' jour'+(detail.length>1?'s':'')+' sans binôme de garde.');
+    L.push('Aucun onglet n\'a été créé : le classeur est intact, vous pouvez corriger et relancer.');
+    detail.forEach(function(o){
+      L.push('');
+      L.push('■ '+o.libelle.toUpperCase()+' — '+o.libres.length+' disponible'+(o.libres.length>1?'s':'')
+        +' sur les '+o.manque+' nécessaires. À libérer : '+o.aLiberer+'.');
+      if(o.vdRompu) L.push('  À ce stade, le vendredi et le dimanche sont pourvus SÉPARÉMENT '
+        +'(la règle du binôme unique a déjà cédé) : il suffit de libérer quelqu\'un CE JOUR-LÀ.');
+      /* Les vacances sont comptées, pas énumérées : sur un jour d'été elles
+         représentent 17 lignes qui noieraient le seul levier utile. */
+      const vac=o.immediats.filter(function(x){return x.code==='VAC';});
+      const autres=o.immediats.filter(function(x){return x.code!=='VAC';});
+      L.push('  ▸ CE QUE VOUS POUVEZ CHANGER TOUT DE SUITE :');
+      if(!vac.length&&!autres.length) L.push('     (rien — aucune absence saisie à retirer ce jour-là)');
+      autres.forEach(function(x){L.push('     • '+x.mar+' : '+x.texte);});
+      if(vac.length) L.push('     • '+vac.length+' MAR en vacances ce jour-là : '+vac.map(function(x){return x.mar;}).join(', ')
+        +'. En faire revenir '+o.aLiberer+' suffit à couvrir la garde.');
+      if(o.planning.length){
+        L.push('  ▸ BLOQUÉS PAR LE PLANNING LUI-MÊME (libérer ailleurs peut les débloquer) :');
+        o.planning.forEach(function(x){L.push('     • '+x.mar+' : '+x.texte);});
+      }
+      if(o.profil.length) L.push('  ▸ HORS DISPOSITIF CE JOUR-LÀ : '+o.profil.map(function(x){return x.mar+' ('+x.texte+')';}).join(' · '));
+      if(o.libres.length) L.push('  ▸ Déjà disponibles : '+o.libres.join(', ')
+        +' — insuffisant, un binôme demande deux personnes.');
+    });
+    L.push('');
+    L.push('Corrigez, puis relancez : le placement est recalculé entièrement, '
+      +'d\'autres jours peuvent apparaître ou disparaître. Aucune promesse n\'est faite sur le résultat.');
+    return L.join('\n');
   }
 
   function blocked(id,date,_relaxJS){
@@ -1131,6 +1272,30 @@ function generateGardes(year){
     const [g,g2]=assignRoles(A,B);
     assign(date,g,g2,dow);
   });
+
+  /* ── 8b-bis. (LOT C · 01/09/2026) ARRÊT SI UN JOUR N'A PAS DE BINÔME ──────
+     Décision d'Arthur, 01/09/2026 : « pas de porte de sortie, le problème
+     devra être réglé sinon pas de génération ». Un planning amputé d'un jour
+     ne se rattrape pas — personne ne sait quoi faire d'une garde vide.
+     POURQUOI ICI, et pas plus loin : un jour ne peut devenir vide qu'à UN seul
+     endroit du code, la passe de placement ci-dessus (`Manque MAR`). Tout ce
+     qui suit — optimiseur, passe confort, échanges avant vacances — remplace un
+     MAR par un autre sur un poste déjà pourvu, jamais ne le vide. La couverture
+     est donc entièrement décidée ici, et l'échec tombe avant les 20 s
+     d'optimisation.
+     AUCUNE ÉCRITURE n'a eu lieu à ce stade : la première est la création de
+     GARDES_{year}, bien plus bas. Lever ici laisse le classeur intact — pas
+     d'onglet, pas de notification aux MARs, pas de phase de temps partiel
+     ouverte, rien à supprimer à la main avant de relancer. */
+  {
+    const vides=allDays.filter(d=>!gardes[d.date]||!gardes[d.date].g||!gardes[d.date].g2).map(d=>d.date);
+    if(vides.length){
+      const detail=vides.map(date=>_diagnostiquerJourVide_(date));
+      const err=new Error(_messageJoursVides_(detail));
+      err.joursVides=detail;          // structure lue par l'écran du comité
+      throw err;
+    }
+  }
 
   // ── 8c. OPTIMISEUR GLOBAL (recherche locale par transferts de créneaux) ─
   // Minimise Σ poids·(réel−cible)² sur les axes d'équité en transférant un

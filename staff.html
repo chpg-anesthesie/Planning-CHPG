@@ -64,6 +64,10 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 .gt-th-day.tension-hot{background:var(--hot-bg);}
 .gt-th-day-date{font-size:10px;font-weight:600;color:var(--ink-2);}
 .gt-th-day-count{font-size:10px;color:var(--ink-4);margin-top:2px;}
+.gt-th-day-count.gt-viv{font-weight:800;font-size:11px;}
+.gt-th-day-count.gt-viv.ok{color:#166534;}
+.gt-th-day-count.gt-viv.warn{color:#92400E;}
+.gt-th-day-count.gt-viv.hot{color:#991B1B;}
 .gt-th-total{background:var(--ll);padding:8px 10px;text-align:center;font-size:10px;font-weight:600;color:var(--ink-3);border-bottom:2px solid var(--line);min-width:110px;}
 .gt-sep{padding:4px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-4);background:var(--ll);border-bottom:1px solid var(--line);}
 .gt-row-a .gt-cell-mar{border-left:3px solid #3B82F6;}
@@ -167,6 +171,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     <button class="tbtn vac active" id="btnVAC" onclick="setType('VAC')">📅 VAC</button>
     <button class="tbtn form" id="btnFORM" onclick="setType('FORM')">🎓 FORM</button>
     <button class="tbtn vac" id="btnVACHS" onclick="setType('VACHS')">📆 VAC année</button>
+    <button class="tbtn vac" id="btnPONTS" onclick="setType('PONTS')">🌉 Ponts</button>
   </div>
   <button onclick="openRecapPriorites()" style="padding:5px 12px;border:1px solid var(--line);border-radius:8px;background:white;font-size:11px;font-weight:700;cursor:pointer;color:var(--ink-2);">🏆 Priorités</button>
   <div class="view-toggle" style="margin-left:auto;">
@@ -186,11 +191,14 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
       <span class="legend-item"><span style="width:12px;height:12px;border-radius:3px;background:var(--ok-bg);border:1px solid #86EFAC;display:inline-block;"></span>OK</span>
       <span class="legend-item"><span style="width:12px;height:12px;border-radius:3px;background:var(--warn-bg);border:1px solid #FDE047;display:inline-block;"></span>Proche seuil</span>
       <span class="legend-item"><span style="width:12px;height:12px;border-radius:3px;background:var(--hot-bg);border:1px solid #FCA5A5;display:inline-block;"></span>Saturé</span>
+      <span style="margin-left:12px;font-size:11px;font-weight:700;color:var(--ink-3);">WEEK-ENDS :</span>
+      <span class="legend-item" style="font-size:11px;">le chiffre est le nombre de médecins encore disponibles pour la garde — il en faut <strong>4</strong> (deux le samedi, deux le dimanche)</span>
       <span style="margin-left:12px;font-size:11px;font-weight:700;color:var(--ink-3);">GROUPES :</span>
       <span class="legend-item"><span style="width:12px;height:12px;border-radius:2px;background:#EFF6FF;border:1px solid #93C5FD;display:inline-block;"></span>A</span>
       <span class="legend-item"><span style="width:12px;height:12px;border-radius:2px;background:#FEF3C7;border:1px solid #FDE047;display:inline-block;"></span>B</span>
       <span class="legend-item"><span style="width:12px;height:12px;border-radius:2px;background:#F0FDF4;border:1px solid #86EFAC;display:inline-block;"></span>C</span>
     </div>
+    <div id="pontsInfo" style="display:none;font-size:12px;line-height:1.6;color:var(--ink-2);background:#F0F9FF;border-left:3px solid #3B82F6;border-radius:8px;padding:10px 12px;margin-bottom:10px;"></div>
     <div class="grid-wrap"><table class="grid-table" id="gridTable"></table></div>
   </div>
   <div id="recView" style="display:none;">
@@ -203,6 +211,8 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 const API='https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 let adminCode='',currentYear=2027,periodes=[],medecins=[],saisies={},locked={};
 let currentPeriode=0,currentType='VAC',currentView='grille',currentMonth=0,vacHS=false;
+let joursFeries=new Set();      // (LOT E) alimenté par la copie rapide, jamais recalculé ici
+let pontsMode=false;            // (LOT E) l'onglet « Ponts » est-il affiché ?
 const ORDRE_BASE_STAFF={HIVER:'CAB',PRINTEMPS:'ABC',ETE:'ABC',TOUSSAINT:'BCA',NOEL:'CAB'};
 const GRP_COLORS_STAFF={A:'#3B82F6',B:'#10B981',C:'#F59E0B'};
 let groupesRef={A:[],B:[],C:[]};  // ordre de référence depuis GSheet
@@ -356,6 +366,17 @@ async function loadData(pre){
   });
   medecins.forEach(m=>{const gi=groupMap[m.id]||{groupe:'?',rang:99};m.groupe=gi.groupe;m.rang=gi.rang;});
 
+  /* (LOT E · 01/09/2026) LES JOURS FÉRIÉS, pour reconnaître les ponts.
+     La clé joursferies_{Y} de la copie rapide est déjà publiée et porte
+     l'année ET la suivante : aucune règle de calendrier n'est recopiée ici,
+     la seule source reste getJoursFeries (code.gs). Si la clé manque, l'onglet
+     des ponts se met en sommeil — il ne devine jamais. */
+  try{
+    const mf=await miroirRead(['joursferies_'+currentYear], adminCode);
+    const bloc=mf&&mf.success&&mf.data&&mf.data['joursferies_'+currentYear];
+    if(bloc&&Array.isArray(bloc.joursFeries)) joursFeries=new Set(bloc.joursFeries);
+  }catch(e){}
+
   // (miroir) indispos deja livrees (admin = parMar complet, meme forme que getAllIndispos.data).
   const iRes=(pre && pre.indisposData) ? {success:true, data: pre.indisposData} : await apiCall({action:'getAllIndispos',year:currentYear});
   // Les cadenas sont RECONSTRUITS a chaque chargement a partir de ce qui est
@@ -407,8 +428,94 @@ function countForMAR(marId,type,days){const src=saisies[marId]||{};if(!days)retu
 function countForDay(date){return medecins.filter(m=>{const v=(saisies[m.id]||{})[date];return v==='VAC'||v==='FORM';}).length;}
 function tension(date,seuil){const n=countForDay(date);if(n>=seuil)return'hot';if(n>=Math.floor(seuil*.7))return'warn';return'ok';}
 
+/* ══ (LOT D · 01/09/2026) LE VIVIER DE GARDE DES WEEK-ENDS ═════════════════
+   Jusqu'ici les colonnes samedi et dimanche n'affichaient NI compteur NI
+   couleur : la grille les grisait, et le comité posait à l'aveugle les seuls
+   jours où deux gardes doivent être assurées avec un effectif réduit.
+   Ce que ça a coûté, mesuré sur les vacances 2027 déjà saisies : le week-end
+   des 10 et 11 juillet comptait 19 MAR en congés pour un seuil de période de
+   10, et personne ne l'a jamais vu. Le mécanisme est mécanique : ceux qui
+   partent finissent le vendredi, ceux qui reviennent reprennent le lundi — les
+   deux blocs se croisent sur le week-end, qui double le compte alors que la
+   semaine reste sous le seuil.
+   CE QUI EST COMPTÉ ICI n'est PAS le nombre d'absents (le seuil de période ne
+   veut rien dire un samedi) mais le nombre de GARDEURS encore disponibles.
+   Règle donnée par Arthur le 01/09/2026 : un week-end demande QUATRE personnes
+   distinctes — deux le samedi, deux le dimanche. En dessous, il ne peut pas
+   être pourvu. Seuils retenus : moins de 4 = impossible · 4 ou 5 = tenable
+   sans aucune marge · 6 et plus = confortable.
+   Sur 2027, cet indicateur donne 1 rouge, 2 orange, 48 verts. */
+const VIVIER_MINI = 4;      // deux binômes distincts : samedi + dimanche
+const VIVIER_CONFORT = 6;   // en dessous, la moindre indisponibilité fait basculer
+
+// Ancre du rythme deux semaines sur deux — la même que le générateur.
+const ANCRE_2SUR2 = Date.UTC(2026,5,1);
+function semaineOff2sur2(ds){
+  const dt=new Date(ds+'T12:00:00');
+  const lun=new Date(Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate()));
+  lun.setUTCDate(lun.getUTCDate()-((lun.getUTCDay()+6)%7));
+  return ((Math.round((lun-ANCRE_2SUR2)/(7*86400000))%4)+4)%4>=2;
+}
+const JOURS_CODE={LUN:1,MAR:2,MER:3,JEU:4,VEN:5,SAM:6,DIM:0};
+
+/* Ce MAR peut-il prendre une garde ce jour-là ? Mêmes exclusions que le
+   générateur — les compter à 25 quand ils sont 22 ferait mentir l'indicateur
+   de trois personnes, exactement dans la zone qui décide. */
+function gardeurDispo(m,date){
+  if(m.noGarde) return false;
+  if((m.pctGardes!==undefined?m.pctGardes:100)<=0) return false;
+  if(m.dateDebut && date<m.dateDebut) return false;
+  if(m.dateFin && date>=m.dateFin) return false;
+  if(m.rythme2sur2 && semaineOff2sur2(date)) return false;
+  if(m.tpJoursFixes){
+    const dw=new Date(date+'T12:00:00').getDay();
+    if(String(m.tpJoursFixes).split(/[,;\s]+/).filter(Boolean).some(t=>JOURS_CODE[t]===dw)) return false;
+  }
+  const we=isWeekend(date);
+  if(we && m.noWeekend) return false;
+  if(m.souhaitPlafond && we) return false;   // régime à part : jamais de week-end
+  const v=(saisies[m.id]||{})[date];
+  return !(v==='VAC'||v==='FORM');
+}
+function vivierGarde(date){return medecins.filter(m=>gardeurDispo(m,date)).length;}
+function vivierClasse(n){return n<VIVIER_MINI?'hot':(n<VIVIER_CONFORT?'warn':'ok');}
+
+/* ══ (LOT E · 01/09/2026) LES PONTS ════════════════════════════════════════
+   Un pont, c'est le jour ouvré coincé entre un férié et le week-end : le
+   vendredi qui suit un jeudi férié, le lundi qui précède un mardi férié. Il
+   est très rentable — un seul jour de congé posé en rapporte quatre — et
+   c'était jusqu'ici un libre-service : le premier qui posait l'emportait.
+   Décision du comité (01/09/2026) : les ponts s'attribuent AU STAFF VACANCES,
+   avant la génération des gardes, pour que l'équité soit réglée d'emblée.
+   Pas de dette d'une année sur l'autre : le problème de l'année N+1 se règle
+   au staff de l'année N. Un pont consomme un jour du quota de vacances, comme
+   n'importe quel autre.
+   2027 en compte deux : les vendredis 7 et 28 mai. */
+function detecterPonts(annee){
+  if(!joursFeries.size) return [];
+  const ds=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const out=[];
+  Array.from(joursFeries).sort().forEach(f=>{
+    if(!f.startsWith(String(annee))) return;
+    const d=new Date(f+'T12:00:00'), dw=d.getDay();
+    if(dw===4){ const v=new Date(d); v.setDate(v.getDate()+1);
+      if(!joursFeries.has(ds(v))) out.push({date:ds(v), ferie:f, quoi:'vendredi, après le férié du jeudi'}); }
+    if(dw===2){ const l=new Date(d); l.setDate(l.getDate()-1);
+      if(!joursFeries.has(ds(l))) out.push({date:ds(l), ferie:f, quoi:'lundi, avant le férié du mardi'}); }
+  });
+  return out.sort((a,b)=>a.date<b.date?-1:1);
+}
+
 function buildPeriodeTabs(){
   const c=document.getElementById('periodeTabs');c.innerHTML='';
+  /* (LOT E) En mode ponts, il n'y a ni période ni mois à choisir : les deux ou
+     trois ponts de l'année tiennent tous sur un seul écran. */
+  if(pontsMode){
+    document.getElementById('seuilVal').textContent='—';
+    document.getElementById('sbPeriode').textContent='Ponts';
+    document.getElementById('sbSeuil').textContent='—';
+    return;
+  }
   if(currentType==='FORM'||vacHS){
     // Mode FORM : onglets par mois
     const MOIS=['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
@@ -472,10 +579,12 @@ function setCurrentPeriode(idx){
 
 function setType(t){
   vacHS=(t==='VACHS');
-  currentType=(t==='FORM')?'FORM':'VAC';
+  pontsMode=(t==='PONTS');
+  currentType=(t==='FORM')?'FORM':'VAC';   // un pont EST un jour de vacances
   document.getElementById('btnVAC').className='tbtn vac'+(t==='VAC'?' active':'');
   document.getElementById('btnFORM').className='tbtn form'+(t==='FORM'?' active':'');
   document.getElementById('btnVACHS').className='tbtn vac'+(t==='VACHS'?' active':'');
+  document.getElementById('btnPONTS').className='tbtn vac'+(t==='PONTS'?' active':'');
   buildPeriodeTabs();
   renderCurrent();
 }
@@ -527,9 +636,82 @@ function toggleDay(marId,date){
   renderCurrent();
 }
 
+/* ══ (LOT E) L'ÉCRAN DES PONTS ═════════════════════════════════════════════
+   Une ligne par MAR, une colonne par pont de l'année. Le comité clique, comme
+   ailleurs. Ce que l'écran apporte en plus, c'est le CHIFFRE qui manquait pour
+   arbitrer : combien de ponts chacun a déjà obtenus cette année, et surtout la
+   liste de ceux qui n'en ont AUCUN. Avec deux ponts par an et vingt-cinq
+   médecins, « tout le monde au moins un pont » est arithmétiquement hors de
+   portée dans l'année : l'écran ne décide donc rien à la place du comité, il
+   met l'inégalité sous les yeux au moment où elle se crée.
+   Le vivier de garde est rappelé pour chaque pont : un pont reste un jour à
+   pourvoir, et c'est un vendredi — donc la moitié d'un week-end de garde. */
+function renderPonts(){
+  const ponts=detecterPonts(currentYear);
+  const t=document.getElementById('gridTable');
+  if(!ponts.length){
+    t.innerHTML='<tbody><tr><td style="padding:20px;font-size:13px;color:var(--ink-3)">'
+      +(joursFeries.size
+        ? 'Aucun pont en '+currentYear+' : aucun jour férié ne tombe un mardi ou un jeudi.'
+        : 'Les jours fériés ne sont pas encore disponibles — rouvrez la page dans un instant.')
+      +'</td></tr></tbody>';
+    return;
+  }
+  const compte=m=>ponts.filter(p=>(saisies[m.id]||{})[p.date]==='VAC').length;
+  let thead='<thead><tr><th class="gt-th-mar">MAR</th><th class="gt-th-quota">Ponts obtenus</th>';
+  ponts.forEach(p=>{
+    const d=new Date(p.date+'T12:00:00');
+    const pris=medecins.filter(m=>(saisies[m.id]||{})[p.date]==='VAC').length;
+    const viv=vivierGarde(p.date);
+    thead+='<th class="gt-th-day" style="min-width:110px" title="'+p.quoi+'. '+viv+' médecin(s) encore disponible(s) pour la garde de ce jour.">'
+      +'<div class="gt-th-day-date">'+JOURS_FR[d.getDay()]+'<br>'+d.getDate()+'/'+(d.getMonth()+1)+'</div>'
+      +'<div class="gt-th-day-count">'+pris+' pris</div>'
+      +'<div class="gt-th-day-count gt-viv '+vivierClasse(viv)+'">'+viv+' dispo garde</div>'
+      +'</th>';
+  });
+  thead+='</tr></thead>';
+  let tbody='<tbody>',lastGroupe=null;
+  medecins.forEach(m=>{
+    if(m.groupe!==lastGroupe){lastGroupe=m.groupe;
+      tbody+='<tr><td colspan="'+(ponts.length+2)+'" class="gt-sep">Groupe '+m.groupe+'</td></tr>';}
+    const n=compte(m);
+    tbody+='<tr class="gt-row-'+(m.groupe||'a').toLowerCase()+'">';
+    tbody+='<td class="gt-cell-mar" style="min-width:200px;"><span class="gt-initials">'+m.initiales+'</span>'
+      +'<span class="gt-name">'+m.nom.replace('DR ','').replace('PR ','')+'</span>'
+      +'<span class="gt-group '+m.groupe+'">'+m.groupe+'</span>'
+      +'<span class="gt-rang">#'+m.rang+'</span></td>';
+    tbody+='<td class="gt-cell-quota" style="'+(n===0?'color:#991B1B;font-weight:800':'')+'">'+n+'</td>';
+    ponts.forEach(p=>{
+      const val=(saisies[m.id]||{})[p.date];
+      const lck=(locked[m.id]||{})[p.date];
+      const has=val==='VAC'||val==='FORM';
+      tbody+='<td class="gt-cell-day" onclick="toggleDay(\''+m.id+'\',\''+p.date+'\')">'
+        +'<div class="day-chip '+(has?(val==='VAC'?'vac':'form'):'empty')+'">'+(has?val:'')+'</div>'
+        +(lck?'<div class="gt-lock">🔒</div>':'')+'</td>';
+    });
+    tbody+='</tr>';
+  });
+  tbody+='</tbody>';
+  t.innerHTML=thead+tbody;
+
+  const sansPont=medecins.filter(m=>!m.noGarde&&compte(m)===0).map(m=>m.initiales);
+  const el=document.getElementById('pontsInfo');
+  if(el){
+    el.style.display='block';
+    el.innerHTML='<strong>🌉 '+ponts.length+' pont'+(ponts.length>1?'s':'')+' en '+currentYear+'</strong> — '
+      +'un jour posé ici en fait gagner quatre. Il compte dans le quota de vacances, comme les autres.'
+      +(sansPont.length
+        ? '<br><span style="color:#991B1B;font-weight:700">Aucun pont cette année pour '+sansPont.length+' médecin(s) :</span> '+sansPont.join(', ')
+        : '<br><span style="color:#166534;font-weight:700">Tous les médecins ont au moins un pont cette année.</span>');
+  }
+}
+
 function renderCurrent(){
   document.getElementById('griView').style.display=currentView==='grille'?'block':'none';
   document.getElementById('recView').style.display=currentView==='recap'?'block':'none';
+  const info=document.getElementById('pontsInfo');
+  if(info && !pontsMode) info.style.display='none';
+  if(pontsMode){ renderPonts(); return; }   // (LOT E) écran dédié, ni grille ni récap
   if(currentView==='grille')renderGrille();else renderRecap();
 }
 
@@ -552,12 +734,19 @@ function renderGrille(){
   thead+='<th class="gt-th-quota">Quota '+currentType+'</th>';
   days.forEach(date=>{
     const we=isWeekend(date);
-    const ten=we||isFormMode?'':(' tension-'+tension(date,seuil));
+    /* (LOT D) Un jour de semaine se lit en ABSENTS face au seuil de la période ;
+       un week-end se lit en GARDEURS DISPONIBLES face au minimum de 4. Deux
+       questions différentes, deux chiffres différents — les confondre était
+       l'erreur d'origine. */
+    const viv=we?vivierGarde(date):null;
+    const ten=isFormMode?'':(' tension-'+(we?vivierClasse(viv):tension(date,seuil)));
     const cnt=countForDay(date);
     const d=new Date(date+'T12:00:00');
-    thead+='<th class="gt-th-day'+(we?' we':'')+ten+'">'
+    thead+='<th class="gt-th-day'+(we?' we':'')+ten+'"'
+      +(we?' title="'+viv+' médecin(s) encore disponible(s) pour la garde. Il en faut 4 : deux le samedi, deux le dimanche."':'')+'>'
       +'<div class="gt-th-day-date">'+JOURS_FR[d.getDay()]+'<br>'+d.getDate()+'/'+(d.getMonth()+1)+'</div>'
-      +(!we&&cnt>0?'<div class="gt-th-day-count">'+cnt+'</div>':'')
+      +(we?'<div class="gt-th-day-count gt-viv '+vivierClasse(viv)+'">'+viv+'</div>'
+          :(cnt>0?'<div class="gt-th-day-count">'+cnt+'</div>':''))
       +'</th>';
   });
   thead+='<th class="gt-th-total">Total VAC / FORM</th></tr></thead>';
