@@ -214,10 +214,16 @@ h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-
 .slide.dark .eyebrow{color:#FCA5A5}
 .sub{font-size:clamp(17px,1.9vw,26px);color:var(--ink-3);line-height:1.5;max-width:34em}
 .slide.dark .sub{color:#CBD5E1}
-.stats{display:flex;gap:5vw;margin:4.5vh 0;flex-wrap:wrap}
-.stat .n{font-family:var(--mono);font-size:clamp(48px,7.5vw,104px);font-weight:500;
-  color:var(--red);letter-spacing:-.04em;line-height:1}
-.stat .l{font-size:clamp(14px,1.5vw,20px);font-weight:600;color:var(--ink-2);margin-top:1vh;max-width:11em;line-height:1.35}
+/* (02/09/2026) Le bloc etait un flex : chaque colonne prenait la largeur de
+   SON nombre, pendant que le texte dessous restait bride a 11 em. Avec un
+   nombre a six chiffres, le chiffre debordait largement son libelle et le
+   bloc paraissait desaxe. Grille a colonnes egales : le texte s aligne sous
+   le nombre, quelle que soit sa longueur. */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));
+  gap:4vw;margin:4.5vh 0;align-items:start}
+.stat .n{font-family:var(--mono);font-size:clamp(42px,6.4vw,92px);font-weight:500;
+  color:var(--red);letter-spacing:-.04em;line-height:1;white-space:nowrap}
+.stat .l{font-size:clamp(14px,1.5vw,20px);font-weight:600;color:var(--ink-2);margin-top:1vh;max-width:14em;line-height:1.35}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:1.6vw;margin-top:1vh}
 .cards .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:3vh 1.8vw}
 .cards .card .t{font-size:clamp(16px,1.7vw,23px);font-weight:800;letter-spacing:-.01em;margin-bottom:1vh}
@@ -705,7 +711,7 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
   <h2>Testé sur 400 années<br>de planning</h2>
   <div class="stats">
     <div class="stat"><div class="n">400</div><div class="l">années simulées — 20 scénarios d'absences, 20 ans chacun</div></div>
-    <div class="stat"><div class="n">287 938</div><div class="l">gardes placées, enchaînées comme en vrai</div></div>
+    <div class="stat"><div class="n">287&nbsp;938</div><div class="l">gardes placées, enchaînées comme en vrai</div></div>
     <div class="stat"><div class="n">6</div><div class="l">années sur 400 refusent de générer — aucun planning troué, jamais</div></div>
   </div>
   <p class="sub">On n'a pas testé sur une année qui tombe bien&nbsp;: <b>vingt fois le même volume de congés, posé autrement</b>. Puis <b>2027 a été générée pour de vrai</b> dans le classeur du service — aucune journée sans binôme, et <b>chacun à moins d'une garde</b> de sa cible.</p>
