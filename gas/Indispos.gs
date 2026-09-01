@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-09-01.6';
+const GAS_VERSION_INDISPOS = '2026-09-01.7';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -3400,6 +3400,23 @@ function _routeRequete_(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    /* (01/09/2026) LE RELIQUAT DE CONGÉS, MAR par MAR.
+       Après la génération, le comité place ce qui n'a pas été posé pendant la
+       campagne : encore faut-il savoir ce qu'il reste. Le chiffre existait au
+       staff, mais seulement pour les vacances, et seulement avant la
+       génération. Ici : vacances, formations et temps partiels, à jour.
+       ⚠️ La SOURCE change avec l'état de l'année. Tant que le planning n'est
+       pas généré, tout vit dans INDISPOS_{Y}. Une fois généré, l'onglet
+       Statuts écrit dans GARDES_{Y} et JAMAIS dans INDISPOS : compter dans
+       INDISPOS raterait tout ce que le comité a posé depuis. GARDES fait donc
+       foi dès qu'il existe. */
+    if (action === 'getReliquats') {
+      if (user.role !== 'admin') return _deny();
+      const anR = Number(payload.year) || getActiveYear();
+      return ContentService.createTextOutput(JSON.stringify(computeReliquats(anR)))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (action === 'getNoelAnEligibles') {
       const yr = parseInt(payload.year) || getIndisposYear();
       const _rep = { success: true, year: yr,
@@ -6424,6 +6441,80 @@ function renderRecapMailBlocks_(synth, blocks) {
 // NOEL_PLAFOND) a ete SUPPRIMEE : aucune des trois lignes n'existait dans le classeur,
 // donc c'etait une lecture d'onglet a chaque affichage du bandeau pour rien.
 // SEUIL = 3 ans : "en retard" = jamais fait, ou pas fait depuis 3 ans.
+/* (01/09/2026) CE QU'IL RESTE À POSER, pour chaque MAR.
+   Un jour de congé se compte en jours TRAVAILLÉS : ni week-end, ni férié —
+   la même règle que le serveur applique déjà au quota de vacances, et que
+   l'écran du staff vient d'adopter.
+   Les temps partiels en attente d'arbitrage (TPA) sont comptés à part : ils
+   ne sont pas acquis, mais ils occupent une place dans le quota. */
+function computeReliquats(year) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const gardes = ss.getSheetByName('GARDES_' + year);
+  const genere = !!gardes;
+  const jf = getJoursFeries(year);
+  const jf2 = getJoursFeries(year + 1);
+  const ouvre = ds => {
+    const d = new Date(ds + 'T12:00:00').getDay();
+    return d !== 0 && d !== 6 && !jf.has(ds) && !jf2.has(ds);
+  };
+  /* Deux jeux de codes pour la même chose : INDISPOS parle en VAC/FORM/TP,
+     GARDES en V/F/TP. Une table par source, jamais un mélange des deux. */
+  const source = genere ? gardes : ss.getSheetByName('INDISPOS_' + year);
+  if (!source) return { success: false, error: 'Ni GARDES_' + year + ' ni INDISPOS_' + year };
+  const CODES = genere ? { V: 'vac', F: 'form', TP: 'tp' }
+                       : { VAC: 'vac', FORM: 'form', TP: 'tp' };
+  const data = source.getDataRange().getValues();
+  const dates = genere ? null : reconstruireDatesHeaders(data, year);
+  const d2c = genere ? buildDateToCol(data, year) : null;
+  const colDate = [];
+  if (genere) { Object.keys(d2c).forEach(ds => { colDate[d2c[ds]] = ds; }); }
+
+  const poses = {};
+  for (let r = 3; r < data.length; r++) {
+    const id = String(data[r][0]).trim(); if (!id) continue;
+    const p = poses[id] = { vac: 0, form: 0, tp: 0 };
+    for (let c = 1; c < data[r].length; c++) {
+      const ds = genere ? colDate[c] : dates[c - 1];
+      if (!ds || !ouvre(ds)) continue;
+      const k = CODES[String(data[r][c] || '').trim().toUpperCase()];
+      if (k) p[k]++;
+    }
+  }
+
+  // Demandes de temps partiel non encore tranchées par le comité
+  const attente = {};
+  try { _tpDemandes_(year).forEach(x => { attente[x.mar] = (attente[x.mar] || 0) + 1; }); } catch (e) {}
+
+  const FLAGS = getMedecinFlags();
+  const med = ss.getSheetByName('MEDECINS').getDataRange().getValues();
+  const lignes = [];
+  for (let r = 1; r < med.length; r++) {
+    const id = String(med[r][0]).trim(); if (!id) continue;
+    if (String(med[r][3]).trim().toUpperCase() !== 'O') continue;
+    const quotite = Number(med[r][4]) || 100;
+    const q = getQuotasConges(quotite);
+    const p = poses[id] || { vac: 0, form: 0, tp: 0 };
+    const att = attente[id] || 0;
+    /* Un profil à jours fixes convenus ou en rythme deux semaines sur deux
+       n'a pas de temps partiel à poser : afficher un quota lui inventerait
+       des jours qu'il n'a pas. */
+    const tpQuota = (FLAGS.rythme2sur2.has(id) || FLAGS.tpJoursFixes[id]) ? 0 : q.ctp;
+    lignes.push({
+      id: id, init: String(med[r][2] || '').trim() || id,
+      nom: String(med[r][1] || '').trim(), quotite: quotite,
+      vac:  { pose: p.vac,  quota: q.vac,  reste: q.vac  - p.vac },
+      form: { pose: p.form, quota: q.form, reste: q.form - p.form },
+      tp:   { pose: p.tp,   quota: tpQuota, attente: att,
+              reste: Math.max(0, tpQuota - p.tp - att) }
+    });
+  }
+  lignes.sort((a, b) => (b.vac.reste + b.form.reste + b.tp.reste)
+                      - (a.vac.reste + a.form.reste + a.tp.reste)
+                      || (a.id < b.id ? -1 : 1));
+  return { success: true, year: year, genere: genere,
+           source: genere ? 'GARDES_' + year : 'INDISPOS_' + year, lignes: lignes };
+}
+
 /* (01/09/2026) L'HISTORIQUE BRUT, pour le tableau du staff vacances.
    Une ligne par MAR pouvant tenir Noël, avec TOUTES ses années passées.
    Trié du plus ancien au plus récent — l'ordre de la rotation elle-même.

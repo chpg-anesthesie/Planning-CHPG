@@ -1576,6 +1576,16 @@ if (sessionStorage.getItem('adminCode')) {
          le R est posé, et revient si on l'efface. -->
     <div id="recupStatuts" style="display:none"></div>
     <div id="statutsLoading" class="loading" style="display:none"><div class="spinner"></div> Chargement…</div>
+    <!-- (01/09/2026) CE QU'IL RESTE À POSER. Après la génération, le comité
+         place ici les congés que les MAR n'ont pas posés pendant la campagne :
+         encore faut-il savoir combien il en reste, et à qui. Replié par
+         défaut, chargé au premier dépliage. -->
+    <div id="reliquatsBloc" style="display:none;margin-bottom:14px">
+      <button class="btn-secondary" onclick="toggleReliquats()" id="btnReliquats">
+        📋 Ce qu'il reste à poser</button>
+      <div id="reliquatsPanel" style="display:none;margin-top:10px;border:1px solid var(--line);
+           border-radius:12px;padding:14px 16px;background:#fff"></div>
+    </div>
     <div id="statutsContent" style="display:none"></div>
   </div>
 <div class="tab-panel" id="panel-maintenance">
@@ -2996,6 +3006,86 @@ function statBuildDays(year){
   return days;
 }
 function statMonthKeys(){ return [...new Set(STAT.days.map(d=>`${d.year}-${String(d.month).padStart(2,'0')}`))]; }
+/* ══ (01/09/2026) LE RELIQUAT DE CONGÉS ═══════════════════════════════════
+   Trois compteurs par MAR : vacances, formations, temps partiels. Le serveur
+   lit GARDES dès que l'année est générée — l'onglet Statuts y écrit et ne
+   touche jamais INDISPOS, donc compter dans INDISPOS raterait tout ce que le
+   comité a posé depuis la génération.
+   Chargé au premier dépliage, pas à l'ouverture de l'onglet : c'est une
+   consultation, elle ne doit pas ralentir la saisie. */
+let _reliquatsData = null;
+
+function toggleReliquats(){
+  const p = document.getElementById('reliquatsPanel');
+  if (!p) return;
+  const ouvert = p.style.display !== 'none';
+  p.style.display = ouvert ? 'none' : 'block';
+  if (!ouvert) renderReliquats();
+}
+
+async function renderReliquats(){
+  const p = document.getElementById('reliquatsPanel');
+  if (!p) return;
+  if (!_reliquatsData) {
+    p.innerHTML = '<div style="font-size:13px;color:var(--ink-3)">Chargement…</div>';
+    try {
+      const r = await api({ action:'getReliquats', year: ADMIN_YEAR });
+      if (!r || !r.success) {
+        p.innerHTML = '<div style="font-size:13px;color:#B91C1C">Reliquats indisponibles : '
+          + ((r && r.error) || 'réponse vide') + '</div>';
+        return;
+      }
+      _reliquatsData = r;
+    } catch (e) {
+      p.innerHTML = '<div style="font-size:13px;color:#B91C1C">Reliquats indisponibles.</div>';
+      return;
+    }
+  }
+  const d = _reliquatsData;
+  const esc = t => String(t == null ? '' : t).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  /* Une case vide quand le quota est nul : un temps plein n'a pas de temps
+     partiel à poser, lui afficher « 0/0 » ferait croire à un compteur. */
+  const cel = (o, attente) => {
+    if (!o.quota) return '<td style="text-align:center;padding:6px 8px;color:#CBD5E1">—</td>';
+    const c = o.reste > 0 ? '#B45309' : '#166534';
+    return '<td style="text-align:center;padding:6px 8px">'
+      + '<b style="color:' + c + '">' + o.reste + '</b>'
+      + '<span style="color:var(--ink-4);font-size:11px"> / ' + o.quota + '</span>'
+      + (attente ? '<div style="font-size:10.5px;color:#6D28D9">' + attente + ' en attente</div>' : '')
+      + '</td>';
+  };
+  const rien = d.lignes.filter(x => x.vac.reste > 0 || x.form.reste > 0 || x.tp.reste > 0).length;
+  let h = '<div style="font-size:12.5px;color:var(--ink-2);line-height:1.6;margin-bottom:12px">'
+    + 'Jours de congé qu\'il reste à placer, en jours travaillés — ni week-end, ni férié. '
+    + (d.genere
+        ? 'Le planning ' + d.year + ' est généré : les vacances et formations se posent dans cet onglet, '
+          + 'les temps partiels par les MAR depuis leur tuile.'
+        : 'Le planning ' + d.year + ' n\'est pas encore généré : tout se pose pendant la campagne.')
+    + '</div>';
+  h += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'
+    + '<thead><tr style="background:var(--ll,#F8FAFC)">'
+    + '<th style="text-align:left;padding:6px 8px;font-size:11px;color:var(--ink-3)">MAR</th>'
+    + '<th style="text-align:center;padding:6px 8px;font-size:11px;color:var(--ink-3)">Vacances</th>'
+    + '<th style="text-align:center;padding:6px 8px;font-size:11px;color:var(--ink-3)">Formation</th>'
+    + '<th style="text-align:center;padding:6px 8px;font-size:11px;color:var(--ink-3)">Temps partiel</th>'
+    + '</tr></thead><tbody>';
+  d.lignes.forEach(x => {
+    const zero = x.vac.reste <= 0 && x.form.reste <= 0 && x.tp.reste <= 0;
+    h += '<tr style="border-top:1px solid #F1F5F9' + (zero ? ';opacity:.55' : '') + '">'
+      + '<td style="padding:6px 8px;font-weight:700;white-space:nowrap">' + esc(x.init)
+      + '<span style="font-weight:500;color:var(--ink-3);margin-left:7px">'
+      + esc((x.nom || '').replace(/^DR /, '').replace(/^PR /, '')) + '</span></td>'
+      + cel(x.vac) + cel(x.form) + cel(x.tp, x.tp.attente) + '</tr>';
+  });
+  h += '</tbody></table></div>';
+  h += '<div style="font-size:12px;color:var(--ink-4);line-height:1.6;margin-top:11px">'
+    + (rien ? rien + ' MAR ont encore des jours à placer. ' : 'Tout est placé. ')
+    + 'Le chiffre en gras est ce qui reste, l\'autre le quota de l\'année. '
+    + 'Une garde ou un repos de garde ne peut pas être remplacé par un congé : '
+    + 'ces jours-là passent par un échange.</div>';
+  p.innerHTML = h;
+}
+
 async function loadStatuts(){
   const load=document.getElementById('statutsLoading'), wrap=document.getElementById('statutsContent');
   load.style.display='flex'; wrap.style.display='none';
@@ -3046,6 +3136,13 @@ async function loadStatuts(){
     STAT.feries=new Set((jf&&jf.success&&jf.joursFeries)||[]);
     STAT.year=ADMIN_YEAR; STAT.days=statBuildDays(ADMIN_YEAR);
     STAT.selected.clear(); STAT.plageMode=false; STAT.plageStart=null; STAT.pending=0;
+    /* (01/09/2026) Le bloc « Ce qu'il reste à poser » apparaît avec l'onglet.
+       Son contenu est vidé à chaque chargement : l'année a pu changer, et un
+       compteur périmé sur un écran de saisie vaut moins que pas de compteur. */
+    { const _rb=document.getElementById('reliquatsBloc'), _rp=document.getElementById('reliquatsPanel');
+      if(_rb) _rb.style.display='block';
+      if(_rp && _rp.style.display!=='none'){ _reliquatsData=null; renderReliquats(); }
+      else _reliquatsData=null; }
     const actifs=marData.filter(m=>m.actif);
     if(!STAT.marId || !actifs.find(m=>m.id===STAT.marId)) STAT.marId = actifs.length?actifs[0].id:null;
     const keys=statMonthKeys();
@@ -3273,6 +3370,11 @@ async function statApply(statut){
     if (dep) return;   // fiche deposee — rien d'autre a faire ici
     return apiSerie({action:'setDailyStatus', year, marId, statut, dates: poses}).then(r=>{
     if(!(r && r.success)) throw new Error((r && r.error) || 'setDailyStatus');
+    /* Poser ou retirer un congé change le reliquat : le compte affiché serait
+       faux dès le geste suivant. On l'invalide, il se recalcule au dépliage. */
+    _reliquatsData = null;
+    { const _rp=document.getElementById('reliquatsPanel');
+      if(_rp && _rp.style.display!=='none') renderReliquats(); }
     const okSet = new Set(r.applied || []);
     const refuses = poses.filter(d => !okSet.has(d));
     if (refuses.length){
