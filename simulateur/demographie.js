@@ -234,16 +234,90 @@ function buildAbsences(year,roster,scen,opts){
       auSamedi(per[0], per[1]+sem*7, 7); };
     if(nScol>=1) creneau(0);
     if(nScol>=2) creneau(3);
-    // ── FORMATION / CONGRÈS : 1 ou 2 blocs de 2 à 4 jours
-    // Pas de congrès un jour férié : on décale le bloc s'il tombe dessus.
-    const nf=1+(R()<0.75?1:0);   // 1 ou 2 congrès dans l'année
-    for(let k=0;k<nf;k++){
-      const mo=2+Math.floor(R()*10), jo=3+Math.floor(R()*24), nb=2+Math.floor(R()*3);
-      const d0=new Date(Date.UTC(year,mo-1,jo));
-      let ferie=false;
-      for(let j=0;j<nb;j++){ const x=new Date(d0); x.setUTCDate(x.getUTCDate()+j);
-        if(FER.has(iso(year,x.getUTCMonth()+1,x.getUTCDate()).slice(5))) ferie=true; }
-      if(!ferie) bloc(m,year,mo,jo,nb,'FORM');
+    /* ── PONTS (01/09/2026) — le jour qui, posé seul, en rapporte quatre.
+       Le modèle les ignorait complètement, alors que c'est le jour le plus
+       demandé de l'année et qu'il tombe très souvent un vendredi, donc sur la
+       moitié d'un week-end de garde. Depuis le 01/09 ils s'arbitrent au staff :
+       on reproduit cet arbitrage — chacun en obtient deux ou trois, servis à
+       tour de rôle, jamais tous au même. */
+    {
+      const chome=(ds)=>{ const dt=new Date(ds+'T12:00:00'); const w=dt.getUTCDay();
+        return w===0||w===6||FER.has(ds.slice(5)); };
+      const pontsAn=[]; const dP=new Date(Date.UTC(year,0,1));
+      while(dP.getUTCFullYear()===year){
+        const ds=iso(year,dP.getUTCMonth()+1,dP.getUTCDate());
+        if(!chome(ds)){
+          let n=1, aFerie=false;
+          for(const pas of [-1,1]){
+            const x=new Date(dP);
+            for(;;){ x.setUTCDate(x.getUTCDate()+pas);
+              if(x.getUTCFullYear()!==year) break;
+              const xs=iso(year,x.getUTCMonth()+1,x.getUTCDate());
+              if(!chome(xs)) break;
+              if(FER.has(xs.slice(5))) aFerie=true;
+              if(++n>10) break; }
+          }
+          if(n>=4&&aFerie) pontsAn.push(ds);
+        }
+        dP.setUTCDate(dP.getUTCDate()+1);
+      }
+      /* Tour de rôle décalé par l'index du MAR : sur 13 ponts et ~24 MAR,
+         chacun en prend 2 ou 3 et jamais les mêmes que son voisin. */
+      pontsAn.forEach((ds,k)=>{ if((k+idx)%4===0 && !m[ds]) m[ds]='VAC'; });
+    }
+
+    /* ── FORMATION / CONGRÈS — LE QUOTA ENTIER (01/09/2026).
+       Le modèle n'en posait que la moitié (1 ou 2 blocs, soit ~5 jours pour un
+       quota de 10). Arbitrage d'Arthur : on simule le cas où TOUT est posé
+       avant la génération — c'est le plus contraignant, et c'est ce que la
+       campagne demande désormais.
+       Blocs de 2 à 5 jours ouvrés, jamais sur un férié : un congrès ne se tient
+       pas un jour chômé. */
+    {
+      const quotaF=Math.round(10*(q||100)/100);
+      let posF=0, essaisF=0;
+      while(posF<quotaF && essaisF++<400){
+        const mo=1+Math.floor(R()*12), jo=1+Math.floor(R()*24);
+        const nb=Math.min(quotaF-posF, 2+Math.floor(R()*4));
+        const d0=new Date(Date.UTC(year,mo-1,jo));
+        let ok=true;
+        for(let j=0;j<nb;j++){ const x=new Date(d0); x.setUTCDate(x.getUTCDate()+j);
+          const ds=iso(year,x.getUTCMonth()+1,x.getUTCDate());
+          const w=x.getUTCDay();
+          if(w===0||w===6||FER.has(ds.slice(5))||m[ds]) { ok=false; break; } }
+        if(!ok) continue;
+        bloc(m,year,mo,jo,nb,'FORM'); posF+=nb;
+      }
+    }
+
+    /* ── VACANCES HORS CALENDRIER SCOLAIRE (01/09/2026).
+       Le modèle ne posait de congés QUE sur l'été, Noël et les vacances
+       scolaires : 61 % des jours de l'année n'avaient aucun congé posé, ce qui
+       ne ressemble pas au service. Arbitrage d'Arthur : trois quarts en période
+       scolaire, un quart en dehors. On complète ici jusqu'au quota.
+       Blocs du vendredi au dimanche, comme les absences réelles de 2026 :
+       174 blocs sur 240 y commencent. */
+    {
+      const quotaV=Math.round(33*(q||100)/100);
+      const ouvresV=(mm)=>{ let n=0;
+        Object.keys(mm).forEach(ds=>{ if(mm[ds]!=='VAC') return;
+          const dt=new Date(ds+'T12:00:00'), w=dt.getUTCDay();
+          if(w>=1&&w<=5&&!FER.has(ds.slice(5))) n++; });
+        return n; };
+      let manque=quotaV-ouvresV(m), essaisV=0;
+      while(manque>0 && essaisV++<400){
+        const mo=1+Math.floor(R()*12), jo=1+Math.floor(R()*24);
+        const d0=new Date(Date.UTC(year,mo-1,jo));
+        while(d0.getUTCDay()!==5) d0.setUTCDate(d0.getUTCDate()+1);   // départ le vendredi
+        const nb=manque>=6?10:3;                                       // 2 semaines, ou le week-end élargi
+        let ok=true;
+        for(let j=0;j<nb;j++){ const x=new Date(d0); x.setUTCDate(x.getUTCDate()+j);
+          if(x.getUTCFullYear()!==year) { ok=false; break; }
+          if(m[iso(year,x.getUTCMonth()+1,x.getUTCDate())]) { ok=false; break; } }
+        if(!ok) continue;
+        bloc(m,year,d0.getUTCMonth()+1,d0.getUTCDate(),nb,'VAC');
+        manque=quotaV-ouvresV(m);
+      }
     }
     // ── INDISPO PONCTUELLES. PLAFOND ÉTUDIÉ : 30 jours/an/MAR (statut INDISPO seul,
     // hors VAC et FORM). On simule le PIRE CAS sous la règle : tout le monde consomme
