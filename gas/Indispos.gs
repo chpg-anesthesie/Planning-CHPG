@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-09-01.2';
+const GAS_VERSION_INDISPOS = '2026-09-01.3';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -3832,7 +3832,27 @@ try {
             recupR:data[r][12], h18:data[r][13],
             jf:data[r][14], vjf:data[r][15], vd:data[r][20], cSat:data[r][17], cJeu:data[r][18], cVd:data[r][19], cVjf:data[r][21]});
         }
+        /* (01/09/2026) LES AVERTISSEMENTS DOIVENT SURVIVRE À LA FERMETURE DE
+           L'ASSISTANT. Jusqu'ici LOGS ne gardait que leur NOMBRE : le contenu
+           ne partait que dans le journal d'exécution d'Apps Script, invisible
+           depuis l'application. Constaté le 01/09 — « il y a eu des
+           avertissements mais je ne sais plus ce que c'était », et rien ne
+           permettait de les retrouver. C'est précisément le moment où le comité
+           en a besoin : ils disent quels replis l'algorithme a dû consentir.
+           Plafond de 25 lignes : LOGS est purgé au-delà de 501 lignes, et le
+           générateur peut en produire jusqu'à 60 — les écrire toutes chasserait
+           le reste du journal. Le compte exact figure sur la ligne de tête. */
         logAction(`generateGardes ${yearToGenerate} — ${_genWarn.nbWarnings} avertissement(s)`);
+        {
+          const _w = _genWarn.warnings || [];
+          const _MAX = 25;
+          _w.slice(0, _MAX).forEach(function (t, k) {
+            logAction(`  avertissement ${k + 1}/${_genWarn.nbWarnings} · ${yearToGenerate} : ${t}`);
+          });
+          if (_w.length > _MAX) {
+            logAction(`  … ${_w.length - _MAX} avertissement(s) de plus, non détaillés (voir l'écran de génération)`);
+          }
+        }
         return ContentService.createTextOutput(JSON.stringify({success:true, stats,
           warnings: _genWarn.warnings, nbWarnings: _genWarn.nbWarnings}))
           .setMimeType(ContentService.MimeType.JSON);

@@ -257,6 +257,32 @@ console.log('\n═══ 4bis. Le serveur renvoie la structure, pas un pavé de 
     page.includes('e.dejaAffiche'));
 }
 
+/* ═══ 4ter. Les avertissements survivent à la fermeture de l'assistant ══ */
+console.log('\n═══ 4ter. Le CONTENU des avertissements est écrit dans LOGS ═══');
+{
+  /* (01/09/2026) LOGS ne gardait que le NOMBRE. Après une génération réelle,
+     le comité a constaté « il y a eu des avertissements mais je ne sais plus
+     ce que c'était » — et rien ne permettait de les retrouver, le détail ne
+     partant que dans le journal d'exécution d'Apps Script. */
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'gas', 'Indispos.gs'), 'utf8');
+  V('chaque avertissement part dans LOGS, avec son rang',
+    /logAction\(`  avertissement \$\{k \+ 1\}\/\$\{_genWarn\.nbWarnings\}/.test(src), src.length);
+  V('le nombre total reste sur une ligne de tête',
+    /generateGardes \$\{yearToGenerate\} — \$\{_genWarn\.nbWarnings\} avertissement\(s\)/.test(src));
+  /* Le plafond n'est pas un détail : LOGS est purgé au-delà de 501 lignes et
+     le générateur peut produire 60 avertissements. Sans plafond, une seule
+     génération chasserait un huitième du journal. */
+  V('le nombre de lignes écrites est plafonné', /const _MAX = 25;/.test(src));
+  V('le plafond est inférieur au maximum que peut produire le générateur',
+    25 < 60);
+  V('quand le plafond mord, le reste est annoncé plutôt que passé sous silence',
+    /avertissement\(s\) de plus, non détaillés/.test(src));
+  const gen = require('fs').readFileSync(require('path').join(__dirname, '..', 'gas', 'generateur_gardes.gs'), 'utf8');
+  const m = gen.match(/warnings\.slice\(0, (\d+)\)/);
+  V('le générateur rend bien au plus 60 avertissements (le plafond de LOGS tient)',
+    !!m && Number(m[1]) === 60, m && m[1]);
+}
+
 /* ═══ 5. ÉQUIVALENCE motifBlocage ⇔ blocked, sur une année entière ═══════ */
 console.log('\n═══ 5. Le diagnostic dit exactement la même chose que le moteur ═══');
 {
