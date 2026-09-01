@@ -255,5 +255,110 @@ console.log('\n═══ 6. Aucune règle de calendrier n\'est recopiée dans la
     /joursferies_[\s\S]{0,400}catch\(e\)\{\}/.test(src));
 }
 
+/* ═══ 7. La barre rouge : une commande, un endroit ══════════════════════ */
+console.log('\n═══ 7. staff.html · Priorités monte dans la barre, Récap n\'y est plus ═══');
+{
+  const head = src.slice(src.indexOf('<div class="header-right">'),
+                         src.indexOf('</div>', src.indexOf('<div class="header-right">')));
+  V('le bouton « Priorités » est dans la barre rouge',
+    /openRecapPriorites\(\)/.test(head), head.slice(0, 300));
+  V('le bouton « Récap » a quitté la barre rouge',
+    !/Récap/.test(head), head.slice(0, 300));
+  V('« Valider et verrouiller » y reste', /doValidate\(\)/.test(head));
+  V('le déverrouillage y reste aussi', /unlockAll\(\)/.test(head));
+  /* Le sélecteur Grille / Récap, lui, ne bouge pas : c'est lui qui commande
+     désormais l'affichage, et il est posé juste au-dessus de la grille. */
+  V('le sélecteur Grille / Récap est toujours là',
+    /id="vtGrille"/.test(src) && /id="vtRecap"/.test(src));
+  /* On compte les APPELS (onclick), pas la déclaration de la fonction : la
+     première version de ce test comptait les deux et échouait sur du code
+     correct. */
+  V('« Priorités » n\'est plus en double : un seul bouton l\'appelle',
+    (src.match(/onclick="openRecapPriorites\(\)"/g) || []).length === 1,
+    (src.match(/onclick="openRecapPriorites\(\)"/g) || []).length);
+  V('la fonction, elle, existe toujours', /function openRecapPriorites\(/.test(src));
+  /* toggleView() lisait #viewBtn, retiré avec le bouton : la garder aurait
+     laissé une fonction qui échoue au premier appel. */
+  V('toggleView() a disparu avec son bouton', !/function toggleView\(/.test(src));
+  V('plus aucun code ne lit #viewBtn',
+    !/getElementById\('viewBtn'\)/.test(src));
+}
+
+/* ═══ 8. Noël & Jour de l'An : un tableau consultable, plus un bandeau ══ */
+console.log('\n═══ 8. L\'historique de Noël se consulte au lieu de défiler ═══');
+{
+  const fsx = require('fs'), px = require('path');
+  /* Le bandeau ne montrait que huit prioritaires, en boucle : impossible de
+     voir qui était exempté ni depuis quand. Il est remplacé, pas doublé. */
+  V('le bandeau défilant a disparu de la page',
+    !/id="noelBanner"/.test(src) && !/renderNoelBanner/.test(src));
+  V('ses styles et son animation sont partis avec lui',
+    !/noel-bnr/.test(src) && !/nbScroll/.test(src));
+  V('un bouton « Noël » est dans la barre rouge',
+    /openRecapNoel\(\)/.test(src.slice(src.indexOf('<div class="header-right">'),
+                                       src.indexOf('</div>', src.indexOf('<div class="header-right">')))));
+  V('l\'écran demande l\'historique complet au serveur',
+    /getNoelAnEligibles[\s\S]{0,90}historique:true/.test(src));
+  /* (01/09/2026) L'écran ne désigne PLUS de prioritaires : décision d'Arthur,
+     il y a souvent plus de huit candidats légitimes et l'arbitrage revient au
+     comité. Le tableau montre l'historique brut, une ligne par MAR, une
+     colonne par année. */
+  V('l\'écran ne classe plus les MAR en prioritaires et dispensés',
+    !/À servir en priorité/.test(src) && !/Ont donné récemment/.test(src));
+  V('il dresse une matrice année par année',
+    /annees\.forEach/.test(src) && /m\.annees\.indexOf\(a\.annee\)/.test(src));
+  V('chaque année annonce les noms trouvés sur ceux qu\'elle mobilisait',
+    /a\.tenus\+'\/'\+a\.postes/.test(src));
+  V('le passage à la double garde est marqué visuellement',
+    /const bascule=annees\.findIndex\(a=>a\.postes===8\)/.test(src));
+  /* Les apostrophes sont échappées dans le source de la page : on cherche le
+     texte tel qu'il est ÉCRIT, pas tel qu'il s'affiche. */
+  V('la règle des trois ans est rappelée sans nommer personne',
+    /pas tenu ces dates depuis trois ans/.test(src));
+  V('un historique vide le dit au lieu d\'afficher un tableau creux',
+    /Aucun médecin à afficher/.test(src));
+  V('une panne de chargement le dit au lieu d\'afficher une page vide',
+    /Historique indisponible pour le moment/.test(src));
+
+  /* Côté serveur : une seule lecture des sources pour deux besoins. */
+  const code = fsx.readFileSync(px.join(__dirname, '..', 'gas', 'code.gs'), 'utf8');
+  V('getNoelHistoryDetail collecte toutes les années',
+    /function getNoelHistoryDetail\(beforeYear\)/.test(code));
+  V('getNoelHistory n\'est plus qu\'une vue de ce détail (aucun second parcours)',
+    /function getNoelHistory\(beforeYear\) \{[\s\S]{0,400}getNoelHistoryDetail\(beforeYear\)/.test(code));
+  V('l\'ancienne version dupliquée a été supprimée, pas mise de côté',
+    !/_getNoelHistoryAncien_/.test(code));
+  V('les quatre dates restent 24, 25, 31 décembre et 1er janvier',
+    /\$\{y\}-12-24[\s\S]{0,80}\$\{y\}-12-25[\s\S]{0,80}\$\{y\}-12-31[\s\S]{0,80}\$\{y \+ 1\}-01-01/.test(code));
+
+  const ind = fsx.readFileSync(px.join(__dirname, '..', 'gas', 'Indispos.gs'), 'utf8');
+  V('l\'historique est un champ À PART de la liste des prioritaires',
+    /if \(payload\.historique === true\) _rep\.historique = computeNoelAnHistorique\(yr\)/.test(ind));
+  V('…pour que le contrôle du W2 continue de porter sur les seuls prioritaires',
+    /eligibles: computeNoelAnEligibles\(yr, payload\.tous === true\)/.test(ind));
+  V('le serveur ne rend plus de drapeau « prioritaire » dans l\'historique',
+    !/prioritaire:/.test(ind));
+  /* Le nombre de postes par année vit en UN seul endroit : la double garde
+     est effective depuis octobre 2025, donc dès le Noël 2025. Sans ce chiffre,
+     une année ancienne à quatre noms passerait pour une saisie incomplète. */
+  V('la bascule vers la double garde est une constante nommée',
+    /const NOEL_AN_DOUBLE_GARDE_DEPUIS = 2025;/.test(ind));
+  V('4 postes avant, 8 à partir de la bascule',
+    /return Number\(annee\) >= NOEL_AN_DOUBLE_GARDE_DEPUIS \? 8 : 4;/.test(ind));
+  V('l\'historique rend les MAR ET les années à afficher',
+    /return \{ mars: out, annees: annees \};/.test(ind));
+  V('le tableau est borné à huit colonnes (lisible sur un portable)',
+    /if \(liste\.length > 8\) liste = liste\.slice\(liste\.length - 8\);/.test(ind));
+  /* Le compte de l'année porte sur TOUT l'historique, pas sur les seules
+     lignes affichées : un médecin parti du service a bien tenu sa garde, et
+     l'exclure du compte ferait annoncer un trou sur une année complète. */
+  V('le compte d\'une année inclut les médecins qui ont quitté le service',
+    /Object\.keys\(detail\)\.forEach\(function \(id\) \{ if \(detail\[id\]\.indexOf\(a\) >= 0\) n\+\+; \}\)/.test(ind));
+  V('…et ne se contente pas de filtrer les lignes du tableau',
+    !/tenus: out\.filter/.test(ind));
+  V('les MAR sans garde et le régime à part sont écartés du tableau',
+    /computeNoelAnHistorique[\s\S]{0,1400}FLAGS\.noGarde\.has\(id\)[\s\S]{0,120}FLAGS\.souhaitPlafond\.has\(id\)/.test(ind));
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);

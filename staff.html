@@ -115,15 +115,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
 @keyframes spin{to{transform:rotate(360deg);}}
 .loading-msg{text-align:center;padding:60px;color:var(--ink-4);font-size:14px;display:flex;flex-direction:column;align-items:center;gap:12px;}
   /* ── Bandeau Noël/Jour de l'An (prioritaires garde) ── */
-.noel-bnr{position:relative;display:flex;align-items:center;gap:12px;margin:10px 16px 0;background:linear-gradient(90deg,#FFF5F6,#fff);border:1px solid #F3D6DA;border-left:4px solid var(--red);border-radius:10px;padding:9px 12px;overflow:hidden;}
-.noel-bnr .nb-badge{flex-shrink:0;background:var(--red);color:#fff;font-size:12px;font-weight:700;border-radius:7px;padding:6px 11px;white-space:nowrap;}
-.noel-bnr .nb-track{flex:1;overflow:hidden;white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);}
-.noel-bnr .nb-run{display:inline-block;padding-left:100%;animation:nbScroll 30s linear infinite;font-size:13px;font-weight:600;color:#3A4759;}
-.noel-bnr:hover .nb-run{animation-play-state:paused;}
-.noel-bnr .nb-nm{color:var(--red);font-weight:800;}
-.noel-bnr .nb-ly{color:var(--ink-4);font-weight:600;font-size:12px;}
-.noel-bnr .nb-sep{color:#CBD5E1;margin:0 10px;}
-@keyframes nbScroll{from{transform:translateX(0);}to{transform:translateX(-100%);}}
+
 </style>
 </head>
 <body>
@@ -147,14 +139,25 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     <span class="header-pill" id="yearPill">—</span>
     <span class="header-pill" id="lockPill" style="background:rgba(255,255,255,.1);display:none;">🔒 Verrouillé</span>
   </div>
+  <!-- (01/09/2026) Le bouton « Récap » de la barre rouge doublait le sélecteur
+       Grille / Récap posé juste au-dessus de la grille : deux commandes pour la
+       même chose, à deux endroits. Il est retiré, le sélecteur reste.
+       « Priorités » monte ici : c'est l'ordre de passage des groupes, la
+       donnée qui commande tout l'arbitrage du staff. Elle était perdue au
+       milieu de la barre d'outils, entre les onglets de période. -->
   <div class="header-right">
-        <button class="btn-ghost" onclick="toggleView()" id="viewBtn">📊 Récap</button>
+    <button class="btn-ghost" onclick="openRecapPriorites()">🏆 Priorités</button>
+    <button class="btn-ghost" onclick="openRecapNoel()">🎄 Noël &amp; Jour de l'An</button>
     <button class="btn-ghost" id="btnUnlock" onclick="unlockAll()" style="display:none;">🔓 Tout déverrouiller</button>
     <button class="btn-validate" id="btnValidate" onclick="doValidate()">✅ Valider et verrouiller</button>
   </div>
 </div>
 
-<div id="noelBanner" class="noel-bnr" style="display:none;"></div>
+<!-- (01/09/2026) Le bandeau défilant « Noël & Jour de l'An » est retiré : il
+     n'affichait que huit prioritaires, en boucle, sans jamais montrer qui était
+     exempté ni depuis quand. On ne peut pas arbitrer sur un texte qui passe.
+     Remplacé par le tableau du bouton « 🎄 Noël & Jour de l'An » de la barre :
+     l'équipe entière, avec toutes les années de chacun. -->
 
 <div class="stats-bar" id="statsBar" style="display:none;">
   <div class="sbar-item"><div class="sbar-dot" style="background:#CE1126;"></div><span class="sbar-lbl">Période</span><span class="sbar-val" id="sbPeriode">—</span></div>
@@ -173,7 +176,6 @@ body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(-
     <button class="tbtn vac" id="btnVACHS" onclick="setType('VACHS')">📆 VAC année</button>
     <button class="tbtn vac" id="btnPONTS" onclick="setType('PONTS')">🌉 Ponts</button>
   </div>
-  <button onclick="openRecapPriorites()" style="padding:5px 12px;border:1px solid var(--line);border-radius:8px;background:white;font-size:11px;font-weight:700;cursor:pointer;color:var(--ink-2);">🏆 Priorités</button>
   <div class="view-toggle" style="margin-left:auto;">
     <button class="vtbtn active" id="vtGrille" onclick="setView('grille')">📅 Grille</button>
     <button class="vtbtn" id="vtRecap" onclick="setView('recap')">📊 Récap</button>
@@ -395,25 +397,95 @@ async function loadData(pre){
 
   buildPeriodeTabs();
   setCurrentPeriode(0);
-  renderNoelBanner();
   document.getElementById('loadingArea').style.display='none';
 }
 
-async function renderNoelBanner(){
-  const el=document.getElementById('noelBanner');
-  if(!el) return;
-  try{
-    // (31/07/2026) `tous:true` — la liste COMPLETE, sans le plafond de 8. A egalite
-    // d'annee le tri est alphabetique : plafonner masquait des prioritaires tout aussi
-    // legitimes, et le comite arbitrait les vacances de Noel sur une liste tronquee.
-    const r=await apiCall({action:'getNoelAnEligibles',year:currentYear,tous:true});
-    if(!r||!r.success||!r.eligibles||!r.eligibles.length){ el.style.display='none'; return; }
-    const items=r.eligibles.map(e=>'<span class="nb-nm">Dr '+e.id+'</span> <span class="nb-ly">· '+(e.last?e.last:'jamais')+'</span>').join('<span class="nb-sep">•</span>');
-    const run='Prioritaires pour la garde&nbsp;: <span class="nb-sep">•</span>'+items;
-    el.innerHTML='<div class="nb-badge">🎄 Noël &amp; Jour de l\'An '+r.year+'</div><div class="nb-track"><div class="nb-run">'+run+'&nbsp;&nbsp;&nbsp;&nbsp;'+run+'</div></div>';
-    el.style.display='flex';
-  }catch(e){ el.style.display='none'; }
+/* ══ (01/09/2026) NOËL & JOUR DE L'AN — un tableau, plus un bandeau ═══════
+   Les quatre dates (24, 25, 31 décembre, 1er janvier) tournent d'une année sur
+   l'autre : qui les a tenues est exempté, qui ne les a jamais tenues passe en
+   premier. Le bandeau défilant ne montrait que les huit prioritaires, en
+   boucle — on ne pouvait ni voir les exemptés, ni savoir depuis quand.
+   Le serveur rend ici l'équipe entière avec TOUTES les années de chacun. */
+let noelHistoData = null;
+
+function openRecapNoel(){
+  document.getElementById('recapNoelOverlay').style.display='flex';
+  buildRecapNoel();
 }
+function closeRecapNoel(){
+  document.getElementById('recapNoelOverlay').style.display='none';
+}
+
+async function buildRecapNoel(){
+  const el=document.getElementById('recapNoelContent');
+  if(!el) return;
+  if(!noelHistoData){
+    el.innerHTML='<div style="color:#64748B;font-size:13px">Chargement…</div>';
+    try{
+      const r=await apiCall({action:'getNoelAnEligibles',year:currentYear,historique:true});
+      if(!r||!r.success||!r.historique||!Array.isArray(r.historique.mars)){
+        el.innerHTML='<div style="color:#B91C1C;font-size:13px">Historique indisponible pour le moment.</div>';
+        return;
+      }
+      noelHistoData=r.historique;
+    }catch(e){
+      el.innerHTML='<div style="color:#B91C1C;font-size:13px">Historique indisponible pour le moment.</div>';
+      return;
+    }
+  }
+  const {mars,annees}=noelHistoData;
+  const esc=t=>String(t==null?'':t).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  if(!mars.length){
+    el.innerHTML='<div style="color:#64748B;font-size:13px">Aucun médecin à afficher.</div>';
+    return;
+  }
+  /* Le trait marque le passage à la double garde : sans lui, une année à
+     quatre noms se lirait comme une saisie incomplète. */
+  const bascule=annees.findIndex(a=>a.postes===8);
+  let h='<div style="font-size:12.5px;color:#475569;line-height:1.6;margin-bottom:16px">'
+    +'Qui a tenu l\'une des quatre dates — 24, 25, 31 décembre, 1<sup>er</sup> janvier — '
+    +'et quelle année. Lecture directe de l\'historique du service.</div>';
+  h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">';
+  h+='<thead><tr><th></th>';
+  annees.forEach((a,k)=>{
+    const bord=(k===bascule&&bascule>0)?'border-left:2px dashed #F59E0B;':'';
+    h+='<th style="'+bord+'text-align:center;width:62px;padding:0 0 8px;font-weight:600;color:#64748B;font-size:12px">'
+      +a.annee
+      +'<span style="display:block;margin-top:1px;font-size:11px;font-weight:500;color:'
+      +(a.tenus<a.postes?'#B45309':'#94A3B8')+'">'+a.tenus+'/'+a.postes+'</span></th>';
+  });
+  h+='<th style="padding:0 0 8px"></th></tr></thead><tbody>';
+  mars.forEach(m=>{
+    h+='<tr><td style="padding:5px 8px 5px 0;border-top:1px solid #F1F5F9;font-weight:700;white-space:nowrap">'
+      +esc(m.init)+'<small style="font-weight:500;color:#64748B;margin-left:7px">'
+      +esc((m.nom||'').replace(/^DR /,'').replace(/^PR /,''))+'</small></td>';
+    annees.forEach((a,k)=>{
+      const on=m.annees.indexOf(a.annee)>=0;
+      const bord=(k===bascule&&bascule>0)?'border-left:2px dashed #F59E0B;':'';
+      h+='<td style="'+bord+'text-align:center;padding:5px 0;border-top:1px solid #F1F5F9">'
+        +'<i style="display:inline-block;width:15px;height:15px;border-radius:50%;background:'
+        +(on?'#CE1126':'#E8EDF3')+'"></i></td>';
+    });
+    const d=m.last==null?'jamais':(currentYear-m.last);
+    h+='<td style="text-align:right;padding:5px 0 5px 10px;border-top:1px solid #F1F5F9;'
+      +'font-size:12px;color:#64748B;white-space:nowrap">'
+      +(m.last==null?'jamais':'il y a <b style="color:#0F172A">'+d+' an'+(d>1?'s':'')+'</b>')
+      +'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:12px;color:#64748B;margin-top:14px">'
+    +'<span><i style="display:inline-block;width:13px;height:13px;border-radius:50%;background:#CE1126;vertical-align:-2px"></i> a tenu</span>'
+    +'<span><i style="display:inline-block;width:13px;height:13px;border-radius:50%;background:#E8EDF3;vertical-align:-2px"></i> n\'a pas tenu</span>'
+    +(bascule>0?'<span style="border-left:2px dashed #F59E0B;padding-left:8px">'
+      +'la double garde porte le besoin de 4 à 8 médecins</span>':'')
+    +'</div>';
+  h+='<div style="font-size:12px;color:#94A3B8;line-height:1.6;margin-top:12px">'
+    +'Le chiffre sous chaque année compte les noms enregistrés sur ceux que l\'année mobilisait. '
+    +'À la génération, l\'algorithme sert d\'abord ceux qui n\'ont pas tenu ces dates depuis trois ans ; '
+    +'le choix final vous appartient.</div>';
+  el.innerHTML=h;
+}
+
 function getPeriodeDays(p){
   const days=[];
   const d=new Date(p.debut+'T12:00:00');
@@ -642,10 +714,10 @@ function unlockAll(){
   showToast('🔓 Toutes les cases sont modifiables — rien n\'a été effacé');
 }
 
-function toggleView(){
-  setView(currentView==='grille'?'recap':'grille');
-  document.getElementById('viewBtn').textContent=currentView==='grille'?'📊 Récap':'📅 Grille';
-}
+/* (01/09/2026) toggleView() a été supprimée avec le bouton « Récap » de la
+   barre rouge, son unique appelant. Elle lisait un élément #viewBtn qui
+   n'existe plus : la garder aurait laissé une fonction qui échoue au premier
+   appel. Le basculement passe par setView(), via le sélecteur Grille / Récap. */
 
 function isScolaire(date){return periodes.some(p=>date>=p.debut&&date<=p.fin);}
 
@@ -969,6 +1041,17 @@ function buildRecapPrioContent() {
   el.innerHTML = html;
 }
 </script>
+
+<!-- ── OVERLAY NOËL & JOUR DE L'AN ── -->
+<div id="recapNoelOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:600;align-items:center;justify-content:center;padding:16px">
+  <div style="background:white;border-radius:16px;width:100%;max-width:620px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #E2E8F0;position:sticky;top:0;background:white;z-index:1">
+      <div style="font-size:15px;font-weight:800;color:#0F172A">🎄 Noël &amp; Jour de l'An — qui a déjà donné</div>
+      <button onclick="closeRecapNoel()" style="border:none;background:none;font-size:18px;cursor:pointer;color:#94A3B8">✕</button>
+    </div>
+    <div id="recapNoelContent" style="padding:16px 20px">Chargement…</div>
+  </div>
+</div>
 
 <!-- ── OVERLAY RÉCAP PRIORITÉS ── -->
 <div id="recapPrioritesOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:600;align-items:center;justify-content:center;padding:16px">

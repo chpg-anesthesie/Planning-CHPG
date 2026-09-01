@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-09-01.3';
+const GAS_VERSION_INDISPOS = '2026-09-01.6';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -3402,9 +3402,16 @@ function _routeRequete_(e) {
 
     if (action === 'getNoelAnEligibles') {
       const yr = parseInt(payload.year) || getIndisposYear();
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true, year: yr, eligibles: computeNoelAnEligibles(yr, payload.tous === true)
-      })).setMimeType(ContentService.MimeType.JSON);
+      const _rep = { success: true, year: yr,
+                     eligibles: computeNoelAnEligibles(yr, payload.tous === true) };
+      /* (01/09/2026) `historique` : l'ÉQUIPE ENTIÈRE avec toutes ses années de
+         Noël, pour le tableau du staff. Champ à part, volontairement : le
+         contrôle du W2 (admin.html) travaille sur `eligibles`, c'est-à-dire les
+         seuls PRIORITAIRES. Élargir cette liste-là ferait signaler comme
+         bloquants des MAR que le comité n'a aucune raison de retenir. */
+      if (payload.historique === true) _rep.historique = computeNoelAnHistorique(yr);
+      return ContentService.createTextOutput(JSON.stringify(_rep))
+        .setMimeType(ContentService.MimeType.JSON);
     }
 
     if (action === 'getIndispos') {
@@ -6417,6 +6424,79 @@ function renderRecapMailBlocks_(synth, blocks) {
 // NOEL_PLAFOND) a ete SUPPRIMEE : aucune des trois lignes n'existait dans le classeur,
 // donc c'etait une lecture d'onglet a chaque affichage du bandeau pour rien.
 // SEUIL = 3 ans : "en retard" = jamais fait, ou pas fait depuis 3 ans.
+/* (01/09/2026) L'HISTORIQUE BRUT, pour le tableau du staff vacances.
+   Une ligne par MAR pouvant tenir Noël, avec TOUTES ses années passées.
+   Trié du plus ancien au plus récent — l'ordre de la rotation elle-même.
+
+   AUCUN jugement n'est rendu ici : ni « prioritaire », ni liste des huit à
+   servir. Décision d'Arthur du 01/09/2026 — il y a souvent plus de huit
+   candidats légitimes, et désigner huit noms donnerait à un calcul le dernier
+   mot sur un arbitrage qui revient au comité. L'écran montre, le comité
+   décide. Le générateur, lui, garde sa propre règle pour l'attribution
+   automatique : c'est computeNoelAnEligibles, inchangée.
+
+   `postes` dit combien de médecins l'année mobilisait : QUATRE jusqu'en 2024
+   (une garde par jour sur les quatre dates), HUIT depuis que la double garde
+   est effective — octobre 2025, donc dès le Noël 2025. Sans ce chiffre, une
+   année ancienne à quatre noms se lirait comme une année incomplète. */
+const NOEL_AN_DOUBLE_GARDE_DEPUIS = 2025;   // 4 postes avant, 8 à partir de là
+function noelAnPostes(annee) {
+  return Number(annee) >= NOEL_AN_DOUBLE_GARDE_DEPUIS ? 8 : 4;
+}
+
+function computeNoelAnHistorique(year) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const FLAGS = getMedecinFlags();
+  const planStart = toDateStr(getPremierJourPlanning(year));
+  const planEnd   = toDateStr(new Date(getPremierJourPlanning(year + 1).getTime() - 86400000));
+  const horsAnnee = id => { const dd=FLAGS.dateDebut[id], df=FLAGS.dateFin[id];
+    if(df && df<planStart) return true; if(dd && dd>planEnd) return true; return false; };
+  const detail = getNoelHistoryDetail(year);
+  const out = [];
+  const med = ss.getSheetByName('MEDECINS');
+  if (med) {
+    const md = med.getDataRange().getValues();
+    for (let r = 1; r < md.length; r++) {
+      const id = String(md[r][0]).trim(); if (!id || id === 'DRUGE') continue;
+      if (String(md[r][3]).trim().toUpperCase() !== 'O') continue;
+      if (FLAGS.noGarde.has(id)) continue;
+      if (FLAGS.souhaitPlafond.has(id)) continue;
+      if (horsAnnee(id)) continue;
+      const annees = detail[id] || [];
+      out.push({ id: id, init: String(md[r][2] || '').trim() || id,
+                 nom: String(md[r][1] || '').trim(),
+                 annees: annees,
+                 last: annees.length ? annees[annees.length - 1] : null });
+    }
+  }
+  out.sort(function (a, b) {
+    const ka = a.last == null ? [0, 0] : [1, a.last];
+    const kb = b.last == null ? [0, 0] : [1, b.last];
+    return ka[0] - kb[0] || ka[1] - kb[1] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  });
+  /* Les années à afficher en colonnes, et ce que chacune mobilisait. On part
+     de la plus ancienne trouvée, sans jamais dépasser huit colonnes : au-delà
+     le tableau devient illisible sur un écran de portable. */
+  const toutes = {};
+  out.forEach(function (x) { x.annees.forEach(function (a) { toutes[a] = true; }); });
+  let liste = Object.keys(toutes).map(Number).sort(function (a, b) { return a - b; });
+  const fin = year - 1;
+  if (!liste.length) liste = [fin];
+  for (let a = liste[liste.length - 1] + 1; a <= fin; a++) liste.push(a);
+  if (liste.length > 8) liste = liste.slice(liste.length - 8);
+  /* ⚠️ `tenus` compte TOUT l'historique de l'année, pas les seules lignes
+     affichées. Un médecin parti n'apparaît plus dans le tableau, mais il a bien
+     tenu sa garde : le compter à part ferait annoncer un trou là où l'année est
+     complète. Constaté sur les données réelles du 01/09 — deux anciens du
+     service faisaient afficher « 3/4 » sur une année pourtant pleine. */
+  const annees = liste.map(function (a) {
+    let n = 0;
+    Object.keys(detail).forEach(function (id) { if (detail[id].indexOf(a) >= 0) n++; });
+    return { annee: a, postes: noelAnPostes(a), tenus: n };
+  });
+  return { mars: out, annees: annees };
+}
+
 function computeNoelAnEligibles(year, tous) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 

@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-08-28.1';
+const GAS_VERSION_CODE = '2026-09-01.1';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 // Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
@@ -624,11 +624,23 @@ function loadPlanningOverrides() {
 // personne qui fait déjà Noël N-1. On ne compte QUE les années < beforeYear
 // (sinon régénérer une année compterait sa propre assignation) et on garde la
 // plus récente par MAR.
-function getNoelHistory(beforeYear) {
+/* (01/09/2026) TOUTES les années où chacun a tenu Noël ou le Jour de l'An,
+   pas seulement la dernière. Le staff a besoin de l'historique complet pour
+   arbitrer ; le générateur, lui, ne veut que la plus récente.
+   Une SEULE lecture des sources pour les deux besoins : getNoelHistory ne fait
+   plus que prendre le maximum de ce que rend cette fonction. Deux parcours
+   séparés auraient fini par diverger — c'est déjà arrivé sur la rotation des
+   groupes, où serveur et écran tournaient en sens inverse.
+   Rend { id: [années croissantes] }. */
+function getNoelHistoryDetail(beforeYear) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const lim = Number(beforeYear) || Infinity;
-  const hist = {};
-  const bump = (id, y) => { if (id && y < lim && (hist[id] == null || y > hist[id])) hist[id] = y; };
+  const detail = {};
+  const add = (id, y) => {
+    if (!id || !(y < lim) || !y) return;
+    const l = detail[id] || (detail[id] = []);
+    if (l.indexOf(y) < 0) l.push(y);
+  };
 
   // 1) HISTORIQUE (années archivées)
   const h = ss.getSheetByName('HISTORIQUE');
@@ -640,7 +652,7 @@ function getNoelHistory(beforeYear) {
       for (let r = 1; r < hd.length; r++) {
         const id = String(hd[r][cId]).trim(); if (!id) continue;
         if ((Number(hd[r][cNa]) || 0) <= 0) continue;
-        bump(id, Number(hd[r][cAn]) || 0);
+        add(id, Number(hd[r][cAn]) || 0);
       }
     }
   }
@@ -662,10 +674,23 @@ function getNoelHistory(beforeYear) {
         const v = String(data[r][Number(col)] || '').trim().toUpperCase();
         return v === 'G' || v === 'G2';
       });
-      if (did) bump(id, y);
+      if (did) add(id, y);
     }
   });
 
+  Object.keys(detail).forEach(id => detail[id].sort((a, b) => a - b));
+  return detail;
+}
+
+function getNoelHistory(beforeYear) {
+  /* (01/09/2026) N'est plus qu'une vue de getNoelHistoryDetail : la dernière
+     année de chacun. Le comportement rendu est identique à l'octet près, les
+     appelants (générateur, éligibles) n'ont pas bougé. */
+  const detail = getNoelHistoryDetail(beforeYear);
+  const hist = {};
+  Object.keys(detail).forEach(id => {
+    if (detail[id].length) hist[id] = detail[id][detail[id].length - 1];
+  });
   return hist;
 }
 
