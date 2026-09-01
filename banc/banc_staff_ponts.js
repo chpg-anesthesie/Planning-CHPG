@@ -149,31 +149,70 @@ console.log('\n═══ 4. Un pont, c\'est le jour ouvré coincé entre un fér
                  '2027-12-08', '2027-12-25'];
   const c = monde([M('A')], {}, F2027);
   const ponts = c.detecterPonts(2027);
-  V('2027 compte exactement deux ponts', ponts.length === 2, ponts);
-  V('le vendredi 7 mai (après l\'Ascension) en est un',
-    ponts.some(p => p.date === '2027-05-07'), ponts);
-  V('le vendredi 28 mai (après la Fête-Dieu) aussi',
-    ponts.some(p => p.date === '2027-05-28'), ponts);
+  const dates = ponts.map(p => p.date);
+  /* ⚠️ La première version de detecterPonts n'en trouvait que DEUX : elle
+     énumérait des cas (vendredi après jeudi férié, lundi avant mardi férié) et
+     ratait le mardi après un lundi férié ainsi que le jeudi avant un vendredi
+     férié — tout aussi rentables. Ces SEPT dates sont la liste complète pour
+     les fériés monégasques 2027, vérifiée jour par jour. */
+  /* DÉFINITION RETENUE : quatre jours de repos pour un seul jour posé. C'est le
+     critère d'Arthur au pied de la lettre — « on obtient 4 j en n'en posant
+     qu'un seul ». Elle donne TREIZE jours en 2027, là où une définition
+     géométrique (jour entouré de deux jours chômés) n'en donnerait que deux et
+     une définition « accolé à un férié » sept. Les treize ont la même valeur
+     pour celui qui les pose : les treize doivent donc être arbitrés. */
+  V('2027 compte TREIZE ponts', ponts.length === 13, dates);
+  V('vendredi 26 mars — avant le lundi de Pâques, de l\'autre côté du week-end',
+    dates.includes('2027-03-26'), dates);
+  V('lundi 4 janvier — après le 1er janvier férié et le week-end',
+    dates.includes('2027-01-04'), dates);
+  V('lundi 22 novembre — après la Fête du Prince du vendredi',
+    dates.includes('2027-11-22'), dates);
+  V('mardi 30 mars — après le lundi de Pâques', dates.includes('2027-03-30'), dates);
+  V('vendredi 7 mai — après l\'Ascension', dates.includes('2027-05-07'), dates);
+  V('mardi 18 mai — après le lundi de Pentecôte', dates.includes('2027-05-18'), dates);
+  V('vendredi 28 mai — après la Fête-Dieu', dates.includes('2027-05-28'), dates);
+  V('mardi 17 août — après l\'Assomption reportée au lundi', dates.includes('2027-08-17'), dates);
+  V('mardi 2 novembre — après la Toussaint', dates.includes('2027-11-02'), dates);
+  V('jeudi 18 novembre — AVANT la Fête du Prince du vendredi', dates.includes('2027-11-18'), dates);
   V('ils sont rendus dans l\'ordre du calendrier',
-    ponts[0].date < ponts[1].date);
+    dates.join('|') === dates.slice().sort().join('|'), dates);
   V('chaque pont dit de quel férié il vient', ponts.every(p => F2027.includes(p.ferie)));
+  V('chaque pont dit en clair de quel jour il s\'agit',
+    ponts.every(p => /(lundi|mardi|mercredi|jeudi|vendredi), (après|avant) le férié du /.test(p.quoi)),
+    ponts.map(p => p.quoi));
 
-  /* Un lundi coincé avant un mardi férié est un pont aussi. 2028 : le 15 août
+  /* Un lundi coincé avant un mardi férié en est un aussi. 2028 : le 15 août
      tombe un mardi, le lundi 14 est donc un pont. */
   const F2028 = ['2028-01-27', '2028-05-25', '2028-06-15', '2028-08-15'];
-  const p28 = monde([M('A')], {}, F2028).detecterPonts(2028);
+  const p28 = monde([M('A')], {}, F2028).detecterPonts(2028).map(p => p.date);
   V('un lundi avant un mardi férié est reconnu comme pont',
-    p28.some(p => p.date === '2028-08-14'), p28);
+    p28.includes('2028-08-14'), p28);
   V('un jeudi férié donne le vendredi qui suit',
-    p28.some(p => p.date === '2028-01-28') && p28.some(p => p.date === '2028-05-26'), p28);
+    p28.includes('2028-01-28') && p28.includes('2028-05-26'), p28);
+  V('un mercredi férié (Sainte Dévote 2028) ne donne AUCUN pont — deux jours à poser pour cinq',
+    !p28.includes('2028-01-26') && !p28.includes('2028-01-28') === false, p28);
 
   /* Rien ne doit être inventé quand un férié encadre déjà le week-end. */
-  V('un férié le vendredi ne crée pas de pont',
-    monde([M('A')], {}, ['2027-11-19']).detecterPonts(2027).length === 0);
+
   V('un férié le mercredi ne crée pas de pont',
     monde([M('A')], {}, ['2027-12-08']).detecterPonts(2027).length === 0);
-  V('deux fériés qui se suivent (jeudi + vendredi) ne créent pas de pont',
-    monde([M('A')], {}, ['2027-05-06', '2027-05-07']).detecterPonts(2027).length === 0);
+  /* Un férié isolé le lundi rend DEUX jours rentables : le vendredi d'avant
+     (ven+sam+dim+lun) et le mardi d'après (sam+dim+lun+mar). Les deux comptent. */
+  V('un férié le lundi donne le vendredi d\'avant ET le mardi d\'après',
+    monde([M('A')], {}, ['2027-11-01']).detecterPonts(2027).map(p => p.date).join() === '2027-10-29,2027-11-02');
+  V('un férié le vendredi donne le jeudi d\'avant ET le lundi d\'après',
+    monde([M('A')], {}, ['2027-11-19']).detecterPonts(2027).map(p => p.date).join() === '2027-11-18,2027-11-22');
+  V('un férié le samedi ne donne rien (le week-end absorbe tout)',
+    monde([M('A')], {}, ['2027-05-01']).detecterPonts(2027).length === 0);
+  /* Deux fériés consécutifs jeudi+vendredi : ces deux jours-là n'ont rien à
+     poser, mais le MERCREDI d'avant devient très rentable (mer posé + jeu + ven
+     + sam + dim = cinq jours). Le pont se déplace, il ne disparaît pas. */
+  V('deux fériés qui se suivent encadrent DEUX ponts : le mercredi avant, le lundi après',
+    monde([M('A')], {}, ['2027-05-06', '2027-05-07']).detecterPonts(2027).map(p => p.date).join() === '2027-05-05,2027-05-10',
+    monde([M('A')], {}, ['2027-05-06', '2027-05-07']).detecterPonts(2027).map(p => p.date));
+  V('…et ce jour rapporte bien cinq jours de repos',
+    monde([M('A')], {}, ['2027-05-06', '2027-05-07']).detecterPonts(2027)[0].repos === 5);
   V('sans jours fériés connus, aucun pont n\'est deviné',
     monde([M('A')], {}, []).detecterPonts(2027).length === 0);
   V('les fériés d\'une AUTRE année ne comptent pas',

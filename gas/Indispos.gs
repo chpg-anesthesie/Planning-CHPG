@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-09-01.1';
+const GAS_VERSION_INDISPOS = '2026-09-01.2';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -3836,7 +3836,25 @@ try {
         return ContentService.createTextOutput(JSON.stringify({success:true, stats,
           warnings: _genWarn.warnings, nbWarnings: _genWarn.nbWarnings}))
           .setMimeType(ContentService.MimeType.JSON);
-      } catch(err) { return _error(err.message); }
+      } catch(err) {
+        /* (LOT C · 01/09/2026) Un jour sans binôme n'est pas une panne : c'est
+           un diagnostic. Le générateur attache la STRUCTURE (err.joursVides) ;
+           la renvoyer telle quelle permet à l'écran de la mettre en forme.
+           Sans elle, le comité recevait trente lignes aplaties en un seul
+           paragraphe rouge, où le levier utile était noyé. */
+        if (err && err.joursVides) {
+          logAction('generateGardes ' + yearToGenerate + ' — bloqué : ' +
+            err.joursVides.length + ' jour(s) sans binôme (' +
+            err.joursVides.map(function (o) { return o.date; }).join(', ') + ')');
+          return ContentService.createTextOutput(JSON.stringify({
+            success: false,
+            error: err.joursVides.length + ' jour(s) sans binôme de garde — rien n\'a été écrit.',
+            joursVides: err.joursVides,
+            messageComplet: err.message
+          })).setMimeType(ContentService.MimeType.JSON);
+        }
+        return _error(err.message);
+      }
     }
     if (action === 'getGardes') {
       if (user.role !== 'admin') return _deny();

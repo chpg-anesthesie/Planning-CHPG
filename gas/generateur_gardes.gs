@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-09-01.1';
+const GAS_VERSION_GENERATEUR = '2026-09-01.2';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -586,35 +586,44 @@ function generateGardes(year){
             immediats:immediats, planning:planningC, profil:profil};
   }
   function _messageJoursVides_(detail){
+    /* (01/09/2026) VERSION COURTE. La première énumérait chaque MAR sur sa
+       propre ligne : sur un jour d'été, cela donnait trente lignes où le seul
+       geste utile était noyé — illisible à l'écran, constaté en production le
+       jour même. On GROUPE désormais par motif : « 7 indisponibilités : … »
+       se lit, sept lignes séparées ne se lisent pas.
+       L'écran du comité, lui, met en forme la structure `joursVides` ; ce texte
+       sert au journal et à l'éditeur Apps Script. */
+    /* [singulier, pluriel] — et l'ORDRE d'affichage va du plus facile à
+       retirer au plus coûteux : une indisponibilité se reprend d'un clic, un
+       congé validé au staff se renégocie. */
+    const LIB = {INDISPO:['indisponibilité','indisponibilités'],
+                 TP_LENDEMAIN:['temps partiel posé LE LENDEMAIN','temps partiels posés LE LENDEMAIN'],
+                 FORM:['jour de formation','jours de formation'],
+                 VAC:['jour de vacances','jours de vacances'],
+                 CL:['congé long','congés longs'], CTP:['congé','congés'],
+                 TP:['temps partiel','temps partiels']};
+    const ORDRE = ['INDISPO','TP_LENDEMAIN','FORM','VAC','CTP','TP','CL'];
     const L=[];
     L.push('❌ GÉNÉRATION IMPOSSIBLE — '+detail.length+' jour'+(detail.length>1?'s':'')+' sans binôme de garde.');
-    L.push('Aucun onglet n\'a été créé : le classeur est intact, vous pouvez corriger et relancer.');
+    L.push('Rien n\'a été écrit : aucun onglet, aucune notification. Corrigez et relancez.');
     detail.forEach(function(o){
       L.push('');
-      L.push('■ '+o.libelle.toUpperCase()+' — '+o.libres.length+' disponible'+(o.libres.length>1?'s':'')
-        +' sur les '+o.manque+' nécessaires. À libérer : '+o.aLiberer+'.');
-      if(o.vdRompu) L.push('  À ce stade, le vendredi et le dimanche sont pourvus SÉPARÉMENT '
-        +'(la règle du binôme unique a déjà cédé) : il suffit de libérer quelqu\'un CE JOUR-LÀ.');
-      /* Les vacances sont comptées, pas énumérées : sur un jour d'été elles
-         représentent 17 lignes qui noieraient le seul levier utile. */
-      const vac=o.immediats.filter(function(x){return x.code==='VAC';});
-      const autres=o.immediats.filter(function(x){return x.code!=='VAC';});
-      L.push('  ▸ CE QUE VOUS POUVEZ CHANGER TOUT DE SUITE :');
-      if(!vac.length&&!autres.length) L.push('     (rien — aucune absence saisie à retirer ce jour-là)');
-      autres.forEach(function(x){L.push('     • '+x.mar+' : '+x.texte);});
-      if(vac.length) L.push('     • '+vac.length+' MAR en vacances ce jour-là : '+vac.map(function(x){return x.mar;}).join(', ')
-        +'. En faire revenir '+o.aLiberer+' suffit à couvrir la garde.');
-      if(o.planning.length){
-        L.push('  ▸ BLOQUÉS PAR LE PLANNING LUI-MÊME (libérer ailleurs peut les débloquer) :');
-        o.planning.forEach(function(x){L.push('     • '+x.mar+' : '+x.texte);});
-      }
-      if(o.profil.length) L.push('  ▸ HORS DISPOSITIF CE JOUR-LÀ : '+o.profil.map(function(x){return x.mar+' ('+x.texte+')';}).join(' · '));
-      if(o.libres.length) L.push('  ▸ Déjà disponibles : '+o.libres.join(', ')
-        +' — insuffisant, un binôme demande deux personnes.');
+      L.push('■ '+o.libelle.toUpperCase()+' — '+o.libres.length+' disponible sur 2. À libérer : '+o.aLiberer+'.');
+      const parCode={};
+      o.immediats.forEach(function(x){
+        const k=x.code||'AUTRE';
+        (parCode[k]=parCode[k]||[]).push(x.mar);
+      });
+      const cles=Object.keys(parCode).sort(function(a,b){return ORDRE.indexOf(a)-ORDRE.indexOf(b);});
+      if(!cles.length) L.push('   Aucune absence à retirer ce jour-là : agir sur les jours voisins.');
+      cles.forEach(function(k){
+        const n=parCode[k].length, lib=LIB[k]||['absence','absences'];
+        L.push('   ▸ '+n+' '+(n>1?lib[1]:lib[0])+' : '+parCode[k].join(', '));
+      });
+      if(o.planning.length) L.push('   (bloqués par le planning : '+o.planning.map(function(x){return x.mar;}).join(', ')+')');
     });
     L.push('');
-    L.push('Corrigez, puis relancez : le placement est recalculé entièrement, '
-      +'d\'autres jours peuvent apparaître ou disparaître. Aucune promesse n\'est faite sur le résultat.');
+    L.push('Après correction, le planning est recalculé entièrement : d\'autres jours peuvent apparaître.');
     return L.join('\n');
   }
 

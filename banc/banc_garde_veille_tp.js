@@ -139,17 +139,26 @@ console.log('\n═══ 3. Un jour sans binôme arrête tout, sans rien écrire
   V('aucun onglet LIENS_R n\'a été créé', !ss.getSheetByName('LIENS_R_' + YEAR));
   if (error) {
     V('le message annonce l\'impossibilité', /GÉNÉRATION IMPOSSIBLE/.test(error), error.slice(0, 120));
-    V('le message rassure sur l\'état du classeur', /classeur est intact/.test(error));
+    V('le message rassure sur l\'état du classeur',
+      /Rien n'a été écrit : aucun onglet, aucune notification/.test(error), error.slice(0, 200));
     /* Le libellé est mis en MAJUSCULES par le message : la comparaison doit
        être insensible à la casse (la première version de ce test échouait,
        et c'est très bien — c'est son travail). */
     V('le message nomme au moins un jour en clair (jour, mois, année)',
       /(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche) \d+ [a-zûéèô]+ \d{4}/i.test(error), error.slice(0, 200));
-    V('le message ouvre le bloc des leviers immédiats', /CHANGER TOUT DE SUITE/.test(error));
-    V('le message compte les MAR en vacances plutôt que d\'en faire une liste sans fin',
-      /MAR en vacances ce jour-là/.test(error));
+    V('le message annonce combien de personnes libérer', /À libérer : \d+/.test(error), error.slice(0, 300));
+    /* (01/09/2026) Le message a été RACCOURCI après un essai en production : la
+       première version donnait une ligne par MAR, soit trente lignes rouges
+       aplaties en un seul paragraphe à l'écran. On groupe désormais par motif. */
+    V('les leviers sont groupés par motif, pas listés un par un',
+      /▸ \d+ (indisponibilités?|jours? de vacances|jours? de formation|temps partiels? posés? LE LENDEMAIN)/.test(error),
+      error.slice(0, 300));
+    V('le pluriel est correct (« 7 indisponibilités », pas « 7 indisponibilité »)',
+      !/▸ [2-9]\d* (indisponibilité|jour de vacances|jour de formation) :/.test(error), error.slice(0, 300));
+    V('le message tient en moins de 25 lignes pour deux jours en défaut',
+      error.split('\n').length < 30, error.split('\n').length);
     V('le message invite à relancer sans promettre le résultat',
-      /Aucune promesse n'est faite/.test(error));
+      /recalculé entièrement : d'autres jours peuvent apparaître/.test(error), error.slice(-200));
     /* L'affirmation FAUSSE corrigée le 01/09 ne doit jamais revenir. */
     V('le message ne réclame JAMAIS quelqu\'un de libre les deux jours du week-end',
       !/libre LES DEUX JOURS/.test(error), error.slice(0, 200));
@@ -225,6 +234,27 @@ console.log('\n═══ 4. Chaque levier proposé débloque réellement, et le 
     V('un jour de week-end vide est signalé comme pourvu SÉPARÉMENT de son jumeau',
       weekEnds.every(o => o.vdRompu === true), weekEnds.map(o => o.date));
   }
+}
+
+/* ═══ 4bis. La STRUCTURE part bien jusqu'à l'écran du comité ════════════ */
+console.log('\n═══ 4bis. Le serveur renvoie la structure, pas un pavé de texte ═══');
+{
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'gas', 'Indispos.gs'), 'utf8');
+  V('le routeur reconnaît une erreur porteuse de jours vides',
+    src.includes('if (err && err.joursVides)'));
+  V('il renvoie la structure au client', /joursVides: err\.joursVides/.test(src));
+  V('il garde le texte complet à part (journal, éditeur Apps Script)',
+    /messageComplet: err\.message/.test(src));
+  V('il trace le blocage dans LOGS avec les dates',
+    /generateGardes[\s\S]{0,120}bloqué[\s\S]{0,120}jour\(s\) sans binôme/.test(src));
+  const page = require('fs').readFileSync(require('path').join(__dirname, '..', 'admin.html'), 'utf8');
+  V('l\'écran met la structure en forme au lieu de l\'aplatir',
+    page.includes('Array.isArray(res.joursVides)'));
+  V('il groupe les leviers par motif', page.includes('const parCode = {}'));
+  V('il replie le détail des MAR non actionnables',
+    /Pourquoi les .{0,30}autres ne peuvent pas/.test(page));
+  V('la ligne d\'étape ne recopie pas le pavé quand le détail est déjà affiché',
+    page.includes('e.dejaAffiche'));
 }
 
 /* ═══ 5. ÉQUIVALENCE motifBlocage ⇔ blocked, sur une année entière ═══════ */

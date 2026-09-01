@@ -481,28 +481,56 @@ function vivierGarde(date){return medecins.filter(m=>gardeurDispo(m,date)).lengt
 function vivierClasse(n){return n<VIVIER_MINI?'hot':(n<VIVIER_CONFORT?'warn':'ok');}
 
 /* ══ (LOT E · 01/09/2026) LES PONTS ════════════════════════════════════════
-   Un pont, c'est le jour ouvré coincé entre un férié et le week-end : le
-   vendredi qui suit un jeudi férié, le lundi qui précède un mardi férié. Il
-   est très rentable — un seul jour de congé posé en rapporte quatre — et
-   c'était jusqu'ici un libre-service : le premier qui posait l'emportait.
+   Un pont, c'est le jour ouvré qui, posé seul, en rapporte QUATRE : il se
+   colle d'un côté à un férié, de l'autre au week-end. C'est le jour le plus
+   demandé de l'année, et c'était jusqu'ici un libre-service — le premier qui
+   posait l'emportait.
    Décision du comité (01/09/2026) : les ponts s'attribuent AU STAFF VACANCES,
    avant la génération des gardes, pour que l'équité soit réglée d'emblée.
    Pas de dette d'une année sur l'autre : le problème de l'année N+1 se règle
    au staff de l'année N. Un pont consomme un jour du quota de vacances, comme
    n'importe quel autre.
-   2027 en compte deux : les vendredis 7 et 28 mai. */
+
+   ⚠️ (correctif du 01/09/2026, même jour) La première version ne cherchait que
+   DEUX configurations — le vendredi après un jeudi férié, le lundi avant un
+   mardi férié — et en ratait deux autres, tout aussi rentables :
+     · le MARDI qui suit un lundi férié (samedi, dimanche, férié, mardi posé) ;
+     · le JEUDI qui précède un vendredi férié (jeudi posé, férié, week-end).
+   Sur les fériés monégasques de 2027, la bonne définition en donne SEPT, pas
+   deux. Elle est donc écrite ici de façon générale — un jour ouvré dont la
+   veille ET le lendemain sont chômés — plutôt qu'en énumérant des cas, qui
+   est précisément ce qui avait fait manquer la moitié des ponts.
+   Les mercredis fériés (Sainte Dévote, Immaculée Conception) ne donnent pas
+   de pont : il faudrait poser deux jours pour en gagner cinq, moitié moins
+   rentable. Ils ne sont volontairement pas comptés. */
 function detecterPonts(annee){
   if(!joursFeries.size) return [];
   const ds=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const chome=x=>{const w=x.getDay(); return w===0||w===6||joursFeries.has(ds(x));};
+  const JJ=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
   const out=[];
-  Array.from(joursFeries).sort().forEach(f=>{
-    if(!f.startsWith(String(annee))) return;
-    const d=new Date(f+'T12:00:00'), dw=d.getDay();
-    if(dw===4){ const v=new Date(d); v.setDate(v.getDate()+1);
-      if(!joursFeries.has(ds(v))) out.push({date:ds(v), ferie:f, quoi:'vendredi, après le férié du jeudi'}); }
-    if(dw===2){ const l=new Date(d); l.setDate(l.getDate()-1);
-      if(!joursFeries.has(ds(l))) out.push({date:ds(l), ferie:f, quoi:'lundi, avant le férié du mardi'}); }
-  });
+  for(let d=new Date(annee,0,1); d.getFullYear()===annee; d.setDate(d.getDate()+1)){
+    if(chome(d)) continue;                                   // déjà chômé : rien à poser
+    /* La règle est ARITHMÉTIQUE, pas géométrique : on compte la série de repos
+       que ce seul jour posé créerait, en remontant et en descendant tant que
+       c'est chômé. Quatre jours ou plus, et au moins un férié dans la série :
+       c'est un pont. Un vendredi ordinaire n'en fait que trois. */
+    let n=1, ferie=null;
+    for(const pas of [-1,1]){
+      const x=new Date(d);
+      for(;;){ x.setDate(x.getDate()+pas);
+        if(!chome(x)) break;
+        if(joursFeries.has(ds(x))&&!ferie) ferie=ds(x);
+        n++;
+        if(n>10) break;                                      // garde-fou : jamais de boucle folle
+      }
+    }
+    if(n<4||!ferie) continue;
+    const fd=new Date(ferie+'T12:00:00');
+    out.push({date:ds(d), ferie:ferie, repos:n,
+      quoi:JJ[d.getDay()]+', '+(ferie<ds(d)?'après':'avant')+' le férié du '+JJ[fd.getDay()]
+        +' — '+n+' jours de repos pour un seul jour posé'});
+  }
   return out.sort((a,b)=>a.date<b.date?-1:1);
 }
 
