@@ -360,5 +360,41 @@ console.log('\n═══ 8. L\'historique de Noël se consulte au lieu de défil
     /computeNoelAnHistorique[\s\S]{0,1400}FLAGS\.noGarde\.has\(id\)[\s\S]{0,120}FLAGS\.souhaitPlafond\.has\(id\)/.test(ind));
 }
 
+/* ═══ 9. Le quota se compte en jours TRAVAILLÉS ═════════════════════════ */
+console.log('\n═══ 9. staff.html · ni les week-ends ni les fériés ne mangent le quota ═══');
+{
+  /* (01/09/2026) Cet écran ne retirait que les week-ends, quand le serveur et
+     l'écran du MAR retirent aussi les fériés. Douze MAR étaient annoncés
+     au-dessus de leur quota sur un jeu réel, uniquement parce que leurs congés
+     enjambaient des jours fériés. */
+  const ctx = vm.createContext({ Date, Set, String, Object, Number, Math, Array, console, RegExp });
+  ctx.globalThis = ctx;
+  ctx.saisies = { AA: {
+    '2027-05-03':'VAC','2027-05-04':'VAC','2027-05-05':'VAC',
+    '2027-05-06':'VAC',                       // Ascension — férié, ne doit rien coûter
+    '2027-05-07':'VAC',
+    '2027-05-08':'VAC','2027-05-09':'VAC',    // samedi et dimanche — idem
+    '2027-05-10':'VAC' } };
+  ctx.joursFeries = new Set(['2027-05-06']);
+  vm.runInContext(extraire('isWeekend'), ctx);
+  vm.runInContext(extraire('estChome'), ctx);
+  vm.runInContext(extraire('countForMAR'), ctx);
+  V('un bloc de 8 jours enjambant un férié et un week-end compte 5 jours',
+    ctx.countForMAR('AA', 'VAC') === 5, ctx.countForMAR('AA', 'VAC'));
+  /* Contre-preuve : sans le retrait des fériés, on compterait 6. Le test
+     n° 1 ne prouverait rien si les deux règles donnaient le même chiffre. */
+  const ctx2 = vm.createContext({ Date, Set, String, Object, Number, Math, Array, console, RegExp });
+  ctx2.globalThis = ctx2; ctx2.saisies = ctx.saisies; ctx2.joursFeries = new Set();
+  vm.runInContext(extraire('isWeekend'), ctx2);
+  vm.runInContext(extraire('estChome'), ctx2);
+  vm.runInContext(extraire('countForMAR'), ctx2);
+  V('sans jours fériés connus, le même bloc en compte 6 (l\'ancien comportement)',
+    ctx2.countForMAR('AA', 'VAC') === 6, ctx2.countForMAR('AA', 'VAC'));
+  V('le compte passe par estChome, pas par isWeekend seul',
+    /countForMAR[\s\S]{0,240}estChome\(d\)/.test(src) && !/src\[d\]===type&&!isWeekend\(d\)/.test(src));
+  V('estChome retire bien les deux : week-end ET férié',
+    /function estChome\(ds\)\{ return isWeekend\(ds\) \|\| joursFeries\.has\(ds\); \}/.test(src));
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);

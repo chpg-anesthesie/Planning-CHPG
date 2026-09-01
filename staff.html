@@ -496,7 +496,22 @@ function getPeriodeDays(p){
 
 function formatDay(ds){const d=new Date(ds+'T12:00:00');return JOURS_FR[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1);}
 function isWeekend(ds){const d=new Date(ds+'T12:00:00').getDay();return d===0||d===6;}
-function countForMAR(marId,type,days){const src=saisies[marId]||{};if(!days)return Object.keys(src).filter(d=>src[d]===type&&!isWeekend(d)).length;return days.filter(d=>src[d]===type&&!isWeekend(d)).length;}
+/* (01/09/2026) LE QUOTA SE COMPTE EN JOURS TRAVAILLÉS : ni week-end, NI FÉRIÉ.
+   Cet écran ne retirait que les week-ends. Le serveur (Indispos.gs,
+   totalVacDoc) et l'écran du MAR (indispos.html) retirent les deux depuis
+   toujours : trois écrans, deux règles, et le comité voyait des dépassements
+   qui n'existaient pas. Constaté le 01/09 sur un jeu réel — douze MAR
+   annoncés au-dessus de leur quota, dont un à 35 jours pour 33, uniquement
+   parce que ses congés traversaient des jours fériés.
+   Un bloc de congés qui enjambe le 1er mai reste posé sur le 1er mai : c'est
+   la saisie normale. Ce jour-là n'était simplement pas travaillé, il ne coûte
+   rien au quota. Même raison que pour les temps partiels, qui ne se posent
+   jamais un férié.
+   `joursFeries` est alimenté à l'ouverture depuis la copie rapide ; s'il est
+   vide, le compte retombe sur l'ancien comportement plutôt que de mentir dans
+   l'autre sens. */
+function estChome(ds){ return isWeekend(ds) || joursFeries.has(ds); }
+function countForMAR(marId,type,days){const src=saisies[marId]||{};if(!days)return Object.keys(src).filter(d=>src[d]===type&&!estChome(d)).length;return days.filter(d=>src[d]===type&&!estChome(d)).length;}
 function countForDay(date){return medecins.filter(m=>{const v=(saisies[m.id]||{})[date];return v==='VAC'||v==='FORM';}).length;}
 function tension(date,seuil){const n=countForDay(date);if(n>=seuil)return'hot';if(n>=Math.floor(seuil*.7))return'warn';return'ok';}
 
