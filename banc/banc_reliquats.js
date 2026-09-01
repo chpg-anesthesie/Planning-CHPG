@@ -103,8 +103,10 @@ console.log('\n═══ 4. admin.html · le panneau de l\'onglet Statuts ══
   V('le bloc apparaît avec l\'onglet Statuts',
     /_rb\.style\.display='block'/.test(ADM));
   /* Un compteur périmé sur un écran de saisie vaut moins que pas de compteur. */
+  /* La fenêtre doit rester assez large : un commentaire inséré entre les deux
+     lignes a fait échouer la première version de ce test sur du code correct. */
   V('le cache est vidé à chaque chargement de l\'onglet (l\'année a pu changer)',
-    /if\(_rb\) _rb\.style\.display='block';[\s\S]{0,240}_reliquatsData=null;/.test(ADM));
+    /if\(_rb\) _rb\.style\.display='block';[\s\S]{0,700}_reliquatsData=null;/.test(ADM));
   V('poser ou retirer un statut invalide le compte',
     /setDailyStatus[\s\S]{0,420}_reliquatsData = null;/.test(ADM));
   V('…et rafraîchit le panneau s\'il est ouvert',
@@ -112,7 +114,25 @@ console.log('\n═══ 4. admin.html · le panneau de l\'onglet Statuts ══
   V('une panne de chargement le dit au lieu d\'afficher un tableau vide',
     /Reliquats indisponibles/.test(ADM));
   V('un quota nul affiche un tiret, jamais « 0 / 0 »',
-    /if \(!o\.quota\) return '<td[^']*'>—<\/td>'/.test(ADM) || /return '<td style="text-align:center;padding:6px 8px;color:#CBD5E1">—<\/td>'/.test(ADM));
+    /return '<td style="text-align:center;padding:6px 8px;color:#CBD5E1">—<\/td>'/.test(ADM));
+  /* (01/09/2026) L'écran affiche POSÉ sur QUOTA — « 37/37 » se lit d'un coup,
+     là où un reste demandait de savoir ce que le premier chiffre voulait dire. */
+  V('chaque case donne les jours posés sur le quota',
+    /o\.pose \+ '\/' \+ o\.quota/.test(ADM));
+  V('vert quand le compte y est, rouge quand il manque des jours',
+    /const complet = o\.reste <= 0;/.test(ADM) && /complet \? '#166534' : '#B91C1C'/.test(ADM));
+  V('le nombre de jours restants reste visible sous la case',
+    /o\.reste \+ ' à poser<\/div>'/.test(ADM));
+  V('le serveur rend bien le nombre posé, pas seulement le reste',
+    /vac:  \{ pose: p\.vac,  quota: q\.vac,  reste: q\.vac  - p\.vac \}/.test(IND));
+  /* L'onglet Statuts suit l'année choisie en haut d'écran, qui n'est pas
+     forcément celle qu'on a en tête : un reliquat de 2026 lu comme un
+     reliquat de 2027 fait croire à une campagne mal remplie. Constaté le
+     01/09 — le chiffre était juste, la lecture non. */
+  V('le libellé du bouton porte l\'année regardée',
+    /_bt\.textContent='📋 Ce qu\\'il reste à poser · '\+ADMIN_YEAR/.test(ADM));
+  V('…et il est remis à jour à chaque chargement de l\'onglet',
+    /_rb\.style\.display='block';[\s\S]{0,420}btnReliquats/.test(ADM));
   V('les MAR sans reliquat sont estompés, pas cachés',
     /const zero = x\.vac\.reste <= 0 && x\.form\.reste <= 0 && x\.tp\.reste <= 0;/.test(ADM));
   V('l\'écran rappelle qu\'une garde ne se remplace pas par un congé',

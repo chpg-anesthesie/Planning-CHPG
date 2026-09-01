@@ -3043,14 +3043,21 @@ async function renderReliquats(){
   }
   const d = _reliquatsData;
   const esc = t => String(t == null ? '' : t).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
-  /* Une case vide quand le quota est nul : un temps plein n'a pas de temps
+  /* On affiche POSÉ sur QUOTA — « 37/37 » se lit d'un coup, là où « 0/37 »
+     demandait de savoir que le premier chiffre était un reste. Vert quand le
+     compte y est, rouge quand il manque des jours.
+     Une case vide quand le quota est nul : un temps plein n'a pas de temps
      partiel à poser, lui afficher « 0/0 » ferait croire à un compteur. */
   const cel = (o, attente) => {
     if (!o.quota) return '<td style="text-align:center;padding:6px 8px;color:#CBD5E1">—</td>';
-    const c = o.reste > 0 ? '#B45309' : '#166534';
+    const complet = o.reste <= 0;
+    const c = complet ? '#166534' : '#B91C1C';
+    const fond = complet ? '#F0FDF4' : '#FEF2F2';
     return '<td style="text-align:center;padding:6px 8px">'
-      + '<b style="color:' + c + '">' + o.reste + '</b>'
-      + '<span style="color:var(--ink-4);font-size:11px"> / ' + o.quota + '</span>'
+      + '<span style="display:inline-block;background:' + fond + ';color:' + c
+      + ';border-radius:6px;padding:2px 9px;font-weight:700">'
+      + o.pose + '/' + o.quota + '</span>'
+      + (o.reste > 0 ? '<div style="font-size:10.5px;color:#B91C1C">' + o.reste + ' à poser</div>' : '')
       + (attente ? '<div style="font-size:10.5px;color:#6D28D9">' + attente + ' en attente</div>' : '')
       + '</td>';
   };
@@ -3080,7 +3087,7 @@ async function renderReliquats(){
   h += '</tbody></table></div>';
   h += '<div style="font-size:12px;color:var(--ink-4);line-height:1.6;margin-top:11px">'
     + (rien ? rien + ' MAR ont encore des jours à placer. ' : 'Tout est placé. ')
-    + 'Le chiffre en gras est ce qui reste, l\'autre le quota de l\'année. '
+    + 'Chaque case donne les jours posés sur le quota de l\'année : vert quand le compte y est. '
     + 'Une garde ou un repos de garde ne peut pas être remplacé par un congé : '
     + 'ces jours-là passent par un échange.</div>';
   p.innerHTML = h;
@@ -3141,6 +3148,12 @@ async function loadStatuts(){
        compteur périmé sur un écran de saisie vaut moins que pas de compteur. */
     { const _rb=document.getElementById('reliquatsBloc'), _rp=document.getElementById('reliquatsPanel');
       if(_rb) _rb.style.display='block';
+      /* (01/09/2026) L'ANNÉE DANS LE LIBELLÉ. L'onglet Statuts suit l'année
+         choisie en haut d'écran, qui n'est pas forcément celle qu'on a en
+         tête : un reliquat de 2026 lu comme un reliquat de 2027 fait croire à
+         une campagne mal remplie. Le chiffre était juste, la lecture non. */
+      { const _bt=document.getElementById('btnReliquats');
+        if(_bt) _bt.textContent='📋 Ce qu\'il reste à poser · '+ADMIN_YEAR; }
       if(_rp && _rp.style.display!=='none'){ _reliquatsData=null; renderReliquats(); }
       else _reliquatsData=null; }
     const actifs=marData.filter(m=>m.actif);
