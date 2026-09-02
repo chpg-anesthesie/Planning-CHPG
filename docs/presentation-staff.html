@@ -228,6 +228,11 @@ h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-
   gap:4vw;margin:4.5vh 0;align-items:start}
 .stat .n{font-family:var(--mono);font-size:clamp(42px,6.4vw,92px);font-weight:500;
   color:var(--red);letter-spacing:-.04em;line-height:1;white-space:nowrap}
+/* (02/09/2026) Colonnes egales + nombres de largeurs tres inegales : « 287 938 »
+   remplissait presque toute sa colonne et venait toucher le nombre suivant,
+   pendant que « 400 » laissait un grand vide apres lui. L espacement paraissait
+   irregulier alors que la grille etait juste. On reduit le seul nombre long. */
+.stat .n.long{font-size:clamp(32px,4.4vw,64px)}
 .stat .l{font-size:clamp(14px,1.5vw,20px);font-weight:600;color:var(--ink-2);margin-top:1vh;max-width:14em;line-height:1.35}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:1.6vw;margin-top:1vh}
 /* (02/09/2026) Quatre cartes tombaient en 3 + 1 : la derniere restait seule et
@@ -721,7 +726,7 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
   <h2>Testé sur 400 années<br>de planning</h2>
   <div class="stats">
     <div class="stat"><div class="n">400</div><div class="l">années simulées — 20 scénarios d'absences, 20 ans chacun</div></div>
-    <div class="stat"><div class="n">287&nbsp;938</div><div class="l">gardes placées&nbsp;: 394 années générées, deux par jour</div></div>
+    <div class="stat"><div class="n long">287&nbsp;938</div><div class="l">gardes placées&nbsp;: 394 années générées, deux par jour</div></div>
     <div class="stat"><div class="n">6</div><div class="l">années sur 400 refusent de générer — aucun planning troué, jamais</div></div>
   </div>
   <p class="sub">On n'a pas testé sur une année qui tombe bien&nbsp;: <b>vingt fois le même volume de congés, posé autrement</b>. Puis <b>2027 a été générée pour de vrai</b> dans le classeur du service — aucune journée sans binôme, et <b>chacun à moins d'une garde</b> de sa cible.</p>
