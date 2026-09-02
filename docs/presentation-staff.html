@@ -230,6 +230,12 @@ h2{font-size:clamp(30px,4.2vw,58px);font-weight:800;letter-spacing:-.025em;line-
   color:var(--red);letter-spacing:-.04em;line-height:1;white-space:nowrap}
 .stat .l{font-size:clamp(14px,1.5vw,20px);font-weight:600;color:var(--ink-2);margin-top:1vh;max-width:14em;line-height:1.35}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:1.6vw;margin-top:1vh}
+/* (02/09/2026) Quatre cartes tombaient en 3 + 1 : la derniere restait seule et
+   etroite sur une deuxieme ligne, la moitie de l ecran vide a cote. On fixe
+   quatre colonnes egales, deux sous 1100 px, une sur telephone. */
+.cards.q4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:1100px){.cards.q4{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:620px){.cards.q4{grid-template-columns:1fr}}
 .cards .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:3vh 1.8vw}
 .cards .card .t{font-size:clamp(16px,1.7vw,23px);font-weight:800;letter-spacing:-.01em;margin-bottom:1vh}
 .cards .card .d{font-size:clamp(13.5px,1.35vw,18px);color:var(--ink-3);line-height:1.5}
@@ -710,12 +716,12 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
   </div>
 </section>
 
-<section class="slide s2" data-notes="Ouverture de la preuve : les 3 chiffres defilent comme les 730 du debut. 400 annees = 20 scenarios d absences differents de 20 ans chacun (2027-2046), enchaines comme en vrai, chaque annee heritant de la precedente. 287 938 gardes placees. 0 journee non pourvue. 6 annees sur 400 refusent de se generer (1,5 %) - toutes fin decembre, quand il reste 3 gardeurs sur 17, et toutes SIGNALEES par le generateur (message Manque MAR). Ne pas annoncer un zero absolu : le premier compteur utilise etait aveugle aux journees entierement vides. Le point a marteler : on n a pas teste sur une annee qui tombe bien - meme volume de conges a chaque fois, mais pose differemment, vingt manieres dont l equipe pourrait reellement s organiser. Enchainer sur les conditions du test.">
+<section class="slide s2" data-notes="SI QUELQU UN FAIT LE CALCUL : 400 x 365 x 2 = 292 000, pas 287 938. Deux raisons. 1) SIX annees sur 400 refusent de se generer : elles ne placent aucune garde, il en reste 394. 2) Une annee de planning ne fait pas 365 jours mais 364 ou 371 - du premier lundi de janvier au dimanche precedant le premier lundi suivant. Sur 2027-2046 : seize annees de 364 jours, quatre de 371, soit 365,40 en moyenne. 394 x 365,40 x 2 = 287 935, mesure 287 938. Ouverture de la preuve : les 3 chiffres defilent comme les 730 du debut. 400 annees = 20 scenarios d absences differents de 20 ans chacun (2027-2046), enchaines comme en vrai, chaque annee heritant de la precedente. 287 938 gardes placees. 0 journee non pourvue. 6 annees sur 400 refusent de se generer (1,5 %) - toutes fin decembre, quand il reste 3 gardeurs sur 17, et toutes SIGNALEES par le generateur (message Manque MAR). Ne pas annoncer un zero absolu : le premier compteur utilise etait aveugle aux journees entierement vides. Le point a marteler : on n a pas teste sur une annee qui tombe bien - meme volume de conges a chaque fois, mais pose differemment, vingt manieres dont l equipe pourrait reellement s organiser. Enchainer sur les conditions du test.">
   <div class="eyebrow">Le banc d'essai</div>
   <h2>Testé sur 400 années<br>de planning</h2>
   <div class="stats">
     <div class="stat"><div class="n">400</div><div class="l">années simulées — 20 scénarios d'absences, 20 ans chacun</div></div>
-    <div class="stat"><div class="n">287&nbsp;938</div><div class="l">gardes placées, enchaînées comme en vrai</div></div>
+    <div class="stat"><div class="n">287&nbsp;938</div><div class="l">gardes placées&nbsp;: 394 années générées, deux par jour</div></div>
     <div class="stat"><div class="n">6</div><div class="l">années sur 400 refusent de générer — aucun planning troué, jamais</div></div>
   </div>
   <p class="sub">On n'a pas testé sur une année qui tombe bien&nbsp;: <b>vingt fois le même volume de congés, posé autrement</b>. Puis <b>2027 a été générée pour de vrai</b> dans le classeur du service — aucune journée sans binôme, et <b>chacun à moins d'une garde</b> de sa cible.</p>
@@ -756,7 +762,7 @@ mark.hl{color:inherit;background:linear-gradient(rgba(206,17,38,.17),rgba(206,17
 
 <section class="slide s2" data-notes="ACTE 3. Basculer sur le planning généré (index.html ou admin). Zoomer sur la ligne de Wajdi : zéro garde sur ses indispos, compteurs à la cible. Montrer l'onglet Équité et son certificat — les stats d'équité, d'emblée. Puis lancer l'envoi des récaps — annoncer clairement à l'oral : « le mail que vous recevez est FICTIF, supprimez-le, le vrai arrive en novembre ». DEUX choses arrivent sur les téléphones : la NOTIFICATION « Les gardes 2027 sont générées », partie automatiquement à la fin de la génération vers tous ceux qui l'ont activée à la diapo 7 (canal ouvert à tous par Arthur le 16/08) — c'est le clou de la démo, laisser le temps que ça sonne dans la salle — puis le MAIL de récapitulatif. Montrer le mail du volontaire si possible. ||| NE PAS CONCLURE ICI : enchainer directement sur l'ACTE 4, la pose des temps partiels (diapo suivante). | DÉTAIL : Zéro garde sur les jours que notre volontaire vient de bloquer. / Ses compteurs — week-ends, samedis, jeudis, total — à la cible, comme tout le monde. / Le certificat d'équité du planning tout juste généré, dans l'onglet Équité — l'écart de chacun à sa cible, noir sur blanc. / Chacun reçoit son récapitulatif par mail, séance tenante. / Ce planning est un exemple, avec des indisponibilités fictives : il sera effacé après le staff, et le mail reçu est à supprimer. Le vrai planning sera généré en novembre, à partir de vos saisies d'octobre.">
   <h2>Le résultat</h2>
-  <div class="cards" style="margin-top:3vh">
+  <div class="cards q4" style="margin-top:3vh">
     <div class="card"><div class="t">Ses indispos, respectées</div><div class="d">Zéro garde sur les jours bloqués.</div></div>
     <div class="card"><div class="t">Sa juste part</div><div class="d">Week-ends, samedis, jeudis&nbsp;: à la cible.</div></div>
     <div class="card"><div class="t">L'équité, certifiée</div><div class="d">L'écart de chacun à sa cible, noir sur blanc.</div></div>
