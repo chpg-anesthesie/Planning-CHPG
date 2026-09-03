@@ -11,10 +11,15 @@ chiffres concrets plutôt que des généralités.
 
 *Si tu ne lis qu'une chose, lis ceci. Le détail complet est en partie 2.*
 
-## ⚠️ LE 4 SEPTEMBRE 2026 : GÉNÉRATION 2027 JOUÉE EN DIRECT DEVANT LE STAFF
+## ⚠️ LE 4 SEPTEMBRE 2026 : LE STAFF
 
-Arthur ne montre pas un planning déjà fait : il **lance la génération en séance**. Celui du 25/08
-sera **régénéré** ce jour-là.
+**Révision du 03/09 au soir : le W1 ne sera PAS joué en direct.** La porte d'entrée d'Apps Script
+s'est montrée capricieuse ce soir-là (404 sur le canal de réponse, délais dépassés). Arthur passe
+le W1 la veille et montre un résultat. `staff.html` est ouvert **avant** la séance et **n'est pas
+rechargé** : les jours fériés n'y sont lus qu'à l'ouverture.
+
+*Intention initiale, conservée pour mémoire :* lancer la génération en séance, en régénérant celle
+du 25/08.
 
 **`NOTIF_ACTIVE` est le vrai interrupteur** : quand il ne vaut pas `O`, le système prend quand même
 la photo et se tait — **aucun arriéré ne peut s'accumuler**. Inutile de toucher aux fichiers
@@ -32,6 +37,155 @@ colonne EMAIL du classeur, directement.
 **Filtre des mails de changement** : un par MAR, ses seules dates. Statut (garde, astreinte,
 absence) → toujours signalé, même à six mois. Secteur (affectation en journée) → seulement dans la
 fenêtre du dernier Excel (vendredi 16 h → dimanche +9).
+
+---
+
+## État au 3 septembre 2026 (soir) — la veille du staff
+
+Site **v10.8.1**, banc **2531 vérifications sur 54 scripts, 0 échec**. Quatre commits ce soir-là :
+`2fb03e94`, `c238c4ab`, `908bce5b`, `f3b44286`. **Aucun `.gs` modifié : rien à recopier.**
+Versions du dépôt : `code.gs` 2026-09-01.1, `Indispos.gs` 2026-09-03.1,
+`generateur_gardes.gs` 2026-09-01.2, `portail.gs` 2026-08-31.1.
+
+⚠️ **Ce qui est déployé ne se déduit pas du dépôt.** Seule la sonde « Code déployé vs dépôt » du
+🔍 Diagnostic le dit. Indice partiel : `LOGS` du 02/09 porte les lignes « avertissement 1/4 · 2027 »
+du lot 2026-09-01.3, donc ce lot-là tournait bien.
+
+### Décision d'Arthur sur le déroulé du 4 septembre
+
+**Le W1 ne sera PAS joué en direct.** La porte d'entrée d'Apps Script s'est montrée capricieuse le
+03/09 au soir (voir ci-dessous). Le W1 a été passé la veille ; le 4, Arthur montre un résultat.
+
+**`staff.html` sera ouvert avant le staff et NE SERA PAS RECHARGÉ.** Les jours fériés y sont lus
+**une seule fois**, à l'ouverture. Tant que la page n'est pas rechargée, l'onglet Ponts continue de
+fonctionner même si Google tombe ensuite. Le seul geste qui casse tout, c'est F5.
+
+**Ce qui survit sans Apps Script** (copie rapide) : l'entrée dans `staff.html`, la liste des MAR,
+les périodes, les groupes, les congés déjà saisis, le planning et l'équité côté `index.html` et
+`dashboard.html`. **Ce qui ne survit pas** : toute saisie. `saveIndisposBatch` et « Valider et
+verrouiller » partent en direct, sans file d'attente — le journal d'intentions ne couvre que les
+placements, les statuts et la publication. **On peut montrer, on ne peut pas enregistrer.**
+
+### Règles gravées ce jour
+
+- **Un message d'attente qui ne peut pas se résoudre est un mensonge.** « Rouvrez la page dans un
+  instant » s'affichait sur un cul-de-sac : la clé attendue n'existait pas et n'allait pas
+  apparaître. Un écran qui invite à réessayer doit avoir une chance d'aboutir au réessai.
+- **Une clé de la copie rapide n'existe que si sa famille a une source déclenchante.**
+  `joursferies` est classée « sans source » (`banc_miroir.js`) : elle n'est construite que par la
+  synchro horaire, et seulement pour les années possédant un onglet `GARDES_{Y}`. Donc jamais
+  pendant la campagne de l'année suivante. **Toute lecture de la copie rapide a besoin d'un
+  repli**, comme les périodes de vacances en ont un depuis le 13/08.
+- **Une correction faite sur un écran doit être cherchée sur tous les autres.** Les bornes de
+  l'année de planning avaient été posées dans `indispos.html` le 12/08 (banc T072) ; `staff.html`
+  ne les avait jamais reçues, et laissait poser des congés sur trois jours qui n'existent pas au
+  classeur. Le serveur les jetait en silence en répondant « enregistré ».
+- **Deux écrans qui rejouent le même calcul ne se contrôlent pas l'un l'autre : ils se répètent.**
+  L'écran « Vacances » du W2 refaisait exactement le calcul des conflits de l'étape précédente —
+  même rotation, même seuil, même test. Il était vert par construction dès que l'étape 1 laissait
+  passer. Supprimé.
+- **Un chiffre affiché qui n'entre dans aucun calcul finit par tromper.** « ✓ 127 jour(s) »
+  additionnait VAC, FORM, INDISPO, SOUHAIT, TP et CL : il mesurait une quotité, pas une saisie.
+  Le seul test réel a toujours été « zéro ou pas zéro ».
+- **Une alerte doit reproduire la règle du moteur, pas une approximation prudente.** L'alerte des
+  prioritaires Noël se déclenchait dès une date bloquée, alors que le générateur traite les quatre
+  dates séparément et sert en priorité ceux qui n'ont jamais donné : une seule date libre suffit.
+  Elle signalait quatre MAR dont aucun n'était écarté.
+- **Un test devenu faux se corrige avec sa raison ; un test gênant ne se supprime pas.**
+  `banc_page.js` attendait 2 appels `getVacValidation`, il en reste 1.
+
+### 🔴 L'erreur de méthode du jour — une déduction présentée comme un constat
+
+J'ai annoncé à Arthur que les fériés seraient lus « copie rapide d'abord, Apps Script en repli »
+**sans avoir vérifié** que la famille `joursferies` n'a aucune source déclenchante. C'était juste
+sur le papier et faux en pratique : le repli allait être le seul chemin. Il a ouvert `staff.html`
+en pensant que ça marcherait. La règle du contexte — distinguer ce qui est vérifié de ce qui est
+supposé — n'a pas été tenue.
+
+### Trous connus, décision de NE PAS les boucher maintenant
+
+- 🔴 **Les MAR hors groupe ne consomment aucune place du seuil de présence.** `getVacConfig` et
+  `getVacValidation` construisent `marEnVacCeJour` à partir des seuls membres de `GROUPES_VAC`.
+  Un actif absent de ces groupes n'a pas de rang : ses congés ne peuvent jamais être refusés **et
+  ne comptent pas dans le seuil**. Cas visé : **PRUNET (BP)**, qui pose où il veut par régime.
+  **FERRIERO était hors groupe le 03/09 alors qu'il est actif — à réintégrer.**
+  ⚠️ Côté `staff.html`, **rien à faire** : `countForDay` et `vivierGarde` bouclent sur tous les
+  médecins actifs, le trou est purement serveur. Remède envisagé, à confirmer par Arthur : les
+  hors-groupe occupent les **premières** places du seuil — jamais refusables, mais ils font
+  reculer les autres d'un rang. **Reporté : cela change des résultats d'arbitrage.**
+- ⏳ **Le rejeu des actions du W1**, écrit et testé le 03/09, **jamais poussé** — Arthur ne voulait
+  pas de changement non éprouvé la veille du staff. Il n'existe dans aucun commit.
+- ⏳ **`bornesAnneePlanning` est dupliquée** dans `indispos.html` et `staff.html`. À porter dans
+  `partage/` après le staff — toucher la page des MAR en pleine campagne était le mauvais moment.
+- ⏳ **Les 1er et 2 janvier N+1** appartiennent à la campagne mais n'apparaissent dans aucune vue
+  par mois de `staff.html`. Atteignables par la période Noël, donc rien n'est perdu.
+
+### La panne du 3 septembre au soir, et ce qu'elle apprend
+
+Le W1 s'arrêtait à des étapes variables, en **délai dépassé** et en **HTTP 404**. Ni le classeur
+(`GROUPES_VAC` et `PERIODES_VAC` relus, conformes) ni le code métier n'y sont pour quelque chose.
+
+La cause est **écrite en tête de `journal.gs` depuis le 05/08** : « 2,5-5 s au mieux, 30 s+ les
+mauvais matins, 404 sur le canal de réponse ». La requête part, le script s'exécute, mais le
+chemin de retour répond 404. Le journal d'intentions ne couvre que trois types d'écriture
+(placements, statuts, publication) : **les onze actions du W1 passent en direct**, et la page ne
+tente chaque appel qu'une fois.
+
+⚠️ **`initYear` refuse de tourner si `INDISPOS_{année}` existe déjà.** Un 404 sur le canal de
+réponse APRÈS une création réussie affiche donc un échec alors que l'année EST créée. **Avant de
+relancer une étape du W1, regarder l'onglet.**
+
+⚠️ **Leçon de méthode** : la réponse était déjà dans les commentaires d'intention du code. J'ai
+cherché dans la logique avant de lire ce que le code disait de lui-même.
+
+---
+
+## État au 1er septembre 2026 — six lots, et le passage à la série v10
+
+Site **v1.99 → v10.6**, banc **2200 → 2415**. Le numéro change de série : la suite de v1.99 aurait
+été « v1.100 », qui se lit mal. On avance de dixième en dixième ; le premier chiffre reste réservé
+à ce que l'équipe voit changer pour de bon.
+
+**Ce qui a été livré** : pose des temps partiels pendant la campagne · un TP posé est acquis (plus
+aucune garde la veille) · génération bloquante quand un jour n'a pas de binôme · vivier de garde
+affiché sur les colonnes samedi et dimanche du staff · onglet « Ponts » · diagnostic des jours
+sans binôme rendu lisible · avertissements de génération persistés dans `LOGS` · matrice Noël /
+Jour de l'An · quota de congés compté en jours travaillés au staff · panneau « Ce qu'il reste à
+poser ».
+
+### Règles gravées ce jour
+
+- **Deux lecteurs des mêmes données qui ne comptent pas pareil : troisième occurrence en une
+  journée.** La grille contre les statistiques, l'écran contre le journal, le staff contre le
+  serveur. Les trois fois, ce sont les **données réelles** qui l'ont révélé — pas la relecture.
+- **Un chiffre mesuré vaut mieux qu'un chiffre raisonné** : « plus aucune garde la veille d'un
+  TP » a été mesuré sur 18 tirages sur 18, pas déduit.
+- **L'écran montre, le comité décide.** La matrice de Noël ne désigne personne comme prioritaire :
+  il y a souvent plus de huit candidats légitimes, et désigner huit noms donnerait à un calcul le
+  dernier mot sur un arbitrage humain.
+- **Une source qui suit l'état de l'année.** Les reliquats se comptent dans `INDISPOS_{Y}` avant
+  génération et dans `GARDES_{Y}` après — vérifié dans `appliquerStatutJour`, qui n'écrit **jamais**
+  dans `INDISPOS`. Compter au mauvais endroit aurait rendu invisible tout ce que le comité pose
+  après la génération.
+- **Un plafond de journal doit être comparé au maximum que peut produire l'émetteur.** 25 lignes
+  d'avertissements écrites dans `LOGS`, quand le générateur peut en rendre 60 et que `LOGS` est
+  purgé à 501 lignes. Au-delà, le reste est annoncé, jamais tu.
+- **Deux erreurs dans mes propres tests** sur les ponts, attrapées en les écrivant : le code avait
+  raison. Un test qui contredit le code n'a pas forcément raison.
+
+### 🔴 Une fonction perdue par accident, retrouvée quatre jours plus tard
+
+`generateCode` avait été effacée le **29/08** par le commit des compteurs d'usage — un lot sans
+aucun rapport. Restaurée le 03/09 (`0c54ffa3`), avec un scénario de banc sur la réinitialisation
+du code d'accès. **Une suppression accidentelle dans un lot voisin ne se voit que le jour où on
+appelle la fonction.**
+
+### Décision du 3 septembre sur les ponts
+
+La règle arithmétique du 01/09 (quatre jours de repos pour un seul posé) désignait **treize** jours
+en 2027 : elle comptait aussi ceux qui ALLONGENT un week-end. Le calcul était juste, la notion non.
+Décision d'Arthur : règle **géométrique** — chômé la veille ET le lendemain, un férié d'un côté.
+**2027 = les vendredis 7 et 28 mai.** 2028 = 4, 2029 = 5, 2030 = 4, 2031 = 4.
 
 ---
 

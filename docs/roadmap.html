@@ -89,26 +89,19 @@ summary{font-weight:700;cursor:pointer;font-size:14.5px}
 <h2>Où on en est</h2>
 <div class="etat-grid">
   <div><div class="etat-k">Site</div><div class="etat-v" data-version>—</div></div>
-  <div><div class="etat-k">Banc d'essai</div><div class="etat-v">2200 <small>vérifs · 48 scripts</small></div></div>
-  <div><div class="etat-k">Utilisateurs</div><div class="etat-v">~23 <small>MARs</small></div></div>
+  <div><div class="etat-k">Banc d'essai</div><div class="etat-v">2531 <small>vérifs · 54 scripts</small></div></div>
+  <div><div class="etat-k">Utilisateurs</div><div class="etat-v">24 <small>MARs actifs</small></div></div>
   <div><div class="etat-k">Veille</div><div class="etat-v">79,5 <small>art./sem.</small></div></div>
 </div>
-<p class="note"><b>Réglé le 28/08 :</b> dates d'activité renseignées dans MEDECINS (TRAN part le 01/09, COPELOVICI arrive le 28/09, ARMAND le 01/11) — le générateur, le planning publié et la bande de présence les lisent toutes ; Toussaint 2027 corrigée (23/10→07/11) et seuils de congés ressaisis ; PRUNET compté dans la bande de présence.</p>
+<p class="note"><b>Depuis le 1<sup>er</sup> septembre :</b> les temps partiels se posent pendant la campagne · un temps partiel posé est acquis (plus aucune garde la veille) · la génération s'arrête net si un jour n'a pas de binôme, avant toute écriture · le staff vacances affiche le vivier de garde des week-ends, l'onglet Ponts, le quota compté en jours travaillés et la matrice Noël · l'onglet Statuts dit ce qu'il reste à poser, par MAR.</p>
+<p class="note"><b>Le 3 septembre :</b> l'onglet Ponts ne dépend plus d'une clé absente · les vues par mois du staff s'arrêtent aux bornes réelles de l'année (on pouvait poser des congés sur trois jours qui n'existent pas au classeur, jetés en silence) · le W2 passe à <b>Contrôles → Couverture → Lancer</b>, l'écran « Vacances » supprimé car il rejouait le calcul de l'étape précédente · l'alerte des prioritaires Noël ne se déclenche plus que si les <b>quatre</b> dates sont prises.</p>
 <p class="note">Versions du code déployé, battements des tâches automatiques, cohérence des données : c'est le <b>Diagnostic</b> (écran d'administration → Maintenance) qui fait foi — rapport complet chaque lundi, sentinelle chaque matin qui n'écrit que si un problème apparaît.</p>
 
 <h2>Échéancier</h2>
 <div class="ech" id="ech">
-  <div class="jalon chaud" data-d="2026-09-01">
-    <div class="jalon-t"><span class="jalon-d">1<sup>er</sup> sept.</span><span class="jalon-n">Répétition générale</span><span class="cd"></span></div>
-    <p class="jalon-p">Seul, pendant la garde, en 4G — la marche à suivre imprimée fait foi. Nettoyer · générer · temps partiels · tout effacer le soir même.</p>
-  </div>
-  <div class="jalon" data-d="2026-09-03">
-    <div class="jalon-t"><span class="jalon-d">3 sept. au soir</span><span class="jalon-n">Les mails, à tête reposée</span><span class="cd"></span></div>
-    <p class="jalon-p">Adresses recopiées dans la colonne EMAIL, interrupteur d'envoi vérifié à N, redirection d'essai laissée en second filet.</p>
-  </div>
   <div class="jalon chaud" data-d="2026-09-04">
     <div class="jalon-t"><span class="jalon-d">4 sept. · 14 h</span><span class="jalon-n">Staff — démonstration</span><span class="cd"></span></div>
-    <p class="jalon-p">Le seul jalon avec un public. Contrôles le matin, codes à 12 h 30, quatre actes, ménage du soir en dix gestes.</p>
+    <p class="jalon-p">Le seul jalon avec un public. Contrôles le matin, codes à 12 h 30, quatre actes, ménage du soir en dix gestes. <b>Le lancement de l'année n'est plus joué en direct</b> — il est passé la veille : la porte d'entrée de Google s'est montrée capricieuse le 3 au soir. Le staff vacances est ouvert avant la séance et n'est pas rechargé.</p>
   </div>
   <div class="jalon" data-d="2026-10-01">
     <div class="jalon-t"><span class="jalon-d">1<sup>er</sup> oct.</span><span class="jalon-n">Butoir dur du ménage post-démo</span><span class="cd"></span></div>
@@ -124,7 +117,7 @@ summary{font-weight:700;cursor:pointer;font-size:14.5px}
   </div>
   <div class="jalon" data-d="2026-11-01">
     <div class="jalon-t"><span class="jalon-d">novembre</span><span class="jalon-n">Génération des gardes 2027</span><span class="cd"></span></div>
-    <p class="jalon-p">La vraie. Deux données à trancher avant : le départ de FERRIERO et l'exemption des 60 ans.</p>
+    <p class="jalon-p">La vraie. Trois choses à trancher avant : le départ de FERRIERO, l'exemption des 60 ans, et sa place dans les groupes de vacances (il n'y figure pas alors qu'il est actif).</p>
   </div>
   <div class="jalon" data-d="2027-01-01">
     <div class="jalon-t"><span class="jalon-d">janv. 2027</span><span class="jalon-n">Déménagement NCHPG</span><span class="cd"></span></div>
@@ -142,8 +135,13 @@ summary{font-weight:700;cursor:pointer;font-size:14.5px}
   <ul>
     <li>Le ménage du soir, dix gestes dans l'ordre — la marche à suivre fait foi.</li>
     <li>Rallumer les vrais mails : planning stable → publier → 15 min → journal → interrupteur à O → retirer la redirection. <small>Le Diagnostic surveille désormais cette cohérence. Les 15 min d'attente suffisent : une modification programme son envoi 10 min plus tard, et rallumer ne l'annule pas.</small></li>
+    <li><span class="pin">à trancher</span> Les médecins hors groupe de vacances <b>ne consomment aucune place du seuil de présence</b>. <small>Le serveur ne compte que les membres des groupes A/B/C : une période où un hors-groupe est absent avec 8 autres s'affiche conforme avec un seuil à 8. Concerne PRUNET, qui pose où il veut par régime. Le staff vacances, lui, le compte déjà correctement — le trou est purement côté serveur. Remède proposé : les hors-groupe prennent les premières places du seuil, jamais refusables, mais ils font reculer les autres d'un rang.</small></li>
+    <li>Réintégrer FERRIERO dans un groupe de vacances <small>— il est actif mais n'y figure pas, donc invisible à l'arbitrage des congés.</small></li>
+    <li>Le rejeu automatique des étapes du lancement d'année <small>— écrit et testé le 3 septembre, volontairement non publié la veille du staff. Un aléa passager de Google fait aujourd'hui échouer une étape sans seconde chance.</small></li>
+    <li>Regrouper les bornes de l'année de planning dans <code>partage/</code> <small>— elles sont aujourd'hui écrites à l'identique dans deux pages, exactement le doublon qui a causé le défaut du 3 septembre.</small></li>
     <li>Le secrétariat est compté comme un 26<sup>e</sup> utilisateur dans la courbe « médecins actifs sur 25 », qui peut donc dépasser son propre plafond. <small>Constaté le 31/08, à corriger avec son test.</small></li>
     <li>Vérifier que les seuils de congés n'ont pas bougé <small>— l'écran des périodes les écrase en resauvegardant (défaut connu, à corriger avec son test). Valeurs voulues : 8 hors été, 10 à Noël et l'été.</small></li>
+    <li>Passer « Ce qu'il reste à poser » par la copie rapide <small>— aujourd'hui chaque dépliage appelle Google.</small></li>
   </ul>
 </div>
 <div class="todo">
@@ -167,7 +165,7 @@ summary{font-weight:700;cursor:pointer;font-size:14.5px}
   <div class="mod"><b>Planning quotidien</b><span>Grille du comité, placement, publication, export Excel du vendredi.</span></div>
   <div class="mod"><b>Gardes</b><span>Équité annuelle sur ~730 gardes, liens samedi→récupération.</span></div>
   <div class="mod"><b>Portail MAR</b><span>Planning, gardes, congés, messagerie, cloche des notifications.</span></div>
-  <div class="mod"><b>Indisponibilités</b><span>Campagne annuelle, souhaits, staff vacances, temps partiels posés après génération.</span></div>
+  <div class="mod"><b>Indisponibilités</b><span>Campagne annuelle, souhaits, staff vacances, ponts, temps partiels posés pendant la campagne.</span></div>
   <div class="mod"><b>Module libéral</b><span>Cotation, devis, déclaration, suivi des 30 %.</span></div>
   <div class="mod"><b>Contrôle d'absence</b><span>Porte MAR et porte secrétariat, motifs jamais transmis.</span></div>
   <div class="mod"><b>Veille bibliographique</b><span>41 revues, 21 thèmes, lu/★ par MAR.</span></div>
@@ -186,7 +184,11 @@ summary{font-weight:700;cursor:pointer;font-size:14.5px}
   <div class="regle"><b>Dès qu'une ressource a deux propriétaires, on fusionne — on ne remplace pas.</b><span>Écrire une ligne entière efface ce qu'on n'a pas chargé, sans message.</span></div>
   <div class="regle"><b>Toute écriture dérivée refuse d'écraser une case occupée.</b><span>Un don de garde a effacé deux jours de réanimation sans aucun signal.</span></div>
   <div class="regle"><b>Jamais d'appel supplémentaire pour accélérer.</b><span>Apps Script sérialise : un « réveil » et un délai court ont chacun cassé l'ouverture le jour de leur livraison.</span></div>
-  <div class="regle"><b>Une règle métier écrite à deux endroits finit par diverger.</b><span>Chercher toutes les copies dans tout le dépôt.</span></div>
+  <div class="regle"><b>Une règle métier écrite à deux endroits finit par diverger.</b><span>Chercher toutes les copies dans tout le dépôt. Corollaire du 3 septembre : une correction faite sur un écran doit être cherchée sur tous les autres.</span></div>
+  <div class="regle"><b>Un message d'attente qui ne peut pas se résoudre est un mensonge.</b><span>« Rouvrez la page dans un instant » s'affichait sur un cul-de-sac : la donnée attendue n'allait jamais arriver.</span></div>
+  <div class="regle"><b>Toute lecture de la copie rapide a besoin d'un repli.</b><span>Une clé n'existe que si sa famille a une source qui la publie — sinon l'écran attend pour rien.</span></div>
+  <div class="regle"><b>Deux écrans qui rejouent le même calcul ne se contrôlent pas : ils se répètent.</b><span>Le second est vert par construction dès que le premier laisse passer.</span></div>
+  <div class="regle"><b>Un chiffre affiché qui n'entre dans aucun calcul finit par tromper.</b><span>L'afficher lui donne un sens qu'il n'a pas.</span></div>
   <div class="regle"><b>Un contrôle sans destinataire ne sert à rien.</b><span>D'où le rapport du lundi et la sentinelle.</span></div>
   <div class="regle"><b>Un indicateur qui ne détecte jamais rien doit prouver qu'il sait détecter.</b><span>Fabriquer le défaut, vérifier qu'il est vu.</span></div>
   <div class="regle"><b>Le banc prouve la logique, jamais l'infrastructure.</b><span>Vert ne veut pas dire « ça marche ».</span></div>

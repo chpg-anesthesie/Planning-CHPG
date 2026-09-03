@@ -4,14 +4,22 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.98** ·
-**GAS** (relevé le 31/08/2026 au soir) `code.gs` **2026-08-28.1** ·
-`Indispos.gs` **2026-08-31.1** · `portail.gs` **2026-08-31.1** · `miroir.gs` **2026-08-27.1** ·
-`journal.gs` **2026-08-27.1** · `echanges.gs` **2026-08-27.1** · `veille.gs` **2026-08-27.1** ·
-`setup_annee.gs` **2026-08-27.1** · `sauvegarde.gs` 2026-08-06.1 · `generateur_gardes.gs` 2026-08-26.1 ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v10.8.1** ·
+**GAS** (relevé dans le dépôt le 03/09/2026 au soir) `code.gs` **2026-09-01.1** ·
+`Indispos.gs` **2026-09-03.1** · `generateur_gardes.gs` **2026-09-01.2** ·
+`portail.gs` **2026-08-31.1** · `miroir.gs` 2026-08-27.1 ·
+`journal.gs` 2026-08-27.1 · `echanges.gs` 2026-08-27.1 · `veille.gs` 2026-08-27.1 ·
+`setup_annee.gs` 2026-08-27.1 · `sauvegarde.gs` 2026-08-06.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
 pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
 à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
+
+⚠️ **Ces numéros sont ceux du DÉPÔT, pas ceux de l'éditeur Apps Script.** Ce qui fait foi sur ce
+qui tourne vraiment, c'est la sonde « Code déployé vs dépôt » du 🔍 Diagnostic, qui compare les
+constantes `GAS_VERSION_*` réellement en mémoire aux dix fichiers du dépôt. Sonde muette = tout est
+recopié. Indice partiel relevé le 03/09 : `LOGS` du 02/09 porte des lignes
+« avertissement 1/4 · 2027 : … », donc le lot du 01/09 (`Indispos.gs` 2026-09-01.3) **était**
+déployé ce jour-là. Pour les lots du 03/09, seul le Diagnostic peut répondre.
 
 ✅ **28/08 (soir) — relecture de l'échéancier dans le code, deux points périmés retirés.**
 Demandé par Arthur après qu'une liste récitée de mémoire s'est révélée fausse.
@@ -149,7 +157,9 @@ Cinq pages l'affichent aujourd'hui — `admin.html`, `dashboard.html`, `docs/gui
 visible impose quand même la montée de version**, dans le même push. Deux chiffres, pas trois.
 Le banc refuse tout numéro réintroduit en dur, et le Diagnostic aussi depuis le 16/08.
 
-**Banc d'essai** `banc/` — **2063 vérifications** sur 43 scripts (relevé le 28/08/2026,
+**Banc d'essai** `banc/` — **2531 vérifications** sur **54 scripts**, 0 échec (relevé le
+03/09/2026 au soir). *(Historique : 2063 sur 43 scripts le 28/08, 2200 le 31/08, 2415 au soir du
+01/09, 2531 le 03/09.)* Recette de comptage inchangée depuis le 28/08 (relevé de l'époque,
 recette exacte `grep -cE "^\s+✓ "` — le `grep -c "✓"` naïf rend 1925 en comptant les lignes
 récapitulatives),
 `cd banc && ./lancer.sh`. *(⚠️ La recette du 19/08 disait « compter les coches `✓` de la sortie
@@ -165,7 +175,7 @@ une recette morte. Recompter, ne pas recopier.)*
 À lancer AVANT toute proposition de push touchant une page visible, un `.gs`,
 le Worker ou `partage/dispo_jour.js`.
 
-*Mise à jour : 26 août 2026.*
+*Mise à jour : 3 septembre 2026 (soir).*
 
 > 📋 **Vue courte : [`docs/roadmap.html`](roadmap.html)** — échéancier, chantiers en cours et règles
 > à ne jamais casser, sans l'historique. Ce fichier-ci reste la mémoire longue : les deux se tiennent
@@ -175,6 +185,303 @@ le Worker ou `partage/dispo_jour.js`.
 > du code. Les règles de méthode sont dans `CONTEXTE-Planning-CHPG.md` ; l'architecture et le
 > dépannage dans `docs/guide-technique.html` ; la conception du module libéral dans
 > `docs/module-liberal/module_liberal_conception.md`.
+
+---
+
+## 3 septembre 2026 (soir) — quatre défauts trouvés en production, la veille du staff
+
+Site **v10.7.1 → v10.8.1** en quatre commits (`2fb03e94`, `c238c4ab`, `908bce5b`, `f3b44286`).
+Banc **2470 → 2531**. Aucun fichier `.gs` modifié ce soir-là : tout est frontal, rien à recopier
+dans l'éditeur Apps Script.
+
+Journée commencée par une panne, finie par trois corrections trouvées en regardant les écrans.
+
+### La panne du W1 — c'est Google, et c'était déjà écrit
+
+Le W1 « Démarrer l'année » s'arrêtait à des étapes variables, tantôt en **délai dépassé**, tantôt
+en **HTTP 404**. Rien dans le classeur ni dans le code métier : `GROUPES_VAC` (22 lignes, A=7,
+B=7, C=8, COPELOVICI en C ordre 8) et `PERIODES_VAC` (5 périodes 2027) ont été relus, tous deux
+conformes, et le code de lecture ignore silencieusement toute ligne qu'il ne comprend pas — il ne
+peut pas échouer dessus.
+
+La cause est **écrite en tête de `journal.gs` depuis le 05/08** : « 2,5-5 s au mieux, 30 s+ les
+mauvais matins, **404 sur le canal de réponse** ». La requête part, le script s'exécute, mais le
+chemin par lequel Google renvoie la réponse répond 404. Le journal d'intentions a été construit
+pour contourner exactement ça — mais il ne couvre que trois types d'écriture (placements, statuts,
+publication). **Les onze actions du W1 passent en direct, sans filet, et la page ne tente chaque
+appel qu'une seule fois** (`API_REJOUABLES` ne contient que `getAdminBootstrap` et le lot de
+placements ; délai de lecture 20 s).
+
+**Piège à connaître** : `initYear` refuse de tourner si `INDISPOS_{année}` existe déjà. Un 404 sur
+le canal de réponse APRÈS une création réussie fait donc afficher un échec alors que l'année EST
+créée. Avant de relancer une étape du W1, regarder l'onglet.
+
+Un correctif a été écrit et testé le soir même — rejeu automatique pour les seules actions sûres à
+rejouer, et affichage de la cause exacte au lieu du message générique — puis **volontairement non
+poussé** : Arthur ne voulait pas de changement non éprouvé la veille du staff. Il est décrit dans
+« À faire » ci-dessous ; il n'existe dans aucun commit.
+
+### `staff.html` — l'onglet Ponts dépendait d'une clé qui n'existera jamais à ce moment-là
+
+Commit `2fb03e94`, site **v10.7.2**, banc **2470** (+5).
+
+L'onglet affichait « Les jours fériés ne sont pas encore disponibles — rouvrez la page dans un
+instant », sans jamais en sortir. La page ne lisait les fériés **que** dans la copie rapide, sans
+repli. Or la clé `joursferies_{Y}` n'est publiée que pour les années possédant un onglet
+`GARDES_{Y}` (`miroir.gs`, ligne 441 : la famille suit la liste des années « consultables »,
+construite en balayant les onglets `GARDES_`). Les gardes 2027 ne seront générées qu'en novembre.
+
+**Pendant toute la campagne de congés de l'année suivante — c'est-à-dire précisément quand cet
+écran sert — la clé n'existe pas.** Le message mentait : rouvrir n'y changeait rien, c'était un
+cul-de-sac.
+
+Repli sur l'action `getJoursFeries`, exactement le motif déjà utilisé trois lignes plus haut pour
+les périodes de vacances : copie rapide d'abord, Apps Script ensuite. Aucune règle de calendrier
+recopiée dans la page. Si le repli échoue aussi, l'écran retombe en sommeil au lieu de deviner.
+
+⚠️ **Erreur de méthode, à ne pas répéter.** J'avais d'abord annoncé à Arthur que le repli jouerait
+« copie rapide d'abord » sans avoir vérifié que la famille `joursferies` n'a **aucun onglet
+déclencheur** (`banc_miroir.js` la classe « sans source » : elle n'est construite que par la
+synchro horaire). Juste sur le papier, faux en pratique. Une déduction présentée comme un constat
+lui a coûté un aller-retour.
+
+### `staff.html` — on pouvait poser des congés sur des jours qui n'existent pas
+
+Commit `c238c4ab`, site **v10.7.3**, banc **2485** (+15).
+
+Les vues par mois (boutons **FORM** et **VAC année**) fabriquaient le mois calendaire entier, du
+1er au 31. Or l'année de planning va du premier lundi de janvier au jour précédant le premier
+lundi de janvier suivant : pour 2027, du **lundi 4 janvier 2027 au dimanche 2 janvier 2028** —
+363 colonnes, **vérifié dans `INDISPOS_2027` au classeur**. Les 1, 2 et 3 janvier apparaissaient
+donc comme des cases normales, cliquables.
+
+Et `saveIndisposBatch` reconstruit chaque ligne à partir des seules colonnes existantes
+(`datesB.map(...)`) : une saisie sur le 01/01/2027 n'était **écrite nulle part**, le serveur
+répondait quand même `success`, l'écran affichait « enregistré », et la pastille disparaissait au
+rechargement suivant. Perte silencieuse, pas refus.
+
+**Même défaut, déjà corrigé ailleurs.** `indispos.html` porte la correction depuis le 12/08 (banc
+T072), avec le même constat écrit en commentaire. Le helper `bornesAnneePlanning(y)` existait — il
+vivait dans `indispos.html` uniquement. `staff.html` ne l'avait jamais reçu.
+
+`getMonthDays` filtre désormais, `toggleDay` refuse et l'explique. Les deux fonctions de bornes
+sont pour l'instant une **copie conforme** de celles d'`indispos.html`, doublon assumé et signalé
+en commentaire : toucher la page des MAR en pleine campagne, la veille du staff, était le mauvais
+moment. Elles doivent rejoindre `partage/`.
+
+*Trou symétrique laissé tel quel* : les 1er et 2 janvier 2028 appartiennent à la campagne mais
+n'apparaissent dans aucune vue par mois. Ils restent atteignables par la période Noël en mode VAC,
+donc rien n'est perdu.
+
+### Le W2 remanié — « Contrôles → Couverture → Lancer »
+
+Commits `908bce5b` (site **v10.8**, banc **2522**, +37 avec `banc_wizard_gardes.js`) et
+`f3b44286` (site **v10.8.1**, banc **2531**, +9).
+
+Trois décisions d'Arthur, prises en lisant l'écran en production.
+
+**1. Le total de jours par MAR disparaît.** « ✓ 127 jour(s) » additionnait VAC, FORM, INDISPO,
+SOUHAIT, TP et CL sans distinction : il mesurait une quotité et un historique d'absences, jamais
+la qualité d'une saisie — un MAR à 80 % part avec ~46 jours de TP, une absence longue en ajoute
+des dizaines de CL. Et il n'entrait dans **aucun** calcul : le seul test a toujours été
+`count === 0`.
+
+**2. L'écran « Vacances » est supprimé.** Il rejouait EXACTEMENT le calcul des conflits de l'étape
+précédente — vérifié ligne à ligne entre `getVacConfig` (qui alimente `getConflitsAll`) et
+`getVacValidation` : même rotation droite des groupes, même exclusion des week-ends et fériés,
+même test `rang du jour > seuil`. L'un écrit `joursBloqués.push(...)`, l'autre `joursRefuses++`.
+Si l'étape 1 laissait passer, celui-ci était **vert par construction** et ne pouvait rien
+découvrir. Il ne bloquait d'ailleurs rien. Son seul apport réel — relire les dates et les seuils
+avant de lancer — rejoint l'écran de lancement, sans statut et **sans appel supplémentaire** :
+`getVacValidation` est déjà appelée dans le lot d'ouverture.
+
+**3. L'ancienne étape 1 est coupée en deux.** Ce qui EMPÊCHE de générer (qui n'a pas saisi, TP
+déséquilibrés, conflits vacances, profils bloquants) d'abord ; ce qui RENSEIGNE ensuite (indispos
+et souhaits sur jours à enjeu, prioritaires Noël, jours à risque de trou, couverture par semaine,
+report de dette). La coupure passe par un **repère posé dans la chaîne HTML**, pas dans le code :
+aucun des blocs existants n'est touché, la coupure se fait une seule fois à la fin. L'écran
+Couverture ne coûte aucun aller-retour, tout était déjà calculé.
+
+`updateWizGNav()` remet le bouton Suivant actif à chaque écran ; seuls les contrôles le
+reverrouillent. Sans cela, un blocage posé à l'étape 1 restait collé aux écrans suivants, qui ne
+bloquent rien.
+
+**Puis la répétition, signalée par Arthur** : le bandeau annonçait « Tous les MARs ont saisi » et
+vingt-quatre lignes répétaient « ✓ Saisi » juste en dessous. Dans le cas inverse, le bandeau nomme
+déjà les manquants. La liste nominative est supprimée ; ce qu'elle apportait de réel — le nombre
+de MAR effectivement contrôlés, donc le périmètre — passe dans le bandeau : « Les 24 MARs actifs
+ont saisi » / « 2 MAR(s) sur 24 n'ont pas encore saisi : … ».
+
+### L'alerte des prioritaires Noël se déclenchait sur la mauvaise règle
+
+Même commit `f3b44286`.
+
+Elle prévenait dès qu'un prioritaire était absent ou indisponible sur **une** des quatre dates
+(24, 25, 31 décembre, 1er janvier). C'est faux, et le générateur le dit :
+`generateur_gardes.gs` traite les quatre dates **séparément** (`noelDates.forEach`) et repart,
+pour chacune, des candidats non bloqués ce jour-là, triés par ancienneté — `overdueKey` place en
+tête ceux qui n'ont **jamais** fait Noël. Un prioritaire indisponible le 24 est donc non seulement
+éligible au 25, au 31 ou au 1er : **il y passe en premier**. Il n'a besoin que d'UNE date libre.
+
+L'alerte ne vaut donc que si les quatre sont prises. Sur l'écran du 03/09, l'ancien seuil signalait
+quatre MAR dont **aucun** n'était réellement écarté.
+
+⚠️ **Réserve consignée** : le générateur raisonne en **unités liées** (vendredi → dimanche, férié
+couplé → samedi) là où l'écran ne regarde que les quatre dates du calendrier. Être bloqué sur les
+quatre reste une condition nécessaire, donc plus de fausse alerte ; un cas d'unité liée pourrait
+en théorie échapper. Répliquer `noelUnit()` dans l'écran serait une duplication de logique métier —
+écarté sans accord explicite.
+
+### Un test du banc corrigé, pas contourné
+
+`banc_page.js` exigeait exactement **2** appels à `getVacValidation` dans `admin.html`. Il en
+reste **1**. L'attendu a été mis à jour avec la raison en commentaire. La distinction compte : un
+test devenu faux se corrige, un test gênant ne se supprime pas.
+
+### Deux trous laissés ouverts, décidés ce jour
+
+- 🔴 **Les MAR hors groupe ne consomment aucune place du seuil de présence.** `getVacConfig` et
+  `getVacValidation` construisent tous deux `marEnVacCeJour` à partir de la seule liste ordonnée
+  des membres de `GROUPES_VAC`. Un actif absent de ces groupes n'a jamais de rang — donc ses
+  congés ne peuvent jamais être refusés, **et ils ne comptent pas dans le seuil**. Une période où
+  il est absent avec 8 autres s'affiche VALIDE avec un seuil à 8. Cas visé : **PRUNET (BP)**, qui
+  pose ses congés où il veut par régime. **FERRIERO était aussi hors groupe le 03/09** alors qu'il
+  est actif — à réintégrer. Côté `staff.html` **rien à faire, c'est déjà correct** : `countForDay`
+  et `vivierGarde` bouclent sur tous les médecins actifs sans regarder le groupe ; le trou est
+  purement serveur. Remède retenu si Arthur le confirme : les hors-groupe occupent les
+  **premières** places du seuil — jamais refusables, mais ils font reculer les autres d'un rang.
+  Reporté volontairement : cela change des résultats d'arbitrage.
+- ⏳ **Le rejeu du W1** (voir la panne ci-dessus), écrit et testé, jamais poussé.
+
+---
+
+## 2 et 3 septembre 2026 — préparation du staff, et deux corrections
+
+- **`bee71d42` (v10.7) — les ponts reviennent à la définition officielle.** La règle arithmétique
+  du 01/09 (quatre jours de repos pour un seul posé) en désignait **treize** en 2027 : elle
+  comptait aussi ceux qui ALLONGENT un week-end. Le calcul était juste, la notion non. Décision
+  d'Arthur : la règle redevient géométrique — chômé la veille ET le lendemain, un férié d'un côté.
+  **2027 = les vendredis 7 et 28 mai, et eux seuls.** Vérifié sur les fériés calculés : 2028 = 4,
+  2029 = 5, 2030 = 4, 2031 = 4 ponts. Contre-preuve : 12 échecs sur le code non corrigé.
+- 🔴 **`0c54ffa3` — `generateCode` avait été perdue le 29/08**, effacée par le commit des
+  compteurs d'usage. Restaurée, avec un scénario de banc sur la réinitialisation du code d'accès.
+  *Une fonction supprimée par accident dans un lot sans rapport ne se voit que le jour où on
+  l'appelle.*
+- **`75931d11` (v10.7.1) — la pastille indispos** n'apparaît plus que pendant la campagne
+  (ouverte et non générée).
+- **`a6e2e6af` — le guide du comité** remis à jour après les lots des 01 et 02/09 : les ponts, le
+  panneau « Ce qu'il reste à poser » et ses trois pièges, les deux boutons de la barre rouge, la
+  matrice de Noël. Vérifié : plus aucune mention de « deux ponts » ni de la doctrine des temps
+  partiels posés après la génération.
+- **`d376ce61`, `9d3846ba`, `27d19780`, et quinze commits de présentation** — flashcodes,
+  parcours 45 min (21 étapes sur 35), notes du présentateur, mise en page des diapositives.
+
+---
+
+## 1er septembre 2026 — la journée des six lots : temps partiels dans la campagne, ponts au staff, génération bloquante
+
+Site **v1.99 → v10.6** en six lots, banc **2200 → 2415**. Puis répétition générale de la
+génération 2027, seule et en 4G. Deux lots `.gs` à recopier ce jour-là
+(`GAS_VERSION_GENERATEUR` 2026-09-01.2, `GAS_VERSION_INDISPOS` 2026-09-01.7,
+`GAS_VERSION_CODE` 2026-09-01.1).
+
+**Le numéro de version change de série : v1.99 → v10.0.** La suite aurait été « v1.100 », qui se
+lit mal. On avance désormais de dixième en dixième. Le premier chiffre reste réservé à ce que
+l'équipe voit changer pour de bon.
+
+### v10.0 (`c37f6443`) — cinq lots d'un coup
+
+- **Pose des temps partiels PENDANT la campagne.** Le circuit de campagne les accepte au lieu de
+  les jeter ; quota, profil et jour ouvré vérifiés côté serveur, refus tracés dans `LOGS`. Retirer
+  un TP le retire d'`INDISPOS` **et** de `GARDES`, qui pouvaient diverger depuis que les deux
+  circuits coexistent.
+- **Un temps partiel posé est acquis.** Plus aucune garde la veille d'un TP : le repos du
+  lendemain s'écrivait par-dessus et l'effaçait — 16 à 30 jours par an, mesurés sur les
+  indisponibilités réelles 2027 augmentées des 260 jours posables, **dans 18 tirages sur 18**.
+  Aucun dernier recours ne lève la règle.
+- **Génération bloquante.** Un jour sans binôme arrête tout AVANT la première écriture : ni
+  onglet, ni notification, ni phase de pose ouverte — rien à supprimer pour relancer. Message
+  nommant les jours et les leviers, rangés en trois familles ; un levier proposé est vérifié
+  (retirer l'absence doit réellement rendre la personne disponible).
+- **Staff vacances, les week-ends.** Les colonnes samedi et dimanche affichent enfin le nombre de
+  **gardeurs disponibles** (rouge < 4, orange 4-5, vert 6+). Elles n'avaient ni compteur ni
+  couleur : le week-end des 10-11 juillet 2027 portait **19 MAR en congés pour un seuil de 10**,
+  et personne ne l'avait jamais vu. Le mécanisme est mécanique — ceux qui partent finissent le
+  vendredi, ceux qui reviennent reprennent le lundi, les deux blocs se croisent sur le week-end.
+- **Onglet « Ponts ».** Attribution au staff avant la génération, compteur par MAR, liste de ceux
+  qui n'en ont aucun. Un pont consomme un jour du quota, comme n'importe quel autre.
+
+### v10.1 (`09c92f00`) — le diagnostic des jours sans binôme devient lisible
+
+Le message d'échec s'affichait en un seul paragraphe rouge de trente lignes : le générateur
+produisait bien un texte structuré, mais le routeur ne renvoyait que la chaîne et l'écran
+l'affichait dans un `textContent` — tous les retours à la ligne disparaissaient. Le routeur
+transmet désormais la **structure** (`joursVides`, `messageComplet`), l'écran met en forme un
+encadré par jour, et le générateur rend une ligne par **motif** au lieu d'une ligne par MAR :
+13 lignes au lieu de 30 pour deux jours en défaut. Leviers ordonnés du moins au plus coûteux.
+
+⚠️ **Trois défauts attrapés en écrivant les tests, pas en lisant le code** — un pluriel absent et
+**deux erreurs dans mes propres tests** sur les ponts (un férié le lundi donne deux jours
+rentables et non un ; deux fériés consécutifs déplacent le pont de part et d'autre au lieu de
+l'annuler). Le code avait raison.
+
+### `011a376b` — les avertissements de génération persistent dans `LOGS`
+
+« Il y a eu des avertissements mais je ne sais plus ce que c'était » : `LOGS` ne gardait que leur
+**nombre**, le contenu ne partait que dans le journal d'exécution d'Apps Script, invisible depuis
+l'application. Chaque avertissement est désormais écrit avec son rang. **Plafond de 25 lignes** —
+`LOGS` est purgé au-delà de 501 lignes et le générateur peut en rendre 60 : les écrire toutes
+chasserait un huitième du journal. Au-delà du plafond, le reste est annoncé, jamais tu.
+
+### v10.3 (`e572df7d`) — Noël et Jour de l'An : une matrice, pas un bandeau
+
+Le bandeau défilant est retiré : il n'affichait que huit prioritaires, en boucle, sans jamais
+montrer qui était exempté ni depuis quand. À sa place, une **matrice** — une ligne par médecin,
+une colonne par année, un point rempli quand la personne a tenu l'une des quatre dates.
+
+**Aucun jugement n'est rendu** : ni « prioritaire », ni liste des huit à servir. Décision
+d'Arthur — il y a souvent plus de huit candidats légitimes, et désigner huit noms donnerait à un
+calcul le dernier mot sur un arbitrage qui revient au comité. **L'écran montre, le comité décide.**
+
+Sous chaque année, le nombre de postes réellement mobilisés : **quatre jusqu'en 2024, huit depuis
+la double garde** (octobre 2025). Sans ce chiffre, une année ancienne à quatre noms se lirait
+comme une saisie incomplète. Côté serveur, `getNoelHistoryDetail` devient la source unique et
+`getNoelHistory` n'en est plus qu'une vue : l'ancienne version dupliquée est **supprimée**, pas
+mise de côté.
+
+Dans la barre rouge, « Priorités » monte (c'est l'ordre de passage des groupes, la donnée qui
+commande tout l'arbitrage) et « Récap » sort (il doublait le sélecteur Grille/Récap posé juste
+au-dessus).
+
+### v10.4 (`4394a8b9`) — le quota de congés se compte en jours TRAVAILLÉS au staff
+
+Douze MAR annoncés au-dessus de leur quota, dont un à 35 jours pour 33. **Aucun ne dépassait.**
+Trois écrans, deux règles : `indispos.html` et le serveur retiraient les week-ends **et** les
+fériés, `staff.html` ne retirait que les week-ends. Un bloc de congés qui enjambe le 1er mai reste
+posé sur le 1er mai — ce jour-là n'était pas travaillé, il ne coûte rien au quota.
+
+⚠️ **Troisième fois dans la même journée que le motif ressort — deux lecteurs des mêmes données
+qui ne comptent pas pareil** : la grille contre les statistiques, l'écran contre le journal, le
+staff contre le serveur. Les trois fois, ce sont les **données réelles** qui l'ont révélé.
+
+### v10.5 et v10.6 (`4cf7e713`, `369dc907`) — « Ce qu'il reste à poser »
+
+Panneau replié en tête de l'onglet Statuts : ce qui reste à poser par MAR, en vacances, formations
+et temps partiels.
+
+**La source suit l'état de l'année, et c'est tout l'enjeu** : `INDISPOS_{Y}` tant que le planning
+n'est pas généré, `GARDES_{Y}` dès qu'il l'est. Vérifié dans `appliquerStatutJour` : l'onglet
+Statuts écrit dans `GARDES` et **jamais** dans `INDISPOS` — compter dans `INDISPOS` aurait rendu
+invisible tout ce que le comité pose après la génération. Les demandes de TP non tranchées sont
+comptées à part et retirées du reste. Un profil sans temps partiel affiche un quota nul, jamais un
+faux compteur.
+
+Le bouton porte **l'année regardée** (« Ce qu'il reste à poser · 2027 ») : un reliquat 2026 lu
+comme un reliquat 2027 avait fait croire à une campagne mal remplie alors qu'elle était complète.
+Les cases donnent **posé sur quota** — « 26/26 » se lit d'un coup.
+
+⏳ **Reste à faire** : `getReliquats` passe par Apps Script à chaque dépliage, rien n'est encore
+relayé par la copie rapide.
 
 ---
 
