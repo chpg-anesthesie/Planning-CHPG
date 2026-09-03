@@ -270,6 +270,23 @@ console.log('\n═══ 6. Aucune règle de calendrier n\'est recopiée dans la
     !/paques|Paques|Pâques/.test(src));
   V('un échec de lecture laisse simplement l\'ensemble vide',
     /joursferies_[\s\S]{0,400}catch\(e\)\{\}/.test(src));
+  /* (03/09/2026) Défaut vu en production le soir du staff : l'onglet Ponts de
+     l'année 2027 restait en sommeil. La clé joursferies_{Y} n'est publiée que
+     pour les années possédant un onglet GARDES_{Y} (miroir.gs) — donc jamais
+     pendant la campagne de congés de l'année suivante, qui est précisément le
+     moment où cet écran sert. Il lui faut un repli, comme pour les périodes. */
+  const bloc = src.slice(src.indexOf("miroirRead(['joursferies_'+currentYear]"),
+                         src.indexOf('const iRes'));
+  V('la clé absente n\'est plus un cul-de-sac : repli sur getJoursFeries',
+    /if\(!joursFeries\.size\)\{[\s\S]{0,400}action:'getJoursFeries'/.test(bloc), bloc.slice(-400));
+  V('le repli demande bien l\'année affichée',
+    /action:'getJoursFeries',year:currentYear/.test(bloc));
+  V('la copie rapide reste essayée EN PREMIER',
+    bloc.indexOf('miroirRead') < bloc.indexOf('getJoursFeries'));
+  V('le repli ne recopie aucune règle de calendrier',
+    !/paques|Paques|Pâques|11-11|05-01/.test(bloc));
+  V('un repli qui échoue laisse l\'écran en sommeil, il ne devine pas',
+    /getJoursFeries[\s\S]{0,260}catch\(e\)\{\}/.test(bloc));
 }
 
 /* ═══ 7. La barre rouge : une commande, un endroit ══════════════════════ */

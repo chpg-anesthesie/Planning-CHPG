@@ -378,6 +378,20 @@ async function loadData(pre){
     const bloc=mf&&mf.success&&mf.data&&mf.data['joursferies_'+currentYear];
     if(bloc&&Array.isArray(bloc.joursFeries)) joursFeries=new Set(bloc.joursFeries);
   }catch(e){}
+  /* (03/09/2026) REPLI, comme pour les périodes juste au-dessus. La clé
+     joursferies_{Y} n'est publiée QUE pour les années possédant un onglet
+     GARDES_{Y} : pendant toute la campagne de congés de l'année suivante —
+     c'est-à-dire précisément quand cet écran sert — les gardes ne sont pas
+     encore générées, la clé n'existe pas, et l'onglet des ponts restait en
+     sommeil sans jamais pouvoir en sortir. L'action getJoursFeries renvoie
+     exactement la même forme (année ET suivante), et reste la SEULE source :
+     aucune règle de calendrier n'est recopiée ici. */
+  if(!joursFeries.size){
+    try{
+      const fr=await apiCall({action:'getJoursFeries',year:currentYear});
+      if(fr&&fr.success&&Array.isArray(fr.joursFeries)) joursFeries=new Set(fr.joursFeries);
+    }catch(e){}
+  }
 
   // (miroir) indispos deja livrees (admin = parMar complet, meme forme que getAllIndispos.data).
   const iRes=(pre && pre.indisposData) ? {success:true, data: pre.indisposData} : await apiCall({action:'getAllIndispos',year:currentYear});
