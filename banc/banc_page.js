@@ -191,12 +191,16 @@ async function page(transport) {
       /if \(name==='equite'\) \{ loadStats\(ADMIN_YEAR\); \}/.test(c));
     V('la fonction fantôme a disparu', !/async function loadVacancesValidation/.test(c));
     V('son rendu aussi', !/function renderVacances\(periodes\)/.test(c));
-    /* getVacValidation subsiste dans les ASSISTANTS de generation (placement des
-       vacances, etape 1 des gardes) : la, il est demande a la demande et son
-       resultat est affiche. Ce qui devait disparaitre, c'est l'appel a
-       l'OUVERTURE d'un onglet. */
-    V('getVacValidation ne subsiste que dans les assistants',
-      (c.match(/action:\s*'getVacValidation'/g) || []).length === 2 &&
+    /* getVacValidation subsiste dans les ASSISTANTS de generation : la, il est
+       demande a la demande et son resultat est affiche. Ce qui devait
+       disparaitre, c'est l'appel a l'OUVERTURE d'un onglet.
+       (03/09/2026) DE DEUX APPELS A UN SEUL. L'ecran « Vacances » du W2 avait
+       le sien ; il a ete supprime — il rejouait exactement le calcul des
+       conflits de l'etape precedente. Ne reste que celui du lot d'ouverture,
+       dont le resultat sert desormais au rappel des periodes de l'ecran de
+       lancement. */
+    V('getVacValidation ne subsiste que dans les assistants, en un seul appel',
+      (c.match(/action:\s*'getVacValidation'/g) || []).length === 1 &&
       !/name==='equite'[\s\S]{0,200}getVacValidation/.test(c),
       (c.match(/action:\s*'getVacValidation'/g) || []).length);
     V('#vacContent n\'est plus manipule que par l\'onglet Equipe',

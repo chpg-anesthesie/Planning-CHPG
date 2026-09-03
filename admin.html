@@ -7135,6 +7135,8 @@ async function launchWizardSendCodes() {
 // ── WIZARD GÉNÉRER LES GARDES ────────────────────────────────────────────
 let wizGCurrentStep = 0;
 let wizGIndisposData = null;
+/* (03/09/2026) Seconde moitie de l'etape 1, mise de cote pour l'ecran Couverture. */
+let wizGInfoHtml = '';
 let wizGVacData = null;
 let wizGConflitsData = null;
 let wizGFeries = null;
@@ -7153,6 +7155,7 @@ async function openWizardGardes() {
   wizGCurrentStep = 0;
   window._wizGDone = new Set(); // suivi de reprise : étapes du lancement déjà réussies
   wizGIndisposData = null;
+  wizGInfoHtml = '';
   wizGVacData = null;
   wizGConflitsData = null;
   wizGFeries = null;
@@ -7255,6 +7258,10 @@ async function wizGNext() {
 function updateWizGNav() {
   document.getElementById('wizGBackBtn').style.visibility = wizGCurrentStep === 0 ? 'hidden' : 'visible';
   const nextBtn = document.getElementById('wizGNextBtn');
+  /* (03/09/2026) Le verrou n'est pose QUE par l'etape des controles. Sans cette
+     remise a zero, un blocage leve restait colle au bouton sur les ecrans
+     suivants, qui eux ne bloquent rien. */
+  nextBtn.disabled = false;
   nextBtn.textContent = wizGCurrentStep === 2 ? '⚡ Générer les gardes' : 'Suivant →';
   for (let i = 0; i < 3; i++) {
     const dot = document.getElementById('wizGDot' + i);
@@ -7612,6 +7619,13 @@ async function renderWizGStep() {
         const bg = n===0?'#fff':over?'#FEF3C7':'#F1F5F9', fg = n===0?'#94A3B8':over?'#92400E':'#334155';
         return '<td style="text-align:center;padding:5px 6px;border-bottom:1px solid var(--line);background:'+bg+';color:'+fg+';font-weight:600">'+n+'<span style="opacity:.45;font-size:9px">/'+lim+'</span></td>';
       };
+      /* (03/09/2026) FRONTIÈRE DES DEUX ÉCRANS. Tout ce qui précède EMPÊCHE de
+         générer ; tout ce qui suit RENSEIGNE sans jamais bloquer. L'étape était
+         devenue un mur d'informations où le bloquant se noyait dans le reste.
+         Le repère est posé dans la chaîne plutôt que dans le code : les blocs
+         qui suivent continuent d'écrire dans `html` sans être touchés, et la
+         coupure se fait une seule fois, à la fin. */
+      html += '<!--WIZG-SPLIT-->';
       html += '<div class="wizard-section-title" style="margin-top:16px">Indispos sur jours à enjeu</div>';
       html += '<div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">Nombre de jours <strong>refusés</strong> (vacances/formations exclues). Rouge = trop peu de jours laissés disponibles pour placer sa part équitable → bloquant.</div>';
       html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'+_thMar+_thH('Samedis')+_thH('Week-ends VD')+_thH('Jeudis')+_thH('Fériés')+'</tr></thead><tbody>';
@@ -7768,53 +7782,36 @@ async function renderWizGStep() {
         }
       }
     }
-    html += '<div class="wiz-mar-list" style="margin-top:12px">';
+    /* (03/09/2026) LE TOTAL DE JOURS A DISPARU. Il additionnait tous les codes
+       sans distinction — VAC, FORM, INDISPO, SOUHAIT, TP, CL — donc il mesurait
+       surtout une quotité et un historique d'absences, jamais la qualité d'une
+       saisie. Et il n'entrait dans aucun calcul : le seul test a toujours été
+       « zéro ou pas zéro ». C'est donc tout ce qui reste affiché. */
+    let _listeMar = '<div class="wiz-mar-list" style="margin-top:12px">';
     actifs.forEach(m => {
       const ind = wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || [];
       const count = Array.isArray(ind) ? ind.length : Object.keys(ind).length;
       const cls = count === 0 ? 'wiz-warn' : 'wiz-ok';
-      html += '<div class="wiz-mar-row"><div class="wiz-mar-init">' + m.initiales + '</div><div class="wiz-mar-name">' + m.nom + '</div><div class="wiz-mar-meta"><span class="' + cls + '">' + (count === 0 ? '❌ Pas encore saisi' : '✓ ' + count + ' jour(s)') + '</span></div></div>';
+      _listeMar += '<div class="wiz-mar-row"><div class="wiz-mar-init">' + m.initiales + '</div><div class="wiz-mar-name">' + m.nom + '</div><div class="wiz-mar-meta"><span class="' + cls + '">' + (count === 0 ? '❌ Pas encore saisi' : '✓ Saisi') + '</span></div></div>';
     });
-    html += '</div>';
+    _listeMar += '</div>';
 
     // ── Reports de dette inter-annuelle (transparence, à partir de 2028) ──
-    html += await renderDetteExplication(YEAR + 1);
-    body.innerHTML = html;
+    const _detteHtml = await renderDetteExplication(YEAR + 1);
+
+    /* Coupure : la première moitié reste ici, la seconde attend l'écran suivant. */
+    const _parts = html.split('<!--WIZG-SPLIT-->');
+    wizGInfoHtml = (_parts[1] || '') + _detteHtml;
+    body.innerHTML = _parts[0] + _listeMar;
 
   } else if (wizGCurrentStep === 1) {
-    if (!wizGVacData) {
-      try {
-        const data = await api({action: 'getVacValidation'});
-        if (!data.success) throw new Error(data.error);
-        wizGVacData = data.data || [];
-      } catch(e) {
-        body.innerHTML = '<div class="wizard-warning">❌ Impossible de charger les vacances : ' + e.message + '</div>';
-        return;
-      }
-    }
-    let html = '<div class="wizard-section-title">Périodes de vacances ' + INDISPOS_YEAR + ' — validation</div>';
-    html += '<div style="margin-bottom:12px;font-size:12px;color:var(--ink-3)">Vérifiez que les seuils de présence sont respectés avant de lancer.</div>';
-    if (!wizGVacData.length) {
-      html += '<div class="wizard-warning">⚠️ Aucune période configurée. Vérifiez admin.html → Équipe.</div>';
-    } else {
-      html += '<table class="wiz-periodes"><thead><tr><th>Période</th><th>Dates</th><th>Seuil</th><th>Statut</th></tr></thead><tbody>';
-      wizGVacData.forEach(p => {
-        // getVacValidation retourne {nom, debut, fin, seuil, mars[{statut}]}
-        const nom = p.nom || p.label || p.periode || '—';
-        const mars = p.mars || [];
-        const nbRefus = mars.filter(m => m.statut === 'REFUSE' || m.statut === 'PARTIEL').length;
-        const nbValide = mars.filter(m => m.statut === 'VALIDE').length;
-        let statut, icon;
-        if (nbRefus === 0 && mars.length > 0) { statut = 'VALIDE'; icon = '✅'; }
-        else if (nbRefus > 0 && nbValide > 0) { statut = 'PARTIEL (' + nbRefus + ' conflit(s))'; icon = '⚠️'; }
-        else if (nbRefus > 0) { statut = 'CONFLITS (' + nbRefus + ')'; icon = '❌'; }
-        else { statut = '—'; icon = '⚠️'; }
-        html += '<tr><td style="font-weight:600">' + nom + '</td><td style="font-size:11px;color:var(--ink-3)">' + (p.debut||'—') + ' → ' + (p.fin||'—') + '</td><td>' + (p.seuil||'—') + '</td><td>' + icon + ' ' + statut + '</td></tr>';
-      });
-      html += '</tbody></table>';
-    }
-    html += '<div style="margin-top:14px;font-size:12px;color:var(--ink-3)">Pour modifier, fermez et allez dans <strong>admin.html → Équipe</strong>.</div>';
-    body.innerHTML = html;
+    /* (03/09/2026) COUVERTURE — la seconde moitié de l'ancienne étape 1.
+       Elle a remplacé l'écran « Vacances », qui rejouait exactement le calcul
+       des conflits de l'étape précédente (même rotation, même seuil, même test
+       `rang > seuil`) : si l'étape 1 laissait passer, celui-ci était vert par
+       construction et ne pouvait rien découvrir. */
+    document.getElementById('wizGBody').innerHTML = wizGInfoHtml
+      || '<div class="wizard-warning" style="background:#F1F5F9;border-left:3px solid #94A3B8;color:#475569">Les éléments de couverture n\'ont pas pu être calculés (jours fériés indisponibles). Ceci n\'empêche pas la génération.</div>';
 
   } else if (wizGCurrentStep === 2) {
     const actifs = marsDansAnnee(marsData, INDISPOS_YEAR); // (v1.31.2) même périmètre que l'étape 1
@@ -7829,6 +7826,21 @@ async function renderWizGStep() {
       html += '<div style="font-size:12px;color:var(--orange)">⚠️ ' + sansIndispo.length + ' MAR(s) sans indispos : ' + sansIndispo.map(m => m.initiales).join(', ') + '</div>';
     }
     html += '</div>';
+    /* (03/09/2026) RAPPEL DES PÉRIODES. C'est la seule chose que l'ancien écran
+       « Vacances » apportait vraiment : relire les dates et les seuils avant de
+       lancer. Un seuil ou une date erronés ne se voient nulle part ailleurs
+       dans ce W2. Aucun statut ici : le contrôle a déjà eu lieu à l'étape 1. */
+    if (wizGVacData && wizGVacData.length) {
+      html += '<div class="wizard-section-title" style="margin-top:16px">Périodes de vacances ' + INDISPOS_YEAR + '</div>';
+      html += '<div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">Pour modifier, fermez et allez dans <strong>Équipe</strong>.</div>';
+      html += '<table class="wiz-periodes"><thead><tr><th>Période</th><th>Dates</th><th>Seuil</th></tr></thead><tbody>';
+      wizGVacData.forEach(p => {
+        html += '<tr><td style="font-weight:600">' + (p.nom || p.label || p.periode || '—') + '</td>'
+             +  '<td style="font-size:11px;color:var(--ink-3)">' + (p.debut || '—') + ' → ' + (p.fin || '—') + '</td>'
+             +  '<td>' + (p.seuil || '—') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
     html += '<div style="font-size:12px;color:var(--ink-3);margin-top:8px">La génération prend 30–60 secondes. Le planning sera publié automatiquement.</div>';
     body.innerHTML = html;
   }
@@ -8589,11 +8601,11 @@ try {
       <div class="wizard-steps">
         <div class="wizard-step active" id="wizGStep0">
           <div class="wizard-step-dot" id="wizGDot0">1</div>
-          <div class="wizard-step-label">Indispos</div>
+          <div class="wizard-step-label">Contrôles</div>
         </div>
         <div class="wizard-step" id="wizGStep1">
           <div class="wizard-step-dot" id="wizGDot1">2</div>
-          <div class="wizard-step-label">Vacances</div>
+          <div class="wizard-step-label">Couverture</div>
         </div>
         <div class="wizard-step" id="wizGStep2">
           <div class="wizard-step-dot" id="wizGDot2">3</div>
