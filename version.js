@@ -20,7 +20,7 @@
    une, la refonte du portail aussi. Ce lot-ci change beaucoup de choses, mais
    chacune à sa place dans un écran existant — il monte donc le 2e chiffre.
    ───────────────────────────────────────────────────────────────────────── */
-window.SITE_VERSION = 'v10.7.2';
+window.SITE_VERSION = 'v10.7.3';
 
 (function () {
   function poser() {

@@ -430,5 +430,71 @@ console.log('\n═══ 9. staff.html · ni les week-ends ni les fériés ne ma
     /function estChome\(ds\)\{ return isWeekend\(ds\) \|\| joursFeries\.has\(ds\); \}/.test(src));
 }
 
+/* ═══ 10. Les vues par mois s'arrêtent aux bornes de l'année de planning ═══
+   Defaut vu en production le 03/09/2026 : les onglets FORM et « VAC annee »
+   fabriquaient le mois calendaire entier. Les 1, 2 et 3 janvier 2027 etaient
+   donc cliquables alors qu'INDISPOS_2027 commence au lundi 4 (verifie au
+   classeur : 363 colonnes, du 04/01/2027 au 02/01/2028). saveIndisposBatch ne
+   reecrit que les colonnes existantes : la saisie etait jetee EN SILENCE, avec
+   un « enregistre » affiche. Meme defaut que celui corrige le 12/08 sur
+   indispos.html (banc T072) — la borne sert a l'AFFICHAGE ET au CLIC. */
+console.log('\n═══ 10. staff.html · les vues par mois respectent l\'année de planning ═══');
+{
+  const ctx = vm.createContext({ Date, Set, String, Object, Number, Math, Array, console, RegExp });
+  ctx.globalThis = ctx;
+  ctx.currentYear = 2027;
+  vm.runInContext(extraire('premierJourAnneePlanning'), ctx);
+  vm.runInContext(extraire('bornesAnneePlanning'), ctx);
+  vm.runInContext(extraire('horsAnneePlanning'), ctx);
+  vm.runInContext(extraire('getMonthDays'), ctx);
+
+  /* Les bornes doivent etre EXACTEMENT celles du serveur et celles d'indispos.html. */
+  const b = ctx.bornesAnneePlanning(2027);
+  V('2027 commence au lundi 04/01/2027', b.debut === '2027-01-04', b.debut);
+  V('2027 finit au dimanche 02/01/2028', b.fin === '2028-01-02', b.fin);
+  const b28 = ctx.bornesAnneePlanning(2028);
+  V('2028 : du 03/01/2028 au 07/01/2029', b28.debut === '2028-01-03' && b28.fin === '2029-01-07', b28);
+
+  const janv = ctx.getMonthDays(0);
+  V('l\'onglet Janvier ne commence plus le 1er', janv[0] === '2027-01-04', janv.slice(0, 4));
+  V('les 1, 2 et 3 janvier ont disparu de la grille', janv.length === 28, janv.length);
+  V('le 31 janvier est toujours là', janv[janv.length - 1] === '2027-01-31', janv[janv.length - 1]);
+  V('un mois de plein milieu d\'année est intact', ctx.getMonthDays(5).length === 30, ctx.getMonthDays(5).length);
+  V('décembre est intact lui aussi', ctx.getMonthDays(11).length === 31, ctx.getMonthDays(11).length);
+
+  /* Contre-preuve : sans la borne, janvier compterait 31 jours. */
+  const ctx2 = vm.createContext({ Date, Set, String, Object, Number, Math, Array, console, RegExp });
+  ctx2.globalThis = ctx2; ctx2.currentYear = 2027;
+  vm.runInContext(extraire('getMonthDays').replace('days.filter(date=>!horsAnneePlanning(date))', 'days'), ctx2);
+  V('sans la borne, janvier en comptait 31 (l\'ancien comportement)',
+    ctx2.getMonthDays(0).length === 31, ctx2.getMonthDays(0).length);
+
+  /* Second rideau : meme atteint autrement, le clic est refuse et EXPLIQUE. */
+  const ctx3 = vm.createContext({ Date, Set, String, Object, Number, Math, Array, console, RegExp });
+  ctx3.globalThis = ctx3;
+  ctx3.currentYear = 2027; ctx3.vacHS = false; ctx3.currentType = 'VAC';
+  ctx3.saisies = {}; ctx3.locked = {}; ctx3.periodes = [];
+  ctx3.__toasts = [];
+  ctx3.showToast = m => ctx3.__toasts.push(m);
+  ctx3.updateStatsBar = () => {}; ctx3.renderCurrent = () => {};
+  ctx3.majBandeauVerrou = () => {}; ctx3.confirm = () => true; ctx3.formatDay = d => d;
+  vm.runInContext(extraire('premierJourAnneePlanning'), ctx3);
+  vm.runInContext(extraire('bornesAnneePlanning'), ctx3);
+  vm.runInContext(extraire('horsAnneePlanning'), ctx3);
+  vm.runInContext(extraire('isScolaire'), ctx3);
+  vm.runInContext(extraire('toggleDay'), ctx3);
+  ctx3.toggleDay('AA', '2027-03-15');
+  V('une date DANS l\'année se pose normalement', ctx3.saisies.AA['2027-03-15'] === 'VAC', ctx3.saisies);
+  ctx3.toggleDay('AA', '2028-01-02');
+  V('le dernier jour de l\'année se pose encore', ctx3.saisies.AA['2028-01-02'] === 'VAC', ctx3.saisies);
+  ctx3.toggleDay('AA', '2027-01-01');
+  V('le 1er janvier 2027 est REFUSÉ', !ctx3.saisies.AA['2027-01-01'], ctx3.saisies);
+  ctx3.toggleDay('AA', '2028-01-03');
+  V('le lundi 03/01/2028, déjà l\'année suivante, est refusé aussi', !ctx3.saisies.AA['2028-01-03'], ctx3.saisies);
+  V('rien d\'autre n\'a été écrit', Object.keys(ctx3.saisies.AA).length === 2, ctx3.saisies);
+  V('le refus est expliqué au comité, jamais silencieux',
+    /Hors de l'année de planning/.test(ctx3.__toasts.join(' ')), ctx3.__toasts);
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);

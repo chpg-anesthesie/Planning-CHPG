@@ -755,6 +755,13 @@ function unlockAll(){
 function isScolaire(date){return periodes.some(p=>date>=p.debut&&date<=p.fin);}
 
 function toggleDay(marId,date){
+  /* (03/09/2026) Filet de second rideau : les vues bornent déjà les jours
+     affichés, mais le serveur jette silencieusement une date hors année —
+     mieux vaut un refus visible qu'un enregistrement fantôme. */
+  if(horsAnneePlanning(date)){
+    showToast('🚫 Hors de l\'année de planning '+currentYear);
+    return;
+  }
   if(vacHS&&isScolaire(date)){showToast('Vacances scolaires : à saisir via le bouton VAC');return;}
   if((locked[marId]||{})[date]){
     if(!confirm('Déverrouiller le '+formatDay(date)+' pour '+marId+' ?'))return;
@@ -849,12 +856,44 @@ function renderCurrent(){
   if(currentView==='grille')renderGrille();else renderRecap();
 }
 
+/* ── BORNES DE L'ANNÉE DE PLANNING (03/09/2026) ────────────────────────────
+   Défaut vu en production la veille du staff : les onglets par mois (FORM et
+   VAC année) fabriquaient le mois calendaire entier, du 1er au 31. Or l'année
+   de planning va du PREMIER LUNDI de janvier au jour précédant le premier
+   lundi de janvier suivant — pour 2027, du lundi 4 janvier 2027 au dimanche
+   2 janvier 2028 (363 colonnes dans INDISPOS_2027, vérifié au classeur).
+   Les 1, 2 et 3 janvier 2027 s'affichaient donc comme des cases normales,
+   cliquables, et saveIndisposBatch les jetait EN SILENCE : il ne réécrit que
+   les colonnes existantes, et répond quand même « enregistré ». La pastille
+   restait à l'écran jusqu'au rechargement suivant.
+   MÊME DÉFAUT, MÊME REMÈDE QUE indispos.html, corrigé le 12/08/2026 (banc
+   T072) : la borne sert à l'AFFICHAGE et au CLIC, jamais à l'un sans l'autre.
+   ⚠️ Ces deux fonctions sont pour l'instant la copie conforme de celles
+   d'indispos.html. Elles doivent rejoindre partage/ après le staff : c'est
+   exactement le genre de doublon qui finit par diverger. */
+function premierJourAnneePlanning(y){
+  const jan1 = new Date(y, 0, 1);
+  const dow = jan1.getDay();
+  const offset = dow === 1 ? 7 : dow === 0 ? 1 : 8 - dow;
+  return new Date(y, 0, 1 + offset);
+}
+function bornesAnneePlanning(y){
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const debut = premierJourAnneePlanning(y);
+  const fin = new Date(premierJourAnneePlanning(y + 1).getTime() - 86400000);
+  return { debut: iso(debut), fin: iso(fin) };
+}
+function horsAnneePlanning(date){
+  const b = bornesAnneePlanning(currentYear);
+  return date < b.debut || date > b.fin;
+}
+
 function getMonthDays(month){
   // Returns all days of the given month index (0-11) for currentYear
   const days=[];
   const d=new Date(currentYear,month,1,12,0,0);
   while(d.getMonth()===month){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1);}
-  return days;
+  return days.filter(date=>!horsAnneePlanning(date));
 }
 
 function renderGrille(){
