@@ -1022,7 +1022,11 @@ function majCompteur() {
   var p = mode45 ? posParcours(cur) : -1;
   var el = document.getElementById('count');
   if (p >= 0) {
-    el.textContent = (p + 1) + '/' + PARC.length + ' · prévu ' + PARCOURS[p][1];
+    /* (03/09/2026) L'HEURE PRÉVUE N'EST PLUS AFFICHÉE. Projetée en bas à droite,
+       elle donnait au public un horaire à comparer au vrai — et au présentateur
+       une raison de courir. Les heures restent dans PARCOURS : elles servent à
+       préparer, pas à être montrées. */
+    el.textContent = (p + 1) + '/' + PARC.length;
     document.getElementById('bar').style.width = ((p + 1) / PARC.length * 100) + '%';
   } else {
     el.textContent = (cur + 1) + ' / ' + slides.length + (mode45 ? ' · hors parcours' : '');
