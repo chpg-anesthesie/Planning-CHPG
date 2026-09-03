@@ -578,18 +578,18 @@ function vivierClasse(n){return n<VIVIER_MINI?'hot':(n<VIVIER_CONFORT?'warn':'ok
    au staff de l'année N. Un pont consomme un jour du quota de vacances, comme
    n'importe quel autre.
 
-   ⚠️ (correctif du 01/09/2026, même jour) La première version ne cherchait que
-   DEUX configurations — le vendredi après un jeudi férié, le lundi avant un
-   mardi férié — et en ratait deux autres, tout aussi rentables :
-     · le MARDI qui suit un lundi férié (samedi, dimanche, férié, mardi posé) ;
-     · le JEUDI qui précède un vendredi férié (jeudi posé, férié, week-end).
-   Sur les fériés monégasques de 2027, la bonne définition en donne SEPT, pas
-   deux. Elle est donc écrite ici de façon générale — un jour ouvré dont la
-   veille ET le lendemain sont chômés — plutôt qu'en énumérant des cas, qui
-   est précisément ce qui avait fait manquer la moitié des ponts.
+   ⚠️ (décision d'Arthur du 03/09/2026) SEULS LES PONTS OFFICIELS COMPTENT.
+   Un pont est le jour ouvré COINCÉ : chômé la veille, chômé le lendemain, un
+   férié d'un côté et le week-end de l'autre. En 2027 : les vendredis 7 et
+   28 mai, et eux seuls.
+   Le détour est consigné pour qu'il ne soit pas refait : un critère purement
+   arithmétique — « quatre jours de repos pour un seul posé » — en désignait
+   TREIZE en 2027, en comptant aussi le vendredi d'avant et le mardi d'après
+   un lundi férié. Le calcul était juste, la notion non : ces jours-là
+   ALLONGENT un week-end, ils ne ferment pas un trou. Ce sont des jours de
+   congé ordinaires, arbitrés comme les autres.
    Les mercredis fériés (Sainte Dévote, Immaculée Conception) ne donnent pas
-   de pont : il faudrait poser deux jours pour en gagner cinq, moitié moins
-   rentable. Ils ne sont volontairement pas comptés. */
+   de pont non plus : il faudrait poser deux jours pour en gagner cinq. */
 function detecterPonts(annee){
   if(!joursFeries.size) return [];
   const ds=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -598,21 +598,25 @@ function detecterPonts(annee){
   const out=[];
   for(let d=new Date(annee,0,1); d.getFullYear()===annee; d.setDate(d.getDate()+1)){
     if(chome(d)) continue;                                   // déjà chômé : rien à poser
-    /* La règle est ARITHMÉTIQUE, pas géométrique : on compte la série de repos
-       que ce seul jour posé créerait, en remontant et en descendant tant que
-       c'est chômé. Quatre jours ou plus, et au moins un férié dans la série :
-       c'est un pont. Un vendredi ordinaire n'en fait que trois. */
-    let n=1, ferie=null;
+    /* La règle est GÉOMÉTRIQUE : le jour doit être COINCÉ — chômé la veille ET
+       chômé le lendemain — avec un férié d'au moins un côté. Un jour ouvert
+       d'un côté prolonge un week-end : rentable, mais ce n'est pas un pont. */
+    const av=new Date(d); av.setDate(av.getDate()-1);
+    const ap=new Date(d); ap.setDate(ap.getDate()+1);
+    if(!chome(av)||!chome(ap)) continue;                     // ouvert d'un côté
+    const ferie=joursFeries.has(ds(av))?ds(av):(joursFeries.has(ds(ap))?ds(ap):null);
+    if(!ferie) continue;                                     // coincé, mais sans férié
+    /* Ce qu'il rapporte, pour l'afficher : la série de repos que ce seul jour
+       posé referme, en remontant et en descendant tant que c'est chômé. */
+    let n=1;
     for(const pas of [-1,1]){
       const x=new Date(d);
       for(;;){ x.setDate(x.getDate()+pas);
         if(!chome(x)) break;
-        if(joursFeries.has(ds(x))&&!ferie) ferie=ds(x);
         n++;
         if(n>10) break;                                      // garde-fou : jamais de boucle folle
       }
     }
-    if(n<4||!ferie) continue;
     const fd=new Date(ferie+'T12:00:00');
     out.push({date:ds(d), ferie:ferie, repos:n,
       quoi:JJ[d.getDay()]+', '+(ferie<ds(d)?'après':'avant')+' le férié du '+JJ[fd.getDay()]
@@ -755,7 +759,8 @@ function toggleDay(marId,date){
    Une ligne par MAR, une colonne par pont de l'année. Le comité clique, comme
    ailleurs. Ce que l'écran apporte en plus, c'est le CHIFFRE qui manquait pour
    arbitrer : combien de ponts chacun a déjà obtenus cette année, et surtout la
-   liste de ceux qui n'en ont AUCUN. Avec deux ponts par an et vingt-cinq
+   liste de ceux qui n'en ont AUCUN. Avec deux à cinq ponts par an (deux en
+   2027, quatre en 2028, cinq en 2029 — vérifié sur les fériés calculés) et vingt-cinq
    médecins, « tout le monde au moins un pont » est arithmétiquement hors de
    portée dans l'année : l'écran ne décide donc rien à la place du comité, il
    met l'inégalité sous les yeux au moment où elle se crée.
