@@ -44,7 +44,14 @@ console.log('\n═══ 1. Concordance des numéros de version (remplace T150) 
   const vjs = lire('version.js');
   const src = vjs.match(/window\.SITE_VERSION = '(v[\d.]+)'/);
   V('version.js est la source unique', !!src, src && src[1]);
-  V('la version a la forme vX.Y (deux chiffres)', !!src && /^v\d+\.\d+$/.test(src[1]), src && src[1]);
+  /* (03/09/2026) Le troisième chiffre est ADMIS. La règle de nommage le prévoit
+     depuis toujours — petit correctif = 3e chiffre — mais ce contrôle ne
+     tolérait que deux composants : livrer un v10.7.1 faisait tomber le banc
+     pour un motif de forme, sur un numéro conforme à la règle. Ce qui doit
+     rester vrai : un numéro lisible, deux ou trois nombres, rien d'autre. */
+  V('la version a la forme vX.Y ou vX.Y.Z', !!src && /^v\d+\.\d+(\.\d+)?$/.test(src[1]), src && src[1]);
+  V('un numéro mal formé serait refusé',
+    !/^v\d+\.\d+(\.\d+)?$/.test('v10.7.1.2') && !/^v\d+\.\d+(\.\d+)?$/.test('10.7'));
   AFFICHEUSES.forEach(f => {
     const h = lire(f);
     V(`${f} charge version.js`, /src="\.?\.?\/?version\.js"/.test(h));
@@ -387,7 +394,7 @@ console.log('\n═══ 12. Le Diagnostic dit la vérité sur la version du sit
   AFFICHEUSES.forEach(f => { pages[f] = lire(f); });
 
   const r = anomalies(vjs, pages);
-  V('le contrôle lit la version dans la source unique', /^v\d+\.\d+$/.test(r.version || ''), r.version);
+  V('le contrôle lit la version dans la source unique', /^v\d+\.\d+(\.\d+)?$/.test(r.version || ''), r.version);
   V('sur le dépôt réel, il ne signale RIEN', r.anomalies.length === 0, r.anomalies);
 
   /* Contre-épreuves : chaque faute possible doit être vue, et une seule fois. */

@@ -116,7 +116,11 @@ function googleCapricieux(scenario) {
     const vjs = fs.readFileSync('../version.js', 'utf8');
     const src = vjs.match(/window\.SITE_VERSION = '(v[\d.]+)'/);
     V('version.js porte le numero, une seule fois', !!src && (vjs.match(/window\.SITE_VERSION =/g) || []).length === 1, src && src[1]);
-    V('le numero tient en DEUX chiffres (v1.35, pas v1.34.10)', !!src && /^v\d+\.\d+$/.test(src[1]), src && src[1]);
+    /* (03/09/2026) Le 3e chiffre est ADMIS : c'est la regle de nommage du
+       projet (petit correctif = 3e chiffre). Ce controle ne tolerait que deux
+       nombres et refusait un v10.7.1 parfaitement conforme. Reste verifie :
+       deux ou trois nombres, prefixes d'un v, et rien d'autre. */
+    V('le numero tient en deux ou trois chiffres (v10.7, v10.7.1)', !!src && /^v\d+\.\d+(\.\d+)?$/.test(src[1]), src && src[1]);
     /* Le branchement des 5 pages afficheuses et l'absence de numero en dur
        sont verifies par banc_docs, qui sait distinguer un numero AFFICHE d'un
        numero cite dans un commentaire d'historique — mention legitime. Ici on

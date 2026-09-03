@@ -243,7 +243,14 @@ console.log('\n═══ 58. Avancement de la campagne d\'indisponibilités ═�
     const fn = (c.match(/async function majIndChip\(force\)[\s\S]*?\n\}/) || [''])[0];
     V('la fonction a bien été retrouvée', fn.length > 0);
     V('hors campagne, la pastille disparaît',
-      /if \(!INDISPOS_YEAR\)\{ chip\.style\.display='none'/.test(fn));
+      /if \(!INDISPOS_YEAR \|\| !INDISPOS_OUVERTE \|\| INDISPOS_FIGEES\)\{?\s*\n?\s*chip\.style\.display='none'/.test(fn));
+    /* (03/09/2026) INDISPOS_YEAR seul ne suffisait pas : côté serveur,
+       getIndisposYear() retombe sur l'année active quand INDISPOS_ACTIVE est
+       absente de CONFIG, si bien que la pastille restait affichée toute
+       l'année avec un compte lu sur un onglet qui n'est plus alimenté. Le
+       détail des trois états est éprouvé dans banc_pastille_indispos.js, sur
+       la vraie page. */
+    V('elle exige la campagne OUVERTE et NON figée', /!INDISPOS_OUVERTE \|\| INDISPOS_FIGEES/.test(fn));
     V('elle emploie la MÊME règle que le contrôle bloquant (marsDansAnnee)',
       /marsDansAnnee\(marsData, INDISPOS_YEAR\)/.test(fn) &&
       /marsDansAnnee\(marsData, INDISPOS_YEAR\)/.test(c.slice(c.indexOf('renderWizGStep'))));

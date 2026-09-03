@@ -1688,6 +1688,14 @@ if (sessionStorage.getItem('adminCode')) {
 const API_URL = 'https://script.google.com/macros/s/AKfycbwSiK_GlpSgw3YNQiecG9-24U2vnzFfCmFXV-6yLbPbjRL1DtGhpfvRsxMjemho0Is/exec';
 let ADMIN_CODE = '', YEAR = 2026;
 let INDISPOS_YEAR = null; // null = pas de saisie N+1 ouverte
+/* (03/09/2026) Etat REEL de la campagne. INDISPOS_YEAR ne suffit pas a le
+   dire : cote serveur, getIndisposYear() retombe silencieusement sur l'annee
+   active quand la ligne INDISPOS_ACTIVE est absente de CONFIG. Ces deux
+   drapeaux voyagent deja avec l'identite, par le serveur ET par la copie
+   rapide, et pilotent deja la tuile du portail (dashboard.html) : meme
+   source, meme lecture, pas de troisieme verite. */
+let INDISPOS_OUVERTE = false;   // la ligne INDISPOS_ACTIVE existe
+let INDISPOS_FIGEES  = false;   // GARDES_{annee} existe : les gardes sont tirees
 let ADMIN_YEAR = YEAR;          // année sélectionnée dans le sélecteur admin
 let ADMIN_YEAR_READONLY = false; // true si année archivée (stats_YYYY.json présent)
 let availableYears = [];         // [{year, label, readonly}]
@@ -2137,6 +2145,7 @@ async function miroirBootAdmin(anneeVoulue, codeAcces) {
     role: id.role, id: id.id, name: id.name, initials: id.initials,
     liberal: !!id.liberal, rpps: id.rpps || '', prenom: id.prenom || '',
     indisposYear: id.indisposYear, indisposOuverte: !!id.indisposOuverte,
+    indisposFigees: !!id.indisposFigees,   // (03/09) manquait au colis du miroir : la pastille ne pouvait pas savoir que l'annee etait generee
     planning: plan, affectations: aff || null,
     medecins: cfg.medecins || [],
     secteurs: Array.isArray(m.data.secteurs) ? m.data.secteurs : null,
@@ -2245,6 +2254,8 @@ async function authenticate() {
       ADMIN_CODE = code;
       YEAR = data.year || 2026;
       INDISPOS_YEAR = data.indisposYear || null;
+      INDISPOS_OUVERTE = !!data.indisposOuverte;
+      INDISPOS_FIGEES  = !!data.indisposFigees;
       sessionStorage.setItem('adminCode', code);
       document.getElementById('authOverlay').style.display = 'none';
       ['headerYear','wfYear'].forEach(id => {
@@ -2873,7 +2884,13 @@ let IND_ETAT = null;
 async function majIndChip(force){
   const chip = document.getElementById('indChip');
   if (!chip) return;
-  if (!INDISPOS_YEAR){ chip.style.display='none'; fermerIndPop(); return; }   /* hors campagne : rien */
+  /* (03/09/2026) La pastille ne vaut QUE pendant la campagne : de l'ouverture
+     de la saisie jusqu'a la generation des gardes. Apres, le compte n'a plus
+     d'objet — et il etait faux : hors campagne elle affichait l'annee active
+     et un decompte lu sur un onglet qui n'est plus alimente. */
+  if (!INDISPOS_YEAR || !INDISPOS_OUVERTE || INDISPOS_FIGEES){
+    chip.style.display='none'; fermerIndPop(); return;   /* hors campagne : rien */
+  }
   try{
     /* A L'OUVERTURE : la copie rapide, et RIEN D'AUTRE. Le portail s'interdit
        tout appel Apps Script au demarrage depuis la v1.25 — le banc le verifie,
@@ -8501,6 +8518,7 @@ try {
     try { PERF.jalon('reponse serveur recue'); } catch(e) {}
     if (data.success && data.role === 'admin') {
       ADMIN_CODE = saved; YEAR = data.year || 2026; INDISPOS_YEAR = data.indisposYear || null;
+      INDISPOS_OUVERTE = !!data.indisposOuverte; INDISPOS_FIGEES = !!data.indisposFigees;
       document.getElementById('authOverlay').style.display = 'none';
       document.getElementById('headerYear').textContent = YEAR;
     // Mettre à jour les labels des wizards annuels avec l'année réelle
