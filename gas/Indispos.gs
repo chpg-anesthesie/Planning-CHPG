@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-09-01.7';
+const GAS_VERSION_INDISPOS = '2026-09-03.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -1345,6 +1345,18 @@ function installStatsTrigger() {
   ScriptApp.newTrigger('statsRecalculer').timeBased()
     .onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(3).nearMinute(0).create();
   return 'Declencheur statsRecalculer installe : tous les lundis vers 3 h.';
+}
+
+// ── GÉNÉRATION CODE ACCÈS ─────────────────────────────────────────────
+/* PERDUE le 29/08/2026 (commit 2c01cb49, « compteurs d'usage ») : le bloc a été
+   écrasé en même temps que la fin de logConnexion. Seul appelant : resetCodeMar,
+   qui tombait donc en « generateCode is not defined » sans rien écrire.
+   L'alphabet exclut I, O, 0 et 1 (confusions à la dictée). */
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
 }
 
 // (C3) setupIndispos supprimé — remplacé par initYear / setupAnnee.
