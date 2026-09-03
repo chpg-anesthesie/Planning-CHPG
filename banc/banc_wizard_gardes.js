@@ -42,8 +42,11 @@ const FERIES = ['2027-01-01','2027-05-06','2027-07-14','2027-12-25'];
 /* Une saisie quelconque, suffisante pour que le MAR ne soit pas « à zéro ». */
 function saisies(n) { const o = {}; for (let i = 1; i <= n; i++) o['2027-03-' + String(i).padStart(2,'0')] = 'INDISPO'; return o; }
 
-/* `vides` = liste des ID que le serveur renvoie SANS aucune saisie. */
-async function ouvrir(vides) {
+const DATES_NOEL = ['2027-12-24','2027-12-25','2027-12-31','2028-01-01'];
+
+/* `vides` = ID sans aucune saisie.
+   `noel`  = { ID: nombre de dates de Noël bloquées } + liste des prioritaires. */
+async function ouvrir(vides, noel) {
   const vc = new VirtualConsole(); const erreurs = [];
   vc.on('jsdomError', e => erreurs.push(e.message));
   const dom = new JSDOM(SRC, { runScripts:'dangerously', virtualConsole:vc,
@@ -53,6 +56,11 @@ async function ouvrir(vides) {
   w.eval('ADMIN_CODE="CODE99"; YEAR=2026; INDISPOS_YEAR=2027; marsData=' + JSON.stringify(MARS) + ';');
   const ind = {};
   MARS.forEach((m, i) => { ind[m.id] = (vides || []).indexOf(m.id) > -1 ? {} : saisies(3 + i); });
+  const _bloq = (noel && noel.bloques) || {};
+  Object.keys(_bloq).forEach(id => {
+    for (let k = 0; k < _bloq[id]; k++) ind[id][DATES_NOEL[k]] = 'INDISPO';
+  });
+  const _elig = (noel && noel.eligibles) || [];
   const appels = [];
   w.fetch = async (url, opt) => {
     const p = JSON.parse(opt.body); appels.push(p.action);
@@ -61,7 +69,7 @@ async function ouvrir(vides) {
       getConflitsAll:      { success:true, conflits: [], nbConflits: 0, total: MARS.length },
       getJoursFeries:      { success:true, joursFeries: FERIES },
       getVacValidation:    { success:true, data: PERIODES },
-      getNoelAnEligibles:  { success:true, eligibles: [] },
+      getNoelAnEligibles:  { success:true, eligibles: _elig },
     }[p.action] || { success:true };
     return { ok:true, status:200, json: async () => rep };
   };
@@ -94,16 +102,20 @@ const brut  = w => w.document.getElementById('wizGBody').innerHTML;
     V('le repère de coupure ne fuit pas dans la page', !/WIZG-SPLIT/.test(brut(w)));
   }
 
-  console.log('\n═══ 3. Écran 1 — la liste des MAR ne compte plus les jours ═══');
+  console.log('\n═══ 3. Écran 1 — le bandeau dit tout, la liste nominative a disparu ═══');
   {
+    /* (03/09/2026) La liste affichait « ✓ Saisi » sur chaque ligne alors que le
+       bandeau venait d'annoncer que tout le monde avait saisi : vingt-quatre
+       lignes pour répéter une phrase. Ce qu'elle apportait de réel — combien de
+       MAR ont été contrôlés — est passé dans le bandeau. */
     const { w } = await ouvrir([]);
     w.eval('wizGCurrentStep = 0;');
     await w.renderWizGStep();
     const t = corps(w);
-    V('chaque MAR saisi porte un simple « Saisi »', (t.match(/✓ Saisi/g) || []).length === 3, t);
-    V('plus aucun total de jours n\'est affiché', !/\d+ jour\(s\)/.test(t), t);
-    V('les trois MAR sont bien tous listés',
-      /AL/.test(t) && /BE/.test(t) && /GA/.test(t));
+    V('le bandeau annonce l\'effectif contrôlé', /Les 3 MARs actifs ont saisi/.test(t), t.slice(0, 200));
+    V('plus aucune ligne « Saisi » ne le répète', !/✓ Saisi/.test(t), t);
+    V('plus aucun total de jours non plus', !/\d+ jour\(s\)/.test(t), t);
+    V('la liste nominative a bien disparu', brut(w).indexOf('wiz-mar-list') === -1);
   }
 
   console.log('\n═══ 4. Écran 1 — le verrou tient toujours ═══');
@@ -113,8 +125,8 @@ const brut  = w => w.document.getElementById('wizGBody').innerHTML;
     await w.renderWizGStep();
     const t = corps(w);
     V('un MAR sans aucune saisie est signalé', /n'ont pas encore saisi/.test(t), t.slice(0, 220));
-    V('il est nommé', /GA/.test(t));
-    V('et il porte la mention rouge', /Pas encore saisi/.test(t));
+    V('le bandeau le nomme lui-même', /1 MAR\(s\) sur 3 n'ont pas encore saisi/.test(t) && /GA/.test(t), t.slice(0, 220));
+    V('et rappelle que la génération est impossible', /impossible tant que tout le monde/.test(t));
     V('le bouton Suivant est verrouillé',
       w.document.getElementById('wizGNextBtn').disabled === true);
   }
@@ -176,6 +188,38 @@ const brut  = w => w.document.getElementById('wizGBody').innerHTML;
     V('puis sur les contrôles', w.eval('wizGCurrentStep') === 0);
     V('eux aussi intacts', /ont saisi leurs indispos/.test(corps(w)));
     V('aucun appel serveur n\'a été rejoué', appels.length === avant, appels.slice(avant));
+  }
+
+  console.log('\n═══ 8. Prioritaires Noël : alerte seulement si les QUATRE dates sont prises ═══');
+  {
+    /* (03/09/2026) Vérifié dans generateur_gardes.gs : la rotation traite les
+       quatre dates SÉPARÉMENT (`noelDates.forEach`) et repart, pour chacune,
+       des candidats non bloqués ce jour-là. Un prioritaire indisponible le 24
+       reste éligible au 25, au 31 ou au 1er : il n'a besoin que d'UNE date
+       libre. L'alerte ne vaut donc que s'il les a toutes prises. */
+    const elig = [{ id:'ALPHA', init:'AL', last:2024 }, { id:'BETA', init:'BE', last:null }];
+
+    const un = await ouvrir([], { eligibles: elig, bloques: { ALPHA: 1 } });
+    un.w.eval('wizGCurrentStep = 0;'); await un.w.renderWizGStep(); await un.w.wizGNext();
+    V('bloqué sur UNE seule date : aucune alerte',
+      !/Prioritaires Noël/.test(corps(un.w)), corps(un.w).slice(0, 200));
+
+    const trois = await ouvrir([], { eligibles: elig, bloques: { ALPHA: 3 } });
+    trois.w.eval('wizGCurrentStep = 0;'); await trois.w.renderWizGStep(); await trois.w.wizGNext();
+    V('bloqué sur TROIS dates : toujours aucune alerte, il reste le 1er janvier',
+      !/Prioritaires Noël/.test(corps(trois.w)));
+
+    const quatre = await ouvrir([], { eligibles: elig, bloques: { ALPHA: 4 } });
+    quatre.w.eval('wizGCurrentStep = 0;'); await quatre.w.renderWizGStep(); await quatre.w.wizGNext();
+    const t4 = corps(quatre.w);
+    V('bloqué sur les QUATRE : l\'alerte se déclenche', /Prioritaires Noël/.test(t4), t4.slice(0, 200));
+    V('un seul MAR est signalé', /1 MAR prioritaire\(s\) ne pourront pas être retenus/.test(t4), t4);
+    V('c\'est bien le bon', /AL/.test(t4) && !/dernier Noël[\s\S]{0,40}BE/.test(t4));
+    V('le texte dit « les quatre dates », plus « au moins une »',
+      /les quatre dates/.test(t4) && !/au moins une des 4 dates/.test(t4));
+    V('il rappelle qu\'il restera prioritaire', /resteront prioritaires l'an prochain/.test(t4));
+    V('l\'alerte ne bloque toujours pas la génération',
+      quatre.w.document.getElementById('wizGNextBtn').disabled === false);
   }
 
   console.log(`\n${ok} OK · ${ko} en échec`);

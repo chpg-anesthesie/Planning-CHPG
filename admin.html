@@ -7478,13 +7478,23 @@ async function renderWizGStep() {
       return Object.keys(ind).length === 0;
     });
     const nbConflits = wizGConflitsData.nbConflits || 0;
-    // ── (31/07/2026) Prioritaires Noël/An indisponibles sur les 4 dates ──
-    // Un prioritaire qui pose une indispo sur le 24, 25, 31 décembre ou le 1er janvier
-    // est ÉCARTÉ de la rotation par blocked() — et il RESTE prioritaire l'année suivante.
-    // Le bandeau du staff n'est d'aucun secours : il est plafonné à 8 et les indispos
-    // n'existent pas encore au moment du staff. C'est ici, et seulement ici, que la
-    // liste des prioritaires et les saisies des MAR coexistent.
-    // NON BLOQUANT : ce peut être un choix légitime. Mais il doit être SU.
+    /* ── (31/07/2026) Prioritaires Noël/An écartés de la rotation ──────────
+       Un prioritaire écarté RESTE prioritaire l'année suivante. Le bandeau du
+       staff n'est d'aucun secours : il est plafonné à 8 et les indispos
+       n'existent pas encore au moment du staff. C'est ici, et seulement ici,
+       que la liste des prioritaires et les saisies des MAR coexistent.
+       NON BLOQUANT : ce peut être un choix légitime. Mais il doit être SU.
+
+       (03/09/2026) CORRECTION DU SEUIL D'ALERTE — vérifié dans le générateur.
+       L'alerte se déclenchait dès UNE date bloquée. C'est faux : la rotation
+       de generateur_gardes.gs traite les quatre dates SÉPARÉMENT
+       (`noelDates.forEach`), et pour chacune elle repart des candidats non
+       bloqués CE JOUR-LÀ, dans l'ordre de la rotation. Un prioritaire
+       indisponible le 24 reste donc parfaitement éligible au 25, au 31 ou au
+       1er, et il n'a besoin que d'UNE date libre pour être servi.
+       L'alerte ne vaut donc que s'il est absent ou indisponible sur LES
+       QUATRE. Sur l'écran du 03/09, l'ancien seuil signalait quatre MAR dont
+       aucun n'était réellement écarté. */
     let _noelBloq = [];
     if (wizGNoel && wizGNoel.length && wizGIndisposData) {
       const _dN = [INDISPOS_YEAR + '-12-24', INDISPOS_YEAR + '-12-25',
@@ -7493,7 +7503,7 @@ async function renderWizGStep() {
       wizGNoel.forEach(e => {
         const m = wizGIndisposData[e.id] || {};
         const j = _dN.filter(d => _abs.has(String(m[d] || '').trim().toUpperCase()));
-        if (j.length) _noelBloq.push({init: e.init || e.id, last: e.last, n: j.length,
+        if (j.length === _dN.length) _noelBloq.push({init: e.init || e.id, last: e.last, n: j.length,
           quoi: j.map(d => String(m[d]).trim().toUpperCase() === 'INDISPO' ? 'indispo' : 'absent').join(', '),
           dates: j.map(d => d.slice(8) + '/' + d.slice(5, 7))});
       });
@@ -7505,11 +7515,18 @@ async function renderWizGStep() {
     document.getElementById('wizGNextBtn').disabled = blocked;
     let html = '<div class="wizard-section-title">Indisponibilités ' + INDISPOS_YEAR + ' — récapitulatif</div>';
 
-    // Bloc indispos
+    /* Bloc indispos
+       (03/09/2026) LE BANDEAU PORTE MAINTENANT L'EFFECTIF. La liste nominative
+       qui le suivait affichait « ✓ Saisi » sur chaque ligne quand le bandeau
+       venait de dire que tout le monde avait saisi : la même information deux
+       fois, sur vingt-quatre lignes. Et dans le cas inverse, le bandeau nomme
+       déjà les manquants. La liste a donc disparu ; ce qu'elle apportait de
+       réel — le nombre de MAR effectivement contrôlés, donc le périmètre —
+       est passé dans le bandeau. */
     if (sansIndispo.length > 0) {
-      html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">❌ <strong>' + sansIndispo.length + ' MAR(s) n\'ont pas encore saisi leurs indispos</strong> : ' + sansIndispo.map(m => m.initiales).join(', ') + '<br><small>La génération est impossible tant que tout le monde n\'a pas rempli.</small></div>';
+      html += '<div class="wizard-warning" style="background:#fee2e2;border-left:3px solid var(--red);color:#991b1b">❌ <strong>' + sansIndispo.length + ' MAR(s) sur ' + actifs.length + ' n\'ont pas encore saisi leurs indispos</strong> : ' + sansIndispo.map(m => m.initiales).join(', ') + '<br><small>La génération est impossible tant que tout le monde n\'a pas rempli.</small></div>';
     } else {
-      html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534">✅ Tous les MARs ont saisi leurs indispos.</div>';
+      html += '<div class="wizard-warning" style="background:#dcfce7;border-left:3px solid var(--green);color:#166534">✅ Les ' + actifs.length + ' MARs actifs ont saisi leurs indispos.</div>';
     }
 
     // Bloc TP concentrés (v1.31.1)
@@ -7685,9 +7702,9 @@ async function renderWizGStep() {
           return (mm && mm.rang) ? {rang: mm.rang, total: per.mars.length, periode: per.nom} : null;
         };
         if (_noelBloq.length) {
-          html += '<div class="wizard-section-title" style="margin-top:16px">🎄 Prioritaires Noël / Jour de l\'an — indisponibles sur les dates</div>';
+          html += '<div class="wizard-section-title" style="margin-top:16px">🎄 Prioritaires Noël / Jour de l\'an — indisponibles sur les quatre dates</div>';
           html += '<div class="wizard-warning" style="background:#FEF3C7;border-left:3px solid #F59E0B;color:#92400E;margin-top:4px">'
-            + '<strong>' + _noelBloq.length + ' MAR prioritaire(s) ne pourront pas être retenus</strong> : ils sont indisponibles ou absents sur au moins une des 4 dates (24, 25, 31 déc., 1<sup>er</sup> janv.). '
+            + '<strong>' + _noelBloq.length + ' MAR prioritaire(s) ne pourront pas être retenus</strong> : ils sont absents ou indisponibles sur <strong>les quatre dates</strong> (24, 25, 31 déc., 1<sup>er</sup> janv.), il ne reste donc aucun jour où les placer. '
             + 'Ils <strong>resteront prioritaires l\'an prochain</strong>. Ce peut être un choix légitime — mais autant le savoir avant de générer.</div>';
           html += '<div class="wiz-mar-list" style="margin-top:8px">';
           _noelBloq.forEach(b => {
@@ -7782,27 +7799,13 @@ async function renderWizGStep() {
         }
       }
     }
-    /* (03/09/2026) LE TOTAL DE JOURS A DISPARU. Il additionnait tous les codes
-       sans distinction — VAC, FORM, INDISPO, SOUHAIT, TP, CL — donc il mesurait
-       surtout une quotité et un historique d'absences, jamais la qualité d'une
-       saisie. Et il n'entrait dans aucun calcul : le seul test a toujours été
-       « zéro ou pas zéro ». C'est donc tout ce qui reste affiché. */
-    let _listeMar = '<div class="wiz-mar-list" style="margin-top:12px">';
-    actifs.forEach(m => {
-      const ind = wizGIndisposData[m.id] || wizGIndisposData[m.initiales] || [];
-      const count = Array.isArray(ind) ? ind.length : Object.keys(ind).length;
-      const cls = count === 0 ? 'wiz-warn' : 'wiz-ok';
-      _listeMar += '<div class="wiz-mar-row"><div class="wiz-mar-init">' + m.initiales + '</div><div class="wiz-mar-name">' + m.nom + '</div><div class="wiz-mar-meta"><span class="' + cls + '">' + (count === 0 ? '❌ Pas encore saisi' : '✓ Saisi') + '</span></div></div>';
-    });
-    _listeMar += '</div>';
-
     // ── Reports de dette inter-annuelle (transparence, à partir de 2028) ──
     const _detteHtml = await renderDetteExplication(YEAR + 1);
 
     /* Coupure : la première moitié reste ici, la seconde attend l'écran suivant. */
     const _parts = html.split('<!--WIZG-SPLIT-->');
     wizGInfoHtml = (_parts[1] || '') + _detteHtml;
-    body.innerHTML = _parts[0] + _listeMar;
+    body.innerHTML = _parts[0];
 
   } else if (wizGCurrentStep === 1) {
     /* (03/09/2026) COUVERTURE — la seconde moitié de l'ancienne étape 1.
