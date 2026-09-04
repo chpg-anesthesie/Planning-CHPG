@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-09-01.2';
+const GAS_VERSION_GENERATEUR = '2026-09-04.1';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -149,8 +149,54 @@ function isVacancesScolaires(dateStr,year){
   return false;
 }
 
-function generateGardes(year){
+/* (04/09/2026) CALCUL À BLANC — `generateGardes(year, {dryRun:true})`.
+   POURQUOI. Depuis l'ouverture du portail au service, générer une année ne se
+   voit pas seulement du comité : l'onglet créé fait apparaître l'année dans le
+   sélecteur des 23, et la fonction se termine par une notification push sur
+   leur téléphone. Il n'existe donc plus aucun endroit où éprouver le
+   générateur sur les VRAIES données.
+   CE QUE FAIT LE MODE. Le calcul se déroule à l'identique — mêmes lectures,
+   mêmes règles, même optimiseur. Seuls les quatre gestes VISIBLES sont sautés :
+   l'onglet des gardes, celui des statistiques, celui des liens samedi→récup, et
+   la notification. Rien n'est écrit, rien n'est envoyé, rien n'est effacé.
+   Le verrou anti-régénération ne s'applique pas : il protège un planning
+   existant contre l'écrasement, et un calcul à blanc n'écrase rien. C'est ce
+   qui permet de relancer l'année en cours autant de fois qu'on veut.
+   CE QU'IL RENVOIE. La durée, l'écart réel−cible par axe avec le nom du MAR
+   concerné, et les avertissements — de quoi mesurer sans rien montrer.
+   PRÉREQUIS du multi-départ : lancer N calculs et n'écrire que le meilleur,
+   c'est exactement « calculer sans écrire », N fois, puis écrire une fois. */
+/* (04/09/2026) À LANCER DEPUIS L'ÉDITEUR APPS SCRIPT — « Essai de génération ».
+   Enveloppe lisible du calcul à blanc : elle chronomètre, met en forme et écrit
+   dans le journal d'exécution. Aucun bouton, aucune page, aucune montée de
+   version du site : c'est un outil de mesure, pas une fonctionnalité.
+   Elle ne modifie RIEN — l'année peut être déjà générée, on peut la relancer
+   autant de fois qu'on veut, l'équipe ne voit rien. */
+function essaiGenerationGardes(year) {
+  const an = Number(year) || getIndisposYear();
+  const r = generateGardes(an, { dryRun: true });
+  const L = [];
+  L.push('═══ ESSAI DE GÉNÉRATION ' + an + ' — AUCUNE ÉCRITURE ═══');
+  L.push('Durée du calcul : ' + (r.ms / 1000).toFixed(1) + ' s   ·   ' + r.gardeurs + ' médecins de garde');
+  L.push('Jours sans binôme : ' + r.sansBinome + (r.jours.length ? '  → ' + r.jours.join(' ') : ''));
+  L.push('Écart réel−cible, par axe :');
+  const NOM = { total:'Total ', sam:'Samedi', jeu:'Jeudi ', vd:'Ven-Dim', vjf:'VeilleJF', jf:'Férié ' };
+  Object.keys(r.ecarts).forEach(function (k) {
+    const e = r.ecarts[k];
+    L.push('   ' + (NOM[k] || k) + ' : ' + e.ecart.toFixed(2) + (e.mar ? '   (' + e.mar + ')' : ''));
+  });
+  L.push('Avertissements : ' + r.nbWarnings);
+  r.warnings.slice(0, 15).forEach(function (w) { L.push('   · ' + w); });
+  L.push('Rien n\'a été écrit dans le classeur, aucune notification envoyée.');
+  const txt = L.join('\n');
+  Logger.log(txt);
+  return txt;
+}
+
+function generateGardes(year, opts){
   if(!year) throw new Error('Précisez l\'année');
+  const DRY = !!(opts && opts.dryRun);
+  const _tGen = Date.now();
   const ss=SpreadsheetApp.getActiveSpreadsheet();
 
   // ── 🔒 GARDE-FOU ANTI-RÉGÉNÉRATION ────────────────────────────────────
@@ -158,7 +204,7 @@ function generateGardes(year){
   // fait deleteSheet+recreate de GARDES_{year} ET STATS_GARDES_{year} : sans ce
   // garde-fou, relancer W2 écraserait la preuve d'équité de l'algo et le planning.
   // Pour régénérer volontairement (rare) : supprimer d'abord manuellement l'onglet.
-  if(ss.getSheetByName(`GARDES_${year}`)){
+  if(!DRY && ss.getSheetByName(`GARDES_${year}`)){
     throw new Error(`🔒 GARDES_${year} existe déjà — génération verrouillée pour protéger l'équité. Pour régénérer (rare), supprimez d'abord manuellement l'onglet GARDES_${year}.`);
   }
 
@@ -1813,6 +1859,44 @@ function generateGardes(year){
       if(NOEL.has(day.date))noelAnCnt[id]=(noelAnCnt[id]||0)+1;
     });
   });
+
+  /* (04/09/2026) CALCUL À BLANC — on s'arrête ICI, avant le premier geste
+     visible. Tout ce qui suit écrit dans le classeur ou notifie l'équipe ;
+     tout ce qui précède n'a fait que lire et calculer. La frontière est nette,
+     et c'est ce qui rend la promesse d'invisibilité tenable. */
+  if(DRY){
+    const _AXES=['total','sam','jeu','vd','vjf','jf'];
+    const ecarts={};
+    _AXES.forEach(function(k){
+      let pire=0, qui='';
+      gardeDoctors.forEach(function(id){
+        if(!cnt[id]||!cible[id]) return;
+        const cb=cible[id][k]; if(!(cb>0)) return;
+        const e=Math.abs(cnt[id][k]-cb);
+        if(e>pire){ pire=e; qui=id; }
+      });
+      ecarts[k]={ ecart:Math.round(pire*100)/100, mar:qui };
+    });
+    const sansBinome=allDays.filter(function(d){
+      const g=gardes[d.date]; return !g||!g.g||!g.g2;
+    }).map(function(d){return d.date;});
+    /* Les compteurs BRUTS, en entiers. C'est par eux que le banc prouve qu'un
+       calcul à blanc et une vraie génération produisent le MÊME planning : les
+       écarts ci-dessus ne le prouveraient pas, l'onglet STATS arrondissant la
+       cible au dixième alors qu'on la garde ici en pleine précision. */
+    const compteurs={};
+    gardeDoctors.forEach(function(id){
+      if(!cnt[id]) return;
+      compteurs[id]={ total:cnt[id].total, g:cnt[id].g, g2:cnt[id].g2,
+                      sam:cnt[id].sam, jeu:cnt[id].jeu, vd:cnt[id].vd, vjf:cnt[id].vjf };
+    });
+    warnings.forEach(function(w){ Logger.log(w); });
+    return { dryRun:true, year:year, ms:Date.now()-_tGen,
+             ecarts:ecarts, compteurs:compteurs,
+             sansBinome:sansBinome.length, jours:sansBinome.slice(0,10),
+             gardeurs:gardeDoctors.filter(function(id){return cnt[id];}).length,
+             warnings: warnings.slice(0, 60), nbWarnings: warnings.length };
+  }
 
   // ── 12. Écrire GARDES_YYYY ────────────────────────────────────────────
   let gs=ss.getSheetByName(`GARDES_${year}`);if(gs)ss.deleteSheet(gs);

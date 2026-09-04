@@ -278,9 +278,15 @@ console.log('\n═══ 4ter. Le CONTENU des avertissements est écrit dans LOG
   V('quand le plafond mord, le reste est annoncé plutôt que passé sous silence',
     /avertissement\(s\) de plus, non détaillés/.test(src));
   const gen = require('fs').readFileSync(require('path').join(__dirname, '..', 'gas', 'generateur_gardes.gs'), 'utf8');
-  const m = gen.match(/warnings\.slice\(0, (\d+)\)/);
+  /* (04/09/2026) On cible les RETOURS du générateur, pas le premier `slice` venu.
+     L'ancienne écriture prenait la première occurrence du fichier : le jour où
+     une autre fonction a découpé la même liste pour l'afficher, le contrôle a
+     mesuré la mauvaise valeur et sonné à tort. Et il y a désormais DEUX retours
+     — la génération réelle et le calcul à blanc : les deux doivent tenir. */
+  const caps = [...gen.matchAll(/warnings:\s*warnings\.slice\(0,\s*(\d+)\)/g)].map(m => +m[1]);
+  V('les deux retours du générateur plafonnent leurs avertissements', caps.length >= 2, caps);
   V('le générateur rend bien au plus 60 avertissements (le plafond de LOGS tient)',
-    !!m && Number(m[1]) === 60, m && m[1]);
+    caps.length > 0 && caps.every(n => n === 60), caps);
 }
 
 /* ═══ 5. ÉQUIVALENCE motifBlocage ⇔ blocked, sur une année entière ═══════ */
