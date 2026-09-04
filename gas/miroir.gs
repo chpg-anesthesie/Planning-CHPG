@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-08-27.1';
+const GAS_VERSION_MIROIR = '2026-09-04.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -1378,7 +1378,34 @@ function _miroirConstruireVacancesAdmin_() {
       groupes[gk] = tempGroups[gk].sort(function (x, y) { return x.ordre - y.ordre; }).map(function (m) { return {id: m.id}; });
     });
   }
-  return { success: true, periodes: periodes, groupes: groupes };
+  /* (04/09/2026) L'HISTORIQUE DE NOËL VOYAGE AVEC LES PÉRIODES.
+     Constaté au staff du 04/09, devant la salle : le bouton « 🎄 Noël & Jour
+     de l'An » a répondu « historique indisponible ». C'était le SEUL appel de
+     staff.html qui partait encore en direct sur Apps Script — tout le reste de
+     la page (médecins, indispos, fériés, périodes) arrive de la copie rapide.
+     Or Apps Script exécute en file : une vingtaine de connexions simultanées
+     ont suffi à mettre le clic derrière tout le monde. Le soir, au calme, le
+     même bouton répondait.
+
+     POURQUOI ICI et pas dans une clé à part : `vacances_admin` est déjà
+     réservée au comité côté Worker, déjà lue au chargement de cet écran, et
+     n'est PAS suffixée par année. Une clé neuve aurait imposé les trois choses
+     qu'on veut éviter — une entrée dans MIROIR_CLES_PAR_ANNEE (sinon elle
+     survit au ménage de fin d'année, défaut déjà vu deux fois), une règle
+     d'accès dans le Worker, et donc un déploiement Cloudflare de plus.
+
+     ⚠️ TRY À LUI SEUL, volontairement. `_miroirAjouteEnveloppe_` abandonne la
+     clé ENTIÈRE au premier jet : sans ce filet, une erreur sur l'historique de
+     Noël emporterait aussi les périodes et les groupes, c'est-à-dire tout
+     l'écran du staff vacances. En cas d'échec, `noel` vaut null et la page
+     repasse par Apps Script exactement comme avant : dégradé, jamais cassé. */
+  var noel = null;
+  try {
+    var yNoel = getIndisposYear();
+    noel = { annee: Number(yNoel), historique: computeNoelAnHistorique(yNoel) };
+  } catch (e) { noel = null; }
+
+  return { success: true, periodes: periodes, groupes: groupes, noel: noel };
 }
 
 

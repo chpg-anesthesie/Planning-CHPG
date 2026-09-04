@@ -367,6 +367,19 @@ async function loadData(pre){
        if(mv&&mv.success&&mv.data&&mv.data.vacances_admin&&mv.data.vacances_admin.success) pRes=mv.data.vacances_admin; }catch(e){}
   if(!pRes) pRes=await apiCall({action:'getVacancesConfig'});
   if(!pRes.success)return showToast('Erreur périodes');
+
+  /* (04/09/2026) L'historique de Noël arrive AVEC les périodes : le clic sur
+     « 🎄 Noël & Jour de l'An » n'appelle plus Apps Script. C'était le dernier
+     appel direct de cette page, et le seul sans repli — il a échoué en séance
+     le 04/09, la file d'attente Apps Script étant saturée par les connexions
+     du staff.
+     L'ANNÉE EST CONTRÔLÉE : la copie rapide porte l'année de campagne du
+     serveur, l'écran peut regarder une autre année. En cas d'écart, on ne
+     garde rien et `buildRecapNoel` refait l'appel direct, comme avant. */
+  if(pRes.noel && Number(pRes.noel.annee)===currentYear
+     && pRes.noel.historique && Array.isArray(pRes.noel.historique.mars)){
+    noelHistoData = pRes.noel.historique;
+  }
   periodes=(pRes.periodes||[]).filter(p=>parseInt(p.debut.slice(0,4))===currentYear||parseInt(p.debut.slice(0,4))===currentYear-1);
   if(!periodes.length){document.getElementById('loadingArea').innerHTML='<div>Aucune période pour '+currentYear+'</div>';return;}
 

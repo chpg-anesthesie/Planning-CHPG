@@ -302,8 +302,16 @@ console.log('\n═══ 58. Avancement de la campagne d\'indisponibilités ═�
       /onclick="loadVacances\(true\)"/.test(c));
     /* Le contrat de forme, des deux cotes : si l'un des deux change, l'ecran
        afficherait du vide sans rien dire. */
+    /* (04/09/2026) La clé porte un champ de plus, `noel` — l'historique de
+       Noël, qui voyage désormais avec les périodes pour que le staff vacances
+       n'appelle plus Apps Script au clic. Le contrat vérifié ici reste le
+       MÊME pour l'onglet Équipe : `periodes` et `groupes` sont toujours là,
+       toujours sous ces noms. Un champ ajouté ne casse rien ; un champ
+       renommé casserait l'écran en silence, et c'est cela qu'on garde. */
     V('le miroir produit bien periodes[] et groupes{A,B,C}',
-      /return \{ success: true, periodes: periodes, groupes: groupes \};/.test(miroir));
+      /return \{ success: true, periodes: periodes, groupes: groupes, noel: noel \};/.test(miroir));
+    V('…et l\'onglet Équipe ne dépend toujours que de ces deux champs-là',
+      !/data\.noel/.test(fn));
     V('l\'écran consomme exactement ces deux champs',
       /periodesData = data\.periodes \|\| \[\]/.test(fn) &&
       /groupesData = data\.groupes \|\| \{A:\[\], B:\[\], C:\[\]\}/.test(fn));

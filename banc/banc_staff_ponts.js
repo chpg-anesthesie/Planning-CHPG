@@ -394,6 +394,80 @@ console.log('\n═══ 8. L\'historique de Noël se consulte au lieu de défil
     /computeNoelAnHistorique[\s\S]{0,1400}FLAGS\.noGarde\.has\(id\)[\s\S]{0,120}FLAGS\.souhaitPlafond\.has\(id\)/.test(ind));
 }
 
+/* ═══ 8 bis. L'historique de Noël voyage par la copie rapide ════════════
+   (04/09/2026) Défaut de PRODUCTION, constaté en séance devant le service :
+   le bouton « 🎄 Noël & Jour de l'An » a répondu « historique indisponible ».
+   `getNoelAnEligibles` était le SEUL appel de staff.html à partir en direct sur
+   Apps Script — médecins, indispos, fériés et périodes arrivent tous de la
+   copie rapide. Apps Script exécute en FILE : une vingtaine de connexions
+   simultanées ont suffi à mettre le clic derrière tout le monde. Le soir, au
+   calme, le même bouton répondait — ce qui exclut une erreur de code.
+
+   Ce que ces vérifications tiennent :
+     · l'historique part avec `vacances_admin`, déjà lue au chargement ;
+     · il est enveloppé dans SON PROPRE try — sinon une erreur ici emporterait
+       les périodes et les groupes, donc tout l'écran du staff vacances ;
+     · l'écran contrôle l'année avant de s'en servir ;
+     · le repli direct reste en place et n'a pas été retiré.
+   ══════════════════════════════════════════════════════════════════════ */
+console.log('\n═══ 8 bis. Le tableau de Noël ne dépend plus d\'un appel Google au clic ═══');
+{
+  const fsx = require('fs'), px = require('path');
+  const mir = fsx.readFileSync(px.join(__dirname, '..', 'gas', 'miroir.gs'), 'utf8');
+  const src2 = fsx.readFileSync(px.join(__dirname, '..', 'staff.html'), 'utf8');
+
+  /* Côté serveur — la clé qui porte les périodes porte aussi l'historique. */
+  const bloc = (function () {
+    const i = mir.indexOf('function _miroirConstruireVacancesAdmin_(');
+    if (i < 0) throw new Error('_miroirConstruireVacancesAdmin_ introuvable');
+    let prof = 0, j = mir.indexOf('{', i);
+    for (; j < mir.length; j++) { if (mir[j] === '{') prof++; else if (mir[j] === '}') { prof--; if (!prof) break; } }
+    return mir.slice(i, j + 1);
+  })();
+  V('vacances_admin rend désormais un champ noel',
+    /return \{ success: true, periodes: periodes, groupes: groupes, noel: noel \};/.test(bloc));
+  V('il est construit par la MÊME fonction que l\'appel direct (aucun second calcul)',
+    /computeNoelAnHistorique\(yNoel\)/.test(bloc));
+  V('l\'année servie est celle de la campagne, pas l\'année civile',
+    /var yNoel = getIndisposYear\(\);/.test(bloc));
+  V('l\'année voyage AVEC l\'historique, pour que l\'écran puisse la contrôler',
+    /annee: Number\(yNoel\), historique:/.test(bloc));
+  /* Le filet qui compte : `_miroirAjouteEnveloppe_` abandonne la clé entière
+     au premier jet. Sans try local, une panne de l'historique de Noël ferait
+     disparaître les périodes et les groupes — l'écran entier. */
+  V('l\'historique a son PROPRE try : une panne ici ne peut pas emporter la clé',
+    /try \{[\s\S]{0,200}computeNoelAnHistorique\(yNoel\)[\s\S]{0,60}\} catch \(e\) \{ noel = null; \}/.test(bloc));
+  V('…et l\'échec vaut null, jamais un objet à moitié rempli',
+    /var noel = null;/.test(bloc));
+
+  /* Côté écran — on s'en sert, on contrôle l'année, on garde le repli. */
+  V('l\'écran range l\'historique livré avec les périodes',
+    /pRes\.noel && Number\(pRes\.noel\.annee\)===currentYear/.test(src2));
+  V('il refuse un historique qui ne porte pas la bonne année',
+    /Number\(pRes\.noel\.annee\)===currentYear/.test(src2));
+  V('il refuse aussi un historique mal formé',
+    /Array\.isArray\(pRes\.noel\.historique\.mars\)/.test(src2));
+  V('le repli direct sur Apps Script n\'a PAS été retiré',
+    /action:'getNoelAnEligibles',year:currentYear,historique:true/.test(src2));
+  V('…et il ne se déclenche que si rien n\'a été livré',
+    /if\(!noelHistoData\)\{[\s\S]{0,900}getNoelAnEligibles/.test(src2));
+  V('le message d\'échec reste en place pour le cas où les deux voies tombent',
+    /Historique indisponible pour le moment/.test(src2));
+
+  /* La clé n'est pas suffixée par année : elle n'a donc RIEN à faire dans la
+     liste des clés effaçables par année, et n'impose aucun déploiement du
+     Worker. On le vérifie, sinon le prochain lecteur ajoutera l'un ou l'autre
+     « par sécurité » et rouvrira le débat. */
+  V('vacances_admin reste hors de la liste des clés datées par année',
+    /const MIROIR_CLES_PAR_ANNEE\s*=\s*\[[^\]]*\]/.test(mir) &&
+    !/MIROIR_CLES_PAR_ANNEE[\s\S]{0,400}vacances_admin/.test(mir));
+  const wk = fsx.readFileSync(px.join(__dirname, '..', 'cloudflare', 'worker.js'), 'utf8');
+  V('le Worker n\'a pas besoin d\'une règle neuve : vacances_admin est déjà au comité',
+    /cle === 'vacances_admin'[\s\S]{0,120}user\.role === 'admin'/.test(wk));
+  V('aucune clé noel_ n\'a été inventée au passage',
+    !/noel_\\d\{4\}/.test(wk));
+}
+
 /* ═══ 9. Le quota se compte en jours TRAVAILLÉS ═════════════════════════ */
 console.log('\n═══ 9. staff.html · ni les week-ends ni les fériés ne mangent le quota ═══');
 {
