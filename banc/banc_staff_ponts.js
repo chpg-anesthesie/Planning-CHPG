@@ -496,5 +496,34 @@ console.log('\n═══ 10. staff.html · les vues par mois respectent l\'anné
     /Hors de l'année de planning/.test(ctx3.__toasts.join(' ')), ctx3.__toasts);
 }
 
+/* ═══ QUOTAS DE CONGÉS — la table de staff.html contre le classeur ═══
+   (03/09/2026) Constat en production : un temps plein voyait « 33j » au staff
+   alors que CONFIG_CONGES dit 37, et que le serveur lit bien le classeur
+   (_loadQuotasConges). La table de staff.html était l'ancienne, de 2026, et
+   elle était fausse pour TOUTES les quotités en VAC.
+   Les valeurs ci-dessous sont celles relevées dans CONFIG_CONGES le 03/09.
+   Ce scénario ne prouve pas que le classeur n'a pas rebougé depuis — il fige
+   ce qui a été constaté, pour qu'une régression se voie. */
+console.log('\n═══ Quotas de congés : staff.html suit CONFIG_CONGES ═══');
+{
+  const ctx = vm.createContext({ Math, Object, Number, console });
+  ctx.globalThis = ctx;
+  /* Les deux déclarations sont `const` : évaluées dans deux scripts séparés
+     elles resteraient invisibles l'une de l'autre et du banc. Un seul script,
+     et on expose la fonction. */
+  vm.runInContext(extraireConst('QUOTAS') + '\n' + extraireConst('getQuota')
+                  + '\nglobalThis.gq = getQuota;', ctx);
+  const attenduVac = { 100: 37, 90: 33, 80: 30, 60: 22, 50: 18 };
+  const attenduForm = { 100: 10, 90: 9, 80: 8, 60: 6, 50: 5 };
+  Object.keys(attenduVac).forEach(q =>
+    V('VAC à ' + q + ' % : ' + attenduVac[q] + ' jours',
+      ctx.gq('VAC', Number(q)) === attenduVac[q], ctx.gq('VAC', Number(q))));
+  Object.keys(attenduForm).forEach(q =>
+    V('FORM à ' + q + ' % : ' + attenduForm[q] + ' jours',
+      ctx.gq('FORM', Number(q)) === attenduForm[q], ctx.gq('FORM', Number(q))));
+  V('un temps plein n\'affiche plus l\'ancien 33', ctx.gq('VAC', 100) !== 33);
+  V('une quotité décimale est arrondie au palier', ctx.gq('VAC', 89.6) === 33, ctx.gq('VAC', 89.6));
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);
