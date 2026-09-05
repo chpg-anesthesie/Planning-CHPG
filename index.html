@@ -2436,34 +2436,62 @@ function renderDocPanel(){
 
 
 function _cibNum(v){ const n=(v instanceof Date)?NaN:Number(v); return (isFinite(n)&&n>=0&&n<1000)?n:0; }
-/* ── CIBLES RAMENÉES AUX GARDES RÉELLEMENT RÉPARTIES ───────────────────
-   (05/09/2026) Défaut vu EN PRODUCTION sur l'écran 2026 : « 19 MAR sur 20
-   dépassent 2 gardes d'écart », avec les noms. Vérifié dans le classeur : la
-   colonne CIBLE promet 730,8 gardes pour 707 posées, et 103,7 samedis pour 91.
-   La différence, ce sont les gardes assurées par un médecin EXTÉRIEUR au
-   service, qui ne figure pas dans la liste. Tout le monde apparaissait donc
-   ~1,7 garde trop bas : 5 MAR accusés à tort (GHIGLIONE, ALBOUY, SALA pile à
-   leur part), et LEY à +2,1 absent de la liste.
+/* ── CIBLES ENTIÈRES, RAMENÉES AUX GARDES RÉELLEMENT RÉPARTIES ─────────
+   (05/09/2026) Deux défauts vus EN PRODUCTION sur l'écran 2026.
 
-   LA RÈGLE, sans référence à une année : une mesure d'équité juste a des écarts
-   qui S'ANNULENT — ce qu'un MAR fait en trop, un autre le fait en moins. Quand
-   la somme des cibles s'écarte de plus de 1 % des gardes réellement réparties,
-   c'est que des gardes sont sorties du service : on ramène alors les cibles à ce
-   qui a vraiment été distribué.
-   On ne se fie PAS à un numéro d'année : la page n'a pas à savoir quelle année
-   l'algorithme a générée, et la donnée le dit elle-même.
-   La correction n'est JAMAIS silencieuse : dès qu'elle s'applique, le certificat
-   affiche la mention qui l'explique au lecteur. */
-function facteursEquite(evalues, axes){
-  const F = {}, SEUIL_ECART = 0.01;
-  axes.forEach(a => { F[a[1]] = 1; });
+   1. « 19 MAR sur 20 dépassent 2 gardes d'écart », nommément. Vérifié dans le
+      classeur : la colonne CIBLE promet 730,8 gardes pour 707 posées, et 103,7
+      samedis pour 91. La différence, ce sont les gardes assurées par un médecin
+      EXTÉRIEUR au service, absent de la liste. Tout le monde apparaissait ~1,7
+      garde trop bas : GHIGLIONE, ALBOUY et SALA signalés alors qu'ils sont pile
+      à leur part, LEY à +2,1 absent de la liste.
+   2. Des cibles à quinze décimales (« 7 /5.258134490238612 ») : la correction
+      du point 1 produisait un nombre brut, affiché tel quel.
+
+   LA RÈGLE. On ne compare pas à un nombre à virgule — personne ne peut faire
+   5,26 samedis. On répartit les gardes RÉELLEMENT posées en cibles ENTIÈRES,
+   par la méthode des plus forts restes : chacun reçoit sa partie entière, les
+   unités qui restent vont à ceux dont le reste est le plus fort. Deux
+   propriétés qui font toute la valeur du calcul :
+     · la somme des cibles est EXACTEMENT le nombre de gardes réparties ;
+     · les écarts S'ANNULENT — ce qu'un MAR fait en trop, un autre le fait en
+       moins. Ceux de 2026 totalisaient -23,8, ce qui prouvait l'anomalie.
+   C'est la même méthode que celle du générateur à partir de 2027 : l'écran de
+   2026 se lit donc comme celui des années suivantes, en gardes entières.
+
+   Aucune référence à une année : la donnée dit elle-même si elle est cohérente.
+   La correction n'est jamais silencieuse — dès que la somme des cibles s'écarte
+   de plus de 1 % des gardes réparties, le certificat affiche la mention qui
+   l'explique au lecteur. */
+function ciblesEquite(evalues, axes){
+  const T = {}, ECART = { }, SEUIL = 0.01;
+  evalues.forEach(m => { T[m.name] = {}; });
   axes.forEach(a => {
     const rk = a[0], ck = a[1];
+    const elig = evalues.filter(m => (+m[ck] || 0) > 0);
+    if(!elig.length) return;
     let sr = 0, sc = 0;
-    evalues.forEach(m => { const c = +m[ck] || 0; if(c <= 0) return; sr += +m[rk] || 0; sc += c; });
-    if(sc > 0 && Math.abs(sr - sc) > SEUIL_ECART * sc) F[ck] = sr / sc;
+    elig.forEach(m => { sr += +m[rk] || 0; sc += +m[ck] || 0; });
+    if(!(sc > 0)) return;
+    ECART[ck] = Math.abs(sr - sc) > SEUIL * sc;
+    const f = sr / sc;                       // ramène les cibles au réel
+    const base = {}; let somme = 0;
+    elig.forEach(m => { base[m.name] = Math.floor((+m[ck] || 0) * f); somme += base[m.name]; });
+    let reste = Math.round(sr - somme);
+    const ordre = elig.slice().sort((x, y) => {
+      const fx = ((+x[ck] || 0) * f) % 1, fy = ((+y[ck] || 0) * f) % 1;
+      return fy - fx || (String(x.name) < String(y.name) ? -1 : 1);
+    });
+    let k = 0;
+    while(reste > 0 && k < ordre.length * 4){ base[ordre[k % ordre.length].name]++; reste--; k++; }
+    while(reste < 0 && k < ordre.length * 4){
+      const n = ordre[ordre.length - 1 - (k % ordre.length)].name;
+      if(base[n] > 0){ base[n]--; reste++; } k++;
+    }
+    elig.forEach(m => { T[m.name][ck] = base[m.name]; });
   });
-  return F;
+  T._corrige = Object.keys(ECART).some(k => ECART[k]);
+  return T;
 }
 const AX_EQUITE = [['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],
                    ['vd','cVd','week-ends'],['vjf','cVjf','veilles fériés']];
@@ -2474,13 +2502,13 @@ function renderEquiteCards(list){
   const NEUTRAL={lu:1,ma:1,me:1}; // hors équité : pas de cible, barre neutre
   const meanAx={};
   ['lu','ma','me','jf'].forEach(k=>{const v=list.map(x=>+x[k]||0);meanAx[k]=v.length?v.reduce((s,n)=>s+n,0)/v.length:0;});
-  /* (05/09/2026) Barres et certificat lisent la MÊME cible corrigée : deux
+  /* (05/09/2026) Barres et certificat lisent la MÊME cible entière : deux
      lecteurs d'une même donnée qui divergent, c'est un écran qui se contredit. */
-  const _FEQ = facteursEquite(list.filter(x=>!x.wish), AX_EQUITE);
+  const _CIB = ciblesEquite(list.filter(x=>!x.wish), AX_EQUITE);
   const cibOf=(it,k)=>{
     if(!CB[k]) return meanAx[k];
-    const ck=CB[k];
-    return (+it[ck]||0) * (_FEQ[ck] || 1);
+    const ck=CB[k], t=_CIB[it.name];
+    return (t && t[ck]!==undefined) ? t[ck] : (+it[ck]||0);
   };
   const colOf=(v,c)=>{const d=v-c;
     const over=IS_DARK?'#F4586B':'#CE1126', under=IS_DARK?'#7BAAF7':'#1D4ED8', ok=IS_DARK?'#5BD08B':'#15803D';
@@ -2502,9 +2530,11 @@ function renderEquiteCards(list){
   });
   return '<div class="eqv-grid">'+sorted.map(it=>{
     const _wish=!!it.wish;
-    const tv=+it.total||0, tc=_wish?0:((+it.cTot||0)*(_FEQ.cTot||1)), tw=Math.min(100,tv/maxTot*100), tcx=Math.min(100,tc/maxTot*100);
+    const _tci=_CIB[it.name];
+    const tv=+it.total||0, tc=_wish?0:((_tci&&_tci.cTot!==undefined)?_tci.cTot:(+it.cTot||0)),
+          tw=Math.min(100,tv/maxTot*100), tcx=Math.min(100,tc/maxTot*100);
     const _totFill=_wish?'#94A3B8':colOf(tv,tc), _totOpac=_wish?';opacity:.5':'';
-    const _totVal=_wish?(tv+'<span> souhaits</span>'):(tv+'<span> /'+(tc>0?tc.toFixed(1):'—')+'</span>');
+    const _totVal=_wish?(tv+'<span> souhaits</span>'):(tv+'<span> /'+(tc>0?Math.round(tc):'—')+'</span>');
     const totBar='<div class="eqv-row eqv-row-tot"><div class="eqv-lbl">Total</div><div class="eqv-track eqv-track-tot"><div class="eqv-fill" style="width:'+tw+'%;background:'+_totFill+_totOpac+'"></div>'+((tc>0&&!_wish)?'<div class="eqv-tick" style="left:'+tcx+'%"></div>':'')+'</div><div class="eqv-val">'+_totVal+'</div></div>';
     const bars=AX.map(([k,lbl])=>{
       const v=+it[k]||0;
@@ -2514,7 +2544,7 @@ function renderEquiteCards(list){
       }
       const c=cibOf(it,k),mx=maxOf(k);
       const w=Math.min(100,v/mx*100),cx=Math.min(100,c/mx*100);
-      const cval=CB[k]?c:c.toFixed(1),tick=CB[k]?'':'opacity:.42';
+      const cval=CB[k]?Math.round(c):c.toFixed(1),tick=CB[k]?'':'opacity:.42';
       return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:'+colOf(v,c)+'"></div><div class="eqv-tick" style="left:'+cx+'%;'+tick+'"></div></div><div class="eqv-val">'+v+'<span> /'+cval+'</span></div></div>';
     }).join('');
     const _isMe = _meN && String(it.name)===_meN;
@@ -2598,15 +2628,16 @@ function renderCertificatMAR(list){
   var evalues = list.filter(function(m){ return !m.wish; });
   var nExcl = list.length - evalues.length;
   if(!evalues.length) return '';
-  var F = facteursEquite(evalues, AXfull);
-  var corrige = Object.keys(F).some(function(k){ return Math.abs(F[k] - 1) > 0.005; });
+  var T = ciblesEquite(evalues, AXfull);
+  var corrige = !!T._corrige;
 
   var lignes = [], within1 = 0;
   evalues.forEach(function(m){
     var worst = 0, wax = '';
     AXfull.forEach(function(a){
-      var cb = (+m[a[1]] || 0) * F[a[1]];
-      if(cb <= 0) return;
+      var t = T[m.name] || {};
+      if(t[a[1]] === undefined) return;
+      var cb = t[a[1]];
       var ec = (+m[a[0]] || 0) - cb;
       if(Math.abs(ec) > Math.abs(worst)){ worst = ec; wax = a[2]; }
     });

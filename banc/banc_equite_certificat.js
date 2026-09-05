@@ -45,10 +45,10 @@ function extraire(nom, SRC) {
 }
 
 console.log('\n─── 1. La correction ramène les cibles aux gardes réellement posées ───');
-const srcF = extraire('facteursEquite');
-V('la fonction de correction existe dans admin.html', !!srcF);
+const srcF = extraire('ciblesEquite');
+V('la fonction de cibles entières existe dans admin.html', !!srcF);
 V('…et la MÊME existe dans index.html (portail MAR)',
-  !!extraire('facteursEquite', INDEX) && extraire('facteursEquite', INDEX) === srcF);
+  !!extraire('ciblesEquite', INDEX) && extraire('ciblesEquite', INDEX) === srcF);
 
 /* Jeu de données calqué sur le VRAI 2026 lu dans le classeur : cibles nominales
    à 36 pour les temps pleins, mais seulement 707 gardes posées sur 730,8. */
@@ -68,33 +68,39 @@ const AXES = [['total', 'cTot', 'total']];
 
 /* La règle ne regarde AUCUNE année : elle regarde si les écarts s'annulent.
    On l'exécute donc telle qu'elle est écrite dans la page. */
-const fEq = new Function(srcF + '; return facteursEquite;')();
-const F2026 = fEq(MARS, AXES);
-V('quand les écarts ne s\'annulent pas, la cible est ramenée vers le bas',
-  F2026.cTot > 0.9 && F2026.cTot < 1, +F2026.cTot.toFixed(4));
+const fEq = new Function(srcF + '; return ciblesEquite;')();
+const T2026 = fEq(MARS, AXES);
+const cib = (m, T) => T[m.name].cTot;
+V('toutes les cibles sont des ENTIERS',
+  MARS.every(m => Number.isInteger(cib(m, T2026))), MARS.slice(0,3).map(m => cib(m, T2026)));
+V('la cible d\'un temps plein est ramenée vers le bas (36 promis, ~34 réels)',
+  cib(MARS[0], T2026) >= 33 && cib(MARS[0], T2026) <= 35, cib(MARS[0], T2026));
+V('l\'anomalie de somme est signalée au lecteur', T2026._corrige === true);
 
 /* LE contrôle : les écarts doivent s'annuler. C'est ce qui prouve qu'une part
    a été attribuée à quelqu'un, et une seule fois. */
-const sommeApres = MARS.reduce((s, m) => s + (m.total - m.cTot * F2026.cTot), 0);
+const sommeApres = MARS.reduce((s, m) => s + (m.total - cib(m, T2026)), 0);
 const sommeAvant = MARS.reduce((s, m) => s + (m.total - m.cTot), 0);
 V('avant correction, les écarts NE s\'annulent pas (le défaut est bien là)',
   Math.abs(sommeAvant) > 20, +sommeAvant.toFixed(1));
-V('après correction, les écarts s\'annulent', Math.abs(sommeApres) < 0.01, +sommeApres.toFixed(4));
+V('après correction, les écarts s\'annulent EXACTEMENT', sommeApres === 0, sommeApres);
+V('la somme des cibles = les gardes réellement réparties',
+  MARS.reduce((s, m) => s + cib(m, T2026), 0) === MARS.reduce((s, m) => s + m.total, 0));
 
 console.log('\n─── 2. Qui change de verdict, nommément ───');
-const ecart = (m, F) => m.total - m.cTot * F.cTot;
+const ecart = (m, T) => m.total - cib(m, T);
 const avant = MARS.filter(m => Math.abs(m.total - m.cTot) >= 2).map(m => m.name);
-const apres = MARS.filter(m => Math.abs(ecart(m, F2026)) >= 2).map(m => m.name);
+const apres = MARS.filter(m => Math.abs(ecart(m, T2026)) >= 2).map(m => m.name);
 V('le nombre d\'accusés baisse', apres.length < avant.length, { avant: avant.length, apres: apres.length });
 ['GHIGLIONE', 'ALBOUY', 'SALA'].forEach(n => {
   V(n + ' n\'est plus signalé à tort', avant.indexOf(n) >= 0 && apres.indexOf(n) < 0);
 });
 V('LEY, oublié par l\'ancien calcul, apparaît',
   avant.indexOf('LEY') < 0 && apres.indexOf('LEY') >= 0,
-  { avant: +(33 - 32.4).toFixed(1), apres: +ecart(MARS.find(m => m.name === 'LEY'), F2026).toFixed(1) });
+  { avant: +(33 - 32.4).toFixed(1), apres: ecart(MARS.find(m => m.name === 'LEY'), T2026) });
 V('FERRIERO reste le plus fort écart, et il grandit',
-  ecart(MARS.find(m => m.name === 'FERRIERO'), F2026) > 5,
-  +ecart(MARS.find(m => m.name === 'FERRIERO'), F2026).toFixed(1));
+  ecart(MARS.find(m => m.name === 'FERRIERO'), T2026) > 5,
+  ecart(MARS.find(m => m.name === 'FERRIERO'), T2026));
 
 console.log('\n─── 3. Aucune correction quand les comptes tombent juste ───');
 /* LA vérification qui compte le plus : une année générée par l'algorithme, où
@@ -104,25 +110,32 @@ const JUSTE = [
   { name: 'A', total: 40, cTot: 40 }, { name: 'B', total: 41, cTot: 40 },
   { name: 'C', total: 39, cTot: 40 }, { name: 'D', total: 40, cTot: 40 },
 ];
-V('cibles et gardes qui tombent juste : aucune retouche', fEq(JUSTE, AXES).cTot === 1);
+const TJ = fEq(JUSTE, AXES);
+V('cibles et gardes qui tombent juste : chacun garde sa cible',
+  JUSTE.every(m => TJ[m.name].cTot === m.cTot), JUSTE.map(m => TJ[m.name].cTot));
+V('…et rien n\'est signalé au lecteur', TJ._corrige === false);
 /* Une seule garde manquante sur 160 (0,6 %) reste sous le seuil : on ne touche
    à rien, l'anomalie reste visible telle quelle. */
 const UNJOUR = JUSTE.map(m => Object.assign({}, m));
 UNJOUR[0].total = 39;
-V('une garde manquante ne déclenche pas la correction', fEq(UNJOUR, AXES).cTot === 1,
+V('une garde manquante ne déclenche aucune mention', fEq(UNJOUR, AXES)._corrige === false,
   { manque: 1, sur: 160 });
-V('un écart massif, lui, la déclenche', fEq(MARS, AXES).cTot < 1);
+V('un écart massif, lui, la déclenche', fEq(MARS, AXES)._corrige === true);
 
 console.log('\n─── 4. Les barres et le certificat lisent la même cible ───');
-V('les barres appellent la fonction de correction',
-  /const _FEQ = facteursEquite\(list\.filter\(x=>!x\.wish\), AX_EQUITE\);/.test(ADMIN));
+V('les barres appellent la fonction de cibles entières',
+  /const _CIB = ciblesEquite\(list\.filter\(x=>!x\.wish\), AX_EQUITE\);/.test(ADMIN));
 V('le certificat appelle la même fonction',
-  /const F = facteursEquite\(evalues, AXfull\);/.test(ADMIN));
+  /const T = ciblesEquite\(evalues, AXfull\);/.test(ADMIN));
+V('plus aucune cible brute à l\'affichage (15 décimales vues en production)',
+  /const cval=CB\[k\]\?Math\.round\(c\)/.test(ADMIN)
+  && /const cval=CB\[k\]\?Math\.round\(c\)/.test(INDEX)
+  && /tc>0\?Math\.round\(tc\)/.test(ADMIN) && /tc>0\?Math\.round\(tc\)/.test(INDEX));
 V('les deux partent de la même liste d\'axes',
   (ADMIN.match(/AX_EQUITE/g) || []).length >= 3
   && /const AXfull = AX_EQUITE;/.test(ADMIN));
-V('le trait de cible du total est corrigé lui aussi',
-  /tc=\(\+it\.cTot\|\|0\)\*\(_FEQ\.cTot\|\|1\)/.test(ADMIN));
+V('le trait de cible du total est entier lui aussi',
+  /_tci&&_tci\.cTot!==undefined/.test(ADMIN) && /_tci&&_tci\.cTot!==undefined/.test(INDEX));
 
 console.log('\n─── 5. Mise en page : ce que l\'écran ne doit plus faire ───');
 const cert = extraire('renderCertificat');
@@ -131,8 +144,8 @@ V('le certificat du portail MAR est refondu lui aussi', !!certM
   && !/pct1|pct2|buckets|spark/.test(certM)
   && /MAR au-delà de 2 gardes/.test(certM)
   && /function certMarBasculer\(\)/.test(INDEX));
-V('les barres du portail MAR lisent la cible corrigée',
-  /const _FEQ = facteursEquite\(list\.filter\(x=>!x\.wish\), AX_EQUITE\);/.test(INDEX));
+V('les barres du portail MAR lisent la même cible entière',
+  /const _CIB = ciblesEquite\(list\.filter\(x=>!x\.wish\), AX_EQUITE\);/.test(INDEX));
 V('le certificat existe', !!cert);
 V('il ne compte plus en pourcentages', !/pct1|pct2|within2/.test(cert));
 V('il annonce des NOMBRES de MAR', /MAR au-delà de 2 gardes/.test(cert) && /MAR dans leur juste part/.test(cert));
@@ -153,7 +166,7 @@ V('les profils à souhaits garantis restent exclus du verdict',
 console.log('\n─── 6. Version du site ───');
 const VJS = fs.readFileSync(path.join(__dirname, '..', 'version.js'), 'utf8');
 const v = (VJS.match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1];
-V('la version a été montée dans le même lot', v === '1.0.4', v);
+V('la version a été montée dans le même lot', v === '1.0.5', v);
 V('le retour à v1.0 est expliqué dans le fichier',
   /RETOUR À v1\.0/.test(VJS) && /4 septembre 2026/.test(VJS));
 

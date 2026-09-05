@@ -46,7 +46,7 @@ function largeurs(fichier, list) {
     marsData: [{ id: 'Dr Plafond', nom: 'Dr Plafond', initiales: 'DP', souhaitPlafond: true }] });
   ctx.globalThis = ctx;
   const AX_EQ = (fs.readFileSync(fichier, 'utf8').match(/const AX_EQUITE = \[[^;]+;/) || [''])[0];
-  vm.runInContext(AX_EQ + '\n' + extraireFonction(fichier, 'facteursEquite') + '\n'
+  vm.runInContext(AX_EQ + '\n' + extraireFonction(fichier, 'ciblesEquite') + '\n'
     + extraireFonction(fichier, 'renderEquiteCards') + '\nglobalThis.__r = renderEquiteCards;', ctx);
   const out = {};
   ctx.__r(list).split('<div class="eqv-card').slice(1).forEach(c => {
