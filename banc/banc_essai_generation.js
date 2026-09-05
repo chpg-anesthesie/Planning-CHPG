@@ -132,7 +132,53 @@ V('l\'enveloppe lançable depuis l\'éditeur existe',
   /function essaiGenerationGardes\(year\)/.test(src));
 V('…et elle passe bien par le mode à blanc',
   /generateGardes\(an, \{ dryRun: true \}\)/.test(src));
-V('la version du fichier a été montée', /GAS_VERSION_GENERATEUR = '2026-09-04\.1'/.test(src));
+V('la version du fichier a été montée', /GAS_VERSION_GENERATEUR = '2026-09-04\.2'/.test(src));
+
+/* ═══ 6. Enchaîner plusieurs calculs à blanc ═══════════════════════════ */
+console.log('\n═══ 6. N calculs d\'affilée : rien n\'est écrit, rien ne dérive ═══');
+/* Un calcul seul tient en 4,3 s en production. Douze à la suite, c'est autre
+   chose : Apps Script peut ralentir ou manquer de mémoire en route — la même
+   expérience menée hors ligne s'est fait couper trois fois à une quarantaine de
+   générations. C'est la dernière inconnue avant le multi-départ, et le banc ne
+   peut en tenir que la moitié : il prouve que la LOGIQUE ne dérive pas, jamais
+   que la machine tiendra. */
+const C = monde();
+const avant6 = C.onglets();
+const rapport = C.ctx.essaiEnchainementGardes(YEAR, 3);
+
+V('l\'enchaînement rend un rapport lisible', typeof rapport === 'string' && rapport.length > 100);
+V('il annonce le nombre de calculs faits', /ENCHAÎNEMENT DE 3 CALCULS/.test(rapport), rapport.slice(0, 80));
+V('il donne la durée de CHAQUE passage, pas seulement la moyenne',
+  (rapport.match(/^\s+\d+ : [\d.]+ s/gm) || []).length === 3);
+V('il mesure la dérive du premier au dernier', /Dérive du premier au dernier/.test(rapport));
+/* Le contrôle qui compte vraiment : trois calculs sur les mêmes données doivent
+   donner le MÊME résultat. Si l'enchaînement changeait quelque chose — un état
+   qui survit d'un passage à l'autre — le multi-départ serait bâti sur du sable. */
+V('trois calculs enchaînés donnent un résultat identique',
+  /Résultats distincts obtenus : 1/.test(rapport), rapport);
+V('…et le banc le dit explicitement', /l'enchaînement ne dégrade rien/.test(rapport));
+V('aucun onglet créé malgré les trois passages',
+  JSON.stringify(avant6) === JSON.stringify(C.onglets()), C.onglets());
+V('aucune notification n\'est partie',
+  !C.logs.some(l => /notifierPush|est disponible/i.test(String(l))));
+
+const src6 = fs.readFileSync(path.join(__dirname, '..', 'gas', 'generateur_gardes.gs'), 'utf8');
+V('l\'enchaînement passe bien par le mode à blanc',
+  /generateGardes\(an, \{ dryRun: true \}\)/.test(src6));
+/* Sans budget d'arrêt, une exécution trop longue serait tuée par Google et on
+   ne saurait même pas combien de calculs étaient passés. */
+V('un budget d\'arrêt protège du mur des 6 minutes',
+  /BUDGET = 240000/.test(src6) && /budget de 4 minutes atteint/.test(src6));
+V('un échec de calcul n\'interrompt pas la série', /catch \(e\) \{ err = e\.message; echecs\+\+; \}/.test(src6));
+/* Le lanceur `T` est dans le dépôt exprès : le fichier recopié dans l'éditeur
+   Apps Script doit être identique à celui d'ici, sinon on compare un jour deux
+   versions divergentes sans le savoir. On vérifie qu'il reste inoffensif —
+   appelé par personne — et qu'il porte sa date de péremption. */
+V('le lanceur temporaire T est présent dans le fichier du dépôt',
+  /^function T\(\) \{ return essaiEnchainementGardes\(2026, 12\); \}$/m.test(src6));
+V('…il est marqué comme à retirer', /À RETIRER une fois la mesure du 04\/09 faite/.test(src6));
+V('…et rien ne l\'appelle : aucun déclencheur, aucune route',
+  (src6.match(/\bT\(\)/g) || []).length === 1);
 
 console.log('\n' + ok + ' OK · ' + ko + ' en échec');
 if (ko) process.exit(1);

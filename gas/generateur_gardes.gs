@@ -41,7 +41,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-09-04.1';
+const GAS_VERSION_GENERATEUR = '2026-09-04.2';
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -166,6 +166,79 @@ function isVacancesScolaires(dateStr,year){
    concerné, et les avertissements — de quoi mesurer sans rien montrer.
    PRÉREQUIS du multi-départ : lancer N calculs et n'écrire que le meilleur,
    c'est exactement « calculer sans écrire », N fois, puis écrire une fois. */
+/* (04/09/2026) LANCEUR TEMPORAIRE — sélectionner « T » dans la liste déroulante
+   de l'éditeur Apps Script, puis Exécuter.
+   Il n'existe que parce que l'éditeur ne sait pas passer d'argument à une
+   fonction. Il est DANS LE DÉPÔT à dessein : le fichier recopié dans l'éditeur
+   doit être rigoureusement identique à celui d'ici, sinon la prochaine session
+   comparera deux versions divergentes sans le savoir.
+   ⚠️ À RETIRER une fois la mesure du 04/09 faite. Ne rien construire dessus.
+   Sans risque en attendant : il n'écrit rien et ne part jamais tout seul —
+   aucun déclencheur, aucun bouton, aucune route ne l'appelle. */
+function T() { return essaiEnchainementGardes(2026, 12); }
+
+/* (04/09/2026) À LANCER DEPUIS L'ÉDITEUR — « Est-ce que N calculs d'affilée
+   tiennent ? ». Un calcul à blanc seul a été mesuré à 4,3 s en production. Rien
+   ne dit que douze à la suite se comportent pareil : Apps Script peut ralentir
+   ou manquer de mémoire en cours de route (la même expérience menée hors ligne
+   s'est fait couper trois fois à une quarantaine de générations, sur une machine
+   pourtant bien plus large). C'est la dernière inconnue avant d'écrire le
+   multi-départ, et la seule qui ne se mesure qu'ici.
+   Elle journalise la durée de CHAQUE passage — c'est la dérive entre le premier
+   et le dernier qui parle, pas la moyenne.
+   Budget d'arrêt à 4 minutes : on s'arrête proprement avant le mur des 6 de
+   Google, et on rend ce qu'on a. Aucune écriture, aucune notification. */
+function essaiEnchainementGardes(year, nb) {
+  const an = Number(year) || getIndisposYear();
+  const N  = Number(nb) || 12;
+  const t0 = Date.now(), BUDGET = 240000;
+  const L = [], durees = [], signatures = {};
+  let arret = '', echecs = 0;
+
+  for (let i = 1; i <= N; i++) {
+    if (Date.now() - t0 > BUDGET) { arret = 'budget de 4 minutes atteint après ' + (i - 1) + ' calculs'; break; }
+    const t = Date.now();
+    let r = null, err = '';
+    try { r = generateGardes(an, { dryRun: true }); }
+    catch (e) { err = e.message; echecs++; }
+    const ms = Date.now() - t;
+    durees.push(ms);
+    /* Signature = les six écarts mis bout à bout. Deux calculs identiques
+       doivent la partager : c'est ce qui prouve qu'enchaîner ne dégrade rien. */
+    const sig = r && r.ecarts
+      ? ['total','sam','jeu','vd','vjf','jf'].map(function (k) { return r.ecarts[k].ecart; }).join('/')
+      : 'ECHEC';
+    signatures[sig] = (signatures[sig] || 0) + 1;
+    L.push('   ' + (i < 10 ? ' ' : '') + i + ' : ' + (ms / 1000).toFixed(2) + ' s' + (err ? '   ✗ ' + err : ''));
+  }
+
+  const n = durees.length;
+  const tot = durees.reduce(function (s, x) { return s + x; }, 0);
+  const mini = Math.min.apply(null, durees), maxi = Math.max.apply(null, durees);
+  const cles = Object.keys(signatures);
+  const O = [];
+  O.push('═══ ENCHAÎNEMENT DE ' + n + ' CALCULS À BLANC — ' + an + ' — AUCUNE ÉCRITURE ═══');
+  O.push('Durée de chaque calcul :');
+  L.forEach(function (l) { O.push(l); });
+  O.push('Total ' + (tot / 1000).toFixed(1) + ' s   ·   plus court ' + (mini / 1000).toFixed(2)
+       + ' s   ·   plus long ' + (maxi / 1000).toFixed(2) + ' s');
+  if (n >= 2) {
+    const der = durees[n - 1], pre = durees[0];
+    O.push('Dérive du premier au dernier : ' + (der > pre ? '+' : '') + (((der - pre) / pre) * 100).toFixed(0) + ' %'
+         + (der > pre * 1.5 ? '   ⚠️ ralentissement net' : '   (rien d\'anormal)'));
+  }
+  O.push('Résultats distincts obtenus : ' + cles.length
+       + (cles.length === 1 ? '   ✔ tous identiques, l\'enchaînement ne dégrade rien'
+                            : '   ⚠️ l\'enchaînement change le résultat — à comprendre AVANT le multi-départ'));
+  if (echecs) O.push('⚠️ ' + echecs + ' calcul(s) en échec');
+  if (arret)  O.push('Arrêt : ' + arret);
+  O.push('Rien n\'a été écrit dans le classeur, aucune notification envoyée.');
+  const txt = O.join('\n');
+  Logger.log(txt);
+  return txt;
+}
+
+
 /* (04/09/2026) À LANCER DEPUIS L'ÉDITEUR APPS SCRIPT — « Essai de génération ».
    Enveloppe lisible du calcul à blanc : elle chronomètre, met en forme et écrit
    dans le journal d'exécution. Aucun bouton, aucune page, aucune montée de
