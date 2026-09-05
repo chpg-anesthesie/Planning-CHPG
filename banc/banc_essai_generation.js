@@ -132,7 +132,7 @@ V('l\'enveloppe lançable depuis l\'éditeur existe',
   /function essaiGenerationGardes\(year\)/.test(src));
 V('…et elle passe bien par le mode à blanc',
   /generateGardes\(an, \{ dryRun: true \}\)/.test(src));
-V('la version du fichier a été montée', /GAS_VERSION_GENERATEUR = '2026-09-04\.2'/.test(src));
+V('la version du fichier a été montée', /GAS_VERSION_GENERATEUR = '2026-09-05\.1'/.test(src));
 
 /* ═══ 6. Enchaîner plusieurs calculs à blanc ═══════════════════════════ */
 console.log('\n═══ 6. N calculs d\'affilée : rien n\'est écrit, rien ne dérive ═══');
@@ -175,10 +175,17 @@ V('un échec de calcul n\'interrompt pas la série', /catch \(e\) \{ err = e\.me
    versions divergentes sans le savoir. On vérifie qu'il reste inoffensif —
    appelé par personne — et qu'il porte sa date de péremption. */
 V('le lanceur temporaire T est présent dans le fichier du dépôt',
-  /^function T\(\) \{ return essaiEnchainementGardes\(2026, 12\); \}$/m.test(src6));
+  /^function T\(\) \{ return comparerAlgorithmes\(2026\); \}$/m.test(src6));
 V('…il est marqué comme à retirer', /À RETIRER une fois la mesure du 04\/09 faite/.test(src6));
 V('…et rien ne l\'appelle : aucun déclencheur, aucune route',
   (src6.match(/\bT\(\)/g) || []).length === 1);
+/* (05/09/2026) T7 : même lanceur, sur 2027, pour la mesure de fin octobre. Il doit
+   rester lui aussi appelé par personne — sinon une comparaison à blanc pourrait
+   partir toute seule pendant la campagne. */
+V('le second lanceur T7 vise bien 2027',
+  /^function T7\(\) \{ return comparerAlgorithmes\(2027\); \}$/m.test(src6));
+V('…et rien ne l\'appelle non plus',
+  (src6.match(/\bT7\(\)/g) || []).length === 1);
 
 console.log('\n' + ok + ' OK · ' + ko + ' en échec');
 if (ko) process.exit(1);

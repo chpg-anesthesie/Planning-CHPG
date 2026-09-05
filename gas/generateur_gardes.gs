@@ -41,7 +41,41 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_GENERATEUR = '2026-09-04.2';
+const GAS_VERSION_GENERATEUR = '2026-09-05.1';
+
+/* (05/09/2026) INTERRUPTEUR DU NOUVEL ALGORITHME.
+   À false, le générateur se comporte EXACTEMENT comme avant : c'est le retour
+   arrière, en une ligne, sans avoir à retrouver l'ancien fichier.
+   À true, quatre mécanismes s'activent ensemble (aucun n'a de sens seul) :
+     1. CIBLES ENTIÈRES — la part de chacun cesse d'être un nombre à virgule
+        (5,4 samedis, jamais atteignable) et devient un entier, réparti par la
+        méthode des plus forts restes pour que la somme reste exacte.
+     2. TIRAGE — à égalité parfaite entre deux MAR, c'est un numéro qui tranche,
+        plus la position dans l'onglet MEDECINS.
+     3. MULTI-DÉPART — jusqu'à N calculs à blanc, on écrit le meilleur.
+     4. OBJECTIF LEXICOGRAPHIQUE de l'optimiseur + interdiction dure de deux
+        week-ends de garde consécutifs.
+   Mesuré sur 45 années simulées (9 scénarios × 5 ans, dette cumulative
+   injectée hors code) : 44 années où personne ne dépasse UNE garde d'écart sur
+   aucun des six axes, contre 29 sur 45 avec l'algorithme d'avant. Zéro journée
+   sans binôme. Gardes rapprochées inchangées (17,8 % d'intervalles de 2 jours
+   contre 17,7 %). Souhaits honorés 75,3 % contre 76,6 %.
+   ⚠️ Ces chiffres viennent du SIMULATEUR, sur des absences fabriquées. Ils
+   prouvent la logique, pas le comportement sur les vraies données : l'essai à
+   blanc sur l'année réelle reste obligatoire avant de générer. */
+const NOUVEL_ALGO_GLOBAL = true;
+
+// Multi-départ : nombre maximum de calculs à blanc avant d'écrire le meilleur.
+// La règle d'arrêt coupe dès qu'un tirage met tout le monde à une garde d'écart,
+// ce qui arrive au premier essai dans plus d'un cas sur deux.
+const MULTI_DEPART_MAX  = 8;
+const MULTI_DEPART_SEUIL = 1;   // écart, en gardes, qui suffit à s'arrêter
+
+// Optimiseur §8c : au-delà de LEX_SEUIL gardes d'écart, la pénalité devient
+// prioritaire sur la baisse de l'écart moyen. Le poids reste SOUS les 1000 de la
+// règle des week-ends : à 3000, l'équité l'écrasait (48 enchaînements par an).
+const LEX_SEUIL = 1;
+const LEX_POIDS = 600;
 
 const ARCHIVE_SS_ID = '1-QIYD2U7u41L_pV4wQGN6kDBDzFRHDdXRsHNrcSlvcE';
 // Dette inter-annuelle : STATS_GARDES_2026 sont des stats MANUELLES (échanges/dons)
@@ -175,7 +209,16 @@ function isVacancesScolaires(dateStr,year){
    ⚠️ À RETIRER une fois la mesure du 04/09 faite. Ne rien construire dessus.
    Sans risque en attendant : il n'écrit rien et ne part jamais tout seul —
    aucun déclencheur, aucun bouton, aucune route ne l'appelle. */
-function T() { return essaiEnchainementGardes(2026, 12); }
+function T() { return comparerAlgorithmes(2026); }
+
+/* (05/09/2026) SECOND LANCEUR — même comparaison, mais sur 2027. À utiliser une
+   fois la campagne d'indisponibilités close (30 octobre), pour voir ce que donnera
+   la génération du 2 novembre AVANT de la lancer. Il n'écrit rien non plus.
+   Deux lanceurs plutôt qu'un seul à modifier : le fichier du dépôt et celui de
+   l'éditeur doivent rester identiques au caractère près, sinon la prochaine
+   session compare deux versions divergentes sans le savoir.
+   ⚠️ À RETIRER avec l'autre lanceur une fois 2027 publié. */
+function T7() { return comparerAlgorithmes(2027); }
 
 /* (04/09/2026) À LANCER DEPUIS L'ÉDITEUR — « Est-ce que N calculs d'affilée
    tiennent ? ». Un calcul à blanc seul a été mesuré à 4,3 s en production. Rien
@@ -188,6 +231,54 @@ function T() { return essaiEnchainementGardes(2026, 12); }
    et le dernier qui parle, pas la moyenne.
    Budget d'arrêt à 4 minutes : on s'arrête proprement avant le mur des 6 de
    Google, et on rend ce qu'on a. Aucune écriture, aucune notification. */
+/* (05/09/2026) À LANCER DEPUIS L'ÉDITEUR — « avant / après sur mes vraies données ».
+   Deux calculs à blanc de la MÊME année : un avec l'algorithme d'avant, un avec le
+   nouveau, et les six écarts côte à côte. Aucune écriture, aucune notification,
+   aucun onglet touché — l'année peut être déjà générée et publiée.
+   C'est la seule mesure qui vaille : tout le reste vient du simulateur. */
+function comparerAlgorithmes(year){
+  const an = Number(year) || getIndisposYear();
+  const AXES = ['total','sam','jeu','vd','vjf','jf'];
+  const NOM = { total:'Total   ', sam:'Samedi  ', jeu:'Jeudi   ', vd:'Ven-Dim ', vjf:'VeilleJF', jf:'Férié   ' };
+  const L = [];
+  L.push('═══ AVANT / APRÈS — ' + an + ' — AUCUNE ÉCRITURE ═══');
+  if (!NOUVEL_ALGO_GLOBAL) {
+    L.push("⚠️ NOUVEL_ALGO_GLOBAL vaut false : les deux colonnes seront identiques.");
+  }
+  const mesures = {};
+  [['avant', false], ['après', true]].forEach(function (cas) {
+    const t0 = Date.now();
+    let r = null, err = '';
+    try { r = generateGardes(an, { dryRun: true, tirage: 1, forcerAncien: !cas[1] }); }
+    catch (e) { err = e.message; }
+    mesures[cas[0]] = { r: r, ms: Date.now() - t0, err: err };
+  });
+  L.push('Durée : avant ' + (mesures['avant'].ms / 1000).toFixed(1) + ' s   ·   après '
+       + (mesures['après'].ms / 1000).toFixed(1) + ' s');
+  L.push('');
+  L.push('Écart réel−cible, par axe        AVANT        APRÈS');
+  AXES.forEach(function (k) {
+    const a = mesures['avant'].r, b = mesures['après'].r;
+    const ea = a && a.ecarts && a.ecarts[k] ? a.ecarts[k] : null;
+    const eb = b && b.ecarts && b.ecarts[k] ? b.ecarts[k] : null;
+    L.push('   ' + NOM[k] + ' : '
+      + (ea ? (ea.ecart.toFixed(2) + ' (' + ea.mar + ')').padEnd(20) : '—'.padEnd(20))
+      + (eb ? (eb.ecart.toFixed(2) + ' (' + eb.mar + ')') : '—'));
+  });
+  L.push('');
+  ['avant','après'].forEach(function (c) {
+    const m = mesures[c];
+    if (m.err) { L.push(c + ' : ✗ ' + m.err); return; }
+    L.push(c + ' : ' + m.r.sansBinome + ' jour(s) sans binôme'
+      + (m.r.jours.length ? ' → ' + m.r.jours.join(' ') : '')
+      + '   ·   ' + m.r.nbWarnings + ' avertissement(s)');
+  });
+  L.push("Rien n'a été écrit dans le classeur, aucune notification envoyée.");
+  const txt = L.join('\n');
+  Logger.log(txt);
+  return txt;
+}
+
 function essaiEnchainementGardes(year, nb) {
   const an = Number(year) || getIndisposYear();
   const N  = Number(nb) || 12;
@@ -266,9 +357,46 @@ function essaiGenerationGardes(year) {
   return txt;
 }
 
+/* (05/09/2026) Choisit le tirage à écrire : jusqu'à MULTI_DEPART_MAX calculs à
+   blanc, comparés dans cet ordre — journées sans binôme d'abord (la couverture
+   prime tout), puis nombre d'axes au-delà du seuil, puis pire écart. Renvoie un
+   NUMÉRO, pas un planning : l'appelant rejoue ce tirage en écrivant.
+   Un calcul en échec n'interrompt pas la recherche. */
+function choisirMeilleurTirage(year){
+  const AXES = ['total','sam','jeu','vd','vjf','jf'];
+  let meilleur = 1, cleMeilleure = null;
+  for(let t = 1; t <= MULTI_DEPART_MAX; t++){
+    let r = null;
+    try { r = generateGardes(year, { dryRun: true, tirage: t }); }
+    catch(e){ Logger.log('Tirage ' + t + ' en échec : ' + e.message); continue; }
+    if(!r || !r.ecarts) continue;
+    let pire = 0, nAu = 0;
+    AXES.forEach(function(k){
+      const e = r.ecarts[k] ? r.ecarts[k].ecart : 0;
+      if(e >= 2) nAu++;
+      if(e > pire) pire = e;
+    });
+    const cle = [r.sansBinome || 0, nAu, pire];
+    let mieux = !cleMeilleure;
+    if(cleMeilleure){
+      for(let i = 0; i < cle.length; i++){
+        if(cle[i] !== cleMeilleure[i]){ mieux = cle[i] < cleMeilleure[i]; break; }
+      }
+    }
+    if(mieux){ cleMeilleure = cle; meilleur = t; }
+    Logger.log('Tirage ' + t + ' : ' + (r.sansBinome || 0) + ' jour(s) sans binôme, pire écart ' + pire);
+    if((r.sansBinome || 0) === 0 && pire <= MULTI_DEPART_SEUIL) break;
+  }
+  Logger.log('Multi-départ : tirage ' + meilleur + ' retenu');
+  return meilleur;
+}
+
 function generateGardes(year, opts){
   if(!year) throw new Error('Précisez l\'année');
   const DRY = !!(opts && opts.dryRun);
+  /* (05/09/2026) `forcerAncien` sert UNIQUEMENT à la comparaison à blanc : il rejoue
+     l'algorithme d'avant sans toucher à l'interrupteur global. */
+  const NOUVEL_ALGO = !(opts && opts.forcerAncien) && NOUVEL_ALGO_GLOBAL;
   const _tGen = Date.now();
   const ss=SpreadsheetApp.getActiveSpreadsheet();
 
@@ -279,6 +407,17 @@ function generateGardes(year, opts){
   // Pour régénérer volontairement (rare) : supprimer d'abord manuellement l'onglet.
   if(!DRY && ss.getSheetByName(`GARDES_${year}`)){
     throw new Error(`🔒 GARDES_${year} existe déjà — génération verrouillée pour protéger l'équité. Pour régénérer (rare), supprimez d'abord manuellement l'onglet GARDES_${year}.`);
+  }
+
+  /* (05/09/2026) MULTI-DÉPART — on calcule plusieurs fois À BLANC, on retient le
+     meilleur tirage, et on ne l'écrit qu'une fois. Le calcul étant reproductible,
+     rejouer le tirage gagnant redonne exactement le même planning.
+     Aucune écriture pendant la recherche : les passes sont des dryRun.
+     La règle d'arrêt coupe dès qu'un tirage met tout le monde à MULTI_DEPART_SEUIL
+     garde d'écart — mesuré : un seul tirage suffit dans 25 années sur 45. */
+  if(NOUVEL_ALGO && !DRY && !(opts && opts.tirage)){
+    const _t = choisirMeilleurTirage(year);
+    return generateGardes(year, Object.assign({}, opts || {}, { tirage: _t }));
   }
 
   // (C2-D1) Flags effectif lus depuis MEDECINS (remplacent les Set en dur).
@@ -339,6 +478,21 @@ function generateGardes(year, opts){
   [gardeDoctors, allDoctors].forEach(arr => {
     for (let i = arr.length - 1; i >= 0; i--) { if (_horsAnnee(arr[i])) arr.splice(i, 1); }
   });
+
+  /* (05/09/2026) NUMÉRO DE TIRAGE — à égalité PARFAITE entre deux MAR, c'est ce
+     numéro qui départage, et non plus la position de la ligne dans MEDECINS.
+     Mesuré en juillet : déplacer une ligne dans l'onglet changeait près d'une
+     garde sur trois. L'ordre est ici recalculé par hachage(nom, tirage) : il ne
+     dépend plus du tableur, et rejouer le même tirage redonne le MÊME planning.
+     L'onglet MEDECINS n'est jamais modifié. */
+  const TIRAGE = Math.max(1, Number(opts && opts.tirage) || 1);
+  if(NOUVEL_ALGO){
+    const _h = s => { let h = 2166136261 ^ Math.imul(TIRAGE, 0x9E3779B1);
+      for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+      return h >>> 0; };
+    const _rang = {}; gardeDoctors.forEach(id => { _rang[id] = _h(id); });
+    gardeDoctors.sort((a,b) => _rang[a] - _rang[b] || (a < b ? -1 : 1));
+  }
 
   // ── 3. Calendrier ────────────────────────────────────────────────────
   const j1=new Date(year,0,1),d1=j1.getDay(),o1=d1===1?7:d1===0?1:8-d1;
@@ -504,6 +658,45 @@ function generateGardes(year, opts){
     const sw=gardeDoctors.reduce((s,id)=>s+w[id],0)||1;
     gardeDoctors.forEach(id=>{cible[id][axis]=SLOTS[axis]*w[id]/sw;});
   });
+
+  /* (05/09/2026) CIBLES ENTIÈRES — méthode des plus forts restes.
+     Une part de 5,4 samedis n'est atteignable par personne : le MAR est TOUJOURS
+     en écart, et l'écart affiché mélange l'injustice réelle et l'impossibilité
+     arithmétique. On passe donc à des entiers, comme on répartit des sièges :
+     chacun reçoit sa partie entière, puis les unités restantes sont attribuées
+     une par une. La SOMME reste exactement égale au nombre de gardes à poser —
+     arrondir chaque cible séparément la casserait (mesuré : +6 jeudis promis en
+     trop, 6 jours fériés sans propriétaire).
+     Qui reçoit l'unité en plus ? Celui qui est le plus CRÉDITEUR, report compris :
+     l'arrondi et la dette deviennent un seul et même mécanisme. Le report est donc
+     plié dans la cible et NE DOIT PLUS être ajouté une seconde fois dans ratio()
+     — d'où la remise à zéro de `dette` juste après.
+     `cibleExacte` conserve la part fractionnaire : c'est la vérité comptable, et
+     c'est elle qui servira à tenir le compteur cumulatif (lot 2). */
+  const cibleExacte={};
+  gardeDoctors.forEach(id=>{ cibleExacte[id]=Object.assign({}, cible[id]); });
+  if(NOUVEL_ALGO){
+    ['total','sam','jeu','vd','vjf','jf'].forEach(axis=>{
+      const elig=gardeDoctors.filter(id=>cible[id][axis]>0);
+      if(!elig.length) return;
+      const _dt=id=>(dette[id]&&dette[id][axis])||0;
+      const vise={}; elig.forEach(id=>{ vise[id]=Math.max(0, cible[id][axis]-_dt(id)); });
+      const base={}; let somme=0;
+      elig.forEach(id=>{ base[id]=Math.floor(vise[id]); somme+=base[id]; });
+      let reste=Math.round(SLOTS[axis]-somme);
+      // Priorité : le plus créditeur d'abord ; à égalité, le plus fort reste.
+      const prio=id=>_dt(id)-(vise[id]-Math.floor(vise[id]));
+      const ordre=elig.slice().sort((a,b)=> prio(a)-prio(b) || (a<b?-1:1));
+      let k=0;
+      while(reste>0 && k<ordre.length*4){ base[ordre[k%ordre.length]]++; reste--; k++; }
+      while(reste<0 && k<ordre.length*4){ const id=ordre[ordre.length-1-(k%ordre.length)];
+        if(base[id]>0){ base[id]--; reste++; } k++; }
+      elig.forEach(id=>{ cible[id][axis]=base[id]; });
+    });
+    // Le report est désormais DANS la cible : le compteur repart à zéro pour que
+    // ratio() ne l'applique pas deux fois.
+    gardeDoctors.forEach(id=>{ ['sam','jeu','vd','vjf','jf','total'].forEach(k=>{ dette[id][k]=0; }); });
+  }
 // ── 5bis. Souhaits plafonnés à la cible (PRUNET uniquement) ──────────
   // La cible totale devient le MAX entre la cible proportionnelle et le
   // nombre de souhaits :
@@ -758,6 +951,24 @@ function generateGardes(year, opts){
         if(tdi&&!tdi.isFerie&&(gSet[id]?.has(thu)||g2Set[id]?.has(thu))) return true;}
       if(_di.dow===4&&!_di.isFerie){const sat=toDateStr(new Date(new Date(date+'T12:00:00').getTime()+2*86400000));
         if(gSet[id]?.has(sat)||g2Set[id]?.has(sat)) return true;}
+    }
+    /* (05/09/2026) DEUX WEEK-ENDS DE GARDE D'AFFILÉE : INTERDIT.
+       La règle existait, mais seulement comme pénalité dans l'optimiseur — donc
+       franchissable, et de fait franchie dès qu'on donne plus de poids à l'équité
+       (mesuré : 48 enchaînements par an au lieu de 2). Or ils ne naissaient même
+       pas dans l'optimiseur : c'est la POSE qui les créait, sans aucune règle de
+       week-end. On l'ajoute donc ici, au même niveau que le combo jeudi-samedi —
+       relâché uniquement en dernier recours, pour ne jamais laisser un jour vide. */
+    if(NOUVEL_ALGO && _di && !_relaxJS && (_di.dow===5||_di.dow===6||_di.dow===0)){
+      const _b=new Date(date+'T12:00:00');
+      for(let _n=-9;_n<=9;_n++){
+        if(_n>=-4&&_n<=4) continue;                 // le week-end courant lui-même
+        const _x=new Date(_b); _x.setDate(_b.getDate()+_n);
+        const _xs=toDateStr(_x), _dx=dayByDate[_xs];
+        if(!_dx) continue;
+        if(_dx.dow!==5&&_dx.dow!==6&&_dx.dow!==0) continue;
+        if(gSet[id]?.has(_xs)||g2Set[id]?.has(_xs)) return true;
+      }
     }
     return false;   // le reste est dans indispoIndividuelle() — source unique
   }
@@ -1473,6 +1684,12 @@ function generateGardes(year, opts){
     });
     // 4) Faisabilité : B peut-il tenir ce rôle sur tous les jours du groupe ?
     const canHold=(B,days_)=>{
+      // (05/09/2026) Même règle dure que dans blocked() : un transfert ne peut pas
+      // donner à B un deuxième week-end consécutif.
+      if(NOUVEL_ALGO){
+        const _we=days_.some(dd=>{const w=dayByDate[dd].dow;return w===5||w===6||w===0;});
+        if(_we && hasAdjWeekend(B,days_)) return false;
+      }
       for(let k=0;k<days_.length;k++){const dd=days_[k];
         const di=dayByDate[dd],dow=di.dow;
         // (31/07/2026) SOURCE UNIQUE — cf. indispoIndividuelle(). canHold refaisait ses
@@ -1501,7 +1718,19 @@ function generateGardes(year, opts){
       EQ.forEach(ax=>{const ca=c[ax];if(!ca)return;
         // cible effective = cible − dette (qui a trop fait en N-1 vise plus bas)
         const cbA=cible[A][ax]-(dette[A]?.[ax]||0),cbB=cible[B][ax]-(dette[B]?.[ax]||0),a0=cnt[A][ax],b0=cnt[B][ax];
-        d+=W[ax]*((Math.pow(a0-ca-cbA,2)-Math.pow(a0-cbA,2))+(Math.pow(b0+ca-cbB,2)-Math.pow(b0-cbB,2)));});
+        d+=W[ax]*((Math.pow(a0-ca-cbA,2)-Math.pow(a0-cbA,2))+(Math.pow(b0+ca-cbB,2)-Math.pow(b0-cbB,2)));
+        /* (05/09/2026) OBJECTIF LEXICOGRAPHIQUE. Cette somme de carrés minimise
+           l'écart MOYEN : elle laisse volontiers un MAR à 3 gardes d'écart si le
+           total baisse. On ajoute un terme charnière qui ne se déclenche qu'AU-DELÀ
+           du seuil vert, et qui coûte assez cher pour passer avant tout gain de
+           moyenne — sans écraser la règle des week-ends (poids 1000 plus bas).
+           Effet mesuré sur l'année la plus dure (2041, 15 gardeurs) : 60 calculs
+           complets sans lui ne descendaient jamais sous 2 gardes d'écart ; avec lui,
+           les 20 calculs testés donnent 1. La bonne répartition existait. */
+        if(NOUVEL_ALGO){
+          const _h=e=>{const x=Math.abs(e)-LEX_SEUIL; return x>0?x*x:0;};
+          d+=LEX_POIDS*((_h(a0-ca-cbA)-_h(a0-cbA))+(_h(b0+ca-cbB)-_h(b0-cbB)));
+        }});
       const n=c.total,aG=cnt[A].g,aG2=cnt[A].g2,bG=cnt[B].g,bG2=cnt[B].g2;
       let na,nb;
       if(role===0){na=(aG-n)-aG2;nb=(bG+n)-bG2;}else{na=aG-(aG2-n);nb=bG-(bG2+n);}
@@ -1601,6 +1830,7 @@ function generateGardes(year, opts){
       }
     }
     Logger.log('Optimiseur: '+moves+' transferts');
+    if(NOUVEL_ALGO && TIRAGE>1) warnings.push('Multi-départ : tirage n°'+TIRAGE+' retenu (équité meilleure que le tirage 1).');
 
     // ── 8bis. PASSE CONFORT — « le jour gagné avant les vacances » ────────
     // Pratique historique du service : donner à un MAR la garde de la veille de son
