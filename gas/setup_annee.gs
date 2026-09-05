@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_SETUP = '2026-09-05.1';
+const GAS_VERSION_SETUP = '2026-09-05.2';
 
 
 // ══════════════════════════════════════════════════════════════════════
@@ -733,6 +733,22 @@ function TEST_run() {
    comptez pas dessus : vérifiez le nom du classeur avant de lancer.
    ⚠️ À RETIRER avec T() et T7() une fois 2027 publié. */
 function W1_2028() { setupAnnee(2028); }
+
+/* (05/09/2026) LANCEUR TEMPORAIRE — régénère 2026 sur des indisponibilités
+   COMPLÉTÉES, pour éprouver le nouvel algorithme sur les VRAIES absences du
+   service, pic de Noël compris (27/12 : 3 gardeurs disponibles sur 20).
+   Le seul intérêt de 2026 : c'est la seule année dont les absences sont réelles.
+   Le planning existant sert de point de comparaison.
+
+   ⚠️ DANGER — À N'EXÉCUTER QUE DANS UNE COPIE DU CLASSEUR.
+   Dans le classeur de production, cette fonction :
+     · exige d'abord la suppression manuelle de GARDES_2026 (verrou anti-
+       régénération), mais une fois l'onglet supprimé plus rien ne protège ;
+     · EFFACE le planning 2026 que l'équipe consulte ;
+     · envoie une notification push à tous les MAR abonnés.
+   Vérifiez le nom du classeur avant de lancer.
+   ⚠️ À RETIRER avec les autres lanceurs une fois 2027 publié. */
+function W2_2026() { generateGardes(2026); }
 
 /* (05/09/2026) Visait 2029 alors que TEST_run remplit 2028 : enchaîner les deux
    générait une année VIDE sans que rien ne le signale. Les trois lanceurs
