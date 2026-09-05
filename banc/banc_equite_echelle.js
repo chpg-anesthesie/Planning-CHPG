@@ -7,7 +7,7 @@
    La même fonction existe dans index.html ET admin.html : les deux sont
    éprouvées ici, sinon la correction d'une page laisserait l'autre fausse.
    Service FICTIF : aucun nom réel, aucune donnée du classeur. */
-const vm = require('vm'), path = require('path');
+const vm = require('vm'), path = require('path'), fs = require('fs');
 const { extraireFonction } = require('./stubs');
 let ok = 0, ko = 0;
 const V = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); } else { ko++; console.log('  ✗ ' + t + (d !== undefined ? ' → ' + JSON.stringify(d).slice(0, 190) : '')); } };
@@ -36,11 +36,18 @@ function jeu() {
 /* Relit la largeur réellement produite dans le style inline — ce que le
    navigateur affichera — et non une valeur intermédiaire du calcul. */
 function largeurs(fichier, list) {
+  /* (05/09/2026) renderEquiteCards s'appuie désormais sur facteursEquite : les
+     barres et le certificat doivent lire la MÊME cible. On charge donc la
+     dépendance, plutôt que d'ajouter un repli silencieux dans la page pour
+     faire passer le banc. Année de mesure = année générée : le facteur vaut 1
+     et les largeurs attendues ici sont inchangées. */
   const ctx = vm.createContext({ Math, Number, String, Object, Array,
     IS_DARK: false, MY_ID: null, _meName: () => null,
     marsData: [{ id: 'Dr Plafond', nom: 'Dr Plafond', initiales: 'DP', souhaitPlafond: true }] });
   ctx.globalThis = ctx;
-  vm.runInContext(extraireFonction(fichier, 'renderEquiteCards') + '\nglobalThis.__r = renderEquiteCards;', ctx);
+  const AX_EQ = (fs.readFileSync(fichier, 'utf8').match(/const AX_EQUITE = \[[^;]+;/) || [''])[0];
+  vm.runInContext(AX_EQ + '\n' + extraireFonction(fichier, 'facteursEquite') + '\n'
+    + extraireFonction(fichier, 'renderEquiteCards') + '\nglobalThis.__r = renderEquiteCards;', ctx);
   const out = {};
   ctx.__r(list).split('<div class="eqv-card').slice(1).forEach(c => {
     const nom = (c.match(/class="eqv-name">([^<]+)/) || [, '?'])[1], par = {};

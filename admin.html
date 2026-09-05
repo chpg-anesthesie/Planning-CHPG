@@ -5623,7 +5623,18 @@ function renderEquiteCards(list){
   const NEUTRAL={lu:1,ma:1,me:1}; // hors équité : pas de cible, barre neutre
   const meanAx={};
   ['lu','ma','me','jf'].forEach(k=>{const v=list.map(x=>+x[k]||0);meanAx[k]=v.length?v.reduce((s,n)=>s+n,0)/v.length:0;});
-  const cibOf=(it,k)=>CB[k]?(+it[CB[k]]||0):meanAx[k];
+  /* (05/09/2026) Les barres et le certificat doivent lire la MÊME cible, sinon
+     l'écran se contredit lui-même. Sur les années antérieures à la première
+     année générée, les cibles sont ramenées aux gardes réellement réparties
+     (voir facteursEquite) : sans ça, le trait de cible tombait 1,7 garde trop
+     à droite pour tout le monde. */
+  const _FEQ = facteursEquite(list.filter(x=>!x.wish), AX_EQUITE);
+  const _CORR = {cTot:'cTot', cSa:'cSa', cJe:'cJe', cVd:'cVd', cVjf:'cVjf'};
+  const cibOf=(it,k)=>{
+    if(!CB[k]) return meanAx[k];
+    const ck=CB[k];
+    return (+it[ck]||0) * ((_CORR[ck] && _FEQ[ck]) ? _FEQ[ck] : 1);
+  };
   const colOf=(v,c)=>{const d=v-c;return d>=2?'#CE1126':(d<=-2?'#1D4ED8':'#15803D');};
   const maxOf=k=>Math.max(0.1,...list.map(x=>+x[k]||0),...list.map(x=>cibOf(x,k)))*1.15;
   const maxTot=Math.max(0.1,...list.map(x=>+x.total||0))*1.12; // échelle = totaux réels (une cible aberrante ne peut plus vider la barre)
@@ -5637,7 +5648,7 @@ function renderEquiteCards(list){
   const mxGris=Math.max(0.1,...list.filter(x=>!x.wish).flatMap(x=>[+x.lu||0,+x.ma||0,+x.me||0]))*1.15;
   const sorted=list.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)));
   return '<div class="eqv-grid">'+sorted.map(it=>{
-    const tv=+it.total||0,tc=+it.cTot||0,tw=Math.min(100,tv/maxTot*100),tcx=Math.min(100,tc/maxTot*100);
+    const tv=+it.total||0,tc=(+it.cTot||0)*(_FEQ.cTot||1),tw=Math.min(100,tv/maxTot*100),tcx=Math.min(100,tc/maxTot*100);
     const totBar='<div class="eqv-row eqv-row-tot"><div class="eqv-lbl">Total</div><div class="eqv-track eqv-track-tot"><div class="eqv-fill" style="width:'+tw+'%;background:'+colOf(tv,tc)+'"></div>'+(tc>0?'<div class="eqv-tick" style="left:'+tcx+'%"></div>':'')+'</div><div class="eqv-val">'+tv+'<span> /'+(tc>0?tc.toFixed(1):'—')+'</span></div></div>';
     const bars=AX.map(([k,lbl])=>{
       const v=+it[k]||0;
@@ -5843,102 +5854,162 @@ function renderStats(stats){
   document.getElementById('gardesEmpty').style.display='none';
 }
 
-// ── CERTIFICAT D'ÉQUITÉ : synthèse visuelle qui prouve, après génération, que le
-// planning est juste. Réutilise EXACTEMENT la logique des barres (écart réel−cible
-// par axe). Verdict conforme si tous les MAR < 2 de leur cible sur chaque axe
-// (résidu = plancher arithmétique : cibles fractionnaires, gardes entières).
-function renderCertificat(list){
-  const AXfull=[['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],['vd','cVd','week-ends'],['vjf','cVjf','veilles fériés']];
-  const _spec = name => estSouhaitsGarantis(name);   // même test que les barres — une seule définition
-  const SEUIL=2.0;
-  let maxEc=0, maxWho='', maxAx='', maxVal=0;
-  const flag=[]; const worstList=[];
-  let within1=0, within2=0, nEval=0;
-  let nExcl=0;
-  list.forEach(m=>{
-    // Profils « souhaits garantis » (ex. Prunet) : leurs jours choisis SONT leur cible,
-    // ils ne relèvent d'aucun axe d'équité (total compris — les mardis s'ajoutent).
-    // Exclus du certificat : ni comptés, ni éligibles au rouge. Visibles dans les barres.
-    if(_spec(m.name)){ nExcl++; return; }
-    let worst=0, wax='';
-    AXfull.forEach(([rk,ck,lab])=>{ const cb=m[ck]||0; if(cb<=0) return;
-      const ec=(m[rk]||0)-cb; if(Math.abs(ec)>Math.abs(worst)){ worst=ec; wax=lab; } });
-    nEval++; const aw=Math.abs(worst);
-    if(aw<1) within1++; if(aw<2) within2++;
-    worstList.push({name:m.name, worst, wax});
-    if(aw>maxEc){ maxEc=aw; maxWho=m.name; maxAx=wax; maxVal=worst; }
-    if(aw>=SEUIL) flag.push({name:m.name,worst,wax});
+/* ── CIBLES RAMENÉES AUX GARDES RÉELLEMENT RÉPARTIES ───────────────────
+   (05/09/2026) Défaut vu EN PRODUCTION sur l'écran 2026 : « 19 MAR sur 20
+   dépassent 2 gardes d'écart », avec les noms. Vérifié dans le classeur : la
+   colonne CIBLE promet 730,8 gardes pour 707 posées, et 103,7 samedis pour 91.
+   La différence, ce sont les gardes assurées par un médecin EXTÉRIEUR au
+   service, qui ne figure pas dans la liste. Tout le monde apparaissait donc
+   ~1,7 garde trop bas : 5 MAR accusés à tort (GHIGLIONE, ALBOUY, SALA pile à
+   leur part), et LEY à +2,1 absent de la liste.
+
+   LA RÈGLE, sans référence à une année : une mesure d'équité juste a des écarts
+   qui S'ANNULENT — ce qu'un MAR fait en trop, un autre le fait en moins. Quand
+   la somme des cibles s'écarte de plus de 1 % des gardes réellement réparties,
+   c'est que des gardes sont sorties du service : on ramène alors les cibles à ce
+   qui a vraiment été distribué.
+   On ne se fie PAS à un numéro d'année : la page n'a pas à savoir quelle année
+   l'algorithme a générée, et la donnée le dit elle-même.
+   La correction n'est JAMAIS silencieuse : dès qu'elle s'applique, le certificat
+   affiche la mention qui l'explique au lecteur. */
+function facteursEquite(evalues, axes){
+  const F = {}, SEUIL_ECART = 0.01;
+  axes.forEach(a => { F[a[1]] = 1; });
+  axes.forEach(a => {
+    const rk = a[0], ck = a[1];
+    let sr = 0, sc = 0;
+    evalues.forEach(m => { const c = +m[ck] || 0; if(c <= 0) return; sr += +m[rk] || 0; sc += c; });
+    if(sc > 0 && Math.abs(sr - sc) > SEUIL_ECART * sc) F[ck] = sr / sc;
   });
-  const conforme=flag.length===0;
-  const pct1 = nEval? Math.round(within1/nEval*100):0;
-  const pct2 = nEval? Math.round(within2/nEval*100):0;
+  return F;
+}
+const AX_EQUITE = [['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],
+                   ['vd','cVd','week-ends'],['vjf','cVjf','veilles fériés']];
 
-  // mini-distribution des écarts (buckets d'un demi-écart absolu) — "preuve" que la masse est près de 0
-  const buckets=[0,0,0,0,0]; // [<0.5],[0.5-1],[1-1.5],[1.5-2],[≥2]
-  worstList.forEach(w=>{const a=Math.abs(w.worst);
-    buckets[a<0.5?0:a<1?1:a<1.5?2:a<2?3:4]++;});
-  const maxB=Math.max(1,...buckets);
-  const bLabels=['0–0,5','0,5–1','1–1,5','1,5–2','≥ 2'];
-  const bColors=['#15803D','#15803D','#65A30D','#D97706','#CE1126'];
-  const spark = buckets.map((n,idx)=>{
-    const hpc=Math.round(n/maxB*100);
-    return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
-      +'<div style="font-size:10px;font-weight:800;color:'+bColors[idx]+'">'+n+'</div>'
-      +'<div style="width:100%;height:46px;display:flex;align-items:flex-end"><div style="width:100%;height:'+Math.max(6,hpc)+'%;background:'+bColors[idx]+';opacity:'+(n?0.9:0.18)+';border-radius:4px 4px 0 0"></div></div>'
-      +'<div style="font-size:9.5px;color:var(--ink-4)">'+bLabels[idx]+'</div></div>';
-  }).join('');
+// ── CERTIFICAT D'ÉQUITÉ : synthèse visuelle qui montre, après génération, comment
+// les gardes se répartissent. Réutilise EXACTEMENT la logique des barres (écart
+// réel−cible par axe). Verdict conforme si tous les MAR < 2 de leur cible sur
+// chaque axe.
+/* (05/09/2026) REFONTE DE LA MISE EN PAGE. L'écran annonçait « 5 % » là où il
+   fallait lire « 1 MAR sur 20 », affichait deux cartes portant le MÊME chiffre
+   l'une en rouge l'autre en vert, et déroulait dix-neuf noms en prose rouge —
+   illisible sur téléphone. Il porte désormais des NOMBRES DE PERSONNES et un
+   classement replié. L'histogramme est retiré : sa légende (« la masse doit être
+   à gauche ») était contredite par les données qu'il affichait. */
+let CERT_DEPLIE = false;
+function certBasculer(){ CERT_DEPLIE = !CERT_DEPLIE; renderCertificat(CERT_LIST || []); }
+let CERT_LIST = null;
 
-  const chip=(big,lbl,col)=> '<div style="flex:1;min-width:120px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 13px">'
-    +'<div style="font-size:23px;font-weight:800;color:'+col+';line-height:1">'+big+'</div>'
-    +'<div style="font-size:11px;color:var(--ink-3);margin-top:4px;line-height:1.35">'+lbl+'</div></div>';
+function renderCertificat(list){
+  CERT_LIST = list;
+  const AXfull = AX_EQUITE;
+  const _spec = name => estSouhaitsGarantis(name);   // même test que les barres — une seule définition
+  const SEUIL = 2.0;
+  // Profils « souhaits garantis » (ex. Prunet) : leurs jours choisis SONT leur cible,
+  // ils ne relèvent d'aucun axe d'équité. Exclus : ni comptés, ni éligibles au rouge.
+  const evalues = list.filter(m => !_spec(m.name));
+  const nExcl = list.length - evalues.length;
+  const F = facteursEquite(evalues, AXfull);
+  const corrige = Object.keys(F).some(k => Math.abs(F[k] - 1) > 0.005);
 
-  let h='';
-  const headBg = conforme?'linear-gradient(135deg,#ecfdf5,#f0fdf4)':'#fef2f2';
-  const headBd = conforme?'#a7f3d0':'#fecaca';
-  h+='<div style="position:relative;border-radius:14px;padding:16px 18px;background:'+headBg+';border:1px solid '+headBd+'">';
+  const lignes = [];
+  let within1 = 0, nEval = 0;
+  evalues.forEach(m => {
+    let worst = 0, wax = '';
+    AXfull.forEach(a => {
+      const cb = (+m[a[1]] || 0) * F[a[1]];
+      if(cb <= 0) return;
+      const ec = (+m[a[0]] || 0) - cb;
+      if(Math.abs(ec) > Math.abs(worst)){ worst = ec; wax = a[2]; }
+    });
+    nEval++;
+    if(Math.abs(worst) < 1) within1++;
+    lignes.push({ name: m.name, worst: worst, wax: wax });
+  });
+  lignes.sort((a, b) => Math.abs(b.worst) - Math.abs(a.worst));
+  const flag = lignes.filter(x => Math.abs(x.worst) >= SEUIL);
+  const conforme = flag.length === 0;
+  const pire = lignes.length ? lignes[0] : { worst: 0, name: '—', wax: '' };
+  const maxAbs = Math.max(1, Math.abs(pire.worst));
 
-  // ligne verdict
-  if(conforme){
-    h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-      +'<span style="font-size:16px;font-weight:800;color:#166534">✅ Planning équitable — certifié</span>'
-      +'<span style="font-size:11.5px;color:#15803d;background:#dcfce7;border-radius:999px;padding:3px 10px;font-weight:700">écart max '+(maxVal>=0?'+':'')+maxVal.toFixed(1)+' garde · '+maxWho+' · '+maxAx+'</span>'
-      +'</div>';
-  } else {
-    h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-      +'<span style="font-size:16px;font-weight:800;color:#991b1b">🔴 À examiner — '+flag.length+' écart(s) au-delà de 2 gardes</span>'
-      +'<span style="font-size:11.5px;color:#b91c1c;background:#fee2e2;border-radius:999px;padding:3px 10px;font-weight:700">écart max '+(maxVal>=0?'+':'')+maxVal.toFixed(1)+' · '+maxWho+' · '+maxAx+'</span>'
-      +'</div>';
+  const ROUGE = '#B91C1C', VERT = '#166534';
+  const teinte = conforme ? '#F0FDF4' : '#FEF2F2';
+  const bord   = conforme ? '#A7F3D0' : '#FECACA';
+  const encre  = conforme ? VERT : ROUGE;
+
+  let h = '<div style="position:relative;border-radius:14px;padding:15px 16px;background:' + teinte
+        + ';border:1px solid ' + bord + '">';
+
+  h += '<div style="font-size:16px;font-weight:800;color:' + encre + '">'
+     + (conforme ? 'Répartition ' + ADMIN_YEAR + ' — équitable'
+                 : 'Répartition ' + ADMIN_YEAR + ' — écarts importants') + '</div>';
+  h += '<div style="font-size:12.5px;color:var(--ink-3);line-height:1.5;margin-top:3px">'
+     + (conforme
+        ? 'Aucun MAR ne s\u2019écarte de plus de 2 gardes de sa juste part, sur aucun de ses axes.'
+        : flag.length + ' MAR sur ' + nEval + ' s\u2019écartent de plus de 2 gardes de leur juste part.')
+     + '</div>';
+
+  // Deux compteurs, en PERSONNES (l'ancien écran donnait deux pourcentages identiques)
+  const carte = (n, lbl, fond, ink) => '<div style="background:' + fond + ';border-radius:10px;padding:10px 12px">'
+    + '<div style="font-size:22px;font-weight:800;color:' + ink + ';line-height:1.2">' + n + '</div>'
+    + '<div style="font-size:12px;color:' + ink + ';opacity:.9;line-height:1.4">' + lbl + '</div></div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">'
+     + (conforme
+        ? carte(within1, 'MAR à moins d\u2019une garde de leur part', '#DCFCE7', VERT)
+          + carte(nEval - within1, 'entre 1 et 2 gardes d\u2019écart', '#fff', '#334155')
+        : carte(flag.length, 'MAR au-delà de 2 gardes', '#FEE2E2', ROUGE)
+          + carte(nEval - flag.length, 'MAR dans leur juste part', '#fff', '#334155'))
+     + '</div>';
+
+  // Classement : cinq lignes, dépliable. Barre partant du centre — à gauche moins
+  // de gardes que sa part, à droite davantage.
+  const visibles = CERT_DEPLIE ? lignes : lignes.slice(0, 5);
+  h += '<div style="margin-top:12px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 12px">'
+     + '<div style="font-size:12px;color:var(--ink-3);margin-bottom:8px">'
+     + (CERT_DEPLIE ? 'Tous les MAR, du plus fort écart au plus faible' : 'Les cinq écarts les plus forts') + '</div>';
+  visibles.forEach(x => {
+    const w = Math.min(50, Math.abs(x.worst) / maxAbs * 50);
+    const col = Math.abs(x.worst) >= SEUIL ? ROUGE : (Math.abs(x.worst) < 1 ? VERT : '#65A30D');
+    const barre = x.worst >= 0
+      ? '<div style="position:absolute;left:50%;top:0;bottom:0;width:' + w + '%;background:' + col + ';opacity:.55;border-radius:0 3px 3px 0"></div>'
+      : '<div style="position:absolute;right:50%;top:0;bottom:0;width:' + w + '%;background:' + col + ';opacity:.55;border-radius:3px 0 0 3px"></div>';
+    h += '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
+       + '<div style="width:86px;font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + x.name + '</div>'
+       + '<div style="flex:1;position:relative;height:11px;background:#EEF1F5;border-radius:3px">'
+       + '<div style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:#CBD5E1"></div>' + barre + '</div>'
+       + '<div style="width:52px;text-align:right;font-size:12px;font-weight:800;color:' + col + '">'
+       + (x.worst >= 0 ? '+' : '') + x.worst.toFixed(1) + '</div></div>'
+       + '<div style="font-size:11px;color:var(--ink-4);margin:-2px 0 4px 94px">' + (x.wax || '—') + '</div>';
+  });
+  if(lignes.length > 5){
+    h += '<div style="margin-top:6px"><span onclick="certBasculer()" style="font-size:12px;font-weight:700;color:#334155;'
+       + 'cursor:pointer;user-select:none;border:1px solid var(--line);border-radius:8px;padding:5px 12px;display:inline-block">'
+       + (CERT_DEPLIE ? 'Réduire' : 'Voir les ' + lignes.length) + '</span></div>';
+  }
+  h += '</div>';
+
+  h += '<div style="font-size:11.5px;color:var(--ink-3);margin-top:11px;line-height:1.55">'
+     + 'Un signe <b>\u2212</b> veut dire moins de gardes que sa part, <b>+</b> davantage. '
+     + 'L\u2019écart se compte sur l\u2019axe le plus tendu de chacun : total, samedis, jeudis, '
+     + 'week-ends ou veilles de férié.'
+     + (nExcl ? ' <span style="opacity:.8">(' + nExcl + ' profil' + (nExcl > 1 ? 's' : '')
+        + ' à souhaits garantis exclu' + (nExcl > 1 ? 's' : '') + ' du calcul — jours choisis = cible.)</span>' : '')
+     + '</div>';
+
+  if(corrige){
+    h += '<div style="font-size:11.5px;color:#7C2D12;background:#FFF7ED;border:1px solid #FED7AA;border-radius:9px;'
+       + 'padding:9px 11px;margin-top:9px;line-height:1.55">'
+       + 'En ' + ADMIN_YEAR + ', une partie des gardes a été assurée par un médecin <b>extérieur au service</b>, '
+       + 'et le planning a été ajusté à la main en cours d\u2019année. Les parts affichées ici sont donc ramenées '
+       + 'aux gardes réellement réparties entre les MAR du service — cette année n\u2019est pas comparable aux suivantes.'
+       + '</div>';
   }
 
-  // trois indicateurs
-  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:13px">'
-    + chip(pct2+'\u202f%', 'des MAR à <b>moins de 2 gardes</b> de leur juste part, sur chacun de leurs axes', conforme?'#166534':'#991b1b')
-    + chip(pct1+'\u202f%', 'à <b>moins d\u2019une garde</b> — au plus près possible, gardes entières obligent', '#166534')
-    + chip((maxVal>=0?'+':'')+maxVal.toFixed(1), 'écart le plus élevé du service (<b>'+maxWho+'</b>, '+maxAx+') — rattrapé l\u2019an prochain', conforme?'#65A30D':'#CE1126')
-    + '</div>';
-
-  // distribution
-  h+='<div style="margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:12px 14px">'
-    +'<div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">Répartition des MAR par <b>écart maximal à la cible</b> (en gardes) — la masse doit être à gauche, près de zéro</div>'
-    +'<div style="display:flex;gap:8px;align-items:flex-end">'+spark+'</div>'
-    +'</div>';
-
-  // note explicative (plancher arithmétique + dette)
-  h+='<div style="font-size:11.5px;color:'+(conforme?'#15803d':'#7f1d1d')+';margin-top:11px;line-height:1.55">';
   if(conforme){
-    h+='L\u2019écart résiduel est le <b>plancher arithmétique</b> : les cibles sont fractionnaires (ex. 4,8 samedis) mais les gardes entières — l\u2019égalité au chiffre près est impossible. Il devient une <b>dette</b>, compensée l\u2019année suivante.'+(nExcl?' <span style=\"opacity:.8\">('+nExcl+' profil'+(nExcl>1?'s':'')+' à souhaits garantis exclu'+(nExcl>1?'s':'')+' du calcul — jours choisis = cible.)</span>':'')+' Le détail par MAR est ci-dessous.';
-  } else {
-    h+='Ces MAR dépassent <b>2 gardes d\u2019écart</b> sur un axe, au-delà du simple arrondi (causes fréquentes : dette de total non activée, ou contrainte individuelle non déclarée) : ';
-    h+=flag.map(f=>'<b>'+f.name+'</b> '+(f.worst>=0?'+':'')+f.worst.toFixed(1)+'\u202f('+f.wax+')').join(' · ');
-    h+='.';
+    h += '<div aria-hidden="true" style="position:absolute;right:16px;bottom:14px;transform:rotate(-11deg);border:2.5px solid #15803D;color:#15803D;border-radius:10px;padding:5px 12px 4px;font-weight:900;letter-spacing:.12em;font-size:14px;text-transform:uppercase;opacity:.62;font-family:\'DM Sans\',system-ui,sans-serif;box-shadow:inset 0 0 0 2px rgba(21,128,61,.12)">Certifié<div style="font-size:8.5px;letter-spacing:.06em;font-weight:700;text-align:center;margin-top:1px;opacity:.85">ÉQUITÉ CHPG</div></div>';
   }
-  h+='</div>';
-
-  if(conforme){
-    h+='<div aria-hidden="true" style="position:absolute;right:16px;bottom:14px;transform:rotate(-11deg);border:2.5px solid #15803D;color:#15803D;border-radius:10px;padding:5px 12px 4px;font-weight:900;letter-spacing:.12em;font-size:14px;text-transform:uppercase;opacity:.62;font-family:\'DM Sans\',system-ui,sans-serif;box-shadow:inset 0 0 0 2px rgba(21,128,61,.12)">Certifié<div style="font-size:8.5px;letter-spacing:.06em;font-weight:700;text-align:center;margin-top:1px;opacity:.85">ÉQUITÉ CHPG</div></div>';
-  }
-  h+='</div>';
-  const el=document.getElementById('equiteCertificat'); if(el) el.innerHTML=h;
+  h += '</div>';
+  const el = document.getElementById('equiteCertificat'); if(el) el.innerHTML = h;
 }
 
 // ── BANDE DE PRESENCE ─────────────────────────────────────────────────

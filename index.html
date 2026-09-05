@@ -2436,13 +2436,52 @@ function renderDocPanel(){
 
 
 function _cibNum(v){ const n=(v instanceof Date)?NaN:Number(v); return (isFinite(n)&&n>=0&&n<1000)?n:0; }
+/* ── CIBLES RAMENÉES AUX GARDES RÉELLEMENT RÉPARTIES ───────────────────
+   (05/09/2026) Défaut vu EN PRODUCTION sur l'écran 2026 : « 19 MAR sur 20
+   dépassent 2 gardes d'écart », avec les noms. Vérifié dans le classeur : la
+   colonne CIBLE promet 730,8 gardes pour 707 posées, et 103,7 samedis pour 91.
+   La différence, ce sont les gardes assurées par un médecin EXTÉRIEUR au
+   service, qui ne figure pas dans la liste. Tout le monde apparaissait donc
+   ~1,7 garde trop bas : 5 MAR accusés à tort (GHIGLIONE, ALBOUY, SALA pile à
+   leur part), et LEY à +2,1 absent de la liste.
+
+   LA RÈGLE, sans référence à une année : une mesure d'équité juste a des écarts
+   qui S'ANNULENT — ce qu'un MAR fait en trop, un autre le fait en moins. Quand
+   la somme des cibles s'écarte de plus de 1 % des gardes réellement réparties,
+   c'est que des gardes sont sorties du service : on ramène alors les cibles à ce
+   qui a vraiment été distribué.
+   On ne se fie PAS à un numéro d'année : la page n'a pas à savoir quelle année
+   l'algorithme a générée, et la donnée le dit elle-même.
+   La correction n'est JAMAIS silencieuse : dès qu'elle s'applique, le certificat
+   affiche la mention qui l'explique au lecteur. */
+function facteursEquite(evalues, axes){
+  const F = {}, SEUIL_ECART = 0.01;
+  axes.forEach(a => { F[a[1]] = 1; });
+  axes.forEach(a => {
+    const rk = a[0], ck = a[1];
+    let sr = 0, sc = 0;
+    evalues.forEach(m => { const c = +m[ck] || 0; if(c <= 0) return; sr += +m[rk] || 0; sc += c; });
+    if(sc > 0 && Math.abs(sr - sc) > SEUIL_ECART * sc) F[ck] = sr / sc;
+  });
+  return F;
+}
+const AX_EQUITE = [['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],
+                   ['vd','cVd','week-ends'],['vjf','cVjf','veilles fériés']];
+
 function renderEquiteCards(list){
   const AX=[['lu','Lun'],['ma','Mar'],['me','Mer'],['je','Jeu'],['sa','Sam'],['vd','VD'],['jf','JF'],['vjf','VJF']];
   const CB={je:'cJe',sa:'cSa',vd:'cVd',vjf:'cVjf'};
   const NEUTRAL={lu:1,ma:1,me:1}; // hors équité : pas de cible, barre neutre
   const meanAx={};
   ['lu','ma','me','jf'].forEach(k=>{const v=list.map(x=>+x[k]||0);meanAx[k]=v.length?v.reduce((s,n)=>s+n,0)/v.length:0;});
-  const cibOf=(it,k)=>CB[k]?(+it[CB[k]]||0):meanAx[k];
+  /* (05/09/2026) Barres et certificat lisent la MÊME cible corrigée : deux
+     lecteurs d'une même donnée qui divergent, c'est un écran qui se contredit. */
+  const _FEQ = facteursEquite(list.filter(x=>!x.wish), AX_EQUITE);
+  const cibOf=(it,k)=>{
+    if(!CB[k]) return meanAx[k];
+    const ck=CB[k];
+    return (+it[ck]||0) * (_FEQ[ck] || 1);
+  };
   const colOf=(v,c)=>{const d=v-c;
     const over=IS_DARK?'#F4586B':'#CE1126', under=IS_DARK?'#7BAAF7':'#1D4ED8', ok=IS_DARK?'#5BD08B':'#15803D';
     return d>=2?over:(d<=-2?under:ok);};
@@ -2463,7 +2502,7 @@ function renderEquiteCards(list){
   });
   return '<div class="eqv-grid">'+sorted.map(it=>{
     const _wish=!!it.wish;
-    const tv=+it.total||0, tc=_wish?0:(+it.cTot||0), tw=Math.min(100,tv/maxTot*100), tcx=Math.min(100,tc/maxTot*100);
+    const tv=+it.total||0, tc=_wish?0:((+it.cTot||0)*(_FEQ.cTot||1)), tw=Math.min(100,tv/maxTot*100), tcx=Math.min(100,tc/maxTot*100);
     const _totFill=_wish?'#94A3B8':colOf(tv,tc), _totOpac=_wish?';opacity:.5':'';
     const _totVal=_wish?(tv+'<span> souhaits</span>'):(tv+'<span> /'+(tc>0?tc.toFixed(1):'—')+'</span>');
     const totBar='<div class="eqv-row eqv-row-tot"><div class="eqv-lbl">Total</div><div class="eqv-track eqv-track-tot"><div class="eqv-fill" style="width:'+tw+'%;background:'+_totFill+_totOpac+'"></div>'+((tc>0&&!_wish)?'<div class="eqv-tick" style="left:'+tcx+'%"></div>':'')+'</div><div class="eqv-val">'+_totVal+'</div></div>';
@@ -2541,66 +2580,124 @@ function morphGrid(oldGrid, newGridHtml){
     return true;
   }catch(e){ return false; }
 }
+/* (05/09/2026) MÊME REFONTE QUE CÔTÉ COMITÉ. L'écran annonçait « 5 % » là où il
+   fallait lire « 1 MAR sur 20 », affichait deux cartes portant le même chiffre
+   l'une en rouge l'autre en vert, et déroulait dix-neuf noms en prose rouge —
+   illisible sur téléphone. Nombres de PERSONNES, classement replié, plus
+   d'histogramme (sa légende « la masse doit être à gauche » était contredite par
+   les données qu'il affichait). */
+var CERT_MAR_DEPLIE = false, CERT_MAR_LIST = null, CERT_MAR_WRAP = null;
+function certMarBasculer(){
+  CERT_MAR_DEPLIE = !CERT_MAR_DEPLIE;
+  if(CERT_MAR_WRAP){ var e = CERT_MAR_WRAP.querySelector('#eqCertBloc');
+    if(e) e.outerHTML = renderCertificatMAR(CERT_MAR_LIST || []); }
+}
 function renderCertificatMAR(list){
-  var AXfull=[['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],['vd','cVd','week-ends'],['vjf','cVjf','veilles fériés']];
-  var SEUIL=2.0, maxEc=0, maxWho='', maxAx='', maxVal=0, flag=[], within1=0, within2=0, nEval=0;
-  var buckets=[0,0,0,0,0];
-  var nExcl=0;
-  list.forEach(function(m){
-    // Souhaits garantis (Prunet) : jours choisis = cible, hors axes d'équité (total inclus).
-    // Exclu du certificat : ni compté, ni éligible au rouge. Visible dans les barres.
-    if(m.wish){ nExcl++; return; }
-    var worst=0, wax='';
-    AXfull.forEach(function(a){ var cb=m[a[1]]||0; if(cb<=0) return;
-      var ec=(m[a[0]]||0)-cb; if(Math.abs(ec)>Math.abs(worst)){ worst=ec; wax=a[2]; } });
-    var aw=Math.abs(worst); nEval++;
-    if(aw<1) within1++; if(aw<2) within2++;
-    buckets[aw<0.5?0:aw<1?1:aw<1.5?2:aw<2?3:4]++;
-    if(aw>maxEc){ maxEc=aw; maxWho=m.name; maxAx=wax; maxVal=worst; }
-    if(aw>=SEUIL) flag.push({name:m.name,worst:worst,wax:wax});
+  CERT_MAR_LIST = list;
+  var AXfull = AX_EQUITE, SEUIL = 2.0;
+  var evalues = list.filter(function(m){ return !m.wish; });
+  var nExcl = list.length - evalues.length;
+  if(!evalues.length) return '';
+  var F = facteursEquite(evalues, AXfull);
+  var corrige = Object.keys(F).some(function(k){ return Math.abs(F[k] - 1) > 0.005; });
+
+  var lignes = [], within1 = 0;
+  evalues.forEach(function(m){
+    var worst = 0, wax = '';
+    AXfull.forEach(function(a){
+      var cb = (+m[a[1]] || 0) * F[a[1]];
+      if(cb <= 0) return;
+      var ec = (+m[a[0]] || 0) - cb;
+      if(Math.abs(ec) > Math.abs(worst)){ worst = ec; wax = a[2]; }
+    });
+    if(Math.abs(worst) < 1) within1++;
+    lignes.push({ name: m.name, worst: worst, wax: wax });
   });
-  if(!nEval) return '';
-  var conforme=flag.length===0;
-  var pct1=Math.round(within1/nEval*100), pct2=Math.round(within2/nEval*100);
-  var maxB=Math.max.apply(null,[1].concat(buckets));
-  var bLabels=['0–0,5','0,5–1','1–1,5','1,5–2','≥ 2'], bColors=['#15803D','#15803D','#65A30D','#D97706','#CE1126'];
-  var spark=buckets.map(function(n,idx){ var hpc=Math.round(n/maxB*100);
-    return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">'
-      +'<div style="font-size:10px;font-weight:800;color:'+bColors[idx]+'">'+n+'</div>'
-      +'<div style="width:100%;height:46px;display:flex;align-items:flex-end"><div style="width:100%;height:'+Math.max(6,hpc)+'%;background:'+bColors[idx]+';opacity:'+(n?0.9:0.18)+';border-radius:4px 4px 0 0"></div></div>'
-      +'<div style="font-size:9.5px;color:var(--ink-4)">'+bLabels[idx]+'</div></div>'; }).join('');
-  function chip(big,lbl,col){ return '<div style="flex:1;min-width:120px;background:var(--white);border:1px solid var(--line);border-radius:11px;padding:11px 13px">'
-    +'<div style="font-size:23px;font-weight:800;color:'+col+';line-height:1">'+big+'</div>'
-    +'<div style="font-size:11px;color:var(--ink-3);margin-top:4px;line-height:1.35">'+lbl+'</div></div>'; }
-  var headBg=conforme?'linear-gradient(135deg,#ecfdf5,#f0fdf4)':'#fef2f2', headBd=conforme?'#a7f3d0':'#fecaca';
-  var h='<div style="position:relative;border-radius:14px;padding:16px 18px;margin-bottom:14px;background:'+headBg+';border:1px solid '+headBd+'">';
-  if(conforme){
-    h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:16px;font-weight:800;color:#166534">✅ Planning équitable — certifié</span>'
-      +'<span style="font-size:11.5px;color:#15803d;background:#dcfce7;border-radius:999px;padding:3px 10px;font-weight:700">écart max '+(maxVal>=0?'+':'')+maxVal.toFixed(1)+' garde · '+maxWho+' · '+maxAx+'</span></div>';
-  } else {
-    h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:16px;font-weight:800;color:#991b1b">🔴 À examiner — '+flag.length+' écart(s) au-delà de 2 gardes</span>'
-      +'<span style="font-size:11.5px;color:#b91c1c;background:#fee2e2;border-radius:999px;padding:3px 10px;font-weight:700">écart max '+(maxVal>=0?'+':'')+maxVal.toFixed(1)+' · '+maxWho+' · '+maxAx+'</span></div>';
+  lignes.sort(function(a, b){ return Math.abs(b.worst) - Math.abs(a.worst); });
+  var nEval = lignes.length;
+  var flag = lignes.filter(function(x){ return Math.abs(x.worst) >= SEUIL; });
+  var conforme = flag.length === 0;
+  var maxAbs = Math.max(1, Math.abs(lignes[0].worst));
+
+  var ROUGE = '#B91C1C', VERT = '#166534';
+  var teinte = conforme ? '#F0FDF4' : '#FEF2F2', bord = conforme ? '#A7F3D0' : '#FECACA';
+  var encre = conforme ? VERT : ROUGE;
+  var AN = (typeof currentYear !== 'undefined' && currentYear) ? currentYear : '';
+
+  var h = '<div id="eqCertBloc" style="position:relative;border-radius:14px;padding:15px 16px;margin-bottom:14px;background:'
+        + teinte + ';border:1px solid ' + bord + '">';
+  h += '<div style="font-size:16px;font-weight:800;color:' + encre + '">Répartition ' + AN
+     + (conforme ? ' — équitable' : ' — écarts importants') + '</div>';
+  h += '<div style="font-size:12.5px;color:var(--ink-3);line-height:1.5;margin-top:3px">'
+     + (conforme
+        ? 'Aucun MAR ne s\u2019écarte de plus de 2 gardes de sa juste part, sur aucun de ses axes.'
+        : flag.length + ' MAR sur ' + nEval + ' s\u2019écartent de plus de 2 gardes de leur juste part.')
+     + '</div>';
+
+  function carte(n, lbl, fond, ink){
+    return '<div style="background:' + fond + ';border-radius:10px;padding:10px 12px">'
+      + '<div style="font-size:22px;font-weight:800;color:' + ink + ';line-height:1.2">' + n + '</div>'
+      + '<div style="font-size:12px;color:' + ink + ';opacity:.9;line-height:1.4">' + lbl + '</div></div>';
   }
-  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:13px">'
-    + chip(pct2+'\u202f%','des MAR à <b>moins de 2 gardes</b> de leur juste part, sur chacun de leurs axes',conforme?'#166534':'#991b1b')
-    + chip(pct1+'\u202f%','à <b>moins d\u2019une garde</b> — au plus près possible, gardes entières obligent','#166534')
-    + chip((maxVal>=0?'+':'')+maxVal.toFixed(1),'écart le plus élevé du service (<b>'+maxWho+'</b>, '+maxAx+') — rattrapé l\u2019an prochain',conforme?'#65A30D':'#CE1126')
-    + '</div>';
-  h+='<div style="margin-top:14px;background:var(--white);border:1px solid var(--line);border-radius:11px;padding:12px 14px">'
-    +'<div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">Répartition des MAR par <b>écart maximal à la cible</b> (en gardes) — la masse doit être à gauche, près de zéro</div>'
-    +'<div style="display:flex;gap:8px;align-items:flex-end">'+spark+'</div></div>';
-  h+='<div style="font-size:11.5px;color:'+(conforme?'#15803d':'#7f1d1d')+';margin-top:11px;line-height:1.55">';
-  if(conforme){ h+='L\u2019écart résiduel est le <b>plancher arithmétique</b> : les cibles sont fractionnaires (ex. 4,8 samedis) mais les gardes entières — l\u2019égalité au chiffre près est impossible. Il devient une <b>dette</b>, compensée l\u2019année suivante.'+(nExcl?' <span style=\"opacity:.8\">('+nExcl+' profil à souhaits garantis exclu du calcul — jours choisis = cible.)</span>':'')+' Le détail par MAR est ci-dessous.'; }
-  else { h+='Ces MAR dépassent <b>2 gardes d\u2019écart</b> sur un axe : '+flag.map(function(f){return '<b>'+f.name+'</b> '+(f.worst>=0?'+':'')+f.worst.toFixed(1)+'\u202f('+f.wax+')';}).join(' · ')+'.'; }
-  h+='</div>';
-  if(conforme){ h+='<div aria-hidden="true" style="position:absolute;right:16px;bottom:14px;transform:rotate(-11deg);border:2.5px solid #15803D;color:#15803D;border-radius:10px;padding:5px 12px 4px;font-weight:900;letter-spacing:.12em;font-size:14px;text-transform:uppercase;opacity:.62;box-shadow:inset 0 0 0 2px rgba(21,128,61,.12)">Certifié<div style="font-size:8.5px;letter-spacing:.06em;font-weight:700;text-align:center;margin-top:1px;opacity:.85">ÉQUITÉ CHPG</div></div>'; }
-  h+='</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">'
+     + (conforme
+        ? carte(within1, 'MAR à moins d\u2019une garde de leur part', '#DCFCE7', VERT)
+          + carte(nEval - within1, 'entre 1 et 2 gardes d\u2019écart', 'var(--white)', '#334155')
+        : carte(flag.length, 'MAR au-delà de 2 gardes', '#FEE2E2', ROUGE)
+          + carte(nEval - flag.length, 'MAR dans leur juste part', 'var(--white)', '#334155'))
+     + '</div>';
+
+  var visibles = CERT_MAR_DEPLIE ? lignes : lignes.slice(0, 5);
+  h += '<div style="margin-top:12px;background:var(--white);border:1px solid var(--line);border-radius:11px;padding:11px 12px">'
+     + '<div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">'
+     + (CERT_MAR_DEPLIE ? 'Tous les MAR, du plus fort écart au plus faible' : 'Les cinq écarts les plus forts') + '</div>';
+  visibles.forEach(function(x){
+    var w = Math.min(50, Math.abs(x.worst) / maxAbs * 50);
+    var col = Math.abs(x.worst) >= SEUIL ? ROUGE : (Math.abs(x.worst) < 1 ? VERT : '#65A30D');
+    var barre = x.worst >= 0
+      ? '<div style="position:absolute;left:50%;top:0;bottom:0;width:' + w + '%;background:' + col + ';opacity:.55;border-radius:0 3px 3px 0"></div>'
+      : '<div style="position:absolute;right:50%;top:0;bottom:0;width:' + w + '%;background:' + col + ';opacity:.55;border-radius:3px 0 0 3px"></div>';
+    h += '<div style="display:flex;align-items:center;gap:8px;padding:3px 0">'
+       + '<div style="width:84px;font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + x.name + '</div>'
+       + '<div style="flex:1;position:relative;height:11px;background:var(--surface-2);border-radius:3px">'
+       + '<div style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--line)"></div>' + barre + '</div>'
+       + '<div style="width:50px;text-align:right;font-size:12px;font-weight:800;color:' + col + '">'
+       + (x.worst >= 0 ? '+' : '') + x.worst.toFixed(1) + '</div></div>'
+       + '<div style="font-size:11px;color:var(--ink-4);margin:-2px 0 4px 92px">' + (x.wax || '—') + '</div>';
+  });
+  if(lignes.length > 5){
+    h += '<div style="margin-top:6px"><span onclick="certMarBasculer()" style="font-size:12px;font-weight:700;color:var(--ink);'
+       + 'cursor:pointer;user-select:none;border:1px solid var(--line);border-radius:8px;padding:5px 12px;display:inline-block">'
+       + (CERT_MAR_DEPLIE ? 'Réduire' : 'Voir les ' + lignes.length) + '</span></div>';
+  }
+  h += '</div>';
+
+  h += '<div style="font-size:11.5px;color:var(--ink-3);margin-top:11px;line-height:1.55">'
+     + 'Un signe <b>\u2212</b> veut dire moins de gardes que sa part, <b>+</b> davantage. '
+     + 'L\u2019écart se compte sur l\u2019axe le plus tendu de chacun : total, samedis, jeudis, '
+     + 'week-ends ou veilles de férié.'
+     + (nExcl ? ' <span style="opacity:.8">(' + nExcl + ' profil à souhaits garantis exclu du calcul \u2014 jours choisis = cible.)</span>' : '')
+     + '</div>';
+
+  if(corrige){
+    h += '<div style="font-size:11.5px;color:#7C2D12;background:#FFF7ED;border:1px solid #FED7AA;border-radius:9px;'
+       + 'padding:9px 11px;margin-top:9px;line-height:1.55">'
+       + 'Cette année-là, une partie des gardes a été assurée par un médecin <b>extérieur au service</b>, '
+       + 'et le planning a été ajusté à la main en cours d\u2019année. Les parts affichées sont donc ramenées '
+       + 'aux gardes réellement réparties entre les MAR du service \u2014 cette année n\u2019est pas comparable aux suivantes.'
+       + '</div>';
+  }
+  if(conforme){
+    h += '<div aria-hidden="true" style="position:absolute;right:16px;bottom:14px;transform:rotate(-11deg);border:2.5px solid #15803D;color:#15803D;border-radius:10px;padding:5px 12px 4px;font-weight:900;letter-spacing:.12em;font-size:14px;text-transform:uppercase;opacity:.62;box-shadow:inset 0 0 0 2px rgba(21,128,61,.12)">Certifié<div style="font-size:8.5px;letter-spacing:.06em;font-weight:700;text-align:center;margin-top:1px;opacity:.85">ÉQUITÉ CHPG</div></div>';
+  }
+  h += '</div>';
   return h;
 }
 function paintEquite(wrap, headHtml, list){
   // Le certificat n'a de sens que sur la répartition INITIALE (générée). En « Instantané »,
   // les échanges/dons volontaires modifient les compteurs : l'écart affiché ne refléterait
   // plus l'équité de l'algorithme mais des choix personnels — on n'affiche donc pas de verdict.
+  CERT_MAR_WRAP = wrap;   // (05/09/2026) cible du dépliage « Voir les N »
   const certHtml = (EQ_SRC_IDX==='live') ? '' : renderCertificatMAR(list);
   const grid = wrap.querySelector('.eqv-grid');
   const gridHtml = renderEquiteCards(list);

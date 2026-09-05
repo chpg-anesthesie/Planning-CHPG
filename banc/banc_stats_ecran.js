@@ -163,8 +163,15 @@ console.log('\n═══ 5. La page et la tuile sont cohérentes avec le serveur
   const v = (VJS.match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1];
   V('version.js porte un numéro, une seule fois',
     !!v && (VJS.match(/window\.SITE_VERSION =/g) || []).length === 1, v);
-  V('la version a dépassé v1.95 (tableau complet)',
-    !!v && cmp(v, '1.95') > 0, v);
+  /* (05/09/2026) Ce contrôle comparait le numéro à v1.95 pour dater la
+     fonctionnalité. La numérotation est repartie de v1.0 le 05/09 — v1.0 = la
+     version présentée au staff du 4 septembre — donc v1.0.4 est POSTÉRIEUR à
+     v1.95 tout en étant plus petit. Un numéro ne peut plus dater quoi que ce
+     soit ; on vérifie donc la PRÉSENCE de la fonctionnalité, ce que font déjà
+     les vérifications ci-dessus, et la seule chose que le numéro doit encore
+     garantir : sa forme. */
+  V('le numéro de version est lisible (vX.Y ou vX.Y.Z)',
+    !!v && /^\d+\.\d+(\.\d+)?$/.test(v), v);
 }
 function cmp(a, b) {
   const x = a.split('.').map(Number), y = b.split('.').map(Number);

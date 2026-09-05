@@ -137,14 +137,20 @@ console.log('\n═══ C5. Le dashboard : zéro requête ajoutée, cloche pré
     /notif-vu[\s\S]{0,200}keepalive:true/.test(html));
   V('la cloche filtre sur MY_ID + les entrées pour tous',
     /NOTIFS_REGISTRE\[MY_ID\]/.test(html) && /NOTIFS_REGISTRE\['\*'\]/.test(html));
-  // (25/08/2026) Le test figeait « v1.77 » et cassait à la nouveauté suivante. Il
-  // vérifie désormais que le numéro est AU MOINS celui du lot cloche.
+  /* (25/08/2026) Le test figeait « v1.77 » et cassait à la nouveauté suivante. Il
+     vérifiait donc que le numéro était AU MOINS celui du lot cloche.
+     (05/09/2026) La numérotation est repartie de v1.0 — v1.0 = la version
+     présentée au staff du 4 septembre. Comparer à un ancien numéro n'a plus de
+     sens : v1.0.4 est POSTÉRIEUR à v1.77, et pourtant plus petit. Un numéro ne
+     peut donc plus servir à dater une fonctionnalité.
+     Ce qui reste vrai et vérifiable : la cloche est là, et le numéro vient de la
+     source unique. C'est ce qu'on contrôle désormais. */
   {
-    const _v = (fs.readFileSync('../version.js', 'utf8').match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1] || '0';
-    const _n = a => a.split('.').map(Number);
-    const [_a, _b] = _n(_v), [_ra, _rb] = _n('1.77');
-    V('la version du site est au moins celle du lot cloche (v1.77)',
-      _a > _ra || (_a === _ra && _b >= _rb), 'v' + _v);
+    const _v = (fs.readFileSync('../version.js', 'utf8').match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1] || '';
+    V('le numéro de version vient de version.js et est lisible',
+      /^\d+\.\d+(\.\d+)?$/.test(_v), 'v' + _v);
+    V('la page de la cloche ne porte aucun numéro en dur',
+      !/(?:const|let|var)\s+SITE_VERSION\s*=\s*'v[\d.]+'/.test(html));
   }
 }
 
