@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_CODE = '2026-09-01.1';
+const GAS_VERSION_CODE = '2026-09-05.1';
 
 // ── Reconstruire STATS_GARDES_2026 depuis GARDES_2026 (année reconstruite) ──
 // Renvoie le classeur contenant l'onglet demandé : classeur actif si présent,
@@ -36,8 +36,14 @@ function computeStatsLive(year) {
     const sd = stSheet.getDataRange().getValues();
     for (let r = 1; r < sd.length; r++) {
       const id = String(sd[r][0]).trim(); if (!id) continue;
+      /* (05/09/2026) cJf : colonne 22 de STATS_GARDES, écrite par le générateur
+         depuis toujours mais jamais lue. L'écran d'équité mesurait donc CINQ axes
+         quand le générateur en surveille SIX — et le sixième, les jours fériés,
+         est justement celui où le résidu se concentre (11 fériés dans l'année,
+         part individuelle ~1,4 : l'arrondi n'a que 1 ou 2 à proposer). */
       cibById[id] = { cible:Number(sd[r][1])||0, cSat:Number(sd[r][17])||0,
-        cJeu:Number(sd[r][18])||0, cVd:Number(sd[r][19])||0, cVjf:Number(sd[r][21])||0 };
+        cJeu:Number(sd[r][18])||0, cVd:Number(sd[r][19])||0, cVjf:Number(sd[r][21])||0,
+        cJf:Number(sd[r][22])||0 };
     }
   }
   const stats = [];
@@ -60,11 +66,11 @@ function computeStatsLive(year) {
       if (!isF(date) && isF(nextDay(date)) && dow >= 1 && dow <= 4) c.vjf++;
       if (NOEL.has(date)) c.noelAn++;
     });
-    const cb = cibById[id] || {cible:0,cSat:0,cJeu:0,cVd:0,cVjf:0};
+    const cb = cibById[id] || {cible:0,cSat:0,cJeu:0,cVd:0,cVjf:0,cJf:0};
     stats.push({medecin:id, cible:cb.cible, total:c.total, g:c.g, g2:c.g2,
       lun:c.lun, mar:c.mar, mer:c.mer, jeu:c.jeu, ven:c.ven, sat:c.sam, dim:c.dim,
       recupR:c.recupR, h18:c.h18, jf:c.jf, vjf:c.vjf, vd:c.vd,
-      cSat:cb.cSat, cJeu:cb.cJeu, cVd:cb.cVd, cVjf:cb.cVjf});
+      cSat:cb.cSat, cJeu:cb.cJeu, cVd:cb.cVd, cVjf:cb.cVjf, cJf:cb.cJf});
   }
   return stats;
 }
@@ -822,6 +828,7 @@ function generatePlanning(yearOverride) {
         je: Number(r[8]) || 0, ve: Number(r[9]) || 0, sa: Number(r[10]) || 0, di: Number(r[11]) || 0,
         vd: Number(r[20]) || 0, jf: Number(r[14]) || 0, vjf: Number(r[15]) || 0,
         cible: Number(r[1]) || 0, cSa: Number(r[17]) || 0, cJe: Number(r[18]) || 0, cVd: Number(r[19]) || 0, cVjf: Number(r[21]) || 0,
+        cJf: Number(r[22]) || 0,   // (05/09/2026) 6e axe : jours fériés
       }));
     }
   } catch(e) { Logger.log('equiteInitiale: ' + e.message); }

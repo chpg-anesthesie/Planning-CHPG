@@ -2502,7 +2502,14 @@ function ciblesEquite(evalues, axes){
   return T;
 }
 const AX_EQUITE = [['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],
-                   ['vd','cVd','week-ends'],['vjf','cVjf','veilles fériés']];
+                   ['vd','cVd','week-ends'],['vjf','cVjf','veilles fériés'],
+                   /* (05/09/2026) 6e axe. Le générateur surveille les jours fériés
+                      depuis toujours, mais l'écran ne les montrait pas, faute d'être
+                      servi en cible (colonne 23 de STATS_GARDES, lue par personne).
+                      Or c'est là que le résidu se concentre : 11 fériés dans l'année,
+                      part individuelle autour de 1,4, l'arrondi n'a que 1 ou 2 à
+                      proposer. */
+                   ['jf','cJf','fériés']];
 
 /* (05/09/2026) CARTES REPLIABLES — voir admin.html, même mécanique. Le MAR
    connecté est déplié d'office et remonté en tête ; les autres tiennent sur une
@@ -2516,9 +2523,13 @@ function eqBasculer(nom){
 }
 /* Écart le plus fort d'un MAR. Même source que le certificat (ciblesEquite) :
    les deux ne peuvent pas se contredire. */
+/* (05/09/2026) Les cibles sont entières, donc les écarts aussi : afficher « +1,0 »
+   laissait croire à une précision qui n'existe pas. La décimale n'est gardée que
+   si elle porte une information. */
+function _fmtEcart(v){ return Number.isInteger(v) ? String(v) : v.toFixed(1); }
 function eqVerdict(it, cib){
-  const AX=[['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],
-            ['vd','cVd','week-ends'],['vjf','cVjf','veilles']];
+  // (05/09/2026) Six axes : les fériés entrent dans le verdict, comme dans le certificat.
+  const AX=AX_EQUITE;
   let pire=0, axe='';
   AX.forEach(a=>{ const t=cib&&cib[a[1]]; if(t===undefined) return;
     const d=(+it[a[0]]||0)-t; if(Math.abs(d)>Math.abs(pire)){ pire=d; axe=a[2]; } });
@@ -2529,10 +2540,13 @@ function eqVerdict(it, cib){
 function renderEquiteCards(list){
   EQ_LIST = list;
   const AX=[['lu','Lun'],['ma','Mar'],['me','Mer'],['je','Jeu'],['sa','Sam'],['vd','VD'],['jf','JF'],['vjf','VJF']];
-  const CB={je:'cJe',sa:'cSa',vd:'cVd',vjf:'cVjf'};
+  /* (05/09/2026) Les fériés ont désormais une CIBLE, servie par getStats. La barre
+     « JF » était jusqu'ici tracée contre une moyenne d'équipe — un repère qui ne
+     dit rien de la justice de la répartition. */
+  const CB={je:'cJe',sa:'cSa',vd:'cVd',vjf:'cVjf',jf:'cJf'};
   const NEUTRAL={lu:1,ma:1,me:1}; // hors équité : pas de cible, barre neutre
   const meanAx={};
-  ['lu','ma','me','jf'].forEach(k=>{const v=list.map(x=>+x[k]||0);meanAx[k]=v.length?v.reduce((s,n)=>s+n,0)/v.length:0;});
+  ['lu','ma','me'].forEach(k=>{const v=list.map(x=>+x[k]||0);meanAx[k]=v.length?v.reduce((s,n)=>s+n,0)/v.length:0;});
   /* (05/09/2026) Barres et certificat lisent la MÊME cible entière : deux
      lecteurs d'une même donnée qui divergent, c'est un écran qui se contredit. */
   const _CIB = ciblesEquite(list.filter(x=>!x.wish), AX_EQUITE);
@@ -2623,7 +2637,7 @@ async function getCiblesFromStats(year){
     const c = m && m.success && m.data && m.data['stats_' + year];
     if(c && Array.isArray(c.stats) && c.stats.length){
       const mm = {};
-      c.stats.forEach(s=>{ mm[s.medecin] = {cible:s.cible||0, cSat:s.cSat||0, cJeu:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0}; });
+      c.stats.forEach(s=>{ mm[s.medecin] = {cible:s.cible||0, cSat:s.cSat||0, cJeu:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0, cJf:s.cJf||0}; });
       CIBLES_CACHE[year] = mm;
       return mm;
     }
@@ -2632,7 +2646,7 @@ async function getCiblesFromStats(year){
     const j = await apiPost({action:'getStatsLive', year});
     if(!j || !j.success || !Array.isArray(j.stats)) return {};
     const m = {};
-    j.stats.forEach(s=>{ m[s.medecin] = {cible:s.cible||0, cSat:s.cSat||0, cJeu:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0}; });
+    j.stats.forEach(s=>{ m[s.medecin] = {cible:s.cible||0, cSat:s.cSat||0, cJeu:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0, cJf:s.cJf||0}; });
     CIBLES_CACHE[year] = m;
     return m;
   }catch(e){ return {}; }
@@ -2746,7 +2760,7 @@ function renderCertificatMAR(list){
        + '<div style="flex:1;position:relative;height:11px;background:var(--surface-2);border-radius:3px">'
        + '<div style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--line)"></div>' + barre + '</div>'
        + '<div style="width:50px;text-align:right;font-size:12px;font-weight:800;color:' + col + '">'
-       + (x.worst >= 0 ? '+' : '') + x.worst.toFixed(1) + '</div></div>'
+       + (x.worst >= 0 ? '+' : '') + _fmtEcart(x.worst) + '</div></div>'
        + '<div style="font-size:11px;color:var(--ink-4);margin:-2px 0 4px 92px">' + (x.wax || '—') + '</div>';
   });
   if(lignes.length > 5){
@@ -2813,7 +2827,7 @@ async function loadEquiteLive(force){
     const list = stats.filter(s=>(s.total||0)>0).map(s=>({
       name:nameOf(s.medecin), wish:s.medecin==='PRUNET', total:s.total||0, cTot:_cibNum(s.cible),
       lu:s.lun||0, ma:s.mar||0, me:s.mer||0, je:s.jeu||0, sa:s.sat||0, vd:s.vd||0, jf:s.jf||0, vjf:s.vjf||0,
-      cSa:_cibNum(s.cSat), cJe:_cibNum(s.cJeu), cVd:_cibNum(s.cVd), cVjf:_cibNum(s.cVjf),
+      cSa:_cibNum(s.cSat), cJe:_cibNum(s.cJeu), cVd:_cibNum(s.cVd), cVjf:_cibNum(s.cVjf), cJf:_cibNum(s.cJf),
     }));
     if(!list.length){ wrap.innerHTML = '<div style="padding:30px;text-align:center;color:#94A3B8">Aucune garde dans ce planning.</div>'; return; }
     const sum=list.reduce((s,a)=>s+a.total,0), mean=sum/list.length;

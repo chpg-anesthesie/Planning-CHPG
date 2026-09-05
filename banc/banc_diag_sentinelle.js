@@ -17,7 +17,12 @@ function monter(opts) {
   const feuille = data => ({
     getDataRange: () => ({ getValues: () => data }),
     getRange: (r, c, nr, nc) => ({ getValues: () => data.slice(r - 1, r - 1 + nr).map(l => l.slice(c - 1, c - 1 + nc)) }),
-    getLastRow: () => data.length, getName: () => 'stub'
+    getLastRow: () => data.length,
+    /* (05/09/2026) La sonde d'en-têtes demande le nombre de colonnes : la colonne
+       CIBLE JF n'est contrôlée que si elle existe, pour ne pas accuser les années
+       antérieures (2026 s'arrête à la 22e). */
+    getLastColumn: () => Math.max(0, ...data.map(l => l.length)),
+    getName: () => 'stub'
   });
   const ctx = vm.createContext({ console, JSON, Date, Math, Object, Array, String, Number, RegExp, parseInt, parseFloat, isNaN, encodeURIComponent, decodeURIComponent,
     Logger: { log() {} },
@@ -162,7 +167,18 @@ function bac() {
     const entete = ['MEDECIN','CIBLE','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','CIBLE SAM','CIBLE JEU','CIBLE VD','x','CIBLE VJF'];
     const ctx = monter({ feuilles: { 'STATS_GARDES_2026': [entete] } });
     let b = bac(); ctx._sondeStatsEntetes_(b.check, b.R, 2026);
-    V('en-têtes en place → ✅', b.lignes.length === 1 && b.lignes[0].startsWith('✅'), b.lignes);
+    V('en-têtes en place, année sans colonne fériés → ✅', b.lignes.length === 1 && b.lignes[0].startsWith('✅'), b.lignes);
+    /* (05/09/2026) Une année générée porte en plus CIBLE JF (23e). Elle doit être
+       contrôlée là, et seulement là. */
+    const avecJf = entete.concat(['CIBLE JF']);
+    const ctxJf = monter({ feuilles: { 'STATS_GARDES_2027': [avecJf] } });
+    b = bac(); ctxJf._sondeStatsEntetes_(b.check, b.R, 2027);
+    V('année avec colonne fériés → ✅ et les 7 colonnes annoncées',
+      b.lignes.length === 1 && b.lignes[0].startsWith('✅') && b.lignes[0].includes('7 colonnes'), b.lignes);
+    const jfFaux = entete.concat(['AUTRE CHOSE']);
+    const ctxJfKo = monter({ feuilles: { 'STATS_GARDES_2027': [jfFaux] } });
+    b = bac(); ctxJfKo._sondeStatsEntetes_(b.check, b.R, 2027);
+    V('colonne fériés déplacée → ❌', b.lignes.some(l => l.startsWith('❌') && l.includes('CIBLE JF')), b.lignes);
     const deplace = entete.slice(); deplace[17] = 'AUTRE CHOSE';
     const ctx2 = monter({ feuilles: { 'STATS_GARDES_2026': [deplace] } });
     b = bac(); ctx2._sondeStatsEntetes_(b.check, b.R, 2026);

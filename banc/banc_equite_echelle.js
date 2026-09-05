@@ -45,7 +45,10 @@ function largeurs(fichier, list) {
     IS_DARK: false, MY_ID: null, _meName: () => null,
     marsData: [{ id: 'Dr Plafond', nom: 'Dr Plafond', initiales: 'DP', souhaitPlafond: true }] });
   ctx.globalThis = ctx;
-  const AX_EQ = (fs.readFileSync(fichier, 'utf8').match(/const AX_EQUITE = \[[^;]+;/) || [''])[0];
+  /* (05/09/2026) L'extraction s'arrêtait au premier « ; », y compris celui d'un
+     commentaire écrit DANS la liste : elle rendait un tableau tronqué, et le script
+     assemblé ne compilait plus. On coupe désormais sur le « ]; » de fin de liste. */
+  const AX_EQ = (fs.readFileSync(fichier, 'utf8').match(/const AX_EQUITE = \[[\s\S]*?\];/) || [''])[0];
   /* (05/09/2026) Les cartes sont repliables : renderEquiteCards s'appuie sur un
      état (EQ_OUVERTS) et sur eqVerdict. On charge les deux, et on ouvre TOUTES
      les cartes — ce banc mesure la longueur des barres, qui n'existent que

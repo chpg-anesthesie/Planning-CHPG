@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_INDISPOS = '2026-09-03.1';
+const GAS_VERSION_INDISPOS = '2026-09-05.1';
 
 /* ── (01/08/2026) MARQUEUR DE TEMPS GLOBAL — mesure, ne change rien ───────
    `_srv_ms` chronometre l'INTERIEUR de doGet. Or avant que doGet soit appele,
@@ -256,13 +256,21 @@ function _sondeStatsEntetes_(check, R, annee) {
   try {
     const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('STATS_GARDES_' + annee);
     if (!sh) return;
-    const h = sh.getRange(1, 1, 1, 22).getValues()[0].map(v => String(v).trim());
+    /* (05/09/2026) La colonne 23 (CIBLE JF) est désormais lue elle aussi : l'écran
+       d'équité surveille les SIX axes du générateur, plus cinq.
+       Elle n'est contrôlée que si elle EXISTE : les années antérieures — 2026, dont
+       les statistiques ont été reconstruites à la main — s'arrêtent à la colonne 22.
+       Exiger la colonne là-bas ferait hurler le diagnostic sur une année qui n'a
+       rien à se reprocher ; l'axe fériés y sera simplement absent de l'écran. */
+    const nCol = Math.min(23, sh.getLastColumn());
+    const h = sh.getRange(1, 1, 1, nCol).getValues()[0].map(v => String(v).trim());
     const attendu = { 0:'MEDECIN', 1:'CIBLE', 17:'CIBLE SAM', 18:'CIBLE JEU', 19:'CIBLE VD', 21:'CIBLE VJF' };
+    if (nCol >= 23) attendu[22] = 'CIBLE JF';
     const faux = Object.keys(attendu).filter(i => h[i] !== attendu[i]).map(i => `col ${Number(i)+1} : « ${h[i]} » au lieu de « ${attendu[i]} »`);
     if (faux.length) {
       check(`STATS_GARDES_${annee} : en-tête déplacé — ${faux.join(' · ')} — code.gs lit ces colonnes PAR POSITION, l'équité se casserait en silence`, R.ERR);
       check('   → LE GESTE : remettre les colonnes à leur place (ne jamais insérer/supprimer de colonne dans STATS), ou régénérer les cibles.', R.OK);
-    } else check(`STATS_GARDES_${annee} : les 6 colonnes lues par position sont où le code les attend`, R.OK);
+    } else check(`STATS_GARDES_${annee} : les ${nCol >= 23 ? 7 : 6} colonnes lues par position sont où le code les attend`, R.OK);
   } catch (e) { check('STATS en-têtes : sonde en échec (' + e.message + ')', R.WARN); }
 }
 
@@ -3806,7 +3814,7 @@ function _routeRequete_(e) {
           g:data[r][3], g2:data[r][4], lun:data[r][5], mar:data[r][6], mer:data[r][7],
           jeu:data[r][8], ven:data[r][9], sat:data[r][10], dim:data[r][11],
           recupR:data[r][12], h18:data[r][13],
-          jf:data[r][14], vjf:data[r][15], vd:data[r][20], cSat:data[r][17], cJeu:data[r][18], cVd:data[r][19], cVjf:data[r][21]});
+          jf:data[r][14], vjf:data[r][15], vd:data[r][20], cSat:data[r][17], cJeu:data[r][18], cVd:data[r][19], cVjf:data[r][21], cJf:data[r][22]});
       }
       return ContentService.createTextOutput(JSON.stringify({success:true, stats}))
         .setMimeType(ContentService.MimeType.JSON);
@@ -3844,7 +3852,7 @@ if (yearToGenerate === 2026) return _error('Génération désactivée — GARDES
               jeu:dChk[r][8], ven:dChk[r][9], sat:dChk[r][10], dim:dChk[r][11],
               recupR:dChk[r][12], h18:dChk[r][13],
               jf:dChk[r][14], vjf:dChk[r][15], vd:dChk[r][20], cSat:dChk[r][17],
-              cJeu:dChk[r][18], cVd:dChk[r][19], cVjf:dChk[r][21]});
+              cJeu:dChk[r][18], cVd:dChk[r][19], cVjf:dChk[r][21], cJf:dChk[r][22]});
           }
           logAction(`generateGardes — ${yearToGenerate} déjà générée : reprise sans régénération (${statsChk.length} MARs)`);
           return ContentService.createTextOutput(JSON.stringify({
@@ -3866,7 +3874,7 @@ try {
             g:data[r][3], g2:data[r][4], lun:data[r][5], mar:data[r][6], mer:data[r][7],
             jeu:data[r][8], ven:data[r][9], sat:data[r][10], dim:data[r][11],
             recupR:data[r][12], h18:data[r][13],
-            jf:data[r][14], vjf:data[r][15], vd:data[r][20], cSat:data[r][17], cJeu:data[r][18], cVd:data[r][19], cVjf:data[r][21]});
+            jf:data[r][14], vjf:data[r][15], vd:data[r][20], cSat:data[r][17], cJeu:data[r][18], cVd:data[r][19], cVjf:data[r][21], cJf:data[r][22]});
         }
         /* (01/09/2026) LES AVERTISSEMENTS DOIVENT SURVIVRE À LA FERMETURE DE
            L'ASSISTANT. Jusqu'ici LOGS ne gardait que leur NOMBRE : le contenu

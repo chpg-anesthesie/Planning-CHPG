@@ -192,10 +192,45 @@ V('la grille passe sur une seule colonne',
   /\.eqv-grid\{display:grid;grid-template-columns:1fr;gap:6px\}/.test(ADMIN)
   && /\.eqv-grid\{display:grid;grid-template-columns:1fr;gap:6px\}/.test(INDEX));
 
-console.log('\n─── 7. Version du site ───');
+console.log('\n─── 7. Le sixième axe : les jours fériés ───');
+/* Le générateur surveille six axes ; l'écran n'en montrait que cinq, faute que la
+   colonne CIBLE JF (23e de STATS_GARDES) soit servie au front. Or c'est l'axe où
+   le résidu se concentre : 11 fériés dans l'année, part individuelle ~1,4. */
+const CODEGS = fs.readFileSync(path.join(__dirname, '..', 'gas', 'code.gs'), 'utf8');
+const INDGS  = fs.readFileSync(path.join(__dirname, '..', 'gas', 'Indispos.gs'), 'utf8');
+const MIRGS  = fs.readFileSync(path.join(__dirname, '..', 'gas', 'miroir.gs'), 'utf8');
+V('getStats lit la colonne 23 (CIBLE JF)', /cJf:Number\(sd\[r\]\[22\]\)\|\|0/.test(CODEGS));
+V('…et la sert dans la réponse', /cJf:cb\.cJf/.test(CODEGS));
+V('le portail la reçoit aussi', /cJf: Number\(r\[22\]\) \|\| 0/.test(CODEGS));
+V('les deux autres lecteurs la servent', /cJf:data\[r\]\[22\]/.test(INDGS) && /cJf:data\[r\]\[22\]/.test(MIRGS));
+/* La colonne 23 n'est contrôlée QUE si elle existe : 2026, dont les statistiques
+   ont été reconstruites à la main, s'arrête à la 22e. L'exiger là ferait hurler le
+   diagnostic sur une année qui n'a rien à se reprocher. */
+V('la sonde d\'en-tête contrôle la colonne 23 quand elle existe',
+  /if \(nCol >= 23\) attendu\[22\] = 'CIBLE JF';/.test(INDGS)
+  && /Math\.min\(23, sh\.getLastColumn\(\)\)/.test(INDGS));
+V('les six axes sont dans la liste, dans les deux pages',
+  /\['jf','cJf','fériés'\]/.test(ADMIN) && /\['jf','cJf','fériés'\]/.test(INDEX));
+V('la barre JF est tracée contre une cible, plus contre une moyenne',
+  /jf:'cJf'/.test(ADMIN) && /jf:'cJf'/.test(INDEX)
+  && !/\['lu','ma','me','jf'\]\.forEach/.test(ADMIN) && !/\['lu','ma','me','jf'\]\.forEach/.test(INDEX));
+V('le verdict d\'une ligne porte sur les six axes',
+  /const AX=AX_EQUITE;/.test(ADMIN) && /const AX=AX_EQUITE;/.test(INDEX));
+V('les versions des trois fichiers GAS ont été montées',
+  /GAS_VERSION_CODE = '2026-09-05\.1'/.test(CODEGS)
+  && /GAS_VERSION_INDISPOS = '2026-09-05\.1'/.test(INDGS)
+  && /GAS_VERSION_MIROIR = '2026-09-05\.1'/.test(MIRGS));
+
+V('un écart entier s\'affiche sans décimale',
+  /function _fmtEcart\(v\)\{ return Number\.isInteger\(v\) \? String\(v\) : v\.toFixed\(1\); \}/.test(ADMIN)
+  && /_fmtEcart\(x\.worst\)/.test(ADMIN) && /_fmtEcart\(x\.worst\)/.test(INDEX));
+V('la cible d\'un axe surveillé est affichée entière',
+  /const cval=CB\[k\]\?Math\.round\(c\)/.test(ADMIN) && /const cval=CB\[k\]\?Math\.round\(c\)/.test(INDEX));
+
+console.log('\n─── 8. Version du site ───');
 const VJS = fs.readFileSync(path.join(__dirname, '..', 'version.js'), 'utf8');
 const v = (VJS.match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1];
-V('la version a été montée dans le même lot', v === '1.1.2', v);
+V('la version a été montée dans le même lot', v === '1.2.0', v);
 V('le retour à v1.0 est expliqué dans le fichier',
   /RETOUR À v1\.0/.test(VJS) && /4 septembre 2026/.test(VJS));
 
