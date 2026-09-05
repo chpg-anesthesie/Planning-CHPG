@@ -40,6 +40,60 @@ fenêtre du dernier Excel (vendredi 16 h → dimanche +9).
 
 ---
 
+## État au 5 septembre 2026 (soir)
+
+Site **v1.1.2**, banc **2 690 vérifications, 0 échec**. `generateur_gardes.gs` **2026-09-05.1** et
+`setup_annee.gs` **2026-09-05.2** — **les deux sont à recopier dans l'éditeur et à redéployer.**
+Sept commits : `67803951`, `1a53a068`, `a3a35084`, `723da5d5`, `ab810462`, `cc024d39`, `d2ab072b`.
+
+### Le nouvel algorithme de gardes est en ligne
+
+Quatre mécanismes, sous l'interrupteur `NOUVEL_ALGO_GLOBAL` (retour arrière en une ligne) :
+**cibles entières** par plus forts restes, **numéro de tirage** à la place de l'ordre de MEDECINS,
+**multi-départ** (8 calculs à blanc, on écrit le meilleur), **objectif lexicographique** de
+l'optimiseur et **interdiction dure de deux week-ends d'affilée**.
+
+Mesuré sur 45 années simulées : 44 sur 45 où personne ne dépasse **une garde d'écart** sur les six
+axes, contre 29 sur 45 avant. Éprouvé dans Apps Script sur les absences RÉELLES du service,
+complétées par quotité, avec 161 souhaits : 364 journées toutes pourvues (y compris le 27/12 avec
+3 gardeurs disponibles sur 20), un seul MAR à 2 gardes d'écart, 121 souhaits honorés sur 161.
+
+**La dette inter-annuelle n'est PAS codée.** Elle est inutile pour 2027 (compteur vide), et le
+travail se fera d'ici novembre 2027.
+
+### L'écran d'équité affichait un calcul faux
+
+Sur 2026, la colonne CIBLE promettait 730,8 gardes pour 707 posées : les gardes du **médecin
+extérieur au service** n'étaient comptées nulle part. Tout le monde apparaissait ~1,7 garde trop
+bas, l'écran accusait **19 MAR sur 20** au lieu de 17, dont trois pile à leur part. Corrigé dans
+les deux pages : les gardes réellement posées sont réparties en cibles entières, et la mention
+d'explication s'affiche dès que la correction s'applique.
+
+L'écran est refait : nombres de personnes au lieu de pourcentages, classement replié au lieu du mur
+de noms, **une ligne par MAR** dépliable au clic, la sienne en tête.
+
+### La numérotation repart à v1.0
+
+**v10.8.3 → v1.0.4**, le numéro descend volontairement et une seule fois. **v1.0 = la version
+présentée au staff du 4 septembre.** v2.0 est réservé au module libéral. Conséquence : un numéro ne
+peut plus dater une fonctionnalité — deux contrôles du banc qui le faisaient ont été réécrits.
+
+### Lanceurs temporaires, à retirer une fois 2027 publié
+
+`T()` et `T7()` : avant/après à blanc sur 2026 et 2027, aucune écriture — c'est la mesure à lancer
+le **30 octobre**, campagne close. `W1_2028()` et `W2_2026()` : **copie du classeur uniquement**,
+`W2_2026` efface le planning en cours et notifie toute l'équipe.
+
+### À surveiller
+
+- **Axe jours fériés absent de l'écran d'équité** : `getStats` ne sert pas `CIBLE JF` (colonne 22).
+  C'est l'axe où le nouvel algorithme laisse son résidu.
+- **Jetons en clair dans l'onglet CONFIG** : ils sortent dès qu'on exporte ou copie le classeur.
+- **Un onglet INDISPOS a TROIS lignes d'en-tête** (mois / initiales / numéros), MAR en ligne 4. Un
+  collage sans elles fait perdre presque toutes les dates, en silence.
+
+---
+
 ## État au 3 septembre 2026 (soir) — la veille du staff
 
 Site **v10.8.1**, banc **2531 vérifications sur 54 scripts, 0 échec**. Quatre commits ce soir-là :

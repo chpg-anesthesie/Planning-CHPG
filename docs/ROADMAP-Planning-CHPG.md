@@ -4,15 +4,137 @@ Système web pour le service d'anesthésie du CHPG (Monaco), ~23 MARs :
 planning des gardes (équité annuelle), planning quotidien, consultations,
 portail/Dashboard, module libéral, contrôle d'absence, veille biblio, CR d'anesthésie.
 
-**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v10.8.1** ·
-**GAS** (relevé dans le dépôt le 03/09/2026 au soir) `code.gs` **2026-09-01.1** ·
-`Indispos.gs` **2026-09-03.1** · `generateur_gardes.gs` **2026-09-01.2** ·
+**Dépôt** `chpg-anesthesie/Planning-CHPG`, branche `main` · **Site v1.1.2** ·
+**GAS** (relevé dans le dépôt le 05/09/2026 au soir) `code.gs` **2026-09-01.1** ·
+`Indispos.gs` **2026-09-03.1** · `generateur_gardes.gs` **2026-09-05.1** ·
 `portail.gs` **2026-08-31.1** · `miroir.gs` 2026-08-27.1 ·
 `journal.gs` 2026-08-27.1 · `echanges.gs` 2026-08-27.1 · `veille.gs` 2026-08-27.1 ·
-`setup_annee.gs` 2026-08-27.1 · `sauvegarde.gs` 2026-08-06.1 ·
+`setup_annee.gs` **2026-09-05.2** · `sauvegarde.gs` 2026-08-06.1 ·
 **Worker** `cloudflare/worker.js` : `const VERSION = 'miroir 2026-08-22.2'` — ⚠️ le marqueur n'a
 pas été monté avec le lot cloche du 23/08 (oubli assumé, le code déployé est bien le nouveau) :
 à monter au prochain lot Worker. La constante reste la **seule** version écrite dans le fichier.
+
+## 05/09/2026 — le nouvel algorithme de gardes, et l'écran d'équité refait
+
+Journée en six commits : `67803951`, `1a53a068`, `a3a35084`, `e2678fdc`+`723da5d5`, `ab810462`,
+`cc024d39`, `d2ab072b`. Site **v10.8.3 → v1.1.2** (voir « retour à v1.0 » plus bas).
+Banc **2 528 → 2 690 vérifications, 0 échec**, deux scénarios nouveaux.
+
+### 1. Le générateur — quatre mécanismes d'un bloc (`generateur_gardes.gs` 2026-09-05.1)
+
+Sous l'interrupteur `NOUVEL_ALGO_GLOBAL`, qui ramène l'ancien comportement en une ligne.
+
+1. **Cibles ENTIÈRES** par la méthode des plus forts restes. Une part de 5,4 samedis n'est
+   atteignable par personne : chacun était toujours en écart, et l'écart mélangeait l'injustice
+   réelle et l'impossibilité arithmétique. La somme des cibles reste exactement le nombre de gardes
+   à poser — arrondir chacune dans son coin promettait 6 jeudis de trop et laissait 6 fériés sans
+   propriétaire (mesuré). Le report de dette est **plié dans la cible** et `dette` remis à zéro
+   pour que `ratio()` ne l'applique pas deux fois.
+2. **Numéro de tirage** : à égalité parfaite, l'ordre de l'onglet MEDECINS ne tranche plus (il
+   déplaçait près d'une garde sur trois). L'ordre vient d'un hachage(nom, tirage) ; rejouer le même
+   tirage redonne le même planning. L'onglet n'est jamais modifié.
+3. **Multi-départ** : jusqu'à 8 calculs à blanc, on écrit le meilleur ; règle d'arrêt à une garde
+   d'écart. Critère de choix, dans l'ordre : jours sans binôme, axes au-delà de 2, pire écart.
+   En pratique **un seul tirage suffit dans 25 années sur 45**.
+4. **Optimiseur §8c** : objectif **lexicographique** (supprimer tout écart ≥ 2 avant d'affiner la
+   moyenne, poids 600) et **interdiction dure de deux week-ends d'affilée**, posée dans `blocked()`
+   à la construction — les enchaînements ne naissaient pas dans l'optimiseur mais dans la pose, qui
+   n'avait aucune règle de week-end. Le poids reste SOUS les 1000 de la règle des week-ends : à
+   3000, l'équité l'écrasait (48 enchaînements par an au lieu de 2).
+
+**Mesuré** — 45 années (9 scénarios × 5 ans, dette cumulative injectée hors code) : **44 années sur
+45 où personne ne dépasse une garde d'écart** sur les six axes, contre 29 sur 45 avant. Zéro journée
+sans binôme. Gardes rapprochées inchangées (17,8 % d'intervalles de 2 jours contre 17,7 %).
+Souhaits 75,3 % contre 76,6 %.
+
+**Éprouvé dans Apps Script**, sur les absences RÉELLES du service complétées par quotité (420 jours
+ajoutés sur 14 MAR) et 161 souhaits, dans une COPIE du classeur : 364 journées toutes pourvues,
+y compris le 27/12 et les 17-18/04 où il ne restait que 3 gardeurs sur 20 ; **un seul MAR à 2 gardes
+d'écart** (ALBOUY, et c'est le prix de ses 25 mardis demandés) ; **121 souhaits honorés sur 161** ;
+un seul binôme VD cassé sur 52, en dernier recours le 17/04.
+
+**Deux pièges rencontrés, à ne pas refaire :**
+- un onglet INDISPOS collé sans ses **trois lignes d'en-tête** (mois / initiales / numéros) fait
+  lire la 3ᵉ ligne comme des numéros de jour : presque toutes les dates sont perdues et les deux
+  premiers MAR ignorés. Le premier essai a donné un résultat parfait… sur une année quasiment sans
+  absences. `reconstruireDatesHeaders` lit `data[0]` pour le mois et `data[2]` pour le jour, les
+  MAR commencent en ligne 4.
+- un souhait de PRUNET tombé un **8 décembre** (Immaculée Conception, férié à Monaco) n'est pas
+  honoré : le régime `souhait_plafond` exclut week-ends et fériés. Ce n'est **pas** un défaut —
+  43 mardis sur 43 possibles, total exact à 44, complément posé un mercredi.
+
+### 2. L'écran d'équité — un calcul faux corrigé, et une refonte
+
+**Défaut vu EN PRODUCTION** : l'écran 2026, ouvert à toute l'équipe, annonçait « 19 MAR sur 20
+dépassent 2 gardes d'écart », nommément. Vérification dans le classeur : la colonne CIBLE promet
+**730,8 gardes pour 707 posées**, et **103,7 samedis pour 91**. La différence, ce sont les gardes
+assurées par un **médecin extérieur au service**, absent de la liste. Tout le monde apparaissait
+~1,7 garde trop bas : GHIGLIONE, ALBOUY et SALA signalés alors qu'ils sont pile à leur part, LEY à
++2,1 absent de la liste, FERRIERO à +6,7 et non +5,0.
+
+**Le contrôle qui prouve l'anomalie sans rien supposer** : une mesure d'équité juste a des écarts
+qui **s'annulent**. Ceux de 2026 totalisaient −23,8.
+
+**Correction** (`ciblesEquite`, même fonction dans `admin.html` ET `index.html`) : les gardes
+réellement posées sont réparties en cibles **entières**, par plus forts restes — la même méthode que
+le générateur. Au-delà de 1 % d'écart entre la somme des cibles et les gardes réparties, la mention
+d'explication s'affiche : la correction n'est **jamais** silencieuse. En deçà, rien n'est touché —
+une garde manquante isolée doit rester visible, pas lissée sur tout le monde.
+
+Sur 2026 : cible d'un temps plein **35 gardes, 5 samedis**. FERRIERO +6, SULTAN +6, PARTOUCHE −4
+jeudis. **17 MAR au-delà de 2** au lieu des 19 affichés.
+
+**Refonte de la mise en page** : des NOMBRES DE PERSONNES au lieu de deux cartes affichant le même
+pourcentage ; un classement trié et replié à cinq lignes au lieu d'un mur de dix-neuf noms en prose ;
+l'histogramme retiré (sa légende « la masse doit être à gauche » était contredite par les données) ;
+**une ligne par MAR** — nom, une case par axe, écart le plus fort — dépliable au clic, la carte du
+MAR connecté ouverte d'office et en tête ; grille sur une seule colonne ; textes raccourcis.
+
+`morphGrid` ne peut plus rapprocher deux rendus (le nombre de lignes change selon l'état replié) :
+il renvoie `false` de lui-même et le remplacement complet prend le relais — voulu, pas un repli
+silencieux.
+
+### 3. Retour à v1.0 (décision d'Arthur, 05/09)
+
+`v10.8.3 → v1.0.4`. **Le numéro DESCEND, volontairement et une seule fois.** La série v1.x était
+montée à 99 non parce que le portail avait changé 99 fois de visage, mais parce qu'on montait le
+2ᵉ chiffre à chaque lot ; passer à v10 n'avait fait que déplacer le problème. **v1.0 = la version
+présentée au staff du 4 septembre**, celle que l'équipe utilise. **v2.0 est réservé au module
+libéral.**
+
+Conséquence : **un numéro ne peut plus dater une fonctionnalité.** Deux contrôles du banc le
+faisaient (`banc_cloche.js` « au moins v1.77 », `banc_stats_ecran.js` « a dépassé v1.95 ») ; ils
+vérifient désormais la présence de la fonctionnalité et la forme du numéro.
+
+### 4. Lanceurs temporaires d'essai (`setup_annee.gs` 2026-09-05.2)
+
+`T()` → `comparerAlgorithmes(2026)`, `T7()` → 2027 : deux calculs à blanc de la même année, ancien
+et nouvel algorithme, six écarts côte à côte. Aucune écriture, aucune notification.
+`W1_2028()`, `W2_2026()` : **à n'exécuter que dans une COPIE du classeur** — `W2_2026` efface le
+planning que l'équipe consulte et notifie tous les MAR abonnés. `TEST_W2` visait 2029 alors que
+`TEST_run` remplit 2028 : enchaîner les deux générait une année VIDE sans que rien ne le signale.
+**Tous ces lanceurs sont à retirer une fois 2027 publié.**
+
+### 5. Reste à faire, dans l'ordre
+
+- **Axe JOURS FÉRIÉS absent de l'écran d'équité.** Le générateur surveille six axes ; l'écran n'en
+  affiche que cinq — total, samedis, jeudis, VD, veilles de férié. La cause : `getStats`
+  (`code.gs` l. ~824) et les lecteurs de `Indispos.gs` / `miroir.gs` lisent les colonnes 1, 17, 18,
+  19 et 21 de `STATS_GARDES`, jamais la **22 (`CIBLE JF`)**. La barre « JF » des cartes est donc
+  tracée contre une *moyenne d'équipe*, pas contre une cible, et le certificat ignore l'axe.
+  **C'est exactement l'axe où le nouvel algorithme laisse son résidu** (17 des 38 dettes non
+  résorbées y sont). Chantier : servir `cJf` jusqu'au front, puis l'ajouter à `AX_EQUITE`.
+- **Dette cumulative** — inutile avant novembre 2027 (compteur vide en 2027), mais indispensable
+  ensuite. Demande **six colonnes ajoutées EN FIN** de `STATS_GARDES` (positions 26-31) pour
+  conserver la cible *exacte* fractionnaire : ajouter en fin est sûr, tous les lecteurs existants
+  lisent par index fixe jusqu'à 24 et `Indispos.gs` l. 260 ne contrôle que 0, 1, 17, 18, 19, 21.
+  Mesuré : dérive à 20 ans **8,70 → 3,1-3,9**, résidu concentré sur veilles de férié et fériés.
+- **Section 12 du guide algo** (la dette) à reformuler quand elle sera codée — son contenu actuel
+  reste exact, autant n'y revenir qu'une fois.
+- **`banc/node_modules` n'est pas ignoré par git.** Signalé, pas traité.
+- **Jetons en clair dans l'onglet CONFIG** (GitHub, Anthropic, codes d'accès). Ils sortent dès qu'on
+  exporte ou copie le classeur — c'est arrivé le 05/09 via le connecteur Drive. Leur place est dans
+  les propriétés du script, qui ne sont ni exportées ni copiées.
 
 ⚠️ **Ces numéros sont ceux du DÉPÔT, pas ceux de l'éditeur Apps Script.** Ce qui fait foi sur ce
 qui tourne vraiment, c'est la sonde « Code déployé vs dépôt » du 🔍 Diagnostic, qui compare les
