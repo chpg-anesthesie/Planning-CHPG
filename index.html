@@ -706,7 +706,7 @@ body{font-variant-numeric:tabular-nums}
 }
 </style>
   <style>
-.eqv-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.eqv-grid{display:grid;grid-template-columns:1fr;gap:6px}
 /* (13/08/2026) Onglets pleine largeur, souligne actif. AVANT : un interrupteur
    qui epousait la largeur de son texte, cale a 32 px du bord — sur telephone il
    flottait dans le coin gauche, et la touche ne faisait que 27 px de haut.
@@ -743,6 +743,14 @@ body{font-variant-numeric:tabular-nums}
 .eqv-track-tot{height:14px}
 .eqv-row-tot .eqv-val{font-weight:800;font-size:11px}
 @media(max-width:720px){.eqv-grid{grid-template-columns:1fr}}
+/* (05/09/2026) Ligne repliée : nom, une case par axe, verdict. Cliquer déplie
+   la carte complète. Vingt-quatre cartes dépliées d'un bloc, c'était deux
+   écrans de défilement pour trouver la sienne. */
+.eqv-tete{display:flex;align-items:center;gap:8px;padding:9px 11px;cursor:pointer}
+.eqv-bande{flex:1;display:grid;grid-template-columns:repeat(9,1fr);gap:2px}
+.eqv-case{height:12px;border-radius:2px}
+.eqv-verdict{font-size:11px;white-space:nowrap;min-width:52px;text-align:right;font-weight:700}
+.eqv-chev{font-size:11px;color:var(--ink-4);width:10px;text-align:center}
 </style>
 </head>
 <body>
@@ -2496,7 +2504,30 @@ function ciblesEquite(evalues, axes){
 const AX_EQUITE = [['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],
                    ['vd','cVd','week-ends'],['vjf','cVjf','veilles fériés']];
 
+/* (05/09/2026) CARTES REPLIABLES — voir admin.html, même mécanique. Le MAR
+   connecté est déplié d'office et remonté en tête ; les autres tiennent sur une
+   ligne, avec une case par axe et leur écart le plus fort en clair. */
+const EQ_OUVERTS = new Set();
+let EQ_LIST = null, EQ_WRAP = null;
+function eqBasculer(nom){
+  if(EQ_OUVERTS.has(nom)) EQ_OUVERTS.delete(nom); else EQ_OUVERTS.add(nom);
+  if(EQ_WRAP && EQ_LIST){ const g=EQ_WRAP.querySelector('.eqv-grid');
+    if(g) g.outerHTML = renderEquiteCards(EQ_LIST); }
+}
+/* Écart le plus fort d'un MAR. Même source que le certificat (ciblesEquite) :
+   les deux ne peuvent pas se contredire. */
+function eqVerdict(it, cib){
+  const AX=[['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],
+            ['vd','cVd','week-ends'],['vjf','cVjf','veilles']];
+  let pire=0, axe='';
+  AX.forEach(a=>{ const t=cib&&cib[a[1]]; if(t===undefined) return;
+    const d=(+it[a[0]]||0)-t; if(Math.abs(d)>Math.abs(pire)){ pire=d; axe=a[2]; } });
+  if(!axe) return {t:'—', c:'var(--ink-3)', pire:0};
+  if(pire===0) return {t:'à la cible', c:'#15803D', pire:0};
+  return {t:(pire>0?'+':'')+pire+' '+axe.slice(0,3), c:Math.abs(pire)>=2?'#CE1126':'var(--ink-3)', pire:pire};
+}
 function renderEquiteCards(list){
+  EQ_LIST = list;
   const AX=[['lu','Lun'],['ma','Mar'],['me','Mer'],['je','Jeu'],['sa','Sam'],['vd','VD'],['jf','JF'],['vjf','VJF']];
   const CB={je:'cJe',sa:'cSa',vd:'cVd',vjf:'cVjf'};
   const NEUTRAL={lu:1,ma:1,me:1}; // hors équité : pas de cible, barre neutre
@@ -2548,7 +2579,30 @@ function renderEquiteCards(list){
       return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:'+colOf(v,c)+'"></div><div class="eqv-tick" style="left:'+cx+'%;'+tick+'"></div></div><div class="eqv-val">'+v+'<span> /'+cval+'</span></div></div>';
     }).join('');
     const _isMe = _meN && String(it.name)===_meN;
-    return '<div class="eqv-card'+(_isMe?' me-card':'')+'"><div class="eqv-head"><div class="eqv-name">'+it.name+'</div>'+(_wish?'<span style="font-size:9px;font-weight:800;color:#7c3aed;background:#f3e8ff;border:1px solid #e9d5ff;border-radius:4px;padding:1px 5px;letter-spacing:.3px">SOUHAITS</span>':'')+'</div>'+totBar+bars+'</div>';
+    /* Ligne repliée : une case par axe, dans le MÊME ordre que les barres, pour
+       que les colonnes se lisent d'une ligne à l'autre. */
+    const ORDRE=[['total','cTot'],['lu',null],['ma',null],['me',null],['je','cJe'],
+                 ['sa','cSa'],['vd','cVd'],['jf',null],['vjf','cVjf']];
+    const cib=_CIB[it.name];
+    const bande=ORDRE.map(([k,ck])=>{
+      const t=(ck&&cib&&!_wish)?cib[ck]:undefined;
+      if(t===undefined) return '<div class="eqv-case" style="background:var(--surface-2)"></div>';
+      const d=Math.abs((+it[k]||0)-t);
+      return '<div class="eqv-case" style="background:'+(d>=2?'#CE1126':'#15803D')+';opacity:'+(d===0?1:(d>=2?1:.35))+'"></div>';
+    }).join('');
+    const v=_wish?{t:'souhaits',c:'#7c3aed'}:eqVerdict(it,cib);
+    // Le MAR connecté est TOUJOURS déplié : c'est sa carte qu'il vient voir.
+    const ouvert=_isMe||EQ_OUVERTS.has(it.name);
+    const _esc=String(it.name).replace(/'/g,"\\'");
+    return '<div class="eqv-card'+(_isMe?' me-card':'')+'">'
+      + '<div class="eqv-tete" onclick="eqBasculer(&quot;'+_esc+'&quot;)">'
+      +   '<div class="eqv-name" style="width:82px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.name+'</div>'
+      +   (ouvert?'<div style="flex:1"></div>':'<div class="eqv-bande">'+bande+'</div>')
+      +   '<div class="eqv-verdict" style="color:'+v.c+'">'+v.t+'</div>'
+      +   '<div class="eqv-chev">'+(ouvert?'▲':'▼')+'</div>'
+      + '</div>'
+      + (ouvert?('<div style="padding:0 11px 10px">'+totBar+bars+'</div>'):'')
+      + '</div>';
   }).join('')+'</div>';
 }
 
@@ -2728,7 +2782,7 @@ function paintEquite(wrap, headHtml, list){
   // Le certificat n'a de sens que sur la répartition INITIALE (générée). En « Instantané »,
   // les échanges/dons volontaires modifient les compteurs : l'écart affiché ne refléterait
   // plus l'équité de l'algorithme mais des choix personnels — on n'affiche donc pas de verdict.
-  CERT_MAR_WRAP = wrap;   // (05/09/2026) cible du dépliage « Voir les N »
+  CERT_MAR_WRAP = wrap; EQ_WRAP = wrap;   // (05/09/2026) cibles des dépliages
   const certHtml = (EQ_SRC_IDX==='live') ? '' : renderCertificatMAR(list);
   const grid = wrap.querySelector('.eqv-grid');
   const gridHtml = renderEquiteCards(list);

@@ -163,10 +163,34 @@ V('la mention n\'apparaît QUE si une correction a eu lieu', /if\(corrige\)\{/.t
 V('les profils à souhaits garantis restent exclus du verdict',
   /list\.filter\(m => !_spec\(m\.name\)\)/.test(cert));
 
-console.log('\n─── 6. Version du site ───');
+console.log('\n─── 6. Cartes repliables ───');
+/* Vingt-quatre cartes de neuf lignes, c'était deux écrans de défilement avant de
+   trouver la sienne. Chaque MAR tient sur UNE ligne ; un clic déplie le détail.
+   Les deux pages doivent se comporter pareil : c'est le même écran. */
+[['admin.html', ADMIN], ['index.html', INDEX]].forEach(([nom, SRC]) => {
+  const rec = extraire('renderEquiteCards', SRC);
+  V(nom + ' : la carte a une ligne repliée cliquable',
+    !!rec && /class="eqv-tete" onclick="eqBasculer/.test(rec));
+  V(nom + ' : la bande porte une case par axe, dans l\'ordre des barres',
+    !!rec && /\['total','cTot'\],\['lu',null\],\['ma',null\],\['me',null\],\['je','cJe'\]/.test(rec)
+    && /\['sa','cSa'\],\['vd','cVd'\],\['jf',null\],\['vjf','cVjf'\]/.test(rec));
+  V(nom + ' : le détail n\'est rendu QUE si la carte est ouverte',
+    !!rec && /\(ouvert\?\('<div style="padding:0 11px 10px">'\+totBar\+bars\+'<\/div>'\):''\)/.test(rec));
+  V(nom + ' : le verdict vient de la même source que le certificat',
+    /function eqVerdict\(it, cib\)/.test(SRC) && /const cib=_CIB\[it\.name\];/.test(rec));
+  V(nom + ' : le dépliage redessine la grille', /function eqBasculer\(nom\)/.test(SRC));
+});
+V('le portail MAR ouvre d\'office la carte du médecin connecté',
+  /const ouvert=_isMe\|\|EQ_OUVERTS\.has\(it\.name\);/.test(INDEX));
+V('…et il reste en tête de liste', /if\(_meN\)\{ if\(String\(a\.name\)===_meN\) return -1;/.test(INDEX));
+V('la grille passe sur une seule colonne',
+  /\.eqv-grid\{display:grid;grid-template-columns:1fr;gap:6px\}/.test(ADMIN)
+  && /\.eqv-grid\{display:grid;grid-template-columns:1fr;gap:6px\}/.test(INDEX));
+
+console.log('\n─── 7. Version du site ───');
 const VJS = fs.readFileSync(path.join(__dirname, '..', 'version.js'), 'utf8');
 const v = (VJS.match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1];
-V('la version a été montée dans le même lot', v === '1.0.5', v);
+V('la version a été montée dans le même lot', v === '1.1.0', v);
 V('le retour à v1.0 est expliqué dans le fichier',
   /RETOUR À v1\.0/.test(VJS) && /4 septembre 2026/.test(VJS));
 

@@ -1036,7 +1036,7 @@ if (sessionStorage.getItem('adminCode')) {
 }
 </script>
   <style>
-.eqv-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.eqv-grid{display:grid;grid-template-columns:1fr;gap:6px}
 .eqv-switch{display:inline-flex;background:#EEF1F5;border-radius:9px;padding:3px;gap:2px}
 .eqv-sw-btn{border:0;background:transparent;padding:6px 16px;border-radius:7px;font-family:inherit;font-size:12px;font-weight:700;color:#64748B;cursor:pointer}
 .eqv-sw-btn.active{background:#fff;color:#0F172A;box-shadow:0 1px 2px rgba(15,23,42,.14)}
@@ -1057,6 +1057,16 @@ if (sessionStorage.getItem('adminCode')) {
 .eqv-track-tot{height:14px}
 .eqv-row-tot .eqv-val{font-weight:800;font-size:11px}
 @media(max-width:720px){.eqv-grid{grid-template-columns:1fr}}
+/* (05/09/2026) Ligne repliée : nom, une case par axe, verdict. Cliquer déplie
+   la carte complète. Vingt-quatre cartes dépliées d'un bloc, c'était deux
+   écrans de défilement pour trouver la sienne. */
+.eqv-tete{display:flex;align-items:center;gap:8px;padding:9px 11px;cursor:pointer}
+.eqv-bande{flex:1;display:grid;grid-template-columns:repeat(9,1fr);gap:2px}
+.eqv-case{height:12px;border-radius:2px}
+.eqv-verdict{font-size:11px;white-space:nowrap;min-width:52px;text-align:right;font-weight:700}
+.eqv-chev{font-size:11px;color:#94A3B8;width:10px;text-align:center}
+.eqv-card.eqv-moi{border:2px solid #CE1126}
+.eqv-moi-tag{font-size:9.5px;font-weight:800;color:#CE1126;background:#FEE2E2;border-radius:5px;padding:1px 6px;margin-left:5px}
 </style>
 </head>
 <body>
@@ -5617,7 +5627,33 @@ function estSouhaitsGarantis(name){
   const x=(typeof marsData!=='undefined'?marsData:[]).find(d=>d.initiales===name||d.nom===name||d.id===name);
   return !!(x&&(x.souhaitPlafond||x.tpJoursFixes));
 }
+/* (05/09/2026) CARTES REPLIABLES. Vingt-quatre cartes de neuf lignes, c'était
+   deux écrans de défilement avant de trouver la sienne, et rien qui se compare
+   d'un coup d'œil. Chaque MAR tient désormais sur UNE ligne — son nom, une case
+   par axe, et son écart le plus fort en clair. Un clic déplie le détail.
+   Le MAR connecté (portail) est déplié d'office et remonté en tête ; côté
+   comité, personne n'est connecté comme MAR, donc tout part replié. */
+const EQ_OUVERTS = new Set();
+let EQ_LIST = null;
+function eqBasculer(nom){
+  if(EQ_OUVERTS.has(nom)) EQ_OUVERTS.delete(nom); else EQ_OUVERTS.add(nom);
+  const cont=document.getElementById('statsCards');
+  if(cont && EQ_LIST) cont.innerHTML = renderEquiteCards(EQ_LIST);
+}
+/* Écart le plus fort d'un MAR, sur les axes qui ont une cible. Même source que
+   le certificat (ciblesEquite) : les deux ne peuvent pas se contredire. */
+function eqVerdict(it, cib){
+  const AX=[['total','cTot','total'],['sa','cSa','samedis'],['je','cJe','jeudis'],
+            ['vd','cVd','week-ends'],['vjf','cVjf','veilles']];
+  let pire=0, axe='';
+  AX.forEach(a=>{ const t=cib&&cib[a[1]]; if(t===undefined) return;
+    const d=(+it[a[0]]||0)-t; if(Math.abs(d)>Math.abs(pire)){ pire=d; axe=a[2]; } });
+  if(!axe) return {t:'—', c:'#64748B', pire:0};
+  if(pire===0) return {t:'à la cible', c:'#15803D', pire:0};
+  return {t:(pire>0?'+':'')+pire+' '+axe.slice(0,3), c:Math.abs(pire)>=2?'#CE1126':'#64748B', pire:pire};
+}
 function renderEquiteCards(list){
+  EQ_LIST = list;
   const AX=[['lu','Lun'],['ma','Mar'],['me','Mer'],['je','Jeu'],['sa','Sam'],['vd','VD'],['jf','JF'],['vjf','VJF']];
   const CB={je:'cJe',sa:'cSa',vd:'cVd',vjf:'cVjf'};
   const NEUTRAL={lu:1,ma:1,me:1}; // hors équité : pas de cible, barre neutre
@@ -5660,7 +5696,31 @@ function renderEquiteCards(list){
       const cval=CB[k]?Math.round(c):c.toFixed(1),tick=CB[k]?'':'opacity:.42';
       return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:'+colOf(v,c)+'"></div><div class="eqv-tick" style="left:'+cx+'%;'+tick+'"></div></div><div class="eqv-val">'+v+'<span> /'+cval+'</span></div></div>';
     }).join('');
-    return '<div class="eqv-card"><div class="eqv-head"><div class="eqv-name">'+it.name+'</div></div>'+totBar+bars+'</div>';
+    /* Ligne repliée : une case par axe, dans le MÊME ordre que les barres, pour
+       que les colonnes se lisent d'une ligne à l'autre. Les axes sans cible
+       (Lun/Mar/Mer) restent neutres — ils ne relèvent d'aucune équité. */
+    const ORDRE=[['total','cTot'],['lu',null],['ma',null],['me',null],['je','cJe'],
+                 ['sa','cSa'],['vd','cVd'],['jf',null],['vjf','cVjf']];
+    const cib=_CIB[it.name];
+    const bande=ORDRE.map(([k,ck])=>{
+      const t=(ck&&cib)?cib[ck]:undefined;
+      if(t===undefined) return '<div class="eqv-case" style="background:#EEF1F5"></div>';
+      const d=Math.abs((+it[k]||0)-t);
+      const bg=d>=2?'#CE1126':'#15803D';
+      return '<div class="eqv-case" style="background:'+bg+';opacity:'+(d===0?1:(d>=2?1:.35))+'"></div>';
+    }).join('');
+    const v=eqVerdict(it,cib);
+    const ouvert=EQ_OUVERTS.has(it.name);
+    const _esc=String(it.name).replace(/'/g,"\\'");
+    return '<div class="eqv-card'+(ouvert?' eqv-ouverte':'')+'">'
+      + '<div class="eqv-tete" onclick="eqBasculer(&quot;'+_esc+'&quot;)">'
+      +   '<div class="eqv-name" style="width:82px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.name+'</div>'
+      +   (ouvert?'<div style="flex:1"></div>':'<div class="eqv-bande">'+bande+'</div>')
+      +   '<div class="eqv-verdict" style="color:'+v.c+'">'+v.t+'</div>'
+      +   '<div class="eqv-chev">'+(ouvert?'▲':'▼')+'</div>'
+      + '</div>'
+      + (ouvert?('<div style="padding:0 11px 10px">'+totBar+bars+'</div>'):'')
+      + '</div>';
   }).join('')+'</div>';
 }
 
@@ -5839,7 +5899,11 @@ function renderStats(stats){
     cSa:s.cSat||0, cJe:s.cJeu||0, cVd:s.cVd||0, cVjf:s.cVjf||0,
     wish:estSouhaitsGarantis(s.medecin),
   }));
-  (function(){ const cont=document.getElementById('statsCards'); const grid=cont.querySelector('.eqv-grid'); const gh=renderEquiteCards(list); if(!(grid && morphGrid(grid, gh))) cont.innerHTML = gh; })();
+  /* (05/09/2026) Les cartes sont repliables : d'un rendu à l'autre le nombre de
+   lignes change, donc morphGrid ne peut plus rapprocher les deux structures. Il
+   renvoie false de lui-même et on retombe sur le remplacement complet — c'est le
+   comportement voulu, pas un repli silencieux. */
+(function(){ const cont=document.getElementById('statsCards'); const grid=cont.querySelector('.eqv-grid'); const gh=renderEquiteCards(list); if(!(grid && morphGrid(grid, gh))) cont.innerHTML = gh; })();
   // Certificat : uniquement sur la répartition initiale. En « Instantané » (échanges/dons
   // inclus), l'équité peut être volontairement rompue — pas de verdict qui prêterait à confusion.
   try { renderRecups(); } catch(e) { console.error('Ligne récups ignorée :', e); }

@@ -46,11 +46,17 @@ function largeurs(fichier, list) {
     marsData: [{ id: 'Dr Plafond', nom: 'Dr Plafond', initiales: 'DP', souhaitPlafond: true }] });
   ctx.globalThis = ctx;
   const AX_EQ = (fs.readFileSync(fichier, 'utf8').match(/const AX_EQUITE = \[[^;]+;/) || [''])[0];
-  vm.runInContext(AX_EQ + '\n' + extraireFonction(fichier, 'ciblesEquite') + '\n'
+  /* (05/09/2026) Les cartes sont repliables : renderEquiteCards s'appuie sur un
+     état (EQ_OUVERTS) et sur eqVerdict. On charge les deux, et on ouvre TOUTES
+     les cartes — ce banc mesure la longueur des barres, qui n'existent que
+     dépliées. */
+  const dep = extraireFonction(fichier, 'eqVerdict');
+  vm.runInContext('const EQ_OUVERTS = { has: () => true, add(){}, delete(){} }; let EQ_LIST = null;\n'
+    + AX_EQ + '\n' + extraireFonction(fichier, 'ciblesEquite') + '\n' + dep + '\n'
     + extraireFonction(fichier, 'renderEquiteCards') + '\nglobalThis.__r = renderEquiteCards;', ctx);
   const out = {};
   ctx.__r(list).split('<div class="eqv-card').slice(1).forEach(c => {
-    const nom = (c.match(/class="eqv-name">([^<]+)/) || [, '?'])[1], par = {};
+    const nom = (c.match(/class="eqv-name"[^>]*>([^<]+)/) || [, '?'])[1], par = {};
     c.split('<div class="eqv-row').slice(1).forEach(r => {
       const l = (r.match(/class="eqv-lbl">([^<]+)/) || [, '?'])[1];
       par[l] = parseFloat((r.match(/class="eqv-fill" style="width:([\d.]+)%/) || [, '0'])[1]);

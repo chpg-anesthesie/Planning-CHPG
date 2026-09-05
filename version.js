@@ -26,7 +26,7 @@
 
    ⚠️ Le numéro DESCEND (v10.8.3 → v1.0.4). C'est voulu, et c'est la seule fois.
    ───────────────────────────────────────────────────────────────────────── */
-window.SITE_VERSION = 'v1.0.5';
+window.SITE_VERSION = 'v1.1.0';
 
 (function () {
   function poser() {
