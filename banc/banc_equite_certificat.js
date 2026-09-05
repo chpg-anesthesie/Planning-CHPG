@@ -195,7 +195,7 @@ V('la grille passe sur une seule colonne',
 console.log('\n─── 7. Version du site ───');
 const VJS = fs.readFileSync(path.join(__dirname, '..', 'version.js'), 'utf8');
 const v = (VJS.match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1];
-V('la version a été montée dans le même lot', v === '1.1.1', v);
+V('la version a été montée dans le même lot', v === '1.1.2', v);
 V('le retour à v1.0 est expliqué dans le fichier',
   /RETOUR À v1\.0/.test(VJS) && /4 septembre 2026/.test(VJS));
 

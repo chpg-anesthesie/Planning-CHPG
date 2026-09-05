@@ -434,5 +434,31 @@ console.log('\n═══ 13. Chaque scénario du banc est lancé par lancer.sh �
     scenariosManquants(fichiers.concat(['banc_fictif.js']), lanceur).length === 1);
 }
 
+
+/* (05/09/2026) Les guides doivent suivre le changement d'algorithme : cibles
+   entières, deux week-ends d'affilée interdits, numéro de tirage, et l'année
+   2026 non comparable. Un guide qui décrit l'ancien comportement est pire que
+   pas de guide : il fait croire au lecteur qu'il a compris. */
+{
+  const algo = lire('docs/guide-algo-gardes.html');
+  const mar  = lire('docs/guide-mar.html');
+  V('le guide algo annonce des cibles entières',
+    /Votre cible est un nombre entier/.test(algo) && /faire pile sa cible/i.test(algo));
+  V('…et que deux week-ends d\'affilée sont interdits',
+    /Deux week-ends de garde d\'affilée sont désormais <strong>interdits<\/strong>/.test(algo));
+  V('…et n\'annonce plus qu\'on ne tombe jamais pile',
+    !/Personne ne tombe jamais exactement pile/.test(algo));
+  V('…et explique le numéro de tirage',
+    /num[ée]ro de tirage/.test(algo) && /position dans le tableau des m[ée]decins/.test(algo));
+  V('…et donne la mesure d\'après le changement',
+    /44 années sur 45/.test(algo) && /absences réelles du service/.test(algo));
+  V('le guide MAR annonce la cible entière', /C\'est un <b>nombre entier<\/b>/.test(mar));
+  V('…liste les six axes surveillés',
+    /samedis<\/b>/.test(mar) && /jeudis<\/b>/.test(mar) && /veilles de férié<\/b>/.test(mar));
+  V('…décrit la vue Équité en une ligne par MAR', /chaque MAR tient sur une ligne/.test(mar));
+  V('…et prévient que 2026 n\'est pas comparable',
+    /L\'année 2026 fait exception/.test(mar) && /extérieur au service/.test(mar));
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);

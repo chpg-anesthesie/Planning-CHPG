@@ -160,6 +160,11 @@
     <li><strong>Transparence</strong> : les compteurs de chacun sont publics (vue Équité du planning) et le planning généré est figé — personne ne peut le regénérer discrètement.</li>
   </ol>
   <div class="callout tip">
+    <div class="ct">Votre place dans la liste ne compte plus</div>
+    <p>Quand deux MARs sont exactement à égalité pour une garde, il faut bien trancher. C'était jusqu'ici <strong>la position dans le tableau des médecins</strong> qui l'emportait — un détail sans rapport avec l'équité, qui déplaçait pourtant près d'une garde sur trois.</p>
+    <p>C'est désormais un <strong>numéro de tirage</strong> qui départage. L'algorithme calcule plusieurs plannings complets avec des numéros différents et garde le meilleur ; rejouer le même numéro redonne exactement le même planning.</p>
+  </div>
+  <div class="callout tip">
     <div class="ct">La machine calcule, les humains décident</div>
     <p>L'algorithme produit une proposition vérifiée par le comité avant publication. Ensuite, la vie reprend ses droits : les échanges entre collègues restent libres, et sont enregistrés « au réel ».</p>
   </div>
@@ -170,6 +175,13 @@
 <section id="a2">
   <h2><span class="n">02</span>Votre cible : la juste part</h2>
   <p>Avant de placer la moindre garde, l'algorithme calcule pour chaque MAR une <strong>cible</strong> — le nombre de gardes qu'il devrait faire dans l'année — et pas une seule cible globale, mais une cible <strong>par type de jour</strong> : week-ends, samedis, jeudis, veilles de férié, fériés, et total.</p>
+  <div class="callout tip">
+    <div class="ct">Votre cible est un nombre entier</div>
+    <p>Longtemps elle s'écrivait avec une virgule : « 5,4 samedis ». Personne ne peut faire 5,4 samedis, donc tout le monde était toujours en écart, et l'écart affiché mélangeait deux choses — l'injustice réelle et l'impossible.</p>
+    <p>La cible est maintenant un <strong>nombre entier</strong> : 5 ou 6 samedis. Les gardes se répartissent comme des sièges entre des listes — chacun reçoit sa part entière, puis les unités qui restent vont à ceux qui en ont le plus besoin. La somme tombe toujours exactement sur le nombre de gardes à poser.</p>
+    <p>Conséquence : <strong>faire pile sa cible est possible</strong>, et c'est le cas le plus fréquent.</p>
+  </div>
+
   <h3>Ce qui fait varier votre cible</h3>
   <ul>
     <li><strong>Votre quotité de gardes</strong> : un MAR à 80 % a une cible égale à 80 % de celle d'un temps plein. C'est la règle de base.</li>
@@ -208,7 +220,7 @@
     <li><strong>Jamais de garde sur une indisponibilité</strong>, des vacances, une formation, un jour de temps partiel ou un congé.</li>
     <li><strong>Jamais de garde une semaine « off »</strong> pour les MARs en rythme deux semaines sur deux.</li>
   </ul>
-  <p>Au-delà des interdits, l'algorithme <strong>espace</strong> vos gardes : une garde à deux jours d'une autre est fortement pénalisée, à trois ou quatre jours légèrement ; une troisième garde dans la même semaine est évitée. Deux week-ends d'affilée sont très fortement évités, sans être interdits : c'est exceptionnel, et jamais trois de suite. Il <strong>lisse aussi sur l'année</strong> : vos gardes sont réparties au fil des mois en proportion de votre présence, plutôt qu'entassées sur une période.</p>
+  <p>Au-delà des interdits, l'algorithme <strong>espace</strong> vos gardes : une garde à deux jours d'une autre est fortement pénalisée, à trois ou quatre jours légèrement ; une troisième garde dans la même semaine est évitée. Deux week-ends de garde d'affilée sont désormais <strong>interdits</strong>, et non plus seulement découragés — la seule exception est l'ultime recours décrit en section&nbsp;14, quand une journée resterait sinon sans personne. Il <strong>lisse aussi sur l'année</strong> : vos gardes sont réparties au fil des mois en proportion de votre présence, plutôt qu'entassées sur une période.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
@@ -292,7 +304,8 @@
 <section id="a11">
   <h2><span class="n">11</span>La touche finale : l'optimiseur</h2>
   <p>Une fois les 365 jours remplis, un dernier passage <strong>peaufine</strong> le résultat : l'algorithme cherche des transferts de gardes d'un MAR légèrement au-dessus de sa cible vers un MAR légèrement en dessous, et ne les applique que s'ils améliorent l'équité globale — sans jamais casser une règle de protection, un souhait honoré, un week-end VD ou une attribution de Noël.</p>
-  <p>Ce polissage prend une fraction de seconde et donne le résultat final : en année normale, chacun termine à moins d'une garde et demie de sa cible, sur chaque axe ; dans les années les plus tendues, l'écart peut monter davantage (voir section&nbsp;14). Personne ne tombe jamais exactement pile — un planning est fait de jours entiers — et l'écart résiduel est traité (section&nbsp;12). Dans le cas très rare où ce polissage serait interrompu avant la fin, le comité en est averti et peut relancer la génération.</p>
+  <p>Ce que l'algorithme lui demande a changé : il devait auparavant baisser l'écart <em>moyen</em>, ce qui le conduisait à laisser une personne loin de sa cible si le total y gagnait. Il doit maintenant <strong>d'abord supprimer tout écart de deux gardes ou plus</strong>, et seulement ensuite affiner la moyenne.</p>
+  <p>Ce polissage prend une fraction de seconde et donne le résultat final : chacun termine à <strong>une garde d'écart au plus</strong> de sa cible, sur chacun de ses axes — et le plus souvent pile dessus. Dans les années les plus tendues, une personne peut monter à deux (voir section&nbsp;14). Dans le cas très rare où ce polissage serait interrompu avant la fin, le comité en est averti et peut relancer la génération.</p>
   <a class="backtop" href="#top">↑ Sommaire</a>
 </section>
 
@@ -331,11 +344,16 @@
 <!-- ============ 14 ============ -->
 <section id="a14">
   <h2><span class="n">14</span>Éprouvé sur 400 années simulées</h2>
+  <div class="callout tip">
+    <div class="ct">Et sur nos vraies absences</div>
+    <p>Une simulation reste une simulation. En septembre 2026, l'algorithme a été relancé sur les <strong>absences réelles du service</strong> — complétées pour que chacun ait posé tous ses jours, et avec 161 souhaits — sur une copie du classeur, sans rien toucher au planning en cours.</p>
+    <p>Les 364 journées ont toutes été pourvues, <strong>y compris le 27 décembre et les 17-18 avril</strong>, où il ne restait que trois médecins disponibles sur vingt. Un seul MAR à deux gardes d'écart, tous les autres à une ou pile à leur cible. <strong>Trois souhaits sur quatre honorés.</strong></p>
+  </div>
   <p>Avant de répartir une seule vraie garde, l'algorithme a été mis à l'épreuve sur <strong>400 années de planning simulées</strong> : <strong>vingt scénarios d'absences différents, de vingt années consécutives chacun</strong> (2027 → 2046), enchaînées comme en vrai — chaque année héritant de la précédente. Chaque scénario reprend la réalité du service : notre équipe et sa pyramide des âges, l'arrêt des gardes à 60 ans, les départs à la retraite et l'arrivée des remplaçants, environ 80 jours d'absence par personne et par an, des congés longs, et des souhaits de jours fixes. Vingt fois, avec des congés tirés différemment — parce qu'une année qui tombe bien ne prouve rien.</p>
   <ul>
     <li><strong>292 312 gardes placées</strong>, sans qu'aucune règle de protection ne soit jamais enfreinte : jamais deux gardes deux jours de suite, jamais de garde sur une absence déclarée, une récupération pour chaque samedi — sur les 400 années, sans exception.</li>
     <li><strong>Aucune journée sans binôme</strong>, sur aucun des vingt scénarios. C'est la garantie la plus importante du système : le service n'est jamais laissé sans garde, y compris sur la semaine de Noël, quand les trois quarts de l'équipe sont en congé. L'algorithme fait alors alterner deux binômes sur la période, exactement comme le comité le faisait à la main.</li>
-    <li><strong>L'équité tient dans la durée</strong> : l'écart le plus important d'une année, tous types de gardes confondus, est de <strong>1,20 garde en médiane</strong> et n'a jamais dépassé <strong>3,5</strong> (en 2041, au creux démographique). Dans <strong>95 % des années</strong>, personne n'est à plus de 2 gardes de sa juste part sur aucun axe ; l'écart ne dépasse 3 que dans <strong>3 années sur 400</strong>, toutes situées dans ce creux. Les écarts d'une année sont rattrapés la suivante par la dette d'équité.</li>
+    <li><strong>L'équité tient dans la durée.</strong> Ces 400 années ont servi à éprouver la couverture et les protections. L'équité, elle, a été remesurée après le changement de septembre 2026 (cibles entières, nouvel objectif, interdits renforcés) sur <strong>45 années</strong> — neuf scénarios d'absences de cinq ans chacun. Résultat : <strong>44 années sur 45 où personne ne dépasse une garde d'écart</strong>, sur aucun des six axes, contre 29 sur 45 avec la version précédente. La seule exception atteint deux gardes.</li>
     <li><strong>Le creux démographique est traversé</strong> : autour de 2038-2041, l'équipe simulée descend à quinze gardeurs. La charge de chacun monte — mais elle monte <em>pareil pour tous</em>, proportionnellement à sa quotité.</li>
     <li><strong>La rotation Noël / Jour de l'an fonctionne</strong> : sur vingt ans, personne n'est oublié et personne n'enchaîne deux années de suite.</li>
     <li><strong>Une seule tolérance, exceptionnelle</strong> : quand une journée resterait sinon sans binôme, l'algorithme s'autorise le rythme garde – repos – garde sur trois jours (jeudi puis samedi). Une garde rapprochée reste préférable à un service découvert. Les deux gardes d'affilée, elles, ne sont jamais tolérées : c'est illégal.</li>
