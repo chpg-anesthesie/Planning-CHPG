@@ -2680,7 +2680,6 @@ function renderCertificatMAR(list){
   CERT_MAR_LIST = list;
   var AXfull = AX_EQUITE, SEUIL = 2.0;
   var evalues = list.filter(function(m){ return !m.wish; });
-  var nExcl = list.length - evalues.length;
   if(!evalues.length) return '';
   var T = ciblesEquite(evalues, AXfull);
   var corrige = !!T._corrige;
@@ -2757,19 +2756,17 @@ function renderCertificatMAR(list){
   }
   h += '</div>';
 
+  /* (05/09/2026) Texte raccourci — voir admin.html, même formulation. */
   h += '<div style="font-size:11.5px;color:var(--ink-3);margin-top:11px;line-height:1.55">'
-     + 'Un signe <b>\u2212</b> veut dire moins de gardes que sa part, <b>+</b> davantage. '
-     + 'L\u2019écart se compte sur l\u2019axe le plus tendu de chacun : total, samedis, jeudis, '
-     + 'week-ends ou veilles de férié.'
-     + (nExcl ? ' <span style="opacity:.8">(' + nExcl + ' profil à souhaits garantis exclu du calcul \u2014 jours choisis = cible.)</span>' : '')
+     + '<b>\u2212</b> moins de gardes que sa part, <b>+</b> davantage. '
+     + 'On retient l\u2019axe le plus tendu de chacun.'
      + '</div>';
 
   if(corrige){
     h += '<div style="font-size:11.5px;color:#7C2D12;background:#FFF7ED;border:1px solid #FED7AA;border-radius:9px;'
        + 'padding:9px 11px;margin-top:9px;line-height:1.55">'
-       + 'Cette année-là, une partie des gardes a été assurée par un médecin <b>extérieur au service</b>, '
-       + 'et le planning a été ajusté à la main en cours d\u2019année. Les parts affichées sont donc ramenées '
-       + 'aux gardes réellement réparties entre les MAR du service \u2014 cette année n\u2019est pas comparable aux suivantes.'
+       + 'Cette année-là, des gardes ont été assurées par un médecin <b>extérieur au service</b> et le '
+       + 'planning ajusté à la main. Année non comparable aux suivantes.'
        + '</div>';
   }
   if(conforme){

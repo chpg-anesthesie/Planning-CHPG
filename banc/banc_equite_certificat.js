@@ -155,8 +155,13 @@ V('le mur de noms est remplacé par un classement trié',
   /lignes\.sort\(\(a, b\) => Math\.abs\(b\.worst\) - Math\.abs\(a\.worst\)\)/.test(cert));
 V('le classement est replié à cinq lignes', /lignes\.slice\(0, 5\)/.test(cert));
 V('…et dépliable', /function certBasculer\(\)/.test(ADMIN) && /onclick="certBasculer\(\)"/.test(cert));
-V('le sens du signe est expliqué au lecteur',
-  /veut dire moins de gardes que sa part/.test(cert));
+/* (05/09/2026) Le texte a été raccourci : quatre lignes sur téléphone que
+   personne ne lisait. Ce qui doit rester vrai, c'est que le sens du signe est
+   donné — pas sa formulation d'origine. */
+V('le sens du signe est expliqué au lecteur, dans les deux pages',
+  /moins de gardes que sa part/.test(cert) && /moins de gardes que sa part/.test(certM));
+V('la parenthèse sur les souhaits garantis est retirée',
+  !/souhaits garantis exclu/.test(cert) && !/souhaits garantis exclu/.test(certM));
 V('l\'année corrigée porte sa mention d\'explication',
   /médecin <b>extérieur au service<\/b>/.test(cert));
 V('la mention n\'apparaît QUE si une correction a eu lieu', /if\(corrige\)\{/.test(cert));
@@ -190,7 +195,7 @@ V('la grille passe sur une seule colonne',
 console.log('\n─── 7. Version du site ───');
 const VJS = fs.readFileSync(path.join(__dirname, '..', 'version.js'), 'utf8');
 const v = (VJS.match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1];
-V('la version a été montée dans le même lot', v === '1.1.0', v);
+V('la version a été montée dans le même lot', v === '1.1.1', v);
 V('le retour à v1.0 est expliqué dans le fichier',
   /RETOUR À v1\.0/.test(VJS) && /4 septembre 2026/.test(VJS));
 
