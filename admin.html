@@ -5698,7 +5698,16 @@ function renderEquiteCards(list){
         const w=Math.min(100,v/mxGris*100);
         return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:#94A3B8;opacity:.5"></div></div><div class="eqv-val">'+v+'</div></div>';
       }
-      const c=cibOf(it,k),mx=maxOf(k);
+      /* (05/09/2026) Une cible ABSENTE n'est pas une cible à zéro. Sur les années
+         antérieures, l'onglet de statistiques s'arrête avant la colonne des fériés :
+         la barre affichait « 2 /0 » en rouge, une accusation fabriquée de toutes
+         pièces. Sans cible, la barre redevient neutre, comme les lundis. */
+      const c=cibOf(it,k);
+      if(CB[k] && !(c>0)){
+        const w=Math.min(100,v/mxGris*100);
+        return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:#94A3B8;opacity:.5"></div></div><div class="eqv-val">'+v+'</div></div>';
+      }
+      const mx=maxOf(k);
       const w=Math.min(100,v/mx*100),cx=Math.min(100,c/mx*100);
       const cval=CB[k]?Math.round(c):c.toFixed(1),tick=CB[k]?'':'opacity:.42';
       return '<div class="eqv-row"><div class="eqv-lbl">'+lbl+'</div><div class="eqv-track"><div class="eqv-fill" style="width:'+w+'%;background:'+colOf(v,c)+'"></div><div class="eqv-tick" style="left:'+cx+'%;'+tick+'"></div></div><div class="eqv-val">'+v+'<span> /'+cval+'</span></div></div>';
@@ -5710,7 +5719,7 @@ function renderEquiteCards(list){
                  ['sa','cSa'],['vd','cVd'],['jf',null],['vjf','cVjf']];
     const cib=_CIB[it.name];
     const bande=ORDRE.map(([k,ck])=>{
-      const t=(ck&&cib)?cib[ck]:undefined;
+      const t=(ck&&cib&&cib[ck]>0)?cib[ck]:undefined;
       if(t===undefined) return '<div class="eqv-case" style="background:#EEF1F5"></div>';
       const d=Math.abs((+it[k]||0)-t);
       const bg=d>=2?'#CE1126':'#15803D';
@@ -5956,6 +5965,8 @@ function ciblesEquite(evalues, axes){
   evalues.forEach(m => { T[m.name] = {}; });
   axes.forEach(a => {
     const rk = a[0], ck = a[1];
+    /* Axe absent de l'onglet (les fériés sur les années d'avant) : aucun MAR n'a
+       de cible, on ne fabrique rien — l'axe sera simplement muet à l'écran. */
     const elig = evalues.filter(m => (+m[ck] || 0) > 0);
     if(!elig.length) return;
     let sr = 0, sc = 0;

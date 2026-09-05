@@ -227,10 +227,22 @@ V('un écart entier s\'affiche sans décimale',
 V('la cible d\'un axe surveillé est affichée entière',
   /const cval=CB\[k\]\?Math\.round\(c\)/.test(ADMIN) && /const cval=CB\[k\]\?Math\.round\(c\)/.test(INDEX));
 
+/* (05/09/2026) DÉFAUT ATTRAPÉ AU RENDU, pas à la lecture. En ajoutant l'axe
+   fériés, la barre des années SANS colonne CIBLE JF (2026, statistiques refaites
+   à la main) affichait « 2 /0 » EN ROUGE : une cible absente était lue comme une
+   cible à zéro, donc une accusation fabriquée. Sans cible, la barre est neutre. */
+[['admin.html', ADMIN], ['index.html', INDEX]].forEach(([nom, SRC]) => {
+  const rec = extraire('renderEquiteCards', SRC);
+  V(nom + ' : une cible absente rend la barre neutre, pas rouge',
+    /if\(CB\[k\] && !\(c>0\)\)\{/.test(rec) && /background:#94A3B8;opacity:\.5/.test(rec));
+  V(nom + ' : la case repliée reste neutre elle aussi',
+    /cib\[ck\]>0\)\?cib\[ck\]:undefined/.test(rec));
+});
+
 console.log('\n─── 8. Version du site ───');
 const VJS = fs.readFileSync(path.join(__dirname, '..', 'version.js'), 'utf8');
 const v = (VJS.match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1];
-V('la version a été montée dans le même lot', v === '1.2.0', v);
+V('la version a été montée dans le même lot', v === '1.2.1', v);
 V('le retour à v1.0 est expliqué dans le fichier',
   /RETOUR À v1\.0/.test(VJS) && /4 septembre 2026/.test(VJS));
 
