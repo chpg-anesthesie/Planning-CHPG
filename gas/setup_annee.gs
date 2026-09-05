@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_SETUP = '2026-08-27.1';
+const GAS_VERSION_SETUP = '2026-09-05.1';
 
 
 // ══════════════════════════════════════════════════════════════════════
@@ -720,6 +720,23 @@ function TEST_run() {
   const SCENARIO = 'charge';   // 'normal' | 'charge' | 'leger'
   TEST_remplirIndispos(ANNEE, SCENARIO);
 }
-function TEST_W2() { generateGardes(2029); }      // génère le planning
+/* (05/09/2026) LANCEUR TEMPORAIRE — essai à blanc de l'année 2028 dans une COPIE
+   du classeur, pour éprouver le nouvel algorithme sur une année complète dont
+   toutes les vacances, formations et TP sont posés (ce qui n'est le cas d'aucune
+   année réelle disponible aujourd'hui).
+   setupAnnee n'est appelée par AUCUN menu ni bouton — le guide technique la
+   décrit comme endormie — et l'éditeur Apps Script ne sait pas passer d'argument
+   à une fonction : d'où ce lanceur, sur le modèle de T() et T7().
+   ⚠️ À N'EXÉCUTER QUE DANS UNE COPIE. Dans le classeur de production, il
+   effacerait la grille d'indisponibilités de 2028 si elle existait. Le garde-fou
+   de setupAnnee demande confirmation dès qu'une saisie est présente, mais ne
+   comptez pas dessus : vérifiez le nom du classeur avant de lancer.
+   ⚠️ À RETIRER avec T() et T7() une fois 2027 publié. */
+function W1_2028() { setupAnnee(2028); }
+
+/* (05/09/2026) Visait 2029 alors que TEST_run remplit 2028 : enchaîner les deux
+   générait une année VIDE sans que rien ne le signale. Les trois lanceurs
+   d'essai parlent désormais de la même année. */
+function TEST_W2() { generateGardes(2028); }      // génère le planning
 function TEST_W3_safe()  { archiveYear(2029, false); }  // itération rapide
 function TEST_W3_reel()  { archiveYear(2027, true);  }  // test du déplacement réel
