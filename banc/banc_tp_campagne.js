@@ -235,6 +235,12 @@ if (ko) process.exit(1);
     && /!quotaConnu \? '— jours ouvrés'/.test(page) && /!quotaConnu \? '— jours'/.test(page));
   V2('une attente longue est annoncée au lieu de laisser croire à un plantage',
     /ne fermez pas la page/.test(page) && /\}, 5000\);/.test(page));
-  V2('la version du site a été montée', /window\.SITE_VERSION = 'v1\.4\.1'/.test(vjs));
+  /* (06/09/2026) Le numéro EXACT était figé ici. Depuis le retour à v1.0, un
+     numéro ne date plus une fonctionnalité : ce contrôle tombait à chaque
+     montée de version, pour un motif de forme. Deux contrôles avaient déjà été
+     repris le 05/09 (banc_cloche, banc_stats_ecran) ; celui-ci avait été
+     oublié. On vérifie la FORME du numéro et la source unique, pas sa valeur. */
+  V2('la version du site vient de la source unique et a la bonne forme',
+    /window\.SITE_VERSION = 'v\d+\.\d+(\.\d+)?'/.test(vjs));
 }
 console.log('\n' + ok + ' OK · ' + ko + ' en échec');

@@ -31,7 +31,6 @@ Système web de gestion pour le service d'anesthésie-réanimation du **CHPG (Mo
 | `guide-fichier-maitre.html` | Les 25 onglets du classeur, colonne par colonne |
 | `guide-comite.html` | Aide du comité (page `admin.html`) |
 | `guide-mar.html` | Guide du MAR : portail, planning, indispos, consultations |
-| `guide-algo-gardes.html` | L'algorithme de gardes expliqué à l'équipe |
 | `guide-liberal.html` | Mode d'emploi de l'**outil** du module libéral |
 | `si-ca-tombe.html` | **Urgence, pour le comité** : l'interface ne répond plus, faire tourner le service sans elle |
 | `reprise.html` | **Continuité** : accès, propriété, sauvegardes, réparations — à lire si Arthur n'est plus joignable |

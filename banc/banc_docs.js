@@ -14,6 +14,7 @@
    vérification qui, faite par la machine, ne sera plus jamais oubliée.
    ═══════════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
+const vm = require('vm');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
@@ -142,9 +143,21 @@ console.log('\n═══ 4. Forme des guides ═══');
 {
   GUIDES.forEach(f => {
     const t = texte(lire(f));
-    V(f.replace('docs/', '') + ' : porte un bloc « En 2 minutes »', /En 2 minutes/i.test(t));
     V(f.replace('docs/', '') + ' : dépasse 3 000 caractères (pas une coquille vide)', t.length > 3000, t.length);
   });
+  /* (06/09/2026) Le bloc « En 2 minutes » n'est plus exigé du guide MAR
+     (décision d'Arthur) : la page est entièrement repliée, les 24 titres
+     tiennent sur un écran et demi et remplacent le résumé. Le guide comité,
+     lui, reste une page qui se déroule : son bloc d'accroche est maintenu. */
+  {
+    const mar = lire('docs/guide-mar.html');
+    V('guide-mar.html : toutes les sections sont repliées par défaut',
+      /details class="sec"/.test(mar) && !/<details class="sec"[^>]*\sopen/.test(mar));
+    V('guide-mar.html : porte une recherche pour ouvrir la bonne section',
+      /id="q"/.test(mar) && /type="search"/.test(mar));
+    V('guide-comite.html : porte un bloc « En 2 minutes »',
+      /En 2 minutes/i.test(texte(lire('docs/guide-comite.html'))));
+  }
 }
 
 console.log('\n═══ 5. Le cahier de tests ne décrit pas de fonctions disparues ═══');
@@ -194,28 +207,39 @@ console.log('\n═══ 6. L\'ordre de passage des vacances : une seule règle,
       sensDroite.test(lire(f)));
   });
 
-  /* Le guide affiche un tableau écrit en dur, valable si le script ne tourne
-     pas : il doit correspondre au calcul, sinon il ment aux MARs. */
-  const guide = lire('docs/guide-mar.html');
-  const REF = { HIVER: 'CAB', PRINTEMPS: 'ABC', ETE: 'ABC', TOUSSAINT: 'BCA', NOEL: 'CAB' };
-  const attendu = (cle, annee) => {
-    const b = REF[cle];
-    const pas = (3 - (((annee - 2026) % 3) + 3) % 3) % 3;
-    return b.slice(pas) + b.slice(0, pas);
-  };
-  const lignes = [...guide.matchAll(/<tr><td>(Hiver|Printemps|Été|Toussaint|Noël)<\/td>([\s\S]*?)<\/tr>/g)];
-  V('le tableau écrit du guide porte les cinq périodes', lignes.length === 5, lignes.length);
-  const CLE = { 'Hiver': 'HIVER', 'Printemps': 'PRINTEMPS', 'Été': 'ETE', 'Toussaint': 'TOUSSAINT', 'Noël': 'NOEL' };
-  const ecarts = [];
-  lignes.forEach(m => {
-    const cellules = m[2].split('</td>').filter(c => /grp /.test(c));
-    const lus = cellules.map(c => [...c.matchAll(/class="grp [abc]">([ABC])</g)].map(x => x[1]).join(''));
-    [2026, 2027].forEach((an, i) => {
-      if (lus[i] !== attendu(CLE[m[1]], an)) ecarts.push(m[1] + ' ' + an + ' : ' + lus[i] + ' ≠ ' + attendu(CLE[m[1]], an));
-    });
-  });
-  V('il correspond exactement au calcul, année par année', ecarts.length === 0, ecarts);
+  /* (06/09/2026) Le tableau du guide était ÉCRIT EN DUR pour 2026 et 2027 :
+     il aurait menti dès 2028, en silence. Il est maintenant calculé par la même
+     table de référence et le même sens de rotation que le serveur. On n'éprouve
+     donc plus des lignes recopiées, on éprouve la fonction — sur dix ans. */
+  {
+    const guide = lire('docs/guide-mar.html');
+    const m = guide.match(/var ORDRE_REF[\s\S]*?\n  \}/);
+    V('le guide calcule l\'ordre au lieu de le recopier', !!m);
+    if (m) {
+      const ctxG = vm.createContext({});
+      vm.runInContext(m[0], ctxG);
+      const REF = { HIVER:'CAB', PRINTEMPS:'ABC', ETE:'ABC', TOUSSAINT:'BCA', NOEL:'CAB' };
+      const attendu = (cle, annee) => {
+        const b = REF[cle];
+        const pas = (3 - ((((annee - 2026) % 3) + 3) % 3)) % 3;
+        return b.slice(pas) + b.slice(0, pas);
+      };
+      const ecarts = [];
+      for (let an = 2026; an <= 2036; an++) {
+        Object.keys(REF).forEach(cle => {
+          const lu = vm.runInContext(`ordreGroupes('${cle}', ${an})`, ctxG);
+          if (lu !== attendu(cle, an)) ecarts.push(`${cle} ${an} : ${lu} ≠ ${attendu(cle, an)}`);
+        });
+      }
+      V('sur onze années, le guide dit la même chose que le serveur', ecarts.length === 0, ecarts);
+      V('l\'ordre tourne bien (2027 ≠ 2026)',
+        vm.runInContext("ordreGroupes('HIVER',2027)", ctxG) !== vm.runInContext("ordreGroupes('HIVER',2026)", ctxG));
+      V('et revient au point de départ tous les trois ans',
+        vm.runInContext("ordreGroupes('HIVER',2029)", ctxG) === vm.runInContext("ordreGroupes('HIVER',2026)", ctxG));
+    }
+  }
 }
+
 
 /* La presentation du 4 septembre : elle sera projetee devant tout le service.
    Un CSS mal ferme y passait inapercu — le navigateur jette le bloc fautif en
@@ -435,29 +459,42 @@ console.log('\n═══ 13. Chaque scénario du banc est lancé par lancer.sh �
 }
 
 
-/* (05/09/2026) Les guides doivent suivre le changement d'algorithme : cibles
-   entières, deux week-ends d'affilée interdits, numéro de tirage, et l'année
-   2026 non comparable. Un guide qui décrit l'ancien comportement est pire que
-   pas de guide : il fait croire au lecteur qu'il a compris. */
+/* (06/09/2026) FUSION — le guide de l'algorithme a été replié dans le guide du
+   MAR : deux pages séparées faisaient un cul-de-sac (le guide algo n'avait
+   aucun lien de sortie et n'était atteignable que par une ligne en bas d'une
+   section). Les vérifications d'alors portent maintenant sur le guide unique.
+   Un guide qui décrit l'ancien comportement est pire que pas de guide : il fait
+   croire au lecteur qu'il a compris. */
 {
-  const algo = lire('docs/guide-algo-gardes.html');
-  const mar  = lire('docs/guide-mar.html');
-  V('le guide algo annonce des cibles entières',
-    /Votre cible est un nombre entier/.test(algo) && /faire pile sa cible/i.test(algo));
+  const mar = lire('docs/guide-mar.html');
+  V('le guide de l\'algorithme a bien été replié dans le guide MAR',
+    !fs.existsSync('../docs/guide-algo-gardes.html'));
+  V('aucun lien ne pointe plus vers la page supprimée',
+    !/guide-algo-gardes\.html/.test(mar) && !/guide-algo-gardes\.html/.test(lire('docs/README.md')));
+  V('le guide annonce des cibles entières',
+    /Votre cible est un nombre entier/.test(mar) && /[Ff]aire pile sa cible/.test(mar));
   V('…et que deux week-ends d\'affilée sont interdits',
-    /Deux week-ends de garde d\'affilée sont désormais <strong>interdits<\/strong>/.test(algo));
+    /Jamais deux week-ends de garde d'affilée/.test(mar));
   V('…et n\'annonce plus qu\'on ne tombe jamais pile',
-    !/Personne ne tombe jamais exactement pile/.test(algo));
+    !/Personne ne tombe jamais exactement pile/.test(mar));
   V('…et explique le numéro de tirage',
-    /num[ée]ro de tirage/.test(algo) && /position dans le tableau des m[ée]decins/.test(algo));
-  V('…et donne la mesure d\'après le changement',
-    /44 années sur 45/.test(algo) && /absences réelles du service/.test(algo));
-  V('le guide MAR annonce la cible entière', /C\'est un <b>nombre entier<\/b>/.test(mar));
-  V('…liste les six axes surveillés',
-    /samedis<\/b>/.test(mar) && /jeudis<\/b>/.test(mar) && /veilles de férié<\/b>/.test(mar));
-  V('…décrit la vue Équité en une ligne par MAR', /chaque MAR tient sur une ligne/.test(mar));
+    /num[ée]ro de tirage/.test(mar) && /position dans le tableau des m[ée]decins/.test(mar));
+  V('…et donne la mesure d\'après le changement', /44 années sur 45/.test(mar));
+  V('…liste les six compteurs surveillés',
+    /samedis<\/b>/.test(mar) && /jeudis<\/b>/.test(mar) && /veilles de férié<\/b>/.test(mar)
+      && /fériés<\/b>/.test(mar) && /week-ends<\/b>/.test(mar) && /total<\/b>/.test(mar));
+  V('…décrit la vue Équité en une ligne par MAR', /[Cc]haque MAR tient sur une ligne/.test(mar));
   V('…et prévient que 2026 n\'est pas comparable',
-    /L\'année 2026 fait exception/.test(mar) && /extérieur au service/.test(mar));
+    /2026 fait exception/.test(mar) && /extérieur au service/.test(mar));
+  /* (06/09/2026) L'année de planning fait 364 ou 371 jours, jamais 365 : le
+     guide l'écrivait dans un sens au début et dans l'autre à la fin. */
+  V('…et ne parle plus de 365 jours', !/365 jours/.test(mar) && /364 jours/.test(mar));
+  V('…décrit la vue téléphone du planning, pas celle de l\'ordinateur',
+    /une journée<\/b>/.test(mar) && /carte par secteur<\/b>/.test(mar));
+  V('…décrit la saisie par outil puis glissement, et non « le premier puis le dernier »',
+    /glissez le doigt<\/b>/.test(mar) && !/touchez le premier puis le dernier/.test(mar));
+  V('…affiche les codes réels du planning (V et F, pas VAC et FORM)',
+    /pc-V">V</.test(mar) && /pc-F">F</.test(mar));
 }
 
 

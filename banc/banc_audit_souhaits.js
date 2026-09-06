@@ -69,18 +69,19 @@ V('il rappelle la règle d\'une seule demande par an sur les jours rares',
     corps.length > 0 && !corps.includes('#FEE2E2') && !corps.includes('#991B1B'), corps.slice(0, 160));
 }
 
-// 4) Cohérence avec les guides : ils doivent décrire la même règle.
-const gAlgo = lire('docs/guide-algo-gardes.html');
-V('le guide de l\'algorithme annonce tous les jours posables',
-  gAlgo.includes("n'importe quel jour de l'année"));
-V('le guide de l\'algorithme décrit la demande annuelle sur les jours rares',
-  gAlgo.includes('une demande par an'));
-V('le guide de l\'algorithme explique les jours couplés',
-  gAlgo.includes('vont par paire'));
+// 4) Cohérence avec le guide : il doit décrire la même règle.
+//    (06/09/2026) Le guide de l'algorithme a été replié dans le guide du MAR.
 const gMar = lire('docs/guide-mar.html');
-V('le guide MAR explique comment demander une garde',
-  gMar.includes('ÊTRE de garde un jour précis'));
-V('le guide MAR précise qu\'un souhait ne donne pas de garde en plus',
+V('le guide annonce que tous les jours sont demandables',
+  /Vous demandez tous les samedis de l'année/.test(gMar) || /n'importe quel jour/.test(gMar));
+V('le guide décrit la demande annuelle sur les jours rares',
+  /une seule demande par an/.test(gMar));
+V('le guide explique les jours couplés', gMar.includes('vont par paire'));
+V('le guide compte la veille de férié parmi les jours rares',
+  /veille de férié\s*:\s*<\/b>|veille de férié<\/b>|veille de férié\s*:/.test(gMar));
+V('le guide explique comment demander une garde',
+  /être de garde un jour précis/i.test(gMar));
+V('le guide précise qu\'un souhait ne donne pas de garde en plus',
   gMar.includes('ne vous donne pas une garde en plus'));
 
 // 5) Le générateur porte bien la règle correspondante.
