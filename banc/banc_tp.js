@@ -43,6 +43,9 @@ console.log('\n═══ 1. indispos.html · un jour de TP ne se pose que sur un
   /* (06/09/2026) applyTool écrit désormais ses refus dans la zone d'aide sous le
    calendrier — un toast disparaissait avant qu'on ait fini le geste. On charge
    la dépendance plutôt que d'ajouter un garde-fou dans la page pour le banc. */
+  /* (06/09/2026) applyTool met aussi à jour le bouton d'enregistrement : il
+     redevenait « Sauvegarder » alors que tout était enregistré. */
+  vm.runInContext('function majBoutonSave(){}', ctx);
   vm.runInContext(extraireDuHtml('../indispos.html', 'hintRefus'), ctx);
   vm.runInContext(extraireDuHtml('../indispos.html', 'applyTool'), ctx);
 

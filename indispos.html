@@ -364,6 +364,14 @@ body {
   box-shadow:0 -4px 16px rgba(0,0,0,.06);
   z-index:100;
 }
+/* (06/09/2026) Rien à sauver : le bouton se tait au lieu de réclamer. Il
+   redevenait « Sauvegarder » après une sauvegarde réussie, comme s'il restait
+   du travail. */
+.save-btn-ok { background:var(--bg) !important; color:var(--ink-3) !important; box-shadow:none !important; }
+/* Pendant l'écriture, le calendrier et les outils ne réagissent plus : un jour
+   touché à cet instant serait perdu, le serveur ayant reçu l'état d'avant. */
+body.save-en-cours .calendar-grid,
+body.save-en-cours .legend { pointer-events:none; opacity:.55 }
 .save-btn {
   flex:1;
   background:var(--red);
@@ -654,8 +662,8 @@ body {
 
   <!-- Bouton sauvegarder -->
   <div class="bottom-bar">
-    <button class="save-btn" id="saveBtn" onclick="saveIndispos()">
-      💾 Sauvegarder
+    <button class="save-btn save-btn-ok" id="saveBtn" onclick="saveIndispos()" disabled>
+      ✓ Tout est enregistré
     </button>
   </div>
 
@@ -1137,11 +1145,36 @@ function verrouillerEcran(annee) {
   const hote = document.querySelector('.legend') || document.querySelector('.container') || document.body;
   hote.parentNode ? hote.parentNode.insertBefore(bandeau, hote) : hote.appendChild(bandeau);
 }
+/* (06/09/2026) LE BOUTON DIT L'ÉTAT RÉEL. Après une sauvegarde réussie, il
+   redevenait « 💾 Sauvegarder », rouge, comme s'il restait du travail — alors
+   que `hasChanges` savait déjà que non. Il est désormais gris et muet quand
+   tout est enregistré, rouge dès qu'un jour est touché. */
+function majBoutonSave() {
+  const btn = document.getElementById('saveBtn');
+  if (!btn || btn.dataset.enCours === '1') return;
+  btn.disabled = !hasChanges;
+  btn.textContent = hasChanges ? '💾 Sauvegarder' : '✓ Tout est enregistré';
+  btn.classList.toggle('save-btn-ok', !hasChanges);
+}
+
 async function saveIndispos() {
   if (typeof ECRAN_FIGE !== 'undefined' && ECRAN_FIGE) { showToast('🔒 Planning déjà établi — aucune modification possible'); return; }
   const btn = document.getElementById('saveBtn');
+  btn.dataset.enCours = '1';
   btn.textContent = '⏳ Sauvegarde...';
   btn.disabled = true;
+  /* (06/09/2026) Le calendrier se fige le temps de l'écriture : un jour touché
+     pendant les deux secondes d'attente aurait disparu sans un mot — le serveur
+     a reçu l'état d'avant. */
+  document.body.classList.add('save-en-cours');
+  /* (06/09/2026) Apps Script peut être lent, et l'appel n'a aucun délai maximum.
+     Au-delà de cinq secondes on rassure : le vrai danger est qu'un MAR ferme
+     l'onglet en croyant à un plantage — là, sa saisie est perdue. */
+  const lent = setTimeout(function () {
+    const h = document.getElementById('toolHint');
+    if (h) { h.classList.remove('refus'); h.innerHTML =
+      '⏳ C\'est un peu long — <b>ne fermez pas la page</b>, votre saisie n\'est pas perdue.'; }
+  }, 5000);
 
   try {
     const res = await apiCall('saveIndispos', {indispos});
@@ -1157,8 +1190,11 @@ async function saveIndispos() {
     // (F9) Erreur réseau : le bouton ne reste plus bloqué sur ⏳
     showToast('❌ Erreur réseau — vérifiez la connexion et réessayez');
   }
-  btn.textContent = '💾 Sauvegarder mes indisponibilités';
-  btn.disabled = false;
+  clearTimeout(lent);
+  document.body.classList.remove('save-en-cours');
+  btn.dataset.enCours = '0';
+  majBoutonSave();
+  selectTool(currentTool);   // le message d'aide reprend sa place
 }
 
 // ── TOOL ──────────────────────────────────────────────────────────────
@@ -1379,7 +1415,7 @@ function applyTool(date) {
         if (!isDragging) showToast(currentTool === 'ERASE'
           ? '↩️ Demande retirée — ' + u.quoi
           : '⭐ Ces jours vont ensemble : vous demandez ' + u.quoi);
-        hasChanges = true; renderMonth(); updateStats();
+        hasChanges = true; renderMonth(); updateStats(); majBoutonSave();
         return;
       }
     }
@@ -1392,6 +1428,7 @@ function applyTool(date) {
   hasChanges = true;
   renderMonth();
   updateStats();
+  majBoutonSave();
 }
 
 // ── MONTH NAV ─────────────────────────────────────────────────────────
@@ -1433,9 +1470,14 @@ function updateStats() {
     }
   });
 
+  /* (06/09/2026) Le quota arrive par un SECOND appel au serveur, après le
+     chargement de la page : pendant une seconde les compteurs annonçaient
+     « 0/0 », un chiffre faux. Tant qu'il n'est pas connu, on affiche « — ». */
+  const quotaConnu = !!vacConfig;
   const quotaVac = vacConfig ? vacConfig.quotaVac : null;
   const quotaColor = quotaVac && vacOuvres >= quotaVac ? '#B91C1C' : 'var(--vac-fg)';
-  const quotaLabel = quotaVac ? `${vacOuvres}/${quotaVac} jours ouvrés` : `${vacOuvres} jours ouvrés`;
+  const quotaLabel = !quotaConnu ? '— jours ouvrés'
+    : quotaVac ? `${vacOuvres}/${quotaVac} jours ouvrés` : `${vacOuvres} jours ouvrés`;
   /* (LOT A · 01/09/2026) Le compteur suit le BOUTON : il s'affiche dès qu'il y
      a des jours à poser. L'ancienne condition passait par le quota de vacances
      (< 33 jours = temps partiel), un détour qui pouvait diverger de la seule
@@ -1451,7 +1493,8 @@ function updateStats() {
      sans savoir s'il en restait. Le compteur passe en rouge une fois dépassé,
      même règle que les vacances et le temps partiel. */
   const quotaForm = vacConfig && Number(vacConfig.quotaForm) || 0;
-  const formLabel = quotaForm ? `${counts.FORM}/${quotaForm} jours` : `${counts.FORM} jours`;
+  const formLabel = !quotaConnu ? '— jours'
+    : quotaForm ? `${counts.FORM}/${quotaForm} jours` : `${counts.FORM} jours`;
   const formColor = (quotaForm && counts.FORM > quotaForm) ? '#B91C1C' : 'var(--form-fg)';
 
   /* (06/09/2026) Les compteurs étaient cinq pastilles à emoji, de largeurs

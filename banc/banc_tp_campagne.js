@@ -112,6 +112,9 @@ console.log('\n═══ 4. indispos.html · applyTool refuse ce qui doit l\'êt
   /* (06/09/2026) applyTool écrit désormais ses refus dans la zone d'aide sous le
    calendrier — un toast disparaissait avant qu'on ait fini le geste. On charge
    la dépendance plutôt que d'ajouter un garde-fou dans la page pour le banc. */
+  /* (06/09/2026) applyTool met aussi à jour le bouton d'enregistrement : il
+     redevenait « Sauvegarder » alors que tout était enregistré. */
+  vm.runInContext('function majBoutonSave(){}', ctx);
   vm.runInContext(extraireFonction('indispos.html', 'hintRefus'), ctx);
   vm.runInContext(extraireFonction('indispos.html', 'applyTool'), ctx);
     ctx.applyTool(dateStr);
@@ -214,6 +217,24 @@ if (ko) process.exit(1);
     /ontouchmove="handleDragMove\(event\)"/.test(page) && /onmouseover="handleMouseOver/.test(page));
   V2('la sauvegarde n\'a pas bougé', /onclick="saveIndispos\(\)"/.test(page));
   const vjs = fs2.readFileSync(__dirname + '/../version.js', 'utf8');
-  V2('la version du site a été montée', /window\.SITE_VERSION = 'v1\.4\.0'/.test(vjs));
+  /* (06/09/2026) Trois retours de l'essai grandeur nature du 6 septembre : le
+     bouton réclamait une sauvegarde déjà faite, les compteurs annonçaient un
+     « 0/0 » faux le temps que le quota arrive du serveur, et rien ne rassurait
+     si Apps Script traînait — un MAR qui ferme l'onglet perd sa saisie. */
+  V2('le bouton dit quand tout est enregistré',
+    /function majBoutonSave\(\)/.test(page)
+    && /btn\.textContent = hasChanges \? '💾 Sauvegarder' : '✓ Tout est enregistré';/.test(page)
+    && /class="save-btn save-btn-ok" id="saveBtn"[^>]*disabled/.test(page));
+  V2('…et il se réveille dès qu\'un jour est touché',
+    (page.match(/majBoutonSave\(\);/g) || []).length >= 3);
+  V2('le calendrier se fige pendant l\'écriture',
+    /body\.save-en-cours \.calendar-grid,/.test(page)
+    && /classList\.add\('save-en-cours'\)/.test(page));
+  V2('un tiret plutôt qu\'un « 0/0 » faux tant que le quota n\'est pas connu',
+    /const quotaConnu = !!vacConfig;/.test(page)
+    && /!quotaConnu \? '— jours ouvrés'/.test(page) && /!quotaConnu \? '— jours'/.test(page));
+  V2('une attente longue est annoncée au lieu de laisser croire à un plantage',
+    /ne fermez pas la page/.test(page) && /\}, 5000\);/.test(page));
+  V2('la version du site a été montée', /window\.SITE_VERSION = 'v1\.4\.1'/.test(vjs));
 }
 console.log('\n' + ok + ' OK · ' + ko + ' en échec');
