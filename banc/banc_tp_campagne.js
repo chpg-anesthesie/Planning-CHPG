@@ -176,13 +176,26 @@ if (ko) process.exit(1);
     /data-tool="ERASE"[^>]*aria-label="Effacer">🧽 Effacer</.test(page));
   /* (06/09/2026) La formation a un quota, comme les vacances et le temps partiel.
      Il n'était pas affiché : on lisait « 6 jours » sans savoir s'il en restait. */
+  /* (06/09/2026) Les compteurs : cinq pastilles à emoji, de largeurs inégales,
+     débordant sur deux lignes bancales. Ce qui a un PLAFOND porte une jauge — on
+     voit ce qu'il reste à poser, ce qu'aucun chiffre seul ne disait. */
+  V2('congés, formation et temps partiel portent une jauge',
+    /const jauge = \(nom, fait, quota, coul, unite\)/.test(page)
+    && /jauge\('Congés'/.test(page) && /jauge\('Formation'/.test(page) && /jauge\('Temps partiel'/.test(page));
+  V2('…et la jauge passe en rouge au-delà du plafond',
+    /const trop = quota && fait > quota;/.test(page) && /trop \? '#B91C1C' : coul/.test(page));
+  V2('indispos et souhaits restent de simples comptes, sur une ligne à part',
+    /const compte = \(nom, n, coul\)/.test(page) && /class="compte-ligne"/.test(page));
+  V2('le temps partiel a sa ligne, et seulement s\'il a un quota',
+    /\$\{showCtp \? `<div class="jauge-ligne jauge-seule">/.test(page));
+  V2('plus aucun emoji dans les compteurs',
+    !/🏖️/.test(page) && !/📚/.test(page));
   V2('le compteur de formation affiche son quota',
     /const quotaForm = vacConfig && Number\(vacConfig\.quotaForm\) \|\| 0;/.test(page)
-    && /\$\{counts\.FORM\}\/\$\{quotaForm\} jours/.test(page));
-  V2('…et passe en rouge une fois dépassé',
-    /const formColor = \(quotaForm && counts\.FORM > quotaForm\)/.test(page));
-  V2('les compteurs sont alignés en deux colonnes égales',
-    /\.stats-bar \{[\s\S]{0,260}grid-template-columns:1fr 1fr/.test(page));
+    && /jauge\('Formation', counts\.FORM, quotaForm/.test(page));
+
+  V2('la ligne de jauges est en deux colonnes égales',
+    /\.jauge-ligne \{ display:grid; grid-template-columns:1fr 1fr;/.test(page));
   V2('la case du calendrier est carrée', /\.cal-day \{[\s\S]{0,260}aspect-ratio:1/.test(page));
   V2('la réserve du bas est passée sur l\'écran, plus sous le calendrier',
     /\.calendar-container \{[\s\S]{0,60}padding:12px 16px 0;/.test(page)
@@ -201,6 +214,6 @@ if (ko) process.exit(1);
     /ontouchmove="handleDragMove\(event\)"/.test(page) && /onmouseover="handleMouseOver/.test(page));
   V2('la sauvegarde n\'a pas bougé', /onclick="saveIndispos\(\)"/.test(page));
   const vjs = fs2.readFileSync(__dirname + '/../version.js', 'utf8');
-  V2('la version du site a été montée', /window\.SITE_VERSION = 'v1\.3\.2'/.test(vjs));
+  V2('la version du site a été montée', /window\.SITE_VERSION = 'v1\.3\.3'/.test(vjs));
 }
 console.log('\n' + ok + ' OK · ' + ko + ' en échec');

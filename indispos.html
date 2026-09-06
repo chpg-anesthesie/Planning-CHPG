@@ -382,28 +382,29 @@ body {
 
 /* (06/09/2026) Les compteurs deviennent des pastilles posées sur un fond : ils
    étaient alignés à plat sur le fond de page et se lisaient comme une phrase. */
-/* (06/09/2026) Les compteurs s'alignaient sur une ligne qui débordait : trois
-   d'un côté, un tout seul dessous, de largeurs inégales. Deux colonnes égales,
-   ils se lisent en colonne comme une petite fiche. */
+/* (06/09/2026) Les compteurs étaient cinq pastilles à emoji, de largeurs
+   inégales, débordant sur deux lignes bancales. Ce qui a un PLAFOND porte une
+   jauge — on voit ce qu'il reste à poser, ce qu'aucun chiffre seul ne disait.
+   Ce qui n'en a pas se compte, sur une ligne à part. */
 .stats-bar {
   background:white;
   border-bottom:1px solid var(--line);
-  padding:10px 16px;
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:6px;
+  padding:13px 16px 12px;
 }
-.stat-item {
-  font-size:11.5px;
-  font-weight:600;
-  display:flex;
-  align-items:center;
-  gap:5px;
-  background:var(--bg);
-  border-radius:8px;
-  padding:8px 10px;
-  min-width:0;
-}
+.jauge-ligne { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:12px; }
+.jauge-ligne.jauge-seule { grid-template-columns:1fr; }
+.jauge-tete { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; gap:6px; }
+.jauge-nom  { font-size:11px; color:var(--ink-3); font-weight:600; }
+.jauge-val  { font-size:12.5px; font-weight:700; color:var(--ink); white-space:nowrap; }
+.jauge-val span { font-weight:500; color:var(--ink-4); }
+.jauge-piste{ height:5px; background:var(--bg); border-radius:3px; overflow:hidden; }
+.jauge-fill { height:100%; border-radius:3px; transition:width .2s; }
+
+.compte-ligne { display:flex; gap:18px; padding-top:11px; border-top:1px solid var(--line); flex-wrap:wrap; }
+.compte-item  { display:flex; align-items:baseline; gap:6px; }
+.compte-point { width:7px; height:7px; border-radius:2px; flex-shrink:0; }
+.compte-val   { font-size:13px; font-weight:700; color:var(--ink); }
+.compte-nom   { font-size:11px; color:var(--ink-3); }
 
 /* ── TOAST ── */
 .toast {
@@ -1411,12 +1412,37 @@ function updateStats() {
   const formLabel = quotaForm ? `${counts.FORM}/${quotaForm} jours` : `${counts.FORM} jours`;
   const formColor = (quotaForm && counts.FORM > quotaForm) ? '#B91C1C' : 'var(--form-fg)';
 
+  /* (06/09/2026) Les compteurs étaient cinq pastilles à emoji, de largeurs
+     inégales, qui débordaient sur deux lignes bancales. Ce qui a un PLAFOND porte
+     désormais une jauge — congés, formation, temps partiel : on voit ce qu'il
+     reste à poser, ce qu'aucun chiffre seul ne disait. Ce qui n'en a pas —
+     indisponibilités, gardes souhaitées — reste un simple compte, sur une ligne
+     à part, avec une pastille de couleur qui rappelle celle du calendrier. */
+  const jauge = (nom, fait, quota, coul, unite) => {
+    const pct = quota ? Math.min(100, fait / quota * 100) : 0;
+    const trop = quota && fait > quota;
+    return `<div class="jauge-bloc">
+      <div class="jauge-tete">
+        <span class="jauge-nom">${nom}</span>
+        <span class="jauge-val"${trop ? ' style="color:#B91C1C"' : ''}>${fait}<span>${quota ? ' / ' + quota : ''}${unite ? ' ' + unite : ''}</span></span>
+      </div>
+      <div class="jauge-piste"><div class="jauge-fill" style="width:${pct}%;background:${trop ? '#B91C1C' : coul}"></div></div>
+    </div>`;
+  };
+  const compte = (nom, n, coul) =>
+    `<div class="compte-item"><span class="compte-point" style="background:${coul}"></span>` +
+    `<span class="compte-val">${n}</span><span class="compte-nom">${nom}</span></div>`;
+
   document.getElementById('statsBar').innerHTML = `
-    <div class="stat-item" style="color:${quotaColor}">🏖️ ${quotaLabel}</div>
-    ${ctpItem}
-    <div class="stat-item" style="color:${formColor}">📚 ${formLabel}</div>
-    <div class="stat-item" style="color:var(--indispo-fg)">🚫 ${counts.INDISPO} jours</div>
-    <div class="stat-item" style="color:var(--souhait-fg)">⭐ ${counts.SOUHAIT} gardes souhaitées</div>
+    <div class="jauge-ligne">
+      ${jauge('Congés', vacOuvres, quotaVac, 'var(--vac-fg)', quotaVac ? 'j. ouvrés' : 'jours ouvrés')}
+      ${jauge('Formation', counts.FORM, quotaForm, 'var(--form-fg)', 'jours')}
+    </div>
+    ${showCtp ? `<div class="jauge-ligne jauge-seule">${jauge('Temps partiel', ctpCount, vacConfig.quotaCtp, '#6D28D9', 'jours')}</div>` : ''}
+    <div class="compte-ligne">
+      ${compte('indisponibilités', counts.INDISPO, 'var(--indispo-fg)')}
+      ${compte('gardes souhaitées', counts.SOUHAIT, 'var(--souhait-fg)')}
+    </div>
   `;
 }
 
