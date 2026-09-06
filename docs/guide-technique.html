@@ -241,7 +241,7 @@
   (le site est servi directement depuis le dépôt).</dd>
   <dt>Le serveur Google</dt>
   <dd>Le programme qui tourne chez Google (techniquement : « Apps Script »). C'est <b>le seul à
-  avoir le droit d'écrire</b> dans les données. Neuf fichiers de code le composent.</dd>
+  avoir le droit d'écrire</b> dans les données. Dix fichiers de code le composent.</dd>
   <dt>Déployer</dt>
   <dd>Mettre en service une nouvelle version du serveur Google. Tant qu'on n'a pas déployé,
   l'ancienne version continue de tourner — même si le code a changé dans le dépôt.</dd>
@@ -276,7 +276,7 @@
   <ul>
     <li><span class="n">A1</span> <a href="#a1">Vue d'ensemble : quatre étages, trois chemins</a></li>
     <li><span class="n">A2</span> <a href="#a2">Le dépôt : là où vit tout le code</a></li>
-    <li><span class="n">A3</span> <a href="#a3">Le serveur Google : neuf fichiers qui se partagent le travail</a></li>
+    <li><span class="n">A3</span> <a href="#a3">Le serveur Google : dix fichiers qui se partagent le travail</a></li>
     <li><span class="n">A4</span> <a href="#a4">Les données : le classeur, le Drive, les copies</a></li>
     <li><span class="n">A5</span> <a href="#a5">Le relais Cloudflare : pourquoi les pages s'ouvrent vite</a></li>
     <li><span class="n">A6</span> <a href="#a6">Le journal d'intentions : pourquoi les gestes du comité sont instantanés</a></li>
@@ -405,7 +405,7 @@ ce qui garantit qu'une seule autorité tient les données.</p>
 
 <div class="r2"><div class="titre">En 2 minutes</div>
 <p>Le dépôt <code>chpg-anesthesie/Planning-CHPG</code> contient <b>100 % du code</b> — les pages du
-site comme les neuf fichiers du serveur. Il est public : n'importe qui peut le lire, personne
+site comme les dix fichiers du serveur. Il est public : n'importe qui peut le lire, personne
 d'autre ne peut y écrire. Le site est servi directement depuis le dépôt : pousser une page, c'est la
 mettre en ligne. Règle cardinale : toute modification faite ailleurs sans être enregistrée dans le
 dépôt finit écrasée.</p></div>
@@ -415,9 +415,9 @@ dépôt finit écrasée.</p></div>
 <tr><th>Emplacement</th><th>Contenu</th></tr>
 <tr><td>la racine</td><td>Les pages du site (administration, portail MAR, planning, indisponibilités,
 consultations, staff, libéral, comptes rendus)</td></tr>
-<tr><td><code>gas/</code></td><td>Huit des neuf fichiers du serveur Google, plus la liste des
+<tr><td><code>gas/</code></td><td>Neuf des dix fichiers du serveur Google, plus la liste des
 autorisations demandées à Google</td></tr>
-<tr><td><code>sauvegarde.gs</code></td><td>Le neuvième fichier du serveur : la copie de secours
+<tr><td><code>sauvegarde.gs</code></td><td>Le dixième fichier du serveur : la copie de secours
 hebdomadaire du dépôt (§C10)</td></tr>
 <tr><td><code>partage/</code></td><td>Le « module partagé » : un petit morceau de code utilisé à
 l'identique par le serveur <i>et</i> par les pages (§A5)</td></tr>
@@ -454,16 +454,16 @@ Points d'entrée documentaires : <code>docs/README.md</code>,
 
 <p class="haut"><a href="#top">↑ Sommaire</a></p>
 
-<h2 id="a3"><span class="num">A3</span>Le serveur Google : neuf fichiers qui se partagent le travail</h2>
+<h2 id="a3"><span class="num">A3</span>Le serveur Google : dix fichiers qui se partagent le travail</h2>
 
 <div class="r2"><div class="titre">En 2 minutes</div>
 <p>Le serveur est un programme attaché au classeur maître, mis en service comme « application web » :
 les pages lui parlent par internet, jamais directement au classeur. Son code est réparti en
-<b>neuf fichiers</b>, chacun avec un rôle précis — plus un dixième morceau, le « module partagé »,
+<b>dix fichiers</b>, chacun avec un rôle précis — plus un onzième morceau, le « module partagé »,
 présent à l'identique côté serveur et côté pages. Le diagnostic de la page d'administration vérifie
 en permanence que les fichiers en service sont bien ceux du dépôt.</p></div>
 
-<details><summary>Qui fait quoi — la carte des neuf fichiers</summary><div class="corps">
+<details><summary>Qui fait quoi — la carte des dix fichiers</summary><div class="corps">
 <table>
 <tr><th>Fichier</th><th>Son rôle, en clair</th></tr>
 <tr><td><code>Indispos.gs</code></td><td>Le chef d'orchestre : il reçoit toutes les demandes,
@@ -491,13 +491,13 @@ PubMed (§C7).</td></tr>
 <tr><td><code>sauvegarde.gs</code></td><td>La copie de secours hebdomadaire du <b>dépôt</b> entier
 vers le Drive (§C10).</td></tr>
 </table>
-<p>Le dixième morceau, le <b>module partagé</b>, contient la logique qui classe les MARs
+<p>L'onzième morceau, le <b>module partagé</b>, contient la logique qui classe les MARs
 disponibles pour une case du planning — la plus sensible du poste comité. Elle n'est écrite qu'une
 fois, et recopiée à l'identique des deux côtés : c'est ce qui rend toute divergence impossible
 (§A5).</p>
 <div class="note"><p><b>Le symptôme qui trahit une recopie incomplète</b> — un message « Action
 inconnue » ou « fonction introuvable » après une mise à jour du serveur signifie presque toujours
-qu'un des neuf fichiers n'a pas été recopié, ou que le dépôt était incomplet. Le dépôt doit toujours
+qu'un des dix fichiers n'a pas été recopié, ou que le dépôt était incomplet. Le dépôt doit toujours
 refléter la totalité du code en service, et réciproquement.</p></div>
 </div></details>
 
@@ -897,6 +897,11 @@ retrouver sans planning un 1<sup>er</sup> janvier.</p></div>
 <h2 id="b2"><span class="num">B2</span>W1 — Préparer l'année suivante</h2>
 
 <div class="r2"><div class="titre">En 2 minutes</div>
+<p class="note"><b>Où s'arrêter pour un essai.</b> Les quatre actions techniques — périodes,
+groupes, création de l'onglet, ouverture de la campagne — tiennent dans l'étape 4. L'envoi des codes
+est l'étape 6, déclenchée par un bouton : on peut donc ouvrir la campagne, regarder les écrans, puis
+la refermer, sans qu'aucun mail ne parte. Refermer = supprimer la ligne <code>INDISPOS_ACTIVE</code>
+de CONFIG, ce que fait <code>clearIndisposYear</code> ; l'onglet, lui, peut rester.</p>
 <p>Six étapes guidées : passer l'équipe en revue (avec alerte si un MAR actif n'a pas d'adresse
 mail — il ne recevrait pas son code), saisir les périodes de vacances scolaires de l'année suivante,
 contrôler l'ordre de priorité des groupes de vacances, créer les onglets de la nouvelle année dans
@@ -1030,21 +1035,33 @@ plus, code mort documenté).</p>
 <h2 id="b5"><span class="num">B5</span>Comment l'algorithme répartit les gardes</h2>
 
 <div class="r2"><div class="titre">En 2 minutes</div>
-<p>Six phases. ① Calculer la <b>cible</b> de chacun — sa juste part, proportionnelle à son temps de
-travail, dans chaque catégorie (total, samedis, jeudis, week-ends, fériés), corrigée par le report
-de l'année précédente (si on a porté un peu plus que sa part, on en porte un peu moins). ② Placer
-d'abord les <b>souhaits garantis</b>. ③ Avancer <b>jour après jour</b> en choisissant à chaque fois
-le meilleur candidat : jamais deux jours de suite, jamais sur une absence, bon espacement, et
-priorité à celui qui est le plus loin de sa juste part. ④ <b>Rééquilibrer</b> par petits échanges,
-sans jamais casser une règle dure ni toucher un souhait honoré. ⑤ Poser les <b>récupérations</b> de
-samedi. ⑥ Écrire le résultat et le bilan d'équité.</p></div>
+<p>Sept phases. ① Calculer la <b>cible</b> de chacun — sa juste part, proportionnelle à son temps de
+travail, dans chaque catégorie (total, samedis, jeudis, week-ends, veilles de férié, fériés),
+corrigée par le report de l'année précédente. Depuis septembre 2026 cette cible est un
+<b>nombre entier</b> : 5 ou 6 samedis, jamais 5,4 — une part à virgule n'est atteignable par
+personne, et l'écart affiché mélangeait alors l'injustice réelle et l'impossibilité arithmétique.
+② Placer d'abord les <b>souhaits garantis</b>. ③ Avancer <b>jour après jour</b> en choisissant à
+chaque fois le meilleur candidat : jamais deux jours de suite, jamais deux week-ends de garde
+d'affilée, jamais sur une absence, bon espacement, et priorité à celui qui est le plus loin de sa
+juste part. ④ <b>Rééquilibrer</b> par petits échanges, sans jamais casser une règle dure ni toucher
+un souhait honoré. ⑤ Poser les <b>récupérations</b> de samedi. ⑥ Écrire le résultat et le bilan
+d'équité. ⑦ Et par-dessus tout cela : recommencer le calcul <b>jusqu'à huit fois</b> avec des
+numéros de tirage différents, et n'écrire que le meilleur résultat.</p></div>
 
 <details><summary>Les chiffres de référence — le contrat de non-régression</summary><div class="corps">
-<p>L'algorithme a été éprouvé sur <b>400 années simulées</b> (20 tirages différents des années 2027
-à 2046), soit 292 312 gardes : <b>aucune journée sans binôme de garde</b>, et un écart médian entre
-MARs de <b>1,20 garde</b> sur l'année. Un écart de plus de 3 gardes n'apparaît que dans 3 années sur
-400 — toutes dans un creux démographique simulé. Ces chiffres sont le contrat : si une modification
-du générateur les dégrade, c'est un signal d'alerte, quelle que soit sa justification.</p>
+<p><b>La couverture</b> a été éprouvée sur <b>400 années simulées</b> (20 tirages différents des
+années 2027 à 2046), soit 292 312 gardes : <b>aucune journée sans binôme de garde</b>.</p>
+<p><b>L'équité</b> a été remesurée après le changement de septembre 2026 — cibles entières, nouvel
+objectif de l'optimiseur, week-ends interdits — sur <b>45 années</b> (neuf scénarios d'absences de
+cinq ans chacun) : <b>44 années sur 45 où personne ne dépasse une garde d'écart</b>, sur aucun des
+six axes, contre 29 sur 45 avec la version précédente. La seule exception atteint deux gardes.</p>
+<p><b>Et sur des données réelles.</b> Le 5 septembre 2026, l'algorithme a tourné dans Apps Script sur
+les absences <em>réelles</em> du service — complétées pour que chacun ait posé tous ses jours, avec
+161 souhaits — dans une copie du classeur. Les 364 journées ont toutes été pourvues, y compris le
+27 décembre et les 17-18 avril où il ne restait que <b>trois médecins disponibles sur vingt</b>. Un
+seul MAR à deux gardes d'écart ; 121 souhaits honorés sur 161.</p>
+<p>Ces chiffres sont le contrat : si une modification du générateur les dégrade, c'est un signal
+d'alerte, quelle que soit sa justification.</p>
 <div class="warn"><p><b>⚠️ Le piège du zéro.</b> Dans la colonne du pourcentage de gardes, un « 0 »
 est interprété comme… 100 (une case vide et un zéro se ressemblent pour le code). Pour exempter un
 MAR de gardes, il existe une case prévue (« NO_GARDE ») — jamais un zéro.</p></div>
@@ -1055,17 +1072,39 @@ l'instant, à traiter un jour.</p></div>
 </div></details>
 
 <details class="tech"><summary>Repères techniques</summary><div class="corps">
-<p><code>generateGardes(year)</code> dans generateur_gardes.gs. Cibles ajustées par la dette de
-l'année précédente (amortie à 60 %, plafonnée à ±2). Souhaits : <code>placeSouhait</code>, profil
-« souhait_plafond », jours de semaine seulement. Sélection quotidienne : <code>scoreSelect</code> —
-règles dures (<code>blocked</code> : pas deux jours consécutifs, pas jeudi→samedi, pas de
-vendredi+dimanche du même week-end hors souhait), puis pénalités d'espacement, puis équité de la
-catégorie. Le week-end est traité comme une unité vendredi+dimanche. Rééquilibrage : micro-échanges
-pondérés (week-ends &gt; samedis &gt; jeudis &gt; total), <code>canHold</code> interdit de créer un
-vendredi+dimanche par transfert. Une récupération par samedi de garde, hors vacances scolaires.
-Écriture : GARDES_(année) + STATS_GARDES_(année). Garantie de périmètre : le générateur ne contient
-<b>aucune référence à un secteur</b> — l'équité est intouchable par le chantier du déménagement
-(§D5). Banc dédié : <code>simulateur/</code>.</p>
+<p><code>generateGardes(year)</code> dans generateur_gardes.gs, sous l'interrupteur
+<code>NOUVEL_ALGO_GLOBAL</code> — à <code>false</code>, le générateur redevient exactement celui
+d'avant septembre 2026 : c'est le retour arrière, en une ligne.</p>
+<p><b>Cibles entières.</b> La part exacte (5,4 samedis) est diminuée du report de dette, puis
+arrondie par la <b>méthode des plus forts restes</b> : chacun reçoit sa partie entière, les unités
+restantes vont à ceux qui sont le plus créditeurs. La somme reste <em>exactement</em> le nombre de
+gardes à poser — arrondir chaque cible dans son coin promettait 6 jeudis de trop et laissait 6
+fériés sans propriétaire (mesuré). Le report étant plié dans la cible, le compteur <code>dette</code>
+est remis à zéro pour que <code>ratio()</code> ne l'applique pas deux fois. Dette : amortie à 60 %,
+plafonnée à ±2, lue sur l'année précédente seulement — la version cumulative reste à écrire.</p>
+<p><b>Numéro de tirage.</b> À égalité parfaite, l'ordre de l'onglet MEDECINS ne départage plus : il
+déplaçait près d'une garde sur trois. L'ordre vient d'un hachage(nom, tirage) ; rejouer le même
+tirage redonne le même planning, et l'onglet n'est jamais modifié.</p>
+<p><b>Multi-départ.</b> Jusqu'à <code>MULTI_DEPART_MAX</code> (8) calculs à blanc, on écrit le
+meilleur ; règle d'arrêt à une garde d'écart. Critère de choix, dans l'ordre : journées sans binôme,
+axes au-delà de 2, pire écart. En pratique un seul tirage suffit dans 25 années sur 45.</p>
+<p>Souhaits : <code>placeSouhait</code>, profil « souhait_plafond », jours de semaine seulement —
+ni week-end ni férié, et jamais au-delà de sa cible totale. Sélection quotidienne :
+<code>scoreSelect</code> — règles dures (<code>blocked</code> : pas deux jours consécutifs, pas
+jeudi→samedi, pas de vendredi+dimanche du même week-end hors souhait, et <b>jamais deux week-ends de
+garde d'affilée</b> — posé à la construction, relâché en dernier recours seulement), puis pénalités
+d'espacement, puis équité de la catégorie. Le week-end est traité comme une unité vendredi+dimanche.</p>
+<p><b>Rééquilibrage (§8c) : objectif lexicographique.</b> L'optimiseur minimisait une somme de carrés
+— l'écart <em>moyen</em> — et laissait donc volontiers une personne loin de sa cible si le total y
+gagnait. Il supprime désormais <b>d'abord tout écart de 2 ou plus</b> (poids <code>LEX_POIDS</code>
+= 600), et affine la moyenne ensuite. Le poids reste SOUS les 1000 de la règle des week-ends : à
+3000, l'équité l'écrasait — 48 enchaînements par an au lieu de 2. <code>canHold</code> interdit de
+créer un vendredi+dimanche, ou un second week-end consécutif, par transfert.</p>
+<p>Une récupération par samedi de garde, hors vacances scolaires. Écriture : GARDES_(année) +
+STATS_GARDES_(année). Essai à blanc : <code>comparerAlgorithmes(year)</code> — deux calculs sans
+écriture, ancien et nouvel algorithme, six écarts côte à côte. Garantie de périmètre : le générateur
+ne contient <b>aucune référence à un secteur</b> — l'équité est intouchable par le chantier du
+déménagement (§D5). Banc dédié : <code>simulateur/</code> et <code>banc/banc_nouvel_algo.js</code>.</p>
 </div></details>
 
 <p class="haut"><a href="#top">↑ Sommaire</a></p>
@@ -1104,10 +1143,20 @@ silence.</td></tr>
 S'affiche sans appel ; le bouton « ↻ Actualiser » et chaque enregistrement forcent une relecture
 du serveur.</td></tr>
 <tr><td>📋 Affectations</td><td>La répartition nominative des secteurs, mois par mois.</td></tr>
-<tr><td>📊 Équité</td><td>Le certificat d'équité et les barres par MAR. Deux vues : <b>Initiale</b>
-(la photo prise à la génération) et <b>Instantané</b> (un calcul vivant qui intègre les échanges —
-sans certificat, à dessein : seule la photo initiale fait foi). Le bouton Générer (W2) vit
-ici.</td></tr>
+<tr><td>📊 Équité</td><td>Le certificat d'équité et les cartes par MAR — une ligne chacun, dépliable ;
+au portail, celle du MAR connecté est ouverte d'office et en tête. Six axes : total, samedis,
+jeudis, week-ends, veilles de férié et <b>jours fériés</b>, ce dernier servi depuis le 5 septembre
+2026 seulement (la colonne existait, aucun lecteur ne la lisait ; la barre était tracée contre une
+moyenne d'équipe, pas contre une cible). Deux vues : <b>Initiale</b> (la photo prise à la
+génération) et <b>Instantané</b> (un calcul vivant qui intègre les échanges — sans certificat, à
+dessein : seule la photo initiale fait foi). Le bouton Générer (W2) vit ici.
+<p class="warn"><b>Les cibles affichées sont entières</b>, et sur les années où les comptes ne
+tombent pas juste elles sont ramenées aux gardes réellement réparties. Défaut trouvé le
+5 septembre 2026 : sur 2026, la colonne CIBLE promettait 730,8 gardes pour 707 posées — les gardes
+d'un médecin extérieur au service, comptées nulle part. L'écran accusait 19 MAR sur 20 au lieu de
+17, dont trois qui étaient pile à leur part. Le contrôle qui l'a révélé : une mesure d'équité juste
+a des écarts qui <b>s'annulent</b> ; ceux de 2026 totalisaient −23,8. La correction n'est jamais
+silencieuse — dès qu'elle s'applique, une mention l'explique au lecteur.</p></td></tr>
 <tr><td>✏️ Statuts</td><td>Les absences ponctuelles du jour (congé, formation, récupération…).
 Chaque pose part en fiche au journal. L'écran évite le relais pendant la minute et demie qui suit
 une écriture du planning, pour ne jamais montrer du périmé.</td></tr>
@@ -1348,6 +1397,12 @@ Drive, vider l'année surveillée et l'adresse de test.</li>
 </div></details>
 
 <details class="tech"><summary>Repères techniques</summary><div class="corps">
+<p class="warn"><b>Ce que la redirection d'essai détourne — et ce qu'elle ne détourne pas.</b>
+<code>NOTIF_EMAIL_TEST</code> ne concerne que <em>ce</em> module, les mails de changement de
+planning. L'envoi des codes d'accès de W1 appelle <code>MailApp.sendEmail</code> directement, avec
+l'adresse du MAR : il n'est <b>pas</b> détourné. Une redirection oubliée ne casse donc pas la
+campagne d'octobre — mais elle prive silencieusement les MARs de toute notification de changement,
+et seul le diagnostic le signale.</p>
 <p>Module dans code.gs. Comparaison : <code>planning_(année).json</code> vs
 <code>planning_(année)_notifie.json</code>. Compte à rebours : 10 min
 (<code>NOTIF_DELAI_MIN</code>). Propriétés : <code>NOTIF_ACTIVE</code>,
@@ -1740,8 +1795,13 @@ disparus se purgent tout seuls au premier envoi qui les trouve morts.</p>
 l'onglet <code>NOTIFS_JOURNAL</code> (QUAND&nbsp;|&nbsp;MAR&nbsp;|&nbsp;TITRE&nbsp;|&nbsp;CORPS&nbsp;|&nbsp;URL)
 — la ligne existe même si le push rate. Le dashboard l'affiche sous une <b>cloche</b> : les 30
 derniers jours, groupés par date, chaque ligne menant à sa page. Le destinataire est un
-identifiant, ou <code>*</code> pour « tout le monde » (la génération) ; une cible par rôle (le
-comité) n'y entre pas, le test du canal non plus. La rétention se purge <b>au fil de l'eau</b>, à
+identifiant, ou <code>*</code> pour « tout le monde » — la génération s'y enregistre ainsi,
+puisqu'elle s'adresse à tous les MARs. Une cible visant le <b>comité</b> n'y entre pas (il n'a pas
+de cloche), le test du canal non plus.
+<span class="warn"><b>Défaut corrigé le 6 septembre 2026 :</b> le garde-fou écartait en réalité
+<em>tous</em> les rôles, y compris celui des MARs — donc la notification de génération, la plus
+importante de l'année. Le push partait sur les téléphones, la cloche restait vide, et rien ne
+pouvait le révéler puisque la notification, elle, arrivait bien.</span> La rétention se purge <b>au fil de l'eau</b>, à
 chaque écriture — aucun déclencheur dédié.</p>
 <p>Le transport suit le chemin le plus court : une clé <code>notifs</code> de la copie rapide,
 que le relais sert <b>filtrée à l'identité</b> — chacun ne reçoit que ses entrées et celles
@@ -1773,11 +1833,20 @@ son portail, choisit ses jours sur un calendrier en trois couleurs, et le comit�
 l'onglet Équipe. Un jour accordé s'écrit en <code>TP</code> dans <code>GARDES_{année}</code> —
 l'onglet maître du planning — et nulle part ailleurs.</p></div>
 
-<h3>Côté MAR : trois couleurs, un plafond</h3>
+<h3>Côté MAR : six états, un plafond</h3>
 <p>Le calendrier (page des indisponibilités, en mode temps partiel) montre chaque jour ouvré en
-<b>vert</b> (libre : la pose est directe), <b>jaune</b> (sous réserve : le comité tranchera) ou
-<b>noir</b> (fermé — jour de garde, jour déjà pris, ou jour fermé par un refus du comité). Une
-garde de 18&nbsp;h ferme le jour : on est au travail. Les marques « indisponible » ou « garde
+<b>vert</b> (libre : la pose est directe), <b>jaune</b> (tendu : un jour du service encore ouvert,
+mais serré — le comité tranchera), <b>violet plein</b> (posé et acquis), <b>violet pâle en
+pointillés avec une horloge</b> (demandé, en attente du comité), <b>noir</b> (fermé — jour de garde,
+jour déjà pris, ou jour fermé par un refus du comité) ou <b>gris</b> (impossible : repos,
+récupération, congés, week-end, férié). Une garde de 18&nbsp;h ferme le jour : on est au travail.</p>
+<p>Le jaune appartient au <em>service</em>, le violet vous appartient : les deux portaient la même
+couleur avant le 6 septembre 2026, on ne savait donc pas si un jour était encore libre ou déjà
+demandé par soi.</p>
+<p>L'écran sert <b>toute l'année</b>, pas le temps d'une campagne : un jour de temps partiel déjà
+écoulé garde sa couleur, en atténué — il est figé mais reste compté dans le quota. Il se confondait
+avec les jours impossibles, alors qu'il ne dit pas du tout la même chose. La jauge se lit en trois
+temps : déjà pris, posé à venir, en attente du comité. Les marques « indisponible » ou « garde
 souhaitée » de la campagne, elles, ne ferment rien — elles n'avaient de sens qu'avant la
 génération. Le quota de jours découle de la quotité du MAR, et le plafond est <b>commun</b> :
 accordés + en attente ≤ quota. À l'enregistrement, un récapitulatif, puis une notification à
@@ -1856,7 +1925,7 @@ version du site.</p></div>
 
 <details><summary>La règle qui sauve, côté serveur</summary><div class="corps">
 <p>Pousser dans le dépôt ne met <b>pas</b> le serveur à jour : le dépôt n'est que la référence. Pour
-que le nouveau code tourne, il faut le recopier dans l'éditeur de Google — <b>les neuf fichiers
+que le nouveau code tourne, il faut le recopier dans l'éditeur de Google — <b>les dix fichiers
 concernés, plus le module partagé</b> — puis publier une <b>nouvelle version</b> de l'application
 web. Les pages appellent une adresse figée sur une version : sans ce dernier geste, l'ancien code
 continue de tourner, y compris pour une génération lancée depuis l'assistant. (Seule exception : une
@@ -1868,9 +1937,17 @@ dépôt → éditeur, la modification non enregistrée serait écrasée sans pr�
 
 <details><summary>Le numéro de version du site — la règle exacte</summary><div class="corps">
 <p>Toute modification d'une page visible s'accompagne, <b>dans le même envoi</b>, de la montée du
-numéro : petit correctif → troisième chiffre (v1.30.1 → v1.30.2) · nouvelle fonctionnalité →
+numéro : petit correctif → troisième chiffre (v1.3.1 → v1.3.2) · nouvelle fonctionnalité →
 deuxième chiffre · refonte majeure → premier chiffre · une modification du serveur seul → pas de
-montée. Le numéro apparaît à plusieurs endroits (une constante dans le code, le badge affiché,
+montée.</p>
+<p class="warn"><b>Le 5 septembre 2026, la numérotation est repartie à v1.0.</b> La série v1.x
+était montée à 99 non pas parce que le portail avait changé 99 fois de visage, mais parce qu'on
+montait le 2<sup>e</sup> chiffre à chaque lot ; passer à v10 n'avait fait que déplacer le problème.
+<b>v1.0 est la version présentée au staff du 4 septembre</b>, celle que l'équipe utilise ; v2.0 est
+réservé à l'ouverture du module libéral. Le numéro <em>descend</em> donc une fois — c'est voulu.
+Conséquence à retenir : <b>un numéro ne peut plus dater une fonctionnalité.</b> Trois contrôles du
+banc le faisaient (« au moins v1.77 », « a dépassé v1.95 ») ; ils vérifient désormais la présence de
+la fonctionnalité et la forme du numéro. Le numéro apparaît à plusieurs endroits (une constante dans le code, le badge affiché,
 la ligne d'en-tête des guides) : la règle opératoire est de <b>chercher dans tout le dépôt les
 fichiers qui portent un marqueur de version et de les mettre tous à jour</b> — ne se fier à aucune
 liste écrite, compter. Le diagnostic vérifie ensuite la cohérence sur quatre fichiers (la page
@@ -1969,7 +2046,7 @@ page d'administration si nécessaire.</td></tr>
 <tr><th>Message</th><th>Remède</th></tr>
 <tr><td>❌ <i>fichier</i> : DÉRIVE — dépôt vX, déployé vY</td><td>Le fichier en service n'est plus
 celui du dépôt : le recopier dans l'éditeur et déployer une nouvelle version (§D1). Le contrôle
-couvre les neuf fichiers versionnés.</td></tr>
+couvre les dix fichiers versionnés.</td></tr>
 <tr><td>⚠️ <i>fichier</i> : dépôt illisible</td><td>Le contrôle n'a pas pu lire GitHub — voir la
 famille « Publication GitHub » ci-dessous.</td></tr>
 <tr><td>❌ <i>fichier</i> : vX (attendu vY)</td><td>Un envoi a oublié la montée du numéro de version
@@ -2053,7 +2130,7 @@ erreur.</td></tr>
 <tr><td>« Erreur réseau » sporadique</td><td>Caprice passager de Google. Toutes les pages réessaient
 une fois en silence ; deux échecs consécutifs = vraie panne, regarder le menu Exécutions.</td></tr>
 <tr><td>« Action inconnue » / « fonction introuvable »</td><td>Un fichier n'a pas été recopié dans
-l'éditeur, ou le dépôt était incomplet. Vérifier les neuf fichiers + le module partagé,
+l'éditeur, ou le dépôt était incomplet. Vérifier les dix fichiers + le module partagé,
 redéployer.</td></tr>
 <tr><td>Une modification du serveur n'a aucun effet</td><td>La nouvelle version n'a pas été
 déployée — ou la modification a été faite dans l'éditeur puis écrasée par une recopie du dépôt

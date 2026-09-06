@@ -460,5 +460,39 @@ console.log('\n═══ 13. Chaque scénario du banc est lancé par lancer.sh �
     /L\'année 2026 fait exception/.test(mar) && /extérieur au service/.test(mar));
 }
 
+
+/* (06/09/2026) Le guide technique décrivait un algorithme et des écrans qui
+   n'existent plus. Un guide périmé est pire qu'aucun guide : il fait croire au
+   lecteur qu'il a compris. On tient ici ce qui a été confronté au code. */
+{
+  const gt = lire('docs/guide-technique.html');
+  V('le guide technique compte les dix fichiers du serveur',
+    !/neuf fichiers/.test(gt) && /dix fichiers/.test(gt));
+  V('…décrit les cibles ENTIÈRES et les plus forts restes',
+    /nombre entier<\/b> : 5 ou 6 samedis/.test(gt) && /plus forts restes<\/b>/.test(gt));
+  V('…le numéro de tirage et le multi-départ',
+    /Numéro de tirage/.test(gt) && /MULTI_DEPART_MAX/.test(gt));
+  V('…l\'objectif lexicographique de l\'optimiseur',
+    /objectif lexicographique/i.test(gt) && /LEX_POIDS/.test(gt));
+  V('…l\'interdiction de deux week-ends d\'affilée',
+    /jamais deux week-ends de\s*garde d'affilée<\/b>/.test(gt));
+  V('…et l\'interrupteur de retour arrière', /NOUVEL_ALGO_GLOBAL/.test(gt));
+  V('le contrat de non-régression porte les mesures d\'après le changement',
+    /44 années sur 45/.test(gt) && /trois médecins disponibles sur vingt/.test(gt));
+  V('le sixième axe et la correction des cibles 2026 sont documentés',
+    /jours fériés<\/b>, ce dernier servi depuis/.test(gt) && /730,8 gardes pour 707 posées/.test(gt));
+  V('la tuile temps partiel annonce ses six états',
+    /Côté MAR : six états, un plafond/.test(gt) && /violet pâle en\s*pointillés/.test(gt));
+  V('le retour de la numérotation à v1.0 est expliqué',
+    /la numérotation est repartie à v1\.0/.test(gt)
+    && /un numéro ne peut plus dater une fonctionnalité/.test(gt));
+  V('le piège de la redirection d\'essai est levé',
+    /L'envoi des codes d'accès de W1 appelle <code>MailApp\.sendEmail<\/code> directement/.test(gt));
+  V('…et le point d\'arrêt de W1 pour un essai est écrit',
+    /Où s'arrêter pour un essai/.test(gt) && /clearIndisposYear/.test(gt));
+  V('la cloche dit ce que le registre écarte vraiment',
+    /Une cible visant le <b>comité<\/b> n'y entre pas \(il n'a pas\s*\nde cloche\)/.test(gt));
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);
