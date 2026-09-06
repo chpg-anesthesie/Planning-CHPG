@@ -290,6 +290,51 @@ async function ouvrirAdmin(M, codeAdmin) {
     V('témoin : plus aucun appel à un `apiCall` inexistant dans admin.html', !/apiCall\(/.test(adm));
   }
 
-  console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp_page : ${ok} vérifications, ${ko} échec(s)`);
+  
+/* ═══ (06/09/2026) REFONTE VISUELLE DE LA TUILE ════════════════════════
+   Même direction que la campagne, fonctionnement inchangé. Quatre inconforts :
+   la case était haute (62 px) et sa couleur tenait dans un badge de mot ; les
+   outils étaient EN HAUT ; l'aide occupait la moitié d'un écran en permanence ;
+   et « tendu » (un jour du service, encore ouvert mais serré) portait la même
+   couleur que « demandé » (VOTRE jour, en attente du comité).
+   Ajouté : l'écran sert TOUTE L'ANNÉE — un jour de temps partiel écoulé garde
+   sa couleur en atténué, il reste compté ; aujourd'hui est cerclé. */
+{
+  const fsx = require('fs');
+  const pg = fsx.readFileSync(__dirname + '/../indispos.html', 'utf8');
+  const W = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); }
+    else { ko++; console.log('  ✗ ' + t + (d !== undefined ? ' → ' + JSON.stringify(d).slice(0,200) : '')); } };
+  console.log('\n─── La refonte visuelle ───');
+  const iOut = pg.indexOf('<div class="tpx-legend" id="tpxLegend">');
+  const iCal = pg.indexOf('<div class="calendar-grid" id="tpxGrid">');
+  W('les outils sont SOUS le calendrier', iOut > iCal, { outils: iOut, calendrier: iCal });
+  W('…et collants', /\.tpx-legend\{position:sticky/.test(pg));
+  W('la case est carrée et la couleur la remplit',
+    /\.tpx-day\{[\s\S]{0,120}aspect-ratio:1/.test(pg)
+    && /\.tpx-day\.pose\{background:var\(--tpx-fg\)/.test(pg));
+  W('un jour écoulé garde sa couleur, atténué et figé',
+    /\.tpx-day\.passe\{opacity:\.45;cursor:default\}/.test(pg)
+    && /if \(e\.passe\) cls \+= ' passe';/.test(pg));
+  W('aujourd\'hui est cerclé', /\.tpx-day\.auj\{box-shadow/.test(pg)
+    && /if \(ds === tpxAujourdhui\(\)\) cls \+= ' auj';/.test(pg));
+  W('« demandé » se distingue de « tendu »',
+    /\.tpx-day\.reserve\{background:var\(--tpx\);border:1\.5px dashed/.test(pg)
+    && /\.tpx-day\.reserve::after\{content:'⏳'/.test(pg));
+  W('l\'aide se replie', /<details class="tpx-aide">/.test(pg) && /\.tpx-aide summary\{/.test(pg));
+  W('…et décrit le jour écoulé', /un jour déjà écoulé : figé, mais toujours compté/.test(pg));
+  W('la jauge se lit en trois temps',
+    /id="tpxJaugePasse"/.test(pg) && /id="tpxJaugeRes"/.test(pg)
+    && /function tpxComptePasses\(\)/.test(pg));
+  W('l\'outil de pose estompe les jours hors de portée',
+    /cls \+= ' hors-portee'/.test(pg) && /\.tpx-day\.hors-portee\{opacity/.test(pg));
+  W('changer d\'outil redessine le calendrier', /if \(document\.getElementById\('tpxGrid'\)\) tpxRendre\(\);/.test(pg));
+  W('les refus s\'écrivent sous le calendrier', /function tpxRefus\(msg\)/.test(pg)
+    && (pg.match(/tpxRefus\(/g) || []).length >= 4);
+  W('le motif d\'un refus passe sous le jour', /class="tpx-recap-motif"/.test(pg));
+  W('le serveur juge toujours : rien de la logique n\'a bougé',
+    /onclick="tpxEnregistrer\(\)"/.test(pg) && /function tpxEtat\(ds\)/.test(pg));
+}
+
+console.log(`\n${ko === 0 ? '✅' : '❌'} banc_pose_tp_page : ${ok} vérifications, ${ko} échec(s)`);
   process.exit(ko === 0 ? 0 : 1);
 })();

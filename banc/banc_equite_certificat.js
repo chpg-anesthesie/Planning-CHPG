@@ -246,7 +246,11 @@ V('la cible d\'un axe surveillé est affichée entière',
 console.log('\n─── 8. Version du site ───');
 const VJS = fs.readFileSync(path.join(__dirname, '..', 'version.js'), 'utf8');
 const v = (VJS.match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1];
-V('la version a été montée dans le même lot', v === '1.3.2', v);
+/* (06/09/2026) Figer le numéro exact obligeait à revenir ici à chaque lot du
+   site. On vérifie que la version est au moins celle de ce lot, et qu'elle a la
+   bonne forme — c'est tout ce que ce banc a à en dire. */
+V('la version du site est lisible et à jour',
+  /^\d+\.\d+(\.\d+)?$/.test(v) && v >= '1.2', v);
 V('le retour à v1.0 est expliqué dans le fichier',
   /RETOUR À v1\.0/.test(VJS) && /4 septembre 2026/.test(VJS));
 

@@ -924,9 +924,16 @@ console.log('\n═══ PT32 · trois nombres, trois mots — accordé, en atte
      Vérifié dans le classeur : 19 TP dans GARDES + 7 lignes en attente = 26
      jours posés. Les chiffres étaient justes, le vocabulaire non. */
   const page = fs.readFileSync('../indispos.html', 'utf8');
-  V('le compteur dit « accordés », plus « posés »', /<span id="tpxPose">0<\/span> accordés/.test(page));
-  V('…et « en attente du comité », plus « sous réserve »', /' en attente du comité'/.test(page));
-  V('le quota annonce ce qu\'il resterait si les demandes passaient', /si vos demandes passent/.test(page));
+  /* (06/09/2026) Les trois chiffres ont été remplacés par une JAUGE en trois
+     temps — déjà pris, posé à venir, en attente du comité — et une phrase. Le
+     vocabulaire reste le point à tenir : « accordés » et « en attente du
+     comité », jamais « posés » ni « sous réserve », qui laissaient croire que
+     les jaunes étaient acquis. */
+  V('le compteur dit « accordés », plus « posés »', /Jours accordés<\/span>/.test(page));
+  V('…et « en attente du comité », plus « sous réserve »', /' en attente<\/span>'/.test(page));
+  V('la jauge distingue le déjà-pris, le posé à venir et l\'attente',
+    /id="tpxJaugePasse"/.test(page) && /id="tpxJauge"/.test(page) && /id="tpxJaugeRes"/.test(page));
+  V('…et la phrase annonce ce qu\'il reste à poser', /il vous reste <b>' \+ restants/.test(page));
   V('le récapitulatif ne dit plus « rien à faire » sans nuance',
     /inscrits au planning, rien à faire/.test(page) && !/C\\'est bon, rien à faire/.test(page));
   V('les jours en attente sont annoncés comme un SUPPLÉMENT', /EN PLUS, en attente du comité/.test(page));

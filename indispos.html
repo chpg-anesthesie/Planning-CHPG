@@ -453,19 +453,27 @@ body {
 .tpx-phase{background:#fff;border-bottom:1px solid var(--line);padding:14px 16px}
 .tpx-phase-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:7px}
 .tpx-phase-sub{font-size:12.5px;color:var(--ink-3);margin-top:3px;line-height:1.45}
-.tpx-stats{background:var(--bg);border-bottom:1px solid var(--line);padding:9px 16px;
+.tpx-jauge-tete{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+.tpx-jauge-nom{font-size:11px;color:var(--ink-3);font-weight:600}
+.tpx-jauge-val{font-size:12.5px;font-weight:700;color:var(--ink)}
+.tpx-jauge-val span{font-weight:500;color:var(--ink-4)}
+.tpx-jauge-sous{font-size:11px;color:var(--ink-3);margin-top:6px;line-height:1.4}
+.tpx-stats{background:#fff;border-bottom:1px solid var(--line);padding:12px 16px;
   display:flex;gap:14px;flex-wrap:wrap;align-items:center}
 .tpx-stat{font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px}
-.tpx-jauge{flex:1;min-width:120px;height:6px;background:#E2E8F0;border-radius:3px;overflow:hidden}
+.tpx-jauge{height:5px;background:var(--bg);border-radius:3px;overflow:hidden;display:flex}
 .tpx-jauge-fill{height:100%;background:var(--tpx-fg);border-radius:3px;transition:width .25s}
-.tpx-legend{display:flex;gap:6px;padding:10px 16px;flex-wrap:wrap;background:#fff;border-bottom:1px solid var(--line)}
-.tpx-tool{font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;
+.tpx-legend{position:sticky;bottom:64px;z-index:80;display:flex;gap:6px;padding:10px 16px 8px;background:#fff;border-top:1px solid var(--line)}
+.tpx-tool{flex:1;text-align:center;font-size:12.5px;font-weight:700;padding:12px 4px;border-radius:10px;cursor:pointer;
   border:1.5px solid transparent;transition:all .12s;user-select:none}
 .tpx-tool.on{border-color:var(--ink);box-shadow:0 0 0 2px rgba(15,23,42,.08)}
 .tpx-tool.t-tp{background:var(--tpx);color:var(--tpx-fg)}
 .tpx-tool.t-erase{background:#fff;color:var(--ink-3);border:1.5px solid var(--line)}
-.tpx-hint{font-size:12px;color:var(--ink-3);padding:8px 16px 0}
-.tpx-day{border-radius:8px;padding:6px 4px 4px;min-height:62px;cursor:pointer;transition:all .12s;
+.tpx-hint{font-size:12.5px;color:var(--ink-3);padding:10px 16px;background:#fff;border-top:1px solid var(--line);line-height:1.45}
+/* (06/06 → 06/09/2026) La case était haute (62 px) et sa couleur tenait dans un
+   badge : le mois débordait de l'écran et l'état d'un jour se lisait au mot, pas
+   à la couleur. Elle devient carrée, la couleur remplit, le badge disparaît. */
+.tpx-day{border-radius:8px;padding:2px;aspect-ratio:1;min-height:0;cursor:pointer;transition:all .12s;
   border:1.5px solid var(--line);position:relative;display:flex;flex-direction:column;
   align-items:center;gap:3px;background:#fff;-webkit-tap-highlight-color:transparent}
 .tpx-day:active{transform:scale(.95)}
@@ -478,13 +486,28 @@ body {
 .tpx-day.libre{background:var(--tpx-libre);border-color:var(--tpx-libre-border)}
 .tpx-day.libre .tpx-num{color:var(--tpx-libre-fg)}
 .tpx-day.libre .tpx-eff{color:#15803D}
-.tpx-day.pose{background:var(--tpx);border-color:var(--tpx-fg);border-width:2px}
-.tpx-day.pose .tpx-num{color:var(--tpx-fg)}
+.tpx-day.pose{background:var(--tpx-fg);border-color:transparent}
+.tpx-day.pose .tpx-num{color:#fff}
+.tpx-day.pose .tpx-eff{color:rgba(255,255,255,.75)}
+/* (06/09/2026) Un jour ÉCOULÉ garde sa couleur — il compte toujours dans le
+   quota — mais s'atténue et ne réagit plus. Sans ça il se confondait avec les
+   jours impossibles, alors qu'il ne dit pas du tout la même chose. */
+.tpx-day.passe{opacity:.45;cursor:default}
+.tpx-day.passe:active{transform:none}
+/* Aujourd'hui : un repère, pour qui revient six mois plus tard. */
+.tpx-day.auj{box-shadow:0 0 0 2px var(--ink)}
+/* Outil de pose actif : les jours hors de portée s'annoncent AVANT le geste. */
+.tpx-day.hors-portee{opacity:.35;cursor:not-allowed}
 .tpx-day.plein{background:var(--tpx-plein);border:1.5px dashed var(--tpx-plein-border)}
 .tpx-day.plein .tpx-num,.tpx-day.plein .tpx-eff{color:var(--tpx-plein-fg)}
-.tpx-day.reserve{background:var(--tpx-reserve);border:2px dashed var(--tpx-reserve-border)}
-.tpx-day.reserve .tpx-num{color:var(--tpx-reserve-fg)}
-.tpx-day.ferme{background:var(--tpx-ferme);border-color:#1E293B;cursor:default}
+/* « Tendu » appartient au SERVICE (jaune) ; « demandé » vous appartient (violet
+   pâle, pointillés, horloge). Ils portaient la même couleur : on ne savait pas
+   si un jour était encore libre ou déjà demandé par soi. */
+.tpx-day.reserve{background:var(--tpx);border:1.5px dashed var(--tpx-fg)}
+.tpx-day.reserve .tpx-num{color:var(--tpx-fg)}
+.tpx-day.reserve::after{content:'⏳';position:absolute;top:1px;right:3px;font-size:8px}
+.tpx-day{position:relative}
+.tpx-day.ferme{background:var(--tpx-ferme);border-color:transparent;cursor:default}
 .tpx-day.ferme .tpx-num{color:var(--tpx-ferme-fg)}
 .tpx-day.ferme .tpx-eff{color:#94A3B8}
 .tpx-day.bloque{background:#F1F5F9;border-color:#E2E8F0;cursor:default;opacity:.85}
@@ -495,7 +518,8 @@ body {
 .b-tpx-recup{background:var(--tpx-libre);color:var(--tpx-libre-fg)}
 .b-tpx-reserve{background:#fff;color:var(--tpx-reserve-fg)}
 .tpx-aide{margin:0 16px 16px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
-.tpx-aide h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-4);margin-bottom:10px}
+.tpx-aide summary{font-size:12px;color:var(--ink-3);cursor:pointer;font-weight:600}
+.tpx-aide[open] summary{margin-bottom:10px}
 .tpx-aide-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12.5px;color:var(--ink-2)}
 .tpx-pastille{width:26px;height:22px;border-radius:6px;flex-shrink:0;border:1.5px solid}
 .tpx-p-libre{background:var(--tpx-libre);border-color:var(--tpx-libre-border)}
@@ -519,6 +543,9 @@ body {
 .tpx-recap-res .tpx-recap-titre{color:var(--tpx-reserve-fg)}
 .tpx-recap-ko .tpx-recap-titre{color:#B91C1C}
 .tpx-recap-txt{font-size:12.5px;line-height:1.5;color:var(--ink-2)}
+/* (06/09/2026) Le motif d'un refus était collé après un tiret sur la même
+   ligne : la liste devenait illisible dès trois refus. Il passe dessous. */
+.tpx-recap-motif{display:block;font-family:system-ui,sans-serif;font-size:11px;font-weight:400;color:var(--ink-4);margin:1px 0 6px}
 .tpx-recap-jours{font-family:'DM Mono',monospace;font-size:12.5px;font-weight:500;margin-top:7px;line-height:1.6}
 .tpx-recap-res .tpx-recap-jours{color:var(--tpx-reserve-fg)}
 .tpx-recap-ko .tpx-recap-jours{color:#B91C1C}
@@ -651,25 +678,33 @@ body {
       <button class="year-btn" id="tpxAn1" onclick="tpxChangerAnnee(1)"></button>
     </div>
   </div>
+  <!-- (06/09/2026) La jauge se lit en trois temps : déjà pris (atténué), posé à
+       venir (plein), en attente du comité (transparent). Elle ne montrait que
+       les accordés, et les demandes vivaient dans un compteur à côté. -->
   <div class="tpx-stats">
-    <div class="tpx-stat" style="color:var(--tpx-fg)">🕐 <span id="tpxPose">0</span> accordés</div>
-    <div class="tpx-stat" style="color:var(--ink-3)"><span id="tpxReste"></span></div>
-    <div class="tpx-stat" style="color:var(--tpx-reserve-fg)" id="tpxRes"></div>
-    <div class="tpx-jauge"><div class="tpx-jauge-fill" id="tpxJauge" style="width:0%"></div></div>
+    <div class="tpx-jauge-tete">
+      <span class="tpx-jauge-nom">Jours accordés</span>
+      <span class="tpx-jauge-val"><span id="tpxPose">0</span><span> / <span id="tpxQuota">0</span></span></span>
+    </div>
+    <div class="tpx-jauge">
+      <div class="tpx-jauge-fill" id="tpxJaugePasse" style="width:0%;opacity:.55"></div>
+      <div class="tpx-jauge-fill" id="tpxJauge" style="width:0%"></div>
+      <div class="tpx-jauge-fill" id="tpxJaugeRes" style="width:0%;opacity:.22"></div>
+    </div>
+    <div class="tpx-jauge-sous" id="tpxReste"></div>
+    <span id="tpxRes" hidden></span>
   </div>
-  <div class="tpx-legend">
-    <div class="tpx-tool t-tp on" id="tpxBtnTP" onclick="tpxOutil('TP')">🕐 Poser un jour</div>
-    <div class="tpx-tool t-erase" id="tpxBtnErase" onclick="tpxOutil('ERASE')">✕ Retirer</div>
-  </div>
-  <div class="tpx-hint" id="tpxHint">Outil actif : <strong>Poser un jour</strong> — touchez un jour vert.</div>
   <div class="month-nav">
     <button class="month-nav-btn" onclick="tpxMois(-1)">← Préc.</button>
     <span class="month-title" id="tpxMoisTitre"></span>
     <button class="month-nav-btn" onclick="tpxMois(1)">Suiv. →</button>
   </div>
   <div class="calendar-container"><div class="calendar-grid" id="tpxGrid"></div></div>
-  <div class="tpx-aide">
-    <h3>Comment lire le calendrier</h3>
+  <!-- (06/09/2026) L'aide occupait la moitié d'un écran en permanence alors
+       qu'elle ne sert qu'à la première visite : elle se replie. Les outils
+       passent SOUS le calendrier, sous le pouce, comme sur la campagne. -->
+  <details class="tpx-aide">
+    <summary>Comment lire le calendrier</summary>
     <div class="tpx-aide-row"><span class="tpx-pastille tpx-p-libre"></span>
       <span><b>Vert</b> — libre, l'équipe est assez nombreuse. Un appui suffit.</span></div>
     <div class="tpx-aide-row"><span class="tpx-pastille tpx-p-pose"></span>
@@ -680,11 +715,18 @@ body {
       <span><b>Noir</b> — il resterait 12 ou moins. Le jour n'est pas ouvert, même sur demande.</span></div>
     <div class="tpx-aide-row"><span class="tpx-pastille tpx-p-reserve"></span>
       <span><b>Orange hachuré</b> — demandé, en attente du comité. Il n'est pas inscrit au planning et ne compte pas encore dans votre quota.</span></div>
+    <div class="tpx-aide-row"><span class="tpx-pastille tpx-p-pose" style="opacity:.45"></span>
+      <span><b>Violet pâle</b> — un jour déjà écoulé : figé, mais toujours compté dans votre quota.</span></div>
     <div class="tpx-aide-row" style="margin-bottom:0"><span class="tpx-pastille tpx-p-bloque"></span>
       <span><b>Gris</b> — impossible : garde, repos de garde, récupération, congés, week-end ou férié.</span></div>
     <div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--line);
       font-size:11.5px;color:var(--ink-4);font-family:'DM Mono',monospace">
       Le petit chiffre en bas de chaque case = nombre de personnes présentes ce jour-là.</div>
+  </details>
+  <div class="tpx-hint" id="tpxHint">Outil actif : <strong>Poser un jour</strong> — touchez un jour vert.</div>
+  <div class="tpx-legend" id="tpxLegend">
+    <div class="tpx-tool t-tp on" id="tpxBtnTP" onclick="tpxOutil('TP')">🕐 Poser un jour</div>
+    <div class="tpx-tool t-erase" id="tpxBtnErase" onclick="tpxOutil('ERASE')">🧽 Retirer</div>
   </div>
   <div class="tpx-savebar">
     <span class="tpx-savetxt" id="tpxSaveTxt">Rien en attente</span>
@@ -2013,6 +2055,19 @@ function tpxCompte() {
            attente: Object.keys(TPX.pend).length + TPX.retire.size };
 }
 
+/* (06/09/2026) Les jours de temps partiel DÉJÀ ÉCOULÉS. L'écran sert toute
+   l'année : distinguer ce qui est derrière soi de ce qui reste à poser est la
+   première question qu'on se pose en l'ouvrant. Ils comptent dans le quota. */
+function tpxComptePasses() {
+  const auj = tpxAujourdhui();
+  let n = 0;
+  Object.keys(TPX.jours).forEach(function (ds) {
+    if (ds >= auj || TPX.retire.has(ds)) return;
+    if (String(TPX.jours[ds]).toUpperCase() === 'TP') n++;
+  });
+  return n;
+}
+
 function tpxRendre() {
   const an = TPX.annee, mo = TPX.mois;
   document.getElementById('tpxMoisTitre').textContent = MONTHS_FR[mo] + ' ' + an;
@@ -2029,12 +2084,18 @@ function tpxRendre() {
     const ds = an + '-' + String(mo + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
     const e = tpxEtat(ds);
     const el = document.createElement('div');
-    el.className = 'tpx-day ' + (e.s === 'weekend' ? 'weekend' : e.s);
+    /* (06/09/2026) La couleur remplit la case : le badge de mot disparaît, sauf
+       pour les jours BLOQUÉS où le motif (CONGÉS, RÉCUP, GARDE…) est la seule
+       information utile. `passe` s'ajoute à l'état, il ne le remplace pas : un
+       jour de temps partiel écoulé reste violet et reste compté.
+       `hors-portee` annonce le refus AVANT le geste, comme sur la campagne. */
+    let cls = 'tpx-day ' + (e.s === 'weekend' ? 'weekend' : e.s);
+    if (e.passe) cls += ' passe';
+    if (ds === tpxAujourdhui()) cls += ' auj';
+    if (TPX.outil === 'TP' && !e.passe && (e.s === 'weekend' || e.s === 'ferme' || e.s === 'bloque')) cls += ' hors-portee';
+    el.className = cls;
     let h = '<span class="tpx-num">' + d + '</span>';
-    if (e.s === 'bloque') h += '<span class="tpx-badge ' + e.badge.k + '">' + e.badge.b + '</span>';
-    if (e.s === 'pose') h += '<span class="tpx-badge b-tpx-tp">TP</span>';
-    if (e.s === 'reserve') h += '<span class="tpx-badge b-tpx-reserve">RÉSERVE</span>';
-    if (e.s === 'ferme') h += '<span class="tpx-badge" style="background:#1E293B;color:#CBD5E1">FERMÉ</span>';
+    if (e.s === 'bloque' && e.badge) h += '<span class="tpx-badge ' + e.badge.k + '">' + e.badge.b + '</span>';
     if (e.p !== undefined) h += '<span class="tpx-eff">' + e.p + '</span>';
     el.innerHTML = h;
     el.onclick = (function (dsx) { return function () { tpxClic(dsx); }; })(ds);
@@ -2042,17 +2103,29 @@ function tpxRendre() {
   }
   const c = tpxCompte();
   document.getElementById('tpxPose').textContent = c.poses;
+  document.getElementById('tpxQuota').textContent = TPX.quota;
   /* (23/08/2026) « posés » laissait croire que les jours en attente étaient
      acquis. Trois nombres, trois mots : ACCORDÉS (inscrits au planning),
      EN ATTENTE (le comité n'a pas tranché), RESTANTS (sur le quota). */
-  const restants = Math.max(0, TPX.quota - c.poses);
-  const siTout = Math.max(0, TPX.quota - c.poses - c.reserves);
-  document.getElementById('tpxReste').textContent =
-    restants + ' restants sur ' + TPX.quota
-    + (c.reserves ? ' (' + siTout + ' si vos demandes passent)' : '');
-  document.getElementById('tpxRes').textContent =
-    c.reserves ? (c.reserves + ' en attente du comité') : '';
-  document.getElementById('tpxJauge').style.width = (TPX.quota ? Math.min(100, Math.round(100 * c.poses / TPX.quota)) : 0) + '%';
+  /* (06/09/2026) La jauge ne montrait que les jours accordés, et les demandes
+     vivaient dans un compteur à côté. Elle se lit désormais en trois temps :
+     ce qui est DÉJÀ PRIS (jours écoulés, atténué), ce qui est POSÉ À VENIR
+     (plein), ce qui ATTEND le comité (transparent). L'écran sert toute l'année :
+     « il vous reste X jours à poser » est l'information centrale, pas un bilan. */
+  const restants = Math.max(0, TPX.quota - c.poses - c.reserves);
+  const pris = tpxComptePasses();
+  const aVenir = Math.max(0, c.poses - pris);
+  const pc = n => TPX.quota ? Math.min(100, 100 * n / TPX.quota) : 0;
+  document.getElementById('tpxJaugePasse').style.width = pc(pris) + '%';
+  document.getElementById('tpxJauge').style.width = pc(aVenir) + '%';
+  document.getElementById('tpxJaugeRes').style.width = pc(c.reserves) + '%';
+  document.getElementById('tpxReste').innerHTML =
+    '<span style="opacity:.75">' + pris + ' déjà pris</span>'
+    + (c.reserves ? ' · <span style="color:var(--tpx-fg)">' + c.reserves + ' en attente</span>' : '')
+    + ' · ' + (restants
+        ? 'il vous reste <b>' + restants + ' jour' + (restants > 1 ? 's' : '') + '</b> à poser'
+        : 'quota complet');
+  document.getElementById('tpxRes').textContent = '';
   document.getElementById('tpxSaveTxt').innerHTML = c.attente
     ? '<b>' + c.attente + ' changement' + (c.attente > 1 ? 's' : '') + '</b> à enregistrer'
       + (c.reserves ? ' — dont sous réserve, à voir avec le comité' : '')
@@ -2064,8 +2137,11 @@ function tpxOutil(t) {
   document.getElementById('tpxBtnTP').classList.toggle('on', t === 'TP');
   document.getElementById('tpxBtnErase').classList.toggle('on', t === 'ERASE');
   document.getElementById('tpxHint').innerHTML = t === 'TP'
-    ? 'Outil actif : <strong>Poser un jour</strong> — touchez un jour vert.'
+    ? 'Outil actif : <strong>Poser un jour</strong> — touchez un jour vert, ou jaune pour faire une demande.'
     : 'Outil actif : <strong>Retirer</strong> — touchez un jour que vous avez posé.';
+  /* (06/09/2026) Les jours hors de portée de l'outil s'estompent : le refus se
+     voit AVANT le geste, comme sur la campagne. */
+  if (document.getElementById('tpxGrid')) tpxRendre();
 }
 
 function tpxMois(sens) {
@@ -2074,11 +2150,21 @@ function tpxMois(sens) {
   TPX.mois = m; tpxRendre();
 }
 
+/* (06/09/2026) Un refus s'affichait en toast, disparu au bout de deux secondes,
+   souvent avant la fin du geste. Il s'écrit dans la zone d'aide, sous le
+   calendrier, et y reste jusqu'au geste suivant. */
+function tpxRefus(msg) {
+  const h = document.getElementById('tpxHint');
+  if (h) h.innerHTML = '<span style="color:#B91C1C">' + msg + '</span>';
+}
 function tpxClic(ds) {
   const e = tpxEtat(ds);
-  if (e.passe) { showToast('Ce jour est passé — il est figé' + (e.s === 'pose' ? ' et compté' : '')); return; }
-  if (e.s === 'weekend') { showToast('Un jour de temps partiel se pose sur un jour travaillé'); return; }
-  if (e.s === 'ferme') { showToast('Équipe trop réduite ce jour-là — ce jour n\'est pas ouvert'); return; }
+  if (e.passe) {
+    const m = 'Ce jour est passé — il est figé' + (e.s === 'pose' ? ' et compté dans votre quota.' : '.');
+    showToast(m); tpxRefus(m); return;
+  }
+  if (e.s === 'weekend') { showToast('Un jour de temps partiel se pose sur un jour travaillé'); tpxRefus('Un jour de temps partiel se pose sur un jour travaillé'); return; }
+  if (e.s === 'ferme') { showToast('Équipe trop réduite ce jour-là — ce jour n\'est pas ouvert'); tpxRefus('Équipe trop réduite ce jour-là — ce jour n\'est pas ouvert'); return; }
   if (e.s === 'bloque') {
     const b = e.badge.b;
     showToast(b === 'CONGÉS' || b === 'FORMATION' ? 'Vous êtes absent ce jour-là'
@@ -2210,7 +2296,9 @@ function tpxRecap(res, nvReserves, refus) {
       + refus.length + ' jour' + (refus.length > 1 ? 's' : '') + ' refusé' + (refus.length > 1 ? 's' : '') + '</div>'
       + '<div class="tpx-recap-txt">L\'état réel du planning a été revérifié au moment d\'enregistrer.</div>'
       + '<div class="tpx-recap-jours">'
-      + refus.map(function (x) { return nomJour(x.ds) + ' — ' + x.motif; }).join('<br>') + '</div></div>';
+      + refus.map(function (x) {
+          return nomJour(x.ds) + '<span class="tpx-recap-motif">' + x.motif + '</span>';
+        }).join('') + '</div></div>';
   }
   document.getElementById('tpxRecapTitre').textContent =
     refus.length ? 'Enregistré — des jours ont été refusés'

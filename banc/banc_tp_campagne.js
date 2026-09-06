@@ -214,6 +214,6 @@ if (ko) process.exit(1);
     /ontouchmove="handleDragMove\(event\)"/.test(page) && /onmouseover="handleMouseOver/.test(page));
   V2('la sauvegarde n\'a pas bougé', /onclick="saveIndispos\(\)"/.test(page));
   const vjs = fs2.readFileSync(__dirname + '/../version.js', 'utf8');
-  V2('la version du site a été montée', /window\.SITE_VERSION = 'v1\.3\.3'/.test(vjs));
+  V2('la version du site a été montée', /window\.SITE_VERSION = 'v1\.4\.0'/.test(vjs));
 }
 console.log('\n' + ok + ' OK · ' + ko + ' en échec');
