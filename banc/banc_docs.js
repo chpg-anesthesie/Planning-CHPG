@@ -512,7 +512,7 @@ console.log('\n═══ 13. Chaque scénario du banc est lancé par lancer.sh �
   V('les jalons passés ont disparu',
     !/data-d="2026-09-04"/.test(rm) && !/Butoir dur du ménage post-démo/.test(rm));
   V('le nouvel algorithme est annoncé',
-    /cibles deviennent entières/.test(rm) && /44 années sur 45/.test(rm));
+    /cibles entières/.test(rm) && /44 années simulées sur 45/.test(rm));
   V('…et le calcul faux de l\'écran d\'équité',
     /730,8 gardes pour 707 posées/.test(rm));
   V('le déséquilibre des week-ends n\'est plus listé comme chantier ouvert',
