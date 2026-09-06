@@ -494,5 +494,37 @@ console.log('\n═══ 13. Chaque scénario du banc est lancé par lancer.sh �
     /Une cible visant le <b>comité<\/b> n'y entre pas \(il n'a pas\s*\nde cloche\)/.test(gt));
 }
 
+
+/* (06/09/2026) roadmap.html est la page « où on en est » — celle qu'Arthur ouvre
+   pour voir ce qu'il reste à faire. Elle annonçait encore le staff du 4 septembre
+   comme jalon chaud, un banc à 2 531 vérifications, et un déséquilibre structurel
+   des week-ends résolu depuis. Une roadmap périmée fait rater des échéances. */
+{
+  const rm = lire('docs/roadmap.html');
+  V('la roadmap compte le banc à jour', /2764 <small>vérifs/.test(rm) && !/2531/.test(rm));
+  V('…et compte 728 gardes, pas ~730', /728 gardes/.test(rm) && !/~730/.test(rm));
+  V('le compte à rebours vise la campagne, plus le staff passé',
+    /new Date\(2026, 9, 10, 8, 0, 0\)/.test(rm));
+  V('l\'échéancier part du staff vacances du 9 octobre',
+    /data-d="2026-10-09"/.test(rm) && /Staff vacances/.test(rm));
+  V('…et va jusqu\'à la première année avec report de dette',
+    /data-d="2027-11-01"/.test(rm) && /Première année avec report de dette/.test(rm));
+  V('les jalons passés ont disparu',
+    !/data-d="2026-09-04"/.test(rm) && !/Butoir dur du ménage post-démo/.test(rm));
+  V('le nouvel algorithme est annoncé',
+    /cibles deviennent entières/.test(rm) && /44 années sur 45/.test(rm));
+  V('…et le calcul faux de l\'écran d\'équité',
+    /730,8 gardes pour 707 posées/.test(rm));
+  V('le déséquilibre des week-ends n\'est plus listé comme chantier ouvert',
+    !/102 années simulées sur 400/.test(rm));
+  V('les urgences sont en tête, avec ce qu\'elles cassent',
+    /Tout de suite — ça casse quelque chose/.test(rm)
+    && /Renouveler le jeton GitHub/.test(rm) && /NOTIF_EMAIL_TEST/.test(rm));
+  V('la dette cumulative et le résidu des petits axes sont inscrits',
+    /La dette cumulative/.test(rm) && /veilles de férié et jours fériés/.test(rm));
+  V('les lanceurs temporaires sont inscrits au ménage',
+    /Retirer les lanceurs temporaires/.test(rm) && /W2_2026/.test(rm));
+}
+
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);
