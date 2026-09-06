@@ -172,8 +172,15 @@ if (ko) process.exit(1);
      à une icône n'était reconnue par personne, les compteurs débordaient en trois
      plus un de largeurs inégales, et la réserve de 100 px sous le calendrier —
      héritée du temps où les outils étaient en haut — creusait un trou. */
-  V2('la gomme porte son mot, pas seulement une icône',
-    /data-tool="ERASE"[^>]*aria-label="Effacer">✕ Effacer</.test(page));
+  V2('la gomme porte une icône ET son mot, comme les trois autres outils',
+    /data-tool="ERASE"[^>]*aria-label="Effacer">🧽 Effacer</.test(page));
+  /* (06/09/2026) La formation a un quota, comme les vacances et le temps partiel.
+     Il n'était pas affiché : on lisait « 6 jours » sans savoir s'il en restait. */
+  V2('le compteur de formation affiche son quota',
+    /const quotaForm = vacConfig && Number\(vacConfig\.quotaForm\) \|\| 0;/.test(page)
+    && /\$\{counts\.FORM\}\/\$\{quotaForm\} jours/.test(page));
+  V2('…et passe en rouge une fois dépassé',
+    /const formColor = \(quotaForm && counts\.FORM > quotaForm\)/.test(page));
   V2('les compteurs sont alignés en deux colonnes égales',
     /\.stats-bar \{[\s\S]{0,260}grid-template-columns:1fr 1fr/.test(page));
   V2('la case du calendrier est carrée', /\.cal-day \{[\s\S]{0,260}aspect-ratio:1/.test(page));
@@ -194,6 +201,6 @@ if (ko) process.exit(1);
     /ontouchmove="handleDragMove\(event\)"/.test(page) && /onmouseover="handleMouseOver/.test(page));
   V2('la sauvegarde n\'a pas bougé', /onclick="saveIndispos\(\)"/.test(page));
   const vjs = fs2.readFileSync(__dirname + '/../version.js', 'utf8');
-  V2('la version du site a été montée', /window\.SITE_VERSION = 'v1\.3\.1'/.test(vjs));
+  V2('la version du site a été montée', /window\.SITE_VERSION = 'v1\.3\.2'/.test(vjs));
 }
 console.log('\n' + ok + ' OK · ' + ko + ' en échec');

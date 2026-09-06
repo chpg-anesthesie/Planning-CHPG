@@ -621,7 +621,7 @@ body {
     <div class="legend-item indispo" data-tool="INDISPO" onclick="selectTool('INDISPO')">🚫 Indispo</div>
     <div class="legend-item souhait" data-tool="SOUHAIT" onclick="selectTool('SOUHAIT')">⭐ Souhait</div>
     <div class="legend-item tp" data-tool="TP" id="btnOutilTp" style="display:none" onclick="selectTool('TP')">🕐 Temps P</div>
-    <div class="legend-item erase" data-tool="ERASE" onclick="selectTool('ERASE')" aria-label="Effacer">✕ Effacer</div>
+    <div class="legend-item erase" data-tool="ERASE" onclick="selectTool('ERASE')" aria-label="Effacer">🧽 Effacer</div>
   </div>
 
   <!-- Bouton sauvegarder -->
@@ -1403,10 +1403,18 @@ function updateStats() {
     ? `<div class="stat-item" style="color:${ctpCount >= vacConfig.quotaCtp ? '#B91C1C' : '#6D28D9'}">🕐 ${ctpCount}/${vacConfig.quotaCtp} TP</div>`
     : '';
 
+  /* (06/09/2026) La formation a un quota, lu dans CONFIG_CONGES selon la quotité
+     — exactement comme les vacances. Il n'était pas affiché : on lisait « 6 jours »
+     sans savoir s'il en restait. Le compteur passe en rouge une fois dépassé,
+     même règle que les vacances et le temps partiel. */
+  const quotaForm = vacConfig && Number(vacConfig.quotaForm) || 0;
+  const formLabel = quotaForm ? `${counts.FORM}/${quotaForm} jours` : `${counts.FORM} jours`;
+  const formColor = (quotaForm && counts.FORM > quotaForm) ? '#B91C1C' : 'var(--form-fg)';
+
   document.getElementById('statsBar').innerHTML = `
     <div class="stat-item" style="color:${quotaColor}">🏖️ ${quotaLabel}</div>
     ${ctpItem}
-    <div class="stat-item" style="color:var(--form-fg)">📚 ${counts.FORM} jours</div>
+    <div class="stat-item" style="color:${formColor}">📚 ${formLabel}</div>
     <div class="stat-item" style="color:var(--indispo-fg)">🚫 ${counts.INDISPO} jours</div>
     <div class="stat-item" style="color:var(--souhait-fg)">⭐ ${counts.SOUHAIT} gardes souhaitées</div>
   `;
