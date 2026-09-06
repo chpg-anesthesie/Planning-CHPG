@@ -172,7 +172,7 @@ body {
   text-decoration:underline;padding:6px}
 
 /* ── MAIN APP ── */
-.app { display:none; }
+.app { display:none; padding-bottom:76px; }
 
 /* ── LEGENDE ── */
 /* (06/09/2026) La barre d'outils passe SOUS le calendrier et devient collante :
@@ -200,7 +200,10 @@ body {
   user-select:none;
   -webkit-tap-highlight-color:transparent;
 }
-.legend-item.erase { flex:0 0 auto; padding:12px 15px; }
+/* (06/09/2026) La gomme avait été réduite à une icône pour laisser de la place
+   aux trois autres. Essayée en vrai : personne ne la reconnaît. Elle reprend son
+   mot, en plus petit et sans grandir. */
+.legend-item.erase { flex:0 0 auto; padding:12px 12px; font-size:11.5px; }
 .legend-item.active-tool { border-color:transparent; color:#fff; }
 .legend-item.indispo.active-tool { background:var(--indispo-fg); }
 .legend-item.souhait.active-tool { background:var(--souhait-fg); }
@@ -250,8 +253,13 @@ body {
 }
 
 /* ── CALENDAR ── */
+/* (06/09/2026) Les 100 px du bas réservaient la place du bouton Sauvegarder, du
+   temps où la barre d'outils était EN HAUT. Les outils étant passés dessous, ils
+   ne faisaient plus que creuser un trou entre la dernière semaine et le message
+   d'aide — d'autant plus visible sur un mois de cinq semaines. La réserve passe
+   sur l'écran entier, là où elle a un sens. */
 .calendar-container {
-  padding:12px 16px 100px;
+  padding:12px 16px 0;
 }
 .calendar-grid {
   display:grid;
@@ -267,10 +275,15 @@ body {
   text-transform:uppercase;
   letter-spacing:.04em;
 }
+/* (06/09/2026) La case était haute et vide : le mois débordait de l'écran et la
+   couleur d'un jour posé s'y perdait. Elle devient carrée et centrée — le mois
+   tient d'un bloc, la couleur remplit. */
 .cal-day {
   border-radius:8px;
-  padding:6px 4px;
-  min-height:52px;
+  padding:0;
+  aspect-ratio:1;
+  min-height:0;
+  justify-content:center;
   cursor:pointer;
   transition:all .12s;
   border:1.5px solid transparent;
@@ -369,23 +382,27 @@ body {
 
 /* (06/09/2026) Les compteurs deviennent des pastilles posées sur un fond : ils
    étaient alignés à plat sur le fond de page et se lisaient comme une phrase. */
+/* (06/09/2026) Les compteurs s'alignaient sur une ligne qui débordait : trois
+   d'un côté, un tout seul dessous, de largeurs inégales. Deux colonnes égales,
+   ils se lisent en colonne comme une petite fiche. */
 .stats-bar {
   background:white;
   border-bottom:1px solid var(--line);
   padding:10px 16px;
-  display:flex;
+  display:grid;
+  grid-template-columns:1fr 1fr;
   gap:6px;
-  flex-wrap:wrap;
 }
 .stat-item {
   font-size:11.5px;
   font-weight:600;
   display:flex;
   align-items:center;
-  gap:4px;
+  gap:5px;
   background:var(--bg);
   border-radius:8px;
-  padding:6px 10px;
+  padding:8px 10px;
+  min-width:0;
 }
 
 /* ── TOAST ── */
@@ -604,7 +621,7 @@ body {
     <div class="legend-item indispo" data-tool="INDISPO" onclick="selectTool('INDISPO')">🚫 Indispo</div>
     <div class="legend-item souhait" data-tool="SOUHAIT" onclick="selectTool('SOUHAIT')">⭐ Souhait</div>
     <div class="legend-item tp" data-tool="TP" id="btnOutilTp" style="display:none" onclick="selectTool('TP')">🕐 Temps P</div>
-    <div class="legend-item erase" data-tool="ERASE" onclick="selectTool('ERASE')" aria-label="Effacer" title="Effacer">✕</div>
+    <div class="legend-item erase" data-tool="ERASE" onclick="selectTool('ERASE')" aria-label="Effacer">✕ Effacer</div>
   </div>
 
   <!-- Bouton sauvegarder -->

@@ -168,8 +168,18 @@ if (ko) process.exit(1);
   V2('les quatre outils sont là, avec leurs identifiants d\'origine',
     /data-tool="INDISPO"/.test(page) && /data-tool="SOUHAIT"/.test(page)
     && /id="btnOutilTp"/.test(page) && /data-tool="ERASE"/.test(page));
-  V2('la gomme se passe de mot mais garde son intitulé pour l\'accessibilité',
-    /data-tool="ERASE"[^>]*aria-label="Effacer"/.test(page));
+  /* (06/09/2026) Trois retours d'usage sur la capture du 06/09 : la gomme réduite
+     à une icône n'était reconnue par personne, les compteurs débordaient en trois
+     plus un de largeurs inégales, et la réserve de 100 px sous le calendrier —
+     héritée du temps où les outils étaient en haut — creusait un trou. */
+  V2('la gomme porte son mot, pas seulement une icône',
+    /data-tool="ERASE"[^>]*aria-label="Effacer">✕ Effacer</.test(page));
+  V2('les compteurs sont alignés en deux colonnes égales',
+    /\.stats-bar \{[\s\S]{0,260}grid-template-columns:1fr 1fr/.test(page));
+  V2('la case du calendrier est carrée', /\.cal-day \{[\s\S]{0,260}aspect-ratio:1/.test(page));
+  V2('la réserve du bas est passée sur l\'écran, plus sous le calendrier',
+    /\.calendar-container \{[\s\S]{0,60}padding:12px 16px 0;/.test(page)
+    && /\.app \{ display:none; padding-bottom:76px; \}/.test(page));
   V2('la couleur remplit la case, elle ne tient plus dans une pastille',
     /\.cal-day\.indispo \{ background:var\(--indispo-fg\)/.test(page)
     && /const badge = '';/.test(page));
@@ -184,6 +194,6 @@ if (ko) process.exit(1);
     /ontouchmove="handleDragMove\(event\)"/.test(page) && /onmouseover="handleMouseOver/.test(page));
   V2('la sauvegarde n\'a pas bougé', /onclick="saveIndispos\(\)"/.test(page));
   const vjs = fs2.readFileSync(__dirname + '/../version.js', 'utf8');
-  V2('la version du site a été montée', /window\.SITE_VERSION = 'v1\.3\.0'/.test(vjs));
+  V2('la version du site a été montée', /window\.SITE_VERSION = 'v1\.3\.1'/.test(vjs));
 }
 console.log('\n' + ok + ' OK · ' + ko + ' en échec');
