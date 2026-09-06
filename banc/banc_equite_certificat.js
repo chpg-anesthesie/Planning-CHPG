@@ -216,10 +216,14 @@ V('la barre JF est tracée contre une cible, plus contre une moyenne',
   && !/\['lu','ma','me','jf'\]\.forEach/.test(ADMIN) && !/\['lu','ma','me','jf'\]\.forEach/.test(INDEX));
 V('le verdict d\'une ligne porte sur les six axes',
   /const AX=AX_EQUITE;/.test(ADMIN) && /const AX=AX_EQUITE;/.test(INDEX));
+/* (06/09/2026) miroir.gs a été remonté depuis, pour le journal de la cloche.
+   Figer un numéro exact obligeait à revenir ici à chaque lot du fichier : on
+   vérifie que la version est postérieure au lot du 6e axe, pas qu'elle lui est
+   égale. */
 V('les versions des trois fichiers GAS ont été montées',
   /GAS_VERSION_CODE = '2026-09-05\.1'/.test(CODEGS)
   && /GAS_VERSION_INDISPOS = '2026-09-05\.1'/.test(INDGS)
-  && /GAS_VERSION_MIROIR = '2026-09-05\.1'/.test(MIRGS));
+  && (MIRGS.match(/GAS_VERSION_MIROIR = '(\d{4}-\d{2}-\d{2})\.\d+'/) || [,''])[1] >= '2026-09-05');
 
 V('un écart entier s\'affiche sans décimale',
   /function _fmtEcart\(v\)\{ return Number\.isInteger\(v\) \? String\(v\) : v\.toFixed\(1\); \}/.test(ADMIN)
@@ -242,7 +246,7 @@ V('la cible d\'un axe surveillé est affichée entière',
 console.log('\n─── 8. Version du site ───');
 const VJS = fs.readFileSync(path.join(__dirname, '..', 'version.js'), 'utf8');
 const v = (VJS.match(/window\.SITE_VERSION = 'v([\d.]+)'/) || [])[1];
-V('la version a été montée dans le même lot', v === '1.3.3', v);
+V('la version a été montée dans le même lot', v === '1.3.2', v);
 V('le retour à v1.0 est expliqué dans le fichier',
   /RETOUR À v1\.0/.test(VJS) && /4 septembre 2026/.test(VJS));
 

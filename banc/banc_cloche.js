@@ -68,10 +68,24 @@ console.log('\n═══ C1. Inscription : ciblée, à tous, comité exclu, test
   V("sans cible → destinataire '*' (tout le monde)", lignes(b)[2][1] === '*', lignes(b)[2]);
 
   vm.runInContext(`notifierPush_('Alerte comité', 'x', './admin.html', { role: 'admin' })`, b.ctx);
-  V('une cible par rôle (comité) ne va PAS à la cloche', lignes(b).length === 3, lignes(b).length);
+  V('une cible par rôle COMITÉ ne va PAS à la cloche', lignes(b).length === 3, lignes(b).length);
+
+  /* (06/09/2026) DÉFAUT VU EN PRODUCTION, que ce banc laissait passer. Le
+     garde-fou ci-dessus visait le comité ; il écartait TOUS les rôles, dont
+     `role:'mar'` — celui de la génération des gardes, la notification la plus
+     importante de l'année. Le push partait, la cloche restait vide, et rien ne
+     pouvait le révéler puisque la notification, elle, arrivait bien.
+     Preuve : NOTIFS_JOURNAL n'avait que deux lignes du 25/08, écrites du temps
+     où l'appel utilisait la cible `*` ; la génération du 04/09 n'y figurait pas.
+     Le banc ne testait que 'admin' — il ne pouvait pas voir la différence. */
+  vm.runInContext(`notifierPush_('Votre planning 2027 est disponible', 'x', './dashboard.html#mes-gardes', { role: 'mar' })`, b.ctx);
+  V('une cible par rôle MAR va bien à la cloche', lignes(b).length === 4, lignes(b).length);
+  V("…et sous '*', puisqu'elle s'adresse à tous", lignes(b)[3] && lignes(b)[3][1] === '*', lignes(b)[3]);
+  V('…avec son titre et son lien', lignes(b)[3] && /planning 2027/.test(lignes(b)[3][2])
+    && lignes(b)[3][4] === './dashboard.html#mes-gardes', lignes(b)[3]);
 
   vm.runInContext(`notifierPush_('Test du canal', 'x', './dashboard.html', null, true)`, b.ctx);
-  V('le test du canal (sansJournal) ne laisse aucune ligne', lignes(b).length === 3, lignes(b).length);
+  V('le test du canal (sansJournal) ne laisse aucune ligne', lignes(b).length === 4, lignes(b).length);
 }
 
 console.log('\n═══ C2. L\'ordre : le journal AVANT le relais, et la panne ne perd rien ═══');

@@ -1,7 +1,7 @@
 // ⚠️ RÈGLE (détecteur de dérive dépôt↔Apps Script) : incrémenter cette version
 // à CHAQUE push de ce fichier. Le diagnostic (admin → Maintenance) compare la
 // version déployée ici avec celle du dépôt et signale toute recopie oubliée.
-const GAS_VERSION_MIROIR = '2026-09-05.1';
+const GAS_VERSION_MIROIR = '2026-09-06.1';
 
 /* ═══════════════════════════════════════════════════════════════════════
    MIROIR.GS — alimentation du miroir de lecture Cloudflare
@@ -1459,13 +1459,24 @@ const NOTIF_JOURNAL_JOURS  = 30;
 
 function _notifJournalNoter_(cible, titre, corps, url) {
   try {
-    if (cible && cible.role) return;               // canal du comité : pas la cloche
+    /* (06/09/2026) DÉFAUT VU EN PRODUCTION. Ce garde-fou visait le canal du
+       COMITÉ, qui n'a pas de cloche. Il écartait en réalité TOUS les rôles — y
+       compris `role:'mar'`, celui de la génération des gardes, c'est-à-dire la
+       notification la plus importante de l'année. Le push partait sur les
+       téléphones, la cloche restait vide, et rien ne pouvait le révéler puisque
+       la notification, elle, arrivait bien.
+       Preuve : NOTIFS_JOURNAL ne contenait que deux lignes, du 25/08, écrites
+       quand l'appel utilisait encore la cible `*`. La génération du 04/09 n'y
+       figure pas.
+       Une cible `role:'mar'` s'adresse à TOUS les MAR : c'est le sens de `*`. */
+    if (cible && cible.role && cible.role !== 'mar') return;   // comité : pas de cloche
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     let sh = ss.getSheetByName(NOTIF_JOURNAL_ONGLET);
     if (!sh) {
       sh = ss.insertSheet(NOTIF_JOURNAL_ONGLET);
       sh.appendRow(['QUAND', 'MAR', 'TITRE', 'CORPS', 'URL']);
     }
+    /* `role:'mar'` → '*' : tout le monde. Un id nommé garde son id. */
     const mar = (cible && cible.id) ? String(cible.id).trim() : '*';
     sh.appendRow([new Date().toISOString(), mar,
                   String(titre || ''), String(corps || ''), String(url || '')]);
