@@ -106,7 +106,14 @@ console.log('\n═══ 4. indispos.html · applyTool refuse ce qui doit l\'êt
     ctx.globalThis = ctx; ctx.YEAR = 2027;
     vm.runInContext(extraireFonction('indispos.html', 'premierJourAnneePlanning'), ctx);
     vm.runInContext(extraireFonction('indispos.html', 'bornesAnneePlanning'), ctx);
-    vm.runInContext(extraireFonction('indispos.html', 'applyTool'), ctx);
+    /* La page n'est pas montée ici : un document minimal suffit pour que la zone
+   d'aide existe sans rien afficher. */
+  ctx.document = ctx.document || { getElementById: () => null };
+  /* (06/09/2026) applyTool écrit désormais ses refus dans la zone d'aide sous le
+   calendrier — un toast disparaissait avant qu'on ait fini le geste. On charge
+   la dépendance plutôt que d'ajouter un garde-fou dans la page pour le banc. */
+  vm.runInContext(extraireFonction('indispos.html', 'hintRefus'), ctx);
+  vm.runInContext(extraireFonction('indispos.html', 'applyTool'), ctx);
     ctx.applyTool(dateStr);
     return { pose: ctx.indispos[dateStr] === 'TP', messages: ctx.messages };
   }
@@ -140,3 +147,43 @@ console.log('\n═══ 5. Indispos.gs · retirer un TP le retire des DEUX ongl
 
 console.log(`\n${ok} OK · ${ko} en échec`);
 if (ko) process.exit(1);
+
+/* ═══ (06/09/2026) REFONTE VISUELLE DE LA CAMPAGNE ══════════════════════
+   La page servait telle quelle au 10 octobre. Trois inconforts mesurables :
+   la barre d'outils était EN HAUT (il fallait remonter à chaque changement),
+   la couleur d'un jour tenait dans une petite pastille au milieu d'une case
+   blanche, et un refus s'affichait en toast — disparu avant la fin du geste.
+   Rien de la logique ne change : chargement, sauvegarde, glisser-déposer et
+   règles de refus sont intacts. Ces vérifications tiennent l'apparence. */
+{
+  const fs2 = require('fs');
+  const page = fs2.readFileSync(__dirname + '/../indispos.html', 'utf8');
+  const V2 = (t, c, d) => { if (c) { ok++; console.log('  ✓ ' + t); }
+    else { ko++; console.log('  ✗ ' + t + (d !== undefined ? ' → ' + JSON.stringify(d).slice(0,200) : '')); } };
+  console.log('\n═══ 5. indispos.html · la refonte visuelle ═══');
+  const iOutils = page.indexOf('<div class="legend" id="legend">');
+  const iCal    = page.indexOf('<div class="calendar-grid" id="calGrid">');
+  V2('la barre d\'outils est SOUS le calendrier', iOutils > iCal, { outils: iOutils, calendrier: iCal });
+  V2('…et elle est collante', /\.legend \{[\s\S]{0,120}position:sticky/.test(page));
+  V2('les quatre outils sont là, avec leurs identifiants d\'origine',
+    /data-tool="INDISPO"/.test(page) && /data-tool="SOUHAIT"/.test(page)
+    && /id="btnOutilTp"/.test(page) && /data-tool="ERASE"/.test(page));
+  V2('la gomme se passe de mot mais garde son intitulé pour l\'accessibilité',
+    /data-tool="ERASE"[^>]*aria-label="Effacer"/.test(page));
+  V2('la couleur remplit la case, elle ne tient plus dans une pastille',
+    /\.cal-day\.indispo \{ background:var\(--indispo-fg\)/.test(page)
+    && /const badge = '';/.test(page));
+  V2('les jours posés au staff portent un cadenas',
+    /class="cal-lock"/.test(page) && /status === 'VAC' \|\| status === 'FORM'/.test(page));
+  V2('l\'outil temps partiel estompe les jours non travaillés AVANT le geste',
+    /cls \+= ' hors-portee'/.test(page) && /\.cal-day\.hors-portee \{ opacity/.test(page));
+  V2('changer d\'outil redessine le calendrier', /if \(document\.getElementById\('calGrid'\)\) renderMonth\(\);/.test(page));
+  V2('les refus s\'écrivent dans la zone d\'aide, pas seulement en toast',
+    (page.match(/hintRefus\(/g) || []).length >= 6);
+  V2('le glisser-déposer est intact',
+    /ontouchmove="handleDragMove\(event\)"/.test(page) && /onmouseover="handleMouseOver/.test(page));
+  V2('la sauvegarde n\'a pas bougé', /onclick="saveIndispos\(\)"/.test(page));
+  const vjs = fs2.readFileSync(__dirname + '/../version.js', 'utf8');
+  V2('la version du site a été montée', /window\.SITE_VERSION = 'v1\.3\.0'/.test(vjs));
+}
+console.log('\n' + ok + ' OK · ' + ko + ' en échec');

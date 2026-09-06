@@ -37,6 +37,13 @@ console.log('\n═══ 1. indispos.html · un jour de TP ne se pose que sur un
      de bornes doivent etre presentes, elles aussi extraites de la page (jamais recopiees). */
   vm.runInContext(extraireDuHtml('../indispos.html', 'premierJourAnneePlanning'), ctx);
   vm.runInContext(extraireDuHtml('../indispos.html', 'bornesAnneePlanning'), ctx);
+  /* La page n'est pas montée ici : un document minimal suffit pour que la zone
+   d'aide existe sans rien afficher. */
+  ctx.document = ctx.document || { getElementById: () => null };
+  /* (06/09/2026) applyTool écrit désormais ses refus dans la zone d'aide sous le
+   calendrier — un toast disparaissait avant qu'on ait fini le geste. On charge
+   la dépendance plutôt que d'ajouter un garde-fou dans la page pour le banc. */
+  vm.runInContext(extraireDuHtml('../indispos.html', 'hintRefus'), ctx);
   vm.runInContext(extraireDuHtml('../indispos.html', 'applyTool'), ctx);
 
   const pose = d => { vm.runInContext(`applyTool('${d}')`, ctx); return ctx.indispos[d]; };

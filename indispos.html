@@ -175,41 +175,48 @@ body {
 .app { display:none; }
 
 /* ── LEGENDE ── */
+/* (06/09/2026) La barre d'outils passe SOUS le calendrier et devient collante :
+   elle était en haut, il fallait remonter à chaque changement d'outil. Les
+   boutons occupent toute la largeur — la cible du doigt fait 44 px de haut au
+   lieu de 26. L'outil actif prend la couleur pleine de son type : on sait ce
+   qui est armé sans lire. */
 .legend {
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  padding:12px 16px;
+  position:sticky; bottom:64px; z-index:80;
+  display:flex; gap:6px;
+  padding:10px 16px 8px;
   background:white;
-  border-bottom:1px solid var(--line);
+  border-top:1px solid var(--line);
 }
 .legend-item {
-  display:flex; align-items:center; gap:5px;
-  font-size:12px; font-weight:600; color:var(--ink-2);
+  flex:1;
+  display:flex; align-items:center; justify-content:center; gap:5px;
+  font-size:12.5px; font-weight:700; color:var(--ink-2);
   cursor:pointer;
-  padding:4px 10px;
-  border-radius:20px;
-  border:1.5px solid transparent;
+  padding:12px 4px;
+  border-radius:10px;
+  border:1.5px solid var(--line);
+  background:#fff;
   transition:all .15s;
   user-select:none;
+  -webkit-tap-highlight-color:transparent;
 }
-.legend-item.active-tool {
-  border-color:currentColor;
-}
-.legend-item.vac    { background:var(--vac);    color:var(--vac-fg); }
-.legend-item.form   { background:var(--form);   color:var(--form-fg); }
-.legend-item.indispo{ background:var(--indispo); color:var(--indispo-fg); }
-.legend-item.souhait{ background:var(--souhait); color:var(--souhait-fg); }
-.legend-item.tp     { background:#F3E8FF; color:#6D28D9; }
-.legend-item.erase  { background:#FFF; color:var(--ink-3); border:1.5px solid var(--line); }
+.legend-item.erase { flex:0 0 auto; padding:12px 15px; }
+.legend-item.active-tool { border-color:transparent; color:#fff; }
+.legend-item.indispo.active-tool { background:var(--indispo-fg); }
+.legend-item.souhait.active-tool { background:var(--souhait-fg); }
+.legend-item.tp.active-tool      { background:#6D28D9; }
+.legend-item.erase.active-tool   { background:var(--ink); }
 
 .tool-hint {
-  padding:8px 16px;
-  font-size:12px;
+  padding:10px 16px;
+  font-size:12.5px;
   color:var(--ink-3);
   background:white;
-  border-bottom:1px solid var(--line);
+  line-height:1.45;
+  border-top:1px solid var(--line);
 }
+.tool-hint.refus { color:#B91C1C; }
+.tool-hint.ok    { color:#166534; }
 
 /* ── MONTH NAV ── */
 .month-nav {
@@ -304,16 +311,26 @@ body {
   text-align:center;
 }
 
-/* Statuts */
-.cal-day.vac     { background:var(--vac);     border-color:var(--vac-border); }
-.cal-day.form    { background:var(--form);    border-color:var(--form-border); }
-.cal-day.indispo { background:var(--indispo); border-color:var(--indispo-border); }
-.cal-day.souhait { background:var(--souhait); border-color:var(--souhait-border); }
+/* (06/09/2026) Statuts : la couleur REMPLIT le jour. Elle occupait une petite
+   pastille dans une case blanche — il fallait lire chaque case pour voir ses
+   périodes. Le numéro passe en blanc, le badge de trois lettres disparaît :
+   la couleur dit déjà ce qu'il est. */
+.cal-day.vac     { background:var(--vac-fg);     border-color:transparent; }
+.cal-day.form    { background:var(--form-fg);    border-color:transparent; }
+.cal-day.indispo { background:var(--indispo-fg); border-color:transparent; }
+.cal-day.souhait { background:var(--souhait-fg); border-color:transparent; }
+.cal-day.tp      { background:#6D28D9;           border-color:transparent; }
 
-.cal-day.vac     .cal-day-num { color:var(--vac-fg); }
-.cal-day.form    .cal-day-num { color:var(--form-fg); }
-.cal-day.indispo .cal-day-num { color:var(--indispo-fg); }
-.cal-day.souhait .cal-day-num { color:var(--souhait-fg); }
+.cal-day.vac .cal-day-num, .cal-day.form .cal-day-num,
+.cal-day.indispo .cal-day-num, .cal-day.souhait .cal-day-num,
+.cal-day.tp .cal-day-num { color:#fff; }
+
+/* Jours posés au staff : non modifiables ici, un cadenas le dit. */
+.cal-day .cal-lock { position:absolute; top:3px; right:4px; font-size:9px; color:#fff; opacity:.9; }
+
+/* Outil « temps partiel » actif : un jour non travaillé est hors de portée.
+   On le montre AVANT le geste, au lieu de refuser après. */
+.cal-day.hors-portee { opacity:.35; cursor:not-allowed; }
 
 .vac-badge     { background:var(--vac);    color:var(--vac-fg); }
 .form-badge    { background:var(--form);   color:var(--form-fg); }
@@ -350,20 +367,25 @@ body {
 .save-btn:hover { opacity:.88; }
 .save-btn:disabled { opacity:.5; cursor:not-allowed; }
 
+/* (06/09/2026) Les compteurs deviennent des pastilles posées sur un fond : ils
+   étaient alignés à plat sur le fond de page et se lisaient comme une phrase. */
 .stats-bar {
-  background:var(--bg);
-  border-top:1px solid var(--line);
-  padding:8px 16px;
+  background:white;
+  border-bottom:1px solid var(--line);
+  padding:10px 16px;
   display:flex;
-  gap:12px;
+  gap:6px;
   flex-wrap:wrap;
 }
 .stat-item {
-  font-size:12px;
+  font-size:11.5px;
   font-weight:600;
   display:flex;
   align-items:center;
   gap:4px;
+  background:var(--bg);
+  border-radius:8px;
+  padding:6px 10px;
 }
 
 /* ── TOAST ── */
@@ -558,14 +580,6 @@ body {
        reste caché pour qui n'a pas de quota (temps plein, jours fixes déjà
        convenus, rythme deux semaines sur deux) — voir loadVacConfig. Le
        reliquat non posé se place ensuite au fil de l'eau, sur l'écran dédié. -->
-  <div class="legend" id="legend">
-    <div class="legend-item indispo" data-tool="INDISPO" onclick="selectTool('INDISPO')">🚫 Indisponible</div>
-    <div class="legend-item souhait" data-tool="SOUHAIT" onclick="selectTool('SOUHAIT')">⭐ Garde souhaitée</div>
-    <div class="legend-item tp" data-tool="TP" id="btnOutilTp" style="display:none" onclick="selectTool('TP')">🕐 Temps partiel</div>
-    <div class="legend-item erase" data-tool="ERASE" onclick="selectTool('ERASE')">✕ Effacer</div>
-  </div>
-  <div class="tool-hint" id="toolHint">Outil actif : <strong>Indisponible</strong> — Touchez un jour pour l'appliquer</div>
-
 
   <!-- Stats annuelles -->
   <div class="stats-bar" id="statsBar"></div>
@@ -580,6 +594,17 @@ body {
   <!-- Calendrier -->
   <div class="calendar-container">
     <div class="calendar-grid" id="calGrid"></div>
+  </div>
+
+  <!-- (06/09/2026) La barre d'outils est passée SOUS le calendrier : elle était
+       en haut, il fallait remonter à chaque changement d'outil. Libellés courts
+       pour tenir à quatre boutons sur un écran étroit ; la gomme se passe de mot. -->
+  <div class="tool-hint" id="toolHint">Outil actif : <strong>Indisponible</strong> — touchez un jour pour l'appliquer</div>
+  <div class="legend" id="legend">
+    <div class="legend-item indispo" data-tool="INDISPO" onclick="selectTool('INDISPO')">🚫 Indispo</div>
+    <div class="legend-item souhait" data-tool="SOUHAIT" onclick="selectTool('SOUHAIT')">⭐ Souhait</div>
+    <div class="legend-item tp" data-tool="TP" id="btnOutilTp" style="display:none" onclick="selectTool('TP')">🕐 Temps P</div>
+    <div class="legend-item erase" data-tool="ERASE" onclick="selectTool('ERASE')" aria-label="Effacer" title="Effacer">✕</div>
   </div>
 
   <!-- Bouton sauvegarder -->
@@ -1083,8 +1108,26 @@ function selectTool(tool) {
     el.classList.toggle('active-tool', el.dataset.tool === tool);
   });
   const labels = {...STATUS_LABELS, ERASE: 'Effacer'};
-  document.getElementById('toolHint').innerHTML =
-    `Outil actif : <strong>${labels[tool]}</strong> — Touchez un jour pour l'appliquer`;
+  const h = document.getElementById('toolHint');
+  h.classList.remove('refus','ok');
+  h.innerHTML = tool === 'ERASE'
+    ? 'Outil actif : <strong>Effacer</strong> — touchez un jour pour retirer ce que vous y avez posé'
+    : tool === 'TP'
+      ? 'Outil actif : <strong>Temps partiel</strong> — sur un jour travaillé uniquement'
+      : `Outil actif : <strong>${labels[tool]}</strong> — touchez un jour pour l'appliquer`;
+  /* (06/09/2026) Le calendrier se redessine : les jours hors de portée de
+     l'outil temps partiel s'estompent ou redeviennent normaux. */
+  if (document.getElementById('calGrid')) renderMonth();
+}
+
+/* (06/09/2026) Un refus s'affichait en toast, qui disparaît au bout de deux
+   secondes — souvent avant qu'on ait fini le geste. Il s'écrit désormais dans
+   la zone d'aide, sous le calendrier, et y reste jusqu'au geste suivant. */
+function hintRefus(msg) {
+  const h = document.getElementById('toolHint');
+  if (!h) return;
+  h.classList.remove('ok'); h.classList.add('refus');
+  h.innerHTML = msg;
 }
 
 // ── CALENDAR RENDER ───────────────────────────────────────────────────
@@ -1130,13 +1173,19 @@ if (vacConfig) {
     // Distinguer vrai conflit (MAR a posé) vs saturé informatif (MAR n'a pas posé)
     // Pas d'indicateur visuel saturé/conflit côté MAR — géré par le comité
 
-    const badge = status
-  ? `<div class="cal-day-badge ${status.toLowerCase()}-badge">${STATUS_LABELS[status]?.slice(0,3) || status}</div>`
-  : '';
-const lockIcon = '';
-const ferieIcon = isJourFerie
-  ? `<div style="font-size:8px;position:absolute;top:2px;left:3px;color:#C2410C;font-weight:700">JF</div>`
-  : '';
+    /* (06/09/2026) Le badge de trois lettres disparaît : la couleur remplit
+       désormais la case et dit ce qu'est le jour. */
+    const badge = '';
+    /* VAC et FORM viennent du staff : ils ne se modifient pas ici. Le cadenas le
+       dit avant le geste, le message d'aide le redit après. */
+    const lockIcon = (status === 'VAC' || status === 'FORM')
+      ? '<div class="cal-lock">🔒</div>' : '';
+    const ferieIcon = isJourFerie
+      ? `<div style="font-size:8px;position:absolute;top:2px;left:3px;color:${status?'#fff':'#C2410C'};font-weight:700;opacity:.9">JF</div>`
+      : '';
+    /* Outil temps partiel : un jour non travaillé n'a pas de sens (voir applyTool).
+       On l'estompe pour que le refus se voie AVANT le geste. */
+    if (currentTool === 'TP' && (isWe || isJourFerie) && !status) cls += ' hors-portee';
 
     html += `<div class="${cls}" data-date="${date}"
       ontouchstart="startDrag('${date}')"
@@ -1186,6 +1235,7 @@ function applyTool(date) {
       window._figeMsg = true;
       setTimeout(() => { window._figeMsg = false; }, 2500);
       showToast('🔒 Planning déjà établi — vos indisponibilités sont figées');
+      hintRefus('🔒 Le planning est déjà établi : vos indisponibilités sont figées.');
     }
     return;
   }
@@ -1199,6 +1249,7 @@ function applyTool(date) {
         window._horsAnneeMsg = true;
         setTimeout(() => { window._horsAnneeMsg = false; }, 2500);
         showToast(`🚫 Hors de l'année de planning ${YEAR}`);
+        hintRefus(`🚫 Ce jour est hors de l'année de planning ${YEAR}.`);
       }
       return;
     }
@@ -1206,6 +1257,7 @@ function applyTool(date) {
   // VAC et FORM posés par le comité — non modifiables par le MAR
   if (indispos[date] === 'VAC' || indispos[date] === 'FORM') {
     showToast('🔒 Congé posé par le comité — contactez-les pour modifier');
+    hintRefus('🔒 Ce jour a été posé au staff — voyez le comité pour le changer.');
     return;
   }
   if (currentTool === 'VAC' || currentTool === 'FORM') {
@@ -1223,6 +1275,7 @@ function applyTool(date) {
         window._tpWeMsg = true;
         setTimeout(() => { window._tpWeMsg = false; }, 2500);
         showToast('🚫 Un jour de temps partiel se pose sur un jour travaillé');
+        hintRefus('🚫 Un jour de temps partiel se pose sur un <strong>jour travaillé</strong> : ni week-end, ni férié.');
       }
       return;
     }
@@ -1231,6 +1284,7 @@ function applyTool(date) {
     const ctpCount = Object.values(indispos).filter(s => s === 'TP').length;
     if (ctpCount >= vacConfig.quotaCtp) {
       showToast(`🚫 Quota temps partiel atteint — ${vacConfig.quotaCtp} jour(s) maximum`);
+      hintRefus(`🚫 Quota de temps partiel atteint : ${vacConfig.quotaCtp} jour(s) maximum.`);
       return;
     }
   }
