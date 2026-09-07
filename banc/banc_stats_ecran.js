@@ -144,9 +144,7 @@ console.log('\n═══ 5. La page et la tuile sont cohérentes avec le serveur
   /* (29/08) La tuile portait 'radar', déjà pris par Veille biblio : deux tuiles
      identiques à l'œil, pour deux choses sans rapport. Aucune icône libre du
      bundle ne disait « statistiques », bar-chart-2 a donc été ajoutée.
-     On ne condamne PAS tout doublon : file-text est porté par CR d'anesthésie
-     et CRH, deux générateurs de comptes rendus — c'est voulu. La règle est que
-     l'icône des statistiques n'appartienne qu'à elle. */
+     La règle est que l'icône des statistiques n'appartienne qu'à elle. */
   const icoStats = (DASH.match(/key:'stats'[^}]*icon:'([a-z0-9-]+)'/) || [])[1];
   const toutes = (DASH.match(/icon:'[a-z0-9-]+'/g) || []).map(function (x) { return x.slice(6, -1); });
   V('l\'icône des statistiques est lisible', !!icoStats, icoStats);

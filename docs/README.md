@@ -59,8 +59,6 @@ Système web de gestion pour le service d'anesthésie-réanimation du **CHPG (Mo
 ### simulateur/ — banc d'essai de l'algorithme de gardes
 Scripts Node (scénarios, harness, analyses) + expériences. Campagne de référence : **400 années simulées** (20 scénarios × 20 ans).
 
-### cr-anesthesie/ — second générateur de comptes rendus (anesthésie)
-
 ---
 
 ## Architecture (rappel)

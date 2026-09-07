@@ -836,53 +836,42 @@ const dodo = ms => new Promise(r => setTimeout(r, ms));
     V('campagne vivante : l\'invitation à déclarer, avec l\'année', /Déclarez/.test(n.sousTitre) && /2027/.test(n.sousTitre), n.sousTitre);
   }
 
-  /* ═══ La tuile « CR d'anesthésie » ne s'affiche que sur grand écran ═══
-     (19/08/2026) Le générateur de CR se remplit par dizaines de pastilles et se
-     termine par un copier-coller vers le DPI : sur un téléphone il n'a aucun
-     usage, et la tuile ne faisait qu'allonger la liste du portail.
-     On n'exécute pas la page entière ici — on extrait du fichier LE tableau des
-     tuiles et LA ligne de filtrage réellement livrés, et on les fait tourner à
-     deux largeurs. Recopier le filtre dans le test prouverait le test, pas la page. */
+  /* ═══ Le module « CR d'anesthésie » a été retiré du portail ═══
+     (07/09/2026) Le générateur portait le logo officiel de l'établissement et la
+     liste nominative des praticiens sur une page publique sans code d'accès.
+     Il a été retiré en entier. Ce scénario remplace l'ancien §29 (qui vérifiait
+     que la tuile ne s'affichait que sur grand écran) : il garde la porte fermée
+     et échouera si le module revient sans décision explicite. */
   {
-    console.log('\n═══ 29. La tuile CR d\'anesthésie est réservée au grand écran ═══');
+    console.log('\n═══ 29. Le module CR d\'anesthésie est absent ═══');
     const src = fs.readFileSync('../dashboard.html', 'utf8');
+    V('aucune tuile ne pointe vers le module', !/cr-anesth/.test(src));
+    V('le dossier du module n\'existe plus', !fs.existsSync('../cr-anesthesie'));
+    V('aucun logo d\'établissement dans le dépôt',
+      !fs.existsSync('../cr-anesthesie/logo-chpg.png'));
+    /* La clause `pc` du filtre n'existait que pour cette tuile : elle part avec
+       elle, sinon on garde une condition que plus aucune tuile ne déclenche. */
+    V('la clause d\'écran du filtre a disparu', !/t\.pc/.test(src));
+    /* Les tuiles que tout MAR doit garder, à deux largeurs. */
     const mTiles = src.match(/const TILES = \[[\s\S]*?\n\];/);
     const mFiltre = src.match(/TILES\.filter\((t => [\s\S]*?)\)\.map\(t =>/);
     V('le tableau des tuiles est lisible dans la page', !!mTiles);
     V('la ligne de filtrage est lisible dans la page', !!mFiltre);
-
-    const passe = (largeur, id, liberal) => {
-      /* (22/08/2026) La page porte trois états de plus depuis la tuile TP :
-         réglés ici à « MAR plein temps, phase fermée » — l'état le plus
-         courant. La tuile TP a son propre banc (banc_pose_tp §PT14). */
-      const bac = { window: { innerWidth: largeur }, MY_ID: id, INDISPOS_OUVERTE: true, MY_LIBERAL: !!liberal,
-                    PHASE_TP: null, MY_QUOTITE: 100, MY_TPFIXE: false };
+    const passe = (largeur) => {
+      const bac = { window: { innerWidth: largeur }, MY_ID: 'ALPHA', INDISPOS_OUVERTE: true,
+                    MY_LIBERAL: false, PHASE_TP: null, MY_QUOTITE: 100, MY_TPFIXE: false };
       bac.globalThis = bac;
       vm.createContext(bac);
       vm.runInContext(mTiles[0], bac);
       return vm.runInContext(`TILES.filter(${mFiltre[1]}).map(t => t.key)`, bac);
     };
-
-    const surPC = passe(1440, 'ALPHA', false);
-    const surTel = passe(390, 'ALPHA', false);
-    V('sur PC (1440 px) la tuile CR est proposée', surPC.includes('cr-anesth'), surPC);
-    V('sur téléphone (390 px) elle a disparu', !surTel.includes('cr-anesth'), surTel);
-    /* Le filtre ne doit toucher QUE cette tuile : une condition mal placée
-       masquerait le planning ou les congés sur mobile — panne invisible au
-       développeur, qui travaille sur grand écran. */
-    const perdues = surPC.filter(k => k !== 'cr-anesth' && !surTel.includes(k));
-    V('aucune AUTRE tuile ne disparaît sur téléphone', perdues.length === 0, perdues);
+    const surPC = passe(1440), surTel = passe(390);
     V('le planning reste accessible sur téléphone', surTel.includes('planning'));
     V('les congés restent accessibles sur téléphone', surTel.includes('conges'));
-    /* Seuil : le même que celui du planning (index.html). Deux seuils différents
-       feraient dire deux choses à « petit écran » selon la page. */
-    const seuilIndex = (fs.readFileSync('../index.html', 'utf8').match(/isMobile = window\.innerWidth <= (\d+)/) || [])[1];
-    const seuilDash = (mFiltre[1].match(/innerWidth > (\d+)/) || [])[1];
-    V('le seuil est celui du planning (768 px)', seuilIndex && seuilIndex === seuilDash, { index: seuilIndex, dashboard: seuilDash });
-    /* Juste au-dessus du seuil, la tuile revient : la frontière est bien à 768
-       et non « quelque part vers le milieu ». */
-    V('à 769 px la tuile réapparaît', passe(769, 'ALPHA', false).includes('cr-anesth'));
-    V('à 768 px elle est encore masquée', !passe(768, 'ALPHA', false).includes('cr-anesth'));
+    /* Plus aucune tuile ne doit dépendre de la largeur : PC et téléphone
+       proposent exactement la même liste. */
+    const ecart = surPC.filter(k => !surTel.includes(k));
+    V('PC et téléphone proposent les mêmes tuiles', ecart.length === 0, ecart);
   }
 
   console.log(`\n${ok} OK · ${ko} en échec`);

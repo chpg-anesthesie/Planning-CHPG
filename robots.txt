@@ -1,13 +1,10 @@
-# Planning-CHPG — outil interne du service d'anesthésie-réanimation, CHPG Monaco.
-# Cet outil n'a pas vocation à être référencé : il s'adresse aux 23 MAR du service,
-# qui y accèdent par un lien reçu par email et un code personnel.
+# Outil interne de planification d'un service hospitalier.
+# Il n'a pas vocation à être référencé : il s'adresse aux médecins du service,
+# qui y accèdent par un lien reçu par message et un code personnel.
 #
-# Aucune donnée patient, aucun montant, aucun code d'accès n'est présent ici : les
-# données du service vivent dans le classeur maître, hors du dépôt. En revanche le
-# dépôt contient bien des données nominatives — la liste des praticiens du service,
-# dans cr-anesthesie/data.js, nécessaire au générateur de comptes-rendus, qui est
-# une page statique sans code d'accès. Choix assumé : ces noms sont ceux de
-# praticiens hospitaliers, publics par ailleurs. (Corrigé le 19/08/2026 : ce
-# fichier affirmait l'inverse depuis sa création.)
+# Aucune donnée patient, aucun montant, aucun code d'accès n'est présent ici.
+# Les données du service vivent dans un classeur privé, hors du dépôt.
+# (07/09/2026) Le générateur de comptes rendus d'anesthésie, seule page qui
+# portait une liste nominative, a été retiré.
 User-agent: *
 Disallow: /
