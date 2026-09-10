@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nouvelle adresse — Planning-Med</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Palette du portail : --ink, --bg, --line, --red, --info. */
+  :root{
+    --ink:#0F172A; --bg:#F8FAFC; --line:#E2E8F0; --line-light:#F1F5F9;
+    --red:#CE1126; --muted:#64748B;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  body{
+    margin:0; background:var(--bg); color:var(--ink); line-height:1.6;
+    font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+    display:flex; justify-content:center;
+    padding:max(40px,env(safe-area-inset-top)) 20px 60px;
+  }
+  main{max-width:460px; width:100%}
+  h1{font-size:25px; font-weight:600; letter-spacing:-.02em; margin:0 0 8px}
+  .sous{color:var(--muted); margin:0 0 28px}
+
+  a.adresse{
+    display:block; background:var(--red); color:#fff; text-decoration:none;
+    border-radius:12px; padding:17px 20px; text-align:center; font-weight:600;
+    font-size:19px; letter-spacing:-.01em; word-break:break-all;
+  }
+  a.adresse:active{opacity:.9}
+  .note{color:var(--muted); font-size:14px; text-align:center; margin:10px 0 32px}
+
+  ol{margin:0 0 28px; padding:0; list-style:none; counter-reset:e}
+  li{counter-increment:e; padding:0 0 0 34px; position:relative; margin:0 0 16px}
+  li::before{
+    content:counter(e) "."; position:absolute; left:0; top:0;
+    color:var(--red); font-weight:600;
+  }
+  li b{font-weight:600}
+  li span{display:block; color:var(--muted); font-size:14.5px}
+
+  .avert{
+    border-left:3px solid var(--red); padding:2px 0 2px 16px; margin:0 0 28px;
+    font-size:14.5px; color:var(--muted);
+  }
+  .avert b{color:var(--ink); font-weight:600}
+
+  .inchange{
+    border-top:1px solid var(--line); padding-top:20px;
+    color:var(--muted); font-size:14.5px; margin:0;
+  }
+  #etat{color:var(--muted); font-size:13px; margin:24px 0 0; min-height:18px}
+</style>
+</head>
+<body>
+<main>
+
+  <h1>Le portail a déménagé.</h1>
+  <p class="sous">Cette adresse ne sert plus. Tout se trouve désormais ici, à l'identique.</p>
+
+  <a class="adresse" href="https://planningmedic.github.io">planningmedic.github.io</a>
+  <p class="note">Touchez le bandeau pour ouvrir le portail.</p>
+
+  <ol>
+    <li><b>Remplacez votre favori</b>
+        <span>Par la nouvelle adresse.</span></li>
+    <li><b>Réinstallez l'application</b>
+        <span>Supprimez l'icône actuelle, puis depuis la nouvelle adresse :
+        Partager, « Sur l'écran d'accueil ».</span></li>
+    <li><b>Réactivez les notifications</b>
+        <span>La cloche, en haut du portail.</span></li>
+  </ol>
+
+  <p class="avert"><b>La réinstallation n'est pas facultative.</b> Une application installée garde
+  l'adresse d'origine : tant que l'ancienne icône reste sur votre écran, elle affiche un portail
+  figé qui n'enregistre plus rien.</p>
+
+  <p class="inchange">Votre code personnel, vos gardes, vos congés et vos souhaits sont
+  inchangés — tout a été repris à l'identique.</p>
+
+  <p id="etat"></p>
+</main>
+
+<script>
+/* ── NETTOYAGE DE L'ANCIENNE INSTALLATION ────────────────────────────────
+   Le portail servi ici était installable : il a déposé un service worker et
+   des caches sur l'appareil. Sans ce nettoyage, un collègue ouvrant son
+   ancienne icône continuerait de voir le portail d'avant — fonctionnel en
+   apparence, mais coupé du serveur. Il ne verrait même pas cette page.
+   Le message n'apparaît QUE si quelque chose a réellement été effacé :
+   annoncer un nettoyage qui n'a pas eu lieu serait pire que se taire. */
+(async function () {
+  var faits = 0;
+  try {
+    if ('serviceWorker' in navigator) {
+      var regs = await navigator.serviceWorker.getRegistrations();
+      for (var i = 0; i < regs.length; i++) { await regs[i].unregister(); faits++; }
+    }
+    if (window.caches && caches.keys) {
+      var noms = await caches.keys();
+      for (var j = 0; j < noms.length; j++) { await caches.delete(noms[j]); faits++; }
+    }
+  } catch (e) { /* navigateur restrictif : se taire plutôt qu'alarmer */ }
+  if (faits) document.getElementById('etat').textContent =
+    'Ancienne version effacée de cet appareil.';
+})();
+</script>
+</body>
+</html>
